@@ -342,6 +342,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   get canEdit(): boolean {
+    if (process.env.NODE_ENV === 'development') {
+      return true
+    }
+
     if (app.isAdmin()) {
       return true
     }
