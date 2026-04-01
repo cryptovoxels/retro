@@ -10,6 +10,8 @@ services:
     working_dir: /workspaces/retro
     environment:
       DATABASE_URL: postgres://voxels:voxels@db:5432/voxels
+    networks:
+      - voxels-net
     ports:
       - "9000:9000"
       - "9100:9100"
@@ -35,6 +37,14 @@ services:
       interval: 2s
       timeout: 5s
       retries: 15
+    networks:
+      - voxels-net
 
 volumes:
   voxels-pg18:
+
+
+networks:
+  voxels-net:
+    driver: bridge
+    
