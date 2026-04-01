@@ -382,6 +382,12 @@ LivekitController(db, passport, app)
 // The NFTs
 NftController(db, passport, app)
 
+// Dev sandbox: editable space, no auth needed
+if (process.env.NODE_ENV !== 'production') {
+  const SandboxController = require('./controllers/sandbox').default
+  SandboxController(app)
+}
+
 // Main client controller
 PlayController(db, passport, app)
 // parcels controller

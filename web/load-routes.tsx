@@ -32,10 +32,15 @@ const renderPage = (content: any) => {
   )
 }
 
+const isProduction = process.env.NODE_ENV === 'production'
+
 export default function loadRoutes(app: Express) {
   const duration = '10 minutes'
 
   app.get('/', cache(duration), async (req, res) => {
+    if (!isProduction) {
+      return res.redirect('/spaces/sandbox/play')
+    }
     try {
       let r = await db.query(
         'sql/get-womps',
