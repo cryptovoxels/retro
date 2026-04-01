@@ -1,0 +1,26 @@
+{
+  "name": "Retrovoxels",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  
+  "features": {
+    "ghcr.io/devcontainers/features/node:1": {
+      "version": "lts", 
+      "pnpmVersion": "latest"
+    }
+  },
+
+  // Set env var so psql knows which DB to connect to by default
+  "containerEnv": {
+    "PGDATABASE": "voxels",
+    "PGHOST": "db", 
+    "PGUSER": "postgres"
+  },
+
+  "customizations": {
+    "vscode": {
+      "extensions": ["ckotzb.postgresql"]
+    }
+  }
+}

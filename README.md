@@ -1,6 +1,32 @@
 # Retro Voxels
 
-Setup instructions to follow.
+This is the live code to retro.voxels.com. PRs are welcome. Read agents.md for coding
+guidelines.
+
+# Getting started
+
+[![Open in GitHub Codespaces](https://img.shields.io/badge/Open_in-GitHub_Codespaces-238636?style=for-the-badge&logo=github&logoColor=white)](https://codespaces.new/cryptovoxels/retro)
+
+* `pnpm install`
+* `pnpm run dev`
+* Open port 9000
+
+# Installing locally
+
+* Clone repo
+* `brew install postgres@18`
+* `createdb voxels && psql voxels < db/import.sql`
+* Install node@25 and pnpm
+* `pnpm install`
+* `pnpm run dev`
+
+# Infrastructure
+
+Thie app is deployed to digitalocean app platform from `main` at https://retro.voxels.com
+
+# Operations
+
+PRs are reviewed by @bnolan and if merged will be deployed to production.
 
 # License
 

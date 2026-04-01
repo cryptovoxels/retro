@@ -3,7 +3,6 @@
 **/.DS_Store
 **/*.map
 boxproject.sql
-db
 dist/*.css
 dist/*.js
 dist/*.LICENSE.txt

@@ -12,6 +12,10 @@ if (nodeEnv === 'production') {
   envPath = '.env.test'
 }
 
+if (process.env.CODESPACES === 'true') {
+  envPath = '.env.example'
+}
+
 console.log(`NODE_ENV is '${nodeEnv}' and '${envPath}' will be used for dotenv`)
 
 const result = require('dotenv').config({

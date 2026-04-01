@@ -96,8 +96,6 @@ if (!process.env.CONTRACT_ADDRESS) {
   process.exit()
 }
 
-const USE_HTTPS = fs.existsSync(path.resolve(__dirname, '../openssl/cert.key'))
-
 // JWT Strategy config
 const opts: StrategyOptions = {
   jwtFromRequest: ExtractJwt.fromExtractors([
@@ -152,20 +150,9 @@ if (process.env.NODE_ENV === 'development') {
 // Enable if you're behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, etc) see https://expressjs.com/en/guide/behind-proxies.html
 app.set('trust proxy', 1)
 const httpServer = http.createServer(app)
-let httpsServer: null | https.Server<typeof http.IncomingMessage, typeof http.ServerResponse> = null
-if (USE_HTTPS) {
-  httpsServer = https.createServer(
-    {
-      key: fs.readFileSync(path.resolve(__dirname, '../openssl/cert.key')),
-      cert: fs.readFileSync(path.resolve(__dirname, '../openssl/cert.pem')),
-    },
-    app,
-  )
-}
 
 // Set a 25 second timeout
 httpServer.setTimeout(1000 * 25)
-httpsServer?.setTimeout(1000 * 25)
 
 app.use(cookieParser())
 app.use(bodyParser.json({ limit: '50mb' }))
@@ -209,7 +196,7 @@ preCorsController(passport, app)
 
 // in dev mode we need to proxy to the webpack dev servers
 if (config.isDevelopment) {
-  const protocol = USE_HTTPS ? 'https' : 'http'
+  const protocol = 'http'
 
   // In dev mode we need to proxy to the webpack dev servers
   app.use('/proxy/web', cache(false), proxy(`${protocol}://localhost:9200`))
@@ -348,7 +335,7 @@ app.use(
   }),
 )
 
-const gridServer = httpsServer ? httpsServer : httpServer
+const gridServer = httpServer
 const gridSocket = createGridSocket(gridServer, opts.secretOrKey, PARCEL_EVENT_EMITTER)
 
 export async function dropConnectionsForWallet(wallet: string) {
@@ -643,17 +630,8 @@ loadRoutes(app)
 const port = process.env.PORT || 9000 // it's over 9000!
 
 const start = () => {
-  if (httpsServer) {
-    httpsServer.listen(9500, () => {
-      log.info('HTTPS server is listening on https://voxels.local:9500')
-    })
-    httpsServer.on('close', () => {
-      log.info(`HTTPS server is shutting down`)
-    })
-  }
-
-  httpServer.listen(port, function listening() {
-    log.info(`HTTP server is listening on port ${port}`)
+  httpServer.listen({ port, host: '0.0.0.0' }, function listening() {
+    log.info(`HTTP server is listening on http://localhost:${port} (0.0.0.0:${port})`)
   })
 
   httpServer.on('close', () => {
