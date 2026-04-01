@@ -20,6 +20,8 @@ guidelines.
 * `pnpm install`
 * `pnpm run dev`
 
+(Only *nix environments are supported, PC users install [WSL](https://learn.microsoft.com/en-au/windows/wsl/install))
+
 # Infrastructure
 
 Thie app is deployed to digitalocean app platform from `main` at https://retro.voxels.com
