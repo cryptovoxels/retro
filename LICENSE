@@ -2,10 +2,11 @@ Business Source License 1.1
 
 Parameters
 
-Licensor: Nolan Consulting
+Licensor: Nolan Consulting Limited
 
-Licensed Work: The Cryptovoxels software, assets, and associated
-source code.
+Licensed Work: The Cryptovoxels software, source code, and internal assets
+contained within this repository, excluding any User Generated Content (UGC)
+as defined below.
 
 Change Date: For any specific commit to the Licensed Work, the
 third anniversary of the date on which such commit
@@ -83,6 +84,10 @@ Definitions:
   wearables and fungible tokens).
 - "Publicly Available" refers to the moment code is pushed to a
   public GitHub repository.
+- "User Generated Content" or "UGC" refers to any art, 3D models, textures,
+  or data created or uploaded by users. UGC is expressly excluded from the
+  "Licensed Work" and is not subject to the terms of this License or the
+  Change License, regardless of how or where such content is stored or hosted.
 
 All other terms shall be interpreted in accordance with the Business
 Source License 1.1.
