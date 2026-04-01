@@ -1,0 +1,42 @@
+{
+  "name": "Retro Voxels",
+  "dockerComposeFile": ".devcontainer/docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/retro",
+  "containerEnv": {
+    "DATABASE_URL": "postgres://voxels:voxels@db:5432/voxels"
+  },
+  "forwardPorts": [9000, 9100, 9200, 3780, 5432],
+  "portsAttributes": {
+    "9000": { "label": "HTTP API" },
+    "9100": { "label": "webpack client" },
+    "9200": { "label": "webpack web" },
+    "3780": { "label": "multiplayer" },
+    "5432": { "label": "postgres" }
+  },
+  "customizations": {
+    "vscode": {
+      "settings": {
+        "workbench.colorTheme": "Monaco Dark",
+        "editor.fontFamily": "'Monaco', 'Courier New', monospace",
+        "editor.fontSize": 14,
+        "editor.bracketPairColorization.enabled": true,
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": "explicit"
+        }
+      },
+      "extensions": [
+        "visualstudioexptteam.vscodeintellicode",
+        "GitHub.copilot",
+        "be5invis.theme-monaco",
+        "mrdoob.glsl",
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode"
+      ],
+      "openFiles": ["README.md", "src/index.tsx"]
+    }
+  },
+  "postCreateCommand": "pnpm install && bash .devcontainer/setup-db.sh"
+}

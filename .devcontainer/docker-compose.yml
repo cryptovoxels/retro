@@ -1,0 +1,35 @@
+services:
+  app:
+    build:
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+    command: sleep infinity
+    init: true
+    volumes:
+      - ..:/workspaces/retro:cached
+    working_dir: /workspaces/retro
+    environment:
+      DATABASE_URL: postgres://voxels:voxels@db:5432/voxels
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: postgres:18-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: voxels
+      POSTGRES_PASSWORD: voxels
+      POSTGRES_DB: voxels
+    volumes:
+      - voxels-pg18:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U voxels -d voxels"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+volumes:
+  voxels-pg18:

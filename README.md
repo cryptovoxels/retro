@@ -1,6 +1,26 @@
 # Retro Voxels
 
-Setup instructions to follow.
+This is the live code to retro.voxels.com. PRs are welcome. Read agents.md for coding
+guidelines.
+
+# Getting started
+
+    * Clone repo
+    * `brew install postgres@18`
+    * `createdb voxels && cat db/import.sql | psql voxels`
+    * `pnpm install`
+    * `pnpm run dev`
+    * Open project on localhost:9000
+
+**Dev Container (Cursor / VS Code):** Reopen the folder in a container. Compose brings up PostgreSQL 18 and runs `pnpm install` plus `db/import.sql` on first create when `properties` is missing. Then `pnpm run dev` (API on port 9000; webpack client 9100, web 9200; multiplayer 3780).
+
+# Infrastructure
+
+Thie app is deployed to digitalocean app platform from `main` at https://retro.voxels.com
+
+# Operations
+
+PRs are reviewed by @bnolan and if merged will be deployed to production.
 
 # License
 
