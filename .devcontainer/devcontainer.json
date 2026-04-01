@@ -1,26 +1,20 @@
-  {
+{
   "name": "Retrovoxels",
   "dockerComposeFile": "docker-compose.yml",
   "service": "app",
   "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
   
   "features": {
-    // Install specific Node.js version
     "ghcr.io/devcontainers/features/node:1": {
-      "version": "25",
+      "version": "lts", 
       "pnpmVersion": "latest"
-    },
-    // Install psql client (so you can run 'psql' in the terminal)
-    "ghcr.io/devcontainers/features/postgres:1": {
-      "version": "18",
-      "installTools": true
     }
   },
 
   // Set env var so psql knows which DB to connect to by default
   "containerEnv": {
     "PGDATABASE": "voxels",
-    "PGHOST": "localhost",
+    "PGHOST": "db", 
     "PGUSER": "postgres"
   },
 

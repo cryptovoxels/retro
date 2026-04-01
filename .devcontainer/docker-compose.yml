@@ -1,15 +1,17 @@
 version: '3.8'
+
 services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile # We'll let devcontainer.json handle the base image
-    volumes:
-      - ..:/workspaces:cached
-    network_mode: service:db # Shares localhost between app and db
+      dockerfile: Dockerfile 
+    # Removed manual volume mapping; DevContainers handles this automatically.
+    # Removed network_mode; we will rely on Docker's default internal network.
+    depends_on:
+      - db
 
   db:
-    image: postgres:18
+    image: postgres:14
     restart: unless-stopped
     environment:
       - POSTGRES_DB=voxels
