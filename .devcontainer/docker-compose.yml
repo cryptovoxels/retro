@@ -1,19 +1,21 @@
+version: '3.8'
 services:
   app:
     build:
-      context: ..
-      dockerfile: .devcontainer/Dockerfile
-    command: sleep infinity
-    init: true
+      context: .
+      dockerfile: Dockerfile # We'll let devcontainer.json handle the base image
     volumes:
-      - ..:/workspaces/retro:cached
-    working_dir: /workspaces/retro
+      - ..:/workspaces:cached
+    network_mode: service:db # Shares localhost between app and db
+
+  db:
+    image: postgres:18
+    restart: unless-stopped
     environment:
-      # Use localhost now!
-      DATABASE_URL: postgres://localhost:5432/voxels
-    ports:
-      - "9000:9000"
-      - "9100:9100"
-      - "9200:9200"
-      - "3780:3780"
-      - "5432:5432"
+      - POSTGRES_DB=voxels
+      - POSTGRES_HOST_AUTH_METHOD=trust # For easy local dev access
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:

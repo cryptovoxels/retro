@@ -3,11 +3,9 @@
 This is the live code to retro.voxels.com. PRs are welcome. Read agents.md for coding
 guidelines.
 
-# Fix a bug in codespaces:
+# Getting started
 
 [![Open in GitHub Codespaces](https://img.shields.io/badge/Open_in-GitHub_Codespaces-238636?style=for-the-badge&logo=github&logoColor=white)](https://codespaces.new/cryptovoxels/retro)
-
-# Getting started
 
 * `pnpm install`
 * `pnpm run dev`
