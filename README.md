@@ -7,16 +7,20 @@ guidelines.
 
 [![Open in GitHub Codespaces](https://img.shields.io/badge/Open_in-GitHub_Codespaces-238636?style=for-the-badge&logo=github&logoColor=white)](https://codespaces.new/cryptovoxels/retro)
 
-# Getting started for local macbook dev
+# Getting started
+
+    * `pnpm install`
+    * `pnpm run dev`
+    * `open port 9000`
+
+# Installing locally
 
     * Clone repo
     * `brew install postgres@18`
     * `createdb voxels && psql voxels < db/import.sql`
+    * Install node@25 and pnpm
     * `pnpm install`
     * `pnpm run dev`
-    * Open project on localhost:9000
-
-**Dev Container (Cursor / VS Code):** Reopen the folder in a container. Compose brings up PostgreSQL 18 and runs `pnpm install` plus `db/import.sql` on first create when `properties` is missing. Then `pnpm run dev` (API on port 9000; webpack client 9100, web 9200; multiplayer 3780).
 
 # Infrastructure
 
