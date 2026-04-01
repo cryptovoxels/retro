@@ -7,6 +7,7 @@ import { hasMetamask } from './auth/login-helper'
 import { login } from './auth/state-login'
 import { PanelType } from './components/panel'
 import { app, AppEvent } from './state'
+import Logo from './components/logo'
 
 function AdminMenu() {
   return (
@@ -153,9 +154,7 @@ export default class WebHeader extends Component<Props, State> {
           <nav>
             <ul>
               <li>
-                <a href="/" aria-current={isActive('') ? 'page' : undefined}>
-                  <img class="logo" src="/images/newlogo.png" alt="voxels.com logo" width="56" />
-                </a>
+                <Logo />
               </li>
               <li>
                 <button onClick={onPlay} class="big-play">

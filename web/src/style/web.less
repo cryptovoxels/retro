@@ -492,3 +492,79 @@ small {
     width: 100%;
   }
 }
+
+// Rocking animation: On hover, boxes rock back and forth with increasing then decreasing amplitude
+@keyframes voxels-rock {
+  0% {
+    transform: rotateX(-35.264deg) rotateY(35deg);
+  }
+  50% {
+    transform: rotateX(-35.264deg) rotateY(-145deg);
+  }
+  100% {
+    transform: rotateX(-35.264deg) rotateY(-325deg);
+  }
+}
+
+// Logo (CSS 3D voxels)
+
+.voxels-logo {
+  box-sizing: border-box;
+  position: relative;
+  top: -0.5rem;
+  display: inline-block;
+  --size: 1rem;
+  --half: calc(var(--size) / 2);
+  min-width: calc(7 * var(--size));
+  min-height: calc(3 * var(--size));
+  transform-style: preserve-3d;
+  perspective: 250px;
+  transform: rotateX(-35.264deg) rotateY(35deg);
+
+  &:hover {
+    animation: voxels-rock 1s linear infinite;
+  }
+
+  .box {
+    width: var(--size);
+    height: var(--size);
+    position: absolute;
+    transform-style: preserve-3d;
+  }
+
+  // N/S = top/bottom, E/W = right/left, F/B = front/back (+Z / -Z toward viewer)
+  .face-N,
+  .face-E,
+  .face-S,
+  .face-W,
+  .face-F,
+  .face-B {
+    position: absolute;
+    inset: 0;
+    background: #f0a;
+    backface-visibility: hidden;
+  }
+
+  .face-F {
+    transform: rotateY(0deg) translateZ(var(--half));
+  }
+  .face-B {
+    transform: rotateY(180deg) translateZ(var(--half));
+    background: #508;
+  }
+  .face-E {
+    transform: rotateY(90deg) translateZ(var(--half));
+    background: linear-gradient(to right, #f0a, #508);
+  }
+  .face-W {
+    transform: rotateY(-90deg) translateZ(var(--half));
+    background: linear-gradient(to left, #f0a, #508);
+  }
+  .face-N {
+    transform: rotateX(90deg) translateZ(var(--half));
+    background: linear-gradient(to top, #f0a, #508);
+  }
+  .face-S {
+    transform: rotateX(-90deg) translateZ(var(--half));
+  }
+}
