@@ -8,15 +8,36 @@
   },
   "forwardPorts": [9000, 9100, 9200, 3780, 5432],
   "portsAttributes": {
-    "9000": { "label": "HTTP API" },
-    "9100": { "label": "webpack client" },
-    "9200": { "label": "webpack web" },
-    "3780": { "label": "multiplayer" },
-    "5432": { "label": "postgres" }
+    "9000": {
+      "label": "HTTP API",
+      "protocol": "http",
+      "onAutoForward": "notify",
+      "visibility": "public"
+    },
+    "9100": {
+      "label": "webpack client",
+      "protocol": "http",
+      "onAutoForward": "notify",
+      "visibility": "public"
+    },
+    "9200": {
+      "label": "webpack web",
+      "protocol": "http",
+      "onAutoForward": "notify",
+      "visibility": "public"
+    },
+    "3780": {
+      "label": "multiplayer",
+      "protocol": "http",
+      "onAutoForward": "notify",
+      "visibility": "public"
+    },
+    "5432": { "label": "postgres", "onAutoForward": "silent" }
   },
   "customizations": {
     "vscode": {
       "settings": {
+        "task.allowAutomaticTasks": "on",
         "workbench.colorTheme": "Monaco Dark",
         "editor.fontFamily": "'Monaco', 'Courier New', monospace",
         "editor.fontSize": 14,

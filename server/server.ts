@@ -96,7 +96,6 @@ if (!process.env.CONTRACT_ADDRESS) {
   process.exit()
 }
 
-const USE_HTTPS = fs.existsSync(path.resolve(__dirname, '../openssl/cert.key'))
 
 // JWT Strategy config
 const opts: StrategyOptions = {
@@ -652,8 +651,8 @@ const start = () => {
     })
   }
 
-  httpServer.listen(port, function listening() {
-    log.info(`HTTP server is listening on port ${port}`)
+  httpServer.listen({ port, host: '0.0.0.0' }, function listening() {
+    log.info(`HTTP server is listening on http://localhost:${port} (0.0.0.0:${port})`)
   })
 
   httpServer.on('close', () => {

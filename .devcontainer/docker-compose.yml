@@ -10,6 +10,11 @@ services:
     working_dir: /workspaces/retro
     environment:
       DATABASE_URL: postgres://voxels:voxels@db:5432/voxels
+    ports:
+      - "9000:9000"
+      - "9100:9100"
+      - "9200:9200"
+      - "3780:3780"
     depends_on:
       db:
         condition: service_healthy
