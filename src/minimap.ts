@@ -291,9 +291,9 @@ export class Minimap {
    */
   private syncAspectRatio() {
     const engine = this.scene.getEngine()
-    const pxWidth = 180 // engine.getRenderingCanvas()?.width
-    const pxHeight = 180 // engine.getRenderingCanvas()?.height
-    // if (!pxWidth || !pxHeight) return
+    const pxWidth = engine.getRenderingCanvas()?.width
+    const pxHeight = engine.getRenderingCanvas()?.height
+    if (!pxWidth || !pxHeight) return
     const pxPadding = 0
     const width = MAP_SCREEN_SIZE
     const height = (pxWidth * width) / pxHeight
