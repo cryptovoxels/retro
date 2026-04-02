@@ -806,6 +806,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           <UploadStatusUI onCompleteUpload={onCompleteUpload} onFailUpload={onFailUpload} onBeginUpload={onBeginUpload} ref={this.uploadStatusRef} />
           <ConnectionStatusUI connector={this.connector} grid={this.grid} scene={this.props.scene} />
+          {this.props.minimapSettings.enabled && !this.props.scene.config.isOrbit && !this.props.scene.config.isSpace && (
+            <button class="minimap-expand" onClick={() => this.showExplorerMap()} title="Open map">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><line x1="1" y1="11" x2="5" y2="7"/><polyline points="1 7 1 11 5 11"/><line x1="11" y1="1" x2="7" y2="5"/><polyline points="11 5 11 1 7 1"/></svg>
+            </button>
+          )}
           <OnlyMobile>
             <MobileButtons connector={this.connector} scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
           </OnlyMobile>

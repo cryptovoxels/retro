@@ -3547,6 +3547,34 @@ button[accesskey] {
   border-radius: 4px;
 }
 
+/* Minimap expand button -- sits inside the top-right corner of the Babylon minimap viewport */
+.minimap-expand {
+  position: fixed;
+  bottom: calc(15vh - 26px);
+  right: 4px;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.4);
+  border: none;
+  color: rgba(255, 255, 255, 0.75);
+  padding: 5px 4px;
+  cursor: pointer;
+  border-radius: 3px;
+  line-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+  }
+
+  @media @mobile {
+    display: none;
+  }
+}
+
 /* Aside sidebar */
 
 aside.ui-toggle-mobile {
