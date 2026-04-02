@@ -8,7 +8,6 @@ import { md5 } from '../../../common/helpers/utils'
 import { v7 as uuidv7 } from 'uuid'
 import { CollectiblesData } from '../../../common/helpers/collections-helpers'
 import cachedFetch from '../../../web/src/helpers/cached-fetch'
-import { getWearableGif } from '../../../web/src/helpers/wearable-helpers'
 import Controls from '../../controls/controls'
 import Persona from '../../persona'
 import { UserAvatar } from '../../user-avatar'
@@ -76,7 +75,6 @@ interface State {
   expandAttachments?: boolean
   targetBone: string | null
   wasFirstPerson: boolean
-  assets: Array<Wearable>
 }
 
 export default class Costumer extends Component<Props, State> {
@@ -98,7 +96,6 @@ export default class Costumer extends Component<Props, State> {
       loading: true,
       costumeId: this.userAvatar?.getCostume()?.id ?? undefined,
       targetBone: null,
-      assets: [],
     }
   }
 
@@ -413,9 +410,6 @@ export default class Costumer extends Component<Props, State> {
     const j2 = await r2.json()
     this.setState({ costumes: j2.costumes })
 
-    var r = await cachedFetch(`/api/avatars/${app.state.wallet}/assets`)
-    var j = await r.json()
-    this.setState({ assets: j.assets })
   }
 
   hideBoneSpheres() {
@@ -574,23 +568,6 @@ export default class Costumer extends Component<Props, State> {
       )
     })
 
-    const onDragStart = (w: Wearable) => (e: DragEvent) => {
-      e.dataTransfer?.setData('text/plain', JSON.stringify({ type: 'wearable', content: w }))
-      e.dataTransfer!.effectAllowed = 'copy'
-      e.stopImmediatePropagation()
-    }
-
-    const onDragEnd = (_w: Wearable) => (_e: DragEvent) => {}
-
-    const wearables = this.state.assets.map((w) => {
-      return (
-        <div draggable={true} onDragStart={onDragStart(w)} onDragEnd={onDragEnd(w)} key={w.id}>
-          <img src={getWearableGif(w)} alt={w.name} />
-          {w.name}
-        </div>
-      )
-    })
-
     return (
       <section class="costume-overlay">
         <header>
@@ -598,9 +575,6 @@ export default class Costumer extends Component<Props, State> {
         </header>
 
         <ul>{costumes}</ul>
-
-        <h3>Wearables</h3>
-        <div class="wearables-grid">{wearables}</div>
       </section>
     )
   }
