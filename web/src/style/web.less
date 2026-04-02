@@ -430,25 +430,19 @@ section.parcel-page {
 
     figcaption.parcel-actions {
       position: absolute;
-      top: -15px;
-      left: 50%;
-      transform: translateX(-100%);
+      top: 0;
+      left: 0;
+      right: 0;
       z-index: 500;
       display: flex;
-      gap: 8px;
-      // justify-content: center;
-      // align-items: center;
-      scale: 50%;
-
-      svg {
-        width: 32px;
-        height: 32px;
-        @media @mobile {
-          width: 24px;
-          height: 24px;
-        }
-      }
+      justify-content: flex-end;
+      padding: 8px;
     }
+  }
+
+  > aside > button,
+  > aside > p > button {
+    width: 100%;
   }
 }
 

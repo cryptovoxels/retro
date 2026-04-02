@@ -501,20 +501,6 @@ export default class Parcel extends Component<Props, State> {
                 <button class="secondary" onClick={onFullscreen}>
                   <span>Fullscreen</span>
                 </button>
-
-                <button
-                  class="secondary"
-                  onClick={() => {
-                    if (this.visitUrl) {
-                      window.location.href = this.visitUrl
-                    }
-                  }}
-                >
-                  <span>Visit</span>
-                </button>
-              </div>
-
-              <div role="group">
                 {modes.map((mode) => (
                   <button class={`secondary ${this.state.viewTab === mode.mode ? 'contrast' : ''}`} data-active={this.state.viewTab === mode.mode} onClick={() => this.setViewTab(mode.mode)} key={mode.mode}>
                     {mode.label}
@@ -551,6 +537,16 @@ export default class Parcel extends Component<Props, State> {
           </dl>
 
           {this.state.parcel ? <ParcelAttributes parcel={this.state.parcel} /> : <div />}
+          <button
+            class="secondary"
+            onClick={() => {
+              if (this.visitUrl) {
+                window.location.href = this.visitUrl
+              }
+            }}
+          >
+            Teleport
+          </button>
           {this.state.parcel ? <Collaborators parcel={this.state.parcel} /> : <div />}
           {this.complete && this.state.parcel ? <ParcelAdminPanel parcelOrSpace={this.state.parcel as any as FullParcelRecord} onSave={this.onSave} onEventCreate={this.eventCreate.bind(this)} /> : <div />}
           <div>{this.isOwner && this.state.parcel ? <Build parcel={this.state.parcel} callback={this.refreshIframe.bind(this)} /> : <div />}</div>
