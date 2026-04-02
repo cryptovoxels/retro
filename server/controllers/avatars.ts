@@ -35,26 +35,33 @@ export default function AvatarsController(db: Db, passport: PassportStatic, app:
       'sql/avatar/assets',
       `
       select
-        id,
-        name,
-        description,
-        author,
-        issues,
-        token_id,
-        created_at,
-        updated_at,
-        hash,
-        rejected_at,
-        offer_prices,
-        collection_id,
-        custom_attributes,
-        suppressed,
-        category,
-        default_settings
+        w.id,
+        w.name,
+        w.description,
+        w.author,
+        w.issues,
+        w.token_id,
+        w.created_at,
+        w.updated_at,
+        w.hash,
+        w.rejected_at,
+        w.offer_prices,
+        w.collection_id,
+        w.custom_attributes,
+        w.suppressed,
+        w.category,
+        w.default_settings,
+        c.address as collection_address,
+        c.chainid as chain_id,
+        c.name as collection_name
       from
-        wearables
+        wearables w
+      left join
+        collections c on c.id = w.collection_id
       where
-        author ILIKE $1`,
+        w.author ILIKE $1
+        and w.token_id is not null
+        and w.suppressed is not true`,
       [wallet],
     )
     res.status(200).json({ success: true, assets: result.rows })

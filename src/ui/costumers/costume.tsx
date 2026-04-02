@@ -461,7 +461,10 @@ export default class Costumer extends Component<Props, State> {
     const attachmentId = uuidv7()
     const attachment: CostumeAttachment = {
       name: wearable.name,
-      wearable_id: wearable.id!,
+      wearable_id: wearable.token_id || wearable.id!,
+      collection_id: wearable.collection_id,
+      collection_address: wearable.collection_address ?? undefined,
+      chain_id: wearable.chain_id,
       position: [0, 0, 0],
       rotation: [0, 0, 0],
       scaling: [voxelSize, voxelSize, voxelSize],
@@ -577,9 +580,7 @@ export default class Costumer extends Component<Props, State> {
       e.stopImmediatePropagation()
     }
 
-    const onDragEnd = (w: Wearable) => (e: DragEvent) => {
-      alert(w.name)
-    }
+    const onDragEnd = (_w: Wearable) => (_e: DragEvent) => {}
 
     const wearables = this.state.assets.map((w) => {
       return (
@@ -597,6 +598,9 @@ export default class Costumer extends Component<Props, State> {
         </header>
 
         <ul>{costumes}</ul>
+
+        <h3>Wearables</h3>
+        <div class="wearables-grid">{wearables}</div>
       </section>
     )
   }
