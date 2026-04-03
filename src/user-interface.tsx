@@ -411,7 +411,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   deleteFeature() {
-    if (!app.signedIn) return
+    if (!app.signedIn && !this.grid.nearestEditableParcel()?.sandbox) return
 
     const feature = this.featureTool?.selection?.feature as Feature | undefined
 
@@ -423,7 +423,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   editFeatureIfHasLock(): void {
-    if (!app.signedIn) return
+    if (!app.signedIn && !this.grid.nearestEditableParcel()?.sandbox) return
     if (hasPointerLock()) {
       this.editFeature()
     }
@@ -431,7 +431,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   editFeature(feature?: Feature): void {
     if (!this.grid.nearestEditableParcel()) return
-    if (!app.signedIn) return
+    if (!app.signedIn && !this.grid.nearestEditableParcel()?.sandbox) return
 
     this.setFirstPersonPerspective()
     this.featureTool.setMode('edit')
@@ -448,7 +448,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   editFeatureThenMove() {
     if (!this.grid.nearestEditableParcel()) return
-    if (!app.signedIn) return
+    if (!app.signedIn && !this.grid.nearestEditableParcel()?.sandbox) return
 
     this.setFirstPersonPerspective()
     this.featureTool.setMode('edit')
@@ -459,7 +459,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   editFeatureThenCopy() {
     if (!this.grid.nearestEditableParcel()) return
-    if (!app.signedIn) return
+    if (!app.signedIn && !this.grid.nearestEditableParcel()?.sandbox) return
 
     this.setFirstPersonPerspective()
     this.featureTool.setMode('edit')
