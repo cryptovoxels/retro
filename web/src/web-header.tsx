@@ -208,6 +208,9 @@ export default class WebHeader extends Component<Props, State> {
                   Womps
                 </Link>
               </li>
+              <li>
+                <Link activeClassName="active" href="/scratchpad">Scratchpad</Link>
+              </li>
 
               <li>
                 <form action="/search" onSubmit={this.onSubmit}>

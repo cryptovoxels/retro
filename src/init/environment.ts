@@ -4,11 +4,18 @@ import { isSpace, isWorld, Scene } from '../scene'
 import { easeInSineDistance } from '../utils/easing'
 import { WorldEnvironment } from '../enviroments/world-environment'
 import { SpacesEnvironment } from '../enviroments/space-environment'
+import { ScratchpadEnvironment } from '../enviroments/scratchpad-environment'
+
+function isScratchpad(scene: Scene) {
+  return window.location.pathname.includes('scratchpad')
+}
 
 export async function createEnvironment(scene: Scene, parent: BABYLON.TransformNode) {
   let environment: Environment
 
-  if (isSpace(scene)) {
+  if (isScratchpad(scene)) {
+    environment = new ScratchpadEnvironment(parent, scene)
+  } else if (isSpace(scene)) {
     environment = new SpacesEnvironment(parent, scene)
   } else if (isWorld(scene)) {
     environment = new WorldEnvironment(parent, scene)
