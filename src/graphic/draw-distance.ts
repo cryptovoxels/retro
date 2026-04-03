@@ -1,4 +1,4 @@
-import { drawDistanceOverride } from '../../common/helpers/detector'
+import { drawDistanceOverride, isMobile } from '../../common/helpers/detector'
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
 import { GraphicEngine, GraphicLevels } from './graphic-engine'
 
@@ -18,6 +18,9 @@ const SpaceDistances = {
   [GraphicLevels.Custom]: 512, // Default for custom, will be overridden
 } as const
 
+// mobile has ~1GB memory budget; fewer loaded parcels = less likely to get killed by iOS
+const MOBILE_MAX_DRAW_DISTANCE = 80
+
 const getDistanceForGraphicsLevel = (level: GraphicLevels, isSpace: boolean, customDistance?: number): number => {
   // allow users to override the draw distance via query params
   const override = drawDistanceOverride()
@@ -36,7 +39,9 @@ const getDistanceForGraphicsLevel = (level: GraphicLevels, isSpace: boolean, cus
     return distances[GraphicLevels.Medium]
   }
 
-  return distances[level]
+  const distance = distances[level]
+  if (isMobile()) return Math.min(distance, MOBILE_MAX_DRAW_DISTANCE)
+  return distance
 }
 
 export class DrawDistance extends TypedEventTarget<{ 'distance-changed': number }> {

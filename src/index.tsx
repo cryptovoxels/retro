@@ -67,8 +67,7 @@ import { PostProcesses } from './graphic/post-processes'
 import LutFactor from './graphic/lut-factor'
 import { ColorGrader } from './graphic/color-grading'
 import { FOV } from './graphic/field-of-view'
-import type { MinimapSettings } from './minimap'
-import { Minimap } from './minimap'
+import { Minimap, MinimapSettings } from './minimap'
 import { MetaMaskInpageProvider } from '@metamask/providers'
 import { currentBuildDate, currentVersion } from '../common/version'
 import { CameraSettings } from './controls/user-control-settings'
@@ -298,37 +297,47 @@ declare global {
   // and here we start all the main stuff, start the renderloop, the pump, web-workers and mess with some random
   // fixes for browsers
 
-  const map = new Minimap(engine, connector)
-  const mapSettings = map.getSettings()
+  let map: Minimap | null = null
+  let mapSettings: MinimapSettings | null = null
   let mapScene: BABYLON.Scene | null = null
+
+  // minimap is never shown on mobile (enabled getter returns false) but the constructor
+  // still allocates a Scene, camera, meshes and PostProcess -- skip it entirely
+  if (!isMobile()) {
+    map = new Minimap(engine, connector)
+    mapSettings = map.getSettings()
+
+    if (!scene.config.isBot) {
+      if (mapSettings.enabled && !scene.config.isOrbit && scene.config.wantsUI && !scene.config.isSpace) {
+        mapScene = map.start(scene)
+        main.setMapScene(mapScene)
+      }
+    }
+
+    mapSettings.addEventListener('changed', (state) => {
+      if (state.detail.enabled && !state.detail.hide) {
+        mapScene = map!.start(scene)
+        main.setMapScene(mapScene)
+      } else {
+        map!.stop()
+        if (mapScene) {
+          main.unsetMapScene()
+          mapScene.dispose()
+          mapScene = null
+        }
+      }
+    })
+  }
 
   if (!scene.config.isBot) {
     main.start()
-    if (mapSettings.enabled && !scene.config.isOrbit && scene.config.wantsUI && !scene.config.isSpace) {
-      mapScene = map.start(scene)
-      main.setMapScene(mapScene)
-    }
   }
-
-  mapSettings.addEventListener('changed', (state) => {
-    if (state.detail.enabled && !state.detail.hide) {
-      mapScene = map.start(scene)
-      main.setMapScene(mapScene)
-    } else {
-      map.stop()
-      if (mapScene) {
-        main.unsetMapScene()
-        mapScene.dispose()
-        mapScene = null
-      }
-    }
-  })
 
   voxels.robots = new Robots(scene)
   voxels.robots.start()
 
   extendTabIndexOnClick()
-  startUserInterface(grid, connector, environment, map.getSettings())
+  startUserInterface(grid, connector, environment, mapSettings ?? new MinimapSettings())
   if (wantsXR()) return
 
   isInspect() && toggleBabylonInspector(scene).then(/** ignore promise */)
