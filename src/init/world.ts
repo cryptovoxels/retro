@@ -156,8 +156,7 @@ function initialSpawn(scene: Scene, grid: Grid, controls: Controls) {
 // Show params as NESW coordinates
 function updateNavbarWithCoords(scene: BABYLON.Scene, connector: Connector) {
 
-  if (document.location.pathname.match(/sandbox/)) {
-    // Don't update path
+  if (document.location.pathname.match(/scratchpad/)) {
     return
   }
 

@@ -79,7 +79,7 @@ export const ParcelGeometry = t.type(
 )
 export type ParcelGeometry = t.TypeOf<typeof ParcelGeometry>
 
-export const ParcelKind = t.union([t.literal('plot'), t.literal('inner'), t.literal('outer'), t.literal('unit'), t.literal('basement'), t.literal('asset'), t.literal('sandbox')])
+export const ParcelKind = t.union([t.literal('plot'), t.literal('inner'), t.literal('outer'), t.literal('unit'), t.literal('basement'), t.literal('asset'), t.literal('scratchpad')])
 export type ParcelKind = t.TypeOf<typeof ParcelKind>
 
 export const FullParcelRecord = t.type(

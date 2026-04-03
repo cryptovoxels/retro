@@ -6,8 +6,8 @@ import { Express } from 'express'
 
 const space = {
   id: 0,
-  spaceId: 'sandbox',
-  name: 'Dev Sandbox',
+  spaceId: 'scratchpad',
+  name: 'Scratchpad',
   owner: 'dev',
   owner_name: '',
   width: 14,
@@ -21,18 +21,18 @@ const space = {
   z2: 20,
   settings: { sandbox: true },
   content: { features: [], voxels: '' },
-  hash: 'sandbox',
+  hash: 'scratchpad',
   lightmap_url: null,
   parcel_users: [],
   is_common: false,
-  kind: 'sandbox',
+  kind: 'scratchpad',
 }
 
-export default function SandboxController(app: Express) {
-  app.get('/sandbox', (_req, res) => {
+export default function ScratchpadController(app: Express) {
+  app.get('/scratchpad', (_req, res) => {
     const html = (
-      <ClientRoot title="Voxels Dev Sandbox" ogTitle="Dev Sandbox" ogDescription="Build stuff">
-        <JsonData id="space" data={{ ...space, voxels: '' }} dataId="sandbox" />
+      <ClientRoot title="Voxels Scratchpad" ogTitle="Scratchpad" ogDescription="Build stuff">
+        <JsonData id="space" data={{ ...space, voxels: '' }} dataId="scratchpad" />
       </ClientRoot>
     )
     res.send(renderRoot(html))

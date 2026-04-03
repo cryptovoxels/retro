@@ -380,7 +380,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   get sandbox() {
-    return this.kind == 'sandbox' || this.settings.sandbox === true
+    return this.kind == 'scratchpad' || this.settings.sandbox === true
   }
 
   get hostedScripts() {
@@ -495,13 +495,13 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   sendPatch(patch: ParcelPatch) {
-    // if we are sending a patch, this means that we have most likely invalidated the current state of the parcel, and it will no longer match
-    // the parcel hash at load time. Better to have no hash than an invalid one to avoid bugs with parcel snapshots.
+    if (this.sandbox) return
     this.invalidateHash()
     this.grid.patchParcel(this.id, patch)
   }
 
   sendStatePatch(patch: Record<string, any>) {
+    if (this.sandbox) return
     this.grid.patchParcelState(this.id, patch)
   }
 

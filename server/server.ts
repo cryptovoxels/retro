@@ -17,7 +17,7 @@ import streamWearable from './handlers/stream-wearable'
 import { isOwner } from './lib/helpers'
 
 import AdminController from './controllers/admin'
-import SandboxController from './controllers/sandbox'
+import ScratchpadController from './controllers/scratchpad'
 import CollectiblesController from './controllers/collectibles'
 import CollectionsController from './controllers/collections'
 import EmojiBadgeController from './controllers/emoji_badges'
@@ -250,45 +250,45 @@ const assetsCacheType = cache('immutable')
 const sendFileCompressed = config.isDevelopment
   ? async (_req: Request, res: Response, filePath: string) => res.sendFile(filePath)
   : async (req: Request, res: Response, filePath: string) => {
-    const encodings = req.acceptsEncodings()
+      const encodings = req.acceptsEncodings()
 
-    let compressionExtension: '.br' | '.gz' | '' = ''
-    if (encodings.includes('br')) {
-      res.set('Content-Encoding', 'br')
-      compressionExtension = '.br'
-    } else if (encodings.includes('gzip')) {
-      res.set('Content-Encoding', 'gzip')
-      compressionExtension = '.gz'
+      let compressionExtension: '.br' | '.gz' | '' = ''
+      if (encodings.includes('br')) {
+        res.set('Content-Encoding', 'br')
+        compressionExtension = '.br'
+      } else if (encodings.includes('gzip')) {
+        res.set('Content-Encoding', 'gzip')
+        compressionExtension = '.gz'
+      }
+
+      if (!compressionExtension) {
+        // no supported compression schemes
+        return res.sendFile(filePath)
+      }
+
+      let stats: any
+
+      try {
+        stats = await stat(`${filePath}${compressionExtension}`)
+        res.set('vary', 'Accept-Encoding')
+        res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
+      } catch (e) {
+        return res.sendFile(filePath)
+      }
+
+      if (stats.isFile()) {
+        // if we have the stats may as well set some headers here
+        res.set('Content-Length', `${stats.size}`)
+        res.set('last-modified', stats.mtime.toUTCString())
+        // could just stream the file here, but will take the small hit of offloading this to express
+        return res.sendFile(`${filePath}${compressionExtension}`)
+      }
+
+      log.error('No compressed version of asset found', { filePath, compressionExtension })
+      // if we get here we don't have a compressed version, so send the uncompressed version
+      res.removeHeader('Content-Encoding')
+      res.sendFile(filePath)
     }
-
-    if (!compressionExtension) {
-      // no supported compression schemes
-      return res.sendFile(filePath)
-    }
-
-    let stats: any
-
-    try {
-      stats = await stat(`${filePath}${compressionExtension}`)
-      res.set('vary', 'Accept-Encoding')
-      res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
-    } catch (e) {
-      return res.sendFile(filePath)
-    }
-
-    if (stats.isFile()) {
-      // if we have the stats may as well set some headers here
-      res.set('Content-Length', `${stats.size}`)
-      res.set('last-modified', stats.mtime.toUTCString())
-      // could just stream the file here, but will take the small hit of offloading this to express
-      return res.sendFile(`${filePath}${compressionExtension}`)
-    }
-
-    log.error('No compressed version of asset found', { filePath, compressionExtension })
-    // if we get here we don't have a compressed version, so send the uncompressed version
-    res.removeHeader('Content-Encoding')
-    res.sendFile(filePath)
-  }
 
 app.get(`/${currentVersion}-client.js`, assetsCacheType, (req, res) => {
   return sendFileCompressed(req, res, path.join(__dirname, '..', 'dist', `${currentVersion}-client.js`))
@@ -383,8 +383,8 @@ LivekitController(db, passport, app)
 // The NFTs
 NftController(db, passport, app)
 
-// Sandbox for all users
-SandboxController(app)
+// Scratchpad for all users
+ScratchpadController(app)
 
 // Main client controller
 PlayController(db, passport, app)
