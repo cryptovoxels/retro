@@ -11,7 +11,7 @@ interface Props {
   scene: Scene
 }
 export const BuildTab = ({ scene, parcel }: Props) => {
-  const [currentTab, setCurrentTab] = useState<BuildTabNavTabs>('assets')
+  const [currentTab, setCurrentTab] = useState<BuildTabNavTabs>('add')
 
   return (
     <section class="build-tab">
