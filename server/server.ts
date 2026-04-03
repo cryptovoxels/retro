@@ -146,7 +146,6 @@ if (process.env.NODE_ENV === 'development') {
   })
 }
 
-// app.use(compression())
 // Enable if you're behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, etc) see https://expressjs.com/en/guide/behind-proxies.html
 app.set('trust proxy', 1)
 const httpServer = http.createServer(app)
@@ -242,66 +241,19 @@ if (config.isDevelopment) {
   )
 }
 
-const assetsCacheType = cache('immutable')
-
-// compressed assets will always be available in prod (unless we adjust the webpack settings or reduce bundle below compression threshold)
-// but are not generated in dev, so just send the uncompressed version in dev
-const sendFileCompressed = config.isDevelopment
-  ? async (_req: Request, res: Response, filePath: string) => res.sendFile(filePath)
-  : async (req: Request, res: Response, filePath: string) => {
-      const encodings = req.acceptsEncodings()
-
-      let compressionExtension: '.br' | '.gz' | '' = ''
-      if (encodings.includes('br')) {
-        res.set('Content-Encoding', 'br')
-        compressionExtension = '.br'
-      } else if (encodings.includes('gzip')) {
-        res.set('Content-Encoding', 'gzip')
-        compressionExtension = '.gz'
-      }
-
-      if (!compressionExtension) {
-        // no supported compression schemes
-        return res.sendFile(filePath)
-      }
-
-      let stats: any
-
-      try {
-        stats = await stat(`${filePath}${compressionExtension}`)
-        res.set('vary', 'Accept-Encoding')
-        res.setHeader('Content-Type', 'application/javascript; charset=utf-8')
-      } catch (e) {
-        return res.sendFile(filePath)
-      }
-
-      if (stats.isFile()) {
-        // if we have the stats may as well set some headers here
-        res.set('Content-Length', `${stats.size}`)
-        res.set('last-modified', stats.mtime.toUTCString())
-        // could just stream the file here, but will take the small hit of offloading this to express
-        return res.sendFile(`${filePath}${compressionExtension}`)
-      }
-
-      log.error('No compressed version of asset found', { filePath, compressionExtension })
-      // if we get here we don't have a compressed version, so send the uncompressed version
-      res.removeHeader('Content-Encoding')
-      res.sendFile(filePath)
-    }
-
-app.get(`/${currentVersion}-client.js`, assetsCacheType, (req, res) => {
-  return sendFileCompressed(req, res, path.join(__dirname, '..', 'dist', `${currentVersion}-client.js`))
+app.get(`/${currentVersion}-client.js`, cache('1 day'), (req, res) => {
+  return res.sendFile(path.join(__dirname, '..', 'dist', `${currentVersion}-client.js`))
 })
 
-app.get(`/${currentVersion}-web.js`, assetsCacheType, (req, res) => {
-  return sendFileCompressed(req, res, path.join(__dirname, '..', 'dist', `${currentVersion}-web.js`))
+app.get(`/${currentVersion}-web.js`, cache('1 day'), (req, res) => {
+  return res.sendFile(path.join(__dirname, '..', 'dist', `${currentVersion}-web.js`))
 })
 
-app.get(`/${currentVersion}-web.css`, (req, res) => {
+app.get(`/${currentVersion}-web.css`, cache('1 day'), (req, res) => {
   return res.sendFile(path.join(__dirname, '..', 'dist', `web.css`))
 })
 
-app.get(`/${currentVersion}-client.css`, (req, res) => {
+app.get(`/${currentVersion}-client.css`, cache('1 day'), (req, res) => {
   return res.sendFile(path.join(__dirname, '..', 'dist', `client.css`))
 })
 
