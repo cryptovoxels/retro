@@ -2,6 +2,7 @@ import { Animations } from './avatar-animations'
 import Controls from './controls/controls'
 import Persona from './persona'
 import { VoxelSize } from '../common/voxels/mesher'
+import { Action } from '../common/messages'
 
 export interface Transition {
   // if state is null, it's a sign to the FSM to pop the current running state
@@ -211,6 +212,8 @@ export class EmoteAnimation extends CharacterState {
   enter(persona: Persona, controls: Controls) {
     persona.animation = this.animation
     controls.enterThirdPerson()
+
+    persona.connector.sendMetric(Action.Dance)
   }
 
   handleControls(persona: Persona, controls: Controls): Transition | void {

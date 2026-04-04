@@ -16,6 +16,8 @@ import { md5 } from '../../../common/helpers/utils'
 
 const retryPolicy = retry(handleAll, { maxAttempts: 3, backoff: new ExponentialBackoff() })
 
+const isVec3 = (v: any) => Array.isArray(v) && v.length === 3 && v.every((x: any) => typeof x === 'number')
+
 export type ClientConnectionInformation = {
   url: string
   // these are inferred from the url and ip during the upgrade event
@@ -455,11 +457,20 @@ export class Client {
   }
 
   private handleMetric(msg: messages.MetricMessage): void {
+    // Set the lastseenparcel
     const parcelId = msg.parcel
+    Object.assign(this, { lastSeenParcel: parcelId })
+
+    // Anonymize client ID
     const anonId = this.anonymizedClientId()
 
-    // Set the lastseenparcel
-    Object.assign(this, { lastSeenParcel: parcelId })
+    // Get position
+    const position = msg.position
+
+    if (!isVec3(position)) {
+      // Drop
+      return
+    }
 
     // Rotate values into the metrics table
     const i = this.day % 14
@@ -468,10 +479,10 @@ export class Client {
     this.connection.query(
       'embedded/insert-metric',
       `INSERT INTO 
-        metrics.${table} (client_id, action, parcel) 
+        metrics.${table} (client_id, action, parcel, position) 
       VALUES 
-        ($1, $2, $3)`,
-      [anonId, msg.action, parcelId],
+        ($1, $2, $3, cube($4::float8[]))`,
+      [anonId, msg.action, parcelId, position],
     )
   }
 

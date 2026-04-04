@@ -543,7 +543,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       }
     }
 
-    const position = this.persona.avatar!.position.asArray()
+    const position = this.persona.avatar!.position.floor().asArray() as messages.vec3
 
     const message: messages.MetricMessage = {
       type: messages.MessageType.metric,
@@ -596,6 +596,9 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     if (emote.length === 0) {
       return
     }
+
+    // Metrics
+    this.sendMetric(messages.Action.Emote)
 
     this.persona.avatar?.emote(emote, null, true)
 

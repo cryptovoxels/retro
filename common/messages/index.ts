@@ -164,13 +164,15 @@ export enum Action {
   Dance = 'D',
   Emote = 'M',
   Inspect = 'I',
+  Teleport = 'T',
 }
 
+export type vec3 = [number, number, number]
 export type MetricMessage = {
   type: MessageType.metric
   action: Action
   parcel?: number
-  position?: [number, number, number]
+  position?: vec3
 }
 export const MetricEncoder = encoderCreator<MetricMessage>()
 

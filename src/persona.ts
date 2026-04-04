@@ -10,6 +10,7 @@ import { LoadUserAvatar, UserAvatar } from './user-avatar'
 import type { Scene } from './scene'
 import { decodeCoordsFromURL } from './utils/helpers'
 import { wantsXR } from '../common/helpers/detector'
+import { Action } from '../common/messages'
 
 /**
  * The minimal representation of the persona which indicates if the avatar needs to be re-rendered.
@@ -174,12 +175,15 @@ export default class Persona {
       return
     }
     this.teleportNoHistory(coords)
+
     // add the previous location to history when teleporting
     const currentParcel = this.connector.currentOrNearestParcel()
     if (currentParcel) {
       const name = currentParcel.name || currentParcel.address
       window.history.pushState(encodeCoords(coords), name, window.location.href)
     }
+
+    this.connector.sendMetric(Action.Teleport)
   }
 
   // out of a restricted area.
