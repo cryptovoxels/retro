@@ -106,7 +106,9 @@ export default function ParcelInfoTab(props: Props) {
               </OwnerAndCollaboratorOnly>
             )}
             <li>
-              <a href={`/parcels/${parcel.id}`}>Parcel page</a>
+              <a target="_top" href={`/parcels/${parcel.id}`}>
+                Parcel page
+              </a>
             </li>
             <li>
               <a href={helper.openseaUrl} target="_blank">
@@ -173,7 +175,9 @@ export default function ParcelInfoTab(props: Props) {
             </OwnerAndCollaboratorOnly>
           )}
           <li>
-            <a href={`/parcels/${parcel.id}`}>Parcel page</a>
+            <a target="_top" href={`/parcels/${parcel.id}`}>
+              Parcel page
+            </a>
           </li>
           <li>
             <a href={helper.openseaUrl} target="_blank">

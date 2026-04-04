@@ -64,7 +64,7 @@ const Location = (props: { scene: Scene; signedIn: any }) => {
   const link = `/parcels/${currentOrNearestParcel.id}`
 
   return (
-    <a key={currentOrNearestParcel.id} class="address" href={link}>
+    <a key={currentOrNearestParcel.id} class="address" href={link} target="_top">
       {currentOrNearestParcel.name || currentOrNearestParcel.address}
     </a>
   )
