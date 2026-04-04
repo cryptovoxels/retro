@@ -180,7 +180,6 @@ export default class Space extends Component<Props, State> {
           <figure>
             <iframe
               id="ParcelorbitView"
-              onLoad={frameLoaded}
               ref={(c) => {
                 this.iframe = c!
               }}
@@ -226,11 +225,5 @@ export default class Space extends Component<Props, State> {
         </aside>
       </section>
     )
-  }
-}
-
-function frameLoaded(e: Event) {
-  if (e.target instanceof HTMLIFrameElement) {
-    e.target.classList.add('-loaded')
   }
 }

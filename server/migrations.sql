@@ -144,3 +144,40 @@ $body$;
 --   DROP FUNCTION IF EXISTS public.update_properties_hash();
 -- $$
 -- );
+
+-- Create traffic schema
+DO $$
+BEGIN
+    -- 1. Create the 'traffic' schema if it doesn't exist
+    CREATE SCHEMA IF NOT EXISTS metrics;
+
+    -- 2. Loop to create the 14 rotation tables
+    FOR i IN 1..7 LOOP
+        EXECUTE format('
+            CREATE TABLE IF NOT EXISTS metrics.day_%s (
+                client_id  BIGINT NOT NULL,
+                action      "char" NOT NULL,
+                parcel     INTEGER,
+                position   CUBE NOT NUll,
+                created_at TIMESTAMPTZ DEFAULT now() NOT NULL
+            ) 
+            WITH (
+                autovacuum_enabled = false
+            );
+            
+            -- BRIN index for high-speed time-series ingestion
+            CREATE INDEX IF NOT EXISTS idx_day_%s_time 
+            ON metrics.day_%s USING BRIN (created_at);
+            
+            -- B-Tree for specific parcel lookups
+            CREATE INDEX IF NOT EXISTS idx_day_%s_parcel 
+            ON metrics.day_%s (parcel);
+        ', 
+        LPAD(i::text, 2, '0'), 
+        LPAD(i::text, 2, '0'), 
+        LPAD(i::text, 2, '0'),
+        LPAD(i::text, 2, '0'),
+        LPAD(i::text, 2, '0'));
+    END LOOP;
+END $$;
+

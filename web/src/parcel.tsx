@@ -19,6 +19,7 @@ import { Spinner } from './spinner'
 import { app, AppEvent } from './state'
 import { fetchAPI, fetchOptions } from './utils'
 import WompsList from './womps-list'
+import { ParcelMetrics as Metrics } from './components/metrics'
 
 type FrameProps = {
   src?: string
@@ -508,7 +509,7 @@ export default class Parcel extends Component<Props, State> {
 
           <figure>
             {this.state.viewTab === 'map' && <div className="map map-web slippy-map">&nbsp;</div>}
-            {this.state.viewTab === 'orbit' && <iframe id="ParcelorbitView" onLoad={frameLoaded} src={this.helper?.orbitUrl} className=" play-view -hide-until-loaded" />}
+            {this.state.viewTab === 'orbit' && <iframe id="ParcelorbitView" src={this.helper?.orbitUrl} className="play-view" />}
             {this.state.parcel && <Client hidden={this.state.viewTab !== 'client'} parcelId={this.props.id!} src={iframeUrl} coords={this.helper!.spawnCoords} />}
           </figure>
         </article>
@@ -547,29 +548,12 @@ export default class Parcel extends Component<Props, State> {
           <h3>Description</h3>
 
           {this.state.parcel ? <ParcelDescription parcel={this.state.parcel} path={`/parcels/${this.state.parcelId}`} /> : <div />}
+
+          <h3>Activity</h3>
+
+          <Metrics parcelId={this.state.parcelId} />
         </aside>
       </section>
     )
-  }
-
-  private updateStateFromBlockChain() {
-    if (this.state.querying) {
-      return
-    }
-    this.setState({ querying: true })
-    return fetchAPI(`/api/parcels/${this.state.parcelId}/query`, fetchOptions())
-      .then(() => {
-        window.location.reload()
-      })
-      .catch((e) => {
-        console.error(e)
-        this.setState({ querying: false })
-      })
-  }
-}
-
-function frameLoaded(e: Event) {
-  if (e.target instanceof HTMLIFrameElement) {
-    e.target.classList.add('-loaded')
   }
 }

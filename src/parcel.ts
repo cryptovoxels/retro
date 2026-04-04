@@ -28,6 +28,7 @@ import { createEvent, TypedEventTarget } from './utils/EventEmitter'
 import { tidyVec3 } from './utils/helpers'
 import { ParcelEventMap } from './utils/parcel-event-map'
 import { GLASS_MAX_VIEW_DISTANCE } from './voxel-field'
+import { Action } from '../common/messages'
 
 const PARCEL_CONTRACT_ABI = require('../common/contracts/parcel.json')
 
@@ -906,6 +907,9 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   onEnter() {
     this.entered = true
 
+    // Enter
+    window.connector.sendMetric(Action.Enter, this.id)
+
     // On user enter the parcel the bouncer will kick the user if they are not allowed;
     this.parcelBouncer.handleUser().then()
 
@@ -929,6 +933,9 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
   onExit() {
     this.entered = false
+
+    // Exit
+    window.connector.sendMetric(Action.Exit, this.id)
 
     // Record event to surveyor.crvox.com
     recordParcelEvent({

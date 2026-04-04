@@ -100,24 +100,19 @@ export default function loadRoutes(app: Express) {
   // so if out of date, will update shortly after page load
   app.get('/parcels/:id', cache('10 seconds'), passport.authenticate(['jwt', 'anonymous'], { session: false }), (req, res) => {
     const id = parseInt(req.params.id, 10)
-    if (isNaN(id)) {
-      return res.status(404).json({ success: false, message: 'parcel not found' })
-    }
-    if (!Number.isInteger(id) || !Number.isSafeInteger(id)) {
-      return res.status(400).json({ success: false, message: 'parcel id is not valid' })
-    }
 
     queryAndCallback(db, 'get-parcel', 'parcel', [id, isOwner(req)], (response) => {
       if (!response.success) {
-        return res.status(404).json({ success: false, message: 'not found' })
+        res.status(404).json({ success: false, message: 'not found' })
+        return
       }
 
-      if (response.parcel && response.parcel.updated_at) {
-        const lastModified = new Date(response.parcel.updated_at)
-        if (!isNaN(lastModified.getTime())) {
-          res.setHeader('Last-Modified', lastModified.toUTCString())
-        }
-      }
+      // if (response.parcel && response.parcel.updated_at) {
+      //   const lastModified = new Date(response.parcel.updated_at)
+      //   if (!isNaN(lastModified.getTime())) {
+      //     res.setHeader('Last-Modified', lastModified.toUTCString())
+      //   }
+      // }
 
       res.send(renderPage(<Parcel parcel={response.parcel} />))
     })

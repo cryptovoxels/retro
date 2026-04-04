@@ -586,3 +586,49 @@ small {
     transform: rotateX(-90deg) translateZ(var(--half));
   }
 }
+
+// Metric plot
+
+.metric-plot {
+  margin-top: 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  flex-direction: row;
+  gap: 0.1rem;
+
+  span {
+    color: rgba(255, 255, 255, 0.5);
+    width: 0.9rem;
+    height: 0.9rem;
+    text-align: center;
+    line-height: 0.9rem;
+    background: #999;
+    border-radius: 2px;
+  }
+  .m-e {
+    background: #8a8;
+  }
+  .m-x {
+    background: #c99;
+  }
+  .m-i {
+    background: #c8c;
+  }
+  .m-c {
+    background: #abc;
+  }
+  .m-d {
+    background: #fa0;
+  }
+
+  time {
+    border-radius: 2px;
+    line-height: 0.9rem;
+    background: #eee;
+    color: #999;
+    font-size: x-small;
+    text-transform: uppercase;
+    width: 2.9rem;
+    text-align: center;
+  }
+}
