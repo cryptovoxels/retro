@@ -208,6 +208,17 @@ const VoxelToolBelt = ({ parcel, scene }: Props) => {
       }}
     >
       <div class="wrapper">
+        <div class="add-menu-anchor">
+          <button
+            type="button"
+            class="add-menu-toolbelt-btn"
+            title="Add features"
+            aria-label="Add features"
+            onClick={() => ui?.setPane('add')}
+          >
+            +
+          </button>
+        </div>
         <div class="tool-modes">
           <button title="Click to activate Paint Mode [Ctrl/Cmd + Click in build mode]" class={'-paint' + (mode === SelectionMode.Paint ? ' -selected' : '')} onClick={activatePaintTool}>
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M1.5 0h18v3h4.5v8.712l-10.5 2.25V15h1.5v9H9v-9h1.5V11.538l10.5-2.25V6h-1.5v1.5H1.5z" fill="currentColor"/></svg>
