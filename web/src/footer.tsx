@@ -37,6 +37,9 @@ export default class WebHeader extends Component<Props, State> {
             <li>
               <Link href="/terms">Terms</Link>
             </li>
+            <li>
+              <Link href="https://github.com/cryptovoxels/retro">Github</Link>
+            </li>
           </ul>
         </nav>
 
