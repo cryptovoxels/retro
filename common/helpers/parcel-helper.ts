@@ -255,9 +255,7 @@ export default class ParcelHelper {
   get metadataDescription() {
     return this.island == 'Origin City'
       ? `${this.kind == 'inner' ? 'Pre-built ' : ''}parcel near ${this.suburb} in ${this.island}`
-      : `${this.kind == 'inner' ? 'Pre-built ' : ''}parcel on ${this.island}, ${Math.floor(this.distance_to_center)}m from the origin, with a ${Math.floor(this.height)}m build height, floor is at ${
-          this.y1
-        }m elevation`
+      : `${this.kind == 'inner' ? 'Pre-built ' : ''}parcel on ${this.island}, ${Math.floor(this.distance_to_center)}m from the origin, with a ${Math.floor(this.height)}m build height, floor is at ${this.y1}m elevation`
   }
 
   queryRefresh(callback?: () => void) {

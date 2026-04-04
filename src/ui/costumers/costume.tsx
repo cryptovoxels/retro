@@ -409,7 +409,6 @@ export default class Costumer extends Component<Props, State> {
     const r2 = await cachedFetch(`/api/avatars/${app.state.wallet}/costumes`)
     const j2 = await r2.json()
     this.setState({ costumes: j2.costumes })
-
   }
 
   hideBoneSpheres() {

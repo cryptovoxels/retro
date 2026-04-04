@@ -4,8 +4,8 @@ services:
   app:
     build:
       context: .
-      dockerfile: Dockerfile 
-    
+      dockerfile: Dockerfile
+
     command: /bin/sh -c "while sleep 600; do :; done"
     tty: true
 

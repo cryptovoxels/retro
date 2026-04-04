@@ -209,7 +209,9 @@ export default class WebHeader extends Component<Props, State> {
                 </Link>
               </li>
               <li>
-                <Link activeClassName="active" href="/scratchpad">Scratchpad</Link>
+                <Link activeClassName="active" href="/scratchpad">
+                  Scratchpad
+                </Link>
               </li>
 
               <li>

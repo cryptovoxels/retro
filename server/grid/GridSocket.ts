@@ -255,11 +255,7 @@ export default class GridSocket {
       Object.assign(state, message.payload.patch)
       this.parcelStateCache.set(message.payload.parcelId, state)
 
-      if (
-        !this.statePersistQueue.some(
-          (entry) => entry.type === 'parcel' && entry.parcelId === message.payload.parcelId,
-        )
-      ) {
+      if (!this.statePersistQueue.some((entry) => entry.type === 'parcel' && entry.parcelId === message.payload.parcelId)) {
         this.statePersistQueue.push({ type: 'parcel', parcelId: message.payload.parcelId })
       }
     }
