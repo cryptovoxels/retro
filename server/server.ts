@@ -488,14 +488,6 @@ app.get('/grid/parcels/:id/at/:hash', async (req, res) => {
   }
 })
 
-app.get(
-  '/api/popular/parcels',
-  cache('10 minutes'),
-  createRequestHandlerForQuery(db, 'get-popular', 'traffics', (req) => {
-    return []
-  }),
-)
-
 // Islands baby!
 app.get('/api/islands.json', cache('30 minutes', true), createRequestHandlerForQuery(db, 'get-islands', 'islands'))
 app.get('/api/islands-metadata.json', cache('1 hour', true), createRequestHandlerForQuery(db, 'get-islands-metadata', 'islands'))

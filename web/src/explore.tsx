@@ -3,7 +3,6 @@ import { useEffect, useState } from 'preact/hooks'
 import { currentVersion } from '../../common/version'
 import EventsShowcase from './components/events-showcase'
 import Head from './components/head'
-import { NewMarket } from './components/new-market-parcels'
 import PopularParcels from './components/popular-parcels'
 import { Womp } from './components/womp-card'
 import { getClientPath } from './helpers/client-helpers'
@@ -92,8 +91,6 @@ export default class Explore extends Component<any, Props> {
         </article>
 
         <aside>
-          <NewMarket />
-
           <h3>Popular</h3>
           <PopularParcels />
 

@@ -7,14 +7,13 @@ import cachedFetch from '../helpers/cached-fetch'
 export interface Props {}
 
 export interface State {
-  traffics: Traffic[]
+  metrics: Metric[]
   fetching: boolean
 }
 
-type Traffic = {
+type Metric = {
   id: number
-  visits: number
-  day: number
+  actions: number
   parcel: {
     id: number
     name: string
@@ -28,7 +27,7 @@ export default class PopularParcels extends Component<Props, State> {
     super(props)
     this.state = {
       fetching: true,
-      traffics: [],
+      metrics: [],
     }
   }
 
@@ -39,18 +38,18 @@ export default class PopularParcels extends Component<Props, State> {
   async fetch() {
     this.setState({ fetching: true })
 
-    const r = await cachedFetch(`/api/popular/parcels`)
+    const r = await cachedFetch(`/api/metrics/popular`)
     const data = await r.json()
 
     console.log(data)
 
-    if (!data.success) {
+    if (!data.ok) {
       return
     }
 
-    const { traffics } = data
+    const { metrics } = data
 
-    this.setState({ traffics, fetching: false })
+    this.setState({ metrics, fetching: false })
 
     this.populateCache()
   }
@@ -62,17 +61,17 @@ export default class PopularParcels extends Component<Props, State> {
   }
 
   render() {
-    const popular = this.state.traffics.slice(0, 20).map((t: Traffic) => {
+    const popular = this.state.metrics.slice(0, 20).map((t) => {
       return (
-        <>
-          <dt>{t.visits} Visits</dt>
-          <dd>
+        <tr>
+          <td>{t.actions}</td>
+          <td>
             <a href={`/parcels/${t.parcel.id}`}>{t.parcel.name || t.parcel.address}</a>
-          </dd>
-        </>
+          </td>
+        </tr>
       )
     })
 
-    return <div>{this.state.fetching ? <Spinner /> : <dl>{popular}</dl>}</div>
+    return <div class="popularity">{this.state.fetching ? <Spinner /> : <table>{popular}</table>}</div>
   }
 }

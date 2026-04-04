@@ -1,6 +1,7 @@
 import { Db } from '../pg'
 import { Express } from 'express'
 import { createHash } from 'node:crypto'
+import cache from '../cache'
 
 // Intentionally non cryptographic hash function
 const md5 = (data: string) => createHash('md5').update(data).digest('hex').substring(0, 8)
@@ -11,19 +12,18 @@ const hash = (a: number, b: number) => {
 
 export default function MetricController(db: Db, app: Express) {
   const table = (i: number) => `day_${i.toString().padStart(2, '0')}`
+  const current = () => new Date().getUTCDay()
+  const prior = () => (new Date().getUTCDay() + 6) % 7
 
   app.get('/api/metrics', async (req, res) => {
-    const current = new Date().getUTCDay()
-    const prior = (new Date().getUTCDay() + 6) % 7
-
     const query = `
       WITH umetrics AS (
         SELECT 
-          * FROM metrics.${table(current)} WHERE created_at > now() - interval '24 hours'
+          * FROM metrics.${table(current())} WHERE created_at > now() - interval '24 hours'
         UNION 
           ALL
         SELECT 
-          * FROM metrics.${table(prior)} WHERE created_at > now() - interval '24 hours'
+          * FROM metrics.${table(prior())} WHERE created_at > now() - interval '24 hours'
         )
       SELECT 
         action as a,
@@ -49,17 +49,15 @@ export default function MetricController(db: Db, app: Express) {
 
   app.get('/api/parcels/:id/metrics', async (req, res) => {
     const parcelId = parseInt(req.params.id)
-    const current = new Date().getUTCDay()
-    const prior = (new Date().getUTCDay() + 6) % 7
 
     const query = `
       WITH umetrics AS (
         SELECT 
-          * FROM metrics.${table(current)} WHERE created_at > now() - interval '24 hours' AND parcel = $1
+          * FROM metrics.${table(current())} WHERE created_at > now() - interval '24 hours' AND parcel = $1
         UNION 
           ALL
         SELECT 
-          * FROM metrics.${table(prior)} WHERE created_at > now() - interval '24 hours' AND parcel = $1
+          * FROM metrics.${table(prior())} WHERE created_at > now() - interval '24 hours' AND parcel = $1
         )
       SELECT 
         client_id as c,
@@ -88,5 +86,61 @@ export default function MetricController(db: Db, app: Express) {
     }))
 
     res.status(200).send({ ok: true, metrics })
+  })
+
+  // Popular parcels
+
+  app.get('/api/metrics/popular', cache('10 minutes'), async (req, res) => {
+    const query = `
+      -- Union current and prior day
+
+      WITH umetrics AS (
+        SELECT 
+          parcel, client_id FROM metrics.${table(current())} WHERE created_at > now() - interval '24 hours'
+        UNION 
+          ALL
+        SELECT 
+          parcel, client_id FROM metrics.${table(prior())} WHERE created_at > now() - interval '24 hours'
+      ),
+
+      -- Aggregate visits
+
+      stats AS (
+        SELECT 
+          parcel, 
+          COUNT(*) as actions
+        FROM 
+          umetrics
+        GROUP BY 
+          parcel
+        HAVING 
+          COUNT(*) > 1
+      )
+
+      SELECT 
+        s.actions,
+        jsonb_build_object(
+          'id', p.id,
+          'name', p.name,
+          'address', p.address
+        ) AS parcel
+      FROM 
+        stats s
+      JOIN 
+        properties p ON p.id = s.parcel
+      ORDER BY 
+        s.actions DESC
+      LIMIT 
+        100;  
+    `
+
+    try {
+      var result = await db.query('sql/metrics/popular', query)
+    } catch (e) {
+      res.status(500).send({ ok: false })
+      return
+    }
+
+    res.status(200).send({ ok: true, metrics: result.rows })
   })
 }
