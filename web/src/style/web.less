@@ -78,6 +78,20 @@ img {
   }
 }
 
+// Button style
+
+button,
+a.buttonish {
+  display: inline-block;
+  border-style: solid;
+  border-width: 1px;
+  border-color: #f5f5f5 #999 #999 #f5f5f5;
+  background: #eee;
+  font-family: inherit;
+  color: black;
+  text-decoration: none;
+}
+
 // Nav tweaks
 header nav {
   ul {
@@ -421,28 +435,30 @@ body.done-loading {
   // ...
 }
 
-/**
-  * Parcel page absolute
-  */
-section.parcel-page {
-  > article > figure {
-    position: relative;
+// Figcaption
 
-    figcaption.parcel-actions {
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      z-index: 500;
-      display: flex;
-      justify-content: flex-end;
-      padding: 8px;
-    }
+figcaption + figure {
+  margin-top: -2rem;
+}
+
+figcaption {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  padding: 0.5rem 0;
+  gap: 0.3rem;
+  position: relative;
+  top: -2rem;
+
+  button,
+  .buttonish {
+    cursor: pointer;
+    padding: 0.5rem 1rem;
   }
 
-  > aside > button,
-  > aside > p > button {
-    width: 100%;
+  button[data-active='true'] {
+    background: black;
+    color: white;
   }
 }
 

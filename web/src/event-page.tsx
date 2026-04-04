@@ -124,11 +124,12 @@ export default class EventPage extends Component<Props, State> {
         <h1>{this.state.event.name}</h1>
 
         <article>
+          <figcaption>
+            <a href={this.visitUrl}>Visit</a>
+          </figcaption>
+
           <figure>
             <iframe id="ParcelorbitView" key={this.parcel?.orbitUrl} scrolling="no" src={this.parcel?.orbitUrl} />
-            <figcaption>
-              <a href={this.visitUrl}>Visit</a>
-            </figcaption>
           </figure>
         </article>
 

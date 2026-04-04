@@ -491,23 +491,26 @@ export default class Parcel extends Component<Props, State> {
         <h1>{this.state.parcel?.name ?? this.state.parcel?.address ?? `Parcel #${this.state.parcelId}`}</h1>
 
         <article>
+          <figcaption>
+            <button class="secondary" onClick={onFullscreen}>
+              <span>Fullscreen</span>
+            </button>
+
+            {modes.map((mode) => (
+              <button class={`secondary ${this.state.viewTab === mode.mode ? 'contrast' : ''}`} data-active={this.state.viewTab === mode.mode} onClick={() => this.setViewTab(mode.mode)} key={mode.mode}>
+                {mode.label}
+              </button>
+            ))}
+
+            <a class="buttonish" href={this.visitUrl}>
+              Teleport
+            </a>
+          </figcaption>
+
           <figure>
             {this.state.viewTab === 'map' && <div className="map map-web slippy-map">&nbsp;</div>}
             {this.state.viewTab === 'orbit' && <iframe id="ParcelorbitView" onLoad={frameLoaded} src={this.helper?.orbitUrl} className=" play-view -hide-until-loaded" />}
             {this.state.parcel && <Client hidden={this.state.viewTab !== 'client'} parcelId={this.props.id!} src={iframeUrl} coords={this.helper!.spawnCoords} />}
-
-            <figcaption class="parcel-actions">
-              <div role="group">
-                <button class="secondary" onClick={onFullscreen}>
-                  <span>Fullscreen</span>
-                </button>
-                {modes.map((mode) => (
-                  <button class={`secondary ${this.state.viewTab === mode.mode ? 'contrast' : ''}`} data-active={this.state.viewTab === mode.mode} onClick={() => this.setViewTab(mode.mode)} key={mode.mode}>
-                    {mode.label}
-                  </button>
-                ))}
-              </div>
-            </figcaption>
           </figure>
         </article>
 
@@ -537,16 +540,7 @@ export default class Parcel extends Component<Props, State> {
           </dl>
 
           {this.state.parcel ? <ParcelAttributes parcel={this.state.parcel} /> : <div />}
-          <button
-            class="secondary"
-            onClick={() => {
-              if (this.visitUrl) {
-                window.location.href = this.visitUrl
-              }
-            }}
-          >
-            Teleport
-          </button>
+          <a href={this.visitUrl}>Teleport</a>
           {this.state.parcel ? <Collaborators parcel={this.state.parcel} /> : <div />}
           {this.complete && this.state.parcel ? <ParcelAdminPanel parcelOrSpace={this.state.parcel as any as FullParcelRecord} onSave={this.onSave} onEventCreate={this.eventCreate.bind(this)} /> : <div />}
           <div>{this.isOwner && this.state.parcel ? <Build parcel={this.state.parcel} callback={this.refreshIframe.bind(this)} /> : <div />}</div>

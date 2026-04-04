@@ -133,12 +133,12 @@ export default class Womp extends Component<Props, State> {
         <h1>{this.state.womp.parcel_address}</h1>
 
         <article>
+          <figcaption>
+            <a onClick={onFullscreen}>Full screen</a>
+          </figcaption>
+
           <figure>
             <Client src={iframeUrl} parcelId={this.state.womp.parcel_id} coords={this.state.womp.coords} />
-
-            <figcaption>
-              <a onClick={onFullscreen}>Full screen</a>
-            </figcaption>
           </figure>
 
           {this.state.womp.content && (
