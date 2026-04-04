@@ -17,6 +17,7 @@ import streamWearable from './handlers/stream-wearable'
 import { isOwner } from './lib/helpers'
 
 import AdminController from './controllers/admin'
+import ScratchpadController from './controllers/scratchpad'
 import CollectiblesController from './controllers/collectibles'
 import CollectionsController from './controllers/collections'
 import EmojiBadgeController from './controllers/emoji_badges'
@@ -381,6 +382,9 @@ LivekitController(db, passport, app)
 
 // The NFTs
 NftController(db, passport, app)
+
+// Scratchpad for all users
+ScratchpadController(app)
 
 // Main client controller
 PlayController(db, passport, app)
