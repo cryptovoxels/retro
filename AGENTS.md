@@ -219,3 +219,9 @@ Good:
 - If a platform is flaky, wrap it and return.
 - If “smart” detection fails, hardcode the safe value.
 
+# Pull Requests
+
+* If it's a UI change, add a screenshot to the github PR
+* Screenshot doesnt need to be diagnostic, just makes the PRs more pretty when viewing on github
+
+
