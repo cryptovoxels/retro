@@ -173,6 +173,10 @@ export default class Space extends Component<Props, State> {
             </script>
           </Head>
 
+          <figcaption>
+            <PlayButton url={this.helper!.visitUrl} />
+          </figcaption>
+
           <figure>
             <iframe
               id="ParcelorbitView"
@@ -183,9 +187,6 @@ export default class Space extends Component<Props, State> {
               scrolling="no"
               src={this.helper?.orbitUrl}
             />
-            <figcaption>
-              <PlayButton url={this.helper!.visitUrl} />
-            </figcaption>
           </figure>
 
           {(this.isOwner && (
