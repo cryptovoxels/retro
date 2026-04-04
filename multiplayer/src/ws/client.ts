@@ -12,6 +12,7 @@ import { WSCloseCode } from '../constants/socketCloseCodes'
 import type { WsLike } from '../createServer'
 import { createEventEmitter, EventEmitter, ReadonlyEventEmitter } from '../utility/eventEmitter'
 import { toBuffer } from '../utility/toBuffer'
+import { md5 } from '../../../common/helpers/utils'
 
 const retryPolicy = retry(handleAll, { maxAttempts: 3, backoff: new ExponentialBackoff() })
 
@@ -263,8 +264,8 @@ export class Client {
       case messages.MessageType.chat:
         this.handleChat(msg, message)
         break
-      case messages.MessageType.traffic:
-        this.handleTraffic(msg)
+      case messages.MessageType.metric:
+        this.handleMetric(msg)
         break
 
       case messages.MessageType.createAvatar:
@@ -443,46 +444,35 @@ export class Client {
     })
   }
 
-  private handleTraffic(msg: messages.TrafficMessage): void {
-    const parcel_id = msg.parcel
-    this.lastSeenParcel = parcel_id
+  // Returns the day in GMT+0
+  get day() {
+    return new Date().getUTCDay()
+  }
 
-    // NOTE: all dates must be in UNIX timestamp, i.e. no timezone / UTC
-    const ts = Date.now()
-    // timestamp when the traffic started to be recorded
-    const since = Date.parse('2019-05-15T06:00:00.000Z')
-    const seconds = (Date.now() - since) / 1000
-    const hours = seconds / 60 / 60
-    // we record the traffic per quarter day, not day as the database column might hint at
-    const quarterDays = Math.floor(hours / 6)
+  private anonymizedClientId(): number {
+    const joined = `${this.clientUUID}-${this.identity.wallet}-${this.day}`
+    return parseInt(md5(joined), 16) % 0xffffff
+  }
 
-    retryPolicy
-      .execute(() =>
-        this.connection.query(
-          'embedded/insert-traffic',
-          `
-    INSERT INTO traffic (visits, parcel_id, day) VALUES (1, $1, $2)
-    ON CONFLICT (parcel_id, day) DO
-        UPDATE SET visits = traffic.visits + 1 WHERE traffic.parcel_id = $1 and traffic.day = $2;
-  `,
-          [parcel_id, quarterDays],
-        ),
-      )
-      .catch((err) => {
-        this.logger.error(`traffic.visits update query error (${(Date.now() - ts) / 1000}sec): ${err}`, this.whois())
-      })
+  private handleMetric(msg: messages.MetricMessage): void {
+    const parcelId = msg.parcel
+    const anonId = this.anonymizedClientId()
 
-    retryPolicy
-      .execute(() =>
-        this.connection.query(
-          'embedded/update-property-traffic-visits',
-          `UPDATE properties SET traffic_visits = traffic_visits + 1 WHERE properties.id = $1`,
-          [parcel_id],
-        ),
-      )
-      .catch((err) => {
-        this.logger.error(`parcel.traffic_visits update query error : ${err}`, this.whois())
-      })
+    // Set the lastseenparcel
+    Object.assign(this, { lastSeenParcel: parcelId })
+
+    // Rotate values into the metrics table
+    const i = this.day % 14
+    const table = `day_${i.toString().padStart(2, '0')}`
+
+    this.connection.query(
+      'embedded/insert-metric',
+      `INSERT INTO 
+        metrics.${table} (client_id, action, parcel) 
+      VALUES 
+        ($1, $2, $3)`,
+      [anonId, msg.action, parcelId],
+    )
   }
 
   drained() {

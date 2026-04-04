@@ -17,6 +17,7 @@ export enum MessageType {
   anon = 42,
   loginComplete = 43,
   chat = 48,
+  metric = 49,
 
   // Parts of the users avatar
   createAvatar = 50,
@@ -152,11 +153,26 @@ extensionCodec.register({
   },
 })
 
-export type TrafficMessage = {
-  type: MessageType.traffic
-  parcel: number
+export enum Action {
+  Login = 'L',
+  Logout = 'O',
+  Chat = 'C',
+  Enter = 'E',
+  Exit = 'X',
+  Build = 'B',
+  Womp = 'W',
+  Dance = 'D',
+  Emote = 'M',
+  Inspect = 'I',
 }
-export const TrafficEncoder = encoderCreator<TrafficMessage>()
+
+export type MetricMessage = {
+  type: MessageType.metric
+  action: Action
+  parcel?: number
+  position?: [number, number, number]
+}
+export const MetricEncoder = encoderCreator<MetricMessage>()
 
 export type ChatMessage = {
   type: MessageType.chat
@@ -484,7 +500,7 @@ export namespace Message {
   /**
    * A type of message that is sent by a client to update the avatar's state in-world.
    */
-  export type ClientStateMessage = StateRelayMessage | UpdateAvatarMessage | TrafficMessage
+  export type ClientStateMessage = StateRelayMessage | UpdateAvatarMessage | MetricMessage
 
   export const isClientStateMessage = makeIsMessageOfType<ClientStateMessage>({
     [MessageType.newCostume]: null,
@@ -493,7 +509,7 @@ export namespace Message {
     [MessageType.voiceStateAvatar]: null,
     [MessageType.emoteAvatar]: null,
     [MessageType.updateAvatar]: null,
-    [MessageType.traffic]: null,
+    [MessageType.metric]: null,
     [MessageType.point]: null,
   })
 

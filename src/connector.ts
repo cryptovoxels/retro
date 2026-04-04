@@ -228,6 +228,10 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     return this.grid.currentParcel(forceScan)
   }
 
+  get nearParcelId() {
+    return this.currentOrNearestParcel()?.id ?? 0xffffff
+  }
+
   nearestParcel() {
     return this.grid.nearestParcel()
   }
@@ -529,6 +533,27 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     return channel === LOCAL_CHANNEL || this.isLoggedIn
   }
 
+  sendMetric(action: messages.Action, parcel?: number) {
+    // Set nearest parcel if possible
+    if (!parcel) {
+      const nearest = this.nearestParcel()
+
+      if (nearest) {
+        parcel = nearest.id
+      }
+    }
+
+    const position = this.persona.avatar!.position.asArray()
+
+    const message: messages.MetricMessage = {
+      type: messages.MessageType.metric,
+      action,
+      position,
+      parcel,
+    }
+    this.send(message)
+  }
+
   say(text: string, channel: ChatChannel = LOCAL_CHANNEL) {
     if (!this.persona.avatar) {
       throw new Error('Cannot speak without an avatar')
@@ -537,6 +562,8 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     if (!this.canChatOnChannel(channel)) {
       throw new Error('Not authorised to speak on this channel')
     }
+
+    this.sendMetric(messages.Action.Chat)
 
     // prevent spamming
     // if user has sent more than 3 messages in the last 5 seconds, prevent them from sending more
