@@ -4,7 +4,6 @@ declare module 'color-temperature'
 declare module 'text2png'
 declare module 'svgdom'
 declare module 'ao-mesher'
-declare module 'react-autocomplete-input'
 declare module '*.svg' {
   const content: React.FunctionComponent<React.SVGAttributes<SVGElement>>
   export default content

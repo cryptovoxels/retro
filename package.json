@@ -171,7 +171,6 @@
     "quickjs-emscripten": "^0.31.0",
     "rate-limiter-flexible": "^2.4.2",
     "rbush-3d": "^0.0.4",
-    "react-autocomplete-input": "^1.0.20",
     "redis": "^4.6.7",
     "response-time": "^2.3.2",
     "semver": "^7.5.4",

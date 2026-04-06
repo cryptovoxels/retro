@@ -12,9 +12,9 @@ import type Parcel from './parcel'
 import ParcelScript from './parcel-script'
 import type Persona from './persona'
 import type { Scene } from './scene'
-import showAvatarHTMLUi from './ui/html-ui/avatar-ui'
 import { emote } from './utils/emote'
 import { Transform } from './utils/transform'
+import { Bubble } from './chat'
 
 const ANONYMOUS_NAME = 'anon'
 const DEFAULT_SKIN_SVG =
@@ -37,8 +37,7 @@ const AVATAR_NAME_OFFSET = 0.5
 const NAME_CHAT_OFFSET = 0.6
 
 // fixme get screen refresh rate
-const DURATION = 12 // Math.floor(60 / UPDATE_HZ)
-const CHAT_READ_DURATION = 10e3
+const CHAT_READ_DURATION = 3500
 
 // distance in meters from camera that we play sounds for this avatar
 const SOUND_DISTANCE = 20
@@ -52,7 +51,6 @@ export default class Avatar extends Entity {
   skeleton: BABYLON.Skeleton | null = null
   private readonly _description: AvatarRecord
   private readonly _uuid: string
-  private chatBubbles: Array<BABYLON.Mesh> = []
   private armatureMesh: BABYLON.Mesh | null = null
   private neckBone: BABYLON.Bone | undefined
   private nameMesh: BABYLON.Mesh | null = null
@@ -227,13 +225,6 @@ export default class Avatar extends Entity {
     }
   }
 
-  onChat(text: string) {
-    if (this.distanceFromCamera >= SOUND_DISTANCE) return
-
-    Avatar.audio?.playSound('avatar.chat', true)
-    this.displayChatBubble(text.slice(5))
-  }
-
   /**
    * Display three dots in the chat bubble
    * Mainly used when the avatar is typing
@@ -372,25 +363,6 @@ export default class Avatar extends Entity {
     }
   }
 
-  displayChatBubble(text: string) {
-    if (this.distanceFromCamera < SOUND_DISTANCE) {
-      Avatar.audio?.playSound('avatar.chat', true)
-    }
-
-    this.clearChatBubbles()
-    this.addChat(text)
-    if (this.typingTimer) {
-      clearTimeout(this.typingTimer)
-    }
-    if (this.clearBubbleTimer) {
-      clearTimeout(this.clearBubbleTimer)
-    }
-
-    this.clearBubbleTimer = setTimeout(this.clearChatBubbles.bind(this), CHAT_READ_DURATION)
-    this.isTyping = false
-    this.redrawName()
-  }
-
   /**
    * Generate particles around the avatar with the given emoji.
    * @param {string} emoji the emoji to display
@@ -416,7 +388,6 @@ export default class Avatar extends Entity {
   }
 
   onContextClick() {
-    showAvatarHTMLUi(this, this.scene)
     return true
   }
 
@@ -486,9 +457,6 @@ export default class Avatar extends Entity {
     this.nameMesh = null
 
     this.removeActions()
-
-    this.chatBubbles.forEach((b) => b.dispose())
-    this.chatBubbles = []
 
     this._material?.dispose(true, true)
     this._material = null
@@ -680,13 +648,14 @@ export default class Avatar extends Entity {
     this.armatureMesh.material = this._material
 
     if (this.isAnon) {
-      this._material.diffuseColor.set(0, 0, 0)
-      this._material.emissiveColor.set(1, 1, 1)
-      this._material.disableLighting = true
-      this._material.specularPower = 0
+      this._material.diffuseColor.set(1, 1, 1)
+      this._material.specularColor.set(1, 1, 1)
+      this._material.emissiveColor.set(0.5, 0.5, 0.5)
+      // this._material.disableLighting = true
+      this._material.specularPower = 1000
 
       this.armatureMesh.outlineColor = new BABYLON.Color3(0.05, 0.05, 0.05)
-      this.armatureMesh.outlineWidth = 0.01
+      this.armatureMesh.outlineWidth = 0.02
       this.armatureMesh.renderOutline = true
     } else {
       this._material.diffuseColor.set(0.82, 0.81, 0.8)
@@ -817,130 +786,20 @@ export default class Avatar extends Entity {
     this.nameMesh.material = material
   }
 
-  /**
-   * add the name mesh to the avatar
-   * @param {string} text the text to display
-   * @returns void
-   */
-  private addChat(text: string) {
-    console.log('addChat', text)
-
-    const chatTexture = new BABYLON.DynamicTexture(
-      'avatar/chat/bubble',
-      {
-        width: 1024,
-        height: 512,
-      },
-      this.scene,
-      true,
-    )
-    chatTexture.hasAlpha = true
-
-    const mesh = BABYLON.MeshBuilder.CreatePlane(
-      'avatar/chat',
-      {
-        width: 2,
-        height: 1,
-        sideOrientation: BABYLON.Mesh.BACKSIDE,
-      },
-      this.scene,
-    )
-    mesh.billboardMode = BABYLON.Mesh.BILLBOARDMODE_Y
-
-    const material = new BABYLON.StandardMaterial('avatar/chat', this.scene)
-    material.blockDirtyMechanism = true
-    material.emissiveColor.set(0.7, 0.7, 0.7)
-    material.diffuseTexture = chatTexture
-    material.opacityTexture = chatTexture
-    material.sideOrientation = BABYLON.Mesh.DOUBLESIDE
-    material.alpha = 1
-    mesh.material = material
-    mesh.isPickable = false
-
-    const ctx = chatTexture.getContext() as CanvasRenderingContext2D
-    ctx.font = "32px 'helvetica neue', sans-serif"
-    ctx.textBaseline = 'middle'
-
-    const lines = getTextLines(ctx as CanvasRenderingContext2D, text, 1024 - 64)
-    const lineHeight = 40
-
-    const paddingX = 20
-    const paddingY = 10
-    const w = getLineMaxWidth(ctx as CanvasRenderingContext2D, lines) + paddingX * 2
-    const h = lineHeight * lines.length + paddingY * 2
-    const top = 512 - h
-    const left = 512 - w / 2
-
-    ctx.lineWidth = 0
-    ctx.strokeStyle = 'transparent'
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)'
-    ctx.beginPath()
-    ctx.rect(left, top, w, h)
-    ctx.fill()
-
-    // draw the text lines
-    ctx.fillStyle = 'rgba(0, 0, 0, 0.8)'
-    lines.forEach((line, offset) => {
-      ctx.fillText(line, left + paddingX, top + lineHeight * offset + paddingY + lineHeight / 2)
-    })
-    chatTexture.update(true)
-    // mesh.setParent(this.node)
-
-    if (this.neckBone && this._avatarMesh) {
-      mesh.attachToBone(this.neckBone, this._avatarMesh)
+  addChat(text: string) {
+    // Dispose old bubbles
+    for (const b of this.node.getChildren()) {
+      if (b instanceof Bubble) {
+        b.dispose()
+      }
     }
 
-    // const forward = this.scene.activeCamera?.getForwardRay() ?? new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Zero())
+    const bubble = new Bubble(this.scene, this.node, text)
+    bubble.position.set(0, 0.5, 0)
 
-    const startPos = new BABYLON.Vector3(0, 0, 0)
-    const endPos = new BABYLON.Vector3(0, -1.5, 0)
-
-    const s = 2.5
-    mesh.position.copyFrom(startPos)
-    mesh.scaling.set(-s, -s, s)
-    mesh.rotation.set(0, Math.PI, 0)
-    this.chatBubbles.unshift(mesh)
-
-    const animation = new BABYLON.Animation('chat', 'position', 60, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE)
-    mesh.animations.push(animation)
-
-    animation.setKeys([
-      { frame: 0, value: startPos },
-      { frame: DURATION, value: endPos },
-    ])
-
-    this.scene.beginAnimation(mesh, 0, DURATION, false)
-
-    // Hide name mesh while chat bubble is visible
-    if (this.nameMesh) {
-      this.nameMesh.visibility = 0
-    }
-  }
-
-  /**
-   * Clear chat bubbles generated by this avatar
-   * @returns void
-   */
-  private clearChatBubbles() {
-    // remove previous messages
-    while (this.chatBubbles.length) {
-      const lastMesh = this.chatBubbles.pop()!
-      lastMesh.animations[0].setKeys([
-        { frame: 0, value: lastMesh.position.clone() },
-        { frame: DURATION, value: new BABYLON.Vector3(0, 2, 0) },
-      ])
-      this.scene
-        .beginAnimation(lastMesh, 0, DURATION, false)
-        .waitAsync()
-        .then(() => {
-          lastMesh.dispose()
-
-          // Show name mesh again
-          if (this.nameMesh) {
-            this.nameMesh.visibility = 1
-          }
-        })
-    }
+    setTimeout(() => {
+      bubble.dispose()
+    }, CHAT_READ_DURATION)
   }
 
   /**

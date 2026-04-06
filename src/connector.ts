@@ -12,6 +12,7 @@ import type { Scene } from './scene'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
 import { ConnectionState } from './utils/socket-client'
 import { Transform } from './utils/transform'
+import { signal } from '@preact/signals'
 
 const UPDATE_AVATAR_INTERVAL_MS = 200
 
@@ -55,7 +56,7 @@ export type ChatMessageRecord = Readonly<{
   timestamp: number
 }>
 
-export type ChatChannel = 'local' | 'global'
+export const messageList = signal<ChatMessageRecord[]>([])
 
 const LOCAL_CHANNEL = 'local' as const
 const GLOBAL_CHANNEL = 'global' as const
@@ -64,13 +65,11 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   readonly onConnectionStateChanged: BABYLON.Observable<ConnectionState> = new BABYLON.Observable()
   loadNearbyAvatarsInterval: NodeJS.Timeout | null = null
   controls: Controls
-  public messages: Record<ChatChannel, ChatMessageRecord[]> = { local: [], global: [] }
   connectedAt: Date | undefined
   isOpen = false
   persona: Persona
   avatarTimeoutInterval: NodeJS.Timeout | null = null
   currentParcelId: number | undefined
-  onMessagesChange: BABYLON.Observable<void> = new BABYLON.Observable()
   multiplayerClient!: WebSocket
   private lazyAvatarDisposer = createLazyDisposer<string>(AVATAR_DISPOSE_DELAY_MS, ({ item: avatarUuid }) => this.disposeAvatar(avatarUuid))
   private readonly scene: Scene
@@ -529,10 +528,6 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     this.send(message)
   }
 
-  canChatOnChannel(channel: ChatChannel): boolean {
-    return channel === LOCAL_CHANNEL || this.isLoggedIn
-  }
-
   sendMetric(action: messages.Action, parcel?: number) {
     // Set nearest parcel if possible
     if (!parcel) {
@@ -552,44 +547,6 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       parcel,
     }
     this.send(message)
-  }
-
-  say(text: string, channel: ChatChannel = LOCAL_CHANNEL) {
-    if (!this.persona.avatar) {
-      throw new Error('Cannot speak without an avatar')
-    }
-
-    if (!this.canChatOnChannel(channel)) {
-      throw new Error('Not authorised to speak on this channel')
-    }
-
-    this.sendMetric(messages.Action.Chat)
-
-    // prevent spamming
-    // if user has sent more than 3 messages in the last 5 seconds, prevent them from sending more
-    const now = Date.now()
-    const lastFiveSeconds = now - 5000
-    const myRecents = this.messages[channel].filter((m) => m.avatar === this.persona.avatar?.uuid && m.timestamp > lastFiveSeconds)
-    if (myRecents.length > 3) {
-      console.warn('Message spam detected, preventing message from being sent')
-      throw new Error("Whoa, slow down there! You're sending messages too fast. Try again in a few seconds ")
-    }
-    const last = myRecents.at(-1)
-    if (last && last.text === text && now - last.timestamp < 1000) {
-      console.warn('Message duplication detected, preventing message from being sent')
-      return
-    }
-
-    this.persona.avatar.displayChatBubble(text)
-
-    this.sendMessage(text, channel)
-    this.addChat(text, this.persona.avatar, now, channel)
-
-    // For scripting purposes:
-    const parcel = this.currentParcel()
-    if (parcel && parcel.parcelScript && this.persona.avatar) {
-      parcel.parcelScript.dispatch('chat', this.persona.avatar, { text })
-    }
   }
 
   emote(emote: string) {
@@ -714,37 +671,13 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     // avatar might not exist if they are in a space, or have disconnected etc
     const avatar = this._avatarsByUuid.get(message.uuid)
 
-    const text = entityDecode(message.text as EncodedString)
-    if (!text) {
-      console.warn('discarding message', message)
+    if (!avatar) {
+      console.warn('Cannot find avatar')
       return
     }
 
-    switch (message.channel) {
-      case LOCAL_CHANNEL:
-        if (!avatar) {
-          // local chat by definition should have an avatar available.. discard message
-          console.error('Received local message from non existant avatar, discarding', message)
-          return
-        }
-        this.onLocalChat(avatar, text, messageTimestamp, deliverQuietly)
-        break
-      case GLOBAL_CHANNEL:
-        if (!avatar && !message.name) {
-          // received a message from the unknown, discard :(
-          console.error('Received invalid message', message)
-          return
-        }
-        this.onGlobalChat(avatar, text, message.name, message.uuid, messageTimestamp, deliverQuietly)
-        break
-      case 'broadcast':
-        // not supported yet
-        break
-      default: {
-        console.error(`Unknown channel ${message.channel}`)
-        break
-      }
-    }
+    avatar.addChat(message.text)
+    this.addChat(message.text, avatar)
   }
 
   onEmoteMessage(message: messages.AvatarEmoteMessage) {
@@ -783,46 +716,45 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     avatar.recordSeen()
   }
 
-  private sendMessage(chat: string, channel: ChatChannel) {
-    if (chat.length === 0) {
-      return
-    }
+  sendMessage(text: string) {
+    this.sendMetric(messages.Action.Chat)
 
-    if (channel === GLOBAL_CHANNEL && this.scene.config.isSpace) {
-      // not allowed to chat on global channel in spaces (for now)
-      return
-    }
+    // Show speech bubble?
+    this.persona.avatar?.addChat(text)
 
-    const text = entityEncode(chat)
+    this.addChat(text, this.persona.avatar)
+
+    // For scripting purposes:
+    // const parcel = this.currentParcel()
+    // if (parcel && parcel.parcelScript && this.persona.avatar) {
+    //   parcel.parcelScript.dispatch('chat', this.persona.avatar, { text })
+    // }
 
     const message: messages.ChatMessage = {
       type: messages.MessageType.chat,
-      channel,
+      channel: LOCAL_CHANNEL,
       name: this.persona.user.name,
       uuid: this.persona.uuid,
       text,
     }
 
-    if (this.multiplayerClient.readyState !== WebSocket.OPEN) {
-      app.showSnackbar('You are not connected to the server. The message might not be delivered.', PanelType.Warning)
-    }
-
     this.send(message)
   }
 
-  private addChat(message: string, avatar: Avatar | undefined, timestamp: number, channel: ChatChannel = LOCAL_CHANNEL) {
-    this.messages[channel].push({
+  private addChat(message: string, avatar: Avatar | undefined) {
+    const list = messageList.value.slice()
+    list.push({
       avatar: avatar?.uuid,
       text: message,
-      timestamp,
+      timestamp: Date.now(),
     })
 
     // only keep the last 100 messages in memory
-    while (this.messages[channel].length > 100) {
-      this.messages[channel].shift()
+    while (list.length > 100) {
+      list.shift()
     }
-    this.onMessagesChange.notifyObservers()
-    if (avatar) avatar.recordSeen()
+
+    messageList.value = list
   }
 
   // private async getChatHistory() {
@@ -854,19 +786,6 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   //   this.onMessagesChange.notifyObservers()
   // }
 
-  private onLocalChat(avatar: Avatar, text: string, messageTimestamp: number, deliverQuietly: boolean) {
-    if (avatar.distanceFromCamera > 80) {
-      // too far away, discard
-      return
-    }
-
-    this.addChat(text, avatar, messageTimestamp, LOCAL_CHANNEL)
-
-    if (!deliverQuietly && avatar) {
-      avatar.onChat(text)
-    }
-  }
-
   private async addDummyAvatar(uuid: string, name: string): Promise<Avatar | null> {
     if (!uuid.trim() || !name.trim()) {
       // you aren't giving me much to work with here...
@@ -884,20 +803,6 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     this.dispatchEvent(createEvent('avatar_joined', uuid))
 
     return avatar
-  }
-
-  private async onGlobalChat(avatar: Avatar | undefined, text: string, avatarName: string, avatarUUID: string, timestamp: number, deliverQuietly: boolean) {
-    if (!avatar) {
-      const dummy = await this.addDummyAvatar(avatarUUID, avatarName)
-      if (!dummy) {
-        console.warn('discarding invalid message')
-        return
-      }
-      avatar = dummy
-    }
-    this.addChat(text, avatar, timestamp, GLOBAL_CHANNEL)
-
-    if (!deliverQuietly && avatar) avatar.onChat(text)
   }
 
   private disposeAvatar(uuid: string) {

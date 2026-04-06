@@ -1,7 +1,7 @@
 import { Component, ComponentChildren, render, VNode } from 'preact'
 import { unmountComponentAtNode } from 'preact/compat'
 import { useEffect, useState } from 'preact/hooks'
-import Connector from '../../../src/connector'
+import Connector, { messageList } from '../../../src/connector'
 import { app } from '../state'
 import { PanelType } from './panel'
 
@@ -39,28 +39,6 @@ export default class ReportButton extends Component<Props, State> {
     return window.connector
   }
 
-  componentDidMount() {}
-
-  grabChatIfAvatarReport = () => {
-    if (this.props.type != 'avatar') {
-      return ''
-    }
-    const msgList = [...this.connector.messages['local'], ...this.connector.messages['global']].filter((msg) => msg.text.match('/say'))
-    if (msgList.length) {
-      msgList.reverse()
-      // get the last 20 messages
-      return msgList
-        .slice(0, 20)
-        .map((msg) => {
-          const avatar = msg.avatar ? this.connector.findAvatar(msg.avatar) : null
-          return (avatar?.name ?? avatar?.wallet) + ' -> ' + msg.text.slice(5)
-        })
-        .join('\n')
-    } else {
-      return ''
-    }
-  }
-
   reportItem = async () => {
     if (this.state.fetching) {
       return
@@ -68,7 +46,7 @@ export default class ReportButton extends Component<Props, State> {
 
     this.setState({ reported: true, fetching: true })
 
-    const chat = this.grabChatIfAvatarReport()
+    const chat = messageList.value.slice()
 
     const body = {
       reported_id: this.props.type == 'avatar' ? this.props.item.owner : this.props.item.id,
@@ -87,12 +65,11 @@ export default class ReportButton extends Component<Props, State> {
     })
     const r = await p.json()
     if (!r.success) {
-      // Revert if error.
-      const message = `Could not report this item. Please try again.`
+      const message = `[SYSTEM ERROR]`
       app.showSnackbar(r.message || message, PanelType.Danger)
       this.setState({ reported: false })
     } else {
-      const message = `Thank you for reporting this!`
+      const message = `Good work citizen`
       app.showSnackbar(message, PanelType.Success)
       this.props.callback && this.props.callback(message)
     }

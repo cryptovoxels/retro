@@ -281,7 +281,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         { code: 'KeyL', handleEvent: () => this.setState({ pane: 'add' }) },
         { code: 'KeyG', handleEvent: () => this.setState({ pane: 'emote' }) },
         { code: 'KeyZ', handleEvent: () => this.connector.controls.toggleZoom() },
-        { code: 'Enter', handleEvent: () => this.toggleChatFocus() },
+        { code: 'Enter', handleEvent: this.focusChat },
         { code: 'Escape', handleEvent: () => this.closeInteractOverlay() },
         { code: 'Backquote', ctrlKey: true, handleEvent: () => this.toggleFeaturePumpDebug() },
         {
@@ -349,10 +349,22 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.setState({ pane: undefined, active: false })
   }
 
-  toggleChatFocus() {
+  focusChat = (e: KeyboardEvent) => {
     exitPointerLock()
 
-    ChatOverlay.instance?.focusInput()
+    const input = document.querySelector('main.chat input') as HTMLInputElement
+
+    if (!input) {
+      return
+    }
+
+    if (document.activeElement === input) {
+      // input.blur()
+    } else {
+      setTimeout(() => {
+        input.focus()
+      })
+    }
   }
 
   setTool(tool: Tool | null) {
