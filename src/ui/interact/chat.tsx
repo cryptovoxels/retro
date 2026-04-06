@@ -1,6 +1,6 @@
 import { Component, createRef, JSX } from 'preact'
 import { forwardRef } from 'preact/compat'
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { isMobile } from '../../../common/helpers/detector'
 import { Emojis, replaceEmojiText, replaceEmoticonsAndEmojiText } from '../../../common/helpers/emojis'
 import { Emotes } from '../../../common/messages/constant'
@@ -101,9 +101,9 @@ export class ChatOverlay extends Component<Props, State> {
       <main class="chat">
         <div class={'chat-messages'}>
           {messageList.value.map((m) => (
-            <div>
-              {name(m)}: {m.text}
-            </div>
+            <p>
+              <span>{`${name(m)}: ${m.text}`}</span>
+            </p>
           ))}
         </div>
 
@@ -115,18 +115,34 @@ export class ChatOverlay extends Component<Props, State> {
 
 const ChatInput = () => {
   const [currentMessage, setMessage] = useState<string>('')
+  const inputRef = useRef<HTMLInputElement>(null)
 
-  const say = () => {
-    // Reset input early to avoid double sending
+  const say = (e: Event) => {
     setMessage('')
 
-    window.connector.sendMessage(currentMessage)
+    if (currentMessage) {
+      window.connector.sendMessage(currentMessage)
+    } else {
+      blur()
+    }
+
+    e.preventDefault()
+  }
+
+  const blur = () => {
+    inputRef.current?.blur()
   }
 
   const onChatKeydown = (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
-      say()
-      e.preventDefault()
+      say(e)
+
+      if (!e.shiftKey) {
+        blur()
+      }
+    } else if (e.key === 'Escape') {
+      setMessage('')
+      blur()
     } else {
       // typing()
     }
@@ -134,7 +150,7 @@ const ChatInput = () => {
 
   return (
     <form onSubmit={say}>
-      <input type="text" onKeyDown={onChatKeydown} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} />
+      <input type="text" onKeyDown={onChatKeydown} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} ref={inputRef} />
       <button type="submit">Send</button>
     </form>
   )

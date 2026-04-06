@@ -12,7 +12,6 @@ import type Parcel from './parcel'
 import ParcelScript from './parcel-script'
 import type Persona from './persona'
 import type { Scene } from './scene'
-import showAvatarHTMLUi from './ui/html-ui/avatar-ui'
 import { emote } from './utils/emote'
 import { Transform } from './utils/transform'
 import { Bubble } from './chat'
@@ -389,7 +388,6 @@ export default class Avatar extends Entity {
   }
 
   onContextClick() {
-    showAvatarHTMLUi(this, this.scene)
     return true
   }
 
@@ -650,13 +648,14 @@ export default class Avatar extends Entity {
     this.armatureMesh.material = this._material
 
     if (this.isAnon) {
-      this._material.diffuseColor.set(0, 0, 0)
-      this._material.emissiveColor.set(1, 1, 1)
-      this._material.disableLighting = true
-      this._material.specularPower = 0
+      this._material.diffuseColor.set(1, 1, 1)
+      this._material.specularColor.set(1, 1, 1)
+      this._material.emissiveColor.set(0.5, 0.5, 0.5)
+      // this._material.disableLighting = true
+      this._material.specularPower = 1000
 
       this.armatureMesh.outlineColor = new BABYLON.Color3(0.05, 0.05, 0.05)
-      this.armatureMesh.outlineWidth = 0.01
+      this.armatureMesh.outlineWidth = 0.02
       this.armatureMesh.renderOutline = true
     } else {
       this._material.diffuseColor.set(0.82, 0.81, 0.8)

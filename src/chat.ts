@@ -40,6 +40,7 @@ export class Bubble extends BABYLON.Mesh {
     m.diffuseTexture = this.texture
     m.sideOrientation = BABYLON.Mesh.DOUBLESIDE
     m.useAlphaFromDiffuseTexture = true
+    m.emissiveColor.set(0.7, 0.7, 0.7)
     this.material = m
 
     this.parent = parent
@@ -64,7 +65,7 @@ export class Bubble extends BABYLON.Mesh {
     const lines = 1
     const lineHeight = 36
 
-    const w = getTextWidth(ctx, this.text) + 40
+    const w = Math.max(60, getTextWidth(ctx, this.text)) + 40
     const h = lineHeight * lines + 40
 
     const left = (WIDTH - w) / 2

@@ -204,114 +204,38 @@ main.chat {
   margin: 0 0 4px 0;
   padding: 4px;
   overflow-y: auto;
-  background: var(--tinge);
-  flex: 1;
+  max-height: 30vh;
   display: flex;
   flex-direction: column;
 
-  b {
-    margin-right: 6px;
-    font-weight: normal;
-    color: #aaa;
+  .chat-messages {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    margin-bottom: 2px;
   }
 
-  a {
-    color: inherit;
-    text-decoration: none;
-  }
-
-  div.chat-messages {
-    margin-left: 1rem;
-    margin-bottom: 0.5rem;
-
-    & > div {
-      margin-bottom: 0.25rem;
-    }
-  }
-  div {
-    &:first-child {
-      margin-top: auto !important;
-    }
-
-    &.-helper {
-      > i {
-        display: block;
-        margin-right: 5px;
-
-        padding: 4px;
-      }
-
-      > div {
-        font-weight: bold;
-        color: #cc92da;
-        font-size: 90%;
-        flex: 1;
-      }
-
-      display: flex;
-      margin: 10px 0;
-    }
-
-    &.-you {
-      font-style: italic;
-    }
-
-    // Show tags in a different color
-    span.-chat-user-tag {
-      color: #f860ff;
-      cursor: pointer;
-
-      &:hover {
-        color: #f64bff;
-        text-decoration: underline;
-      }
-    }
-
-    &.broadcast {
-      background: #35246933;
-    }
-
-    font-size: 14px;
-
-    p {
-      line-height: 18px;
-      text-shadow:
-        -1px -1px 0 #000,
-        1px -1px 0 #000,
-        -1px 1px 0 #000,
-        1px 1px 0 #000;
-      display: inline;
-      color: #fff;
-      font-weight: normal;
-      margin: 0;
-      user-select: text;
-      word-break: break-word;
-
-      b a {
-        color: #eee;
-      }
-
-      span {
-        flex: 1;
-      }
-
-      &.action {
-        opacity: 0.6;
-      }
+  p {
+    margin: 0 0.6rem;
+    span {
+      padding: 2px 0.4rem;
+      text-shadow: 1px 1px 1px black;
+      background: #0005;
+      border-radius: 2px;
     }
   }
 
-  a.teleport {
-    margin-left: 10px;
-    color: #aaa;
-  }
+  form {
+    padding: 0 0.5rem;
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
 
-  > div {
-  }
-
-  > div > p {
-    padding: 2px;
-    display: inline-block;
+    button,
+    input {
+      padding: 0.3rem;
+    }
   }
 }
 
@@ -1740,54 +1664,6 @@ dialog.editor {
     &:first-child {
       margin-top: auto !important;
     }
-  }
-}
-
-div.ChatInput {
-  display: flex;
-  width: 100%;
-  align-items: center;
-
-  input {
-    flex: 1;
-
-    background: rgba(0, 0, 0, 0.3);
-    border: 2px solid white;
-    border-radius: 2rem;
-    color: white;
-
-    font: inherit;
-
-    padding: 0.8rem 1.4rem;
-    outline: none;
-    box-sizing: border-box;
-  }
-
-  .react-autocomplete-input {
-    background-clip: padding-box;
-    color: #fff;
-    background-color: #363636;
-    border: 1px solid rgba(0, 0, 0, 0.15);
-    bottom: auto;
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.175);
-    display: block;
-    font-size: 14px;
-    list-style: none;
-    padding: 1px;
-    position: absolute;
-    text-align: left;
-  }
-
-  .react-autocomplete-input > li {
-    cursor: pointer;
-    padding: 10px;
-    min-width: 100px;
-  }
-
-  .react-autocomplete-input > li.active {
-    background-color: #6d6d6e;
-    color: #fff;
-    text-shadow: 1px 1px 0 black;
   }
 }
 

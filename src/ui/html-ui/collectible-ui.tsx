@@ -3,7 +3,6 @@ import { getWearableGif } from '../../../web/src/helpers/wearable-helpers'
 
 import CollectibleModel from '../../features/collectible-model'
 import { exitPointerLock } from '../../../common/helpers/ui-helpers'
-import showAvatarHTMLUi from './avatar-ui'
 import { HTMLUi } from './html-ui'
 import { unmountComponentAtNode } from 'preact/compat'
 import { SUPPORTED_CHAINS_BY_ID } from '../../../common/helpers/chain-helpers'
@@ -110,21 +109,6 @@ export class CollectibleHTMLUi extends HTMLUi<Props, State> {
     return this.connector.findAvatarByWallet(wallet)
   }
 
-  onWalletClick() {
-    if (!this.asset) {
-      return
-    }
-
-    const avatar = this.getAvatar(this.asset.author)
-    // if the avatar is in world, open in world avatar box otherwise fall back to link open in new window
-    if (avatar) {
-      showAvatarHTMLUi(avatar, this.props.scene)
-      return
-    }
-
-    window.open(`${process.env.ASSET_PATH}/avatar/${this.asset.author}`, '_blank')
-  }
-
   onTryCollectible() {
     this.feature?.tryOnCollectible && this.feature?.tryOnCollectible()
     this.close()
@@ -177,9 +161,7 @@ export class CollectibleHTMLUi extends HTMLUi<Props, State> {
             </div>
             <div className="OverlayHighlightContent -link">
               <h4>Creator</h4>
-              <p>
-                <a onClick={() => this.onWalletClick()}>{this.state.author_name || this.asset?.author}</a>
-              </p>
+              <p>{this.state.author_name || this.asset?.author}</p>
             </div>
             <div className="OverlayHighlightContent">
               <h4>Chain</h4>

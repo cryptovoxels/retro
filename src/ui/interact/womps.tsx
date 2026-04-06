@@ -6,7 +6,6 @@ import Connector from '../../connector'
 import { MinimapSettings } from '../../minimap'
 import Persona from '../../persona'
 import type { Scene } from '../../scene'
-import showAvatarHTMLUi from '../html-ui/avatar-ui'
 import TakeWomp from '../take-womp'
 
 interface Props {
@@ -59,15 +58,6 @@ export class WompOverlay extends Component<Props, State> {
     TakeWomp.Capture(engine, this.props.scene, this.props.minimapSettings)
   }
 
-  onAvatarClick(avatarId: string) {
-    // if the avatar is in world, open in world avatar box otherwise fall back to link open in new window
-    const avatar = this.connector.findAvatar(avatarId)
-    if (avatar) {
-      showAvatarHTMLUi(avatar, this.props.scene)
-      return false
-    }
-  }
-
   onClick = (womp: Womp) => {
     if (this.props.scene.config.isSpace) {
       //IF we're currently in a space and we click a broadcast womp, take us in-world
@@ -110,7 +100,7 @@ export class WompOverlay extends Component<Props, State> {
         <div class="grid">
           {this.state.womps.map((womp) => (
             <div class="womp" key={womp.id}>
-              <WompCard womp={womp} hoverText={`Click to teleport to ${womp.coords}`} className="-compact" onClick={this.onClick.bind(this)} onAvatarClick={this.onAvatarClick.bind(this)} />
+              <WompCard womp={womp} hoverText={`Click to teleport to ${womp.coords}`} className="-compact" onClick={this.onClick.bind(this)} />
             </div>
           ))}
         </div>

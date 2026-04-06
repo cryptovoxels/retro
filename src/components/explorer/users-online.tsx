@@ -2,7 +2,6 @@ import { Component } from 'preact'
 import { encodeCoords, fetchFromMPServer } from '../../../common/helpers/utils'
 import Connector from '../../connector'
 import type { Scene } from '../../scene'
-import showAvatarHTMLUi from '../../ui/html-ui/avatar-ui'
 
 // Should these types be included in our message types instead?
 type UserState = {
@@ -96,25 +95,10 @@ const UserItem = ({ scene, connector, user }: { scene: Scene; connector: Connect
     return connector.findAvatarByWallet(wallet)
   }
 
-  const onWalletClick = (wallet: string) => {
-    const avatar = getAvatar(wallet)
-    // if the avatar is in world, open in world avatar box otherwise fall back to link open in new window
-    if (avatar) {
-      showAvatarHTMLUi(avatar, scene)
-      return
-    }
-
-    window.open(`${process.env.ASSET_PATH}/u/${wallet}`, '_blank')
-  }
-
   return (
     <li>
       <div>
-        <h2>
-          <a style={{ cursor: 'pointer' }} onClick={() => user.wallet && onWalletClick(user.wallet)} title="See profile">
-            {user.name}
-          </a>
-        </h2>
+        <h2>{user.name}</h2>
       </div>
       <div>
         <button onClick={() => teleportTo(user)}>Teleport to</button>

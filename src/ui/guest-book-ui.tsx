@@ -11,7 +11,6 @@ import { app, AppEvent } from '../../web/src/state'
 import GuestBook from '../features/guest-book'
 import type Parcel from '../parcel'
 import type { Scene } from '../scene'
-import showAvatarHTMLUi from './html-ui/avatar-ui'
 
 interface Props {
   onClose?: (e: MouseEvent) => void
@@ -270,25 +269,10 @@ function WalletBox(props: { wallet: string; username?: string; children?: Compon
     return connector?.findAvatarByWallet(wallet)
   }
 
-  const onWalletClick = (wallet: string) => {
-    const avatar = getAvatar(wallet)
-    // if the avatar is in world, open in world avatar box otherwise fall back to link open in new window
-    if (avatar) {
-      showAvatarHTMLUi(avatar, props.scene)
-      return
-    }
-
-    window.open(`${process.env.ASSET_PATH}/u/${wallet}`, '_blank')
-  }
-
   return (
     <li key={wallet} className="wallet-box">
       <div className="wallet-container">
-        <div>
-          <a title={getAvatar(wallet) ? `Is online` : `Offline`} onClick={() => onWalletClick(wallet)}>
-            {name || wallet}
-          </a>
-        </div>
+        <div>{name || wallet}</div>
         {!!props.children && props.children}
       </div>
     </li>
