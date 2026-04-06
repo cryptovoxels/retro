@@ -107,7 +107,9 @@ export class ParcelAdminOverlay extends Component<Props, State> {
     this.setState({ saving: true }, async () => {
       const r = await saveAsset(AssetType.Parcel, this.props.parcel.id, { name: this.state.name })
       this.setState({ saving: false })
-      this.props.parcel.name = this.state.name
+      if (r.success) {
+        this.props.parcel.name = this.state.name
+      }
       this.setPanel(r.success ? 'New name was saved!' : 'Something went wrong, please try again...', r.success)
     })
   }
@@ -119,7 +121,9 @@ export class ParcelAdminOverlay extends Component<Props, State> {
     this.setState({ saving: true }, async () => {
       const r = await saveAsset(AssetType.Parcel, this.props.parcel.id, { description: this.state.description })
       this.setState({ saving: false })
-      this.props.parcel.description = this.state.description
+      if (r.success) {
+        this.props.parcel.description = this.state.description
+      }
       this.setPanel(r.success ? 'New description was saved!' : 'Something went wrong, please try again...', r.success)
     })
   }
