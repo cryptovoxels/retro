@@ -1,9 +1,8 @@
 import { Component } from 'preact'
-import { opensea } from '../utils/proxy'
+import { opensea, readOpenseaUrl } from '../utils/proxy'
 import { SingleParcelRecord } from '../../common/messages/parcel'
 import { FeatureCommon, FeatureType } from '../../common/messages/feature'
 import { imageUrlViaProxy, tidyURL } from '../utils/helpers'
-import { isStringHex } from '../../common/helpers/utils'
 
 interface Props {
   items: FeatureCommon[]
@@ -67,13 +66,9 @@ export class ItemsByCategories extends Component<Props, State> {
   async nftImage(feature: FeatureCommon) {
     const url = tidyURL(feature.url)
     if (!url) return ''
-    const urlParts = url.split('/')
-    // find the first part in the address that looks like a contract
-    const idx = urlParts.findIndex((p) => isStringHex(p))
-    const contract = urlParts[idx]
-    const token = urlParts[idx + 1]
-    if (!contract || !token) return ''
-    const r = await opensea(contract, token)
+    const info = readOpenseaUrl(url)
+    if (!info) return ''
+    const r = await opensea(info.contract, info.token, info.chain)
     return r.animation_url || r.image_url || r.image_preview_url || ''
   }
 

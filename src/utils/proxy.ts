@@ -5,6 +5,24 @@ import { OpenSeaNftModelDetailedV2, OpenSeaNftModelDetailedV2Extended, TraitReco
 import { isAddress } from 'ethers'
 import { isValidUrl } from '../../common/helpers/utils'
 
+/** Base mainnet (OpenSea chain slug `base`). Requires `chain_id=8453` on `/v2/opensea` (proxy CDN). */
+export const OPENSEA_BASE_CHAIN_ID = 8453
+
+/** OpenSea `/assets/<slug>/...` path segment for permalinks and metadata. */
+export function openseaAssetsChainSlug(chain_id: number): 'ethereum' | 'matic' | 'base' {
+  if (chain_id === 137) return 'matic'
+  if (chain_id === OPENSEA_BASE_CHAIN_ID) return 'base'
+  return 'ethereum'
+}
+
+function legacyAssetSchemaName(chain_id: number, token_standard?: string | null): string {
+  const ts = (token_standard || '').toLowerCase()
+  if (ts.includes('1155')) return 'ERC1155'
+  if (ts.includes('721')) return 'ERC721'
+  if (chain_id === 137) return 'ERC1155'
+  return 'ERC721'
+}
+
 // Main function to get NFT data
 export const getNFTData = async (contract: string, token: string, chain_id = 1, account_address = '', forceUpdate = false): Promise<OpenSeaNftModelDetailedV2Extended> => {
   const parameters: { contract: string; token: string; chain_id: number; account_address: string; force_update?: number } = {
@@ -63,7 +81,7 @@ export const opensea = async (contract: string, token: string, chain_id = 1, acc
     external_link: null,
     asset_contract: {
       address: nftData.contract,
-      schema_name: chain_id === 1 ? 'ERC721' : 'ERC1155',
+      schema_name: legacyAssetSchemaName(chain_id, nftData.token_standard),
     },
     creator: nftData.creator,
     owners: nftData.owners,
@@ -91,7 +109,7 @@ function mapOpenseaV2ToNFTMetadata(data: OpenSeaNftModelDetailedV2, chain_id: nu
 
   return {
     identifier: data.identifier,
-    chain: chain_id === 137 ? 'matic' : 'ethereum',
+    chain: openseaAssetsChainSlug(chain_id),
     contract: data.contract,
     animation_url: data.animation_url || null,
     image_url: data.image_url || data.display_image_url || undefined,
@@ -130,32 +148,53 @@ function mapOpenseaV2ToNFTMetadata(data: OpenSeaNftModelDetailedV2, chain_id: nu
   }
 }
 
-// Helper function to read OpenSea URLs
+// Helper function to read OpenSea URLs (ethereum, polygon/matic, base)
 export const readOpenseaUrl = (url: string): { contract: string; token: string; chain: number } | null => {
-  const valid = isValidUrl(url)
-  if (!valid) {
+  if (!isValidUrl(url)) {
     return null
   }
-  const params = url?.split('/')
-
-  const hasChainIdentifier = params[4] == 'matic' || params[4] == 'polygon' || params[4] == 'ethereum'
-  if (!hasChainIdentifier && !isAddress(params[4])) {
-    // We dont have a chain identifier and params[4] is not an address
+  let pathname: string
+  try {
+    pathname = new URL(url).pathname
+  } catch {
     return null
   }
-
-  const chain = params[4] == 'matic' || params[4] == 'polygon' ? 137 : 1
-  const contract = hasChainIdentifier ? params[5] : params[4]
-
-  if (!isAddress(contract)) {
+  const parts = pathname.split('/').filter(Boolean)
+  // /assets/<chain>/<contract>/<token> or /assets/<contract>/<token> (legacy ethereum)
+  if (parts[0] !== 'assets' || parts.length < 3) {
     return null
   }
 
-  const token = hasChainIdentifier ? params[6] : params[5]
+  if (parts.length === 3) {
+    const contract = parts[1]
+    const token = parts[2]
+    if (!isAddress(contract) || !token) {
+      return null
+    }
+    return { contract, token, chain: 1 }
+  }
 
-  if (!token) {
+  const chainSlug = parts[1]
+  const contract = parts[2]
+  const token = parts[3]
+  if (!isAddress(contract) || !token) {
     return null
   }
 
+  let chain: number
+  switch (chainSlug) {
+    case 'ethereum':
+      chain = 1
+      break
+    case 'matic':
+    case 'polygon':
+      chain = 137
+      break
+    case 'base':
+      chain = OPENSEA_BASE_CHAIN_ID
+      break
+    default:
+      return null
+  }
   return { contract, token, chain }
 }

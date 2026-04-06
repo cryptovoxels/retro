@@ -419,7 +419,7 @@ export const OpenSeaNftModelDetailedV2Extended = t.intersection([
   OpenSeaNftModelDetailedV2,
   t.type({
     // Our own fields
-    chain: t.union([t.literal('ethereum'), t.literal('matic')]),
+    chain: t.union([t.literal('ethereum'), t.literal('matic'), t.literal('base')]),
   }),
 ])
 
