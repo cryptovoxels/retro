@@ -70,6 +70,9 @@ export default async function (req: VoxelsUserRequest, res: Response) {
       parcel.description = req.body.description
       shouldUpdateMeta = true
     }
+  } else if ('name' in req.body || 'description' in req.body) {
+    res.json({ success: false, error: 'Sandbox users cannot rename parcels' })
+    return
   }
 
   const snapshotName = req.query.snapshotName
