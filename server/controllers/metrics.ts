@@ -15,7 +15,7 @@ export default function MetricController(db: Db, app: Express) {
   const current = () => new Date().getUTCDay()
   const prior = () => (new Date().getUTCDay() + 6) % 7
 
-  app.get('/api/metrics', async (req, res) => {
+  app.get('/api/metrics', cache('1 minute'), async (req, res) => {
     const query = `
       WITH umetrics AS (
         SELECT 
@@ -90,7 +90,7 @@ export default function MetricController(db: Db, app: Express) {
 
   // Popular parcels
 
-  app.get('/api/metrics/popular', cache('10 minutes'), async (req, res) => {
+  app.get('/api/metrics/popular', cache('1 minute'), async (req, res) => {
     const query = `
       -- Union current and prior day
 
