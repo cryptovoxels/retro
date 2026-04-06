@@ -6,7 +6,7 @@ import { getClientPath } from '../../web/src/helpers/client-helpers'
 import { named } from '../lib/logger'
 
 const log = named('RenderComponent')
-const { BABYLON_BUNDLE_URL, LEAFLET_CSS_URL } = require('../../vendor/library/urls.js')
+const { BABYLON_BUNDLE_URL } = require('../../vendor/library/urls.js')
 
 const CLIENT_PATH = getClientPath(currentVersion)
 
@@ -50,7 +50,6 @@ export default function renderComponent(component: VNode) {
   <link rel="prefetch" href="${BABYLON_BUNDLE_URL}" as="script">
   <link rel="prefetch" href="${CLIENT_PATH}" as="script">
   <link href='/${currentVersion}-web.css' rel="stylesheet" />
-  <link href='${LEAFLET_CSS_URL}' rel='stylesheet' />
   ${head}
 </head>
 <body>

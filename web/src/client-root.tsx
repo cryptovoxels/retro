@@ -1,7 +1,7 @@
 import { currentVersion } from '../../common/version'
 import { getClientPath } from './helpers/client-helpers'
 
-const { BABYLON_BUNDLE_URL, LEAFLET_CSS_URL } = require('../../vendor/library/urls.js')
+const { BABYLON_BUNDLE_URL } = require('../../vendor/library/urls.js')
 
 const CLIENT_PATH = getClientPath(currentVersion)
 
@@ -26,7 +26,6 @@ export default function ClientRoot(props: { title: string; ogTitle?: string; ogD
         <script src={CLIENT_PATH} />
 
         <link href={`/${currentVersion}-client.css`} rel="stylesheet" />
-        <link rel="stylesheet" href={LEAFLET_CSS_URL} />
       </body>
     </html>
   )

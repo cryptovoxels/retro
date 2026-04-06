@@ -11,9 +11,6 @@ const crvoxAll = '*.crvox.com'
 // no need to specify voxels.com as it will be allowed by 'self'
 const voxels = ['cryptovoxels.com', '*.cryptovoxels.com', 'mapping-yhsgv.ondigitalocean.app']
 
-// can be removed once we are no longer using cdn.jsdelivr.net in workers
-const jsdelivr = 'cdn.jsdelivr.net'
-
 /**
  * Set reportOnly to true to only report violations without blocking them (useful for testing)
  * @param {boolean?} reportOnly
@@ -32,10 +29,10 @@ module.exports = (reportOnly) =>
       // Need unsafe-eval for turf
       // Need unsafe-inline for metamask on firefox :(
       // Need blob for workers
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'blob:', jsdelivr, 'cdn.babylonjs.com', ...voxels],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", 'blob:', 'cdn.babylonjs.com', ...voxels],
 
       // need unsafe-inline for babylonjs webvr button
-      styleSrc: ["'self'", "'unsafe-inline'", jsdelivr, ...voxels],
+      styleSrc: ["'self'", "'unsafe-inline'", ...voxels],
       mediaSrc: ['*', 'blob:'],
       imgSrc: ['data:', 'blob:', '*', '*.seadn.io'],
       objectSrc: ["'self'", ...voxels, 'discordapp.com', crvoxAll],

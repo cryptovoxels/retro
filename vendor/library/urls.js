@@ -12,11 +12,9 @@ function babylonBundleUrls(minified) {
   }
 }
 
-const LEAFLET_CSS_URL = 'https://cdn.jsdelivr.net/npm/leaflet@1.6.0/dist/leaflet.min.css'
-
 const babylonBundleLocalFilenames = [
   'msgpack.js',
-  'leaflet.js', // A possible alternative: https://cdn.jsdelivr.net/npm/leaflet@1.6.0/dist/leaflet.min.js
+  'leaflet.js',
 ]
 
 // Bundle file names and contents depend on whether we want to minify
@@ -42,7 +40,6 @@ function bundleUrls(minified) {
 module.exports = {
   // For use by the website
   ...bundleUrls(process.env.NODE_ENV !== 'development'),
-  LEAFLET_CSS_URL,
   UNBUNDLED_BABYLON_LIB_URL_FOR_WEB_WORKERS: babylonBundleUrls(process.env.NODE_ENV !== 'development').BABYLON_LIB_URL, // The bundle references 'window' :(
 
   // For use by the bundler
