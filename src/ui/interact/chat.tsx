@@ -102,7 +102,7 @@ export class ChatOverlay extends Component<Props, State> {
         <div class={'chat-messages'}>
           {messageList.value.map((m) => (
             <p>
-              <span>{`${name(m)}: ${m.text}`}</span>
+              <span>{name(m)}: <ChatText text={m.text} /></span>
             </p>
           ))}
         </div>
@@ -111,6 +111,32 @@ export class ChatOverlay extends Component<Props, State> {
       </main>
     )
   }
+}
+
+const FOLLOW_CMD_PATTERN = /\/follow\s+(\S+)/
+
+const ChatText = ({ text }: { text: string }) => {
+  const match = text.match(FOLLOW_CMD_PATTERN)
+  if (!match) return <>{text}</>
+
+  const playerName = match[1]
+  const before = text.slice(0, match.index)
+  const after = text.slice((match.index || 0) + match[0].length)
+
+  const onClick = (e: Event) => {
+    e.preventDefault()
+    window.connector.sendMessage(`/follow ${playerName}`)
+  }
+
+  return (
+    <>
+      {before}
+      <a href="#" onClick={onClick} style="color: white; text-decoration: underline; cursor: pointer;">
+        Follow {playerName}
+      </a>
+      {after}
+    </>
+  )
 }
 
 const ChatInput = () => {
