@@ -68,6 +68,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   connectedAt: Date | undefined
   isOpen = false
   persona: Persona
+  allowFollow = false
   avatarTimeoutInterval: NodeJS.Timeout | null = null
   currentParcelId: number | undefined
   multiplayerClient!: WebSocket
@@ -146,6 +147,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       animation: this.persona.animation,
       position: this.persona.position.asArray() as [number, number, number],
       orientation: this.persona.orientation,
+      allowFollow: this.allowFollow,
     })
   }
 
@@ -501,6 +503,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       timestamp: Date.now(),
     })
 
+    avatar.allowFollow = !!message.allowFollow
     avatar.recordSeen()
   }
 
@@ -717,18 +720,16 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   }
 
   sendMessage(text: string) {
+    if (text.startsWith('/')) {
+      if (this.handleCommand(text)) return
+    }
+
     this.sendMetric(messages.Action.Chat)
 
     // Show speech bubble?
     this.persona.avatar?.addChat(text)
 
     this.addChat(text, this.persona.avatar)
-
-    // For scripting purposes:
-    // const parcel = this.currentParcel()
-    // if (parcel && parcel.parcelScript && this.persona.avatar) {
-    //   parcel.parcelScript.dispatch('chat', this.persona.avatar, { text })
-    // }
 
     const message: messages.ChatMessage = {
       type: messages.MessageType.chat,
@@ -739,6 +740,41 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     }
 
     this.send(message)
+  }
+
+  private handleCommand(text: string): boolean {
+    const [cmd, ...args] = text.trim().split(' ')
+    switch (cmd) {
+      case '/lead': {
+        this.allowFollow = !this.allowFollow
+        const status = this.allowFollow ? 'Leading enabled -- others can follow you' : 'Leading disabled'
+        this.addChat(status, undefined)
+        return true
+      }
+      case '/follow': {
+        const name = args.join(' ').trim()
+        let target: Avatar | undefined
+        if (name) {
+          target = this.avatars.find((a) => a.name.toLowerCase() === name.toLowerCase() && a.allowFollow)
+        } else {
+          target = this.getNearbyAvatarsToSelf().find((a) => a.allowFollow)
+        }
+        if (target) {
+          this.controls.startFollowing(target)
+          this.addChat(`Following ${target.name}`, undefined)
+        } else {
+          this.addChat(name ? `Can't follow "${name}" -- not found or not leading` : 'No nearby leaders found', undefined)
+        }
+        return true
+      }
+      case '/unfollow': {
+        this.controls.stopFollowing()
+        this.addChat('Stopped following', undefined)
+        return true
+      }
+      default:
+        return false
+    }
   }
 
   private addChat(message: string, avatar: Avatar | undefined) {

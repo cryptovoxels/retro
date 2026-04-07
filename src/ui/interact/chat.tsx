@@ -148,10 +148,19 @@ const ChatInput = () => {
     }
   }
 
+  const followTarget = window.connector?.controls?.followTarget
+
   return (
-    <form onSubmit={say}>
-      <input type="text" onKeyDown={onChatKeydown} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} ref={inputRef} />
-      <button type="submit">Send</button>
-    </form>
+    <div>
+      {followTarget && (
+        <div style="padding: 4px 8px; color: #a5d6a7; font-size: 12px;">
+          Following {followTarget.name} -- press any key to stop
+        </div>
+      )}
+      <form onSubmit={say}>
+        <input type="text" onKeyDown={onChatKeydown} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} ref={inputRef} />
+        <button type="submit">Send</button>
+      </form>
+    </div>
   )
 }

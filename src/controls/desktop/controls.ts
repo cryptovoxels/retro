@@ -271,6 +271,11 @@ export default class DesktopControls extends Controls {
       this.shiftKey = e.shiftKey
       this.ctrlKey = e.ctrlKey || e.metaKey
 
+      const movementKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Escape']
+      if (this.followTarget && movementKeys.includes(e.code)) {
+        this.stopFollowing()
+      }
+
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
         this.run()
       } else if (this.running && !this.shiftKey) {

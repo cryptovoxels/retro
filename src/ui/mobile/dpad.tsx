@@ -32,6 +32,7 @@ export default class DpadControls extends Component<any, any> {
     })[0] as any
 
     if (touch) {
+      if (this.controls.followTarget) this.controls.stopFollowing()
       const speed = 0.15
       const x = touch.clientX - rect.left - rect.width / 2
       const y = touch.clientY - rect.top - rect.height / 2

@@ -90,6 +90,10 @@ export default abstract class Controls implements IControls {
 
   grounded = true
 
+  followTarget: Avatar | null = null
+  private followBreadcrumbs: BABYLON.Vector3[] = []
+  private followBreadcrumbIndex = 0
+
   MAX_PICK_DISTANCE = 20
   gravityDisabledOverride: boolean | null = null
   audioContext: AudioContext = undefined!
@@ -141,6 +145,9 @@ export default abstract class Controls implements IControls {
         if (this.initialCameraPos) {
           console.warn('this.initialCameraPos already set in onBeforeRenderObservable(). suspected logic error')
         }
+
+        this.updateFollow()
+
         // let persona update its position from the camera, since we are steering the camera
         this.persona.update(this.scene.cameraPosition, this.scene.cameraRotation, this)
         this.swimming = this.persona.isSwimming(SWIM_LEVEL) ?? this.swimming
@@ -478,6 +485,70 @@ export default abstract class Controls implements IControls {
     }
     this.firstPersonView = true
     return true
+  }
+
+  startFollowing(target: Avatar) {
+    if (!target.allowFollow || target.isDisposed()) return
+    this.followTarget = target
+    this.followBreadcrumbs = []
+    this.followBreadcrumbIndex = 0
+    if (this.firstPersonView) this.enterThirdPerson()
+  }
+
+  stopFollowing() {
+    this.followTarget = null
+    this.followBreadcrumbs = []
+    this.followBreadcrumbIndex = 0
+  }
+
+  private updateFollow() {
+    const target = this.followTarget
+    if (!target || !target.hasPosition || target.isDisposed()) {
+      if (this.followTarget) this.stopFollowing()
+      return
+    }
+
+    if (!target.allowFollow) {
+      this.stopFollowing()
+      return
+    }
+
+    this.followBreadcrumbs.push(target.position.clone())
+    if (this.followBreadcrumbs.length > 600) {
+      this.followBreadcrumbs.shift()
+      this.followBreadcrumbIndex = Math.max(0, this.followBreadcrumbIndex - 1)
+    }
+
+    const gap = BABYLON.Vector3.Distance(this.camera.position, target.position)
+
+    // leader teleported -- follow them
+    if (gap > 30) {
+      this.persona.teleportNoHistory({ position: target.position.clone() })
+      this.followBreadcrumbs = []
+      this.followBreadcrumbIndex = 0
+      return
+    }
+
+    // close enough, idle
+    if (gap < 3) return
+
+    const crumb = this.followBreadcrumbs[this.followBreadcrumbIndex]
+    if (!crumb) return
+
+    const dir = crumb.subtract(this.camera.position)
+    dir.y = 0
+    const dist = dir.length()
+    if (dist < 0.3) {
+      this.followBreadcrumbIndex++
+      return
+    }
+
+    dir.normalize()
+    const speed = gap > 10 ? this.runSpeed : this.defaultSpeed
+    const deltaTime = this.scene.getEngine().getDeltaTime() / 1000
+    const step = speed * deltaTime
+    this.camera.position.addInPlace(dir.scale(Math.min(step, dist)))
+    this.camera.rotation.y = Math.atan2(dir.x, dir.z)
   }
 
   getCoords() {

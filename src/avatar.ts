@@ -63,6 +63,7 @@ export default class Avatar extends Entity {
   private typingTimer: NodeJS.Timeout | undefined
   private isTyping = false
   private showNameTag = true
+  private _allowFollow = false
 
   constructor(scene: Scene, parent: BABYLON.TransformNode, joined: number, uuid: string, description: AvatarRecord) {
     super(scene, parent, joined)
@@ -187,6 +188,24 @@ export default class Avatar extends Entity {
    */
   get wallet(): string | undefined {
     return this._description.wallet ?? undefined
+  }
+
+  get allowFollow(): boolean {
+    return this._allowFollow
+  }
+
+  set allowFollow(value: boolean) {
+    if (this._allowFollow === value) return
+    this._allowFollow = value
+    this.redrawName()
+    if (value && this.nameMesh) {
+      this.nameMesh.metadata = { isAvatarPart: true, avatar: this }
+      ;(this.nameMesh as any).cvOnLeftClick = () => {
+        window.connector.controls.startFollowing(this)
+      }
+    } else if (!value && this.nameMesh) {
+      delete (this.nameMesh as any).cvOnLeftClick
+    }
   }
 
   get main() {
@@ -842,13 +861,21 @@ export default class Avatar extends Entity {
     const paddingLeftRight = 20
     const width = ctx.measureText(name).width + paddingLeftRight * 2
 
-    ctx.fillStyle = isHighlighted ? '#338d48' : 'rgba(34, 34, 34, 0.8)'
+    const isLeading = this._allowFollow
+    ctx.fillStyle = isHighlighted ? '#338d48' : isLeading ? 'rgba(46, 125, 50, 0.85)' : 'rgba(34, 34, 34, 0.8)'
     ctx.beginPath()
     ctx.rect(256 - width / 2, 48, width, 64)
     ctx.fill()
 
     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
     ctx.fillText(name, 256, 94)
+
+    if (isLeading) {
+      ctx.font = "24px 'helvetica neue', sans-serif"
+      ctx.fillStyle = 'rgba(200, 255, 200, 0.9)'
+      ctx.fillText('follow', 256, 42)
+    }
+
     this.nameTexture.update(true)
   }
 

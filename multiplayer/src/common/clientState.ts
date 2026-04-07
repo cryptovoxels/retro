@@ -11,6 +11,7 @@ export type ClientState = {
     position: [x: number, y: number, z: number]
     orientation: [x: number, y: number, z: number, w: number]
     lastMoved: number
+    allowFollow?: boolean
   } | null
 
   /** time of last message received */

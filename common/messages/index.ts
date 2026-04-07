@@ -319,6 +319,7 @@ export type UpdateAvatarMessage = {
   position: number[]
   orientation: Quaternion
   animation: number
+  allowFollow?: boolean
 }
 
 export const UpdateAvatarEncoder = encoderCreator<UpdateAvatarMessage>()
@@ -328,7 +329,7 @@ extensionCodec.register({
     if (input.type != MessageType.updateAvatar) {
       return null
     }
-    return encodeAlias([encodeUUID(input.uuid), Float32Array.from(input.position), compressQuaternion(input.orientation), input.animation])
+    return encodeAlias([encodeUUID(input.uuid), Float32Array.from(input.position), compressQuaternion(input.orientation), input.animation, input.allowFollow ? 1 : 0])
   },
   decode: (data): UpdateAvatarMessage => {
     const res = decodeAlias(data) as any[]
@@ -338,6 +339,7 @@ extensionCodec.register({
       position: uint8ToFloat32(res[1]),
       orientation: decompressQuaternion(res[2]),
       animation: res[3],
+      allowFollow: !!res[4],
     }
   },
 })

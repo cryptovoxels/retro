@@ -299,6 +299,7 @@ export class Shard {
           orientation: clientState.avatar.orientation,
           position: clientState.avatar.position,
           uuid: clientState.clientUUID,
+          allowFollow: clientState.avatar.allowFollow,
         }
         msg.avatars.push(updateAvatarMessage)
       }

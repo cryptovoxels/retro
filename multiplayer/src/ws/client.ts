@@ -161,6 +161,7 @@ export class Client {
         animation: this.avatarState.payload.animation,
         orientation: this.avatarState.payload.orientation,
         position: this.avatarState.payload.position,
+        allowFollow: this.avatarState.payload.allowFollow,
       }
     }
 
@@ -335,6 +336,7 @@ export class Client {
         orientation: msg.orientation,
         animation: msg.animation,
         lastMoved: Date.now(),
+        allowFollow: msg.allowFollow,
       },
     }
   }
