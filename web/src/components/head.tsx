@@ -13,7 +13,7 @@ type Props = {
 export default function Head(props: Props) {
   // we only render the head component for the server that will yank this out and put in the correct place
   if (ssrFriendlyDocument) {
-    ssrFriendlyDocument.title = props.title ? `${props.title} | Voxels` : 'Voxels'
+    ssrFriendlyDocument.title = props.title ? `${props.title} | Cryptovoxels` : 'Cryptovoxels'
     return null
   }
 
@@ -34,7 +34,7 @@ export default function Head(props: Props) {
   return (
     <head>
       {/*  Primary Meta Tags */}
-      <title>{title ? `${title} | Retrovoxels` : 'Retrovoxels'}</title>
+      <title>{title ? `${title} | Cryptovoxels` : 'Cryptovoxels'}</title>
       <meta name="title" content={title} />
       {description && <meta name="description" content={description} />}
       {/* Facebook Meta Tags */}
