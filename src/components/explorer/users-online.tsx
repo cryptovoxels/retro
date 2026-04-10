@@ -3,17 +3,19 @@ import { encodeCoords, fetchFromMPServer } from '../../../common/helpers/utils'
 import Connector from '../../connector'
 import type { Scene } from '../../scene'
 
-// Should these types be included in our message types instead?
 type UserState = {
   name: string
   position: number[]
   wallet?: string
-  lastSeen?: string
+  lastSeen?: number
 }
+
+type ParcelLookup = Record<number, { name?: string; address?: string }>
 
 type UsersOnlineState = {
   users: UserState[]
   loading: boolean
+  parcelLookup: ParcelLookup
 }
 
 type Props = {
@@ -29,6 +31,7 @@ export class UsersOnline extends Component<Props, any> {
     this.state = {
       users: [],
       loading: true,
+      parcelLookup: {},
     }
   }
 
@@ -38,6 +41,7 @@ export class UsersOnline extends Component<Props, any> {
 
   componentDidMount() {
     this.fetchOnlineUsers()
+    this.fetchParcelLookup()
   }
 
   async fetchOnlineUsers() {
@@ -49,7 +53,6 @@ export class UsersOnline extends Component<Props, any> {
         if (u.name) {
           return u
         }
-        //rename null names to their shortened wallets
         u.name = u.wallet?.substring(0, 10) || 'anon'
         return u
       })
@@ -59,19 +62,33 @@ export class UsersOnline extends Component<Props, any> {
     }
   }
 
+  async fetchParcelLookup() {
+    try {
+      const res = await fetch(`${process.env.API}/parcels/cached.json`)
+      if (!res.ok) return
+      const data = await res.json()
+      if (!data?.parcels) return
+      const lookup: ParcelLookup = {}
+      for (const p of data.parcels) {
+        lookup[p.id] = { name: p.name, address: p.address }
+      }
+      this.setState({ parcelLookup: lookup })
+    } catch {
+      // non-critical
+    }
+  }
+
   render() {
     const users = this.state.users.map((u) => {
-      return <UserItem key={u.wallet} scene={this.props.scene} connector={this.connector} user={u} />
+      const parcelInfo = u.lastSeen ? this.state.parcelLookup[u.lastSeen] : undefined
+      return <UserItem key={u.wallet} scene={this.props.scene} connector={this.connector} user={u} parcelInfo={parcelInfo} />
     })
-
-    const signedInUsers = this.state.users.filter((u) => u.name !== 'anon')
-    const anonCount = this.state.users.length - signedInUsers.length
 
     return <ul className="ExplorerUsersOnline">{users}</ul>
   }
 }
 
-const UserItem = ({ scene, connector, user }: { scene: Scene; connector: Connector; user: UserState }) => {
+const UserItem = ({ scene, connector, user, parcelInfo }: { scene: Scene; connector: Connector; user: UserState; parcelInfo?: { name?: string; address?: string } }) => {
   const teleportTo = (user: UserState) => {
     const v = BABYLON.Vector3.FromArray(user.position)
     v.z += 1.5
@@ -95,10 +112,21 @@ const UserItem = ({ scene, connector, user }: { scene: Scene; connector: Connect
     return connector.findAvatarByWallet(wallet)
   }
 
+  const onWalletClick = (wallet: string) => {
+    window.open(`${process.env.ASSET_PATH}/u/${wallet}`, '_blank')
+  }
+
+  const locationLabel = parcelInfo?.name || parcelInfo?.address
+
   return (
     <li>
       <div>
-        <h2>{user.name}</h2>
+        <h2>
+          <a style={{ cursor: 'pointer' }} onClick={() => user.wallet && onWalletClick(user.wallet)} title="See profile">
+            {user.name}
+          </a>
+        </h2>
+        {locationLabel && <small style={{ opacity: 0.6 }}>{locationLabel}</small>}
       </div>
       <div>
         <button onClick={() => teleportTo(user)}>Teleport to</button>
