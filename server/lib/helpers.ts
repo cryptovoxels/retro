@@ -31,9 +31,6 @@ const securityTeamParcels = [5067, 5064]
 
 const cryptovoxelsTeam = makeLowerCaseSetFor({
   ben: ['0x2D891ED45C4C3EAB978513DF4B92a35Cf131d2e2'],
-  stig: ['0x86b6Dcc9eb556e55485d627e5D4393b616A8Afb8'],
-  benjy: ['0x0fA074262d6AF761FB57751d610dc92Bac82AEf9'],
-  baxter: ['0xa13b052759aC009D4b7643f61E77FeC54492f446'],
 })
 
 export const isOwner = (req: Pick<VoxelsUserRequest, 'user'>) => {
