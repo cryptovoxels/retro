@@ -5,7 +5,7 @@ import OpenseaAssetHelper from '../gui/opensea-asset-helper'
 import { HTMLUi } from './html-ui'
 import { unmountComponentAtNode } from 'preact/compat'
 import type NftImage from '../../features/nft-image'
-import { useEffect, useLayoutEffect, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 import { Spinner } from '../../../web/src/spinner'
 
 function uiClose() {
@@ -40,16 +40,36 @@ type Props = {
 
 type NFTType = 'video' | 'image' | 'audio'
 
+function guessTypeFromExtension(url: string | undefined | null): NFTType | undefined {
+  if (!url) return undefined
+  try {
+    const ext = new URL(url).pathname.split('.').pop()?.trim()?.toLowerCase() ?? ''
+    if (['mp3', 'wav', 'ogg', 'oga'].includes(ext)) return 'audio'
+    if (['mp4', 'mv4', 'mov', 'webm'].includes(ext)) return 'video'
+  } catch {}
+  return undefined
+}
+
 type Dimensions = { x: number; y: number }
 export function NftImageHTMLUi({ asset, onClose, feature }: Props) {
-  const [type, setType] = useState<NFTType>('image')
-  const [error, setError] = useState('')
-  const [showDescription, setShowDescription] = useState(false)
   const assetHelper = new OpenseaAssetHelper(asset)
+  const syncType = assetHelper.isAnimated ? guessTypeFromExtension(asset.animation_url) : undefined
+  const [type, setType] = useState<NFTType>(syncType ?? 'image')
+  const [error, setError] = useState('')
+  const [playing, setPlaying] = useState(false)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const audioRef = useRef<HTMLAudioElement>(null)
 
   const imageURL = () => {
     const url = assetHelper.getBiggerImage(1024)
     return url.startsWith('ipfs://') ? 'https://ipfs.io/ipfs/' + url.split('/').splice(0, 2).join('/') : url
+  }
+
+  const handlePlay = () => {
+    const el = videoRef.current || audioRef.current
+    if (!el) return
+    el.play().catch(() => {})
+    setPlaying(true)
   }
 
   useEffect(() => {
@@ -63,7 +83,7 @@ export function NftImageHTMLUi({ asset, onClose, feature }: Props) {
   }, [])
 
   useEffect(() => {
-    if (assetHelper.isAnimated) {
+    if (assetHelper.isAnimated && !syncType) {
       assetHelper.getTypeOfContent().then(setType)
     }
   }, [asset.animation_url])
@@ -77,12 +97,24 @@ export function NftImageHTMLUi({ asset, onClose, feature }: Props) {
       case 'audio':
         return (
           <>
-            <img src={imageURL()} alt={assetHelper.getName} />
-            <audio controls autoPlay loop src={asset.animation_url!} />
+            <img src={imageURL()} alt={assetHelper.getName} onClick={handlePlay} style={!playing ? { cursor: 'pointer' } : undefined} />
+            <audio ref={audioRef} controls={playing} loop src={asset.animation_url!} />
           </>
         )
       case 'video':
-        return <video src={asset.animation_url!} controls autoPlay loop playsInline />
+        return (
+          <video
+            ref={videoRef}
+            src={asset.animation_url!}
+            poster={imageURL()}
+            controls={playing}
+            loop
+            playsInline
+            preload="metadata"
+            onClick={handlePlay}
+            style={!playing ? { cursor: 'pointer' } : undefined}
+          />
+        )
       default:
         return <img src={imageURL()} alt={assetHelper.getName} />
     }
@@ -101,6 +133,9 @@ export function NftImageHTMLUi({ asset, onClose, feature }: Props) {
       <br />
 
       {content()}
+      {(type === 'video' || type === 'audio') && !playing && (
+        <button class="iconish play" onClick={handlePlay}>Play</button>
+      )}
       <p class="nft-description">{assetHelper.description}</p>
     </div>
   )
