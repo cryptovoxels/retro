@@ -1,6 +1,7 @@
 import { Component, createRef, Fragment } from 'preact'
 import { ParcelMetaCodec, type ParcelMeta } from '../../../common/types'
 import ndarray, { NdArray } from 'ndarray'
+import * as t from 'io-ts'
 import { ethers } from 'ethers'
 import { contours } from 'd3-contour'
 
@@ -20,6 +21,7 @@ BABYLON.Effect.ShadersStore['aoMeshPixelShader'] = aoMeshPixelShader
 import mesher from '../../../common/voxels/mesher'
 import { defaultColors } from '../../../common/content/blocks'
 import { getVoxelsFromBuffer } from '../../../common/voxels/helpers'
+import PARCEL_CONTRACT_ABI from '../../../common/contracts/parcel.json'
 import { debounce } from 'lodash'
 import { app } from '../state'
 
@@ -114,8 +116,6 @@ function getIslandGeometry(field: IslandField, center: vec2) {
 
   return geojson
 }
-
-const PARCEL_CONTRACT_ABI = require('../../../common/contracts/parcel.json')
 
 type vec2 = [number, number]
 type vec4 = [number, number, number, number]
@@ -621,9 +621,9 @@ export default class IslandsAdmin extends Component<Props, State> {
 
     try {
       const provider = new ethers.BrowserProvider(window.ethereum as any)
-      const signer = provider.getSigner()
+      const signer = await provider.getSigner()
 
-      const contract = new ethers.Contract('0x79986aF15539de2db9A5086382daEdA917A9CF0C', PARCEL_CONTRACT_ABI.abi, await signer)
+      const contract = new ethers.Contract('0x79986aF15539de2db9A5086382daEdA917A9CF0C', PARCEL_CONTRACT_ABI.abi, signer)
 
       const owner = '0x2D891ED45C4C3EAB978513DF4B92a35Cf131d2e2'
       const tx = await contract.mint(owner, id, parcel.x1, parcel.y1, parcel.z1, parcel.x2, parcel.y2, parcel.z2, ethers.parseEther('0'))
