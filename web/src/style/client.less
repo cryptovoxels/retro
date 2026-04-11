@@ -3549,32 +3549,65 @@ button[accesskey] {
   border-radius: 4px;
 }
 
-/* Minimap expand button -- sits inside the top-right corner of the Babylon minimap viewport */
-.minimap-expand {
+/* Minimap corner: online count (left) + map expand M (right). Not .iconish on online count -- iconish uses aspect-ratio 1/1 and blows up width. */
+.minimap-corner-controls {
   position: fixed;
   bottom: calc(15vw - 26px);
   right: 4px;
   z-index: 10;
-  background: rgba(0, 0, 0, 0.4);
-  border: none;
-  color: rgba(255, 255, 255, 0.75);
-  padding: 5px 4px;
-  cursor: pointer;
-  border-radius: 3px;
-  line-height: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: auto;
+  flex-direction: row-reverse;
+  align-items: flex-end;
+  gap: 4px;
+  pointer-events: none;
 
-  &:hover {
-    background: rgba(0, 0, 0, 0.75);
-    color: #fff;
+  > button {
+    pointer-events: auto;
   }
 
   @media @mobile {
     display: none;
   }
+}
+
+@minimap-corner-h: 22px;
+
+.minimap-expand,
+.minimap-online-count {
+  box-sizing: border-box;
+  height: @minimap-corner-h;
+  min-height: @minimap-corner-h;
+  background: rgba(0, 0, 0, 0.4);
+  border: none;
+  color: rgba(255, 255, 255, 0.75);
+  padding: 0 5px;
+  cursor: pointer;
+  border-radius: 3px;
+  line-height: @minimap-corner-h;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(0, 0, 0, 0.75);
+    color: #fff;
+  }
+}
+
+.minimap-expand {
+  width: @minimap-corner-h;
+  padding: 0;
+  line-height: 0;
+  font-size: inherit;
+}
+
+.minimap-online-count {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 7px;
+  line-height: 1;
+  text-shadow: 1px 1px black;
+  aspect-ratio: auto;
 }
 
 /* Aside sidebar */
