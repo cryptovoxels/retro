@@ -63,6 +63,7 @@ export default class Avatar extends Entity {
   private typingTimer: NodeJS.Timeout | undefined
   private isTyping = false
   private showNameTag = true
+  private _inConga = false
 
   constructor(scene: Scene, parent: BABYLON.TransformNode, joined: number, uuid: string, description: AvatarRecord) {
     super(scene, parent, joined)
@@ -187,6 +188,24 @@ export default class Avatar extends Entity {
    */
   get wallet(): string | undefined {
     return this._description.wallet ?? undefined
+  }
+
+  get inConga(): boolean {
+    return this._inConga
+  }
+
+  set inConga(value: boolean) {
+    if (this._inConga === value) return
+    this._inConga = value
+    this.redrawName()
+    if (value && this.nameMesh) {
+      this.nameMesh.metadata = { isAvatarPart: true, avatar: this }
+      ;(this.nameMesh as any).cvOnLeftClick = () => {
+        window.connector.sendMessage(`/conga ${this.name}`)
+      }
+    } else if (!value && this.nameMesh) {
+      delete (this.nameMesh as any).cvOnLeftClick
+    }
   }
 
   get main() {
@@ -842,13 +861,27 @@ export default class Avatar extends Entity {
     const paddingLeftRight = 20
     const width = ctx.measureText(name).width + paddingLeftRight * 2
 
+    const isConga = this._inConga
     ctx.fillStyle = isHighlighted ? '#338d48' : 'rgba(34, 34, 34, 0.8)'
     ctx.beginPath()
     ctx.rect(256 - width / 2, 48, width, 64)
     ctx.fill()
 
+    if (isConga) {
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
+      ctx.lineWidth = 2
+      ctx.strokeRect(256 - width / 2, 48, width, 64)
+    }
+
     ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
     ctx.fillText(name, 256, 94)
+
+    if (isConga) {
+      ctx.font = "24px 'helvetica neue', sans-serif"
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'
+      ctx.fillText('conga!', 256, 42)
+    }
+
     this.nameTexture.update(true)
   }
 

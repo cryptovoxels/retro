@@ -161,6 +161,7 @@ export class Client {
         animation: this.avatarState.payload.animation,
         orientation: this.avatarState.payload.orientation,
         position: this.avatarState.payload.position,
+        inConga: this.avatarState.payload.inConga,
       }
     }
 
@@ -335,6 +336,7 @@ export class Client {
         orientation: msg.orientation,
         animation: msg.animation,
         lastMoved: Date.now(),
+        inConga: msg.inConga,
       },
     }
   }

@@ -68,6 +68,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   connectedAt: Date | undefined
   isOpen = false
   persona: Persona
+  inConga = false
   avatarTimeoutInterval: NodeJS.Timeout | null = null
   currentParcelId: number | undefined
   multiplayerClient!: WebSocket
@@ -146,6 +147,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       animation: this.persona.animation,
       position: this.persona.position.asArray() as [number, number, number],
       orientation: this.persona.orientation,
+      inConga: this.inConga,
     })
   }
 
@@ -501,6 +503,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       timestamp: Date.now(),
     })
 
+    avatar.inConga = !!message.inConga
     avatar.recordSeen()
   }
 
@@ -722,6 +725,11 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   }
 
   sendMessage(text: string) {
+    if (text.startsWith('/conga')) {
+      this.handleConga(text)
+      return
+    }
+
     this.sendMetric(messages.Action.Chat)
 
     // Show speech bubble?
@@ -744,6 +752,54 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     }
 
     this.send(message)
+  }
+
+  private handleConga(text: string) {
+    const args = text.trim().split(/\s+/).slice(1)
+
+    if (!this.isLoggedIn) {
+      this.addChat('Sign in to conga', undefined)
+      return
+    }
+
+    if (this.inConga && args.length === 0) {
+      this.inConga = false
+      this.controls.stopConga()
+      this.addChat('Left the conga line', undefined)
+      return
+    }
+
+    let target: Avatar | undefined
+
+    if (args.length > 0) {
+      const name = args.join(' ')
+      target = this.avatars.find((a) => a.inConga && a.name.toLowerCase() === name.toLowerCase())
+      if (!target) {
+        this.addChat(`Can't join "${name}" -- not found or not in a conga line`, undefined)
+        return
+      }
+    } else {
+      target = this.getNearbyAvatarsToSelf().find((a) => a.inConga)
+    }
+
+    if (target) {
+      this.inConga = true
+      this.controls.startConga(target)
+      this.addChat(`Joined the conga line behind ${target.name}`, undefined)
+    } else {
+      this.inConga = true
+      this.addChat('You started a conga line!', undefined)
+      const parcel = this.currentOrNearestParcel()
+      const location = parcel?.name || parcel?.address || 'the world'
+      const announcement: messages.ChatMessage = {
+        type: messages.MessageType.chat,
+        channel: GLOBAL_CHANNEL,
+        name: this.persona.user.name,
+        uuid: this.persona.uuid,
+        text: entityEncode(`started a conga line at ${location} -- type /conga to join`),
+      }
+      this.send(announcement)
+    }
   }
 
   private addChat(message: string, avatar: Avatar | undefined) {

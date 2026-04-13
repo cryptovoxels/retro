@@ -102,7 +102,7 @@ export class ChatOverlay extends Component<Props, State> {
         <div class={'chat-messages'}>
           {messageList.value.map((m) => (
             <p>
-              <span>{`${name(m)}: ${m.text}`}</span>
+              <span>{name(m)}: <ChatText text={m.text} /></span>
             </p>
           ))}
         </div>
@@ -111,6 +111,31 @@ export class ChatOverlay extends Component<Props, State> {
       </main>
     )
   }
+}
+
+const CONGA_CMD_PATTERN = /\/conga\b/
+
+const ChatText = ({ text }: { text: string }) => {
+  const match = text.match(CONGA_CMD_PATTERN)
+  if (!match) return <>{text}</>
+
+  const before = text.slice(0, match.index)
+  const after = text.slice((match.index || 0) + match[0].length)
+
+  const onClick = (e: Event) => {
+    e.preventDefault()
+    window.connector.sendMessage('/conga')
+  }
+
+  return (
+    <>
+      {before}
+      <a href="#" onClick={onClick} style="color: white; text-decoration: underline; cursor: pointer;">
+        /conga
+      </a>
+      {after}
+    </>
+  )
 }
 
 const ChatInput = () => {
@@ -148,10 +173,19 @@ const ChatInput = () => {
     }
   }
 
+  const congaTarget = window.connector?.controls?.congaTarget
+
   return (
-    <form onSubmit={say}>
-      <input type="text" onKeyDown={onChatKeydown} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} ref={inputRef} />
-      <button type="submit">Send</button>
-    </form>
+    <div>
+      {congaTarget && (
+        <div style="padding: 4px 8px; color: rgba(255, 255, 255, 0.7); font-size: 12px;">
+          Conga line with {congaTarget.name} -- press any key to stop
+        </div>
+      )}
+      <form onSubmit={say}>
+        <input type="text" onKeyDown={onChatKeydown} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} ref={inputRef} />
+        <button type="submit">Send</button>
+      </form>
+    </div>
   )
 }

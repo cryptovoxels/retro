@@ -90,6 +90,10 @@ export default abstract class Controls implements IControls {
 
   grounded = true
 
+  congaTarget: Avatar | null = null
+  private congaBreadcrumbs: BABYLON.Vector3[] = []
+  private congaBreadcrumbIndex = 0
+
   MAX_PICK_DISTANCE = 20
   gravityDisabledOverride: boolean | null = null
   audioContext: AudioContext = undefined!
@@ -141,6 +145,7 @@ export default abstract class Controls implements IControls {
         if (this.initialCameraPos) {
           console.warn('this.initialCameraPos already set in onBeforeRenderObservable(). suspected logic error')
         }
+        this.updateConga()
         // let persona update its position from the camera, since we are steering the camera
         this.persona.update(this.scene.cameraPosition, this.scene.cameraRotation, this)
         this.swimming = this.persona.isSwimming(SWIM_LEVEL) ?? this.swimming
@@ -478,6 +483,68 @@ export default abstract class Controls implements IControls {
     }
     this.firstPersonView = true
     return true
+  }
+
+  startConga(target: Avatar) {
+    if (!target.inConga || target.isDisposed()) return
+    this.congaTarget = target
+    this.congaBreadcrumbs = []
+    this.congaBreadcrumbIndex = 0
+    if (this.firstPersonView) this.enterThirdPerson()
+  }
+
+  stopConga() {
+    this.congaTarget = null
+    this.congaBreadcrumbs = []
+    this.congaBreadcrumbIndex = 0
+  }
+
+  private updateConga() {
+    const target = this.congaTarget
+    if (!target || !target.hasPosition || target.isDisposed()) {
+      if (this.congaTarget) this.stopConga()
+      return
+    }
+
+    if (!target.inConga) {
+      this.stopConga()
+      return
+    }
+
+    this.congaBreadcrumbs.push(target.position.clone())
+    if (this.congaBreadcrumbs.length > 600) {
+      this.congaBreadcrumbs.shift()
+      this.congaBreadcrumbIndex = Math.max(0, this.congaBreadcrumbIndex - 1)
+    }
+
+    const gap = BABYLON.Vector3.Distance(this.camera.position, target.position)
+
+    if (gap > 30) {
+      this.persona.teleportNoHistory({ position: target.position.clone() })
+      this.congaBreadcrumbs = []
+      this.congaBreadcrumbIndex = 0
+      return
+    }
+
+    if (gap < 3) return
+
+    const crumb = this.congaBreadcrumbs[this.congaBreadcrumbIndex]
+    if (!crumb) return
+
+    const dir = crumb.subtract(this.camera.position)
+    dir.y = 0
+    const dist = dir.length()
+    if (dist < 0.3) {
+      this.congaBreadcrumbIndex++
+      return
+    }
+
+    dir.normalize()
+    const speed = gap > 10 ? this.runSpeed : this.defaultSpeed
+    const deltaTime = this.scene.getEngine().getDeltaTime() / 1000
+    const step = speed * deltaTime
+    this.camera.position.addInPlace(dir.scale(Math.min(step, dist)))
+    this.camera.rotation.y = Math.atan2(dir.x, dir.z)
   }
 
   getCoords() {
