@@ -50,5 +50,6 @@ export namespace AvatarStateFacets {
     animation: number
     lastMoved: number
     inConga?: boolean
+    congaFollowsUuid?: string | null
   }
 }

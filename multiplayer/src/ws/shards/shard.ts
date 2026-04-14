@@ -300,6 +300,7 @@ export class Shard {
           position: clientState.avatar.position,
           uuid: clientState.clientUUID,
           inConga: clientState.avatar.inConga,
+          congaFollowsUuid: clientState.avatar.congaFollowsUuid,
         }
         msg.avatars.push(updateAvatarMessage)
       }

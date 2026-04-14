@@ -320,6 +320,8 @@ export type UpdateAvatarMessage = {
   orientation: Quaternion
   animation: number
   inConga?: boolean
+  /** Person in front of this avatar in the conga chain; leader omits. Used to sync whole line (e.g. fly) to head. */
+  congaFollowsUuid?: string | null
 }
 
 export const UpdateAvatarEncoder = encoderCreator<UpdateAvatarMessage>()
@@ -329,11 +331,18 @@ extensionCodec.register({
     if (input.type != MessageType.updateAvatar) {
       return null
     }
-    return encodeAlias([encodeUUID(input.uuid), Float32Array.from(input.position), compressQuaternion(input.orientation), input.animation, input.inConga ? 1 : 0])
+    return encodeAlias([
+      encodeUUID(input.uuid),
+      Float32Array.from(input.position),
+      compressQuaternion(input.orientation),
+      input.animation,
+      input.inConga ? 1 : 0,
+      input.congaFollowsUuid ? encodeUUID(input.congaFollowsUuid) : null,
+    ])
   },
   decode: (data): UpdateAvatarMessage => {
     const res = decodeAlias(data) as any[]
-    return {
+    const m: UpdateAvatarMessage = {
       type: MessageType.updateAvatar,
       uuid: decodeUUID(res[0]),
       position: uint8ToFloat32(res[1]),
@@ -341,6 +350,10 @@ extensionCodec.register({
       animation: res[3],
       inConga: !!res[4],
     }
+    if (res.length > 5 && res[5] != null) {
+      m.congaFollowsUuid = decodeUUID(res[5])
+    }
+    return m
   },
 })
 

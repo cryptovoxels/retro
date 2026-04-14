@@ -64,6 +64,8 @@ export default class Avatar extends Entity {
   private isTyping = false
   private showNameTag = true
   private _inConga = false
+  /** Remote: uuid of the avatar they follow in conga (from multiplayer). Local unused. */
+  private _congaFollowsUuid: string | null = null
 
   constructor(scene: Scene, parent: BABYLON.TransformNode, joined: number, uuid: string, description: AvatarRecord) {
     super(scene, parent, joined)
@@ -206,6 +208,14 @@ export default class Avatar extends Entity {
     } else if (!value && this.nameMesh) {
       delete (this.nameMesh as any).cvOnLeftClick
     }
+  }
+
+  get congaFollowsUuid(): string | null {
+    return this._congaFollowsUuid
+  }
+
+  set congaFollowsUuid(value: string | null | undefined) {
+    this._congaFollowsUuid = value ?? null
   }
 
   get main() {

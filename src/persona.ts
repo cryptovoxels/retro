@@ -3,7 +3,7 @@ import { User } from './user'
 import Controls from './controls/controls'
 import { CAMERA_HEIGHT, coords, decodeCoords, encodeCoords } from '../common/helpers/utils'
 import Connector from './connector'
-import { Animations } from './avatar-animations'
+import { Animations, isCongaSyncedDance } from './avatar-animations'
 import * as States from './states'
 import { app, AppEvent } from '../web/src/state'
 import { LoadUserAvatar, UserAvatar } from './user-avatar'
@@ -242,6 +242,14 @@ export default class Persona {
     // if in third person mode, only set avatar direction when walking (so that the avatar isn't following the camera direction)
     if (this.firstPersonView || this.state[this.state.length - 1] instanceof States.Moving) {
       this.rotation.y = rotation.y
+    }
+
+    // Conga: copy dance/emote from the person in front; the leader's animation reaches the whole line via network hops.
+    if (this.connector.inConga && controls.congaTarget && !controls.congaTarget.isDisposed()) {
+      const frontAnim = controls.congaTarget.getTransform().animation
+      if (isCongaSyncedDance(frontAnim)) {
+        this._animation = frontAnim
+      }
     }
 
     //Directly call move avatar function to move current user avatar

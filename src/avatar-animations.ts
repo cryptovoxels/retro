@@ -29,6 +29,30 @@ export function AnimationYOffset(animation: Animations): number {
   return 0
 }
 
+/** Emotes/dances to mirror when following someone in a conga line (not locomotion/base poses). */
+export function isCongaSyncedDance(a: Animations): boolean {
+  switch (a) {
+    case Animations.Dance:
+    case Animations.Spin:
+    case Animations.Savage:
+    case Animations.Kick:
+    case Animations.Uprock:
+    case Animations.Floss:
+    case Animations.Backflip:
+    case Animations.Celebration:
+    case Animations.Orange:
+    case Animations.Hype:
+    case Animations.Shocked:
+    case Animations.Wipe:
+    case Animations.Applause:
+    case Animations.Jump:
+    case Animations.Flyingkick:
+      return true
+    default:
+      return false
+  }
+}
+
 export class AvatarAnimations {
   static rootAnimationGroups: BABYLON.AnimationGroup[] = []
   animationGroups: (BABYLON.AnimationGroup | undefined)[] = []

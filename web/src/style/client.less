@@ -3835,6 +3835,56 @@ dialog {
   white-space: nowrap;
 }
 
+/** Active conga line (above build-mode overlay so both can show). */
+.conga-status-overlay {
+  position: absolute;
+  bottom: 6.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(170, 170, 170, 0.582);
+  color: white;
+  padding: 0.45rem 1rem 0.5rem;
+  border-radius: 0.5rem;
+  z-index: 1000;
+  pointer-events: none;
+  text-align: center;
+  max-width: min(22rem, 92vw);
+}
+
+.conga-status-overlay__badge {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  opacity: 0.95;
+  margin-bottom: 0.15rem;
+}
+
+.conga-status-overlay__main {
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.conga-status-overlay__hint {
+  font-size: 0.72rem;
+  opacity: 0.88;
+  margin-top: 0.2rem;
+  white-space: nowrap;
+}
+
+.conga-status-overlay--join-hint {
+  background: rgba(90, 130, 95, 0.55);
+}
+
+.conga-status-overlay--started {
+  background: rgba(120, 110, 170, 0.55);
+}
+
+.conga-status-overlay__kbd {
+  font-family: ui-monospace, monospace;
+  font-weight: 600;
+}
+
 /* Costumes */
 
 .costume-overlay {

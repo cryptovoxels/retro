@@ -96,6 +96,8 @@ export class Client {
         position: this.avatarState.payload.position,
         orientation: this.avatarState.payload.orientation,
         lastMoved: this.avatarState.payload.lastMoved,
+        inConga: this.avatarState.payload.inConga,
+        congaFollowsUuid: this.avatarState.payload.congaFollowsUuid,
       }
     }
 
@@ -162,6 +164,7 @@ export class Client {
         orientation: this.avatarState.payload.orientation,
         position: this.avatarState.payload.position,
         inConga: this.avatarState.payload.inConga,
+        congaFollowsUuid: this.avatarState.payload.congaFollowsUuid,
       }
     }
 
@@ -337,6 +340,7 @@ export class Client {
         animation: msg.animation,
         lastMoved: Date.now(),
         inConga: msg.inConga,
+        congaFollowsUuid: msg.congaFollowsUuid ?? null,
       },
     }
   }
