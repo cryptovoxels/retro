@@ -58,9 +58,10 @@ export class PatchSet {
             parcel.content.features = []
           }
 
+          // Lightmap-only patch: just persist the URL, don't invalidate it
           if ('lightmap_url' in patch && typeof patch.lightmap_url === 'string') {
-            console.log('lightmap_url', patch.lightmap_url)
             parcel.lightmap_url = patch.lightmap_url
+            return
           }
 
           if ('features' in patch && typeof patch.features === 'object' && patch.features) {
@@ -118,7 +119,7 @@ export class PatchSet {
             parcel.content.brightness = patch.brightness
           }
 
-          // clear out the existing lightmap on change
+          // Content changed -- old lightmap is stale
           parcel.lightmap_url = null
 
           // If shouldUpdateParcelScript is already true, no need to re-update it.

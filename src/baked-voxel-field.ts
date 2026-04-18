@@ -75,17 +75,14 @@ export class BakedVoxelField {
 
     const customTileset = parcel.tileset
 
-    var src
-
     if (customTileset) {
-      src = process.env.IMG_HOST + '/' + customTileset.slice(1)
+      const src = process.env.IMG_HOST + '/' + customTileset.slice(1)
+      const tilemap = new BABYLON.Texture(src, this.scene, false, true, BABYLON.Texture.BILINEAR_SAMPLINGMODE, () => {
+        mtrl.setTexture('tileMap', tilemap)
+      })
     } else {
-      src = '/textures/atlas-ao.png'
+      mtrl.setTexture('tileMap', this.mesher.defaultTileset)
     }
-
-    const tilemap = new BABYLON.Texture(src, this.scene, false, true, BABYLON.Texture.BILINEAR_SAMPLINGMODE, () => {
-      mtrl.setTexture('tileMap', tilemap)
-    })
 
     mtrl.setTexture('lightMap', texture)
 
