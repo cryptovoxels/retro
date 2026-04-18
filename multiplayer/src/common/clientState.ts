@@ -11,6 +11,8 @@ export type ClientState = {
     position: [x: number, y: number, z: number]
     orientation: [x: number, y: number, z: number, w: number]
     lastMoved: number
+    inConga?: boolean
+    congaFollowsUuid?: string | null
   } | null
 
   /** time of last message received */

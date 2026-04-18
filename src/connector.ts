@@ -3,6 +3,7 @@ import * as messages from '../common/messages'
 import { MessageType } from '../common/messages'
 import { PanelType } from '../web/src/components/panel'
 import { app, AppEvent } from '../web/src/state'
+import { Animations } from './avatar-animations'
 import Avatar, { AvatarRecord, LoadAvatar } from './avatar'
 import { AVATAR_VIEW_DISTANCE } from './constants'
 import type Controls from './controls/controls'
@@ -40,6 +41,12 @@ const entityDecode = (str: EncodedString): DecodedString => {
 
 const NEARBY_AVATARS_CACHE_MAX_AGE = 5 * 1000
 const CANONICAL_NEARBY_DISTANCE = 32
+/** After leaving a conga, do not show the proximity join hint until this elapses (still near the line). */
+const CONGA_JOIN_HINT_SUPPRESS_AFTER_LEAVE_MS = 8_000
+/** Leader-only: stronger copy right after starting a line, then normal "Leading" UI. */
+const CONGA_LEADER_STARTED_BANNER_MS = 10_000
+/** If farther than this from target, teleport next to them when joining by name or invite link. */
+const CONGA_REMOTE_JOIN_TELEPORT_METERS = 6
 const AVATAR_TIMEOUT_MS = 5 * 60 * 1000 // If we haven't seen an avatar in 5 minutes, we'll assume they're gone
 
 /**
@@ -58,6 +65,9 @@ export type ChatMessageRecord = Readonly<{
 
 export const messageList = signal<ChatMessageRecord[]>([])
 
+/** Bumped when conga follow starts/stops so UI (e.g. chat hint) re-renders. */
+export const congaFollowUiRev = signal(0)
+
 const LOCAL_CHANNEL = 'local' as const
 const GLOBAL_CHANNEL = 'global' as const
 
@@ -68,6 +78,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   connectedAt: Date | undefined
   isOpen = false
   persona: Persona
+  inConga = false
   avatarTimeoutInterval: NodeJS.Timeout | null = null
   currentParcelId: number | undefined
   multiplayerClient!: WebSocket
@@ -76,6 +87,8 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   private readonly parent: BABYLON.TransformNode
   grid: Grid
   private nearbyAvatarsToSelfCached: { avatars: Readonly<Avatar[]>; timestamp: number } | null = null
+  private congaJoinHintSuppressedUntil = 0
+  private congaLeaderStartedBannerUntil = 0
 
   private static clientUUID: string = uuid()
 
@@ -134,6 +147,29 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     window.addEventListener('beforeunload', () => this.disconnect(), { once: true })
   }
 
+  bumpCongaFollowUi() {
+    congaFollowUiRev.value++
+  }
+
+  /** Call when the local user leaves a conga so the join hint does not flash immediately. */
+  beginCongaJoinHintSuppressionAfterLeave() {
+    this.congaJoinHintSuppressedUntil = Date.now() + CONGA_JOIN_HINT_SUPPRESS_AFTER_LEAVE_MS
+    this.bumpCongaFollowUi()
+  }
+
+  allowCongaJoinHint(): boolean {
+    return Date.now() >= this.congaJoinHintSuppressedUntil
+  }
+
+  clearCongaLeaderStartedBanner() {
+    this.congaLeaderStartedBannerUntil = 0
+  }
+
+  /** True while leading with no follow target and the post-start banner window is active. */
+  congaLeaderStartedBannerVisible(): boolean {
+    return this.inConga && !this.controls.congaTarget && Date.now() < this.congaLeaderStartedBannerUntil
+  }
+
   sendAvatar = () => {
     if (this.connectionState.status !== 'connected') {
       // console.log('cant send avatar update, not connected')
@@ -146,6 +182,8 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       animation: this.persona.animation,
       position: this.persona.position.asArray() as [number, number, number],
       orientation: this.persona.orientation,
+      inConga: this.inConga,
+      congaFollowsUuid: this.controls.congaTarget?.uuid ?? null,
     })
   }
 
@@ -341,6 +379,10 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     this.multiplayerClient.close()
   }
 
+  private invalidateNearbyAvatarsCache() {
+    this.nearbyAvatarsToSelfCached = null
+  }
+
   getNearbyAvatarsToSelf(): Readonly<Avatar[]> {
     if (!this.persona.avatar) {
       return []
@@ -356,6 +398,23 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     }
 
     return this.nearbyAvatarsToSelfCached.avatars
+  }
+
+  /** Closest conga participant within anonymous `/conga` range; fresh distances (not `getNearbyAvatarsToSelf` cache). */
+  nearestInCongaAvatarInJoinRange(): Avatar | null {
+    const pos = this.persona.avatar?.position
+    if (!pos) return null
+    let best: Avatar | null = null
+    let bestD = CANONICAL_NEARBY_DISTANCE
+    for (const avatar of this.avatars) {
+      if (!avatar.inConga) continue
+      const d = avatar.getDistanceFrom(pos)
+      if (d < bestD) {
+        bestD = d
+        best = avatar
+      }
+    }
+    return best
   }
 
   getNearbyAvatars(position: BABYLON.Vector3, maxDistance: number, includeSelf = true): Array<Avatar> {
@@ -501,6 +560,8 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       timestamp: Date.now(),
     })
 
+    avatar.inConga = !!message.inConga
+    avatar.congaFollowsUuid = message.congaFollowsUuid ?? null
     avatar.recordSeen()
   }
 
@@ -616,6 +677,9 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       case messages.MessageType.worldState:
         this.onWorldState(msg)
         break
+      case messages.MessageType.updateAvatar:
+        await this.onMoveAvatar(msg)
+        break
       case messages.MessageType.join:
         await this.onJoin(msg)
         break
@@ -722,6 +786,11 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   }
 
   sendMessage(text: string) {
+    if (text.startsWith('/conga')) {
+      this.handleConga(text)
+      return
+    }
+
     this.sendMetric(messages.Action.Chat)
 
     // Show speech bubble?
@@ -744,6 +813,93 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     }
 
     this.send(message)
+  }
+
+  /** Chat "Join" link or programmatic join: teleport if far, then follow the leader (uuid). */
+  joinCongaFromInvitation(leaderUuid: string) {
+    if (this.inConga) {
+      this.controls.stopConga()
+    }
+    const target = this.findAvatar(leaderUuid) as Avatar | undefined
+    if (!target?.inConga) {
+      this.addChat('That conga is not available (player offline or left the line).', undefined)
+      return
+    }
+    const from = this.persona.avatar?.position ?? this.persona.position
+    const dist = BABYLON.Vector3.Distance(from, target.position)
+    if (dist > CONGA_REMOTE_JOIN_TELEPORT_METERS) {
+      this.teleportNearCongaTarget(target)
+    }
+    this.inConga = true
+    this.controls.startConga(target)
+  }
+
+  private teleportNearCongaTarget(target: Avatar) {
+    if (!target.hasPosition) return
+    const yaw = target.orientation.y
+    const forward = new BABYLON.Vector3(Math.sin(yaw), 0, Math.cos(yaw))
+    const pos = target.position.subtract(forward.scale(2.5))
+    pos.y = target.position.y + 0.15
+    const leaderFlying = target.getTransform().animation === Animations.Floating
+    this.persona.teleportNoHistory({
+      position: pos,
+      rotation: new BABYLON.Vector3(0, yaw, 0),
+      flying: leaderFlying,
+    })
+  }
+
+  private handleConga(text: string) {
+    const args = text.trim().split(/\s+/).slice(1)
+
+    if (this.inConga && args.length === 0) {
+      this.inConga = false
+      this.controls.stopConga()
+      return
+    }
+
+    let target: Avatar | undefined
+
+    this.invalidateNearbyAvatarsCache()
+
+    if (args.length > 0) {
+      const name = args.join(' ')
+      target = this.avatars.find((a) => a.inConga && a.name.toLowerCase() === name.toLowerCase())
+      if (!target) {
+        this.addChat(`Can't join "${name}" -- not found or not in a conga line`, undefined)
+        return
+      }
+    } else {
+      target = this.getNearbyAvatarsToSelf().find((a) => a.inConga)
+    }
+
+    if (target) {
+      const from = this.persona.avatar?.position ?? this.persona.position
+      const dist = BABYLON.Vector3.Distance(from, target.position)
+      if (args.length > 0 && dist > CONGA_REMOTE_JOIN_TELEPORT_METERS) {
+        this.teleportNearCongaTarget(target)
+      }
+      this.inConga = true
+      this.controls.startConga(target)
+    } else {
+      this.inConga = true
+      this.congaLeaderStartedBannerUntil = Date.now() + CONGA_LEADER_STARTED_BANNER_MS
+      this.bumpCongaFollowUi()
+      window.setTimeout(() => this.bumpCongaFollowUi(), CONGA_LEADER_STARTED_BANNER_MS)
+      if (this.isLoggedIn) {
+        const parcel = this.currentOrNearestParcel()
+        const location = parcel?.name || parcel?.address || 'the world'
+        const announcement: messages.ChatMessage = {
+          type: messages.MessageType.chat,
+          channel: GLOBAL_CHANNEL,
+          name: this.persona.user.name,
+          uuid: this.persona.uuid,
+          text: entityEncode(
+            `Started a conga line at ${location}. Use /conga ${this.persona.user.name} to join from anywhere, or tap Join. [[conga:${this.persona.uuid}]]`,
+          ),
+        }
+        this.send(announcement)
+      }
+    }
   }
 
   private addChat(message: string, avatar: Avatar | undefined) {

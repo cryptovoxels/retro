@@ -49,5 +49,7 @@ export namespace AvatarStateFacets {
     orientation: [number, number, number, number]
     animation: number
     lastMoved: number
+    inConga?: boolean
+    congaFollowsUuid?: string | null
   }
 }

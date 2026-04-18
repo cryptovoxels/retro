@@ -24,6 +24,7 @@ import FeatureTool, { templateFromFeature } from './tools/feature'
 import VoxelTool, { SelectionMode, SelectionModeOptions } from './tools/voxel'
 import ConnectionStatusUI from './ui/connection-status'
 import CostumeOverlay from './ui/costumers/costume'
+import { CongaJoinHintOverlay, CongaStatusOverlay } from './ui/conga-status'
 import { CurrentModeOverlay } from './ui/current-mode'
 import { DebugUI } from './ui/debug/base-debug'
 import { MaterialDebugTab } from './ui/debug/material-debug-tab'
@@ -860,6 +861,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
             <MobileButtons connector={this.connector} scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
           </OnlyMobile>
 
+          <CongaJoinHintOverlay />
+          <CongaStatusOverlay />
           <CurrentModeOverlay nextMode={this.featureTool.nextMode} mode={this.featureTool.selection.mode} enabled={this.featureTool.enabled} />
         </div>
       </ViewOnCondition>

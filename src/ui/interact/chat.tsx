@@ -1,4 +1,4 @@
-import { Component, createRef, JSX } from 'preact'
+import { Component, createRef, Fragment, JSX } from 'preact'
 import { forwardRef } from 'preact/compat'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { isMobile } from '../../../common/helpers/detector'
@@ -102,7 +102,7 @@ export class ChatOverlay extends Component<Props, State> {
         <div class={'chat-messages'}>
           {messageList.value.map((m) => (
             <p>
-              <span>{`${name(m)}: ${m.text}`}</span>
+              <span>{name(m)}: <ChatText text={m.text} /></span>
             </p>
           ))}
         </div>
@@ -111,6 +111,80 @@ export class ChatOverlay extends Component<Props, State> {
       </main>
     )
   }
+}
+
+const CONGA_CMD_PATTERN = /\/conga\b/
+const CONGA_INVITE_PATTERN = /\[\[conga:([0-9a-f-]{36})\]\]/gi
+
+function decodeChatHtmlEntities(encoded: string): string {
+  const el = document.createElement('textarea')
+  el.innerHTML = encoded
+  return el.value
+}
+
+/** Linkify /conga only (no [[conga:uuid]] tokens in this slice). */
+function SlashCongaLinks({ text }: { text: string }) {
+  const match = text.match(CONGA_CMD_PATTERN)
+  if (!match) return <>{text}</>
+
+  const before = text.slice(0, match.index)
+  const after = text.slice((match.index || 0) + match[0].length)
+
+  const onClick = (e: Event) => {
+    e.preventDefault()
+    window.connector.sendMessage('/conga')
+  }
+
+  return (
+    <>
+      {before}
+      <a href="#" onClick={onClick} style="color: white; text-decoration: underline; cursor: pointer;">
+        /conga
+      </a>
+      {after}
+    </>
+  )
+}
+
+const ChatText = ({ text }: { text: string }) => {
+  const decoded = decodeChatHtmlEntities(text)
+  if (CONGA_INVITE_PATTERN.test(decoded)) {
+    CONGA_INVITE_PATTERN.lastIndex = 0
+    const parts: JSX.Element[] = []
+    let last = 0
+    let k = 0
+    let m: RegExpExecArray | null
+    while ((m = CONGA_INVITE_PATTERN.exec(decoded)) !== null) {
+      if (m.index > last) {
+        parts.push(
+          <Fragment key={k++}>
+            <SlashCongaLinks text={decoded.slice(last, m.index)} />
+          </Fragment>,
+        )
+      }
+      const uuid = m[1]
+      const onJoin = (e: Event) => {
+        e.preventDefault()
+        window.connector.joinCongaFromInvitation(uuid)
+      }
+      parts.push(
+        <a key={k++} href="#" onClick={onJoin} style="text-decoration: underline; cursor: pointer;">
+          Join
+        </a>,
+      )
+      last = m.index + m[0].length
+    }
+    if (last < decoded.length) {
+      parts.push(
+        <Fragment key={k++}>
+          <SlashCongaLinks text={decoded.slice(last)} />
+        </Fragment>,
+      )
+    }
+    return <>{parts}</>
+  }
+
+  return <SlashCongaLinks text={decoded} />
 }
 
 const ChatInput = () => {
@@ -149,9 +223,11 @@ const ChatInput = () => {
   }
 
   return (
-    <form onSubmit={say}>
-      <input type="text" onKeyDown={onChatKeydown} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} ref={inputRef} />
-      <button type="submit">Send</button>
-    </form>
+    <div>
+      <form onSubmit={say}>
+        <input type="text" onKeyDown={onChatKeydown} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} ref={inputRef} />
+        <button type="submit">Send</button>
+      </form>
+    </div>
   )
 }
