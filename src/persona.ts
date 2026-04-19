@@ -11,6 +11,7 @@ import type { Scene } from './scene'
 import { decodeCoordsFromURL } from './utils/helpers'
 import { wantsXR } from '../common/helpers/detector'
 import { Action } from '../common/messages'
+import { EmoteAnimation } from './states'
 
 /**
  * The minimal representation of the persona which indicates if the avatar needs to be re-rendered.
@@ -106,6 +107,11 @@ export default class Persona {
         this.avatar.attachmentManager?.loadCostume()
       }
     })
+  }
+
+  sit() {
+    // gross
+    this.setState({ state: new EmoteAnimation(Animations.Sitting) }, this.controls)
   }
 
   private _animation: Animations
