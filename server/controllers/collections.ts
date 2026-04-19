@@ -1,7 +1,6 @@
 import { ethers } from 'ethers'
 import { Express, NextFunction, Request, RequestHandler, Response } from 'express'
 import { PassportStatic } from 'passport'
-import { v7 as uuid } from 'uuid'
 import { ChainIdentifier, getChainIdByName, SUPPORTED_CHAINS_KEYS } from '../../common/helpers/chain-helpers'
 import cache, { noCache } from '../cache'
 import Collection from '../collection'
@@ -93,32 +92,28 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
       res.status(403).json({ success: false, message: 'Not signed in' })
       return
     }
-    const slug = `u-${Date.now().toString(36)}-${uuid().replace(/-/g, '').slice(0, 12)}`
-    const bodyName = (req.body as { name?: unknown })?.name
-    const name = typeof bodyName === 'string' && bodyName.trim() ? bodyName.trim().slice(0, 120) : `Upload ${new Date().toISOString().slice(0, 10)}`
-    const c = new Collection({
-      name,
-      description: 'Bulk .vox upload pack',
-      image_url: null,
-      owner: wallet,
-      slug,
-      type: 'ERC1155',
-      chainId: 137,
-    })
-    const val = await c.isValid()
-    if (!val.success) {
-      res.status(400).json({ success: false, message: val.message })
+
+    const name = req.body?.name
+    const trimmed = typeof name === 'string' ? name.trim() : ''
+    if (!trimmed) {
+      res.status(400).json({ success: false, message: 'Name required' })
       return
     }
+
     try {
-      await c.create()
-      await c.syncCollectionID()
+      var insertRes = await db.query('sql/create-collection', `insert into collections (name, description, owner) values ($1, $2, $3) returning id, chainid, slug`, [trimmed, '', wallet])
     } catch (e) {
-      console.error('upload-pack create', e)
+      res.status(500).json({ success: false })
+      return
+    }
+
+    const row = insertRes.rows[0] as { id: number; chainid: number | null; slug: string | null } | undefined
+    if (!row?.id) {
       res.status(500).json({ success: false, message: 'Could not create collection' })
       return
     }
-    res.json({ success: true, collection_id: c.id })
+    const id = row.id as number
+    res.json({ success: true, collection_id: id })
   })
 
   app.put('/api/collections/create', passport.authenticate('jwt', { session: false }), createCollection)

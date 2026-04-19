@@ -285,18 +285,6 @@ export default class Collection {
     return { success: !!res && !!res.rows[0], collection: this }
   }
 
-  async isValid() {
-    const checkSlug = await db.query('embedded/get-collection-by-slug', `select * from collections where slug ILIKE $1 and id<>coalesce($2,0)`, [this.slug, this.id || null])
-    if (!!checkSlug && !!checkSlug.rows[0]) {
-      return { success: false, message: 'Slug already used' }
-    }
-    const checkName = await db.query('embedded/get-collection-by-name', `select * from collections where name ILIKE $1 and id<>coalesce($2,0)`, [this.name, this.id || null])
-    if (!!checkName && !!checkName.rows[0]) {
-      return { success: false, message: 'Name already used' }
-    }
-    return { success: true, message: null }
-  }
-
   async toggleSuppress() {
     this.suppressed = !this.suppressed
 
@@ -307,65 +295,6 @@ export default class Collection {
 `,
       [this.suppressed, this.id],
     )
-  }
-  /**
-   *     The collection factory and the collection are not perfectly synced.
-   *  It is possible for the collection factory to have higher indexes than the collections Table.
-   *  This method is designed to sync up the blockchain and the DB.
-   *
-   */
-  async syncCollectionID(): Promise<number | null> {
-    if (!this.id) {
-      return null
-    }
-    const previousID = this.id
-
-    let isOnChain = await isCollectionIDAlreadyOnChain(this.id, this.chainId ?? undefined)
-
-    if (!isOnChain) {
-      // Happens most of the time
-      // the new COllection already has an ID that's not on the chain.
-      return this.id
-    }
-
-    // Ten Possible tries of a new ID (We could use a while here, but for safety reasons I don't, just in case the 'while' locks the process)
-    for (const k of [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]) {
-      // for of allows us to await inside the loop
-      try {
-        this.id = await nextCollectionId(k)
-      } catch {
-        isOnChain = false
-        break
-      }
-
-      if (!this.id) {
-        // This should never happen
-        isOnChain = false
-        break
-      }
-
-      isOnChain = await isCollectionIDAlreadyOnChain(this.id, this.chainId ?? undefined)
-
-      if (!isOnChain) {
-        // Check if the new ID isn't the idea of another new collection
-        const collection = await Collection.loadFromId(this.id)
-        if (!collection || collection.slug == this.slug) {
-          // No collection with that ID exists on DB
-          break
-        }
-      }
-    }
-
-    if (this.id == previousID) {
-      return this.id
-    }
-    // update the collection's ID:
-    await db.query('embedded/update-collection-id', `update collections set id = $1 where id = $2;`, [this.id, previousID])
-
-    // Re-sync the collection ID sequence.
-    await db.query('embedded/sync-collection-id', `SELECT SETVAL('collections_id_seq',MAX(id)+1) FROM collections;`)
-
-    return this.id
   }
 }
 

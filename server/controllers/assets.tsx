@@ -173,10 +173,7 @@ export default function AssetLibraryController(db: Db, passport: PassportStatic,
         }
       }
       if (wearableCollectionId == null) {
-        const first = await pgp.oneOrNone<{ id: number }>(
-          'select id from collections where lower(owner) = lower($1) order by id asc limit 1',
-          [wallet],
-        )
+        const first = await pgp.oneOrNone<{ id: number }>('select id from collections where lower(owner) = lower($1) order by id asc limit 1', [wallet])
         if (first) {
           wearableCollectionId = first.id
         }
@@ -196,7 +193,6 @@ export default function AssetLibraryController(db: Db, passport: PassportStatic,
         if (val.success) {
           try {
             await c.create()
-            await c.syncCollectionID()
             if (c.id != null) {
               wearableCollectionId = c.id
             }
