@@ -79,11 +79,6 @@ export default class WebTopBar extends Component<unknown, State> {
               </Link>
             </li>
             <li>
-              <Link activeClassName="active" href="/account/collectibles">
-                Collectibles
-              </Link>
-            </li>
-            <li>
               <Link activeClassName="active" href="/account/favorites">
                 Favorites
               </Link>

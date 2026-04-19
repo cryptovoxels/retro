@@ -127,7 +127,7 @@ export default class ListCollectionsComponent extends Component<Props, State> {
   }
 
   render() {
-    const collections = this.state.fetching ? [] : this.state.collections.filter((c: any) => c.total_wearables > 0).map((c: any) => <CollectionItem collection={c} small={true} />)
+    const collections = this.state.fetching ? [] : this.state.collections.map((c: any) => <CollectionItem collection={c} small={true} />)
     const outline = (sort: Sorting) => (this.state.sort === sort ? 'outline' : '')
 
     return (
@@ -177,16 +177,9 @@ export default class ListCollectionsComponent extends Component<Props, State> {
         <aside>
           <h3>Upload Collection</h3>
 
-          <p>Upload .vox files create a new collection.</p>
+          <p>Drop .vox files here: each upload creates a collection and wearables (plus library assets).</p>
 
           <UploadButton collection={true} />
-
-          <h3>Stats</h3>
-
-          <dl>
-            <dt>Collections</dt>
-            <dd>{this.state.info?.total}</dd>
-          </dl>
         </aside>
       </section>
     )

@@ -164,6 +164,8 @@ export enum ContractTypes {
 }
 
 export type Collection = {
+  total?: number
+  authors?: number
   total_authors?: number
   total_wearables?: number
   id?: any
@@ -239,7 +241,7 @@ export class CollectionHelper {
    * Returns basic information about this collection
    */
   async getData(cachebust = false) {
-    const url = `/api/collections/${this.id}.json`
+    const url = `/api/collections/${this.id}`
 
     // if (cachebust) {
     //   url += `?cb=${Date.now()}`
@@ -260,7 +262,7 @@ export class CollectionHelper {
   }
 
   async fetchCollectibles(page?: number, query?: string, sort?: string, asc?: boolean) {
-    const u = `/api/collections/${this.chainIdentifier}/${this.address!}/collectibles.json`
+    const u = `/api/collections/${this.id}/collectibles`
     const url = new URL(u, location.toString())
     const searchParams = {
       page,
@@ -282,19 +284,22 @@ export class CollectionHelper {
   }
 
   /**
-   * Returns basic information about this collection
+   * Minted count + author count (same fields as legacy info.json).
    */
   async getCollectionInfo() {
-    let url = `${process.env.API}/collections/${this.chainIdentifier}/${this.address || ''}/info.json`
-    if (!this.address && this.id) {
-      url = `${process.env.API}/collections/${this.id}/info.json`
+    const id = this.id
+    if (id == null || id === '') {
+      return {}
     }
 
     try {
-      const p = await fetch(url)
+      const p = await fetch(`/api/collections/${id}`)
       const r = await p.json()
-
-      return r.info
+      const c = r.collection
+      if (!c) {
+        return {}
+      }
+      return { total: c.total ?? 0, authors: c.authors ?? 0 }
     } catch (err) {
       console.error(`getCollectionInfo error: ${err}`)
       return {}

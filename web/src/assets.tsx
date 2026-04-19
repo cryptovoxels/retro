@@ -258,7 +258,7 @@ export default class Library extends Component<Props, State> {
         <aside>
           <h3>Upload Asset</h3>
 
-          <p>Upload a .vox file to create a new asset.</p>
+          <p>Drop many .vox files here or pick files. Two or more files also open a new collection with wearables.</p>
 
           <UploadButton />
         </aside>

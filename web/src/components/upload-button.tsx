@@ -1,25 +1,35 @@
-import { useState } from 'preact/hooks'
+import { useCallback, useRef, useState } from 'preact/hooks'
 import { Assetish } from '../asset'
 import { app } from '../state'
+import { PanelType } from './panel'
 
 type UploadResult = {
   success: boolean
   error?: string
   asset?: Assetish
+  collection_id?: number
+  wearable_note?: string
 }
-type UploadPromise = {
+
+type Row = {
+  id: number
   file: File
-  promise: Promise<any>
   result?: UploadResult
 }
 
-const uploadAsset = async (file: File): Promise<UploadResult> => {
+const isVox = (f: File) => f.name.toLowerCase().endsWith('.vox')
+
+const uploadAsset = async (file: File, collectionId: number | null): Promise<UploadResult> => {
   const formData = new FormData()
   formData.append('file', file)
+  if (collectionId != null && collectionId > 0) {
+    formData.append('collection_id', String(collectionId))
+  }
 
   const f = await fetch(`/api/assets/upload`, {
     method: 'POST',
     body: formData,
+    credentials: 'include',
   })
 
   if (!f.ok) {
@@ -29,45 +39,115 @@ const uploadAsset = async (file: File): Promise<UploadResult> => {
   return await f.json()
 }
 
-type Props = { collection?: boolean }
+type Props = { collection?: boolean; targetCollectionId?: number | null }
 
-export default function UploadButton({ collection }: Props) {
-  const [uploading, setUploading] = useState(false)
-  const [uploads, setUploads] = useState<UploadPromise[]>([])
+export default function UploadButton({ collection, targetCollectionId }: Props) {
+  const [uploads, setUploads] = useState<Row[]>([])
+  const [dragActive, setDragActive] = useState(false)
+  const inFlightRef = useRef(0)
+  const nextIdRef = useRef(0)
+  const successSeenRef = useRef(false)
 
-  const onDone = () => {
-    if (uploads.find((u) => u.promise)) {
+  const queueFiles = useCallback(async (input: FileList | File[] | null | undefined) => {
+    if (!input?.length) return
+    const all = Array.from(input as ArrayLike<File>)
+    const vox = all.filter(isVox)
+    if (!vox.length) {
+      if (all.length && app.showSnackbar) {
+        app.showSnackbar('Only .vox files are accepted', PanelType.Warning)
+      }
       return
     }
 
-    window.location.reload()
-  }
-
-  const onUpload = (e: HTMLInputElement) => {
-    const u = []
-
-    for (const file of e.files ?? []) {
-      const promise = uploadAsset(file).then((result) => {
-        setUploads(uploads.map((upload) => (upload.file === file ? { ...upload, result } : upload)))
-
-        onDone()
+    const existingId = targetCollectionId != null && targetCollectionId > 0 ? targetCollectionId : null
+    const wantPack = !existingId && (!!collection || vox.length >= 2)
+    let packId: number | null = existingId
+    if (!packId && wantPack) {
+      const r = await fetch('/api/collections/upload-pack', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
       })
-
-      u.push({ file, promise })
+      const j = (await r.json().catch(() => ({}))) as { success?: boolean; collection_id?: number; message?: string }
+      if (!r.ok || !j.success || j.collection_id == null) {
+        if (app.showSnackbar) {
+          app.showSnackbar(j.message || 'Could not create upload collection', PanelType.Warning)
+        }
+        return
+      }
+      packId = Number(j.collection_id)
     }
 
-    setUploads(u)
+    const rows: Row[] = vox.map((file) => ({ id: ++nextIdRef.current, file }))
+    inFlightRef.current += rows.length
+    setUploads((prev) => [...prev, ...rows])
+
+    for (const row of rows) {
+      uploadAsset(row.file, packId).then((result) => {
+        if (result.success) {
+          successSeenRef.current = true
+        }
+        setUploads((prev) => prev.map((r) => (r.id === row.id ? { ...r, result } : r)))
+        inFlightRef.current--
+        if (inFlightRef.current === 0) {
+          window.setTimeout(() => {
+            if (successSeenRef.current) {
+              successSeenRef.current = false
+              window.location.reload()
+            }
+          }, 600)
+        }
+      })
+    }
+  }, [collection, targetCollectionId])
+
+  const onInputChange = (e: Event) => {
+    const t = e.target as HTMLInputElement
+    queueFiles(t.files)
+    t.value = ''
   }
 
   const userId = app.state.wallet?.toLowerCase()
 
   return (
     <div class="upload-button">
-      <input type="file" name="upload-btn" multiple id="upload-btn" accept=".vox" onChange={(e) => e.target && onUpload(e.target as HTMLInputElement)} />
+      <div
+        class={'asset-vox-drop' + (dragActive ? ' asset-vox-drop-active' : '')}
+        onDragOver={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setDragActive(true)
+          if (e.dataTransfer) e.dataTransfer.dropEffect = 'copy'
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setDragActive(false)
+        }}
+        onDrop={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          setDragActive(false)
+          queueFiles(e.dataTransfer?.files)
+        }}
+      >
+        <p class="asset-vox-drop-hint">Drop .vox files here (many at once) or pick files below.</p>
+
+        <input type="file" name="upload-btn" multiple id="upload-btn" accept=".vox" onChange={onInputChange} />
+      </div>
 
       <ul>
         {uploads.map((upload) => (
-          <li>{upload.result?.success ? <a href={`/users/${userId}/assets/${upload.result.asset!.id}`}>{upload.file.name}</a> : <span>{upload.file.name}...</span>}</li>
+          <li key={upload.id}>
+            {upload.result?.success ? (
+              <a href={`/users/${userId}/assets/${upload.result.asset!.id}`}>{upload.file.name}</a>
+            ) : upload.result ? (
+              <span title={upload.result.error}>{upload.file.name} (failed)</span>
+            ) : (
+              <span>{upload.file.name}...</span>
+            )}
+          </li>
         ))}
       </ul>
     </div>

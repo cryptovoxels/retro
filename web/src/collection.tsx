@@ -1,9 +1,9 @@
 import { Component, Fragment } from 'preact'
-import { Polygon } from '../../common/helpers/chain-helpers'
 import { Collection, CollectionHelper } from '../../common/helpers/collections-helpers'
 import CollectiblesComponent from './components/collectibles'
 import { CollectionTabsNavigation } from './components/collections/collection-nav'
 import CollectionSettings from './components/collections/collection-settings'
+import UploadButton from './components/upload-button'
 import { app, AppEvent } from './state'
 import UploadWearable from './upload-wearable'
 
@@ -90,11 +90,6 @@ export default class CollectionPage extends Component<Props, State> {
       )
     }
 
-    const imgSrc = this.state.collection?.image_url ?? `/images/default.png`
-
-    // Id for the meta header for Server side rendering
-    const metaId = this.props.chain_identifier + ':' + this.props.address?.toLowerCase()
-
     const collection = this.state.collection
 
     const isOwner = this.isOwner
@@ -123,29 +118,15 @@ export default class CollectionPage extends Component<Props, State> {
         <aside>
           <p class="description">{this.state.collection.description}</p>
 
+          <UploadButton targetCollectionId={this.state.collection.id} />
+
           <CollectionTabsNavigation collection={this.state.collection} />
 
           <dl>
-            <dt>Address</dt>
-            <dd>
-              <a href={(this.state.collection?.chainid === Polygon ? 'https://polygonscan.com/address/' : 'https://etherscan.io/address/') + this.state.collection.address}>
-                {this.state.collection?.address?.slice(0, 6) + '...' + this.state.collection?.address?.slice(-4)}
-              </a>
-            </dd>
-            <dt>Slug</dt>
-            <dd>{this.state.collection?.slug}</dd>
-
-            <dt>Curator</dt>
+            <dt>Author</dt>
             <dd>
               <a href={`/avatar/${this.state.collection.owner}`}>{this.state.collection.owner_name ? this.state.collection.owner_name : this.state.collection.owner?.substring(0, 10) + '...' || ''}</a>
             </dd>
-
-            {collection.chainid! > 0 && (
-              <Fragment>
-                <dt>Blockchain</dt>
-                <dd>{this.state.collection.chainid == 1 ? 'Ethereum blockchain' : 'Polygon sidechain'}</dd>
-              </Fragment>
-            )}
 
             {this.publicCanSubmit && (
               <Fragment>
@@ -161,15 +142,13 @@ export default class CollectionPage extends Component<Props, State> {
               </Fragment>
             )}
           </dl>
-
-          <img src={imgSrc} />
         </aside>
       </section>
     )
   }
 
   private async fetch(cachebust = false) {
-    const f = await fetch(`/api/collections/${this.props.id}.json`)
+    const f = await fetch(`/api/collections/${this.props.id}`)
     const { collection } = await f.json()
     this.setState({ collection })
   }

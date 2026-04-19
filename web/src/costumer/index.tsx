@@ -9,7 +9,7 @@ import { debounce, isEqual, sortBy } from 'lodash'
 import { Editor } from './editor'
 import { PanelType } from '../../src/components/panel'
 import { route } from 'preact-router'
-import { pending, setupGizmos, setupScene } from './utils'
+import { pending, registerCostumerVoidBackground, setupGizmos, setupScene } from './utils'
 import { Wearable } from './wearable'
 import { v1 as uuidv1 } from 'uuid'
 import { CollectiblesData, fetchMergedWearableCatalog } from '../../../common/helpers/collections-helpers'
@@ -82,10 +82,16 @@ export default class Costumer extends Component<Props, State> {
 
     this.gizmoManager = setupGizmos(this.scene, this.onDragEnd)
 
+    registerCostumerVoidBackground()
+
     const background = new BABYLON.Scene(this.engine)
+    background.clearColor = new BABYLON.Color4(0.96, 0.97, 0.99, 1)
     background.createDefaultCamera()
 
-    const pp = new BABYLON.PostProcess('', 'Wobble', [], [], 0, background.activeCamera)
+    const pp = new BABYLON.PostProcess('', 'CostumerVoid', [], [], 0, background.activeCamera)
+    pp.onApply = (effect) => {
+      effect.setFloat('iTime', performance.now() / 1000)
+    }
 
     this.fetch().then(() => {
       this.engine?.runRenderLoop(() => {
@@ -795,47 +801,24 @@ export default class Costumer extends Component<Props, State> {
 
     return (
       <section class="columns costumer-page">
-        <p class="costumer-breadcrumb">
-          <a href="/">Home</a> &gt; Costumer
-        </p>
-
         <h1>{this.costume?.name || 'New costume'}</h1>
 
         <article>
           <figcaption>
-            <div id="gizmos" class={this.state.attachmentId !== null ? 'active' : 'inactive'}>
-              <button type="button" class="secondary" disabled={this.state.attachmentId === null} id="gizmo-position">
-                Position
-              </button>
-              <button type="button" class="secondary" disabled={this.state.attachmentId === null} id="gizmo-rotation">
-                Rotation
-              </button>
-              <button type="button" class="secondary" disabled={this.state.attachmentId === null} id="gizmo-scale">
-                Scale
-              </button>
-            </div>
-
             <button type="button" class="secondary" onClick={pending(this.createCostume)}>
               New
             </button>
 
-            <form class="costumer-upload" onSubmit={(e) => e.preventDefault()}>
-              <input onChange={this.onUpload} type="file" />
-              <button type="button" class="secondary">
-                Upload
-              </button>
-            </form>
-
-            <button type="button" class="secondary" disabled={worn} onClick={pending(this.setActive)}>
+            <button type="button" disabled={worn} onClick={pending(this.setActive)}>
               Wear
             </button>
-            <button type="button" class="secondary" onClick={this.downloadCostume}>
+            <button type="button" onClick={this.downloadCostume}>
               Download
             </button>
-            <button type="button" class="secondary" onClick={pending(this.duplicateCostume)}>
+            <button type="button" onClick={pending(this.duplicateCostume)}>
               Duplicate
             </button>
-            <button type="button" class="secondary" onClick={pending(this.deleteCostume)}>
+            <button type="button" onClick={pending(this.deleteCostume)}>
               Delete
             </button>
             <a class="buttonish" href={preview}>
@@ -850,24 +833,23 @@ export default class Costumer extends Component<Props, State> {
             </label>
           </figcaption>
 
-          <figure class="costumer-canvas-wrap">
-            <canvas
-              onWheel={this.onWheel}
-              onDragOver={this.onDragOver}
-              onDragExit={this.onDragExit}
-              onDrop={this.onDrop}
-              onMouseMove={this.onCanvasPointerMove}
-              onMouseLeave={this.onCanvasLeave}
-              class="costumer"
-              ref={this.canvas}
-            />
+          <figure>
+            <div id="gizmos" class={this.state.attachmentId !== null ? 'active' : 'inactive'}>
+              <button class="iconish" disabled={this.state.attachmentId === null} id="gizmo-position">
+                P
+              </button>
+              <button class="iconish" disabled={this.state.attachmentId === null} id="gizmo-rotation">
+                R
+              </button>
+              <button class="iconish" disabled={this.state.attachmentId === null} id="gizmo-scale">
+                S
+              </button>
+            </div>
+
+            <canvas onWheel={this.onWheel} onDragOver={this.onDragOver} onDragExit={this.onDragExit} onDrop={this.onDrop} onMouseMove={this.onCanvasPointerMove} onMouseLeave={this.onCanvasLeave} class="costumer" ref={this.canvas} />
             {this.state.bonePickerBone ? (
               <div class="bone-picker-overlay" onMouseDown={this.onBonePickerBackdrop}>
-                <div
-                  class="bone-wearable-popup"
-                  style={{ left: `${this.state.bonePickerX}px`, top: `${this.state.bonePickerY}px` }}
-                  onMouseDown={(e) => e.stopPropagation()}
-                >
+                <div class="bone-wearable-popup" style={{ left: `${this.state.bonePickerX}px`, top: `${this.state.bonePickerY}px` }} onMouseDown={(e) => e.stopPropagation()}>
                   <div class="bone-wearable-popup-head">
                     <strong>{this.state.bonePickerBone}</strong>
                     <button type="button" class="bone-wearable-popup-x" onClick={this.closeBoneWearablePicker}>
@@ -875,9 +857,7 @@ export default class Costumer extends Component<Props, State> {
                     </button>
                   </div>
                   {this.state.bonePickerLoading ? <p class="bone-wearable-popup-msg">Loading</p> : null}
-                  {!this.state.bonePickerLoading && (this.state.bonePickerItems?.length ?? 0) === 0 ? (
-                    <p class="bone-wearable-popup-msg">No wearables for this bone</p>
-                  ) : null}
+                  {!this.state.bonePickerLoading && (this.state.bonePickerItems?.length ?? 0) === 0 ? <p class="bone-wearable-popup-msg">No wearables for this bone</p> : null}
                   <ul class="bone-wearable-popup-list">
                     {(this.state.bonePickerItems || []).map((w) => (
                       <li key={`bp-${w.collection_id}-${w.token_id}-${w.id}`}>
@@ -894,7 +874,9 @@ export default class Costumer extends Component<Props, State> {
           </figure>
 
           {avatar}
+        </article>
 
+        <aside>
           {this.costume && (
             <div class="costumer-name-block">
               <h3>Name</h3>
@@ -902,11 +884,7 @@ export default class Costumer extends Component<Props, State> {
             </div>
           )}
 
-          <h3>Wearing</h3>
-
-          {this.state.attachmentId && (
-            <Editor ref={this.editor} key={editorKey} attachmentId={this.state.attachmentId} costume={this.costume} deleteAttachment={this.removeAttachment} updateAttachment={this.updateAttachment} />
-          )}
+          {this.state.attachmentId && <Editor ref={this.editor} key={editorKey} attachmentId={this.state.attachmentId} costume={this.costume} deleteAttachment={this.removeAttachment} updateAttachment={this.updateAttachment} />}
 
           {this.costume && (
             <Fragment>
@@ -920,14 +898,15 @@ export default class Costumer extends Component<Props, State> {
               </ul>
             </Fragment>
           )}
-        </article>
 
-        <div class="postscript" />
+          <form class="costumer-upload" onSubmit={(e) => e.preventDefault()}>
+            <input onChange={this.onUpload} type="file" />
+            <button type="button" class="secondary">
+              Upload
+            </button>
+          </form>
 
-        <aside class="push-header">
-          <div class="wearables-list">
-            <WearableList onPickWearable={this.pickWearableForHand} />
-          </div>
+          <WearableList onPickWearable={this.pickWearableForHand} />
         </aside>
       </section>
     )

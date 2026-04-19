@@ -130,6 +130,7 @@ export default class CollectiblesComponent extends Component<Props, State> {
   componentDidUpdate(prevProps: any, prevState: any) {
     if (this.props.collection?.id !== prevProps.collection?.id) {
       this.fetch()
+      this.fetchInfo()
     }
     if (this.state.search !== prevState.search) {
       this.fetch()
@@ -183,8 +184,13 @@ export default class CollectiblesComponent extends Component<Props, State> {
   }
 
   async fetchInfo() {
-    if (this.state.collection) {
-      const helper = new CollectionHelper(this.state.collection)
+    if (this.props.collection) {
+      const c = this.props.collection
+      if (c.total != null && c.authors != null) {
+        this.setState({ info: { total: Number(c.total), authors: Number(c.authors) } })
+        return
+      }
+      const helper = new CollectionHelper(this.props.collection)
       const info = await helper.getCollectionInfo()
       this.setState({ info })
     } else {

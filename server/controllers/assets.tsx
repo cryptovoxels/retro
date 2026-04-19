@@ -19,8 +19,10 @@ import log from '../lib/logger'
 import { createRequestHandlerForQuery, queryAndCallback } from '../lib/query-helpers'
 import { parseQueryInt } from '../lib/query-parsing-helpers'
 import LibraryAsset from '../library-asset'
+import Collection from '../collection'
 import { Db, pgp } from '../pg'
 import { VoxelsUserRequest } from '../user'
+import Wearable, { WearableCategory } from '../wearable'
 
 // Configure multer for memory storage (or disk storage if you prefer)
 const upload = multer({
@@ -158,6 +160,80 @@ export default function AssetLibraryController(db: Db, passport: PassportStatic,
       return
     }
 
+    const rawPack = (req.body as { collection_id?: string }).collection_id
+    const requestedCid = rawPack != null && rawPack !== '' ? parseInt(String(rawPack), 10) : NaN
+    let wearableNote: string | undefined
+    let wearableCollectionId: number | null = null
+
+    if (ext === '.vox') {
+      if (Number.isFinite(requestedCid) && requestedCid > 0) {
+        const col = await pgp.oneOrNone<{ owner: string }>('select owner from collections where id = $1', [requestedCid])
+        if (col && String(col.owner).toLowerCase() === String(wallet).toLowerCase()) {
+          wearableCollectionId = requestedCid
+        }
+      }
+      if (wearableCollectionId == null) {
+        const first = await pgp.oneOrNone<{ id: number }>(
+          'select id from collections where lower(owner) = lower($1) order by id asc limit 1',
+          [wallet],
+        )
+        if (first) {
+          wearableCollectionId = first.id
+        }
+      }
+      if (wearableCollectionId == null) {
+        const slug = `u-${Date.now().toString(36)}-${uuid().replace(/-/g, '').slice(0, 12)}`
+        const c = new Collection({
+          name: `Uploads ${new Date().toISOString().slice(0, 10)}`,
+          description: 'Auto-created for .vox uploads',
+          image_url: null,
+          owner: wallet,
+          slug,
+          type: 'ERC1155',
+          chainId: 137,
+        })
+        const val = await c.isValid()
+        if (val.success) {
+          try {
+            await c.create()
+            await c.syncCollectionID()
+            if (c.id != null) {
+              wearableCollectionId = c.id
+            }
+          } catch (e) {
+            log.error(`wearable upload auto-collection: ${e}`)
+            wearableNote = 'Could not create a collection for this wearable'
+          }
+        } else {
+          wearableNote = val.message || 'Could not create a collection for this wearable'
+        }
+      }
+
+      if (wearableCollectionId != null && wearableCollectionId > 0) {
+        try {
+          const baseName = path.basename(req.file.originalname, ext)
+          const w = new Wearable({
+            name: baseName || req.file.originalname,
+            description: '',
+            author: wallet,
+            issues: 100000,
+            data: new Uint8Array(req.file.buffer),
+            collection_id: wearableCollectionId,
+            category: WearableCategory.Accessory,
+          })
+          const wr = await w.create()
+          if (wr.success) {
+            await w.giveOffChainWearableATokenId()
+          } else {
+            wearableNote = wr.message
+          }
+        } catch (e) {
+          log.error(`wearable from asset upload: ${e}`)
+          wearableNote = 'wearable insert failed'
+        }
+      }
+    }
+
     res.json({
       success: true,
       asset: {
@@ -166,6 +242,8 @@ export default function AssetLibraryController(db: Db, passport: PassportStatic,
         author: wallet,
         content: content,
       },
+      ...(wearableCollectionId != null && wearableCollectionId > 0 ? { collection_id: wearableCollectionId } : {}),
+      ...(wearableNote ? { wearable_note: wearableNote } : {}),
     })
   })
 

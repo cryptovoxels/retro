@@ -99,7 +99,6 @@ export default function Profile(props: Props) {
         ) : (
           <>
             <h1>{name}</h1>
-            {avatar?.last_online && <p>Last seen {avatar?.last_online ? format(avatar?.last_online) : '–'}.</p>}
           </>
         )}
       </hgroup>
@@ -162,8 +161,6 @@ export default function Profile(props: Props) {
             {!owner && <SocialLink socialUrl={avatar?.social_link_2 ?? ''} maxLength={48} />}
             {owner && <EditSocialLink socialLinkNumber={2} avatar={avatar} onSave={fetchAvatar} />}
           </dd>
-          <dt>Last seen</dt>
-          <dd>{avatar?.last_online ? format(avatar?.last_online) : '–'}</dd>
           <dt>Joined</dt>
           <dd>{avatar?.created_at ? format(avatar.created_at) : 'The mists of time'}</dd>
         </dl>

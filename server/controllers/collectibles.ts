@@ -76,64 +76,6 @@ export default function (db: Db, passport: any, app: any) {
     cache('60 seconds'),
     createRequestHandlerForQuery(db, 'collectibles/get-wearable-by-uuid', 'wearable', (req) => [req.params.uuid]),
   )
-
-  const getCollectiblesOfCollection = async (req: Request, res: Response) => {
-    const { chain_identifier, address } = req.params as { chain_identifier: ChainIdentifier; address: string }
-    if (!chain_identifier || !address) {
-      res.status(404).send({ success: false })
-      return
-    }
-
-    let token_ids: string[] | null = req.query.token_ids ? (req.query.token_ids instanceof Array ? (req.query.token_ids as string[]) : [req.query.token_ids as string]) : null
-
-    if (!token_ids) {
-      queryAndCallback(
-        db,
-        'collectibles/get-collectibles-by-collection',
-        'collectibles',
-        [getChainIdByName(chain_identifier), address, `%${req.query.q || ''}%`, parseQueryInt(req.query.page, 1) - 1, req.query.sort ? req.query.sort : 'updated_at', req.query.asc === 'true'],
-        (response) => {
-          res.status(200).send(response)
-        },
-      )
-      return
-    }
-
-    token_ids = token_ids.filter((id) => !isNaN(parseInt(id)))
-
-    if (token_ids.length === 0) {
-      res.status(200).send({ success: true, collectibles: [] })
-      return
-    }
-
-    const batch_queries = `select
-    w.id,
-    token_id,
-    w.name,
-    w.description,
-    collection_id,
-    w.category,
-    w.author,
-    w.hash,
-    w.suppressed,
-    c.chainid as chain_id,
-    c.address as collection_address,
-    c.name as collection_name
-    from
-    wearables w
-    left join collections c
-    on c.id = w.collection_id
-where
- (c.chainid = coalesce($1,1) AND lower(c.address) = lower($2))
-  and token_id in (${token_ids.join(',')})
-  `
-    const r = await db.query('embedded/get-collectibles-batch', batch_queries, [getChainIdByName(chain_identifier), address])
-    res.status(200).send({ success: !!r.rows[0], collectibles: r.rows })
-  }
-  /* Collections */
-  // new API
-  app.get('/api/collections/:chain_identifier/:address/collectibles.json', identifyCollectionParams, cache('30 seconds'), getCollectiblesOfCollection)
-
   //Collection submissions
 
   app.post('/api/collections/collectibles/review.json', passport.authenticate('jwt', { session: false }), async (req: Request, res: Response) => {

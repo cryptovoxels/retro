@@ -130,10 +130,13 @@ export async function getCollectibleAmountForWallet(
  */
 export async function isCollectionIDAlreadyOnChain(tokenId: number, chainId = 1): Promise<boolean> {
   const factoryContactAddress = chainId == 137 ? process.env.COLLECTION_FACTORY_CONTRACT_MATIC : process.env.COLLECTION_FACTORY_CONTRACT_ETH
+  if (!factoryContactAddress || !ethers.isAddress(factoryContactAddress)) {
+    return false
+  }
 
   const alchemy = chainId == 1 ? ethAlchemy : polygonAlchemy
 
-  const contract = new ethers.Contract(factoryContactAddress!, quickFactoryABI, alchemy)
+  const contract = new ethers.Contract(factoryContactAddress, quickFactoryABI, alchemy)
 
   let p
   try {
@@ -160,8 +163,11 @@ const quickFactoryABI = [
  * @param collection a collection object
  */
 export async function collectionHasValidURI(collection: Collection): Promise<boolean> {
+  if (!collection.address || !ethers.isAddress(collection.address)) {
+    return true
+  }
   const alchemy = collection.chainId == 1 ? ethAlchemy : polygonAlchemy
-  const contract = new ethers.Contract(collection.address!, quickcvCollectibleABI, alchemy)
+  const contract = new ethers.Contract(collection.address, quickcvCollectibleABI, alchemy)
 
   let p
   try {
