@@ -49,10 +49,10 @@ $body$;
 -- Lots of migrations removed
 --------------------------------------------------------------------------------
 
+CREATE EXTENSION IF NOT EXISTS cube;
 
 -- select apply_migration('remove-postgis-footprint-bounds-json',
 -- $$
---   CREATE EXTENSION IF NOT EXISTS cube;
 
 --   ALTER TABLE islands ADD COLUMN IF NOT EXISTS holes_geometry_json jsonb;
 --   ALTER TABLE islands ADD COLUMN IF NOT EXISTS lakes_geometry_json jsonb;
