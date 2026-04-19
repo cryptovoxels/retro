@@ -43,9 +43,9 @@ export class Wearable extends Component<Props, State> {
     return this.avatar?.skeleton ?? null
   }
 
-  private get streamWearableURL() {
+  private get voxUrl() {
     const a = this.props.attachment
-    return `/c/v2/${SUPPORTED_CHAINS_BY_ID[a.chain_id]}/${a.collection_address}/${a.wearable_id}/vox`
+    return `/api/collections/${a.collection_id}/collectibles/${a.wearable_id}/vox`
   }
 
   private get layer() {
@@ -90,7 +90,7 @@ export class Wearable extends Component<Props, State> {
     mat.diffuseColor.set(1, 1, 1)
     mat.blockDirtyMechanism = true
 
-    this.mesh = (await voxImport(process.env.ASSET_PATH + this.streamWearableURL, this.scene, opts)).mesh
+    this.mesh = await voxImport(this.voxUrl, this.scene)
 
     if (!this.mounted) {
       this.mesh.dispose()

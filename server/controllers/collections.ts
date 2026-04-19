@@ -83,10 +83,8 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
     createRequestHandlerForQuery(db, 'collectibles/get-collectibles-by-collection', 'collectibles', (req) => [req.params.id]),
   )
 
-  app.post('/api/collections/validate', passport.authenticate('jwt', { session: false }), checkValidity)
-
   /** Empty collection for bulk .vox upload; wearables added per /api/assets/upload with collection_id. */
-  app.post('/api/collections/upload-pack', passport.authenticate('jwt', { session: false }), async (req: VoxelsUserRequest, res) => {
+  app.post('/api/collections/create', passport.authenticate('jwt', { session: false }), async (req: VoxelsUserRequest, res) => {
     const wallet = req.user?.wallet
     if (!wallet) {
       res.status(403).json({ success: false, message: 'Not signed in' })
@@ -115,32 +113,4 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
     const id = row.id as number
     res.json({ success: true, collection_id: id })
   })
-
-  app.put('/api/collections/create', passport.authenticate('jwt', { session: false }), createCollection)
-  app.put('/api/collections/update', passport.authenticate('jwt', { session: false }), updateCollection)
-  app.put('/api/collections/update/address', passport.authenticate('jwt', { session: false }), updateAddress)
-  app.put('/api/collections/remove', passport.authenticate('jwt', { session: false }), removeCollection)
-  app.put('/api/collections/discontinue', passport.authenticate('jwt', { session: false }), discontinueCollection)
-  app.put('/api/collections/suppress', passport.authenticate('jwt', { session: false }), suppressCollection)
-}
-
-//middleware
-export const identifyCollectionParams: RequestHandler = (req: Request, res: Response, next: NextFunction) => {
-  const { chain_identifier, address } = req.params as { chain_identifier: ChainIdentifier; address: string }
-  if (!chain_identifier && !address) {
-    res.status(404).send({ success: false })
-    return
-  }
-
-  if (!!chain_identifier && !SUPPORTED_CHAINS_KEYS.includes(chain_identifier)) {
-    res.status(404).send({ success: false, error: 'Invalid chain identifier' })
-    return
-  }
-
-  if (address && !ethers.isAddress(address)) {
-    res.status(404).send({ success: false, error: 'Invalid Address' })
-    return
-  }
-  req.params.chain_id = getChainIdByName(chain_identifier).toString()
-  next()
 }

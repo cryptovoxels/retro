@@ -193,35 +193,3 @@ export async function validateHashWearable(req: Request, res: Response) {
   const r = await Wearable.validateHashWearable(req.body.id, req.body.hash, req.body.owner)
   res.json(r)
 }
-
-// mainly called by /collectibles/w/:chain/:address/:id/balanceof/:wallet
-export async function getAmountOfWearable(req: VoxelsUserRequest, res: Response) {
-  const { chain, address, id, wallet } = req.params
-  const chainQuery = req.query.chain
-
-  if (!ethers.isAddress(address) || !ethers.isAddress(wallet)) {
-    res.status(400).json({ success: false, message: 'Invalid address' })
-    return
-  }
-  // account for off-chain collectibles which have chainid 0
-  const chainIdentifier = chain || chainQuery
-  if (chainIdentifier && typeof chainIdentifier === 'string') {
-    if (!SUPPORTED_CHAINS_KEYS.includes(chainIdentifier)) {
-      res.status(400).json({ success: false, message: 'Unsupported chain' })
-      return
-    }
-    const chainId = SUPPORTED_CHAINS[chainIdentifier]
-    const r = await getCollectibleAmountForWallet(chainId, address, parseInt(id, 10), wallet)
-    res.json({ success: !!r, balance: r.balance })
-  } else {
-    let r = { balance: 0 }
-    for (const c of SUPPORTED_CHAINS_KEYS) {
-      const chainId = SUPPORTED_CHAINS[c]
-      r = await getCollectibleAmountForWallet(chainId, address, parseInt(id, 10), wallet)
-      if (r.balance) {
-        break
-      }
-    }
-    res.json({ success: !!r, balance: r.balance })
-  }
-}

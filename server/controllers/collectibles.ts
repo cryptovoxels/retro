@@ -31,10 +31,7 @@ export default function (db: Db, passport: any, app: any) {
   app.post('/api/collectibles/w/:id/suppress', passport.authenticate('jwt', { session: false }), updateWearable)
   app.post('/api/collectibles/w/:id/unsuppress', passport.authenticate('jwt', { session: false }), updateWearable)
   app.post('/api/collectibles/w/:id/delete', passport.authenticate('jwt', { session: false }), updateWearable)
-
   app.post('/api/collectibles/w/validate-hash', passport.authenticate('jwt', { session: false }), validateHashWearable)
-
-  app.get('/api/collectibles/w/:chain/:address/:id/balanceof/:wallet', cache('30 seconds'), getAmountOfWearable)
 
   // all collectibles (count)
   app.get('/api/collectibles/info.json', cache('60 seconds'), createRequestHandlerForQuery(db, 'collectibles/get-collectibles-info', 'info'))
