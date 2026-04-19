@@ -41,7 +41,7 @@ export function CollectionTabsNavigation(props: { collection: Collection }) {
         <>
           <dt>Admin</dt>
           <dd>
-            <a href={`/collections/${chainid}/${address}/tab/admin`}>Admin</a>
+            <a href={`/collections/${collection.id}/edit`}>Admin</a>
           </dd>
         </>
       )}

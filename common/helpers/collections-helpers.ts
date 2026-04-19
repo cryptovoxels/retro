@@ -282,27 +282,4 @@ export class CollectionHelper {
       return []
     }
   }
-
-  /**
-   * Minted count + author count (same fields as legacy info.json).
-   */
-  async getCollectionInfo() {
-    const id = this.id
-    if (id == null || id === '') {
-      return {}
-    }
-
-    try {
-      const p = await fetch(`/api/collections/${id}`)
-      const r = await p.json()
-      const c = r.collection
-      if (!c) {
-        return {}
-      }
-      return { total: c.total ?? 0, authors: c.authors ?? 0 }
-    } catch (err) {
-      console.error(`getCollectionInfo error: ${err}`)
-      return {}
-    }
-  }
 }

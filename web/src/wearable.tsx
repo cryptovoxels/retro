@@ -129,7 +129,7 @@ export default class Wearable extends Component<Props, State> {
     if (!this.props.chain_identifier || !this.props.address || !this.props.token_id) {
       return
     }
-    let url = `/api/collections/${this.props.chain_identifier}/${this.props.address}/c/${this.props.token_id}.json`
+    let url = `/api/collections/${this.props.chain_identifier}/collectibles/${this.props.token_id}`
     if (shouldCachebust) url += `?cb=${Date.now()}`
 
     fetchAPI(url)

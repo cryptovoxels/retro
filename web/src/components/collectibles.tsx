@@ -106,23 +106,6 @@ export default class CollectiblesComponent extends Component<Props, State> {
     return new URLSearchParams(ssrFriendlyDocument?.location.search.substring(1))
   }
 
-  get propQuery() {
-    if (!ssrFriendlyDocument?.location) {
-      return null
-    }
-    const searchParams = this.documentLocation
-    return searchParams.get('q')
-  }
-
-  get creatorName() {
-    return this.isQueryAUser && this.state.collectibles?.length > 0 && this.state.collectibles[0]?.author_name !== 'null' ? this.state.collectibles[0]?.author_name : this.state.collectibles[0]?.author.substr(0, 8) + `...`
-  }
-
-  get isQueryAUser() {
-    const query = this.query
-    return !!isAddress(query!)
-  }
-
   get numberOfCollectibles() {
     return this.state.collectibles?.length || 0
   }

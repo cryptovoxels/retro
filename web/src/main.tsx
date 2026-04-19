@@ -14,6 +14,7 @@ import EditAsset from './assets/edit'
 import { SignIn } from './auth/login'
 import Avatar from './avatar'
 import Costumer from './costumer'
+import CollectionEditPage from './collection-edit'
 import CollectionPage from './collection'
 import Collections from './components/list-of-collections'
 import Snackbar from './components/snackbar'
@@ -139,6 +140,7 @@ const Main = () => {
           <Costumer path="/costumer/:costumeId" />
 
           <Collections path="/collections" />
+          <CollectionEditPage path="/collections/:id/edit" />
           <CollectionPage path="/collections/:id" />
           <Wearable path="/collections/:chain_identifier/:address/:token_id" />
 

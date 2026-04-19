@@ -41,7 +41,7 @@ export default function (db: Db, passport: any, app: any) {
 
   //get a specific collectible given collection id
   app.get(
-    '/api/collections/:collection_id/c/:token_id.json',
+    '/api/collections/:collection_id/collectibles/:token_id',
     cache('60 seconds'),
     createRequestHandlerForQuery(db, 'collectibles/get-collectible', 'collectible', (req) => [parseInt(req.params.collection_id, 10), req.params.token_id]),
   )
