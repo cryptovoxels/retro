@@ -47,13 +47,10 @@ export function WompCard(props: CardProps) {
 
   return (
     <div class="womp">
-      <div>
-        <a onClick={onClick} href={`/womps/${props.womp.id}`} title="View Womp Page">
-          <img loading="lazy" src={props.womp.image_url} alt={props.womp.content} />
-        </a>
-      </div>
-      {!!nearbyCount && <div title={`${nearbyCount} people nearby`}>{nearbyCount}</div>}
-      <p title={location}>{location}</p>
+      <a onClick={onClick} href={`/womps/${props.womp.id}`}>
+        <img loading="lazy" src={props.womp.image_url} alt={props.womp.content} />
+        <p title={location}>{location}</p>
+      </a>
     </div>
   )
 }
