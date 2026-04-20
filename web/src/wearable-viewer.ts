@@ -3,10 +3,11 @@ import { createWearableScene } from './helpers/scenes'
 import voxImport from '../../common/vox-import/sync-vox-import'
 
 import { loadWearableVox } from './helpers/wearable-helpers'
+import { matchRight } from 'fp-ts/lib/ReadonlyNonEmptyArray'
 
 export class WearableViewer {
   private readonly canvas: HTMLCanvasElement
-  private engine: BABYLON.Engine
+  private engine?: BABYLON.Engine
   private scene?: BABYLON.Scene
 
   private mesh?: BABYLON.Mesh
@@ -32,7 +33,7 @@ export class WearableViewer {
     this.engine = new BABYLON.Engine(this.canvas)
     this.scene = new BABYLON.Scene(this.engine)
     this.scene.clearColor.set(0.6, 0.6, 0.6, 1)
-    window.addEventListener('resize', () => this.engine.resize(), { passive: true })
+    window.addEventListener('resize', () => this.engine?.resize(), { passive: true })
 
     const camera = new BABYLON.ArcRotateCamera('wearable-camera', -Math.PI / 2, Math.PI / 3, 3, new BABYLON.Vector3(0, 0, 0), this.scene!)
     camera.useAutoRotationBehavior = true
@@ -64,14 +65,14 @@ export class WearableViewer {
     const light = new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), this.scene!)
     light.intensity = 0.5
 
-    const sun = new BABYLON.SpotLight('sun', new BABYLON.Vector3(-1, -1, 1), this.scene!)
+    const sun = new BABYLON.SpotLight('sun', new BABYLON.Vector3(-1, -1, 1), Math.PI / 2, 30, this.scene!)
     sun.intensity = 1.0
     // sun.direction = new BABYLON.Vector3(0, -1, 0)
     sun.position = new BABYLON.Vector3(1, 5, 1)
     sun.setDirectionToTarget(new BABYLON.Vector3(0, 0, 0))
     // sun.radius = 10
-    sun.angle = Math.PI / 2
-    sun.exponent = 30
+    // sun.angle = Math.PI / 2
+    // sun.exponent = 30
 
     this.scene!.ambientColor = new BABYLON.Color3(1, 1, 1) // full white ambient
 

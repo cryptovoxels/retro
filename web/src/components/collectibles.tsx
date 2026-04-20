@@ -29,7 +29,6 @@ export interface State {
   sort?: string
   asc?: boolean
   errorAPI?: any
-  info?: any
   search?: string
   viewCards: boolean
   numberPerRows?: number
@@ -73,14 +72,13 @@ export default class CollectiblesComponent extends Component<Props, State> {
     super()
 
     this.state = {
-      search: (this.propQuery || null)!,
       page: 1,
+      search: '',
       collection: props.collection,
       collectibles: [],
       sort: 'updated_at',
       onsale: false,
       asc: false,
-      info: {},
       viewCards: true,
       numberPerRows: props.numberPerRows || 4,
     }
@@ -113,7 +111,6 @@ export default class CollectiblesComponent extends Component<Props, State> {
   componentDidUpdate(prevProps: any, prevState: any) {
     if (this.props.collection?.id !== prevProps.collection?.id) {
       this.fetch()
-      this.fetchInfo()
     }
     if (this.state.search !== prevState.search) {
       this.fetch()
@@ -127,7 +124,6 @@ export default class CollectiblesComponent extends Component<Props, State> {
 
   componentDidMount() {
     this.fetch()
-    this.fetchInfo()
   }
 
   setPage(page: number) {
@@ -141,14 +137,13 @@ export default class CollectiblesComponent extends Component<Props, State> {
 
     if (this.props.collection) {
       const helper = new CollectionHelper(this.props.collection)
-      const collectibles = await helper.fetchCollectibles(this.state.page, this.propQuery || this.state.search, this.state.sort, this.state.asc)
+      const collectibles = await helper.fetchCollectibles(this.state.page, this.state.search, this.state.sort, this.state.asc)
       this.setState({ collectibles, loading: false })
     } else {
-      let url = `${process.env.API}/collectibles.json?page=${this.state.page}`
+      let url = `/api/collectibles.json?page=${this.state.page}`
 
-      const q = this.propQuery
-      if (this.query) {
-        url += '&q=' + (q || this.state.search)
+      if (this.state.search) {
+        url += '&q=' + this.state.search
       }
 
       if (this.state.sort) {
@@ -162,29 +157,6 @@ export default class CollectiblesComponent extends Component<Props, State> {
         .then((response) => {
           const { collectibles } = response as { collectibles?: CollectibleInfoRecord[] }
           this.setState({ collectibles: collectibles || [], loading: false })
-        })
-    }
-  }
-
-  async fetchInfo() {
-    if (this.props.collection) {
-      const c = this.props.collection
-      if (c.total != null && c.authors != null) {
-        this.setState({ info: { total: Number(c.total), authors: Number(c.authors) } })
-        return
-      }
-      const helper = new CollectionHelper(this.props.collection)
-      const info = await helper.getCollectionInfo()
-      this.setState({ info })
-    } else {
-      const url = `${process.env.API}/collectibles/info.json`
-      fetch(url, fetchOptions())
-        .then((r) => r.json())
-        .then((response) => {
-          if (response.success) {
-            const { info } = response
-            this.setState({ info })
-          }
         })
     }
   }
@@ -226,28 +198,12 @@ export default class CollectiblesComponent extends Component<Props, State> {
       hasCollectibles &&
       this.state.collectibles?.map((w: any) => {
         const url = `/collections/${SUPPORTED_CHAINS_BY_ID[w.chain_id]}/${w.collection_address}/${w.token_id}`
-
-        const hasDescription = w.description && w.description != ''
-        const src = getWearableGif(w)
-        //let price = w.offer_prices && w.offer_prices[0]
-
-        const listings = this.props.listings?.filter((l) => {
-          if (w.token_id == parseInt(l.nft_id.split('.')[2], 10)) {
-            // console.log(w, l)
-            return true
-          } else {
-            return false
-          }
-        })
-
-        const listing = listings && listings[0]
-
         return (
           <div key={w.id}>
             <a href={url}>
               <Image type="wearable" src={bucketUrl(w.id!)} altsrc={renderUrl(w.id!)} />
+              <p>{truncate(w.name, { length: 40 })}</p>
             </a>
-            {hasDescription && <p>{truncate(w.description, { length: 40 })}</p>}
           </div>
         )
       })
@@ -256,81 +212,47 @@ export default class CollectiblesComponent extends Component<Props, State> {
 
     return (
       <div>
-        {!this.state.info ? (
-          <p>Loading...</p>
+        <div>
+          <div>
+            <label for="searchInput">Search: </label>
+            <input
+              type="text"
+              id="searchInput"
+              onInput={(e) => {
+                this.throttledSearch(e.currentTarget['value'])
+              }}
+            ></input>
+          </div>
+
+          <div>
+            Sort by:
+            <a className={this.state.sort == 'name' && ('active' as any)} onClick={() => this.toggleSort('name')}>
+              Name {this.state.sort == 'name' && (this.state.asc ? '↓' : '↑')}
+            </a>
+            <a className={this.state.sort == 'updated_at' && ('active' as any)} onClick={() => this.toggleSort('updated_at')}>
+              Date {this.state.sort == 'updated_at' && (this.state.asc ? '↓' : '↑')}
+            </a>
+            <a className={this.state.sort == 'issues' && ('active' as any)} onClick={() => this.toggleSort('issues')}>
+              Issues {this.state.sort == 'issues' && (this.state.asc ? '↓' : '↑')}
+            </a>
+          </div>
+        </div>
+
+        {this.state.loading && (
+          <p>
+            <div />
+            Searching...
+          </p>
+        )}
+
+        {this.state.loading || this.numberOfCollectibles > 0 ? (
+          <div class="wrap-grid">
+            {collectibles}
+            {placeholder}
+          </div>
         ) : (
-          <div style="display:grid">
-            {this.isQueryAUser ? (
-              <p>
-                Displaying {this.numberOfCollectibles} collectibles {this.numberOfCollectibles > 0 && `made by ` && <a href={`/avatar/${this.query}`}>{this.creatorName}</a>}
-              </p>
-            ) : this.numberOfCollectibles == 0 ? (
-              <p />
-            ) : (
-              <p>
-                Displaying <b>{(this.state.page - 1) * NUM_PER_PAGE + 1}</b> to <b>{(this.state.page - 1) * NUM_PER_PAGE + this.numberOfCollectibles}</b> of <b>{this.state.info?.total}</b> minted collectibles from{' '}
-                <b>{this.state.info?.authors}</b> {pluralize('author', this.state.info?.authors)}.
-              </p>
-            )}
-            <div>
-              <div>
-                <label for="searchInput">Search: </label>
-                <input
-                  type="text"
-                  id="searchInput"
-                  onInput={(e) => {
-                    this.throttledSearch(e.currentTarget['value'])
-                  }}
-                ></input>
-              </div>
-
-              <div>
-                Sort by:
-                <a className={this.state.sort == 'name' && ('active' as any)} onClick={() => this.toggleSort('name')}>
-                  Name {this.state.sort == 'name' && (this.state.asc ? '↓' : '↑')}
-                </a>
-                <a className={this.state.sort == 'updated_at' && ('active' as any)} onClick={() => this.toggleSort('updated_at')}>
-                  Date {this.state.sort == 'updated_at' && (this.state.asc ? '↓' : '↑')}
-                </a>
-                <a className={this.state.sort == 'issues' && ('active' as any)} onClick={() => this.toggleSort('issues')}>
-                  Issues {this.state.sort == 'issues' && (this.state.asc ? '↓' : '↑')}
-                </a>
-              </div>
-            </div>
-
-            <div style={{ display: 'none' }}>
-              <div>
-                <a title="View as cards" className={this.state.viewCards && ('active' as any)} onClick={() => this.toggleViewCatalog()}>
-                  <b>⌻</b>
-                </a>
-                <a title="One item per row" className={!this.state.viewCards && ('active' as any)} onClick={() => this.toggleViewCatalog()}>
-                  <b>⎶</b>
-                </a>
-              </div>
-            </div>
-
-            <br />
-            <br />
-
-            {this.state.loading && (
-              <p>
-                <div />
-                Searching...
-              </p>
-            )}
-
-            {this.state.loading || this.numberOfCollectibles > 0 ? (
-              <div class="wrap-grid">
-                {collectibles}
-                {placeholder}
-              </div>
-            ) : (
-              <div>
-                <h2 />
-              </div>
-            )}
-
-            {this.state.loading || this.isQueryAUser || <Pagination url={this.props.paginationAPIName} page={this.state.page} perPage={NUM_PER_PAGE} total={this.state.info.total} callback={this.setPage.bind(this)} />}
+          <div>
+            <h2 />
           </div>
         )}
       </div>

@@ -1,8 +1,6 @@
 import { SUPPORTED_CHAINS_BY_ID } from '../../../common/helpers/chain-helpers'
 import { CollectibleInfoRecord, CollectibleRecord } from '../../../common/messages/collectibles'
-import { PanelType } from '../components/panel'
-import { app } from '../state'
-import { WearableCategory } from '../upload-wearable'
+import { WearableCategory } from '../../../web/types'
 import { getWearableGif } from './wearable-helpers'
 
 export default class WearableHelper {

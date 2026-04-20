@@ -259,23 +259,6 @@ app.get(`/${currentVersion}-client.css`, cache('1 day'), (req, res) => {
   return res.sendFile(path.join(__dirname, '..', 'dist', `client.css`))
 })
 
-// Static files (need cloudfront over the front of the app so these
-// don't cause load on express)
-
-if (config.isUAT) {
-  app.use(function (req, res, next) {
-    res.set('X-Robots-Tag', 'noindex')
-    next()
-  })
-
-  app.use(
-    basicAuth({
-      users: { uat: 'snowcrash' },
-      challenge: true,
-    }),
-  )
-}
-
 app.use(
   expressStaticGzip(path.join(__dirname, '..', 'dist'), {
     enableBrotli: true,

@@ -8,7 +8,6 @@ import { CollectibleInfoRecord } from '../../common/messages/feature'
 import { isAddress } from 'ethers'
 import { bucketUrl, renderUrl } from './assets'
 import Image from './components/image'
-import { CollectionTabsNavigation } from './components/collections/collection-nav'
 import Pagination from './components/pagination'
 import UploadButton from './components/upload-button'
 import { app, AppEvent } from './state'
@@ -33,14 +32,6 @@ export interface State {
 const NUM_PER_PAGE = 40
 
 export default class CollectionPage extends Component<Props, State> {
-  throttledSearch = debounce(
-    (value: string) => {
-      this.setSearch(value)
-    },
-    500,
-    { leading: false, trailing: true },
-  )
-
   constructor(props: Props) {
     super()
 
@@ -114,99 +105,6 @@ export default class CollectionPage extends Component<Props, State> {
     const f = await fetch(`/api/collections/${this.props.id}/collectibles?nonce=${Date.now()}`)
     const { collectibles } = await f.json()
     this.setState({ collectibles, loading: false })
-  }
-
-  renderCollectiblesGrid() {
-    const hasCollectibles = this.numberOfCollectibles > 0
-
-    const cells =
-      hasCollectibles &&
-      this.state.collectibles?.map((w: any) => {
-        const url = `/collections/${SUPPORTED_CHAINS_BY_ID[w.chain_id]}/${w.collection_address}/${w.token_id}`
-        const hasDescription = w.description && w.description != ''
-
-        return (
-          <div key={w.id}>
-            <a href={url}>
-              <Image type="wearable" src={bucketUrl(w.id!)} altsrc={renderUrl(w.id!)} />
-            </a>
-            {hasDescription && <p>{truncate(w.description, { length: 40 })}</p>}
-          </div>
-        )
-      })
-
-    const placeholder = <div></div>
-
-    return (
-      <div>
-        {!this.state.info ? (
-          <p>Loading...</p>
-        ) : (
-          <div style="display:grid">
-            {this.isQueryAUser ? (
-              <p>
-                Displaying {this.numberOfCollectibles} collectibles {this.numberOfCollectibles > 0 && `made by ` && <a href={`/avatar/${this.query}`}>{this.creatorName}</a>}
-              </p>
-            ) : this.numberOfCollectibles == 0 ? (
-              <p />
-            ) : (
-              <p>
-                Displaying <b>{(this.state.page - 1) * NUM_PER_PAGE + 1}</b> to <b>{(this.state.page - 1) * NUM_PER_PAGE + this.numberOfCollectibles}</b> of <b>{this.state.info?.total}</b> minted collectibles from{' '}
-                <b>{this.state.info?.authors}</b> {pluralize('author', this.state.info?.authors)}.
-              </p>
-            )}
-            <div>
-              <div>
-                <label for="searchInput">Search: </label>
-                <input
-                  type="text"
-                  id="searchInput"
-                  onInput={(e) => {
-                    this.throttledSearch(e.currentTarget['value'])
-                  }}
-                ></input>
-              </div>
-
-              <div>
-                Sort by:
-                <a className={this.state.sort == 'name' && ('active' as any)} onClick={() => this.toggleSort('name')}>
-                  Name {this.state.sort == 'name' && (this.state.asc ? '↓' : '↑')}
-                </a>
-                <a className={this.state.sort == 'updated_at' && ('active' as any)} onClick={() => this.toggleSort('updated_at')}>
-                  Date {this.state.sort == 'updated_at' && (this.state.asc ? '↓' : '↑')}
-                </a>
-                <a className={this.state.sort == 'issues' && ('active' as any)} onClick={() => this.toggleSort('issues')}>
-                  Issues {this.state.sort == 'issues' && (this.state.asc ? '↓' : '↑')}
-                </a>
-              </div>
-            </div>
-
-            <br />
-            <br />
-
-            {this.state.loading && (
-              <p>
-                <div />
-                Searching...
-              </p>
-            )}
-
-            {this.state.loading || this.numberOfCollectibles > 0 ? (
-              <div class="wrap-grid">
-                {cells}
-                {placeholder}
-              </div>
-            ) : (
-              <div>
-                <h2 />
-              </div>
-            )}
-
-            {this.state.loading || this.isQueryAUser || <Pagination url={`collections/${this.props.id}`} page={this.state.page} perPage={NUM_PER_PAGE} total={this.state.info.total} callback={this.setCollectiblesPage.bind(this)} />}
-          </div>
-        )}
-      </div>
-    )
   }
 
   render() {

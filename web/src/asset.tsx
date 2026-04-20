@@ -92,8 +92,8 @@ export default class Asset extends Component<Props, State> {
       this.viewer = new WearableViewer(this.canvas)
     }
 
-    if (this.state.asset.hash) {
-      this.viewer?.loadHash(this.state.asset.hash)
+    if (this.state.asset.id) {
+      this.viewer?.loadURL(`/api/collectibles/${this.state.asset.id}/vox`)
     }
   }
 

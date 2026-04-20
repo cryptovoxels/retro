@@ -193,7 +193,7 @@ type PartRowProps = {
   onReset(): void
 }
 
-function PartRow({ partName, transparent, fillColor, onColorSet, onTransparentSet }: PartRowProps): JSX.Element {
+function PartRow({ partName, transparent, fillColor, onColorSet, onTransparentSet }: PartRowProps) {
   const id = partName.split(' ').join('_')
   return (
     <li key={id}>

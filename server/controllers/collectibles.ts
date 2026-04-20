@@ -1,7 +1,6 @@
 import { Request, Response } from 'express'
 import { ChainIdentifier, getChainIdByName, SUPPORTED_CHAINS } from '../../common/helpers/chain-helpers'
 import cache from '../cache'
-import { createCollectible, updateWearable, validateHashWearable } from '../handlers/collectible-handler'
 import { createRequestHandlerForQuery, queryAndCallback } from '../lib/query-helpers'
 import { parseQueryInt } from '../lib/query-parsing-helpers'
 import { Db } from '../pg'
