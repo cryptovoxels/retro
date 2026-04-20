@@ -133,12 +133,7 @@ export default function Profile(props: Props) {
         {props.isOwner ? (
           <>
             <h1 class="account-name-hero">{name}</h1>
-            <p class="account-welcome-msg">Welcome to Voxels. Explore parcels and spaces below, or open your collectibles from the header when you are in world.</p>
-            <p class="account-logout-row">
-              <button type="button" class="account-logout-btn" onClick={() => app.signout()}>
-                Log out
-              </button>
-            </p>
+            <p class="account-welcome-msg">Welcome to Voxels.</p>
           </>
         ) : (
           <>
@@ -148,10 +143,11 @@ export default function Profile(props: Props) {
       </hgroup>
 
       <article>
-        {homeParcel && (() => {
-          const h = new ParcelHelper(homeParcel)
-          return <Client parcelId={homeParcel.id} src={h.iframeUrl} coords={h.spawnCoords} />
-        })()}
+        {homeParcel &&
+          (() => {
+            const h = new ParcelHelper(homeParcel)
+            return <Client parcelId={homeParcel.id} src={h.iframeUrl} coords={h.spawnCoords} />
+          })()}
         <h2>Costumes</h2>
 
         <table>
@@ -184,24 +180,26 @@ export default function Profile(props: Props) {
               <span>
                 <a href={`/parcels/${homeParcel.id}`}>{(homeParcel as any).name ?? (homeParcel as any).address ?? `#${homeParcel.id}`}</a>
                 {owner && (
-                  <> &mdash; <a onClick={() => setShowHomeSearch(!showHomeSearch)}>change</a></>
+                  <>
+                    {' '}
+                    &mdash; <a onClick={() => setShowHomeSearch(!showHomeSearch)}>change</a>
+                  </>
                 )}
               </span>
+            ) : owner ? (
+              <a onClick={() => setShowHomeSearch(!showHomeSearch)}>set one</a>
             ) : (
-              owner ? <a onClick={() => setShowHomeSearch(!showHomeSearch)}>set one</a> : <span>None</span>
+              <span>None</span>
             )}
             {owner && showHomeSearch && (
               <div>
-                <input
-                  ref={homeSearchRef}
-                  type="search"
-                  placeholder="Search parcels..."
-                  onInput={onHomeSearchInput}
-                />
+                <input ref={homeSearchRef} type="search" placeholder="Search parcels..." onInput={onHomeSearchInput} />
                 {parcelOptions.length > 0 && (
                   <ul class="datalist">
                     {parcelOptions.map((o) => (
-                      <li key={o.id} onClick={() => setHomeId(o.id)}>{o.label}</li>
+                      <li key={o.id} onClick={() => setHomeId(o.id)}>
+                        {o.label}
+                      </li>
                     ))}
                   </ul>
                 )}
