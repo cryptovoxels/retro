@@ -7,9 +7,9 @@ import { Collection, CollectionHelper } from '../../../common/helpers/collection
 import { ssrFriendlyDocument } from '../../../common/helpers/utils'
 import { CollectibleInfoRecord } from '../../../common/messages/feature'
 import { bucketUrl, renderUrl } from '../assets'
+import Image from './image'
 import { getWearableGif, rarityLabel } from '../helpers/wearable-helpers'
 import { fetchOptions } from '../utils'
-import Image from './image'
 import Pagination from './pagination'
 
 export interface Props {

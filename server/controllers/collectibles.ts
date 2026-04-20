@@ -6,7 +6,7 @@ import { parseQueryInt } from '../lib/query-parsing-helpers'
 import { Db } from '../pg'
 
 export default function (db: Db, passport: any, app: any) {
-  app.get('/api/wearables', cache('5 seconds'), async (req: Request, res: Response) => {
+  app.get('/api/wearables/all', cache('5 seconds'), async (req: Request, res: Response) => {
     const result = await db.query(
       'sql/get-wearables',
       `
