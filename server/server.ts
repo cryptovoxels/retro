@@ -54,6 +54,7 @@ import { searchAndReturn } from './handlers/search'
 import { EthereumListener } from './jobs/ethereum-listener'
 import cleanCollections from './jobs/remove-collections'
 import cleanMailBoxes from './jobs/remove-old-mails'
+import truncateMetrics from './jobs/truncate-metrics'
 import log from './lib/logger'
 import { createRequestHandlerForQuery } from './lib/query-helpers'
 import { getTypeOfContract } from './lib/utils'
@@ -587,6 +588,12 @@ const master = () => {
   setTimeout(() => {
     setInterval(() => cleanCollections(), 1000 * 60 * 60 * 24)
     cleanCollections()
+  }, 1000)
+
+  // truncate the next-to-be-reused metrics table once per day
+  setTimeout(() => {
+    setInterval(() => truncateMetrics(), 1000 * 60 * 60 * 24)
+    truncateMetrics()
   }, 1000)
 
   EthereumListener()
