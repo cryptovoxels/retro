@@ -34,12 +34,13 @@ export class WearableViewer {
     this.scene.clearColor.set(0.6, 0.6, 0.6, 1)
     window.addEventListener('resize', () => this.engine.resize(), { passive: true })
 
-    const camera = new BABYLON.ArcRotateCamera('wearable-camera', Math.PI / 2, Math.PI / 3, 3, new BABYLON.Vector3(0, 0, 0), this.scene!)
+    const camera = new BABYLON.ArcRotateCamera('wearable-camera', -Math.PI / 2, Math.PI / 3, 3, new BABYLON.Vector3(0, 0, 0), this.scene!)
     camera.useAutoRotationBehavior = true
     camera.attachControl(this.canvas, true)
     camera.upperBetaLimit = Math.PI * 0.4
-    camera.lowerRadiusLimit = 1
+    camera.lowerRadiusLimit = 2
     camera.upperRadiusLimit = 10
+    camera.minZ = 0.01
 
     // Add fog
     this.scene!.fogEnabled = true
@@ -48,9 +49,9 @@ export class WearableViewer {
     this.scene!.fogStart = 22
     this.scene!.fogEnd = 50
 
-    const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 64, height: 64 }, this.scene!)
+    const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 32, height: 32 }, this.scene!)
     const m = new BABYLON.StandardMaterial('ground', this.scene!)
-    m.diffuseColor = new BABYLON.Color3(1, 1, 1)
+    m.diffuseColor = new BABYLON.Color3(0.7, 0.7, 0.7)
     m.specularColor.set(0.3, 0.3, 0.3)
     m.specularPower = 1000
 
@@ -77,6 +78,24 @@ export class WearableViewer {
     this.engine.runRenderLoop(() => this.scene?.render())
 
     const mesh = await voxImport(url, this.scene!)
+    mesh.scaling.set(1, 1, 1)
+    mesh.rotation.set(0, Math.PI / 4, 0)
+
+    const mat = new BABYLON.StandardMaterial('wearable', this.scene!)
+    mat.diffuseColor = new BABYLON.Color3(1, 1, 1)
+    mat.emissiveColor = new BABYLON.Color3(0.2, 0.2, 0.2)
+    mat.specularColor.set(0.3, 0.3, 0.3)
+    mat.specularPower = 1000
+    mesh.material = mat
+
+    const avatar = await BABYLON.SceneLoader.ImportMeshAsync(null, '/models/', 'avatar.glb', this.scene!)
+    const avatarMesh = avatar.meshes[0] as BABYLON.Mesh
+    avatarMesh.position.set(-1, 0, 1)
+    avatarMesh.scaling.set(1, 1, 1)
+    avatarMesh.rotation.set(0, 0, 0)
+    avatarMesh.visibility = 0.5
+    avatarMesh.material = mat
+    // avatarMesh.attachToBone(mesh, avatarMesh)
 
     console.log(mesh)
     this.mesh = mesh

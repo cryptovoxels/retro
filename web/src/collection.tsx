@@ -110,6 +110,12 @@ export default class CollectionPage extends Component<Props, State> {
     console.log(this.state)
   }
 
+  refetch = async () => {
+    const f = await fetch(`/api/collections/${this.props.id}/collectibles?nonce=${Date.now()}`)
+    const { collectibles } = await f.json()
+    this.setState({ collectibles, loading: false })
+  }
+
   renderCollectiblesGrid() {
     const hasCollectibles = this.numberOfCollectibles > 0
 
@@ -238,7 +244,7 @@ export default class CollectionPage extends Component<Props, State> {
         <aside>
           <p class="description">{this.state.collection.description}</p>
 
-          <UploadButton targetCollectionId={this.state.collection.id} />
+          <UploadButton targetCollectionId={this.state.collection.id} onUpload={this.refetch} />
 
           <dl>
             <dt>Author</dt>
