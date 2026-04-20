@@ -115,6 +115,10 @@ export default function updateAvatar() {
       shouldBroadcastAvatarChanged = true
     }
 
+    if ('coords' in req.body && typeof req.body.coords === 'string') {
+      await db.query('embedded/update-avatar-coords', `update avatars set coords = $1 where owner = $2`, [req.body.coords.substring(0, 64), wallet])
+    }
+
     if ('home_id' in req.body) {
       const homeId = req.body.home_id === null ? null : parseInt(req.body.home_id, 10)
       if (homeId !== null && !isFinite(homeId)) {

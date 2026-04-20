@@ -13,6 +13,7 @@ select avatars.id,
        (avatars.last_online AT TIME ZONE 'Pacific/Auckland') as last_online,
        costume_id,
        home_id,
+       coords,
        row_to_json(costumes.*) as costume
 from
     avatars

@@ -14,6 +14,7 @@ import ParcelDescription from './components/parcel-description'
 import ParcelEventPanel from './components/parcel-event-panel'
 import WebParcelSnapshots from './components/parcel-snapshots'
 import cachedFetch from './helpers/cached-fetch'
+import ClientBar from './components/client-bar'
 import ParcelVersions from './parcel-versions'
 import Head from './components/head'
 import { Spinner } from './spinner'
@@ -80,9 +81,7 @@ export class Client extends Component<FrameProps, FrameState> {
 
       if (e.data.type === 'parcel') {
         const parcel = e.data.parcel as ParcelRecord
-        // const path = window.location.pathname
-
-        if (active && window.location.pathname.match(/^\/parcels\/\d+$/)) {
+        if (active) {
           route(`/parcels/${parcel.id}`, true)
         }
       }
@@ -242,20 +241,6 @@ const ParcelThumb = (props: { parcel: NearbyParcelRecord }) => {
   )
 }
 
-const modes = [
-  {
-    mode: 'client',
-    label: 'Explore',
-  },
-  {
-    mode: 'orbit',
-    label: 'Orbit',
-  },
-  {
-    mode: 'map',
-    label: 'Map',
-  },
-] as { mode: 'client' | 'orbit' | 'map'; label: string }[]
 
 export default class Parcel extends Component<Props, State> {
   map: Map | null = null
@@ -476,13 +461,6 @@ export default class Parcel extends Component<Props, State> {
     const islandSlug = this.state.parcel?.island?.toLowerCase().replace(/\s+/, '-')
     const nearby = this.state.nearby?.slice(0, 5).map((p) => <ParcelThumb key={p.id} parcel={p} />)
 
-    const onFullscreen = () => {
-      const iframe = document.querySelector('iframe') as HTMLIFrameElement
-      if (iframe) {
-        iframe.requestFullscreen()
-      }
-    }
-
     const iframeUrl = this.helper?.iframeUrl
 
     const parcelName = this.state.parcel?.name ?? this.state.parcel?.address ?? `Parcel #${this.state.parcelId}`
@@ -497,21 +475,7 @@ export default class Parcel extends Component<Props, State> {
         <h1>{parcelName}</h1>
 
         <article>
-          <figcaption>
-            <button class="secondary" onClick={onFullscreen}>
-              <span>Fullscreen</span>
-            </button>
-
-            {modes.map((mode) => (
-              <button class={`secondary ${this.state.viewTab === mode.mode ? 'contrast' : ''}`} data-active={this.state.viewTab === mode.mode} onClick={() => this.setViewTab(mode.mode)} key={mode.mode}>
-                {mode.label}
-              </button>
-            ))}
-
-            <a class="buttonish" href={this.visitUrl}>
-              Teleport
-            </a>
-          </figcaption>
+          <ClientBar viewTab={this.state.viewTab} onViewTab={(t) => this.setViewTab(t)} visitUrl={this.visitUrl ?? undefined} />
 
           <figure>
             {this.state.viewTab === 'map' && <div className="map map-web slippy-map">&nbsp;</div>}

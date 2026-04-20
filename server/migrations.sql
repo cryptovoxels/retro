@@ -231,3 +231,9 @@ $$
 $$
 );
 
+select apply_migration('avatars-coords',
+$$
+  ALTER TABLE avatars ADD COLUMN IF NOT EXISTS coords text;
+$$
+);
+

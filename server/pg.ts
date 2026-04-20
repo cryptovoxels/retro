@@ -29,6 +29,7 @@ const toLine = <I extends any[] = any[]>(sql: QueryConfig<I>): string => {
 }
 
 const connectionString = process.env.DATABASE_URL || `postgres://localhost/voxels`
+console.log('connectionString', connectionString)
 
 // Convert postgresql:// to postgres:// if needed, DO uses postgresql in their connection strings
 const formattedConnectionString = connectionString.replace(/^postgresql:\/\//, 'postgres://')

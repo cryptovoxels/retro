@@ -113,6 +113,10 @@ export default class Persona {
   get costumeId() {
     return this.avatar?.attachmentManager?.costume_id
   }
+
+  getCoords(): string {
+    return encodeCoords({ position: this.position, rotation: this.rotation })
+  }
   get animation() {
     return this._animation
   }

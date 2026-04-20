@@ -10,6 +10,7 @@ import { ParcelRecord } from '../../../../common/messages/parcel'
 import cachedFetch from '../../helpers/cached-fetch'
 import { AssetType } from '../../helpers/save-helper'
 import { Client } from '../../parcel'
+import ClientBar from '../client-bar'
 import { app } from '../../state'
 import { fetchAPI } from '../../utils'
 import EditableDescription from '../Editable/editable-description'
@@ -43,6 +44,19 @@ export default function Profile(props: Props) {
   const { walletOrUUId } = props
 
   useEffect(() => fetch(), [walletOrUUId])
+
+  useEffect(() => {
+    if (!props.isOwner) return
+    let lastCoords = ''
+    const interval = setInterval(() => {
+      const iframe = Client.wrapper?.querySelector('iframe')
+      const coords: string = (iframe?.contentWindow as any)?.persona?.getCoords?.() ?? ''
+      if (!coords || coords === lastCoords) return
+      lastCoords = coords
+      fetchAPI('/api/avatar', { method: 'POST', credentials: 'include', body: JSON.stringify({ coords }), headers: { 'Content-Type': 'application/json' } })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [props.isOwner])
 
   const handledGetAddress = (wallet: string | undefined) => {
     if (!wallet) return undefined
@@ -143,11 +157,12 @@ export default function Profile(props: Props) {
       </hgroup>
 
       <article>
-        {homeParcel &&
-          (() => {
-            const h = new ParcelHelper(homeParcel)
-            return <Client parcelId={homeParcel.id} src={h.iframeUrl} coords={h.spawnCoords} />
-          })()}
+        {owner && (
+          <figure>
+            <ClientBar costumes={costumes.length > 0 ? costumes : undefined} />
+            <Client parcelId={homeParcel?.id} coords={avatar?.coords ?? ''} />
+          </figure>
+        )}
         <h2>Costumes</h2>
 
         <table>
@@ -178,7 +193,19 @@ export default function Profile(props: Props) {
           <dd>
             {homeParcel ? (
               <span>
-                <a href={`/parcels/${homeParcel.id}`}>{(homeParcel as any).name ?? (homeParcel as any).address ?? `#${homeParcel.id}`}</a>
+                <a
+                  href={`/parcels/${homeParcel.id}`}
+                  onClick={(e) => {
+                    const iframe = Client.wrapper?.querySelector('iframe')
+                    const h = new ParcelHelper(homeParcel)
+                    if (iframe) {
+                      e.preventDefault()
+                      ;(iframe.contentWindow as any)?.persona?.naviport(h.spawnCoords)
+                    }
+                  }}
+                >
+                  {(homeParcel as any).name ?? (homeParcel as any).address ?? `#${homeParcel.id}`}
+                </a>
                 {owner && (
                   <>
                     {' '}

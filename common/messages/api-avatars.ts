@@ -17,6 +17,7 @@ export const ApiAvatar = t.type(
     last_online: t.union([t.string, t.null]),
     costume_id: t.union([t.number, t.null]),
     home_id: t.union([t.number, t.null]),
+    coords: t.union([t.string, t.null]),
     costume: t.any,
     social_link_1: t.union([t.string, t.null]),
     social_link_2: t.union([t.string, t.null]),

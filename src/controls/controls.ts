@@ -193,6 +193,14 @@ export default abstract class Controls implements IControls {
     // Seriously limit pick checking on mouse moves
     this.defaultPointerMovePredicate = this.defaultPointerMovePredicate.bind(this)
     this.scene.pointerMovePredicate = this.defaultPointerMovePredicate
+
+    setTimeout(() => {
+      this.enterThirdPerson()
+    }, 500)
+
+    setTimeout(() => {
+      this.toggleFlying()
+    }, 1000)
   }
 
   get persona() {
