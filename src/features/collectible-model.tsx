@@ -18,7 +18,7 @@ import {
 import showCollectibleHTMLUi from '../ui/html-ui/collectible-ui'
 import { app } from '../../web/src/state'
 import { CollectibleInfoRecord, CollectibleModelRecord } from '../../common/messages/feature'
-import { defaultBone } from '../../web/src/upload-wearable'
+import { defaultBone } from '../../web/types'
 import ActionGui from '../ui/gui/action-button-gui'
 import { CostumeAttachment } from '../../common/messages/costumes'
 import Config from '../../common/config'

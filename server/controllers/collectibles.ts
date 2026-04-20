@@ -25,24 +25,6 @@ export default function (db: Db, passport: any, app: any) {
     res.status(200).send(wearable.rows[0].data)
   })
 
-  /**
-   *   Create any type of collectible
-   *  /api/collectibles/create/wearable
-   *  /api/collectibles/create/emitter -- in the future
-   *  /api/collectibles/create/furniture -- in the future
-   * */
-  app.post('/api/collectibles/create/wearable', passport.authenticate('jwt', { session: false }), createCollectible)
-
-  // Wearable updates:
-  app.post('/api/collectibles/w/:id/update', passport.authenticate('jwt', { session: false }), updateWearable)
-  app.post('/api/collectibles/w/:id/suppress', passport.authenticate('jwt', { session: false }), updateWearable)
-  app.post('/api/collectibles/w/:id/unsuppress', passport.authenticate('jwt', { session: false }), updateWearable)
-  app.post('/api/collectibles/w/:id/delete', passport.authenticate('jwt', { session: false }), updateWearable)
-  app.post('/api/collectibles/w/validate-hash', passport.authenticate('jwt', { session: false }), validateHashWearable)
-
-  // all collectibles (count)
-  app.get('/api/collectibles/info.json', cache('60 seconds'), createRequestHandlerForQuery(db, 'collectibles/get-collectibles-info', 'info'))
-
   //get a specific collectible given collection id
   app.get(
     '/api/collections/:collection_id/collectibles/:token_id',

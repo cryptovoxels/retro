@@ -1,18 +1,18 @@
 import { Component } from 'preact'
-import { fetchOptions } from '../utils'
-import CollectionItem from './collections/collections-item'
-import UploadButton from './upload-button'
+import { fetchOptions } from './utils'
+import UploadButton from './components/upload-button'
+import { SUPPORTED_CHAINS_BY_ID } from '../../common/helpers/chain-helpers'
+import { Collection } from '../../common/helpers/collections-helpers'
 
 export interface Props {}
 
 type Sorting = 'popular' | 'newest' | 'oldest'
 
 export interface State {
-  info?: any
   fetching?: boolean
   page: any
   query: string
-  collections?: any
+  collections: Collection[]
   sort: Sorting
   asc?: boolean
   search?: any
@@ -59,7 +59,6 @@ export default class ListCollectionsComponent extends Component<Props, State> {
   async componentDidMount() {
     await this.setStateAsync({ page: this.state.page, fetching: true })
     this.fetch()
-    this.fetchInfo()
   }
 
   componentDidUpdate(prevProps: any, prevState: any) {
@@ -106,19 +105,6 @@ export default class ListCollectionsComponent extends Component<Props, State> {
     this.fetch()
   }
 
-  fetchInfo() {
-    const url = `${process.env.API}/collections-info.json`
-
-    fetch(url, fetchOptions())
-      .then((r) => r.json())
-      .then((response) => {
-        if (response.success) {
-          const { info } = response
-          this.setState({ info })
-        }
-      })
-  }
-
   onSearch = (e: any) => {
     e.preventDefault()
 
@@ -127,7 +113,19 @@ export default class ListCollectionsComponent extends Component<Props, State> {
   }
 
   render() {
-    const collections = this.state.fetching ? [] : this.state.collections.map((c: any) => <CollectionItem collection={c} small={true} />)
+    const collections = this.state.collections.map((c: Collection) => {
+      return (
+        <tr key={c.id}>
+          <td>
+            <a href={`/collections/${c.id}`}>{c.name}</a>
+            <br />
+            <small>{c.description}&nbsp;</small>
+          </td>
+          <td>{c.total_wearables}</td>
+        </tr>
+      )
+    })
+
     const outline = (sort: Sorting) => (this.state.sort === sort ? 'outline' : '')
 
     return (
@@ -165,9 +163,8 @@ export default class ListCollectionsComponent extends Component<Props, State> {
                   Name
                 </th>
                 <th scope="col" style="width:10%">
-                  Assets
+                  Collectibles
                 </th>
-                <th scope="col">Chain</th>
               </tr>
             </thead>
             <tbody>{this.state.fetching ? 'Fetching...' : this.state.collections.length > 0 ? collections : 'No collections found.'}</tbody>

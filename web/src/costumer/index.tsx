@@ -49,6 +49,7 @@ interface State {
   bonePickerLoading: boolean
   bonePickerX: number
   bonePickerY: number
+  wearables: CollectiblesData[]
 }
 
 export default class Costumer extends Component<Props, State> {
@@ -67,6 +68,7 @@ export default class Costumer extends Component<Props, State> {
     bonePickerLoading: false,
     bonePickerX: 0,
     bonePickerY: 0,
+    wearables: [],
   }
 
   componentDidMount() {
@@ -225,8 +227,7 @@ export default class Costumer extends Component<Props, State> {
       bonePickerY: y,
     })
     try {
-      const all = await fetchMergedWearableCatalog(app.state.wallet)
-      const items = wearablesForBone(bone, all)
+      const items = wearablesForBone(bone, this.state.wearables)
       items.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
       this.setState({ bonePickerItems: items, bonePickerLoading: false })
     } catch {
@@ -778,7 +779,7 @@ export default class Costumer extends Component<Props, State> {
 
   render() {
     if (!app.signedIn) {
-      return <Redirect to="/account" returnTo="/costumer" />
+      return <Redirect to="/account" />
     }
 
     const costumes = this.getCostumeForRender()

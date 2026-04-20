@@ -39,7 +39,7 @@ const uploadAsset = async (file: File, collectionId: number | null): Promise<Upl
   return await f.json()
 }
 
-type Props = { collection?: boolean; targetCollectionId?: number | null }
+type Props = { collection?: boolean; targetCollectionId?: number | null; onUpload?: () => void }
 
 export default function UploadButton({ collection, targetCollectionId, onUpload }: Props) {
   const [uploads, setUploads] = useState<Row[]>([])

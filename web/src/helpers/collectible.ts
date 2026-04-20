@@ -1,6 +1,5 @@
 import { SUPPORTED_CHAINS_BY_ID } from '../../../common/helpers/chain-helpers'
 import { CollectibleInfoRecord, CollectibleRecord } from '../../../common/messages/collectibles'
-import { TraitType } from '../components/collections/custom-collection-traits'
 import { PanelType } from '../components/panel'
 import { app } from '../state'
 import { WearableCategory } from '../upload-wearable'
@@ -23,11 +22,9 @@ export default class WearableHelper {
   hash?: string
   issues?: number
   offer_prices?: number[]
-  custom_attributes?: TraitType[] // attributes for htat specific collectible
 
   // from the server apis:
   author_name?: string
-  collection_attributes_names?: TraitType[] // attributes definition by collection
 
   // From metadata endpoint
   image?: string
@@ -67,25 +64,11 @@ export default class WearableHelper {
     return !!this.suppressed
   }
 
-  collectionHasAttributes() {
-    if (!this.collection_attributes_names) {
-      return false
-    }
-    return this.collection_attributes_names?.length > 0
-  }
-
   gif() {
     if (this.image) {
       return this.image
     }
     return getWearableGif(this)
-  }
-
-  hasAttributes() {
-    if (!this.custom_attributes) {
-      return false
-    }
-    return this.custom_attributes?.length > 0 && this.collection_attributes_names?.length == this.custom_attributes?.length
   }
 
   collectionPage() {
@@ -106,65 +89,6 @@ export default class WearableHelper {
   /* helpers to get author name */
   ownerName() {
     return this.author_name || this.author?.slice(0, 10).toLowerCase() + '...'
-  }
-
-  fetchMetaData = async () => {
-    if (!this.collection_address) {
-      return null
-    }
-
-    let r
-    try {
-      r = await fetch(`${process.env.ASSET_PATH}${this.metadataURL}`)
-    } catch {
-      return null
-    }
-    const res: {
-      symbol?: string | undefined
-      name: string | undefined
-      image: string
-      description: string | undefined
-      attributes: TraitType[]
-      external_url: string
-      background_color: string
-      success?: undefined
-    } = await r.json()
-
-    if (!res.name) {
-      return null
-    }
-    this.image = res.image ?? this.image
-    this.name = res.name
-    this.suppressed = !!res.attributes.find((a: TraitType) => a.trait_type == 'suppressed')?.value
-    const issues = res.attributes.find((a: TraitType) => a.trait_type == 'issues')?.value
-    this.issues = typeof issues === 'string' ? parseInt(issues) : issues
-
-    return res
-  }
-
-  toggleSuppress = async (callback?: (success: boolean) => void) => {
-    if (!confirm(`Are you sure you want to ${this.isSuppressed() ? 'unsuppress' : 'suppress'} this wearable?`)) {
-      return
-    }
-    const url = `${process.env.API}/collectibles/w/${this.id}/${this.isSuppressed() ? 'unsuppress' : 'suppress'}`
-
-    let p
-    try {
-      p = await fetch(url, { method: 'POST' })
-    } catch {
-      app.showSnackbar(`❌ Could not ${this.isSuppressed() ? 'unrejected' : 'rejected'}`, PanelType.Danger)
-      return
-    }
-
-    const r = await p.json()
-
-    if (r.success) {
-      app.showSnackbar('✅ ' + this.id + ` was ${this.isSuppressed() ? 'unrejected' : 'rejected'}`, PanelType.Success)
-      callback && callback(true)
-    } else {
-      app.showSnackbar(r.message || `❌ Could not ${this.isSuppressed() ? 'unrejected' : 'rejected'}`, PanelType.Danger)
-      callback && callback(false)
-    }
   }
 
   summary(): CollectibleRecord | CollectibleInfoRecord {

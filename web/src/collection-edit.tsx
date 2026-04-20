@@ -1,6 +1,5 @@
 import { Component } from 'preact'
 import { Collection } from '../../common/helpers/collections-helpers'
-import CollectionSettings from './components/collections/collection-settings'
 import { app, AppEvent } from './state'
 
 export interface Props {
@@ -37,17 +36,27 @@ export default class CollectionEditPage extends Component<Props, State> {
     return app.state.moderator
   }
 
-  onAppChange = () => {
-    this.setState({ signedIn: app.signedIn })
+  fetch = async () => {
+    const f = await fetch(`/api/collections/${this.props.id}`)
+    const { collection } = await f.json()
+    this.setState({ collection })
   }
 
   componentDidMount() {
-    app.on(AppEvent.Change, this.onAppChange)
     this.fetch()
   }
 
-  componentWillUnmount() {
-    app.removeListener(AppEvent.Change, this.onAppChange)
+  onSave = async (e: Event) => {
+    e.preventDefault()
+
+    const f = await fetch(`/api/collections/${this.props.id}`, {
+      method: 'PUT',
+      body: JSON.stringify(this.state.collection),
+    })
+  }
+
+  set(key: keyof Collection, value: any) {
+    this.setState({ collection: { ...this.state.collection, [key]: value } })
   }
 
   render() {
@@ -74,23 +83,21 @@ export default class CollectionEditPage extends Component<Props, State> {
           <span> / settings</span>
         </h1>
         <article>
-          <CollectionSettings collection={c} onRefresh={this.fetch.bind(this)} />
+          <form onSubmit={this.onSave}>
+            <div>
+              <label>Name</label>
+              <input type="text" value={c.name} onChange={(e: any) => this.set('name', e.target.value)} />
+            </div>
+            <div>
+              <label>Description</label>
+              <textarea value={c.description} onChange={(e: any) => this.set('description', e.target.value)} />
+            </div>
+            <div>
+              <button type="submit">Save</button> or <a href={`/collections/${c.id}`}>back</a>
+            </div>
+          </form>
         </article>
       </section>
     )
-  }
-
-  private async fetch(cachebust = false) {
-    const id = this.props.id
-    if (!id) {
-      return
-    }
-    let url = `/api/collections/${id}`
-    if (cachebust) {
-      url += `?cb=${Date.now()}`
-    }
-    const f = await fetch(url)
-    const { collection } = await f.json()
-    this.setState({ collection })
   }
 }

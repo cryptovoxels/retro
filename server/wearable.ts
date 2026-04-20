@@ -61,7 +61,7 @@ export default class Wearable extends Collectible {
   /**
    * Mark an off-chain wearable as "accepted" or "fake minted"
    */
-  async giveOffChainWearableATokenId(): Promise<{ success: boolean; token_id?: number; message?: string }> {
+  async generateTokenId(): Promise<{ success: boolean; token_id?: number; message?: string }> {
     const r = await db.query(
       'embedded/update-off-chain-wearable-token',
       `
