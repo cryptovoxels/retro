@@ -18,6 +18,7 @@ import { Contributor } from '../../../account/contributor'
 import { Parcels } from '../../../account/parcels'
 import { Spaces } from '../../../account/spaces'
 import WompsList from '../../womps-list'
+import { Costume } from '../../../../common/types'
 // import Collectibles from '../../../account/collectibles'
 
 type Props = {
@@ -30,7 +31,7 @@ export default function Profile(props: Props) {
   const [avatar, setAvatar] = useState<ApiAvatar | undefined>(undefined)
   const [collabs, setCollabs] = useState(0)
   const [wearables, setWearables] = useState(0)
-  const [costumes, setCostumes] = useState([])
+  const [costumes, setCostumes] = useState<Costume[]>([])
   const [womps, setWomps] = useState(0)
   const { walletOrUUId } = props
 

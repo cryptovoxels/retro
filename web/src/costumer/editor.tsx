@@ -7,7 +7,7 @@ import { pending } from './utils'
 interface Props {
   attachmentIdx: number
   updateAttachment: (a: CostumeAttachment) => void
-  deleteAttachment: (attachmentId: string) => void
+  deleteAttachment: (attachmentIdx: number) => void
   costume: Costume | null
 }
 
