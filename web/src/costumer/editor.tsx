@@ -26,14 +26,7 @@ export const limitNumber = (value: number, min: number, max: number) => {
 
 export class Editor extends Component<Props, State> {
   deleteAttachment = (e: Event) => {
-    //   if (!this.props.costume) {
-    //     return Promise.resolve()
-    //   }
-    //   const attachment = this.props.costume.attachments?.[this.props.attachmentIdx]
-    //   if (!attachment) {
-    //     return Promise.resolve()
-    //   }
-    //   this.props.deleteAttachment(this.props.attachmentIdx)
+    this.props.deleteAttachment(this.props.attachmentIdx)
   }
 
   setAttachmentBone = async (name: string) => {

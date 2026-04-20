@@ -526,15 +526,18 @@ export default class Costumer extends Component<Props, State> {
     await this.fetch()
   }
 
-  removeAttachment = async (uuid: string) => {
+  removeAttachment = async (attachmentIdx: number) => {
     if (!this.costume) {
       app.showSnackbar("Can't remove attached wearable when no costume is selected", PanelType.Warning, 5000)
       return
     }
-    const attachments: CostumeAttachment[] = this.costume?.attachments?.filter((a) => a.wid != uuid) ?? []
+    const attachments = this.costume?.attachments?.slice() as CostumeAttachment[]
+    attachments.splice(attachmentIdx, 1)
+
     const costume = { ...this.costume, attachments }
 
     await this.updateCostume(costume, true)
+    this.setState({ attachmentIdx: null })
 
     app.showSnackbar('Removed attachment', PanelType.Success)
   }
@@ -727,9 +730,12 @@ export default class Costumer extends Component<Props, State> {
   private getWearablesForRender() {
     return (
       this.costume?.attachments?.map((attachment, idx) => {
+        const length = this.costume?.attachments?.length ?? 0
+        const key = [idx, attachment.bone, attachment.wid, length].join('-')
+
         return (
           <Wearable
-            key={[this.props.costumeId, idx].join('-')}
+            key={key}
             scene={this.scene}
             attachment={attachment}
             selected={idx === this.state.attachmentIdx}
@@ -825,28 +831,32 @@ export default class Costumer extends Component<Props, State> {
 
           <h2>Wearables</h2>
 
-          <ol class="wearables">
+          <div class="wearables">
             {attachments.map((a, idx) => {
               const name = a.name ?? a.wid
+              const bone = a.bone
 
-              if (idx == this.state.attachmentIdx) {
-                return (
-                  <li>
-                    <b>{name}</b>
-                    <Editor ref={this.editor} key={editorKey} attachmentIdx={idx} costume={this.costume} deleteAttachment={this.removeAttachment} updateAttachment={this.updateAttachment} />
-                  </li>
-                )
-              } else {
-                return (
-                  <li>
-                    <a onClick={(e) => this.setState({ attachmentIdx: idx })} href={anchorUrl(a)}>
-                      {name}
-                    </a>
-                  </li>
-                )
-              }
+              const selected = idx == this.state.attachmentIdx
+
+              return (
+                <>
+                  <div class="attachment">
+                    <cite class="bone">{bone}</cite>
+                    <p>
+                      {selected ? (
+                        <b>{name}</b>
+                      ) : (
+                        <a onClick={(e) => this.setState({ attachmentIdx: idx })} href={anchorUrl(a)}>
+                          {name}
+                        </a>
+                      )}
+                    </p>
+                  </div>
+                  {selected ? <Editor ref={this.editor} key={editorKey} attachmentIdx={idx} costume={this.costume} deleteAttachment={this.removeAttachment} updateAttachment={this.updateAttachment} /> : null}
+                </>
+              )
             })}
-          </ol>
+          </div>
 
           {false && <Skin key={skinKey} costume={this.costume as any} skin={this.costume?.skin ?? ''} default_color={this.costume?.default_color ?? ''} setSkin={this.setSkin} />}
 

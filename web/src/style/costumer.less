@@ -150,4 +150,31 @@
       cursor: pointer;
     }
   }
+
+  .wearables {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+
+    div.attachment {
+      display: flex;
+      flex-direction: row;
+      gap: 0.5rem;
+
+      cite {
+        width: 2rem;
+        height: 2rem;
+        line-height: 2rem;
+        border: 1px solid #ccc;
+        font-size: 0.8rem;
+        overflow: hidden;
+        background: #f3f3f3;
+        color: #666;
+      }
+
+      p {
+        margin: 0;
+      }
+    }
+  }
 }
