@@ -82,10 +82,9 @@ export class Wearable extends Component<Props, State> {
       throw new Error('No scene')
     }
 
-    const mat = new BABYLON.StandardMaterial(`wearable-${this.props.attachment.wid}`, this.scene)
+    const mat = new BABYLON.StandardMaterial(`material`, this.scene)
     mat.emissiveColor.set(0.3, 0.3, 0.3) // need a little light otherwise dark wearables
     mat.diffuseColor.set(1, 1, 1)
-    mat.blockDirtyMechanism = true
 
     this.mesh = await voxImport(this.voxUrl, this.scene)
 
@@ -94,9 +93,11 @@ export class Wearable extends Component<Props, State> {
       return
     }
 
+    console.log(this.mesh)
+
     this.mesh.name = 'vox-instance'
     this.mesh.id = this.props.attachment.wid
-    this.mesh.material = mat
+    // this.mesh.material = mat
 
     this.mesh.rotationQuaternion = BABYLON.Quaternion.Identity()
     this.mesh.position.set(0, 0, 0)

@@ -79,7 +79,7 @@ export default async function voxImport(url: string, scene: BABYLON.Scene): Prom
   vd.normals = normals
   vd.indices = indices
 
-  const mesh = new BABYLON.Mesh('fresh/import')
+  const mesh = new BABYLON.Mesh('fresh/import', scene)
   vd.applyToMesh(mesh)
 
   // Center mesh

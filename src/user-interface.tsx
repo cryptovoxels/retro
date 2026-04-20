@@ -23,7 +23,6 @@ import { selectCurrentOrNearestParcel, selectNearestEditableParcel, selectSelect
 import FeatureTool, { templateFromFeature } from './tools/feature'
 import VoxelTool, { SelectionMode, SelectionModeOptions } from './tools/voxel'
 import ConnectionStatusUI from './ui/connection-status'
-import CostumeOverlay from './ui/costumers/costume'
 import { CongaJoinHintOverlay, CongaStatusOverlay } from './ui/conga-status'
 import { CurrentModeOverlay } from './ui/current-mode'
 import { DebugUI } from './ui/debug/base-debug'
@@ -658,9 +657,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         break
       case 'help':
         pane = <HelpOverlay scene={this.props.scene} />
-        break
-      case 'costumer':
-        pane = <CostumeOverlay scene={this.props.scene} />
         break
       case 'explorer':
         pane = <ExplorerUI scene={this.props.scene} initialTab={this.explorerPaneInitialTab.current!} />
