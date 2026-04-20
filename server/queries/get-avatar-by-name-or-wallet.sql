@@ -10,6 +10,7 @@ select avatars.id,
        (avatars.created_at AT TIME ZONE 'Pacific/Auckland') as created_at,
        (avatars.last_online AT TIME ZONE 'Pacific/Auckland') as last_online,
        costume_id,
+       home_id,
        ((select row_to_json(d) from (select * from costumes c where costume_id = c.id) d )) as costume
 from
     avatars

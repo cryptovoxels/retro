@@ -1,12 +1,15 @@
 import * as ethers from 'ethers'
 import { Fragment } from 'preact'
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { format } from 'timeago.js'
 import { fetchUsersCollectibles } from '../../../../common/helpers/collections-helpers'
+import ParcelHelper from '../../../../common/helpers/parcel-helper'
 import { copyTextToClipboard } from '../../../../common/helpers/utils'
 import { ApiAvatar } from '../../../../common/messages/api-avatars'
+import { ParcelRecord } from '../../../../common/messages/parcel'
 import cachedFetch from '../../helpers/cached-fetch'
 import { AssetType } from '../../helpers/save-helper'
+import { Client } from '../../parcel'
 import { app } from '../../state'
 import { fetchAPI } from '../../utils'
 import EditableDescription from '../Editable/editable-description'
@@ -33,6 +36,10 @@ export default function Profile(props: Props) {
   const [wearables, setWearables] = useState(0)
   const [costumes, setCostumes] = useState<Costume[]>([])
   const [womps, setWomps] = useState(0)
+  const [homeParcel, setHomeParcel] = useState<ParcelRecord | null>(null)
+  const [showHomeSearch, setShowHomeSearch] = useState(false)
+  const [parcelOptions, setParcelOptions] = useState<{ id: number; label: string }[]>([])
+  const homeSearchRef = useRef<HTMLInputElement>(null)
   const { walletOrUUId } = props
 
   useEffect(() => fetch(), [walletOrUUId])
@@ -46,9 +53,17 @@ export default function Profile(props: Props) {
     }
   }
 
+  const fetchHomeParcel = (homeId: number) => {
+    cachedFetch(`/api/parcels/${homeId}.json`)
+      .then((r) => r.json())
+      .then((data) => setHomeParcel(data.parcel ?? null))
+      .catch(() => setHomeParcel(null))
+  }
+
   const fetch = () => {
     fetchAPI(`/api/avatars/${walletOrUUId}.json`).then((data) => {
       setAvatar(data.avatar)
+      if (data.avatar?.home_id) fetchHomeParcel(data.avatar.home_id)
     })
 
     cachedFetch(`/api/avatars/${walletOrUUId}/costumes`)
@@ -86,6 +101,28 @@ export default function Profile(props: Props) {
     return true
   }
 
+  const setHomeId = async (parcelId: number | null) => {
+    await fetchAPI('/api/avatar', { method: 'POST', credentials: 'include', body: JSON.stringify({ home_id: parcelId }), headers: { 'Content-Type': 'application/json' } })
+    if (parcelId) {
+      fetchHomeParcel(parcelId)
+    } else {
+      setHomeParcel(null)
+    }
+    setShowHomeSearch(false)
+  }
+
+  const onHomeSearchInput = async (e: Event) => {
+    const val = (e.target as HTMLInputElement).value
+    if (val.length < 2) return
+    const r = await cachedFetch(`/api/parcels/search.json?q=${encodeURIComponent(val)}&limit=8`)
+    const data = await r.json()
+    const opts = (data.parcels ?? []).map((p: any) => ({ id: p.id, label: p.name ?? p.address ?? `#${p.id}` }))
+    setParcelOptions(opts)
+    // check if the typed value matches one of the options
+    const match = opts.find((o: any) => o.label === val)
+    if (match) setHomeId(match.id)
+  }
+
   const owner = props.isOwner
   const name = avatar?.name ?? (props.walletOrUUId ? ethTrunc(props.walletOrUUId!) : 'anon')
   const hasWallet = props.walletOrUUId.match(/0x/)
@@ -96,12 +133,7 @@ export default function Profile(props: Props) {
         {props.isOwner ? (
           <>
             <h1 class="account-name-hero">{name}</h1>
-            <p class="account-welcome-msg">Welcome to Voxels. Explore parcels and spaces below, or open your collectibles from the header when you are in world.</p>
-            <p class="account-logout-row">
-              <button type="button" class="account-logout-btn" onClick={() => app.signout()}>
-                Log out
-              </button>
-            </p>
+            <p class="account-welcome-msg">Welcome to Voxels.</p>
           </>
         ) : (
           <>
@@ -111,6 +143,11 @@ export default function Profile(props: Props) {
       </hgroup>
 
       <article>
+        {homeParcel &&
+          (() => {
+            const h = new ParcelHelper(homeParcel)
+            return <Client parcelId={homeParcel.id} src={h.iframeUrl} coords={h.spawnCoords} />
+          })()}
         <h2>Costumes</h2>
 
         <table>
@@ -137,6 +174,39 @@ export default function Profile(props: Props) {
         </div>
 
         <dl>
+          <dt>Home</dt>
+          <dd>
+            {homeParcel ? (
+              <span>
+                <a href={`/parcels/${homeParcel.id}`}>{(homeParcel as any).name ?? (homeParcel as any).address ?? `#${homeParcel.id}`}</a>
+                {owner && (
+                  <>
+                    {' '}
+                    &mdash; <a onClick={() => setShowHomeSearch(!showHomeSearch)}>change</a>
+                  </>
+                )}
+              </span>
+            ) : owner ? (
+              <a onClick={() => setShowHomeSearch(!showHomeSearch)}>set one</a>
+            ) : (
+              <span>None</span>
+            )}
+            {owner && showHomeSearch && (
+              <div>
+                <input ref={homeSearchRef} type="search" placeholder="Search parcels..." onInput={onHomeSearchInput} />
+                {parcelOptions.length > 0 && (
+                  <ul class="datalist">
+                    {parcelOptions.map((o) => (
+                      <li key={o.id} onClick={() => setHomeId(o.id)}>
+                        {o.label}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                {homeParcel && <a onClick={() => setHomeId(null)}>clear</a>}
+              </div>
+            )}
+          </dd>
           <dt>Parcels</dt>
           <dd>
             <Parcels wallet={props.walletOrUUId} isOwner={props.isOwner} />

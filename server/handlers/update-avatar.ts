@@ -115,6 +115,15 @@ export default function updateAvatar() {
       shouldBroadcastAvatarChanged = true
     }
 
+    if ('home_id' in req.body) {
+      const homeId = req.body.home_id === null ? null : parseInt(req.body.home_id, 10)
+      if (homeId !== null && !isFinite(homeId)) {
+        res.status(400).json({ success: false, message: 'Invalid home_id' })
+        return
+      }
+      await db.query('embedded/update-avatar-home', `update avatars set home_id = $1 where owner = $2`, [homeId, wallet])
+    }
+
     if (req.body.skin) {
       // Love the skin you're in (if you have skin, that is)
       const clean = DOMPurify.sanitize(req.body.skin)

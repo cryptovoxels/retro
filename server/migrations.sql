@@ -196,6 +196,12 @@ $$
 $$
 );
 
+select apply_migration('avatars-home-id',
+$$
+  ALTER TABLE avatars ADD COLUMN IF NOT EXISTS home_id integer;
+$$
+);
+
 select apply_migration('wearables-is-free-default-bone',
 $$
   ALTER TABLE wearables ADD COLUMN IF NOT EXISTS is_free boolean NOT NULL DEFAULT false;
