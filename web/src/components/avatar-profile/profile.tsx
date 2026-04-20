@@ -30,6 +30,7 @@ export default function Profile(props: Props) {
   const [avatar, setAvatar] = useState<ApiAvatar | undefined>(undefined)
   const [collabs, setCollabs] = useState(0)
   const [wearables, setWearables] = useState(0)
+  const [costumes, setCostumes] = useState([])
   const [womps, setWomps] = useState(0)
   const { walletOrUUId } = props
 
@@ -48,6 +49,10 @@ export default function Profile(props: Props) {
     fetchAPI(`/api/avatars/${walletOrUUId}.json`).then((data) => {
       setAvatar(data.avatar)
     })
+
+    cachedFetch(`/api/avatars/${walletOrUUId}/costumes`)
+      .then((r) => r.json())
+      .then((data) => setCostumes(data.costumes ?? []))
 
     fetchUsersCollectibles(walletOrUUId).then((results) => setWearables(results.length))
     cachedFetch(`/api/womps/by/${walletOrUUId}`)
@@ -105,7 +110,21 @@ export default function Profile(props: Props) {
       </hgroup>
 
       <article>
-        <h3>Womps</h3>
+        <h2>Costumes</h2>
+
+        <table>
+          {' '}
+          <tbody>
+            {costumes.map((c) => (
+              <tr>
+                <td>
+                  <a href={`/costumer/${c.id}`}>{c.name}</a>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <h2>Womps</h2>
         <WompsList hint={'You have no womps! Take a womp in world (using shortcut P)'} numberToShow={20} collapsed={false} ttl={60} fetch={`/womps/by/${props.walletOrUUId}`} />
       </article>
 
