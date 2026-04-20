@@ -8,6 +8,7 @@ import { Womp } from './components/womp-card'
 import { getClientPath } from './helpers/client-helpers'
 import { app, AppEvent } from './state'
 import WompsList from './womps-list'
+import { Client } from './parcel'
 
 type Props = {
   womps?: Womp[]
@@ -74,6 +75,10 @@ export default class Explore extends Component<any, Props> {
   }
 
   render() {
+    const spawnCoords = 'SIT/E@740E,703S'
+    const iframeUrl = `/play?coords=${spawnCoords}`
+    const parcelId = 4544
+
     return (
       <section class="columns explore">
         <Head title="" url={'/'}>
@@ -84,10 +89,22 @@ export default class Explore extends Component<any, Props> {
           </Fragment>
         </Head>
 
-        <h1>Explore</h1>
+        <h1>Welcome to Voxels!</h1>
 
         <article>
-          <WompsList numberToShow={20} collapsed={false} fetch="/womps.json" womps={this.props.womps ?? undefined} ttl={600} />
+          <figcaption>
+            <button class="secondary">
+              <span>Fullscreen</span>
+            </button>
+
+            <a class="buttonish" href={iframeUrl}>
+              Teleport
+            </a>
+          </figcaption>
+
+          <figure>
+            <Client parcelId={parcelId} src={iframeUrl} coords={spawnCoords} />
+          </figure>
         </article>
 
         <aside>

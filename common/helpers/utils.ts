@@ -1,3 +1,5 @@
+import { Animations, Poses } from '../../src/avatar-animations'
+
 export const simpleHash = (data: string): string => {
   let hash = 2166136261
   for (let i = 0; i < data.length; i++) {
@@ -135,6 +137,7 @@ export const CAMERA_HEIGHT = 2.5
 export interface coords {
   position: BABYLON.Vector3
   rotation?: BABYLON.Vector3
+  pose?: Animations
   flying?: boolean
 }
 
@@ -148,9 +151,10 @@ const headings = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'N']
 export const decodeCoords = (coords: string | null): coords => {
   const result = new BABYLON.Vector3(0, CAMERA_HEIGHT, 0)
   const rotation = new BABYLON.Vector3(0, 0, 0)
+  var pose = Animations.Idle
 
   if (coords) {
-    const terms = coords.split(/[,@]/)
+    const terms = coords.split(/[,@\/]/)
 
     terms.forEach((t) => {
       if (t.match(/\dU$/)) {
@@ -169,9 +173,13 @@ export const decodeCoords = (coords: string | null): coords => {
         rotation.y = (headings.indexOf(t) * 45 * Math.PI) / 180
       }
     })
+
+    if (terms.includes('SIT')) {
+      pose = Animations.Sitting
+    }
   }
 
-  return { position: result, rotation }
+  return { position: result, rotation, pose }
 }
 
 /**

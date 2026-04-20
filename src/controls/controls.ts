@@ -138,6 +138,8 @@ export default abstract class Controls implements IControls {
     const coords = decodeCoordsFromURL()
     this.worldOffset.position.set(-coords.position.x, 0, -coords.position.z)
 
+    console.log('coords.pose', coords)
+
     // Add input system specific controls and cameras
     const camera = this.createCamera()
     this.addControls(camera)
@@ -170,11 +172,13 @@ export default abstract class Controls implements IControls {
           console.warn('this.initialCameraPos already set in onBeforeRenderObservable(). suspected logic error')
         }
         this.updateConga()
+
         // let persona update its position from the camera, since we are steering the camera
         this.persona.update(this.scene.cameraPosition, this.scene.cameraRotation, this)
         this.swimming = this.persona.isSwimming(SWIM_LEVEL) ?? this.swimming
         // store the position before we do camera adjustment in perspectiveAdjustment
         this.initialCameraPos = this.camera.position.clone()
+
         // adjust camera for 1st / 3rd person view
         this.firstOrThirdPersonAdjustment()
       })
@@ -193,7 +197,22 @@ export default abstract class Controls implements IControls {
     // Seriously limit pick checking on mouse moves
     this.defaultPointerMovePredicate = this.defaultPointerMovePredicate.bind(this)
     this.scene.pointerMovePredicate = this.defaultPointerMovePredicate
+
+    if (coords.pose === Animations.Sitting) {
+      setTimeout(() => {
+        this.setFlying(false)
+        this.enterThirdPerson()
+
+        // Sit...
+        this.persona.sit()
+
+        // ... and rotate
+        this.orbiting = true
+      }, 1000)
+    }
   }
+
+  private orbiting = false
 
   get persona() {
     return window.persona
@@ -319,6 +338,11 @@ export default abstract class Controls implements IControls {
 
     // Show/hide the avatar
     this.showSelfAvatar ? this.persona.avatar?.show() : this.persona.avatar?.hide()
+
+    // If orbiting (sit and rotate mode)
+    if (this.orbiting) {
+      this.camera.rotation.y += 0.01
+    }
   }
 
   abstract createCamera(): OurCamera | BABYLON.ArcRotateCamera
