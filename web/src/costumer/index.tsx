@@ -18,6 +18,7 @@ import { getWearableGif } from '../helpers/wearable-helpers'
 import { createHash } from 'crypto'
 import { Spinner } from '../../src/spinner'
 import Redirect from '../../src/components/redirect'
+import { useEffect, useState } from 'preact/hooks'
 
 if (process.env.NODE_ENV === 'development') {
   // Must use require here as import statements are only allowed to exist at top-level.
@@ -44,12 +45,70 @@ interface State {
   attachmentId: string | null
   costumes?: Array<Costume>
   avatarCostumeId?: number
-  bonePickerBone: string | null
-  bonePickerItems: CollectiblesData[] | null
-  bonePickerLoading: boolean
-  bonePickerX: number
-  bonePickerY: number
+  bone?: BABYLON.Bone
   wearables: CollectiblesData[]
+}
+
+interface BonePickerProps {
+  scene: BABYLON.Scene
+  bone: BABYLON.Bone
+  items: CollectiblesData[]
+  onBackdrop: (e: MouseEvent) => void
+  onClose: () => void
+  onPick: (w: CollectiblesData) => void
+}
+
+function BonePicker({ scene, bone, items, onBackdrop, onClose, onPick }: BonePickerProps) {
+  const [x, setX] = useState(0)
+  const [y, setY] = useState(0)
+
+  console.log(items)
+
+  useEffect(() => {
+    // Get bone position in screen space
+    const camera = scene.activeCamera as BABYLON.Camera
+    const engine = scene.getEngine() as BABYLON.Engine
+    const position = bone.getPosition(BABYLON.Space.WORLD)
+
+    const update = () => {
+      const coordinate = BABYLON.Vector3.Project(position, BABYLON.Matrix.Identity(), scene.getTransformMatrix(), camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight()))
+
+      // console.log('coordinate', coordinate)
+      setX(coordinate.x)
+      setY(coordinate.y)
+    }
+
+    const observer = camera.onViewMatrixChangedObservable.add(update)
+
+    update()
+
+    return () => {
+      camera.onViewMatrixChangedObservable.remove(observer)
+    }
+  }, [bone])
+
+  return (
+    <div onMouseDown={onBackdrop}>
+      <div class="bonepicker" style={{ left: `${x}px`, top: `${y}px`, position: 'absolute' }} onMouseDown={(e) => e.stopPropagation()}>
+        <div>
+          <strong>{bone.name.split(':')[1]}</strong>
+          <button class="close" type="button" onClick={onClose}>
+            x
+          </button>
+        </div>
+        <ul>
+          {items.map((w) => (
+            <li key={`bp-${w.collection_id}-${w.token_id}-${w.id}`}>
+              <button type="button" onClick={() => onPick(w)}>
+                <img src={getWearableGif(w)} width={56} height={56} alt="" />
+                <span>{w.name}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  )
 }
 
 export default class Costumer extends Component<Props, State> {
@@ -63,11 +122,6 @@ export default class Costumer extends Component<Props, State> {
   state: State = {
     attachmentId: null,
     loading: true,
-    bonePickerBone: null,
-    bonePickerItems: null,
-    bonePickerLoading: false,
-    bonePickerX: 0,
-    bonePickerY: 0,
     wearables: [],
   }
 
@@ -198,16 +252,21 @@ export default class Costumer extends Component<Props, State> {
   }
   onClick = (mesh: BABYLON.AbstractMesh | undefined) => {
     if (mesh?.id === 'bonesphere' && mesh.metadata) {
-      void this.openBoneWearablePicker(String(mesh.metadata))
-      return
-    }
-    if (!mesh) {
+      const bone = mesh.parent as BABYLON.Bone
+
+      console.log('bone', bone)
+      if (!bone) {
+        return
+      }
+
+      void this.openBoneWearablePicker(bone)
+    } else if (!mesh) {
       this.closeBoneWearablePicker()
       this.setState({ attachmentId: null })
     }
   }
 
-  openBoneWearablePicker = async (bone: string) => {
+  openBoneWearablePicker = async (bone: BABYLON.Bone) => {
     this.resetBoneSphereHighlights(null)
     const canvas = this.canvas.current
     let x = 12
@@ -220,27 +279,14 @@ export default class Costumer extends Component<Props, State> {
       y = Math.min(Math.max(4, ph - 24), Math.max(4, r.height - 160))
     }
     this.setState({
-      bonePickerBone: bone,
-      bonePickerItems: null,
-      bonePickerLoading: true,
-      bonePickerX: x,
-      bonePickerY: y,
+      bone,
     })
-    try {
-      const items = wearablesForBone(bone, this.state.wearables)
-      items.sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-      this.setState({ bonePickerItems: items, bonePickerLoading: false })
-    } catch {
-      this.setState({ bonePickerItems: [], bonePickerLoading: false })
-    }
   }
 
   closeBoneWearablePicker = () => {
     this.resetBoneSphereHighlights(null)
     this.setState({
       bonePickerBone: null,
-      bonePickerItems: null,
-      bonePickerLoading: false,
     })
   }
 
@@ -616,6 +662,13 @@ export default class Costumer extends Component<Props, State> {
     this.setState({ loading: true })
     let avatarCostumeId: number | undefined
 
+    var f = await fetch(`/api/wearables`)
+    if (!f.ok) {
+      throw new Error('Could not fetch wearables')
+    }
+    const { wearables } = await f.json()
+    this.setState({ wearables })
+
     const wallet = app.state.wallet.toLowerCase()
     // Don't block on this
     fetch(`/api/avatars/${wallet}.json`)
@@ -637,7 +690,7 @@ export default class Costumer extends Component<Props, State> {
       })
 
     // Wait for this... (must match CostumesController GET /api/avatars/:wallet/costumes)
-    const f = await fetch(`/api/avatars/${wallet}/costumes`)
+    f = await fetch(`/api/avatars/${wallet}/costumes`)
     if (!f.ok) {
       this.setState({ loading: false })
       throw new Error('Could not fetch costumes')
@@ -838,29 +891,8 @@ export default class Costumer extends Component<Props, State> {
             </div>
 
             <canvas onWheel={this.onWheel} onDragOver={this.onDragOver} onDragExit={this.onDragExit} onDrop={this.onDrop} onMouseMove={this.onCanvasPointerMove} onMouseLeave={this.onCanvasLeave} class="costumer" ref={this.canvas} />
-            {this.state.bonePickerBone ? (
-              <div class="bone-picker-overlay" onMouseDown={this.onBonePickerBackdrop}>
-                <div class="bone-wearable-popup" style={{ left: `${this.state.bonePickerX}px`, top: `${this.state.bonePickerY}px` }} onMouseDown={(e) => e.stopPropagation()}>
-                  <div class="bone-wearable-popup-head">
-                    <strong>{this.state.bonePickerBone}</strong>
-                    <button type="button" class="bone-wearable-popup-x" onClick={this.closeBoneWearablePicker}>
-                      x
-                    </button>
-                  </div>
-                  {this.state.bonePickerLoading ? <p class="bone-wearable-popup-msg">Loading</p> : null}
-                  {!this.state.bonePickerLoading && (this.state.bonePickerItems?.length ?? 0) === 0 ? <p class="bone-wearable-popup-msg">No wearables for this bone</p> : null}
-                  <ul class="bone-wearable-popup-list">
-                    {(this.state.bonePickerItems || []).map((w) => (
-                      <li key={`bp-${w.collection_id}-${w.token_id}-${w.id}`}>
-                        <button type="button" class="bone-wearable-tile" onClick={() => this.onPickWearableFromBonePopup(w)}>
-                          <img src={getWearableGif(w)} width={56} height={56} alt="" />
-                          <span>{w.name}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
+            {this.state.bone ? (
+              <BonePicker scene={this.scene!} bone={this.state.bone} items={this.state.wearables} onBackdrop={this.onBonePickerBackdrop} onClose={this.closeBoneWearablePicker} onPick={this.onPickWearableFromBonePopup} />
             ) : null}
           </figure>
 

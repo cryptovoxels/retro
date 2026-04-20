@@ -6,6 +6,25 @@ import { parseQueryInt } from '../lib/query-parsing-helpers'
 import { Db } from '../pg'
 
 export default function (db: Db, passport: any, app: any) {
+  app.get('/api/wearables', cache('5 seconds'), async (req: Request, res: Response) => {
+    const result = await db.query(
+      'sql/get-wearables',
+      `
+      select id,
+        token_id,
+        name,
+        author,
+        collection_id,
+        default_bone
+      from 
+        wearables
+      limit
+        100;
+      `,
+    )
+    res.json({ success: true, wearables: result.rows })
+  })
+
   app.get(
     '/api/collectibles.json',
     cache('5 seconds'),
