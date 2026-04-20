@@ -100,7 +100,7 @@ export default class Avatar extends Component<Props, State> {
             mat.alpha = 0.55
             mat.blockDirtyMechanism = true
             m.material = mat
-            m.renderingGroupId = 2
+            // m.renderingGroupId = 2
             m.setEnabled(true)
           })
 
