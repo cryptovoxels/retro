@@ -24,12 +24,7 @@ export class WearableViewer {
     this.scene?.getEngine().dispose()
   }
 
-  async loadURL(url: string) {
-    if (!this.canvas) {
-      alert('No canvas')
-      return
-    }
-
+  async createScene() {
     this.engine = new BABYLON.Engine(this.canvas)
     this.scene = new BABYLON.Scene(this.engine)
     this.scene.clearColor.set(0.6, 0.6, 0.6, 1)
@@ -65,7 +60,7 @@ export class WearableViewer {
     const light = new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), this.scene!)
     light.intensity = 0.5
 
-    const sun = new BABYLON.SpotLight('sun', new BABYLON.Vector3(-1, -1, 1), Math.PI / 2, 30, this.scene!)
+    const sun = new BABYLON.SpotLight('sun', new BABYLON.Vector3(-1, -1, 1), new BABYLON.Vector3(0, -1, 0), Math.PI / 2, 30, this.scene!)
     sun.intensity = 1.0
     // sun.direction = new BABYLON.Vector3(0, -1, 0)
     sun.position = new BABYLON.Vector3(1, 5, 1)
@@ -76,7 +71,27 @@ export class WearableViewer {
 
     this.scene!.ambientColor = new BABYLON.Color3(1, 1, 1) // full white ambient
 
+    const avatar = await BABYLON.SceneLoader.ImportMeshAsync(null, '/models/', 'avatar.glb', this.scene!)
+    const avatarMesh = avatar.meshes[0] as BABYLON.Mesh
+    avatarMesh.position.set(-1, 0, 1)
+    avatarMesh.scaling.set(1, 1, 1)
+    avatarMesh.rotation.set(0, 0, 0)
+    avatarMesh.visibility = 0.5
+    // avatarMesh.attachToBone(mesh, avatarMesh)
+
     this.engine.runRenderLoop(() => this.scene?.render())
+  }
+  async loadURL(url: string) {
+    if (!this.canvas) {
+      alert('No canvas')
+      return
+    }
+
+    if (!this.scene) {
+      await this.createScene()
+    }
+
+    this.mesh?.dispose()
 
     const mesh = await voxImport(url, this.scene!)
     mesh.scaling.set(1, 1, 1)
@@ -89,16 +104,6 @@ export class WearableViewer {
     mat.specularPower = 1000
     mesh.material = mat
 
-    const avatar = await BABYLON.SceneLoader.ImportMeshAsync(null, '/models/', 'avatar.glb', this.scene!)
-    const avatarMesh = avatar.meshes[0] as BABYLON.Mesh
-    avatarMesh.position.set(-1, 0, 1)
-    avatarMesh.scaling.set(1, 1, 1)
-    avatarMesh.rotation.set(0, 0, 0)
-    avatarMesh.visibility = 0.5
-    avatarMesh.material = mat
-    // avatarMesh.attachToBone(mesh, avatarMesh)
-
-    console.log(mesh)
     this.mesh = mesh
   }
 }

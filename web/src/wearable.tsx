@@ -5,8 +5,8 @@ import { WearableViewer } from './wearable-viewer'
 
 export interface Props {
   path?: string
-  cid?: number
-  tid?: number
+  cid?: string
+  tid?: string
 }
 
 export interface State {
@@ -28,7 +28,9 @@ export default class Wearable extends Component<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props) {
-    if (this.props !== prevProps) {
+    if (this.props.cid !== prevProps.cid) {
+      this.fetch()
+    } else if (this.props.tid !== prevProps.tid) {
       this.fetch()
     }
   }
@@ -56,6 +58,22 @@ export default class Wearable extends Component<Props, State> {
     return this.state.collectible
   }
 
+  get tid() {
+    return parseInt(this.props.tid!, 10)
+  }
+
+  get previousUrl() {
+    if (this.tid > 1) {
+      return `/collections/${this.props.cid}/collectibles/${this.tid - 1}`
+    } else {
+      return null
+    }
+  }
+
+  get nextUrl() {
+    return `/collections/${this.props.cid}/collectibles/${this.tid + 1}`
+  }
+
   render() {
     if (this.state.loading || !this.wearable) {
       return <LoadingPage />
@@ -65,22 +83,38 @@ export default class Wearable extends Component<Props, State> {
 
     return (
       <section class="columns">
-        <h1>{this.wearable.name}</h1>
+        <hgroup>
+          <h1>{this.wearable.name}</h1>
+
+          <p>
+            <a href={`/collections/${this.props.cid}`}>Back to collection</a>
+          </p>
+        </hgroup>
 
         <article>
+          <figcaption>
+            <a disabled={!this.previousUrl} class="buttonish" href={this.previousUrl}>
+              Previous
+            </a>
+            <a class="buttonish" href={this.nextUrl}>
+              Next
+            </a>
+          </figcaption>
           <figure>
             <canvas ref={this.canvas} class="wearable-canvas" />
           </figure>
         </article>
         <aside>
-          <h3>Details</h3>
-          <p>
-            By <a href={`/marketplace/collectibles?q=${this.wearable.author}`}>{this.wearable.author}</a>
-          </p>
-          <p>
-            <a href={openseaUrl}>View on OpenSea</a>
-          </p>
+          <h2>Details</h2>
           <dl>
+            <dt>Author</dt>
+            <dd>
+              <a href={`/marketplace/collectibles?q=${this.wearable.author}`}>{this.wearable.author}</a>
+            </dd>
+            <dt>OpenSea</dt>
+            <dd>
+              <a href={openseaUrl}>Visit</a>
+            </dd>
             <dt>Collection</dt>
             <dd>
               <a href={`/collections/${this.props.cid}`}>{this.wearable.collection_name}</a>
