@@ -724,7 +724,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
     if ('lightmap_url' in patch) {
       this.updateLightmapUrl(patch.lightmap_url || null)
-      if (this.isBaked) {
+      // If voxels were also in the patch, refreshVoxels() -> generateVoxelField()
+      // will already rebuild the baked mesh. Avoid double-triggering a second
+      // baked generation in parallel -- they race on setVoxelMesh().
+      if (this.isBaked && !patch.voxels) {
         this.activateBakedMaterial()
       }
     }
@@ -1477,18 +1480,29 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       return
     }
 
-    this.mesher.generate(this, null, this.configureUnbakedVoxelFieldMeshes.bind(this))
-
+    // Baked parcels use a different worker + mesh topology than unbaked.
+    // Running both in parallel races on setVoxelMesh() and can leave the parcel
+    // displaying the loser's mesh (black / untextured / wrong tint).
     if (this.lightmap_url && this.isBaked) {
       const url = this.lightmap_url
-      console.log(url)
-
-      let texture = new BABYLON.Texture(url, this.scene, false, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE, () => {
-        console.log('texture loaded')
-
-        this.mesher.generateBaked(this, this.configureBakedVoxelFieldMeshes.bind(this), texture)
-      })
+      const texture = new BABYLON.Texture(
+        url,
+        this.scene,
+        false,
+        false,
+        BABYLON.Texture.BILINEAR_SAMPLINGMODE,
+        () => {
+          this.mesher.generateBaked(this, this.configureBakedVoxelFieldMeshes.bind(this), texture)
+        },
+        () => {
+          // Lightmap fetch failed -- fall back to unbaked so the parcel is still visible
+          this.mesher.generate(this, null, this.configureUnbakedVoxelFieldMeshes.bind(this))
+        },
+      )
+      return
     }
+
+    this.mesher.generate(this, null, this.configureUnbakedVoxelFieldMeshes.bind(this))
   }
 
   private flushOnGenerateCallbacks = () => {

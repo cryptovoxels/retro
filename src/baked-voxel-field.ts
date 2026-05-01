@@ -77,7 +77,10 @@ export class BakedVoxelField {
 
     if (customTileset) {
       const src = process.env.IMG_HOST + '/' + customTileset.slice(1)
-      const tilemap = new BABYLON.Texture(src, this.scene, false, true, BABYLON.Texture.BILINEAR_SAMPLINGMODE, () => {
+      // invertY must match the unbaked path (voxel-field.ts setVoxelMaterial).
+      // Mismatching it flips the atlas vertically, which makes the shader sample
+      // the wrong tile row (e.g. grid -> blob) after baking.
+      const tilemap = new BABYLON.Texture(src, this.scene, false, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE, () => {
         mtrl.setTexture('tileMap', tilemap)
       })
     } else {
