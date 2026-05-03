@@ -9,6 +9,19 @@ describe('readOpenseaUrl', () => {
     expect(r).toEqual({ contract: SAMPLE, token: '123', chain: OPENSEA_BASE_CHAIN_ID })
   })
 
+  it('parses OpenSea /item/ URLs (current format)', () => {
+    expect(readOpenseaUrl(`https://opensea.io/item/base/${SAMPLE}/2699`)).toEqual({
+      contract: SAMPLE,
+      token: '2699',
+      chain: OPENSEA_BASE_CHAIN_ID,
+    })
+    expect(readOpenseaUrl(`https://opensea.io/item/ethereum/${SAMPLE}/1`)).toEqual({
+      contract: SAMPLE,
+      token: '1',
+      chain: 1,
+    })
+  })
+
   it('parses explicit ethereum and legacy two-segment paths', () => {
     expect(readOpenseaUrl(`https://opensea.io/assets/ethereum/${SAMPLE}/1`)).toEqual({
       contract: SAMPLE,
