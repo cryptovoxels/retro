@@ -49,17 +49,8 @@ export class ChatOverlay extends Component<Props, State> {
     return this.connector.persona
   }
 
-  get messagesDiv() {
-    // fixme: there MUST be a better way :/
-    return document.querySelector('.InteractOverlay .ChatMessages')
-  }
-
   get isDPadVisible() {
     return !!(this.connector.controls as any).dpad
-  }
-
-  componentDidMount() {
-    this.scrollToBottom()
   }
 
   typing = () => {
@@ -79,18 +70,6 @@ export class ChatOverlay extends Component<Props, State> {
     this.setState({ focused: bool })
   }
 
-  scrollToBottom() {
-    try {
-      if (this.messagesDiv) {
-        this.messagesDiv.scrollTop = this.messagesDiv.scrollHeight
-      }
-    } catch (e) {}
-  }
-
-  componentDidUpdate() {
-    this.scrollToBottom()
-  }
-
   render() {
     const name = (m: ChatMessageRecord) => {
       const avatar = m.avatar ? window.connector.findAvatar(m.avatar) : null
@@ -99,8 +78,8 @@ export class ChatOverlay extends Component<Props, State> {
 
     return (
       <main class="chat">
-        <div class={'chat-messages'}>
-          {messageList.value.map((m) => (
+        <div class={'chat-messages' + (messageList.value.length >= 10 ? ' at-cap' : '')}>
+          {messageList.value.slice(-10).map((m) => (
             <p>
               <span>
                 {name(m)}: <ChatText text={m.text} />
