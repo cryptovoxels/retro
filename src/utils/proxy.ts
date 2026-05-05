@@ -160,8 +160,9 @@ export const readOpenseaUrl = (url: string): { contract: string; token: string; 
     return null
   }
   const parts = pathname.split('/').filter(Boolean)
-  // /assets/<chain>/<contract>/<token> or /assets/<contract>/<token> (legacy ethereum)
-  if (parts[0] !== 'assets' || parts.length < 3) {
+  // /item/<chain>/<contract>/<token> (current), /assets/<chain>/<contract>/<token>,
+  // or /assets/<contract>/<token> (legacy ethereum)
+  if ((parts[0] !== 'assets' && parts[0] !== 'item') || parts.length < 3) {
     return null
   }
 
