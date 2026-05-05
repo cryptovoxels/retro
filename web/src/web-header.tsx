@@ -164,7 +164,7 @@ export default class WebHeader extends Component<Props, State> {
 
               <li>
                 <Link aria-current={isActive('account') ? 'page' : undefined} activeClassName="active" href="/account" onClick={this.closeMobileMenu}>
-                  {signedIn ? 'Account' : 'Sign In'}
+                  {signedIn ? 'Account' : 'Log in'}
                 </Link>
               </li>
 
@@ -223,6 +223,11 @@ export default class WebHeader extends Component<Props, State> {
                   Scratchpad
                 </Link>
               </li>
+              {signedIn && (
+                <li>
+                  <a href="#" onClick={(e) => { e.preventDefault(); this.onSignOut() }}>Log out</a>
+                </li>
+              )}
 
               <li>
                 <form action="/search" onSubmit={this.onSubmit}>

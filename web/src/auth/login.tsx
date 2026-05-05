@@ -143,6 +143,7 @@ export const SignIn = () => {
 
   return (
     <section class="login">
+      <h1>Log in to continue</h1>
       <div class="login-form">
         <div class="login-block">
           <h1>Wallet</h1>
@@ -155,20 +156,25 @@ export const SignIn = () => {
         <hr class="login-form-divider" />
 
         <div class="login-block">
-          <h1>Email code</h1>
+          <h1>Email / Passkey</h1>
           <form onSubmit={onSubmit}>
-            {(status == Status.Initial || status == Status.Sending) && (
-              <>
-                <p class="login-hint">Email sign-in works for browsing, but you will not be able to buy parcels or receive on-chain payouts.</p>
-                <fieldset>
-                  <label>
-                    Email
-                    <input onInput={(e) => setEmail(e.currentTarget.value)} type="email" autocomplete="email" name="email" autocapitalize="none" required pattern={pattern} />
-                  </label>
-                </fieldset>
-                {status == Status.Sending ? <button disabled>Submitting...</button> : <button>Continue</button>}
-              </>
-            )}
+            <fieldset>
+              <label>
+                Username or email
+                <input
+                  value={email || passkeyUsername}
+                  onInput={(e) => {
+                    const v = e.currentTarget.value
+                    setEmail(v)
+                    setPasskeyUsername(v)
+                  }}
+                  type="text"
+                  autocomplete="username email"
+                  autocapitalize="none"
+                  placeholder="username or email@example.com"
+                />
+              </label>
+            </fieldset>
 
             {(status == Status.Sent || status == Status.Submitting) && (
               <fieldset>
@@ -176,45 +182,30 @@ export const SignIn = () => {
                   Code
                   <input maxLength={6} autofocus onInput={(e: any) => setCode(e.target.value)} type="text" />
                 </label>
-                <p class="login-actions">
-                  {status == Status.Submitting ? <button disabled>Submitting...</button> : <button>Sign in</button>}
-                  <span class="login-or-cancel">
-                    or{' '}
-                    <a href="" role="button" onClick={onReset}>
-                      cancel
-                    </a>
-                  </span>
-                </p>
               </fieldset>
             )}
-          </form>
-        </div>
 
-        <hr class="login-form-divider" />
+            {passkeyError ? <p class="login-error">{passkeyError}</p> : null}
 
-        <div class="login-block">
-          <h1>Passkey</h1>
-          <fieldset>
-            <label>
-              Username
-              <input value={passkeyUsername} onInput={(e: any) => setPasskeyUsername(e.target.value)} type="text" autocomplete="username" autocapitalize="none" placeholder="Your username" />
-            </label>
-          </fieldset>
-          {passkeyError ? <p class="login-error">{passkeyError}</p> : null}
-          {passkeyBusy ? (
-            <button type="button" class="login-passkey-wait" disabled>
-              {passkeyPhase === 'register' ? 'Creating account...' : 'Signing in...'}
-            </button>
-          ) : (
             <div class="login-passkey-actions">
-              <button type="button" onClick={onPasskeyLogin} disabled={!passkeyUsername.trim()}>
-                Sign in
-              </button>
-              <button type="button" onClick={onPasskeyRegister} disabled={!passkeyUsername.trim()}>
-                Create account
-              </button>
+              {status == Status.Sent || status == Status.Submitting ? (
+                <>
+                  {status == Status.Submitting ? <button disabled>Submitting...</button> : <button>Log in</button>}
+                  <a href="" role="button" onClick={onReset}>cancel</a>
+                </>
+              ) : passkeyBusy ? (
+                <button type="button" disabled>
+                  {passkeyPhase === 'register' ? 'Creating account...' : 'Logging in...'}
+                </button>
+              ) : (
+                <>
+                  {status == Status.Sending ? <button disabled>Submitting...</button> : <button type="submit">Continue</button>}
+                  <button type="button" onClick={onPasskeyLogin} disabled={!passkeyUsername.trim()}>Log in with passkey</button>
+                  <button type="button" onClick={onPasskeyRegister} disabled={!passkeyUsername.trim()}>Create account</button>
+                </>
+              )}
             </div>
-          )}
+          </form>
         </div>
       </div>
     </section>
