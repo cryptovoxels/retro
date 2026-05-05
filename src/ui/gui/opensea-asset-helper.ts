@@ -245,6 +245,13 @@ export default class OpenseaAssetHelper {
   }
 
   isOwner(wallet: string) {
-    return this.ownership?.owner?.address?.toLowerCase() == wallet?.toLowerCase()
+    if (!wallet) return false
+    const w = wallet.toLowerCase()
+    const owners = (this as any).owners as { address: string; quantity: number }[] | undefined
+    if (owners?.some((o) => o.address?.toLowerCase() === w && (o.quantity ?? 1) > 0)) {
+      return true
+    }
+    // legacy v1 shape, kept for safety
+    return this.ownership?.owner?.address?.toLowerCase() === w
   }
 }
