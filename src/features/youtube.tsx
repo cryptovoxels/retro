@@ -1,5 +1,6 @@
 import { h } from 'preact'
 import { isBatterySaver, isMobile } from '../../common/helpers/detector'
+import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { YoutubeRecord } from '../../common/messages/feature'
 import { CSS3DObject, CSS3DRenderer } from '../../vendor/CSS3DRenderer'
 import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
@@ -18,14 +19,150 @@ const { setInterval } = window
 
 const mobile = isMobile()
 
-const TWITCH_YOUTUBE_FUNCTION_LOOKUP = {
-  setVolume: 11,
-  setMuted: 10,
-  playVideo: true,
-  pauseVideo: true,
-}
+// Whitelist of commands the Youtube iframe API will honor. Twitch is handled out-of-world
+// via the PiP overlay, so only Youtube commands live here.
+const YOUTUBE_COMMANDS = new Set(['setVolume', 'setMuted', 'playVideo', 'pauseVideo'] as const)
+type YoutubeCommand = Parameters<typeof YOUTUBE_COMMANDS.has>[0]
 
 const stopSignal = new EventTarget()
+
+// Twitch embeds refuse to play inside any CSS3D-transformed container (see twitchdev/issues#1127).
+// We render Twitch as a fixed-position picture-in-picture overlay instead, which has no transform
+// ancestors and therefore plays normally on desktop and mobile. One PiP at a time.
+let twitchPip: { root: HTMLDivElement; channel: string; onClose?: () => void } | null = null
+
+function openTwitchPip(channel: string, onClose?: () => void) {
+  if (twitchPip?.channel === channel) return
+  closeTwitchPip()
+
+  // Release pointer lock so the user can actually click the Twitch play button.
+  exitPointerLock()
+
+  const font = '13px "Source Code Pro", monospace'
+
+  const root = document.createElement('div')
+  root.id = 'twitch-pip'
+  const base: Partial<CSSStyleDeclaration> = {
+    position: 'fixed',
+    zIndex: '999999',
+    background: '#181511',
+    color: '#f5f5f0',
+    border: '1px solid #090807',
+    overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
+    font,
+  }
+  const dw = 480
+  const dh = 300
+  const applyMobileLayout = () => {
+    // Portrait: full-width top sheet. Landscape: small top-right window so the D-pad
+    // (bottom-left on most mobile control layouts) stays usable with both thumbs.
+    const landscape = window.innerWidth > window.innerHeight
+    const layout: Partial<CSSStyleDeclaration> = landscape
+      ? { left: 'auto', right: '12px', top: '12px', bottom: 'auto', width: '320px', height: '200px', borderRadius: '1rem' }
+      : { left: '0', right: '0', top: '0', bottom: 'auto', width: '100%', height: '40vh', borderRadius: '0' }
+    Object.assign(root.style, layout)
+  }
+  const placement: Partial<CSSStyleDeclaration> = mobile
+    ? {}
+    : {
+        left: Math.max(0, Math.round((window.innerWidth - dw) / 2)) + 'px',
+        top: '16px',
+        width: dw + 'px',
+        height: dh + 'px',
+        borderRadius: '1rem',
+        resize: 'both',
+        minWidth: '280px',
+        minHeight: '180px',
+      }
+  Object.assign(root.style, base, placement)
+  if (mobile) {
+    applyMobileLayout()
+    // Re-apply on orientation flip; self-cleans when the PiP is removed from DOM.
+    const onResize = () => {
+      if (!root.isConnected) {
+        window.removeEventListener('resize', onResize)
+        return
+      }
+      applyMobileLayout()
+    }
+    window.addEventListener('resize', onResize)
+  }
+
+  const header = document.createElement('div')
+  Object.assign(header.style, {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '6px 10px',
+    borderBottom: '1px solid #090807',
+    flex: '0 0 auto',
+    cursor: mobile ? 'default' : 'move',
+    userSelect: 'none',
+    touchAction: 'none',
+  })
+  const label = document.createElement('span')
+  label.textContent = 'twitch / ' + channel
+  const closeBtn = document.createElement('button')
+  closeBtn.textContent = '\u2715'
+  closeBtn.setAttribute('aria-label', 'Close Twitch player')
+  Object.assign(closeBtn.style, {
+    background: 'transparent',
+    border: '0',
+    color: 'inherit',
+    font: 'inherit',
+    cursor: 'pointer',
+    padding: '0 4px',
+    lineHeight: '1',
+  })
+  closeBtn.onclick = closeTwitchPip
+  header.append(label, closeBtn)
+
+  // Drag from header. Disabled on mobile where the bottom-sheet layout pins it.
+  if (!mobile) {
+    header.onpointerdown = (e) => {
+      if (e.target === closeBtn) return
+      const rect = root.getBoundingClientRect()
+      const dx = e.clientX - rect.left
+      const dy = e.clientY - rect.top
+      header.setPointerCapture(e.pointerId)
+      const move = (ev: PointerEvent) => {
+        const maxX = window.innerWidth - rect.width
+        const maxY = window.innerHeight - rect.height
+        root.style.left = Math.max(0, Math.min(maxX, ev.clientX - dx)) + 'px'
+        root.style.top = Math.max(0, Math.min(maxY, ev.clientY - dy)) + 'px'
+      }
+      const up = () => {
+        header.removeEventListener('pointermove', move)
+        header.removeEventListener('pointerup', up)
+      }
+      header.addEventListener('pointermove', move)
+      header.addEventListener('pointerup', up)
+    }
+  }
+
+  const iframe = document.createElement('iframe')
+  // Open paused; the user taps Twitch's own play button inside the iframe to start.
+  // That click is a real gesture inside the player's origin, so it plays unmuted
+  // without running into browser autoplay policy or Twitch's visibility gate.
+  iframe.src = 'https://player.twitch.tv/?channel=' + encodeURIComponent(channel) + '&parent=' + location.hostname + '&autoplay=false'
+  iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation')
+  iframe.allow = 'autoplay; fullscreen'
+  iframe.referrerPolicy = 'strict-origin-when-cross-origin'
+  Object.assign(iframe.style, { width: '100%', flex: '1 1 auto', border: '0', background: '#000' })
+
+  root.append(header, iframe)
+  document.body.appendChild(root)
+  twitchPip = { root, channel, onClose }
+}
+
+function closeTwitchPip() {
+  const prev = twitchPip
+  twitchPip = null
+  prev?.root.remove()
+  prev?.onClose?.()
+}
 
 export function buildYoutubeThumbnailUrl(videoId: string | undefined): string | null {
   if (!videoId) {
@@ -135,6 +272,9 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
       return this.description.previewUrl
     } else if (this.isYoutube) {
       return `https://i.ytimg.com/vi/${this.videoId}/hqdefault.jpg`
+    } else if (this.isTwitch) {
+      // Twitch's own live preview image (falls back to offline banner if the channel isn't live).
+      return `https://static-cdn.jtvnw.net/previews-ttv/live_user_${this.videoId}-640x360.jpg`
     } else {
       return null
     }
@@ -246,6 +386,13 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
   async setPreview() {
     if (this.disposed) return
 
+    if (this.isTwitch) {
+      // Twitch gets a composited preview with a "click to play" or "LIVE" badge so
+      // users can tell whether the PiP is currently streaming.
+      await this.setTwitchPreview()
+      return
+    }
+
     let texture: BABYLON.Texture
     if (this.description.previewUrl) {
       texture = await fetchTexture(this.scene, this.previewUrl, this.abortController.signal, { transparent: false, stretch: true })
@@ -267,7 +414,99 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
     }
   }
 
+  async setTwitchPreview() {
+    if (this.disposed) return
+    const url = this.previewUrl
+    if (!url) return
+
+    const w = 640
+    const h = 360
+    const tex = new BABYLON.DynamicTexture(this.uniqueEntityName('tpreview'), { width: w, height: h }, this.scene, false)
+    const ctx = tex.getContext() as CanvasRenderingContext2D
+
+    // Background: solid dark. If the Twitch CDN allows CORS (it does for previews),
+    // draw the stream thumbnail over it. If CORS fails, the badges still render over
+    // the dark background so users know what to do.
+    ctx.fillStyle = '#1a1a1e'
+    ctx.fillRect(0, 0, w, h)
+    await new Promise<void>((resolve) => {
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.onload = () => {
+        try {
+          ctx.drawImage(img, 0, 0, w, h)
+        } catch {}
+        resolve()
+      }
+      img.onerror = () => resolve()
+      img.src = url
+    })
+
+    // Terminal-style monochrome badges. No decorative color, monospace font.
+    const labelFont = 'bold 20px "Source Code Pro", monospace'
+
+    if (this.playing) {
+      // Streaming indicator, top-left. Red only because style guide permits red for semantic state.
+      const txt = '\u25CF STREAMING'
+      ctx.font = labelFont
+      ctx.textBaseline = 'middle'
+      const tw = ctx.measureText(txt).width
+      const padX = 12
+      const padY = 8
+      const bw = tw + padX * 2
+      const bh = 20 + padY * 2
+      ctx.fillStyle = 'rgba(9,8,7,0.85)'
+      ctx.fillRect(14, 14, bw, bh)
+      ctx.strokeStyle = '#090807'
+      ctx.lineWidth = 1
+      ctx.strokeRect(14.5, 14.5, bw, bh)
+      ctx.fillStyle = '#e91916'
+      ctx.fillText(txt, 14 + padX, 14 + bh / 2)
+    }
+
+    // Call-to-action badge, bottom-right
+    const label = this.playing ? '\u25A0 STOP' : '\u25B6 PLAY'
+    ctx.font = labelFont
+    ctx.textBaseline = 'middle'
+    const padX = 14
+    const padY = 10
+    const textW = ctx.measureText(label).width
+    const bw = textW + padX * 2
+    const bh = 20 + padY * 2
+    const bx = w - bw - 14
+    const by = h - bh - 14
+    ctx.fillStyle = 'rgba(9,8,7,0.85)'
+    ctx.fillRect(bx, by, bw, bh)
+    ctx.strokeStyle = '#090807'
+    ctx.lineWidth = 1
+    ctx.strokeRect(bx + 0.5, by + 0.5, bw, bh)
+    ctx.fillStyle = '#f5f5f0'
+    ctx.fillText(label, bx + padX, by + bh / 2)
+
+    tex.update()
+    tex.hasAlpha = false
+
+    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    material.diffuseTexture = tex
+    material.backFaceCulling = false
+    material.zOffset = -4
+    material.specularColor.set(0, 0, 0)
+    material.emissiveColor.set(1, 1, 1)
+    material.blockDirtyMechanism = true
+
+    if (this.mesh) {
+      this.mesh.material = material
+    }
+  }
+
   onClick() {
+    if (this.isTwitch) {
+      // Twitch renders as an out-of-world PiP overlay; clicking the mesh toggles it.
+      if (this.playing) this.stop()
+      else this.play()
+      this.parcelScript?.dispatch('click', this, {})
+      return
+    }
     if (this.playing) {
       if (this.paused) {
         this.unpause()
@@ -301,6 +540,12 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
 
     this.playing = false
 
+    if (this.isTwitch) {
+      closeTwitchPip()
+      this.setTwitchPreview()
+      return
+    }
+
     // allow soundtrack to play again
     this.audio?.removeUserAudioReference(this)
 
@@ -314,6 +559,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
 
   dispose() {
     this._dispose()
+    if (this.isTwitch) closeTwitchPip()
     if (this.player) {
       this.player.dispose()
       this.player = null
@@ -324,6 +570,21 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
   play() {
     if (this.disposed) return
     if (this.playing) return
+
+    if (this.isTwitch) {
+      // Twitch can't play inside our CSS3D-transformed iframe (visibility gate), so we
+      // spawn a fixed-position PiP overlay outside the 3D pipeline. Re-render the mesh
+      // preview with a "STREAMING" badge so players know the feature is active.
+      // If the PiP is closed externally (X button, fullscreen exit, etc.), sync state
+      // so the mesh preview drops the STREAMING badge.
+      this.playing = true
+      openTwitchPip(this.videoId, () => {
+        if (this.playing) this.stop()
+      })
+      this.setTwitchPreview()
+      return
+    }
+
     if (!this.audio?.running) {
       // if the audio context isn't running yet, wait a second and try again
       setTimeout(() => this.play(), 1000)
@@ -594,7 +855,8 @@ class YoutubePlayer {
     const parcelOutVolume = this.audio?.parcelOut.gain.value || 0
     let volume = parcelOutVolume * 2 * this.volume * this.getFadeMultiplier()
 
-    const serviceMultiplier = this.feature.isYoutube ? 100 : 1
+    // YouTube's setVolume API takes 0-100; Twitch is handled elsewhere via the PiP overlay.
+    const serviceMultiplier = 100
 
     // no need to do the distance rollOff calc if volume is 0
     if (volume > 0) {
@@ -684,12 +946,8 @@ class YoutubePlayer {
   }
 
   iframeUrl() {
-    if (this.feature.isTwitch) {
-      return `https://player.twitch.tv/?channel=${this.feature.videoId}&parent=${location.hostname}&autoplay=true&muted=false`
-    } else if (this.feature.isYoutube) {
-      const loopParams = this.feature.loop ? `&loop=1&playlist=${this.feature.videoId}` : ''
-      return ['https://www.youtube.com/embed/', this.feature.videoId, '?rel=0&enablejsapi=1&disablekb=1&autoplay=1&playsinline=1&controls=0&fs=0&modestbranding=1', loopParams].join('')
-    }
+    const loopParams = this.feature.loop ? `&loop=1&playlist=${this.feature.videoId}` : ''
+    return ['https://www.youtube.com/embed/', this.feature.videoId, '?rel=0&enablejsapi=1&disablekb=1&autoplay=1&playsinline=1&controls=0&fs=0&modestbranding=1', loopParams].join('')
   }
 
   addIframe() {
@@ -734,45 +992,17 @@ class YoutubePlayer {
     }
   }
 
-  send(func: keyof typeof TWITCH_YOUTUBE_FUNCTION_LOOKUP, args: any = []) {
-    if (this.iframe) {
-      if (this.feature.isTwitch) {
-        if (!TWITCH_YOUTUBE_FUNCTION_LOOKUP[func]) return
-        this.iframe.contentWindow?.postMessage(
-          {
-            namespace: 'twitch-embed-player-proxy',
-            eventName: TWITCH_YOUTUBE_FUNCTION_LOOKUP[func],
-            params: args[0],
-          },
-          '*',
-        )
-      } else if (this.feature.isYoutube) {
-        if (!TWITCH_YOUTUBE_FUNCTION_LOOKUP[func]) return
-        const message = JSON.stringify({
-          event: 'command',
-          func,
-          args,
-        })
-
-        this.iframe.contentWindow?.postMessage(message, '*')
-      }
-    }
+  send(func: YoutubeCommand, args: unknown[] = []) {
+    if (!this.iframe || !YOUTUBE_COMMANDS.has(func)) return
+    this.iframe.contentWindow?.postMessage(JSON.stringify({ event: 'command', func, args }), '*')
   }
 
   pause() {
-    if (this.feature.isYoutube) {
-      this.send('pauseVideo')
-    } else if (this.feature.isTwitch) {
-      this.send('setMuted', [true])
-    }
+    this.send('pauseVideo')
   }
 
   unpause() {
-    if (this.feature.isYoutube) {
-      this.send('playVideo')
-    } else {
-      this.send('setMuted', [false])
-    }
+    this.send('playVideo')
   }
 
   createMaskingScreen() {
