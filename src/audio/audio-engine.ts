@@ -214,6 +214,12 @@ export class AudioEngine {
     return this.audioContext.state !== 'suspended'
   }
 
+  async ready() {
+    while (this.audioContext.state !== 'running') {
+      await new Promise((r) => setTimeout(r, 100))
+    }
+  }
+
   get connector() {
     return window.connector
   }

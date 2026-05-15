@@ -218,31 +218,22 @@ function VoiceChatPanel() {
   const [talking, setTalking] = useState(false)
   const [, tick] = useState(0)
   const vc = (window as any).connector?.persona?.voiceChat
+  const isLoggedIn = !!(window as any).user?.wallet
   if (!vc) return null
 
   const refresh = () => tick((n) => n + 1)
 
-  const startTalk = () => {
-    vc.startTalking().then(() => setTalking(true))
-  }
-  const stopTalk = () => {
-    vc.stopTalking().then(() => setTalking(false))
+  const toggle = () => {
+    if (!isLoggedIn) return
+    if (talking) vc.stopTalking().then(() => setTalking(false))
+    else vc.startTalking().then(() => setTalking(true))
   }
 
   useEffect(() => {
-    const down = (e: KeyboardEvent) => {
-      if (e.code === 'KeyV' && !e.repeat) startTalk()
-    }
-    const up = (e: KeyboardEvent) => {
-      if (e.code === 'KeyV') stopTalk()
-    }
+    const down = (e: KeyboardEvent) => { if (e.code === 'KeyV' && !e.repeat) toggle() }
     window.addEventListener('keydown', down)
-    window.addEventListener('keyup', up)
-    return () => {
-      window.removeEventListener('keydown', down)
-      window.removeEventListener('keyup', up)
-    }
-  }, [vc])
+    return () => window.removeEventListener('keydown', down)
+  }, [vc, talking])
 
   return (
     <div class="voice-chat">
@@ -254,8 +245,8 @@ function VoiceChatPanel() {
       >
         Voice
       </button>
-      <button onMouseDown={startTalk} onMouseUp={stopTalk} onMouseLeave={stopTalk} style={{ fontWeight: talking ? 'bold' : 'normal' }}>
-        {talking ? '🔴 talking' : 'send voice (V)'}
+      <button onClick={toggle} disabled={!isLoggedIn} style={{ fontWeight: talking ? 'bold' : 'normal' }}>
+        {talking ? '🔴 mic on (V)' : isLoggedIn ? 'go live (V)' : 'voice (login to talk)'}
       </button>
       {open && (
         <ul>

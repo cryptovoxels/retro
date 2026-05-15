@@ -70,15 +70,8 @@ export default class Persona {
     this.wantsXR = wantsXR() // Cache it
 
     this.voiceChat = new VoiceChat(connector)
-    connector.onConnectionStateChanged.add((state) => {
-      if (state.status !== 'connected') return
-      const roomName =
-        (app.visitUrl?.value ?? '')
-          .replace(/[^a-z]/gi, '')
-          .toLowerCase()
-          .slice(0, 9) || 'main'
-      this.voiceChat.prepare(roomName, uuid)
-    })
+    const roomName = window.location.pathname.replace(/[^a-z]/gi, '').toLowerCase().slice(0, 9) || 'main'
+    this.voiceChat.prepare(roomName, uuid)
 
     const loadAvatar = debounce(async () => {
       const avatarSignature = PersonaAvatarSignature.fromUser(this.user)

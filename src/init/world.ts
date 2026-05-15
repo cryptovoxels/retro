@@ -89,9 +89,7 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
 
 function initConnector(scene: BABYLON.Scene, controls: Controls, grid: Grid): Connector {
   const connector = new Connector(scene, controls.worldOffset, grid, controls)
-  if (window.config.isMultiuser) {
-    connector.connect()
-  }
+  connector.connect()
   return connector
 }
 

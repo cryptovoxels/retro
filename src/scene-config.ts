@@ -10,7 +10,6 @@ export type SceneConfig = BABYLON.DeepImmutableObject<{
   isNight: boolean
   wantsAudio?: boolean
   wantsURL: boolean
-  isMultiuser: boolean
   wantsUI: boolean
 }>
 
@@ -27,7 +26,6 @@ const defaultConfig: SceneConfig = {
   wantsAudio: true,
   wantsURL: true,
   isOrbit: false,
-  isMultiuser: false,
   wantsUI: false,
 }
 
@@ -41,15 +39,12 @@ export const sceneConfigFromURL = (): SceneConfig => {
   const isBot = (): boolean => !!document.location.pathname.match(/capture/) || searchParams.get('bot') === 'true'
   const isNight = (): boolean => searchParams.get('time') === 'night'
   const wantsURL = (): boolean => !_isSpace() && !isOrbit() && !isBot()
+  const wantsUI = (): boolean => !isOrbit() && !['off', 'false', '0'].includes(searchParams.get('ui') ?? 'on')
 
   const getSpaceId = (): string | null => {
     const match = pathName.match(/(assets|spaces)\/(.+)\/play$/)
     return match ? match[2] : null
   }
-
-  const isMultiuser = (): boolean => !isOrbit() && searchParams.get('mp') !== 'off'
-
-  const wantsUI = (): boolean => !isOrbit() && !['off', 'false', '0'].includes(searchParams.get('ui') ?? 'on')
 
   const isGrid = !_isSpace() && !isScratchpad()
 
@@ -62,7 +57,6 @@ export const sceneConfigFromURL = (): SceneConfig => {
     wantsAudio: wantsAudio(),
     wantsURL: wantsURL(),
     isOrbit: isOrbit(),
-    isMultiuser: isMultiuser(),
     wantsUI: wantsUI(),
   })
 }

@@ -43,9 +43,13 @@ This is not “best practices”. This is **ship practices**.
 - **No ceremony**: fewer layers, fewer abstractions, fewer files, fewer “patterns”.
 - **Stop allocating in hot paths**: cache/freeze singletons where it matters.
 - **Logs aren’t a lifestyle**: remove spam. Keep only high-signal logs that explain real state.
-- **Comments justify constraints**: comment only when there’s a real constraint or weirdness.
 - **Name things like a human**: plain names, not corporate nouns. `frames`, `pageHtml`, `iDoc`.
-- **Be direct**: commit messages and PR descriptions can be blunt. No marketing. No TED talk.
+
+## Exceptions
+
+* avoid putting multiple statement in try()
+* prefer for code to throw an eror than to be randomly swallowed
+* never wrap an entire function inner in try{}catch{}
 
 ## The “No Resurrection” rule (maintenance reality)
 
