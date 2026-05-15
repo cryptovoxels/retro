@@ -65,6 +65,7 @@ export default class Avatar extends Entity {
   private _inConga = false
   /** Remote: uuid of the avatar they follow in conga (from multiplayer). Local unused. */
   private _congaFollowsUuid: string | null = null
+  private voiceSound: BABYLON.Sound | null = null
 
   constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, joined: number, uuid: string, description: AvatarRecord) {
     super(scene, parent, joined)
@@ -82,6 +83,10 @@ export default class Avatar extends Entity {
 
   private static get audio(): AudioEngine | undefined {
     return window._audio
+  }
+
+  playSound(name: string) {
+    Avatar.audio?.playSound(name as any, false, this.position)
   }
 
   /**
@@ -480,7 +485,38 @@ export default class Avatar extends Entity {
    * such as: bubbles, names, mesh...
    * @returns void
    */
+  attachVoiceTrack(track: any) {
+    this.playSound('/avatars/voice-in.mp3')
+    try {
+      console.log('[vc] attachVoiceTrack for', this._uuid, 'mediaStreamTrack:', track.mediaStreamTrack?.label, 'readyState:', track.mediaStreamTrack?.readyState)
+      const stream = new MediaStream([track.mediaStreamTrack])
+      this.voiceSound = new BABYLON.Sound('voice-' + this._uuid, stream, this.scene, null, {
+        autoplay: true,
+        streaming: true,
+        spatialSound: true,
+      })
+      this.voiceSound.attachToMesh(this.node)
+      console.log('[vc] BABYLON.Sound created and attached for', this._uuid)
+    } catch (e) {
+      console.error('VoiceChat: failed to attach voice track', e)
+    }
+  }
+
+  detachVoiceTrack() {
+    this.playSound('/avatars/voice-out.mp3')
+    this.voiceSound?.dispose()
+    this.voiceSound = null
+  }
+
+  setVoiceMuted(muted: boolean) {
+    if (!this.voiceSound) return
+    if (muted) this.voiceSound.setVolume(0)
+    else this.voiceSound.setVolume(1)
+  }
+
   public disposeLocal = () => {
+    this.playSound('/avatars/teleport-out')
+    this.detachVoiceTrack()
     this.nameMesh?.dispose()
     this.nameMesh = null
 
@@ -755,6 +791,7 @@ export default class Avatar extends Entity {
     if (Date.now() - this.joinedAt < 2000) {
       this.teleportFX(this.absolutePosition, 'avatar.arrive')
     }
+    this.playSound('/avatars/teleport-in')
   }
 
   /**

@@ -11,6 +11,7 @@ import { decodeCoordsFromURL } from './utils/helpers'
 import { wantsXR } from '../common/helpers/detector'
 import { Action } from '../common/messages'
 import { cameraPosition, cameraRotation, setCameraPosition, setCameraRotation } from './utils/camera'
+import VoiceChat from './voice-chat'
 
 /**
  * The minimal representation of the persona which indicates if the avatar needs to be re-rendered.
@@ -38,6 +39,7 @@ export default class Persona {
   rotation: BABYLON.Vector3
   avatar: UserAvatar | undefined = undefined
   avatarSignature: PersonaAvatarSignature | null = null
+  voiceChat: VoiceChat
   onAnimationChanged: BABYLON.Observable<Animations> = new BABYLON.Observable()
   private facingForward: boolean
   // this is in theory a pushdown automata, eg. https://gameprogrammingpatterns.com/state.html#pushdown-automata
@@ -66,6 +68,17 @@ export default class Persona {
 
     this.user = window.user
     this.wantsXR = wantsXR() // Cache it
+
+    this.voiceChat = new VoiceChat(connector)
+    connector.onConnectionStateChanged.add((state) => {
+      if (state.status !== 'connected') return
+      const roomName =
+        (app.visitUrl?.value ?? '')
+          .replace(/[^a-z]/gi, '')
+          .toLowerCase()
+          .slice(0, 9) || 'main'
+      this.voiceChat.connect(roomName, uuid)
+    })
 
     const loadAvatar = debounce(async () => {
       const avatarSignature = PersonaAvatarSignature.fromUser(this.user)

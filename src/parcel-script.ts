@@ -53,7 +53,7 @@ export default class ParcelScript {
   runtime: QuickJSRuntime | null = null
   context: QuickJSContext | null = null
   connected: boolean = false
-  disabled = false
+  disabled = true
 
   constructor(scene: BABYLON.Scene, parcel: Parcel) {
     this.parcel = parcel

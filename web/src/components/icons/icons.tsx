@@ -27,7 +27,7 @@ function cubeBoxes(n: name) {
   const boxes = []
   for (let i = 0; i < 25; i++) {
     if (bitmap[i]) {
-      const left = i % 5 + 1
+      const left = (i % 5) + 1
       const top = Math.floor(i / 5)
       boxes.push(
         <div class="box" style={{ left: `${left}rem`, top: `${top}rem` }} key={i}>

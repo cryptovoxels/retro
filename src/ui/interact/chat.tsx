@@ -77,6 +77,7 @@ export class ChatOverlay extends Component<Props, State> {
 
     return (
       <main class="chat">
+        <VoiceChatPanel />
         <div class={'chat-messages' + (messageList.value.length >= 10 ? ' at-cap' : '')}>
           {messageList.value.slice(-10).map((m) => (
             <p>
@@ -208,6 +209,72 @@ const ChatInput = () => {
         <input type="text" onKeyDown={onChatKeydown} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} ref={inputRef} />
         <button type="submit">Send</button>
       </form>
+    </div>
+  )
+}
+
+function VoiceChatPanel() {
+  const [open, setOpen] = useState(false)
+  const [talking, setTalking] = useState(false)
+  const [, tick] = useState(0)
+  const vc = (window as any).connector?.persona?.voiceChat
+  if (!vc) return null
+
+  const refresh = () => tick((n) => n + 1)
+
+  const startTalk = () => {
+    vc.startTalking().then(() => setTalking(true))
+  }
+  const stopTalk = () => {
+    vc.stopTalking().then(() => setTalking(false))
+  }
+
+  useEffect(() => {
+    const down = (e: KeyboardEvent) => {
+      if (e.code === 'KeyV' && !e.repeat) startTalk()
+    }
+    const up = (e: KeyboardEvent) => {
+      if (e.code === 'KeyV') stopTalk()
+    }
+    window.addEventListener('keydown', down)
+    window.addEventListener('keyup', up)
+    return () => {
+      window.removeEventListener('keydown', down)
+      window.removeEventListener('keyup', up)
+    }
+  }, [vc])
+
+  return (
+    <div class="voice-chat">
+      <button
+        onClick={() => {
+          setOpen((o) => !o)
+          refresh()
+        }}
+      >
+        Voice
+      </button>
+      <button onMouseDown={startTalk} onMouseUp={stopTalk} onMouseLeave={stopTalk} style={{ fontWeight: talking ? 'bold' : 'normal' }}>
+        {talking ? '🔴 talking' : 'send voice (V)'}
+      </button>
+      {open && (
+        <ul>
+          {vc.participants.map((p: any) => (
+            <li key={p.identity}>
+              {p.identity.slice(0, 8)}
+              <button
+                onClick={() => {
+                  vc.mute(p.identity, !p.isMuted)
+                  refresh()
+                }}
+              >
+                {p.isMuted ? 'unmute' : 'mute'}
+              </button>
+            </li>
+          ))}
+          {vc.participants.length === 0 && <li>nobody here</li>}
+        </ul>
+      )}
     </div>
   )
 }
