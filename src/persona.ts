@@ -77,7 +77,7 @@ export default class Persona {
           .replace(/[^a-z]/gi, '')
           .toLowerCase()
           .slice(0, 9) || 'main'
-      this.voiceChat.connect(roomName, uuid)
+      this.voiceChat.prepare(roomName, uuid)
     })
 
     const loadAvatar = debounce(async () => {

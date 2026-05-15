@@ -14,6 +14,7 @@ import type Persona from './persona'
 import { emote } from './utils/emote'
 import { Transform } from './utils/transform'
 import { Bubble } from './chat'
+import { RemoteTrack } from 'livekit-client'
 
 const ANONYMOUS_NAME = 'anon'
 const DEFAULT_SKIN_SVG =
@@ -66,6 +67,7 @@ export default class Avatar extends Entity {
   /** Remote: uuid of the avatar they follow in conga (from multiplayer). Local unused. */
   private _congaFollowsUuid: string | null = null
   private voiceSound: BABYLON.Sound | null = null
+  private voiceEl: HTMLAudioElement | null = null
 
   constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, joined: number, uuid: string, description: AvatarRecord) {
     super(scene, parent, joined)
@@ -485,18 +487,18 @@ export default class Avatar extends Entity {
    * such as: bubbles, names, mesh...
    * @returns void
    */
-  attachVoiceTrack(track: any) {
+  attachVoiceTrack(track: RemoteTrack) {
     this.playSound('/avatars/voice-in.mp3')
     try {
       console.log('[vc] attachVoiceTrack for', this._uuid, 'mediaStreamTrack:', track.mediaStreamTrack?.label, 'readyState:', track.mediaStreamTrack?.readyState)
-      const stream = new MediaStream([track.mediaStreamTrack])
-      this.voiceSound = new BABYLON.Sound('voice-' + this._uuid, stream, this.scene, null, {
-        autoplay: true,
-        streaming: true,
-        spatialSound: true,
-      })
-      this.voiceSound.attachToMesh(this.node)
-      console.log('[vc] BABYLON.Sound created and attached for', this._uuid)
+      const el = document.createElement('audio')
+      el.srcObject = track.mediaStream ?? new MediaStream([track.mediaStreamTrack])
+      el.autoplay = true
+      el.controls = true
+      el.style.cssText = 'position:fixed;bottom:0;left:0;z-index:9999'
+      document.body.appendChild(el)
+      this.voiceEl = el
+      console.log('[vc] audio element appended for', this._uuid)
     } catch (e) {
       console.error('VoiceChat: failed to attach voice track', e)
     }
@@ -506,12 +508,11 @@ export default class Avatar extends Entity {
     this.playSound('/avatars/voice-out.mp3')
     this.voiceSound?.dispose()
     this.voiceSound = null
+    if (this.voiceEl) { this.voiceEl.srcObject = null; this.voiceEl.remove(); this.voiceEl = null }
   }
 
   setVoiceMuted(muted: boolean) {
-    if (!this.voiceSound) return
-    if (muted) this.voiceSound.setVolume(0)
-    else this.voiceSound.setVolume(1)
+    if (this.voiceEl) this.voiceEl.muted = muted
   }
 
   public disposeLocal = () => {
