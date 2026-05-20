@@ -18,6 +18,8 @@ import Feature from './features/feature'
 import type Grid from './grid'
 import type { MinimapSettings } from './minimap'
 import Parcel from './parcel'
+import { isScratchpad } from './scene-config'
+import { onLoadPromise } from './utils/loading-done'
 import { selectCurrentOrNearestParcel, selectNearestEditableParcel, selectSelectedFeature, setCheckedFeatures } from './store'
 import FeatureTool, { templateFromFeature } from './tools/feature'
 import VoxelTool, { SelectionMode, SelectionModeOptions } from './tools/voxel'
@@ -35,6 +37,7 @@ import HomeButton from './ui/home-button'
 import { ChatOverlay } from './ui/interact/chat'
 import { EmoteOverlay } from './ui/interact/emote'
 import { HelpOverlay } from './ui/interact/help'
+import { ScratchpadWelcome } from './ui/scratchpad-welcome'
 import { WompOverlay } from './ui/interact/womps'
 import MobileButtons from './ui/mobile/buttons'
 import OpenLink from './ui/open-link'
@@ -51,6 +54,23 @@ import TakeWomp from './ui/take-womp'
 import UploadStatusUI from './ui/upload-status'
 
 const NUMBER_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const
+const SCRATCHPAD_WELCOME_SEEN = 'scratchpad-welcome-seen'
+
+function scratchpadWelcomeSeen(): boolean {
+  try {
+    return sessionStorage.getItem(SCRATCHPAD_WELCOME_SEEN) === '1'
+  } catch {
+    return false
+  }
+}
+
+function markScratchpadWelcomeSeen() {
+  try {
+    sessionStorage.setItem(SCRATCHPAD_WELCOME_SEEN, '1')
+  } catch {
+    /** sessionStorage unavailable */
+  }
+}
 
 const Location = (props: { scene: BABYLON.Scene; signedIn: any }) => {
   const currentOrNearestParcel = selectCurrentOrNearestParcel()
@@ -119,6 +139,7 @@ type UserInterfaceState = {
   active: boolean
   /** Shown next to minimap expand; same source as Explore Online tab */
   onlineCount: number
+  scratchpadWelcomeOpen?: boolean
 }
 
 export default class UserInterface extends Component<UserInterfaceProps, UserInterfaceState> {
@@ -232,6 +253,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       this.pollOnlineCount()
       this.onlineCountPoll = window.setInterval(() => this.pollOnlineCount(), 10000)
     }
+
+    onLoadPromise.then(() => {
+      if (!isScratchpad() || isMobileMedia() || scratchpadWelcomeSeen()) return
+      this.setState({ scratchpadWelcomeOpen: true })
+    })
   }
 
   pollOnlineCount = async () => {
@@ -240,6 +266,21 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     if (typeof n === 'number' && n !== this.state.onlineCount) {
       this.setState({ onlineCount: n })
     }
+  }
+
+  dismissScratchpadWelcome = () => {
+    markScratchpadWelcomeSeen()
+    this.setState({ scratchpadWelcomeOpen: false })
+  }
+
+  onScratchpadStartBuilding = () => {
+    this.dismissScratchpadWelcome()
+    this.toggleVoxelTool()
+  }
+
+  onScratchpadOpenHelp = () => {
+    markScratchpadWelcomeSeen()
+    this.setState({ scratchpadWelcomeOpen: false, pane: 'help', active: true })
   }
 
   updateCanEdit = () => {}
@@ -374,7 +415,10 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   closeInteractOverlay() {
-    // this.interactBar && this.interactBar.hideOverlays()
+    if (this.state.scratchpadWelcomeOpen) {
+      this.dismissScratchpadWelcome()
+      return
+    }
     this.setState({ pane: undefined, active: false })
   }
 
@@ -842,6 +886,12 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
             {pane && <dialog class="editor">{pane}</dialog>}
           </aside>
+
+          {this.state.scratchpadWelcomeOpen && (
+            <dialog class="editor scratchpad-welcome-dialog">
+              <ScratchpadWelcome onStartBuilding={this.onScratchpadStartBuilding} onOpenHelp={this.onScratchpadOpenHelp} onDismiss={this.dismissScratchpadWelcome} />
+            </dialog>
+          )}
 
           {nearestEditableParcel && <ToolBelt parcel={nearestEditableParcel} scene={this.props.scene} />}
 

@@ -1941,6 +1941,89 @@ form.PermissionsRadioSelector {
   }
 }
 
+.scratchpad-welcome-dialog {
+  z-index: 600;
+}
+
+.scratchpad-welcome {
+  max-width: 28rem;
+
+  .intro {
+    margin: 0 0 1rem 0;
+    line-height: 1.4;
+  }
+
+  h3 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1em;
+    text-shadow: 1px 1px 1px black;
+  }
+
+  .quick-start {
+    margin: 0 0 1rem 1.25rem;
+    padding: 0;
+    line-height: 1.5;
+
+    kbd {
+      display: inline-block;
+      text-align: center;
+      min-width: 18px;
+      padding: 0 6px;
+      height: 24px;
+      line-height: 24px;
+      background: linear-gradient(#444, #666);
+      border: 2px solid black;
+      border-radius: 4px;
+      box-shadow: inset -4px -4px 0 #333;
+      font-size: 0.85em;
+    }
+  }
+
+  .note {
+    margin: 0 0 1rem 0;
+    color: #aaa;
+    font-size: 0.9em;
+    line-height: 1.4;
+  }
+
+  .actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    align-items: flex-start;
+
+    button.primary,
+    button.secondary {
+      .roundedButton();
+    }
+
+    button.primary kbd {
+      margin-left: 0.35rem;
+      font-size: 0.9em;
+    }
+
+    .cta-hint {
+      margin: 0;
+      color: #aaa;
+      font-size: 0.85em;
+      line-height: 1.35;
+    }
+
+    button.linkish {
+      background: none;
+      border: none;
+      color: #aaa;
+      cursor: pointer;
+      padding: 0.25rem 0;
+      text-decoration: underline;
+
+      &:hover {
+        color: #eee;
+      }
+    }
+  }
+}
+
 .PropertiesList {
   label {
     display: block;
