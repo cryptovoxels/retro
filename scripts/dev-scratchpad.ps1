@@ -1,5 +1,5 @@
 $ErrorActionPreference = "Stop"
-Set-Location $PSScriptRoot + "\.."
+Set-Location (Join-Path $PSScriptRoot "..")
 
 $env:NODE_TLS_REJECT_UNAUTHORIZED = "0"
 $env:NODE_ENV = "development"
