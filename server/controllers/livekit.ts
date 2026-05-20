@@ -4,27 +4,41 @@ import { Db } from '../pg'
 import { PassportStatic } from 'passport'
 import { Express } from 'express'
 import { AccessToken, WebhookReceiver, RoomServiceClient } from 'livekit-server-sdk'
+import authParcel from '../auth-parcel'
+import Parcel from '../parcel'
+import { loadGuestPass } from './guest-passes'
+import { VoxelsUser } from '../user'
 import { orderLiveStrip } from '../../common/helpers/utils'
 
 const success = true
 const CHANNEL = 'live:updates'
 const HASH = 'live:thumbnails'
 
+export const livekitService = new RoomServiceClient('https://voxels-7pvk06qt.livekit.cloud', process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET)
 function roomViewers(rooms: { name: string; numParticipants?: number }[], room: string): number {
   return rooms.find((r) => r.name === room)?.numParticipants ?? 0
 }
 
 export default async function LivekitController(db: Db, passport: PassportStatic, app: Express) {
-  const svc = new RoomServiceClient('https://voxels-7pvk06qt.livekit.cloud', process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET)
+  const svc = livekitService
   const receiver = new WebhookReceiver(process.env.LIVEKIT_API_KEY!, process.env.LIVEKIT_API_SECRET!)
 
   const emptyTimeout = 10 * 60
   const maxParticipants = 69
 
-  let rooms = await svc.listRooms()
+  let rooms: Awaited<ReturnType<typeof svc.listRooms>> = []
+  try {
+    rooms = await svc.listRooms()
+  } catch (e) {
+    console.error('LiveKit: listRooms failed, live features disabled', e)
+  }
 
   async function refresh() {
-    rooms = await svc.listRooms()
+    try {
+      rooms = await svc.listRooms()
+    } catch (e) {
+      console.error('LiveKit: listRooms failed', e)
+    }
   }
 
   async function loadOrderedLiveEntries() {
@@ -121,14 +135,35 @@ export default async function LivekitController(db: Db, passport: PassportStatic
     res.json({ success, room })
   })
 
-  app.get('/api/rooms/:name/token', cache(false), async (req, res) => {
-    const wallet = req.user ? (req.user as Express.User & { wallet: string }).wallet : 'anon'
-    const identity = `${wallet}-${Math.random().toString(36).slice(2, 10)}`
-
+  app.get('/api/rooms/:name/token', cache(false), passport.authenticate(['jwt', 'anonymous'], { session: false }), async (req, res) => {
     const name = req.params.name.toString()
     if (!name.match(/^[a-z0-9-]{1,32}$/)) {
       res.status(400).send({ error: 'Invalid room name' })
       return
+    }
+
+    const user = (req.user ?? null) as (VoxelsUser & { guest_pass?: string }) | null
+    const wallet = user?.wallet ?? `anon-${Math.random().toString(36).slice(2)}`
+
+    // Subscribe is open (audience). Publish requires a collaborator or a valid guest pass scoped to this room.
+    let canPublish = false
+    const parcelMatch = name.match(/^parcel-(\d+)$/)
+    if (parcelMatch) {
+      const parcelId = parseInt(parcelMatch[1], 10)
+      if (user?.guest_pass) {
+        const pass = await loadGuestPass(db, user.guest_pass)
+        if (pass && !pass.revoked_at && pass.parcel_id === parcelId) {
+          canPublish = true
+        }
+      } else if (user?.wallet) {
+        const parcel = await Parcel.load(parcelId)
+        if (parcel) {
+          const auth = await authParcel(parcel, user)
+          if (auth === 'Owner' || auth === 'Collaborator' || auth === 'Moderator') {
+            canPublish = true
+          }
+        }
+      }
     }
 
     let room = rooms.find((r) => r.name === name)
@@ -137,9 +172,13 @@ export default async function LivekitController(db: Db, passport: PassportStatic
       refresh()
     }
 
+    // Identity prefix encodes wallet (or pass-prefix) so revoke can locate participants.
+    const identityPrefix = user?.guest_pass ? `guest-${user.guest_pass.slice(0, 12)}` : wallet
+    const identity = `${identityPrefix}-${Math.random().toString(36).slice(2, 10)}`
+
     const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, { identity })
-    at.addGrant({ roomJoin: true, room: name, canPublish: true, canSubscribe: true })
-    res.json({ success, room, token: at.toJwt() })
+    at.addGrant({ roomJoin: true, room: name, canPublish, canSubscribe: true })
+    res.json({ success, room, token: at.toJwt(), canPublish })
   })
 
   app.post('/api/rooms/:name/thumbnail', async (req, res) => {

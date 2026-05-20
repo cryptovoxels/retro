@@ -73,6 +73,8 @@ export class ChatOverlay extends Component<Props, State> {
   }
 
   render() {
+    const isGuest = !!app.state.wallet?.startsWith('guest:')
+    const chatCap = isGuest ? 25 : 10
     const name = (m: ChatMessageRecord) => {
       if (m.avatarRef) return avatarName(m.avatarRef)
       const avatar = m.avatar ? window.connector.findAvatar(m.avatar) : null
@@ -80,9 +82,9 @@ export class ChatOverlay extends Component<Props, State> {
     }
 
     return (
-      <main class="chat">
-        <div class={'chat-messages' + (messageList.value.length >= 10 ? ' at-cap' : '')}>
-          {messageList.value.slice(-10).map((m: ChatMessageRecord) => (
+      <main class="chat" style={isGuest ? 'font-size: 14px' : undefined}>
+        <div class={'chat-messages' + (messageList.value.length >= chatCap ? ' at-cap' : '')}>
+          {messageList.value.slice(-chatCap).map((m: ChatMessageRecord) => (
             <p>
               <span>
                 {name(m)}: <ChatText text={m.text} />
@@ -204,6 +206,11 @@ const CongaText = ({ text }: { text: string }) => {
 const ChatInput = () => {
   const [currentMessage, setMessage] = useState<string>('')
   const inputRef = useRef<HTMLInputElement>(null)
+
+  // Mobile guests chat from the broadcast dock when live (panel covers this UI). Desktop guests use normal chat here.
+  if (app.state.wallet?.startsWith('guest:') && isMobile()) {
+    return <small style="padding: 0 0.5rem; color: #888">chat in the broadcast panel</small>
+  }
 
   const say = (e: Event) => {
     setMessage('')

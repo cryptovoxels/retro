@@ -325,7 +325,8 @@ export default class Grid extends SocketClient {
   }
 
   private get nearbyDistance() {
-    if (this.isolateMode) return 1
+    // isolate keeps activePoolSize at 1; still need normal draw distance so the worker finds the parcel mesh
+    if (this.isolateMode) return window.draw.distance
     if (window.config.isOrbit) return 40
     // In Custom mode, parcel activation distance is same as draw distance
     return window.draw.distance

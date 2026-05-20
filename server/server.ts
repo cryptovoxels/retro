@@ -18,6 +18,8 @@ import streamWearable from './handlers/stream-wearable'
 import { isOwner } from './lib/helpers'
 
 import AdminController from './controllers/admin'
+import GuestPassesController from './controllers/guest-passes'
+import { livekitService } from './controllers/livekit'
 import ScratchpadController from './controllers/scratchpad'
 import CollectiblesController from './controllers/collectibles'
 import CollectionsController from './controllers/collections'
@@ -337,6 +339,9 @@ AdminController(db, passport, app)
 
 // Livekit controller
 LivekitController(db, passport, app)
+
+// Guest broadcast passes (token-based access to a specific Showbox without an account)
+GuestPassesController(db, passport, app, livekitService)
 
 // The NFTs
 NftController(db, passport, app)

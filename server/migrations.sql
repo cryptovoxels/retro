@@ -241,3 +241,16 @@ SELECT apply_migration('drop_suburb_cascading_foreign_key', $$
   ALTER TABLE properties DROP CONSTRAINT IF EXISTS suburb_cascading_foreign_key;
 $$);
 
+SELECT apply_migration('guest-passes', $$
+  CREATE TABLE IF NOT EXISTS guest_passes (
+    token        text PRIMARY KEY,
+    parcel_id    integer NOT NULL,
+    feature_uuid text NOT NULL,
+    name         text NOT NULL,
+    created_by   text NOT NULL,
+    created_at   timestamptz NOT NULL DEFAULT now(),
+    revoked_at   timestamptz
+  );
+  CREATE INDEX IF NOT EXISTS guest_passes_parcel_id_idx ON guest_passes (parcel_id);
+$$);
+

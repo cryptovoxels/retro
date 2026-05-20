@@ -1,0 +1,777 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Showbox broadcast dock preview</title>
+    <link href="https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;600;700&display=swap" rel="stylesheet" />
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        font-family: 'Source Code Pro', monospace;
+        background: #1a2030;
+        color: #f5f5f0;
+        min-height: 100vh;
+      }
+      .toolbar {
+        position: sticky;
+        top: 0;
+        z-index: 1000000;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        padding: 0.75rem 1rem;
+        background: #0d0d0d;
+        border-bottom: 1px solid #333;
+      }
+      .toolbar button {
+        font-family: inherit;
+        background: #333;
+        color: #f5f5f0;
+        border: 0;
+        padding: 8px 14px;
+        cursor: pointer;
+      }
+      .toolbar button.on {
+        background: #dc1e1e;
+      }
+      .toolbar span {
+        color: #888;
+        align-self: center;
+        font-size: 12px;
+      }
+      .toolbar .preview-url {
+        color: #888;
+        font-size: 11px;
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .toolbar button.refresh {
+        background: #333;
+      }
+      .world {
+        min-height: calc(100vh - 52px);
+        background: #1a2838;
+        position: relative;
+        overflow: hidden;
+      }
+      .world iframe.world-live {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #3af;
+      }
+      .world .world-overlay {
+        position: relative;
+        z-index: 1;
+        pointer-events: none;
+        min-height: calc(100vh - 52px);
+      }
+      .world-hint {
+        position: absolute;
+        left: 1rem;
+        bottom: 1rem;
+        color: rgba(245, 245, 240, 0.55);
+        font-size: 12px;
+        max-width: 320px;
+        line-height: 1.4;
+      }
+      .world-chat {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        margin: 0 0 4px 0;
+        padding: 4px;
+        font-size: 14px;
+        max-width: 420px;
+        pointer-events: none;
+      }
+      .world-chat p {
+        margin: 0 0 4px 0.6rem;
+      }
+      .world-chat span {
+        padding: 2px 0.4rem;
+        text-shadow: 1px 1px 1px black;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 2px;
+      }
+      .world-chat .who {
+        color: #f5b942;
+      }
+      .dock-desktop {
+        position: fixed;
+        width: 340px;
+        max-height: calc(100vh - 24px);
+        overflow-y: auto;
+        background: #0d0d0d;
+        color: #f5f5f0;
+        padding: 1rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        font-size: 13px;
+        box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+        z-index: 999999;
+      }
+      #desktop-setup .dock-desktop {
+        top: 50%;
+        left: 50%;
+        right: auto;
+        transform: translate(-50%, -50%);
+        max-height: 85vh;
+      }
+      #desktop-live .dock-desktop {
+        top: 12px;
+        right: 12px;
+        left: auto;
+        transform: none;
+      }
+      .dock-mobile {
+        position: fixed;
+        inset: 0;
+        background: #0d0d0d;
+        color: #f5f5f0;
+        padding: 1.25rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+        overflow-y: auto;
+        font-size: 15px;
+      }
+      .phone-frame {
+        max-width: 390px;
+        margin: 1rem auto;
+        min-height: calc(100vh - 120px);
+        border: 2px solid #444;
+        border-radius: 24px;
+        overflow: hidden;
+        position: relative;
+        background: #0d0d0d;
+      }
+      .phone-world {
+        height: 36vh;
+        min-height: 140px;
+        background: #1a2838;
+        position: relative;
+        overflow: hidden;
+      }
+      .phone-world iframe {
+        position: absolute;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        background: #3af;
+      }
+      .phone-world .placeholder {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1rem;
+        color: rgba(245, 245, 240, 0.55);
+        font-size: 11px;
+        text-align: center;
+        line-height: 1.4;
+        pointer-events: none;
+      }
+      .phone-frame.live-client .dock-mobile.live-sheet {
+        display: none;
+      }
+      .phone-frame.live-client {
+        min-height: 80vh;
+      }
+      .phone-frame.live-client .phone-world {
+        height: 100%;
+        min-height: 70vh;
+      }
+      .phone-frame .dock-mobile.live-sheet {
+        position: absolute;
+        inset: 0;
+      }
+      .phone-frame.world-mode .dock-mobile.live-sheet {
+        top: 36vh;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        inset: auto;
+      }
+      .phone-frame.world-mode .phone-world {
+        display: block;
+      }
+      .phone-frame:not(.world-mode) .phone-world {
+        display: none;
+      }
+      .phone-frame .mobile-feed {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 9/16;
+        max-height: 28vh;
+        background: #000;
+        flex-shrink: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #666;
+        font-size: 11px;
+      }
+      .phone-frame.world-mode .mobile-feed {
+        display: none;
+      }
+      .phone-frame .world-toggle {
+        background: transparent;
+        color: #888;
+        border: 0;
+        padding: 0;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 12px;
+        text-decoration: underline;
+      }
+      .dock label {
+        display: block;
+        color: #888;
+        margin-bottom: 2px;
+      }
+      .dock .title {
+        font-weight: bold;
+        font-size: 16px;
+        color: #f5f5f0;
+      }
+      .dock input[type='text'],
+      .dock select {
+        width: 100%;
+        background: #1a1a1a;
+        color: #f5f5f0;
+        border: 1px solid #333;
+        padding: 8px;
+        font-family: inherit;
+        min-height: 36px;
+      }
+      .dock select {
+        padding: 4px;
+        min-height: auto;
+      }
+      .dock .btn-row {
+        display: flex;
+        gap: 0.5rem;
+      }
+      .dock .btn-row button {
+        font-family: inherit;
+        border: 0;
+        padding: 12px 16px;
+        cursor: pointer;
+        min-height: 44px;
+        flex: 1;
+      }
+      .dock .go {
+        background: #dc1e1e;
+        color: #f5f5f0;
+        font-weight: bold;
+        flex: 2;
+      }
+      .dock .go.stop {
+        background: #444;
+      }
+      .dock .close {
+        background: #333;
+        color: #f5f5f0;
+      }
+      .dock .share-block {
+        border-top: 1px solid #222;
+        border-bottom: 1px solid #222;
+        padding: 8px 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .dock .share-btns {
+        display: flex;
+        gap: 0.5rem;
+      }
+      .dock .share-btns button {
+        flex: 1;
+        background: #333;
+        color: #f5f5f0;
+        border: 0;
+        padding: 8px 12px;
+        font-family: inherit;
+        min-height: 36px;
+        cursor: pointer;
+      }
+      .dock .device-toggle {
+        background: transparent;
+        color: #888;
+        border: 0;
+        padding: 4px 0;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 12px;
+        text-align: left;
+        text-decoration: underline;
+      }
+      .dock .device-row {
+        display: none;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .dock .device-row.open {
+        display: flex;
+      }
+      .dock .chat-block {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        overflow: hidden;
+      }
+      .dock .chat-box {
+        flex: 1 1 auto;
+        min-height: 64px;
+        overflow-y: auto;
+        background: #1a1a1a;
+        border: 1px solid #333;
+        padding: 8px;
+        font-size: 14px;
+        line-height: 1.4;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+      }
+      .dock .chat-box .who {
+        color: #f5b942;
+        font-weight: bold;
+      }
+      .dock .chat-reply {
+        display: flex;
+        gap: 0.5rem;
+        flex-shrink: 0;
+        padding-top: 6px;
+        border-top: 1px solid #333;
+      }
+      .dock .extras-toggle {
+        background: transparent;
+        color: #888;
+        border: 0;
+        padding: 4px 0;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 12px;
+        text-align: left;
+        text-decoration: underline;
+      }
+      .dock .moves {
+        display: none;
+      }
+      .dock.extras-open .moves {
+        display: flex;
+      }
+      #mobile-live .dock .share-block {
+        display: flex;
+      }
+      .dock .dock-footer {
+        flex-shrink: 0;
+      }
+      .dock .chat-reply input {
+        flex: 1;
+        background: #1a1a1a;
+        color: #f5f5f0;
+        border: 1px solid #666;
+        padding: 10px 8px;
+        font-family: inherit;
+        font-size: 16px;
+        min-height: 44px;
+      }
+      .dock .chat-reply button {
+        background: #333;
+        color: #f5f5f0;
+        border: 0;
+        padding: 10px 14px;
+        font-family: inherit;
+        min-height: 44px;
+        flex-shrink: 0;
+        cursor: pointer;
+      }
+      .dock .stream-hint {
+        color: #888;
+        font-size: 12px;
+        margin: 0;
+        flex-shrink: 0;
+      }
+      .dock .meter-bar {
+        width: 100%;
+        height: 5px;
+        background: rgba(0, 0, 0, 0.5);
+        flex-shrink: 0;
+      }
+      .dock .meter-bar > div {
+        height: 100%;
+        background: #22c55e;
+        width: 45%;
+        transition: width 0.1s;
+      }
+      .dock .moves {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+      .dock .moves button {
+        background: #1a1a1a;
+        color: #f5f5f0;
+        border: 1px solid #333;
+        padding: 8px 10px;
+        font-family: inherit;
+        cursor: pointer;
+        min-height: 36px;
+        flex: 1;
+        min-width: 60px;
+      }
+      .dock .moves .emoji {
+        font-size: 18px;
+        min-width: 40px;
+        flex: 1;
+      }
+      .dock .live-head {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: #dc1e1e;
+        font-weight: bold;
+        font-size: 14px;
+      }
+      .dock .live-head .timer {
+        color: #f5f5f0;
+        margin-left: auto;
+        font-variant-numeric: tabular-nums;
+      }
+      .live-dot {
+        animation: pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.3;
+        }
+      }
+      .preview-wrap {
+        position: relative;
+        width: 100%;
+        background: #000;
+        overflow: hidden;
+      }
+      .preview-wrap.desktop {
+        aspect-ratio: 16/9;
+      }
+      .preview-wrap.mobile {
+        aspect-ratio: 9/16;
+        max-height: 50vh;
+      }
+      .preview-wrap .fake-video {
+        width: 100%;
+        height: 100%;
+        min-height: 120px;
+        background: linear-gradient(180deg, #333 0%, #111 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: #666;
+        font-size: 11px;
+      }
+      .preview-label {
+        position: absolute;
+        top: 4px;
+        left: 6px;
+        font-size: 11px;
+        background: rgba(0, 0, 0, 0.6);
+        padding: 2px 6px;
+      }
+      .meter {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 5px;
+        background: rgba(0, 0, 0, 0.5);
+      }
+      .meter > div {
+        height: 100%;
+        background: #22c55e;
+        width: 45%;
+        transition: width 0.1s;
+      }
+      .view {
+        display: none;
+      }
+      .view.active {
+        display: block;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="toolbar">
+      <button type="button" class="on" data-view="desktop-setup">desktop setup</button>
+      <button type="button" data-view="desktop-live">desktop live</button>
+      <button type="button" data-view="mobile-setup">mobile setup</button>
+      <button type="button" data-view="mobile-live">mobile live</button>
+      <button type="button" data-view="mobile-live" data-live-client="1">mobile live (client)</button>
+      <span class="preview-url" id="preview-url-label"></span>
+      <button type="button" class="refresh" id="url-refresh">refresh</button>
+    </div>
+
+    <div id="desktop-setup" class="view active">
+      <div class="world">
+        <iframe class="world-live" id="world-desktop-setup" title="voxels world" hidden></iframe>
+        <div class="world-overlay">
+          <p class="world-hint">setup: dock centered so you can find it. goes to the side when live.</p>
+        </div>
+      </div>
+      <div class="dock dock-desktop">
+        <div class="title">Showbox</div>
+        <label>Name</label>
+        <input type="text" value="DJ ANON" placeholder="e.g. DJ ANON" />
+        <label>camera</label>
+        <select>
+          <option>FaceTime HD Camera</option>
+        </select>
+        <label>microphone</label>
+        <select>
+          <option>MacBook Pro Microphone</option>
+        </select>
+        <label><input type="checkbox" /> use screenshare instead of camera</label>
+        <div class="btn-row">
+          <button class="go">go live</button>
+          <button class="close">close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="desktop-live" class="view">
+      <div class="world">
+        <iframe class="world-live" id="world-desktop-live" title="voxels world" hidden></iframe>
+        <div class="world-overlay">
+          <p class="world-hint">live: parcel on the left. Chat is world chat (bottom left), not in the dock.</p>
+          <div class="world-chat">
+            <p>
+              <span><span class="who">fan42:</span> this is fire</span>
+            </p>
+            <p>
+              <span><span class="who">crate_digger:</span> turn it up</span>
+            </p>
+            <p>
+              <span><span class="who">DJ ANON:</span> thanks for coming</span>
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="dock dock-desktop">
+        <div class="live-head"><span class="live-dot">&#9679;</span> live <span class="timer">12:34</span></div>
+        <div class="preview-wrap desktop">
+          <div class="fake-video">camera preview (muted)</div>
+          <div class="preview-label">what your audience sees</div>
+          <div class="meter"><div id="meter-d"></div></div>
+        </div>
+        <button type="button" class="device-toggle" data-target="device-d">change camera or mic</button>
+        <div id="device-d" class="device-row">
+          <label>camera</label>
+          <select>
+            <option>FaceTime HD Camera</option>
+          </select>
+          <label>microphone</label>
+          <select>
+            <option>MacBook Pro Microphone</option>
+          </select>
+        </div>
+        <div class="share-block">
+          <label>show link - share with your fans</label>
+          <input type="text" readonly value="https://www.voxels.com/play?coords=W@1282E,1007N" />
+          <div class="share-btns">
+            <button>copy</button>
+            <button>post on x</button>
+          </div>
+        </div>
+        <div class="moves"><button>dance</button><button>hype</button><button>clap</button><button>spin</button><button>savage</button><button style="color: #888">idle</button></div>
+        <div class="moves">
+          <button class="emoji">&#128293;</button><button class="emoji">&#128079;</button><button class="emoji">&#10084;</button> <button class="emoji">&#128514;</button><button class="emoji">&#128079;</button
+          ><button class="emoji">&#127881;</button>
+        </div>
+        <div class="btn-row">
+          <button class="go stop">stop streaming</button>
+          <button class="close">close</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="mobile-setup" class="view">
+      <div class="world"></div>
+      <div class="phone-frame">
+        <div class="dock dock-mobile">
+          <div class="title">Showbox</div>
+          <label>Name</label>
+          <input type="text" placeholder="e.g. DJ ANON" />
+          <label>camera</label>
+          <select>
+            <option>front camera</option>
+          </select>
+          <label>microphone</label>
+          <select>
+            <option>phone mic</option>
+          </select>
+          <div class="btn-row">
+            <button class="go">go live</button>
+            <button class="close">close</button>
+          </div>
+        </div>
+      </div>
+      <p class="world-hint" style="position: fixed; left: 1rem; bottom: 1rem; max-width: 360px">mobile setup: full screen dock, no screenshare, no chat until live</p>
+    </div>
+
+    <div id="mobile-live" class="view">
+      <div class="world"></div>
+      <div class="phone-frame">
+        <div class="phone-world" id="phone-world">
+          <div class="placeholder" id="world-placeholder" hidden></div>
+          <iframe class="world-live" id="world-iframe" title="voxels world" hidden></iframe>
+        </div>
+        <div class="dock dock-mobile live-sheet">
+          <div class="live-head">
+            <span class="live-dot">&#9679;</span> live
+            <button type="button" class="world-toggle" id="mock-world-toggle">see world</button>
+            <span class="timer">3:07</span>
+          </div>
+          <div class="mobile-feed">your camera feed (large)</div>
+          <p class="stream-hint" id="mock-stream-hint" style="display: none">your stream is on the showbox above</p>
+          <div class="meter-bar"><div id="meter-m"></div></div>
+          <button type="button" class="device-toggle" data-target="device-m">change camera or mic</button>
+          <div id="device-m" class="device-row">
+            <label>camera</label>
+            <select>
+              <option>front camera</option>
+            </select>
+            <label>microphone</label>
+            <select>
+              <option>phone mic</option>
+            </select>
+          </div>
+          <div class="chat-block">
+            <label>chat</label>
+            <div class="chat-box">
+              <div><span class="who">fan42:</span> MOBILE TEST</div>
+              <div><span class="who">dj_friend:</span> sounds good</div>
+              <div style="color: #888">audience chat shows up here</div>
+            </div>
+            <div class="chat-reply">
+              <input type="text" placeholder="reply to chat" />
+              <button>send</button>
+            </div>
+          </div>
+          <div class="dock-footer">
+            <div class="share-block">
+              <label>fan link</label>
+              <div class="share-btns"><button class="go" style="flex: 2">copy link for fans</button><button>post on x</button></div>
+            </div>
+            <div class="btn-row">
+              <button class="go stop">stop streaming</button>
+              <button class="close">close</button>
+            </div>
+          </div>
+          <button type="button" class="extras-toggle" id="mock-extras-toggle">emotes</button>
+          <div class="moves"><button>dance</button><button>hype</button><button>clap</button><button>spin</button><button>savage</button><button style="color: #888">idle</button></div>
+          <div class="moves">
+            <button class="emoji">&#128293;</button><button class="emoji">&#128079;</button><button class="emoji">&#10084;</button> <button class="emoji">&#128514;</button><button class="emoji">&#128079;</button
+            ><button class="emoji">&#127881;</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const WORLD_URL = 'https://www.voxels.com/play?coords=W@1282E,1007N'
+      const worldPlaceholder = document.getElementById('world-placeholder')
+      const phoneFrame = document.querySelector('#mobile-live .phone-frame')
+      const mockWorldToggle = document.getElementById('mock-world-toggle')
+      const mockStreamHint = document.getElementById('mock-stream-hint')
+      const mockExtrasToggle = document.getElementById('mock-extras-toggle')
+      const mobileLiveDock = document.querySelector('#mobile-live .dock-mobile.live-sheet')
+      document.getElementById('preview-url-label').textContent = WORLD_URL
+
+      const worldFrames = () => document.querySelectorAll('iframe.world-live')
+
+      function loadWorld(refresh) {
+        worldFrames().forEach((f) => {
+          if (refresh && f.src) {
+            try {
+              f.contentWindow?.location.reload()
+            } catch {
+              f.src = WORLD_URL
+            }
+          } else {
+            f.src = WORLD_URL
+          }
+          f.hidden = false
+        })
+      }
+
+      document.getElementById('url-refresh').onclick = () => loadWorld(true)
+
+      function showView(btn) {
+        document.querySelectorAll('.toolbar button[data-view]').forEach((b) => b.classList.remove('on'))
+        document.querySelectorAll('.view').forEach((v) => v.classList.remove('active'))
+        btn.classList.add('on')
+        document.getElementById(btn.dataset.view).classList.add('active')
+        phoneFrame.classList.toggle('live-client', btn.dataset.liveClient === '1')
+        if (btn.dataset.view !== 'mobile-live') phoneFrame.classList.remove('world-mode')
+      }
+
+      if (mockWorldToggle && phoneFrame) {
+        mockWorldToggle.onclick = () => {
+          const on = phoneFrame.classList.toggle('world-mode')
+          mockWorldToggle.textContent = on ? 'see your feed' : 'see world'
+          if (mockStreamHint) mockStreamHint.style.display = on ? 'block' : 'none'
+        }
+      }
+      if (mockExtrasToggle && mobileLiveDock) {
+        mockExtrasToggle.onclick = () => {
+          const on = mobileLiveDock.classList.toggle('extras-open')
+          mockExtrasToggle.textContent = on ? 'hide emotes' : 'emotes'
+        }
+      }
+
+      document.querySelectorAll('.toolbar button[data-view]').forEach((btn) => {
+        btn.onclick = () => showView(btn)
+      })
+      document.querySelectorAll('.device-toggle').forEach((btn) => {
+        btn.onclick = () => {
+          const row = document.getElementById(btn.dataset.target)
+          if (!row) return
+          const open = row.classList.toggle('open')
+          btn.textContent = open ? 'hide camera and mic' : 'change camera or mic'
+        }
+      })
+      loadWorld(false)
+      setInterval(() => {
+        const pct = 25 + Math.random() * 70
+        const w = pct + '%'
+        const c = pct > 85 ? '#dc1e1e' : pct > 60 ? '#f5b942' : '#22c55e'
+        ;['meter-d', 'meter-m'].forEach((id) => {
+          const el = document.getElementById(id)
+          if (el) {
+            el.style.width = w
+            el.style.background = c
+          }
+        })
+      }, 120)
+    </script>
+  </body>
+</html>
