@@ -644,9 +644,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       identityRow.append(identityLabel, nameInput, nameStatus)
     }
 
-    // Fan coords link only for guests going live - owners use editor guest /live/ links instead.
+    // Fan coords link for anyone live - drops audience at the showbox in world.
     let shareRow: HTMLDivElement | null = null
-    if (isGuest) {
+    {
       const showUrl = audienceShowUrl(this)
       shareRow = document.createElement('div')
       Object.assign(shareRow.style, { display: 'none', flexDirection: 'column', gap: '4px', borderTop: '1px solid #222', borderBottom: '1px solid #222', padding: '8px 0' })
