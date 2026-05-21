@@ -10,7 +10,6 @@ import { Entity } from './entity'
 import { FeatureEvent, MeshExtended } from './features/feature'
 import type Parcel from './parcel'
 import ParcelScript from './parcel-script'
-import type Persona from './persona'
 import { emote } from './utils/emote'
 import { Transform } from './utils/transform'
 import { Bubble } from './chat'
@@ -30,7 +29,6 @@ export type AvatarRecord = import('../common/messages').AvatarIdentity
 
 const AVATAR_HEIGHT = 1.6
 const AVATAR_NAME_OFFSET = 0.5
-const NAME_CHAT_OFFSET = 0.6
 
 // distance in meters from camera that we play sounds for this avatar
 const SOUND_DISTANCE = 20
@@ -46,8 +44,6 @@ export default class Avatar extends Entity {
   private neckBone: BABYLON.Bone | undefined
   private nameMesh: BABYLON.Mesh | null = null
   private nameTexture: BABYLON.DynamicTexture | null = null
-  private actionsMesh: BABYLON.Mesh | null = null
-  private actionsTexture: BABYLON.GUI.AdvancedDynamicTexture | null = null
   private collider: MeshExtended | undefined
   private _bubble: Bubble | null = null
   private clearBubbleTimer: NodeJS.Timeout | undefined
@@ -58,10 +54,14 @@ export default class Avatar extends Entity {
   /** Remote: uuid of the avatar they follow in conga (from multiplayer). Local unused. */
   private _congaFollowsUuid: string | null = null
 
-  constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, joined: number, uuid: string, description: AvatarRecord) {
+  constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, joined: number, uuid: string, description: AvatarRecord, isUser = false) {
     super(scene, parent, joined)
     this._uuid = uuid
     this._description = description
+    if (isUser) {
+      this._isUser = true
+      this.tickRate = 1000 / 60
+    }
   }
 
   tpose() {
@@ -82,21 +82,6 @@ export default class Avatar extends Entity {
    */
   private static get connector(): Connector {
     return window.connector
-  }
-
-  /**
-   * @returns Persona|null
-   */
-  private static get persona(): Persona | null {
-    return Avatar.connector?.persona || null
-  }
-
-  /**
-   * return whether or not this avatar is in first person mode or not.
-   * @returns boolean
-   */
-  private static get isFirstPerson(): boolean {
-    return Avatar.persona?.firstPersonView || true
   }
 
   private static get IsCrowded(): boolean {
@@ -274,10 +259,8 @@ export default class Avatar extends Entity {
 
     this.loadAvatarMesh()
 
-    //any changes in the costume?
-    if (!!updates.costume_id && this._attachmentManager) {
-      this._attachmentManager.costume_id = updates.costume_id
-      this._attachmentManager.changeCostume(cacheKey)
+    if (updates.costume_id && this._attachmentManager) {
+      this._attachmentManager.loadCostume(undefined, updates.costume_id)
     }
   }
 
@@ -416,10 +399,6 @@ export default class Avatar extends Entity {
     this.disposeLocal()
   }
 
-  /**
-   * Show the avatar, including name and wearables
-   * Assumes code is not directly setting the visibility of the parts
-   */
   show() {
     if (this.armatureMesh && this.armatureMesh.visibility !== 1) {
       this.armatureMesh.visibility = 1
@@ -429,18 +408,11 @@ export default class Avatar extends Entity {
           m.visibility = 1
         })
       }
-      if (this.nameMesh) {
-        this.nameMesh.visibility = 1
-      }
+      if (this.nameMesh) this.nameMesh.visibility = 1
+      this._attachmentManager?.showAllWearables()
     }
-
-    this._attachmentManager?.showAllWearables()
   }
 
-  /**
-   * Hide the avatar, including name and wearables
-   * Assumes code is not directly setting the visibility of the parts
-   */
   hide() {
     if (this.armatureMesh && this.armatureMesh.visibility !== 0) {
       this.armatureMesh.visibility = 0
@@ -450,12 +422,9 @@ export default class Avatar extends Entity {
           m.visibility = 0
         })
       }
-      if (this.nameMesh) {
-        this.nameMesh.visibility = 0
-      }
+      if (this.nameMesh) this.nameMesh.visibility = 0
+      this._attachmentManager?.hideAllWearables()
     }
-
-    this._attachmentManager?.hideAllWearables()
   }
 
   disposeName() {
@@ -475,8 +444,6 @@ export default class Avatar extends Entity {
   public disposeLocal = () => {
     this.nameMesh?.dispose()
     this.nameMesh = null
-
-    this.removeActions()
 
     this._material?.dispose(true, true)
     this._material = null
@@ -533,10 +500,7 @@ export default class Avatar extends Entity {
 
   // is used before eg. position is changed so that we can compare coming changes
   protected onBeforeUpdate(next: Readonly<Transform>) {
-    const sqrDistance = BABYLON.Vector3.DistanceSquared(this.position, next.position)
-    if (sqrDistance > 0.1 * 0.1) {
-    }
-    if (sqrDistance > 16 * 16) {
+    if (BABYLON.Vector3.DistanceSquared(this.position, next.position) > 16 * 16) {
       this.teleportFX(this.absolutePosition, 'avatar.leave')
     }
   }
@@ -837,15 +801,9 @@ export default class Avatar extends Entity {
 
     const ctx = this.nameTexture.getContext()
     const isHighlighted = highlight
-    const sharesRoomWithUser = false
 
     if (!ctx) {
       return
-    }
-
-    // always display name on top when in same room as user
-    if (this.nameMesh) {
-      this.nameMesh.renderingGroupId = sharesRoomWithUser ? 1 : 0
     }
 
     // clear previous render
@@ -888,52 +846,17 @@ export default class Avatar extends Entity {
 
     this.nameTexture.update(true)
   }
-
-  private removeActions() {
-    this.actionsMesh?.dispose(false, true)
-    this.actionsMesh = null
-    this.actionsTexture = null
-  }
-}
-
-/**
- * Splits a string into an array of string given canvas restrictions.
- * @param {CanvasRenderingContext2D} ctx A canvasContext
- * @param {string} text the text to split to lines
- * @param {number} maxWidth the max width of the line.
- * @returns Array of strings
- */
-function getTextLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number) {
-  const lines = []
-  while (text.length) {
-    let i: number
-    // find maximum line length
-    for (i = text.length; ctx.measureText(text.substr(0, i)).width > maxWidth; i--);
-    const slice = text.substr(0, i)
-
-    // make sure we wrap on a space
-    let j: number | null = null
-    if (i !== text.length) {
-      for (j = 0; slice.indexOf(' ', j) !== -1; j = slice.indexOf(' ', j) + 1);
-    }
-
-    const line = slice.substr(0, j ?? slice.length)
-    lines.push(line)
-    text = text.slice(line.length)
-  }
-  return lines
-}
-
-function getLineMaxWidth(ctx: CanvasRenderingContext2D, lines: string[]): number {
-  return lines.reduce((result, line) => {
-    return Math.max(result, ctx.measureText(line).width)
-  }, 0)
 }
 
 // factory function to set up and create a avatar representing other players
 export async function LoadAvatar(scene: BABYLON.Scene, parent: BABYLON.TransformNode, joined: number, uuid: string, description: AvatarRecord): Promise<Avatar> {
   await Avatar.ensureRootAvatar(scene)
   return new Avatar(scene, parent, joined, uuid, description)
+}
+
+export async function LoadUserAvatar(scene: BABYLON.Scene, parent: BABYLON.TransformNode, uuid: string, description: AvatarRecord): Promise<Avatar> {
+  await Avatar.ensureRootAvatar(scene)
+  return new Avatar(scene, parent, Date.now(), uuid, description, true)
 }
 
 function loadAvatarContainer(scene: BABYLON.Scene, avatarFile: string): Promise<BABYLON.AssetContainer> {

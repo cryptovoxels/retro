@@ -897,20 +897,16 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
             <ChatOverlay scene={this.props.scene} />
 
-            {pane && <dialog class="editor" open>{pane}</dialog>}
+            {pane && (
+              <dialog class="editor" open>
+                {pane}
+              </dialog>
+            )}
           </aside>
 
-          {this.state.scratchpadGuideOpen && !this.state.scratchpadGuideMini && (
-            <ScratchpadGuide
-              key={this.state.scratchpadGuideKey || 0}
-              voxelTool={this.voxelTool}
-              onComplete={this.celebrateScratchpadGuideComplete}
-            />
-          )}
+          {this.state.scratchpadGuideOpen && !this.state.scratchpadGuideMini && <ScratchpadGuide key={this.state.scratchpadGuideKey || 0} voxelTool={this.voxelTool} onComplete={this.celebrateScratchpadGuideComplete} />}
 
-          {this.state.scratchpadGuideOpen && this.state.scratchpadGuideMini && (
-            <ScratchpadGuideMini onGotIt={this.celebrateScratchpadGuideComplete} onStartOver={this.restartScratchpadGuide} />
-          )}
+          {this.state.scratchpadGuideOpen && this.state.scratchpadGuideMini && <ScratchpadGuideMini onGotIt={this.celebrateScratchpadGuideComplete} onStartOver={this.restartScratchpadGuide} />}
 
           {!this.state.scratchpadGuideOpen && this.state.scratchpadGuideRestart && isScratchpad() && (
             <button type="button" class="scratchpad-guide-restart linkish" onClick={this.openScratchpadGuide}>
