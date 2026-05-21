@@ -137,8 +137,7 @@ export class HelpOverlay extends Component<Props> {
             </ol>
             <h2>Once you have a parcel or space</h2>
             <p>
-              Open <b>Add</b> or press <b>Tab</b> to browse features: signs, images, video, showboxes, portals, and
-              the rest. Scratchpad lets you peek -- that unlocks on your land.
+              Open <b>Add</b> or press <b>Tab</b> to browse features: signs, images, video, showboxes, portals, and the rest. Scratchpad lets you peek -- that unlocks on your land.
             </p>
             <p class="scratchpad-help-outro">Reload clears scratchpad. Your parcel keeps what you build.</p>
             {this.props.onShowScratchpadGuide && (
