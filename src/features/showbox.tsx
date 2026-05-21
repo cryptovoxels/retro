@@ -559,6 +559,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     const deviceRow = document.createElement('div')
     Object.assign(deviceRow.style, { display: 'flex', flexDirection: 'column', gap: '4px' })
+    if (mobile) {
+      camLabel.style.display = 'block'
+      micLabel.style.display = 'block'
+    }
     deviceRow.append(camLabel, camSel, micLabel, micSel)
 
     const deviceToggle = document.createElement('button')
@@ -597,7 +601,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       nameInput.value = app.state.name ?? ''
       nameInput.placeholder = 'e.g. DJ ANON'
       nameInput.maxLength = 64
-      Object.assign(nameInput.style, { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: '8px', fontFamily: 'inherit', minHeight: '36px', boxSizing: 'border-box' })
+      Object.assign(nameInput.style, {
+        width: '100%',
+        background: '#1a1a1a',
+        color: '#f5f5f0',
+        border: '1px solid #333',
+        padding: '8px',
+        fontFamily: 'inherit',
+        minHeight: mobile ? '44px' : '36px',
+        fontSize: mobile ? '16px' : 'inherit',
+        boxSizing: 'border-box',
+      })
       const nameStatus = document.createElement('small')
       nameStatus.style.color = '#888'
       let saveTimer: ReturnType<typeof setTimeout> | null = null
@@ -664,13 +678,15 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
       }
       shareBtnRow.append(copyBtn, xBtn)
-      shareRow.append(shareLabel, shareInput, shareBtnRow)
+      shareLabel.style.display = 'block'
       if (mobile) {
-        shareInput.style.display = 'none'
+        shareRow.append(shareLabel, shareBtnRow)
         shareBtnRow.style.flexDirection = 'column'
         copyBtn.textContent = 'copy link for fans'
         Object.assign(copyBtn.style, { background: '#dc1e1e', fontWeight: 'bold', width: '100%', minHeight: '44px' })
         Object.assign(xBtn.style, { width: '100%', minHeight: '44px' })
+      } else {
+        shareRow.append(shareLabel, shareInput, shareBtnRow)
       }
     }
 
@@ -1373,14 +1389,16 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
         {this.state.loading && <small>loading...</small>}
 
         {active.map((p) => (
-          <div className="f" key={p.token}>
-            <strong>{p.name?.trim() || 'guest link'}</strong>
-            <input type="text" readOnly value={this.liveUrl(p.token)} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
-            <div style={{ display: 'flex', gap: '0.5rem', flexDirection: mobile ? 'column' : 'row' }}>
-              <button type="button" style={mobile ? { minHeight: '44px' } : undefined} onClick={() => this.copy(this.liveUrl(p.token))}>
+          <div key={p.token}>
+            <div className="f">
+              <label>{p.name?.trim() || 'guest link'}</label>
+              <input type="text" readOnly value={this.liveUrl(p.token)} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexDirection: mobile ? 'column' : 'row', marginBottom: '0.5rem' }}>
+              <button type="button" style={mobile ? { minHeight: '44px', width: '100%' } : undefined} onClick={() => this.copy(this.liveUrl(p.token))}>
                 copy
               </button>
-              <button type="button" style={mobile ? { minHeight: '44px' } : undefined} onClick={() => this.revoke(p.token)}>
+              <button type="button" style={mobile ? { minHeight: '44px', width: '100%' } : undefined} onClick={() => this.revoke(p.token)}>
                 revoke
               </button>
             </div>
