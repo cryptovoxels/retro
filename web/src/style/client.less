@@ -1939,88 +1939,120 @@ form.PermissionsRadioSelector {
       margin: 0;
     }
   }
-}
 
-.scratchpad-welcome-dialog {
-  z-index: 600;
-}
-
-.scratchpad-welcome {
-  max-width: 28rem;
-
-  .intro {
-    margin: 0 0 1rem 0;
-    line-height: 1.4;
-  }
-
-  h3 {
-    margin: 0 0 0.5rem 0;
-    font-size: 1em;
-    text-shadow: 1px 1px 1px black;
-  }
-
-  .quick-start {
+  .scratchpad-help-steps {
     margin: 0 0 1rem 1.25rem;
     padding: 0;
     line-height: 1.5;
-
-    kbd {
-      display: inline-block;
-      text-align: center;
-      min-width: 18px;
-      padding: 0 6px;
-      height: 24px;
-      line-height: 24px;
-      background: linear-gradient(#444, #666);
-      border: 2px solid black;
-      border-radius: 4px;
-      box-shadow: inset -4px -4px 0 #333;
-      font-size: 0.85em;
-    }
   }
 
-  .note {
+  .scratchpad-help-outro {
     margin: 0 0 1rem 0;
     color: #aaa;
     font-size: 0.9em;
     line-height: 1.4;
   }
+}
 
-  .actions {
+.scratchpad-guide {
+  position: fixed;
+  left: 8rem;
+  bottom: 4rem;
+  z-index: 600;
+  max-width: 14rem;
+  padding: 0.75rem 1rem;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 0.5rem;
+  color: white;
+  pointer-events: auto;
+  text-shadow: 1px 1px 1px black;
+
+  .scratchpad-guide-head {
     display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    align-items: flex-start;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.5rem;
+    gap: 1rem;
+  }
 
-    button.primary,
-    button.secondary {
-      .roundedButton();
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    margin: 0.25rem 0;
+    line-height: 1.35;
+
+    &.done,
+    &.skipped {
+      opacity: 0.45;
     }
 
-    button.primary kbd {
-      margin-left: 0.35rem;
-      font-size: 0.9em;
+    &.current {
+      opacity: 1;
     }
+  }
 
-    .cta-hint {
-      margin: 0;
-      color: #aaa;
-      font-size: 0.85em;
-      line-height: 1.35;
+  .mark {
+    display: inline-block;
+    width: 1.75rem;
+    font-family: monospace;
+  }
+
+  .hint {
+    margin: 0.25rem 0 0.25rem 1.75rem;
+    color: #aaa;
+    line-height: 1.35;
+  }
+
+  button.linkish {
+    margin-left: 1.75rem;
+    background: none;
+    border: none;
+    color: #aaa;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+
+    &:hover {
+      color: #eee;
     }
+  }
+
+  &.scratchpad-guide-mini {
+    left: 50%;
+    bottom: 7rem;
+    transform: translateX(-50%);
+    max-width: none;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.5rem 1rem;
 
     button.linkish {
-      background: none;
-      border: none;
-      color: #aaa;
-      cursor: pointer;
-      padding: 0.25rem 0;
-      text-decoration: underline;
-
-      &:hover {
-        color: #eee;
-      }
+      margin-left: 0;
+      color: white;
     }
+  }
+}
+
+.scratchpad-guide-restart {
+  position: fixed;
+  left: 8rem;
+  bottom: 4rem;
+  z-index: 600;
+  padding: 0.5rem 0.75rem;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 0.5rem;
+  color: white;
+  text-shadow: 1px 1px 1px black;
+  border: none;
+  cursor: pointer;
+
+  &:hover {
+    color: #eee;
   }
 }
 

@@ -10,6 +10,8 @@ import Snackbar from '../web/src/components/snackbar'
 import { app, AppEvent } from '../web/src/state'
 import { KeyboardHandler } from './components/keyboard-handler'
 import { OnlyMobile, ViewOnCondition } from './components/utils'
+import { Animations } from './avatar-animations'
+import { EmoteAnimation } from './states'
 import Connector from './connector'
 import DesktopControls from './controls/desktop/controls'
 import { Environment } from './enviroments/environment'
@@ -37,7 +39,7 @@ import HomeButton from './ui/home-button'
 import { ChatOverlay } from './ui/interact/chat'
 import { EmoteOverlay } from './ui/interact/emote'
 import { HelpOverlay } from './ui/interact/help'
-import { ScratchpadWelcome } from './ui/scratchpad-welcome'
+import { ScratchpadGuide, ScratchpadGuideMini } from './ui/scratchpad-guide'
 import { WompOverlay } from './ui/interact/womps'
 import MobileButtons from './ui/mobile/buttons'
 import OpenLink from './ui/open-link'
@@ -54,23 +56,6 @@ import TakeWomp from './ui/take-womp'
 import UploadStatusUI from './ui/upload-status'
 
 const NUMBER_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const
-const SCRATCHPAD_WELCOME_SEEN = 'scratchpad-welcome-seen'
-
-function scratchpadWelcomeSeen(): boolean {
-  try {
-    return sessionStorage.getItem(SCRATCHPAD_WELCOME_SEEN) === '1'
-  } catch {
-    return false
-  }
-}
-
-function markScratchpadWelcomeSeen() {
-  try {
-    sessionStorage.setItem(SCRATCHPAD_WELCOME_SEEN, '1')
-  } catch {
-    /** sessionStorage unavailable */
-  }
-}
 
 const Location = (props: { scene: BABYLON.Scene; signedIn: any }) => {
   const currentOrNearestParcel = selectCurrentOrNearestParcel()
@@ -139,7 +124,10 @@ type UserInterfaceState = {
   active: boolean
   /** Shown next to minimap expand; same source as Explore Online tab */
   onlineCount: number
-  scratchpadWelcomeOpen?: boolean
+  scratchpadGuideOpen?: boolean
+  scratchpadGuideMini?: boolean
+  scratchpadGuideRestart?: boolean
+  scratchpadGuideKey?: number
 }
 
 export default class UserInterface extends Component<UserInterfaceProps, UserInterfaceState> {
@@ -255,8 +243,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     }
 
     onLoadPromise.then(() => {
-      if (!isScratchpad() || isMobileMedia() || scratchpadWelcomeSeen()) return
-      this.setState({ scratchpadWelcomeOpen: true })
+      if (!isScratchpad() || isMobileMedia()) return
+      this.setState({ scratchpadGuideOpen: true, scratchpadGuideMini: false, scratchpadGuideRestart: false })
     })
   }
 
@@ -268,19 +256,37 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     }
   }
 
-  dismissScratchpadWelcome = () => {
-    markScratchpadWelcomeSeen()
-    this.setState({ scratchpadWelcomeOpen: false })
+  enterScratchpadGuideMini = () => {
+    exitPointerLock()
+    this.setState({ pane: 'add', active: true, scratchpadGuideMini: true })
   }
 
-  onScratchpadStartBuilding = () => {
-    this.dismissScratchpadWelcome()
-    this.toggleVoxelTool()
+  celebrateScratchpadGuideComplete = () => {
+    exitPointerLock()
+    this.connector.emote('🔥')
+    this.connector.persona.popState(this.connector.controls)
+    this.connector.persona.setState({ state: new EmoteAnimation(Animations.Dance) }, this.connector.controls)
+    this.setState({ scratchpadGuideOpen: false, scratchpadGuideMini: false, scratchpadGuideRestart: true })
   }
 
-  onScratchpadOpenHelp = () => {
-    markScratchpadWelcomeSeen()
-    this.setState({ scratchpadWelcomeOpen: false, pane: 'help', active: true })
+  restartScratchpadGuide = () => {
+    this.setState({
+      scratchpadGuideMini: false,
+      scratchpadGuideKey: (this.state.scratchpadGuideKey || 0) + 1,
+      pane: undefined,
+      active: false,
+    })
+  }
+
+  openScratchpadGuide = () => {
+    this.setState({
+      scratchpadGuideOpen: true,
+      scratchpadGuideMini: false,
+      scratchpadGuideRestart: false,
+      scratchpadGuideKey: (this.state.scratchpadGuideKey || 0) + 1,
+      pane: undefined,
+      active: false,
+    })
   }
 
   updateCanEdit = () => {}
@@ -352,6 +358,12 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         {
           code: 'Tab',
           handleEvent: (e) => {
+            if (isScratchpad() && this.state.scratchpadGuideOpen) {
+              e.preventDefault()
+              this.setPane('add')
+              return
+            }
+
             if (!this.state.active) {
               this.setPane('add')
               return
@@ -378,6 +390,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   setPane(pane: UIPanes) {
+    if (isScratchpad() && this.state.scratchpadGuideOpen && pane === 'add') {
+      this.enterScratchpadGuideMini()
+      return
+    }
+
     if (this.state.active) {
       return
     }
@@ -415,10 +432,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   closeInteractOverlay() {
-    if (this.state.scratchpadWelcomeOpen) {
-      this.dismissScratchpadWelcome()
-      return
-    }
     this.setState({ pane: undefined, active: false })
   }
 
@@ -704,7 +717,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         pane = <WompOverlay scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
         break
       case 'help':
-        pane = <HelpOverlay scene={this.props.scene} />
+        pane = <HelpOverlay scene={this.props.scene} onShowScratchpadGuide={isScratchpad() ? this.openScratchpadGuide : undefined} />
         break
       case 'explorer':
         pane = <ExplorerUI scene={this.props.scene} initialTab={this.explorerPaneInitialTab.current!} />
@@ -884,13 +897,25 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
             <ChatOverlay scene={this.props.scene} />
 
-            {pane && <dialog class="editor">{pane}</dialog>}
+            {pane && <dialog class="editor" open>{pane}</dialog>}
           </aside>
 
-          {this.state.scratchpadWelcomeOpen && (
-            <dialog class="editor scratchpad-welcome-dialog">
-              <ScratchpadWelcome onStartBuilding={this.onScratchpadStartBuilding} onOpenHelp={this.onScratchpadOpenHelp} onDismiss={this.dismissScratchpadWelcome} />
-            </dialog>
+          {this.state.scratchpadGuideOpen && !this.state.scratchpadGuideMini && (
+            <ScratchpadGuide
+              key={this.state.scratchpadGuideKey || 0}
+              voxelTool={this.voxelTool}
+              onComplete={this.celebrateScratchpadGuideComplete}
+            />
+          )}
+
+          {this.state.scratchpadGuideOpen && this.state.scratchpadGuideMini && (
+            <ScratchpadGuideMini onGotIt={this.celebrateScratchpadGuideComplete} onStartOver={this.restartScratchpadGuide} />
+          )}
+
+          {!this.state.scratchpadGuideOpen && this.state.scratchpadGuideRestart && isScratchpad() && (
+            <button type="button" class="scratchpad-guide-restart linkish" onClick={this.openScratchpadGuide}>
+              start over
+            </button>
           )}
 
           {nearestEditableParcel && <ToolBelt parcel={nearestEditableParcel} scene={this.props.scene} />}

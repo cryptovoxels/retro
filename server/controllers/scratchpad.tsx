@@ -30,7 +30,7 @@ const space = {
 export default function ScratchpadController(app: Express) {
   app.get('/scratchpad', (_req, res) => {
     const html = (
-      <ClientRoot title="Voxels Scratchpad" ogTitle="Scratchpad" ogDescription="Build stuff">
+      <ClientRoot title="Voxels Scratchpad" ogTitle="Scratchpad" ogDescription="Free practice space. Learn to build voxels before you buy land.">
         <JsonData id="space" data={{ ...space, voxels: '' }} dataId="scratchpad" />
       </ClientRoot>
     )
