@@ -86,6 +86,11 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       return res.status(400).json({ success: false, error: 'feature_uuid must reference a Showbox on this parcel' })
     }
 
+    const existing = await db.query('sql/guest-passes/active-for-feature', `select token from guest_passes where parcel_id = $1 and feature_uuid = $2 and revoked_at is null limit 1`, [parcelId, featureUuid])
+    if (existing.rows[0]) {
+      return res.status(400).json({ success: false, error: 'revoke the existing link first' })
+    }
+
     const token = crypto.randomBytes(24).toString('base64url')
     const createdBy = (req.user?.wallet ?? '').toLowerCase()
 
