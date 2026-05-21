@@ -674,7 +674,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       xBtn.textContent = 'post on x'
       Object.assign(xBtn.style, { background: '#333', color: '#f5f5f0', border: '0', padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', flex: '1', minHeight: '36px' })
       xBtn.onclick = () => {
-        const text = `Going live in voxels - teleport in now! @Cryptovoxels ${showUrl}`
+        const text = `Going live @Cryptovoxels - teleport in now! ${showUrl}`
         window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
       }
       shareBtnRow.append(copyBtn, xBtn)
