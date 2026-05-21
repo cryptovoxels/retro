@@ -304,14 +304,7 @@ export default abstract class Controls implements IControls {
         this.persona.firstPersonView = this.firstPersonView
       }
     } else {
-      // cast a ray back in the backwards direction, as a candidate 3rd-person camera positions
-      // const avatarToCameraRay = new BABYLON.Ray(this.persona.position.add(this.worldOffset.position), backwards, this.targetCameraDistance)
-      // // Allow visible, non-animated, non-avatar meshes in the to push the camera forward. Excluding animations stops the camera from changing without user action
-      // const pickInfo = this.scene.pickWithRay(avatarToCameraRay, (e) => e.visibility > 0 && !e.metadata?.isAvatarPart && e.name !== 'avatar' && !e.animations?.length)
-      // // ensure that a wall is not in between camera and avatar, brining the camera closer if needed
-      // const clippedTargetDistance = pickInfo?.hit ? pickInfo.distance - 0.1 : this.targetCameraDistance
-      // move closer to the target distance
-      this.cameraDistance = 2.0 // this.targetCameraDistance // easeCamera(this.cameraDistance, clippedTargetDistance, 1.8)
+      this.cameraDistance = 2.0
     }
 
     // place camera
@@ -767,29 +760,3 @@ function generateReticule(scene: BABYLON.Scene, highlight = false) {
 
   return reticule
 }
-
-// function animateReticuleScale(mesh: BABYLON.Mesh) {
-//   const frameRate = 60
-//   const animation = new BABYLON.Animation('Scal', 'scaling', frameRate, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE)
-
-//   // An array with all animation keys
-//   const keyframes = [
-//     {
-//       frame: 0,
-//       value: new BABYLON.Vector3(1, 1, 1),
-//     },
-//     {
-//       frame: 30,
-//       value: new BABYLON.Vector3(1.3, 1.3, 1.3),
-//     },
-//     {
-//       frame: 60,
-//       value: new BABYLON.Vector3(1, 1, 1),
-//     },
-//   ]
-
-//   animation.setKeys(keyframes)
-
-//   mesh.getScene().beginDirectAnimation(mesh, [animation], 0, 2 * frameRate, true)
-//   return mesh
-// }

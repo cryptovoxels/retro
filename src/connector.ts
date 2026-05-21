@@ -739,7 +739,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       return
     }
 
-    avatar.attachmentManager?.changeCostume(message.costumeId ?? 0)
+    avatar.attachmentManager?.loadCostume(undefined, message.costumeId ?? undefined)
     avatar.recordSeen()
   }
 
