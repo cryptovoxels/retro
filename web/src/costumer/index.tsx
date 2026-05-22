@@ -645,26 +645,28 @@ export default class Costumer extends Component<Props, State> {
         </article>
 
         <aside>
-          <div class="add-wearable">
-            <button type="button" onClick={() => this.setState({ bonePicker: !this.state.bonePicker })}>
-              + add wearable
-            </button>
-            {this.state.bonePicker && (
-              <ul class="bone-list">
-                {BoneNames.filter((b) => !b.includes('index')).map((b) => (
-                  <li
-                    key={b}
-                    onClick={() => {
-                      this.setState({ bonePicker: false })
-                      void this.addAttachmentForBone(b)
-                    }}
-                  >
-                    {b}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
+          {this.costume && (
+            <div class="add-wearable">
+              <button type="button" onClick={() => this.setState({ bonePicker: !this.state.bonePicker })}>
+                + add wearable
+              </button>
+              {this.state.bonePicker && (
+                <ul class="bone-list">
+                  {BoneNames.filter((b) => !b.includes('index')).map((b) => (
+                    <li
+                      key={b}
+                      onClick={() => {
+                        this.setState({ bonePicker: false })
+                        void this.addAttachmentForBone(b)
+                      }}
+                    >
+                      {b}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
 
           {this.state.unowned.length > 0 && (
             <p class="shopping-list">
