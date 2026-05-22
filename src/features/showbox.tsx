@@ -30,6 +30,7 @@ const DOCK_EMOJIS = ['🔥', '🙌', '❤️', '😂', '👏', '🎉']
 
 const DEFAULT_VOLUME = 0.7
 const MAX_VOLUME = 1
+const VOLUME_REFRESH_INTERVAL = 200
 const LIVEKIT_URL = 'https://voxels-7pvk06qt.livekit.cloud'
 const mobile = isMobile()
 
@@ -96,6 +97,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   liveStartedAt: number | null = null
   audioMeterRaf: number | null = null
   audioMeterCtx: AudioContext | null = null
+  streamAudioEls: HTMLAudioElement[] = []
+  streamVolumeInterval: ReturnType<typeof setInterval> | null = null
   hasActiveVideo = false
 
   roomName() {
@@ -118,6 +121,34 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   get audio() {
     return window._audio
+  }
+
+  effectiveStreamVolume() {
+    const parcelVol = this.audio?.parcelOut.gain.value ?? 1
+    return Math.min(1, Math.max(0, this.volume * parcelVol))
+  }
+
+  refreshStreamVolume() {
+    const vol = this.effectiveStreamVolume()
+    for (const el of this.streamAudioEls) {
+      el.volume = vol
+    }
+  }
+
+  trackStreamAudio(el: HTMLAudioElement) {
+    this.streamAudioEls.push(el)
+    el.volume = this.effectiveStreamVolume()
+    if (!this.streamVolumeInterval) {
+      this.streamVolumeInterval = setInterval(() => this.refreshStreamVolume(), VOLUME_REFRESH_INTERVAL)
+    }
+  }
+
+  stopStreamVolumePoll() {
+    if (this.streamVolumeInterval) {
+      clearInterval(this.streamVolumeInterval)
+      this.streamVolumeInterval = null
+    }
+    this.streamAudioEls = []
   }
 
   shouldBeInteractive(): boolean {
@@ -163,6 +194,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.livekitRoom.disconnect()
       this.livekitRoom = null
       this.hasActiveVideo = false
+      this.stopStreamVolumePoll()
       this.audio?.removeUserAudioReference(this)
     }
   }
@@ -171,6 +203,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this._dispose()
     this.livekitRoom?.disconnect()
     this.livekitRoom = null
+    this.stopStreamVolumePoll()
     this.stopBroadcast(true)
     this.broadcastPanel?.remove()
     this.broadcastPanel = null
@@ -248,9 +281,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (this.broadcastRoom) return
       if (track.kind === Track.Kind.Audio) {
         const el = track.attach() as HTMLAudioElement
-        el.volume = this.volume
         el.style.display = 'none'
         document.body.appendChild(el)
+        this.trackStreamAudio(el)
         this.audio?.addUserAudioReference(this)
         this.startBroadcastAudio()
         return
@@ -264,6 +297,16 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     room.on(RoomEvent.TrackUnsubscribed, (track) => {
       if (this.broadcastRoom) return
       if (track.kind === Track.Kind.Audio) {
+        track.detach().forEach((node) => {
+          const i = this.streamAudioEls.indexOf(node as HTMLAudioElement)
+          if (i >= 0) this.streamAudioEls.splice(i, 1)
+        })
+        if (!this.streamAudioEls.length) {
+          if (this.streamVolumeInterval) {
+            clearInterval(this.streamVolumeInterval)
+            this.streamVolumeInterval = null
+          }
+        }
         this.audio?.removeUserAudioReference(this)
       }
       if (track.kind === Track.Kind.Video) {
