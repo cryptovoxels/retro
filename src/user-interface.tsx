@@ -77,7 +77,7 @@ export enum Mode {
   Avatar,
 }
 
-export type UIPanes = 'add' | 'edit' | 'inspector' | 'feature-editor' | 'info' | 'debugTool' | 'nfts' | 'chat' | 'emote' | 'settings' | 'womp' | 'help' | 'costumer' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake'
+export type UIPanes = 'add' | 'edit' | 'inspector' | 'feature-editor' | 'info' | 'debugTool' | 'nfts' | 'chat' | 'emote' | 'settings' | 'womp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake'
 
 export interface Tool {
   activate: () => void
@@ -752,10 +752,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   Womps
                 </a>
               </li>
-              <li class={active('costumer', !this.state.signedIn)}>
-                <a href="#" onMouseOver={onHover('costumer')} onClick={onClick('costumer')}>
-                  Costumes
-                </a>
+              <li class={!this.state.signedIn ? 'disabled' : ''}>
+                <a href="/costumer" target="_blank" rel="noopener">Costumes</a>
               </li>
               {/* <li class={active('summon')}>
                 <a title="I for one welcome our robot overlords" onClick={onSummon}>
