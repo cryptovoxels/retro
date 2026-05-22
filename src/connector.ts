@@ -65,6 +65,12 @@ export type ChatMessageRecord = Readonly<{
 
 export const messageList = signal<ChatMessageRecord[]>([])
 
+const CLEAR_CHAT_COMMANDS = new Set(['/clear', '/cls', '/clearchat'])
+
+export function clearChatView() {
+  messageList.value = []
+}
+
 /** Bumped when conga follow starts/stops so UI (e.g. chat hint) re-renders. */
 export const congaFollowUiRev = signal(0)
 
@@ -755,6 +761,11 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   }
 
   sendMessage(text: string) {
+    if (CLEAR_CHAT_COMMANDS.has(text.trim().toLowerCase())) {
+      clearChatView()
+      return
+    }
+
     if (text.startsWith('/conga')) {
       this.handleConga(text)
       return
