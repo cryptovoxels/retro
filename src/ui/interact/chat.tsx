@@ -1,3 +1,4 @@
+import { effect } from '@preact/signals'
 import { Component, createRef, Fragment, JSX } from 'preact'
 import { forwardRef } from 'preact/compat'
 import { useEffect, useRef, useState } from 'preact/hooks'
@@ -30,6 +31,7 @@ type State = {
 export class ChatOverlay extends Component<Props, State> {
   lastSentTyping: number | null = null
   inputRef: preact.RefObject<HTMLDivElement>
+  chatDispose?: () => void
   static instance: ChatOverlay | null = null
   constructor(props: Props) {
     super(props)
@@ -70,6 +72,20 @@ export class ChatOverlay extends Component<Props, State> {
 
   onChatInputFocus = (bool: boolean) => {
     this.setState({ focused: bool })
+  }
+
+  componentDidMount() {
+    this.chatDispose = effect(() => {
+      messageList.value
+      this.forceUpdate()
+    })
+  }
+
+  componentWillUnmount() {
+    this.chatDispose?.()
+    if (ChatOverlay.instance === this) {
+      ChatOverlay.instance = null
+    }
   }
 
   render() {
