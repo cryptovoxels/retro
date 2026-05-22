@@ -147,6 +147,39 @@
 
   // wearable grid
 
+  .bone-placement {
+    h4 {
+      margin: 0.5rem 0 0.2rem;
+    }
+  }
+
+  .bone-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    li {
+      cursor: pointer;
+      padding: 0.2rem 0;
+
+      &:hover {
+        background: #eee;
+      }
+
+      &.suggested {
+        font-weight: bold;
+      }
+    }
+  }
+
+  .bone-more {
+    margin-top: 0.5rem;
+
+    summary {
+      cursor: pointer;
+    }
+  }
+
   .wearable-selector {
     max-width: 30vw;
 
@@ -157,6 +190,14 @@
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
+
+      li {
+        cursor: pointer;
+
+        &:hover {
+          background: #eee;
+        }
+      }
 
       li > div {
         width: 4rem;

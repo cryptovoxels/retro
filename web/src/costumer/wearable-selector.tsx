@@ -4,7 +4,7 @@ import { Attachment } from './index'
 import { bucketUrl, renderUrl } from '../assets'
 import Image from '../components/image'
 
-type WearableRow = { id: string; name: string; is_free: boolean }
+export type WearableRow = { id: string; name: string; is_free: boolean; default_bone?: string | null }
 
 interface Props {
   attachment: Attachment

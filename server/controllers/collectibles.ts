@@ -10,7 +10,7 @@ export default function (db: Db, passport: any, app: any) {
     const bone = req.query.bone || ''
     const result = await db.query(
       'embedded/wearables-suggest',
-      `select id, name, is_free from wearables
+      `select id, name, is_free, default_bone from wearables
        where suppressed is not true
          and token_id is not null
        order by
@@ -26,7 +26,7 @@ export default function (db: Db, passport: any, app: any) {
     const q = `%${req.query.q || ''}%`
     const result = await db.query(
       'embedded/wearables-search',
-      `select id, name, is_free from wearables
+      `select id, name, is_free, default_bone from wearables
        where name ilike $1
          and suppressed is not true
          and token_id is not null

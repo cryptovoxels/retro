@@ -3,7 +3,9 @@ import TextInput from '../../src/components/inplace/text'
 import Skin from './skin'
 import { app } from '../../src/state'
 import Avatar from './avatar'
-import { BoneNames, Costume, CostumeAttachment } from '../../../common/messages/costumes'
+import { Costume, CostumeAttachment } from '../../../common/messages/costumes'
+import BonePlacementList from './bone-placement'
+import type { WearableRow } from './wearable-selector'
 
 export type Attachment = Omit<CostumeAttachment, 'wid'> & {
   wid?: string
@@ -44,7 +46,8 @@ interface State {
   avatarCostumeId?: number
   ctxMenu: { id: number; x: number; y: number } | null
   navOpen: boolean
-  bonePicker: boolean
+  addingWearable: boolean
+  pendingWearable: WearableRow | null
   unowned: string[]
 }
 
@@ -61,7 +64,8 @@ export default class Costumer extends Component<Props, State> {
     loading: true,
     ctxMenu: null,
     navOpen: true,
-    bonePicker: false,
+    addingWearable: false,
+    pendingWearable: null,
     unowned: [],
   }
 
@@ -177,7 +181,7 @@ export default class Costumer extends Component<Props, State> {
     await this.throttledUpdate(costume)
   }
   onClick = (mesh: BABYLON.AbstractMesh | undefined) => {
-    if (mesh?.id === 'bonesphere' && mesh.metadata) {
+    if (mesh?.id === 'bonesphere' && mesh.metadata && this.state.pendingWearable) {
       const boneName = String(mesh.metadata).toLowerCase()
       void this.addAttachmentForBone(boneName)
       return
@@ -186,18 +190,38 @@ export default class Costumer extends Component<Props, State> {
   }
 
   addAttachmentForBone = (bone: string) => {
-    if (!this.costume) return
+    if (!this.costume || !this.state.pendingWearable) return
     const b = bone.toLowerCase()
-    const attachment: Attachment = { position: [0, 0, 0], rotation: [0, 0, 0], scaling: [0.5, 0.5, 0.5], bone: b }
+    const { id, name } = this.state.pendingWearable
+    const attachment: Attachment = {
+      position: [0, 0, 0],
+      rotation: [0, 0, 0],
+      scaling: [0.5, 0.5, 0.5],
+      bone: b,
+      wid: id,
+      wearable: { id, name: name ?? id },
+    }
     const attachments = [...((this.costume.attachments || []) as Attachment[])].filter((a) => a.bone !== b)
     attachments.push(attachment)
     const idx = attachments.length - 1
-    this.setState({ attachmentIdx: idx })
+    this.setState({ attachmentIdx: idx, addingWearable: false, pendingWearable: null })
     void this.updateCostume({ ...this.costume, attachments: attachments as any })
+  }
+
+  toggleAddingWearable = () => {
+    if (this.state.addingWearable) {
+      this.setState({ addingWearable: false, pendingWearable: null })
+    } else {
+      this.setState({ addingWearable: true, pendingWearable: null, attachmentIdx: null })
+    }
   }
 
   onCanvasPointerMove = (ev: MouseEvent) => {
     if (!this.scene || !this.canvas.current) return
+    if (!this.state.pendingWearable) {
+      this.resetBoneSphereHighlights(null)
+      return
+    }
     const info = this.scene.pick(ev.offsetX, ev.offsetY, (m: BABYLON.AbstractMesh) => m.id == 'bonesphere')
     const hb = info?.hit && info.pickedMesh?.metadata ? String(info.pickedMesh.metadata) : null
     this.resetBoneSphereHighlights(hb)
@@ -647,23 +671,30 @@ export default class Costumer extends Component<Props, State> {
         <aside>
           {this.costume && (
             <div class="add-wearable">
-              <button type="button" onClick={() => this.setState({ bonePicker: !this.state.bonePicker })}>
-                + add wearable
+              <button type="button" onClick={this.toggleAddingWearable}>
+                {this.state.addingWearable ? 'cancel' : '+ add wearable'}
               </button>
-              {this.state.bonePicker && (
-                <ul class="bone-list">
-                  {BoneNames.filter((b) => !b.includes('index')).map((b) => (
-                    <li
-                      key={b}
-                      onClick={() => {
-                        this.setState({ bonePicker: false })
-                        void this.addAttachmentForBone(b)
-                      }}
-                    >
-                      {b}
-                    </li>
-                  ))}
-                </ul>
+              {this.state.addingWearable && !this.state.pendingWearable && (
+                <>
+                  <p>pick a wearable</p>
+                  <WearableSelector
+                    attachment={{ bone: '', position: [0, 0, 0], rotation: [0, 0, 0], scaling: [0.5, 0.5, 0.5] }}
+                    bone=""
+                    onPick={(w) => this.setState({ pendingWearable: w })}
+                  />
+                </>
+              )}
+              {this.state.pendingWearable && (
+                <>
+                  <p>
+                    <b>{this.state.pendingWearable.name}</b> -- where does it go?
+                  </p>
+                  <p>click a joint on the avatar, or pick a spot below</p>
+                  <BonePlacementList defaultBone={this.state.pendingWearable.default_bone} onPick={(b) => void this.addAttachmentForBone(b)} />
+                  <button type="button" onClick={() => this.setState({ pendingWearable: null })}>
+                    back
+                  </button>
+                </>
               )}
             </div>
           )}
