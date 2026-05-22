@@ -83,7 +83,6 @@ export default class Costumer extends Component<Props, State> {
     this.fetch().then((avatarCostumeId) => {
       if (!this.props.costumeId && avatarCostumeId) {
         route(`/costumer/${avatarCostumeId}`, true)
-        return
       }
       this.engine?.runRenderLoop(() => {
         this.scene?.render()
