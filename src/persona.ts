@@ -6,7 +6,7 @@ import Connector from './connector'
 import { Animations, isCongaSyncedDance } from './avatar-animations'
 import * as States from './states'
 import { app, AppEvent } from '../web/src/state'
-import { LoadUserAvatar, UserAvatar } from './user-avatar'
+import Avatar, { LoadUserAvatar } from './avatar'
 import { decodeCoordsFromURL } from './utils/helpers'
 import { wantsXR } from '../common/helpers/detector'
 import { Action, AvatarIdentity } from '../common/messages'
@@ -22,7 +22,7 @@ export default class Persona {
   firstPersonView: boolean
   position: BABYLON.Vector3
   rotation: BABYLON.Vector3
-  avatar: UserAvatar | undefined = undefined
+  avatar: Avatar | undefined = undefined
   avatarSignature: AvatarIdentity | null = null
   onAnimationChanged: BABYLON.Observable<Animations> = new BABYLON.Observable()
   private facingForward: boolean

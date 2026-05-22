@@ -350,6 +350,14 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       return true
     }
 
+    const userWallet = window.user?.wallet?.toLowerCase()
+    if (userWallet) {
+      const canEditList = [...this.contributors, ...this.owners].map((x) => (x ? x.toLowerCase().trim() : '')).filter((x) => typeof x === 'string' && x.trim())
+      if (canEditList.find((w) => userWallet === w)) {
+        return true
+      }
+    }
+
     // override canEdit if the role has been assigned by the grid socket
     if (this.socketAuth !== undefined) {
       if (this.socketAuth == 'Temporarily Banned') {
@@ -357,15 +365,8 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       }
       return !!this.socketAuth && this.socketAuth !== 'Moderator'
     }
-    const userWallet = window.user?.wallet
-    if (!userWallet) {
-      // must be logged in to edit
-      return false
-    }
 
-    const canEditList = [...this.contributors, ...this.owners].map((x) => (x ? x.toLowerCase().trim() : '')).filter((x) => typeof x === 'string' && x.trim())
-
-    return !!canEditList.find((w) => userWallet === w)
+    return false
   }
 
   get isNearby() {

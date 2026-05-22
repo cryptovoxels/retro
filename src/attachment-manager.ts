@@ -63,10 +63,7 @@ export class AvatarAttachmentManager {
    * @returns {void} void
    */
   generateCostume(costume?: Costume) {
-    // Maximum of 12 attachments
     this.abortController = new AbortController()
-    // console.log('generateCostume', JSON.stringify(costume, null, 2))
-
     this.costume = costume ?? null
 
     if (costume) {
@@ -78,14 +75,6 @@ export class AvatarAttachmentManager {
     this.attachments = ((costume && costume.attachments) || []).slice(0, 12)
     this.avatar.isUser && app.setState({ costume: costume })
     this.loadAttachments()
-  }
-
-  changeCostume(costumeId?: number) {
-    if (this.attached) {
-      this.attached.forEach((a) => a.dispose())
-    }
-    if (costumeId) this.costume_id = costumeId
-    this.fetchCostume(this.costume_id ?? undefined)
   }
 
   async fetchCostume(costumeId?: number) {
@@ -212,33 +201,18 @@ export class AvatarAttachmentManager {
 
     this.attachments.splice(this.attachments.indexOf(wearable), 1)
     const mesh = wearable.mesh
-    if (mesh) {
-      this.attached.splice(this.attached.indexOf(mesh), 1)
-      mesh.dispose()
-    } else {
-      this.loadAttachments()
-    }
+    if (!mesh) return
+    this.attached.splice(this.attached.indexOf(mesh), 1)
+    mesh.dispose()
   }
 
-  /**
-   * Method to disable all attachments on an avatar
-   * @returns {void} void
-   */
   hideAllWearables() {
-    if (this.visible && !!this.attachments) {
-      this.attachments.forEach((attachment) => attachment.mesh?.setEnabled(false))
-    }
     this.visible = false
+    this.attached.forEach((m) => m.setEnabled(false))
   }
 
-  /**
-   * Method to enable all attachments on the avatar
-   * @returns {void} void
-   */
   showAllWearables() {
-    if (!this.visible && !!this.attachments) {
-      this.attachments.forEach((attachment) => attachment.mesh?.setEnabled(true))
-    }
     this.visible = true
+    this.attached.forEach((m) => m.setEnabled(true))
   }
 }

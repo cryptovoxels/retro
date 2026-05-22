@@ -1,3 +1,4 @@
+import { effect } from '@preact/signals'
 import { Component, createRef, Fragment, JSX } from 'preact'
 import { forwardRef } from 'preact/compat'
 import { useEffect, useRef, useState } from 'preact/hooks'
@@ -14,6 +15,7 @@ import GuestBook from '../../features/guest-book'
 import Persona from '../../persona'
 import { matcher } from '../../obscenity'
 import { NearByPlayers } from './nearby-players'
+import { createEvent, TypedEventTarget } from '../../utils/EventEmitter'
 
 interface Props {
   scene: BABYLON.Scene
@@ -30,6 +32,7 @@ type State = {
 export class ChatOverlay extends Component<Props, State> {
   lastSentTyping: number | null = null
   inputRef: preact.RefObject<HTMLDivElement>
+  chatDispose?: () => void
   static instance: ChatOverlay | null = null
   constructor(props: Props) {
     super(props)
@@ -70,6 +73,20 @@ export class ChatOverlay extends Component<Props, State> {
 
   onChatInputFocus = (bool: boolean) => {
     this.setState({ focused: bool })
+  }
+
+  componentDidMount() {
+    this.chatDispose = effect(() => {
+      messageList.value
+      this.forceUpdate()
+    })
+  }
+
+  componentWillUnmount() {
+    this.chatDispose?.()
+    if (ChatOverlay.instance === this) {
+      ChatOverlay.instance = null
+    }
   }
 
   render() {
@@ -252,3 +269,41 @@ const ChatInput = () => {
     </div>
   )
 }
+
+export class ChatSettings extends TypedEventTarget<{ changed: { enabled: boolean } }> {
+  constructor() {
+    super()
+    const settings = this.getSavedSettings()
+    if ('enabled' in settings) {
+      this._enabled = !!settings.enabled
+    }
+  }
+
+  private _enabled = true
+
+  get enabled() {
+    return this._enabled
+  }
+
+  set enabled(value: boolean) {
+    this._enabled = value
+    this.saveSettings({ enabled: value })
+    this.dispatchEvent(createEvent('changed', { enabled: value }))
+  }
+
+  private getSavedSettings() {
+    if (typeof localStorage === 'undefined') return {}
+    try {
+      return JSON.parse(localStorage.getItem('chat') || '{}') || {}
+    } catch {
+      return {}
+    }
+  }
+
+  private saveSettings(settings: { enabled: boolean }) {
+    if (typeof localStorage === 'undefined') return
+    localStorage.setItem('chat', JSON.stringify(settings))
+  }
+}
+
+export const chatSettings = new ChatSettings()

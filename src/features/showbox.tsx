@@ -8,6 +8,7 @@ import { effect } from '@preact/signals'
 import { Room, RoomEvent, Track, createLocalScreenTracks, createLocalTracks } from 'livekit-client'
 import { avatarName } from '../../common/messages/avatar-ref'
 import { app } from '../../web/src/state'
+import { PanelType } from '../../web/src/components/panel'
 import { messageList, type ChatMessageRecord } from '../connector'
 import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
 import { Animations } from '../avatar-animations'
@@ -30,6 +31,7 @@ const DOCK_EMOJIS = ['🔥', '🙌', '❤️', '😂', '👏', '🎉']
 const DEFAULT_VOLUME = 0.7
 const MAX_VOLUME = 1
 const VIEWER_RETRY_INTERVAL = 20_000
+const VOLUME_REFRESH_INTERVAL = 200
 const LIVEKIT_URL = 'https://voxels-7pvk06qt.livekit.cloud'
 const mobile = isMobile()
 
@@ -101,6 +103,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   liveStartedAt: number | null = null
   audioMeterRaf: number | null = null
   audioMeterCtx: AudioContext | null = null
+  streamAudioEls: HTMLAudioElement[] = []
+  streamVolumeInterval: ReturnType<typeof setInterval> | null = null
   hasActiveVideo = false
   viewerRoomFull = false
   viewerConnecting = false
@@ -128,6 +132,34 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return window._audio
   }
 
+  effectiveStreamVolume() {
+    const parcelVol = this.audio?.parcelOut.gain.value ?? 1
+    return Math.min(1, Math.max(0, this.volume * parcelVol))
+  }
+
+  refreshStreamVolume() {
+    const vol = this.effectiveStreamVolume()
+    for (const el of this.streamAudioEls) {
+      el.volume = vol
+    }
+  }
+
+  trackStreamAudio(el: HTMLAudioElement) {
+    this.streamAudioEls.push(el)
+    el.volume = this.effectiveStreamVolume()
+    if (!this.streamVolumeInterval) {
+      this.streamVolumeInterval = setInterval(() => this.refreshStreamVolume(), VOLUME_REFRESH_INTERVAL)
+    }
+  }
+
+  stopStreamVolumePoll() {
+    if (this.streamVolumeInterval) {
+      clearInterval(this.streamVolumeInterval)
+      this.streamVolumeInterval = null
+    }
+    this.streamAudioEls = []
+  }
+
   shouldBeInteractive(): boolean {
     return true
   }
@@ -140,9 +172,18 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
     this.mesh.id = this.mesh.name + '/' + this.uuid
     this.setCommon()
+    this.addEvents()
     this.setPreview()
     if (this.isInCurrentParcel) {
       this.onEnter()
+    }
+    if (process.env.NODE_ENV !== 'production') {
+      try {
+        const q = new URLSearchParams(location.search)
+        if (q.get('debugShowboxDock') === this.uuid) {
+          setTimeout(() => this.openBroadcastPanel(), 5000)
+        }
+      } catch {}
     }
     return Promise.resolve()
   }
@@ -164,6 +205,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.livekitRoom.disconnect()
       this.livekitRoom = null
       this.hasActiveVideo = false
+      this.stopStreamVolumePoll()
       this.audio?.removeUserAudioReference(this)
     }
   }
@@ -189,6 +231,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.viewerRoomFull = false
     this.livekitRoom?.disconnect()
     this.livekitRoom = null
+    this.stopStreamVolumePoll()
     this.stopBroadcast(true)
     this.broadcastPanel?.remove()
     this.broadcastPanel = null
@@ -197,6 +240,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   setPreview() {
     if (this.disposed) return
+    if (this.broadcastRoom) return
     if (this.hasActiveVideo) return
     const w = 640
     const h = 360
@@ -258,7 +302,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   async connectViewer() {
     if (this.livekitRoom || this.viewerConnecting) return
     this.viewerConnecting = true
-    const res = await fetch(`/api/rooms/${this.roomName()}/token`)
+    const res = await fetch(`/api/rooms/${this.roomName()}/token`, { credentials: 'include' })
       .then((r) => r.json())
       .catch(() => null)
     if (!res?.token || this.disposed) {
@@ -270,11 +314,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.livekitRoom = room
 
     room.on(RoomEvent.TrackSubscribed, (track) => {
+      // Two livekit connections (publish + subscribe) would play the broadcaster's own stream back.
+      if (this.broadcastRoom) return
       if (track.kind === Track.Kind.Audio) {
         const el = track.attach() as HTMLAudioElement
-        el.volume = this.volume
         el.style.display = 'none'
         document.body.appendChild(el)
+        this.trackStreamAudio(el)
         this.audio?.addUserAudioReference(this)
         this.startBroadcastAudio()
         return
@@ -286,7 +332,18 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     })
 
     room.on(RoomEvent.TrackUnsubscribed, (track) => {
+      if (this.broadcastRoom) return
       if (track.kind === Track.Kind.Audio) {
+        track.detach().forEach((node) => {
+          const i = this.streamAudioEls.indexOf(node as HTMLAudioElement)
+          if (i >= 0) this.streamAudioEls.splice(i, 1)
+        })
+        if (!this.streamAudioEls.length) {
+          if (this.streamVolumeInterval) {
+            clearInterval(this.streamVolumeInterval)
+            this.streamVolumeInterval = null
+          }
+        }
         this.audio?.removeUserAudioReference(this)
       }
       if (track.kind === Track.Kind.Video) {
@@ -425,6 +482,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.broadcastChatDispose()
       this.broadcastChatDispose = null
     }
+    if (this.isInCurrentParcel && !this.livekitRoom) {
+      this.connectViewer()
+    }
   }
 
   openBroadcastPanel() {
@@ -437,7 +497,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     exitPointerLock()
 
-    const showUrl = audienceShowUrl(this)
+    const isGuest = isGuestForShowbox(this.uuid)
 
     const panel = document.createElement('div')
     this.broadcastPanel = panel
@@ -586,15 +646,30 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     micLabel.textContent = 'microphone'
     const micSel = document.createElement('select')
     Object.assign(micSel.style, { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: '4px' })
+    if (mobile) {
+      Object.assign(camSel.style, { fontSize: '16px', minHeight: '44px', padding: '8px' })
+      Object.assign(micSel.style, { fontSize: '16px', minHeight: '44px', padding: '8px' })
+    }
 
     const screenOpt = document.createElement('label')
     const screenChk = document.createElement('input')
     screenChk.type = 'checkbox'
     screenOpt.append(screenChk, ' use screenshare instead of camera')
+    const screenHint = document.createElement('small')
+    screenHint.textContent = 'mute the shared tab in chrome or you will hear double audio'
+    screenHint.style.color = '#888'
+    screenHint.style.display = 'none'
+    screenChk.onchange = () => {
+      screenHint.style.display = screenChk.checked ? 'block' : 'none'
+    }
     if (mobile) screenOpt.style.display = 'none' // screenshare from a phone is unreliable; stick to the camera
 
     const deviceRow = document.createElement('div')
     Object.assign(deviceRow.style, { display: 'flex', flexDirection: 'column', gap: '4px' })
+    if (mobile) {
+      camLabel.style.display = 'block'
+      micLabel.style.display = 'block'
+    }
     deviceRow.append(camLabel, camSel, micLabel, micSel)
 
     const deviceToggle = document.createElement('button')
@@ -618,23 +693,32 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       deviceToggle.textContent = open ? 'change camera or mic' : 'hide camera and mic'
     }
 
-    // Identity row. Owners use their voxels profile. Guests pick their own name here before going live.
-    const isGuest = isGuestForShowbox(this.uuid)
+    // Name row only for guests on /live/ links.
     const guestToken = isGuest ? guestPassToken() : null
     let guestNameInput: HTMLInputElement | null = null
-
-    const identityRow = document.createElement('div')
-    Object.assign(identityRow.style, { display: 'flex', flexDirection: 'column', gap: '4px' })
-    const identityLabel = document.createElement('label')
-    identityLabel.textContent = isGuest ? 'Name' : 'streaming as'
+    let identityRow: HTMLDivElement | null = null
     if (isGuest && guestToken) {
+      identityRow = document.createElement('div')
+      Object.assign(identityRow.style, { display: 'flex', flexDirection: 'column', gap: '4px' })
+      const identityLabel = document.createElement('label')
+      identityLabel.textContent = 'Name'
       const nameInput = document.createElement('input')
       guestNameInput = nameInput
       nameInput.type = 'text'
       nameInput.value = app.state.name ?? ''
       nameInput.placeholder = 'e.g. DJ ANON'
       nameInput.maxLength = 64
-      Object.assign(nameInput.style, { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: '8px', fontFamily: 'inherit', minHeight: '36px', boxSizing: 'border-box' })
+      Object.assign(nameInput.style, {
+        width: '100%',
+        background: '#1a1a1a',
+        color: '#f5f5f0',
+        border: '1px solid #333',
+        padding: '8px',
+        fontFamily: 'inherit',
+        minHeight: mobile ? '44px' : '36px',
+        fontSize: mobile ? '16px' : 'inherit',
+        boxSizing: 'border-box',
+      })
       const nameStatus = document.createElement('small')
       nameStatus.style.color = '#888'
       let saveTimer: ReturnType<typeof setTimeout> | null = null
@@ -665,51 +749,52 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
       nameInput.onblur = () => save(true)
       identityRow.append(identityLabel, nameInput, nameStatus)
-    } else {
-      const nameDisplay = document.createElement('div')
-      nameDisplay.textContent = app.state.name ?? '(set your name in your voxels profile)'
-      Object.assign(nameDisplay.style, { background: '#1a1a1a', border: '1px solid #333', padding: '8px', color: '#f5f5f0', minHeight: '36px', boxSizing: 'border-box', display: 'flex', alignItems: 'center' })
-      identityRow.append(identityLabel, nameDisplay)
     }
 
-    // share row - shown only once the broadcaster is actually live. Before going live it's noise;
-    // after going live they want to drop the link on x / instagram to pull people in.
-    const shareRow = document.createElement('div')
-    Object.assign(shareRow.style, { display: 'none', flexDirection: 'column', gap: '4px', borderTop: '1px solid #222', borderBottom: '1px solid #222', padding: '8px 0' })
-    const shareLabel = document.createElement('label')
-    shareLabel.textContent = 'show link - share with your fans'
-    shareLabel.style.color = '#888'
-    const shareInput = document.createElement('input')
-    shareInput.type = 'text'
-    shareInput.readOnly = true
-    shareInput.value = showUrl
-    Object.assign(shareInput.style, { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: '8px', fontFamily: 'inherit', minHeight: '36px' })
-    shareInput.onclick = () => shareInput.select()
-    const shareBtnRow = document.createElement('div')
-    Object.assign(shareBtnRow.style, { display: 'flex', gap: '0.5rem' })
-    const copyBtn = document.createElement('button')
-    copyBtn.textContent = 'copy'
-    Object.assign(copyBtn.style, { background: '#333', color: '#f5f5f0', border: '0', padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', flex: '1', minHeight: '36px' })
-    const copyBtnLabel = mobile ? 'copy link for fans' : 'copy'
-    copyBtn.onclick = () => {
-      navigator.clipboard.writeText(showUrl).catch(() => {})
-      copyBtn.textContent = 'copied'
-      setTimeout(() => (copyBtn.textContent = copyBtnLabel), 1500)
-    }
-    const xBtn = document.createElement('button')
-    xBtn.textContent = 'post on x'
-    Object.assign(xBtn.style, { background: '#333', color: '#f5f5f0', border: '0', padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', flex: '1', minHeight: '36px' })
-    xBtn.onclick = () => {
-      const text = `going live in voxels - ${showUrl}`
-      window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
-    }
-    shareBtnRow.append(copyBtn, xBtn)
-    shareRow.append(shareLabel, shareInput, shareBtnRow)
-    if (mobile) {
-      shareLabel.textContent = 'fan link'
-      shareInput.style.display = 'none'
-      copyBtn.textContent = 'copy link for fans'
-      Object.assign(copyBtn.style, { background: '#dc1e1e', fontWeight: 'bold', flex: '2' })
+    // Fan coords link for anyone live - drops audience at the showbox in world.
+    let shareRow: HTMLDivElement | null = null
+    {
+      const showUrl = audienceShowUrl(this)
+      shareRow = document.createElement('div')
+      Object.assign(shareRow.style, { display: 'none', flexDirection: 'column', gap: '4px', borderTop: '1px solid #222', borderBottom: '1px solid #222', padding: '8px 0' })
+      const shareLabel = document.createElement('label')
+      shareLabel.textContent = mobile ? 'fan link' : 'fan link - share with your audience'
+      shareLabel.style.color = '#888'
+      const shareInput = document.createElement('input')
+      shareInput.type = 'text'
+      shareInput.readOnly = true
+      shareInput.value = showUrl
+      Object.assign(shareInput.style, { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: '8px', fontFamily: 'inherit', minHeight: '36px' })
+      shareInput.onclick = () => shareInput.select()
+      const shareBtnRow = document.createElement('div')
+      Object.assign(shareBtnRow.style, { display: 'flex', gap: '0.5rem' })
+      const copyBtn = document.createElement('button')
+      copyBtn.textContent = 'copy'
+      Object.assign(copyBtn.style, { background: '#333', color: '#f5f5f0', border: '0', padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', flex: '1', minHeight: '36px' })
+      const copyBtnLabel = mobile ? 'copy link for fans' : 'copy'
+      copyBtn.onclick = () => {
+        navigator.clipboard.writeText(showUrl).catch(() => {})
+        copyBtn.textContent = 'copied'
+        setTimeout(() => (copyBtn.textContent = copyBtnLabel), 1500)
+      }
+      const xBtn = document.createElement('button')
+      xBtn.textContent = 'post on x'
+      Object.assign(xBtn.style, { background: '#333', color: '#f5f5f0', border: '0', padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', flex: '1', minHeight: '36px' })
+      xBtn.onclick = () => {
+        const text = `Going live in voxels - Teleport in! ${showUrl}`
+        window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
+      }
+      shareBtnRow.append(copyBtn, xBtn)
+      shareLabel.style.display = 'block'
+      if (mobile) {
+        shareRow.append(shareLabel, shareBtnRow)
+        shareBtnRow.style.flexDirection = 'column'
+        copyBtn.textContent = 'copy link for fans'
+        Object.assign(copyBtn.style, { background: '#dc1e1e', fontWeight: 'bold', width: '100%', minHeight: '44px' })
+        Object.assign(xBtn.style, { width: '100%', minHeight: '44px' })
+      } else {
+        shareRow.append(shareLabel, shareInput, shareBtnRow)
+      }
     }
 
     // quick-access dance + emoji reactions. Hidden until live - pre-stream they just add noise,
@@ -754,10 +839,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     status.style.color = '#888'
 
     const goBtn = document.createElement('button')
+    goBtn.type = 'button'
     goBtn.textContent = 'go live'
     Object.assign(goBtn.style, { background: '#dc1e1e', color: '#f5f5f0', border: '0', padding: '12px 16px', cursor: 'pointer', fontFamily: 'inherit', flex: '2', minHeight: '44px', fontWeight: 'bold' })
 
     const closeBtn = document.createElement('button')
+    closeBtn.type = 'button'
     closeBtn.textContent = 'close'
     Object.assign(closeBtn.style, { background: '#333', color: '#f5f5f0', border: '0', padding: '12px 16px', cursor: 'pointer', fontFamily: 'inherit', flex: '1', minHeight: '44px' })
     closeBtn.onclick = () => {
@@ -900,11 +987,20 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         flexShrink: '0',
         paddingBottom: 'max(8px, env(safe-area-inset-bottom))',
       })
-      dockFooter.append(shareRow, row)
+      if (shareRow) dockFooter.append(shareRow)
+      dockFooter.append(row)
 
-      panel.append(title, identityRow, deviceRow, screenOpt, deviceToggle, chatRow, dockFooter, mobileExtrasBtn!, moveRow, status)
+      const mobileKids: Node[] = [title]
+      if (identityRow) mobileKids.push(identityRow)
+      mobileKids.push(deviceRow, screenOpt, screenHint, deviceToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status)
+      panel.append(...mobileKids)
     } else {
-      panel.append(title, identityRow, deviceRow, screenOpt, deviceToggle, shareRow, moveRow, status, row)
+      const desktopKids: Node[] = [title]
+      if (identityRow) desktopKids.push(identityRow)
+      desktopKids.push(deviceRow, screenOpt, screenHint, deviceToggle)
+      if (shareRow) desktopKids.push(shareRow)
+      desktopKids.push(moveRow, status, row)
+      panel.append(...desktopKids)
     }
     document.body.appendChild(panel)
 
@@ -992,11 +1088,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           this.liveTimerInterval = null
         }
         this.liveStartedAt = null
-        ;[title, identityRow, deviceRow, screenOpt, status].forEach((el) => ((el as HTMLElement).style.display = ''))
+        ;[title, deviceRow, screenOpt, status].forEach((el) => ((el as HTMLElement).style.display = ''))
+        if (identityRow) identityRow.style.display = ''
         deviceToggle.style.display = 'none'
         deviceRow.style.display = 'flex'
         deviceToggle.textContent = 'change camera or mic'
-        shareRow.style.display = 'none'
+        goBtn.style.display = ''
+        if (shareRow) shareRow.style.display = 'none'
         moveRow.style.display = 'none'
         if (chatRow) chatRow.style.display = 'none'
         if (chatReplyRow) chatReplyRow.style.display = 'none'
@@ -1036,9 +1134,19 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       goBtn.disabled = true
 
       try {
-        const id = this.parcel.id
-        const res = await fetch(`/api/rooms/${this.roomName()}/token`).then((r) => r.json())
-        if (!res?.token) throw new Error('no token')
+        const tokenRes = await fetch(`/api/rooms/${this.roomName()}/token`, { credentials: 'include' })
+        const res = await tokenRes.json().catch(() => null)
+        if (!tokenRes.ok || !res?.token) {
+          throw new Error(res?.error || 'could not get stream token - sign in again')
+        }
+        if (res.canPublish === false) {
+          throw new Error('no permission to broadcast here - sign in as parcel owner or use a guest link')
+        }
+
+        if (this.livekitRoom) {
+          this.livekitRoom.disconnect()
+          this.livekitRoom = null
+        }
 
         const room = new Room()
         this.broadcastRoom = room
@@ -1077,17 +1185,18 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         goBtn.style.background = '#444'
         goBtn.disabled = false
         status.textContent = ''
-        ;[title, identityRow, screenOpt, status].forEach((el) => ((el as HTMLElement).style.display = 'none'))
+        ;[title, screenOpt, status].forEach((el) => ((el as HTMLElement).style.display = 'none'))
+        if (identityRow) identityRow.style.display = 'none'
         deviceRow.style.display = 'none'
         deviceToggle.style.display = 'block'
         deviceToggle.textContent = 'change camera or mic'
         if (mobile) {
           mobileExtrasOpen = false
-          shareRow.style.display = 'flex'
+          if (shareRow) shareRow.style.display = 'flex'
           moveRow.style.display = 'none'
           if (mobileExtrasBtn) mobileExtrasBtn.style.display = 'block'
         } else {
-          shareRow.style.display = 'flex'
+          if (shareRow) shareRow.style.display = 'flex'
           moveRow.style.display = 'flex'
         }
         if (chatRow) chatRow.style.display = 'flex'
@@ -1197,9 +1306,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
         setMobileDockLayout(true)
         setDesktopDockLayout(true)
-      } catch {
-        status.textContent = 'failed to connect'
+      } catch (e) {
+        status.textContent = e instanceof Error ? e.message : 'failed to connect'
         goBtn.disabled = false
+        this.broadcastRoom?.disconnect()
         this.broadcastRoom = null
       }
     }
@@ -1208,7 +1318,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   onClick() {
     if (!this.broadcastRoom) {
       const hasRemoteBroadcaster = [...((this.livekitRoom as any)?.remoteParticipants?.values() ?? [])].some((p: any) => p?.videoTrackPublications?.size > 0 || p?.audioTrackPublications?.size > 0)
-      if ((this.parcel.canEdit || isGuestForShowbox(this.uuid)) && !hasRemoteBroadcaster) {
+      const guest = isGuestForShowbox(this.uuid)
+      if (!hasRemoteBroadcaster && (guest || this.parcel.canEdit)) {
         this.openBroadcastPanel()
       } else {
         this.startBroadcastAudio()
@@ -1292,18 +1403,36 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
     return this.props.feature.uuid
   }
 
+  canCreatePass() {
+    const w = app.state.wallet?.toLowerCase()
+    if (!w) return false
+    return this.props.feature.parcel.owners.some((o) => o?.toLowerCase() === w)
+  }
+
   async refresh() {
     try {
       const r = await fetch(`/api/parcels/${this.parcelId()}/guest-passes`, { credentials: 'include' })
-      const j = await r.json()
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok) {
+        this.setState({ error: j.error || 'could not load guest links', loading: false })
+        return
+      }
       const all: Pass[] = j.passes ?? []
-      this.setState({ passes: all.filter((p) => p.feature_uuid === this.featureUuid()), loading: false })
+      this.setState({ passes: all.filter((p) => p.feature_uuid === this.featureUuid()), loading: false, error: null })
     } catch {
-      this.setState({ loading: false })
+      this.setState({ loading: false, error: 'could not load guest links' })
     }
   }
 
   async create() {
+    if (!this.canCreatePass()) {
+      this.setState({ error: 'only the parcel owner can create guest links' })
+      return
+    }
+    if (this.state.passes.some((p) => !p.revoked_at)) {
+      this.setState({ error: 'revoke the existing link first' })
+      return
+    }
     this.setState({ creating: true, error: null })
     try {
       const r = await fetch(`/api/parcels/${this.parcelId()}/guest-passes`, {
@@ -1312,8 +1441,14 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
         credentials: 'include',
         body: JSON.stringify({ feature_uuid: this.featureUuid() }),
       })
-      const j = await r.json()
-      if (!j.success) throw new Error(j.error || 'Could not create link')
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok || !j.success) throw new Error(j.error || 'Could not create link')
+      const token = j.pass?.token
+      if (token) {
+        const url = this.liveUrl(token)
+        this.copy(url)
+        app.showSnackbar('guest link created (copied)', PanelType.Success)
+      }
       await this.refresh()
     } catch (e: any) {
       this.setState({ error: e?.message ?? 'Could not create link' })
@@ -1339,55 +1474,48 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
     return `${window.location.origin}/live/${token}`
   }
 
-  showUrl() {
-    return audienceShowUrl(this.props.feature)
-  }
-
   render() {
     if (!this.props.feature.parcel.canEdit) return null
     const active = this.state.passes.filter((p) => !p.revoked_at)
     const revoked = this.state.passes.filter((p) => p.revoked_at)
+    const canCreate = this.canCreatePass() && active.length === 0
 
     return (
       <div className="f">
-        <label>Guest broadcast links</label>
-        <small>One-tap broadcast link for someone without a voxels account - artists, speakers, anyone you invite. They pick their own name when they open the link. No voxels account needed.</small>
+        <label>guest links</label>
+        <small>invite someone to go live here without a voxels account</small>
 
         <div className="f">
-          <label>show link - share with your fans</label>
-          <input type="text" readOnly value={this.showUrl()} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} />
-          <small>Normal voxels url. Post on x or instagram so fans can find the show.</small>
-        </div>
-
-        <div className="f">
-          <button onClick={() => this.create()} disabled={this.state.creating}>
-            {this.state.creating ? 'creating...' : 'create link'}
-          </button>
+          {canCreate ? (
+            <button type="button" style={mobile ? { minHeight: '44px' } : undefined} onClick={() => this.create()} disabled={this.state.creating}>
+              {this.state.creating ? 'creating...' : 'create link'}
+            </button>
+          ) : this.canCreatePass() && active.length > 0 ? (
+            <small>revoke the link below to create a new one</small>
+          ) : (
+            <small>owner only</small>
+          )}
           {this.state.error && <div style={{ color: '#dc1e1e' }}>{this.state.error}</div>}
         </div>
 
         {this.state.loading && <small>loading...</small>}
 
-        {active.length > 0 && (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <tbody>
-              {active.map((p) => (
-                <tr key={p.token}>
-                  <td>
-                    <strong>{p.name?.trim() || 'name not chosen yet'}</strong>
-                    <br />
-                    <small>broadcast link (guest only)</small>
-                    <input type="text" readOnly value={this.liveUrl(p.token)} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={{ width: '100%' }} />
-                  </td>
-                  <td style={{ verticalAlign: 'top' }}>
-                    <button onClick={() => this.copy(this.liveUrl(p.token))}>copy</button>
-                    <button onClick={() => this.revoke(p.token)}>revoke</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+        {active.map((p) => (
+          <div key={p.token}>
+            <div className="f">
+              <label>{p.name?.trim() || 'guest link'}</label>
+              <input type="text" readOnly value={this.liveUrl(p.token)} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
+            </div>
+            <div style={{ display: 'flex', gap: '0.5rem', flexDirection: mobile ? 'column' : 'row', marginBottom: '0.5rem' }}>
+              <button type="button" style={mobile ? { minHeight: '44px', width: '100%' } : undefined} onClick={() => this.copy(this.liveUrl(p.token))}>
+                copy
+              </button>
+              <button type="button" style={mobile ? { minHeight: '44px', width: '100%' } : undefined} onClick={() => this.revoke(p.token)}>
+                revoke
+              </button>
+            </div>
+          </div>
+        ))}
 
         {revoked.length > 0 && (
           <details>

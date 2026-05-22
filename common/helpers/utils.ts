@@ -410,9 +410,9 @@ export function orderLiveStrip<T extends LiveStripEntry>(entries: T[]): T[] {
   }
 
   take(byViewers[0])
-  take(pickDiscoverySlot(byViewers.filter((e) => !used.has(e.room))))
+  take(pickDiscoverySlot(byViewers.filter((e) => !used.has(e.room))) as T)
   take(byViewers.find((e) => !used.has(e.room)))
-  take(pickDiscoverySlot(byViewers.filter((e) => !used.has(e.room))))
+  take(pickDiscoverySlot(byViewers.filter((e) => !used.has(e.room))) as T)
 
   for (const e of byViewers) {
     take(e)
