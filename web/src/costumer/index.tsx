@@ -80,7 +80,11 @@ export default class Costumer extends Component<Props, State> {
 
     registerCostumerVoidBackground()
 
-    this.fetch().then(() => {
+    this.fetch().then((avatarCostumeId) => {
+      if (!this.props.costumeId && avatarCostumeId) {
+        route(`/costumer/${avatarCostumeId}`, true)
+        return
+      }
       this.engine?.runRenderLoop(() => {
         this.scene?.render()
       })
@@ -488,24 +492,18 @@ export default class Costumer extends Component<Props, State> {
     let avatarCostumeId: number | undefined
 
     const wallet = app.state.wallet.toLowerCase()
-    // Don't block on this
-    fetch(`/api/avatars/${wallet}.json`)
-      .then(async (f) => {
-        if (!f.ok) {
-          throw new Error('Not a 200 OK response from api server')
+    try {
+      const avatarRes = await fetch(`/api/avatars/${wallet}.json`)
+      if (avatarRes.ok) {
+        const r = await avatarRes.json()
+        if (r.success) {
+          avatarCostumeId = r.avatar?.costume_id
+          this.setState({ avatarCostumeId })
         }
-        const r = await f.json()
-        if (!r.success) {
-          throw new Error('Not a success in response from api server')
-        }
-        avatarCostumeId = r.avatar?.costume_id
-        this.setState({ avatarCostumeId })
-      })
-      .catch((err) => {
-        app.showSnackbar('Failed to load avatar costume', PanelType.Warning)
-        this.setState({ loading: false })
-        throw err
-      })
+      }
+    } catch {
+      app.showSnackbar('Failed to load avatar costume', PanelType.Warning)
+    }
 
     // Wait for this... (must match CostumesController GET /api/avatars/:wallet/costumes)
     const f = await fetch(`/api/avatars/${wallet}/costumes`)
