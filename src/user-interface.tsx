@@ -36,7 +36,7 @@ import { ExplorerUI, Tab } from './ui/explorer'
 import { FeatureContext } from './ui/features/context'
 import { FeatureEditor } from './ui/features/misc'
 import HomeButton from './ui/home-button'
-import { ChatOverlay } from './ui/interact/chat'
+import { ChatOverlay, chatSettings } from './ui/interact/chat'
 import { EmoteOverlay } from './ui/interact/emote'
 import { HelpOverlay } from './ui/interact/help'
 import { ScratchpadGuide, ScratchpadGuideMini } from './ui/scratchpad-guide'
@@ -128,6 +128,7 @@ type UserInterfaceState = {
   scratchpadGuideMini?: boolean
   scratchpadGuideRestart?: boolean
   scratchpadGuideKey?: number
+  chatEnabled: boolean
 }
 
 export default class UserInterface extends Component<UserInterfaceProps, UserInterfaceState> {
@@ -190,6 +191,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       currentOrNearestParcel: null,
       active: true,
       onlineCount: 0,
+      chatEnabled: chatSettings.enabled,
     }
 
     if (window.config.isOrbit) {
@@ -246,6 +248,12 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       if (!isScratchpad() || isMobileMedia()) return
       this.setState({ scratchpadGuideOpen: true, scratchpadGuideMini: false, scratchpadGuideRestart: false })
     })
+
+    chatSettings.addEventListener('changed', this.onChatSettingsChange)
+  }
+
+  onChatSettingsChange = () => {
+    this.setState({ chatEnabled: chatSettings.enabled })
   }
 
   pollOnlineCount = async () => {
@@ -299,6 +307,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     app.removeListener(AppEvent.Change, this.onAppChange)
     document.removeEventListener('fullscreenchange', this.refreshFullscreen)
     document.removeEventListener('pointerlockchange', this.onPointerLockChange)
+    chatSettings.removeEventListener('changed', this.onChatSettingsChange)
   }
 
   onPointerLockChange = () => {
@@ -436,6 +445,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   focusChat = (e: KeyboardEvent) => {
+    if (!chatSettings.enabled) return
+
     exitPointerLock()
 
     const input = document.querySelector('main.chat input') as HTMLInputElement
@@ -895,7 +906,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
               </li>
             </ul>
 
-            <ChatOverlay scene={this.props.scene} />
+            {this.state.chatEnabled && <ChatOverlay scene={this.props.scene} />}
 
             {pane && (
               <dialog class="editor" open>
