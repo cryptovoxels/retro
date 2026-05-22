@@ -29,8 +29,14 @@ const DOCK_EMOJIS = ['🔥', '🙌', '❤️', '😂', '👏', '🎉']
 
 const DEFAULT_VOLUME = 0.7
 const MAX_VOLUME = 1
+const VIEWER_RETRY_INTERVAL = 20_000
 const LIVEKIT_URL = 'https://voxels-7pvk06qt.livekit.cloud'
 const mobile = isMobile()
+
+function isRoomFullError(e: unknown) {
+  const msg = (e instanceof Error ? e.message : String(e ?? '')).toLowerCase()
+  return msg.includes('room is full') || msg.includes('participant') && (msg.includes('limit') || msg.includes('max') || msg.includes('full'))
+}
 
 // True when the page was opened via /live/:token and the guest pass targets this showbox.
 // The synthetic wallet `guest:*` and `?show=<uuid>` are both set by the server on redeem.
@@ -96,6 +102,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   audioMeterRaf: number | null = null
   audioMeterCtx: AudioContext | null = null
   hasActiveVideo = false
+  viewerRoomFull = false
+  viewerConnecting = false
+  viewerRetryInterval: ReturnType<typeof setInterval> | null = null
 
   roomName() {
     return `parcel-${this.parcel.id}`
@@ -149,6 +158,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   onExit = () => {
+    this.stopViewerRetry()
+    this.viewerRoomFull = false
     if (this.livekitRoom) {
       this.livekitRoom.disconnect()
       this.livekitRoom = null
@@ -157,8 +168,25 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
   }
 
+  stopViewerRetry() {
+    if (this.viewerRetryInterval) {
+      clearInterval(this.viewerRetryInterval)
+      this.viewerRetryInterval = null
+    }
+  }
+
+  scheduleViewerRetry() {
+    if (this.viewerRetryInterval || this.disposed || !this.isInCurrentParcel) return
+    this.viewerRetryInterval = setInterval(() => {
+      if (this.disposed || !this.isInCurrentParcel || this.broadcastRoom || this.livekitRoom || this.viewerConnecting) return
+      if (this.viewerRoomFull) this.connectViewer()
+    }, VIEWER_RETRY_INTERVAL)
+  }
+
   dispose() {
     this._dispose()
+    this.stopViewerRetry()
+    this.viewerRoomFull = false
     this.livekitRoom?.disconnect()
     this.livekitRoom = null
     this.stopBroadcast(true)
@@ -200,6 +228,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       ctx.fillRect(w / 2 - bw / 2, h / 2 + 10, bw, bh)
       ctx.fillStyle = '#f5f5f0'
       ctx.fillText(cta, w / 2, h / 2 + 10 + bh / 2)
+    } else if (this.viewerRoomFull) {
+      ctx.fillStyle = '#f5f5f0'
+      ctx.fillText('this show is full', w / 2, h / 2 - 14)
+      ctx.fillStyle = '#888'
+      ctx.fillText('hang tight -- retrying for a spot', w / 2, h / 2 + 14)
     } else if (mobile && this.livekitRoom) {
       ctx.fillStyle = '#888'
       ctx.fillText('tap screen to listen', w / 2, h / 2)
@@ -223,11 +256,15 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   async connectViewer() {
-    if (this.livekitRoom) return
+    if (this.livekitRoom || this.viewerConnecting) return
+    this.viewerConnecting = true
     const res = await fetch(`/api/rooms/${this.roomName()}/token`)
       .then((r) => r.json())
       .catch(() => null)
-    if (!res?.token || this.disposed) return
+    if (!res?.token || this.disposed) {
+      this.viewerConnecting = false
+      return
+    }
 
     const room = new Room()
     this.livekitRoom = room
@@ -269,8 +306,21 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     room.on(RoomEvent.ParticipantConnected, () => this.setPreview())
     room.on(RoomEvent.ParticipantDisconnected, () => this.setPreview())
 
-    await room.connect(LIVEKIT_URL, res.token).catch(() => null)
-    this.setPreview()
+    try {
+      await room.connect(LIVEKIT_URL, res.token)
+      this.viewerRoomFull = false
+      this.stopViewerRetry()
+    } catch (e) {
+      room.disconnect()
+      this.livekitRoom = null
+      if (isRoomFullError(e)) {
+        this.viewerRoomFull = true
+        this.scheduleViewerRetry()
+      }
+    } finally {
+      this.viewerConnecting = false
+      this.setPreview()
+    }
   }
 
   startBroadcastAudio() {
