@@ -14,6 +14,7 @@ import { Position, Rotation, Scale, Script } from '../../web/src/components/edit
 import { Animations } from '../avatar-animations'
 import { EmoteAnimation, Idle } from '../states'
 import { cameraPosition, cameraRotation } from '../utils/camera'
+import { emote as emoteParticles } from '../utils/emote'
 import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
@@ -31,6 +32,47 @@ const DOCK_EMOJIS = ['🔥', '🙌', '❤️', '😂', '👏', '🎉']
 const DEFAULT_VOLUME = 0.7
 const MAX_VOLUME = 1
 const VOLUME_REFRESH_INTERVAL = 200
+const VIEWER_MILESTONES = [2, 4, 7, 10, 25, 50] as const
+const MILESTONE_POLL_MS = 8000
+
+function celebrateLabel(n: number) {
+  if (n >= 50) return '50 here'
+  if (n >= 25) return '25 here'
+  if (n >= 10) return `${n} here`
+  if (n === 2) return 'someone joined'
+  return `${n} here`
+}
+
+function uuidBucket(uuid: string, mod: number) {
+  let h = 0
+  for (let i = 0; i < uuid.length; i++) h = (h + uuid.charCodeAt(i)) | 0
+  return Math.abs(h) % mod
+}
+
+function celebrateBursts(n: number) {
+  if (n >= 50) return { emojis: ['🎉', '🔥', '🙌', '❤️', '👏', '🎉', '🔥'], staggerMs: 280 }
+  if (n >= 25) return { emojis: ['🎉', '🔥', '🙌', '❤️', '🎉'], staggerMs: 380 }
+  if (n >= 10) return { emojis: ['🎉', '🔥', '🙌'], staggerMs: 300 }
+  if (n >= 7) return { emojis: ['🎉', '🔥'], staggerMs: 200 }
+  if (n >= 4) return { emojis: ['🎉', '👏'], staggerMs: 150 }
+  return { emojis: ['🎉'], staggerMs: 0 }
+}
+
+function celebrateMoves(n: number, uuid: string) {
+  const b = uuidBucket(uuid, 12)
+  const wild = [Animations.Hype, Animations.Spin, Animations.Savage, Animations.Celebration]
+  if (n >= 50) {
+    return { anims: [wild[b % 4], wild[(b + 5) % 4], Animations.Spin], gapMs: 1100 }
+  }
+  if (n >= 25) {
+    const pool = [Animations.Dance, Animations.Hype, Animations.Spin, Animations.Savage]
+    return { anims: [pool[b % 4], pool[(b + 3) % 4]], gapMs: 900 }
+  }
+  if (n >= 10) return { anims: [Animations.Dance], gapMs: 0 }
+  if (n >= 7) return { anims: [Animations.Dance], gapMs: 0 }
+  return { anims: [] as Animations[], gapMs: 0 }
+}
+
 const LIVEKIT_URL = 'https://voxels-7pvk06qt.livekit.cloud'
 const mobile = isMobile()
 
@@ -75,6 +117,8 @@ function syncGuestDisplayName(name: string) {
   window.connector?.reconnect()
 }
 
+type ShowboxCelebrateState = { celebrate?: number; at?: number }
+
 export default class Showbox extends Feature2D<ShowboxRecord> {
   static metadata: FeatureMetadata = {
     title: 'Showbox',
@@ -100,9 +144,101 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   streamAudioEls: HTMLAudioElement[] = []
   streamVolumeInterval: ReturnType<typeof setInterval> | null = null
   hasActiveVideo = false
+  milestonePollInterval: ReturnType<typeof setInterval> | null = null
+  celebratedMilestones = new Set<number>()
+  lastCelebrateAt = 0
+  lastCelebrateN = 0
 
   roomName() {
     return `parcel-${this.parcel.id}`
+  }
+
+  receiveState(state: ShowboxCelebrateState) {
+    const n = state?.celebrate
+    const at = state?.at ?? 0
+    if (!n || !at || !this.isInCurrentParcel) return
+    if (at <= this.lastCelebrateAt || n <= this.lastCelebrateN) return
+    this.lastCelebrateAt = at
+    this.lastCelebrateN = n
+    this.runCelebrate(n)
+  }
+
+  playCelebrateMoves(anims: Animations[], gapMs: number) {
+    const persona = window.persona
+    const controls = window.connector?.controls
+    if (!persona || !controls || !anims.length) return
+    anims.forEach((anim, i) => {
+      setTimeout(() => {
+        if (this.disposed) return
+        persona.popState(controls)
+        persona.setState({ state: new EmoteAnimation(anim) }, controls)
+      }, i * gapMs)
+    })
+  }
+
+  runCelebrate(n: number) {
+    const pos = this.absolutePosition
+    const { emojis, staggerMs } = celebrateBursts(n)
+    emojis.forEach((emoji, i) => {
+      setTimeout(() => {
+        if (this.disposed) return
+        try {
+          emoteParticles(emoji, pos, this.scene)
+        } catch {}
+      }, i * staggerMs)
+    })
+
+    const uuid = window.persona?.uuid ?? ''
+    const { anims, gapMs } = celebrateMoves(n, uuid)
+    this.playCelebrateMoves(anims, gapMs)
+
+    app.showSnackbar(celebrateLabel(n), PanelType.Success)
+  }
+
+  async fetchViewerCount() {
+    try {
+      const r = await fetch(`/api/rooms/${this.roomName()}`)
+      if (!r.ok) return 0
+      const j = await r.json().catch(() => null)
+      return j?.room?.numParticipants ?? 0
+    } catch {
+      return 0
+    }
+  }
+
+  stopMilestonePoll() {
+    if (this.milestonePollInterval) {
+      clearInterval(this.milestonePollInterval)
+      this.milestonePollInterval = null
+    }
+    this.celebratedMilestones.clear()
+  }
+
+  fireMilestone(n: number) {
+    const at = Date.now()
+    this.lastCelebrateAt = at
+    this.lastCelebrateN = n
+    try {
+      this.parcel.sendStatePatch({ [this.uuid]: { celebrate: n, at } })
+    } catch {}
+    this.runCelebrate(n)
+  }
+
+  startMilestonePoll() {
+    this.stopMilestonePoll()
+    const tick = async () => {
+      if (!this.broadcastRoom || this.disposed) return
+      const count = await this.fetchViewerCount()
+      if (!count) return
+      for (const m of VIEWER_MILESTONES) {
+        if (count >= m && !this.celebratedMilestones.has(m)) {
+          this.celebratedMilestones.add(m)
+          this.fireMilestone(m)
+        }
+      }
+    }
+    tick()
+    this.milestonePollInterval = setInterval(tick, MILESTONE_POLL_MS)
   }
 
   get volume() {
@@ -201,6 +337,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   dispose() {
     this._dispose()
+    this.stopMilestonePoll()
     this.livekitRoom?.disconnect()
     this.livekitRoom = null
     this.stopStreamVolumePoll()
@@ -410,6 +547,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   stopBroadcast(silent = false) {
+    this.stopMilestonePoll()
     this.stopThumbCapture(silent)
     this.broadcastRoom?.disconnect()
     this.broadcastRoom = null
@@ -1256,6 +1394,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
         setMobileDockLayout(true)
         setDesktopDockLayout(true)
+        this.startMilestonePoll()
       } catch (e) {
         status.textContent = e instanceof Error ? e.message : 'failed to connect'
         goBtn.disabled = false
