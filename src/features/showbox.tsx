@@ -75,6 +75,13 @@ function syncGuestDisplayName(name: string) {
   window.connector?.reconnect()
 }
 
+type GuestMode = 'solo' | 'cohost'
+
+function cohostIdentityPrefix(identity: string) {
+  const i = identity.lastIndexOf('-')
+  return i > 0 ? identity.slice(0, i) : identity
+}
+
 export default class Showbox extends Feature2D<ShowboxRecord> {
   static metadata: FeatureMetadata = {
     title: 'Showbox',
@@ -100,6 +107,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   streamAudioEls: HTMLAudioElement[] = []
   streamVolumeInterval: ReturnType<typeof setInterval> | null = null
   hasActiveVideo = false
+  ownerVideoEl: HTMLVideoElement | null = null
+  guestVideoEl: HTMLVideoElement | null = null
+  cohostCanvas: HTMLCanvasElement | null = null
+  cohostCompositeEl: HTMLVideoElement | null = null
+  cohostCompositeRaf: number | null = null
+  cohostMonitorEls: HTMLAudioElement[] = []
+  cohostCompositeAttached = false
 
   roomName() {
     return `parcel-${this.parcel.id}`
@@ -149,6 +163,179 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.streamVolumeInterval = null
     }
     this.streamAudioEls = []
+  }
+
+  get guestMode(): GuestMode {
+    return this.description.guestMode === 'cohost' ? 'cohost' : 'solo'
+  }
+
+  isCohostMode() {
+    return this.guestMode === 'cohost'
+  }
+
+  hasRemoteBroadcaster() {
+    return [...((this.livekitRoom as any)?.remoteParticipants?.values() ?? [])].some((p: any) => p?.videoTrackPublications?.size > 0 || p?.audioTrackPublications?.size > 0)
+  }
+
+  canOpenBroadcastPanel() {
+    return isGuestForShowbox(this.uuid) || this.parcel.canEdit
+  }
+
+  ownerWalletPrefix() {
+    return (this.parcel.owner || '').toLowerCase()
+  }
+
+  isOwnerPublisherIdentity(identity: string) {
+    return cohostIdentityPrefix(identity).toLowerCase() === this.ownerWalletPrefix()
+  }
+
+  isGuestPublisherIdentity(identity: string) {
+    return cohostIdentityPrefix(identity).startsWith('guest-')
+  }
+
+  shouldPlayCohostAudio(participantIdentity: string) {
+    if (!this.isCohostMode() || !this.broadcastRoom || !this.livekitRoom) return false
+    const theirs = cohostIdentityPrefix(participantIdentity)
+    const myPub = cohostIdentityPrefix(this.broadcastRoom.localParticipant.identity)
+    const mySub = cohostIdentityPrefix(this.livekitRoom.localParticipant.identity)
+    if (theirs === myPub || theirs === mySub) return false
+    const iAmGuest = isGuestForShowbox(this.uuid)
+    if (iAmGuest) return this.isOwnerPublisherIdentity(participantIdentity)
+    return this.isGuestPublisherIdentity(participantIdentity)
+  }
+
+  trackCohostMonitor(el: HTMLAudioElement) {
+    el.volume = 1
+    el.style.display = 'none'
+    document.body.appendChild(el)
+    this.cohostMonitorEls.push(el)
+  }
+
+  clearCohostMonitor() {
+    for (const el of this.cohostMonitorEls) {
+      el.remove()
+    }
+    this.cohostMonitorEls = []
+  }
+
+  stopCohostComposite() {
+    if (this.cohostCompositeRaf) {
+      cancelAnimationFrame(this.cohostCompositeRaf)
+      this.cohostCompositeRaf = null
+    }
+    this.ownerVideoEl?.remove()
+    this.ownerVideoEl = null
+    this.guestVideoEl?.remove()
+    this.guestVideoEl = null
+    this.cohostCompositeEl?.remove()
+    this.cohostCompositeEl = null
+    this.cohostCanvas = null
+    this.cohostCompositeAttached = false
+    this.clearCohostMonitor()
+  }
+
+  drawCohostFrame() {
+    if (!this.cohostCanvas) return false
+    const ownerReady = !!(this.ownerVideoEl && this.ownerVideoEl.readyState >= 2)
+    const guestReady = !!(this.guestVideoEl && this.guestVideoEl.readyState >= 2)
+    if (!ownerReady && !guestReady) return false
+
+    const canvas = this.cohostCanvas
+    const ctx = canvas.getContext('2d')!
+    const w = canvas.width
+    const h = canvas.height
+    ctx.fillStyle = '#0d0d0d'
+    ctx.fillRect(0, 0, w, h)
+    if (ownerReady && guestReady) {
+      ctx.drawImage(this.ownerVideoEl!, 0, 0, w / 2, h)
+      ctx.drawImage(this.guestVideoEl!, w / 2, 0, w / 2, h)
+    } else if (ownerReady) {
+      ctx.drawImage(this.ownerVideoEl!, 0, 0, w, h)
+    } else if (guestReady) {
+      ctx.drawImage(this.guestVideoEl!, 0, 0, w, h)
+    }
+    return true
+  }
+
+  updateCohostComposite() {
+    if (!this.isCohostMode() || this.disposed || this.broadcastRoom) return
+
+    if (!this.cohostCanvas) {
+      this.cohostCanvas = document.createElement('canvas')
+      this.cohostCanvas.width = 640
+      this.cohostCanvas.height = 360
+    }
+
+    if (!this.drawCohostFrame()) {
+      this.hasActiveVideo = false
+      this.stopCohostComposite()
+      this.setPreview()
+      return
+    }
+
+    if (!this.cohostCompositeEl) {
+      const stream = this.cohostCanvas.captureStream(30)
+      this.cohostCompositeEl = document.createElement('video')
+      this.cohostCompositeEl.srcObject = stream
+      this.cohostCompositeEl.muted = true
+      this.cohostCompositeEl.playsInline = true
+      this.cohostCompositeEl.autoplay = true
+      this.cohostCompositeEl.play().catch(() => {})
+    }
+
+    if (!this.cohostCompositeAttached) {
+      this.attachVideoToMesh(this.cohostCompositeEl, true)
+      this.cohostCompositeAttached = true
+    }
+
+    if (!this.cohostCompositeRaf) {
+      const tick = () => {
+        if (!this.cohostCanvas || this.disposed || this.broadcastRoom) {
+          this.cohostCompositeRaf = null
+          return
+        }
+        if (!this.drawCohostFrame()) {
+          this.cohostCompositeRaf = null
+          this.hasActiveVideo = false
+          this.setPreview()
+          return
+        }
+        this.cohostCompositeRaf = requestAnimationFrame(tick)
+      }
+      this.cohostCompositeRaf = requestAnimationFrame(tick)
+    }
+  }
+
+  routeCohostVideo(track: any, identity: string) {
+    const el = track.attach() as HTMLVideoElement
+    el.muted = true
+    el.playsInline = true
+    el.autoplay = true
+    el.style.display = 'none'
+    document.body.appendChild(el)
+    el.play().catch(() => {})
+
+    if (this.isGuestPublisherIdentity(identity)) {
+      if (this.guestVideoEl !== el) this.guestVideoEl?.remove()
+      this.guestVideoEl = el
+    } else if (this.isOwnerPublisherIdentity(identity)) {
+      if (this.ownerVideoEl !== el) this.ownerVideoEl?.remove()
+      this.ownerVideoEl = el
+    } else {
+      el.remove()
+      return
+    }
+    this.updateCohostComposite()
+  }
+
+  clearCohostVideoForIdentity(identity: string) {
+    if (this.isGuestPublisherIdentity(identity)) {
+      this.guestVideoEl?.remove()
+      this.guestVideoEl = null
+    } else if (this.isOwnerPublisherIdentity(identity)) {
+      this.ownerVideoEl?.remove()
+      this.ownerVideoEl = null
+    }
   }
 
   shouldBeInteractive(): boolean {
@@ -204,6 +391,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.livekitRoom?.disconnect()
     this.livekitRoom = null
     this.stopStreamVolumePoll()
+    this.stopCohostComposite()
     this.stopBroadcast(true)
     this.broadcastPanel?.remove()
     this.broadcastPanel = null
@@ -227,9 +415,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     ctx.textAlign = 'center'
     ctx.fillStyle = '#f5f5f0'
 
-    const hasRemoteBroadcaster = [...((this.livekitRoom as any)?.remoteParticipants?.values() ?? [])].some((p: any) => p?.videoTrackPublications?.size > 0 || p?.audioTrackPublications?.size > 0)
+    const hasRemoteBroadcaster = this.hasRemoteBroadcaster()
 
-    if (hasRemoteBroadcaster) {
+    if (hasRemoteBroadcaster && !(this.isCohostMode() && this.canOpenBroadcastPanel())) {
       ctx.fillStyle = '#888'
       ctx.fillText('connecting to stream...', w / 2, h / 2)
     } else if (this.parcel.canEdit || isGuestForShowbox(this.uuid)) {
@@ -276,9 +464,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const room = new Room()
     this.livekitRoom = room
 
-    room.on(RoomEvent.TrackSubscribed, (track) => {
-      // Two livekit connections (publish + subscribe) would play the broadcaster's own stream back.
-      if (this.broadcastRoom) return
+    room.on(RoomEvent.TrackSubscribed, (track, _pub, participant) => {
+      const identity = participant?.identity ?? ''
+      if (this.broadcastRoom) {
+        if (this.isCohostMode() && track.kind === Track.Kind.Audio && this.shouldPlayCohostAudio(identity)) {
+          this.trackCohostMonitor(track.attach() as HTMLAudioElement)
+        }
+        return
+      }
       if (track.kind === Track.Kind.Audio) {
         const el = track.attach() as HTMLAudioElement
         el.style.display = 'none'
@@ -289,13 +482,26 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         return
       }
       if (track.kind === Track.Kind.Video) {
-        this.attachVideoToMesh(track.attach() as HTMLVideoElement)
+        if (this.isCohostMode()) {
+          this.routeCohostVideo(track, identity)
+        } else {
+          this.attachVideoToMesh(track.attach() as HTMLVideoElement)
+        }
         this.startBroadcastAudio()
       }
     })
 
-    room.on(RoomEvent.TrackUnsubscribed, (track) => {
-      if (this.broadcastRoom) return
+    room.on(RoomEvent.TrackUnsubscribed, (track, _pub, participant) => {
+      const identity = participant?.identity ?? ''
+      if (this.broadcastRoom) {
+        if (this.isCohostMode() && track.kind === Track.Kind.Audio) {
+          track.detach().forEach((node) => {
+            const i = this.cohostMonitorEls.indexOf(node as HTMLAudioElement)
+            if (i >= 0) this.cohostMonitorEls.splice(i, 1)
+          })
+        }
+        return
+      }
       if (track.kind === Track.Kind.Audio) {
         track.detach().forEach((node) => {
           const i = this.streamAudioEls.indexOf(node as HTMLAudioElement)
@@ -310,7 +516,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.audio?.removeUserAudioReference(this)
       }
       if (track.kind === Track.Kind.Video) {
-        this.hasActiveVideo = false
+        if (this.isCohostMode()) {
+          this.clearCohostVideoForIdentity(identity)
+          this.updateCohostComposite()
+        } else {
+          this.hasActiveVideo = false
+          this.setPreview()
+        }
+        return
       }
       this.setPreview()
     })
@@ -324,7 +537,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     })
 
     room.on(RoomEvent.ParticipantConnected, () => this.setPreview())
-    room.on(RoomEvent.ParticipantDisconnected, () => this.setPreview())
+    room.on(RoomEvent.ParticipantDisconnected, () => {
+      if (this.isCohostMode() && !this.broadcastRoom) this.updateCohostComposite()
+      this.setPreview()
+    })
 
     await room.connect(LIVEKIT_URL, res.token).catch(() => null)
     this.setPreview()
@@ -411,9 +627,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   stopBroadcast(silent = false) {
     this.stopThumbCapture(silent)
+    this.clearCohostMonitor()
     this.broadcastRoom?.disconnect()
     this.broadcastRoom = null
     this.hasActiveVideo = false
+    this.cohostCompositeAttached = false
     this.audio?.removeUserAudioReference(this)
     if (this.liveTimerInterval) {
       clearInterval(this.liveTimerInterval)
@@ -434,6 +652,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     if (this.isInCurrentParcel && !this.livekitRoom) {
       this.connectViewer()
+    } else if (this.isCohostMode() && this.livekitRoom) {
+      this.cohostCompositeAttached = false
+      this.updateCohostComposite()
     }
   }
 
@@ -584,6 +805,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     const title = document.createElement('div')
     title.textContent = 'Showbox'
+    if (this.isCohostMode()) {
+      const cohostHint = document.createElement('small')
+      cohostHint.textContent = isGuest ? 'co-host show -- go live when ready (use headphones)' : 'co-host show -- share guest link (use headphones)'
+      cohostHint.style.color = '#888'
+      cohostHint.style.display = 'block'
+      title.appendChild(document.createElement('br'))
+      title.appendChild(cohostHint)
+    }
     title.style.fontWeight = 'bold'
     title.style.fontSize = '16px'
 
@@ -1093,13 +1322,20 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           throw new Error('no permission to broadcast here - sign in as parcel owner or use a guest link')
         }
 
-        if (this.livekitRoom) {
+        if (!this.isCohostMode() && this.livekitRoom) {
           this.livekitRoom.disconnect()
           this.livekitRoom = null
+        } else if (this.isCohostMode() && !this.livekitRoom) {
+          await this.connectViewer()
         }
 
         const room = new Room()
         this.broadcastRoom = room
+        room.on(RoomEvent.Disconnected, () => {
+          if (!this.broadcastRoom) return
+          status.textContent = 'disconnected'
+          this.stopBroadcast()
+        })
         await room.connect(LIVEKIT_URL, res.token)
 
         let tracks: any[]
@@ -1267,9 +1503,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   onClick() {
     if (!this.broadcastRoom) {
-      const hasRemoteBroadcaster = [...((this.livekitRoom as any)?.remoteParticipants?.values() ?? [])].some((p: any) => p?.videoTrackPublications?.size > 0 || p?.audioTrackPublications?.size > 0)
       const guest = isGuestForShowbox(this.uuid)
-      if (!hasRemoteBroadcaster && (guest || this.parcel.canEdit)) {
+      if (this.isCohostMode()) {
+        if (guest || this.parcel.canEdit) {
+          this.openBroadcastPanel()
+        } else {
+          this.startBroadcastAudio()
+        }
+      } else if (!this.hasRemoteBroadcaster() && (guest || this.parcel.canEdit)) {
         this.openBroadcastPanel()
       } else {
         this.startBroadcastAudio()
@@ -1286,6 +1527,7 @@ class Editor extends FeatureEditor<Showbox> {
       id: props.feature.description.id,
       rolloffFactor: props.feature.rolloffFactor,
       volume: props.feature.volume,
+      guestMode: props.feature.guestMode === 'cohost' ? 'cohost' : 'solo',
     }
   }
 
@@ -1293,6 +1535,7 @@ class Editor extends FeatureEditor<Showbox> {
     this.merge({
       rolloffFactor: this.state.rolloffFactor,
       volume: this.state.volume,
+      guestMode: this.state.guestMode,
     })
   }
 
@@ -1310,6 +1553,20 @@ class Editor extends FeatureEditor<Showbox> {
           <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
           <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
           <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+          <div className="f">
+            <label>guest link mode</label>
+            <div>
+              <label>
+                <input type="radio" name="guestMode" checked={this.state.guestMode === 'solo'} onChange={() => this.setState({ guestMode: 'solo' })} />
+                solo guest
+              </label>
+              <label>
+                <input type="radio" name="guestMode" checked={this.state.guestMode === 'cohost'} onChange={() => this.setState({ guestMode: 'cohost' })} />
+                co-host
+              </label>
+            </div>
+            <small>solo = guest replaces you. co-host = you on the left, guest on the right.</small>
+          </div>
           <GuestPasses feature={this.props.feature} />
           <Advanced>
             <FeatureID feature={this.props.feature} />

@@ -324,6 +324,7 @@ export const ShowboxRecord = t.intersection(
       {
         rolloffFactor: t.number,
         volume: t.number,
+        guestMode: t.union([t.literal('solo'), t.literal('cohost')]),
       },
       TYPE_SPECIFIC,
     ),
