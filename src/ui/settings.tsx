@@ -6,6 +6,7 @@ import { FOV, NORMAL_FOV, WIDE_FOV } from '../graphic/field-of-view'
 import { type GraphicEngine, GraphicLevels, GraphicSettings } from '../graphic/graphic-engine'
 import ParcelScript from '../parcel-script'
 import type { MinimapSettings } from '../minimap'
+import { chatSettings } from './interact/chat'
 import { DEFAULT_SENSITIVITY, MAX_SENSITIVITY, MIN_SENSITIVITY } from '../controls/user-control-settings'
 
 function toReversedPercentage(value: number, min: number, max: number): number {
@@ -167,6 +168,11 @@ export class SettingsUI extends Component<Props, State> {
     this.setStateAsync({ minimap })
   }
 
+  onToggleChat(inputElement: HTMLInputElement) {
+    chatSettings.enabled = inputElement.checked
+    this.forceUpdate()
+  }
+
   sendGraphicsSettings() {
     this.graphicsEngine.setSettings(this.state.graphic)
   }
@@ -292,6 +298,12 @@ export class SettingsUI extends Component<Props, State> {
                   </label>
                 </div>
               )}
+              <div className="fs checkbox">
+                <label>
+                  <input type="checkbox" onChange={(e) => this.onToggleChat(e.target as HTMLInputElement)} checked={chatSettings.enabled} />
+                  Show chat
+                </label>
+              </div>
             </div>
           )}
 
