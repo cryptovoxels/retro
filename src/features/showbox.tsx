@@ -8,6 +8,7 @@ import { effect } from '@preact/signals'
 import { Room, RoomEvent, Track, createLocalScreenTracks, createLocalTracks } from 'livekit-client'
 import { avatarName } from '../../common/messages/avatar-ref'
 import { app } from '../../web/src/state'
+import { PanelType } from '../../web/src/components/panel'
 import { messageList, type ChatMessageRecord } from '../connector'
 import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
 import { Animations } from '../avatar-animations'
@@ -1229,6 +1230,7 @@ type Pass = { token: string; parcel_id: number; feature_uuid: string; name: stri
 
 class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; loading: boolean; creating: boolean; error: string | null }> {
   state = { passes: [] as Pass[], loading: true, creating: false, error: null as string | null }
+  linkListRef: HTMLDivElement | null = null
 
   componentDidMount() {
     this.refresh()
@@ -1242,18 +1244,40 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
     return this.props.feature.uuid
   }
 
+  passesForFeature(all: Pass[]) {
+    const uuid = this.featureUuid().toLowerCase()
+    return all.filter((p) => p.feature_uuid?.toLowerCase() === uuid)
+  }
+
+  canCreatePass() {
+    const w = app.state.wallet?.toLowerCase()
+    if (!w) return false
+    return this.props.feature.parcel.owners.some((o) => o?.toLowerCase() === w)
+  }
+
   async refresh() {
     try {
       const r = await fetch(`/api/parcels/${this.parcelId()}/guest-passes`, { credentials: 'include' })
-      const j = await r.json()
-      const all: Pass[] = j.passes ?? []
-      this.setState({ passes: all.filter((p) => p.feature_uuid === this.featureUuid()), loading: false })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok || !j.success) {
+        this.setState({ error: j.error || 'could not load guest links', loading: false })
+        return
+      }
+      this.setState({ passes: this.passesForFeature(j.passes ?? []), loading: false, error: null })
     } catch {
-      this.setState({ loading: false })
+      this.setState({ loading: false, error: 'could not load guest links' })
     }
   }
 
   async create() {
+    if (!this.canCreatePass()) {
+      this.setState({ error: 'only the parcel owner can create guest links' })
+      return
+    }
+    if (this.state.passes.some((p) => !p.revoked_at)) {
+      this.setState({ error: 'revoke the existing link first' })
+      return
+    }
     this.setState({ creating: true, error: null })
     try {
       const r = await fetch(`/api/parcels/${this.parcelId()}/guest-passes`, {
@@ -1262,8 +1286,16 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
         credentials: 'include',
         body: JSON.stringify({ feature_uuid: this.featureUuid() }),
       })
-      const j = await r.json()
-      if (!j.success) throw new Error(j.error || 'Could not create link')
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok || !j.success) throw new Error(j.error || 'Could not create link')
+      const pass = j.pass as Pass | undefined
+      if (pass?.token) {
+        const url = this.liveUrl(pass.token)
+        this.copy(url)
+        app.showSnackbar('guest link created (copied)', PanelType.Success)
+        this.setState((s) => ({ passes: this.passesForFeature([pass, ...s.passes.filter((p) => p.token !== pass.token)]) }))
+        requestAnimationFrame(() => this.linkListRef?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+      }
       await this.refresh()
     } catch (e: any) {
       this.setState({ error: e?.message ?? 'Could not create link' })
@@ -1297,6 +1329,7 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
     if (!this.props.feature.parcel.canEdit) return null
     const active = this.state.passes.filter((p) => !p.revoked_at)
     const revoked = this.state.passes.filter((p) => p.revoked_at)
+    const canCreate = this.canCreatePass() && active.length === 0
 
     return (
       <div className="f">
@@ -1310,33 +1343,37 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
         </div>
 
         <div className="f">
-          <button onClick={() => this.create()} disabled={this.state.creating}>
-            {this.state.creating ? 'creating...' : 'create link'}
-          </button>
+          {canCreate ? (
+            <button type="button" onClick={() => this.create()} disabled={this.state.creating}>
+              {this.state.creating ? 'creating...' : 'create link'}
+            </button>
+          ) : this.canCreatePass() && active.length > 0 ? (
+            <small>revoke the link below to create a new one</small>
+          ) : (
+            <small>owner only</small>
+          )}
           {this.state.error && <div style={{ color: '#dc1e1e' }}>{this.state.error}</div>}
         </div>
 
         {this.state.loading && <small>loading...</small>}
 
         {active.length > 0 && (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <tbody>
-              {active.map((p) => (
-                <tr key={p.token}>
-                  <td>
-                    <strong>{p.name?.trim() || 'name not chosen yet'}</strong>
-                    <br />
-                    <small>broadcast link (guest only)</small>
-                    <input type="text" readOnly value={this.liveUrl(p.token)} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={{ width: '100%' }} />
-                  </td>
-                  <td style={{ verticalAlign: 'top' }}>
-                    <button onClick={() => this.copy(this.liveUrl(p.token))}>copy</button>
-                    <button onClick={() => this.revoke(p.token)}>revoke</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div ref={(el) => (this.linkListRef = el)}>
+            {active.map((p) => (
+              <div className="f" key={p.token}>
+                <label>{p.name?.trim() || 'guest link'}</label>
+                <input type="text" readOnly value={this.liveUrl(p.token)} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} />
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button type="button" onClick={() => this.copy(this.liveUrl(p.token))}>
+                    copy
+                  </button>
+                  <button type="button" onClick={() => this.revoke(p.token)}>
+                    revoke
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
 
         {revoked.length > 0 && (
