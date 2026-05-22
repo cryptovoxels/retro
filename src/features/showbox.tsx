@@ -179,6 +179,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   setPreview() {
     if (this.disposed) return
+    if (this.broadcastRoom) return
     if (this.hasActiveVideo) return
     const w = 640
     const h = 360
@@ -243,6 +244,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.livekitRoom = room
 
     room.on(RoomEvent.TrackSubscribed, (track) => {
+      // Two livekit connections (publish + subscribe) would play the broadcaster's own stream back.
+      if (this.broadcastRoom) return
       if (track.kind === Track.Kind.Audio) {
         const el = track.attach() as HTMLAudioElement
         el.volume = this.volume
@@ -259,6 +262,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     })
 
     room.on(RoomEvent.TrackUnsubscribed, (track) => {
+      if (this.broadcastRoom) return
       if (track.kind === Track.Kind.Audio) {
         this.audio?.removeUserAudioReference(this)
       }
@@ -384,6 +388,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.broadcastChatDispose) {
       this.broadcastChatDispose()
       this.broadcastChatDispose = null
+    }
+    if (this.isInCurrentParcel && !this.livekitRoom) {
+      this.connectViewer()
     }
   }
 
@@ -555,6 +562,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const screenChk = document.createElement('input')
     screenChk.type = 'checkbox'
     screenOpt.append(screenChk, ' use screenshare instead of camera')
+    const screenHint = document.createElement('small')
+    screenHint.textContent = 'mute the shared tab in chrome or you will hear double audio'
+    screenHint.style.color = '#888'
+    screenHint.style.display = 'none'
+    screenChk.onchange = () => {
+      screenHint.style.display = screenChk.checked ? 'block' : 'none'
+    }
     if (mobile) screenOpt.style.display = 'none' // screenshare from a phone is unreliable; stick to the camera
 
     const deviceRow = document.createElement('div')
@@ -885,12 +899,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
       const mobileKids: Node[] = [title]
       if (identityRow) mobileKids.push(identityRow)
-      mobileKids.push(deviceRow, screenOpt, deviceToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status)
+      mobileKids.push(deviceRow, screenOpt, screenHint, deviceToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status)
       panel.append(...mobileKids)
     } else {
       const desktopKids: Node[] = [title]
       if (identityRow) desktopKids.push(identityRow)
-      desktopKids.push(deviceRow, screenOpt, deviceToggle)
+      desktopKids.push(deviceRow, screenOpt, screenHint, deviceToggle)
       if (shareRow) desktopKids.push(shareRow)
       desktopKids.push(moveRow, status, row)
       panel.append(...desktopKids)
@@ -1034,6 +1048,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         if (res.canPublish === false) {
           throw new Error('no permission to broadcast here - sign in as parcel owner or use a guest link')
+        }
+
+        if (this.livekitRoom) {
+          this.livekitRoom.disconnect()
+          this.livekitRoom = null
         }
 
         const room = new Room()
