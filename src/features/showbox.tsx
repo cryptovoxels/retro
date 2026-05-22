@@ -1613,6 +1613,7 @@ type Pass = { token: string; parcel_id: number; feature_uuid: string; name: stri
 
 class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; loading: boolean; creating: boolean; error: string | null }> {
   state = { passes: [] as Pass[], loading: true, creating: false, error: null as string | null }
+  linkListRef: HTMLDivElement | null = null
 
   componentDidMount() {
     this.refresh()
@@ -1626,6 +1627,11 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
     return this.props.feature.uuid
   }
 
+  passesForFeature(all: Pass[]) {
+    const uuid = this.featureUuid().toLowerCase()
+    return all.filter((p) => p.feature_uuid?.toLowerCase() === uuid)
+  }
+
   canCreatePass() {
     const w = app.state.wallet?.toLowerCase()
     if (!w) return false
@@ -1636,12 +1642,11 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
     try {
       const r = await fetch(`/api/parcels/${this.parcelId()}/guest-passes`, { credentials: 'include' })
       const j = await r.json().catch(() => ({}))
-      if (!r.ok) {
+      if (!r.ok || !j.success) {
         this.setState({ error: j.error || 'could not load guest links', loading: false })
         return
       }
-      const all: Pass[] = j.passes ?? []
-      this.setState({ passes: all.filter((p) => p.feature_uuid === this.featureUuid()), loading: false, error: null })
+      this.setState({ passes: this.passesForFeature(j.passes ?? []), loading: false, error: null })
     } catch {
       this.setState({ loading: false, error: 'could not load guest links' })
     }
@@ -1666,11 +1671,13 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
       })
       const j = await r.json().catch(() => ({}))
       if (!r.ok || !j.success) throw new Error(j.error || 'Could not create link')
-      const token = j.pass?.token
-      if (token) {
-        const url = this.liveUrl(token)
+      const pass = j.pass as Pass | undefined
+      if (pass?.token) {
+        const url = this.liveUrl(pass.token)
         this.copy(url)
         app.showSnackbar('guest link created (copied)', PanelType.Success)
+        this.setState((s) => ({ passes: this.passesForFeature([pass, ...s.passes.filter((p) => p.token !== pass.token)]) }))
+        requestAnimationFrame(() => this.linkListRef?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
       }
       await this.refresh()
     } catch (e: any) {
@@ -1723,22 +1730,26 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
 
         {this.state.loading && <small>loading...</small>}
 
-        {active.map((p) => (
-          <div key={p.token}>
-            <div className="f">
-              <label>{p.name?.trim() || 'guest link'}</label>
-              <input type="text" readOnly value={this.liveUrl(p.token)} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
-            </div>
-            <div style={{ display: 'flex', gap: '0.5rem', flexDirection: mobile ? 'column' : 'row', marginBottom: '0.5rem' }}>
-              <button type="button" style={mobile ? { minHeight: '44px', width: '100%' } : undefined} onClick={() => this.copy(this.liveUrl(p.token))}>
-                copy
-              </button>
-              <button type="button" style={mobile ? { minHeight: '44px', width: '100%' } : undefined} onClick={() => this.revoke(p.token)}>
-                revoke
-              </button>
-            </div>
+        {active.length > 0 && (
+          <div ref={(el) => (this.linkListRef = el)}>
+            {active.map((p) => (
+              <div key={p.token}>
+                <div className="f">
+                  <label>{p.name?.trim() || 'guest link'}</label>
+                  <input type="text" readOnly value={this.liveUrl(p.token)} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem', flexDirection: mobile ? 'column' : 'row', marginBottom: '0.5rem' }}>
+                  <button type="button" style={mobile ? { minHeight: '44px', width: '100%' } : undefined} onClick={() => this.copy(this.liveUrl(p.token))}>
+                    copy
+                  </button>
+                  <button type="button" style={mobile ? { minHeight: '44px', width: '100%' } : undefined} onClick={() => this.revoke(p.token)}>
+                    revoke
+                  </button>
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
+        )}
 
         {revoked.length > 0 && (
           <details>
