@@ -1,4 +1,5 @@
 import { Component, h } from 'preact'
+import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { isMobile } from '../../common/helpers/detector'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
@@ -34,9 +35,21 @@ const mobile = isMobile()
 
 // True when the page was opened via /live/:token and the guest pass targets this showbox.
 // The synthetic wallet `guest:*` and `?show=<uuid>` are both set by the server on redeem.
+function guestJwtPayload(): { wallet?: string; guest_pass?: string; feature_uuid?: string } | null {
+  try {
+    const key = app.state.key || Cookies.get('jwt')
+    if (!key) return null
+    return decodeJwt(key) as { wallet?: string; guest_pass?: string; feature_uuid?: string }
+  } catch {
+    return null
+  }
+}
+
 function isGuestForShowbox(uuid: string): boolean {
-  const w = app.state.wallet
-  if (!w || !w.startsWith('guest:')) return false
+  const payload = guestJwtPayload()
+  const w = (payload?.wallet ?? app.state.wallet)?.toLowerCase()
+  if (!w?.startsWith('guest:')) return false
+  if (payload?.feature_uuid === uuid) return true
   try {
     return new URL(window.location.href).searchParams.get('show') === uuid
   } catch {
@@ -45,14 +58,7 @@ function isGuestForShowbox(uuid: string): boolean {
 }
 
 function guestPassToken(): string | null {
-  try {
-    const key = app.state.key
-    if (!key) return null
-    const payload = decodeJwt(key) as { guest_pass?: string }
-    return payload.guest_pass ?? null
-  } catch {
-    return null
-  }
+  return guestJwtPayload()?.guest_pass ?? null
 }
 
 // Plain /play?coords= link for the audience. No isolate, ui=off, or show= - just drop people at the showbox.
@@ -143,9 +149,19 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.connectViewer()
     }
     // Guest pass redirects with ?show=<uuid> - auto-open the broadcast dock so they don't have to find/click the panel.
-    if (isGuestForShowbox(this.uuid) && !this.broadcastPanel) {
-      setTimeout(() => this.openBroadcastPanel(), 250)
+    // Wallet may still be loading from the jwt cookie when onEnter fires; retry after app state settles.
+    if (this.broadcastPanel) return
+    const tryAutoOpen = () => {
+      if (isGuestForShowbox(this.uuid) && !this.broadcastPanel) {
+        this.openBroadcastPanel()
+        return true
+      }
+      return false
     }
+    setTimeout(() => {
+      if (tryAutoOpen()) return
+      void app.getState().then(tryAutoOpen)
+    }, 250)
   }
 
   onExit = () => {
