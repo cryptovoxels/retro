@@ -1821,6 +1821,16 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
     return all.filter((p) => p.feature_uuid?.toLowerCase() === uuid)
   }
 
+  passActive(p: Pass) {
+    return !p.revoked_at
+  }
+
+  applyPass(pass: Pass) {
+    this.setState((s) => ({
+      passes: this.passesForFeature([pass, ...s.passes.filter((p) => p.token !== pass.token)]),
+    }))
+  }
+
   canManagePasses() {
     const w = app.state.wallet?.toLowerCase()
     if (!w) return false
@@ -1830,15 +1840,17 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
 
   async refresh() {
     try {
-      const r = await fetch(`/api/parcels/${this.parcelId()}/guest-passes`, { credentials: 'include' })
+      const r = await fetch(`/api/parcels/${this.parcelId()}/guest-passes`, { credentials: 'include', cache: 'no-store' })
       const j = await r.json().catch(() => ({}))
       if (!r.ok || !j.success) {
         this.setState({ error: j.error || 'could not load guest links', loading: false })
-        return
+        return false
       }
       this.setState({ passes: this.passesForFeature(j.passes ?? []), loading: false, error: null })
+      return true
     } catch {
       this.setState({ loading: false, error: 'could not load guest links' })
+      return false
     }
   }
 
@@ -1847,7 +1859,7 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
       this.setState({ error: 'only the parcel owner can create guest links' })
       return
     }
-    if (this.state.passes.some((p) => !p.revoked_at)) {
+    if (this.state.passes.some((p) => this.passActive(p))) {
       this.setState({ error: 'revoke the existing link first' })
       return
     }
@@ -1866,12 +1878,18 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
         const url = this.liveUrl(pass.token)
         this.copy(url)
         app.showSnackbar('guest link created (copied)', PanelType.Success)
-        this.setState((s) => ({ passes: this.passesForFeature([pass, ...s.passes.filter((p) => p.token !== pass.token)]) }))
+        this.applyPass(pass)
         requestAnimationFrame(() => this.linkListRef?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
       }
       await this.refresh()
     } catch (e: any) {
-      this.setState({ error: e?.message ?? 'Could not create link' })
+      const msg = e?.message ?? 'Could not create link'
+      if (String(msg).toLowerCase().includes('revoke')) {
+        await this.refresh()
+        this.setState({ error: 'a guest link is still active on the server -- revoke it below or refresh the page' })
+      } else {
+        this.setState({ error: msg })
+      }
     } finally {
       this.setState({ creating: false })
     }
@@ -1891,10 +1909,9 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
       })
       const j = await r.json().catch(() => ({}))
       if (!r.ok || !j.success) throw new Error(j.error || 'could not revoke link')
-      const revokedAt = (j.pass as Pass | undefined)?.revoked_at ?? new Date().toISOString()
-      this.setState((s) => ({
-        passes: s.passes.map((p) => (p.token === token ? { ...p, revoked_at: revokedAt } : p)),
-      }))
+      const pass = j.pass as Pass | undefined
+      if (!pass?.revoked_at) throw new Error('could not revoke link')
+      this.applyPass(pass)
       app.showSnackbar('guest link revoked', PanelType.Success)
       await this.refresh()
     } catch (e: any) {
@@ -1912,8 +1929,8 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
 
   render() {
     if (!this.props.feature.parcel.canEdit) return null
-    const active = this.state.passes.filter((p) => !p.revoked_at)
-    const revoked = this.state.passes.filter((p) => p.revoked_at)
+    const active = this.state.passes.filter((p) => this.passActive(p))
+    const revoked = this.state.passes.filter((p) => !this.passActive(p))
     const canManage = this.canManagePasses()
     const canCreate = canManage && active.length === 0
 
