@@ -25,6 +25,7 @@ import CollectiblesController from './controllers/collectibles'
 import CollectionsController from './controllers/collections'
 import FavoritesController from './controllers/favorites'
 import LivekitController from './controllers/livekit'
+import RadarController from './controllers/radar'
 import NftController from './controllers/nft'
 import EventsController from './controllers/parcel-events'
 import ParcelsController from './controllers/parcels'
@@ -339,6 +340,7 @@ AdminController(db, passport, app)
 
 // Livekit controller
 LivekitController(db, passport, app)
+RadarController(app)
 
 // Guest broadcast passes (token-based access to a specific Showbox without an account)
 GuestPassesController(db, passport, app, livekitService)

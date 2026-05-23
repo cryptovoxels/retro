@@ -5,7 +5,7 @@ import { app, AppEvent } from '../../web/src/state'
 import { CommunityEvents } from '../components/explorer/events'
 import { Home } from '../components/explorer/home'
 import { AccountParcels, FavoritesParcels, ParcelsList } from '../components/explorer/parcels'
-import { UsersOnline } from '../components/explorer/users-online'
+import Radar from '../../web/src/components/radar'
 import { BigMap } from './map-overlay'
 import { ExplorerSearchBar } from './search-bar'
 
@@ -208,7 +208,7 @@ export class ExplorerUI extends Component<Props, State> {
         openTab = <CommunityEvents />
         break
       case 'users':
-        openTab = <UsersOnline scene={this.props.scene} />
+        openTab = <Radar />
         break
       case 'home':
         openTab = <Home onTeleport={this.closeWithPointerLock} scene={this.props.scene} />

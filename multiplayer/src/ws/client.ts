@@ -33,6 +33,7 @@ export type ClientEventEmitterMap = {
   messageRx: { status: 'ok' | 'error'; message: any; type: string | undefined }
   login: {}
   login_failed: {}
+  parcel_change: { client: Client; parcel: number }
   backpressure: { client: Client; amount: number }
   message_dropped_queue_full: { client: Client; message: messages.MessageType }
   message_dropped_queue_full_timeout: { client: Client; message: messages.MessageType; durationMs: number }
@@ -371,7 +372,10 @@ export class Client {
 
   private handleMetric(msg: messages.MetricMessage): void {
     const parcelId = msg.parcel
-    Object.assign(this, { lastSeenParcel: parcelId })
+    if (this.lastSeenParcel !== parcelId) {
+      this.lastSeenParcel = parcelId
+      this._emitter.emit('parcel_change', { client: this, parcel: parcelId })
+    }
     const anonId = this.anonymizedClientId()
     const position = msg.position
     if (!isVec3(position)) return

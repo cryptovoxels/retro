@@ -4,7 +4,7 @@ import { maxBy } from 'lodash'
 import { Component } from 'preact'
 import { render } from 'preact/compat'
 import ParcelHelper, { getParcelHelper } from '../../common/helpers/parcel-helper'
-import { decodeCoords, encodeCoords, fetchFromMPServer } from '../../common/helpers/utils'
+import { decodeCoords, encodeCoords } from '../../common/helpers/utils'
 import { MapParcelRecord } from '../../common/messages/api-parcels'
 import type MapOverlayUI from '../../src/ui/map-overlay'
 import { Womp, WompCard } from './components/womp-card'
@@ -296,7 +296,6 @@ export default class WorldMap extends Component<Props, State> {
     }
 
     generateWompMarkers(this, this.abortController?.signal)
-    generateAvatarMarkers(this, this.abortController?.signal)
   }
 
   addMap() {
@@ -681,108 +680,4 @@ export async function generateWompMarkers(mapContext: WorldMap | MapOverlayUI, s
 
   wompMarkers.addTo(mapContext.map)
   mapContext.layerControl?.addOverlay(wompMarkers, `<i class="map-icon womp"></i> latest Womps`)
-}
-
-type user = { position: [x: number, y: number, z: number]; lastSeen: number | undefined; name: string | undefined; wallet: string }
-type usersResponse = { users: user[] }
-const getUsers = async (signal?: AbortSignal) => {
-  const r = await fetchFromMPServer<usersResponse>('/api/users.json', { signal })
-  if (!r || !r.users) return []
-
-  return r.users.map((u) => {
-    if (u.name) {
-      return u
-    }
-    if (u.wallet) {
-      u.name = u.wallet?.substring(0, 10)
-      return u
-    }
-    //rename null names to their shortened wallets
-    u.name = 'anon'
-    return u
-  })
-}
-
-// Only used on the worldMap
-export async function generateAvatarMarkers(mapContext: WorldMap, signal?: AbortSignal) {
-  console.debug('generateAvatarMarkers')
-  L = L || window.L
-
-  const users = await getUsers(signal)
-
-  const avatarIcon = L.icon({
-    iconUrl: '/images/marker.png',
-    iconSize: [12, 14],
-    iconAnchor: [6, 7],
-    popupAnchor: [1, 1],
-  })
-
-  const clusterGroups = L.markerClusterGroup.layerSupport({
-    showCoverageOnHover: false,
-    chunkedLoading: true,
-    iconCreateFunction: function (cluster: any) {
-      const m = cluster.getAllChildMarkers()
-      const labelCount: Record<string, number>[] = []
-      m.forEach((marker: any) => {
-        const count = labelCount.find((l) => l[marker.options.icon.options.label] >= 0) as undefined | Record<string, number>
-        if (count) {
-          count[marker.options.icon.options.label]++
-        } else {
-          labelCount.push({ [marker.options.icon.options.label]: 1 })
-        }
-      })
-      // const maximum = maxBy(labelCount, (a) => Object.values(a))
-
-      return L.divIcon({ html: `<div>` + cluster.getChildCount() + '</div>', className: 'MarkersClusters -avatar' })
-    },
-  })
-  clusterGroups.addTo(mapContext.map)
-
-  if (!mapContext.map) {
-    console.error('Map not initialized')
-    return
-  }
-  const avatarMarkers = window.L.layerGroup()
-  for (const user of users) {
-    if (!user.position) {
-      continue
-    }
-    const parcel = mapContext.parcels?.find((p) => p.id === user.lastSeen)
-
-    const parsedCoords = encodeCoords({ position: BABYLON.Vector3.FromArray(user.position), rotation: BABYLON.Vector3.Zero() })
-
-    const marker = window.L.marker([user.position[2] / 100, user.position[0] / 100], {
-      // Renderer is necessary for performance with many markers but not defined in types
-      renderer: mapContext.mapRenderer,
-      opacity: 1,
-      icon: avatarIcon,
-      title: `${user.name}`,
-    } as L.MarkerOptions)
-
-    const div = document.createElement('div')
-    div.className = 'map-teleport-popup'
-    div.innerHTML = user.wallet ? `<b><a href='/u/${user.wallet}'>${user.name}</a></b><br />` : `<b>${user.name}</b><br />`
-    if (parcel) {
-      div.innerHTML += `<span>Last seen near:</span><br /><span>${parcel.name || parcel.address}</span><br />`
-    }
-    const button = document.createElement('button')
-    button.className = 'teleportHere'
-    button.textContent = 'Join'
-    button.onclick = () => {
-      if (mapContext.state.embed) {
-        window.opener.location.href = `/play?coords=${parsedCoords}`
-        window.close()
-      } else {
-        window.location.href = `/play?coords=${parsedCoords}`
-      }
-    }
-    div.appendChild(button)
-    marker.bindPopup(div, { autoClose: true }).openPopup()
-
-    avatarMarkers.addLayer(marker)
-  }
-  !!clusterGroups && clusterGroups?.checkIn(avatarMarkers)
-  avatarMarkers.addTo(mapContext.map)
-
-  mapContext.layerControl?.addOverlay(avatarMarkers, `<i  class="map-icon avatar"></i> Avatars`)
 }

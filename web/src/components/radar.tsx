@@ -1,87 +1,66 @@
 import { Component } from 'preact'
-import cachedFetch from '../helpers/cached-fetch'
-import { encodeCoords } from '../../../common/helpers/utils'
+import type { AvatarRef } from '../../../common/messages/avatar-ref'
+import { AvatarLink } from './avatar-link'
 import { getParcel } from '../store/index'
-import { Animations } from '../../../src/avatar-animations'
 
-export type MultiplayerUsersAPIResponse = {
-  users: {
-    name: string
-    animation: Animations
-    position: [number, number, number]
-    lastSeen: string | null
-  }[]
-}
+type User = { avatar: AvatarRef | null; parcel: number | null }
 
-export interface Props {}
-
-export interface State {
-  users: MultiplayerUsersAPIResponse['users']
-  fetching?: boolean
-}
-
-const TTL = 5
-
-export default class Radar extends Component<Props, State> {
-  interval: any
-
-  constructor(props: any) {
-    super(props)
-    this.state = {
-      fetching: true,
-      users: [],
-    }
-  }
+export default class Radar extends Component<{}, { users: Map<string, User> }> {
+  state = { users: new Map<string, User>() }
+  es: EventSource | null = null
 
   componentDidMount() {
-    this.fetch()
-
-    this.interval = setInterval(this.fetch, TTL * 1000)
+    this.es = new EventSource('/api/users/live')
+    this.es.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data)
+        this.setState(({ users }) => {
+          const next = new Map(users)
+          if (msg.type === 'snapshot') {
+            next.clear()
+            for (const u of msg.users ?? []) next.set(u.uuid, { avatar: u.avatar, parcel: u.parcel })
+          } else if (msg.type === 'move') {
+            next.set(msg.uuid, { avatar: msg.avatar, parcel: msg.parcel })
+          } else if (msg.type === 'leave') {
+            next.delete(msg.uuid)
+          }
+          return { users: next }
+        })
+      } catch {}
+    }
   }
 
   componentWillUnmount() {
-    clearInterval(this.interval)
-  }
-
-  fetch = async () => {
-    this.setState({ fetching: true })
-
-    const endpoint = 'https://www.voxels.com/mp/api/users.json?ttl=15'
-
-    const f = await cachedFetch(endpoint, {}, TTL)
-    const r = (await f.json()) as MultiplayerUsersAPIResponse
-
-    const { users } = r
-    this.setState({ users, fetching: false })
+    this.es?.close()
   }
 
   render() {
-    const trunc = 64
-
-    const users = (this.state.users || [])
-      .filter((u: any) => u.position)
-      .map((u: any) => {
-        const coords = { position: BABYLON.Vector3.FromArray(u.position) }
-        const teleport = `/play?coords=` + encodeCoords(coords)
-        const anon = !u.name
-        const parcel = u.lastSeen && getParcel(u.lastSeen).value
-
-        // <img src="http://localhost:4321/avatars/0x2d891ed45c4c3eab978513df4b92a35cf131d2e2" />
-
-        return (
-          <li title={u.name} class={anon ? 'anon' : ''} key={[teleport + u.lastSeen + u.wallet].join('-')}>
-            <a href={teleport} title={u.name}>
-              a
-            </a>
-          </li>
-        )
-      })
-      .slice(0, trunc)
-
-    if (this.state.fetching) {
-      return
+    const byParcel = new Map<number | null, { uuid: string; avatar: AvatarRef | null }[]>()
+    for (const [uuid, u] of this.state.users) {
+      const key = u.parcel ?? null
+      if (!byParcel.has(key)) byParcel.set(key, [])
+      byParcel.get(key)!.push({ uuid, avatar: u.avatar })
     }
 
-    return <ul class="radar">{users}</ul>
+    if (byParcel.size === 0) return <p>no one online</p>
+
+    return (
+      <ul class="radar">
+        {[...byParcel.entries()].map(([parcelId, users]) => {
+          const info = parcelId != null ? getParcel(parcelId).value : null
+          const label = info?.name || info?.address || (parcelId ? `parcel ${parcelId}` : 'somewhere')
+          return (
+            <li key={parcelId ?? 'none'}>
+              {parcelId ? <a href={`/parcels/${parcelId}`}>{label}</a> : <span>{label}</span>}
+              <ul>
+                {users.map(({ uuid, avatar }) => (
+                  <li key={uuid}>{avatar ? <AvatarLink avatar={avatar} /> : <span>anon</span>}</li>
+                ))}
+              </ul>
+            </li>
+          )
+        })}
+      </ul>
+    )
   }
 }
