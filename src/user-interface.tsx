@@ -821,7 +821,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                 </a>
               </li>
               <li class={!this.state.signedIn ? 'disabled' : ''}>
-                <a href="/costumer" target="_blank" rel="noopener">Costumes</a>
+                <a href="/costumer" target="_blank" rel="noopener">
+                  Costumes
+                </a>
               </li>
               {/* <li class={active('summon')}>
                 <a title="I for one welcome our robot overlords" onClick={onSummon}>

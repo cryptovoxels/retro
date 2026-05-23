@@ -80,7 +80,7 @@ const mobile = isMobile()
 
 function isRoomFullError(e: unknown) {
   const msg = (e instanceof Error ? e.message : String(e ?? '')).toLowerCase()
-  return msg.includes('room is full') || msg.includes('participant') && (msg.includes('limit') || msg.includes('max') || msg.includes('full'))
+  return msg.includes('room is full') || (msg.includes('participant') && (msg.includes('limit') || msg.includes('max') || msg.includes('full')))
 }
 
 // True when the page was opened via /live/:token and the guest pass targets this showbox.
@@ -1920,7 +1920,11 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
         {this.state.loading && <small>loading...</small>}
 
         {active.length > 0 && (
-          <div ref={(el) => (this.linkListRef = el)}>
+          <div
+            ref={(el) => {
+              this.linkListRef = el
+            }}
+          >
             {active.map((p) => (
               <div key={p.token}>
                 <div className="f">
