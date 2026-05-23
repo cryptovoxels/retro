@@ -1821,9 +1821,10 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
     return all.filter((p) => p.feature_uuid?.toLowerCase() === uuid)
   }
 
-  canCreatePass() {
+  canManagePasses() {
     const w = app.state.wallet?.toLowerCase()
     if (!w) return false
+    if (app.isAdmin()) return true
     return this.props.feature.parcel.owners.some((o) => o?.toLowerCase() === w)
   }
 
@@ -1842,7 +1843,7 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
   }
 
   async create() {
-    if (!this.canCreatePass()) {
+    if (!this.canManagePasses()) {
       this.setState({ error: 'only the parcel owner can create guest links' })
       return
     }
@@ -1877,12 +1878,28 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
   }
 
   async revoke(token: string) {
+    if (!this.canManagePasses()) {
+      this.setState({ error: 'only the parcel owner can revoke guest links' })
+      return
+    }
     if (!confirm('Revoke this link? They will be kicked if currently live.')) return
-    await fetch(`/api/parcels/${this.parcelId()}/guest-passes/${encodeURIComponent(token)}`, {
-      method: 'DELETE',
-      credentials: 'include',
-    }).catch(() => {})
-    await this.refresh()
+    this.setState({ error: null })
+    try {
+      const r = await fetch(`/api/parcels/${this.parcelId()}/guest-passes/${encodeURIComponent(token)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      const j = await r.json().catch(() => ({}))
+      if (!r.ok || !j.success) throw new Error(j.error || 'could not revoke link')
+      const revokedAt = (j.pass as Pass | undefined)?.revoked_at ?? new Date().toISOString()
+      this.setState((s) => ({
+        passes: s.passes.map((p) => (p.token === token ? { ...p, revoked_at: revokedAt } : p)),
+      }))
+      app.showSnackbar('guest link revoked', PanelType.Success)
+      await this.refresh()
+    } catch (e: any) {
+      this.setState({ error: e?.message ?? 'could not revoke link' })
+    }
   }
 
   copy(text: string) {
@@ -1897,7 +1914,8 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
     if (!this.props.feature.parcel.canEdit) return null
     const active = this.state.passes.filter((p) => !p.revoked_at)
     const revoked = this.state.passes.filter((p) => p.revoked_at)
-    const canCreate = this.canCreatePass() && active.length === 0
+    const canManage = this.canManagePasses()
+    const canCreate = canManage && active.length === 0
 
     return (
       <div className="f">
@@ -1909,7 +1927,7 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
             <button type="button" style={mobile ? { minHeight: '44px' } : undefined} onClick={() => this.create()} disabled={this.state.creating}>
               {this.state.creating ? 'creating...' : 'create link'}
             </button>
-          ) : this.canCreatePass() && active.length > 0 ? (
+          ) : canManage && active.length > 0 ? (
             <small>revoke the link below to create a new one</small>
           ) : (
             <small>owner only</small>
@@ -1935,9 +1953,11 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
                   <button type="button" style={mobile ? { minHeight: '44px', width: '100%' } : undefined} onClick={() => this.copy(this.liveUrl(p.token))}>
                     copy
                   </button>
-                  <button type="button" style={mobile ? { minHeight: '44px', width: '100%' } : undefined} onClick={() => this.revoke(p.token)}>
-                    revoke
-                  </button>
+                  {canManage && (
+                    <button type="button" style={mobile ? { minHeight: '44px', width: '100%' } : undefined} onClick={() => this.revoke(p.token)}>
+                      revoke
+                    </button>
+                  )}
                 </div>
               </div>
             ))}

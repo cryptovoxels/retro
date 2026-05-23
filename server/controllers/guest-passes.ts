@@ -113,13 +113,20 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       return res.status(403).json({ success: false, error: 'Owner only' })
     }
 
-    const token = String(req.params.token)
+    const token = decodeURIComponent(String(req.params.token ?? ''))
     const pass = await loadGuestPass(db, token)
     if (!pass || pass.parcel_id !== parcelId) {
       return res.status(404).json({ success: false, error: 'Pass not found' })
     }
+    if (pass.revoked_at) {
+      return res.json({ success: true, pass })
+    }
 
-    await db.query('sql/guest-passes/revoke', `update guest_passes set revoked_at = now() where token = $1 and revoked_at is null`, [token])
+    const revoked = await db.query('sql/guest-passes/revoke', `update guest_passes set revoked_at = now() where token = $1 and revoked_at is null returning *`, [token])
+    const updated = revoked.rows[0] ?? (await loadGuestPass(db, token))
+    if (!updated?.revoked_at) {
+      return res.status(500).json({ success: false, error: 'Could not revoke link' })
+    }
 
     // Best-effort live kick: any participant whose identity carries this token prefix
     try {
@@ -135,7 +142,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       // room may not exist; nothing to kick
     }
 
-    res.json({ success: true })
+    res.json({ success: true, pass: updated })
   })
 
   // Guest can update their own display name. Auth via the guest_pass jwt - if it doesn't match
