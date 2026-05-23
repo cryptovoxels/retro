@@ -23,10 +23,7 @@ export type ClientConnectionInformation = {
   shardID: ShardId
 }
 
-const ALLOW_ANON_CHAT = process.env.ALLOW_ANON_CHAT === '1'
-const MAX_CHAT_MESSAGE_LENGTH = 256
-const CHAT_MESSAGE_RATE_LIMIT_MS = 100
-const CHAT_MESSAGE_DEDUPE_TIME_MS = 10_000
+const MAX_CHAT_MESSAGE_LENGTH = 1024
 
 export class Client {
   private _disposeAbortController = new AbortController()
@@ -102,7 +99,7 @@ export class Client {
     }
   }
 
-  onMessageDropped(_message: ArrayBuffer, _isBinary: boolean) {}
+  onMessageDropped(_message: ArrayBuffer, _isBinary: boolean) { }
 
   async onMessage(message: ArrayBuffer, isBinary: boolean) {
     if (!isBinary) {
@@ -187,24 +184,12 @@ export class Client {
 
   private handleChat(msg: messages.ChatMessage): void {
     const now = Date.now()
-    if (this._lastChatMsgTime + CHAT_MESSAGE_RATE_LIMIT_MS > now) {
-      console.warn('dropping chat message due to rate limit', this.whois())
-      return
-    }
     if (msg.text.length > MAX_CHAT_MESSAGE_LENGTH) {
       console.warn('dropping chat message over max length', this.whois())
       return
     }
     if (!msg.text.trim()) {
       console.warn('dropping empty chat message', this.whois())
-      return
-    }
-    if (this._lastChatMsgTime + CHAT_MESSAGE_DEDUPE_TIME_MS > now && this._lastChatMsg === msg.text) {
-      console.warn('dropping duplicate chat message', this.whois())
-      return
-    }
-    if (!this.loggedIn && !ALLOW_ANON_CHAT) {
-      console.warn('Dropping chat message due to incorrect permissions', msg)
       return
     }
     this._lastChatMsg = msg.text
@@ -348,7 +333,7 @@ export class Client {
     )
   }
 
-  drained() {}
+  drained() { }
 
   dispose() {
     this._disposeAbortController.abort('ABORT:client disposed')
