@@ -1,5 +1,4 @@
 import type http from 'http'
-import type winston from 'winston'
 import { APP_NAME } from '../constants/appName'
 import { Shards } from '../ws/shards/shards'
 import checkCors from './checkCors'
@@ -60,7 +59,7 @@ function constructSocketUrl(): string {
   return fallbackUrl
 }
 
-export default function createWWWServer(server: http.Server, logger: winston.Logger, shards: Shards) {
+export default function createWWWServer(server: http.Server, shards: Shards) {
   const clientCount = () =>
     shards.worldShard.getShardClientCount() +
     [...shards.spaceShards.values()].reduce((n, s) => n + s.getShardClientCount(), 0)

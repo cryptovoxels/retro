@@ -2,7 +2,6 @@ import { ExponentialBackoff, handleAll, retry } from 'cockatiel'
 import he from 'he'
 import { jwtVerify } from 'jose'
 import { v7 as uuidv7 } from 'uuid'
-import winston from 'winston'
 import * as messages from '../../../common/messages'
 import type { AvatarRef, AvatarRefObj } from '../../../common/messages/avatar-ref'
 import { ClientUUID } from '../common/clientUUID'
@@ -52,7 +51,6 @@ export class Client {
   constructor(
     public readonly clientUUID: ClientUUID,
     public readonly websocket: WsLike<ClientConnectionInformation>,
-    private readonly logger: winston.Logger,
     private readonly connection: ConnectionHandle,
     private readonly jwtSecret: string,
     public readonly shard: Shard,
@@ -69,12 +67,11 @@ export class Client {
     try {
       this.websocket.send(message, true)
     } catch (err) {
-      this.logger.error('Error sending message', this.whois(), err)
+      console.error('Error sending message', this.whois(), err)
     }
   }
 
   drop(dropCode: WSCloseCode, message?: string): void {
-    this.logger.debug('Dropping client', this.clientUUID, dropCode, message)
     this.websocket.end(dropCode, message)
   }
 
@@ -84,12 +81,11 @@ export class Client {
   }
 
   onClose() {
-    this.logger.debug('client closed', this.whois())
     this.leave()
   }
 
   private onError(err: Error) {
-    this.logger.error(`socket error: ${err}`, this.whois())
+    console.error(`socket error: ${err}`, this.whois())
     this.leave()
   }
 
@@ -110,13 +106,13 @@ export class Client {
 
   async onMessage(message: ArrayBuffer, isBinary: boolean) {
     if (!isBinary) {
-      this.logger.error('non-binary message received', this.whois())
+      console.error('non-binary message received', this.whois())
       return this.drop(1003, 'non-binary message')
     }
     try {
       this.processMessage(toBuffer(message))
     } catch (err) {
-      this.logger.error(`error processing message ${err}\n\n${message}`, this.whois())
+      console.error(`error processing message ${err}\n\n${message}`, this.whois())
       return this.drop(1003, 'error on processing message')
     }
     this._lastActive = Date.now()
@@ -127,7 +123,7 @@ export class Client {
     try {
       decodeResult = messages.decode(message)
     } catch (e) {
-      this.logger.error('Unable to decode message for unknown reason, needs triage', e)
+      console.error('Unable to decode message for unknown reason, needs triage', e)
       return
     }
 
@@ -135,13 +131,13 @@ export class Client {
 
     const msgUnchecked = decodeResult.message
     if (!msgUnchecked.type) {
-      this.logger.warn('no message type found', this.whois())
+      console.warn('no message type found', this.whois())
       return
     }
 
     const typeName = messages.MessageType[msgUnchecked.type]
     if (!typeName) {
-      this.logger.warn('received nonsensical message', { ...this.whois(), msg: typeName })
+      console.warn('received nonsensical message', { ...this.whois(), msg: typeName })
       return
     }
 
@@ -184,7 +180,7 @@ export class Client {
         this.handleMetric(msg)
         break
       default:
-        this.logger.error(`unknown message type ${(msg as any).type}`, this.whois())
+        console.error(`unknown message type ${(msg as any).type}`, this.whois())
         break
     }
   }
@@ -192,23 +188,23 @@ export class Client {
   private handleChat(msg: messages.ChatMessage): void {
     const now = Date.now()
     if (this._lastChatMsgTime + CHAT_MESSAGE_RATE_LIMIT_MS > now) {
-      this.logger.warn('dropping chat message due to rate limit', this.whois())
+      console.warn('dropping chat message due to rate limit', this.whois())
       return
     }
     if (msg.text.length > MAX_CHAT_MESSAGE_LENGTH) {
-      this.logger.warn('dropping chat message over max length', this.whois())
+      console.warn('dropping chat message over max length', this.whois())
       return
     }
     if (!msg.text.trim()) {
-      this.logger.warn('dropping empty chat message', this.whois())
+      console.warn('dropping empty chat message', this.whois())
       return
     }
     if (this._lastChatMsgTime + CHAT_MESSAGE_DEDUPE_TIME_MS > now && this._lastChatMsg === msg.text) {
-      this.logger.warn('dropping duplicate chat message', this.whois())
+      console.warn('dropping duplicate chat message', this.whois())
       return
     }
     if (!this.loggedIn && !ALLOW_ANON_CHAT) {
-      this.logger.warn('Dropping chat message due to incorrect permissions', msg)
+      console.warn('Dropping chat message due to incorrect permissions', msg)
       return
     }
     this._lastChatMsg = msg.text
@@ -259,7 +255,7 @@ export class Client {
         ]),
       )
     } catch (err) {
-      this.logger.error(`wallet query error (${(Date.now() - ts) / 1000}sec): ${err}`, this.whois())
+      console.error(`wallet query error (${(Date.now() - ts) / 1000}sec): ${err}`, this.whois())
       result = null
     }
 
@@ -273,7 +269,7 @@ export class Client {
         ),
       )
     } catch (err) {
-      this.logger.error(`banned_users query error (${(Date.now() - ts) / 1000}sec): ${err}`, this.whois())
+      console.error(`banned_users query error (${(Date.now() - ts) / 1000}sec): ${err}`, this.whois())
     }
 
     const isBanned = banResult && banResult.rows.length > 0
@@ -299,7 +295,7 @@ export class Client {
   }
 
   private failedLogin(msg: string) {
-    this.logger.error(`failed login: ${msg}`, this.whois())
+    console.error(`failed login: ${msg}`, this.whois())
     this.drop(1008, 'failed login')
   }
 

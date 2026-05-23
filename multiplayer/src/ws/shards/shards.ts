@@ -1,6 +1,5 @@
 import { concat, from } from 'ix/iterable'
 import { filter, flatMap } from 'ix/iterable/operators'
-import winston from 'winston'
 import { AvatarChangedMessage, MessageType } from '../../../../common/messages'
 import { ClientUUID } from '../../common/clientUUID'
 import { ConnectionHandle } from '../../common/pq'
@@ -44,14 +43,12 @@ export const CONNECTION_INACTIVE_TIMEOUT_MS = 30000
 
 export default async function createShards(
   publish: (topic: string, message: ArrayBufferView, isBinary?: boolean) => void,
-  logger: winston.Logger,
   connection: ConnectionHandle,
   jwtSecret: string,
   onRadarEvent?: (e: RadarEvent) => void,
 ): Promise<Shards> {
   const worldShard = createWorldShardInternal({
     publish: (topic, message, isBinary) => publish(topic, message, isBinary),
-    logger,
     connection,
     jwtSecret,
     onRadarEvent,
@@ -77,7 +74,6 @@ export default async function createShards(
 
     const shard = createSpaceShardInternal(spaceId, {
       publish,
-      logger,
       connection,
       jwtSecret,
     })
@@ -111,7 +107,6 @@ export default async function createShards(
       return new Error(`Failed to add client to shard: ${result.reason}`)
     }
     // success
-    logger.debug('Client added to shard ', shardID, clientUUID)
   }
 
   const handleClose = (shardID: ShardId, clientUUID: ClientUUID): Error | void => {
@@ -202,12 +197,7 @@ export default async function createShards(
       .forEach((shard) => shard.broadcastFromServer(message))
   }
 
-  const onUserSuspended = (
-    logger: winston.Logger,
-    worldShard: Shard,
-    spaceShards: Map<string, Shard>,
-    wallet: string,
-  ): void => {
+  const onUserSuspended = (wallet: string): void => {
     const suspendedWallet = wallet.toLowerCase()
     let dropped = 0
 
@@ -224,7 +214,7 @@ export default async function createShards(
         dropped++
       })
 
-    logger.info(`user with wallet ${wallet} suspended, number of clients dropped: ${dropped}`)
+    console.log(`user with wallet ${wallet} suspended, number of clients dropped: ${dropped}`)
   }
 
   return {
@@ -257,16 +247,15 @@ export type RadarEvent =
 
 export type ShardOptions = {
   publish: (topic: string, message: ArrayBufferView, isBinary?: boolean) => void
-  logger: winston.Logger
   connection: ConnectionHandle
   jwtSecret: string
   onRadarEvent?: (e: RadarEvent) => void
 }
 
 const createWorldShardInternal = (opts: ShardOptions) => {
-  return new Shard('world', opts.logger, null, opts.publish, opts.connection, opts.jwtSecret, opts.onRadarEvent)
+  return new Shard('world', null, opts.publish, opts.connection, opts.jwtSecret, opts.onRadarEvent)
 }
 
 const createSpaceShardInternal = (spaceId: SpaceId, opts: ShardOptions) => {
-  return new Shard(spaceId, opts.logger, SPACE_SHARD_CLIENT_LIMIT, opts.publish, opts.connection, opts.jwtSecret)
+  return new Shard(spaceId, SPACE_SHARD_CLIENT_LIMIT, opts.publish, opts.connection, opts.jwtSecret)
 }

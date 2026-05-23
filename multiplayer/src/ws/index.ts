@@ -1,6 +1,5 @@
 import type http from 'http'
 import WebSocket, { WebSocketServer } from 'ws'
-import type winston from 'winston'
 import { ClientUUID } from '../common/clientUUID'
 import { SpaceId } from '../common/spaceId'
 import { APP_NAME } from '../constants/appName'
@@ -13,12 +12,7 @@ import type { MultiplayerServer, WsLike } from '../createServer'
  *  Creates the websocket server and handles validating and shuffling off the various events to the shards.
  *  The shards is where the actual game logic and state is managed.
  */
-export default function createWebsocketServer(
-  server: MultiplayerServer,
-  httpServer: http.Server,
-  logger: winston.Logger,
-  shards: Shards,
-) {
+export default function createWebsocketServer(server: MultiplayerServer, httpServer: http.Server, shards: Shards) {
   const wss = new WebSocketServer({ server: httpServer, path: '/socket' })
 
   const makeWsLike = (
@@ -60,18 +54,16 @@ export default function createWebsocketServer(
 
     const wsLike = makeWsLike(wsId, ws, clientInfo)
 
-    logger.debug('New WebSocket client connected', { clientUUID, shardID: clientInfo.shardID })
-
     shards
       .handleConnection(clientInfo.shardID, clientInfo.clientUUID, wsLike)
       .then((err) => {
         if (err) {
-          logger.error('Failed to handle connection', err)
+          console.error('Failed to handle connection', err)
           wsLike.end(WSCloseCodes.internalError, 'failed to handle connection')
         }
       })
       .catch((err) => {
-        logger.error('Failed to handle connection (exception)', err)
+        console.error('Failed to handle connection (exception)', err)
         wsLike.end(WSCloseCodes.internalError, 'failed to handle connection')
       })
 
@@ -81,15 +73,14 @@ export default function createWebsocketServer(
     })
 
     ws.on('close', (code, reason) => {
-      logger.debug('WebSocket closed', { clientUUID, shardID: clientInfo.shardID, code, reason: reason.toString() })
       server.unsubscribeAll(wsId)
       server.socketsById.delete(wsId)
       const err = shards.handleClose(clientInfo.shardID, clientInfo.clientUUID)
-      if (err) logger.error('Failed to handle close', err)
+      if (err) console.error('Failed to handle close', err)
     })
 
     ws.on('error', (err) => {
-      logger.error('WebSocket error', err)
+      console.error('WebSocket error', err)
       // ensure close handling runs
       try {
         ws.close()

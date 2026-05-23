@@ -1,4 +1,3 @@
-import winston from 'winston'
 import * as messages from '../../../../common/messages'
 import { ClientUUID } from '../../common/clientUUID'
 import { ConnectionHandle } from '../../common/pq'
@@ -32,7 +31,6 @@ export class Shard {
 
   constructor(
     public readonly id: string,
-    public readonly logger: winston.Logger,
     public readonly clientLimit: number | null,
     public readonly publish: (topic: string, message: ArrayBufferView, isBinary?: boolean) => void,
     public readonly connection: ConnectionHandle,
@@ -57,7 +55,7 @@ export class Shard {
     ws.subscribe(this.id)
     ws.subscribe(ALL_SHARD_CLIENT_MESSAGE_CHANNEL)
 
-    const client = new Client(clientUUID, ws, this.logger, this.connection, this.jwtSecret, this)
+    const client = new Client(clientUUID, ws, this.connection, this.jwtSecret, this)
     this.connectedClients.set(clientUUID, client)
     this.sendClientJoinedMessage(client)
 
@@ -73,7 +71,7 @@ export class Shard {
     const channel = toAllShards ? ALL_SHARD_CLIENT_MESSAGE_CHANNEL : this.id
     const sendingClient = this.connectedClients.get(clientUUID)
     if (!sendingClient) {
-      this.logger.warn('broadcastFromClient: client not found', { clientUUID })
+      console.warn('broadcastFromClient: client not found', { clientUUID })
       return
     }
     sendingClient.websocket.publish(channel, new Uint8Array(rawMessageData), true)
@@ -172,13 +170,11 @@ export class Shard {
   }
 
   shutdown() {
-    this.logger.info('shard shutting down')
     this.connectedClients.forEach((client) => client.drop(WSCloseCodes.restarting, 'server restarting'))
   }
 
   dropInactiveClient(client: Client) {
     client.drop(1013, 'inactive')
-    this.logger.debug(`dropped inactive client`)
   }
 
   dispose() {
@@ -187,16 +183,12 @@ export class Shard {
   }
 
   scanForInactiveConnections() {
-    // this.logger.debug('checking for inactive connections')
-    let inactiveCount = 0
     const now = Date.now()
     for (const connectedClient of this.connectedClients.values()) {
       if (now - connectedClient.lastActive >= CONNECTION_INACTIVE_TIMEOUT_MS) {
         this.dropInactiveClient(connectedClient)
-        inactiveCount++
       }
     }
-    // this.logger.debug('finished checking for inactive connections', { inactiveCount })
   }
 
   getClientList() {

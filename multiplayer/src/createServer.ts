@@ -1,4 +1,3 @@
-import winston from 'winston'
 import http from 'http'
 import type WebSocket from 'ws'
 
@@ -23,7 +22,7 @@ export type MultiplayerServer = {
   socketsById: Map<symbol, WebSocket>
 }
 
-export default function createServer(logger: winston.Logger) {
+export default function createServer() {
   const server = http.createServer()
 
   // Topic subscriptions for broadcast; replaces uWS pub/sub.
@@ -54,7 +53,7 @@ export default function createServer(logger: winston.Logger) {
       try {
         ws.send(message, { binary: isBinary })
       } catch (err) {
-        logger.error('ws broadcast send failed', err)
+        console.error('ws broadcast send failed', err)
       }
     }
   }
