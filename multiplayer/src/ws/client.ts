@@ -10,7 +10,7 @@ import { ConnectionHandle } from '../common/pq'
 import { ShardId } from '../common/shardId'
 import { WSCloseCode } from '../constants/socketCloseCodes'
 import type { WsLike } from '../createServer'
-import { createEventEmitter, EventEmitter, ReadonlyEventEmitter } from '../utility/eventEmitter'
+import type { Shard } from './shards/shard'
 import { toBuffer } from '../utility/toBuffer'
 import { md5 } from '../../../common/helpers/utils'
 
@@ -24,25 +24,7 @@ export type ClientConnectionInformation = {
   shardID: ShardId
 }
 
-export type ClientEventEmitterMap = {
-  leave: { client: Client }
-  broadcast_message: { message: messages.Message.ServerStateMessage; rawMessageData: Buffer; client: Client }
-  broadcast_create_avatar: { message: messages.CreateAvatarMessage; rawMessageData: Buffer; client: Client }
-  broadcast_chat: { message: messages.ChatMessage; rawMessageData: Buffer; client: Client }
-  messageTx: { status: 'ok' | 'error'; message: Buffer; type: string | undefined; durationMs: number }
-  messageRx: { status: 'ok' | 'error'; message: any; type: string | undefined }
-  login: {}
-  login_failed: {}
-  parcel_change: { client: Client; parcel: number }
-  backpressure: { client: Client; amount: number }
-  message_dropped_queue_full: { client: Client; message: messages.MessageType }
-  message_dropped_queue_full_timeout: { client: Client; message: messages.MessageType; durationMs: number }
-  message_dropped: { client: Client }
-  inbound_message_ratelimited: { client: Client }
-}
-
-export type ClientEventEmitter = EventEmitter<ClientEventEmitterMap>
-
+const ALLOW_ANON_CHAT = process.env.ALLOW_ANON_CHAT === '1'
 const MAX_CHAT_MESSAGE_LENGTH = 256
 const CHAT_MESSAGE_RATE_LIMIT_MS = 100
 const CHAT_MESSAGE_DEDUPE_TIME_MS = 10_000
@@ -51,7 +33,6 @@ export class Client {
   private _disposeAbortController = new AbortController()
   private readonly _connectedAt: number
   private _lastActive: number
-  private readonly _emitter: ClientEventEmitter
 
   // flat state - no FSM
   loggedIn = false
@@ -68,36 +49,28 @@ export class Client {
   private _lastChatMsg: string | null = null
   private _lastChatMsgTime = 0
 
-  get events(): ReadonlyEventEmitter<ClientEventEmitter> {
-    return this._emitter
-  }
-
   constructor(
     public readonly clientUUID: ClientUUID,
     public readonly websocket: WsLike<ClientConnectionInformation>,
     private readonly logger: winston.Logger,
     private readonly connection: ConnectionHandle,
     private readonly jwtSecret: string,
+    public readonly shard: Shard,
   ) {
     this._connectedAt = Date.now()
     this._lastActive = this._connectedAt
-    this._emitter = createEventEmitter(logger.error.bind(logger), this._disposeAbortController.signal)
   }
 
   get backpressure(): number {
     return this.websocket.getBufferedAmount()
   }
 
-  send(message: Buffer, type: messages.MessageType) {
-    const startTime = performance.now()
+  send(message: Buffer, _type: messages.MessageType) {
     try {
       this.websocket.send(message, true)
     } catch (err) {
       this.logger.error('Error sending message', this.whois(), err)
-      return
     }
-    const durationMs = performance.now() - startTime
-    this._emitter.emit('messageTx', { status: 'ok', message, type: messages.MessageType[type], durationMs })
   }
 
   drop(dropCode: WSCloseCode, message?: string): void {
@@ -105,14 +78,19 @@ export class Client {
     this.websocket.end(dropCode, message)
   }
 
+  private leave() {
+    this.shard.onClientLeave(this)
+    this.shard.onRadarEvent?.({ type: 'leave', uuid: this.clientUUID })
+  }
+
   onClose() {
     this.logger.debug('client closed', this.whois())
-    this._emitter.emit('leave', { client: this })
+    this.leave()
   }
 
   private onError(err: Error) {
     this.logger.error(`socket error: ${err}`, this.whois())
-    this._emitter.emit('leave', { client: this })
+    this.leave()
   }
 
   updateAvatarMessage(): messages.UpdateAvatarMessage | null {
@@ -128,9 +106,7 @@ export class Client {
     }
   }
 
-  onMessageDropped(_message: ArrayBuffer, _isBinary: boolean) {
-    this._emitter.emit('message_dropped', { client: this })
-  }
+  onMessageDropped(_message: ArrayBuffer, _isBinary: boolean) {}
 
   async onMessage(message: ArrayBuffer, isBinary: boolean) {
     if (!isBinary) {
@@ -152,24 +128,13 @@ export class Client {
       decodeResult = messages.decode(message)
     } catch (e) {
       this.logger.error('Unable to decode message for unknown reason, needs triage', e)
-      this._emitter.emit('messageRx', { status: 'error', message, type: 'unknown' })
       return
     }
 
-    if (decodeResult.type === 'error') {
-      switch (decodeResult.errorType) {
-        case 'invalidDataType':
-          this._emitter.emit('messageRx', { status: 'error', message, type: 'not_buffer' })
-          return
-        case 'invalidDataLength':
-          this._emitter.emit('messageRx', { status: 'error', message, type: 'invalid_length' })
-          return
-      }
-    }
+    if (decodeResult.type === 'error') return
 
     const msgUnchecked = decodeResult.message
     if (!msgUnchecked.type) {
-      this._emitter.emit('messageRx', { status: 'error', message, type: 'no_type' })
       this.logger.warn('no message type found', this.whois())
       return
     }
@@ -179,8 +144,6 @@ export class Client {
       this.logger.warn('received nonsensical message', { ...this.whois(), msg: typeName })
       return
     }
-
-    this._emitter.emit('messageRx', { status: 'ok', message, type: typeName })
 
     const msg = msgUnchecked as messages.Message.ClientNegotiationMessage | messages.Message.ClientStateMessage
     switch (msg.type) {
@@ -198,24 +161,24 @@ export class Client {
         break
       case messages.MessageType.emoteAvatar:
         if (messages.Emotes.includes(he.decode(msg.emote))) {
-          this._emitter.emit('broadcast_message', { message: msg, rawMessageData: message, client: this })
+          this.shard.broadcastFromClient(msg, message, this.clientUUID)
         }
         break
       case messages.MessageType.point:
       case messages.MessageType.typing:
       case messages.MessageType.voiceStateAvatar:
         if (msg.uuid === this.clientUUID) {
-          this._emitter.emit('broadcast_message', { message: msg, rawMessageData: message, client: this })
+          this.shard.broadcastFromClient(msg, message, this.clientUUID)
         }
         break
       case messages.MessageType.newCostume:
         if (msg.uuid === this.clientUUID) {
           this.costumeId = msg.costumeId ?? null
-          this._emitter.emit('broadcast_message', { message: msg, rawMessageData: message, client: this })
+          this.shard.broadcastFromClient(msg, message, this.clientUUID)
         }
         break
       case messages.MessageType.chat:
-        this.handleChat(msg, message)
+        this.handleChat(msg)
         break
       case messages.MessageType.metric:
         this.handleMetric(msg)
@@ -226,7 +189,7 @@ export class Client {
     }
   }
 
-  private handleChat(msg: messages.ChatMessage, data: Buffer): void {
+  private handleChat(msg: messages.ChatMessage): void {
     const now = Date.now()
     if (this._lastChatMsgTime + CHAT_MESSAGE_RATE_LIMIT_MS > now) {
       this.logger.warn('dropping chat message due to rate limit', this.whois())
@@ -244,9 +207,17 @@ export class Client {
       this.logger.warn('dropping duplicate chat message', this.whois())
       return
     }
+    if (!this.loggedIn && !ALLOW_ANON_CHAT) {
+      this.logger.warn('Dropping chat message due to incorrect permissions', msg)
+      return
+    }
     this._lastChatMsg = msg.text
     this._lastChatMsgTime = now
-    this._emitter.emit('broadcast_chat', { message: msg, rawMessageData: data, client: this })
+    const stamped: messages.ChatMessage = { ...msg, id: uuidv7(), avatar: this.avatar ?? undefined }
+    const data = toBuffer(messages.ChatEncoder(stamped))
+    this.shard.recentChat.push(stamped)
+    if (this.shard.recentChat.length > 20) this.shard.recentChat.shift()
+    this.shard.broadcastFromClient(stamped, data, this.clientUUID)
   }
 
   private handlePing(): void {
@@ -278,8 +249,6 @@ export class Client {
       this.failedLogin("Bad JWT, it's empty")
       return
     }
-
-    this._emitter.emit('login', {})
 
     const ts = Date.now()
     let result
@@ -332,7 +301,6 @@ export class Client {
   private failedLogin(msg: string) {
     this.logger.error(`failed login: ${msg}`, this.whois())
     this.drop(1008, 'failed login')
-    this._emitter.emit('login_failed', {})
   }
 
   private onLoginComplete(): void {
@@ -355,11 +323,7 @@ export class Client {
         costumeId: this.costumeId ?? undefined,
       },
     }
-    this._emitter.emit('broadcast_create_avatar', {
-      client: this,
-      message: createAvatar,
-      rawMessageData: toBuffer(messages.CreateAvatarEncoder(createAvatar)),
-    })
+    this.shard.broadcastFromClient(createAvatar, toBuffer(messages.CreateAvatarEncoder(createAvatar)), this.clientUUID)
   }
 
   get day() {
@@ -372,9 +336,9 @@ export class Client {
 
   private handleMetric(msg: messages.MetricMessage): void {
     const parcelId = msg.parcel
-    if (this.lastSeenParcel !== parcelId) {
+    if (parcelId != null && this.lastSeenParcel !== parcelId) {
       this.lastSeenParcel = parcelId
-      this._emitter.emit('parcel_change', { client: this, parcel: parcelId })
+      this.shard.onRadarEvent?.({ type: 'move', uuid: this.clientUUID, avatar: this.avatar, parcel: parcelId })
     }
     const anonId = this.anonymizedClientId()
     const position = msg.position

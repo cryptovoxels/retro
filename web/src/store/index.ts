@@ -32,15 +32,13 @@ async function getParcelSummary() {
   }
 }
 
-if (typeof window == 'object') {
-  getParcelSummary()
-}
+export const summaryReady = typeof window === 'object' ? getParcelSummary() : Promise.resolve()
 
 // Returns a parcel summary signal - may return a signal with no value - but the signal
 // will be updated once we have fetched
 export function getParcel(id: number) {
   if (!parcels.get(id)) {
-    parcels.set(id, signal(summary && summary[id]))
+    parcels.set(id, signal(summary?.find((s) => s.id == id)))
   }
 
   return parcels.get(id)

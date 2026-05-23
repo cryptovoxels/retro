@@ -1,7 +1,7 @@
 import { Component } from 'preact'
 import type { AvatarRef } from '../../../common/messages/avatar-ref'
 import { AvatarLink } from './avatar-link'
-import { getParcel } from '../store/index'
+import { getParcel, summaryReady } from '../store/index'
 
 type User = { avatar: AvatarRef | null; parcel: number | null }
 
@@ -10,6 +10,7 @@ export default class Radar extends Component<{}, { users: Map<string, User> }> {
   es: EventSource | null = null
 
   componentDidMount() {
+    summaryReady.then(() => this.forceUpdate())
     this.es = new EventSource('/api/users/live')
     this.es.onmessage = (e) => {
       try {
