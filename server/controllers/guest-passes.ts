@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import path from 'path'
 import { Express, Response } from 'express'
-import { SignJWT } from 'jose'
+import { SignJWT, decodeJwt } from 'jose'
 import { PassportStatic } from 'passport'
 import authParcel from '../auth-parcel'
 import Parcel from '../parcel'
@@ -39,6 +39,23 @@ function guestBroadcastPlayQuery(parcelLocation: string, featureUuid: string, us
   const qs = new URLSearchParams({ coords: parcelLocation, show: featureUuid, isolate: 'true', distance: 'close' })
   if (isMobileUserAgent(userAgent)) qs.set('ui', 'off')
   return qs.toString()
+}
+
+function hostJoinPlayQuery(parcelLocation: string, featureUuid: string): string {
+  const qs = new URLSearchParams({ coords: parcelLocation, show: featureUuid, host: '1' })
+  return qs.toString()
+}
+
+function walletFromJwtCookie(req: { cookies?: Record<string, string> }): { wallet?: string; moderator?: boolean } | null {
+  const jwt = req.cookies?.jwt
+  if (!jwt) return null
+  try {
+    const payload = decodeJwt(jwt) as { wallet?: string; moderator?: boolean; guest_pass?: string }
+    if (!payload?.wallet || isGuestWallet(payload.wallet) || payload.guest_pass) return null
+    return { wallet: payload.wallet, moderator: payload.moderator }
+  } catch {
+    return null
+  }
 }
 
 export async function loadGuestPass(db: Db, token: string): Promise<GuestPassRow | null> {
@@ -192,6 +209,14 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
 
     const parcel = await Parcel.load(pass.parcel_id)
     if (!parcel) return res.status(404).send('Parcel not found')
+
+    const signedIn = walletFromJwtCookie(req)
+    if (signedIn?.wallet) {
+      const auth = await authParcel(parcel, signedIn as VoxelsUserRequest['user'])
+      if (auth === 'Owner' || auth === 'Moderator') {
+        return res.redirect(302, `/play?${hostJoinPlayQuery(parcel.location, pass.feature_uuid)}`)
+      }
+    }
 
     const syntheticWallet = `guest:${token.slice(0, 12)}`.toLowerCase()
 

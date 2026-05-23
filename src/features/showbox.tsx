@@ -118,6 +118,24 @@ function audienceShowUrl(feature: Showbox): string {
   return `${window.location.origin}/play?coords=${encodeURIComponent(coords)}`
 }
 
+// Owner/co-host join link. Keeps your normal login - just lands at the showbox and opens the broadcast dock.
+function hostJoinShowUrl(feature: Showbox): string {
+  const pos = feature.absolutePosition ?? new BABYLON.Vector3((feature.parcel.x1 + feature.parcel.x2) / 2, feature.parcel.y1, (feature.parcel.z1 + feature.parcel.z2) / 2)
+  const coords = encodeCoords({ position: pos, rotation: new BABYLON.Vector3(0, 0, 0) })
+  const qs = new URLSearchParams({ coords, show: feature.uuid, host: '1' })
+  return `${window.location.origin}/play?${qs.toString()}`
+}
+
+function isHostJoinForShowbox(uuid: string): boolean {
+  if (isGuestForShowbox(uuid)) return false
+  try {
+    const q = new URL(window.location.href).searchParams
+    return q.get('host') === '1' && q.get('show') === uuid
+  } catch {
+    return false
+  }
+}
+
 // Chat display name comes from the multiplayer login snapshot - reconnect after a rename so everyone sees it.
 function syncGuestDisplayName(name: string) {
   app.setName(name)
@@ -525,7 +543,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     // Wallet may still be loading from the jwt cookie when onEnter fires; retry after app state settles.
     if (this.broadcastPanel) return
     const tryAutoOpen = () => {
-      if (isGuestForShowbox(this.uuid) && !this.broadcastPanel) {
+      if (this.broadcastPanel) return true
+      if (isGuestForShowbox(this.uuid)) {
+        this.openBroadcastPanel()
+        return true
+      }
+      if (this.isCohostMode() && this.parcel.canEdit && isHostJoinForShowbox(this.uuid)) {
         this.openBroadcastPanel()
         return true
       }
@@ -1882,6 +1905,10 @@ class GuestPasses extends Component<
     return `${window.location.origin}/live/${token}`
   }
 
+  hostJoinUrl() {
+    return hostJoinShowUrl(this.props.feature)
+  }
+
   render() {
     if (!this.props.feature.parcel.canEdit) return null
     const active = this.state.passes.filter((p) => !p.revoked_at)
@@ -1918,6 +1945,7 @@ class GuestPasses extends Component<
               <div key={p.token}>
                 <div className="f">
                   <label>{p.name?.trim() || 'guest link'}</label>
+                  <small>send to your guest only - if you open it while signed in you'll join as host instead</small>
                   <input type="text" readOnly value={this.liveUrl(p.token)} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexDirection: mobile ? 'column' : 'row', marginBottom: '0.5rem' }}>
@@ -1942,6 +1970,16 @@ class GuestPasses extends Component<
                   </div>
                   <small>solo = guest replaces you. co-host = you on the left, guest on the right.</small>
                 </div>
+                {this.props.guestMode === 'cohost' && this.canCreatePass() && (
+                  <div className="f">
+                    <label>host link</label>
+                    <small>open this yourself to join as co-host (don't share - use your normal login)</small>
+                    <input type="text" readOnly value={this.hostJoinUrl()} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
+                    <button type="button" style={mobile ? { minHeight: '44px' } : undefined} onClick={() => this.copy(this.hostJoinUrl())}>
+                      copy host link
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
