@@ -3,7 +3,7 @@ import { Component, createRef, Fragment, h } from 'preact'
 import { isMobileMedia } from '../common/helpers/detector'
 import { exitPointerLock, hasPointerLock, requestPointerLock } from '../common/helpers/ui-helpers'
 import { onBeginUpload, onCompleteUpload, onFailUpload } from '../common/helpers/upload-media'
-import { fetchFromMPServer, shorterWallet } from '../common/helpers/utils'
+import { shorterWallet } from '../common/helpers/utils'
 import { Login } from '../web/src/auth/login'
 import { PanelType } from '../web/src/components/panel'
 import Snackbar from '../web/src/components/snackbar'
@@ -122,8 +122,6 @@ type UserInterfaceState = {
   editor?: FeatureEditor
   feature?: Feature
   active: boolean
-  /** Shown next to minimap expand; same source as Explore Online tab */
-  onlineCount: number
   scratchpadGuideOpen?: boolean
   scratchpadGuideMini?: boolean
   scratchpadGuideRestart?: boolean
@@ -155,8 +153,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
    * We use a ref here to avoid re-renders
    */
   explorerPaneInitialTab = createRef<Tab | undefined>()
-  onlineCountPoll: number | undefined
-
   constructor(props: UserInterfaceProps) {
     super(props)
 
@@ -190,7 +186,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       fullscreen: false,
       currentOrNearestParcel: null,
       active: true,
-      onlineCount: 0,
       chatEnabled: chatSettings.enabled,
     }
 
@@ -239,11 +234,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
     // setInterval(this.updateCanEdit.bind(this), 1000)
 
-    if (this.props.minimapSettings.enabled && !window.config.isOrbit && !window.config.isSpace) {
-      this.pollOnlineCount()
-      this.onlineCountPoll = window.setInterval(() => this.pollOnlineCount(), 10000)
-    }
-
     onLoadPromise.then(() => {
       if (!isScratchpad() || isMobileMedia()) return
       this.setState({ scratchpadGuideOpen: true, scratchpadGuideMini: false, scratchpadGuideRestart: false })
@@ -254,14 +244,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   onChatSettingsChange = () => {
     this.setState({ chatEnabled: chatSettings.enabled })
-  }
-
-  pollOnlineCount = async () => {
-    const r = await fetchFromMPServer<{ users?: unknown[] }>('/api/users.json')
-    const n = r?.users?.length
-    if (typeof n === 'number' && n !== this.state.onlineCount) {
-      this.setState({ onlineCount: n })
-    }
   }
 
   enterScratchpadGuideMini = () => {
@@ -300,10 +282,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   updateCanEdit = () => {}
 
   componentWillUnmount() {
-    if (this.onlineCountPoll) {
-      clearInterval(this.onlineCountPoll)
-      this.onlineCountPoll = undefined
-    }
     app.removeListener(AppEvent.Change, this.onAppChange)
     document.removeEventListener('fullscreenchange', this.refreshFullscreen)
     document.removeEventListener('pointerlockchange', this.onPointerLockChange)
@@ -933,9 +911,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
             <div class="minimap-corner-controls">
               <button type="button" class="iconish minimap-expand" onClick={() => this.showExplorerMap()} title="Open map">
                 M
-              </button>
-              <button type="button" class="minimap-online-count" onClick={() => this.showExplorerOnline()} title="Who is online">
-                {this.state.onlineCount} Online
               </button>
             </div>
           )}

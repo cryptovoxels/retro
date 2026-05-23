@@ -39,6 +39,7 @@ export class Shard {
     private readonly publish: (topic: string, message: ArrayBufferView, isBinary?: boolean) => void,
     private readonly connection: ConnectionHandle,
     private readonly jwtSecret: string,
+    private readonly onRadarEvent?: (e: import('./shards').RadarEvent) => void,
   ) {
     // todo set up world state broadcast
     // todo config
@@ -85,6 +86,10 @@ export class Shard {
     client.events.once('leave', (e) => this.onClientLeave(e.client))
     client.events.on('login', (e) => this.successfulLogin())
     client.events.on('login_failed', (e) => this.failedLogin())
+    client.events.on('parcel_change', (e) =>
+      this.onRadarEvent?.({ type: 'move', uuid: e.client.clientUUID, avatar: e.client.avatar, parcel: e.parcel }),
+    )
+    client.events.once('leave', (e) => this.onRadarEvent?.({ type: 'leave', uuid: e.client.clientUUID }))
     client.events.on('broadcast_chat', (e) => this.handleChat(e.client, e.message, e.rawMessageData))
     client.events.on('backpressure', (e) => {
       // back pressure is bad, kill the client

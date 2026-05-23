@@ -47,12 +47,14 @@ export default async function createShards(
   logger: winston.Logger,
   connection: ConnectionHandle,
   jwtSecret: string,
+  onRadarEvent?: (e: RadarEvent) => void,
 ): Promise<Shards> {
   const worldShard = createWorldShardInternal({
     publish: (topic, message, isBinary) => publish(topic, message, isBinary),
     logger,
     connection,
     jwtSecret,
+    onRadarEvent,
   })
   const spaceShards = new Map<SpaceId, Shard>()
 
@@ -244,15 +246,25 @@ export default async function createShards(
   }
 }
 
+export type RadarEvent =
+  | {
+      type: 'move'
+      uuid: string
+      avatar: import('../../../../common/messages/avatar-ref').AvatarRef | null
+      parcel: number
+    }
+  | { type: 'leave'; uuid: string }
+
 export type ShardOptions = {
   publish: (topic: string, message: ArrayBufferView, isBinary?: boolean) => void
   logger: winston.Logger
   connection: ConnectionHandle
   jwtSecret: string
+  onRadarEvent?: (e: RadarEvent) => void
 }
 
 const createWorldShardInternal = (opts: ShardOptions) => {
-  return new Shard('world', opts.logger, null, opts.publish, opts.connection, opts.jwtSecret)
+  return new Shard('world', opts.logger, null, opts.publish, opts.connection, opts.jwtSecret, opts.onRadarEvent)
 }
 
 const createSpaceShardInternal = (spaceId: SpaceId, opts: ShardOptions) => {

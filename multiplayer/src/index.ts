@@ -1,3 +1,4 @@
+import { createClient } from 'redis'
 import createWWWServer from './api'
 import { createConnection } from './common/pq'
 import { APP_NAME } from './constants/appName'
@@ -5,6 +6,7 @@ import { createLogger } from './createLogger'
 import createServer from './createServer'
 import createWebsocketServer from './ws'
 import createShards from './ws/shards/shards'
+import type { RadarEvent } from './ws/shards/shards'
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const dotenv = require('dotenv')
@@ -33,6 +35,10 @@ function ensureEnv(name: string): string {
   return value
 }
 
+const RADAR_CHANNEL = 'radar:updates'
+const RADAR_TTL = 60
+const RADAR_HEARTBEAT_MS = 30_000
+
 async function start(signal: AbortSignal) {
   logger.debug('starting server')
 
@@ -40,12 +46,50 @@ async function start(signal: AbortSignal) {
 
   const connection = createConnection(APP_NAME)
   const server = createServer(logger)
+
+  let redis: ReturnType<typeof createClient> | null = null
+  if (process.env.REDIS_URL) {
+    try {
+      redis = createClient({ url: process.env.REDIS_URL })
+      await redis.connect()
+      logger.info('Multiplayer: Redis connected')
+    } catch (e) {
+      logger.error('Multiplayer: Redis unavailable, radar disabled', e)
+      redis = null
+    }
+  }
+
+  const onRadarEvent = redis
+    ? (e: RadarEvent) => {
+        if (e.type === 'move') {
+          const val = JSON.stringify({ avatar: e.avatar, parcel: e.parcel })
+          redis!.set(`radar:${e.uuid}`, val, { EX: RADAR_TTL }).catch(() => {})
+          redis!.publish(RADAR_CHANNEL, JSON.stringify(e)).catch(() => {})
+        } else {
+          redis!.del(`radar:${e.uuid}`).catch(() => {})
+          redis!.publish(RADAR_CHANNEL, JSON.stringify(e)).catch(() => {})
+        }
+      }
+    : undefined
+
   const shards = await createShards(
     (topic, message, isBinary) => server.publish(topic, message, isBinary),
     logger,
     connection,
     jwtSecret,
+    onRadarEvent,
   )
+
+  // Heartbeat: re-SET all logged-in world clients to refresh TTL
+  if (redis) {
+    setInterval(() => {
+      for (const c of shards.worldShard.getClientList()) {
+        if (!c.loggedIn || c.lastSeenParcel === null) continue
+        const val = JSON.stringify({ avatar: c.avatar, parcel: c.lastSeenParcel })
+        redis!.set(`radar:${c.clientUUID}`, val, { EX: RADAR_TTL }).catch(() => {})
+      }
+    }, RADAR_HEARTBEAT_MS)
+  }
 
   createWWWServer(server.server, logger, shards)
   createWebsocketServer(server, server.server, logger, shards)

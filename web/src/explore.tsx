@@ -10,6 +10,7 @@ import { Womp } from './components/womp-card'
 import { getClientPath } from './helpers/client-helpers'
 import { app, AppEvent } from './state'
 import WompsList from './womps-list'
+import Radar from './components/radar'
 
 type Props = {
   womps?: Womp[]
@@ -183,6 +184,9 @@ export default class Explore extends Component<any, Props> {
           </article>
 
           <aside>
+            <h3>Radar</h3>
+            <Radar />
+
             <h3>Events</h3>
             <EventsList />
 

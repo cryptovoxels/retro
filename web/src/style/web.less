@@ -62,7 +62,7 @@ h4 {
     max-width: 100%;
   }
 
-  img+p {
+  img + p {
     margin: 0;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -216,7 +216,7 @@ header nav img.logo {
       z-index: 1;
     }
 
-    >ul {
+    > ul {
       width: 100%;
       overflow-x: auto;
       flex-wrap: nowrap;
@@ -228,7 +228,7 @@ header nav img.logo {
       }
     }
 
-    >ul>li {
+    > ul > li {
       flex: 0 0 auto;
       white-space: nowrap;
     }
@@ -266,22 +266,22 @@ button.hamburger {
   align-items: start;
   gap: 0.5rem 1rem;
 
-  &>nav {
+  & > nav {
     margin-top: 4rem;
     overflow: hidden;
     max-width: 10rem;
     transition: max-width 200ms ease-in-out;
   }
 
-  &.nav-collapsed>nav {
+  &.nav-collapsed > nav {
     max-width: 0;
   }
 
-  &>article {
+  & > article {
     flex: 1;
   }
 
-  &>aside {
+  & > aside {
     width: 25vw;
   }
 
@@ -301,8 +301,8 @@ button.hamburger {
   .columns {
     flex-direction: column;
 
-    &>article,
-    &>aside {
+    & > article,
+    & > aside {
       width: 100%;
     }
   }
@@ -528,7 +528,7 @@ body.done-loading {
 
 // Figcaption
 
-figcaption+figure {
+figcaption + figure {
   margin-top: -2rem;
 }
 
@@ -799,7 +799,6 @@ div.f {
 }
 
 .island-admin {
-
   article,
   aside {
     width: 40vw;
@@ -987,7 +986,7 @@ hgroup {
     margin: 1rem 0 0 0;
   }
 
-  h1+p {
+  h1 + p {
     margin-top: -0.5rem;
   }
 }
@@ -1064,7 +1063,7 @@ p.empty {
       margin: 0;
       padding: 0;
 
-      &>a {
+      & > a {
         display: block;
 
         // truncate

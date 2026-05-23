@@ -67,8 +67,8 @@ export class CommunityEvents extends Component<any, CommunityEventsState> {
 
     const e = await Promise.all(
       this.state.events.map(async (event) => {
-        const r = await fetchFromMPServer<{ users?: any[] }>(`/api/parcels/${event.parcel_id}.json`)
-        event.players_present = r && r.users ? r.users.length : 0
+        const r = await fetchFromMPServer<{ count?: number }>(`/api/parcels/${event.parcel_id}.json`)
+        event.players_present = r?.count ?? 0
         return event
       }),
     )

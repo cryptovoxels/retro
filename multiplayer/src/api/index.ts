@@ -1,58 +1,8 @@
 import type http from 'http'
 import type winston from 'winston'
-import { ClientUUID } from '../common/clientUUID'
-import { SpaceId } from '../common/spaceId'
 import { APP_NAME } from '../constants/appName'
-import { Client } from '../ws/client'
 import { Shards } from '../ws/shards/shards'
 import checkCors from './checkCors'
-
-type AvatarResource = {
-  id: ClientUUID
-  name: string | null
-  wallet?: string
-  description: {
-    animation: number
-    position: [number, number, number]
-    orientation: [number, number, number, number]
-  } | null
-}
-
-const refName = (c: Client) => (typeof c.avatar === 'object' && c.avatar ? (c.avatar as any).name : undefined)
-const refWallet = (c: Client) =>
-  typeof c.avatar === 'string' ? c.avatar : c.avatar ? (c.avatar as any).owner : undefined
-
-const toAvatarResource = (c: Client): AvatarResource | null =>
-  !c.position
-    ? null
-    : {
-        id: c.clientUUID,
-        name: refName(c),
-        wallet: refWallet(c),
-        description: {
-          animation: c.animation,
-          position: c.position,
-          orientation: c.orientation!,
-        },
-      }
-
-type UserResource = {
-  name: string | null
-  wallet?: string
-  animation: number | null
-  position: [number, number, number] | null
-  lastSeen: number | null
-  space?: SpaceId
-}
-
-const toUserResource = (c: Client, space?: SpaceId): UserResource => ({
-  lastSeen: c.lastSeenParcel,
-  name: refName(c) ?? null,
-  wallet: refWallet(c),
-  animation: c.position ? c.animation : null,
-  position: c.position ?? null,
-  space,
-})
 
 const NOT_FOUND = '404 Not Found'
 // why create an object, to json stringify it when we can just raw dog some json?
@@ -160,89 +110,6 @@ export default function createWWWServer(server: http.Server, logger: winston.Log
     }
 
     // api:
-    if (pathname === '/api/users.json' && method === 'GET') {
-      const ok = checkCors(req, res)
-      if (!ok) return
-      res.statusCode = 200
-      res.setHeader('Content-Type', 'application/json')
-      res.setHeader('Cache-Control', 'public, max-age=5, stale-while-revalidate=30')
-      res.write('{"users":[')
-      let i = 0
-      for (const c of getWorldClients()) {
-        if (i !== 0) res.write(',')
-        res.write(JSON.stringify(toUserResource(c)))
-        i++
-      }
-      res.write(']}')
-      res.end()
-      return
-    }
-
-    const userWalletMatch = pathname.match(/^\/api\/user\/([^/]+)\.json$/)
-    if (userWalletMatch && method === 'GET') {
-      const wallet = decodeURIComponent(userWalletMatch[1]!)
-      const client =
-        Array.from(shards.worldShard.getClientList()).find((s) => {
-          const w = typeof s.avatar === 'string' ? s.avatar : (s.avatar as any)?.owner
-          return w?.toLowerCase() === wallet.toLowerCase()
-        }) ?? null
-      if (!client) {
-        logger.debug('User not found', wallet)
-        res.statusCode = 404
-        res.end(UNSUCCESFUL_RESPONSE)
-        return
-      }
-      const ok = checkCors(req, res)
-      if (!ok) return
-      res.statusCode = 200
-      res.setHeader('Content-Type', 'application/json')
-      res.setHeader('Cache-Control', 'public, max-age=10, stale-while-revalidate=5')
-      res.end(JSON.stringify(toUserResource(client)))
-      return
-    }
-
-    if (pathname === '/api/avatars.json' && method === 'GET') {
-      const ok = checkCors(req, res)
-      if (!ok) return
-      res.statusCode = 200
-      res.setHeader('Content-Type', 'application/json')
-      res.setHeader('Cache-Control', 'public, max-age=4, stale-while-revalidate=5')
-      res.write('{"avatars":[')
-      let i = 0
-      for (const c of getWorldClients()) {
-        const avatar = toAvatarResource(c)
-        if (avatar === null) continue
-        if (i !== 0) res.write(',')
-        res.write(JSON.stringify(avatar))
-        i++
-      }
-      res.write(']}')
-      res.end()
-      return
-    }
-
-    const avatarMatch = pathname.match(/^\/api\/avatar\/([^/]+)\.json$/)
-    if (avatarMatch && method === 'GET') {
-      const uuid = ClientUUID.tryParse(decodeURIComponent(avatarMatch[1]!))
-      if (!uuid) {
-        res.statusCode = 404
-        res.end(UNSUCCESFUL_RESPONSE)
-        return
-      }
-      const client = Array.from(shards.worldShard.getClientList()).find((s) => s.clientUUID === uuid) ?? null
-      if (!client) {
-        res.statusCode = 404
-        res.end(UNSUCCESFUL_RESPONSE)
-        return
-      }
-      const ok = checkCors(req, res)
-      if (!ok) return
-      res.statusCode = 200
-      res.setHeader('Content-Type', 'application/json')
-      res.end(JSON.stringify({ success: true, user: toUserResource(client) }))
-      return
-    }
-
     if (pathname === '/api/active-parcels.json' && method === 'GET') {
       const activeParcels: Record<number, number> = {}
       for (const c of getWorldClients()) {
@@ -268,20 +135,14 @@ export default function createWWWServer(server: http.Server, logger: winston.Log
       }
       const ok = checkCors(req, res)
       if (!ok) return
+      let count = 0
+      for (const client of getWorldClients()) {
+        if (client.lastSeenParcel === parcel) count++
+      }
       res.statusCode = 200
       res.setHeader('Content-Type', 'application/json')
       res.setHeader('Cache-Control', 'public, max-age=5, stale-while-revalidate=30')
-      res.write('{"users":[')
-      let i = 0
-      for (const client of getWorldClients()) {
-        if (client.lastSeenParcel === parcel) {
-          if (i !== 0) res.write(',')
-          res.write(JSON.stringify(toUserResource(client)))
-          i++
-        }
-      }
-      res.write(']}')
-      res.end()
+      res.end(JSON.stringify({ count }))
       return
     }
 
