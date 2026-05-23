@@ -185,7 +185,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       unreadCount: app?.state.unreadMailCount ?? 0,
       fullscreen: false,
       currentOrNearestParcel: null,
-      active: true,
+      active: false,
       chatEnabled: chatSettings.enabled,
     }
 
@@ -382,7 +382,10 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       return
     }
 
-    if (this.state.active) {
+    // Regression from b0da1ac (Ben, May 20): `if (this.state.active) return` made
+    // sidebar nav dead on load (active started true) and blocked switching panes.
+    if (this.state.pane === pane && this.state.active) {
+      this.closeInteractOverlay()
       return
     }
 
