@@ -1124,3 +1124,25 @@ table.spaces {
     width: 15rem;
   }
 }
+
+// Radar
+
+.radar {
+  &,
+  ul,
+  li {
+    margin: 0;
+    padding: 0;
+  }
+
+  li li {
+    margin-left: 0.8rem;
+    padding-left: 0.8rem;
+    list-style-type: '>';
+  }
+
+  & > li {
+    margin-bottom: 1rem;
+    list-style: none;
+  }
+}
