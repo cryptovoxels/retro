@@ -1863,8 +1863,7 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
       const pass = j.pass as Pass | undefined
       if (pass?.token) {
         const url = this.liveUrl(pass.token)
-        this.copy(url)
-        app.showSnackbar('guest link created (copied)', PanelType.Success)
+        this.copy(url, 'guest link created (copied)')
         this.setState((s) => ({ passes: this.passesForFeature([pass, ...s.passes.filter((p) => p.token !== pass.token)]) }))
         requestAnimationFrame(() => this.linkListRef?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
       }
@@ -1885,8 +1884,9 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
     await this.refresh()
   }
 
-  copy(text: string) {
+  copy(text: string, snackbar = 'link copied') {
     navigator.clipboard.writeText(text).catch(() => {})
+    app.showSnackbar(snackbar, PanelType.Success)
   }
 
   liveUrl(token: string) {
