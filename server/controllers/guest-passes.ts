@@ -63,6 +63,27 @@ export async function loadGuestPass(db: Db, token: string): Promise<GuestPassRow
   return r.rows[0] ?? null
 }
 
+export async function revokeGuestPassesForFeature(db: Db, livekit: RoomServiceClient, parcelId: number, featureUuid: string) {
+  const revoked = await db.query('sql/guest-passes/revoke-for-feature', `update guest_passes set revoked_at = now() where parcel_id = $1 and lower(feature_uuid) = lower($2) and revoked_at is null returning *`, [parcelId, featureUuid])
+  const passes = revoked.rows as GuestPassRow[]
+  if (!passes.length) return
+
+  try {
+    const roomName = `parcel-${parcelId}`
+    const participants = await livekit.listParticipants(roomName)
+    for (const row of passes) {
+      const tokenPrefix = row.token.slice(0, 12)
+      for (const p of participants) {
+        if (p.identity.startsWith(`guest-${tokenPrefix}`)) {
+          await livekit.removeParticipant(roomName, p.identity).catch(() => {})
+        }
+      }
+    }
+  } catch {
+    // room may not exist; nothing to kick
+  }
+}
+
 export default function GuestPassesController(db: Db, passport: PassportStatic, app: Express, livekit: RoomServiceClient) {
   // List passes for a parcel - owner only
   app.get('/api/parcels/:id/guest-passes', passport.authenticate('jwt', { session: false }), async (req: VoxelsUserRequest, res: Response) => {
