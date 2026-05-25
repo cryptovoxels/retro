@@ -415,6 +415,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   }
 
   send(message: messages.Message.ClientStateMessage): void {
+    if (!this.isOpen) return
     this.multiplayerClient.send(messages.encode(message))
   }
 
