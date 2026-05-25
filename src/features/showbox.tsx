@@ -1813,6 +1813,7 @@ type Pass = { token: string; parcel_id: number; feature_uuid: string; name: stri
 class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; onGuestModeChange: (mode: GuestMode) => void }, { passes: Pass[]; loading: boolean; creating: boolean; error: string | null }> {
   state = { passes: [] as Pass[], loading: true, creating: false, error: null as string | null }
   linkListRef: HTMLDivElement | null = null
+  refreshGen = 0
 
   componentDidMount() {
     this.refresh()
@@ -1826,19 +1827,18 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
     return this.props.feature.uuid
   }
 
-  passesForFeature(all: Pass[]) {
-    const uuid = this.featureUuid().toLowerCase()
-    return all.filter((p) => p.feature_uuid?.toLowerCase() === uuid)
-  }
-
   passActive(p: Pass) {
     return !p.revoked_at
   }
 
   applyPass(pass: Pass) {
     this.setState((s) => ({
-      passes: this.passesForFeature([pass, ...s.passes.filter((p) => p.token !== pass.token)]),
+      passes: [pass, ...s.passes.filter((p) => p.token !== pass.token)],
     }))
+  }
+
+  passesUrl() {
+    return `/api/parcels/${this.parcelId()}/guest-passes?feature_uuid=${encodeURIComponent(this.featureUuid())}`
   }
 
   canManagePasses() {
@@ -1849,16 +1849,19 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
   }
 
   async refresh() {
+    const gen = ++this.refreshGen
     try {
-      const r = await fetch(`/api/parcels/${this.parcelId()}/guest-passes`, { credentials: 'include', cache: 'no-store' })
+      const r = await fetch(this.passesUrl(), { credentials: 'include', cache: 'no-store' })
       const j = await r.json().catch(() => ({}))
+      if (gen !== this.refreshGen) return false
       if (!r.ok || !j.success) {
         this.setState({ error: j.error || 'could not load guest links', loading: false })
         return false
       }
-      this.setState({ passes: this.passesForFeature(j.passes ?? []), loading: false, error: null })
+      this.setState({ passes: j.passes ?? [], loading: false, error: null })
       return true
     } catch {
+      if (gen !== this.refreshGen) return false
       this.setState({ loading: false, error: 'could not load guest links' })
       return false
     }
@@ -1873,24 +1876,24 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
       this.setState({ error: 'revoke the existing link first' })
       return
     }
+    this.refreshGen++
     this.setState({ creating: true, error: null })
     try {
       const r = await fetch(`/api/parcels/${this.parcelId()}/guest-passes`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
+        cache: 'no-store',
         body: JSON.stringify({ feature_uuid: this.featureUuid() }),
       })
       const j = await r.json().catch(() => ({}))
       if (!r.ok || !j.success) throw new Error(j.error || 'Could not create link')
       const pass = j.pass as Pass | undefined
-      if (pass?.token) {
-        const url = this.liveUrl(pass.token)
-        this.copy(url, 'guest link created (copied)')
-        this.applyPass(pass)
-        requestAnimationFrame(() => this.linkListRef?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
-      }
-      await this.refresh()
+      if (!pass?.token) throw new Error('Could not create link')
+      const url = this.liveUrl(pass.token)
+      this.copy(url, 'guest link created (copied)')
+      this.applyPass(pass)
+      requestAnimationFrame(() => this.linkListRef?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
     } catch (e: any) {
       const msg = e?.message ?? 'Could not create link'
       if (String(msg).toLowerCase().includes('revoke')) {
@@ -1910,21 +1913,26 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
       return
     }
     if (!confirm('Revoke this link? They will be kicked if currently live.')) return
+    this.refreshGen++
     this.setState({ error: null })
     try {
       const r = await fetch(`/api/parcels/${this.parcelId()}/guest-passes/${encodeURIComponent(token)}`, {
         method: 'DELETE',
         credentials: 'include',
+        cache: 'no-store',
       })
       const j = await r.json().catch(() => ({}))
       if (!r.ok || !j.success) throw new Error(j.error || 'could not revoke link')
-      const pass = j.pass as Pass | undefined
-      if (!pass?.revoked_at) throw new Error('could not revoke link')
-      this.applyPass(pass)
+      const passes = (j.passes as Pass[] | undefined) ?? (j.pass ? [j.pass as Pass] : [])
+      const revoked = passes.filter((p) => p?.revoked_at)
+      if (!revoked.length) throw new Error('could not revoke link')
+      this.setState((s) => ({
+        passes: [...revoked, ...s.passes.filter((p) => !revoked.some((r) => r.token === p.token))],
+      }))
       app.showSnackbar('guest link revoked', PanelType.Success)
-      await this.refresh()
     } catch (e: any) {
       this.setState({ error: e?.message ?? 'could not revoke link' })
+      await this.refresh()
     }
   }
 
