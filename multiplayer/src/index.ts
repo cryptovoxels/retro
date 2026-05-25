@@ -44,6 +44,7 @@ async function start(signal: AbortSignal) {
   if (process.env.REDIS_URL) {
     try {
       redis = createClient({ url: process.env.REDIS_URL })
+      redis.on('error', (err) => console.error('Multiplayer: Redis error', err))
       await redis.connect()
       console.log('Multiplayer: Redis connected')
     } catch (e) {
