@@ -1888,8 +1888,7 @@ class GuestPasses extends Component<
       const pass = j.pass as Pass | undefined
       if (pass?.token) {
         const url = this.liveUrl(pass.token)
-        this.copy(url)
-        app.showSnackbar('guest link created (copied)', PanelType.Success)
+        this.copy(url, 'guest link created (copied)')
         this.applyPass(pass)
         requestAnimationFrame(() => this.linkListRef?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
       }
@@ -1931,8 +1930,9 @@ class GuestPasses extends Component<
     }
   }
 
-  copy(text: string) {
+  copy(text: string, snackbar = 'link copied') {
     navigator.clipboard.writeText(text).catch(() => {})
+    app.showSnackbar(snackbar, PanelType.Success)
   }
 
   liveUrl(token: string) {
