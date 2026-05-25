@@ -3636,6 +3636,24 @@ aside.ui-toggle-mobile {
   }
 }
 
+// Match ui-toggle-mobile: collapse in-world nav on small screens until hamburger opens it.
+aside:not(.ui-toggle-mobile) {
+  @media screen and (max-width: 799px), screen and (max-height: 449px) {
+    &[data-active='false'] {
+      & > ul.ui-sidebar {
+        transform: translateX(-100%);
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      main.chat {
+        visibility: hidden;
+        pointer-events: none;
+      }
+    }
+  }
+}
+
 aside {
   @width: 8rem;
   width: @width;
