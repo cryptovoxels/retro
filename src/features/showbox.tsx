@@ -8,7 +8,7 @@ import { ShowboxRecord } from '../../common/messages/feature'
 import { effect } from '@preact/signals'
 import { Room, RoomEvent, Track, createLocalScreenTracks, createLocalTracks } from 'livekit-client'
 import { avatarName } from '../../common/messages/avatar-ref'
-import { app } from '../../web/src/state'
+import { app, AppEvent } from '../../web/src/state'
 import { PanelType } from '../../web/src/components/panel'
 import { messageList, type ChatMessageRecord } from '../connector'
 import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
@@ -136,6 +136,10 @@ function isHostJoinForShowbox(uuid: string): boolean {
   }
 }
 
+function wantsHostJoin(uuid: string): boolean {
+  return isHostJoinForShowbox(uuid)
+}
+
 // Chat display name comes from the multiplayer login snapshot - reconnect after a rename so everyone sees it.
 function syncGuestDisplayName(name: string) {
   app.setName(name)
@@ -196,6 +200,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   viewerRoomFull = false
   viewerConnecting = false
   viewerRetryInterval: ReturnType<typeof setInterval> | null = null
+  hostJoinLoginPending = false
 
   roomName() {
     return `parcel-${this.parcel.id}`
@@ -541,6 +546,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.connectViewer()
     }
     // Guest pass redirects with ?show=<uuid> - auto-open the broadcast dock so they don't have to find/click the panel.
+    // Host links (?host=1) need a signed-in parcel owner - prompt login first if needed.
     // Wallet may still be loading from the jwt cookie when onEnter fires; retry after app state settles.
     if (this.broadcastPanel) return
     const tryAutoOpen = () => {
@@ -549,7 +555,15 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.openBroadcastPanel()
         return true
       }
-      if (this.isCohostMode() && this.parcel.canEdit && isHostJoinForShowbox(this.uuid)) {
+      if (wantsHostJoin(this.uuid)) {
+        if (!app.signedIn) {
+          this.promptHostSignIn()
+          return false
+        }
+        if (!this.parcel.canEdit) {
+          app.showSnackbar('sign in as the parcel owner to use this host link', PanelType.Warning)
+          return false
+        }
         this.openBroadcastPanel()
         return true
       }
@@ -559,6 +573,26 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (tryAutoOpen()) return
       void app.getState().then(tryAutoOpen)
     }, 250)
+  }
+
+  promptHostSignIn() {
+    if (this.hostJoinLoginPending || this.broadcastPanel) return
+    this.hostJoinLoginPending = true
+    window.ui?.setPane('login')
+    app.showSnackbar('sign in to go live as host', PanelType.Success)
+    app.once(AppEvent.Login, () => {
+      this.hostJoinLoginPending = false
+      setTimeout(() => {
+        if (this.disposed || !this.isInCurrentParcel || this.broadcastPanel) return
+        if (!wantsHostJoin(this.uuid)) return
+        if (!app.signedIn) return
+        if (!this.parcel.canEdit) {
+          app.showSnackbar('this account cannot host here - use the parcel owner account', PanelType.Warning)
+          return
+        }
+        this.openBroadcastPanel()
+      }, 500)
+    })
   }
 
   onExit = () => {
@@ -600,6 +634,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.stopBroadcast(true)
     this.broadcastPanel?.remove()
     this.broadcastPanel = null
+    this.hostJoinLoginPending = false
     this.audio?.removeUserAudioReference(this)
   }
 
