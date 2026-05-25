@@ -34,14 +34,12 @@ const DEFAULT_VOLUME = 0.7
 const MAX_VOLUME = 1
 const VOLUME_REFRESH_INTERVAL = 200
 const VIEWER_RETRY_INTERVAL = 20_000
-const VIEWER_MILESTONES = [2, 4, 7, 10, 25, 50] as const
+const VIEWER_MILESTONES = [10, 25, 50] as const
 const MILESTONE_POLL_MS = 8000
 
 function celebrateLabel(n: number) {
   if (n >= 50) return '50 here'
   if (n >= 25) return '25 here'
-  if (n >= 10) return `${n} here`
-  if (n === 2) return 'someone joined'
   return `${n} here`
 }
 
@@ -55,8 +53,6 @@ function celebrateBursts(n: number) {
   if (n >= 50) return { emojis: ['🎉', '🔥', '🙌', '❤️', '👏', '🎉', '🔥'], staggerMs: 280 }
   if (n >= 25) return { emojis: ['🎉', '🔥', '🙌', '❤️', '🎉'], staggerMs: 380 }
   if (n >= 10) return { emojis: ['🎉', '🔥', '🙌'], staggerMs: 300 }
-  if (n >= 7) return { emojis: ['🎉', '🔥'], staggerMs: 200 }
-  if (n >= 4) return { emojis: ['🎉', '👏'], staggerMs: 150 }
   return { emojis: ['🎉'], staggerMs: 0 }
 }
 
@@ -71,7 +67,6 @@ function celebrateMoves(n: number, uuid: string) {
     return { anims: [pool[b % 4], pool[(b + 3) % 4]], gapMs: 900 }
   }
   if (n >= 10) return { anims: [Animations.Dance], gapMs: 0 }
-  if (n >= 7) return { anims: [Animations.Dance], gapMs: 0 }
   return { anims: [] as Animations[], gapMs: 0 }
 }
 
@@ -206,10 +201,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return `parcel-${this.parcel.id}`
   }
 
+  isShowLive() {
+    return !!this.broadcastRoom || this.hasActiveVideo || this.hasRemoteBroadcaster()
+  }
+
   receiveState(state: ShowboxCelebrateState) {
     const n = state?.celebrate
     const at = state?.at ?? 0
-    if (!n || !at || !this.isInCurrentParcel) return
+    if (!n || n < 10 || !at || !this.isInCurrentParcel || !this.isShowLive()) return
     if (at <= this.lastCelebrateAt || n <= this.lastCelebrateN) return
     this.lastCelebrateAt = at
     this.lastCelebrateN = n
@@ -889,6 +888,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   stopBroadcast(silent = false) {
     this.stopMilestonePoll()
+    try {
+      this.parcel.sendStatePatch({ [this.uuid]: {} })
+    } catch {}
     this.stopThumbCapture(silent)
     this.clearCohostMonitor()
     this.broadcastRoom?.disconnect()
