@@ -3,7 +3,7 @@ import { unmountComponentAtNode } from 'preact/compat'
 import Feature from '../features/feature'
 import { exitPointerLock, requestPointerLock } from '../../common/helpers/ui-helpers'
 import { decodeCoords, encodeCoords } from '../../common/helpers/utils'
-import ParcelHelper from '../../common/helpers/parcel-helper'
+import ParcelHelper, { featurePlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
 
 export function inspectFeature(feature: Feature) {
   const div = document.createElement('div')
@@ -72,25 +72,7 @@ export function inspectFeature(feature: Feature) {
   }
 
   const teleport = () => {
-    const parcelHelper = new ParcelHelper(feature.parcel)
-    const spawnPosition = feature.tidyPosition
-    const yRotation = feature.tidyRotation[1]
-
-    const i = mod(Math.round(yRotation / ((Math.PI * 2) / HEADINGS.length)), HEADINGS.length)
-    const heading = HEADINGS[i]
-
-    const z = roundHalf(parcelHelper.center[1] * 100 + spawnPosition[2])
-    const x = roundHalf(parcelHelper.center[0] * 100 + spawnPosition[0])
-
-    const result = [x < 0 ? `${Math.abs(x)}W` : `${x}E`, z < 0 ? `${Math.abs(z)}S` : `${z}N`]
-
-    // only add U if above ground
-    const y = roundHalf(parcelHelper.y1 + (spawnPosition[1] - 0.25)) // for some reason the spawn is centered wrong
-    if (y > 0) {
-      result.push(`${y}U`)
-    }
-
-    const spawnURL = `/play?coords=${heading}@${result.join(',')}`
+    const spawnURL = `/play?coords=${featurePlayCoordsFromRecord(new ParcelHelper(feature.parcel as any), { position: feature.tidyPosition, rotation: feature.tidyRotation })}`
 
     window.persona.teleport(spawnURL)
     close()
@@ -249,15 +231,4 @@ export function inspectFeature(feature: Feature) {
     </div>,
     div,
   )
-}
-
-const HEADINGS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const
-
-function mod(n: number, m: number) {
-  // javascript can't do negative modulo
-  return ((n % m) + m) % m
-}
-
-function roundHalf(value: number) {
-  return Math.round(value * 2) / 2
 }

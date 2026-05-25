@@ -297,6 +297,47 @@ export default class ParcelHelper {
   }
 }
 
+const PLAY_HEADINGS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const
+
+function playMod(n: number, m: number) {
+  return ((n % m) + m) % m
+}
+
+function roundHalf(value: number) {
+  return Math.round(value * 2) / 2
+}
+
+type FeaturePlayCoordsOpts = { standoff?: number; faceFeature?: boolean }
+
+// Parcel center + feature position/rotation -> play coords string (same math as inspect-feature teleport).
+export function featurePlayCoords(parcel: ParcelHelper, position: [number, number, number], rotation?: [number, number, number] | null, opts?: FeaturePlayCoordsOpts): string {
+  const standoff = opts?.standoff ?? 0
+  const yaw = rotation?.[1] ?? 0
+  const px = position[0] - Math.sin(yaw) * standoff
+  const py = position[1]
+  const pz = position[2] - Math.cos(yaw) * standoff
+
+  const z = roundHalf(parcel.center[1] * 100 + pz)
+  const x = roundHalf(parcel.center[0] * 100 + px)
+  const y = roundHalf(parcel.y1 + (py - 0.25))
+
+  const parts = [x < 0 ? `${Math.abs(x)}W` : `${x}E`, z < 0 ? `${Math.abs(z)}S` : `${z}N`]
+  if (y > 0) parts.push(`${y}U`)
+
+  const headingYaw = opts?.faceFeature ? yaw + Math.PI : yaw
+  const i = playMod(Math.round(headingYaw / ((Math.PI * 2) / PLAY_HEADINGS.length)), PLAY_HEADINGS.length)
+  const heading = PLAY_HEADINGS[i]
+
+  return parts.length === 0 ? heading : `${heading}@${parts.join(',')}`
+}
+
+export function featurePlayCoordsFromRecord(parcel: Partial<FullParcelRecord> | ParcelHelper, feature: { position?: number[] | null; rotation?: number[] | null }, opts?: FeaturePlayCoordsOpts): string {
+  const helper = parcel instanceof ParcelHelper ? parcel : new ParcelHelper(parcel)
+  const position: [number, number, number] = [feature.position?.[0] ?? 0, feature.position?.[1] ?? 0, feature.position?.[2] ?? 0]
+  const rotation: [number, number, number] | null = feature.rotation ? [feature.rotation[0] ?? 0, feature.rotation[1] ?? 0, feature.rotation[2] ?? 0] : null
+  return featurePlayCoords(helper, position, rotation, opts)
+}
+
 export function getParcelHelper(parcel: MapParcelRecord | SingleParcelRecord) {
   return new ParcelHelper(parcel)
 }

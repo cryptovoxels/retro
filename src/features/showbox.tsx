@@ -2,7 +2,7 @@ import { Component, h } from 'preact'
 import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { isMobile } from '../../common/helpers/detector'
-import ParcelHelper from '../../common/helpers/parcel-helper'
+import ParcelHelper, { featurePlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { encodeCoords } from '../../common/helpers/utils'
 import { ShowboxRecord } from '../../common/messages/feature'
@@ -112,18 +112,20 @@ function guestPassToken(): string | null {
   return guestJwtPayload()?.guest_pass ?? null
 }
 
-function parcelPlayCoords(feature: Showbox): string {
-  return new ParcelHelper(feature.parcel as any).centerLocation
+const SHOWBOX_SPAWN_STANDOFF = 1.5
+
+function showboxPlayCoords(feature: Showbox): string {
+  return featurePlayCoordsFromRecord(new ParcelHelper(feature.parcel as any), { position: feature.tidyPosition, rotation: feature.tidyRotation }, { standoff: SHOWBOX_SPAWN_STANDOFF, faceFeature: true })
 }
 
 // Plain /play?coords= link for the audience. No isolate, ui=off, or show= - just drop people at the showbox.
 function audienceShowUrl(feature: Showbox): string {
-  return `${window.location.origin}/play?coords=${encodeURIComponent(parcelPlayCoords(feature))}`
+  return `${window.location.origin}/play?coords=${encodeURIComponent(showboxPlayCoords(feature))}`
 }
 
 // Owner/co-host join link. Keeps your normal login - just lands at the showbox and opens the broadcast dock.
 function hostJoinShowUrl(feature: Showbox): string {
-  const qs = new URLSearchParams({ coords: parcelPlayCoords(feature), show: feature.uuid, host: '1' })
+  const qs = new URLSearchParams({ coords: showboxPlayCoords(feature), show: feature.uuid, host: '1' })
   return `${window.location.origin}/play?${qs.toString()}`
 }
 

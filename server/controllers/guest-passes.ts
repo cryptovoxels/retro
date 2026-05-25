@@ -4,6 +4,8 @@ import { Express, Response } from 'express'
 import { SignJWT, decodeJwt } from 'jose'
 import { PassportStatic } from 'passport'
 import authParcel from '../auth-parcel'
+import { featurePlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
+import { FeatureRecord } from '../../common/messages/feature'
 import Parcel from '../parcel'
 import { Db } from '../pg'
 import { VoxelsUserRequest } from '../user'
@@ -44,6 +46,12 @@ function guestBroadcastPlayQuery(parcelLocation: string, featureUuid: string, us
 function hostJoinPlayQuery(parcelLocation: string, featureUuid: string): string {
   const qs = new URLSearchParams({ coords: parcelLocation, show: featureUuid, host: '1' })
   return qs.toString()
+}
+
+function showboxPlayCoords(parcel: Parcel, featureUuid: string): string {
+  const feature = parcel.content?.features?.find((f: FeatureRecord | null) => f?.uuid?.toLowerCase() === featureUuid.toLowerCase())
+  if (!feature?.position) return parcel.location
+  return featurePlayCoordsFromRecord(parcel as any, feature, { standoff: 1.5, faceFeature: true })
 }
 
 function walletFromJwtCookie(req: { cookies?: Record<string, string> }): { wallet?: string; moderator?: boolean } | null {
@@ -262,7 +270,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
     if (signedIn?.wallet) {
       const auth = await authParcel(parcel, signedIn as any)
       if (auth === 'Owner' || auth === 'Moderator') {
-        return res.redirect(302, `/play?${hostJoinPlayQuery(parcel.location, pass.feature_uuid)}`)
+        return res.redirect(302, `/play?${hostJoinPlayQuery(showboxPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid)}`)
       }
     }
 
@@ -292,7 +300,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       .sign(JWT_SECRET_KEY)
 
     res.cookie('jwt', jwt, { maxAge: GUEST_JWT_TTL_SECONDS * 1000, httpOnly: false, sameSite: 'lax' })
-    const playQs = guestBroadcastPlayQuery(parcel.location, pass.feature_uuid, String(req.headers['user-agent'] ?? ''))
+    const playQs = guestBroadcastPlayQuery(showboxPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid, String(req.headers['user-agent'] ?? ''))
     res.redirect(302, `/play?${playQs}`)
   })
 
