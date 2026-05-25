@@ -180,7 +180,7 @@ export default class Explore extends Component<any, Props> {
         <section class="columns">
           <article>
             <h3>Womps</h3>
-            <WompsList numberToShow={20} collapsed={false} fetch="/womps.json" womps={this.props.womps ?? undefined} ttl={600} />
+            <WompsList numberToShow={20} mobilePreview={6} collapsed={false} fetch="/womps.json" womps={this.props.womps ?? undefined} ttl={600} />
           </article>
 
           <aside>
