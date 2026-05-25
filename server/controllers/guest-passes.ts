@@ -1,7 +1,7 @@
 import crypto from 'crypto'
 import path from 'path'
 import { Express, Response } from 'express'
-import { SignJWT } from 'jose'
+import { SignJWT, decodeJwt } from 'jose'
 import { PassportStatic } from 'passport'
 import authParcel from '../auth-parcel'
 import Parcel from '../parcel'
@@ -39,6 +39,23 @@ function guestBroadcastPlayQuery(parcelLocation: string, featureUuid: string, us
   const qs = new URLSearchParams({ coords: parcelLocation, show: featureUuid, isolate: 'true', distance: 'close' })
   if (isMobileUserAgent(userAgent)) qs.set('ui', 'off')
   return qs.toString()
+}
+
+function hostJoinPlayQuery(parcelLocation: string, featureUuid: string): string {
+  const qs = new URLSearchParams({ coords: parcelLocation, show: featureUuid, host: '1' })
+  return qs.toString()
+}
+
+function walletFromJwtCookie(req: { cookies?: Record<string, string> }): { wallet?: string; moderator?: boolean } | null {
+  const jwt = req.cookies?.jwt
+  if (!jwt) return null
+  try {
+    const payload = decodeJwt(jwt) as { wallet?: string; moderator?: boolean; guest_pass?: string }
+    if (!payload?.wallet || isGuestWallet(payload.wallet) || payload.guest_pass) return null
+    return { wallet: payload.wallet, moderator: payload.moderator }
+  } catch {
+    return null
+  }
 }
 
 export async function loadGuestPass(db: Db, token: string): Promise<GuestPassRow | null> {
@@ -113,13 +130,20 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       return res.status(403).json({ success: false, error: 'Owner only' })
     }
 
-    const token = String(req.params.token)
+    const token = decodeURIComponent(String(req.params.token ?? ''))
     const pass = await loadGuestPass(db, token)
     if (!pass || pass.parcel_id !== parcelId) {
       return res.status(404).json({ success: false, error: 'Pass not found' })
     }
+    if (pass.revoked_at) {
+      return res.json({ success: true, pass })
+    }
 
-    await db.query('sql/guest-passes/revoke', `update guest_passes set revoked_at = now() where token = $1 and revoked_at is null`, [token])
+    const revoked = await db.query('sql/guest-passes/revoke', `update guest_passes set revoked_at = now() where token = $1 and revoked_at is null returning *`, [token])
+    const updated = revoked.rows[0] ?? (await loadGuestPass(db, token))
+    if (!updated?.revoked_at) {
+      return res.status(500).json({ success: false, error: 'Could not revoke link' })
+    }
 
     // Best-effort live kick: any participant whose identity carries this token prefix
     try {
@@ -135,7 +159,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       // room may not exist; nothing to kick
     }
 
-    res.json({ success: true })
+    res.json({ success: true, pass: updated })
   })
 
   // Guest can update their own display name. Auth via the guest_pass jwt - if it doesn't match
@@ -192,6 +216,14 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
 
     const parcel = await Parcel.load(pass.parcel_id)
     if (!parcel) return res.status(404).send('Parcel not found')
+
+    const signedIn = walletFromJwtCookie(req)
+    if (signedIn?.wallet) {
+      const auth = await authParcel(parcel, signedIn as VoxelsUserRequest['user'])
+      if (auth === 'Owner' || auth === 'Moderator') {
+        return res.redirect(302, `/play?${hostJoinPlayQuery(parcel.location, pass.feature_uuid)}`)
+      }
+    }
 
     const syntheticWallet = `guest:${token.slice(0, 12)}`.toLowerCase()
 

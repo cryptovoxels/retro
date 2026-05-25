@@ -2,9 +2,6 @@ import { Pool, PoolClient, QueryConfig, QueryConfigValues, QueryResult, QueryRes
 import { ConnectionOptions } from 'tls'
 import { performance } from 'perf_hooks'
 import assert from 'assert'
-import { createLogger } from '../createLogger'
-
-const log = createLogger('', 'psql')
 
 export type ConnectionHandle = {
   query<R extends QueryResultRow = any, I extends any[] = any[]>(queryConfig: QueryConfig<I>): Promise<QueryResult<R>>
@@ -46,18 +43,16 @@ export function createConnection(appName: string): ConnectionHandle {
     try {
       client = await pool.connect()
     } catch (err) {
-      log.error('pg.Pool connection failure', err)
+      console.error('pg.Pool connection failure', err)
       throw err
     }
 
     const startTime = performance.now()
 
     try {
-      const res = await client.query(queryConfig)
-      debugLog(startTime, res, queryConfig)
-      return res
+      return await client.query(queryConfig)
     } catch (err: unknown) {
-      errorLog(startTime, err, queryConfig)
+      console.error(`(${since(startTime)}sec) '${err?.toString() || '(unknown error)'}': ${toLine(queryConfig)}`)
       throw err
     } finally {
       client.release()
@@ -99,14 +94,6 @@ query: ${queryName || '(unknown)'}
   queryConfig.text = queryHeader + queryConfig.text
 
   return queryConfig
-}
-
-function debugLog<I extends any[] = any[]>(startTime: number, res: QueryResult, queryConfig: QueryConfig<I>) {
-  log.debug(`(${since(startTime)}sec, ${res.rowCount} rows): ${toLine(queryConfig)}`)
-}
-
-function errorLog<I extends any[] = any[]>(startTime: number, err: unknown, queryConfig: QueryConfig<I>) {
-  log.error(`(${since(startTime)}sec) '${err?.toString() || '(unknown error)'}': ${toLine(queryConfig)}`)
 }
 
 const since = (startTime: number) => ((performance.now() - startTime) / 1000.0).toFixed(2)
