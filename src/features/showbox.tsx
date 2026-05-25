@@ -163,10 +163,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     type: 'showbox',
     image: '',
   }
-  static template: FeatureTemplate = {
+  static template = {
     type: 'showbox',
     scale: [2, 1, 0],
-  }
+    guestMode: 'solo',
+  } as FeatureTemplate
 
   livekitRoom: Room | null = null
   broadcastRoom: Room | null = null
@@ -1946,25 +1947,30 @@ class GuestPasses extends Component<
   render() {
     if (!this.props.feature.parcel.canEdit) return null
     const active = this.state.passes.filter((p) => this.passActive(p))
-    const revoked = this.state.passes.filter((p) => !this.passActive(p))
     const canManage = this.canManagePasses()
     const canCreate = canManage && active.length === 0
 
     return (
       <div className="f">
-        <label>guest links</label>
-        <small>invite someone to go live here without a voxels account</small>
+        <div className="f">
+          <label>host link</label>
+          <input type="text" readOnly value={this.hostJoinUrl()} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
+          <button type="button" style={mobile ? { minHeight: '44px' } : undefined} onClick={() => this.copy(this.hostJoinUrl())}>
+            copy host link
+          </button>
+        </div>
+
+        <label>invite a guest</label>
+        <small>A link that you can give to someone to go live here without a voxels account</small>
 
         <div className="f">
           {canCreate ? (
             <button type="button" style={mobile ? { minHeight: '44px' } : undefined} onClick={() => this.create()} disabled={this.state.creating}>
               {this.state.creating ? 'creating...' : 'create link'}
             </button>
-          ) : canManage && active.length > 0 ? (
-            <small>revoke the link below to create a new one</small>
-          ) : (
+          ) : !canManage ? (
             <small>owner only</small>
-          )}
+          ) : null}
           {this.state.error && <div style={{ color: '#dc1e1e' }}>{this.state.error}</div>}
         </div>
 
@@ -2007,34 +2013,9 @@ class GuestPasses extends Component<
                   </div>
                   <small>solo = guest replaces you. co-host = you on the left, guest on the right.</small>
                 </div>
-                {this.props.guestMode === 'cohost' && this.canCreatePass() && (
-                  <div className="f">
-                    <label>host link</label>
-                    <small>open this yourself to join as co-host (don't share - use your normal login)</small>
-                    <input type="text" readOnly value={this.hostJoinUrl()} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
-                    <button type="button" style={mobile ? { minHeight: '44px' } : undefined} onClick={() => this.copy(this.hostJoinUrl())}>
-                      copy host link
-                    </button>
-                  </div>
-                )}
               </div>
             ))}
           </div>
-        )}
-
-        {revoked.length > 0 && (
-          <details>
-            <summary>{revoked.length} revoked</summary>
-            <ul>
-              {revoked.map((p) => (
-                <li key={p.token}>
-                  <small>
-                    {p.name} - revoked {new Date(p.revoked_at!).toLocaleDateString()}
-                  </small>
-                </li>
-              ))}
-            </ul>
-          </details>
         )}
       </div>
     )

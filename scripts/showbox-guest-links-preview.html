@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>showbox guest links UI - current code states</title>
+    <style>
+      body {
+        margin: 0;
+        background: #111;
+        color: #f5f5f0;
+        font-family: 'Source Code Pro', monospace;
+        font-size: 13px;
+      }
+      h1 {
+        font-size: 14px;
+        font-weight: bold;
+        padding: 1rem;
+        margin: 0;
+        border-bottom: 1px solid #333;
+      }
+      .grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2rem;
+        padding: 1rem;
+        align-items: flex-start;
+      }
+      .card h2 {
+        font-size: 12px;
+        color: #888;
+        margin: 0 0 0.75rem;
+        font-weight: normal;
+      }
+      section.panel {
+        background: #1a1a1a;
+        width: 360px;
+        max-width: 100%;
+        border: 1px solid #333;
+      }
+      section.panel header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 1rem 1rem 0.5rem;
+        border-bottom: 1px solid #333;
+      }
+      section.panel header h2 {
+        margin: 0;
+        font-size: 1.25rem;
+        color: #f5f5f0;
+      }
+      section.panel header .close {
+        background: transparent;
+        border: 0;
+        color: #888;
+        font-size: 1.5rem;
+        cursor: pointer;
+      }
+      .scrollContainer {
+        padding: 0 1rem 1rem;
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+      .editor-toolbar {
+        list-style: none;
+        padding: 0.75rem 0;
+        margin: 0;
+        display: flex;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+        border-bottom: 1px solid #333;
+      }
+      .editor-toolbar button {
+        background: #0066cc;
+        color: #fff;
+        border: 0;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        font-family: inherit;
+        font-size: 12px;
+      }
+      .f {
+        padding: 9px 2px 10px;
+      }
+      .f label:first-child {
+        display: block;
+        padding-bottom: 3px;
+      }
+      .f small {
+        color: #888;
+        display: block;
+      }
+      .f input[type='text'] {
+        font: inherit;
+        width: 100%;
+        border: none;
+        padding: 8px 4px;
+        background: #222;
+        color: #aaa;
+        border-radius: 4px;
+        box-sizing: border-box;
+        min-height: 36px;
+      }
+      .f button {
+        background: #0066cc;
+        color: #fff;
+        border: 0;
+        padding: 0.5rem 1rem;
+        cursor: pointer;
+        font-family: inherit;
+      }
+      .f .btn-row {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 0.5rem;
+      }
+      .f .btn-row button {
+        background: #333;
+        color: #f5f5f0;
+      }
+      .f label.inline {
+        display: inline;
+        padding-bottom: 0;
+        margin-right: 1rem;
+      }
+      .vectors {
+        padding: 9px 2px 10px;
+      }
+      .vectors > label {
+        display: block;
+        padding-bottom: 3px;
+      }
+      .vectors > div {
+        display: flex;
+        gap: 2px;
+      }
+      .vectors span {
+        width: 1rem;
+        padding: 0.25rem;
+        display: inline-block;
+        text-align: center;
+        background: #333;
+        color: #aaa;
+        font-size: 11px;
+      }
+      .vectors input {
+        flex: 1;
+        min-width: 0;
+        border: none;
+        padding: 4px;
+        background: #222;
+        color: #aaa;
+        font: inherit;
+        border-radius: 0;
+      }
+      .snackbar {
+        position: fixed;
+        bottom: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background: #2a2a2a;
+        color: #f5f5f0;
+        padding: 0.75rem 1.25rem;
+        border: 1px solid #444;
+        border-radius: 4px;
+        font-size: 13px;
+        z-index: 9;
+      }
+      details summary {
+        cursor: pointer;
+        color: #888;
+      }
+      details ul {
+        margin: 0.5rem 0 0;
+        padding-left: 1.25rem;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- shared editor chrome above guest links on every showbox editor view -->
+    <template id="editor-chrome">
+      <ul class="editor-toolbar">
+        <li><button type="button">Duplicate</button></li>
+        <li><button type="button">Move</button></li>
+        <li><button type="button">Delete</button></li>
+      </ul>
+      <div class="vectors">
+        <label>Position</label>
+        <div><span>X</span><input type="text" readonly value="12.50" /><span>Y</span><input type="text" readonly value="1.00" /><span>Z</span><input type="text" readonly value="8.25" /></div>
+      </div>
+      <div class="vectors">
+        <label>Scale</label>
+        <div><span>x</span><input type="text" readonly value="2.00" /><span>y</span><input type="text" readonly value="1.00" /><span>z</span><input type="text" readonly value="0.00" /><input type="checkbox" checked disabled /></div>
+      </div>
+      <div class="vectors">
+        <label>Rotation</label>
+        <div><span>X</span><input type="text" readonly value="0" /><span>Y</span><input type="text" readonly value="90" /><span>Z</span><input type="text" readonly value="0" /></div>
+      </div>
+    </template>
+    <template id="host-link">
+      <div class="f">
+        <label>host link</label>
+        <input type="text" readonly value="https://www.voxels.com/play?coords=N@688E,716S&show=abc-123&host=1" />
+        <button type="button" style="margin-top: 0.5rem; background: #333; color: #f5f5f0">copy host link</button>
+      </div>
+    </template>
+    <h1>showbox editor - guest links (matches current showbox.tsx GuestPasses render)</h1>
+    <div class="grid">
+      <div class="card" id="state-open">
+        <h2>1. panel open - no guest link yet</h2>
+        <section class="panel">
+          <header>
+            <h2>Edit Showbox</h2>
+            <button type="button" class="close" aria-label="close">&times;</button>
+          </header>
+          <div class="scrollContainer">
+            <div data-editor-chrome></div>
+            <div data-host-link></div>
+            <div class="f">
+              <label>invite a guest</label>
+              <small>A link that you can give to someone to go live here without a voxels account</small>
+              <div class="f">
+                <button type="button">create link</button>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="card" id="state-solo">
+        <h2>2. link created - solo guest</h2>
+        <section class="panel">
+          <header>
+            <h2>Edit Showbox</h2>
+            <button type="button" class="close">&times;</button>
+          </header>
+          <div class="scrollContainer">
+            <div data-editor-chrome></div>
+            <div data-host-link></div>
+            <div class="f">
+              <label>invite a guest</label>
+              <small>A link that you can give to someone to go live here without a voxels account</small>
+              <div class="f">
+                <label>guest link</label>
+                <input type="text" readonly value="https://www.voxels.com/live/xK9mP2nQvR7wL4sT8uY1zA3bC5dE6f" />
+              </div>
+              <div class="btn-row">
+                <button type="button">copy</button>
+                <button type="button">revoke</button>
+              </div>
+              <div class="f">
+                <label>guest link mode</label>
+                <div>
+                  <label class="inline"><input type="radio" name="mode2" checked /> solo guest</label>
+                  <label class="inline"><input type="radio" name="mode2" /> co-host</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="card" id="state-cohost">
+        <h2>3. link created - co-host</h2>
+        <section class="panel">
+          <header>
+            <h2>Edit Showbox</h2>
+            <button type="button" class="close">&times;</button>
+          </header>
+          <div class="scrollContainer">
+            <div data-editor-chrome></div>
+            <div data-host-link></div>
+            <div class="f">
+              <label>invite a guest</label>
+              <small>A link that you can give to someone to go live here without a voxels account</small>
+              <div class="f">
+                <label>guest link</label>
+                <input type="text" readonly value="https://www.voxels.com/live/xK9mP2nQvR7wL4sT8uY1zA3bC5dE6f" />
+              </div>
+              <div class="btn-row">
+                <button type="button">copy</button>
+                <button type="button">revoke</button>
+              </div>
+              <div class="f">
+                <label>guest link mode</label>
+                <div>
+                  <label class="inline"><input type="radio" name="mode3" /> solo guest</label>
+                  <label class="inline"><input type="radio" name="mode3" checked /> co-host</label>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
+
+      <div class="card" id="state-revoked">
+        <h2>4. link revoked</h2>
+        <section class="panel">
+          <header>
+            <h2>Edit Showbox</h2>
+            <button type="button" class="close">&times;</button>
+          </header>
+          <div class="scrollContainer">
+            <div data-editor-chrome></div>
+            <div data-host-link></div>
+            <div class="f">
+              <label>invite a guest</label>
+              <small>A link that you can give to someone to go live here without a voxels account</small>
+              <div class="f">
+                <button type="button">create link</button>
+              </div>
+            </div>
+          </div>
+        </section>
+        <div class="snackbar">guest link revoked</div>
+      </div>
+    </div>
+    <script>
+      document.querySelectorAll('[data-editor-chrome]').forEach((slot) => {
+        slot.append(document.getElementById('editor-chrome').content.cloneNode(true))
+      })
+      document.querySelectorAll('[data-host-link]').forEach((slot) => {
+        slot.append(document.getElementById('host-link').content.cloneNode(true))
+      })
+    </script>
+  </body>
+</html>
