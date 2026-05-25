@@ -611,7 +611,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   showExplorerMap() {
     // temporarily set the initial tab to map
     this.explorerPaneInitialTab.current = 'map'
-    this.setState({ pane: 'explorer' })
+    this.setState({ pane: 'explorer', active: true })
     setTimeout(() => {
       // reset to undefined after opening (next tick because setState is async)
       this.explorerPaneInitialTab.current = undefined
@@ -620,7 +620,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   showExplorerOnline() {
     this.explorerPaneInitialTab.current = 'users'
-    this.setState({ pane: 'explorer' })
+    this.setState({ pane: 'explorer', active: true })
     setTimeout(() => {
       this.explorerPaneInitialTab.current = undefined
     })
@@ -767,7 +767,13 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           <Snackbar />
 
           <aside style={{ zIndex: 500 }} class={`ui-toggle-mobile ${this.state.active ? 'hidden' : ''}`}>
-            <button onClick={() => this.setState({ active: !this.state.active })} title="Toggle UI">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                this.setState({ active: !this.state.active })
+              }}
+              title="Toggle UI"
+            >
               ☰
             </button>
           </aside>
