@@ -196,6 +196,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   cohostCompositeRaf: number | null = null
   cohostMonitorEls: HTMLAudioElement[] = []
   cohostCompositeAttached = false
+  syncCohostPreview: (() => void) | null = null
   milestonePollInterval: ReturnType<typeof setInterval> | null = null
   celebratedMilestones = new Set<number>()
   lastCelebrateAt = 0
@@ -409,6 +410,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.cohostCompositeEl = null
     this.cohostCanvas = null
     this.cohostCompositeAttached = false
+    this.syncCohostPreview = null
     this.clearCohostMonitor()
   }
 
@@ -435,8 +437,41 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return true
   }
 
+  mountCohostPreviewVideo(objectFit: string) {
+    const v = document.createElement('video')
+    v.muted = true
+    v.volume = 0
+    v.playsInline = true
+    v.autoplay = true
+    Object.assign(v.style, { width: '100%', height: '100%', objectFit, display: 'block' })
+    this.syncCohostPreview = () => {
+      const src = this.cohostCompositeEl?.srcObject
+      if (!src || v.srcObject === src) return
+      v.srcObject = src
+      v.play().catch(() => {})
+    }
+    this.syncCohostPreview()
+    return v
+  }
+
+  wireLocalCohostVideo(el: HTMLVideoElement) {
+    el.muted = true
+    el.playsInline = true
+    el.autoplay = true
+    el.style.display = 'none'
+    document.body.appendChild(el)
+    el.play().catch(() => {})
+    if (isGuestForShowbox(this.uuid)) {
+      if (this.guestVideoEl !== el) this.guestVideoEl?.remove()
+      this.guestVideoEl = el
+    } else {
+      if (this.ownerVideoEl !== el) this.ownerVideoEl?.remove()
+      this.ownerVideoEl = el
+    }
+  }
+
   updateCohostComposite() {
-    if (!this.isCohostMode() || this.disposed || this.broadcastRoom) return
+    if (!this.isCohostMode() || this.disposed) return
 
     if (!this.cohostCanvas) {
       this.cohostCanvas = document.createElement('canvas')
@@ -468,7 +503,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     if (!this.cohostCompositeRaf) {
       const tick = () => {
-        if (!this.cohostCanvas || this.disposed || this.broadcastRoom) {
+        if (!this.cohostCanvas || this.disposed) {
           this.cohostCompositeRaf = null
           return
         }
@@ -482,6 +517,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
       this.cohostCompositeRaf = requestAnimationFrame(tick)
     }
+    this.syncCohostPreview?.()
   }
 
   routeCohostVideo(track: any, identity: string) {
@@ -721,6 +757,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (this.broadcastRoom) {
         if (this.isCohostMode() && track.kind === Track.Kind.Audio && this.shouldPlayCohostAudio(identity)) {
           this.trackCohostMonitor(track.attach() as HTMLAudioElement)
+          return
+        }
+        if (this.isCohostMode() && track.kind === Track.Kind.Video) {
+          this.routeCohostVideo(track, identity)
+          return
         }
         return
       }
@@ -751,6 +792,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             const i = this.cohostMonitorEls.indexOf(node as HTMLAudioElement)
             if (i >= 0) this.cohostMonitorEls.splice(i, 1)
           })
+          return
+        }
+        if (this.isCohostMode() && track.kind === Track.Kind.Video) {
+          this.clearCohostVideoForIdentity(identity)
+          this.updateCohostComposite()
+          return
         }
         return
       }
@@ -790,7 +837,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     room.on(RoomEvent.ParticipantConnected, () => this.setPreview())
     room.on(RoomEvent.ParticipantDisconnected, () => {
-      if (this.isCohostMode() && !this.broadcastRoom) this.updateCohostComposite()
+      if (this.isCohostMode()) this.updateCohostComposite()
       this.setPreview()
     })
 
@@ -898,6 +945,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.broadcastRoom = null
     this.hasActiveVideo = false
     this.cohostCompositeAttached = false
+    this.syncCohostPreview = null
     this.audio?.removeUserAudioReference(this)
     if (this.liveTimerInterval) {
       clearInterval(this.liveTimerInterval)
@@ -1627,8 +1675,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         liveAudioTrack = tracks.find((t) => t.kind === Track.Kind.Audio) ?? null
         if (videoTrack) {
           const el = videoTrack.attach() as HTMLVideoElement
-          this.attachVideoToMesh(el, true)
-          this.startThumbCapture(el)
+          if (this.isCohostMode()) {
+            this.wireLocalCohostVideo(el)
+            this.updateCohostComposite()
+            this.startThumbCapture()
+          } else {
+            this.attachVideoToMesh(el, true)
+            this.startThumbCapture(el)
+          }
         }
 
         this.audio?.addUserAudioReference(this)
@@ -1707,11 +1761,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
               background: '#000',
               overflow: 'hidden',
             })
-            const previewVideo = videoTrack.attach() as HTMLVideoElement
-            previewVideo.muted = true
-            previewVideo.volume = 0
-            previewVideo.playsInline = true
-            Object.assign(previewVideo.style, { width: '100%', height: '100%', objectFit: 'cover', display: 'block' })
+            const previewVideo = this.isCohostMode() ? this.mountCohostPreviewVideo('cover') : (videoTrack.attach() as HTMLVideoElement)
+            if (!this.isCohostMode()) {
+              previewVideo.muted = true
+              previewVideo.volume = 0
+              previewVideo.playsInline = true
+              Object.assign(previewVideo.style, { width: '100%', height: '100%', objectFit: 'cover', display: 'block' })
+            }
             const previewLabel = document.createElement('div')
             previewLabel.textContent = 'what your audience sees'
             Object.assign(previewLabel.style, { position: 'absolute', top: '4px', left: '6px', color: '#f5f5f0', fontSize: '11px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px' })
@@ -1731,11 +1787,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
               background: '#000',
               overflow: 'hidden',
             })
-            const previewVideo = videoTrack.attach() as HTMLVideoElement
-            previewVideo.muted = true
-            previewVideo.volume = 0
-            previewVideo.playsInline = true
-            Object.assign(previewVideo.style, { width: '100%', height: '100%', objectFit: 'contain', display: 'block' })
+            const previewVideo = this.isCohostMode() ? this.mountCohostPreviewVideo('contain') : (videoTrack.attach() as HTMLVideoElement)
+            if (!this.isCohostMode()) {
+              previewVideo.muted = true
+              previewVideo.volume = 0
+              previewVideo.playsInline = true
+              Object.assign(previewVideo.style, { width: '100%', height: '100%', objectFit: 'contain', display: 'block' })
+            }
             const previewLabel = document.createElement('div')
             previewLabel.textContent = 'what your audience sees'
             Object.assign(previewLabel.style, { position: 'absolute', top: '4px', left: '6px', color: '#f5f5f0', fontSize: '11px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px' })
