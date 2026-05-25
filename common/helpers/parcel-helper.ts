@@ -338,6 +338,12 @@ export function featurePlayCoordsFromRecord(parcel: Partial<FullParcelRecord> | 
   return featurePlayCoords(helper, position, rotation, opts)
 }
 
+// Host/fan/guest showbox links: in front of the screen on parcel floor, not at feature pivot height.
+export function showboxPlayCoordsFromRecord(parcel: Partial<FullParcelRecord> | ParcelHelper, feature: { position?: number[] | null; rotation?: number[] | null }) {
+  const position = feature.position
+  return featurePlayCoordsFromRecord(parcel, { position: [position?.[0] ?? 0, 0, position?.[2] ?? 0], rotation: feature.rotation }, { standoff: 1.5, faceFeature: true })
+}
+
 export function getParcelHelper(parcel: MapParcelRecord | SingleParcelRecord) {
   return new ParcelHelper(parcel)
 }

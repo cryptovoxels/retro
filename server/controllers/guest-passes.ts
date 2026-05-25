@@ -4,7 +4,7 @@ import { Express, Response } from 'express'
 import { SignJWT, decodeJwt } from 'jose'
 import { PassportStatic } from 'passport'
 import authParcel from '../auth-parcel'
-import { featurePlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
+import { showboxPlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
 import { FeatureRecord } from '../../common/messages/feature'
 import Parcel from '../parcel'
 import { Db } from '../pg'
@@ -51,7 +51,7 @@ function hostJoinPlayQuery(parcelLocation: string, featureUuid: string): string 
 function showboxPlayCoords(parcel: Parcel, featureUuid: string): string {
   const feature = parcel.content?.features?.find((f: FeatureRecord | null) => f?.uuid?.toLowerCase() === featureUuid.toLowerCase())
   if (!feature?.position) return parcel.location
-  return featurePlayCoordsFromRecord(parcel as any, feature, { standoff: 1.5, faceFeature: true })
+  return showboxPlayCoordsFromRecord(parcel as any, feature)
 }
 
 function walletFromJwtCookie(req: { cookies?: Record<string, string> }): { wallet?: string; moderator?: boolean } | null {
