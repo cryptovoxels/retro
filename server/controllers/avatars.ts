@@ -50,6 +50,7 @@ export default function AvatarsController(db: Db, passport: PassportStatic, app:
         w.custom_attributes,
         w.suppressed,
         w.category,
+        w.default_bone,
         w.default_settings,
         c.address as collection_address,
         c.chainid as chain_id,
