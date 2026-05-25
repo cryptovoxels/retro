@@ -2,7 +2,7 @@ import { Component, h } from 'preact'
 import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { isMobile } from '../../common/helpers/detector'
-import ParcelHelper, { featurePlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
+import ParcelHelper, { showboxPlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { encodeCoords } from '../../common/helpers/utils'
 import { ShowboxRecord } from '../../common/messages/feature'
@@ -107,10 +107,8 @@ function guestPassToken(): string | null {
   return guestJwtPayload()?.guest_pass ?? null
 }
 
-const SHOWBOX_SPAWN_STANDOFF = 1.5
-
 function showboxPlayCoords(feature: Showbox): string {
-  return featurePlayCoordsFromRecord(new ParcelHelper(feature.parcel as any), { position: feature.tidyPosition, rotation: feature.tidyRotation }, { standoff: SHOWBOX_SPAWN_STANDOFF, faceFeature: true })
+  return showboxPlayCoordsFromRecord(new ParcelHelper(feature.parcel as any), { position: feature.tidyPosition, rotation: feature.tidyRotation })
 }
 
 // Plain /play?coords= link for the audience. No isolate, ui=off, or show= - just drop people at the showbox.
