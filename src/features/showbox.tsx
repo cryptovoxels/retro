@@ -549,7 +549,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.openBroadcastPanel()
         return true
       }
-      if (this.isCohostMode() && this.parcel.canEdit && isHostJoinForShowbox(this.uuid)) {
+      if (this.parcel.canEdit && isHostJoinForShowbox(this.uuid)) {
         this.openBroadcastPanel()
         return true
       }
