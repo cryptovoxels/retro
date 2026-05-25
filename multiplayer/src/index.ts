@@ -76,7 +76,7 @@ async function start(signal: AbortSignal) {
   if (redis) {
     setInterval(() => {
       for (const c of shards.worldShard.getClientList()) {
-        if (!c.loggedIn || c.lastSeenParcel === null) continue
+        if (c.lastSeenParcel === null) continue
         const val = JSON.stringify({ avatar: c.avatar, parcel: c.lastSeenParcel })
         redis!.set(`radar:${c.clientUUID}`, val, { EX: RADAR_TTL }).catch(() => {})
       }
