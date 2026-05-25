@@ -208,6 +208,46 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return `parcel-${this.parcel.id}`
   }
 
+  activeLiveShowboxUuid() {
+    const live = (this.parcel.state as any).__showbox_live
+    return typeof live === 'string' ? live : null
+  }
+
+  streamTargetsThisShowbox() {
+    const live = this.activeLiveShowboxUuid()
+    return !!live && live === this.uuid
+  }
+
+  reconcileActiveStream() {
+    if (this.broadcastRoom) return
+    if (this.streamTargetsThisShowbox()) {
+      this.tryAttachExistingStream()
+      return
+    }
+    if (!this.hasActiveVideo) return
+    this.hasActiveVideo = false
+    if (this.isCohostMode()) this.stopCohostComposite()
+    this.setPreview()
+  }
+
+  tryAttachExistingStream() {
+    if (this.broadcastRoom || this.hasActiveVideo || !this.livekitRoom) return
+    for (const participant of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
+      const identity = participant.identity ?? ''
+      for (const pub of participant.videoTrackPublications.values()) {
+        const track = pub.track
+        if (!track || !pub.isSubscribed) continue
+        if (this.isCohostMode()) {
+          this.routeCohostVideo(track, identity)
+        } else {
+          this.attachVideoToMesh(track.attach() as HTMLVideoElement)
+          this.startBroadcastAudio()
+        }
+        return
+      }
+    }
+  }
+
   isShowLive() {
     return !!this.broadcastRoom || this.hasActiveVideo || this.hasRemoteBroadcaster()
   }
@@ -355,6 +395,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   hasRemoteBroadcaster() {
+    if (!this.streamTargetsThisShowbox()) return false
     return [...((this.livekitRoom as any)?.remoteParticipants?.values() ?? [])].some((p: any) => p?.videoTrackPublications?.size > 0 || p?.audioTrackPublications?.size > 0)
   }
 
@@ -797,6 +838,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         return
       }
+      if (!this.streamTargetsThisShowbox()) return
       if (track.kind === Track.Kind.Audio) {
         const el = track.attach() as HTMLAudioElement
         el.style.display = 'none'
@@ -986,7 +1028,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   stopBroadcast(silent = false) {
     this.stopMilestonePoll()
     try {
-      this.parcel.sendStatePatch({ [this.uuid]: {} })
+      const patch: Record<string, any> = { [this.uuid]: {} }
+      if (this.activeLiveShowboxUuid() === this.uuid) patch.__showbox_live = null
+      this.parcel.sendStatePatch(patch)
     } catch {}
     this.stopThumbCapture(silent)
     this.clearCohostMonitor()
@@ -1702,6 +1746,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           this.stopBroadcast()
         })
         await room.connect(LIVEKIT_URL, res.token)
+        this.parcel.sendStatePatch({ [this.uuid]: { live: 1 }, __showbox_live: this.uuid })
 
         let tracks: any[]
         if (screenChk.checked) {
@@ -1877,6 +1922,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         goBtn.disabled = false
         this.broadcastRoom?.disconnect()
         this.broadcastRoom = null
+        if (this.activeLiveShowboxUuid() === this.uuid) {
+          try {
+            this.parcel.sendStatePatch({ [this.uuid]: {}, __showbox_live: null })
+          } catch {}
+        }
       }
     }
   }
