@@ -97,7 +97,8 @@ export default class WompsList extends Component<Props, State> {
     const mobilePreview = preview && isMobile() && !this.state.expanded
     const womps = mobilePreview ? allWomps.slice(0, preview) : allWomps
     const showSeeAll = mobilePreview && allWomps.length > preview!
-    const showMore = !showSeeAll && allWomps.length >= this.state.numberToShow
+    const mobileHomePreview = preview && isMobile()
+    const showMore = !mobileHomePreview && !showSeeAll && allWomps.length >= this.state.numberToShow
 
     if (!allWomps.length) {
       if (this.props.hint) {
