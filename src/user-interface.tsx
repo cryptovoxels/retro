@@ -122,6 +122,8 @@ type UserInterfaceState = {
   editor?: FeatureEditor
   feature?: Feature
   active: boolean
+  /** Shown next to minimap expand; same source as Explore radar */
+  onlineCount: number
   scratchpadGuideOpen?: boolean
   scratchpadGuideMini?: boolean
   scratchpadGuideRestart?: boolean
@@ -153,6 +155,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
    * We use a ref here to avoid re-renders
    */
   explorerPaneInitialTab = createRef<Tab | undefined>()
+  presenceEs: EventSource | null = null
+  presenceUuids = new Set<string>()
+
   constructor(props: UserInterfaceProps) {
     super(props)
 
@@ -186,6 +191,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       fullscreen: false,
       currentOrNearestParcel: null,
       active: true,
+      onlineCount: 0,
       chatEnabled: chatSettings.enabled,
     }
 
@@ -233,6 +239,25 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     }
 
     // setInterval(this.updateCanEdit.bind(this), 1000)
+
+    if (this.props.minimapSettings.enabled && !window.config.isOrbit && !window.config.isSpace) {
+      this.presenceEs = new EventSource('/api/users/live')
+      this.presenceEs.onmessage = (e) => {
+        try {
+          const msg = JSON.parse(e.data)
+          if (msg.type === 'snapshot') {
+            this.presenceUuids.clear()
+            for (const u of msg.users ?? []) this.presenceUuids.add(u.uuid)
+          } else if (msg.type === 'move') {
+            this.presenceUuids.add(msg.uuid)
+          } else if (msg.type === 'leave') {
+            this.presenceUuids.delete(msg.uuid)
+          } else return
+          const n = this.presenceUuids.size
+          if (n !== this.state.onlineCount) this.setState({ onlineCount: n })
+        } catch {}
+      }
+    }
 
     onLoadPromise.then(() => {
       if (!isScratchpad() || isMobileMedia()) return
@@ -282,6 +307,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   updateCanEdit = () => {}
 
   componentWillUnmount() {
+    this.presenceEs?.close()
+    this.presenceEs = null
     app.removeListener(AppEvent.Change, this.onAppChange)
     document.removeEventListener('fullscreenchange', this.refreshFullscreen)
     document.removeEventListener('pointerlockchange', this.onPointerLockChange)
@@ -911,6 +938,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
             <div class="minimap-corner-controls">
               <button type="button" class="iconish minimap-expand" onClick={() => this.showExplorerMap()} title="Open map">
                 M
+              </button>
+              <button type="button" class="minimap-online-count" onClick={() => this.showExplorerOnline()} title="Who is online">
+                {this.state.onlineCount} Online
               </button>
             </div>
           )}
