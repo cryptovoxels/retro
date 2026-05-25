@@ -197,6 +197,13 @@
         <div><span>X</span><input type="text" readonly value="0" /><span>Y</span><input type="text" readonly value="90" /><span>Z</span><input type="text" readonly value="0" /></div>
       </div>
     </template>
+    <template id="host-link">
+      <div class="f">
+        <label>host link</label>
+        <input type="text" readonly value="https://www.voxels.com/play?coords=N@688E,716S&show=abc-123&host=1" />
+        <button type="button" style="margin-top: 0.5rem; background: #333; color: #f5f5f0">copy host link</button>
+      </div>
+    </template>
     <h1>showbox editor - guest links (matches current showbox.tsx GuestPasses render)</h1>
     <div class="grid">
       <div class="card" id="state-open">
@@ -208,6 +215,7 @@
           </header>
           <div class="scrollContainer">
             <div data-editor-chrome></div>
+            <div data-host-link></div>
             <div class="f">
               <label>invite a guest</label>
               <small>A link that you can give to someone to go live here without a voxels account</small>
@@ -228,6 +236,7 @@
           </header>
           <div class="scrollContainer">
             <div data-editor-chrome></div>
+            <div data-host-link></div>
             <div class="f">
               <label>invite a guest</label>
               <small>A link that you can give to someone to go live here without a voxels account</small>
@@ -260,6 +269,7 @@
           </header>
           <div class="scrollContainer">
             <div data-editor-chrome></div>
+            <div data-host-link></div>
             <div class="f">
               <label>invite a guest</label>
               <small>A link that you can give to someone to go live here without a voxels account</small>
@@ -278,11 +288,6 @@
                   <label class="inline"><input type="radio" name="mode3" checked /> co-host</label>
                 </div>
               </div>
-              <div class="f">
-                <label>host link</label>
-                <input type="text" readonly value="https://www.voxels.com/play?coords=N@688E,716S&show=abc-123&host=1" />
-                <button type="button" style="margin-top: 0.5rem; background: #333; color: #f5f5f0">copy host link</button>
-              </div>
             </div>
           </div>
         </section>
@@ -297,6 +302,7 @@
           </header>
           <div class="scrollContainer">
             <div data-editor-chrome></div>
+            <div data-host-link></div>
             <div class="f">
               <label>invite a guest</label>
               <small>A link that you can give to someone to go live here without a voxels account</small>
@@ -312,6 +318,9 @@
     <script>
       document.querySelectorAll('[data-editor-chrome]').forEach((slot) => {
         slot.append(document.getElementById('editor-chrome').content.cloneNode(true))
+      })
+      document.querySelectorAll('[data-host-link]').forEach((slot) => {
+        slot.append(document.getElementById('host-link').content.cloneNode(true))
       })
     </script>
   </body>

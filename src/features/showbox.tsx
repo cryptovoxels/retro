@@ -1932,6 +1932,14 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
 
     return (
       <div className="f">
+        <div className="f">
+          <label>host link</label>
+          <input type="text" readOnly value={this.hostJoinUrl()} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
+          <button type="button" style={mobile ? { minHeight: '44px' } : undefined} onClick={() => this.copy(this.hostJoinUrl())}>
+            copy host link
+          </button>
+        </div>
+
         <label>invite a guest</label>
         <small>A link that you can give to someone to go live here without a voxels account</small>
 
@@ -1983,15 +1991,6 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
                     </label>
                   </div>
                 </div>
-                {this.props.guestMode === 'cohost' && canManage && (
-                  <div className="f">
-                    <label>host link</label>
-                    <input type="text" readOnly value={this.hostJoinUrl()} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
-                    <button type="button" style={mobile ? { minHeight: '44px' } : undefined} onClick={() => this.copy(this.hostJoinUrl())}>
-                      copy host link
-                    </button>
-                  </div>
-                )}
               </div>
             ))}
           </div>
