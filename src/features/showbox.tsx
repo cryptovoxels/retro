@@ -1758,21 +1758,7 @@ class Editor extends FeatureEditor<Showbox> {
           <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
           <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
           <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
-          <div className="f">
-            <label>guest link mode</label>
-            <div>
-              <label>
-                <input type="radio" name="guestMode" checked={this.state.guestMode === 'solo'} onChange={() => this.setState({ guestMode: 'solo' })} />
-                solo guest
-              </label>
-              <label>
-                <input type="radio" name="guestMode" checked={this.state.guestMode === 'cohost'} onChange={() => this.setState({ guestMode: 'cohost' })} />
-                co-host
-              </label>
-            </div>
-            <small>solo = guest replaces you. co-host = you on the left, guest on the right.</small>
-          </div>
-          <GuestPasses feature={this.props.feature} />
+          <GuestPasses feature={this.props.feature} guestMode={this.state.guestMode} onGuestModeChange={(guestMode) => this.setState({ guestMode })} />
           <Advanced>
             <FeatureID feature={this.props.feature} />
             <SetParentDropdown feature={this.props.feature} />
@@ -1800,7 +1786,10 @@ Showbox.Editor = Editor
 // that let an invited broadcaster (artist, speaker, DJ) go live on this showbox without an account.
 type Pass = { token: string; parcel_id: number; feature_uuid: string; name: string; created_at: string; revoked_at: string | null }
 
-class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; loading: boolean; creating: boolean; error: string | null }> {
+class GuestPasses extends Component<
+  { feature: Showbox; guestMode: GuestMode; onGuestModeChange: (mode: GuestMode) => void },
+  { passes: Pass[]; loading: boolean; creating: boolean; error: string | null }
+> {
   state = { passes: [] as Pass[], loading: true, creating: false, error: null as string | null }
   linkListRef: HTMLDivElement | null = null
 
@@ -1975,6 +1964,20 @@ class GuestPasses extends Component<{ feature: Showbox }, { passes: Pass[]; load
                       revoke
                     </button>
                   )}
+                </div>
+                <div className="f">
+                  <label>guest link mode</label>
+                  <div>
+                    <label>
+                      <input type="radio" name="guestMode" checked={this.props.guestMode === 'solo'} onChange={() => this.props.onGuestModeChange('solo')} />
+                      solo guest
+                    </label>
+                    <label>
+                      <input type="radio" name="guestMode" checked={this.props.guestMode === 'cohost'} onChange={() => this.props.onGuestModeChange('cohost')} />
+                      co-host
+                    </label>
+                  </div>
+                  <small>solo = guest replaces you. co-host = you on the left, guest on the right.</small>
                 </div>
               </div>
             ))}
