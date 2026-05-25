@@ -549,7 +549,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.openBroadcastPanel()
         return true
       }
-      if (this.parcel.canEdit && isHostJoinForShowbox(this.uuid)) {
+      if (this.isCohostMode() && this.parcel.canEdit && isHostJoinForShowbox(this.uuid)) {
         this.openBroadcastPanel()
         return true
       }
@@ -1810,7 +1810,10 @@ Showbox.Editor = Editor
 // that let an invited broadcaster (artist, speaker, DJ) go live on this showbox without an account.
 type Pass = { token: string; parcel_id: number; feature_uuid: string; name: string; created_at: string; revoked_at: string | null }
 
-class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; onGuestModeChange: (mode: GuestMode) => void }, { passes: Pass[]; loading: boolean; creating: boolean; error: string | null }> {
+class GuestPasses extends Component<
+  { feature: Showbox; guestMode: GuestMode; onGuestModeChange: (mode: GuestMode) => void },
+  { passes: Pass[]; loading: boolean; creating: boolean; error: string | null }
+> {
   state = { passes: [] as Pass[], loading: true, creating: false, error: null as string | null }
   linkListRef: HTMLDivElement | null = null
 
@@ -1831,6 +1834,16 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
     return all.filter((p) => p.feature_uuid?.toLowerCase() === uuid)
   }
 
+  passActive(p: Pass) {
+    return !p.revoked_at
+  }
+
+  applyPass(pass: Pass) {
+    this.setState((s) => ({
+      passes: this.passesForFeature([pass, ...s.passes.filter((p) => p.token !== pass.token)]),
+    }))
+  }
+
   canManagePasses() {
     const w = app.state.wallet?.toLowerCase()
     if (!w) return false
@@ -1840,15 +1853,17 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
 
   async refresh() {
     try {
-      const r = await fetch(`/api/parcels/${this.parcelId()}/guest-passes`, { credentials: 'include' })
+      const r = await fetch(`/api/parcels/${this.parcelId()}/guest-passes`, { credentials: 'include', cache: 'no-store' })
       const j = await r.json().catch(() => ({}))
       if (!r.ok || !j.success) {
         this.setState({ error: j.error || 'could not load guest links', loading: false })
-        return
+        return false
       }
       this.setState({ passes: this.passesForFeature(j.passes ?? []), loading: false, error: null })
+      return true
     } catch {
       this.setState({ loading: false, error: 'could not load guest links' })
+      return false
     }
   }
 
@@ -1857,7 +1872,7 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
       this.setState({ error: 'only the parcel owner can create guest links' })
       return
     }
-    if (this.state.passes.some((p) => !p.revoked_at)) {
+    if (this.state.passes.some((p) => this.passActive(p))) {
       this.setState({ error: 'revoke the existing link first' })
       return
     }
@@ -1875,12 +1890,18 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
       if (pass?.token) {
         const url = this.liveUrl(pass.token)
         this.copy(url, 'guest link created (copied)')
-        this.setState((s) => ({ passes: this.passesForFeature([pass, ...s.passes.filter((p) => p.token !== pass.token)]) }))
+        this.applyPass(pass)
         requestAnimationFrame(() => this.linkListRef?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
       }
       await this.refresh()
     } catch (e: any) {
-      this.setState({ error: e?.message ?? 'Could not create link' })
+      const msg = e?.message ?? 'Could not create link'
+      if (String(msg).toLowerCase().includes('revoke')) {
+        await this.refresh()
+        this.setState({ error: 'a guest link is still active on the server -- revoke it below or refresh the page' })
+      } else {
+        this.setState({ error: msg })
+      }
     } finally {
       this.setState({ creating: false })
     }
@@ -1900,10 +1921,9 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
       })
       const j = await r.json().catch(() => ({}))
       if (!r.ok || !j.success) throw new Error(j.error || 'could not revoke link')
-      const revokedAt = (j.pass as Pass | undefined)?.revoked_at ?? new Date().toISOString()
-      this.setState((s) => ({
-        passes: s.passes.map((p) => (p.token === token ? { ...p, revoked_at: revokedAt } : p)),
-      }))
+      const pass = j.pass as Pass | undefined
+      if (!pass?.revoked_at) throw new Error('could not revoke link')
+      this.applyPass(pass)
       app.showSnackbar('guest link revoked', PanelType.Success)
       await this.refresh()
     } catch (e: any) {
@@ -1926,7 +1946,7 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
 
   render() {
     if (!this.props.feature.parcel.canEdit) return null
-    const active = this.state.passes.filter((p) => !p.revoked_at)
+    const active = this.state.passes.filter((p) => this.passActive(p))
     const canManage = this.canManagePasses()
     const canCreate = canManage && active.length === 0
 
@@ -1966,6 +1986,7 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
               <div key={p.token}>
                 <div className="f">
                   <label>{p.name?.trim() || 'guest link'}</label>
+                  <small>send to your guest only - if you open it while signed in you'll join as host instead</small>
                   <input type="text" readOnly value={this.liveUrl(p.token)} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexDirection: mobile ? 'column' : 'row', marginBottom: '0.5rem' }}>
@@ -1990,6 +2011,7 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
                       co-host
                     </label>
                   </div>
+                  <small>solo = guest replaces you. co-host = you on the left, guest on the right.</small>
                 </div>
               </div>
             ))}
