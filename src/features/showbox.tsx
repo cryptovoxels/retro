@@ -848,7 +848,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.mesh.material = mat
   }
 
-  startThumbCapture(videoEl: HTMLVideoElement) {
+  startThumbCapture(videoEl?: HTMLVideoElement) {
+    if (this.thumbInterval) {
+      clearInterval(this.thumbInterval)
+      this.thumbInterval = null
+    }
     if (!this.thumbCanvas) {
       this.thumbCanvas = document.createElement('canvas')
       this.thumbCanvas.width = 256
@@ -861,7 +865,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const parcel = { id, name: this.parcel.name, address: this.parcel.address }
     this.thumbInterval = setInterval(() => {
       try {
-        ctx.drawImage(videoEl, 0, 0, 256, 144)
+        if (this.isCohostMode()) {
+          if (!this.cohostCanvas) {
+            this.cohostCanvas = document.createElement('canvas')
+            this.cohostCanvas.width = 640
+            this.cohostCanvas.height = 360
+          }
+          if (!this.drawCohostFrame()) return
+          ctx.drawImage(this.cohostCanvas, 0, 0, 256, 144)
+        } else if (videoEl) {
+          ctx.drawImage(videoEl, 0, 0, 256, 144)
+        } else return
         const thumbnail = canvas.toDataURL('image/jpeg', 0.2)
         const coord = encodeCoords({ position: cameraPosition(this.scene), rotation: cameraRotation(this.scene) })
         fetch(`/api/rooms/${room}/thumbnail`, {
