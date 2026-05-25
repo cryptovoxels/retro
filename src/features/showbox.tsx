@@ -1810,10 +1810,7 @@ Showbox.Editor = Editor
 // that let an invited broadcaster (artist, speaker, DJ) go live on this showbox without an account.
 type Pass = { token: string; parcel_id: number; feature_uuid: string; name: string; created_at: string; revoked_at: string | null }
 
-class GuestPasses extends Component<
-  { feature: Showbox; guestMode: GuestMode; onGuestModeChange: (mode: GuestMode) => void },
-  { passes: Pass[]; loading: boolean; creating: boolean; error: string | null }
-> {
+class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; onGuestModeChange: (mode: GuestMode) => void }, { passes: Pass[]; loading: boolean; creating: boolean; error: string | null }> {
   state = { passes: [] as Pass[], loading: true, creating: false, error: null as string | null }
   linkListRef: HTMLDivElement | null = null
 

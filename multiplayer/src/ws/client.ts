@@ -99,7 +99,7 @@ export class Client {
     }
   }
 
-  onMessageDropped(_message: ArrayBuffer, _isBinary: boolean) { }
+  onMessageDropped(_message: ArrayBuffer, _isBinary: boolean) {}
 
   async onMessage(message: ArrayBuffer, isBinary: boolean) {
     if (!isBinary) {
@@ -333,7 +333,7 @@ export class Client {
     )
   }
 
-  drained() { }
+  drained() {}
 
   dispose() {
     this._disposeAbortController.abort('ABORT:client disposed')

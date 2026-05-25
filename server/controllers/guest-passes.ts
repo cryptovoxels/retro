@@ -219,7 +219,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
 
     const signedIn = walletFromJwtCookie(req)
     if (signedIn?.wallet) {
-      const auth = await authParcel(parcel, signedIn as VoxelsUserRequest['user'])
+      const auth = await authParcel(parcel, signedIn as any)
       if (auth === 'Owner' || auth === 'Moderator') {
         return res.redirect(302, `/play?${hostJoinPlayQuery(parcel.location, pass.feature_uuid)}`)
       }
