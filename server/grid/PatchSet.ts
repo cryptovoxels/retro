@@ -2,7 +2,10 @@ import { throttle } from 'lodash'
 import { v7 as uuid } from 'uuid'
 import { Patch, PatchMessage } from '../../common/messages/grid'
 import { getVoxelsFromBuffer } from '../../common/voxels/helpers'
+import { revokeGuestPassesForFeature } from '../controllers/guest-passes'
+import { livekitService } from '../controllers/livekit'
 import log from '../lib/logger'
+import db from '../pg'
 import { AbstractParcel } from '../parcel'
 import { GridShardMessage } from './GridShardMessage'
 
@@ -44,6 +47,7 @@ export class PatchSet {
         return
       }
       let shouldUpdateParcelScript = false
+      const deletedShowboxUuids: string[] = []
       try {
         const patchMessagesToProcess = pendingPatchMessages.filter((p) => p.parcelId === id)
 
@@ -77,6 +81,9 @@ export class PatchSet {
 
               if (feature) {
                 if (!value) {
+                  if (feature.type === 'showbox') {
+                    deletedShowboxUuids.push(uuid)
+                  }
                   // clear out all instances of this ID (just in case we're dealing with item duplication)
                   parcel.content.features = parcel.content.features.filter((f: any) => f?.uuid !== uuid)
                 } else {
@@ -128,6 +135,10 @@ export class PatchSet {
 
         log.debug(`saving ${id}`)
         await parcel.save()
+
+        for (const featureUuid of deletedShowboxUuids) {
+          revokeGuestPassesForFeature(db, livekitService, id, featureUuid).catch(() => {})
+        }
 
         if (shouldUpdateParcelScript) {
           // We need to wait for the parcel to be saved, so the things that respond to this event can reload the latest script-affecting features
