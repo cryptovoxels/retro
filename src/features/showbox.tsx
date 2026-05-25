@@ -2,6 +2,7 @@ import { Component, h } from 'preact'
 import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { isMobile } from '../../common/helpers/detector'
+import ParcelHelper from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { encodeCoords } from '../../common/helpers/utils'
 import { ShowboxRecord } from '../../common/messages/feature'
@@ -111,18 +112,18 @@ function guestPassToken(): string | null {
   return guestJwtPayload()?.guest_pass ?? null
 }
 
+function parcelPlayCoords(feature: Showbox): string {
+  return new ParcelHelper(feature.parcel as any).centerLocation
+}
+
 // Plain /play?coords= link for the audience. No isolate, ui=off, or show= - just drop people at the showbox.
 function audienceShowUrl(feature: Showbox): string {
-  const pos = feature.absolutePosition ?? new BABYLON.Vector3((feature.parcel.x1 + feature.parcel.x2) / 2, feature.parcel.y1, (feature.parcel.z1 + feature.parcel.z2) / 2)
-  const coords = encodeCoords({ position: pos, rotation: new BABYLON.Vector3(0, 0, 0) })
-  return `${window.location.origin}/play?coords=${encodeURIComponent(coords)}`
+  return `${window.location.origin}/play?coords=${encodeURIComponent(parcelPlayCoords(feature))}`
 }
 
 // Owner/co-host join link. Keeps your normal login - just lands at the showbox and opens the broadcast dock.
 function hostJoinShowUrl(feature: Showbox): string {
-  const pos = feature.absolutePosition ?? new BABYLON.Vector3((feature.parcel.x1 + feature.parcel.x2) / 2, feature.parcel.y1, (feature.parcel.z1 + feature.parcel.z2) / 2)
-  const coords = encodeCoords({ position: pos, rotation: new BABYLON.Vector3(0, 0, 0) })
-  const qs = new URLSearchParams({ coords, show: feature.uuid, host: '1' })
+  const qs = new URLSearchParams({ coords: parcelPlayCoords(feature), show: feature.uuid, host: '1' })
   return `${window.location.origin}/play?${qs.toString()}`
 }
 
