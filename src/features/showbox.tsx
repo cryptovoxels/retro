@@ -1370,14 +1370,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     let chatRow: HTMLDivElement | null = null
     let chatReplyRow: HTMLDivElement | null = null
     let dockFooter: HTMLDivElement | null = null
+    let renderDockChat: (() => void) | null = null
     if (mobile) {
       const chatLabel = document.createElement('label')
       chatLabel.textContent = 'chat'
       chatSection = document.createElement('div')
       Object.assign(chatSection.style, {
-        flex: '1 1 auto',
-        minHeight: '64px',
-        maxHeight: 'none',
+        flex: '1 1 0',
+        minHeight: '0',
         overflowY: 'auto',
         background: '#1a1a1a',
         border: '1px solid #333',
@@ -1398,7 +1398,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         return avatar?.name || 'anon'
       }
 
-      const renderDockChat = () => {
+      renderDockChat = () => {
         chatMessages.replaceChildren()
         const msgs = messageList.value.slice(-30)
         if (!msgs.length) {
@@ -1419,12 +1419,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           line.append(who, body)
           chatMessages.append(line)
         }
-        chatSection!.scrollTop = chatSection!.scrollHeight
+        requestAnimationFrame(() => {
+          chatSection!.scrollTop = chatSection!.scrollHeight
+        })
       }
 
       this.broadcastChatDispose = effect(() => {
         messageList.value
-        renderDockChat()
+        renderDockChat?.()
       })
 
       chatReplyRow = document.createElement('div')
@@ -1480,7 +1482,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         display: 'none',
         flexDirection: 'column',
         gap: '4px',
-        flex: '1 1 auto',
+        flex: '1 1 0',
         minHeight: '0',
         overflow: 'hidden',
       })
@@ -1830,6 +1832,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
         setMobileDockLayout(true)
         setDesktopDockLayout(true)
+        renderDockChat?.()
         this.startMilestonePoll()
       } catch (e) {
         status.textContent = e instanceof Error ? e.message : 'failed to connect'
