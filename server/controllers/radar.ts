@@ -3,11 +3,12 @@ import { Express } from 'express'
 
 const CHANNEL = 'radar:updates'
 const KEY_PREFIX = 'radar:'
-const PRUNE_MS = 60_000
+const SYNC_MS = 30_000
 
 export default async function RadarController(app: Express) {
   const sseClients = new Set<any>()
   let pub: ReturnType<typeof createClient> | null = null
+  let redisReady: Promise<void> = Promise.resolve()
 
   // Track known UUIDs so we can emit synthetic leave on prune
   const knownUuids = new Set<string>()
@@ -40,7 +41,30 @@ export default async function RadarController(app: Express) {
     } catch {}
   }
 
-  ;(async () => {
+  async function syncPresence() {
+    const users = await getSnapshot()
+    const live = new Set(users.map((u: any) => u.uuid))
+    for (const uuid of knownUuids) {
+      if (!live.has(uuid)) {
+        knownUuids.delete(uuid)
+        const line = `data: ${JSON.stringify({ type: 'leave', uuid })}\n\n`
+        sseClients.forEach((r) => {
+          try {
+            r.write(line)
+          } catch {}
+        })
+      }
+    }
+    for (const uuid of live) knownUuids.add(uuid)
+    const line = `data: ${JSON.stringify({ type: 'snapshot', users })}\n\n`
+    sseClients.forEach((r) => {
+      try {
+        r.write(line)
+      } catch {}
+    })
+  }
+
+  redisReady = (async () => {
     try {
       const client = createClient({ url: process.env.REDIS_URL })
       const sub = client.duplicate()
@@ -61,26 +85,10 @@ export default async function RadarController(app: Express) {
         } catch {}
       })
 
-      // Periodic prune: SCAN for live keys, emit leave for anything that dropped off
-      setInterval(async () => {
-        try {
-          const users = await getSnapshot()
-          const live = new Set(users.map((u: any) => u.uuid))
-          for (const uuid of knownUuids) {
-            if (!live.has(uuid)) {
-              knownUuids.delete(uuid)
-              const line = `data: ${JSON.stringify({ type: 'leave', uuid })}\n\n`
-              sseClients.forEach((r) => {
-                try {
-                  r.write(line)
-                } catch {}
-              })
-            }
-          }
-          // refresh knownUuids with current live set
-          for (const uuid of live) knownUuids.add(uuid)
-        } catch {}
-      }, PRUNE_MS)
+      // Heartbeat only SETs redis keys; push snapshots so SSE clients stay in sync
+      setInterval(() => {
+        syncPresence().catch(() => {})
+      }, SYNC_MS)
     } catch (e) {
       console.error('Radar: Redis unavailable, live presence disabled', e)
     }
@@ -92,6 +100,7 @@ export default async function RadarController(app: Express) {
     res.setHeader('Connection', 'keep-alive')
     res.flushHeaders()
 
+    await redisReady
     const users = await getSnapshot()
     for (const u of users) knownUuids.add(u.uuid)
     send(res, { type: 'snapshot', users })
