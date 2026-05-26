@@ -1214,7 +1214,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     title.textContent = 'Showbox'
     if (this.isCohostMode()) {
       const cohostHint = document.createElement('small')
-      cohostHint.textContent = isGuest ? 'co-host show -- go live when ready (use headphones)' : 'co-host show -- share guest link (use headphones)'
+      cohostHint.textContent = isGuest ? 'co-host -- go live when ready. use headphones to reduce echo' : 'co-host -- share the guest link, then go live. use headphones to reduce echo'
       cohostHint.style.color = '#888'
       cohostHint.style.display = 'block'
       title.appendChild(document.createElement('br'))
@@ -2192,7 +2192,7 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
               <div key={p.token}>
                 <div className="f">
                   <label>{p.name?.trim() || 'guest link'}</label>
-                  <small>send to your guest only - if you open it while signed in you'll join as host instead</small>
+                  <small>send to your DJ or guest only -- not the public audience link. if you open it while signed in you'll join as host instead</small>
                   <input type="text" readOnly value={this.liveUrl(p.token)} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexDirection: mobile ? 'column' : 'row', marginBottom: '0.5rem' }}>
@@ -2210,14 +2210,15 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
                   <div>
                     <label>
                       <input type="radio" name="guestMode" checked={this.props.guestMode === 'solo'} onChange={() => this.props.onGuestModeChange('solo')} />
-                      solo guest
+                      guest only
                     </label>
+                    <small>DJ, artist, or speaker -- full screen, one stream</small>
                     <label>
                       <input type="radio" name="guestMode" checked={this.props.guestMode === 'cohost'} onChange={() => this.props.onGuestModeChange('cohost')} />
-                      co-host
+                      guest + you (co-host)
                     </label>
+                    <small>split screen: you left, guest right. use headphones to reduce echo</small>
                   </div>
-                  <small>solo = guest replaces you. co-host = you on the left, guest on the right.</small>
                 </div>
               </div>
             ))}
