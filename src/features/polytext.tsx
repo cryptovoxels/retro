@@ -1,7 +1,7 @@
 import { createComlinkWorker } from '../../common/helpers/comlink-worker'
 import { isBatterySaver } from '../../common/helpers/detector'
 import { PolytextRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, SpecularColorSetting, Toolbar, UuidReadOnly } from '../ui/features'
 import { MeshExtended, NonMeshedFeature } from './feature'
 import type { FontData } from './polytext-v2-worker'
@@ -235,7 +235,7 @@ class Editor extends FeatureEditor<Polytext> {
             <SpecularColorSetting feature={this.props.feature} />
             <UuidReadOnly feature={this.props.feature} />
 
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
           </Advanced>
         </div>
       </section>

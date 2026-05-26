@@ -1,6 +1,6 @@
 import { throttle } from 'lodash'
 import { ImageMode, ImageRecord, WrapMode } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 import { fetchSpinnerTexture, fetchTexture } from '../textures/textures'
 import { rebindGizmosBoundToFeature } from '../tools/gizmos'
 import { Advanced, Animation, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, SetParentDropdown, Toolbar, TriggerEditor, UrlSourceImages, UuidReadOnly } from '../ui/features'
@@ -151,8 +151,8 @@ export default class Image extends Feature2D<ImageRecord> {
   }
 
   onClick() {
-    if (this.parcelScript) {
-      this.parcelScript.dispatch('click', this, {})
+    if (this.behaviours) {
+      this.behaviours.dispatch(this.uuid, 'click')
     }
 
     if (this.isLink && this.description.link) {
@@ -289,7 +289,7 @@ class Editor extends FeatureEditor<Image> {
 
             <TriggerEditor feature={this.props.feature} />
             <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
           </Advanced>
         </div>
       </section>

@@ -1,5 +1,5 @@
 import { TextInputRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SpecularColorSetting, Toolbar, UuidReadOnly } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
@@ -65,8 +65,8 @@ export default class TextInput extends Feature2D<TextInputRecord> {
   }
 
   onChanged() {
-    if (this.parcelScript) {
-      this.parcelScript.dispatch('changed', this, { text: this.input?.text || '' })
+    if (this.behaviours) {
+      this.behaviours.dispatch(this.uuid, 'changed', { text: this.input?.text || '' })
     }
   }
 }
@@ -112,7 +112,7 @@ class Editor extends FeatureEditor<TextInput> {
           <Advanced>
             <SpecularColorSetting feature={this.props.feature} />
 
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
             <UuidReadOnly feature={this.props.feature} />
           </Advanced>
         </div>

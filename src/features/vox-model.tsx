@@ -1,7 +1,7 @@
 import Config from '../../common/config'
 import { MegavoxRecord, VoxModelRecord } from '../../common/messages/feature'
 import { Options as VoxImportOptions, voxImporter } from '../../common/vox-import/vox-import'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 import Panel from '../../web/src/components/panel'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, SetParentDropdown, Toolbar, TriggerEditor, UrlSourceVoxModels, UuidReadOnly } from '../ui/features'
 import { isURL } from '../utils/helpers'
@@ -136,8 +136,8 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   // }
 
   public override onClick(e: FeatureEvent) {
-    if (this.parcelScript) {
-      this.parcelScript.dispatch('click', this, e)
+    if (this.behaviours) {
+      this.behaviours.dispatch(this.uuid, 'click', e)
     }
 
     // second check is redundant (isLink checks this), but typescript doesnt trust it
@@ -275,7 +275,7 @@ class Editor extends FeatureEditor<VoxModel> {
 
             <TriggerEditor feature={this.props.feature} />
             <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
           </Advanced>
         </div>
       </section>

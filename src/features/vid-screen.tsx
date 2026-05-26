@@ -5,7 +5,7 @@ import { FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UuidReadOnly } f
 import { VidScreenRecord } from '../../common/messages/feature'
 import { Feature2D } from './feature'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 
 function openControls(vidscreen: VidScreen) {
   const div = document.createElement('div')
@@ -147,8 +147,8 @@ export default class VidScreen extends Feature2D<VidScreenRecord> {
       return
     }
 
-    if (this.parcelScript) {
-      this.parcelScript.dispatch('keys', this, { keys })
+    if (this.behaviours) {
+      this.behaviours.dispatch(this.uuid, 'keys', { keys })
     }
   }
 
@@ -159,8 +159,8 @@ export default class VidScreen extends Feature2D<VidScreenRecord> {
 
     this.running = true
 
-    if (this.parcelScript) {
-      this.parcelScript.dispatch('start', this, {})
+    if (this.behaviours) {
+      this.behaviours.dispatch(this.uuid, 'start')
     }
 
     openControls(this)
@@ -169,8 +169,8 @@ export default class VidScreen extends Feature2D<VidScreenRecord> {
   stop() {
     this.running = false
 
-    if (this.parcelScript) {
-      this.parcelScript.dispatch('stop', this, {})
+    if (this.behaviours) {
+      this.behaviours.dispatch(this.uuid, 'stop')
     }
 
     this.renderStatic()
@@ -212,7 +212,7 @@ class Editor extends FeatureEditor<VidScreen> {
 
           <FeatureID feature={this.props.feature} />
 
-          <Script feature={this.props.feature} />
+          <Behaviours feature={this.props.feature} />
           <UuidReadOnly feature={this.props.feature} />
         </div>
       </section>

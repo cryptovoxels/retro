@@ -22,7 +22,7 @@ export async function addAssetToLibrary(req: Request, res: Response) {
     return
   }
   const response = await libraryAsset.create()
-  res.json({ success: !!response.success, ...(!!response.message && { message: response.message }) })
+  res.json({ success: !!response.success, id: libraryAsset.id, ...(!!response.message && { message: response.message }) })
 }
 
 export async function removeAssetFromLibrary(req: VoxelsUserRequest, res: Response) {
@@ -81,5 +81,15 @@ export async function updateAssetFromLibrary(req: VoxelsUserRequest, res: Respon
     })
 
   const response = await libraryAsset.update()
+
+  // For behaviour assets, accept an optional script field to update Lua source + re-extract metadata.
+  if (libraryAsset.type === 'behaviour' && typeof req.body?.script === 'string') {
+    const r = await libraryAsset.updateBehaviourScript(req.body.script)
+    if (!r.success) {
+      res.json({ success: false, message: r.message })
+      return
+    }
+  }
+
   res.json({ success: !!response.success, ...(!!response.message && { message: response.message }) })
 }

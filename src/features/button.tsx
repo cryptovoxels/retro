@@ -3,7 +3,7 @@ import { Feature3D } from './feature'
 import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Sound, Toolbar, UuidReadOnly } from '../ui/features'
 import { ButtonRecord } from '../../common/messages/feature'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 
 export default class Button extends Feature3D<ButtonRecord> {
   static metadata: FeatureMetadata = {
@@ -52,8 +52,8 @@ export default class Button extends Feature3D<ButtonRecord> {
   }
 
   onClick() {
-    if (this.parcelScript) {
-      this.parcelScript.dispatch('click', this, {})
+    if (this.behaviours) {
+      this.behaviours.dispatch(this.uuid, 'click')
     }
 
     if (this.description.soundId) {
@@ -136,7 +136,7 @@ class Editor extends FeatureEditor<Button> {
             <SetParentDropdown feature={this.props.feature} />
             <Sound feature={this.props.feature} />
             <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
           </Advanced>
         </div>
       </section>

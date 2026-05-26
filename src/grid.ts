@@ -747,10 +747,10 @@ export default class Grid extends SocketClient {
   }
 
   private handleParcelScriptUpdate(message: ParcelScriptMessage) {
-    this.withParcel(message.parcelId, (parcel) => {
-      parcel.parcelScript?.scriptWasEdited()
-      parcel.parcelScript?.reload()
-    })
+    // Legacy parcel-script reload signal. The QuickJS runtime is gone; behaviours
+    // hot-reload by re-attaching when the parcel patches its features list.
+    this.withParcel(message.parcelId, (_parcel) => {})
+    void message
   }
 
   private handleParcelLightmapStatus(message: LightMapUpdateMessage) {

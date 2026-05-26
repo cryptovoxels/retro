@@ -1,7 +1,8 @@
 import type { FeatureTemplate } from '../src/features/_metadata'
+import { parseBehaviourMeta } from '../src/lua/parse-metadata'
 import db from './pg'
 
-export type LibraryAssetType = 'group' | 'script' | 'feature'
+export type LibraryAssetType = 'group' | 'script' | 'feature' | 'behaviour'
 
 export enum FeatureAssetCategory {
   Animals = 'animals',
@@ -100,7 +101,22 @@ export default class LibraryAsset {
   }
 
   async create(): Promise<{ success: boolean; message?: string }> {
-    if (this.type !== 'script') {
+    if (this.type === 'behaviour') {
+      // Parse the Lua source to populate signals/slots/params metadata.
+      const c = this.content?.[0] as any
+      if (c?.script) {
+        try {
+          const meta = parseBehaviourMeta(c.script)
+          c.signals = meta.signals
+          c.slots = meta.slots
+          c.params = meta.params
+          this.content = [c]
+        } catch (err: any) {
+          return { success: false, message: `behaviour parse failed: ${err?.message ?? err}` }
+        }
+      }
+      this.has_script = true
+    } else if (this.type !== 'script') {
       // if we have a feature or a group, we clean non-null yet empty scripts.
       // this is to facilitate checking if a content has a script or not.
       // not necessary, but nice, as that allows us to check directly with a query if script is null or not.
@@ -174,6 +190,21 @@ export default class LibraryAsset {
       return { success: false, message: 'Could not remove asset.' }
     }
     this.id = res.rows[0].id
+    return { success: true }
+  }
+
+  async updateBehaviourScript(script: string): Promise<{ success: boolean; message?: string }> {
+    if (this.type !== 'behaviour') return { success: false, message: 'not a behaviour' }
+    let meta
+    try {
+      meta = parseBehaviourMeta(script)
+    } catch (err: any) {
+      return { success: false, message: `behaviour parse failed: ${err?.message ?? err}` }
+    }
+    const content: any = [{ script, signals: meta.signals, slots: meta.slots, params: meta.params }]
+    const res = await db.query('embedded/update-asset-library-content', `update asset_library set content=$2, has_script=true, updated_at=now() where id=$1 returning id`, [this.id, JSON.stringify(content)])
+    if (!res.rows[0]) return { success: false, message: 'update failed' }
+    this.content = content
     return { success: true }
   }
 

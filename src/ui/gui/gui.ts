@@ -91,8 +91,8 @@ export default class FeatureBasicGUI {
     return window.connector
   }
 
-  get parcelScript() {
-    return this.feature?.parcel.parcelScript
+  get behaviours() {
+    return this.feature?.parcel.behaviours
   }
 
   billBoardMode() {
@@ -199,8 +199,8 @@ export default class FeatureBasicGUI {
   }
 
   onClick = (uuid: string, id?: string) => {
-    if (this.parcelScript) {
-      this.parcelScript.dispatch('click', this.feature, { guiTarget: uuid, controlId: id })
+    if (this.behaviours) {
+      this.behaviours.dispatch(this.feature.uuid, 'click', { guiTarget: uuid, controlId: id })
     }
   }
 

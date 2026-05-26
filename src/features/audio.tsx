@@ -1,7 +1,7 @@
 import { isBatterySaver } from '../../common/helpers/detector'
 import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { AudioRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 import { AudioBus, SoundParams } from '../audio/audio-engine'
 import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UrlSourceAudio, UuidReadOnly } from '../ui/features'
 import OpenLink from '../ui/open-link'
@@ -668,7 +668,7 @@ class Editor extends FeatureEditor<Audio> {
               <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
             </div>
             <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
           </Advanced>
         </div>
       </section>

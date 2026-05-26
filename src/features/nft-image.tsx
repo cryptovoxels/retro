@@ -2,7 +2,7 @@ import { throttle } from 'lodash'
 import { isValidUrl } from '../../common/helpers/utils'
 import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { ImageMode, NftImageRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 import { app } from '../../web/src/state'
 import nftFrameBlueShaderBlue from '../shaders/nft-frame-blue.fsh'
 import nftFrameShaderClassic from '../shaders/nft-frame-classic.fsh'
@@ -612,7 +612,7 @@ class Editor extends FeatureEditor<NftImage> {
 
             <TriggerEditor feature={this.props.feature} />
             <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
           </Advanced>
         </div>
       </section>

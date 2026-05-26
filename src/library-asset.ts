@@ -79,7 +79,7 @@ export enum FeatureAssetType {
   Portal = 'portal',
 }
 
-export type TypeOfLibraryAsset = 'feature' | 'script' | 'group'
+export type TypeOfLibraryAsset = 'feature' | 'script' | 'group' | 'behaviour'
 
 const isScriptAssetCategory = makeIsEnum<ScriptAssetCategory>(ScriptAssetCategory)
 const isFeatureAssetCategory = makeIsEnum<FeatureAssetCategory>(FeatureAssetCategory)

@@ -22,7 +22,7 @@ import { isShared } from './materials'
 import ParcelBouncer from './parcel-bouncer'
 import ParcelBudget from './parcel-budget'
 import { ParcelMesher } from './parcel-mesher'
-import ParcelScript from './parcel-script'
+import LuaBehaviours from './lua/behaviours'
 import { FeaturePump } from './pump/feature-pump'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
 import { tidyVec3 } from './utils/helpers'
@@ -92,7 +92,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     return Math.abs((this.x2 - this.x1) * (this.z2 - this.z1))
   }
   hash: string | undefined
-  parcelScript: ParcelScript | null = null
+  behaviours: LuaBehaviours | null = null
   loaded = false
   loading = false
   readonly featureBounds: BABYLON.BoundingBox
@@ -981,17 +981,11 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       console.log('Battery saver mode, skipping onEnterNearby')
       return
     }
-    // console.log('Parcel#onEnterNearby')
 
-    if (!this.parcelScript) {
-      // console.log('Parcel#onEnterNearby: creating new ParcelScript')
-      this.parcelScript = new ParcelScript(this.scene, this)
-      this.parcelScript.connect()
+    if (!this.behaviours) {
+      this.behaviours = new LuaBehaviours(this)
+      // init is called once features finish loading; see onFeaturesLoaded
     }
-
-    // if (this.parcelScript && !this.parcelScript.connected && this.featuresLoaded) {
-    //   console.log('Parcel#onEnterNearby: connecting ParcelScript')
-    // }
   }
 
   onExitNearby() {
@@ -1450,17 +1444,16 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       this.scene.cleanCachedTextureBuffer()
     }
 
-    // Start the scripting engine on enter or if the player is in the area
-    // Given we've loaded the features, we should be near the parcel already
-    if ((this.entered || this.activated) && this.parcelScript) {
-      this.parcelScript.connect().then()
+    // Boot the behaviour runtime once features are in scene.
+    if ((this.entered || this.activated) && this.behaviours && !this.behaviours.connected) {
+      this.behaviours.init().catch((err) => console.error('[behaviours] init', err))
     }
   }
 
   private disconnect() {
-    if (this.parcelScript) {
-      this.parcelScript.disconnect()
-      this.parcelScript = null
+    if (this.behaviours) {
+      this.behaviours.dispose()
+      this.behaviours = null
     }
   }
 

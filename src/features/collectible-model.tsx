@@ -24,7 +24,7 @@ import ActionGui from '../ui/gui/action-button-gui'
 import { CostumeAttachment } from '../../common/messages/costumes'
 import Config from '../../common/config'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 
 interface CollectibleModelSharedState {
   wornBy: string | null
@@ -383,7 +383,7 @@ class Editor extends FeatureEditor<CollectibleModel> {
             )}
             <Animation feature={this.props.feature} />
             <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
           </Advanced>
         </div>
       </section>

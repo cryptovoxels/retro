@@ -1,7 +1,7 @@
 import { isBatterySaver, isChrome } from '../../common/helpers/detector'
 import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { VideoRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 import Panel from '../../web/src/components/panel'
 import { AudioBus } from '../audio/audio-engine'
 import { SpatialAudio } from '../audio/spatial-audio'
@@ -658,7 +658,7 @@ class Editor extends FeatureEditor<Video> {
             <BlendMode feature={this.props.feature} handleStateChange={this.onBlendModeChange} />
 
             <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
           </Advanced>
         </div>
       </section>

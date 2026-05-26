@@ -12,7 +12,7 @@ import { avatarName } from '../../common/messages/avatar-ref'
 import { app, AppEvent } from '../../web/src/state'
 import { PanelType } from '../../web/src/components/panel'
 import { messageList, type ChatMessageRecord } from '../connector'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 import { Animations } from '../avatar-animations'
 import { EmoteAnimation, Idle } from '../states'
 import { cameraPosition, cameraRotation } from '../utils/camera'
@@ -1946,7 +1946,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.startBroadcastAudio()
       }
     }
-    this.parcelScript?.dispatch('click', this, {})
+    this.behaviours?.dispatch(this.uuid, 'click')
   }
 }
 
@@ -1997,7 +1997,7 @@ class Editor extends FeatureEditor<Showbox> {
               <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
             </div>
             <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
           </Advanced>
         </div>
       </section>

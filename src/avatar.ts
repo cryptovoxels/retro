@@ -7,9 +7,8 @@ import { Animations, loadAnimation } from './avatar-animations'
 import type Connector from './connector'
 import { AVATAR_VIEW_DISTANCE } from './constants'
 import { Entity } from './entity'
-import { FeatureEvent, MeshExtended } from './features/feature'
+import { MeshExtended } from './features/feature'
 import type Parcel from './parcel'
-import ParcelScript from './parcel-script'
 import { emote } from './utils/emote'
 import { Transform } from './utils/transform'
 import { Bubble } from './chat'
@@ -286,28 +285,9 @@ export default class Avatar extends Entity {
       this.collider.actionManager = new BABYLON.ActionManager(this.scene)
     }
 
-    this.collider.cvOnLeftClick = (pickingInfo) => {
-      const parcel = Avatar.connector.currentParcel() as Parcel
-      const point: number[] = []
-      const normal: number[] = []
-
-      if (!parcel) {
-        return
-      }
-
-      if (pickingInfo) {
-        if (pickingInfo.pickedPoint) {
-          pickingInfo.pickedPoint.subtract(parcel.transform.position).toArray(point)
-        }
-        pickingInfo.getNormal()?.toArray(normal)
-      }
-
-      const e: FeatureEvent = { point, normal }
-
-      const parcelScript = parcel.parcelScript as ParcelScript
-      if (parcelScript) {
-        parcelScript.dispatch('click', this, e)
-      }
+    this.collider.cvOnLeftClick = (_pickingInfo) => {
+      // Avatars no longer dispatch clicks into the scripting runtime - behaviours
+      // attach to features, not avatars.
     }
   }
 

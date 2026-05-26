@@ -176,6 +176,12 @@ export class Client {
       case messages.MessageType.metric:
         this.handleMetric(msg)
         break
+      case messages.MessageType.behaviourState:
+        this.shard.behaviourRelay.handleState(this, msg, message)
+        break
+      case messages.MessageType.behaviourSignal:
+        this.shard.behaviourRelay.handleSignal(this, msg, message)
+        break
       default:
         console.error(`unknown message type ${(msg as any).type}`, this.whois())
         break

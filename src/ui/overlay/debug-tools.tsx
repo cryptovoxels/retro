@@ -181,33 +181,14 @@ export default class DebugTools extends Component<Props, State> {
     })
   }
 
-  toggleParcelScript() {
-    if (!this.currentParcel) {
-      return
-    }
-    if (!this.currentParcel.parcelScript) {
-      return
-    }
-    if (!this.currentParcel.parcelScript.connected) {
-      this.currentParcel.parcelScript.stop()
+  toggleBehaviours() {
+    if (!this.currentParcel?.behaviours) return
+    if (this.currentParcel.behaviours.connected) {
+      this.currentParcel.behaviours.dispose()
+      this.currentParcel.behaviours = null
     } else {
-      this.currentParcel.parcelScript.connect()
+      this.currentParcel.onEnterNearby()
     }
-  }
-
-  printScriptMemoryUsage() {
-    if (!this.currentParcel) {
-      console.warn(`No current parcel found`)
-      return
-    }
-    if (!this.currentParcel.parcelScript) {
-      console.warn(`No parcel script found on current parcel`)
-      return
-    }
-
-    const m = this.currentParcel.parcelScript.getMemory()
-    const MB = m.memory / (1024 * 1024)
-    console.log(`Current script memory usage: ${MB.toFixed(2)} MB`)
   }
 
   render() {
@@ -238,8 +219,8 @@ export default class DebugTools extends Component<Props, State> {
               <button onClick={() => this.toggleBoundingBoxes()} title="Toggle the Bounding boxes.">
                 {this.state.showBoundingBoxes ? 'Turn off bounding Boxes.' : 'Turn on bounding Boxes'}
               </button>
-              <button onClick={() => this.toggleParcelScript()} title="Toggle the current parcel script.">
-                {this.currentParcel && this.currentParcel.parcelScript?.connected ? 'Turn off parcel script.' : 'Turn on parcel script'}
+              <button onClick={() => this.toggleBehaviours()} title="Toggle the current parcel behaviour runtime.">
+                {this.currentParcel && this.currentParcel.behaviours?.connected ? 'Turn off behaviours.' : 'Turn on behaviours'}
               </button>
               <button onClick={() => this.toggleSpectrumAnalyser()} title="Toggle the audio spectrum analyser">
                 {this.state.showSpectrumAnalyser ? 'Turn off audio spectrometer' : 'Turn on audio spectrometer'}
@@ -265,9 +246,6 @@ export default class DebugTools extends Component<Props, State> {
               </button>
               <button onClick={() => this.createMeshAt()} title="Create a sphere at the given location given the parent">
                 Create Mesh
-              </button>
-              <button onClick={() => this.printScriptMemoryUsage()} title="Prints the current memory usage to the console">
-                Print Scripting memory
               </button>
             </div>
           </section>
