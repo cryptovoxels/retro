@@ -503,6 +503,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
   sendStatePatch(patch: Record<string, any>) {
     if (this.sandbox) return
+    this.receiveStatePatch(patch)
     this.grid.patchParcelState(this.id, patch)
   }
 

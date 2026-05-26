@@ -951,8 +951,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     window.addEventListener('touchstart', unblock, { once: true, passive: true })
   }
 
-  attachVideoToMesh(el: HTMLVideoElement, muted = false) {
-    if (!this.mesh) return
+  attachVideoToMesh(el: HTMLVideoElement, muted = false, retried = false) {
+    if (!this.mesh) {
+      if (!retried) requestAnimationFrame(() => this.attachVideoToMesh(el, muted, true))
+      return
+    }
     el.muted = muted
     el.autoplay = true
     el.play().catch(() => {})
