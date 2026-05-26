@@ -154,6 +154,10 @@ function cohostIdentityPrefix(identity: string) {
   return i > 0 ? identity.slice(0, i) : identity
 }
 
+function cohostVideoReady(el: HTMLVideoElement | null) {
+  return !!(el && el.readyState >= 1 && el.videoWidth > 0)
+}
+
 type ShowboxCelebrateState = { celebrate?: number; at?: number }
 
 export default class Showbox extends Feature2D<ShowboxRecord> {
@@ -190,6 +194,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   cohostMonitorEls: HTMLAudioElement[] = []
   cohostCompositeAttached = false
   syncCohostPreview: (() => void) | null = null
+  cohostCompositeRetryRaf: number | null = null
   milestonePollInterval: ReturnType<typeof setInterval> | null = null
   celebratedMilestones = new Set<number>()
   lastCelebrateAt = 0
@@ -395,6 +400,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   stopCohostComposite() {
+    if (this.cohostCompositeRetryRaf) {
+      cancelAnimationFrame(this.cohostCompositeRetryRaf)
+      this.cohostCompositeRetryRaf = null
+    }
     if (this.cohostCompositeRaf) {
       cancelAnimationFrame(this.cohostCompositeRaf)
       this.cohostCompositeRaf = null
@@ -413,8 +422,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   drawCohostFrame() {
     if (!this.cohostCanvas) return false
-    const ownerReady = !!(this.ownerVideoEl && this.ownerVideoEl.readyState >= 2)
-    const guestReady = !!(this.guestVideoEl && this.guestVideoEl.readyState >= 2)
+    const ownerReady = cohostVideoReady(this.ownerVideoEl)
+    const guestReady = cohostVideoReady(this.guestVideoEl)
     if (!ownerReady && !guestReady) return false
 
     const canvas = this.cohostCanvas
@@ -458,12 +467,22 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     el.style.display = 'none'
     document.body.appendChild(el)
     el.play().catch(() => {})
+    el.addEventListener('loadeddata', () => this.updateCohostComposite(), { once: true })
     if (isGuestForShowbox(this.uuid)) {
       if (this.guestVideoEl !== el) this.guestVideoEl?.remove()
       this.guestVideoEl = el
     } else {
       if (this.ownerVideoEl !== el) this.ownerVideoEl?.remove()
       this.ownerVideoEl = el
+    }
+  }
+
+  syncExistingCohostVideos() {
+    if (!this.isCohostMode() || !this.livekitRoom) return
+    for (const p of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
+      for (const pub of p.videoTrackPublications?.values() ?? []) {
+        if (pub.isSubscribed && pub.track) this.routeCohostVideo(pub.track, p.identity)
+      }
     }
   }
 
@@ -478,9 +497,18 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     if (!this.drawCohostFrame()) {
       this.hasActiveVideo = false
-      this.stopCohostComposite()
-      this.setPreview()
+      this.syncCohostPreview?.()
+      if (!this.cohostCompositeRetryRaf) {
+        this.cohostCompositeRetryRaf = requestAnimationFrame(() => {
+          this.cohostCompositeRetryRaf = null
+          this.updateCohostComposite()
+        })
+      }
       return
+    }
+    if (this.cohostCompositeRetryRaf) {
+      cancelAnimationFrame(this.cohostCompositeRetryRaf)
+      this.cohostCompositeRetryRaf = null
     }
 
     if (!this.cohostCompositeEl) {
@@ -496,6 +524,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (!this.cohostCompositeAttached) {
       this.attachVideoToMesh(this.cohostCompositeEl, true)
       this.cohostCompositeAttached = true
+      this.hasActiveVideo = true
     }
 
     if (!this.cohostCompositeRaf) {
@@ -507,7 +536,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (!this.drawCohostFrame()) {
           this.cohostCompositeRaf = null
           this.hasActiveVideo = false
-          this.setPreview()
+          if (!this.cohostCompositeRetryRaf) {
+            this.cohostCompositeRetryRaf = requestAnimationFrame(() => {
+              this.cohostCompositeRetryRaf = null
+              this.updateCohostComposite()
+            })
+          }
           return
         }
         this.cohostCompositeRaf = requestAnimationFrame(tick)
@@ -525,6 +559,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     el.style.display = 'none'
     document.body.appendChild(el)
     el.play().catch(() => {})
+    el.addEventListener('loadeddata', () => this.updateCohostComposite(), { once: true })
 
     if (this.isGuestPublisherIdentity(identity)) {
       if (this.guestVideoEl !== el) this.guestVideoEl?.remove()
@@ -1693,6 +1728,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           const el = videoTrack.attach() as HTMLVideoElement
           if (this.isCohostMode()) {
             this.wireLocalCohostVideo(el)
+            this.syncExistingCohostVideos()
             this.updateCohostComposite()
             this.startThumbCapture()
           } else {
@@ -1824,6 +1860,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             Object.assign(mobileStreamHint.style, { display: 'none', color: '#888', fontSize: '12px', flexShrink: '0' })
             panel.insertBefore(mobileStreamHint, chatRow ?? moveRow)
           }
+
+          if (this.isCohostMode()) this.updateCohostComposite()
 
           const audioMst = (liveAudioTrack as any)?.mediaStreamTrack as MediaStreamTrack | undefined
           if (audioMst) wireAudioMeter(audioMst)
