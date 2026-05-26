@@ -30,7 +30,6 @@ import { CongaJoinHintOverlay, CongaStatusOverlay } from './ui/conga-status'
 import { CurrentModeOverlay } from './ui/current-mode'
 import { DebugUI } from './ui/debug/base-debug'
 import { MaterialDebugTab } from './ui/debug/material-debug-tab'
-import { OceanDebugTab } from './ui/debug/ocean-debug-tab'
 import { PumpDebugTab } from './ui/debug/pump-debug-tab'
 import { ExplorerUI, Tab } from './ui/explorer'
 import { FeatureContext } from './ui/features/context'
@@ -176,7 +175,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     // Initialize debug UI with tabs
     this.debugUI = new DebugUI(this.props.scene)
     this.debugUI.addTab(new PumpDebugTab(this.props.scene))
-    this.debugUI.addTab(new OceanDebugTab(this.props.scene))
     this.debugUI.addTab(new MaterialDebugTab(this.props.scene))
 
     this.addKeyboardHandlers()

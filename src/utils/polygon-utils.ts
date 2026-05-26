@@ -1,7 +1,8 @@
-// ABOUTME: Complete polygon utilities including clipping, geometry calculation, and helper functions
-// ABOUTME: Combines polygon-clipping.ts and polygon-helpers.ts into a unified utility module
+// ABOUTME: Legacy polygon utilities for old Ocean chunk system
+// ABOUTME: New terrain system uses SDF-based generation in terrain-geometry.ts
+// todo: delete this file once old Ocean fallback is removed
 
-import earcut from 'earcut'
+import earcut from 'earcut' // only used by legacy Ocean chunk system
 import * as martinez from 'martinez-polygon-clipping'
 
 export interface Point2D {

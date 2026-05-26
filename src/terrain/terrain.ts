@@ -1,107 +1,187 @@
-import OceanFloor from './ocean-floor'
-import Islands from './islands'
+// ABOUTME: Voxel terrain system - generates 64x64x64 chunks around camera
+// ABOUTME: Uses ao-mesher, glass for water, no old ocean/island systems
+
 import { isLoaded } from '../utils/loading-done'
 import { StateObservable } from '../utils/state-observable'
-import { Ocean } from './ocean'
-import { ChunkSystem } from './chunk-system'
+import { generateTerrainChunk, type TerrainChunkInput } from './terrain-voxel'
+import type { IslandRecord } from '../../common/messages/api-islands'
 
-const CHUNK_SIZE = 48
+const COORD_SCALE = 100 // island coords are 1/100th of world coords
 
 export class Terrain {
-  public islandsStateObservable: StateObservable<'loaded' | 'unloaded'>
+  public islandsStateObservable = new StateObservable<'loaded' | 'unloaded'>('unloaded')
   public invalidateIslandsLoaded: () => void
+
   private readonly _scene: BABYLON.Scene
   private readonly _parent: BABYLON.TransformNode
 
-  private readonly _islands: Islands
-  private readonly _oceanFloor: OceanFloor
+  private _landMesh: BABYLON.Mesh | null = null
+  private _waterMesh: BABYLON.Mesh | null = null
+  private _lastCenter: { x: number; z: number } | null = null
+  private _islandRings: [number, number][][] = []
+  private _isLoaded = false
 
-  private _ocean: Ocean
-  private readonly _chunkSystem: ChunkSystem
-  private _islandsHasLoaded = false
-  private _loadRange: number
-
-  constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, skyboxes: any[]) {
+  constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, _skyboxes: any[]) {
     this._scene = scene
     this._parent = parent
-    this._loadRange = Math.ceil((window.draw.distance * 1.414 + CHUNK_SIZE / 2) / CHUNK_SIZE)
+    this.invalidateIslandsLoaded = () => this.islandsStateObservable.setState('unloaded')
 
-    this._islands = new Islands(scene, parent)
-    this.islandsStateObservable = this._islands.islandsStateObservable
-    this.invalidateIslandsLoaded = () => this._islands.invalidateIslandsLoaded()
+    // Regenerate terrain every second
+    setInterval(() => this._regenerateTerrain(), 1000)
+  }
 
-    this._oceanFloor = new OceanFloor(CHUNK_SIZE, scene, parent)
-
-    // Extract meshes from skyboxes for reflection
-    const skyboxMeshes: BABYLON.Mesh[] = []
-    for (const skybox of skyboxes) {
-      // Skybox and CustomSkybox have .mesh property
-      if (skybox.mesh) {
-        skyboxMeshes.push(skybox.mesh)
-      }
-      // Nightsky has separate starfield and moon meshes
-      if (skybox.starfield) {
-        skyboxMeshes.push(skybox.starfield)
-      }
-      if (skybox.moon) {
-        skyboxMeshes.push(skybox.moon)
+  private _convertIslandsToRings(islands: IslandRecord[]): [number, number][][] {
+    const rings: [number, number][][] = []
+    for (const island of islands) {
+      for (const ring of island.geometry.coordinates) {
+        const scaled: [number, number][] = ring.map(([x, z]) => [x * COORD_SCALE, z * COORD_SCALE])
+        rings.push(scaled)
       }
     }
-    this._ocean = new Ocean(CHUNK_SIZE, scene, parent, skyboxMeshes)
+    return rings
+  }
 
-    this._chunkSystem = new ChunkSystem(CHUNK_SIZE)
-    this._chunkSystem.addObserver(this._oceanFloor)
-    this._chunkSystem.addObserver(this._ocean)
+  private _regenerateTerrain() {
+    const cam = this._scene.activeCamera
+    if (!cam || !this._isLoaded || this._islandRings.length === 0) return
 
-    window.draw.addEventListener('distance-changed', (e) => {
-      const newViewDistance = e.detail
-      this._loadRange = Math.ceil((newViewDistance * 1.414 + CHUNK_SIZE / 2) / CHUNK_SIZE)
-    })
+    const cx = Math.round(cam.position.x)
+    const cz = Math.round(cam.position.z)
+
+    // Skip if haven't moved much
+    if (this._lastCenter) {
+      const dx = cx - this._lastCenter.x
+      const dz = cz - this._lastCenter.z
+      if (dx * dx + dz * dz < 16 * 16) return
+    }
+
+    this._lastCenter = { x: cx, z: cz }
+
+    const input: TerrainChunkInput = {
+      centerX: cx,
+      centerZ: cz,
+      islands: this._islandRings,
+      ponds: [],
+      parcels: [],
+    }
+
+    try {
+      console.log(`[terrain] generating at ${cx},${cz}...`)
+      const t0 = performance.now()
+      const data = generateTerrainChunk(input)
+      console.log(`[terrain] done in ${(performance.now() - t0).toFixed(1)}ms`)
+
+      // Dispose old meshes
+      this._landMesh?.dispose()
+      this._waterMesh?.dispose()
+      this._landMesh = null
+      this._waterMesh = null
+
+      if (!data) return
+
+      // Land mesh
+      if (data.landPositions.length > 0) {
+        const mesh = new BABYLON.Mesh('terrain_land', this._scene)
+        const vd = new BABYLON.VertexData()
+        vd.positions = data.landPositions
+        vd.indices = data.landIndices
+        vd.normals = data.landNormals
+        vd.applyToMesh(mesh)
+
+        mesh.parent = this._parent
+        mesh.checkCollisions = true
+        mesh.receiveShadows = true
+        mesh.metadata = 'teleportable'
+
+        const mat = new BABYLON.StandardMaterial('terrain_land_mat', this._scene)
+        mat.diffuseColor = new BABYLON.Color3(0.7, 0.65, 0.5)
+        mat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1)
+        mesh.material = mat
+
+        this._landMesh = mesh
+      }
+
+      // Water mesh
+      if (data.waterPositions.length > 0) {
+        const mesh = new BABYLON.Mesh('terrain_water', this._scene)
+        const vd = new BABYLON.VertexData()
+        vd.positions = data.waterPositions
+        vd.indices = data.waterIndices
+        vd.normals = data.waterNormals
+        vd.applyToMesh(mesh)
+
+        mesh.parent = this._parent
+        mesh.checkCollisions = false
+
+        const mat = new BABYLON.StandardMaterial('terrain_water_mat', this._scene)
+        mat.diffuseColor = new BABYLON.Color3(0.2, 0.4, 0.6)
+        mat.specularColor = new BABYLON.Color3(0.5, 0.5, 0.5)
+        mat.alpha = 0.7
+        mesh.material = mat
+
+        this._waterMesh = mesh
+      }
+    } catch (e) {
+      console.error('[terrain] generation failed', e)
+    }
   }
 
   get groundMeshes() {
-    if (!this._islandsHasLoaded) {
-      return []
-    }
-    return this._islands.allMeshes()
-  }
-
-  get islands() {
-    return this._islands
-  }
-
-  get oceanFloor() {
-    return this._oceanFloor
+    if (!this._isLoaded) return []
+    if (this._landMesh) return [this._landMesh]
+    return []
   }
 
   update() {
-    const cam = this._scene.activeCamera
-    if (!cam || !this._islandsHasLoaded || !isLoaded()) {
-      return
-    }
-
-    if (this._scene.getFrameId() % 30 === 0) {
-      this._islands.setVisibility(cam, 96)
-      this._chunkSystem.updateChunksAroundPosition({ x: cam.position.x, z: cam.position.z }, this._loadRange)
-    }
+    // Nothing to do per-frame anymore
   }
 
   async load() {
-    await this._islands.load()
-    this._ocean.setIslands(this._islands)
-    this._islandsHasLoaded = true
-    this._islands.allMeshes().forEach((mesh) => this._ocean.addReflection(mesh))
+    // Fetch island data directly
+    const s = document.querySelector('script#islands')
+    let islands: IslandRecord[]
+    if (s) {
+      islands = JSON.parse(s.innerHTML)
+    } else {
+      const response = await fetch('/api/islands.json')
+      const data = await response.json()
+      islands = data.islands
+    }
+
+    this._islandRings = this._convertIslandsToRings(islands)
+    this._isLoaded = true
+    this.islandsStateObservable.setState('loaded')
+
+    // Generate initial terrain
+    this._regenerateTerrain()
   }
 
-  addReflectionMesh(mesh: BABYLON.Mesh) {
-    this._ocean.addReflection(mesh)
+  addReflectionMesh(_mesh: BABYLON.Mesh) {
+    // No-op - old ocean system removed
   }
 
-  removeReflectionMesh(mesh: BABYLON.Mesh) {
-    this._ocean.removeReflection(mesh)
+  removeReflectionMesh(_mesh: BABYLON.Mesh) {
+    // No-op - old ocean system removed
   }
 
   hasWaterMeshAt(x: number, z: number) {
-    return this._ocean.hasWaterMeshAt(x, z)
+    for (const ring of this._islandRings) {
+      if (this._pointInPolygon(x, z, ring)) return false
+    }
+    return true
+  }
+
+  private _pointInPolygon(x: number, z: number, ring: [number, number][]): boolean {
+    let inside = false
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const xi = ring[i][0],
+        zi = ring[i][1]
+      const xj = ring[j][0],
+        zj = ring[j][1]
+      if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) {
+        inside = !inside
+      }
+    }
+    return inside
   }
 }
