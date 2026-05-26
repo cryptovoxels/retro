@@ -43,3 +43,4 @@ packages/**/dist
 render/*.png
 scripting/meta.json
 /art
+*.rdb
