@@ -231,18 +231,20 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   tryAttachExistingStream() {
-    if (this.broadcastRoom || this.hasActiveVideo || !this.livekitRoom) return
+    if (this.broadcastRoom || !this.livekitRoom) return
+    if (this.isCohostMode()) {
+      if (this.hasActiveVideo) return
+      this.syncExistingCohostVideos()
+      this.updateCohostComposite()
+      return
+    }
+    if (this.hasActiveVideo) return
     for (const participant of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
-      const identity = participant.identity ?? ''
       for (const pub of participant.videoTrackPublications.values()) {
         const track = pub.track
         if (!track || !pub.isSubscribed) continue
-        if (this.isCohostMode()) {
-          this.routeCohostVideo(track, identity)
-        } else {
-          this.attachVideoToMesh(track.attach() as HTMLVideoElement)
-          this.startBroadcastAudio()
-        }
+        this.attachVideoToMesh(track.attach() as HTMLVideoElement)
+        this.startBroadcastAudio()
         return
       }
     }
@@ -403,16 +405,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return isGuestForShowbox(this.uuid) || this.parcel.canEdit
   }
 
-  ownerWalletPrefix() {
-    return (this.parcel.owner || '').toLowerCase()
-  }
-
-  isOwnerPublisherIdentity(identity: string) {
-    return cohostIdentityPrefix(identity).toLowerCase() === this.ownerWalletPrefix()
-  }
-
   isGuestPublisherIdentity(identity: string) {
     return cohostIdentityPrefix(identity).startsWith('guest-')
+  }
+
+  isHostPublisherIdentity(identity: string) {
+    return !this.isGuestPublisherIdentity(identity)
   }
 
   shouldPlayCohostAudio(participantIdentity: string) {
@@ -422,7 +420,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const mySub = cohostIdentityPrefix(this.livekitRoom.localParticipant.identity)
     if (theirs === myPub || theirs === mySub) return false
     const iAmGuest = isGuestForShowbox(this.uuid)
-    if (iAmGuest) return this.isOwnerPublisherIdentity(participantIdentity)
+    if (iAmGuest) return this.isHostPublisherIdentity(participantIdentity)
     return this.isGuestPublisherIdentity(participantIdentity)
   }
 
@@ -527,6 +525,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
   }
 
+  syncExistingCohostAudio() {
+    if (!this.isCohostMode() || !this.livekitRoom || !this.broadcastRoom) return
+    for (const p of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
+      if (!this.shouldPlayCohostAudio(p.identity)) continue
+      for (const pub of p.audioTrackPublications?.values() ?? []) {
+        if (pub.isSubscribed && pub.track) this.trackCohostMonitor(pub.track.attach() as HTMLAudioElement)
+      }
+    }
+    this.startBroadcastAudio()
+  }
+
   updateCohostComposite() {
     if (!this.isCohostMode() || this.disposed) return
 
@@ -605,12 +614,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.isGuestPublisherIdentity(identity)) {
       if (this.guestVideoEl !== el) this.guestVideoEl?.remove()
       this.guestVideoEl = el
-    } else if (this.isOwnerPublisherIdentity(identity)) {
+    } else {
       if (this.ownerVideoEl !== el) this.ownerVideoEl?.remove()
       this.ownerVideoEl = el
-    } else {
-      el.remove()
-      return
     }
     this.updateCohostComposite()
   }
@@ -619,7 +625,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.isGuestPublisherIdentity(identity)) {
       this.guestVideoEl?.remove()
       this.guestVideoEl = null
-    } else if (this.isOwnerPublisherIdentity(identity)) {
+    } else {
       this.ownerVideoEl?.remove()
       this.ownerVideoEl = null
     }
@@ -928,6 +934,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
     } finally {
       this.viewerConnecting = false
+      if (this.isCohostMode() && this.broadcastRoom && this.livekitRoom) {
+        this.syncExistingCohostVideos()
+        this.syncExistingCohostAudio()
+        this.updateCohostComposite()
+      }
       this.setPreview()
     }
   }
@@ -1776,7 +1787,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           const el = videoTrack.attach() as HTMLVideoElement
           if (this.isCohostMode()) {
             this.wireLocalCohostVideo(el)
+            for (const audioEl of this.streamAudioEls) audioEl.remove()
+            this.stopStreamVolumePoll()
             this.syncExistingCohostVideos()
+            this.syncExistingCohostAudio()
             this.updateCohostComposite()
             this.startThumbCapture()
           } else {
