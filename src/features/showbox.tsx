@@ -683,7 +683,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     setTimeout(() => {
       if (tryAutoOpen()) return
-      void app.getState().then(tryAutoOpen)
+      void app.getState().then(() => {
+        if (tryAutoOpen()) return
+        if (!this.broadcastRoom && !this.hasActiveVideo) this.setPreview()
+      })
     }, 250)
   }
 
@@ -894,11 +897,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           this.updateCohostComposite()
         } else {
           this.hasActiveVideo = false
-          this.setPreview()
+          if (!this.broadcastRoom) this.setPreview()
         }
         return
       }
-      this.setPreview()
+      if (!this.broadcastRoom) this.setPreview()
     })
 
     room.on(RoomEvent.AudioPlaybackStatusChanged, (playing) => {
@@ -928,6 +931,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
     } finally {
       this.viewerConnecting = false
+      if (!this.isCohostMode() && this.broadcastRoom && this.livekitRoom) {
+        this.livekitRoom.disconnect()
+        this.livekitRoom = null
+      }
       this.setPreview()
     }
   }
@@ -951,9 +958,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     window.addEventListener('touchstart', unblock, { once: true, passive: true })
   }
 
-  attachVideoToMesh(el: HTMLVideoElement, muted = false, retried = false) {
+  attachVideoToMesh(el: HTMLVideoElement, muted = false, retries = 0) {
     if (!this.mesh) {
-      if (!retried) requestAnimationFrame(() => this.attachVideoToMesh(el, muted, true))
+      if (retries < 30) requestAnimationFrame(() => this.attachVideoToMesh(el, muted, retries + 1))
       return
     }
     el.muted = muted
@@ -1734,15 +1741,16 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           throw new Error('no permission to broadcast here - sign in as parcel owner or use a guest link')
         }
 
-        if (!this.isCohostMode() && this.livekitRoom) {
-          this.livekitRoom.disconnect()
-          this.livekitRoom = null
-        } else if (this.isCohostMode() && !this.livekitRoom) {
+        if (this.isCohostMode() && !this.livekitRoom) {
           await this.connectViewer()
         }
 
         const room = new Room()
         this.broadcastRoom = room
+        if (!this.isCohostMode() && this.livekitRoom) {
+          this.livekitRoom.disconnect()
+          this.livekitRoom = null
+        }
         room.on(RoomEvent.Disconnected, () => {
           if (!this.broadcastRoom) return
           status.textContent = 'disconnected'
@@ -1783,6 +1791,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             this.attachVideoToMesh(el, true)
             this.startThumbCapture(el)
           }
+        }
+
+        if (!this.isCohostMode() && this.livekitRoom) {
+          this.livekitRoom.disconnect()
+          this.livekitRoom = null
         }
 
         this.audio?.addUserAudioReference(this)
