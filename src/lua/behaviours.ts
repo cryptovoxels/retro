@@ -1,7 +1,8 @@
 // Lua behaviour runtime - one instance per parcel.
-// Replaces ParcelScript. Loads wasmoon, evaluates the DSL prelude + each
-// attached behaviour's source, runs init/tick/slot callbacks, syncs state
-// over the multiplayer relay.
+// Plain-state model: state is a Lua table of plain values. self:animate(target, ms)
+// merges target into state and stamps t0/t1. While now < t1 the runtime calls
+// spec.tick(self, t) every frame with t in [0,1]. After t1, behaviour stops
+// ticking until the next animate.
 
 import { LuaEngine, LuaFactory } from 'wasmoon'
 import * as messages from '../../common/messages'
@@ -11,13 +12,11 @@ import type Parcel from '../parcel'
 import { DSL_PRELUDE } from './dsl'
 import type { BehaviourMeta } from './parse-metadata'
 import { parseBehaviourMeta } from './parse-metadata'
-import { AnimateDesc, AnyDesc, isDesc, reanchorAnimate, resolveDesc, resolveRng } from './state'
+import { clamp01 } from './state'
 
 type BehaviourSpec = {
   name: string
-  state: Record<string, AnyDesc | unknown>
   params: Record<string, { default: unknown }>
-  signals: string[]
   slots: Record<string, true>
   hasTick: boolean
 }
@@ -28,9 +27,11 @@ type BehaviourInstance = {
   idx: number
   assetId: string
   spec: BehaviourSpec
-  state: Record<string, AnyDesc | unknown>
+  state: Record<string, unknown>
   selfName: string
   seq: number
+  t0: number
+  t1: number
 }
 
 type QueuedSignal = {
@@ -42,6 +43,8 @@ type QueuedSignal = {
 
 const MAX_SIGNAL_DEPTH = 256
 const TICK_BUDGET_MS = 4
+const RAD_PER_DEG = Math.PI / 180
+const DEG_PER_RAD = 180 / Math.PI
 
 // Cache of (assetId -> { source, meta }) shared across parcel runtimes for the session.
 const assetCache = new Map<string, { source: string; meta: BehaviourMeta }>()
@@ -68,6 +71,26 @@ const fetchAsset = async (assetId: string): Promise<{ source: string; meta: Beha
   return rec
 }
 
+// Build a JS object that looks like Vec3 to Lua: x/y/z fields readable and writable.
+// Lua sees a plain table, sets fields, the wrapper writes them back to the feature.
+const makeVec3Bridge = (read: () => [number, number, number], write: (v: [number, number, number]) => void) => {
+  const cur = read()
+  const obj: any = { x: cur[0], y: cur[1], z: cur[2] }
+  // Wasmoon converts JS objects to Lua tables. Best we can do is sync on demand: the runtime
+  // re-reads/writes from the table around tick() calls.
+  return obj
+}
+
+const readPosition = (f: Feature): [number, number, number] => {
+  const p = (f.description as any).position ?? [0, 0, 0]
+  return [Number(p[0]) || 0, Number(p[1]) || 0, Number(p[2]) || 0]
+}
+
+const readRotationDeg = (f: Feature): [number, number, number] => {
+  const r = (f.description as any).rotation ?? [0, 0, 0]
+  return [Number(r[0]) * DEG_PER_RAD, Number(r[1]) * DEG_PER_RAD, Number(r[2]) * DEG_PER_RAD]
+}
+
 export default class LuaBehaviours {
   parcel: Parcel
   engine: LuaEngine | null = null
@@ -77,7 +100,6 @@ export default class LuaBehaviours {
   private byKey: Map<string, BehaviourInstance> = new Map() // featureId:idx -> instance
   private queue: QueuedSignal[] = []
   private rafHandle: number | null = null
-  private sessionToken = Math.random().toString(36).slice(2)
   private lastTickAt = 0
   private tickInterval = 0 // 0 = every frame; bumps to 33ms / 66ms under load
   private nextSeq = 1
@@ -98,7 +120,6 @@ export default class LuaBehaviours {
       return
     }
 
-    // Load all behaviours attached to features in this parcel.
     const tasks: Promise<void>[] = []
     for (const feature of this.parcel.featuresList) {
       tasks.push(this.attachFeature(feature))
@@ -108,8 +129,6 @@ export default class LuaBehaviours {
     this.startRaf()
   }
 
-  // Read attached behaviour assets for the feature, evaluate any not yet seen,
-  // and create per-instance state/self bindings.
   async attachFeature(feature: Feature): Promise<void> {
     if (!this.engine) return
     const list: BehaviourAttachment[] = (feature.description as any).behaviours ?? []
@@ -128,20 +147,16 @@ export default class LuaBehaviours {
   private async ensureSpec(assetId: string, source: string, meta: BehaviourMeta): Promise<BehaviourSpec> {
     if (!this.engine) throw new Error('no engine')
     const ns = `__spec_${assetId.replace(/-/g, '_')}`
-    // Already evaluated in this VM?
     const cached = this.engine.global.get(ns)
     if (cached) return cached as BehaviourSpec
 
-    // Evaluate source (which calls behaviour "name" { ... } and pushes onto __behaviour_specs).
     await this.engine.doString(`__behaviour_specs = {}\n${source}\n${ns} = __behaviour_specs[1]`)
     const raw = this.engine.global.get(ns)
     if (!raw) throw new Error(`behaviour script for ${assetId} did not register`)
 
     const spec: BehaviourSpec = {
       name: meta.name,
-      state: (raw as any).state ?? {},
       params: (raw as any).params ?? {},
-      signals: meta.signals,
       slots: Object.fromEntries(meta.slots.map((s) => [s, true as const])),
       hasTick: typeof (raw as any).tick === 'function',
     }
@@ -153,11 +168,8 @@ export default class LuaBehaviours {
     const key = `${feature.uuid}:${idx}`
     const selfName = `__self_${key.replace(/[^A-Za-z0-9]/g, '_')}`
 
-    // Per-instance state copy with rng resolved deterministically.
-    const state: Record<string, AnyDesc | unknown> = {}
-    for (const [k, v] of Object.entries(spec.state)) {
-      state[k] = this.cloneAndResolveStateEntry(k, v as AnyDesc, feature.uuid)
-    }
+    // Initial state from spec defaults. Lua spec.state is the prototype table; copy it.
+    const state: Record<string, unknown> = { ...((this.engine.global.get(`__spec_${attachment.id.replace(/-/g, '_')}`) as any)?.state ?? {}) }
 
     const inst: BehaviourInstance = {
       feature,
@@ -168,42 +180,78 @@ export default class LuaBehaviours {
       state,
       selfName,
       seq: 0,
+      t0: 0,
+      t1: 0,
     }
     this.behaviours.push(inst)
     this.byKey.set(key, inst)
 
-    // Build the self table in Lua: state and params resolved, methods bound.
-    const params = this.resolveParams(spec, attachment)
-    const stateView = this.buildStateView(inst)
+    this.installSelf(inst)
 
-    // Install methods via a JS-backed "self" object the Lua side reads.
-    this.engine.global.set(selfName, {
-      params,
-      state: stateView,
-      play: (target: Record<string, unknown>) => this.handlePlay(inst, target),
-      set: (target: Record<string, unknown>) => this.handleSet(inst, target),
-      emit: (signal: string, data?: unknown) => this.handleEmit(inst, signal, data),
-    })
-
-    // Run init if defined.
     try {
-      await this.engine.doString(`if type(__spec_${attachment.id.replace(/-/g, '_')}.init) == 'function' then __spec_${attachment.id.replace(/-/g, '_')}.init(${selfName}) end`)
+      const ns = `__spec_${attachment.id.replace(/-/g, '_')}`
+      await this.engine.doString(`if type(${ns}.init) == 'function' then ${ns}.init(${selfName}) end`)
     } catch (err) {
       console.error(`[behaviours] init failed ${attachment.id} on ${feature.uuid}`, err)
     }
   }
 
-  // Resolve rng() at session boundary so all clients see the same number.
-  private cloneAndResolveStateEntry(key: string, v: AnyDesc | unknown, featureId: string): AnyDesc | unknown {
-    if (!isDesc(v)) return v
-    if (v.__kind === 'rng') {
-      const resolved = resolveRng(v.min, v.max, this.parcel.id, this.sessionToken, `${featureId}:${key}`)
-      return { ...v, resolved }
+  // (Re)install the per-instance self table. Called once at create + every tick to refresh proxies.
+  private installSelf(inst: BehaviourInstance): void {
+    if (!this.engine) return
+    const params = this.resolveParams(inst.spec, inst.attachment)
+    const feature = inst.feature
+    const position = makeVec3Bridge(
+      () => readPosition(feature),
+      (v) => feature.set({ position: v } as any),
+    )
+    const rotation = makeVec3Bridge(
+      () => readRotationDeg(feature),
+      (v) => feature.set({ rotation: [v[0] * RAD_PER_DEG, v[1] * RAD_PER_DEG, v[2] * RAD_PER_DEG] } as any),
+    )
+
+    this.engine.global.set(inst.selfName, {
+      params,
+      state: inst.state,
+      position,
+      rotation,
+      visible: feature.mesh?.isEnabled() ?? true,
+      animate: (target: Record<string, unknown>, ms: number) => this.handleAnimate(inst, target, ms),
+      emit: (signal: string, data?: unknown) => this.handleEmit(inst, signal, data),
+    })
+  }
+
+  // Read back position/rotation/visible writes that the Lua side made on the self table,
+  // and apply them to the feature. Called after each tick / slot run.
+  private flushSelfWrites(inst: BehaviourInstance): void {
+    if (!this.engine) return
+    const self = this.engine.global.get(inst.selfName) as any
+    if (!self) return
+    const feature = inst.feature
+    const p = self.position
+    if (p) {
+      const [cx, cy, cz] = readPosition(feature)
+      const nx = Number(p.x) || 0
+      const ny = Number(p.y) || 0
+      const nz = Number(p.z) || 0
+      if (nx !== cx || ny !== cy || nz !== cz) {
+        feature.set({ position: [nx, ny, nz] } as any)
+      }
     }
-    if (v.__kind === 'persistent') {
-      return { ...v, inner: this.cloneAndResolveStateEntry(key, v.inner, featureId) as AnyDesc }
+    const r = self.rotation
+    if (r) {
+      const [cx, cy, cz] = readRotationDeg(feature)
+      const nx = Number(r.x) || 0
+      const ny = Number(r.y) || 0
+      const nz = Number(r.z) || 0
+      if (nx !== cx || ny !== cy || nz !== cz) {
+        feature.set({ rotation: [nx * RAD_PER_DEG, ny * RAD_PER_DEG, nz * RAD_PER_DEG] } as any)
+      }
     }
-    return { ...v }
+    if (typeof self.visible === 'boolean' && feature.mesh) {
+      const cur = feature.mesh.isEnabled()
+      if (self.visible !== cur) feature.mesh.setEnabled(self.visible)
+    }
   }
 
   private resolveParams(spec: BehaviourSpec, attachment: BehaviourAttachment): Record<string, unknown> {
@@ -214,94 +262,65 @@ export default class LuaBehaviours {
     return out
   }
 
-  // Self.state proxy: reads return resolved values; the Lua side never sees descriptor objects.
-  private buildStateView(inst: BehaviourInstance): Record<string, unknown> {
-    const view: Record<string, unknown> = {}
+  // self:animate({key=val, ...}, ms) - merge into state, stamp t0/t1, broadcast.
+  private handleAnimate(inst: BehaviourInstance, target: Record<string, unknown>, ms: number): void {
+    if (target && typeof target === 'object') Object.assign(inst.state, target)
     const now = Date.now()
-    for (const [k, v] of Object.entries(inst.state)) {
-      view[k] = resolveDesc(v as AnyDesc, now)
-    }
-    return view
-  }
-
-  // Refresh resolved view for an instance before calling Lua tick/slot.
-  private refreshStateView(inst: BehaviourInstance, now: number): void {
-    if (!this.engine) return
-    const view = (this.engine.global.get(inst.selfName) as any)?.state
-    if (!view) return
-    for (const [k, v] of Object.entries(inst.state)) {
-      view[k] = resolveDesc(v as AnyDesc, now)
-    }
-  }
-
-  // self:play({ key = target }) - animate to target from current interpolated value.
-  private handlePlay(inst: BehaviourInstance, target: Record<string, unknown>): void {
-    const now = Date.now()
-    for (const [k, v] of Object.entries(target)) {
-      const current = inst.state[k]
-      if (isDesc(current) && current.__kind === 'animate' && typeof v === 'number') {
-        inst.state[k] = reanchorAnimate(current as AnimateDesc, now, v)
-      } else if (isDesc(current) && current.__kind === 'value') {
-        inst.state[k] = { __kind: 'value', value: v as any }
-      } else {
-        inst.state[k] = v as any
-      }
-    }
-    this.broadcastState(inst)
-  }
-
-  // self:set({ key = val }) - instant assignment.
-  private handleSet(inst: BehaviourInstance, target: Record<string, unknown>): void {
-    for (const [k, v] of Object.entries(target)) {
-      const current = inst.state[k]
-      if (isDesc(current) && current.__kind === 'value') {
-        inst.state[k] = { __kind: 'value', value: v as any }
-      } else {
-        inst.state[k] = v as any
-      }
-    }
+    inst.t0 = now
+    inst.t1 = now + Math.max(0, Number(ms) || 0)
     this.broadcastState(inst)
   }
 
   private handleEmit(inst: BehaviourInstance, signal: string, data?: unknown): void {
-    // Local fan-out: queue for all features in this parcel that have a connection
-    // listening to (inst.feature.uuid, signal). Carry depth across hops.
     this.queue.push({ featureId: inst.feature.uuid, signal, data, depth: this.currentDepth + 1 })
-    // Cross-feature delivery via MP (same parcel) so peers' runtimes also fire.
     this.sendSignal(inst.feature.uuid, signal, data)
   }
 
-  // Public entry: external interactions (clicks, triggers) post a signal as if
-  // the feature had emitted it. Slot connections handle local routing.
+  // Public entry: external interactions (clicks, triggers) post a signal.
   dispatch(featureId: string, signal: string, data?: unknown): void {
     if (!this.connected) return
     this.queue.push({ featureId, signal, data, depth: 1 })
   }
 
-  // Incoming MP signal from a peer.
   onSignal(featureId: string, signal: string, data?: unknown): void {
     if (!this.connected) return
     this.queue.push({ featureId, signal, data, depth: 1 })
   }
 
   // Incoming MP state update from a peer - last-write-wins via seq.
-  onStateUpdate(featureId: string, idx: number, state: Record<string, unknown>, seq: number): void {
+  // Peer sends state + t0/t1 so animation continues correctly across clients.
+  onStateUpdate(featureId: string, idx: number, payload: Record<string, unknown>, seq: number): void {
     const inst = this.byKey.get(`${featureId}:${idx}`)
     if (!inst) return
     if (seq <= inst.seq) return
     inst.seq = seq
-    Object.assign(inst.state, state)
+    const { __t0, __t1, ...rest } = payload as any
+    Object.assign(inst.state, rest)
+    if (typeof __t0 === 'number') inst.t0 = __t0
+    if (typeof __t1 === 'number') inst.t1 = __t1
+  }
+
+  isActive(inst: BehaviourInstance): boolean {
+    return Date.now() < inst.t1
+  }
+
+  // Diagnostic: how many instances are currently animating?
+  activeCount(): number {
+    const now = Date.now()
+    let n = 0
+    for (const inst of this.behaviours) if (now < inst.t1) n++
+    return n
   }
 
   private broadcastState(inst: BehaviourInstance): void {
     inst.seq = ++this.nextSeq
-    if (typeof this.parcel.id !== 'number') return // spaces use string ids - skip MP for now
+    if (typeof this.parcel.id !== 'number') return
     const msg: messages.BehaviourStateMessage = {
       type: messages.MessageType.behaviourState,
       parcelId: this.parcel.id,
       featureId: inst.feature.uuid,
       behaviourIdx: inst.idx,
-      state: inst.state as Record<string, unknown>,
+      state: { ...inst.state, __t0: inst.t0, __t1: inst.t1 } as Record<string, unknown>,
       seq: inst.seq,
     }
     window.connector?.send(msg)
@@ -319,10 +338,13 @@ export default class LuaBehaviours {
     window.connector?.send(msg)
   }
 
-  // Walk every feature's incoming connections and find slots listening to (featureId, signal).
   private findSlotsForSignal(featureId: string, signal: string): Array<{ inst: BehaviourInstance; slot: string }> {
     const out: Array<{ inst: BehaviourInstance; slot: string }> = []
     for (const inst of this.behaviours) {
+      // Built-in: a feature's own dispatch ('click') runs same-named slots on its own behaviours, no wiring needed.
+      if (inst.feature.uuid === featureId && inst.spec.slots[signal]) {
+        out.push({ inst, slot: signal })
+      }
       const conns: Connection[] = (inst.feature.description as any).connections ?? []
       for (const c of conns) {
         if (c.from.featureId === featureId && c.from.signal === signal && inst.spec.slots[c.slot]) {
@@ -336,11 +358,12 @@ export default class LuaBehaviours {
   private async runSlot(inst: BehaviourInstance, slot: string, data: unknown, depth: number): Promise<void> {
     if (!this.engine) return
     const ns = `__spec_${inst.assetId.replace(/-/g, '_')}`
-    this.refreshStateView(inst, Date.now())
+    this.installSelf(inst)
     this.currentDepth = depth
     try {
       this.engine.global.set('__slot_arg', data ?? null)
       await this.engine.doString(`if ${ns}.slots and ${ns}.slots.${slot} then ${ns}.slots.${slot}(${inst.selfName}, __slot_arg) end`)
+      this.flushSelfWrites(inst)
     } catch (err) {
       console.error(`[behaviours] slot ${slot} on ${inst.feature.uuid}`, err)
     } finally {
@@ -369,11 +392,10 @@ export default class LuaBehaviours {
       if (now - this.lastTickAt >= this.tickInterval) {
         const start = performance.now()
         this.flushQueue().catch((err) => console.error('[behaviours] flush', err))
-        this.runTicks(now)
+        this.runTicks(Date.now())
         const elapsed = performance.now() - start
-        // Adaptive: above budget, slow tick rate; below, ramp back up.
         if (elapsed > TICK_BUDGET_MS) {
-          this.tickInterval = this.tickInterval === 0 ? 33 : this.tickInterval === 33 ? 66 : 66
+          this.tickInterval = this.tickInterval === 0 ? 33 : 66
         } else if (elapsed < TICK_BUDGET_MS / 2 && this.tickInterval > 0) {
           this.tickInterval = this.tickInterval === 66 ? 33 : 0
         }
@@ -388,10 +410,14 @@ export default class LuaBehaviours {
     if (!this.engine) return
     for (const inst of this.behaviours) {
       if (!inst.spec.hasTick) continue
-      this.refreshStateView(inst, now)
+      if (now >= inst.t1) continue
+      const dur = inst.t1 - inst.t0
+      const t = dur <= 0 ? 1 : clamp01((now - inst.t0) / dur)
       const ns = `__spec_${inst.assetId.replace(/-/g, '_')}`
+      this.installSelf(inst)
       try {
-        this.engine.doStringSync(`${ns}.tick(${inst.selfName})`)
+        this.engine.doStringSync(`${ns}.tick(${inst.selfName}, ${t})`)
+        this.flushSelfWrites(inst)
       } catch (err) {
         console.error(`[behaviours] tick ${inst.assetId}`, err)
       }

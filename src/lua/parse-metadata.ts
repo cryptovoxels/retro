@@ -1,6 +1,7 @@
 // Static metadata extractor for behaviour Lua source.
 // Walks the luaparse AST to find the top-level `behaviour "name" { ... }` call
-// and extracts signal/slot/param metadata without running Lua.
+// and extracts slot/param metadata. Signals are inferred by walking every
+// `self:emit("name")` call site in the spec body.
 //
 // Used at save time (cached on the asset) and reused on the client to populate
 // the editor wiring dropdowns - same code, one source of truth.
@@ -60,16 +61,6 @@ const findBehaviourCall = (chunk: ast.Chunk): { name: string; spec: ast.TableCon
   return null
 }
 
-const extractSignals = (spec: Map<string, ast.Expression>): string[] => {
-  const sig = spec.get('signals')
-  if (!sig || sig.type !== 'TableConstructorExpression') return []
-  const out: string[] = []
-  for (const f of sig.fields) {
-    if (f.type === 'TableValue' && f.value.type === 'StringLiteral') out.push(f.value.value)
-  }
-  return out
-}
-
 const extractSlots = (spec: Map<string, ast.Expression>): string[] => {
   const slots = spec.get('slots')
   if (!slots || slots.type !== 'TableConstructorExpression') return []
@@ -80,7 +71,30 @@ const extractSlots = (spec: Map<string, ast.Expression>): string[] => {
   return out
 }
 
-// Recognise number(default, opts), string(default), boolean(default) calls.
+// Walk every node in a subtree and collect `self:emit("name")` first-arg strings.
+const extractEmittedSignals = (root: ast.Node): string[] => {
+  const found = new Set<string>()
+  const visit = (node: any) => {
+    if (!node || typeof node !== 'object') return
+    // method call: self:emit("foo") or self:emit "foo"
+    if (node.type === 'CallExpression' || node.type === 'StringCallExpression' || node.type === 'TableCallExpression') {
+      const base = node.base
+      if (base?.type === 'MemberExpression' && base.indexer === ':' && base.identifier?.name === 'emit') {
+        const arg = node.type === 'CallExpression' ? node.arguments?.[0] : node.argument
+        if (arg?.type === 'StringLiteral') found.add(arg.value)
+      }
+    }
+    for (const k of Object.keys(node)) {
+      const v = node[k]
+      if (Array.isArray(v)) v.forEach(visit)
+      else if (v && typeof v === 'object' && typeof v.type === 'string') visit(v)
+    }
+  }
+  visit(root)
+  return Array.from(found).sort()
+}
+
+// Recognise number(default, opts), text(default), boolean(default) calls.
 const extractParam = (name: string, expr: ast.Expression): ParamMeta | null => {
   if (expr.type !== 'CallExpression') return null
   const fn = expr.base
@@ -144,7 +158,7 @@ export const parseBehaviourMeta = (source: string): BehaviourMeta => {
   const spec = tableFields(found.spec)
   return {
     name: found.name,
-    signals: extractSignals(spec),
+    signals: extractEmittedSignals(found.spec),
     slots: extractSlots(spec),
     params: extractParams(spec),
   }

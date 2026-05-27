@@ -1,5 +1,7 @@
 select id,
        hash,
+       name,
+       type,
        content
 from asset_library a
 where id = $1

@@ -1,10 +1,22 @@
 import { throttle } from 'lodash'
+import * as luaparse from 'luaparse'
 import { Component, createRef } from 'preact'
 import Feature from '../../../../src/features/feature'
 import type { BehaviourAttachment, Connection } from '../../../../common/messages/feature'
 import CodeFlask from '../../../../vendor/codeflask/codeflask'
 import 'prismjs/components/prism-lua'
 import { app } from '../../state'
+
+type ParseError = { message: string; line?: number; column?: number }
+
+const validateLua = (code: string): ParseError | null => {
+  try {
+    luaparse.parse(code)
+    return null
+  } catch (err: any) {
+    return { message: err?.message ?? String(err), line: err?.line, column: err?.column }
+  }
+}
 
 type BehaviourAssetMeta = {
   id: string
@@ -128,23 +140,45 @@ export class Behaviours extends Component<{ feature: Feature }, BehavioursState>
       author: app.state.wallet ?? '',
       category: 'random',
       name,
-      description: '',
+      description: name,
       public: false,
       image_url: '/img/blank.png',
       content: [{ script: stub, signals: [], slots: [], params: [] }],
     }
-    const r = await fetch('/api/library/add', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    const j: any = await r.json()
-    if (!j?.success || !j?.id) {
-      alert('could not create behaviour: ' + (j?.message || 'unknown'))
+    let r: Response
+    try {
+      r = await fetch('/api/library/add', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+    } catch (err: any) {
+      alert('could not create behaviour: ' + (err?.message || 'network error'))
       return
     }
-    this.setState({ attachInput: j.id }, () => this.attach())
+    let j: any = null
+    try {
+      j = await r.json()
+    } catch {}
+    if (!r.ok || !j?.success || !j?.id) {
+      alert('could not create behaviour (' + r.status + '): ' + (j?.message || j?.err?.message || 'unknown'))
+      return
+    }
+    // Skip the round-trip; we already know everything about the freshly-made stub.
+    const meta: BehaviourAssetMeta = { id: j.id, name, signals: [], slots: [], params: [], script: stub }
+    const params: Record<string, number | string | boolean> = {}
+    const attached = [...this.state.attached, { id: j.id, params }]
+    const idx = attached.length - 1
+    this.setState({
+      attached,
+      metas: { ...this.state.metas, [j.id]: meta },
+      parcelMetas: new Map(this.state.parcelMetas).set(j.id, meta),
+      attachOpen: false,
+      attachInput: '',
+      editing: idx,
+    })
+    this.props.feature.set({ behaviours: attached } as any)
   }
 
   private setParam(idx: number, name: string, value: number | string | boolean) {
@@ -228,11 +262,10 @@ export class Behaviours extends Component<{ feature: Feature }, BehavioursState>
               <div className="f">
                 <button onClick={() => this.toggle(idx)}>{open ? '-' : '+'}</button>
                 <strong>{meta?.name || att.id.slice(0, 8)}</strong>
-                <button onClick={() => this.setState({ editing: this.state.editing === idx ? null : idx })}>edit</button>
+                <button onClick={() => this.setState({ editing: idx })}>edit</button>
                 <button onClick={() => this.remove(idx)}>x</button>
               </div>
               {open && meta && this.renderExpanded(att, idx, meta)}
-              {this.state.editing === idx && meta && <BehaviourScriptEditor meta={meta} />}
             </div>
           )
         })}
@@ -245,6 +278,18 @@ export class Behaviours extends Component<{ feature: Feature }, BehavioursState>
             <input type="text" placeholder="behaviour asset uuid" value={this.state.attachInput} onInput={(e) => this.setState({ attachInput: e.currentTarget.value })} />
             <button onClick={() => this.attach()}>attach</button>
           </div>
+        )}
+        {this.state.editing != null && this.state.attached[this.state.editing] && metas[this.state.attached[this.state.editing].id] && (
+          <BehaviourScriptModal
+            meta={metas[this.state.attached[this.state.editing].id]}
+            onClose={() => this.setState({ editing: null })}
+            onMetaUpdated={(m) =>
+              this.setState({
+                metas: { ...this.state.metas, [m.id]: m },
+                parcelMetas: new Map(this.state.parcelMetas).set(m.id, m),
+              })
+            }
+          />
         )}
       </div>
     )
@@ -379,36 +424,190 @@ export class Behaviours extends Component<{ feature: Feature }, BehavioursState>
   }
 }
 
-class BehaviourScriptEditor extends Component<{ meta: BehaviourAssetMeta }> {
+type ModalProps = { meta: BehaviourAssetMeta; onClose: () => void; onMetaUpdated: (m: BehaviourAssetMeta) => void }
+type ModalState = { status: string; agentPrompt: string; agentBusy: boolean; history: string[]; future: string[]; parseError: ParseError | null }
+
+class BehaviourScriptModal extends Component<ModalProps, ModalState> {
   containerRef = createRef<HTMLDivElement>()
   flask: CodeFlask | null = null
+  save: (code: string) => void = () => {}
+  state: ModalState = { status: '', agentPrompt: '', agentBusy: false, history: [], future: [], parseError: null }
 
   componentDidMount() {
     if (!this.containerRef.current) return
-    this.flask = new CodeFlask(this.containerRef.current, { language: 'lua', lineNumbers: false, defaultTheme: true, readonly: false })
+    this.flask = new CodeFlask(this.containerRef.current, { language: 'lua', lineNumbers: true, defaultTheme: true, readonly: false })
     this.flask.updateCode(this.props.meta.script)
-    const save = throttle(
+    this.setState({ parseError: validateLua(this.props.meta.script) })
+    this.save = throttle(
       async (code: string) => {
-        await fetch('/api/library/update', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id: this.props.meta.id, script: code }),
-        }).catch(() => {})
+        // Don't push broken Lua to the server - it'll just bounce off the AST validator there too.
+        if (validateLua(code)) {
+          this.setState({ status: '' })
+          return
+        }
+        this.setState({ status: 'saving...' })
+        let r: Response
+        try {
+          r = await fetch('/api/library/update', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: this.props.meta.id, script: code }),
+          })
+        } catch (e: any) {
+          this.setState({ status: 'offline' })
+          return
+        }
+        let j: any = null
+        try {
+          j = await r.json()
+        } catch {}
+        if (!r.ok || j?.success === false) {
+          this.setState({ status: 'error: ' + (j?.message || r.status) })
+          return
+        }
+        this.setState({ status: 'saved' })
+        const fresh = await fetchAssetMeta(this.props.meta.id)
+        if (fresh) {
+          this.props.meta.signals = fresh.signals
+          this.props.meta.slots = fresh.slots
+          this.props.meta.params = fresh.params
+          this.props.meta.script = fresh.script
+          this.props.onMetaUpdated(fresh)
+        }
       },
       800,
       { trailing: true },
     )
     this.flask.onUpdate((code) => {
       this.props.meta.script = code
-      save(code)
+      this.setState({ parseError: validateLua(code) })
+      this.save(code)
     })
   }
 
+  componentWillUnmount() {
+    this.flask = null
+  }
+
+  // Push current source to history before replacing it. Used by agent + undo/redo.
+  private replaceCode(next: string, side: 'history' | 'future') {
+    if (!this.flask) return
+    const current = this.props.meta.script
+    if (next === current) return
+    if (side === 'history') {
+      this.setState({ history: [...this.state.history, current], future: [] })
+    } else {
+      this.setState({ future: [...this.state.future, current] })
+    }
+    this.props.meta.script = next
+    this.flask.updateCode(next)
+    this.setState({ parseError: validateLua(next) })
+    this.save(next)
+  }
+
+  private undo = () => {
+    const hist = this.state.history.slice()
+    const prev = hist.pop()
+    if (prev === undefined || !this.flask) return
+    const current = this.props.meta.script
+    this.setState({ history: hist, future: [...this.state.future, current] })
+    this.props.meta.script = prev
+    this.flask.updateCode(prev)
+    this.setState({ parseError: validateLua(prev) })
+    this.save(prev)
+  }
+
+  private redo = () => {
+    const fut = this.state.future.slice()
+    const next = fut.pop()
+    if (next === undefined || !this.flask) return
+    const current = this.props.meta.script
+    this.setState({ future: fut, history: [...this.state.history, current] })
+    this.props.meta.script = next
+    this.flask.updateCode(next)
+    this.setState({ parseError: validateLua(next) })
+    this.save(next)
+  }
+
+  private askAgent = async () => {
+    const prompt = this.state.agentPrompt.trim()
+    if (!prompt || this.state.agentBusy) return
+    this.setState({ agentBusy: true, status: 'thinking...' })
+    let r: Response
+    try {
+      r = await fetch('/api/models/behaviour', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt, script: this.props.meta.script }),
+      })
+    } catch (e: any) {
+      this.setState({ agentBusy: false, status: 'agent offline' })
+      return
+    }
+    let j: any = null
+    try {
+      j = await r.json()
+    } catch {}
+    if (!r.ok || !j?.script) {
+      this.setState({ agentBusy: false, status: 'agent failed: ' + (j?.error || r.status) })
+      return
+    }
+    this.replaceCode(j.script, 'history')
+    this.setState({ agentBusy: false, agentPrompt: '', status: 'agent applied' })
+  }
+
   render() {
+    const err = this.state.parseError
+    const overlay = { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center' } as any
+    const win = { width: '80vw', height: '80vh', background: '#222', display: 'flex', flexDirection: 'column' } as any
+    const bar = { padding: '0.5rem 1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: '#eee', borderBottom: '1px solid #333' } as any
+    const grow = { flex: 1, minWidth: 0 } as any
+    const promptInput = { flex: 1, minWidth: '12rem' } as any
+    const bodyStyle = { flex: 1, minHeight: 0, position: 'relative', boxShadow: err ? 'inset 0 0 0 2px #c0392b' : 'none' } as any
+    const codeStyle = { position: 'absolute', inset: 0 } as any
+    const errBar = { padding: '0.25rem 1rem', background: '#3a1816', color: '#f5b7b1', fontFamily: 'monospace', fontSize: '0.85rem' } as any
+    const canUndo = this.state.history.length > 0
+    const canRedo = this.state.future.length > 0
     return (
-      <div className="behaviour-script-editor">
-        <div className="codeflask-container" ref={this.containerRef} />
+      <div style={overlay} onClick={() => this.props.onClose()}>
+        <div style={win} onClick={(e) => e.stopPropagation()}>
+          <div style={bar}>
+            <strong>{this.props.meta.name}.lua</strong>
+            <button onClick={this.undo} disabled={!canUndo} title="undo last agent edit">
+              {'<'} undo
+            </button>
+            <button onClick={this.redo} disabled={!canRedo} title="redo">
+              redo {'>'}
+            </button>
+            <input
+              style={promptInput}
+              type="text"
+              placeholder="ask the agent... (e.g. 'add an unlock slot')"
+              value={this.state.agentPrompt}
+              disabled={this.state.agentBusy}
+              onInput={(e) => this.setState({ agentPrompt: e.currentTarget.value })}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') this.askAgent()
+              }}
+            />
+            <button onClick={this.askAgent} disabled={this.state.agentBusy || !this.state.agentPrompt.trim()}>
+              ask
+            </button>
+            <span style={grow} />
+            <small>{this.state.status}</small>
+            <button onClick={() => this.props.onClose()}>close</button>
+          </div>
+          {err && (
+            <div style={errBar}>
+              syntax error{err.line != null ? ` [${err.line}:${err.column ?? 0}]` : ''}: {err.message.replace(/^\[\d+:\d+\]\s*/, '')}
+            </div>
+          )}
+          <div style={bodyStyle}>
+            <div style={codeStyle} ref={this.containerRef} />
+          </div>
+        </div>
       </div>
     )
   }
