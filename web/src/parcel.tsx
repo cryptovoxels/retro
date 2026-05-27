@@ -56,6 +56,18 @@ export class Client extends Component<FrameProps, FrameState> {
     }
   }
 
+  static peekUrl(): string | null {
+    const id = Client.parcelId ?? Client.instance?.props.parcelId
+    if (id) {
+      return `/parcels/${id}`
+    }
+    const coords = Client.instance?.props.coords
+    if (coords) {
+      return `/play?coords=${coords}`
+    }
+    return null
+  }
+
   private create() {
     if (!canUseDom) {
       return
@@ -66,11 +78,15 @@ export class Client extends Component<FrameProps, FrameState> {
 
     const div = document.createElement('div')
     div.classList.add('magic-frame')
-    div.addEventListener('click', Client.onWrapperClick)
 
     const iframe = document.createElement('iframe')
     iframe.src = Client.playUrl(this.props.src, this.props.coords, peek)
     div.appendChild(iframe)
+
+    const hit = document.createElement('div')
+    hit.className = 'magic-frame-hit'
+    hit.addEventListener('click', Client.onHitClick)
+    div.appendChild(hit)
 
     const closeButton = document.createElement('button')
     closeButton.className = 'magic-frame-close'
@@ -107,22 +123,16 @@ export class Client extends Component<FrameProps, FrameState> {
     })
   }
 
-  static onWrapperClick = (e: MouseEvent) => {
+  static onHitClick = (e: MouseEvent) => {
     if (!Client.wrapper || Client.wrapper.classList.contains('attached')) {
       return
     }
     if ((e.target as HTMLElement).closest('.magic-frame-close')) {
       return
     }
-    Client.onClick()
-  }
-
-  static onClick = () => {
-    if (document.querySelector('div.client-placeholder')) {
-      return
-    }
-    if (Client.parcelId) {
-      route(`/parcels/${Client.parcelId}`)
+    const url = Client.peekUrl()
+    if (url) {
+      route(url)
     }
   }
 
@@ -183,9 +193,8 @@ export class Client extends Component<FrameProps, FrameState> {
 
     if (!Client.wrapper) {
       this.create()
-      Client.instance = this
-      return
     }
+    Client.instance = this
   }
 
   componentDidMount() {
