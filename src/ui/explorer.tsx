@@ -208,7 +208,14 @@ export class ExplorerUI extends Component<Props, State> {
         openTab = <CommunityEvents />
         break
       case 'users':
-        openTab = <Radar />
+        openTab = (
+          <Radar
+            teleportTo={(coords) => {
+              window.persona.teleport(coords)
+              this.closeWithPointerLock()
+            }}
+          />
+        )
         break
       case 'home':
         openTab = <Home onTeleport={this.closeWithPointerLock} scene={this.props.scene} />
