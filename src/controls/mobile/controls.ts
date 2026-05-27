@@ -105,23 +105,24 @@ const initialHeight = window.visualViewport?.height ?? window.innerHeight
 
 let orientation = window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape'
 
+export function resetMobileViewportLayout() {
+  document.body.style.height = ''
+}
+
 export function viewportChangeHandler() {
   // Check if viewPort change is caused by a rotation (dont do anything)
   if (!window.matchMedia(`(orientation: ${orientation})`).matches) {
     orientation = window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape'
+    resetMobileViewportLayout()
     return
   }
-  const input = document.activeElement as HTMLInputElement | null
 
-  // We don't have an element focused, virtual Keyboard is likely not up
-  if (!input) {
-    return
-  }
+  const height = window.visualViewport?.height ?? window.innerHeight
 
   // Viewport height is significantly lower (keyboard is up)
-  if (window.innerHeight < initialHeight - 30) {
+  if (height < initialHeight - 30) {
     document.body.style.height = initialHeight + 'px'
   } else {
-    document.body.style.height = '100%'
+    resetMobileViewportLayout()
   }
 }

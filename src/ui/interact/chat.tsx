@@ -4,6 +4,7 @@ import { forwardRef } from 'preact/compat'
 import { useEffect, useRef, useState } from 'preact/hooks'
 
 import { isMobile } from '../../../common/helpers/detector'
+import { resetMobileViewportLayout } from '../../controls/mobile/controls'
 import { Emojis, replaceEmojiText, replaceEmoticonsAndEmojiText } from '../../../common/helpers/emojis'
 import { Emotes } from '../../../common/messages/constant'
 import { avatarName } from '../../../common/messages/avatar-ref'
@@ -230,19 +231,20 @@ const ChatInput = () => {
   }
 
   const say = (e: Event) => {
+    const msg = currentMessage
     setMessage('')
 
-    if (currentMessage) {
-      window.connector.sendMessage(currentMessage)
-    } else {
-      blur()
+    if (msg) {
+      window.connector.sendMessage(msg)
     }
 
+    blur()
     e.preventDefault()
   }
 
   const blur = () => {
     inputRef.current?.blur()
+    if (isMobile()) resetMobileViewportLayout()
   }
 
   const onChatKeydown = (e: KeyboardEvent) => {
@@ -263,7 +265,7 @@ const ChatInput = () => {
   return (
     <div>
       <form onSubmit={say}>
-        <input type="text" onKeyDown={onChatKeydown} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} ref={inputRef} />
+        <input type="text" onKeyDown={onChatKeydown} onBlur={() => isMobile() && resetMobileViewportLayout()} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} ref={inputRef} />
         <button type="submit">Send</button>
       </form>
     </div>
