@@ -2,7 +2,7 @@ import { Component, h } from 'preact'
 import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { isMobile } from '../../common/helpers/detector'
-import ParcelHelper, { showboxPlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
+import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxHostPlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { encodeCoords } from '../../common/helpers/utils'
 import { ShowboxRecord } from '../../common/messages/feature'
@@ -107,18 +107,22 @@ function guestPassToken(): string | null {
   return guestJwtPayload()?.guest_pass ?? null
 }
 
-function showboxPlayCoords(feature: Showbox): string {
-  return showboxPlayCoordsFromRecord(new ParcelHelper(feature.parcel as any), { position: feature.tidyPosition, rotation: feature.tidyRotation })
+function showboxFeatureCoords(feature: Showbox) {
+  const parcel = new ParcelHelper(feature.parcel as any)
+  const f = { position: feature.tidyPosition, rotation: feature.tidyRotation, guestMode: feature.guestMode }
+  return { parcel, f }
 }
 
 // Plain /play?coords= link for the audience. No isolate, ui=off, or show= - just drop people at the showbox.
 function audienceShowUrl(feature: Showbox): string {
-  return `${window.location.origin}/play?coords=${encodeURIComponent(showboxPlayCoords(feature))}`
+  const { parcel, f } = showboxFeatureCoords(feature)
+  return `${window.location.origin}/play?coords=${encodeURIComponent(showboxAudiencePlayCoordsFromRecord(parcel, f))}`
 }
 
 // Owner/co-host join link. Keeps your normal login - just lands at the showbox and opens the broadcast dock.
 function hostJoinShowUrl(feature: Showbox): string {
-  const qs = new URLSearchParams({ coords: showboxPlayCoords(feature), show: feature.uuid, host: '1' })
+  const { parcel, f } = showboxFeatureCoords(feature)
+  const qs = new URLSearchParams({ coords: showboxHostPlayCoordsFromRecord(parcel, f), show: feature.uuid, host: '1' })
   return `${window.location.origin}/play?${qs.toString()}`
 }
 
@@ -1340,7 +1344,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       identityRow.append(identityLabel, nameInput, nameStatus)
     }
 
-    // Fan coords link for anyone live - drops audience at the showbox in world.
+    // Fan coords link - audience spawns back from the screen, slightly off center.
     let shareRow: HTMLDivElement | null = null
     {
       const showUrl = audienceShowUrl(this)
