@@ -407,6 +407,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     for (const el of this.streamAudioEls) {
       el.volume = vol
     }
+    for (const el of this.cohostMonitorEls) {
+      el.volume = vol
+    }
   }
 
   trackStreamAudio(el: HTMLAudioElement) {
@@ -483,10 +486,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   trackCohostMonitor(el: HTMLAudioElement) {
-    el.volume = 1
+    el.volume = this.effectiveStreamVolume()
     el.style.display = 'none'
     document.body.appendChild(el)
     this.cohostMonitorEls.push(el)
+    // going live tears down the viewer volume poll - restart it so monitors track parcel/showbox volume.
+    if (!this.streamVolumeInterval) {
+      this.streamVolumeInterval = setInterval(() => this.refreshStreamVolume(), VOLUME_REFRESH_INTERVAL)
+    }
   }
 
   clearCohostMonitor() {
