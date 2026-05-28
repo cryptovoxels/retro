@@ -771,7 +771,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       return
     }
 
-    if (text.startsWith('/conga')) {
+    if (text.trim().toLowerCase().startsWith('/conga')) {
       this.handleConga(text)
       return
     }
