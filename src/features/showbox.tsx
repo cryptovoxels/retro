@@ -416,6 +416,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         el.volume = flatVol
       }
     }
+    for (const el of this.cohostMonitorEls) {
+      el.volume = flatVol
+    }
   }
 
   disposeStreamSpatial(el: HTMLAudioElement) {
@@ -452,9 +455,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       return true
     } catch {
       return false
-    }
-    for (const el of this.cohostMonitorEls) {
-      el.volume = vol
     }
   }
 
