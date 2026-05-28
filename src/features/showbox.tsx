@@ -17,6 +17,8 @@ import { Animations } from '../avatar-animations'
 import { EmoteAnimation, Idle } from '../states'
 import { cameraPosition, cameraRotation } from '../utils/camera'
 import { emote as emoteParticles } from '../utils/emote'
+import { AudioBus } from '../audio/audio-engine'
+import { SpatialAudio } from '../audio/spatial-audio'
 import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
@@ -213,6 +215,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   audioMeterRaf: number | null = null
   audioMeterCtx: AudioContext | null = null
   streamAudioEls: HTMLAudioElement[] = []
+  streamSpatialByEl = new Map<HTMLAudioElement, SpatialAudio>()
   streamVolumeInterval: ReturnType<typeof setInterval> | null = null
   hasActiveVideo = false
   ownerVideoEl: HTMLVideoElement | null = null
@@ -390,7 +393,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (typeof this.description.rolloffFactor === 'number') {
       return this.description.rolloffFactor
     }
-    return 1.2
+    return 0
   }
 
   get audio() {
@@ -403,9 +406,51 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   refreshStreamVolume() {
-    const vol = this.effectiveStreamVolume()
+    const flatVol = this.effectiveStreamVolume()
     for (const el of this.streamAudioEls) {
-      el.volume = vol
+      const spatial = this.streamSpatialByEl.get(el)
+      if (spatial) {
+        spatial.volume = this.volume
+      } else {
+        el.volume = flatVol
+      }
+    }
+  }
+
+  disposeStreamSpatial(el: HTMLAudioElement) {
+    const spatial = this.streamSpatialByEl.get(el)
+    if (!spatial) return
+    try {
+      spatial.dispose()
+    } catch {}
+    this.streamSpatialByEl.delete(el)
+  }
+
+  untrackStreamAudio(el: HTMLAudioElement) {
+    const i = this.streamAudioEls.indexOf(el)
+    if (i >= 0) this.streamAudioEls.splice(i, 1)
+    this.disposeStreamSpatial(el)
+  }
+
+  wireStreamSpatial(el: HTMLAudioElement) {
+    if (this.rolloffFactor <= 0 || !this.audio) return false
+    // createMediaElementSource throws if the element is already wired to WebAudio - fall back to flat volume.
+    try {
+      const source = BABYLON.Engine.audioEngine?.audioContext?.createMediaElementSource(el)
+      if (!source) return false
+      const spatial = this.audio.createSpatialAudio({
+        name: 'feature/showbox/stream',
+        outputBus: AudioBus.Parcel,
+        audioNode: source,
+        absolutePosition: this.absolutePosition.clone(),
+        rolloffFactor: this.rolloffFactor,
+      })
+      spatial.volume = this.volume
+      this.streamSpatialByEl.set(el, spatial)
+      el.volume = 1
+      return true
+    } catch {
+      return false
     }
     for (const el of this.cohostMonitorEls) {
       el.volume = vol
@@ -414,7 +459,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   trackStreamAudio(el: HTMLAudioElement) {
     this.streamAudioEls.push(el)
-    el.volume = this.effectiveStreamVolume()
+    if (!this.wireStreamSpatial(el)) {
+      el.volume = this.effectiveStreamVolume()
+    }
     if (!this.streamVolumeInterval) {
       this.streamVolumeInterval = setInterval(() => this.refreshStreamVolume(), VOLUME_REFRESH_INTERVAL)
     }
@@ -424,6 +471,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.streamVolumeInterval) {
       clearInterval(this.streamVolumeInterval)
       this.streamVolumeInterval = null
+    }
+    for (const el of [...this.streamAudioEls]) {
+      this.disposeStreamSpatial(el)
     }
     this.streamAudioEls = []
   }
@@ -708,6 +758,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
     this.mesh.id = this.mesh.name + '/' + this.uuid
     this.setCommon()
+    this.afterSetCommon = () => {
+      for (const spatial of this.streamSpatialByEl.values()) {
+        spatial.setPosition(this.absolutePosition)
+        spatial.volume = this.volume
+        spatial.rolloffFactor = this.rolloffFactor
+      }
+    }
     this.addEvents()
     this.setPreview()
     if (this.isInCurrentParcel) {
@@ -1006,8 +1063,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
       if (track.kind === Track.Kind.Audio) {
         track.detach().forEach((node) => {
-          const i = this.streamAudioEls.indexOf(node as HTMLAudioElement)
-          if (i >= 0) this.streamAudioEls.splice(i, 1)
+          this.untrackStreamAudio(node as HTMLAudioElement)
         })
         if (!this.streamAudioEls.length) {
           if (this.streamVolumeInterval) {
@@ -2183,7 +2239,7 @@ class Editor extends FeatureEditor<Showbox> {
             <div className="f">
               <label>Spatial Rolloff Factor</label>
               <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onChange={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
-              <small>How quickly sound fades as players move away</small>
+              <small>0 = heard everywhere in the parcel. Higher = fades as you walk away from the screen.</small>
             </div>
             <div className="f">
               <label>Volume</label>
