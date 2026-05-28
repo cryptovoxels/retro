@@ -35,6 +35,8 @@ const DEFAULT_VOLUME = 0.7
 const MAX_VOLUME = 1
 const VOLUME_REFRESH_INTERVAL = 200
 const VIEWER_RETRY_INTERVAL = 20_000
+const STREAM_ATTACH_RETRY_MS = 2000
+const STREAM_ATTACH_RECONNECT_AFTER = 5
 const VIEWER_MILESTONES = [10, 25, 50] as const
 const MILESTONE_POLL_MS = 8000
 
@@ -208,6 +210,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   viewerConnectGen = 0
   localBroadcastVideoEl: HTMLVideoElement | null = null
   viewerRetryInterval: ReturnType<typeof setInterval> | null = null
+  streamAttachRetryInterval: ReturnType<typeof setInterval> | null = null
+  streamAttachAttempts = 0
   hostJoinLoginPending = false
 
   roomName() {
@@ -228,8 +232,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.broadcastRoom) return
     if (this.streamTargetsThisShowbox()) {
       this.tryAttachExistingStream()
+      if (!this.hasActiveVideo) this.scheduleStreamAttachRetry()
       return
     }
+    this.stopStreamAttachRetry()
     if (!this.hasActiveVideo) return
     this.hasActiveVideo = false
     if (this.isCohostMode()) this.stopCohostComposite()
@@ -251,6 +257,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (!track || !pub.isSubscribed) continue
         this.attachVideoToMesh(track.attach() as HTMLVideoElement)
         this.startBroadcastAudio()
+        this.stopStreamAttachRetry()
         return
       }
     }
@@ -724,6 +731,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   onExit = () => {
     this.stopViewerRetry()
+    this.stopStreamAttachRetry()
     this.viewerRoomFull = false
     if (this.livekitRoom) {
       this.livekitRoom.disconnect()
@@ -749,10 +757,52 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }, VIEWER_RETRY_INTERVAL)
   }
 
+  stopStreamAttachRetry() {
+    if (this.streamAttachRetryInterval) {
+      clearInterval(this.streamAttachRetryInterval)
+      this.streamAttachRetryInterval = null
+    }
+    this.streamAttachAttempts = 0
+  }
+
+  scheduleStreamAttachRetry() {
+    if (this.streamAttachRetryInterval || this.disposed || this.broadcastRoom) return
+    if (!this.streamTargetsThisShowbox()) return
+    this.streamAttachAttempts = 0
+    this.streamAttachRetryInterval = setInterval(() => {
+      if (this.disposed || !this.isInCurrentParcel || this.broadcastRoom) {
+        this.stopStreamAttachRetry()
+        return
+      }
+      if (!this.streamTargetsThisShowbox()) {
+        this.stopStreamAttachRetry()
+        return
+      }
+      if (this.hasActiveVideo) {
+        this.stopStreamAttachRetry()
+        return
+      }
+      this.tryAttachExistingStream()
+      if (this.hasActiveVideo) {
+        this.stopStreamAttachRetry()
+        return
+      }
+      this.streamAttachAttempts++
+      if (this.streamAttachAttempts >= STREAM_ATTACH_RECONNECT_AFTER && this.livekitRoom && !this.viewerConnecting) {
+        this.viewerConnectGen++
+        this.livekitRoom.disconnect()
+        this.livekitRoom = null
+        this.stopStreamAttachRetry()
+        this.connectViewer()
+      }
+    }, STREAM_ATTACH_RETRY_MS)
+  }
+
   dispose() {
     this._dispose()
     this.stopMilestonePoll()
     this.stopViewerRetry()
+    this.stopStreamAttachRetry()
     this.viewerRoomFull = false
     this.livekitRoom?.disconnect()
     this.livekitRoom = null
@@ -875,6 +925,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           this.attachVideoToMesh(track.attach() as HTMLVideoElement)
         }
         this.startBroadcastAudio()
+        this.stopStreamAttachRetry()
       }
     })
 
@@ -929,7 +980,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
     })
 
-    room.on(RoomEvent.ParticipantConnected, () => this.setPreview())
+    room.on(RoomEvent.ParticipantConnected, () => {
+      if (!this.broadcastRoom) this.tryAttachExistingStream()
+      this.setPreview()
+    })
     room.on(RoomEvent.ParticipantDisconnected, () => {
       if (this.isCohostMode()) this.updateCohostComposite()
       this.setPreview()
@@ -957,6 +1011,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (!this.isCohostMode() && this.broadcastRoom && this.livekitRoom) {
         this.livekitRoom.disconnect()
         this.livekitRoom = null
+      }
+      if (this.streamTargetsThisShowbox() && !this.broadcastRoom) {
+        this.tryAttachExistingStream()
+        if (!this.hasActiveVideo) this.scheduleStreamAttachRetry()
       }
       this.setPreview()
     }
