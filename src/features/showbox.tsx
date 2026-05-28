@@ -140,6 +140,18 @@ function wantsHostJoin(uuid: string): boolean {
   return isHostJoinForShowbox(uuid)
 }
 
+// Drop show=/host= from the URL so ending a stream does not re-open the dock on parcel re-enter.
+function clearShowboxJoinParams() {
+  try {
+    const u = new URL(window.location.href)
+    if (!u.searchParams.has('show') && !u.searchParams.has('host')) return
+    u.searchParams.delete('show')
+    u.searchParams.delete('host')
+    const qs = u.searchParams.toString()
+    window.history.replaceState(window.history.state, '', u.pathname + (qs ? `?${qs}` : '') + u.hash)
+  } catch {}
+}
+
 // Chat display name comes from the multiplayer login snapshot - reconnect after a rename so everyone sees it.
 function syncGuestDisplayName(name: string) {
   app.setName(name)
@@ -209,6 +221,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   viewerConnecting = false
   viewerRetryInterval: ReturnType<typeof setInterval> | null = null
   hostJoinLoginPending = false
+  joinDockAutoOpened = false
 
   roomName() {
     return `parcel-${this.parcel.id}`
@@ -674,8 +687,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     // Wallet may still be loading from the jwt cookie when onEnter fires; retry after app state settles.
     if (this.broadcastPanel) return
     const tryAutoOpen = () => {
-      if (this.broadcastPanel) return true
+      if (this.broadcastPanel || this.joinDockAutoOpened) return true
       if (isGuestForShowbox(this.uuid)) {
+        this.joinDockAutoOpened = true
+        clearShowboxJoinParams()
         this.openBroadcastPanel()
         return true
       }
@@ -688,6 +703,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           app.showSnackbar('sign in as the parcel owner to use this host link', PanelType.Warning)
           return false
         }
+        this.joinDockAutoOpened = true
+        clearShowboxJoinParams()
         this.openBroadcastPanel()
         return true
       }
@@ -717,6 +734,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           app.showSnackbar('this account cannot host here - use the parcel owner account', PanelType.Warning)
           return
         }
+        this.joinDockAutoOpened = true
+        clearShowboxJoinParams()
         this.openBroadcastPanel()
       }, 500)
     })
@@ -1098,6 +1117,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.broadcastPanel = null
       this.stopBroadcast()
       return
+    }
+
+    if ((wantsHostJoin(this.uuid) || isGuestForShowbox(this.uuid)) && !this.joinDockAutoOpened) {
+      this.joinDockAutoOpened = true
+      clearShowboxJoinParams()
     }
 
     exitPointerLock()
