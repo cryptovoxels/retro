@@ -105,7 +105,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   private activated = false
   private activationState = ParcelActivationState.Inactive
   private fieldUpdateTimeout: NodeJS.Timeout | null = null
-  private readonly afterGenerateCallbacks: (() => void)[] = []
   private readonly refreshVoxels: () => void
   private readonly soundSprite: BABYLON.Sound | null = null
   private readonly _parcelBouncer: ParcelBouncer
@@ -973,32 +972,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     })
   }
 
-  /**
-   *   Scripting only: This is to catch users near the parcel and start the parcel script along with a 'playernearby' event.
-   */
-  onEnterNearby() {
-    if (isBatterySaver()) {
-      console.log('Battery saver mode, skipping onEnterNearby')
-      return
-    }
-
-    if (!this.behaviours) {
-      this.behaviours = new LuaBehaviours(this)
-      // init is called once features finish loading; see onFeaturesLoaded
-    }
-  }
-
-  onExitNearby() {
-    this.disconnect()
-    // We re-call onExit on features on exit nearby since it is possible for features (eg:videos) to still be running
-    // (eg: script is ran because the player is nearby -never entered the parcel- and he/she's now leaving the area)
-    this.featuresList?.forEach((f) => {
-      if (f.onExit) {
-        f.onExit()
-      }
-    })
-  }
-
   unload() {
     this.loaded = false
     this.loading = false
@@ -1063,7 +1036,15 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
 
     this.activated = true
+
+    // Create features
     await this.generateFeatures()
+
+    // Create scripts
+    if (!this.behaviours) {
+      this.behaviours = new LuaBehaviours(this)
+    }
+    await this.behaviours.init()
     // On fastBoot we initiate the parcelBouncer and handle the user.
     // handleUser() generates the box around the parcel if not allowed
 
@@ -1514,15 +1495,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.mesher.generate(this, null, this.configureUnbakedVoxelFieldMeshes.bind(this))
   }
 
-  private flushOnGenerateCallbacks = () => {
-    while (this.afterGenerateCallbacks.length) {
-      const f = this.afterGenerateCallbacks.shift()
-      if (f) {
-        f()
-      }
-    }
-  }
-
   private configureUnbakedVoxelFieldMeshes(opaque: BABYLON.Mesh, glass: BABYLON.Mesh, collider: BABYLON.Mesh) {
     this.setVoxelMesh(opaque, { collidable: false, pickable: false })
     this.setGlassMesh(glass, { collidable: false, pickable: false })
@@ -1532,8 +1504,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
     if (this.voxelMesh) this.dispatchEvent(createEvent('MeshLoaded', this.voxelMesh))
     if (this.glassMesh) this.dispatchEvent(createEvent('MeshLoaded', this.glassMesh))
-
-    this.scene.getEngine().onEndFrameObservable.addOnce(this.flushOnGenerateCallbacks)
   }
 
   private async configureBakedVoxelFieldMeshes(opaque: BABYLON.Mesh, glass: BABYLON.Mesh) {

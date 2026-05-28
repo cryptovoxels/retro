@@ -751,6 +751,10 @@ class YoutubePlayer {
   }
 
   addIframe() {
+    if (this.feature.isTwitch) {
+      return // twitch playback disabled: do nothing
+    }
+
     this.iframe = document.createElement('iframe')
     this.iframe.id = 'video-' + this.feature.videoId
     this.iframe.style.width = this.width + 'px'

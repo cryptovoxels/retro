@@ -34,13 +34,6 @@ type BehaviourInstance = {
   t1: number
 }
 
-type QueuedSignal = {
-  featureId: string
-  signal: string
-  data?: unknown
-  depth: number
-}
-
 const MAX_SIGNAL_DEPTH = 256
 const TICK_BUDGET_MS = 4
 const RAD_PER_DEG = Math.PI / 180
@@ -91,15 +84,23 @@ const readRotationDeg = (f: Feature): [number, number, number] => {
   return [Number(r[0]) * DEG_PER_RAD, Number(r[1]) * DEG_PER_RAD, Number(r[2]) * DEG_PER_RAD]
 }
 
+// Recursive clone for plain values/arrays/objects. State is documented as plain values/tables,
+// so we don't need Map/Set/Date support - reject anything else by falling back to original ref.
+const deepClone = (v: unknown): unknown => {
+  if (v === null || typeof v !== 'object') return v
+  if (Array.isArray(v)) return v.map(deepClone)
+  const out: Record<string, unknown> = {}
+  for (const k of Object.keys(v as object)) out[k] = deepClone((v as any)[k])
+  return out
+}
+
 export default class LuaBehaviours {
   parcel: Parcel
   engine: LuaEngine | null = null
-  connected = false
   disposed = false
   private behaviours: BehaviourInstance[] = []
   private byKey: Map<string, BehaviourInstance> = new Map() // featureId:idx -> instance
-  private queue: QueuedSignal[] = []
-  private rafHandle: number | null = null
+  private tickObserver: { remove: () => void } | null = null
   private lastTickAt = 0
   private tickInterval = 0 // 0 = every frame; bumps to 33ms / 66ms under load
   private nextSeq = 1
@@ -109,8 +110,8 @@ export default class LuaBehaviours {
     this.parcel = parcel
   }
 
-  async init(): Promise<void> {
-    if (this.connected || this.disposed) return
+  async init(features: Feature[]): Promise<void> {
+    if (this.disposed) return
     try {
       this.engine = await ensureFactory().createEngine({ injectObjects: true })
       this.engine.global.set('now', () => Date.now())
@@ -120,13 +121,13 @@ export default class LuaBehaviours {
       return
     }
 
-    const tasks: Promise<void>[] = []
+    console.log('engine', this.engine)
+
     for (const feature of this.parcel.featuresList) {
-      tasks.push(this.attachFeature(feature))
+      await this.attachFeature(feature)
     }
-    await Promise.allSettled(tasks)
-    this.connected = true
-    this.startRaf()
+
+    this.startTicker()
   }
 
   async attachFeature(feature: Feature): Promise<void> {
@@ -168,8 +169,10 @@ export default class LuaBehaviours {
     const key = `${feature.uuid}:${idx}`
     const selfName = `__self_${key.replace(/[^A-Za-z0-9]/g, '_')}`
 
-    // Initial state from spec defaults. Lua spec.state is the prototype table; copy it.
-    const state: Record<string, unknown> = { ...((this.engine.global.get(`__spec_${attachment.id.replace(/-/g, '_')}`) as any)?.state ?? {}) }
+    // Initial state from spec defaults. Lua spec.state is the prototype table; deep-clone it
+    // so nested tables aren't shared across instances of the same behaviour.
+    const protoState = (this.engine.global.get(`__spec_${attachment.id.replace(/-/g, '_')}`) as any)?.state ?? {}
+    const state = deepClone(protoState) as Record<string, unknown>
 
     const inst: BehaviourInstance = {
       feature,
@@ -271,20 +274,27 @@ export default class LuaBehaviours {
     this.broadcastState(inst)
   }
 
+  private dispatchSync(featureId: string, signal: string, data: unknown, depth: number): void {
+    if (depth >= MAX_SIGNAL_DEPTH) {
+      console.warn('[behaviours] dropping signal at depth', depth)
+      return
+    }
+    for (const { inst, slot } of this.findSlotsForSignal(featureId, signal)) {
+      this.runSlot(inst, slot, data, depth)
+    }
+  }
+
   private handleEmit(inst: BehaviourInstance, signal: string, data?: unknown): void {
-    this.queue.push({ featureId: inst.feature.uuid, signal, data, depth: this.currentDepth + 1 })
+    this.dispatchSync(inst.feature.uuid, signal, data, this.currentDepth + 1)
     this.sendSignal(inst.feature.uuid, signal, data)
   }
 
-  // Public entry: external interactions (clicks, triggers) post a signal.
   dispatch(featureId: string, signal: string, data?: unknown): void {
-    if (!this.connected) return
-    this.queue.push({ featureId, signal, data, depth: 1 })
+    this.dispatchSync(featureId, signal, data, 1)
   }
 
   onSignal(featureId: string, signal: string, data?: unknown): void {
-    if (!this.connected) return
-    this.queue.push({ featureId, signal, data, depth: 1 })
+    this.dispatchSync(featureId, signal, data, 1)
   }
 
   // Incoming MP state update from a peer - last-write-wins via seq.
@@ -355,14 +365,14 @@ export default class LuaBehaviours {
     return out
   }
 
-  private async runSlot(inst: BehaviourInstance, slot: string, data: unknown, depth: number): Promise<void> {
+  private runSlot(inst: BehaviourInstance, slot: string, data: unknown, depth: number): void {
     if (!this.engine) return
     const ns = `__spec_${inst.assetId.replace(/-/g, '_')}`
     this.installSelf(inst)
     this.currentDepth = depth
     try {
       this.engine.global.set('__slot_arg', data ?? null)
-      await this.engine.doString(`if ${ns}.slots and ${ns}.slots.${slot} then ${ns}.slots.${slot}(${inst.selfName}, __slot_arg) end`)
+      this.engine.doStringSync(`if ${ns}.slots and ${ns}.slots.${slot} then ${ns}.slots.${slot}(${inst.selfName}, __slot_arg) end`)
       this.flushSelfWrites(inst)
     } catch (err) {
       console.error(`[behaviours] slot ${slot} on ${inst.feature.uuid}`, err)
@@ -371,42 +381,9 @@ export default class LuaBehaviours {
     }
   }
 
-  private async flushQueue(): Promise<void> {
-    const batch = this.queue
-    this.queue = []
-    for (const item of batch) {
-      if (item.depth >= MAX_SIGNAL_DEPTH) {
-        console.warn('[behaviours] dropping signal at depth', item.depth)
-        continue
-      }
-      const targets = this.findSlotsForSignal(item.featureId, item.signal)
-      for (const { inst, slot } of targets) {
-        await this.runSlot(inst, slot, item.data, item.depth)
-      }
-    }
-  }
+  tick(): void {
+    const now = Date.now()
 
-  private startRaf(): void {
-    const tick = (now: number) => {
-      if (this.disposed) return
-      if (now - this.lastTickAt >= this.tickInterval) {
-        const start = performance.now()
-        this.flushQueue().catch((err) => console.error('[behaviours] flush', err))
-        this.runTicks(Date.now())
-        const elapsed = performance.now() - start
-        if (elapsed > TICK_BUDGET_MS) {
-          this.tickInterval = this.tickInterval === 0 ? 33 : 66
-        } else if (elapsed < TICK_BUDGET_MS / 2 && this.tickInterval > 0) {
-          this.tickInterval = this.tickInterval === 66 ? 33 : 0
-        }
-        this.lastTickAt = now
-      }
-      this.rafHandle = requestAnimationFrame(tick)
-    }
-    this.rafHandle = requestAnimationFrame(tick)
-  }
-
-  private runTicks(now: number): void {
     if (!this.engine) return
     for (const inst of this.behaviours) {
       if (!inst.spec.hasTick) continue
@@ -426,9 +403,8 @@ export default class LuaBehaviours {
 
   dispose(): void {
     this.disposed = true
-    this.connected = false
-    if (this.rafHandle !== null) cancelAnimationFrame(this.rafHandle)
-    this.rafHandle = null
+    this.tickObserver?.remove()
+    this.tickObserver = null
     try {
       this.engine?.global.close()
     } catch (err) {
@@ -437,6 +413,5 @@ export default class LuaBehaviours {
     this.engine = null
     this.behaviours = []
     this.byKey.clear()
-    this.queue = []
   }
 }

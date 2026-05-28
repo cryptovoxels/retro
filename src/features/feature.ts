@@ -407,7 +407,8 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     if (!this.mesh) {
       return false
     }
-    return !!this.isLink || (!!this.script && !!this.script.match(/on\('click'/g))
+    const hasBehaviours = ((this.description as any).behaviours?.length ?? 0) > 0
+    return !!this.isLink || hasBehaviours || (!!this.script && !!this.script.match(/on\('click'/g))
   }
 
   refreshWorldMatrix() {

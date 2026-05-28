@@ -892,32 +892,6 @@ export default class Grid extends SocketClient {
     })
 
     this.activeParcelPool = newPool
-
-    const DISTANCE_TO_PROXIMITY = 15
-    this.activeParcelPool.forEach((parcel) => {
-      // Iterate throught the active pool of parcels to generate a radius of parcels that we want to have script activated.
-      // The pros: Around large parcels you won't start scripts of features that are far away
-      // The cons: Around small parcels you don't start scripts of features that are somewhat close-ish
-      let distanceToPlayer = Infinity
-      if (this.scene.activeCamera) {
-        distanceToPlayer = distanceToAABB(cameraPosition(this.scene), parcel.exteriorBounds)
-      }
-      if (this.parcelsWithinProximity.includes(parcel)) {
-        // parcel is included in the currently active list of parcel scripts
-        if (distanceToPlayer > DISTANCE_TO_PROXIMITY) {
-          // parcel is now far away, disconnect scripting engine
-          this.parcelsWithinProximity.splice(this.parcelsWithinProximity.indexOf(parcel), 1)
-          parcel.onExitNearby()
-        }
-      } else {
-        if (distanceToPlayer <= DISTANCE_TO_PROXIMITY) {
-          // new pool parcel has a new parcel
-          // Player is in the area of the parcel
-          this.parcelsWithinProximity.push(parcel)
-          parcel.onEnterNearby()
-        }
-      }
-    })
   }
 
   private getPointInFrontOfCamera(distance: number): BABYLON.Vector3 {

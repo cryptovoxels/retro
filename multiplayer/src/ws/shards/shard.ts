@@ -191,6 +191,7 @@ export class Shard {
         this.dropInactiveClient(connectedClient)
       }
     }
+    this.behaviourRelay.evict()
   }
 
   getClientList() {

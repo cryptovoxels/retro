@@ -326,6 +326,7 @@ export class Client {
     if (parcelId != null && this.lastSeenParcel !== parcelId) {
       this.lastSeenParcel = parcelId
       this.shard.onRadarEvent?.({ type: 'move', uuid: this.clientUUID, avatar: this.avatar, parcel: parcelId })
+      this.shard.behaviourRelay.sendSnapshot(this, parcelId)
     }
     const anonId = this.anonymizedClientId()
     const position = msg.position

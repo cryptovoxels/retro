@@ -1,7 +1,7 @@
 # AGENTS.md
 
 * BABYLON is loaded globally
-
+* Never use RAF (use babylon observables)
 
 ## Code Like Ben (Voxels)
 

@@ -136,13 +136,10 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   // }
 
   public override onClick(e: FeatureEvent) {
+    console.log('onClick', e)
+    console.log('behaviours', this.behaviours)
     if (this.behaviours) {
       this.behaviours.dispatch(this.uuid, 'click', e)
-    }
-
-    // second check is redundant (isLink checks this), but typescript doesnt trust it
-    if (this.isLink && this.description.link) {
-      this.onClickLink(this.description.link)
     }
   }
 

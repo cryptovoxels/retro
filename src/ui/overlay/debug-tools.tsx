@@ -181,16 +181,6 @@ export default class DebugTools extends Component<Props, State> {
     })
   }
 
-  toggleBehaviours() {
-    if (!this.currentParcel?.behaviours) return
-    if (this.currentParcel.behaviours.connected) {
-      this.currentParcel.behaviours.dispose()
-      this.currentParcel.behaviours = null
-    } else {
-      this.currentParcel.onEnterNearby()
-    }
-  }
-
   render() {
     return (
       <section className="debug-tools-overlay">
@@ -218,9 +208,6 @@ export default class DebugTools extends Component<Props, State> {
               </button>
               <button onClick={() => this.toggleBoundingBoxes()} title="Toggle the Bounding boxes.">
                 {this.state.showBoundingBoxes ? 'Turn off bounding Boxes.' : 'Turn on bounding Boxes'}
-              </button>
-              <button onClick={() => this.toggleBehaviours()} title="Toggle the current parcel behaviour runtime.">
-                {this.currentParcel && this.currentParcel.behaviours?.connected ? 'Turn off behaviours.' : 'Turn on behaviours'}
               </button>
               <button onClick={() => this.toggleSpectrumAnalyser()} title="Toggle the audio spectrum analyser">
                 {this.state.showSpectrumAnalyser ? 'Turn off audio spectrometer' : 'Turn on audio spectrometer'}
