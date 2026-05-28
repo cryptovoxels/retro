@@ -17,6 +17,8 @@ import { Animations } from '../avatar-animations'
 import { EmoteAnimation, Idle } from '../states'
 import { cameraPosition, cameraRotation } from '../utils/camera'
 import { emote as emoteParticles } from '../utils/emote'
+import { AudioBus } from '../audio/audio-engine'
+import { SpatialAudio } from '../audio/spatial-audio'
 import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
@@ -35,6 +37,8 @@ const DEFAULT_VOLUME = 0.7
 const MAX_VOLUME = 1
 const VOLUME_REFRESH_INTERVAL = 200
 const VIEWER_RETRY_INTERVAL = 20_000
+const STREAM_ATTACH_RETRY_MS = 2000
+const STREAM_ATTACH_RECONNECT_AFTER = 5
 const VIEWER_MILESTONES = [10, 25, 50] as const
 const MILESTONE_POLL_MS = 8000
 
@@ -77,6 +81,15 @@ const mobile = isMobile()
 function isRoomFullError(e: unknown) {
   const msg = (e instanceof Error ? e.message : String(e ?? '')).toLowerCase()
   return msg.includes('room is full') || (msg.includes('participant') && (msg.includes('limit') || msg.includes('max') || msg.includes('full')))
+}
+
+// getUserMedia failure -> plain-language nudge. Showbox is a video feature, so audio-only is not an option here.
+function cameraErrorMessage(e: unknown): string {
+  const name = (e as { name?: string } | null)?.name ?? ''
+  if (name === 'NotAllowedError' || name === 'SecurityError') return 'camera blocked - allow camera access in your browser, then go live again.'
+  if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'no camera found - plug one in or tick "use screenshare instead". for audio only, drop a Boombox.'
+  if (name === 'NotReadableError' || name === 'AbortError') return 'your camera is busy in another app - close it and try again.'
+  return 'could not start your camera - check browser permissions, then go live again.'
 }
 
 // True when the page was opened via /live/:token and the guest pass targets this showbox.
@@ -140,6 +153,18 @@ function wantsHostJoin(uuid: string): boolean {
   return isHostJoinForShowbox(uuid)
 }
 
+// Drop show=/host= from the URL so ending a stream does not re-open the dock on parcel re-enter.
+function clearShowboxJoinParams() {
+  try {
+    const u = new URL(window.location.href)
+    if (!u.searchParams.has('show') && !u.searchParams.has('host')) return
+    u.searchParams.delete('show')
+    u.searchParams.delete('host')
+    const qs = u.searchParams.toString()
+    window.history.replaceState(window.history.state, '', u.pathname + (qs ? `?${qs}` : '') + u.hash)
+  } catch {}
+}
+
 // Chat display name comes from the multiplayer login snapshot - reconnect after a rename so everyone sees it.
 function syncGuestDisplayName(name: string) {
   app.setName(name)
@@ -152,6 +177,8 @@ function syncGuestDisplayName(name: string) {
 }
 
 type GuestMode = 'solo' | 'cohost'
+
+const DEFAULT_GUEST_MODE: GuestMode = 'solo'
 
 function cohostIdentityPrefix(identity: string) {
   const i = identity.lastIndexOf('-')
@@ -188,6 +215,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   audioMeterRaf: number | null = null
   audioMeterCtx: AudioContext | null = null
   streamAudioEls: HTMLAudioElement[] = []
+  streamSpatialByEl = new Map<HTMLAudioElement, SpatialAudio>()
   streamVolumeInterval: ReturnType<typeof setInterval> | null = null
   hasActiveVideo = false
   ownerVideoEl: HTMLVideoElement | null = null
@@ -206,8 +234,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   viewerRoomFull = false
   viewerConnecting = false
   liveChatAnnounced = false
+  viewerConnectGen = 0
+  localBroadcastVideoEl: HTMLVideoElement | null = null
   viewerRetryInterval: ReturnType<typeof setInterval> | null = null
+  streamAttachRetryInterval: ReturnType<typeof setInterval> | null = null
+  streamAttachAttempts = 0
   hostJoinLoginPending = false
+  joinDockAutoOpened = false
 
   roomName() {
     return `parcel-${this.parcel.id}`
@@ -227,8 +260,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.broadcastRoom) return
     if (this.streamTargetsThisShowbox()) {
       this.tryAttachExistingStream()
+      if (!this.hasActiveVideo) this.scheduleStreamAttachRetry()
       return
     }
+    this.stopStreamAttachRetry()
     if (!this.hasActiveVideo) return
     this.hasActiveVideo = false
     if (this.isCohostMode()) this.stopCohostComposite()
@@ -250,6 +285,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (!track || !pub.isSubscribed) continue
         this.attachVideoToMesh(track.attach() as HTMLVideoElement)
         this.startBroadcastAudio()
+        this.stopStreamAttachRetry()
         return
       }
     }
@@ -358,7 +394,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (typeof this.description.rolloffFactor === 'number') {
       return this.description.rolloffFactor
     }
-    return 1.2
+    return 0
   }
 
   get audio() {
@@ -371,15 +407,62 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   refreshStreamVolume() {
-    const vol = this.effectiveStreamVolume()
+    const flatVol = this.effectiveStreamVolume()
     for (const el of this.streamAudioEls) {
+      const spatial = this.streamSpatialByEl.get(el)
+      if (spatial) {
+        spatial.volume = this.volume
+      } else {
+        el.volume = flatVol
+      }
+    }
+  }
+
+  disposeStreamSpatial(el: HTMLAudioElement) {
+    const spatial = this.streamSpatialByEl.get(el)
+    if (!spatial) return
+    try {
+      spatial.dispose()
+    } catch {}
+    this.streamSpatialByEl.delete(el)
+  }
+
+  untrackStreamAudio(el: HTMLAudioElement) {
+    const i = this.streamAudioEls.indexOf(el)
+    if (i >= 0) this.streamAudioEls.splice(i, 1)
+    this.disposeStreamSpatial(el)
+  }
+
+  wireStreamSpatial(el: HTMLAudioElement) {
+    if (this.rolloffFactor <= 0 || !this.audio) return false
+    // createMediaElementSource throws if the element is already wired to WebAudio - fall back to flat volume.
+    try {
+      const source = BABYLON.Engine.audioEngine?.audioContext?.createMediaElementSource(el)
+      if (!source) return false
+      const spatial = this.audio.createSpatialAudio({
+        name: 'feature/showbox/stream',
+        outputBus: AudioBus.Parcel,
+        audioNode: source,
+        absolutePosition: this.absolutePosition.clone(),
+        rolloffFactor: this.rolloffFactor,
+      })
+      spatial.volume = this.volume
+      this.streamSpatialByEl.set(el, spatial)
+      el.volume = 1
+      return true
+    } catch {
+      return false
+    }
+    for (const el of this.cohostMonitorEls) {
       el.volume = vol
     }
   }
 
   trackStreamAudio(el: HTMLAudioElement) {
     this.streamAudioEls.push(el)
-    el.volume = this.effectiveStreamVolume()
+    if (!this.wireStreamSpatial(el)) {
+      el.volume = this.effectiveStreamVolume()
+    }
     if (!this.streamVolumeInterval) {
       this.streamVolumeInterval = setInterval(() => this.refreshStreamVolume(), VOLUME_REFRESH_INTERVAL)
     }
@@ -389,6 +472,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.streamVolumeInterval) {
       clearInterval(this.streamVolumeInterval)
       this.streamVolumeInterval = null
+    }
+    for (const el of [...this.streamAudioEls]) {
+      this.disposeStreamSpatial(el)
     }
     this.streamAudioEls = []
   }
@@ -404,6 +490,27 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   hasRemoteBroadcaster() {
     if (!this.streamTargetsThisShowbox()) return false
     return [...((this.livekitRoom as any)?.remoteParticipants?.values() ?? [])].some((p: any) => p?.videoTrackPublications?.size > 0 || p?.audioTrackPublications?.size > 0)
+  }
+
+  // Before we drop __showbox_live, check if another co-host is still publishing.
+  hasOtherLivePublishers() {
+    const room = this.broadcastRoom ?? this.livekitRoom
+    if (!room) return false
+    try {
+      for (const p of (room as any).remoteParticipants?.values() ?? []) {
+        for (const pub of p.videoTrackPublications.values()) {
+          if (pub.track) return true
+        }
+      }
+    } catch {}
+    return false
+  }
+
+  ensureShowboxLiveFlag() {
+    if (!this.broadcastRoom || this.streamTargetsThisShowbox()) return
+    try {
+      this.parcel.sendStatePatch({ __showbox_live: this.uuid })
+    } catch {}
   }
 
   canOpenBroadcastPanel() {
@@ -430,10 +537,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   trackCohostMonitor(el: HTMLAudioElement) {
-    el.volume = 1
+    el.volume = this.effectiveStreamVolume()
     el.style.display = 'none'
     document.body.appendChild(el)
     this.cohostMonitorEls.push(el)
+    // going live tears down the viewer volume poll - restart it so monitors track parcel/showbox volume.
+    if (!this.streamVolumeInterval) {
+      this.streamVolumeInterval = setInterval(() => this.refreshStreamVolume(), VOLUME_REFRESH_INTERVAL)
+    }
   }
 
   clearCohostMonitor() {
@@ -648,6 +759,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
     this.mesh.id = this.mesh.name + '/' + this.uuid
     this.setCommon()
+    this.afterSetCommon = () => {
+      for (const spatial of this.streamSpatialByEl.values()) {
+        spatial.setPosition(this.absolutePosition)
+        spatial.volume = this.volume
+        spatial.rolloffFactor = this.rolloffFactor
+      }
+    }
     this.addEvents()
     this.setPreview()
     if (this.isInCurrentParcel) {
@@ -673,8 +791,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     // Wallet may still be loading from the jwt cookie when onEnter fires; retry after app state settles.
     if (this.broadcastPanel) return
     const tryAutoOpen = () => {
-      if (this.broadcastPanel) return true
+      if (this.broadcastPanel || this.joinDockAutoOpened) return true
       if (isGuestForShowbox(this.uuid)) {
+        this.joinDockAutoOpened = true
+        clearShowboxJoinParams()
         this.openBroadcastPanel()
         return true
       }
@@ -687,6 +807,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           app.showSnackbar('sign in as the parcel owner to use this host link', PanelType.Warning)
           return false
         }
+        this.joinDockAutoOpened = true
+        clearShowboxJoinParams()
         this.openBroadcastPanel()
         return true
       }
@@ -716,6 +838,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           app.showSnackbar('this account cannot host here - use the parcel owner account', PanelType.Warning)
           return
         }
+        this.joinDockAutoOpened = true
+        clearShowboxJoinParams()
         this.openBroadcastPanel()
       }, 500)
     })
@@ -723,6 +847,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   onExit = () => {
     this.stopViewerRetry()
+    this.stopStreamAttachRetry()
     this.viewerRoomFull = false
     if (this.livekitRoom) {
       this.livekitRoom.disconnect()
@@ -748,10 +873,52 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }, VIEWER_RETRY_INTERVAL)
   }
 
+  stopStreamAttachRetry() {
+    if (this.streamAttachRetryInterval) {
+      clearInterval(this.streamAttachRetryInterval)
+      this.streamAttachRetryInterval = null
+    }
+    this.streamAttachAttempts = 0
+  }
+
+  scheduleStreamAttachRetry() {
+    if (this.streamAttachRetryInterval || this.disposed || this.broadcastRoom) return
+    if (!this.streamTargetsThisShowbox()) return
+    this.streamAttachAttempts = 0
+    this.streamAttachRetryInterval = setInterval(() => {
+      if (this.disposed || !this.isInCurrentParcel || this.broadcastRoom) {
+        this.stopStreamAttachRetry()
+        return
+      }
+      if (!this.streamTargetsThisShowbox()) {
+        this.stopStreamAttachRetry()
+        return
+      }
+      if (this.hasActiveVideo) {
+        this.stopStreamAttachRetry()
+        return
+      }
+      this.tryAttachExistingStream()
+      if (this.hasActiveVideo) {
+        this.stopStreamAttachRetry()
+        return
+      }
+      this.streamAttachAttempts++
+      if (this.streamAttachAttempts >= STREAM_ATTACH_RECONNECT_AFTER && this.livekitRoom && !this.viewerConnecting) {
+        this.viewerConnectGen++
+        this.livekitRoom.disconnect()
+        this.livekitRoom = null
+        this.stopStreamAttachRetry()
+        this.connectViewer()
+      }
+    }, STREAM_ATTACH_RETRY_MS)
+  }
+
   dispose() {
     this._dispose()
     this.stopMilestonePoll()
     this.stopViewerRetry()
+    this.stopStreamAttachRetry()
     this.viewerRoomFull = false
     this.livekitRoom?.disconnect()
     this.livekitRoom = null
@@ -766,6 +933,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   setPreview() {
     if (this.disposed) return
+    if (this.broadcastRoom && this.localBroadcastVideoEl) {
+      this.attachVideoToMesh(this.localBroadcastVideoEl, true)
+      return
+    }
     if (this.broadcastRoom) return
     if (this.hasActiveVideo) return
     const w = 640
@@ -785,7 +956,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     if (hasRemoteBroadcaster && !(this.isCohostMode() && this.canOpenBroadcastPanel())) {
       ctx.fillStyle = '#888'
-      ctx.fillText('connecting to stream...', w / 2, h / 2)
+      ctx.fillText(mobile && !this.hasActiveVideo ? 'tap to listen' : 'connecting to stream...', w / 2, h / 2)
     } else if (this.parcel.canEdit || isGuestForShowbox(this.uuid)) {
       ctx.fillText('showbox', w / 2, h / 2 - 20)
       const cta = '\u25CF click here to go live'
@@ -803,9 +974,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       ctx.fillText('this show is full', w / 2, h / 2 - 14)
       ctx.fillStyle = '#888'
       ctx.fillText('hang tight -- retrying for a spot', w / 2, h / 2 + 14)
-    } else if (mobile && this.livekitRoom) {
+    } else if (mobile && this.livekitRoom && this.streamTargetsThisShowbox()) {
       ctx.fillStyle = '#888'
-      ctx.fillText('tap screen to listen', w / 2, h / 2)
+      ctx.fillText('connecting to stream...', w / 2, h / 2)
     } else {
       ctx.fillStyle = '#888'
       ctx.fillText('no stream active', w / 2, h / 2)
@@ -827,6 +998,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   async connectViewer() {
     if (this.livekitRoom || this.viewerConnecting) return
+    const gen = ++this.viewerConnectGen
     this.viewerConnecting = true
     const res = await fetch(`/api/rooms/${this.roomName()}/token`, { credentials: 'include' })
       .then((r) => r.json())
@@ -869,6 +1041,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           this.attachVideoToMesh(track.attach() as HTMLVideoElement)
         }
         this.startBroadcastAudio()
+        this.stopStreamAttachRetry()
       }
     })
 
@@ -891,8 +1064,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
       if (track.kind === Track.Kind.Audio) {
         track.detach().forEach((node) => {
-          const i = this.streamAudioEls.indexOf(node as HTMLAudioElement)
-          if (i >= 0) this.streamAudioEls.splice(i, 1)
+          this.untrackStreamAudio(node as HTMLAudioElement)
         })
         if (!this.streamAudioEls.length) {
           if (this.streamVolumeInterval) {
@@ -912,7 +1084,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         return
       }
-      if (!this.broadcastRoom) this.setPreview()
+      if (!this.broadcastRoom && !this.hasActiveVideo) this.setPreview()
     })
 
     room.on(RoomEvent.AudioPlaybackStatusChanged, (playing) => {
@@ -923,10 +1095,16 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
     })
 
-    room.on(RoomEvent.ParticipantConnected, () => this.setPreview())
-    room.on(RoomEvent.ParticipantDisconnected, () => {
-      if (this.isCohostMode()) this.updateCohostComposite()
+    room.on(RoomEvent.ParticipantConnected, () => {
+      if (!this.broadcastRoom) this.tryAttachExistingStream()
       this.setPreview()
+    })
+    room.on(RoomEvent.ParticipantDisconnected, () => {
+      if (this.isCohostMode()) {
+        this.updateCohostComposite()
+        this.ensureShowboxLiveFlag()
+      }
+      if (!this.hasActiveVideo) this.setPreview()
     })
 
     try {
@@ -942,6 +1120,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
     } finally {
       this.viewerConnecting = false
+      if (gen !== this.viewerConnectGen) return
       if (this.isCohostMode() && this.broadcastRoom && this.livekitRoom) {
         this.syncExistingCohostVideos()
         this.syncExistingCohostAudio()
@@ -951,6 +1130,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.livekitRoom.disconnect()
         this.livekitRoom = null
       }
+      if (this.streamTargetsThisShowbox() && !this.broadcastRoom) {
+        this.tryAttachExistingStream()
+        if (!this.hasActiveVideo) this.scheduleStreamAttachRetry()
+      }
       this.setPreview()
     }
   }
@@ -959,6 +1142,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (!this.livekitRoom) return
     this.livekitRoom.startAudio().catch(() => {})
     this.audio?.addUserAudioReference(this)
+  }
+
+  unblockAudiencePlayback() {
+    if (this.broadcastRoom || !this.livekitRoom) return
+    this.startBroadcastAudio()
+    this.tryAttachExistingStream()
+    if (this.streamTargetsThisShowbox() && !this.hasActiveVideo) this.scheduleStreamAttachRetry()
   }
 
   gestureUnblockArmed = false
@@ -1065,15 +1255,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   stopBroadcast(silent = false) {
     this.liveChatAnnounced = false
     this.stopMilestonePoll()
+    const othersLive = this.hasOtherLivePublishers()
     try {
       const patch: Record<string, any> = { [this.uuid]: {} }
-      if (this.activeLiveShowboxUuid() === this.uuid) patch.__showbox_live = null
+      if (this.activeLiveShowboxUuid() === this.uuid && !othersLive) patch.__showbox_live = null
       this.parcel.sendStatePatch(patch)
     } catch {}
     this.stopThumbCapture(silent)
     this.clearCohostMonitor()
     this.broadcastRoom?.disconnect()
     this.broadcastRoom = null
+    this.localBroadcastVideoEl = null
     this.hasActiveVideo = false
     this.cohostCompositeAttached = false
     this.syncCohostPreview = null
@@ -1109,6 +1301,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.broadcastPanel = null
       this.stopBroadcast()
       return
+    }
+
+    if ((wantsHostJoin(this.uuid) || isGuestForShowbox(this.uuid)) && !this.joinDockAutoOpened) {
+      this.joinDockAutoOpened = true
+      clearShowboxJoinParams()
     }
 
     exitPointerLock()
@@ -1475,6 +1672,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       panel.remove()
       this.broadcastPanel = null
       this.stopBroadcast()
+      this.setPreview()
     }
 
     const row = document.createElement('div')
@@ -1578,6 +1776,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (!t) return
         window.connector?.sendMessage(t)
         chatInput.value = ''
+        chatInput.blur()
       }
       chatSend.onclick = sendDockChat
       chatInput.onkeydown = (e) => {
@@ -1650,6 +1849,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     // Live track refs + audio meter rewiring. Both updated on initial publish and on mid-stream device swap.
     let liveVideoTrack: any = null
     let liveAudioTrack: any = null
+    let acquiredTracks: any[] | null = null
     let meterFillEl: HTMLDivElement | null = null
     const wireAudioMeter = (mst: MediaStreamTrack | undefined | null) => {
       if (this.audioMeterRaf) {
@@ -1758,6 +1958,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
       status.textContent = 'connecting...'
       goBtn.disabled = true
+      this.viewerConnectGen++
+      if (!this.isCohostMode() && this.livekitRoom) {
+        this.livekitRoom.disconnect()
+        this.livekitRoom = null
+      }
 
       try {
         const tokenRes = await fetch(`/api/rooms/${this.roomName()}/token`, { credentials: 'include' })
@@ -1769,16 +1974,36 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           throw new Error('no permission to broadcast here - sign in as parcel owner or use a guest link')
         }
 
+        // Acquire camera/screenshare BEFORE going live: the permission prompt can sit open for a while,
+        // and we don't want the audience staring at "connecting..." for a stream that may never start.
+        // Nothing is connected or flagged live yet, so a denial/cancel needs no teardown.
+        let tracks: any[]
+        try {
+          if (screenChk.checked) {
+            tracks = await createLocalScreenTracks({ audio: true })
+          } else {
+            tracks = await createLocalTracks({
+              video: { deviceId: camSel.value || undefined },
+              audio: { deviceId: micSel.value || undefined },
+            })
+          }
+        } catch (err) {
+          // empty message = silent reset (user cancelled the screenshare picker). camera errors get a plain-language nudge.
+          throw new Error(screenChk.checked ? '' : cameraErrorMessage(err))
+        }
+        acquiredTracks = tracks
+
+        const videoTrack = tracks.find((t) => t.kind === Track.Kind.Video)
+        if (!videoTrack) {
+          throw new Error('showbox needs a camera or screenshare. for audio only, drop a Boombox instead.')
+        }
+
         if (this.isCohostMode() && !this.livekitRoom) {
           await this.connectViewer()
         }
 
         const room = new Room()
         this.broadcastRoom = room
-        if (!this.isCohostMode() && this.livekitRoom) {
-          this.livekitRoom.disconnect()
-          this.livekitRoom = null
-        }
         room.on(RoomEvent.Disconnected, () => {
           if (!this.broadcastRoom) return
           status.textContent = 'disconnected'
@@ -1786,16 +2011,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         })
         await room.connect(LIVEKIT_URL, res.token)
         this.parcel.sendStatePatch({ [this.uuid]: { live: 1 }, __showbox_live: this.uuid })
-
-        let tracks: any[]
-        if (screenChk.checked) {
-          tracks = await createLocalScreenTracks({ audio: true })
-        } else {
-          tracks = await createLocalTracks({
-            video: { deviceId: camSel.value || undefined },
-            audio: { deviceId: micSel.value || undefined },
-          })
-        }
 
         for (const t of tracks) {
           await room.localParticipant.publishTrack(t)
@@ -1805,8 +2020,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           status.textContent = 'live but no mic - check browser permissions'
         }
 
-        const videoTrack = tracks.find((t) => t.kind === Track.Kind.Video)
-        liveVideoTrack = videoTrack ?? null
+        liveVideoTrack = videoTrack
         liveAudioTrack = tracks.find((t) => t.kind === Track.Kind.Audio) ?? null
         if (videoTrack) {
           const el = videoTrack.attach() as HTMLVideoElement
@@ -1819,14 +2033,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             this.updateCohostComposite()
             this.startThumbCapture()
           } else {
+            this.localBroadcastVideoEl = el
             this.attachVideoToMesh(el, true)
             this.startThumbCapture(el)
           }
-        }
-
-        if (!this.isCohostMode() && this.livekitRoom) {
-          this.livekitRoom.disconnect()
-          this.livekitRoom = null
         }
 
         this.audio?.addUserAudioReference(this)
@@ -1970,6 +2180,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         goBtn.disabled = false
         this.broadcastRoom?.disconnect()
         this.broadcastRoom = null
+        for (const t of acquiredTracks ?? []) {
+          try {
+            t.stop()
+          } catch {}
+        }
         if (this.activeLiveShowboxUuid() === this.uuid) {
           try {
             this.parcel.sendStatePatch({ [this.uuid]: {}, __showbox_live: null })
@@ -1986,12 +2201,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (guest || this.parcel.canEdit) {
           this.openBroadcastPanel()
         } else {
-          this.startBroadcastAudio()
+          this.unblockAudiencePlayback()
         }
       } else if (!this.hasRemoteBroadcaster() && (guest || this.parcel.canEdit)) {
         this.openBroadcastPanel()
       } else {
-        this.startBroadcastAudio()
+        this.unblockAudiencePlayback()
       }
     }
     this.parcelScript?.dispatch('click', this, {})
@@ -2038,7 +2253,7 @@ class Editor extends FeatureEditor<Showbox> {
             <div className="f">
               <label>Spatial Rolloff Factor</label>
               <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onChange={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
-              <small>How quickly sound fades as players move away</small>
+              <small>0 = heard everywhere in the parcel. Higher = fades as you walk away from the screen.</small>
             </div>
             <div className="f">
               <label>Volume</label>
@@ -2108,6 +2323,9 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
         return false
       }
       this.setState({ passes: j.passes ?? [], loading: false, error: null })
+      if (!(j.passes ?? []).some((p: Pass) => !p.revoked_at)) {
+        this.props.onGuestModeChange(DEFAULT_GUEST_MODE)
+      }
       return true
     } catch {
       if (gen !== this.refreshGen) return false
@@ -2178,6 +2396,7 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
       this.setState((s) => ({
         passes: [...revoked, ...s.passes.filter((p) => !revoked.some((r) => r.token === p.token))],
       }))
+      this.props.onGuestModeChange(DEFAULT_GUEST_MODE)
       app.showSnackbar('guest link revoked', PanelType.Success)
     } catch (e: any) {
       this.setState({ error: e?.message ?? 'could not revoke link' })

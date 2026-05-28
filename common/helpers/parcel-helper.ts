@@ -314,9 +314,9 @@ export function featurePlayCoords(parcel: ParcelHelper, position: [number, numbe
   const standoff = opts?.standoff ?? 0
   const lateral = opts?.lateral ?? 0
   const yaw = rotation?.[1] ?? 0
-  const px = position[0] - Math.sin(yaw) * standoff + Math.cos(yaw) * lateral
+  const px = position[0] + Math.sin(yaw) * standoff + Math.cos(yaw) * lateral
   const py = position[1]
-  const pz = position[2] - Math.cos(yaw) * standoff - Math.sin(yaw) * lateral
+  const pz = position[2] + Math.cos(yaw) * standoff - Math.sin(yaw) * lateral
 
   const z = roundHalf(parcel.center[1] * 100 + pz)
   const x = roundHalf(parcel.center[0] * 100 + px)
@@ -342,8 +342,8 @@ export function featurePlayCoordsFromRecord(parcel: Partial<FullParcelRecord> | 
 // Showbox links: parcel floor Y. Lateral matches co-host layout (host/solo guest left, co-host guest right).
 const SHOWBOX_BROADCAST_STANDOFF = 1.5
 const SHOWBOX_AUDIENCE_STANDOFF = 3.5
-const SHOWBOX_HOST_LATERAL = 1
-const SHOWBOX_GUEST_LATERAL = -1
+const SHOWBOX_HOST_LATERAL = -1
+const SHOWBOX_GUEST_LATERAL = 1
 const SHOWBOX_AUDIENCE_LATERAL = 0.75
 
 function showboxFloorFeature(feature: { position?: number[] | null; rotation?: number[] | null }) {

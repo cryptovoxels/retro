@@ -420,17 +420,11 @@ div.magic-frame {
   box-sizing: border-box;
   box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3);
 
-  div.block {
+  .magic-frame-hit {
     position: absolute;
-    background: black;
-    top: 0;
-    left: 0;
-    right: 0;
-    margin: 0;
-    height: 30px;
-    z-index: 3;
+    inset: 0;
+    z-index: 2;
     cursor: pointer;
-    text-align: right;
   }
 
   iframe {
@@ -440,26 +434,35 @@ div.magic-frame {
     border: none;
   }
 
-  #magic-frame-close {
+  .magic-frame-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 3;
+    color: white;
+    padding: 0.4rem 0.6rem;
+    font-size: 1rem;
+    line-height: 1;
     background: none;
     border: none;
-    display: inline-block;
-    font-size: 30px;
-    font-weight: bold;
-    line-height: 30px;
-    border-left: 1px solid white;
     cursor: pointer;
-    font-weight: bold;
-    color: white;
+    pointer-events: auto;
+    text-shadow: 1px 1px 2px black;
 
     &:hover {
-      background: white;
-      color: black;
+      font-weight: bold;
+      background: none;
     }
   }
 
   &.attached {
-    div.block {
+    box-shadow: none;
+
+    .magic-frame-hit {
+      display: none;
+    }
+
+    .magic-frame-close {
       display: none;
     }
 
