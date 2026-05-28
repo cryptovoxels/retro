@@ -840,7 +840,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     if (hasRemoteBroadcaster && !(this.isCohostMode() && this.canOpenBroadcastPanel())) {
       ctx.fillStyle = '#888'
-      ctx.fillText('connecting to stream...', w / 2, h / 2)
+      ctx.fillText(mobile && !this.hasActiveVideo ? 'tap to listen' : 'connecting to stream...', w / 2, h / 2)
     } else if (this.parcel.canEdit || isGuestForShowbox(this.uuid)) {
       ctx.fillText('showbox', w / 2, h / 2 - 20)
       const cta = '\u25CF click here to go live'
@@ -858,9 +858,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       ctx.fillText('this show is full', w / 2, h / 2 - 14)
       ctx.fillStyle = '#888'
       ctx.fillText('hang tight -- retrying for a spot', w / 2, h / 2 + 14)
-    } else if (mobile && this.livekitRoom) {
+    } else if (mobile && this.livekitRoom && this.streamTargetsThisShowbox()) {
       ctx.fillStyle = '#888'
-      ctx.fillText('tap screen to listen', w / 2, h / 2)
+      ctx.fillText('connecting to stream...', w / 2, h / 2)
     } else {
       ctx.fillStyle = '#888'
       ctx.fillText('no stream active', w / 2, h / 2)
@@ -1024,6 +1024,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (!this.livekitRoom) return
     this.livekitRoom.startAudio().catch(() => {})
     this.audio?.addUserAudioReference(this)
+  }
+
+  unblockAudiencePlayback() {
+    if (this.broadcastRoom || !this.livekitRoom) return
+    this.startBroadcastAudio()
+    this.tryAttachExistingStream()
+    if (this.streamTargetsThisShowbox() && !this.hasActiveVideo) this.scheduleStreamAttachRetry()
   }
 
   gestureUnblockArmed = false
@@ -2037,12 +2044,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (guest || this.parcel.canEdit) {
           this.openBroadcastPanel()
         } else {
-          this.startBroadcastAudio()
+          this.unblockAudiencePlayback()
         }
       } else if (!this.hasRemoteBroadcaster() && (guest || this.parcel.canEdit)) {
         this.openBroadcastPanel()
       } else {
-        this.startBroadcastAudio()
+        this.unblockAudiencePlayback()
       }
     }
     this.parcelScript?.dispatch('click', this, {})
