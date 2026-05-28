@@ -118,7 +118,7 @@ export class ChatOverlay extends Component<Props, State> {
 }
 
 const CONGA_CMD_PATTERN = /\/conga\b/
-const CONGA_INVITE_PATTERN = /\[\[conga:([0-9a-f-]{36})\]\]/gi
+const CHAT_INVITE_PATTERN = /\[\[(conga|show):([^\]]+)\]\]/gi
 
 function decodeChatHtmlEntities(encoded: string): string {
   const el = document.createElement('textarea')
@@ -185,27 +185,29 @@ const ChatText = ({ text }: { text: string }) => {
 }
 
 const CongaText = ({ text }: { text: string }) => {
-  if (CONGA_INVITE_PATTERN.test(text)) {
-    CONGA_INVITE_PATTERN.lastIndex = 0
+  if (CHAT_INVITE_PATTERN.test(text)) {
+    CHAT_INVITE_PATTERN.lastIndex = 0
     const parts: JSX.Element[] = []
     let last = 0
     let k = 0
     let m: RegExpExecArray | null
-    while ((m = CONGA_INVITE_PATTERN.exec(text)) !== null) {
+    while ((m = CHAT_INVITE_PATTERN.exec(text)) !== null) {
       if (m.index > last)
         parts.push(
           <Fragment key={k++}>
             <SlashCongaLinks text={text.slice(last, m.index)} />
           </Fragment>,
         )
-      const uuid = m[1] as string
-      const onJoin = (e: Event) => {
+      const kind = m[1]
+      const payload = m[2] as string
+      const onClick = (e: Event) => {
         e.preventDefault()
-        window.connector.joinCongaFromInvitation(uuid)
+        if (kind === 'conga') window.connector.joinCongaFromInvitation(payload)
+        else window.connector.joinShowFromInvitation(payload)
       }
       parts.push(
-        <a key={k++} href="#" onClick={onJoin} style="text-decoration: underline; cursor: pointer;">
-          Join
+        <a key={k++} href="#" onClick={onClick} style="text-decoration: underline; cursor: pointer;">
+          {kind === 'conga' ? 'Join' : 'Watch'}
         </a>,
       )
       last = m.index + m[0].length

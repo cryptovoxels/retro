@@ -233,6 +233,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   lastCelebrateN = 0
   viewerRoomFull = false
   viewerConnecting = false
+  liveChatAnnounced = false
   viewerConnectGen = 0
   localBroadcastVideoEl: HTMLVideoElement | null = null
   viewerRetryInterval: ReturnType<typeof setInterval> | null = null
@@ -1240,7 +1241,19 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
   }
 
+  announceLiveInChat() {
+    if (this.liveChatAnnounced || !window.connector) return
+    const hostName = (app.state.name || '').trim()
+    if (!hostName) return
+    const pos = this.absolutePosition ?? new BABYLON.Vector3((this.parcel.x1 + this.parcel.x2) / 2, this.parcel.y1, (this.parcel.z1 + this.parcel.z2) / 2)
+    const encoded = encodeCoords({ position: pos, rotation: new BABYLON.Vector3(0, 0, 0) })
+    const location = this.parcel.name || this.parcel.address || 'the world'
+    window.connector.announceShowLive(hostName, location, encoded)
+    this.liveChatAnnounced = true
+  }
+
   stopBroadcast(silent = false) {
+    this.liveChatAnnounced = false
     this.stopMilestonePoll()
     const othersLive = this.hasOtherLivePublishers()
     try {
@@ -2160,6 +2173,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         setMobileDockLayout(true)
         setDesktopDockLayout(true)
         renderDockChat?.()
+        this.announceLiveInChat()
         this.startMilestonePoll()
       } catch (e) {
         status.textContent = e instanceof Error ? e.message : 'failed to connect'

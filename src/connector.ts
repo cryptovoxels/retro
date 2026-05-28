@@ -14,6 +14,7 @@ import { createEvent, TypedEventTarget } from './utils/EventEmitter'
 import { ConnectionState } from './utils/socket-client'
 import { Transform } from './utils/transform'
 import { signal } from '@preact/signals'
+import { decodeCoords } from '../common/helpers/utils'
 
 const UPDATE_AVATAR_INTERVAL_MS = 200
 
@@ -802,6 +803,34 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     }
 
     this.send(message)
+  }
+
+  /** Shard chat blast when a showbox goes live (Watch link uses encoded coords). */
+  announceShowLive(hostName: string, location: string, encodedCoords: string) {
+    const name = hostName.trim()
+    const coords = encodedCoords.trim()
+    if (!name || !coords) return
+    const announcement: messages.ChatMessage = {
+      type: messages.MessageType.chat,
+      id: '',
+      uuid: this.persona.uuid,
+      text: entityEncode(`${name} is live at ${location}. Watch. [[show:${coords}]]`),
+    }
+    this.send(announcement)
+  }
+
+  /** Chat "Watch" link: teleport to the showbox, or open /play?coords= if that fails. */
+  joinShowFromInvitation(encodedCoords: string) {
+    const coords = encodedCoords.trim()
+    if (!coords) return
+    try {
+      this.persona.teleportNoHistory(decodeCoords(coords))
+    } catch {
+      try {
+        const url = `${window.location.origin}/play?coords=${encodeURIComponent(coords)}`
+        window.location.assign(url)
+      } catch {}
+    }
   }
 
   /** Chat "Join" link or programmatic join: teleport if far, then follow the leader (uuid). */
