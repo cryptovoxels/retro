@@ -79,6 +79,15 @@ function isRoomFullError(e: unknown) {
   return msg.includes('room is full') || (msg.includes('participant') && (msg.includes('limit') || msg.includes('max') || msg.includes('full')))
 }
 
+// getUserMedia failure -> plain-language nudge. Showbox is a video feature, so audio-only is not an option here.
+function cameraErrorMessage(e: unknown): string {
+  const name = (e as { name?: string } | null)?.name ?? ''
+  if (name === 'NotAllowedError' || name === 'SecurityError') return 'camera blocked - allow camera access in your browser, then go live again.'
+  if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'no camera found - plug one in or tick "use screenshare instead". for audio only, drop a Boombox.'
+  if (name === 'NotReadableError' || name === 'AbortError') return 'your camera is busy in another app - close it and try again.'
+  return 'could not start your camera - check browser permissions, then go live again.'
+}
+
 // True when the page was opened via /live/:token and the guest pass targets this showbox.
 // The synthetic wallet `guest:*` and `?show=<uuid>` are both set by the server on redeem.
 function guestJwtPayload(): { wallet?: string; guest_pass?: string; feature_uuid?: string } | null {
@@ -1775,13 +1784,28 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.parcel.sendStatePatch({ [this.uuid]: { live: 1 }, __showbox_live: this.uuid })
 
         let tracks: any[]
-        if (screenChk.checked) {
-          tracks = await createLocalScreenTracks({ audio: true })
-        } else {
-          tracks = await createLocalTracks({
-            video: { deviceId: camSel.value || undefined },
-            audio: { deviceId: micSel.value || undefined },
-          })
+        try {
+          if (screenChk.checked) {
+            tracks = await createLocalScreenTracks({ audio: true })
+          } else {
+            tracks = await createLocalTracks({
+              video: { deviceId: camSel.value || undefined },
+              audio: { deviceId: micSel.value || undefined },
+            })
+          }
+        } catch (err) {
+          // empty message = silent reset (user cancelled the screenshare picker). camera errors get a plain-language nudge.
+          throw new Error(screenChk.checked ? '' : cameraErrorMessage(err))
+        }
+
+        const videoTrack = tracks.find((t) => t.kind === Track.Kind.Video)
+        if (!videoTrack) {
+          for (const t of tracks) {
+            try {
+              t.stop()
+            } catch {}
+          }
+          throw new Error('showbox needs a camera or screenshare. for audio only, drop a Boombox instead.')
         }
 
         for (const t of tracks) {
@@ -1792,8 +1816,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           status.textContent = 'live but no mic - check browser permissions'
         }
 
-        const videoTrack = tracks.find((t) => t.kind === Track.Kind.Video)
-        liveVideoTrack = videoTrack ?? null
+        liveVideoTrack = videoTrack
         liveAudioTrack = tracks.find((t) => t.kind === Track.Kind.Audio) ?? null
         if (videoTrack) {
           const el = videoTrack.attach() as HTMLVideoElement
