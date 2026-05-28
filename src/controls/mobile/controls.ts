@@ -117,12 +117,18 @@ export function viewportChangeHandler() {
     return
   }
 
-  const height = window.visualViewport?.height ?? window.innerHeight
+  const viewHeight = window.visualViewport?.height ?? window.innerHeight
+  const keyboardUp = viewHeight < initialHeight - 30
+  const input = document.activeElement
+  const typing = input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement
 
-  // Viewport height is significantly lower (keyboard is up)
-  if (height < initialHeight - 30) {
+  // Only stretch body while the keyboard is up and a field is focused. Otherwise reset
+  // or the canvas + dpad scroll off-screen when send blurs the input.
+  if (keyboardUp && typing) {
     document.body.style.height = initialHeight + 'px'
   } else {
     resetMobileViewportLayout()
   }
+
+  window.engine?.resize()
 }

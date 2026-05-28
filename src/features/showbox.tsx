@@ -1591,6 +1591,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (!t) return
         window.connector?.sendMessage(t)
         chatInput.value = ''
+        chatInput.blur()
       }
       chatSend.onclick = sendDockChat
       chatInput.onkeydown = (e) => {
