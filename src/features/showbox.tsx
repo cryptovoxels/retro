@@ -438,6 +438,27 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return [...((this.livekitRoom as any)?.remoteParticipants?.values() ?? [])].some((p: any) => p?.videoTrackPublications?.size > 0 || p?.audioTrackPublications?.size > 0)
   }
 
+  // Before we drop __showbox_live, check if another co-host is still publishing.
+  hasOtherLivePublishers() {
+    const room = this.broadcastRoom ?? this.livekitRoom
+    if (!room) return false
+    try {
+      for (const p of (room as any).remoteParticipants?.values() ?? []) {
+        for (const pub of p.videoTrackPublications.values()) {
+          if (pub.track) return true
+        }
+      }
+    } catch {}
+    return false
+  }
+
+  ensureShowboxLiveFlag() {
+    if (!this.broadcastRoom || this.streamTargetsThisShowbox()) return
+    try {
+      this.parcel.sendStatePatch({ __showbox_live: this.uuid })
+    } catch {}
+  }
+
   canOpenBroadcastPanel() {
     return isGuestForShowbox(this.uuid) || this.parcel.canEdit
   }
@@ -999,7 +1020,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         return
       }
-      if (!this.broadcastRoom) this.setPreview()
+      if (!this.broadcastRoom && !this.hasActiveVideo) this.setPreview()
     })
 
     room.on(RoomEvent.AudioPlaybackStatusChanged, (playing) => {
@@ -1015,8 +1036,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.setPreview()
     })
     room.on(RoomEvent.ParticipantDisconnected, () => {
-      if (this.isCohostMode()) this.updateCohostComposite()
-      this.setPreview()
+      if (this.isCohostMode()) {
+        this.updateCohostComposite()
+        this.ensureShowboxLiveFlag()
+      }
+      if (!this.hasActiveVideo) this.setPreview()
     })
 
     try {
@@ -1155,9 +1179,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   stopBroadcast(silent = false) {
     this.stopMilestonePoll()
+    const othersLive = this.hasOtherLivePublishers()
     try {
       const patch: Record<string, any> = { [this.uuid]: {} }
-      if (this.activeLiveShowboxUuid() === this.uuid) patch.__showbox_live = null
+      if (this.activeLiveShowboxUuid() === this.uuid && !othersLive) patch.__showbox_live = null
       this.parcel.sendStatePatch(patch)
     } catch {}
     this.stopThumbCapture(silent)
