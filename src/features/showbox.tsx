@@ -1646,6 +1646,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     // Live track refs + audio meter rewiring. Both updated on initial publish and on mid-stream device swap.
     let liveVideoTrack: any = null
     let liveAudioTrack: any = null
+    let acquiredTracks: any[] | null = null
     let meterFillEl: HTMLDivElement | null = null
     const wireAudioMeter = (mst: MediaStreamTrack | undefined | null) => {
       if (this.audioMeterRaf) {
@@ -1765,6 +1766,30 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           throw new Error('no permission to broadcast here - sign in as parcel owner or use a guest link')
         }
 
+        // Acquire camera/screenshare BEFORE going live: the permission prompt can sit open for a while,
+        // and we don't want the audience staring at "connecting..." for a stream that may never start.
+        // Nothing is connected or flagged live yet, so a denial/cancel needs no teardown.
+        let tracks: any[]
+        try {
+          if (screenChk.checked) {
+            tracks = await createLocalScreenTracks({ audio: true })
+          } else {
+            tracks = await createLocalTracks({
+              video: { deviceId: camSel.value || undefined },
+              audio: { deviceId: micSel.value || undefined },
+            })
+          }
+        } catch (err) {
+          // empty message = silent reset (user cancelled the screenshare picker). camera errors get a plain-language nudge.
+          throw new Error(screenChk.checked ? '' : cameraErrorMessage(err))
+        }
+        acquiredTracks = tracks
+
+        const videoTrack = tracks.find((t) => t.kind === Track.Kind.Video)
+        if (!videoTrack) {
+          throw new Error('showbox needs a camera or screenshare. for audio only, drop a Boombox instead.')
+        }
+
         if (this.isCohostMode() && !this.livekitRoom) {
           await this.connectViewer()
         }
@@ -1782,31 +1807,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         })
         await room.connect(LIVEKIT_URL, res.token)
         this.parcel.sendStatePatch({ [this.uuid]: { live: 1 }, __showbox_live: this.uuid })
-
-        let tracks: any[]
-        try {
-          if (screenChk.checked) {
-            tracks = await createLocalScreenTracks({ audio: true })
-          } else {
-            tracks = await createLocalTracks({
-              video: { deviceId: camSel.value || undefined },
-              audio: { deviceId: micSel.value || undefined },
-            })
-          }
-        } catch (err) {
-          // empty message = silent reset (user cancelled the screenshare picker). camera errors get a plain-language nudge.
-          throw new Error(screenChk.checked ? '' : cameraErrorMessage(err))
-        }
-
-        const videoTrack = tracks.find((t) => t.kind === Track.Kind.Video)
-        if (!videoTrack) {
-          for (const t of tracks) {
-            try {
-              t.stop()
-            } catch {}
-          }
-          throw new Error('showbox needs a camera or screenshare. for audio only, drop a Boombox instead.')
-        }
 
         for (const t of tracks) {
           await room.localParticipant.publishTrack(t)
@@ -1979,6 +1979,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         goBtn.disabled = false
         this.broadcastRoom?.disconnect()
         this.broadcastRoom = null
+        for (const t of acquiredTracks ?? []) {
+          try {
+            t.stop()
+          } catch {}
+        }
         if (this.activeLiveShowboxUuid() === this.uuid) {
           try {
             this.parcel.sendStatePatch({ [this.uuid]: {}, __showbox_live: null })
