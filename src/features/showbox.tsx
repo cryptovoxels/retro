@@ -153,6 +153,8 @@ function syncGuestDisplayName(name: string) {
 
 type GuestMode = 'solo' | 'cohost'
 
+const DEFAULT_GUEST_MODE: GuestMode = 'solo'
+
 function cohostIdentityPrefix(identity: string) {
   const i = identity.lastIndexOf('-')
   return i > 0 ? identity.slice(0, i) : identity
@@ -2094,6 +2096,9 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
         return false
       }
       this.setState({ passes: j.passes ?? [], loading: false, error: null })
+      if (!(j.passes ?? []).some((p: Pass) => !p.revoked_at)) {
+        this.props.onGuestModeChange(DEFAULT_GUEST_MODE)
+      }
       return true
     } catch {
       if (gen !== this.refreshGen) return false
@@ -2164,6 +2169,7 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
       this.setState((s) => ({
         passes: [...revoked, ...s.passes.filter((p) => !revoked.some((r) => r.token === p.token))],
       }))
+      this.props.onGuestModeChange(DEFAULT_GUEST_MODE)
       app.showSnackbar('guest link revoked', PanelType.Success)
     } catch (e: any) {
       this.setState({ error: e?.message ?? 'could not revoke link' })
