@@ -79,6 +79,15 @@ function isRoomFullError(e: unknown) {
   return msg.includes('room is full') || (msg.includes('participant') && (msg.includes('limit') || msg.includes('max') || msg.includes('full')))
 }
 
+// getUserMedia failure -> plain-language nudge. Showbox is a video feature, so audio-only is not an option here.
+function cameraErrorMessage(e: unknown): string {
+  const name = (e as { name?: string } | null)?.name ?? ''
+  if (name === 'NotAllowedError' || name === 'SecurityError') return 'camera blocked - allow camera access in your browser, then go live again.'
+  if (name === 'NotFoundError' || name === 'OverconstrainedError') return 'no camera found - plug one in or tick "use screenshare instead". for audio only, drop a Boombox.'
+  if (name === 'NotReadableError' || name === 'AbortError') return 'your camera is busy in another app - close it and try again.'
+  return 'could not start your camera - check browser permissions, then go live again.'
+}
+
 // True when the page was opened via /live/:token and the guest pass targets this showbox.
 // The synthetic wallet `guest:*` and `?show=<uuid>` are both set by the server on redeem.
 function guestJwtPayload(): { wallet?: string; guest_pass?: string; feature_uuid?: string } | null {
@@ -1664,6 +1673,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     // Live track refs + audio meter rewiring. Both updated on initial publish and on mid-stream device swap.
     let liveVideoTrack: any = null
     let liveAudioTrack: any = null
+    let acquiredTracks: any[] | null = null
     let meterFillEl: HTMLDivElement | null = null
     const wireAudioMeter = (mst: MediaStreamTrack | undefined | null) => {
       if (this.audioMeterRaf) {
@@ -1783,6 +1793,30 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           throw new Error('no permission to broadcast here - sign in as parcel owner or use a guest link')
         }
 
+        // Acquire camera/screenshare BEFORE going live: the permission prompt can sit open for a while,
+        // and we don't want the audience staring at "connecting..." for a stream that may never start.
+        // Nothing is connected or flagged live yet, so a denial/cancel needs no teardown.
+        let tracks: any[]
+        try {
+          if (screenChk.checked) {
+            tracks = await createLocalScreenTracks({ audio: true })
+          } else {
+            tracks = await createLocalTracks({
+              video: { deviceId: camSel.value || undefined },
+              audio: { deviceId: micSel.value || undefined },
+            })
+          }
+        } catch (err) {
+          // empty message = silent reset (user cancelled the screenshare picker). camera errors get a plain-language nudge.
+          throw new Error(screenChk.checked ? '' : cameraErrorMessage(err))
+        }
+        acquiredTracks = tracks
+
+        const videoTrack = tracks.find((t) => t.kind === Track.Kind.Video)
+        if (!videoTrack) {
+          throw new Error('showbox needs a camera or screenshare. for audio only, drop a Boombox instead.')
+        }
+
         if (this.isCohostMode() && !this.livekitRoom) {
           await this.connectViewer()
         }
@@ -1801,16 +1835,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         await room.connect(LIVEKIT_URL, res.token)
         this.parcel.sendStatePatch({ [this.uuid]: { live: 1 }, __showbox_live: this.uuid })
 
-        let tracks: any[]
-        if (screenChk.checked) {
-          tracks = await createLocalScreenTracks({ audio: true })
-        } else {
-          tracks = await createLocalTracks({
-            video: { deviceId: camSel.value || undefined },
-            audio: { deviceId: micSel.value || undefined },
-          })
-        }
-
         for (const t of tracks) {
           await room.localParticipant.publishTrack(t)
         }
@@ -1819,8 +1843,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           status.textContent = 'live but no mic - check browser permissions'
         }
 
-        const videoTrack = tracks.find((t) => t.kind === Track.Kind.Video)
-        liveVideoTrack = videoTrack ?? null
+        liveVideoTrack = videoTrack
         liveAudioTrack = tracks.find((t) => t.kind === Track.Kind.Audio) ?? null
         if (videoTrack) {
           const el = videoTrack.attach() as HTMLVideoElement
@@ -1983,6 +2006,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         goBtn.disabled = false
         this.broadcastRoom?.disconnect()
         this.broadcastRoom = null
+        for (const t of acquiredTracks ?? []) {
+          try {
+            t.stop()
+          } catch {}
+        }
         if (this.activeLiveShowboxUuid() === this.uuid) {
           try {
             this.parcel.sendStatePatch({ [this.uuid]: {}, __showbox_live: null })
