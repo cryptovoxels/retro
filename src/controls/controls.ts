@@ -531,6 +531,11 @@ export default abstract class Controls implements IControls {
     this.connector.beginCongaJoinHintSuppressionAfterLeave()
   }
 
+  /** The avatar who started this line (head of the chain), for UI. Null when leading or not in a line. */
+  get congaLeaderAvatar(): Avatar | null {
+    return this.congaTarget ? this.resolveCongaLeaderAvatar(this.congaTarget) : null
+  }
+
   /** Walk toward conga head using each avatar's congaFollowsUuid (who they follow). Old clients omit it; then `first` is used. */
   private resolveCongaLeaderAvatar(first: Avatar): Avatar {
     let L: Avatar = first
