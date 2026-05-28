@@ -205,6 +205,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   lastCelebrateN = 0
   viewerRoomFull = false
   viewerConnecting = false
+  viewerConnectGen = 0
+  localBroadcastVideoEl: HTMLVideoElement | null = null
   viewerRetryInterval: ReturnType<typeof setInterval> | null = null
   hostJoinLoginPending = false
 
@@ -765,6 +767,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   setPreview() {
     if (this.disposed) return
+    if (this.broadcastRoom && this.localBroadcastVideoEl) {
+      this.attachVideoToMesh(this.localBroadcastVideoEl, true)
+      return
+    }
     if (this.broadcastRoom) return
     if (this.hasActiveVideo) return
     const w = 640
@@ -826,6 +832,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   async connectViewer() {
     if (this.livekitRoom || this.viewerConnecting) return
+    const gen = ++this.viewerConnectGen
     this.viewerConnecting = true
     const res = await fetch(`/api/rooms/${this.roomName()}/token`, { credentials: 'include' })
       .then((r) => r.json())
@@ -941,6 +948,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
     } finally {
       this.viewerConnecting = false
+      if (gen !== this.viewerConnectGen) return
       if (this.isCohostMode() && this.broadcastRoom && this.livekitRoom) {
         this.syncExistingCohostVideos()
         this.syncExistingCohostAudio()
@@ -1061,6 +1069,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.clearCohostMonitor()
     this.broadcastRoom?.disconnect()
     this.broadcastRoom = null
+    this.localBroadcastVideoEl = null
     this.hasActiveVideo = false
     this.cohostCompositeAttached = false
     this.syncCohostPreview = null
@@ -1462,6 +1471,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       panel.remove()
       this.broadcastPanel = null
       this.stopBroadcast()
+      this.setPreview()
     }
 
     const row = document.createElement('div')
@@ -1745,6 +1755,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
       status.textContent = 'connecting...'
       goBtn.disabled = true
+      this.viewerConnectGen++
+      if (!this.isCohostMode() && this.livekitRoom) {
+        this.livekitRoom.disconnect()
+        this.livekitRoom = null
+      }
 
       try {
         const tokenRes = await fetch(`/api/rooms/${this.roomName()}/token`, { credentials: 'include' })
@@ -1762,10 +1777,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
         const room = new Room()
         this.broadcastRoom = room
-        if (!this.isCohostMode() && this.livekitRoom) {
-          this.livekitRoom.disconnect()
-          this.livekitRoom = null
-        }
         room.on(RoomEvent.Disconnected, () => {
           if (!this.broadcastRoom) return
           status.textContent = 'disconnected'
@@ -1806,14 +1817,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             this.updateCohostComposite()
             this.startThumbCapture()
           } else {
+            this.localBroadcastVideoEl = el
             this.attachVideoToMesh(el, true)
             this.startThumbCapture(el)
           }
-        }
-
-        if (!this.isCohostMode() && this.livekitRoom) {
-          this.livekitRoom.disconnect()
-          this.livekitRoom = null
         }
 
         this.audio?.addUserAudioReference(this)
