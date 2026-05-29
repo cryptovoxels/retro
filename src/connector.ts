@@ -814,7 +814,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       type: messages.MessageType.chat,
       id: '',
       uuid: this.persona.uuid,
-      text: entityEncode(`${name} is live at ${location}. Watch. [[show:${coords}]]`),
+      text: entityEncode(`${name} is live at ${location}. [[show:${coords}]]`),
     }
     this.send(announcement)
   }

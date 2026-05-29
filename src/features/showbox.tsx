@@ -1245,8 +1245,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.liveChatAnnounced || !window.connector) return
     const hostName = (app.state.name || '').trim()
     if (!hostName) return
-    const pos = this.absolutePosition ?? new BABYLON.Vector3((this.parcel.x1 + this.parcel.x2) / 2, this.parcel.y1, (this.parcel.z1 + this.parcel.z2) / 2)
-    const encoded = encodeCoords({ position: pos, rotation: new BABYLON.Vector3(0, 0, 0) })
+    const { parcel, f } = showboxFeatureCoords(this)
+    const encoded = showboxAudiencePlayCoordsFromRecord(parcel, f)
     const location = this.parcel.name || this.parcel.address || 'the world'
     window.connector.announceShowLive(hostName, location, encoded)
     this.liveChatAnnounced = true
