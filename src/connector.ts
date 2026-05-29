@@ -462,6 +462,8 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     const avatarRecord = message.description as unknown as AvatarRecord
 
     const avatar = await LoadAvatar(this.scene, this.parent, joined, message.uuid, avatarRecord)
+    // a position-only anon placeholder may have landed while we awaited the mesh; this identity is authoritative
+    this._avatarsByUuid.get(message.uuid)?.disposeLocal()
     this._avatarsByUuid.set(message.uuid, avatar)
 
     // if we have a transform, apply it (should be pretty rare)
@@ -526,14 +528,19 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       // received update for unknown avatar, will load a partial
       this.lazyAvatarDisposer.cancelDisposal(message.uuid)
 
-      avatar = await LoadAvatar(this.scene, this.parent, Date.now(), message.uuid, { name: '', wallet: null })
+      const placeholder = await LoadAvatar(this.scene, this.parent, Date.now(), message.uuid, { name: '', wallet: null })
 
-      if (!avatar) {
-        throw new Error(`Failed to load avatar ${message.uuid}`)
+      // a join/createAvatar carrying the real identity (name+wallet+costume) may have landed while we awaited
+      // the mesh load; if so, don't clobber it with this anon placeholder
+      const real = this._avatarsByUuid.get(message.uuid)
+      if (real) {
+        placeholder.disposeLocal()
+        avatar = real
+      } else {
+        avatar = placeholder
+        this._avatarsByUuid.set(message.uuid, avatar)
+        this.dispatchEvent(createEvent('avatar_joined', message.uuid))
       }
-
-      this._avatarsByUuid.set(message.uuid, avatar)
-      this.dispatchEvent(createEvent('avatar_joined', message.uuid))
     }
 
     avatar.move({
