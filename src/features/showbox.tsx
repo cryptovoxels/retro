@@ -41,6 +41,8 @@ const STREAM_ATTACH_RETRY_MS = 2000
 const STREAM_ATTACH_RECONNECT_AFTER = 5
 const VIEWER_MILESTONES = [10, 25, 50] as const
 const MILESTONE_POLL_MS = 8000
+// How long a joining co-host shows the "connecting" card while waiting for the host's video.
+const COHOST_CONNECT_GRACE_MS = 8000
 
 function celebrateLabel(n: number) {
   if (n >= 50) return '50 here'
@@ -220,6 +222,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   hasActiveVideo = false
   ownerVideoEl: HTMLVideoElement | null = null
   guestVideoEl: HTMLVideoElement | null = null
+  cohostLiveSince = 0
   cohostCanvas: HTMLCanvasElement | null = null
   cohostCompositeEl: HTMLVideoElement | null = null
   cohostCompositeRaf: number | null = null
@@ -643,6 +646,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   syncExistingCohostAudio() {
     if (!this.isCohostMode() || !this.livekitRoom || !this.broadcastRoom) return
+    // Re-attaching the same track makes a second <audio> element (= double audio). Clear first so
+    // this is safe to call from the subscribe handler, the viewer-connect finally, and go-live.
+    this.clearCohostMonitor()
     for (const p of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
       if (!this.shouldPlayCohostAudio(p.identity)) continue
       for (const pub of p.audioTrackPublications?.values() ?? []) {
@@ -654,6 +660,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   updateCohostComposite() {
     if (!this.isCohostMode() || this.disposed) return
+
+    // A guest who just went live is waiting on the host's video. Show a connecting card instead of
+    // a half-empty composite, but only briefly - after the grace window we show whatever we have.
+    const waitingForHost = !!this.broadcastRoom && !this.cohostCompositeAttached && isGuestForShowbox(this.uuid) && !cohostVideoReady(this.ownerVideoEl) && Date.now() - this.cohostLiveSince < COHOST_CONNECT_GRACE_MS
+    if (waitingForHost) {
+      this.setCohostConnecting()
+      return
+    }
 
     if (!this.cohostCanvas) {
       this.cohostCanvas = document.createElement('canvas')
@@ -996,6 +1010,36 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.mesh) this.mesh.material = material
   }
 
+  setCohostConnecting() {
+    if (this.disposed || !this.mesh) return
+    const w = 640
+    const h = 360
+    const tex = new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), { width: w, height: h }, this.scene, false)
+    const ctx = tex.getContext() as CanvasRenderingContext2D
+    ctx.fillStyle = '#0d0d0d'
+    ctx.fillRect(0, 0, w, h)
+    ctx.textBaseline = 'middle'
+    ctx.textAlign = 'center'
+    ctx.font = 'bold 18px "Source Code Pro", monospace'
+    ctx.fillStyle = '#f5f5f0'
+    ctx.fillText('connecting your co-host...', w / 2, h / 2 - 12)
+    ctx.font = '14px "Source Code Pro", monospace'
+    ctx.fillStyle = '#888'
+    ctx.fillText("hang tight -- audio's on the way", w / 2, h / 2 + 16)
+    tex.update()
+    tex.hasAlpha = false
+
+    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    material.diffuseTexture = tex
+    material.backFaceCulling = false
+    material.zOffset = -4
+    material.specularColor.set(0, 0, 0)
+    material.emissiveColor.set(1, 1, 1)
+    material.blockDirtyMechanism = true
+
+    if (this.mesh) this.mesh.material = material
+  }
+
   async connectViewer() {
     if (this.livekitRoom || this.viewerConnecting) return
     const gen = ++this.viewerConnectGen
@@ -1016,6 +1060,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (this.broadcastRoom) {
         if (this.isCohostMode() && track.kind === Track.Kind.Audio && this.shouldPlayCohostAudio(identity)) {
           this.trackCohostMonitor(track.attach() as HTMLAudioElement)
+          this.startBroadcastAudio()
           return
         }
         if (this.isCohostMode() && track.kind === Track.Kind.Video) {
@@ -1998,10 +2043,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           throw new Error('showbox needs a camera or screenshare. for audio only, drop a Boombox instead.')
         }
 
-        if (this.isCohostMode() && !this.livekitRoom) {
-          await this.connectViewer()
-        }
-
         const room = new Room()
         this.broadcastRoom = room
         room.on(RoomEvent.Disconnected, () => {
@@ -2009,6 +2050,25 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           status.textContent = 'disconnected'
           this.stopBroadcast()
         })
+
+        // Hear the co-host ASAP. broadcastRoom is set first so their audio routes straight to a
+        // monitor. If we were already watching them, flip that (spatial) audience audio to a
+        // monitor now; otherwise connect the viewer room in parallel with our broadcast connect so
+        // their audio lands with their video instead of seconds later.
+        let viewerConnect: Promise<void> = Promise.resolve()
+        if (this.isCohostMode()) {
+          this.cohostLiveSince = Date.now()
+          if (this.livekitRoom) {
+            for (const audioEl of this.streamAudioEls) audioEl.remove()
+            this.stopStreamVolumePoll()
+            this.syncExistingCohostAudio()
+          } else {
+            this.setCohostConnecting()
+            setTimeout(() => this.updateCohostComposite(), COHOST_CONNECT_GRACE_MS)
+            viewerConnect = this.connectViewer()
+          }
+        }
+
         await room.connect(LIVEKIT_URL, res.token)
         this.parcel.sendStatePatch({ [this.uuid]: { live: 1 }, __showbox_live: this.uuid })
 
@@ -2025,11 +2085,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (videoTrack) {
           const el = videoTrack.attach() as HTMLVideoElement
           if (this.isCohostMode()) {
+            await viewerConnect
             this.wireLocalCohostVideo(el)
-            for (const audioEl of this.streamAudioEls) audioEl.remove()
-            this.stopStreamVolumePoll()
             this.syncExistingCohostVideos()
-            this.syncExistingCohostAudio()
             this.updateCohostComposite()
             this.startThumbCapture()
           } else {
