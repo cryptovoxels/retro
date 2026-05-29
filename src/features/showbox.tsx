@@ -1664,21 +1664,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     goBtn.textContent = 'go live'
     Object.assign(goBtn.style, { background: '#dc1e1e', color: '#f5f5f0', border: '0', padding: '12px 16px', cursor: 'pointer', fontFamily: 'inherit', flex: '2', minHeight: '44px', fontWeight: 'bold' })
 
-    const closeBtn = document.createElement('button')
-    closeBtn.type = 'button'
-    closeBtn.textContent = 'close'
-    Object.assign(closeBtn.style, { background: '#333', color: '#f5f5f0', border: '0', padding: '12px 16px', cursor: 'pointer', fontFamily: 'inherit', flex: '1', minHeight: '44px' })
-    closeBtn.onclick = () => {
-      panel.remove()
-      this.broadcastPanel = null
-      this.stopBroadcast()
-      this.setPreview()
-    }
-
     const row = document.createElement('div')
     row.style.display = 'flex'
     row.style.gap = '0.5rem'
-    row.append(goBtn, closeBtn)
+    row.append(goBtn)
 
     // Mobile chat lives in the dock when live - bottom sheet covers world chat. Desktop uses normal chat.
     let chatSection: HTMLDivElement | null = null
