@@ -307,16 +307,16 @@ function roundHalf(value: number) {
   return Math.round(value * 2) / 2
 }
 
-type FeaturePlayCoordsOpts = { standoff?: number; lateral?: number; faceFeature?: boolean }
+type FeaturePlayCoordsOpts = { standoff?: number; lateral?: number }
 
 // Parcel center + feature position/rotation -> play coords string (same math as inspect-feature teleport).
 export function featurePlayCoords(parcel: ParcelHelper, position: [number, number, number], rotation?: [number, number, number] | null, opts?: FeaturePlayCoordsOpts): string {
   const standoff = opts?.standoff ?? 0
   const lateral = opts?.lateral ?? 0
   const yaw = rotation?.[1] ?? 0
-  const px = position[0] + Math.sin(yaw) * standoff + Math.cos(yaw) * lateral
+  const px = position[0] - Math.sin(yaw) * standoff + Math.cos(yaw) * lateral
   const py = position[1]
-  const pz = position[2] + Math.cos(yaw) * standoff - Math.sin(yaw) * lateral
+  const pz = position[2] - Math.cos(yaw) * standoff - Math.sin(yaw) * lateral
 
   const z = roundHalf(parcel.center[1] * 100 + pz)
   const x = roundHalf(parcel.center[0] * 100 + px)
@@ -325,8 +325,7 @@ export function featurePlayCoords(parcel: ParcelHelper, position: [number, numbe
   const parts = [x < 0 ? `${Math.abs(x)}W` : `${x}E`, z < 0 ? `${Math.abs(z)}S` : `${z}N`]
   if (y > 0) parts.push(`${y}U`)
 
-  const headingYaw = opts?.faceFeature ? yaw + Math.PI : yaw
-  const i = playMod(Math.round(headingYaw / ((Math.PI * 2) / PLAY_HEADINGS.length)), PLAY_HEADINGS.length)
+  const i = playMod(Math.round(yaw / ((Math.PI * 2) / PLAY_HEADINGS.length)), PLAY_HEADINGS.length)
   const heading = PLAY_HEADINGS[i]
 
   return parts.length === 0 ? heading : `${heading}@${parts.join(',')}`
@@ -352,7 +351,7 @@ function showboxFloorFeature(feature: { position?: number[] | null; rotation?: n
 }
 
 function showboxSpawnCoords(parcel: Partial<FullParcelRecord> | ParcelHelper, feature: { position?: number[] | null; rotation?: number[] | null }, opts: FeaturePlayCoordsOpts) {
-  return featurePlayCoordsFromRecord(parcel, showboxFloorFeature(feature), { faceFeature: true, ...opts })
+  return featurePlayCoordsFromRecord(parcel, showboxFloorFeature(feature), opts)
 }
 
 export function showboxHostPlayCoordsFromRecord(parcel: Partial<FullParcelRecord> | ParcelHelper, feature: { position?: number[] | null; rotation?: number[] | null }) {
