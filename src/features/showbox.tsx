@@ -755,6 +755,15 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return <label>Live stream video and audio to anyone in the parcel.</label>
   }
 
+  // Editing a live showbox must never tear it down. The plane mesh never needs rebuilding:
+  // setCommon re-applies the transform and afterSetCommon re-applies spatial audio (volume +
+  // rolloff). The base update() regenerates for non-transform props (rolloff/guestMode), which
+  // disposes the feature and kills the broadcast for everyone - so skip it and just setCommon.
+  update(props: Partial<any>) {
+    Object.assign(this.description, props)
+    this.setCommon()
+  }
+
   generate() {
     this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
     this.mesh.id = this.mesh.name + '/' + this.uuid
