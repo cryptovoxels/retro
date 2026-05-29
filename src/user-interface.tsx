@@ -1,4 +1,5 @@
 import type { Signal } from '@preact/signals'
+import { effect } from '@preact/signals'
 import { Component, createRef, Fragment, h } from 'preact'
 import { isMobileMedia } from '../common/helpers/detector'
 import { exitPointerLock, hasPointerLock, requestPointerLock } from '../common/helpers/ui-helpers'
@@ -12,7 +13,7 @@ import { KeyboardHandler } from './components/keyboard-handler'
 import { OnlyMobile, ViewOnCondition } from './components/utils'
 import { Animations } from './avatar-animations'
 import { EmoteAnimation } from './states'
-import Connector from './connector'
+import Connector, { messageList } from './connector'
 import DesktopControls from './controls/desktop/controls'
 import { Environment } from './enviroments/environment'
 import { createFeature } from './features/create'
@@ -157,6 +158,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   explorerPaneInitialTab = createRef<Tab | undefined>()
   presenceEs: EventSource | null = null
   presenceUuids = new Set<string>()
+  chatLastReadAt = Date.now()
+  chatListDispose?: () => void
 
   constructor(props: UserInterfaceProps) {
     super(props)
@@ -265,6 +268,17 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     })
 
     chatSettings.addEventListener('changed', this.onChatSettingsChange)
+
+    this.chatListDispose = effect(() => {
+      messageList.value
+      this.forceUpdate()
+    })
+  }
+
+  componentDidUpdate(_prevProps: UserInterfaceProps, prevState: UserInterfaceState) {
+    if (!prevState.active && this.state.active) {
+      this.chatLastReadAt = Date.now()
+    }
   }
 
   onChatSettingsChange = () => {
@@ -313,6 +327,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     document.removeEventListener('fullscreenchange', this.refreshFullscreen)
     document.removeEventListener('pointerlockchange', this.onPointerLockChange)
     chatSettings.removeEventListener('changed', this.onChatSettingsChange)
+    this.chatListDispose?.()
   }
 
   onPointerLockChange = () => {
@@ -611,7 +626,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   showExplorerMap() {
     // temporarily set the initial tab to map
     this.explorerPaneInitialTab.current = 'map'
-    this.setState({ pane: 'explorer' })
+    this.setState({ pane: 'explorer', active: true })
     setTimeout(() => {
       // reset to undefined after opening (next tick because setState is async)
       this.explorerPaneInitialTab.current = undefined
@@ -620,7 +635,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   showExplorerOnline() {
     this.explorerPaneInitialTab.current = 'users'
-    this.setState({ pane: 'explorer' })
+    this.setState({ pane: 'explorer', active: true })
     setTimeout(() => {
       this.explorerPaneInitialTab.current = undefined
     })
@@ -761,14 +776,22 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
     const active = (pane: string, disabled?: boolean) => (this.state.pane === pane ? 'active' : disabled ? 'disabled' : '')
 
+    const unreadChat = this.state.chatEnabled && !this.state.active ? messageList.value.some((m) => m.timestamp > this.chatLastReadAt) : false
+
     return (
       <ViewOnCondition condition={window.config.wantsUI}>
         <div class={classes}>
           <Snackbar />
 
           <aside style={{ zIndex: 500 }} class={`ui-toggle-mobile ${this.state.active ? 'hidden' : ''}`}>
-            <button onClick={() => this.setState({ active: !this.state.active })} title="Toggle UI">
-              ☰
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                this.setState({ active: !this.state.active })
+              }}
+              title={unreadChat ? 'Toggle UI (unread chat)' : 'Toggle UI'}
+            >
+              ☰{unreadChat && <span class="chat-unread-badge" />}
             </button>
           </aside>
           <aside data-active={this.state.active}>

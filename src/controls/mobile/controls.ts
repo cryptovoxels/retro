@@ -105,23 +105,30 @@ const initialHeight = window.visualViewport?.height ?? window.innerHeight
 
 let orientation = window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape'
 
+export function resetMobileViewportLayout() {
+  document.body.style.height = ''
+}
+
 export function viewportChangeHandler() {
   // Check if viewPort change is caused by a rotation (dont do anything)
   if (!window.matchMedia(`(orientation: ${orientation})`).matches) {
     orientation = window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape'
-    return
-  }
-  const input = document.activeElement as HTMLInputElement | null
-
-  // We don't have an element focused, virtual Keyboard is likely not up
-  if (!input) {
+    resetMobileViewportLayout()
     return
   }
 
-  // Viewport height is significantly lower (keyboard is up)
-  if (window.innerHeight < initialHeight - 30) {
+  const viewHeight = window.visualViewport?.height ?? window.innerHeight
+  const keyboardUp = viewHeight < initialHeight - 30
+  const input = document.activeElement
+  const typing = input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement
+
+  // Only stretch body while the keyboard is up and a field is focused. Otherwise reset
+  // or the canvas + dpad scroll off-screen when send blurs the input.
+  if (keyboardUp && typing) {
     document.body.style.height = initialHeight + 'px'
   } else {
-    document.body.style.height = '100%'
+    resetMobileViewportLayout()
   }
+
+  window.engine?.resize()
 }

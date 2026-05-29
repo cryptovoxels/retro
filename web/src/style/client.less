@@ -250,6 +250,10 @@ main.chat {
     input {
       padding: 0.3rem;
     }
+
+    input {
+      font-size: 16px; // iOS auto-zooms focused inputs below 16px
+    }
   }
 }
 
@@ -1956,8 +1960,8 @@ form.PermissionsRadioSelector {
 
 .scratchpad-guide {
   position: fixed;
-  left: 8rem;
-  bottom: 4rem;
+  left: 12rem;
+  bottom: 7rem;
   z-index: 600;
   max-width: 14rem;
   padding: 0.75rem 1rem;
@@ -2040,8 +2044,8 @@ form.PermissionsRadioSelector {
 
 .scratchpad-guide-restart {
   position: fixed;
-  left: 8rem;
-  bottom: 4rem;
+  left: 12rem;
+  bottom: 7rem;
   z-index: 600;
   padding: 0.5rem 0.75rem;
   background: rgba(0, 0, 0, 0.55);
@@ -3626,13 +3630,43 @@ aside.ui-toggle-mobile {
   top: 1rem;
   left: 1rem;
   button {
+    position: relative;
     padding: 8px;
+  }
+  .chat-unread-badge {
+    position: absolute;
+    bottom: 4px;
+    right: 4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #e74c3c;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
+    pointer-events: none;
   }
   @media @desktop {
     display: none;
   }
   &.hidden {
     display: none;
+  }
+}
+
+// Match ui-toggle-mobile: collapse in-world nav on small screens until hamburger opens it.
+aside:not(.ui-toggle-mobile) {
+  @media screen and (max-width: 799px), screen and (max-height: 449px) {
+    &[data-active='false'] {
+      & > ul.ui-sidebar {
+        transform: translateX(-100%);
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      main.chat {
+        visibility: hidden;
+        pointer-events: none;
+      }
+    }
   }
 }
 

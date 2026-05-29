@@ -503,6 +503,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
   sendStatePatch(patch: Record<string, any>) {
     if (this.sandbox) return
+    this.receiveStatePatch(patch)
     this.grid.patchParcelState(this.id, patch)
   }
 
@@ -735,7 +736,14 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   receiveStatePatch(patch: Record<string, Partial<FeatureRecord>>) {
+    const showboxLiveMoved = '__showbox_live' in patch
+    if (showboxLiveMoved) {
+      const live = (patch as Record<string, any>).__showbox_live
+      if (live == null) delete (this.state as any).__showbox_live
+      else (this.state as any).__showbox_live = live
+    }
     Object.entries(patch).forEach(([uuid, value]) => {
+      if (uuid === '__showbox_live') return
       const feature = this.getFeatureByUuid(uuid)
 
       // cache the value in case the feature hasn't loaded yet
@@ -744,6 +752,11 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
         feature.receiveState(value)
       }
     })
+    if (showboxLiveMoved) {
+      this.featuresList.forEach((f) => {
+        if (f?.type === 'showbox') (f as any).reconcileActiveStream?.()
+      })
+    }
   }
 
   updateLodDistance(distance: number) {

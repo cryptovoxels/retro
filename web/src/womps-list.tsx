@@ -1,4 +1,5 @@
 import { Component } from 'preact'
+import { isMobile } from '../../common/helpers/detector'
 import { Womp, WompCard } from './components/womp-card'
 import cachedFetch from './helpers/cached-fetch'
 import { Spinner } from './spinner'
@@ -16,6 +17,7 @@ interface Props {
   hint?: string
   smaller?: boolean
   womps?: Womp[]
+  mobilePreview?: number
 }
 
 interface State {
@@ -25,6 +27,7 @@ interface State {
   fetch?: string
   loaded?: boolean
   collapsed?: boolean
+  expanded?: boolean
 }
 
 const getFetchURL = (props: Props): string => '/api' + (props.fetch ? props.fetch : '/womps.json')
@@ -39,6 +42,7 @@ export default class WompsList extends Component<Props, State> {
       fetch: getFetchURL(props),
       numberToShow: props.numberToShow ? props.numberToShow : 20,
       collapsed: props.collapsed ?? true,
+      expanded: false,
     }
   }
 
@@ -83,15 +87,20 @@ export default class WompsList extends Component<Props, State> {
       return <Spinner size={24} />
     }
 
-    const womps = this.state.womps!.map((womp) => {
+    const allWomps = this.state.womps!.map((womp) => {
       // if parcel_id is undefined, it's likely a space; which has 0 count by default for now.
       const nearbyCount = womp.parcel_id ? this.state.activeParcels?.get(womp.parcel_id) : 0
       return <WompCard key={womp.id} nearbyCount={nearbyCount} openInSameWindow={true} className={`${this.state.collapsed ? '' : '-medium'} `} womp={womp} hoverText={`Click to teleport to ${womp.coords}`} />
     })
 
-    const showMore = womps.length >= this.state.numberToShow
+    const preview = this.props.mobilePreview
+    const mobilePreview = preview && isMobile() && !this.state.expanded
+    const womps = mobilePreview ? allWomps.slice(0, preview) : allWomps
+    const showSeeAll = mobilePreview && allWomps.length > preview!
+    const mobileHomePreview = preview && isMobile()
+    const showMore = !mobileHomePreview && !showSeeAll && allWomps.length >= this.state.numberToShow
 
-    if (!womps.length) {
+    if (!allWomps.length) {
       if (this.props.hint) {
         return <p>{this.props.hint}</p>
       } else {
@@ -101,7 +110,10 @@ export default class WompsList extends Component<Props, State> {
       return (
         <div>
           <div class="wrap-grid">{womps}</div>
-          <div>{showMore && <button onClick={() => this.showMore()}>Show More</button>}</div>
+          <div>
+            {showSeeAll && <button onClick={() => this.setState({ expanded: true })}>See all</button>}
+            {showMore && <button onClick={() => this.showMore()}>Show More</button>}
+          </div>
         </div>
       )
     }
