@@ -1297,6 +1297,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   announceLiveInChat() {
     if (this.liveChatAnnounced || !window.connector) return
+    // someone is already broadcasting to this showbox, so the show's already been announced live.
+    // without this, every cohost who goes live fires their own "is live" message (spammy).
+    if (this.hasRemoteBroadcaster()) return
     const hostName = (app.state.name || '').trim()
     if (!hostName) return
     const { parcel, f } = showboxFeatureCoords(this)
