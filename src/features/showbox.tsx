@@ -849,7 +849,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.stopViewerRetry()
     this.stopStreamAttachRetry()
     this.viewerRoomFull = false
-    if (this.livekitRoom) {
+    // if we're on the stage (publishing), stay connected as a viewer too so our own composite
+    // doesn't go blank when we step outside the parcel. we only tear down on dispose / stopBroadcast.
+    if (this.livekitRoom && !this.broadcastRoom) {
       this.livekitRoom.disconnect()
       this.livekitRoom = null
       this.hasActiveVideo = false
