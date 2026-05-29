@@ -279,7 +279,9 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
     const signedIn = walletFromJwtCookie(req)
     if (signedIn?.wallet) {
       const auth = await authParcel(parcel, signedIn as any)
-      if (auth === 'Owner' || auth === 'Moderator') {
+      // Collaborators can publish (see livekit token grant), so a signed-in collaborator opening
+      // the guest link should host-join as themselves, not get their session replaced by a guest.
+      if (auth === 'Owner' || auth === 'Collaborator' || auth === 'Moderator') {
         return res.redirect(302, `/play?${hostJoinPlayQuery(showboxHostPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid)}`)
       }
     }
