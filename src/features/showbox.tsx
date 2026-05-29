@@ -234,6 +234,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   viewerRoomFull = false
   viewerConnecting = false
   liveChatAnnounced = false
+  walkAwayWarned = false
   viewerConnectGen = 0
   localBroadcastVideoEl: HTMLVideoElement | null = null
   viewerRetryInterval: ReturnType<typeof setInterval> | null = null
@@ -366,10 +367,28 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.runCelebrate(n)
   }
 
+  // Warn the broadcaster before they wander far enough for their parcel to unload, which disposes
+  // the showbox and kills their stream. Fires once when they cross the threshold, re-arms on return.
+  // Snackbar works the same on desktop and mobile.
+  warnIfWalkingAway() {
+    if (!this.broadcastRoom || this.disposed) return
+    const cutoff = (window.draw?.distance ?? 100) * 1.1
+    const dist = BABYLON.Vector3.Distance(cameraPosition(this.scene), this.absolutePosition)
+    if (dist > cutoff * 0.6) {
+      if (!this.walkAwayWarned) {
+        this.walkAwayWarned = true
+        app.showSnackbar('walk back toward your showbox - go too far and your stream ends', PanelType.Warning)
+      }
+    } else {
+      this.walkAwayWarned = false
+    }
+  }
+
   startMilestonePoll() {
     this.stopMilestonePoll()
     const tick = async () => {
       if (!this.broadcastRoom || this.disposed) return
+      this.warnIfWalkingAway()
       const count = await this.fetchViewerCount()
       if (!count) return
       for (const m of VIEWER_MILESTONES) {
@@ -1254,6 +1273,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   stopBroadcast(silent = false) {
     this.liveChatAnnounced = false
+    this.walkAwayWarned = false
     this.stopMilestonePoll()
     const othersLive = this.hasOtherLivePublishers()
     try {
