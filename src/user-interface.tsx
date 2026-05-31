@@ -28,8 +28,6 @@ import FeatureTool, { templateFromFeature } from './tools/feature'
 import VoxelTool, { SelectionMode, SelectionModeOptions } from './tools/voxel'
 import ConnectionStatusUI from './ui/connection-status'
 import { CongaJoinHintOverlay, CongaStatusOverlay } from './ui/conga-status'
-import { CurrentModeOverlay } from './ui/current-mode'
-import { DebugUI } from './ui/debug/base-debug'
 import { MaterialDebugTab } from './ui/debug/material-debug-tab'
 import { OceanDebugTab } from './ui/debug/ocean-debug-tab'
 import { PumpDebugTab } from './ui/debug/pump-debug-tab'
@@ -146,7 +144,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   featureTool: FeatureTool
   defaultTool: Tool | null
   keyboardHandler: KeyboardHandler = undefined!
-  debugUI: DebugUI = undefined!
 
   //Overlay
   uploadStatusRef = createRef<UploadStatusUI>()
@@ -177,12 +174,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     window.ui = this
 
     // this.setTool(this.defaultTool)
-
-    // Initialize debug UI with tabs
-    this.debugUI = new DebugUI(this.props.scene)
-    this.debugUI.addTab(new PumpDebugTab(this.props.scene))
-    this.debugUI.addTab(new OceanDebugTab(this.props.scene))
-    this.debugUI.addTab(new MaterialDebugTab(this.props.scene))
 
     this.addKeyboardHandlers()
 
@@ -346,10 +337,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     return this.props.scene.activeCamera as BABYLON.UniversalCamera
   }
 
-  toggleFeaturePumpDebug = () => {
-    this.debugUI.toggle()
-  }
-
   refocus() {
     requestPointerLock()
 
@@ -358,6 +345,12 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   disable() {
     this.setState({ enabled: false })
+  }
+
+  toggleRealism() {
+    const g = window.graphic.getSettings()
+    g.realisticLighting = !g.realisticLighting
+    window.graphic.setSettings(g)
   }
 
   addKeyboardHandlers() {
@@ -373,7 +366,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         { code: 'KeyE', handleEvent: () => this.editFeatureIfHasLock() },
         { code: 'KeyX', handleEvent: () => this.deleteFeature() },
         { code: 'KeyM', handleEvent: () => this.editFeatureThenMove() },
-        { code: 'KeyR', handleEvent: () => this.editFeatureThenCopy() },
+        { code: 'KeyR', handleEvent: () => this.toggleRealism() },
         { code: 'KeyP', handleEvent: () => this.takeWomp(this.props.scene) },
         { code: 'KeyI', handleEvent: () => this.activateInspectorIfHasLock() },
         { code: 'KeyF', handleEvent: () => this.connector.controls.toggleFlying() },
@@ -383,7 +376,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         { code: 'KeyZ', handleEvent: () => this.connector.controls.toggleZoom() },
         { code: 'Enter', handleEvent: this.focusChat },
         { code: 'Escape', handleEvent: () => this.closeInteractOverlay() },
-        { code: 'Backquote', ctrlKey: true, handleEvent: () => this.toggleFeaturePumpDebug() },
         {
           code: 'Tab',
           handleEvent: (e) => {
@@ -976,7 +968,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           <CongaJoinHintOverlay />
           <CongaStatusOverlay />
-          <CurrentModeOverlay nextMode={this.featureTool.nextMode} mode={this.featureTool.selection.mode} enabled={this.featureTool.enabled} />
         </div>
       </ViewOnCondition>
     )
