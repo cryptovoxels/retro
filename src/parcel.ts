@@ -1505,11 +1505,12 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     if (window.graphic?.realisticLighting && this.field) {
       // todo: add collider + glass support for realistic lighting path
       const lanterns = this.features.filter((f) => f.type === 'lantern') as LanternRecord[]
-      const mesh = await buildCleanMesh(this.field, lanterns, this.scene)
+      const off: [number, number, number] = [-this.width / 4, 0 + this.ZFightingNudge, -this.depth / 4]
+      const mesh = await buildCleanMesh(this.field, lanterns, this.scene, off)
       this.voxelMesh?.dispose()
       this.voxelMesh = mesh
       mesh.parent = this.transform
-      mesh.position.set(-this.width / 4, 0 + this.ZFightingNudge, -this.depth / 4)
+      mesh.position.set(off[0], off[1], off[2])
       mesh.freezeWorldMatrix()
       this.dispatchEvent(createEvent('MeshLoaded', mesh))
       return
