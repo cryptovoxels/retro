@@ -37,11 +37,15 @@ function hexToRgb(hex: string): [number, number, number] {
   ]
 }
 
+
+// Sky strength
+const S = 0.25;
+
 // approximate Kelvin colors for directional sky seeds
-const K5000 = [255, 230, 200] as const  // cool - north (+Z) / east (+X)
-const K4500 = [255, 210, 165] as const  // neutral - top (+Y)
-const K3800 = [255, 185, 115] as const  // warm - south (-Z) / west (-X)
-const BOUNCE = [89, 65, 40] as const    // dim warm bounce (3800K @ 35%)
+const K5000 = [255 * S, 230 * S, 200 * S] as const  // cool - north (+Z) / east (+X)
+const K4500 = [255 * S, 210 * S, 165 * S] as const  // neutral - top (+Y)
+const K3800 = [255 * S, 185 * S, 115 * S] as const  // warm - south (-Z) / west (-X)
+const BOUNCE = [89 * S, 65 * S, 40 * S] as const    // dim warm bounce (3800K @ 35%)
 
 // returns Uint8Array of length (W+2)*(H+2)*(D+2)*3, padded by 1 voxel on every side.
 // buildMesh samples via: (ax+1) + (ay+1)*(w+2) + (az+1)*(w+2)*(h+2)
@@ -128,7 +132,7 @@ export function floodfill(
     seedP(fx + 1, fy + 1, fz + 1, Math.round(lr * s), Math.round(lg * s), Math.round(lb * s))
   }
 
-  const FALL = 0.8
+  const FALL = 0.9
   const DIRS = [[-1, 0, 0], [1, 0, 0], [0, -1, 0], [0, 1, 0], [0, 0, -1], [0, 0, 1]] as const
 
   let head = 0
@@ -223,6 +227,8 @@ export function buildMesh(
         u1 -= margin;
         v1 -= margin;
 
+        const multiple = 1 / 1020 / S;
+
         for (const face of FACES) {
           const [nx, ny, nz] = face.ni
           const ax = x + nx, ay = y + ny, az = z + nz
@@ -253,7 +259,7 @@ export function buildMesh(
               const [r, g, b] = sample(p[0], p[1], p[2])
               sr += r; sg += g; sb += b
             }
-            colors.push(sr / 1020, sg / 1020, sb / 1020, 1)
+            colors.push(sr * multiple, sg * multiple, sb * multiple, 1)
           }
 
           uvs.push(u0, v0, u0, v1, u1, v1, u1, v0)
@@ -280,7 +286,8 @@ export function buildMesh(
   // mat.emissiveColor = BABYLON.Color3.Black()
   // mat.disableLighting = true
   mesh.material = mat
-  mat.specularColor.set(0.2, 0.1, 0.0)
+  mat.specularColor.set(0.1, 0.05, 0.0)
+  mat.specularPower = 42
 
   return mesh
 }
