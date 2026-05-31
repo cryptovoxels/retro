@@ -42,7 +42,7 @@ const BOUNCE = [89 * S, 65 * S, 40 * S] as const // dim warm bounce (3800K @ 35%
 
 // returns Uint8Array of length (W+2)*(H+2)*(D+2)*3, padded by 1 voxel on every side.
 // buildMesh samples via: (ax+1) + (ay+1)*(w+2) + (az+1)*(w+2)*(h+2)
-export function floodfill(field: NdArray<Uint8Array>, lanterns: Array<{ position: [number, number, number]; color: string; strength?: number | string }>, off: [number, number, number]): Uint8Array {
+export async function floodfill(field: NdArray<Uint8Array>, lanterns: Array<{ position: [number, number, number]; color: string; strength?: number | string }>, off: [number, number, number]): Promise<Uint8Array> {
   const [w, h, d] = field.shape
   const pw = w + 2,
     ph = h + 2,
@@ -255,7 +255,7 @@ const FACES: Array<{
   },
 ]
 
-export function buildMesh(field: NdArray<Uint8Array>, light: Uint8Array, tex: BABYLON.Texture, scene: BABYLON.Scene, id: number): BABYLON.Mesh {
+export async function buildMesh(field: NdArray<Uint8Array>, light: Uint8Array, tex: BABYLON.Texture, scene: BABYLON.Scene, id: number, palette: BABYLON.Color3[]): Promise<BABYLON.Mesh> {
   const [w, h, d] = field.shape
   const pw = w + 2,
     ph = h + 2,
@@ -282,6 +282,8 @@ export function buildMesh(field: NdArray<Uint8Array>, light: Uint8Array, tex: BA
         if (cell === 0) continue
 
         const layer = cell % 32
+        const colorIndex = Math.floor(cell / 32) % 8
+        const tint = palette[colorIndex] ?? palette[0]
         const col = layer % ATLAS_COLS
         const row = Math.floor(layer / ATLAS_COLS)
         let u0 = col / ATLAS_COLS,
@@ -334,7 +336,7 @@ export function buildMesh(field: NdArray<Uint8Array>, light: Uint8Array, tex: BA
                 sg += g
                 sb += b
               }
-            colors.push(sr * multiple, sg * multiple, sb * multiple, 1)
+            colors.push(sr * multiple * tint.r, sg * multiple * tint.g, sb * multiple * tint.b, 1)
           }
 
           uvs.push(u0, v0, u0, v1, u1, v1, u1, v0)
@@ -409,12 +411,20 @@ function buildGlassMesh(field: NdArray<Uint8Array>, scene: BABYLON.Scene, id: nu
 
 // ─── entry point ──────────────────────────────────────────────────────────────
 
-export async function buildCleanMesh(field: NdArray<Uint16Array>, lanterns: LanternRecord[], scene: BABYLON.Scene, off: [number, number, number], id: number): Promise<{ opaque: BABYLON.Mesh; glass: BABYLON.Mesh | null }> {
+export async function buildCleanMesh(
+  field: NdArray<Uint16Array>,
+  lanterns: LanternRecord[],
+  scene: BABYLON.Scene,
+  off: [number, number, number],
+  id: number,
+  palette: BABYLON.Color3[],
+  texOverride?: BABYLON.Texture,
+): Promise<{ opaque: BABYLON.Mesh; glass: BABYLON.Mesh | null }> {
   const field8 = to8bit(field)
-  const light = floodfill(field8, lanterns as any, off)
+  const light = await floodfill(field8, lanterns as any, off)
   const url = DEBUG_LIGHT_PROBES ? '/textures/00-grid.png' : '/textures/atlas-ao.png'
-  const tex = loadTex(url, scene)
-  const opaque = buildMesh(field8, light, tex, scene, id)
+  const tex = texOverride ?? loadTex(url, scene)
+  const opaque = await buildMesh(field8, light, tex, scene, id, palette)
   const glass = buildGlassMesh(field8, scene, id)
   return { opaque, glass }
 }

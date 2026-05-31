@@ -1507,7 +1507,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       const lanterns = this.features.filter((f) => f.type === 'lantern') as LanternRecord[]
       // Y matches setVoxelMesh so voxel.ts pick/place math is correct
       const off: [number, number, number] = [-this.width / 4 + 0.25, -0.25 + this.ZFightingNudge, -this.depth / 4 + 0.25]
-      const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id)
+      const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id, this.paletteColors, this.tilesetTexture ?? undefined)
       this.voxelMesh?.dispose()
       this.voxelMesh = opaque
       opaque.parent = this.transform
