@@ -1,6 +1,6 @@
 import { ethers } from 'ethers'
 import { cameraPosition } from './utils/camera'
-import { throttle } from 'lodash'
+import { debounce, throttle } from 'lodash'
 import type { NdArray } from 'ndarray'
 import ndarray from 'ndarray'
 import { v7 as uuid } from 'uuid'
@@ -109,6 +109,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   private fieldUpdateTimeout: NodeJS.Timeout | null = null
   private readonly afterGenerateCallbacks: (() => void)[] = []
   private readonly refreshVoxels: () => void
+  readonly relight: () => void
   private readonly soundSprite: BABYLON.Sound | null = null
   private readonly _parcelBouncer: ParcelBouncer
   private featuresLoaded = false
@@ -193,6 +194,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.content = record
 
     this.refreshVoxels = throttle(() => this.generate(), 10, { leading: false, trailing: true })
+    this.relight = debounce(() => this.generate(), 150)
 
     this.transform = new BABYLON.TransformNode(`parcel/${this.id}`, scene)
     this.transform.metadata = { isParcel: true }
@@ -220,10 +222,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.hardFeatureBounds = this.sandbox
       ? new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), parent._worldMatrix)
       : new BABYLON.BoundingBox(
-        new BABYLON.Vector3(this.x1 - hardFeatureBound, this.y1 - hardFeatureBound, this.z1 - hardFeatureBound),
-        new BABYLON.Vector3(this.x2 + hardFeatureBound, this.y2 + hardFeatureBound, this.z2 + hardFeatureBound),
-        parent._worldMatrix,
-      )
+          new BABYLON.Vector3(this.x1 - hardFeatureBound, this.y1 - hardFeatureBound, this.z1 - hardFeatureBound),
+          new BABYLON.Vector3(this.x2 + hardFeatureBound, this.y2 + hardFeatureBound, this.z2 + hardFeatureBound),
+          parent._worldMatrix,
+        )
 
     // fix parcel offset, but leave enough for exterior signage
     const grace = 0.1
@@ -233,10 +235,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.exteriorBounds = this.sandbox
       ? this.boundingBox
       : new BABYLON.BoundingBox(
-        new BABYLON.Vector3(this.x1 + offset - grace, this.y1 + offset - grace, this.z1 + offset - grace),
-        new BABYLON.Vector3(this.x2 + offset + grace, this.y2 + offset + grace, this.z2 + offset + grace),
-        parent._worldMatrix,
-      )
+          new BABYLON.Vector3(this.x1 + offset - grace, this.y1 + offset - grace, this.z1 + offset - grace),
+          new BABYLON.Vector3(this.x2 + offset + grace, this.y2 + offset + grace, this.z2 + offset + grace),
+          parent._worldMatrix,
+        )
 
     this._parcelBouncer = new ParcelBouncer(this)
     /**
@@ -1379,7 +1381,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       return
     }
 
-
     // todo - disabled brightness toggle
 
     // const material = this.voxelMesh.material as BABYLON.ShaderMaterial
@@ -1503,16 +1504,21 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
 
     if (window.graphic?.realisticLighting && this.field) {
-      // todo: add collider + glass support for realistic lighting path
       const lanterns = this.features.filter((f) => f.type === 'lantern') as LanternRecord[]
-      const off: [number, number, number] = [-this.width / 4, -0.25 + this.ZFightingNudge, -this.depth / 4]
-      const mesh = await buildCleanMesh(this.field, lanterns, this.scene, off)
+      // Y matches setVoxelMesh so voxel.ts pick/place math is correct
+      const off: [number, number, number] = [-this.width / 4, -(1 + this.ZFightingNudge), -this.depth / 4]
+      const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id)
       this.voxelMesh?.dispose()
-      this.voxelMesh = mesh
-      mesh.parent = this.transform
-      mesh.position.set(off[0], off[1], off[2])
-      mesh.freezeWorldMatrix()
-      this.dispatchEvent(createEvent('MeshLoaded', mesh))
+      this.voxelMesh = opaque
+      opaque.parent = this.transform
+      opaque.position.set(off[0], off[1], off[2])
+      opaque.isPickable = true
+      opaque.checkCollisions = opaque.getTotalVertices() !== 0
+      opaque.freezeWorldMatrix()
+      if (glass) {
+        this.setGlassMesh(glass, { collidable: false, pickable: false })
+      }
+      this.dispatchEvent(createEvent('MeshLoaded', opaque))
       return
     }
 

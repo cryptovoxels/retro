@@ -148,6 +148,7 @@ export default class Grid extends SocketClient {
           // prioritising the current parcel
           const current = this.currentOrNearestParcel()
 
+          current?.generate()
           // now regen the rest (but don't wait for them)
           this.filter((p) => p !== current).forEach((p) => {
             p.generate()
