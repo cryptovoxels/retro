@@ -21,7 +21,7 @@ let cachedTexUrl = ''
 
 function loadTex(url: string, scene: BABYLON.Scene): BABYLON.Texture {
   if (cachedTex && cachedTexUrl === url) return cachedTex
-  cachedTex = new BABYLON.Texture(url, scene)
+  cachedTex = new BABYLON.Texture(url, scene, false, false)
   cachedTexUrl = url
   return cachedTex
 }
