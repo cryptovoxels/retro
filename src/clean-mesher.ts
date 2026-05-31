@@ -89,22 +89,23 @@ export function floodfill(
     if (setMax(i, r, g, b)) queue.push(i)
   }
 
-  // seed 5 boundary faces (all except -Z face, z=0)
+  // seed boundary faces with debug colors so the flood path is visible
   for (let x = 0; x < w; x++) {
     for (let y = 0; y < h; y++) {
-      seed(x, y, d - 1, 255, 255, 255)   // +Z face
+      seed(x, y, d - 1, 0, 255, 255)     // +Z face
+      seed(x, y, 0, 255, 0, 255)         // -Z face
     }
   }
   for (let x = 0; x < w; x++) {
     for (let z = 0; z < d; z++) {
-      seed(x, h - 1, z, 255, 255, 255)   // +Y face
-      seed(x, 0, z, 255, 255, 255)       // -Y face
+      seed(x, h - 1, z, 0, 0, 255)       // +Y face
+      seed(x, 0, z, 255, 255, 0)         // -Y face
     }
   }
   for (let y = 0; y < h; y++) {
     for (let z = 0; z < d; z++) {
-      seed(w - 1, y, z, 255, 255, 255)   // +X face
-      seed(0, y, z, 255, 255, 255)       // -X face
+      seed(w - 1, y, z, 255, 0, 0)       // +X face
+      seed(0, y, z, 0, 255, 0)           // -X face
     }
   }
 
@@ -177,6 +178,7 @@ void main() {
 
 const FRAG = `
 precision highp float;
+precision highp sampler2DArray;
 uniform sampler2DArray tiles;
 varying vec2 vUv;
 varying float vLayer;
