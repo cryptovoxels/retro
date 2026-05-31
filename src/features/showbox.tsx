@@ -2068,6 +2068,44 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (mobileWorldBtn) liveHeader.append(mobileWorldBtn)
         liveHeader.append(liveTimer)
 
+        // Desktop minimize: collapse the dock to a live pill so broadcasters can read chat without killing the stream.
+        // Mobile already has "see world" for this, so desktop only.
+        if (!mobile) {
+          let minimized = false
+          const minBtn = document.createElement('button')
+          minBtn.type = 'button'
+          minBtn.textContent = '-'
+          minBtn.title = 'minimize'
+          Object.assign(minBtn.style, { background: 'transparent', color: '#f5f5f0', border: '0', padding: '0 4px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '18px', lineHeight: '1', flexShrink: '0' })
+          minBtn.onclick = (e) => {
+            e.stopPropagation()
+            minimized = !minimized
+            for (const child of Array.from(panel.children)) {
+              if (child === liveHeader) continue
+              const el = child as HTMLElement
+              if (minimized) {
+                el.dataset.prevDisplay = el.style.display
+                el.style.display = 'none'
+              } else {
+                el.style.display = el.dataset.prevDisplay ?? ''
+              }
+            }
+            if (minimized) {
+              panel.style.width = 'auto'
+              panel.style.maxHeight = 'none'
+              panel.style.boxShadow = 'none'
+              panel.style.padding = '6px 10px'
+            } else {
+              panel.style.padding = '1rem'
+              panel.style.boxShadow = '0 4px 24px rgba(0,0,0,0.6)'
+              setDesktopDockLayout(true)
+            }
+            minBtn.textContent = minimized ? '+' : '-'
+            minBtn.title = minimized ? 'expand' : 'minimize'
+          }
+          liveHeader.append(minBtn)
+        }
+
         if (!document.getElementById('showbox-live-pulse-style')) {
           const styleEl = document.createElement('style')
           styleEl.id = 'showbox-live-pulse-style'
