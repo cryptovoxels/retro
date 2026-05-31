@@ -222,10 +222,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.hardFeatureBounds = this.sandbox
       ? new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), parent._worldMatrix)
       : new BABYLON.BoundingBox(
-        new BABYLON.Vector3(this.x1 - hardFeatureBound, this.y1 - hardFeatureBound, this.z1 - hardFeatureBound),
-        new BABYLON.Vector3(this.x2 + hardFeatureBound, this.y2 + hardFeatureBound, this.z2 + hardFeatureBound),
-        parent._worldMatrix,
-      )
+          new BABYLON.Vector3(this.x1 - hardFeatureBound, this.y1 - hardFeatureBound, this.z1 - hardFeatureBound),
+          new BABYLON.Vector3(this.x2 + hardFeatureBound, this.y2 + hardFeatureBound, this.z2 + hardFeatureBound),
+          parent._worldMatrix,
+        )
 
     // fix parcel offset, but leave enough for exterior signage
     const grace = 0.1
@@ -235,10 +235,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.exteriorBounds = this.sandbox
       ? this.boundingBox
       : new BABYLON.BoundingBox(
-        new BABYLON.Vector3(this.x1 + offset - grace, this.y1 + offset - grace, this.z1 + offset - grace),
-        new BABYLON.Vector3(this.x2 + offset + grace, this.y2 + offset + grace, this.z2 + offset + grace),
-        parent._worldMatrix,
-      )
+          new BABYLON.Vector3(this.x1 + offset - grace, this.y1 + offset - grace, this.z1 + offset - grace),
+          new BABYLON.Vector3(this.x2 + offset + grace, this.y2 + offset + grace, this.z2 + offset + grace),
+          parent._worldMatrix,
+        )
 
     this._parcelBouncer = new ParcelBouncer(this)
     /**
