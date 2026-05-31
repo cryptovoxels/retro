@@ -13,6 +13,8 @@ import { FeatureRecord } from '../common/messages/feature'
 import type { ParcelGeometry, ParcelKind, ParcelPatch, ParcelRecord, ParcelRef, ParcelSettings } from '../common/messages/parcel'
 import { getBufferFromVoxels, getFieldShape, getVoxelsFromBuffer } from '../common/voxels/helpers'
 import { VoxelSize } from '../common/voxels/mesher'
+import { buildCleanMesh } from './clean-mesher'
+import type { LanternRecord } from '../common/messages/feature'
 import { app } from '../web/src/state'
 import Autobuilder from './autobuild'
 import { createFeature } from './features/create'
@@ -1061,7 +1063,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       await this.awaitVoxelMesh()
     }
 
-    if (this.voxelMesh && !this.isBaked) {
+    if (this.voxelMesh && !this.isBaked && !window.graphic?.realisticLighting) {
       // Load tileset for unbaked parcels. Baked parcels already have the lightmap
       // shader material applied by setLightBakedMaterial; stomping it here applies
       // the unbaked shader to a mesh missing the `ambientOcclusion` attribute, which
@@ -1494,6 +1496,19 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   async generateVoxelField() {
     if (!this.voxels || this.voxels.trim() === '') {
       console.debug(`Skipping meshing for parcel ${this.id} - no voxel data`)
+      return
+    }
+
+    if (window.graphic?.realisticLighting && this.field) {
+      // todo: add collider + glass support for realistic lighting path
+      const lanterns = this.features.filter((f) => f.type === 'lantern') as LanternRecord[]
+      const mesh = await buildCleanMesh(this.field, lanterns, this.scene)
+      this.voxelMesh?.dispose()
+      this.voxelMesh = mesh
+      mesh.parent = this.transform
+      mesh.position.set(-this.width / 4, -(1 + this.ZFightingNudge), -this.depth / 4)
+      mesh.freezeWorldMatrix()
+      this.dispatchEvent(createEvent('MeshLoaded', mesh))
       return
     }
 

@@ -401,14 +401,7 @@ export default abstract class Controls implements IControls {
   }
 
   toggleFlying() {
-    if (!this.grounded) {
-      // allow user to escape ungrounded state by pressing "F"
-      // without this, if a user spawns in the air, they will be stuck flying until they get near the ground
-      this.flying = false
-      this.grounded = true
-    } else {
-      this.setFlying(!this.flying)
-    }
+    this.setFlying(!this.flying)
   }
 
   // called on spawn and teleport
