@@ -277,6 +277,7 @@ export function buildMesh(
   // mat.emissiveColor = BABYLON.Color3.Black()
   // mat.disableLighting = true
   mesh.material = mat
+  mat.specularColor.set(0.2, 0.1, 0.0)
 
   return mesh
 }

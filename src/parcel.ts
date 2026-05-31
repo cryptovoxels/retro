@@ -1379,12 +1379,15 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       return
     }
 
-    const material = this.voxelMesh.material as BABYLON.ShaderMaterial
 
-    // regenerate if we are still using greedy blocks so that we don't change the brightness of surrounding parcels
-    if (isShared(material)) return this.refreshVoxels()
+    // todo - disabled brightness toggle
 
-    material.setFloat('brightness', this.brightness || window.environment?.brightness || 1.5)
+    // const material = this.voxelMesh.material as BABYLON.ShaderMaterial
+
+    // // regenerate if we are still using greedy blocks so that we don't change the brightness of surrounding parcels
+    // if (isShared(material)) return this.refreshVoxels()
+
+    // material.setFloat('brightness', this.brightness || window.environment?.brightness || 1.5)
   }
 
   /**
