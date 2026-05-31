@@ -504,6 +504,7 @@ export default abstract class Controls implements IControls {
 
   startConga(target: Avatar) {
     if (target.isDisposed()) return
+    this.canvas.focus() // joining via a chat link leaves focus on the <a>; canvas needs focus or WASD/Escape can't leave the line
     this.congaTarget = target
     this.congaSyncGraceUntil = Date.now() + 2500
     this.congaSawLeaderInConga = false
