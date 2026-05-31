@@ -715,6 +715,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     }
 
     this.dispatchEvent(createEvent('updated', true))
+    if (this.type === 'lantern') this.parcel.relight()
   }
 
   public abstract generate(): Promise<void>
@@ -837,11 +838,13 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   public delete() {
+    const isLantern = this.type === 'lantern'
     this.deinstance()
     this.dispose()
     this.budgetUnconsume()
     this.sendDeletePatch()
     this.group?.deleteIfNoChildren()
+    if (isLantern) this.parcel.relight()
   }
 
   budgetUnconsume = () => {
