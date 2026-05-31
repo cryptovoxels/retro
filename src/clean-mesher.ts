@@ -186,7 +186,13 @@ export function buildMesh(
   scene: BABYLON.Scene,
 ): BABYLON.Mesh {
   const [w, h, d] = field.shape
-  const pw = w + 2, ph = h + 2
+  const pw = w + 2, ph = h + 2, pd = d + 2
+
+  const sample = (px: number, py: number, pz: number): [number, number, number] => {
+    if (px < 0 || py < 0 || pz < 0 || px >= pw || py >= ph || pz >= pd) return [0, 0, 0]
+    const i = px + py * pw + pz * pw * ph
+    return [light[i * 3], light[i * 3 + 1], light[i * 3 + 2]]
+  }
 
   const positions: number[] = []
   const normals: number[] = []
@@ -224,16 +230,27 @@ export function buildMesh(
             : false
           if (neighborSolid) continue
 
-          // sample from padded light grid: field neighbor (ax,ay,az) -> padded (ax+1,ay+1,az+1)
-          const li = (ax + 1) + (ay + 1) * pw + (az + 1) * pw * ph
-          const lr = light[li * 3] / 255
-          const lg = light[li * 3 + 1] / 255
-          const lb = light[li * 3 + 2] / 255
+          // air cell in front of this face (padded), and the 2 tangent axes of the face plane
+          const base = [ax + 1, ay + 1, az + 1]
+          const tans = [0, 1, 2].filter(a => face.n[a] === 0)
+          const ta = tans[0], tb = tans[1]
 
           for (const [vx, vy, vz] of face.v) {
             positions.push((x + vx) * VoxelSize, (y + vy) * VoxelSize, (z + vz) * VoxelSize)
             normals.push(...face.n)
-            colors.push(lr, lg, lb, 1)
+
+            // average the 4 air cells in the face plane that touch this corner (smooth light)
+            const vc = [vx, vy, vz]
+            const oa = vc[ta] === 0 ? [-1, 0] : [0, 1]
+            const ob = vc[tb] === 0 ? [-1, 0] : [0, 1]
+            let sr = 0, sg = 0, sb = 0
+            for (const da of oa) for (const db of ob) {
+              const p = [base[0], base[1], base[2]]
+              p[ta] += da; p[tb] += db
+              const [r, g, b] = sample(p[0], p[1], p[2])
+              sr += r; sg += g; sb += b
+            }
+            colors.push(sr / 1020, sg / 1020, sb / 1020, 1)
           }
 
           uvs.push(u0, v0, u0, v1, u1, v1, u1, v0)
