@@ -205,8 +205,14 @@ export function buildMesh(
         const layer = cell % 32
         const col = layer % ATLAS_COLS
         const row = Math.floor(layer / ATLAS_COLS)
-        const u0 = col / ATLAS_COLS, u1 = (col + 1) / ATLAS_COLS
-        const v0 = row / ATLAS_COLS, v1 = (row + 1) / ATLAS_COLS
+        let u0 = col / ATLAS_COLS, u1 = (col + 1) / ATLAS_COLS
+        let v0 = row / ATLAS_COLS, v1 = (row + 1) / ATLAS_COLS
+
+        const margin = 0.188;
+        u0 += margin;
+        v0 += margin;
+        u1 -= margin;
+        v1 -= margin;
 
         for (const face of FACES) {
           const [nx, ny, nz] = face.ni
