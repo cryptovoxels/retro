@@ -48,6 +48,7 @@ const BOUNCE = [89, 65, 40] as const    // dim warm bounce (3800K @ 35%)
 export function floodfill(
   field: NdArray<Uint8Array>,
   lanterns: Array<{ position: [number, number, number]; color: string; strength?: number | string }>,
+  off: [number, number, number],
 ): Uint8Array {
   const [w, h, d] = field.shape
   const pw = w + 2, ph = h + 2, pd = d + 2
@@ -117,11 +118,13 @@ export function floodfill(
   // seed lanterns (field coords -> padded coords)
   for (const l of lanterns) {
     const [lx, ly, lz] = l.position
-    const fx = Math.floor(lx / VoxelSize)
-    const fy = Math.floor(ly / VoxelSize)
-    const fz = Math.floor(lz / VoxelSize)
+    // match voxelCoordFromPositionInParcel: subtract mesh offset + first-voxel center
+    const fx = Math.floor((lx - off[0] - 0.25) / VoxelSize)
+    const fy = Math.floor((ly - off[1] - 0.75) / VoxelSize)
+    const fz = Math.floor((lz - off[2] - 0.25) / VoxelSize)
     const [lr, lg, lb] = hexToRgb(l.color || '#ffffff')
-    const s = Math.min(1, Math.max(0, parseFloat(String(l.strength ?? 50)) / 100))
+    const s = 1.0; // Math.min(1, Math.max(0, parseFloat(String(l.strength ?? 50)) / 100))
+
     seedP(fx + 1, fy + 1, fz + 1, Math.round(lr * s), Math.round(lg * s), Math.round(lb * s))
   }
 
@@ -288,9 +291,10 @@ export async function buildCleanMesh(
   field: NdArray<Uint16Array>,
   lanterns: LanternRecord[],
   scene: BABYLON.Scene,
+  off: [number, number, number],
 ): Promise<BABYLON.Mesh> {
   const field8 = to8bit(field)
-  const light = floodfill(field8, lanterns as any)
+  const light = floodfill(field8, lanterns as any, off)
   const url = DEBUG_LIGHT_PROBES ? '/textures/00-grid.png' : '/textures/atlas-ao.png'
   const tex = loadTex(url, scene)
   return buildMesh(field8, light, tex, scene)
