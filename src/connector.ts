@@ -842,6 +842,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
 
   /** Chat "Join" link or programmatic join: teleport if far, then follow the leader (uuid). */
   joinCongaFromInvitation(leaderUuid: string) {
+    if (leaderUuid === this.persona.uuid) return // you started this line; can't follow yourself
     if (this.inConga) {
       this.controls.stopConga()
     }
