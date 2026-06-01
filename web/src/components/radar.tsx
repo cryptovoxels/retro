@@ -55,31 +55,34 @@ export default class Radar extends Component<Props, { users: Map<string, User> }
       byParcel.get(key)!.push({ uuid, avatar: u.avatar })
     }
 
-    if (byParcel.size === 0) return <p>no one online</p>
+    if (byParcel.size === 0) return null
 
     return (
-      <ul class="radar">
-        {[...byParcel.entries()].map(([parcelId, users]) => {
-          const info = parcelId != null ? getParcel(parcelId).value : null
-          const label = info?.name || info?.address || (parcelId ? `parcel ${parcelId}` : 'somewhere')
-          return (
-            <li key={parcelId ?? 'none'}>
-              {parcelId ? (
-                <a href={`/parcels/${parcelId}`} onClick={(e) => this.onParcelClick(e, parcelId)}>
-                  {label}
-                </a>
-              ) : (
-                <span>{label}</span>
-              )}
-              <ul>
-                {users.map(({ uuid, avatar }) => (
-                  <li key={uuid}>{avatar ? <AvatarLink avatar={avatar} /> : <span>anon</span>}</li>
-                ))}
-              </ul>
-            </li>
-          )
-        })}
-      </ul>
+      <>
+        <h3>Radar</h3>
+        <ul class="radar">
+          {[...byParcel.entries()].map(([parcelId, users]) => {
+            const info = parcelId != null ? getParcel(parcelId).value : null
+            const label = info?.name || info?.address || (parcelId ? `parcel ${parcelId}` : 'somewhere')
+            return (
+              <li key={parcelId ?? 'none'}>
+                {parcelId ? (
+                  <a href={`/parcels/${parcelId}`} onClick={(e) => this.onParcelClick(e, parcelId)}>
+                    {label}
+                  </a>
+                ) : (
+                  <span>{label}</span>
+                )}
+                <ul>
+                  {users.map(({ uuid, avatar }) => (
+                    <li key={uuid}>{avatar ? <AvatarLink avatar={avatar} /> : <span>anon</span>}</li>
+                  ))}
+                </ul>
+              </li>
+            )
+          })}
+        </ul>
+      </>
     )
   }
 }
