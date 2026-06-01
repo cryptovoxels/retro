@@ -1595,6 +1595,32 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       deviceToggle.textContent = open ? 'change camera or mic' : 'hide camera and mic'
     }
 
+    // Screenshare goes live with no mic. This lets you add your voice mid-stream - livekit
+    // publishes a mic track the first time, then just mutes/unmutes on toggle. Hidden unless screensharing.
+    let screenMicOn = false
+    const micToggle = document.createElement('button')
+    micToggle.type = 'button'
+    micToggle.textContent = 'turn on mic'
+    Object.assign(micToggle.style, {
+      display: 'none',
+      background: '#1a1a1a',
+      color: '#888',
+      border: '1px solid #333',
+      padding: '8px 10px',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      minHeight: '36px',
+    })
+    micToggle.onclick = async () => {
+      if (!this.broadcastRoom) return
+      screenMicOn = !screenMicOn
+      micToggle.disabled = true
+      await this.broadcastRoom.localParticipant.setMicrophoneEnabled(screenMicOn, { deviceId: micSel.value || undefined }).catch(() => (screenMicOn = !screenMicOn)) // fail soft: revert if permission denied
+      micToggle.disabled = false
+      micToggle.textContent = screenMicOn ? 'mic on' : 'mic muted'
+      micToggle.style.color = screenMicOn ? '#f5f5f0' : '#888'
+    }
+
     // Name row only for guests on /live/ links.
     const guestToken = isGuest ? guestPassToken() : null
     let guestNameInput: HTMLInputElement | null = null
@@ -1887,12 +1913,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
       const mobileKids: Node[] = [title]
       if (identityRow) mobileKids.push(identityRow)
-      mobileKids.push(deviceRow, screenOpt, screenHint, deviceToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status)
+      mobileKids.push(deviceRow, screenOpt, screenHint, deviceToggle, micToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status)
       panel.append(...mobileKids)
     } else {
       const desktopKids: Node[] = [title]
       if (identityRow) desktopKids.push(identityRow)
-      desktopKids.push(deviceRow, screenOpt, screenHint, deviceToggle)
+      desktopKids.push(deviceRow, screenOpt, screenHint, deviceToggle, micToggle)
       if (shareRow) desktopKids.push(shareRow)
       desktopKids.push(moveRow, status, row)
       panel.append(...desktopKids)
@@ -1989,6 +2015,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         deviceToggle.style.display = 'none'
         deviceRow.style.display = 'flex'
         deviceToggle.textContent = 'change camera or mic'
+        screenMicOn = false
+        micToggle.style.display = 'none'
         goBtn.style.display = ''
         if (shareRow) shareRow.style.display = 'none'
         moveRow.style.display = 'none'
@@ -2133,6 +2161,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         deviceRow.style.display = 'none'
         deviceToggle.style.display = 'block'
         deviceToggle.textContent = 'change camera or mic'
+        if (screenChk.checked) {
+          screenMicOn = false
+          micToggle.textContent = 'turn on mic'
+          micToggle.style.color = '#888'
+          micToggle.style.display = 'block'
+        }
         if (mobile) {
           mobileExtrasOpen = false
           if (shareRow) shareRow.style.display = 'flex'
