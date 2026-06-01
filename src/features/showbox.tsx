@@ -1561,6 +1561,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     screenHint.style.display = 'none'
     screenChk.onchange = () => {
       screenHint.style.display = screenChk.checked ? 'block' : 'none'
+      // screenshare grabs your screen + system audio, not your camera/mic - hide the device pickers so it is not misleading.
+      deviceRow.style.display = screenChk.checked ? 'none' : 'flex'
     }
     if (mobile) screenOpt.style.display = 'none' // screenshare from a phone is unreliable; stick to the camera
 
