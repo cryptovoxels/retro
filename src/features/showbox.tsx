@@ -1086,6 +1086,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.livekitRoom = room
 
     room.on(RoomEvent.TrackSubscribed, (track, _pub, participant) => {
+      if (this.livekitRoom !== room) return
       const identity = participant?.identity ?? ''
       if (this.broadcastRoom) {
         if (this.isCohostMode() && track.kind === Track.Kind.Audio && this.shouldPlayCohostAudio(identity)) {
@@ -1121,6 +1122,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     })
 
     room.on(RoomEvent.TrackUnsubscribed, (track, _pub, participant) => {
+      if (this.livekitRoom !== room) return
       const identity = participant?.identity ?? ''
       if (this.broadcastRoom) {
         if (this.isCohostMode() && track.kind === Track.Kind.Audio) {
@@ -1171,10 +1173,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     })
 
     room.on(RoomEvent.ParticipantConnected, () => {
+      if (this.livekitRoom !== room) return
       if (!this.broadcastRoom) this.tryAttachExistingStream()
       this.setPreview()
     })
     room.on(RoomEvent.ParticipantDisconnected, () => {
+      if (this.livekitRoom !== room) return
       if (this.isCohostMode()) {
         this.updateCohostComposite()
         this.ensureShowboxLiveFlag()
@@ -1195,7 +1199,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
     } finally {
       this.viewerConnecting = false
-      if (gen !== this.viewerConnectGen) return
+      if (gen !== this.viewerConnectGen) {
+        if (this.livekitRoom !== room) room.disconnect()
+        return
+      }
       if (this.isCohostMode() && this.broadcastRoom && this.livekitRoom) {
         this.syncExistingCohostVideos()
         this.syncExistingCohostAudio()
@@ -1337,7 +1344,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const othersLive = this.hasOtherLivePublishers()
     try {
       const patch: Record<string, any> = { [this.uuid]: {} }
-      if (this.activeLiveShowboxUuid() === this.uuid && !othersLive) patch.__showbox_live = null
+      // only a real broadcaster clears the live flag; audience teardown must not nuke it for everyone
+      if (this.broadcastRoom && this.activeLiveShowboxUuid() === this.uuid && !othersLive) patch.__showbox_live = null
       this.parcel.sendStatePatch(patch)
     } catch {}
     this.stopThumbCapture(silent)
