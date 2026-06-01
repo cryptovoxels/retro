@@ -179,6 +179,8 @@ function syncGuestDisplayName(name: string) {
 }
 
 type GuestMode = 'solo' | 'cohost'
+type MirrorSource = 'auto' | 'host' | 'collaborator' | 'guest'
+type MirrorRole = 'host' | 'collaborator' | 'guest'
 
 const DEFAULT_GUEST_MODE: GuestMode = 'solo'
 
@@ -293,23 +295,22 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.setPreview()
   }
 
-  // mirrors follow the host feed (fall back to whoever is live), so every mirror shows the same thing
+  // mirrors show the chosen source muted (default: whoever is live, host preferred), so every mirror is consistent
   refreshMirrorVideo() {
     if (!this.isMirror() || this.broadcastRoom || !this.livekitRoom) return
-    let host: { track: any; id: string } | null = null
-    let fallback: { track: any; id: string } | null = null
+    const byRole: Partial<Record<MirrorRole, { track: any; id: string }>> = {}
+    let first: { track: any; id: string } | null = null
     for (const p of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
       for (const pub of p.videoTrackPublications.values()) {
         if (!pub.track || !pub.isSubscribed) continue
-        if (this.isHostPublisherIdentity(p.identity)) {
-          host = { track: pub.track, id: p.identity }
-          break
-        }
-        if (!fallback) fallback = { track: pub.track, id: p.identity }
+        const role = this.publisherRole(p.identity)
+        if (!byRole[role]) byRole[role] = { track: pub.track, id: p.identity }
+        if (!first) first = { track: pub.track, id: p.identity }
       }
-      if (host) break
     }
-    const pick = host ?? fallback
+    const want = this.mirrorSource
+    // chosen role if it's live, else fall back to whoever is live (host preferred)
+    const pick = (want !== 'auto' ? byRole[want] : null) ?? byRole.host ?? byRole.collaborator ?? byRole.guest ?? first
     if (!pick) {
       if (this.hasActiveVideo) {
         this.hasActiveVideo = false
@@ -602,6 +603,19 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return !this.isGuestPublisherIdentity(identity)
   }
 
+  get mirrorSource(): MirrorSource {
+    const s = this.description.mirrorSource
+    return s === 'host' || s === 'collaborator' || s === 'guest' ? s : 'auto'
+  }
+
+  // classify a publisher by the parcel role of their wallet (guests are guest-prefixed identities)
+  publisherRole(identity: string): MirrorRole {
+    if (this.isGuestPublisherIdentity(identity)) return 'guest'
+    const wallet = cohostIdentityPrefix(identity).toLowerCase()
+    const owners = this.parcel.owners.map((w) => (w || '').toLowerCase())
+    return owners.includes(wallet) ? 'host' : 'collaborator'
+  }
+
   shouldPlayCohostAudio(participantIdentity: string) {
     if (!this.isCohostMode() || !this.broadcastRoom || !this.livekitRoom) return false
     const theirs = cohostIdentityPrefix(participantIdentity)
@@ -850,6 +864,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   update(props: Partial<any>) {
     Object.assign(this.description, props)
     this.setCommon()
+    if (this.isMirror()) this.refreshMirrorVideo()
   }
 
   generate() {
@@ -2407,6 +2422,7 @@ class Editor extends FeatureEditor<Showbox> {
       rolloffFactor: props.feature.rolloffFactor,
       volume: props.feature.volume,
       guestMode: props.feature.guestMode === 'cohost' ? 'cohost' : 'solo',
+      mirrorSource: props.feature.mirrorSource,
     }
   }
 
@@ -2415,6 +2431,7 @@ class Editor extends FeatureEditor<Showbox> {
       rolloffFactor: this.state.rolloffFactor,
       volume: this.state.volume,
       guestMode: this.state.guestMode,
+      mirrorSource: this.state.mirrorSource,
     })
   }
 
@@ -2435,7 +2452,14 @@ class Editor extends FeatureEditor<Showbox> {
           <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
           {isMirror ? (
             <div className="f">
-              <small>This is a Showbox mirror. It shows the first showbox video with no audio. Manage the stream, guest links, and volume on the first showbox.</small>
+              <label>Mirror source</label>
+              <select value={this.state.mirrorSource} onChange={(e) => this.setState({ mirrorSource: e.currentTarget.value as MirrorSource })}>
+                <option value="auto">whoever is live</option>
+                <option value="host">host (parcel owner)</option>
+                <option value="collaborator">collaborator</option>
+                <option value="guest">guest</option>
+              </select>
+              <small>Mirrors the first showbox video with no audio. Falls back to whoever is live if your pick isn't streaming. Manage the stream and guest links on the first showbox.</small>
             </div>
           ) : (
             <GuestPasses feature={this.props.feature} guestMode={this.state.guestMode} onGuestModeChange={(guestMode) => this.setState({ guestMode })} />
