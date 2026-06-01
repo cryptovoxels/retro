@@ -25,14 +25,17 @@ export function createLanternMaterial(scene: BABYLON.Scene, config: LanternMater
   const cached = getCachedMaterial(cacheKey)
   if (cached) return cached
 
+  const texture = new BABYLON.Texture('/textures/00-grid.png', scene)
+
   const material = new BABYLON.StandardMaterial(`lantern/${Date.now()}`, scene)
 
+  material.ambientTexture = texture
   material.emissiveColor = lanternColor
 
   // Zero out all other color channels to prevent mixing with other lights
   material.diffuseColor = new BABYLON.Color3(0, 0, 0)
-  material.specularColor = new BABYLON.Color3(0, 0, 0)
-  material.ambientColor = new BABYLON.Color3(0, 0, 0)
+  // material.specularColor = new BABYLON.Color3(0, 0, 0)
+  // material.ambientColor = new BABYLON.Color3(0, 0, 0)
 
   material.freeze()
   material.blockDirtyMechanism = true
