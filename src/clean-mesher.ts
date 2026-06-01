@@ -4,13 +4,24 @@ import type { LanternRecord } from '../common/messages/feature'
 import { createGlassMaterial } from './materials/glass'
 
 const DEBUG_LIGHT_PROBES = false
+export const GLASS = 2
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
 export function to8bit(field: NdArray<Uint16Array>): NdArray<Uint8Array> {
   const [w, h, d] = field.shape
   const out = ndarray(new Uint8Array(w * h * d), [w, h, d])
-  for (let x = 0; x < w; x++) for (let y = 0; y < h; y++) for (let z = 0; z < d; z++) out.set(x, y, z, field.get(x, y, z) & 0xff)
+  for (let x = 0; x < w; x++) {
+    for (let y = 0; y < h; y++) {
+      for (let z = 0; z < d; z++) {
+        const v = field.get(x, y, z) & 0xff
+
+        if (v != GLASS) {
+          out.set(x, y, z, v)
+        }
+      }
+    }
+  }
   return out
 }
 
@@ -130,7 +141,7 @@ export async function floodfill(field: NdArray<Uint8Array>, lanterns: Array<{ po
     const fy = Math.floor((ly - off[1] - 0.75) / VoxelSize)
     const fz = Math.floor((lz - off[2] - 0.25) / VoxelSize)
     const [lr, lg, lb] = hexToRgb(l.color || '#ffffff')
-    const s = 1.0 // Math.min(1, Math.max(0, parseFloat(String(l.strength ?? 50)) / 100))
+    const s = Math.min(1, Math.max(0, parseFloat(String(l.strength ?? 50)) / 100))
 
     seedP(fx + 1, fy + 1, fz + 1, Math.round(lr * s), Math.round(lg * s), Math.round(lb * s))
   }
@@ -193,67 +204,67 @@ const FACES: Array<{
   v: [[number, number, number], [number, number, number], [number, number, number], [number, number, number]]
   ni: [number, number, number]
 }> = [
-  {
-    n: [1, 0, 0],
-    ni: [1, 0, 0],
-    v: [
-      [1, 0, 1],
-      [1, 1, 1],
-      [1, 1, 0],
-      [1, 0, 0],
-    ],
-  },
-  {
-    n: [-1, 0, 0],
-    ni: [-1, 0, 0],
-    v: [
-      [0, 0, 0],
-      [0, 1, 0],
-      [0, 1, 1],
-      [0, 0, 1],
-    ],
-  },
-  {
-    n: [0, 1, 0],
-    ni: [0, 1, 0],
-    v: [
-      [0, 1, 0],
-      [1, 1, 0],
-      [1, 1, 1],
-      [0, 1, 1],
-    ],
-  },
-  {
-    n: [0, -1, 0],
-    ni: [0, -1, 0],
-    v: [
-      [0, 0, 1],
-      [1, 0, 1],
-      [1, 0, 0],
-      [0, 0, 0],
-    ],
-  },
-  {
-    n: [0, 0, 1],
-    ni: [0, 0, 1],
-    v: [
-      [0, 0, 1],
-      [0, 1, 1],
-      [1, 1, 1],
-      [1, 0, 1],
-    ],
-  },
-  {
-    n: [0, 0, -1],
-    ni: [0, 0, -1],
-    v: [
-      [1, 0, 0],
-      [1, 1, 0],
-      [0, 1, 0],
-      [0, 0, 0],
-    ],
-  },
-]
+    {
+      n: [1, 0, 0],
+      ni: [1, 0, 0],
+      v: [
+        [1, 0, 1],
+        [1, 1, 1],
+        [1, 1, 0],
+        [1, 0, 0],
+      ],
+    },
+    {
+      n: [-1, 0, 0],
+      ni: [-1, 0, 0],
+      v: [
+        [0, 0, 0],
+        [0, 1, 0],
+        [0, 1, 1],
+        [0, 0, 1],
+      ],
+    },
+    {
+      n: [0, 1, 0],
+      ni: [0, 1, 0],
+      v: [
+        [0, 1, 0],
+        [1, 1, 0],
+        [1, 1, 1],
+        [0, 1, 1],
+      ],
+    },
+    {
+      n: [0, -1, 0],
+      ni: [0, -1, 0],
+      v: [
+        [0, 0, 1],
+        [1, 0, 1],
+        [1, 0, 0],
+        [0, 0, 0],
+      ],
+    },
+    {
+      n: [0, 0, 1],
+      ni: [0, 0, 1],
+      v: [
+        [0, 0, 1],
+        [0, 1, 1],
+        [1, 1, 1],
+        [1, 0, 1],
+      ],
+    },
+    {
+      n: [0, 0, -1],
+      ni: [0, 0, -1],
+      v: [
+        [1, 0, 0],
+        [1, 1, 0],
+        [0, 1, 0],
+        [0, 0, 0],
+      ],
+    },
+  ]
 
 export async function buildMesh(field: NdArray<Uint8Array>, light: Uint8Array, tex: BABYLON.Texture, scene: BABYLON.Scene, id: number, palette: BABYLON.Color3[]): Promise<BABYLON.Mesh> {
   const [w, h, d] = field.shape
