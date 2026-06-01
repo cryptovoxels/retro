@@ -135,6 +135,10 @@ export default class Womp extends Component<Props, State> {
             <a class="buttonish" onClick={onFullscreen}>
               Full screen
             </a>
+            <a href={this.visitUrl!} class="buttonish">
+              Teleport
+            </a>
+
           </figcaption>
 
           <figure>
@@ -164,9 +168,6 @@ export default class Womp extends Component<Props, State> {
             <dd>{new Date(this.state.womp.created_at).toLocaleString()}</dd>
           </dl>
 
-          <a href={this.visitUrl!} class="secondary button">
-            Teleport
-          </a>
 
           <h3>Image</h3>
 
