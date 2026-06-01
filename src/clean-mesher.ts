@@ -14,7 +14,7 @@ export function to8bit(field: NdArray<Uint16Array>): NdArray<Uint8Array> {
   for (let x = 0; x < w; x++) {
     for (let y = 0; y < h; y++) {
       for (let z = 0; z < d; z++) {
-        const v = field.get(x, y - 1, z) & 0xff
+        const v = field.get(x, y, z) & 0xff
 
         if (v != GLASS) {
           out.set(x, y, z, v)
@@ -299,6 +299,7 @@ export async function buildMesh(field: NdArray<Uint8Array>, light: Uint8Array, t
   const uvs: number[] = []
   const colors: number[] = []
   const indices: number[] = []
+  const Y_OFFSET = 0.5
 
   let vi = 0
 
@@ -343,7 +344,7 @@ export async function buildMesh(field: NdArray<Uint8Array>, light: Uint8Array, t
             tb = tans[1]
 
           for (const [vx, vy, vz] of face.v) {
-            positions.push((x + vx) * VoxelSize, (y + vy) * VoxelSize, (z + vz) * VoxelSize)
+            positions.push((x + vx) * VoxelSize, (y + vy) * VoxelSize + Y_OFFSET, (z + vz) * VoxelSize)
             normals.push(...face.n)
 
             // average the 4 air cells in the face plane that touch this corner (smooth light)
