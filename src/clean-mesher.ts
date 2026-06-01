@@ -124,7 +124,7 @@ export async function floodfill(field: NdArray<Uint8Array>, lanterns: Array<{ po
     for (let px = 0; px < pw; px++)
       for (let pz = 0; pz < pd; pz++) {
         seedP(px, ph - 1, pz, K4500[0], K4500[1], K4500[2]) // +Y top 4500K
-        seedP(px, 4, pz, BOUNCE[0], BOUNCE[1], BOUNCE[2]) // y=3 dim warm bounce
+        // seedP(px, 4, pz, BOUNCE[0], BOUNCE[1], BOUNCE[2]) // y=3 dim warm bounce
       }
     for (let py = 0; py < ph; py++)
       for (let pz = 0; pz < pd; pz++) {
