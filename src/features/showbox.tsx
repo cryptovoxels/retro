@@ -260,15 +260,32 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return !!live && live === this.uuid
   }
 
+  isMirror() {
+    const boxes = this.parcel.getFeaturesByType('showbox')
+    return boxes.length > 1 && boxes[0]?.uuid !== this.uuid
+  }
+
+  // a mirror shows the primary showbox video (muted) whenever a stream is live on the parcel
+  mirrorsActiveStream() {
+    return this.isMirror() && !!this.activeLiveShowboxUuid()
+  }
+
+  displaysStream() {
+    return this.streamTargetsThisShowbox() || this.mirrorsActiveStream()
+  }
+
   reconcileActiveStream() {
     if (this.broadcastRoom) return
-    if (this.streamTargetsThisShowbox()) {
+    if (this.displaysStream()) {
       this.tryAttachExistingStream()
       if (!this.hasActiveVideo) this.scheduleStreamAttachRetry()
       return
     }
     this.stopStreamAttachRetry()
-    if (!this.hasActiveVideo) return
+    if (!this.hasActiveVideo) {
+      this.setPreview()
+      return
+    }
     this.hasActiveVideo = false
     if (this.isCohostMode()) this.stopCohostComposite()
     this.setPreview()
@@ -276,6 +293,19 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   tryAttachExistingStream() {
     if (this.broadcastRoom || !this.livekitRoom) return
+    if (this.isMirror()) {
+      if (this.hasActiveVideo) return
+      for (const participant of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
+        for (const pub of participant.videoTrackPublications.values()) {
+          const track = pub.track
+          if (!track || !pub.isSubscribed) continue
+          this.attachVideoToMesh(track.attach() as HTMLVideoElement, true)
+          this.stopStreamAttachRetry()
+          return
+        }
+      }
+      return
+    }
     if (this.isCohostMode()) {
       if (this.hasActiveVideo) return
       this.syncExistingCohostVideos()
@@ -510,7 +540,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   hasRemoteBroadcaster() {
-    if (!this.streamTargetsThisShowbox()) return false
+    if (!this.displaysStream()) return false
     return [...((this.livekitRoom as any)?.remoteParticipants?.values() ?? [])].some((p: any) => p?.videoTrackPublications?.size > 0 || p?.audioTrackPublications?.size > 0)
   }
 
@@ -536,6 +566,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   canOpenBroadcastPanel() {
+    if (this.isMirror()) return false
     return isGuestForShowbox(this.uuid) || this.parcel.canEdit
   }
 
@@ -927,14 +958,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   scheduleStreamAttachRetry() {
     if (this.streamAttachRetryInterval || this.disposed || this.broadcastRoom) return
-    if (!this.streamTargetsThisShowbox()) return
+    if (!this.displaysStream()) return
     this.streamAttachAttempts = 0
     this.streamAttachRetryInterval = setInterval(() => {
       if (this.disposed || !this.isInCurrentParcel || this.broadcastRoom) {
         this.stopStreamAttachRetry()
         return
       }
-      if (!this.streamTargetsThisShowbox()) {
+      if (!this.displaysStream()) {
         this.stopStreamAttachRetry()
         return
       }
@@ -1001,7 +1032,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (hasRemoteBroadcaster && !(this.isCohostMode() && this.canOpenBroadcastPanel())) {
       ctx.fillStyle = '#888'
       ctx.fillText(mobile && !this.hasActiveVideo ? 'tap to listen' : 'connecting to stream...', w / 2, h / 2)
-    } else if (this.parcel.canEdit || isGuestForShowbox(this.uuid)) {
+    } else if (!this.isMirror() && (this.parcel.canEdit || isGuestForShowbox(this.uuid))) {
       ctx.fillText('showbox', w / 2, h / 2 - 20)
       const cta = '\u25CF click here to go live'
       const tw = ctx.measureText(cta).width
@@ -1021,6 +1052,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     } else if (mobile && this.livekitRoom && this.streamTargetsThisShowbox()) {
       ctx.fillStyle = '#888'
       ctx.fillText('connecting to stream...', w / 2, h / 2)
+    } else if (this.isMirror()) {
+      ctx.fillStyle = '#888'
+      ctx.fillText('showbox mirror', w / 2, h / 2)
     } else {
       ctx.fillStyle = '#888'
       ctx.fillText('no stream active', w / 2, h / 2)
@@ -1099,7 +1133,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         return
       }
-      if (!this.streamTargetsThisShowbox()) return
+      if (!this.streamTargetsThisShowbox()) {
+        if (this.mirrorsActiveStream() && track.kind === Track.Kind.Video && !this.hasActiveVideo) {
+          this.attachVideoToMesh(track.attach() as HTMLVideoElement, true)
+          this.stopStreamAttachRetry()
+        }
+        return
+      }
       if (track.kind === Track.Kind.Audio) {
         const el = track.attach() as HTMLAudioElement
         el.style.display = 'none'
@@ -1375,6 +1415,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   openBroadcastPanel() {
+    if (this.isMirror()) return
     if (this.broadcastPanel) {
       this.broadcastPanel.remove()
       this.broadcastPanel = null
@@ -2314,6 +2355,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   onClick() {
+    if (this.isMirror()) {
+      this.parcelScript?.dispatch('click', this, {})
+      return
+    }
     if (!this.broadcastRoom) {
       const guest = isGuestForShowbox(this.uuid)
       if (this.isCohostMode()) {
@@ -2352,6 +2397,7 @@ class Editor extends FeatureEditor<Showbox> {
   }
 
   render() {
+    const isMirror = this.props.feature.isMirror()
     return (
       <section>
         <header>
@@ -2365,19 +2411,29 @@ class Editor extends FeatureEditor<Showbox> {
           <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
           <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
           <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
-          <GuestPasses feature={this.props.feature} guestMode={this.state.guestMode} onGuestModeChange={(guestMode) => this.setState({ guestMode })} />
+          {isMirror ? (
+            <div className="f">
+              <small>This is a Showbox mirror. It shows the first showbox video with no audio. Manage the stream, guest links, and volume on the first showbox.</small>
+            </div>
+          ) : (
+            <GuestPasses feature={this.props.feature} guestMode={this.state.guestMode} onGuestModeChange={(guestMode) => this.setState({ guestMode })} />
+          )}
           <Advanced>
             <FeatureID feature={this.props.feature} />
             <SetParentDropdown feature={this.props.feature} />
-            <div className="f">
-              <label>Spatial Rolloff Factor</label>
-              <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onChange={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
-              <small>0 = heard everywhere in the parcel. Higher = fades as you walk away from the screen.</small>
-            </div>
-            <div className="f">
-              <label>Volume</label>
-              <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
-            </div>
+            {!isMirror && (
+              <div className="f">
+                <label>Spatial Rolloff Factor</label>
+                <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onChange={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
+                <small>0 = heard everywhere in the parcel. Higher = fades as you walk away from the screen.</small>
+              </div>
+            )}
+            {!isMirror && (
+              <div className="f">
+                <label>Volume</label>
+                <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
+              </div>
+            )}
             <UuidReadOnly feature={this.props.feature} />
             <Script feature={this.props.feature} />
           </Advanced>
