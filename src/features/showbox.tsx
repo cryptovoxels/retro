@@ -2355,10 +2355,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   onClick() {
-    if (this.isMirror()) {
-      this.parcelScript?.dispatch('click', this, {})
-      return
-    }
+    if (this.isMirror()) return
     if (!this.broadcastRoom) {
       const guest = isGuestForShowbox(this.uuid)
       if (this.isCohostMode()) {
