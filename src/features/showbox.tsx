@@ -240,6 +240,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   walkAwayWarned = false
   viewerConnectGen = 0
   localBroadcastVideoEl: HTMLVideoElement | null = null
+  mirrorVideoIdentity: string | null = null
   viewerRetryInterval: ReturnType<typeof setInterval> | null = null
   streamAttachRetryInterval: ReturnType<typeof setInterval> | null = null
   streamAttachAttempts = 0
@@ -287,23 +288,46 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       return
     }
     this.hasActiveVideo = false
+    this.mirrorVideoIdentity = null
     if (this.isCohostMode()) this.stopCohostComposite()
     this.setPreview()
+  }
+
+  // mirrors follow the host feed (fall back to whoever is live), so every mirror shows the same thing
+  refreshMirrorVideo() {
+    if (!this.isMirror() || this.broadcastRoom || !this.livekitRoom) return
+    let host: { track: any; id: string } | null = null
+    let fallback: { track: any; id: string } | null = null
+    for (const p of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
+      for (const pub of p.videoTrackPublications.values()) {
+        if (!pub.track || !pub.isSubscribed) continue
+        if (this.isHostPublisherIdentity(p.identity)) {
+          host = { track: pub.track, id: p.identity }
+          break
+        }
+        if (!fallback) fallback = { track: pub.track, id: p.identity }
+      }
+      if (host) break
+    }
+    const pick = host ?? fallback
+    if (!pick) {
+      if (this.hasActiveVideo) {
+        this.hasActiveVideo = false
+        this.mirrorVideoIdentity = null
+        this.setPreview()
+      }
+      return
+    }
+    if (this.hasActiveVideo && this.mirrorVideoIdentity === pick.id) return
+    this.attachVideoToMesh(pick.track.attach() as HTMLVideoElement, true)
+    this.mirrorVideoIdentity = pick.id
+    this.stopStreamAttachRetry()
   }
 
   tryAttachExistingStream() {
     if (this.broadcastRoom || !this.livekitRoom) return
     if (this.isMirror()) {
-      if (this.hasActiveVideo) return
-      for (const participant of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
-        for (const pub of participant.videoTrackPublications.values()) {
-          const track = pub.track
-          if (!track || !pub.isSubscribed) continue
-          this.attachVideoToMesh(track.attach() as HTMLVideoElement, true)
-          this.stopStreamAttachRetry()
-          return
-        }
-      }
+      this.refreshMirrorVideo()
       return
     }
     if (this.isCohostMode()) {
@@ -1134,10 +1158,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         return
       }
       if (!this.streamTargetsThisShowbox()) {
-        if (this.mirrorsActiveStream() && track.kind === Track.Kind.Video && !this.hasActiveVideo) {
-          this.attachVideoToMesh(track.attach() as HTMLVideoElement, true)
-          this.stopStreamAttachRetry()
-        }
+        if (this.mirrorsActiveStream() && track.kind === Track.Kind.Video) this.refreshMirrorVideo()
         return
       }
       if (track.kind === Track.Kind.Audio) {
@@ -1162,6 +1183,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     room.on(RoomEvent.TrackUnsubscribed, (track, _pub, participant) => {
       const identity = participant?.identity ?? ''
+      if (this.isMirror()) {
+        if (track.kind === Track.Kind.Video) this.refreshMirrorVideo()
+        return
+      }
       if (this.broadcastRoom) {
         if (this.isCohostMode() && track.kind === Track.Kind.Audio) {
           track.detach().forEach((node) => {
@@ -1215,6 +1240,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.setPreview()
     })
     room.on(RoomEvent.ParticipantDisconnected, () => {
+      if (this.isMirror()) {
+        this.refreshMirrorVideo()
+        return
+      }
       if (this.isCohostMode()) {
         this.updateCohostComposite()
         this.ensureShowboxLiveFlag()
@@ -1245,7 +1274,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.livekitRoom.disconnect()
         this.livekitRoom = null
       }
-      if (this.streamTargetsThisShowbox() && !this.broadcastRoom) {
+      if (this.displaysStream() && !this.broadcastRoom) {
         this.tryAttachExistingStream()
         if (!this.hasActiveVideo) this.scheduleStreamAttachRetry()
       }
