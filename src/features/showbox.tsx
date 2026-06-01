@@ -372,6 +372,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   // Snackbar works the same on desktop and mobile.
   warnIfWalkingAway() {
     if (!this.broadcastRoom || this.disposed) return
+    // Just went live - camera/world transform can read stale for a beat and false-trigger the warning.
+    if (this.liveStartedAt && Date.now() - this.liveStartedAt < 5000) return
     const cutoff = (window.draw?.distance ?? 100) * 1.1
     const dist = BABYLON.Vector3.Distance(cameraPosition(this.scene), this.absolutePosition)
     if (dist > cutoff * 0.6) {
