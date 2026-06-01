@@ -35,10 +35,10 @@ function hexToRgb(hex: string): [number, number, number] {
 const S = 0.25
 
 // approximate Kelvin colors for directional sky seeds
-const K5000 = [255 * S, 230 * S, 200 * S] as const // cool - north (+Z) / east (+X)
-const K4500 = [255 * S, 210 * S, 165 * S] as const // neutral - top (+Y)
-const K3800 = [255 * S, 185 * S, 115 * S] as const // warm - south (-Z) / west (-X)
-const BOUNCE = [89 * S, 65 * S, 40 * S] as const // dim warm bounce (3800K @ 35%)
+const K5000 = [255 * S, 250 * S, 240 * S] as const // cool - north (+Z) / east (+X)
+const K4500 = [255 * S, 250 * S, 240 * S] as const // neutral - top (+Y)
+const K3800 = [240 * S, 230 * S, 210 * S] as const // warm - south (-Z) / west (-X)
+const BOUNCE = [65 * S, 65 * S, 65 * S] as const // dim warm bounce (3800K @ 35%)
 
 // returns Uint8Array of length (W+2)*(H+2)*(D+2)*3, padded by 1 voxel on every side.
 // buildMesh samples via: (ax+1) + (ay+1)*(w+2) + (az+1)*(w+2)*(h+2)
