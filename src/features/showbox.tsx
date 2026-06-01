@@ -1240,10 +1240,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.setPreview()
     })
     room.on(RoomEvent.ParticipantDisconnected, () => {
-      if (this.isMirror()) {
-        this.refreshMirrorVideo()
-        return
-      }
       if (this.isCohostMode()) {
         this.updateCohostComposite()
         this.ensureShowboxLiveFlag()
