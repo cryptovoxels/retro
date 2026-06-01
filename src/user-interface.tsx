@@ -249,7 +249,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           } else return
           const n = this.presenceUuids.size
           if (n !== this.state.onlineCount) this.setState({ onlineCount: n })
-        } catch {}
+        } catch { }
       }
     }
 
@@ -309,7 +309,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     })
   }
 
-  updateCanEdit = () => {}
+  updateCanEdit = () => { }
 
   componentWillUnmount() {
     this.presenceEs?.close()
@@ -362,7 +362,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     // (excludes events fired from input elements and repeat events by held keys)
     this.keyboardHandler = new KeyboardHandler(this.props.scene, {
       keyDown: [
-        { key: '!', handleEvent: () => {} },
+        { key: '!', handleEvent: () => { } },
         { code: 'KeyE', handleEvent: () => this.editFeatureIfHasLock() },
         { code: 'KeyX', handleEvent: () => this.deleteFeature() },
         { code: 'KeyM', handleEvent: () => this.editFeatureThenMove() },
@@ -789,6 +789,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           <aside data-active={this.state.active}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
               <li>
+                <HomeButton grid={this.props.grid} scene={this.props.scene} />
+              </li>
+              <li>
                 <Location signedIn={this.state.signedIn} scene={this.props.scene} />
               </li>
 
@@ -924,9 +927,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   </li>
                 </>
               )}
-              <li>
-                <HomeButton grid={this.props.grid} scene={this.props.scene} />
-              </li>
             </ul>
 
             {this.state.chatEnabled && <ChatOverlay scene={this.props.scene} />}
