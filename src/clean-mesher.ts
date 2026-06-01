@@ -14,7 +14,7 @@ export function to8bit(field: NdArray<Uint16Array>): NdArray<Uint8Array> {
   for (let x = 0; x < w; x++) {
     for (let y = 0; y < h; y++) {
       for (let z = 0; z < d; z++) {
-        const v = field.get(x, y, z) & 0xff
+        const v = field.get(x, y - 1, z) & 0xff
 
         if (v != GLASS) {
           out.set(x, y, z, v)
