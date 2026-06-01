@@ -1098,7 +1098,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     screenChk.type = 'checkbox'
     screenOpt.append(screenChk, ' use screenshare instead of camera')
     const screenHint = document.createElement('small')
-    screenHint.textContent = 'mute the shared tab in chrome or you will hear double audio'
+    screenHint.textContent = 'make sure you select share system audio on the next screen if you need shared audio'
     screenHint.style.color = '#888'
     screenHint.style.display = 'none'
     screenChk.onchange = () => {
