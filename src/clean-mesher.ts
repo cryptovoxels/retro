@@ -175,7 +175,7 @@ export async function floodfill(field: NdArray<Uint8Array>, lanterns: Array<{ po
 
     for (let d2 = 0; d2 < 6; d2++) {
       if (d2 === (dirD ^ 1)) continue // blocked: backward direction
-      const fall = d2 === dirD ? 0.9 : 0.5
+      const fall = d2 === dirD ? 0.9 : 0.6
       const [dx, dy, dz] = DIRS[d2]
       const nx = px + dx,
         ny = py + dy,
@@ -211,67 +211,67 @@ const FACES: Array<{
   v: [[number, number, number], [number, number, number], [number, number, number], [number, number, number]]
   ni: [number, number, number]
 }> = [
-  {
-    n: [1, 0, 0],
-    ni: [1, 0, 0],
-    v: [
-      [1, 0, 1],
-      [1, 1, 1],
-      [1, 1, 0],
-      [1, 0, 0],
-    ],
-  },
-  {
-    n: [-1, 0, 0],
-    ni: [-1, 0, 0],
-    v: [
-      [0, 0, 0],
-      [0, 1, 0],
-      [0, 1, 1],
-      [0, 0, 1],
-    ],
-  },
-  {
-    n: [0, 1, 0],
-    ni: [0, 1, 0],
-    v: [
-      [0, 1, 0],
-      [1, 1, 0],
-      [1, 1, 1],
-      [0, 1, 1],
-    ],
-  },
-  {
-    n: [0, -1, 0],
-    ni: [0, -1, 0],
-    v: [
-      [0, 0, 1],
-      [1, 0, 1],
-      [1, 0, 0],
-      [0, 0, 0],
-    ],
-  },
-  {
-    n: [0, 0, 1],
-    ni: [0, 0, 1],
-    v: [
-      [0, 0, 1],
-      [0, 1, 1],
-      [1, 1, 1],
-      [1, 0, 1],
-    ],
-  },
-  {
-    n: [0, 0, -1],
-    ni: [0, 0, -1],
-    v: [
-      [1, 0, 0],
-      [1, 1, 0],
-      [0, 1, 0],
-      [0, 0, 0],
-    ],
-  },
-]
+    {
+      n: [1, 0, 0],
+      ni: [1, 0, 0],
+      v: [
+        [1, 0, 1],
+        [1, 1, 1],
+        [1, 1, 0],
+        [1, 0, 0],
+      ],
+    },
+    {
+      n: [-1, 0, 0],
+      ni: [-1, 0, 0],
+      v: [
+        [0, 0, 0],
+        [0, 1, 0],
+        [0, 1, 1],
+        [0, 0, 1],
+      ],
+    },
+    {
+      n: [0, 1, 0],
+      ni: [0, 1, 0],
+      v: [
+        [0, 1, 0],
+        [1, 1, 0],
+        [1, 1, 1],
+        [0, 1, 1],
+      ],
+    },
+    {
+      n: [0, -1, 0],
+      ni: [0, -1, 0],
+      v: [
+        [0, 0, 1],
+        [1, 0, 1],
+        [1, 0, 0],
+        [0, 0, 0],
+      ],
+    },
+    {
+      n: [0, 0, 1],
+      ni: [0, 0, 1],
+      v: [
+        [0, 0, 1],
+        [0, 1, 1],
+        [1, 1, 1],
+        [1, 0, 1],
+      ],
+    },
+    {
+      n: [0, 0, -1],
+      ni: [0, 0, -1],
+      v: [
+        [1, 0, 0],
+        [1, 1, 0],
+        [0, 1, 0],
+        [0, 0, 0],
+      ],
+    },
+  ]
 
 export async function buildMesh(field: NdArray<Uint8Array>, light: Uint8Array, tex: BABYLON.Texture, scene: BABYLON.Scene, id: number, palette: BABYLON.Color3[]): Promise<BABYLON.Mesh> {
   const [w, h, d] = field.shape
