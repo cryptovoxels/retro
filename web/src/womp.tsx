@@ -138,7 +138,6 @@ export default class Womp extends Component<Props, State> {
             <a href={this.visitUrl!} class="buttonish">
               Teleport
             </a>
-
           </figcaption>
 
           <figure>
@@ -167,7 +166,6 @@ export default class Womp extends Component<Props, State> {
             <dt>Created at</dt>
             <dd>{new Date(this.state.womp.created_at).toLocaleString()}</dd>
           </dl>
-
 
           <h3>Image</h3>
 
