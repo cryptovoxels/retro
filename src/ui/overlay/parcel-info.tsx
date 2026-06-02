@@ -1,6 +1,5 @@
 import ParcelHelper from '../../../common/helpers/parcel-helper'
 import ParcelEventItem from '../../../web/src/components/parcel-event'
-import WriteMailOverlay from '../mail-owner'
 import { app } from '../../../web/src/state'
 import FavoriteButton from '../../../web/src/components/favorite-button'
 import { isMobile } from '../../../common/helpers/detector'
@@ -172,7 +171,6 @@ export default function ParcelInfoTab(props: Props) {
           <div>
             <p>{description}</p>
           </div>
-          <div className="is-flex">{mailOwner}</div>
         </section>
         <div className="overlay-parcel-info-content">
           <h4>Event</h4>
