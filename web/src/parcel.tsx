@@ -617,7 +617,7 @@ export default class Parcel extends Component<Props, State> {
               <ul>
                 {this.state.parcel.parcel_users.map((u: any) => (
                   <li key={u.wallet}>
-                    <a href={`/u/${u.wallet}`}>{u.wallet.substring(0, 10)}...</a>
+                    <AvatarLink avatar={u} />
                   </li>
                 ))}
               </ul>

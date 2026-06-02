@@ -6,7 +6,6 @@ import FavoriteButton from '../../../web/src/components/favorite-button'
 import { isMobile } from '../../../common/helpers/detector'
 import { toggleParcelAdminOverlay } from '../parcel-admin'
 import { ParcelDetails } from '../../../web/src/components/parcels/parcel-details'
-import { OwnerAndCollaboratorOnly, SignedInOnly } from '../../../web/src/components/parcels/permissions'
 import LoadingIcon from '../../../web/src/components/loading-icon'
 import type Parcel from '../../parcel'
 import { copyTextToClipboard } from '../../../common/helpers/utils'
@@ -63,18 +62,6 @@ export default function ParcelInfoTab(props: Props) {
       },
     )
   }
-  const mailOwner = (
-    <SignedInOnly>
-      <a
-        onClick={() => {
-          WriteMailOverlay(parcel)
-        }}
-        title="Mail parcel owner"
-      >
-        ✉️ Mail parcel owner
-      </a>
-    </SignedInOnly>
-  )
 
   // On mobile, the scrollContainer doesn't scroll. I couldn't figure out how to fix it,
   // So we render a component dedicated to mobile (smaller)
@@ -94,15 +81,6 @@ export default function ParcelInfoTab(props: Props) {
             </h2>
           </div>
           <ul className="actions">
-            {!window.config.isSpace && (
-              <OwnerAndCollaboratorOnly parcel={parcel}>
-                <li>
-                  <a onClick={() => toggleParcelAdminOverlay(parcel.summary, props.scene)} title="Admin panel">
-                    Admin
-                  </a>
-                </li>
-              </OwnerAndCollaboratorOnly>
-            )}
             <li>
               <a target="_top" href={`/parcels/${parcel.id}`}>
                 Parcel page
@@ -134,7 +112,6 @@ export default function ParcelInfoTab(props: Props) {
                   </a>
                 </span>
               </div>
-              {mailOwner}
             </div>
             <div className="overlay-parcel-info-content">
               <h4>Event</h4>
@@ -164,13 +141,11 @@ export default function ParcelInfoTab(props: Props) {
         </div>
         <ul className="actions">
           {!window.config.isSpace && (
-            <OwnerAndCollaboratorOnly parcel={parcel}>
-              <li>
-                <a onClick={() => toggleParcelAdminOverlay(parcel.summary, props.scene)} title="Admin panel">
-                  Admin
-                </a>
-              </li>
-            </OwnerAndCollaboratorOnly>
+            <li>
+              <a onClick={() => toggleParcelAdminOverlay(parcel.summary, props.scene)} title="Admin panel">
+                Admin
+              </a>
+            </li>
           )}
           <li>
             <a target="_top" href={`/parcels/${parcel.id}`}>
