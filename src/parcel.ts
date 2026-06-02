@@ -682,6 +682,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // An out of date hash can cause snapshot switching to fail. Better just to have no hash at this point.
     this.invalidateHash()
     if (patch.features) {
+      let showboxRemoved = false
       for (const uuid in patch.features) {
         if (!Object.prototype.hasOwnProperty.call(patch.features, uuid)) continue
 
@@ -691,6 +692,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
         if (!value) {
           // DELETE
           if (feature) {
+            if (feature.type === 'showbox') showboxRemoved = true
             const i = this.featuresList.indexOf(feature)
             if (i > -1) {
               this.featuresList.splice(i, 1)
@@ -705,6 +707,12 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
           // todo: if feature value is only partial then the create might fail
           this.createFeature(value as FeatureRecord).then()
         }
+      }
+      // deleting a showbox can promote the next one to primary - refresh all showboxes
+      if (showboxRemoved) {
+        this.featuresList.forEach((f) => {
+          if (f?.type === 'showbox') (f as any).reconcileActiveStream?.()
+        })
       }
     }
     if (patch.voxels) {
