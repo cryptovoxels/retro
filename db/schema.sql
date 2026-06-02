@@ -1,4 +1,4 @@
-\restrict pJtSEzQmTzfIyYzcxxoCyYCuHSxEimd3rjYRGA8DGTjJNYe32QR9bwvZFp6AohI
+\restrict nXd6WDwMoT9y7hAd5SudVkxUhtgjGUH7c0KBv8KG39AY0lmgmzyrweI95rXK5wu
 CREATE SCHEMA metrics;
 CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
@@ -851,4 +851,4 @@ CREATE INDEX womps_author ON public.womps USING btree (lower(author));
 CREATE UNIQUE INDEX womps_id ON public.womps USING btree (id);
 CREATE INDEX womps_parcel_id ON public.womps USING btree (parcel_id);
 CREATE TRIGGER wearables_recalculate_total_wearables_trigger AFTER INSERT ON public.wearables FOR EACH ROW WHEN ((new.token_id IS NOT NULL)) EXECUTE FUNCTION public.recalculate_total_wearables();
-\unrestrict pJtSEzQmTzfIyYzcxxoCyYCuHSxEimd3rjYRGA8DGTjJNYe32QR9bwvZFp6AohI
+\unrestrict nXd6WDwMoT9y7hAd5SudVkxUhtgjGUH7c0KBv8KG39AY0lmgmzyrweI95rXK5wu

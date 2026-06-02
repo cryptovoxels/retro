@@ -59,6 +59,10 @@ dump_table "avatars" "
     SELECT DISTINCT lower(author) FROM womps w
     JOIN properties p ON w.parcel_id = p.id
     WHERE p.island = '$ISLAND_NAME'
+    UNION
+    SELECT DISTINCT lower(pu.wallet) FROM parcel_users pu
+    JOIN properties p ON pu.parcel_id = p.id
+    WHERE p.island = '$ISLAND_NAME'
   )
 "
 
