@@ -2026,7 +2026,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       shareInput.type = 'text'
       shareInput.readOnly = true
       shareInput.value = showUrl
-      Object.assign(shareInput.style, { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: '8px', fontFamily: 'inherit', minHeight: '36px' })
+      Object.assign(shareInput.style, { width: '100%', boxSizing: 'border-box', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: '8px', fontFamily: 'inherit', minHeight: '36px' })
       shareInput.onclick = () => shareInput.select()
       const shareBtnRow = document.createElement('div')
       Object.assign(shareBtnRow.style, { display: 'flex', gap: '0.5rem' })
