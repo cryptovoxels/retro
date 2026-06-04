@@ -94,6 +94,37 @@ function cameraErrorMessage(e: unknown): string {
   return 'could not start your camera - check browser permissions, then go live again.'
 }
 
+// Mobile upright streaming: nudge capture toward portrait. Browsers treat these as ideals, not guarantees.
+function showboxCameraVideoConstraints(deviceId: string | undefined) {
+  const c: Record<string, any> = {}
+  if (deviceId) c.deviceId = { exact: deviceId }
+  if (mobile) c.aspectRatio = { ideal: 9 / 16 }
+  return c
+}
+
+// LiveKit attach() can set width/height attrs that fight object-fit; sync the preview box to real frame size.
+function wireMobilePreviewVideo(wrap: HTMLElement, el: HTMLVideoElement) {
+  el.removeAttribute('width')
+  el.removeAttribute('height')
+  Object.assign(el.style, {
+    position: 'absolute',
+    top: '0',
+    left: '0',
+    width: '100%',
+    height: '100%',
+    objectFit: 'contain',
+    display: 'block',
+  })
+  const sync = () => {
+    const w = el.videoWidth
+    const h = el.videoHeight
+    if (w > 0 && h > 0) wrap.style.aspectRatio = `${w} / ${h}`
+  }
+  el.addEventListener('loadedmetadata', sync)
+  el.addEventListener('resize', sync)
+  sync()
+}
+
 // True when the page was opened via /live/:token and the guest pass targets this showbox.
 // The synthetic wallet `guest:*` and `?show=<uuid>` are both set by the server on redeem.
 function guestJwtPayload(): { wallet?: string; guest_pass?: string; feature_uuid?: string } | null {
@@ -250,6 +281,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   streamAttachAttempts = 0
   hostJoinLoginPending = false
   joinDockAutoOpened = false
+  meshLetterboxRaf: number | null = null
+  meshLetterboxCanvas: HTMLCanvasElement | null = null
 
   roomName() {
     return `parcel-${this.parcel.id}`
@@ -1258,6 +1291,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.stopStreamAttachRetry()
     this.viewerRoomFull = false
     this.closeAnglePanel()
+    this.stopMeshLetterbox()
     this.stopAngleBroadcast(true)
     this.livekitRoom?.disconnect()
     this.livekitRoom = null
@@ -1575,6 +1609,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     window.addEventListener('touchstart', unblock, { once: true, passive: true })
   }
 
+  stopMeshLetterbox() {
+    if (this.meshLetterboxRaf) {
+      cancelAnimationFrame(this.meshLetterboxRaf)
+      this.meshLetterboxRaf = null
+    }
+    this.meshLetterboxCanvas = null
+  }
+
   attachVideoToMesh(el: HTMLVideoElement, muted = false, retries = 0) {
     if (!this.mesh) {
       if (retries < 30) requestAnimationFrame(() => this.attachVideoToMesh(el, muted, retries + 1))
@@ -1585,18 +1627,65 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     el.play().catch(() => {})
 
     this.hasActiveVideo = true
-    const tex = new BABYLON.VideoTexture(this.uniqueEntityName('texture'), el, this.scene, false, false)
-    tex.hasAlpha = false
+    this.stopMeshLetterbox()
 
-    const mat = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
-    mat.diffuseTexture = tex
-    mat.backFaceCulling = false
-    mat.zOffset = -4
-    mat.specularColor.set(0, 0, 0)
-    mat.emissiveColor.set(1, 1, 1)
-    mat.blockDirtyMechanism = true
+    const applyMaterial = (tex: BABYLON.BaseTexture) => {
+      const mat = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+      mat.diffuseTexture = tex
+      mat.backFaceCulling = false
+      mat.zOffset = -4
+      mat.specularColor.set(0, 0, 0)
+      mat.emissiveColor.set(1, 1, 1)
+      mat.blockDirtyMechanism = true
+      if (this.mesh) this.mesh.material = mat
+    }
 
-    this.mesh.material = mat
+    const attachDirect = () => {
+      const tex = new BABYLON.VideoTexture(this.uniqueEntityName('texture'), el, this.scene, false, false)
+      tex.hasAlpha = false
+      applyMaterial(tex)
+    }
+
+    // Portrait frames on a wide showbox plane stretch without letterboxing - draw contain into a canvas instead.
+    const attachLetterboxed = () => {
+      if (!this.meshLetterboxCanvas) this.meshLetterboxCanvas = document.createElement('canvas')
+      const canvas = this.meshLetterboxCanvas
+      const outW = 640
+      const outH = 360
+      canvas.width = outW
+      canvas.height = outH
+      const ctx = canvas.getContext('2d')
+      if (!ctx) {
+        attachDirect()
+        return
+      }
+      const tex = new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), canvas, this.scene, false)
+      tex.hasAlpha = false
+      applyMaterial(tex)
+      const tick = () => {
+        if (this.disposed || !this.mesh) return
+        const vw = el.videoWidth
+        const vh = el.videoHeight
+        if (vw > 0 && vh > 0) {
+          ctx.fillStyle = '#0d0d0d'
+          ctx.fillRect(0, 0, outW, outH)
+          const s = Math.min(outW / vw, outH / vh)
+          const dw = vw * s
+          const dh = vh * s
+          ctx.drawImage(el, (outW - dw) / 2, (outH - dh) / 2, dw, dh)
+          tex.update()
+        }
+        this.meshLetterboxRaf = requestAnimationFrame(tick)
+      }
+      tick()
+    }
+
+    const pickMode = () => {
+      if (el.videoWidth > 0 && el.videoHeight > el.videoWidth) attachLetterboxed()
+      else attachDirect()
+    }
+    if (el.videoWidth > 0) pickMode()
+    else el.addEventListener('loadedmetadata', pickMode, { once: true })
   }
 
   startThumbCapture(videoEl?: HTMLVideoElement) {
@@ -1957,7 +2046,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     flipBtn.onclick = async () => {
       if (!this.broadcastRoom || !liveVideoTrack) return
       flipFacing = flipFacing === 'user' ? 'environment' : 'user'
-      await liveVideoTrack.restartTrack({ facingMode: flipFacing }).catch(() => {})
+      const restart: Record<string, any> = { facingMode: flipFacing }
+      if (mobile) restart.aspectRatio = { ideal: 9 / 16 }
+      await liveVideoTrack.restartTrack(restart).catch(() => {})
     }
 
     // Screenshare goes live with no mic. This lets you add your voice mid-stream - livekit
@@ -2445,7 +2536,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           } else {
             tracks = await createLocalTracks({
               // exact: a plain string deviceId is only a preference, so 3-cam setups grab the wrong camera. Force the pick.
-              video: { deviceId: camSel.value ? { exact: camSel.value } : undefined },
+              video: showboxCameraVideoConstraints(camSel.value || undefined),
               audio: { deviceId: micSel.value ? { exact: micSel.value } : undefined },
             })
           }
@@ -2682,8 +2773,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
               previewVideo.muted = true
               previewVideo.volume = 0
               previewVideo.playsInline = true
-              Object.assign(previewVideo.style, { width: '100%', height: '100%', objectFit: 'contain', display: 'block' })
             }
+            wireMobilePreviewVideo(mobilePreviewWrap, previewVideo)
             const previewLabel = document.createElement('div')
             previewLabel.textContent = 'what your audience sees'
             Object.assign(previewLabel.style, { position: 'absolute', top: '4px', left: '6px', color: '#f5f5f0', fontSize: '11px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px' })
