@@ -1881,6 +1881,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
       if (mobileWorldBtn) mobileWorldBtn.style.display = 'block'
       panel.style.overflow = live ? 'hidden' : 'auto'
+      if (live) {
+        panel.style.padding = '0.75rem'
+        panel.style.paddingBottom = 'max(6px, env(safe-area-inset-bottom))'
+        panel.style.minHeight = '0'
+      }
     }
     const setDesktopDockLayout = (live: boolean) => {
       if (mobile) return
@@ -2183,11 +2188,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       shareBtnRow.append(copyBtn, xBtn)
       shareLabel.style.display = 'block'
       if (mobile) {
-        shareRow.append(shareLabel, shareBtnRow)
-        shareBtnRow.style.flexDirection = 'column'
-        copyBtn.textContent = 'copy link for fans'
-        Object.assign(copyBtn.style, { background: '#dc1e1e', fontWeight: 'bold', width: '100%', minHeight: '44px' })
-        Object.assign(xBtn.style, { width: '100%', minHeight: '44px' })
+        // one slim row under chat - stacked copy + post on x ate half the dock on a phone
+        Object.assign(shareRow.style, { padding: '4px 0', borderTop: '1px solid #222', borderBottom: 'none', gap: '2px' })
+        shareBtnRow.style.flexDirection = 'row'
+        copyBtn.textContent = 'copy fan link'
+        Object.assign(copyBtn.style, { background: '#dc1e1e', fontWeight: 'bold', flex: '2', minHeight: '32px', padding: '6px 8px', width: 'auto' })
+        Object.assign(xBtn.style, { flex: '1', minHeight: '32px', padding: '6px 8px', width: 'auto', fontSize: '12px' })
+        shareRow.append(shareBtnRow)
       } else {
         shareRow.append(shareLabel, shareInput, shareBtnRow)
       }
@@ -2263,6 +2270,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (mobile) {
       const chatLabel = document.createElement('label')
       chatLabel.textContent = 'chat'
+      chatLabel.style.display = 'none'
       chatSection = document.createElement('div')
       Object.assign(chatSection.style, {
         flex: '1 1 0',
@@ -2328,10 +2336,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         background: '#1a1a1a',
         color: '#f5f5f0',
         border: '1px solid #666',
-        padding: '10px 8px',
+        padding: '6px 8px',
         fontFamily: 'inherit',
         fontSize: '16px',
-        minHeight: '44px',
+        height: '36px',
+        boxSizing: 'border-box',
       })
       const chatSend = document.createElement('button')
       chatSend.textContent = 'send'
@@ -2339,10 +2348,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         background: '#333',
         color: '#f5f5f0',
         border: '0',
-        padding: '10px 14px',
+        padding: '6px 10px',
         cursor: 'pointer',
         fontFamily: 'inherit',
-        minHeight: '44px',
+        height: '36px',
+        boxSizing: 'border-box',
         flexShrink: '0',
       })
       const sendDockChat = () => {
@@ -2660,8 +2670,20 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           if (shareRow) shareRow.style.display = 'flex'
           moveRow.style.display = 'flex'
         }
-        if (chatRow) chatRow.style.display = 'flex'
-        if (chatReplyRow) chatReplyRow.style.display = 'flex'
+        if (chatRow) {
+          chatRow.style.display = 'flex'
+          chatRow.style.flex = '1 1 0'
+          chatRow.style.minHeight = '0'
+        }
+        if (chatReplyRow) {
+          chatReplyRow.style.display = 'flex'
+          chatReplyRow.style.paddingTop = '4px'
+        }
+        if (dockFooter) Object.assign(dockFooter.style, { gap: '4px', paddingBottom: '0' })
+        if (mobile) {
+          goBtn.style.minHeight = '36px'
+          goBtn.style.padding = '8px 12px'
+        }
         mobileShowWorld = false
 
         // live header: pulsing red dot + count-up timer so the broadcaster sees they are actually streaming.
@@ -2775,7 +2797,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
               position: 'relative',
               width: '100%',
               aspectRatio: '9 / 16',
-              maxHeight: '28vh',
+              maxHeight: '18vh',
               flexShrink: '0',
               background: '#000',
               overflow: 'hidden',
