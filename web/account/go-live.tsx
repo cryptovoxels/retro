@@ -28,28 +28,49 @@ function parcelLabel(p: SimpleParcelRecord) {
   return p.name?.trim() || p.address?.trim() || h.ownerName || `parcel #${p.id}`
 }
 
+function normalizeFeatures(raw: any): any[] {
+  if (!raw) return []
+  if (typeof raw === 'string') {
+    try {
+      return normalizeFeatures(JSON.parse(raw))
+    } catch {
+      return []
+    }
+  }
+  if (Array.isArray(raw)) return raw
+  if (typeof raw === 'object') return Object.values(raw).filter(Boolean)
+  return []
+}
+
 function parcelFeatureList(parcel: any): any[] {
-  let raw = parcel?.features
-  if (!raw && parcel?.content) {
+  if (!parcel) return []
+  let raw = parcel.features
+  if (!raw && parcel.content) {
     const c = parcel.content
     if (typeof c === 'string') {
       try {
         raw = JSON.parse(c)?.features
-      } catch {}
+      } catch {
+        return []
+      }
     } else {
       raw = c?.features
     }
   }
-  if (Array.isArray(raw)) return raw
-  if (raw && typeof raw === 'object') return Object.values(raw).filter(Boolean)
-  return []
+  return normalizeFeatures(raw)
+}
+
+function showboxFeatureId(f: any): string | null {
+  const id = f?.uuid || f?.id
+  return typeof id === 'string' && id ? id : null
 }
 
 function showboxesFromParcel(parcel: any): { uuid: string; position?: number[] | null; rotation?: number[] | null }[] {
   const out: { uuid: string; position?: number[] | null; rotation?: number[] | null }[] = []
   for (const f of parcelFeatureList(parcel)) {
-    if (!f || f.type !== 'showbox' || f.angleMode || !f.uuid) continue
-    out.push({ uuid: f.uuid, position: f.position, rotation: f.rotation })
+    const uuid = showboxFeatureId(f)
+    if (!f || f.type !== 'showbox' || f.angleMode || !uuid) continue
+    out.push({ uuid, position: f.position, rotation: f.rotation })
   }
   return out
 }
@@ -59,6 +80,7 @@ export default function GoLive() {
 
   const wallet = app.wallet
   const [rows, setRows] = useState<ShowboxRow[] | null>(null)
+  const [parcelCount, setParcelCount] = useState(0)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -70,7 +92,8 @@ export default function GoLive() {
       setRows(null)
       try {
         const opts = fetchOptions()
-        const [ownedR, collabR] = await Promise.all([cachedFetch(`/api/wallet/${wallet}/parcels.json`, opts), cachedFetch(`/api/wallet/${wallet}/contributing-parcels.json`, opts)])
+        const w = wallet.toLowerCase()
+        const [ownedR, collabR] = await Promise.all([cachedFetch(`/api/wallet/${w}/parcels.json`, opts), cachedFetch(`/api/wallet/${w}/contributing-parcels.json`, opts)])
         const owned = ((await ownedR.json()) as any).parcels || []
         const collab = ((await collabR.json()) as any).parcels || []
         const byId = new Map<number, { p: SimpleParcelRecord; via: 'yours' | 'collab' }>()
@@ -82,30 +105,11 @@ export default function GoLive() {
         }
         const list = [...byId.values()].slice(0, MAX_PARCELS)
         const found: ShowboxRow[] = []
-        const needFetch: { p: SimpleParcelRecord; via: 'yours' | 'collab' }[] = []
-
-        for (const { p, via } of list) {
-          const boxes = showboxesFromParcel(p)
-          if (boxes.length) {
-            for (const f of boxes) {
-              found.push({
-                parcelId: p.id,
-                parcelLabel: parcelLabel(p),
-                featureUuid: f.uuid,
-                href: hostPlayHref(p, f),
-                via,
-              })
-            }
-          } else {
-            needFetch.push({ p, via })
-          }
-        }
 
         await Promise.all(
-          needFetch.map(async ({ p, via }) => {
+          list.map(async ({ p, via }) => {
             try {
               const r = await cachedFetch(`/api/parcels/${p.id}.json`, opts)
-              if (!r.ok) return
               const j = await r.json()
               const parcel = j?.parcel
               if (!parcel) return
@@ -123,7 +127,10 @@ export default function GoLive() {
         )
 
         found.sort((a, b) => a.parcelLabel.localeCompare(b.parcelLabel) || a.parcelId - b.parcelId)
-        if (!dead) setRows(found)
+        if (!dead) {
+          setParcelCount(list.length)
+          setRows(found)
+        }
       } catch {
         if (!dead) setError('could not load your parcels')
       }
@@ -155,7 +162,13 @@ export default function GoLive() {
       <h1>go live</h1>
       <p>pick a showbox on land you own or collaborate on. opens the world with the broadcast dock.</p>
       {error && <p>{error}</p>}
-      {rows.length === 0 && !error && <p>no showboxes found. add a showbox feature on a parcel you can edit, then come back.</p>}
+      {rows.length === 0 && !error && (
+        <p>
+          {parcelCount > 0
+            ? `checked ${parcelCount} parcel${parcelCount === 1 ? '' : 's'} - no showbox features found. add a showbox on land you can edit.`
+            : 'no parcels found for this account. sign in with the wallet that owns or collaborates on the land.'}
+        </p>
+      )}
       {rows.length > 0 && (
         <ul>
           {rows.map((row) => (
