@@ -2109,6 +2109,16 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     row.style.gap = '0.5rem'
     row.append(goBtn)
 
+    // setup-only escape hatch: close the dialog without going live. hidden once streaming.
+    const cancelBtn = document.createElement('button')
+    cancelBtn.type = 'button'
+    cancelBtn.textContent = 'cancel'
+    Object.assign(cancelBtn.style, { background: 'transparent', color: '#888', border: '0', padding: '4px 0', cursor: 'pointer', fontFamily: 'inherit', fontSize: mobile ? '14px' : '12px', textDecoration: 'underline', flexShrink: '0' })
+    cancelBtn.onclick = () => {
+      this.broadcastPanel?.remove()
+      this.broadcastPanel = null
+    }
+
     // Mobile chat lives in the dock when live - bottom sheet covers world chat. Desktop uses normal chat.
     let chatSection: HTMLDivElement | null = null
     let chatRow: HTMLDivElement | null = null
@@ -2246,14 +2256,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
       const mobileKids: Node[] = [title]
       if (identityRow) mobileKids.push(identityRow)
-      mobileKids.push(deviceRow, screenOpt, screenHint, deviceToggle, micToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status)
+      mobileKids.push(deviceRow, screenOpt, screenHint, deviceToggle, micToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status, cancelBtn)
       panel.append(...mobileKids)
     } else {
       const desktopKids: Node[] = [title]
       if (identityRow) desktopKids.push(identityRow)
       desktopKids.push(deviceRow, screenOpt, screenHint, deviceToggle, micToggle)
       if (shareRow) desktopKids.push(shareRow)
-      desktopKids.push(moveRow, status, row)
+      desktopKids.push(moveRow, status, row, cancelBtn)
       panel.append(...desktopKids)
     }
     document.body.appendChild(panel)
@@ -2500,7 +2510,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         goBtn.style.background = '#444'
         goBtn.disabled = false
         status.textContent = ''
-        ;[title, screenOpt, status].forEach((el) => ((el as HTMLElement).style.display = 'none'))
+        ;[title, screenOpt, status, cancelBtn].forEach((el) => ((el as HTMLElement).style.display = 'none'))
         if (identityRow) identityRow.style.display = 'none'
         deviceRow.style.display = 'none'
         deviceToggle.style.display = 'block'
