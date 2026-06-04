@@ -7,7 +7,7 @@ import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { encodeCoords } from '../../common/helpers/utils'
 import { ShowboxRecord } from '../../common/messages/feature'
 import { effect } from '@preact/signals'
-import { Room, RoomEvent, Track, createLocalScreenTracks, createLocalTracks } from 'livekit-client'
+import { Room, RoomEvent, Track, createLocalScreenTracks, createLocalTracks, createLocalVideoTrack } from 'livekit-client'
 import { avatarName } from '../../common/messages/avatar-ref'
 import { app, AppEvent } from '../../web/src/state'
 import { PanelType } from '../../web/src/components/panel'
@@ -283,6 +283,24 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return (primary?.broadcastRoom?.localParticipant?.videoTrackPublications?.size ?? 0) > 0
   }
 
+  // a mirror set to "second camera" shows a dedicated video-only track named with its own uuid,
+  // not the primary's stream. any broadcaster can publish one.
+  isAngleMirror() {
+    return this.isMirror() && !!this.description.angleMode
+  }
+
+  // uuids of every angle-mode showbox on the parcel - their feeds are routed by track name, not by role
+  angleTrackNames(): string[] {
+    return this.parcel
+      .getFeaturesByType('showbox')
+      .filter((b: any) => b?.description?.angleMode)
+      .map((b) => b.uuid)
+  }
+
+  isAngleTrackName(name: string | undefined) {
+    return !!name && this.angleTrackNames().includes(name)
+  }
+
   displaysStream() {
     return this.streamTargetsThisShowbox() || this.mirrorsActiveStream()
   }
@@ -305,26 +323,56 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.setPreview()
   }
 
+  // angle mirrors show only the track named with their uuid (a dedicated second camera), muted. no echo fallback.
+  refreshAngleVideo() {
+    const attach = (track: any) => {
+      if (!track) return false
+      if (this.mirrorVideoIdentity !== this.uuid) {
+        this.attachVideoToMesh(track.attach() as HTMLVideoElement, true)
+        this.mirrorVideoIdentity = this.uuid
+        this.stopStreamAttachRetry()
+      }
+      return true
+    }
+    for (const p of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
+      for (const pub of p.videoTrackPublications.values()) {
+        if (pub.track && pub.isSubscribed && pub.trackName === this.uuid && attach(pub.track)) return
+      }
+    }
+    // our own angle isn't a remote participant on this client - read it off the primary's broadcast room
+    const local = (this.parcel.getFeaturesByType('showbox')[0] as any)?.broadcastRoom?.localParticipant
+    for (const pub of local?.videoTrackPublications?.values() ?? []) {
+      if (pub.trackName === this.uuid && attach(pub.track)) return
+    }
+    if (this.hasActiveVideo) {
+      this.hasActiveVideo = false
+      this.mirrorVideoIdentity = null
+      this.setPreview()
+    }
+  }
+
   // mirrors show the chosen source muted (default: whoever is live, host preferred), so every mirror is consistent
   refreshMirrorVideo() {
     if (!this.isMirror() || this.broadcastRoom || !this.livekitRoom) return
+    if (this.isAngleMirror()) return this.refreshAngleVideo()
     const byRole: Partial<Record<MirrorRole, { track: any; id: string }>> = {}
     let first: { track: any; id: string } | null = null
-    const consider = (track: any, identity: string) => {
+    const consider = (track: any, identity: string, trackName?: string) => {
       if (!track) return
+      if (this.isAngleTrackName(trackName)) return // angle feeds belong to their own mirror, not the echo
       const role = this.publisherRole(identity)
       if (!byRole[role]) byRole[role] = { track, id: identity }
       if (!first) first = { track, id: identity }
     }
     for (const p of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
       for (const pub of p.videoTrackPublications.values()) {
-        if (pub.isSubscribed) consider(pub.track, p.identity)
+        if (pub.isSubscribed) consider(pub.track, p.identity, pub.trackName)
       }
     }
     // our own broadcast isn't a remote participant on this client - read it off the primary showbox
     const local = (this.parcel.getFeaturesByType('showbox')[0] as any)?.broadcastRoom?.localParticipant
     for (const pub of local?.videoTrackPublications?.values() ?? []) {
-      consider(pub.track, local.identity)
+      consider(pub.track, local.identity, pub.trackName)
     }
     const want = this.mirrorSource
     // chosen role if it's live, else fall back to whoever is live (host preferred)
@@ -360,6 +408,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       for (const pub of participant.videoTrackPublications.values()) {
         const track = pub.track
         if (!track || !pub.isSubscribed) continue
+        if (this.isAngleTrackName(pub.trackName)) continue // a dedicated angle feed belongs to its mirror, not here
         this.attachVideoToMesh(track.attach() as HTMLVideoElement)
         this.startBroadcastAudio()
         this.stopStreamAttachRetry()
@@ -747,6 +796,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (!this.isCohostMode() || !this.livekitRoom) return
     for (const p of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
       for (const pub of p.videoTrackPublications?.values() ?? []) {
+        if (this.isAngleTrackName(pub.trackName)) continue // angle feeds are not cohost composite sources
         if (pub.isSubscribed && pub.track) this.routeCohostVideo(pub.track, p.identity)
       }
     }
@@ -1181,6 +1231,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     room.on(RoomEvent.TrackSubscribed, (track, _pub, participant) => {
       if (this.livekitRoom !== room) return
       const identity = participant?.identity ?? ''
+      if (track.kind === Track.Kind.Video && this.isAngleTrackName(_pub?.trackName)) {
+        if (this.isAngleMirror() && _pub.trackName === this.uuid) this.refreshAngleVideo()
+        return // angle feeds only land on their matching mirror
+      }
       if (this.broadcastRoom) {
         if (this.isCohostMode() && track.kind === Track.Kind.Audio && this.shouldPlayCohostAudio(identity)) {
           this.trackCohostMonitor(track.attach() as HTMLAudioElement)
@@ -1220,6 +1274,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     room.on(RoomEvent.TrackUnsubscribed, (track, _pub, participant) => {
       if (this.livekitRoom !== room) return
       const identity = participant?.identity ?? ''
+      if (track.kind === Track.Kind.Video && this.isAngleTrackName(_pub?.trackName)) {
+        if (this.isAngleMirror() && _pub.trackName === this.uuid) this.refreshAngleVideo()
+        return
+      }
       if (this.isMirror()) {
         if (track.kind === Track.Kind.Video) this.refreshMirrorVideo()
         return
@@ -1683,6 +1741,26 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     deviceRow.append(camLabel, camSel, micLabel, micSel)
 
+    // Second-camera angles: every angle-mode mirror on the parcel gets its own video-only camera picker.
+    // Chosen before go-live; published as a track named with the mirror's uuid so it lands on that screen.
+    const angleMirrors = this.parcel.getFeaturesByType('showbox').filter((b: any) => b !== this && b?.description?.angleMode) as Showbox[]
+    const angleSelects: { uuid: string; sel: HTMLSelectElement }[] = []
+    const angleRow = document.createElement('div')
+    Object.assign(angleRow.style, { display: angleMirrors.length ? 'flex' : 'none', flexDirection: 'column', gap: '4px' })
+    angleMirrors.forEach((m, i) => {
+      const lbl = document.createElement('label')
+      lbl.textContent = `second camera ${angleMirrors.length > 1 ? i + 1 : ''}`.trim()
+      const sel = document.createElement('select')
+      Object.assign(sel.style, { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: mobile ? '8px' : '4px' })
+      if (mobile) Object.assign(sel.style, { fontSize: '16px', minHeight: '44px' })
+      const off = document.createElement('option')
+      off.value = ''
+      off.textContent = 'off'
+      sel.appendChild(off)
+      angleRow.append(lbl, sel)
+      angleSelects.push({ uuid: m.uuid, sel })
+    })
+
     const deviceToggle = document.createElement('button')
     deviceToggle.type = 'button'
     deviceToggle.textContent = 'change camera or mic'
@@ -2022,12 +2100,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
       const mobileKids: Node[] = [title]
       if (identityRow) mobileKids.push(identityRow)
-      mobileKids.push(deviceRow, screenOpt, screenHint, deviceToggle, micToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status)
+      mobileKids.push(deviceRow, angleRow, screenOpt, screenHint, deviceToggle, micToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status)
       panel.append(...mobileKids)
     } else {
       const desktopKids: Node[] = [title]
       if (identityRow) desktopKids.push(identityRow)
-      desktopKids.push(deviceRow, screenOpt, screenHint, deviceToggle, micToggle)
+      desktopKids.push(deviceRow, angleRow, screenOpt, screenHint, deviceToggle, micToggle)
       if (shareRow) desktopKids.push(shareRow)
       desktopKids.push(moveRow, status, row)
       panel.append(...desktopKids)
@@ -2042,6 +2120,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         opt.value = d.deviceId
         opt.textContent = d.label || `camera ${i + 1}`
         camSel.appendChild(opt)
+        for (const { sel } of angleSelects) {
+          const o = document.createElement('option')
+          o.value = d.deviceId
+          o.textContent = d.label || `camera ${i + 1}`
+          sel.appendChild(o)
+        }
       })
       mics.forEach((d, i) => {
         const opt = document.createElement('option')
@@ -2246,6 +2330,15 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           await room.localParticipant.publishTrack(t)
         }
 
+        // Publish each chosen second-camera angle as a video-only track named with its mirror's uuid.
+        for (const { uuid, sel } of angleSelects) {
+          if (!sel.value) continue
+          try {
+            const angleTrack = await createLocalVideoTrack({ deviceId: sel.value })
+            acquiredTracks?.push(angleTrack)
+            await room.localParticipant.publishTrack(angleTrack, { name: uuid })
+          } catch {}
+        }
         // mirror showboxes can't subscribe to our own feed (same client) - have them read it locally now
         this.parcel.getFeaturesByType('showbox').forEach((f) => (f as any).refreshMirrorVideo?.())
 
@@ -2498,6 +2591,7 @@ class Editor extends FeatureEditor<Showbox> {
       volume: props.feature.volume,
       guestMode: props.feature.guestMode === 'cohost' ? 'cohost' : 'solo',
       mirrorSource: props.feature.mirrorSource,
+      angleMode: !!props.feature.description.angleMode,
     }
   }
 
@@ -2507,6 +2601,7 @@ class Editor extends FeatureEditor<Showbox> {
       volume: this.state.volume,
       guestMode: this.state.guestMode,
       mirrorSource: this.state.mirrorSource,
+      angleMode: this.state.angleMode,
     })
   }
 
@@ -2527,14 +2622,22 @@ class Editor extends FeatureEditor<Showbox> {
           <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
           {isMirror ? (
             <div className="f">
-              <label>Mirror source</label>
-              <select value={this.state.mirrorSource} onChange={(e) => this.setState({ mirrorSource: e.currentTarget.value as MirrorSource })}>
-                <option value="auto">whoever is live</option>
-                <option value="host">host (parcel owner)</option>
-                <option value="collaborator">collaborator</option>
-                <option value="guest">guest</option>
-              </select>
-              <small>Mirrors the first showbox video with no audio. Falls back to whoever is live if your pick isn't streaming. Manage the stream and guest links on the first showbox.</small>
+              <label>
+                <input type="checkbox" checked={this.state.angleMode} onChange={(e) => this.setState({ angleMode: e.currentTarget.checked })} /> second camera angle
+              </label>
+              <small>A dedicated screen for a second camera, no audio. Any broadcaster can pick a camera for it in the go-live panel on the first showbox.</small>
+              {!this.state.angleMode && (
+                <div className="f">
+                  <label>Mirror source</label>
+                  <select value={this.state.mirrorSource} onChange={(e) => this.setState({ mirrorSource: e.currentTarget.value as MirrorSource })}>
+                    <option value="auto">whoever is live</option>
+                    <option value="host">host (parcel owner)</option>
+                    <option value="collaborator">collaborator</option>
+                    <option value="guest">guest</option>
+                  </select>
+                  <small>Mirrors the first showbox video with no audio. Falls back to whoever is live if your pick isn't streaming. Manage the stream and guest links on the first showbox.</small>
+                </div>
+              )}
             </div>
           ) : (
             <GuestPasses feature={this.props.feature} guestMode={this.state.guestMode} onGuestModeChange={(guestMode) => this.setState({ guestMode })} />
