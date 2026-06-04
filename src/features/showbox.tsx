@@ -640,11 +640,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   // Snackbar works the same on desktop and mobile.
   warnIfWalkingAway() {
     if (!this.broadcastRoom || this.disposed) return
-    // Just went live - camera/world transform can read stale for a beat and false-trigger the warning.
+    // Just went live - the current-parcel lookup can read stale for a beat and false-trigger the warning.
     if (this.liveStartedAt && Date.now() - this.liveStartedAt < 5000) return
-    const cutoff = (window.draw?.distance ?? 100) * 1.1
-    const dist = BABYLON.Vector3.Distance(cameraPosition(this.scene), this.absolutePosition)
-    if (dist > cutoff * 0.6) {
+    // Only warn once they've actually left the parcel. A raw distance-to-screen check false-fires while
+    // standing still (big parcels, third-person camera, low draw distance). Leaving the parcel is the
+    // real precursor to it unloading and killing the stream.
+    if (!this.isInCurrentParcel) {
       if (!this.walkAwayWarned) {
         this.walkAwayWarned = true
         app.showSnackbar('walk back toward your showbox - go too far and your stream ends', PanelType.Warning)
