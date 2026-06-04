@@ -2513,7 +2513,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         ;[title, screenOpt, status, cancelBtn].forEach((el) => ((el as HTMLElement).style.display = 'none'))
         if (identityRow) identityRow.style.display = 'none'
         deviceRow.style.display = 'none'
-        deviceToggle.style.display = 'block'
+        // screensharing has no camera and the mic is handled by the mic toggle below - hide the device picker
+        deviceToggle.style.display = screenChk.checked ? 'none' : 'block'
         deviceToggle.textContent = 'change camera or mic'
         if (screenChk.checked) {
           screenMicOn = false
