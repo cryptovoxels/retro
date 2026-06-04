@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks'
 import { startAuthentication, startRegistration } from '@simplewebauthn/browser'
 import { isMobile } from '../../../common/helpers/detector'
-import { hasMetamask } from '../auth/login-helper'
+import { hasMetamask, openMetamaskMobileDapp } from '../auth/login-helper'
 import { login } from '../auth/state-login'
 import { app } from '../state'
 
@@ -175,12 +175,15 @@ export const Login = ({ reason }: { reason?: string }) => {
   }
 
   const onMetamask = () => {
-    const canInstall = !isMobile() && !hasMetamask()
-    if (canInstall) {
-      window.open('https://chrome.google.com/webstore/detail/metamask/nkbihfbeogaeaoehlefnkodbefgpgknn', '_blank', 'noopener')
-    } else {
-      login.signin()
+    if (!hasMetamask() && isMobile()) {
+      openMetamaskMobileDapp()
+      return
     }
+    if (!hasMetamask()) {
+      window.open('https://chrome.google.com/webstore/detail/metamask/nkbihfbeogaeaoehlefnkodbefgpgknn', '_blank', 'noopener')
+      return
+    }
+    login.signin()
   }
 
   if (stage === 'name' && pendingToken) {
