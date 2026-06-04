@@ -2136,6 +2136,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         return
       }
 
+      // A showbox sticking out past the parcel only streams to people standing inside the parcel
+      // (viewers connect on parcel-enter, not by proximity to the screen), and it still shows on the
+      // homepage. Keep it honest: refuse to go live unless the whole screen is within parcel bounds.
+      if (!this.withinBounds) {
+        app.showSnackbar('move the showbox inside your parcel to go live', PanelType.Warning)
+        return
+      }
+
       if (isGuest) {
         const nextName = guestNameInput?.value.trim() || app.state.name?.trim() || ''
         if (!nextName) {
