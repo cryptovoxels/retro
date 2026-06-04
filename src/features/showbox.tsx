@@ -1677,6 +1677,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.clearCohostMonitor()
     this.broadcastRoom?.disconnect()
     this.broadcastRoom = null
+    // ending your session also drops any second-camera feeds you pushed to sibling angle mirrors
+    for (const b of this.parcel.getFeaturesByType('showbox') as any[]) {
+      if (b?.angleVideoTrack) b.stopAngleBroadcast()
+    }
     this.localBroadcastVideoEl = null
     this.hasActiveVideo = false
     this.cohostCompositeAttached = false
