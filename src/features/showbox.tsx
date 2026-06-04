@@ -276,11 +276,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   mirrorHasVideoSource() {
-    for (const p of (this.livekitRoom as any)?.remoteParticipants?.values() ?? []) {
-      if (p.videoTrackPublications?.size > 0) return true
+    for (const p of (this.livekitRoom as any)?.participants?.values() ?? []) {
+      if (p.videoTracks?.size > 0) return true
     }
     const primary = this.parcel.getFeaturesByType('showbox')[0] as any
-    return (primary?.broadcastRoom?.localParticipant?.videoTrackPublications?.size ?? 0) > 0
+    return (primary?.broadcastRoom?.localParticipant?.videoTracks?.size ?? 0) > 0
   }
 
   // a mirror set to "second camera" shows a dedicated video-only track named with its own uuid,
@@ -334,14 +334,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
       return true
     }
-    for (const p of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
-      for (const pub of p.videoTrackPublications.values()) {
+    for (const p of (this.livekitRoom as any).participants?.values() ?? []) {
+      for (const pub of p.videoTracks.values()) {
         if (pub.track && pub.isSubscribed && pub.trackName === this.uuid && attach(pub.track)) return
       }
     }
     // our own angle isn't a remote participant on this client - read it off the primary's broadcast room
     const local = (this.parcel.getFeaturesByType('showbox')[0] as any)?.broadcastRoom?.localParticipant
-    for (const pub of local?.videoTrackPublications?.values() ?? []) {
+    for (const pub of local?.videoTracks?.values() ?? []) {
       if (pub.trackName === this.uuid && attach(pub.track)) return
     }
     if (this.hasActiveVideo) {
@@ -364,14 +364,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (!byRole[role]) byRole[role] = { track, id: identity }
       if (!first) first = { track, id: identity }
     }
-    for (const p of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
-      for (const pub of p.videoTrackPublications.values()) {
+    for (const p of (this.livekitRoom as any).participants?.values() ?? []) {
+      for (const pub of p.videoTracks.values()) {
         if (pub.isSubscribed) consider(pub.track, p.identity, pub.trackName)
       }
     }
     // our own broadcast isn't a remote participant on this client - read it off the primary showbox
     const local = (this.parcel.getFeaturesByType('showbox')[0] as any)?.broadcastRoom?.localParticipant
-    for (const pub of local?.videoTrackPublications?.values() ?? []) {
+    for (const pub of local?.videoTracks?.values() ?? []) {
       consider(pub.track, local.identity, pub.trackName)
     }
     const want = this.mirrorSource
@@ -404,8 +404,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       return
     }
     if (this.hasActiveVideo) return
-    for (const participant of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
-      for (const pub of participant.videoTrackPublications.values()) {
+    for (const participant of (this.livekitRoom as any).participants?.values() ?? []) {
+      for (const pub of participant.videoTracks.values()) {
         const track = pub.track
         if (!track || !pub.isSubscribed) continue
         if (this.isAngleTrackName(pub.trackName)) continue // a dedicated angle feed belongs to its mirror, not here
@@ -635,7 +635,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   hasRemoteBroadcaster() {
     if (!this.displaysStream()) return false
-    return [...((this.livekitRoom as any)?.remoteParticipants?.values() ?? [])].some((p: any) => p?.videoTrackPublications?.size > 0 || p?.audioTrackPublications?.size > 0)
+    return [...((this.livekitRoom as any)?.participants?.values() ?? [])].some((p: any) => p?.videoTracks?.size > 0 || p?.audioTracks?.size > 0)
   }
 
   // Before we drop __showbox_live, check if another co-host is still publishing.
@@ -643,8 +643,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const room = this.broadcastRoom ?? this.livekitRoom
     if (!room) return false
     try {
-      for (const p of (room as any).remoteParticipants?.values() ?? []) {
-        for (const pub of p.videoTrackPublications.values()) {
+      for (const p of (room as any).participants?.values() ?? []) {
+        for (const pub of p.videoTracks.values()) {
           if (pub.track) return true
         }
       }
@@ -794,8 +794,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   syncExistingCohostVideos() {
     if (!this.isCohostMode() || !this.livekitRoom) return
-    for (const p of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
-      for (const pub of p.videoTrackPublications?.values() ?? []) {
+    for (const p of (this.livekitRoom as any).participants?.values() ?? []) {
+      for (const pub of p.videoTracks?.values() ?? []) {
         if (this.isAngleTrackName(pub.trackName)) continue // angle feeds are not cohost composite sources
         if (pub.isSubscribed && pub.track) this.routeCohostVideo(pub.track, p.identity)
       }
@@ -807,9 +807,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     // Re-attaching the same track makes a second <audio> element (= double audio). Clear first so
     // this is safe to call from the subscribe handler, the viewer-connect finally, and go-live.
     this.clearCohostMonitor()
-    for (const p of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
+    for (const p of (this.livekitRoom as any).participants?.values() ?? []) {
       if (!this.shouldPlayCohostAudio(p.identity)) continue
-      for (const pub of p.audioTrackPublications?.values() ?? []) {
+      for (const pub of p.audioTracks?.values() ?? []) {
         if (pub.isSubscribed && pub.track) this.trackCohostMonitor(pub.track.attach() as HTMLAudioElement)
       }
     }
@@ -2333,11 +2333,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         // Publish each chosen second-camera angle as a video-only track named with its mirror's uuid.
         for (const { uuid, sel } of angleSelects) {
           if (!sel.value) continue
+          if (sel.value === camSel.value && !screenChk.checked) {
+            console.error('showbox: angle camera matches the main camera - a webcam can only be captured once, pick a different one')
+            continue
+          }
           try {
             const angleTrack = await createLocalVideoTrack({ deviceId: sel.value })
             acquiredTracks?.push(angleTrack)
             await room.localParticipant.publishTrack(angleTrack, { name: uuid })
-          } catch {}
+          } catch (e) {
+            console.error('showbox: angle camera failed to capture', e)
+          }
         }
         // mirror showboxes can't subscribe to our own feed (same client) - have them read it locally now
         this.parcel.getFeaturesByType('showbox').forEach((f) => (f as any).refreshMirrorVideo?.())
