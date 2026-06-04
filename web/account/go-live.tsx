@@ -65,14 +65,14 @@ function showboxFeatureId(f: any): string | null {
   return typeof id === 'string' && id ? id : null
 }
 
-function showboxesFromParcel(parcel: any): { uuid: string; position?: number[] | null; rotation?: number[] | null }[] {
-  const out: { uuid: string; position?: number[] | null; rotation?: number[] | null }[] = []
+// first non-angle showbox on the parcel is the primary; the rest are mirrors (see showbox.isMirror).
+function primaryShowbox(parcel: any): { uuid: string; position?: number[] | null; rotation?: number[] | null } | null {
   for (const f of parcelFeatureList(parcel)) {
     const uuid = showboxFeatureId(f)
     if (!f || f.type !== 'showbox' || f.angleMode || !uuid) continue
-    out.push({ uuid, position: f.position, rotation: f.rotation })
+    return { uuid, position: f.position, rotation: f.rotation }
   }
-  return out
+  return null
 }
 
 export default function GoLive() {
@@ -113,15 +113,15 @@ export default function GoLive() {
               const j = await r.json()
               const parcel = j?.parcel
               if (!parcel) return
-              for (const f of showboxesFromParcel(parcel)) {
-                found.push({
-                  parcelId: p.id,
-                  parcelLabel: parcelLabel(parcel),
-                  featureUuid: f.uuid,
-                  href: hostPlayHref(parcel, f),
-                  via,
-                })
-              }
+              const box = primaryShowbox(parcel)
+              if (!box) return
+              found.push({
+                parcelId: p.id,
+                parcelLabel: parcelLabel(parcel),
+                featureUuid: box.uuid,
+                href: hostPlayHref(parcel, box),
+                via,
+              })
             } catch {}
           }),
         )
