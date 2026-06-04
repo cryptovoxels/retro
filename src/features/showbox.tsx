@@ -2341,33 +2341,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     goBtn.onclick = async () => {
       if (this.broadcastRoom) {
+        // stopping ends the show - close the dock entirely instead of bouncing back to the go-live form
         this.stopBroadcast()
-        liveVideoTrack = null
-        liveAudioTrack = null
-        meterFillEl = null
-        goBtn.textContent = 'go live'
-        goBtn.style.background = '#dc1e1e'
+        this.broadcastPanel?.remove()
+        this.broadcastPanel = null
         this.setPreview()
-        panel.querySelectorAll('[data-dot]').forEach((el) => el.remove())
-        if (this.liveTimerInterval) {
-          clearInterval(this.liveTimerInterval)
-          this.liveTimerInterval = null
-        }
-        this.liveStartedAt = null
-        ;[title, deviceRow, screenOpt, status].forEach((el) => ((el as HTMLElement).style.display = ''))
-        if (identityRow) identityRow.style.display = ''
-        deviceToggle.style.display = 'none'
-        deviceRow.style.display = 'flex'
-        deviceToggle.textContent = 'change camera or mic'
-        screenMicOn = false
-        micToggle.style.display = 'none'
-        goBtn.style.display = ''
-        if (shareRow) shareRow.style.display = 'none'
-        moveRow.style.display = 'none'
-        if (chatRow) chatRow.style.display = 'none'
-        if (chatReplyRow) chatReplyRow.style.display = 'none'
-        setMobileDockLayout(false)
-        setDesktopDockLayout(false)
         return
       }
 
