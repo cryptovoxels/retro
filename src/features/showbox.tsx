@@ -268,9 +268,19 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return boxes.length > 1 && boxes[0]?.uuid !== this.uuid
   }
 
-  // a mirror shows the primary showbox video (muted) whenever a stream is live on the parcel
+  // a mirror shows the primary showbox video (muted) whenever a stream is live on the parcel.
+  // __showbox_live is ephemeral (broadcast-only, not persisted) and our own broadcast isn't a
+  // remote participant on this client, so fall back to the actual room video as the source of truth.
   mirrorsActiveStream() {
-    return this.isMirror() && !!this.activeLiveShowboxUuid()
+    return this.isMirror() && (!!this.activeLiveShowboxUuid() || this.mirrorHasVideoSource())
+  }
+
+  mirrorHasVideoSource() {
+    for (const p of (this.livekitRoom as any)?.remoteParticipants?.values() ?? []) {
+      if (p.videoTrackPublications?.size > 0) return true
+    }
+    const primary = this.parcel.getFeaturesByType('showbox')[0] as any
+    return (primary?.broadcastRoom?.localParticipant?.videoTrackPublications?.size ?? 0) > 0
   }
 
   displaysStream() {
@@ -300,13 +310,21 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (!this.isMirror() || this.broadcastRoom || !this.livekitRoom) return
     const byRole: Partial<Record<MirrorRole, { track: any; id: string }>> = {}
     let first: { track: any; id: string } | null = null
+    const consider = (track: any, identity: string) => {
+      if (!track) return
+      const role = this.publisherRole(identity)
+      if (!byRole[role]) byRole[role] = { track, id: identity }
+      if (!first) first = { track, id: identity }
+    }
     for (const p of (this.livekitRoom as any).remoteParticipants?.values() ?? []) {
       for (const pub of p.videoTrackPublications.values()) {
-        if (!pub.track || !pub.isSubscribed) continue
-        const role = this.publisherRole(p.identity)
-        if (!byRole[role]) byRole[role] = { track: pub.track, id: p.identity }
-        if (!first) first = { track: pub.track, id: p.identity }
+        if (pub.isSubscribed) consider(pub.track, p.identity)
       }
+    }
+    // our own broadcast isn't a remote participant on this client - read it off the primary showbox
+    const local = (this.parcel.getFeaturesByType('showbox')[0] as any)?.broadcastRoom?.localParticipant
+    for (const pub of local?.videoTrackPublications?.values() ?? []) {
+      consider(pub.track, local.identity)
     }
     const want = this.mirrorSource
     // chosen role if it's live, else fall back to whoever is live (host preferred)
@@ -2219,6 +2237,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         for (const t of tracks) {
           await room.localParticipant.publishTrack(t)
         }
+
+        // mirror showboxes can't subscribe to our own feed (same client) - have them read it locally now
+        this.parcel.getFeaturesByType('showbox').forEach((f) => (f as any).refreshMirrorVideo?.())
 
         if (!tracks.some((t) => t.kind === Track.Kind.Audio)) {
           status.textContent = 'live but no mic - check browser permissions'
