@@ -358,6 +358,13 @@ export function showboxHostPlayCoordsFromRecord(parcel: Partial<FullParcelRecord
   return showboxSpawnCoords(parcel, feature, { standoff: SHOWBOX_BROADCAST_STANDOFF, lateral: SHOWBOX_HOST_LATERAL })
 }
 
+// Host go-live: one parcel, close draw, optional bare UI on mobile (matches guest broadcast links).
+export function showboxHostPlayQuery(coords: string, featureUuid: string, mobileUiOff = false): string {
+  const qs = new URLSearchParams({ coords, show: featureUuid, host: '1', isolate: 'true', distance: 'close' })
+  if (mobileUiOff) qs.set('ui', 'off')
+  return qs.toString()
+}
+
 export function showboxGuestPlayCoordsFromRecord(parcel: Partial<FullParcelRecord> | ParcelHelper, feature: { position?: number[] | null; rotation?: number[] | null; guestMode?: string | null }) {
   const lateral = feature.guestMode === 'cohost' ? SHOWBOX_GUEST_LATERAL : SHOWBOX_HOST_LATERAL
   return showboxSpawnCoords(parcel, feature, { standoff: SHOWBOX_BROADCAST_STANDOFF, lateral })

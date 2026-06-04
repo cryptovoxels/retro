@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
-import ParcelHelper, { showboxHostPlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
+import { isMobile } from '../../common/helpers/detector'
+import ParcelHelper, { showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { SimpleParcelRecord } from '../../common/messages/parcel'
 import { Login } from '../src/auth/login'
 import cachedFetch from '../src/helpers/cached-fetch'
@@ -19,8 +20,7 @@ const MAX_PARCELS = 40
 
 function hostPlayHref(parcel: SimpleParcelRecord, feature: { uuid: string; position?: number[] | null; rotation?: number[] | null }) {
   const coords = showboxHostPlayCoordsFromRecord(parcel, feature)
-  const qs = new URLSearchParams({ coords, show: feature.uuid, host: '1' })
-  return `/play?${qs.toString()}`
+  return `/play?${showboxHostPlayQuery(coords, feature.uuid, isMobile())}`
 }
 
 function parcelLabel(p: SimpleParcelRecord) {
