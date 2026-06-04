@@ -4,7 +4,7 @@ import { Express, Response } from 'express'
 import { SignJWT, decodeJwt } from 'jose'
 import { PassportStatic } from 'passport'
 import authParcel from '../auth-parcel'
-import { showboxGuestPlayCoordsFromRecord, showboxHostPlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
+import { showboxGuestPlayCoordsFromRecord, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { FeatureRecord } from '../../common/messages/feature'
 import Parcel from '../parcel'
 import { Db } from '../pg'
@@ -41,11 +41,6 @@ function isMobileUserAgent(ua: string): boolean {
 function guestBroadcastPlayQuery(parcelLocation: string, featureUuid: string, userAgent: string): string {
   const qs = new URLSearchParams({ coords: parcelLocation, show: featureUuid, isolate: 'true', distance: 'close' })
   if (isMobileUserAgent(userAgent)) qs.set('ui', 'off')
-  return qs.toString()
-}
-
-function hostJoinPlayQuery(parcelLocation: string, featureUuid: string): string {
-  const qs = new URLSearchParams({ coords: parcelLocation, show: featureUuid, host: '1' })
   return qs.toString()
 }
 
@@ -294,7 +289,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
         // Collaborators can publish (see livekit token grant), so a signed-in collaborator opening
         // the guest link should host-join as themselves, not get their session replaced by a guest.
         if (auth === 'Owner' || auth === 'Collaborator' || auth === 'Moderator') {
-          return res.redirect(302, `/play?${hostJoinPlayQuery(showboxHostPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid)}`)
+          return res.redirect(302, `/play?${showboxHostPlayQuery(showboxHostPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid, isMobileUserAgent(String(req.headers['user-agent'] ?? '')))}`)
         }
       }
 

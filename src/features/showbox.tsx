@@ -2,7 +2,7 @@ import { Component, h } from 'preact'
 import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { isMobile } from '../../common/helpers/detector'
-import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxHostPlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
+import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { encodeCoords } from '../../common/helpers/utils'
 import { ShowboxRecord } from '../../common/messages/feature'
@@ -205,8 +205,8 @@ function audienceShowUrl(feature: Showbox): string {
 // Owner/co-host join link. Keeps your normal login - just lands at the showbox and opens the broadcast dock.
 function hostJoinShowUrl(feature: Showbox): string {
   const { parcel, f } = showboxFeatureCoords(feature)
-  const qs = new URLSearchParams({ coords: showboxHostPlayCoordsFromRecord(parcel, f), show: feature.uuid, host: '1' })
-  return `${window.location.origin}/play?${qs.toString()}`
+  const coords = showboxHostPlayCoordsFromRecord(parcel, f)
+  return `${window.location.origin}/play?${showboxHostPlayQuery(coords, feature.uuid, mobile)}`
 }
 
 function isHostJoinForShowbox(uuid: string): boolean {
