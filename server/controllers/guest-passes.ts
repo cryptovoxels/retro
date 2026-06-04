@@ -10,6 +10,7 @@ import Parcel from '../parcel'
 import { Db } from '../pg'
 import { VoxelsUserRequest } from '../user'
 import { RoomServiceClient } from 'livekit-server-sdk'
+import log from '../lib/logger'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret'
 const JWT_SECRET_KEY = new TextEncoder().encode(JWT_SECRET)
@@ -241,9 +242,19 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       .slice(0, 64)
     if (!name) return res.status(400).json({ success: false, error: 'name required' })
 
-    await db.query('sql/guest-passes/update-name', `update guest_passes set name = $1 where token = $2`, [name, token])
     const syntheticWallet = `guest:${token.slice(0, 12)}`.toLowerCase()
-    await db.query('sql/guest-passes/rename-avatar', `update avatars set name = $1 where owner = $2`, [name, syntheticWallet])
+    try {
+      // avatars.name is UNIQUE - do this write first so a clash fails before we persist the pass name,
+      // keeping both rows in sync. 23505 is the Postgres unique-violation code.
+      await db.query('sql/guest-passes/rename-avatar', `update avatars set name = $1 where owner = $2`, [name, syntheticWallet])
+    } catch (err) {
+      if ((err as { code?: string })?.code === '23505') {
+        return res.status(409).json({ success: false, error: 'That name is taken. Pick another.' })
+      }
+      log.error('[guest-pass] rename failed', { token: token.slice(0, 12), error: err })
+      return res.status(500).json({ success: false, error: 'Could not save name' })
+    }
+    await db.query('sql/guest-passes/update-name', `update guest_passes set name = $1 where token = $2`, [name, token])
 
     res.json({ success: true, name })
   })
@@ -268,52 +279,60 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
   // Public: redeem token, set jwt cookie with synthetic guest wallet, redirect into the parcel
   app.get('/live/:token', async (req, res) => {
     const token = String(req.params.token)
-    const pass = await loadGuestPass(db, token)
-    if (!pass || pass.revoked_at) {
-      return res.status(404).send('This guest link is no longer active. Ask the parcel owner for a fresh link.')
-    }
-
-    const parcel = await Parcel.load(pass.parcel_id)
-    if (!parcel) return res.status(404).send('Parcel not found')
-
-    const signedIn = walletFromJwtCookie(req)
-    if (signedIn?.wallet) {
-      const auth = await authParcel(parcel, signedIn as any)
-      // Collaborators can publish (see livekit token grant), so a signed-in collaborator opening
-      // the guest link should host-join as themselves, not get their session replaced by a guest.
-      if (auth === 'Owner' || auth === 'Collaborator' || auth === 'Moderator') {
-        return res.redirect(302, `/play?${hostJoinPlayQuery(showboxHostPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid)}`)
+    try {
+      const pass = await loadGuestPass(db, token)
+      if (!pass || pass.revoked_at) {
+        return res.status(404).send('This guest link is no longer active. Ask the parcel owner for a fresh link.')
       }
+
+      const parcel = await Parcel.load(pass.parcel_id)
+      if (!parcel) return res.status(404).send('Parcel not found')
+
+      const signedIn = walletFromJwtCookie(req)
+      if (signedIn?.wallet) {
+        const auth = await authParcel(parcel, signedIn as any)
+        // Collaborators can publish (see livekit token grant), so a signed-in collaborator opening
+        // the guest link should host-join as themselves, not get their session replaced by a guest.
+        if (auth === 'Owner' || auth === 'Collaborator' || auth === 'Moderator') {
+          return res.redirect(302, `/play?${hostJoinPlayQuery(showboxHostPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid)}`)
+        }
+      }
+
+      const syntheticWallet = `guest:${token.slice(0, 12)}`.toLowerCase()
+
+      // Avatar row for the synthetic wallet. Name is chosen by the guest in the broadcast dock,
+      // not by the parcel owner - only overwrite an existing name when the pass already has one.
+      // Store an empty name as NULL: avatars.name has a UNIQUE constraint and '' collides across
+      // every nameless guest, so plain '' throws on the second redeem and 503s the link.
+      await db.query(
+        'sql/guest-passes/upsert-avatar',
+        `insert into avatars (owner, name, last_online)
+         values ($1, nullif($2, ''), now())
+         on conflict (owner) do update set
+           last_online = now(),
+           name = case when excluded.name is not null then excluded.name else avatars.name end`,
+        [syntheticWallet, pass.name],
+      )
+
+      const jwt = await new SignJWT({
+        wallet: syntheticWallet,
+        guest_pass: token,
+        parcel_id: pass.parcel_id,
+        feature_uuid: pass.feature_uuid,
+      } as any)
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime(Math.floor(Date.now() / 1000) + GUEST_JWT_TTL_SECONDS)
+        .sign(JWT_SECRET_KEY)
+
+      res.cookie('jwt', jwt, { maxAge: GUEST_JWT_TTL_SECONDS * 1000, httpOnly: false, sameSite: 'lax' })
+      const playQs = guestBroadcastPlayQuery(showboxGuestPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid, String(req.headers['user-agent'] ?? ''))
+      res.redirect(302, `/play?${playQs}`)
+    } catch (err) {
+      // Don't let an async throw hang the request into a proxy 503. Log the real cause and fail soft.
+      log.error('[guest-pass] /live/:token failed', { token: token.slice(0, 12), error: err })
+      res.status(500).send('Something went wrong opening this guest link. Try again in a moment or ask the parcel owner for a fresh link.')
     }
-
-    const syntheticWallet = `guest:${token.slice(0, 12)}`.toLowerCase()
-
-    // Avatar row for the synthetic wallet. Name is chosen by the guest in the broadcast dock,
-    // not by the parcel owner - only overwrite an existing name when the pass already has one.
-    await db.query(
-      'sql/guest-passes/upsert-avatar',
-      `insert into avatars (owner, name, last_online)
-       values ($1, $2, now())
-       on conflict (owner) do update set
-         last_online = now(),
-         name = case when excluded.name <> '' then excluded.name else avatars.name end`,
-      [syntheticWallet, pass.name],
-    )
-
-    const jwt = await new SignJWT({
-      wallet: syntheticWallet,
-      guest_pass: token,
-      parcel_id: pass.parcel_id,
-      feature_uuid: pass.feature_uuid,
-    } as any)
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime(Math.floor(Date.now() / 1000) + GUEST_JWT_TTL_SECONDS)
-      .sign(JWT_SECRET_KEY)
-
-    res.cookie('jwt', jwt, { maxAge: GUEST_JWT_TTL_SECONDS * 1000, httpOnly: false, sameSite: 'lax' })
-    const playQs = guestBroadcastPlayQuery(showboxGuestPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid, String(req.headers['user-agent'] ?? ''))
-    res.redirect(302, `/play?${playQs}`)
   })
 
   if (process.env.NODE_ENV !== 'production') {
