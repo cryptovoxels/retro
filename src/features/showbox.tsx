@@ -244,6 +244,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   localBroadcastVideoEl: HTMLVideoElement | null = null
   mirrorVideoIdentity: string | null = null
   angleVideoTrack: any = null
+  anglePanel: HTMLDivElement | null = null
   viewerRetryInterval: ReturnType<typeof setInterval> | null = null
   streamAttachRetryInterval: ReturnType<typeof setInterval> | null = null
   streamAttachAttempts = 0
@@ -356,17 +357,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   // walk up to an angle mirror and push your camera straight to it (video only, no audio, no __showbox_live).
   // published on the viewer room - its token already grants canPublish for authorized users.
-  async startAngleBroadcast() {
-    if (this.angleVideoTrack) return
+  async startAngleBroadcast(deviceId?: string): Promise<boolean> {
+    if (this.angleVideoTrack) return true
     if (!this.livekitRoom) await this.connectViewer()
     const lp = (this.livekitRoom as any)?.localParticipant
-    if (!lp) return
+    if (!lp) return false
     let track: any
     try {
-      track = await createLocalVideoTrack()
+      track = await createLocalVideoTrack(deviceId ? { deviceId } : undefined)
     } catch (e) {
       console.error('showbox: angle camera failed to capture', e)
-      return
+      return false
     }
     this.angleVideoTrack = track
     try {
@@ -377,11 +378,105 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         track.stop()
       } catch {}
       this.angleVideoTrack = null
-      return
+      return false
     }
     this.attachVideoToMesh(track.attach() as HTMLVideoElement, true)
     this.mirrorVideoIdentity = this.uuid
     this.stopStreamAttachRetry()
+    return true
+  }
+
+  closeAnglePanel() {
+    this.anglePanel?.remove()
+    this.anglePanel = null
+  }
+
+  // a small dialog on the angle mirror itself: pick a camera, broadcast it to just this screen.
+  openAnglePanel() {
+    if (this.anglePanel) {
+      this.closeAnglePanel()
+      return
+    }
+    exitPointerLock()
+    const panel = document.createElement('div')
+    this.anglePanel = panel
+    Object.assign(panel.style, {
+      position: 'fixed',
+      zIndex: '999999',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: mobile ? 'calc(100vw - 2rem)' : '320px',
+      background: '#0d0d0d',
+      color: '#f5f5f0',
+      padding: '1rem',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.75rem',
+      fontFamily: '"Source Code Pro", monospace',
+      fontSize: mobile ? '15px' : '13px',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
+    })
+
+    const title = document.createElement('div')
+    title.textContent = 'second camera'
+    title.style.fontWeight = 'bold'
+    title.style.fontSize = mobile ? '16px' : '14px'
+
+    const hint = document.createElement('small')
+    hint.textContent = 'pick a camera to broadcast to this screen. video only, no audio.'
+    hint.style.color = '#888'
+
+    const sel = document.createElement('select')
+    Object.assign(sel.style, { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: mobile ? '8px' : '4px' })
+    if (mobile) Object.assign(sel.style, { fontSize: '16px', minHeight: '44px' })
+
+    const status = document.createElement('div')
+    Object.assign(status.style, { color: '#888', fontSize: '12px', minHeight: '14px' })
+
+    const go = document.createElement('button')
+    go.type = 'button'
+    go.textContent = this.angleVideoTrack ? 'stop broadcasting' : 'broadcast to this screen'
+    Object.assign(go.style, { background: '#dc1e1e', color: '#fff', border: '0', padding: mobile ? '12px' : '8px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' })
+    go.onclick = async () => {
+      if (this.angleVideoTrack) {
+        this.stopAngleBroadcast()
+        this.closeAnglePanel()
+        return
+      }
+      go.disabled = true
+      status.textContent = 'starting camera...'
+      const ok = await this.startAngleBroadcast(sel.value || undefined)
+      if (ok) {
+        this.closeAnglePanel()
+      } else {
+        go.disabled = false
+        status.textContent = 'could not start that camera - try another'
+      }
+    }
+
+    const cancel = document.createElement('button')
+    cancel.type = 'button'
+    cancel.textContent = 'cancel'
+    Object.assign(cancel.style, { background: 'transparent', color: '#888', border: '0', padding: '4px 0', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' })
+    cancel.onclick = () => this.closeAnglePanel()
+
+    if (this.angleVideoTrack) {
+      panel.append(title, go, cancel)
+    } else {
+      panel.append(title, hint, sel, go, status, cancel)
+      navigator.mediaDevices.enumerateDevices().then((devices) => {
+        devices
+          .filter((d) => d.kind === 'videoinput')
+          .forEach((d, i) => {
+            const o = document.createElement('option')
+            o.value = d.deviceId
+            o.textContent = d.label || `camera ${i + 1}`
+            sel.appendChild(o)
+          })
+      })
+    }
+    document.body.appendChild(panel)
   }
 
   stopAngleBroadcast(silent = false) {
@@ -982,7 +1077,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   update(props: Partial<any>) {
     Object.assign(this.description, props)
     this.setCommon()
-    if (this.isMirror()) this.refreshMirrorVideo()
+    if (this.isMirror()) {
+      // toggled off angle mode while broadcasting one - drop the orphaned track
+      if (this.angleVideoTrack && !this.isAngleMirror()) this.stopAngleBroadcast()
+      this.refreshMirrorVideo()
+      this.setPreview()
+    }
   }
 
   generate() {
@@ -1152,6 +1252,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.stopViewerRetry()
     this.stopStreamAttachRetry()
     this.viewerRoomFull = false
+    this.closeAnglePanel()
     this.stopAngleBroadcast(true)
     this.livekitRoom?.disconnect()
     this.livekitRoom = null
@@ -2594,12 +2695,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   onClick() {
     if (this.isAngleMirror()) {
-      if (this.canBroadcastAngle()) {
-        if (this.angleVideoTrack) this.stopAngleBroadcast()
-        else this.startAngleBroadcast()
-      } else {
-        this.unblockAudiencePlayback()
-      }
+      if (this.canBroadcastAngle()) this.openAnglePanel()
+      else this.unblockAudiencePlayback()
       return
     }
     if (this.isMirror()) return
