@@ -2327,14 +2327,15 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
 
     // Mid-stream device swaps via livekit setDeviceId - swaps underlying MediaStreamTrack on the existing publication, no renegotiate.
+    // exact: a plain string is only an "ideal" hint, so the browser silently keeps the current cam; force the picked one.
     camSel.onchange = async () => {
       if (this.broadcastRoom && liveVideoTrack && camSel.value) {
-        await liveVideoTrack.setDeviceId(camSel.value).catch(() => {})
+        await liveVideoTrack.setDeviceId({ exact: camSel.value }).catch(() => {})
       }
     }
     micSel.onchange = async () => {
       if (this.broadcastRoom && liveAudioTrack && micSel.value) {
-        await liveAudioTrack.setDeviceId(micSel.value).catch(() => {})
+        await liveAudioTrack.setDeviceId({ exact: micSel.value }).catch(() => {})
         wireAudioMeter(liveAudioTrack.mediaStreamTrack)
       }
     }
@@ -2411,8 +2412,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             tracks = await createLocalScreenTracks({ audio: true })
           } else {
             tracks = await createLocalTracks({
-              video: { deviceId: camSel.value || undefined },
-              audio: { deviceId: micSel.value || undefined },
+              // exact: a plain string deviceId is only a preference, so 3-cam setups grab the wrong camera. Force the pick.
+              video: { deviceId: camSel.value ? { exact: camSel.value } : undefined },
+              audio: { deviceId: micSel.value ? { exact: micSel.value } : undefined },
             })
           }
         } catch (err) {
