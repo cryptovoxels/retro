@@ -2001,8 +2001,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           else app.setName(next)
           nameStatus.textContent = 'saved'
           setTimeout(() => (nameStatus.textContent = ''), 1500)
-        } catch {
-          nameStatus.textContent = 'could not save'
+        } catch (e) {
+          nameStatus.textContent = (e as Error)?.message || 'could not save'
         }
       }
       nameInput.oninput = () => {
@@ -2375,8 +2375,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             const j = await r.json()
             if (!j.success) throw new Error(j.error || 'failed')
             syncGuestDisplayName(nextName)
-          } catch {
-            status.textContent = 'could not save name'
+          } catch (e) {
+            status.textContent = (e as Error)?.message || 'could not save name'
             return
           }
         } else if (guestToken) {
