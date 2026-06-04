@@ -28,11 +28,26 @@ function parcelLabel(p: SimpleParcelRecord) {
   return p.name?.trim() || p.address?.trim() || h.ownerName || `parcel #${p.id}`
 }
 
+function parcelFeatureList(parcel: any): any[] {
+  let raw = parcel?.features
+  if (!raw && parcel?.content) {
+    const c = parcel.content
+    if (typeof c === 'string') {
+      try {
+        raw = JSON.parse(c)?.features
+      } catch {}
+    } else {
+      raw = c?.features
+    }
+  }
+  if (Array.isArray(raw)) return raw
+  if (raw && typeof raw === 'object') return Object.values(raw).filter(Boolean)
+  return []
+}
+
 function showboxesFromParcel(parcel: any): { uuid: string; position?: number[] | null; rotation?: number[] | null }[] {
-  const features = parcel?.features
-  if (!Array.isArray(features)) return []
   const out: { uuid: string; position?: number[] | null; rotation?: number[] | null }[] = []
-  for (const f of features) {
+  for (const f of parcelFeatureList(parcel)) {
     if (!f || f.type !== 'showbox' || f.angleMode || !f.uuid) continue
     out.push({ uuid: f.uuid, position: f.position, rotation: f.rotation })
   }
@@ -67,11 +82,30 @@ export default function GoLive() {
         }
         const list = [...byId.values()].slice(0, MAX_PARCELS)
         const found: ShowboxRow[] = []
+        const needFetch: { p: SimpleParcelRecord; via: 'yours' | 'collab' }[] = []
+
+        for (const { p, via } of list) {
+          const boxes = showboxesFromParcel(p)
+          if (boxes.length) {
+            for (const f of boxes) {
+              found.push({
+                parcelId: p.id,
+                parcelLabel: parcelLabel(p),
+                featureUuid: f.uuid,
+                href: hostPlayHref(p, f),
+                via,
+              })
+            }
+          } else {
+            needFetch.push({ p, via })
+          }
+        }
 
         await Promise.all(
-          list.map(async ({ p, via }) => {
+          needFetch.map(async ({ p, via }) => {
             try {
               const r = await cachedFetch(`/api/parcels/${p.id}.json`, opts)
+              if (!r.ok) return
               const j = await r.json()
               const parcel = j?.parcel
               if (!parcel) return
