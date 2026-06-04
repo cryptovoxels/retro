@@ -493,6 +493,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.hasActiveVideo = false
     this.mirrorVideoIdentity = null
     this.refreshAngleVideo()
+    // refreshAngleVideo only repaints when it had an active feed; clearing it first leaves the last frame
+    // frozen, so restore the idle "broadcast to this mirror" CTA when nothing else is driving the screen.
+    if (!this.hasActiveVideo) this.setPreview()
   }
 
   // mirrors show the chosen source muted (default: whoever is live, host preferred), so every mirror is consistent
