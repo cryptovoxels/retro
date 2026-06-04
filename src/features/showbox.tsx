@@ -2528,10 +2528,18 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         deviceToggle.style.display = screenChk.checked ? 'none' : 'block'
         deviceToggle.textContent = 'change camera or mic'
         if (screenChk.checked) {
-          screenMicOn = false
-          micToggle.textContent = 'turn on mic'
-          micToggle.style.color = '#888'
+          // cohost screenshare is a two-way conversation, so default the mic on. solo screenshare stays muted (usually video playback).
+          screenMicOn = this.isCohostMode()
+          micToggle.textContent = screenMicOn ? 'mic on' : 'turn on mic'
+          micToggle.style.color = screenMicOn ? '#f5f5f0' : '#888'
           micToggle.style.display = 'block'
+          if (screenMicOn) {
+            this.broadcastRoom.localParticipant.setMicrophoneEnabled(true, { deviceId: micSel.value || undefined }).catch(() => {
+              screenMicOn = false
+              micToggle.textContent = 'turn on mic'
+              micToggle.style.color = '#888'
+            })
+          }
         }
         if (mobile) {
           mobileExtrasOpen = false
