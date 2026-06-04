@@ -15,6 +15,14 @@ export const hasMetamask = (): boolean => {
   return !!ssrFriendlyWindow?.ethereum?.isMetaMask
 }
 
+// Mobile Safari/Chrome have no injected provider - open this page in MetaMask's in-app browser instead.
+export function openMetamaskMobileDapp() {
+  const loc = ssrFriendlyWindow?.location
+  if (!loc) return
+  const dapp = `${loc.host}${loc.pathname}${loc.search}`
+  loc.href = `https://metamask.app.link/dapp/${dapp}`
+}
+
 // ------------------------------------------
 // Chain Interaction helpers
 
