@@ -1944,14 +1944,15 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     flipBtn.textContent = 'flip camera'
     Object.assign(flipBtn.style, {
       display: 'none',
-      background: '#1a1a1a',
-      color: '#f5f5f0',
-      border: '1px solid #333',
-      padding: '12px',
+      background: 'transparent',
+      color: '#888',
+      border: '0',
+      padding: '4px 0',
       cursor: 'pointer',
       fontFamily: 'inherit',
-      fontSize: '16px',
-      minHeight: '44px',
+      fontSize: '12px',
+      textAlign: 'left',
+      textDecoration: 'underline',
     })
     flipBtn.onclick = async () => {
       if (!this.broadcastRoom || !liveVideoTrack) return
@@ -2287,7 +2288,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
       const mobileKids: Node[] = [title]
       if (identityRow) mobileKids.push(identityRow)
-      mobileKids.push(deviceRow, screenOpt, screenHint, deviceToggle, flipBtn, micToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status, cancelBtn)
+      // mobile live uses flip camera link instead of "change camera or mic" (pick cam/mic before go-live in deviceRow)
+      mobileKids.push(deviceRow, screenOpt, screenHint, flipBtn, micToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status, cancelBtn)
       panel.append(...mobileKids)
     } else {
       const desktopKids: Node[] = [title]
@@ -2525,8 +2527,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (identityRow) identityRow.style.display = 'none'
         deviceRow.style.display = 'none'
         // screensharing has no camera and the mic is handled by the mic toggle below - hide the device picker
-        deviceToggle.style.display = screenChk.checked ? 'none' : 'block'
-        deviceToggle.textContent = 'change camera or mic'
+        if (mobile) {
+          deviceToggle.style.display = 'none'
+        } else {
+          deviceToggle.style.display = screenChk.checked ? 'none' : 'block'
+          deviceToggle.textContent = 'change camera or mic'
+        }
         if (screenChk.checked) {
           // cohost screenshare is a two-way conversation, so default the mic on. solo screenshare stays muted (usually video playback).
           screenMicOn = this.isCohostMode()
@@ -2684,7 +2690,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             Object.assign(meterTrack.style, { position: 'absolute', bottom: '0', left: '0', right: '0' })
             mobilePreviewWrap.append(previewVideo, previewLabel, meterTrack)
             panel.insertBefore(mobilePreviewWrap, chatRow ?? moveRow)
-            mobilePreviewWrap.insertAdjacentElement('afterend', deviceToggle)
+            mobilePreviewWrap.insertAdjacentElement('afterend', flipBtn)
 
             mobileStreamHint = document.createElement('div')
             mobileStreamHint.dataset.dot = '1'
