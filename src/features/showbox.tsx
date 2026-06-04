@@ -102,7 +102,10 @@ function cameraErrorMessage(e: unknown): string {
 function showboxCameraVideoConstraints(deviceId: string | undefined) {
   const c: Record<string, any> = {}
   if (deviceId) c.deviceId = { exact: deviceId }
-  if (mobile) c.aspectRatio = { ideal: 9 / 16 }
+  if (mobile) {
+    c.aspectRatio = { ideal: 9 / 16 }
+    c.facingMode = { ideal: 'user' }
+  }
   return c
 }
 
@@ -120,13 +123,43 @@ function wireMobilePreviewVideo(wrap: HTMLElement, el: HTMLVideoElement) {
     display: 'block',
   })
   const sync = () => {
+    // livekit re-adds width/height attrs after the first frame - strip again or the preview stretches
+    el.removeAttribute('width')
+    el.removeAttribute('height')
     const w = el.videoWidth
     const h = el.videoHeight
     if (w > 0 && h > 0) wrap.style.aspectRatio = `${w} / ${h}`
   }
   el.addEventListener('loadedmetadata', sync)
+  el.addEventListener('loadeddata', sync)
   el.addEventListener('resize', sync)
   sync()
+  let n = 0
+  const poll = () => {
+    sync()
+    if (el.videoWidth > 0 || ++n > 90) return
+    requestAnimationFrame(poll)
+  }
+  poll()
+  return sync
+}
+
+function syncVideoElFromTrack(el: HTMLVideoElement | null, track: { mediaStreamTrack?: MediaStreamTrack } | null | undefined) {
+  const mst = track?.mediaStreamTrack
+  if (!el || !mst || mst.readyState === 'ended') return
+  const cur = el.srcObject instanceof MediaStream ? el.srcObject.getVideoTracks()[0] : null
+  if (cur === mst) return
+  el.srcObject = new MediaStream([mst])
+  el.play().catch(() => {})
+}
+
+function makeDockPreviewVideo(track: { mediaStreamTrack?: MediaStreamTrack } | null | undefined) {
+  const v = document.createElement('video')
+  v.muted = true
+  v.playsInline = true
+  v.autoplay = true
+  syncVideoElFromTrack(v, track)
+  return v
 }
 
 // True when the page was opened via /live/:token and the guest pass targets this showbox.
@@ -1688,7 +1721,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
 
     const pickMode = () => {
-      if (el.videoWidth > 0 && el.videoHeight > el.videoWidth) attachLetterboxed()
+      // per-frame canvas + webgl while live on a phone often kills the context (white screen). dock preview already letterboxes.
+      if (mobile) attachDirect()
+      else if (el.videoWidth > 0 && el.videoHeight > el.videoWidth) attachLetterboxed()
       else attachDirect()
     }
     if (el.videoWidth > 0) pickMode()
@@ -1836,6 +1871,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     let mobileShowWorld = false
     let liveViewerCount = 0
     let mobilePreviewWrap: HTMLDivElement | null = null
+    let mobilePreviewVideo: HTMLVideoElement | null = null
+    let syncMobilePreview: (() => void) | null = null
+    let clearMobileBroadcastHooks: (() => void) | null = null
     let mobileWorldBtn: HTMLButtonElement | null = null
     const refreshMobileWorldBtn = () => {
       if (!mobileWorldBtn) return
@@ -2066,6 +2104,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       const restart: Record<string, any> = { facingMode: flipFacing }
       if (mobile) restart.aspectRatio = { ideal: 9 / 16 }
       await liveVideoTrack.restartTrack(restart).catch(() => {})
+      syncVideoElFromTrack(this.localBroadcastVideoEl, liveVideoTrack)
+      syncVideoElFromTrack(mobilePreviewVideo, liveVideoTrack)
+      syncMobilePreview?.()
+      requestAnimationFrame(() => syncMobilePreview?.())
     }
 
     // Screenshare goes live with no mic. This lets you add your voice mid-stream - livekit
@@ -2373,8 +2415,51 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       chatReplyRow.style.display = 'none'
       Object.assign(chatReplyRow.style, {
         flexShrink: '0',
-        paddingTop: '6px',
+        paddingTop: '4px',
         borderTop: '1px solid #333',
+      })
+
+      // keyboard pushes fan link + stop under the fold - hide them while typing so send stays obvious
+      let mobileChatComposing = false
+      const setMobileChatComposing = (on: boolean) => {
+        if (!this.broadcastRoom) return
+        mobileChatComposing = on
+        if (dockFooter) dockFooter.style.display = on ? 'none' : 'flex'
+        if (mobileExtrasBtn) mobileExtrasBtn.style.display = on ? 'none' : 'block'
+        if (flipBtn && !screenChk.checked) flipBtn.style.display = on ? 'none' : 'block'
+        if (screenChk.checked) micToggle.style.display = on ? 'none' : 'block'
+        if (on) {
+          Object.assign(chatReplyRow!.style, {
+            position: 'sticky',
+            bottom: '0',
+            zIndex: '3',
+            background: '#0d0d0d',
+            paddingBottom: 'max(6px, env(safe-area-inset-bottom))',
+          })
+        } else {
+          Object.assign(chatReplyRow!.style, { position: '', bottom: '', zIndex: '', background: '', paddingBottom: '' })
+          if (chatReplyRow) chatReplyRow.style.paddingTop = '4px'
+        }
+      }
+      const onMobileVpResize = () => {
+        const vv = window.visualViewport
+        if (!vv) return
+        const inset = Math.max(0, window.innerHeight - vv.height)
+        panel.style.paddingBottom = mobileChatComposing && inset > 48 ? `${inset}px` : ''
+      }
+      chatInput.addEventListener('focus', () => {
+        setMobileChatComposing(true)
+        onMobileVpResize()
+        window.visualViewport?.addEventListener('resize', onMobileVpResize)
+        requestAnimationFrame(() => chatInput.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+      })
+      chatInput.addEventListener('blur', () => {
+        window.visualViewport?.removeEventListener('resize', onMobileVpResize)
+        setTimeout(() => {
+          if (document.activeElement === chatInput) return
+          panel.style.paddingBottom = ''
+          setMobileChatComposing(false)
+        }, 150)
       })
 
       chatRow = document.createElement('div')
@@ -2487,6 +2572,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     goBtn.onclick = async () => {
       if (this.broadcastRoom) {
+        if (mobile && !confirm('stop streaming?')) return
+        clearMobileBroadcastHooks?.()
         // stopping ends the show - close the dock entirely instead of bouncing back to the go-live form
         this.stopBroadcast()
         this.broadcastPanel?.remove()
@@ -2577,6 +2664,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.broadcastRoom = room
         room.on(RoomEvent.Disconnected, () => {
           if (!this.broadcastRoom) return
+          clearMobileBroadcastHooks?.()
           status.textContent = 'disconnected'
           this.stopBroadcast()
         })
@@ -2615,6 +2703,26 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
         liveVideoTrack = videoTrack
         liveAudioTrack = tracks.find((t) => t.kind === Track.Kind.Audio) ?? null
+        const camMst = videoTrack?.mediaStreamTrack
+        if (camMst) {
+          camMst.addEventListener('ended', () => {
+            if (!this.broadcastRoom) return
+            app.showSnackbar('camera stopped - try flip camera or stop and go live again', PanelType.Warning)
+          })
+        }
+        if (mobile) {
+          const onVis = () => {
+            if (document.visibilityState !== 'visible' || !this.broadcastRoom) return
+            syncVideoElFromTrack(this.localBroadcastVideoEl, liveVideoTrack)
+            syncVideoElFromTrack(mobilePreviewVideo, liveVideoTrack)
+            syncMobilePreview?.()
+          }
+          document.addEventListener('visibilitychange', onVis)
+          clearMobileBroadcastHooks = () => {
+            document.removeEventListener('visibilitychange', onVis)
+            clearMobileBroadcastHooks = null
+          }
+        }
         if (videoTrack) {
           const el = videoTrack.attach() as HTMLVideoElement
           if (this.isCohostMode()) {
@@ -2776,11 +2884,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
               background: '#000',
               overflow: 'hidden',
             })
-            const previewVideo = this.isCohostMode() ? this.mountCohostPreviewVideo('cover') : (videoTrack.attach() as HTMLVideoElement)
+            const previewVideo = this.isCohostMode() ? this.mountCohostPreviewVideo('cover') : makeDockPreviewVideo(videoTrack)
             if (!this.isCohostMode()) {
-              previewVideo.muted = true
               previewVideo.volume = 0
-              previewVideo.playsInline = true
               Object.assign(previewVideo.style, { width: '100%', height: '100%', objectFit: 'cover', display: 'block' })
             }
             const previewLabel = document.createElement('div')
@@ -2796,24 +2902,20 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             Object.assign(mobilePreviewWrap.style, {
               position: 'relative',
               width: '100%',
-              aspectRatio: '9 / 16',
               maxHeight: '18vh',
+              minHeight: '80px',
               flexShrink: '0',
               background: '#000',
               overflow: 'hidden',
             })
-            const previewVideo = this.isCohostMode() ? this.mountCohostPreviewVideo('contain') : (videoTrack.attach() as HTMLVideoElement)
-            if (!this.isCohostMode()) {
-              previewVideo.muted = true
-              previewVideo.volume = 0
-              previewVideo.playsInline = true
-            }
-            wireMobilePreviewVideo(mobilePreviewWrap, previewVideo)
+            mobilePreviewVideo = this.isCohostMode() ? this.mountCohostPreviewVideo('contain') : makeDockPreviewVideo(videoTrack)
+            if (!this.isCohostMode()) mobilePreviewVideo.volume = 0
+            syncMobilePreview = wireMobilePreviewVideo(mobilePreviewWrap, mobilePreviewVideo)
             const previewLabel = document.createElement('div')
             previewLabel.textContent = 'what your audience sees'
             Object.assign(previewLabel.style, { position: 'absolute', top: '4px', left: '6px', color: '#f5f5f0', fontSize: '11px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px' })
             Object.assign(meterTrack.style, { position: 'absolute', bottom: '0', left: '0', right: '0' })
-            mobilePreviewWrap.append(previewVideo, previewLabel, meterTrack)
+            mobilePreviewWrap.append(mobilePreviewVideo, previewLabel, meterTrack)
             panel.insertBefore(mobilePreviewWrap, chatRow ?? moveRow)
             mobilePreviewWrap.insertAdjacentElement('afterend', flipBtn)
 
@@ -2842,6 +2944,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.fetchViewerCount().then((total) => this.onViewerCountTick?.(total))
         this.startMilestonePoll()
       } catch (e) {
+        clearMobileBroadcastHooks?.()
         status.textContent = e instanceof Error ? e.message : 'failed to connect'
         goBtn.disabled = false
         this.broadcastRoom?.disconnect()
