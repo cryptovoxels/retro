@@ -44,6 +44,10 @@ const MILESTONE_POLL_MS = 8000
 // How long a joining co-host shows the "connecting" card while waiting for the host's video.
 const COHOST_CONNECT_GRACE_MS = 8000
 
+function viewerCountLabel(n: number) {
+  return n === 1 ? '1 viewer' : `${n} viewers`
+}
+
 function celebrateLabel(n: number) {
   if (n >= 50) return '50 here'
   if (n >= 25) return '25 here'
@@ -264,6 +268,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   syncCohostPreview: (() => void) | null = null
   cohostCompositeRetryRaf: number | null = null
   milestonePollInterval: ReturnType<typeof setInterval> | null = null
+  onViewerCountTick: ((roomTotal: number) => void) | null = null
   celebratedMilestones = new Set<number>()
   lastCelebrateAt = 0
   lastCelebrateN = 0
@@ -659,6 +664,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       clearInterval(this.milestonePollInterval)
       this.milestonePollInterval = null
     }
+    this.onViewerCountTick = null
     this.celebratedMilestones.clear()
   }
 
@@ -698,6 +704,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (!this.broadcastRoom || this.disposed) return
       this.warnIfWalkingAway()
       const count = await this.fetchViewerCount()
+      this.onViewerCountTick?.(count)
       if (!count) return
       for (const m of VIEWER_MILESTONES) {
         if (count >= m && !this.celebratedMilestones.has(m)) {
@@ -1827,8 +1834,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     // mobile setup = full screen dock. mobile live defaults to large self-feed; toggle reveals voxels above.
     const MOBILE_WORLD_VIEW = '36vh'
     let mobileShowWorld = false
+    let liveViewerCount = 0
     let mobilePreviewWrap: HTMLDivElement | null = null
     let mobileWorldBtn: HTMLButtonElement | null = null
+    const refreshMobileWorldBtn = () => {
+      if (!mobileWorldBtn) return
+      mobileWorldBtn.textContent = mobileShowWorld ? 'see your feed' : viewerCountLabel(liveViewerCount)
+    }
     let mobileStreamHint: HTMLDivElement | null = null
     let mobileExtrasBtn: HTMLButtonElement | null = null
     let mobileExtrasOpen = false
@@ -1856,7 +1868,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         panel.style.bottom = '0'
         if (mobilePreviewWrap) mobilePreviewWrap.style.display = 'none'
         if (mobileStreamHint) mobileStreamHint.style.display = 'block'
-        if (mobileWorldBtn) mobileWorldBtn.textContent = 'see your feed'
+        refreshMobileWorldBtn()
       } else {
         panel.style.inset = '0'
         panel.style.top = '0'
@@ -1865,7 +1877,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         panel.style.bottom = '0'
         if (mobilePreviewWrap) mobilePreviewWrap.style.display = 'block'
         if (mobileStreamHint) mobileStreamHint.style.display = 'none'
-        if (mobileWorldBtn) mobileWorldBtn.textContent = 'see world'
+        refreshMobileWorldBtn()
       }
       if (mobileWorldBtn) mobileWorldBtn.style.display = 'block'
       panel.style.overflow = live ? 'hidden' : 'auto'
@@ -1883,7 +1895,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (mobile) {
       mobileWorldBtn = document.createElement('button')
       mobileWorldBtn.type = 'button'
-      mobileWorldBtn.textContent = 'see world'
+      mobileWorldBtn.textContent = viewerCountLabel(0)
       Object.assign(mobileWorldBtn.style, {
         display: 'none',
         background: 'transparent',
@@ -2801,6 +2813,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         setDesktopDockLayout(true)
         renderDockChat?.()
         this.announceLiveInChat()
+        this.onViewerCountTick = (total) => {
+          liveViewerCount = Math.max(0, total - 1)
+          refreshMobileWorldBtn()
+        }
+        this.fetchViewerCount().then((total) => this.onViewerCountTick?.(total))
         this.startMilestonePoll()
       } catch (e) {
         status.textContent = e instanceof Error ? e.message : 'failed to connect'
