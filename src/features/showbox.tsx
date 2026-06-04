@@ -309,6 +309,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   viewerConnecting = false
   liveChatAnnounced = false
   walkAwayWarned = false
+  broadcastLost = false
+  broadcastDockLiveDot: HTMLElement | null = null
+  broadcastDockLiveLabel: HTMLElement | null = null
+  broadcastDockStatusEl: HTMLElement | null = null
+  mobileBroadcastHooksClear: (() => void) | null = null
   viewerConnectGen = 0
   localBroadcastVideoEl: HTMLVideoElement | null = null
   mirrorVideoIdentity: string | null = null
@@ -735,6 +740,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.stopMilestonePoll()
     const tick = async () => {
       if (!this.broadcastRoom || this.disposed) return
+      const lost = this.checkBroadcastHealth()
+      if (lost) {
+        this.onBroadcastLost(lost)
+        return
+      }
       this.warnIfWalkingAway()
       const count = await this.fetchViewerCount()
       this.onViewerCountTick?.(count)
@@ -878,6 +888,71 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     try {
       this.parcel.sendStatePatch({ __showbox_live: this.uuid })
     } catch {}
+  }
+
+  clearBroadcastDockUi() {
+    this.broadcastDockLiveDot = null
+    this.broadcastDockLiveLabel = null
+    this.broadcastDockStatusEl = null
+    this.broadcastLost = false
+    this.mobileBroadcastHooksClear?.()
+    this.mobileBroadcastHooksClear = null
+  }
+
+  // returns a plain-language reason when we look live in the dock but the stream is not healthy
+  checkBroadcastHealth(): string | null {
+    const room = this.broadcastRoom
+    if (!room) return null
+    const state = (room as any).state
+    if (state === 'disconnected') return 'connection lost'
+    if (state === 'reconnecting') {
+      if (this.broadcastDockStatusEl && !this.broadcastLost) {
+        this.broadcastDockStatusEl.style.display = 'block'
+        this.broadcastDockStatusEl.textContent = 'reconnecting...'
+      }
+      return null
+    }
+    if (this.broadcastDockStatusEl && !this.broadcastLost) {
+      this.broadcastDockStatusEl.style.display = 'none'
+      this.broadcastDockStatusEl.textContent = ''
+    }
+    if (!this.streamTargetsThisShowbox()) {
+      this.ensureShowboxLiveFlag()
+      if (!this.streamTargetsThisShowbox()) return 'show is no longer live in world'
+    }
+    try {
+      const lp = room.localParticipant as any
+      let hasVideo = false
+      for (const pub of lp?.videoTrackPublications?.values() ?? []) {
+        const mst = pub?.track?.mediaStreamTrack
+        if (mst && mst.readyState !== 'ended') hasVideo = true
+      }
+      if (!hasVideo) return 'camera feed lost'
+    } catch {}
+    return null
+  }
+
+  onBroadcastLost(reason: string) {
+    if (this.broadcastLost) return
+    this.broadcastLost = true
+    app.showSnackbar('stream ended - ' + reason, PanelType.Warning)
+    if (this.broadcastDockLiveLabel) {
+      this.broadcastDockLiveLabel.textContent = 'offline'
+      const header = this.broadcastDockLiveLabel.parentElement as HTMLElement | null
+      if (header) header.style.color = '#888'
+    }
+    if (this.broadcastDockLiveDot) {
+      this.broadcastDockLiveDot.style.animation = 'none'
+      this.broadcastDockLiveDot.style.color = '#888'
+    }
+    if (this.broadcastDockStatusEl) {
+      this.broadcastDockStatusEl.style.display = 'block'
+      this.broadcastDockStatusEl.textContent = reason
+      this.broadcastDockStatusEl.style.color = '#f5b942'
+    }
+    this.mobileBroadcastHooksClear?.()
+    this.mobileBroadcastHooksClear = null
+    this.stopBroadcast(true)
   }
 
   canOpenBroadcastPanel() {
@@ -1340,6 +1415,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.stopBroadcast(true)
     this.broadcastPanel?.remove()
     this.broadcastPanel = null
+    this.clearBroadcastDockUi()
     this.hostJoinLoginPending = false
     this.audio?.removeUserAudioReference(this)
   }
@@ -1852,6 +1928,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.broadcastPanel.remove()
       this.broadcastPanel = null
       this.stopBroadcast()
+      this.clearBroadcastDockUi()
       return
     }
 
@@ -2573,11 +2650,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     goBtn.onclick = async () => {
       if (this.broadcastRoom) {
         if (mobile && !confirm('stop streaming?')) return
-        clearMobileBroadcastHooks?.()
+        this.mobileBroadcastHooksClear?.()
         // stopping ends the show - close the dock entirely instead of bouncing back to the go-live form
         this.stopBroadcast()
         this.broadcastPanel?.remove()
         this.broadcastPanel = null
+        this.clearBroadcastDockUi()
         this.setPreview()
         return
       }
@@ -2664,9 +2742,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.broadcastRoom = room
         room.on(RoomEvent.Disconnected, () => {
           if (!this.broadcastRoom) return
-          clearMobileBroadcastHooks?.()
-          status.textContent = 'disconnected'
-          this.stopBroadcast()
+          this.onBroadcastLost('connection lost')
         })
 
         // Hear the co-host ASAP. broadcastRoom is set first so their audio routes straight to a
@@ -2707,7 +2783,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (camMst) {
           camMst.addEventListener('ended', () => {
             if (!this.broadcastRoom) return
-            app.showSnackbar('camera stopped - try flip camera or stop and go live again', PanelType.Warning)
+            this.onBroadcastLost('camera stopped')
           })
         }
         if (mobile) {
@@ -2722,6 +2798,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             document.removeEventListener('visibilitychange', onVis)
             clearMobileBroadcastHooks = null
           }
+          this.mobileBroadcastHooksClear = clearMobileBroadcastHooks
         }
         if (videoTrack) {
           const el = videoTrack.attach() as HTMLVideoElement
@@ -2809,6 +2886,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         liveHeader.append(liveDot, liveLabel)
         if (mobileWorldBtn) liveHeader.append(mobileWorldBtn)
         liveHeader.append(liveTimer)
+        this.broadcastDockLiveDot = liveDot
+        this.broadcastDockLiveLabel = liveLabel
+        this.broadcastDockStatusEl = status
+        this.broadcastLost = false
 
         // Desktop minimize: collapse the dock to a live pill so broadcasters can read chat without killing the stream.
         // Mobile already has "see world" for this, so desktop only.
