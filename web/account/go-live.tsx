@@ -145,9 +145,6 @@ export default function GoLive() {
   if (rows === null) {
     return (
       <section>
-        <p>
-          <a href="/account">account</a>
-        </p>
         <h1>go live</h1>
         <Spinner size={24} />
       </section>
@@ -156,9 +153,6 @@ export default function GoLive() {
 
   return (
     <section>
-      <p>
-        <a href="/account">account</a>
-      </p>
       <h1>go live</h1>
       <p>pick a showbox on land you own or collaborate on. opens the world with the broadcast dock.</p>
       {error && <p>{error}</p>}
