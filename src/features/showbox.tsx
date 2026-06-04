@@ -364,7 +364,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (!lp) return false
     let track: any
     try {
-      track = await createLocalVideoTrack(deviceId ? { deviceId } : undefined)
+      // exact: a plain string deviceId is only a preference, so the browser hands back the already-running primary camera. Force the pick.
+      track = await createLocalVideoTrack(deviceId ? { deviceId: { exact: deviceId } } : undefined)
     } catch (e) {
       console.error('showbox: angle camera failed to capture', e)
       return false
