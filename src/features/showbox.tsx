@@ -1933,6 +1933,28 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       deviceToggle.textContent = open ? 'change camera or mic' : 'hide camera and mic'
     }
 
+    // Mobile one-tap camera flip. facingMode front/back is reliable on phones where deviceId enumeration is flaky.
+    let flipFacing: 'user' | 'environment' = 'user'
+    const flipBtn = document.createElement('button')
+    flipBtn.type = 'button'
+    flipBtn.textContent = 'flip camera'
+    Object.assign(flipBtn.style, {
+      display: 'none',
+      background: '#1a1a1a',
+      color: '#f5f5f0',
+      border: '1px solid #333',
+      padding: '12px',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      fontSize: '16px',
+      minHeight: '44px',
+    })
+    flipBtn.onclick = async () => {
+      if (!this.broadcastRoom || !liveVideoTrack) return
+      flipFacing = flipFacing === 'user' ? 'environment' : 'user'
+      await liveVideoTrack.restartTrack({ facingMode: flipFacing }).catch(() => {})
+    }
+
     // Screenshare goes live with no mic. This lets you add your voice mid-stream - livekit
     // publishes a mic track the first time, then just mutes/unmutes on toggle. Hidden unless screensharing.
     let screenMicOn = false
@@ -2261,7 +2283,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
       const mobileKids: Node[] = [title]
       if (identityRow) mobileKids.push(identityRow)
-      mobileKids.push(deviceRow, screenOpt, screenHint, deviceToggle, micToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status, cancelBtn)
+      mobileKids.push(deviceRow, screenOpt, screenHint, deviceToggle, flipBtn, micToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status, cancelBtn)
       panel.append(...mobileKids)
     } else {
       const desktopKids: Node[] = [title]
@@ -2512,6 +2534,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           if (shareRow) shareRow.style.display = 'flex'
           moveRow.style.display = 'none'
           if (mobileExtrasBtn) mobileExtrasBtn.style.display = 'block'
+          if (!screenChk.checked) flipBtn.style.display = 'block'
         } else {
           if (shareRow) shareRow.style.display = 'flex'
           moveRow.style.display = 'flex'
