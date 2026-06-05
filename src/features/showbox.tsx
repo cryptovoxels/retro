@@ -3965,10 +3965,7 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
             {active.map((p) => (
               <div key={p.token}>
                 <div className="f">
-                  <label>{p.name?.trim() || 'Guest link'}</label>
-                  <small>Send this to your DJ, artist, or guest.</small>
-                  <small>They can go live without a Voxels account.</small>
-                  <small>Don't share this as the public audience link.</small>
+                  {!!p.name?.trim() && <label>{p.name.trim()}</label>}
                   <input type="text" readOnly value={this.liveUrl(p.token)} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexDirection: mobile ? 'column' : 'row', marginBottom: '0.5rem' }}>
