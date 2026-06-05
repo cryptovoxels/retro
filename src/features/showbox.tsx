@@ -745,6 +745,76 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
   }
 
+  guestLiveUrl(token: string) {
+    return `${window.location.origin}/live/${token}`
+  }
+
+  canManageGuestPasses() {
+    const w = app.state.wallet?.toLowerCase()
+    if (!w) return false
+    if (app.isAdmin()) return true
+    return this.parcel.owners.some((o) => o?.toLowerCase() === w)
+  }
+
+  async fetchActiveGuestPassToken() {
+    try {
+      const r = await fetch(`/api/parcels/${this.parcel.id}/guest-passes?feature_uuid=${encodeURIComponent(this.uuid)}`, { credentials: 'include', cache: 'no-store' })
+      const j = await r.json().catch(() => null)
+      if (!r.ok || !j?.success) return null
+      const pass = (j.passes ?? []).find((p: any) => !p.revoked_at)
+      return pass?.token ?? null
+    } catch {
+      return null
+    }
+  }
+
+  async createGuestPassToken() {
+    if (!this.canManageGuestPasses()) return null
+    try {
+      const r = await fetch(`/api/parcels/${this.parcel.id}/guest-passes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store',
+        body: JSON.stringify({ feature_uuid: this.uuid }),
+      })
+      const j = await r.json().catch(() => null)
+      if (!r.ok || !j?.success) return null
+      return j.pass?.token ?? null
+    } catch {
+      return null
+    }
+  }
+
+  async resolveGuestShareUrl() {
+    let token = await this.fetchActiveGuestPassToken()
+    if (!token && this.canManageGuestPasses()) {
+      if (!confirm('create a guest link?')) return null
+      token = await this.createGuestPassToken()
+      if (!token) app.showSnackbar('could not create guest link', PanelType.Warning)
+    }
+    if (!token) return null
+    return this.guestLiveUrl(token)
+  }
+
+  async shareShowUrl(url: string, text: string) {
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'voxels show', text, url })
+      } catch (e) {
+        if ((e as DOMException)?.name !== 'AbortError') {
+          navigator.clipboard.writeText(url).catch(() => {})
+          app.showSnackbar('link copied - paste in your app', PanelType.Success)
+        }
+      } finally {
+        if (mobile) refreshMobileCanvasAfterReturn()
+      }
+      return
+    }
+    navigator.clipboard.writeText(url).catch(() => {})
+    app.showSnackbar('link copied - paste in your app', PanelType.Success)
+  }
+
   stopMilestonePoll() {
     if (this.milestonePollInterval) {
       clearInterval(this.milestonePollInterval)
@@ -2653,39 +2723,90 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         const text = `Going live in voxels - Teleport in! ${showUrl}`
         window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
       }
+      const runMobileShare = async (kind: 'fan' | 'guest') => {
+        if (kind === 'guest') {
+          const guestUrl = await this.resolveGuestShareUrl()
+          if (!guestUrl) {
+            if (!this.canManageGuestPasses()) app.showSnackbar('no guest link yet - ask the owner', PanelType.Warning)
+            return
+          }
+          await this.shareShowUrl(guestUrl, `Join my show in voxels - go live here: ${guestUrl}`)
+          return
+        }
+        await this.shareShowUrl(showUrl, `Going live in voxels - Teleport in! ${showUrl}`)
+      }
       const shareBtn = document.createElement('button')
       shareBtn.textContent = 'share'
       Object.assign(shareBtn.style, { background: '#333', color: '#f5f5f0', border: '0', padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', flex: '1', minHeight: '36px' })
-      shareBtn.onclick = async () => {
-        const text = `Going live in voxels - Teleport in! ${showUrl}`
-        if (navigator.share) {
-          try {
-            await navigator.share({ title: 'voxels show', text, url: showUrl })
-          } catch (e) {
-            if ((e as DOMException)?.name !== 'AbortError') {
-              navigator.clipboard.writeText(showUrl).catch(() => {})
-              app.showSnackbar('link copied - paste in your app', PanelType.Success)
-            }
-          } finally {
-            refreshMobileCanvasAfterReturn()
-          }
-          return
-        }
-        navigator.clipboard.writeText(showUrl).catch(() => {})
-        app.showSnackbar('link copied - paste in your app', PanelType.Success)
-      }
+      shareBtn.onclick = () => void runMobileShare('fan')
       shareBtnRow.append(copyBtn)
-      if (mobile) shareBtnRow.append(shareBtn)
-      else shareBtnRow.append(xBtn)
+      if (!mobile) shareBtnRow.append(xBtn)
       shareLabel.style.display = 'block'
       if (mobile) {
-        // one slim row under chat - native share sheet is gentler than opening x in a new tab
         Object.assign(shareRow.style, { padding: '4px 0', borderTop: '1px solid #222', borderBottom: 'none', gap: '2px' })
-        shareBtnRow.style.flexDirection = 'row'
-        copyBtn.textContent = 'copy fan link'
-        Object.assign(copyBtn.style, { background: '#dc1e1e', fontWeight: 'bold', flex: '2', minHeight: '32px', padding: '6px 8px', width: 'auto' })
-        Object.assign(shareBtn.style, { flex: '1', minHeight: '32px', padding: '6px 8px', width: 'auto', fontSize: '12px' })
-        shareRow.append(shareBtnRow)
+        if (this.parcel.canEdit) {
+          let shareLinkKind: 'fan' | 'guest' = 'fan'
+          const shareSplit = document.createElement('div')
+          Object.assign(shareSplit.style, { display: 'flex', width: '100%', position: 'relative' })
+          const shareMainBtn = document.createElement('button')
+          const sharePickBtn = document.createElement('button')
+          const sharePickMenu = document.createElement('div')
+          const btnBase = { background: '#dc1e1e', color: '#f5f5f0', border: '0', cursor: 'pointer', fontFamily: 'inherit', minHeight: '32px' as const }
+          const syncShareLabel = () => {
+            shareMainBtn.textContent = shareLinkKind === 'fan' ? 'share fan link' : 'share guest link'
+          }
+          const closeSharePickMenu = () => {
+            sharePickMenu.style.display = 'none'
+          }
+          const pickShareKind = (kind: 'fan' | 'guest') => {
+            shareLinkKind = kind
+            syncShareLabel()
+            closeSharePickMenu()
+          }
+          Object.assign(shareMainBtn.style, { ...btnBase, flex: '1', fontWeight: 'bold', padding: '6px 8px' })
+          Object.assign(sharePickBtn.style, { ...btnBase, padding: '6px 10px', borderLeft: '1px solid #111', flexShrink: '0' })
+          sharePickBtn.textContent = 'v'
+          sharePickBtn.title = 'pick fan or guest link'
+          Object.assign(sharePickMenu.style, {
+            display: 'none',
+            flexDirection: 'column',
+            position: 'absolute',
+            bottom: '100%',
+            left: '0',
+            right: '0',
+            background: '#1a1a1a',
+            border: '1px solid #333',
+            marginBottom: '2px',
+            zIndex: '5',
+          })
+          const fanPick = document.createElement('button')
+          fanPick.type = 'button'
+          fanPick.textContent = 'fan link - for people watching'
+          Object.assign(fanPick.style, { background: '#1a1a1a', color: '#f5f5f0', border: '0', borderBottom: '1px solid #333', padding: '8px', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', minHeight: '32px' })
+          fanPick.onclick = () => pickShareKind('fan')
+          const guestPick = document.createElement('button')
+          guestPick.type = 'button'
+          guestPick.textContent = 'guest link - for your DJ or co-host'
+          Object.assign(guestPick.style, { background: '#1a1a1a', color: '#f5f5f0', border: '0', padding: '8px', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', minHeight: '32px' })
+          guestPick.onclick = () => pickShareKind('guest')
+          sharePickMenu.append(fanPick, guestPick)
+          syncShareLabel()
+          shareMainBtn.onclick = () => {
+            closeSharePickMenu()
+            void runMobileShare(shareLinkKind)
+          }
+          sharePickBtn.onclick = (e) => {
+            e.stopPropagation()
+            sharePickMenu.style.display = sharePickMenu.style.display === 'none' ? 'flex' : 'none'
+          }
+          shareSplit.append(shareMainBtn, sharePickBtn, sharePickMenu)
+          shareRow.append(shareSplit)
+        } else {
+          shareBtn.textContent = 'share fan link'
+          Object.assign(shareBtn.style, { background: '#dc1e1e', fontWeight: 'bold', width: '100%', minHeight: '32px', padding: '6px 8px', fontSize: '12px' })
+          shareBtnRow.append(shareBtn)
+          shareRow.append(shareBtnRow)
+        }
       } else {
         shareRow.append(shareLabel, shareInput, shareBtnRow)
       }
