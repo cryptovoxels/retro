@@ -150,7 +150,7 @@ export default class WebHeader extends Component<Props, State> {
       if (canInstallMetamask) {
         window.open('https://chrome.google.com/webstore/detail/metamask/nkbihfbeogaeaoehlefnkodbefgpgknn', '_blank', 'noopener')
       } else {
-        void login.startMetamaskLogin()
+        login.signin()
       }
     }
 
