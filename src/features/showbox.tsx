@@ -41,6 +41,7 @@ const STREAM_ATTACH_RETRY_MS = 2000
 const STREAM_ATTACH_RECONNECT_AFTER = 5
 const VIEWER_MILESTONES = [10, 25, 50] as const
 const MILESTONE_POLL_MS = 8000
+const BROADCAST_RECONNECT_MAX = 5
 // How long a joining co-host shows the "connecting" card while waiting for the host's video.
 const COHOST_CONNECT_GRACE_MS = 8000
 
@@ -314,6 +315,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   broadcastDockLiveLabel: HTMLElement | null = null
   broadcastDockStatusEl: HTMLElement | null = null
   mobileBroadcastHooksClear: (() => void) | null = null
+  mobilePreviewVideoEl: HTMLVideoElement | null = null
+  syncMobilePreviewDock: (() => void) | null = null
+  broadcastLiveTracks: any[] | null = null
+  broadcastLiveVideoTrack: any = null
+  broadcastLiveAudioTrack: any = null
+  broadcastReconnectAttempts = 0
+  broadcastReconnecting = false
   viewerConnectGen = 0
   localBroadcastVideoEl: HTMLVideoElement | null = null
   mirrorVideoIdentity: string | null = null
@@ -895,16 +903,123 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.broadcastDockLiveLabel = null
     this.broadcastDockStatusEl = null
     this.broadcastLost = false
+    this.broadcastReconnecting = false
+    this.broadcastReconnectAttempts = 0
+    this.broadcastLiveTracks = null
+    this.broadcastLiveVideoTrack = null
+    this.broadcastLiveAudioTrack = null
+    this.mobilePreviewVideoEl = null
+    this.syncMobilePreviewDock = null
     this.mobileBroadcastHooksClear?.()
     this.mobileBroadcastHooksClear = null
+  }
+
+  restoreLiveDockUi() {
+    if (!this.broadcastDockLiveLabel) return
+    this.broadcastDockLiveLabel.textContent = 'live'
+    const header = this.broadcastDockLiveLabel.parentElement as HTMLElement | null
+    if (header) header.style.color = '#dc1e1e'
+    if (this.broadcastDockLiveDot) {
+      this.broadcastDockLiveDot.style.color = ''
+      this.broadcastDockLiveDot.style.animation = 'showbox-live-pulse 1.2s ease-in-out infinite'
+    }
+    if (this.broadcastDockStatusEl) {
+      this.broadcastDockStatusEl.style.display = 'none'
+      this.broadcastDockStatusEl.textContent = ''
+      this.broadcastDockStatusEl.style.color = ''
+    }
+  }
+
+  wireBroadcastRoom(room: Room) {
+    room.on(RoomEvent.Disconnected, () => {
+      if (this.broadcastLost || !this.broadcastRoom) return
+      void this.tryBroadcastReconnect('connection lost')
+    })
+    const reconnected = (RoomEvent as any).Reconnected
+    if (reconnected) {
+      room.on(reconnected, () => {
+        if (this.broadcastLost) return
+        this.broadcastReconnecting = false
+        this.broadcastReconnectAttempts = 0
+        this.ensureShowboxLiveFlag()
+        this.restoreLiveDockUi()
+        void this.refreshBroadcastPreview()
+      })
+    }
+  }
+
+  async refreshBroadcastPreview() {
+    const track = this.broadcastLiveVideoTrack
+    if (!track) return
+    if (this.isCohostMode()) {
+      this.updateCohostComposite()
+      return
+    }
+    try {
+      const el = track.attach() as HTMLVideoElement
+      el.muted = true
+      el.playsInline = true
+      this.localBroadcastVideoEl = el
+      this.attachVideoToMesh(el, true)
+      syncVideoElFromTrack(this.mobilePreviewVideoEl, track)
+      this.syncMobilePreviewDock?.()
+      this.parcel.getFeaturesByType('showbox').forEach((f) => (f as any).refreshMirrorVideo?.())
+    } catch {}
+  }
+
+  async tryBroadcastReconnect(reason: string) {
+    if (this.broadcastLost || this.broadcastReconnecting || !this.broadcastPanel) return
+    const tracks = this.broadcastLiveTracks
+    if (!tracks?.length) {
+      this.onBroadcastLost(reason)
+      return
+    }
+    if (this.broadcastReconnectAttempts >= BROADCAST_RECONNECT_MAX) {
+      this.onBroadcastLost(reason)
+      return
+    }
+    this.broadcastReconnectAttempts++
+    this.broadcastReconnecting = true
+    if (this.broadcastDockStatusEl) {
+      this.broadcastDockStatusEl.style.display = 'block'
+      this.broadcastDockStatusEl.textContent = `reconnecting (${this.broadcastReconnectAttempts}/${BROADCAST_RECONNECT_MAX})...`
+      this.broadcastDockStatusEl.style.color = '#f5b942'
+    }
+    try {
+      this.broadcastRoom?.disconnect()
+      const tokenRes = await fetch(`/api/rooms/${this.roomName()}/token`, { credentials: 'include' })
+      const res = await tokenRes.json().catch(() => null)
+      if (!tokenRes.ok || !res?.token) throw new Error('no token')
+      const room = new Room()
+      this.broadcastRoom = room
+      this.wireBroadcastRoom(room)
+      await room.connect(LIVEKIT_URL, res.token)
+      this.parcel.sendStatePatch({ [this.uuid]: { live: 1 }, __showbox_live: this.uuid })
+      for (const t of tracks) {
+        await room.localParticipant.publishTrack(t)
+      }
+      this.broadcastReconnecting = false
+      this.broadcastReconnectAttempts = 0
+      this.ensureShowboxLiveFlag()
+      this.restoreLiveDockUi()
+      await this.refreshBroadcastPreview()
+      this.parcel.getFeaturesByType('showbox').forEach((f) => (f as any).refreshMirrorVideo?.())
+    } catch {
+      this.broadcastReconnecting = false
+      if (this.broadcastReconnectAttempts >= BROADCAST_RECONNECT_MAX) this.onBroadcastLost(reason)
+    }
   }
 
   // returns a plain-language reason when we look live in the dock but the stream is not healthy
   checkBroadcastHealth(): string | null {
     const room = this.broadcastRoom
     if (!room) return null
+    if (this.broadcastReconnecting) return null
     const state = (room as any).state
-    if (state === 'disconnected') return 'connection lost'
+    if (state === 'disconnected') {
+      void this.tryBroadcastReconnect('connection lost')
+      return null
+    }
     if (state === 'reconnecting') {
       if (this.broadcastDockStatusEl && !this.broadcastLost) {
         this.broadcastDockStatusEl.style.display = 'block'
@@ -934,6 +1049,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   onBroadcastLost(reason: string) {
     if (this.broadcastLost) return
+    this.broadcastReconnecting = false
     this.broadcastLost = true
     app.showSnackbar('stream ended - ' + reason, PanelType.Warning)
     if (this.broadcastDockLiveLabel) {
@@ -1888,6 +2004,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.clearCohostMonitor()
     this.broadcastRoom?.disconnect()
     this.broadcastRoom = null
+    this.broadcastLiveTracks = null
+    this.broadcastLiveVideoTrack = null
+    this.broadcastLiveAudioTrack = null
+    this.broadcastReconnecting = false
+    this.broadcastReconnectAttempts = 0
     // ending your session also drops any second-camera feeds you pushed to sibling angle mirrors
     for (const b of this.parcel.getFeaturesByType('showbox') as any[]) {
       if (b?.angleVideoTrack) b.stopAngleBroadcast()
@@ -2732,6 +2853,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           throw new Error(screenChk.checked ? '' : cameraErrorMessage(err))
         }
         acquiredTracks = tracks
+        this.broadcastLiveTracks = tracks
 
         const videoTrack = tracks.find((t) => t.kind === Track.Kind.Video)
         if (!videoTrack) {
@@ -2740,10 +2862,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
         const room = new Room()
         this.broadcastRoom = room
-        room.on(RoomEvent.Disconnected, () => {
-          if (!this.broadcastRoom) return
-          this.onBroadcastLost('connection lost')
-        })
+        this.broadcastReconnectAttempts = 0
+        this.broadcastReconnecting = false
+        this.wireBroadcastRoom(room)
 
         // Hear the co-host ASAP. broadcastRoom is set first so their audio routes straight to a
         // monitor. If we were already watching them, flip that (spatial) audience audio to a
@@ -2779,6 +2900,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
         liveVideoTrack = videoTrack
         liveAudioTrack = tracks.find((t) => t.kind === Track.Kind.Audio) ?? null
+        this.broadcastLiveVideoTrack = liveVideoTrack
+        this.broadcastLiveAudioTrack = liveAudioTrack
         const camMst = videoTrack?.mediaStreamTrack
         if (camMst) {
           camMst.addEventListener('ended', () => {
@@ -2990,8 +3113,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
               overflow: 'hidden',
             })
             mobilePreviewVideo = this.isCohostMode() ? this.mountCohostPreviewVideo('contain') : makeDockPreviewVideo(videoTrack)
+            this.mobilePreviewVideoEl = mobilePreviewVideo
             if (!this.isCohostMode()) mobilePreviewVideo.volume = 0
             syncMobilePreview = wireMobilePreviewVideo(mobilePreviewWrap, mobilePreviewVideo)
+            this.syncMobilePreviewDock = syncMobilePreview
             const previewLabel = document.createElement('div')
             previewLabel.textContent = 'what your audience sees'
             Object.assign(previewLabel.style, { position: 'absolute', top: '4px', left: '6px', color: '#f5f5f0', fontSize: '11px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px' })
