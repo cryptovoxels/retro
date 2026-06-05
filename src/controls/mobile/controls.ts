@@ -126,8 +126,14 @@ export function refreshMobileCanvasAfterReturn() {
     requestAnimationFrame(resize)
   })
   window.setTimeout(resize, 300)
+}
+
+// permission prompts and share sheets can settle the viewport late - do not call at dock open or world boot
+export function refreshMobileCanvasAfterPermission() {
+  refreshMobileCanvasAfterReturn()
+  const resize = () => window.engine?.resize()
   window.setTimeout(resize, 500)
-  if (isIOS()) window.setTimeout(resize, 1500) // visualViewport can settle late after permission prompts
+  if (isIOS()) window.setTimeout(resize, 1500)
 }
 
 export function viewportChangeHandler() {

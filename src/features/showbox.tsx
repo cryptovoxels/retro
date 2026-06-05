@@ -2,7 +2,8 @@ import { Component, h } from 'preact'
 import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { isMobile } from '../../common/helpers/detector'
-import { refreshMobileCanvasAfterReturn, reloadIfWebglContextLost } from '../controls/mobile/controls'
+import { refreshMobileCanvasAfterPermission, refreshMobileCanvasAfterReturn, reloadIfWebglContextLost } from '../controls/mobile/controls'
+import { isLoaded, onLoadPromise } from '../utils/loading-done'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { encodeCoords } from '../../common/helpers/utils'
@@ -905,7 +906,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           app.showSnackbar('link copied - paste in your app', PanelType.Success)
         }
       } finally {
-        if (mobile) refreshMobileCanvasAfterReturn()
+        if (mobile) refreshMobileCanvasAfterPermission()
       }
       return
     }
@@ -1810,35 +1811,41 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     if (!hostOrGuest) return
 
-    setTimeout(
-      () => {
+    const runHostJoinAutoOpen = () => {
+      if (tryAutoOpen()) return
+      void app.getState().then(() => {
         if (tryAutoOpen()) return
-        void app.getState().then(() => {
-          if (tryAutoOpen()) return
-          if (!this.broadcastRoom && !this.hasActiveVideo) this.setPreview()
-        })
-        if (!wantsHostJoin(this.uuid) && !isGuestForShowbox(this.uuid)) return
-        const stopAt = Date.now() + 15000
-        const onWalletReady = () => {
-          if (Date.now() > stopAt || this.disposed || this.broadcastPanel || this.joinDockAutoOpened) {
-            app.removeListener(AppEvent.Change, onWalletReady)
-            return
-          }
-          if (!wantsHostJoin(this.uuid) && !isGuestForShowbox(this.uuid)) {
-            app.removeListener(AppEvent.Change, onWalletReady)
-            return
-          }
-          if (tryAutoOpen()) app.removeListener(AppEvent.Change, onWalletReady)
+        if (!this.broadcastRoom && !this.hasActiveVideo) this.setPreview()
+      })
+      if (!wantsHostJoin(this.uuid) && !isGuestForShowbox(this.uuid)) return
+      const stopAt = Date.now() + 15000
+      const onWalletReady = () => {
+        if (Date.now() > stopAt || this.disposed || this.broadcastPanel || this.joinDockAutoOpened) {
+          app.removeListener(AppEvent.Change, onWalletReady)
+          return
         }
-        app.on(AppEvent.Change, onWalletReady)
-        setTimeout(() => app.removeListener(AppEvent.Change, onWalletReady), 15000)
-        setTimeout(() => {
-          if (this.disposed || this.broadcastPanel || this.joinDockAutoOpened || !wantsHostJoin(this.uuid) || app.signedIn) return
-          this.promptHostSignIn()
-        }, 3000)
-      },
-      mobile ? 0 : 250,
-    )
+        if (!wantsHostJoin(this.uuid) && !isGuestForShowbox(this.uuid)) {
+          app.removeListener(AppEvent.Change, onWalletReady)
+          return
+        }
+        if (tryAutoOpen()) app.removeListener(AppEvent.Change, onWalletReady)
+      }
+      app.on(AppEvent.Change, onWalletReady)
+      setTimeout(() => app.removeListener(AppEvent.Change, onWalletReady), 15000)
+      setTimeout(() => {
+        if (this.disposed || this.broadcastPanel || this.joinDockAutoOpened || !wantsHostJoin(this.uuid) || app.signedIn) return
+        this.promptHostSignIn()
+      }, 3000)
+    }
+    // opening the full-screen dock while the world is still booting whites out mobile webgl
+    if (mobile && !isLoaded()) {
+      onLoadPromise.then(() => {
+        if (this.disposed) return
+        runHostJoinAutoOpen()
+      })
+    } else {
+      setTimeout(runHostJoinAutoOpen, mobile ? 0 : 250)
+    }
   }
 
   promptHostSignIn() {
@@ -2667,7 +2674,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       panel.append(title, earlyLoading)
       document.body.appendChild(panel)
       panelMounted = true
-      refreshMobileCanvasAfterReturn()
     }
 
     const camLabel = document.createElement('label')
@@ -3073,7 +3079,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.joinDockAutoOpened = true
       this.broadcastPanel?.remove()
       this.broadcastPanel = null
-      if (mobile) refreshMobileCanvasAfterReturn()
+      if (mobile) refreshMobileCanvasAfterPermission()
     }
 
     // Mobile chat lives in the dock when live - bottom sheet covers world chat. Desktop uses normal chat.
@@ -3232,7 +3238,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           if (document.activeElement === chatInput) return
           panel.style.paddingBottom = ''
           setMobileChatComposing(false)
-          refreshMobileCanvasAfterReturn()
+          refreshMobileCanvasAfterPermission()
         }, 150)
       })
 
@@ -3351,7 +3357,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (this.broadcastRoom) {
         if (mobile) {
           const ok = confirm('stop streaming?')
-          refreshMobileCanvasAfterReturn()
+          refreshMobileCanvasAfterPermission()
           if (!ok) return
         }
         this.broadcastStopping = true
@@ -3444,13 +3450,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             })
           }
         } catch (err) {
-          if (mobile) refreshMobileCanvasAfterReturn()
+          if (mobile) refreshMobileCanvasAfterPermission()
           // empty message = silent reset (user cancelled the screenshare picker). camera errors get a plain-language nudge.
           throw new Error(screenChk.checked ? '' : cameraErrorMessage(err))
         }
         await waitMobilePageVisible()
         if (mobile) {
-          refreshMobileCanvasAfterReturn()
+          refreshMobileCanvasAfterPermission()
           reloadIfWebglContextLost()
         }
         acquiredTracks = tracks
@@ -3462,7 +3468,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         if (mobile && !screenChk.checked) {
           await videoTrack.restartTrack(showboxMobileCameraConstraints('user')).catch(() => {})
-          refreshMobileCanvasAfterReturn()
+          refreshMobileCanvasAfterPermission()
           reloadIfWebglContextLost()
         }
         const room = new Room()
@@ -3491,7 +3497,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
 
         await room.connect(LIVEKIT_URL, res.token)
-        if (mobile) refreshMobileCanvasAfterReturn()
+        if (mobile) refreshMobileCanvasAfterPermission()
         this.parcel.sendStatePatch({ [this.uuid]: { live: 1 }, __showbox_live: this.uuid })
 
         for (const t of tracks) {
@@ -3544,7 +3550,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           } else {
             this.localBroadcastVideoEl = el
             if (mobile) {
-              refreshMobileCanvasAfterReturn()
+              refreshMobileCanvasAfterPermission()
               requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
                   if (this.disposed || !this.broadcastRoom) return
@@ -3787,7 +3793,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         setMobileDockLayout(true)
         setDesktopDockLayout(true)
         if (mobile) {
-          refreshMobileCanvasAfterReturn()
+          refreshMobileCanvasAfterPermission()
           reloadIfWebglContextLost()
         }
         renderDockChat?.()
@@ -3799,7 +3805,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.fetchViewerCount().then((total) => this.onViewerCountTick?.(total))
         this.startMilestonePoll()
       } catch (e) {
-        if (mobile) refreshMobileCanvasAfterReturn()
+        if (mobile) refreshMobileCanvasAfterPermission()
         clearMobileBroadcastHooks?.()
         const errMsg = e instanceof Error ? e.message : 'failed to connect'
         status.textContent = errMsg
