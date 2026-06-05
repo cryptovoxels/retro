@@ -54,7 +54,7 @@ import { User } from './user'
 import Persona from './persona'
 import { Appstate } from '../web/src/state'
 import { render } from 'preact'
-import { viewportChangeHandler } from './controls/mobile/controls'
+import { refreshMobileCanvasAfterReturn, viewportChangeHandler } from './controls/mobile/controls'
 import PolytextV2 from './features/polytext-v2'
 import { DrawDistance } from './graphic/draw-distance'
 import MainLoop from './main-loop'
@@ -184,6 +184,14 @@ declare global {
 
   if (isMobile() && window.visualViewport) {
     window.visualViewport.addEventListener('resize', viewportChangeHandler)
+    document.addEventListener(
+      'visibilitychange',
+      () => {
+        if (document.visibilityState === 'visible') refreshMobileCanvasAfterReturn()
+      },
+      { passive: true },
+    )
+    window.addEventListener('pageshow', refreshMobileCanvasAfterReturn, { passive: true })
   }
 
   // Don't use babylon spinner

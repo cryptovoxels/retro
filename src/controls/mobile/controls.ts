@@ -109,6 +109,12 @@ export function resetMobileViewportLayout() {
   document.body.style.height = ''
 }
 
+// share sheet / app switch can leave the babylon canvas blank until resize runs again
+export function refreshMobileCanvasAfterReturn() {
+  resetMobileViewportLayout()
+  requestAnimationFrame(() => window.engine?.resize())
+}
+
 export function viewportChangeHandler() {
   // Check if viewPort change is caused by a rotation (dont do anything)
   if (!window.matchMedia(`(orientation: ${orientation})`).matches) {
