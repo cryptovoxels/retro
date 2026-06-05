@@ -112,13 +112,7 @@ export function resetMobileViewportLayout() {
 // share sheet / app switch can leave the babylon canvas blank until resize runs again
 export function refreshMobileCanvasAfterReturn() {
   resetMobileViewportLayout()
-  const resize = () => window.engine?.resize()
-  requestAnimationFrame(() => {
-    resize()
-    requestAnimationFrame(resize)
-  })
-  // imessage/x handoff can settle after visibilitychange - one delayed retry
-  window.setTimeout(resize, 300)
+  requestAnimationFrame(() => window.engine?.resize())
 }
 
 export function viewportChangeHandler() {
