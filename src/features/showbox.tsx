@@ -2817,7 +2817,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         xBtn.onclick = () => {
           const url = getUrl().trim()
           if (!url || url.startsWith('loading')) return
-          const text = getKind() === 'guest' ? `Join my show in voxels - go live here: ${url}` : `Going live in voxels - Teleport in! ${url}`
+          const text = getKind() === 'guest' ? `Jump on stage with me in voxels: ${url}` : `Going live in voxels - Teleport in! ${url}`
           window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
         }
       }
@@ -2828,7 +2828,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             if (!this.canManageGuestPasses()) app.showSnackbar('no guest link yet - ask someone with edit access', PanelType.Warning)
             return
           }
-          await this.shareShowUrl(guestUrl, `Join my show in voxels - go live here: ${guestUrl}`)
+          await this.shareShowUrl(guestUrl, `Jump on stage with me in voxels: ${guestUrl}`)
           return
         }
         await this.shareShowUrl(showUrl, `Going live in voxels - Teleport in! ${showUrl}`)
