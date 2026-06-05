@@ -1,3 +1,4 @@
+import { isIOS } from '../../../common/helpers/detector'
 import Controls, { CAMERA_DISTANCE } from '../controls'
 import DpadControls, { toggleDpadControls } from '../../ui/mobile/dpad'
 import OurCamera from '../utils/our-camera'
@@ -109,7 +110,7 @@ export function resetMobileViewportLayout() {
   document.body.style.height = ''
 }
 
-// share sheet / app switch can leave the babylon canvas blank until resize runs again
+// native UI handoffs (share sheet, mic/camera permission, app switch) can leave the babylon canvas blank until resize runs again
 export function refreshMobileCanvasAfterReturn() {
   resetMobileViewportLayout()
   const resize = () => window.engine?.resize()
@@ -117,8 +118,9 @@ export function refreshMobileCanvasAfterReturn() {
     resize()
     requestAnimationFrame(resize)
   })
-  // imessage/x handoff can settle after visibilitychange - one delayed retry
   window.setTimeout(resize, 300)
+  window.setTimeout(resize, 500)
+  if (isIOS()) window.setTimeout(resize, 1500) // visualViewport can settle late after permission prompts
 }
 
 export function viewportChangeHandler() {

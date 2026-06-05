@@ -890,10 +890,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           app.showSnackbar('link copied - paste in your app', PanelType.Success)
         }
       } finally {
-        if (mobile) {
-          refreshMobileCanvasAfterReturn()
-          window.setTimeout(refreshMobileCanvasAfterReturn, 500)
-        }
+        if (mobile) refreshMobileCanvasAfterReturn()
       }
       return
     }
@@ -3061,10 +3058,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.joinDockAutoOpened = true
       this.broadcastPanel?.remove()
       this.broadcastPanel = null
-      if (mobile) {
-        refreshMobileCanvasAfterReturn()
-        window.setTimeout(refreshMobileCanvasAfterReturn, 500)
-      }
+      if (mobile) refreshMobileCanvasAfterReturn()
     }
 
     // Mobile chat lives in the dock when live - bottom sheet covers world chat. Desktop uses normal chat.
@@ -3224,7 +3218,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           panel.style.paddingBottom = ''
           setMobileChatComposing(false)
           refreshMobileCanvasAfterReturn()
-          window.setTimeout(refreshMobileCanvasAfterReturn, 500)
         }, 150)
       })
 
@@ -3436,17 +3429,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             })
           }
         } catch (err) {
-          if (mobile) {
-            refreshMobileCanvasAfterReturn()
-            window.setTimeout(refreshMobileCanvasAfterReturn, 500)
-          }
+          if (mobile) refreshMobileCanvasAfterReturn()
           // empty message = silent reset (user cancelled the screenshare picker). camera errors get a plain-language nudge.
           throw new Error(screenChk.checked ? '' : cameraErrorMessage(err))
         }
-        if (mobile) {
-          refreshMobileCanvasAfterReturn()
-          window.setTimeout(refreshMobileCanvasAfterReturn, 500)
-        }
+        if (mobile) refreshMobileCanvasAfterReturn()
         acquiredTracks = tracks
         this.broadcastLiveTracks = tracks
 
@@ -3480,6 +3467,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
 
         await room.connect(LIVEKIT_URL, res.token)
+        if (mobile) refreshMobileCanvasAfterReturn()
         this.parcel.sendStatePatch({ [this.uuid]: { live: 1 }, __showbox_live: this.uuid })
 
         for (const t of tracks) {
@@ -3773,10 +3761,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.fetchViewerCount().then((total) => this.onViewerCountTick?.(total))
         this.startMilestonePoll()
       } catch (e) {
-        if (mobile) {
-          refreshMobileCanvasAfterReturn()
-          window.setTimeout(refreshMobileCanvasAfterReturn, 500)
-        }
+        if (mobile) refreshMobileCanvasAfterReturn()
         clearMobileBroadcastHooks?.()
         const errMsg = e instanceof Error ? e.message : 'failed to connect'
         status.textContent = errMsg
