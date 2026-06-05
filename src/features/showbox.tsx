@@ -193,21 +193,55 @@ function guestJwtPayload(): { wallet?: string; guest_pass?: string; feature_uuid
   }
 }
 
-function isGuestForShowbox(uuid: string): boolean {
-  const payload = guestJwtPayload()
-  const w = (payload?.wallet ?? app.state.wallet)?.toLowerCase()
-  if (!w?.startsWith('guest:')) return false
-  if (payload?.feature_uuid === uuid) return true
+function showboxJoinShowUuid(): string | null {
   try {
     const show = new URL(window.location.href).searchParams.get('show')
-    return !!show && show.toLowerCase() === uuid.toLowerCase()
+    return show ? show.toLowerCase() : null
   } catch {
-    return false
+    return null
   }
 }
 
+function isSyntheticGuestWallet() {
+  const w = (guestJwtPayload()?.wallet ?? app.state.wallet)?.toLowerCase()
+  return !!w?.startsWith('guest:')
+}
+
 function guestPassToken(): string | null {
-  return guestJwtPayload()?.guest_pass ?? null
+  const fromJwt = guestJwtPayload()?.guest_pass
+  if (fromJwt) return fromJwt
+  try {
+    const u = new URL(window.location.href)
+    const fromUrl = u.searchParams.get('guest_pass')
+    if (fromUrl) {
+      sessionStorage.setItem('showbox_guest_pass', fromUrl)
+      return fromUrl
+    }
+  } catch {}
+  try {
+    return sessionStorage.getItem('showbox_guest_pass')
+  } catch {
+    return null
+  }
+}
+
+function isGuestForShowbox(uuid: string): boolean {
+  const showMatch = showboxJoinShowUuid() === uuid.toLowerCase()
+  if (isSyntheticGuestWallet()) {
+    const payload = guestJwtPayload()
+    if (payload?.feature_uuid === uuid) return true
+    return showMatch
+  }
+  if (app.signedIn && guestPassToken() && showMatch) return true
+  return false
+}
+
+function showboxRoomTokenUrl(roomName: string) {
+  const pass = guestPassToken()
+  if (pass && !guestJwtPayload()?.guest_pass) {
+    return `/api/rooms/${roomName}/token?guest_pass=${encodeURIComponent(pass)}`
+  }
+  return `/api/rooms/${roomName}/token`
 }
 
 function showboxFeatureCoords(feature: Showbox) {
@@ -251,6 +285,7 @@ function clearShowboxJoinParams() {
     if (!u.searchParams.has('show') && !u.searchParams.has('host')) return
     u.searchParams.delete('show')
     u.searchParams.delete('host')
+    u.searchParams.delete('guest_pass')
     const qs = u.searchParams.toString()
     window.history.replaceState(window.history.state, '', u.pathname + (qs ? `?${qs}` : '') + u.hash)
   } catch {}
@@ -1124,7 +1159,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     await new Promise((r) => setTimeout(r, 1000 * this.broadcastReconnectAttempts))
     try {
       this.broadcastRoom?.disconnect()
-      const tokenRes = await fetch(`/api/rooms/${this.roomName()}/token`, { credentials: 'include' })
+      const tokenRes = await fetch(showboxRoomTokenUrl(this.roomName()), { credentials: 'include' })
       const res = await tokenRes.json().catch(() => null)
       if (!tokenRes.ok || !res?.token) throw new Error('no token')
       const room = new Room()
@@ -1670,14 +1705,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (tryAutoOpen()) return
         if (!this.broadcastRoom && !this.hasActiveVideo) this.setPreview()
       })
-      if (!wantsHostJoin(this.uuid)) return
+      if (!wantsHostJoin(this.uuid) && !isGuestForShowbox(this.uuid)) return
       const stopAt = Date.now() + 15000
       const onWalletReady = () => {
         if (Date.now() > stopAt || this.disposed || this.broadcastPanel || this.joinDockAutoOpened) {
           app.removeListener(AppEvent.Change, onWalletReady)
           return
         }
-        if (!wantsHostJoin(this.uuid)) {
+        if (!wantsHostJoin(this.uuid) && !isGuestForShowbox(this.uuid)) {
           app.removeListener(AppEvent.Change, onWalletReady)
           return
         }
@@ -1925,7 +1960,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.livekitRoom || this.viewerConnecting) return
     const gen = ++this.viewerConnectGen
     this.viewerConnecting = true
-    const res = await fetch(`/api/rooms/${this.roomName()}/token`, { credentials: 'include' })
+    const res = await fetch(showboxRoomTokenUrl(this.roomName()), { credentials: 'include' })
       .then((r) => r.json())
       .catch(() => null)
     if (!res?.token || this.disposed) {
@@ -2335,6 +2370,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     exitPointerLock()
 
     const isGuest = isGuestForShowbox(this.uuid)
+    const syntheticGuest = isGuest && isSyntheticGuestWallet()
 
     const panel = document.createElement('div')
     this.broadcastPanel = panel
@@ -2632,11 +2668,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       micToggle.style.color = screenMicOn ? '#f5f5f0' : '#888'
     }
 
-    // Name row only for guests on /live/ links.
-    const guestToken = isGuest ? guestPassToken() : null
+    // Name row only for anonymous guests on /live/ links. Signed-in users keep their account name.
+    const guestToken = syntheticGuest ? guestPassToken() : null
     let guestNameInput: HTMLInputElement | null = null
     let identityRow: HTMLDivElement | null = null
-    if (isGuest && guestToken) {
+    if (syntheticGuest && guestToken) {
       identityRow = document.createElement('div')
       Object.assign(identityRow.style, { display: 'flex', flexDirection: 'column', gap: '4px' })
       const identityLabel = document.createElement('label')
@@ -2644,7 +2680,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       const nameInput = document.createElement('input')
       guestNameInput = nameInput
       nameInput.type = 'text'
-      nameInput.value = app.state.name ?? ''
+      nameInput.value = ''
       nameInput.placeholder = 'e.g. DJ ANON'
       nameInput.maxLength = 64
       Object.assign(nameInput.style, {
@@ -3172,8 +3208,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         return
       }
 
-      if (isGuest) {
-        const nextName = guestNameInput?.value.trim() || app.state.name?.trim() || ''
+      if (syntheticGuest) {
+        const nextName = guestNameInput?.value.trim() || ''
         if (!nextName) {
           status.textContent = 'pick a name first'
           return
@@ -3208,7 +3244,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
 
       try {
-        const tokenRes = await fetch(`/api/rooms/${this.roomName()}/token`, { credentials: 'include' })
+        const tokenRes = await fetch(showboxRoomTokenUrl(this.roomName()), { credentials: 'include' })
         const res = await tokenRes.json().catch(() => null)
         if (!tokenRes.ok || !res?.token) {
           throw new Error(res?.error || 'could not get stream token - sign in again')
