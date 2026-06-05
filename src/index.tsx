@@ -192,6 +192,7 @@ declare global {
       { passive: true },
     )
     window.addEventListener('pageshow', refreshMobileCanvasAfterReturn, { passive: true })
+    window.addEventListener('focus', refreshMobileCanvasAfterReturn, { passive: true })
   }
 
   // Don't use babylon spinner

@@ -867,7 +867,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           app.showSnackbar('link copied - paste in your app', PanelType.Success)
         }
       } finally {
-        if (mobile) refreshMobileCanvasAfterReturn()
+        if (mobile) {
+          refreshMobileCanvasAfterReturn()
+          window.setTimeout(refreshMobileCanvasAfterReturn, 500)
+        }
       }
       return
     }
@@ -3443,6 +3446,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (mobile) {
           const onVis = () => {
             if (document.visibilityState !== 'visible' || !this.broadcastRoom || this.broadcastStopping) return
+            refreshMobileCanvasAfterReturn()
             if (this.broadcastCameraLost) {
               void this.tryResumeCamera()
               return
