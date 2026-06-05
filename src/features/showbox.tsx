@@ -45,6 +45,8 @@ const BROADCAST_RECONNECT_MAX = 5
 const BROADCAST_DISCONNECT_STRIKES = 2
 // How long a joining co-host shows the "connecting" card while waiting for the host's video.
 const COHOST_CONNECT_GRACE_MS = 8000
+// Mobile go-live: camera publications and preview can lag; don't call feed lost during this window.
+const BROADCAST_LIVE_GRACE_MS = 15000
 
 function viewerCountLabel(n: number) {
   return n === 1 ? '1 viewer' : `${n} viewers`
@@ -160,8 +162,21 @@ function makeDockPreviewVideo(track: { mediaStreamTrack?: MediaStreamTrack } | n
   v.muted = true
   v.playsInline = true
   v.autoplay = true
+  v.setAttribute('playsinline', '')
+  v.setAttribute('webkit-playsinline', 'true')
   syncVideoElFromTrack(v, track)
   return v
+}
+
+function broadcastVideoTrackLive(room: Room | null, liveVideoTrack: any): boolean {
+  const mst = liveVideoTrack?.mediaStreamTrack as MediaStreamTrack | undefined
+  if (mst && mst.readyState !== 'ended') return true
+  const lp = (room as any)?.localParticipant
+  for (const pub of lp?.videoTrackPublications?.values() ?? []) {
+    const t = (pub?.track?.mediaStreamTrack ?? pub?.videoTrack?.mediaStreamTrack) as MediaStreamTrack | undefined
+    if (t && t.readyState !== 'ended') return true
+  }
+  return false
 }
 
 // True when the page was opened via /live/:token and the guest pass targets this showbox.
@@ -770,8 +785,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
       }
     }
-    tick()
     this.milestonePollInterval = setInterval(tick, MILESTONE_POLL_MS)
+    setTimeout(tick, MILESTONE_POLL_MS)
   }
 
   get volume() {
@@ -1059,14 +1074,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.ensureShowboxLiveFlag()
       if (!this.streamTargetsThisShowbox()) return 'show is no longer live in world'
     }
+    if (this.liveStartedAt && Date.now() - this.liveStartedAt < BROADCAST_LIVE_GRACE_MS) return null
     try {
-      const lp = room.localParticipant as any
-      let hasVideo = false
-      for (const pub of lp?.videoTrackPublications?.values() ?? []) {
-        const mst = pub?.track?.mediaStreamTrack
-        if (mst && mst.readyState !== 'ended') hasVideo = true
-      }
-      if (!hasVideo) return 'camera feed lost'
+      if (!broadcastVideoTrackLive(room, this.broadcastLiveVideoTrack)) return 'camera feed lost'
       this.broadcastDisconnectStrikes = 0
       if (this.streamTargetsThisShowbox()) {
         try {
@@ -2949,6 +2959,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         for (const t of tracks) {
           await room.localParticipant.publishTrack(t)
         }
+        this.liveStartedAt = Date.now()
 
         // mirror showboxes can't subscribe to our own feed (same client) - have them read it locally now
         this.parcel.getFeaturesByType('showbox').forEach((f) => (f as any).refreshMirrorVideo?.())
@@ -2965,6 +2976,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (camMst) {
           camMst.addEventListener('ended', () => {
             if (!this.broadcastRoom) return
+            if (this.liveStartedAt && Date.now() - this.liveStartedAt < BROADCAST_LIVE_GRACE_MS) return
             this.onBroadcastLost('camera stopped')
           })
         }
@@ -2984,6 +2996,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         if (videoTrack) {
           const el = videoTrack.attach() as HTMLVideoElement
+          el.muted = true
+          el.playsInline = true
+          el.setAttribute('playsinline', '')
+          el.setAttribute('webkit-playsinline', 'true')
           if (this.isCohostMode()) {
             await viewerConnect
             this.wireLocalCohostVideo(el)
@@ -3118,7 +3134,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           document.head.appendChild(styleEl)
         }
 
-        this.liveStartedAt = Date.now()
         this.liveTimerInterval = setInterval(() => {
           if (!this.liveStartedAt) return
           const s = Math.floor((Date.now() - this.liveStartedAt) / 1000)
@@ -3183,6 +3198,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             mobilePreviewWrap.append(mobilePreviewVideo, previewLabel, meterTrack)
             panel.insertBefore(mobilePreviewWrap, chatRow ?? moveRow)
             mobilePreviewWrap.insertAdjacentElement('afterend', flipBtn)
+            syncVideoElFromTrack(mobilePreviewVideo, videoTrack)
+            mobilePreviewVideo.play().catch(() => {})
+            syncMobilePreview?.()
 
             mobileStreamHint = document.createElement('div')
             mobileStreamHint.dataset.dot = '1'
