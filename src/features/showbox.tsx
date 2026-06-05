@@ -3429,12 +3429,21 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             tracks = await createLocalTracks({
               // exact: a plain string deviceId is only a preference, so 3-cam setups grab the wrong camera. Force the pick.
               video: showboxCameraVideoConstraints(camSel.value || undefined),
-              audio: { deviceId: micSel.value ? { exact: micSel.value } : undefined },
+              // mobile: device pickers are filled before mic permission - exact ids can be stale right after the prompt
+              audio: mobile ? true : { deviceId: micSel.value ? { exact: micSel.value } : undefined },
             })
           }
         } catch (err) {
+          if (mobile) {
+            refreshMobileCanvasAfterReturn()
+            window.setTimeout(refreshMobileCanvasAfterReturn, 500)
+          }
           // empty message = silent reset (user cancelled the screenshare picker). camera errors get a plain-language nudge.
           throw new Error(screenChk.checked ? '' : cameraErrorMessage(err))
+        }
+        if (mobile) {
+          refreshMobileCanvasAfterReturn()
+          window.setTimeout(refreshMobileCanvasAfterReturn, 500)
         }
         acquiredTracks = tracks
         this.broadcastLiveTracks = tracks
@@ -3443,10 +3452,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (!videoTrack) {
           throw new Error('showbox needs a camera or screenshare. for audio only, drop a Boombox instead.')
         }
-        if (mobile && !screenChk.checked) {
-          await videoTrack.restartTrack(showboxMobileCameraConstraints('user')).catch(() => {})
-        }
-
         const room = new Room()
         this.broadcastRoom = room
         this.broadcastReconnectAttempts = 0
@@ -3766,8 +3771,15 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.fetchViewerCount().then((total) => this.onViewerCountTick?.(total))
         this.startMilestonePoll()
       } catch (e) {
+        if (mobile) {
+          refreshMobileCanvasAfterReturn()
+          window.setTimeout(refreshMobileCanvasAfterReturn, 500)
+        }
         clearMobileBroadcastHooks?.()
-        status.textContent = e instanceof Error ? e.message : 'failed to connect'
+        const errMsg = e instanceof Error ? e.message : 'failed to connect'
+        status.textContent = errMsg
+        status.style.display = 'block'
+        if (errMsg) app.showSnackbar(errMsg, PanelType.Warning)
         goBtn.disabled = false
         this.broadcastRoom?.disconnect()
         this.broadcastRoom = null
