@@ -88,11 +88,6 @@ export async function revokeGuestPassesForFeature(db: Db, livekit: RoomServiceCl
   const passes = revoked.rows as GuestPassRow[]
   if (!passes.length) return
 
-  for (const row of passes) {
-    const syntheticWallet = `guest:${row.token.slice(0, 12)}`.toLowerCase()
-    await db.query('sql/guest-passes/clear-avatar-name', `update avatars set name = null where lower(owner) = lower($1)`, [syntheticWallet]).catch(() => {})
-  }
-
   try {
     const roomName = `parcel-${parcelId}`
     const participants = await livekit.listParticipants(roomName)
@@ -204,11 +199,6 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       return res.status(500).json({ success: false, error: 'Could not revoke link' })
     }
 
-    for (const row of passes) {
-      const syntheticWallet = `guest:${row.token.slice(0, 12)}`.toLowerCase()
-      await db.query('sql/guest-passes/clear-avatar-name', `update avatars set name = null where lower(owner) = lower($1)`, [syntheticWallet]).catch(() => {})
-    }
-
     // Best-effort live kick: any participant whose identity carries a revoked pass prefix
     try {
       const roomName = `parcel-${parcelId}`
@@ -249,13 +239,13 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
     if (!name) return res.status(400).json({ success: false, error: 'name required' })
 
     const syntheticWallet = `guest:${token.slice(0, 12)}`.toLowerCase()
-    // guest display names are temporary - free the name from any other synthetic guest before assigning
-    await db.query('sql/guest-passes/clear-guest-name-holders', `update avatars set name = null where lower(name) = lower($1) and owner like 'guest:%' and lower(owner) != lower($2)`, [name, syntheticWallet])
     try {
+      // avatars.name is UNIQUE - do this write first so a clash fails before we persist the pass name,
+      // keeping both rows in sync. 23505 is the Postgres unique-violation code.
       await db.query('sql/guest-passes/rename-avatar', `update avatars set name = $1 where owner = $2`, [name, syntheticWallet])
     } catch (err) {
       if ((err as { code?: string })?.code === '23505') {
-        return res.status(409).json({ success: false, error: 'That name belongs to a Voxels account - pick another' })
+        return res.status(409).json({ success: false, error: 'That name is taken. Pick another.' })
       }
       log.error('[guest-pass] rename failed', { token: token.slice(0, 12), error: err })
       return res.status(500).json({ success: false, error: 'Could not save name' })
