@@ -3433,8 +3433,16 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             })
           }
         } catch (err) {
+          if (mobile) {
+            refreshMobileCanvasAfterReturn()
+            window.setTimeout(refreshMobileCanvasAfterReturn, 500)
+          }
           // empty message = silent reset (user cancelled the screenshare picker). camera errors get a plain-language nudge.
           throw new Error(screenChk.checked ? '' : cameraErrorMessage(err))
+        }
+        if (mobile) {
+          refreshMobileCanvasAfterReturn()
+          window.setTimeout(refreshMobileCanvasAfterReturn, 500)
         }
         acquiredTracks = tracks
         this.broadcastLiveTracks = tracks
@@ -3445,6 +3453,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         if (mobile && !screenChk.checked) {
           await videoTrack.restartTrack(showboxMobileCameraConstraints('user')).catch(() => {})
+          refreshMobileCanvasAfterReturn()
+          window.setTimeout(refreshMobileCanvasAfterReturn, 500)
         }
 
         const room = new Room()
@@ -3766,6 +3776,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.fetchViewerCount().then((total) => this.onViewerCountTick?.(total))
         this.startMilestonePoll()
       } catch (e) {
+        if (mobile) {
+          refreshMobileCanvasAfterReturn()
+          window.setTimeout(refreshMobileCanvasAfterReturn, 500)
+        }
         clearMobileBroadcastHooks?.()
         status.textContent = e instanceof Error ? e.message : 'failed to connect'
         goBtn.disabled = false
