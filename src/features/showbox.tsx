@@ -785,10 +785,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   canManageGuestPasses() {
-    const w = app.state.wallet?.toLowerCase()
-    if (!w) return false
-    if (app.isAdmin()) return true
-    return this.parcel.owners.some((o) => o?.toLowerCase() === w)
+    return this.parcel.canEdit
   }
 
   async fetchActiveGuestPassToken() {
@@ -2763,7 +2760,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (kind === 'guest') {
           const guestUrl = await this.resolveGuestShareUrl()
           if (!guestUrl) {
-            if (!this.canManageGuestPasses()) app.showSnackbar('no guest link yet - ask the owner', PanelType.Warning)
+            if (!this.canManageGuestPasses()) app.showSnackbar('no guest link yet - ask someone with edit access', PanelType.Warning)
             return
           }
           await this.shareShowUrl(guestUrl, `Join my show in voxels - go live here: ${guestUrl}`)
@@ -3755,10 +3752,7 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
   }
 
   canManagePasses() {
-    const w = app.state.wallet?.toLowerCase()
-    if (!w) return false
-    if (app.isAdmin()) return true
-    return this.props.feature.parcel.owners.some((o) => o?.toLowerCase() === w)
+    return this.props.feature.parcel.canEdit
   }
 
   async refresh() {
@@ -3785,7 +3779,7 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
 
   async create() {
     if (!this.canManagePasses()) {
-      this.setState({ error: 'only the parcel owner can create guest links' })
+      this.setState({ error: 'you need edit access on this parcel to create guest links' })
       return
     }
     if (this.state.passes.some((p) => this.passActive(p))) {
@@ -3814,7 +3808,7 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
       const msg = e?.message ?? 'Could not create link'
       if (String(msg).toLowerCase().includes('revoke')) {
         await this.refresh()
-        this.setState({ error: 'a guest link is still active on the server -- revoke it below or refresh the page' })
+        this.setState({ error: 'a guest link is already active - copy or revoke it below' })
       } else {
         this.setState({ error: msg })
       }
@@ -3825,7 +3819,7 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
 
   async revoke(token: string) {
     if (!this.canManagePasses()) {
-      this.setState({ error: 'only the parcel owner can revoke guest links' })
+      this.setState({ error: 'you need edit access on this parcel to revoke guest links' })
       return
     }
     if (!confirm('Revoke this link? They will be kicked if currently live.')) return
@@ -3891,7 +3885,7 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
               {this.state.creating ? 'creating...' : 'create link'}
             </button>
           ) : !canManage ? (
-            <small>owner only</small>
+            <small>edit access required</small>
           ) : null}
           {this.state.error && <div style={{ color: '#dc1e1e' }}>{this.state.error}</div>}
         </div>

@@ -114,7 +114,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
     if (!parcel) return res.status(404).json({ success: false, error: 'Parcel not found' })
 
     const auth = await authParcel(parcel, req.user ?? null)
-    if (auth !== 'Owner' && auth !== 'Moderator') {
+    if (auth !== 'Owner' && auth !== 'Moderator' && auth !== 'Collaborator') {
       return res.status(403).json({ success: false, error: 'Owner only' })
     }
 
@@ -140,7 +140,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
     if (!parcel) return res.status(404).json({ success: false, error: 'Parcel not found' })
 
     const auth = await authParcel(parcel, req.user ?? null)
-    if (auth !== 'Owner' && auth !== 'Moderator') {
+    if (auth !== 'Owner' && auth !== 'Moderator' && auth !== 'Collaborator') {
       return res.status(403).json({ success: false, error: 'Owner only' })
     }
 
@@ -176,7 +176,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
     if (!parcel) return res.status(404).json({ success: false, error: 'Parcel not found' })
 
     const auth = await authParcel(parcel, req.user ?? null)
-    if (auth !== 'Owner' && auth !== 'Moderator') {
+    if (auth !== 'Owner' && auth !== 'Moderator' && auth !== 'Collaborator') {
       return res.status(403).json({ success: false, error: 'Owner only' })
     }
 
