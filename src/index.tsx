@@ -43,7 +43,7 @@ import Robots from './robots/robots'
 import Polytext from './features/polytext'
 import { type AudioEngine } from './audio/audio-engine'
 import { loadingDone, onLoadPromise } from './utils/loading-done'
-import { isBatterySaver, isDebug, isInspect, isIOS, isMobile, wantsXR } from '../common/helpers/detector'
+import { isBatterySaver, isDebug, isInspect, isIOS, isMobile, isSafari, wantsXR } from '../common/helpers/detector'
 import { DragDrop } from './tools/drag-drop'
 
 // Patching animation with features from later babylon.js version
@@ -182,19 +182,6 @@ declare global {
     )
   }
 
-  if (isMobile() && window.visualViewport) {
-    window.visualViewport.addEventListener('resize', viewportChangeHandler)
-    document.addEventListener(
-      'visibilitychange',
-      () => {
-        if (document.visibilityState === 'visible') refreshMobileCanvasAfterReturn()
-      },
-      { passive: true },
-    )
-    window.addEventListener('pageshow', refreshMobileCanvasAfterReturn, { passive: true })
-    window.addEventListener('focus', refreshMobileCanvasAfterReturn, { passive: true })
-  }
-
   // Don't use babylon spinner
   BABYLON.SceneLoader.ShowLoadingScreen = false
 
@@ -222,6 +209,20 @@ declare global {
     window.confirm('WebGL context lost. Reload page?') && window.location.reload()
   })
   window.engine = engine
+
+  // pageshow/focus call engine.resize() - must register after window.engine exists or cold /play loads miss it
+  if ((isMobile() || isSafari()) && window.visualViewport) {
+    window.visualViewport.addEventListener('resize', viewportChangeHandler)
+    document.addEventListener(
+      'visibilitychange',
+      () => {
+        if (document.visibilityState === 'visible') refreshMobileCanvasAfterReturn()
+      },
+      { passive: true },
+    )
+    window.addEventListener('pageshow', refreshMobileCanvasAfterReturn, { passive: true })
+    window.addEventListener('focus', refreshMobileCanvasAfterReturn, { passive: true })
+  }
 
   // make sure the FOV changes correctly if the window gets resized
   window.addEventListener(
@@ -362,6 +363,13 @@ declare global {
 
   extendTabIndexOnClick()
   startUserInterface(grid, connector, environment, mapSettings ?? new MinimapSettings())
+  // Safari/mobile cold /play (voxels.com Play button, deep links): first paint can leave a black canvas;
+  // refresh fixes it because layout settles on second load. Same resize retries as showbox native-UI returns.
+  if (isMobile() || isSafari()) {
+    refreshMobileCanvasAfterReturn()
+    window.setTimeout(refreshMobileCanvasAfterReturn, 500)
+    if (isIOS()) window.setTimeout(refreshMobileCanvasAfterReturn, 1500) // iOS visualViewport can settle late
+  }
   if (wantsXR()) return
 
   isInspect() && toggleBabylonInspector(scene).then(/** ignore promise */)
