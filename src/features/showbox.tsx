@@ -2786,7 +2786,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           fanPick.onclick = () => pickShareKind('fan')
           const guestPick = document.createElement('button')
           guestPick.type = 'button'
-          guestPick.textContent = 'guest link - for your DJ or co-host'
+          guestPick.textContent = 'guest link - for your co-host or DJ/Artist'
           Object.assign(guestPick.style, { background: '#1a1a1a', color: '#f5f5f0', border: '0', padding: '8px', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', minHeight: '32px' })
           guestPick.onclick = () => pickShareKind('guest')
           sharePickMenu.append(fanPick, guestPick)
