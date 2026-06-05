@@ -102,14 +102,15 @@ function cameraErrorMessage(e: unknown): string {
   return 'could not start your camera - check browser permissions, then go live again.'
 }
 
-// Mobile upright streaming: nudge capture toward portrait. Browsers treat these as ideals, not guarantees.
+// Mobile: facingMode beats enumerated deviceId (first cam is often back/wide and stretches). Matches flip camera.
+function showboxMobileCameraConstraints(facing: 'user' | 'environment' = 'user') {
+  return { facingMode: facing, aspectRatio: { ideal: 9 / 16 } }
+}
+
 function showboxCameraVideoConstraints(deviceId: string | undefined) {
+  if (mobile) return showboxMobileCameraConstraints('user')
   const c: Record<string, any> = {}
   if (deviceId) c.deviceId = { exact: deviceId }
-  if (mobile) {
-    c.aspectRatio = { ideal: 9 / 16 }
-    c.facingMode = { ideal: 'user' }
-  }
   return c
 }
 
@@ -2367,9 +2368,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     flipBtn.onclick = async () => {
       if (!this.broadcastRoom || !liveVideoTrack) return
       flipFacing = flipFacing === 'user' ? 'environment' : 'user'
-      const restart: Record<string, any> = { facingMode: flipFacing }
-      if (mobile) restart.aspectRatio = { ideal: 9 / 16 }
-      await liveVideoTrack.restartTrack(restart).catch(() => {})
+      await liveVideoTrack.restartTrack(showboxMobileCameraConstraints(flipFacing)).catch(() => {})
       syncVideoElFromTrack(this.localBroadcastVideoEl, liveVideoTrack)
       syncVideoElFromTrack(mobilePreviewVideo, liveVideoTrack)
       syncMobilePreview?.()
@@ -2927,6 +2926,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (!videoTrack) {
           throw new Error('showbox needs a camera or screenshare. for audio only, drop a Boombox instead.')
         }
+        if (mobile && !screenChk.checked) {
+          await videoTrack.restartTrack(showboxMobileCameraConstraints('user')).catch(() => {})
+        }
 
         const room = new Room()
         this.broadcastRoom = room
@@ -3185,6 +3187,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
               flexShrink: '0',
               background: '#000',
               overflow: 'hidden',
+              aspectRatio: '9 / 16',
             })
             mobilePreviewVideo = this.isCohostMode() ? this.mountCohostPreviewVideo('contain') : makeDockPreviewVideo(videoTrack)
             this.mobilePreviewVideoEl = mobilePreviewVideo
