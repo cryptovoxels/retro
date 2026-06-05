@@ -421,7 +421,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   // __showbox_live is ephemeral (broadcast-only, not persisted) and our own broadcast isn't a
   // remote participant on this client, so fall back to the actual room video as the source of truth.
   mirrorsActiveStream() {
-    return this.isMirror() && (!!this.activeLiveShowboxUuid() || this.mirrorHasVideoSource())
+    if (!this.isMirror()) return false
+    // angle mirrors only care about their own named track, not the primary go-live flag
+    if (this.isAngleMirror()) return this.hasAngleFeed()
+    return !!this.activeLiveShowboxUuid() || this.mirrorHasVideoSource()
   }
 
   mirrorHasVideoSource() {
@@ -436,6 +439,16 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   // not the primary's stream. any broadcaster can publish one.
   isAngleMirror() {
     return this.isMirror() && !!this.description.angleMode
+  }
+
+  hasAngleFeed() {
+    if (this.angleVideoTrack) return true
+    for (const p of (this.livekitRoom as any)?.participants?.values() ?? []) {
+      for (const pub of p.videoTracks.values()) {
+        if (pub.trackName === this.uuid) return true
+      }
+    }
+    return false
   }
 
   // uuids of every angle-mode showbox on the parcel - their feeds are routed by track name, not by role
@@ -485,11 +498,16 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     // our own walk-up broadcast to this mirror - not a remote participant on this client
     if (this.angleVideoTrack && attach(this.angleVideoTrack)) return
+    let pendingPub = false
     for (const p of (this.livekitRoom as any)?.participants?.values() ?? []) {
       for (const pub of p.videoTracks.values()) {
-        if (pub.track && pub.isSubscribed && pub.trackName === this.uuid && attach(pub.track)) return
+        if (pub.trackName !== this.uuid) continue
+        pendingPub = true
+        if (pub.track && pub.isSubscribed && attach(pub.track)) return
       }
     }
+    // publication exists or we already have a frame - don't flash back to placeholder mid-subscribe
+    if (pendingPub || (this.hasActiveVideo && this.mirrorVideoIdentity === this.uuid)) return
     if (this.hasActiveVideo) {
       this.hasActiveVideo = false
       this.mirrorVideoIdentity = null
@@ -1809,6 +1827,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
       this.streamAttachAttempts++
       if (this.streamAttachAttempts >= STREAM_ATTACH_RECONNECT_AFTER && this.livekitRoom && !this.viewerConnecting) {
+        // nuking the viewer room mid-angle-feed just unsubscribes and replays the flash loop
+        if (this.isAngleMirror()) {
+          this.streamAttachAttempts = 0
+          return
+        }
         this.viewerConnectGen++
         this.livekitRoom.disconnect()
         this.livekitRoom = null
