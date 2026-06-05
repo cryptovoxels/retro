@@ -2,7 +2,7 @@ import { Component, h } from 'preact'
 import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { isMobile } from '../../common/helpers/detector'
-import { refreshMobileCanvasAfterReturn } from '../controls/mobile/controls'
+import { holdMobileCanvasRefresh, refreshMobileCanvasAfterReturn } from '../controls/mobile/controls'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { encodeCoords } from '../../common/helpers/utils'
@@ -2474,7 +2474,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     let mobileStreamHint: HTMLDivElement | null = null
     let mobileExtrasBtn: HTMLButtonElement | null = null
     let mobileExtrasOpen = false
-    const setMobileDockLayout = (live: boolean) => {
+    const setMobileDockLayout = (live: boolean, refreshCanvas = true) => {
       if (!mobile) return
       if (!live) {
         mobileShowWorld = false
@@ -2515,7 +2515,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         panel.style.padding = '0.75rem'
         panel.style.paddingBottom = 'max(6px, env(safe-area-inset-bottom))'
         panel.style.minHeight = '0'
-        refreshMobileCanvasAfterReturn()
+        if (refreshCanvas) refreshMobileCanvasAfterReturn()
       }
     }
     const setDesktopDockLayout = (live: boolean) => {
@@ -3357,6 +3357,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
       status.textContent = 'connecting...'
       goBtn.disabled = true
+      if (mobile) holdMobileCanvasRefresh(5000)
       this.viewerConnectGen++
       if (!this.isCohostMode() && this.livekitRoom) {
         this.livekitRoom.disconnect()
@@ -3478,7 +3479,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           } else {
             this.localBroadcastVideoEl = el
             this.attachVideoToMesh(el, true)
-            this.startThumbCapture(el)
+            if (mobile) setTimeout(() => this.startThumbCapture(el), 5000)
+            else this.startThumbCapture(el)
           }
         }
 
@@ -3708,7 +3710,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           else meterTrack.remove()
         }
 
-        setMobileDockLayout(true)
+        setMobileDockLayout(true, false)
         setDesktopDockLayout(true)
         renderDockChat?.()
         this.announceLiveInChat()

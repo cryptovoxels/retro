@@ -118,7 +118,15 @@ export function reloadIfWebglContextLost() {
   } catch {}
 }
 
+let skipMobileCanvasRefreshUntil = 0
+
+// permission + go-live handoff: global visibility/focus handlers must not resize mid-connect
+export function holdMobileCanvasRefresh(ms: number) {
+  skipMobileCanvasRefreshUntil = Date.now() + ms
+}
+
 export function refreshMobileCanvasAfterReturn() {
+  if (Date.now() < skipMobileCanvasRefreshUntil) return
   resetMobileViewportLayout()
   const resize = () => window.engine?.resize()
   requestAnimationFrame(() => {
