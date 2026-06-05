@@ -342,6 +342,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   broadcastReconnectAttempts = 0
   broadcastReconnecting = false
   broadcastDisconnectStrikes = 0
+  broadcastCameraLost = false
+  broadcastCameraReconnectBtn: HTMLButtonElement | null = null
+  mobileFlipFacing: 'user' | 'environment' = 'user'
   viewerConnectGen = 0
   localBroadcastVideoEl: HTMLVideoElement | null = null
   mirrorVideoIdentity: string | null = null
@@ -928,6 +931,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.broadcastReconnecting = false
     this.broadcastReconnectAttempts = 0
     this.broadcastDisconnectStrikes = 0
+    this.broadcastCameraLost = false
+    this.broadcastCameraReconnectBtn = null
     this.broadcastLiveTracks = null
     this.broadcastLiveVideoTrack = null
     this.broadcastLiveAudioTrack = null
@@ -1075,9 +1080,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.ensureShowboxLiveFlag()
       if (!this.streamTargetsThisShowbox()) return 'show is no longer live in world'
     }
+    if (this.broadcastCameraLost) return null
     if (this.liveStartedAt && Date.now() - this.liveStartedAt < BROADCAST_LIVE_GRACE_MS) return null
     try {
-      if (!broadcastVideoTrackLive(room, this.broadcastLiveVideoTrack)) return 'camera feed lost'
+      if (!broadcastVideoTrackLive(room, this.broadcastLiveVideoTrack)) {
+        this.onCameraDisconnected()
+        return null
+      }
       this.broadcastDisconnectStrikes = 0
       if (this.streamTargetsThisShowbox()) {
         try {
@@ -1088,10 +1097,102 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return null
   }
 
+  wireCameraEndedListener(track: any) {
+    const mst = track?.mediaStreamTrack as MediaStreamTrack | undefined
+    if (!mst) return
+    mst.addEventListener('ended', () => {
+      if (!this.broadcastRoom) return
+      if (this.liveStartedAt && Date.now() - this.liveStartedAt < BROADCAST_LIVE_GRACE_MS) return
+      this.onCameraDisconnected()
+    })
+  }
+
+  onCameraDisconnected() {
+    if (this.broadcastLost || this.broadcastCameraLost || !this.broadcastRoom) return
+    this.broadcastCameraLost = true
+    if (this.broadcastDockStatusEl) {
+      this.broadcastDockStatusEl.style.display = 'block'
+      this.broadcastDockStatusEl.textContent = 'camera disconnected'
+      this.broadcastDockStatusEl.style.color = '#f5b942'
+    }
+    if (this.broadcastCameraReconnectBtn) this.broadcastCameraReconnectBtn.style.display = 'block'
+  }
+
+  clearCameraDisconnectedUi() {
+    this.broadcastCameraLost = false
+    if (this.broadcastCameraReconnectBtn) this.broadcastCameraReconnectBtn.style.display = 'none'
+    if (this.broadcastDockStatusEl && !this.broadcastLost) {
+      this.broadcastDockStatusEl.style.display = 'none'
+      this.broadcastDockStatusEl.textContent = ''
+    }
+  }
+
+  async tryResumeCamera() {
+    if (!this.broadcastRoom || this.broadcastLost || !this.broadcastCameraLost) return
+    if (this.broadcastDockStatusEl) {
+      this.broadcastDockStatusEl.style.display = 'block'
+      this.broadcastDockStatusEl.textContent = 'reconnecting camera...'
+      this.broadcastDockStatusEl.style.color = '#f5b942'
+    }
+    const room = this.broadcastRoom
+    const lp = room.localParticipant
+    let vt = this.broadcastLiveVideoTrack
+    try {
+      const mst = vt?.mediaStreamTrack as MediaStreamTrack | undefined
+      const dead = !mst || mst.readyState === 'ended'
+      if (!dead && vt?.restartTrack) {
+        if (mobile) await vt.restartTrack(showboxMobileCameraConstraints(this.mobileFlipFacing))
+        else await vt.restartTrack({})
+      } else {
+        const tracks = await createLocalTracks({
+          video: showboxCameraVideoConstraints(undefined),
+          audio: false,
+        })
+        const newVt = tracks.find((t) => t.kind === Track.Kind.Video)
+        if (!newVt) throw new Error('no camera')
+        if (vt) {
+          try {
+            await lp.unpublishTrack(vt, true)
+          } catch {}
+          try {
+            vt.stop()
+          } catch {}
+        }
+        await lp.publishTrack(newVt)
+        vt = newVt
+        const rest = (this.broadcastLiveTracks ?? []).filter((t) => t.kind !== Track.Kind.Video)
+        this.broadcastLiveTracks = [...rest, newVt]
+      }
+      this.broadcastLiveVideoTrack = vt
+      this.wireCameraEndedListener(vt)
+      this.clearCameraDisconnectedUi()
+      if (this.isCohostMode()) {
+        const el = vt.attach() as HTMLVideoElement
+        this.wireLocalCohostVideo(el)
+        this.updateCohostComposite()
+      } else {
+        const el = vt.attach() as HTMLVideoElement
+        el.muted = true
+        el.playsInline = true
+        el.setAttribute('playsinline', '')
+        this.localBroadcastVideoEl = el
+        this.attachVideoToMesh(el, true)
+        syncVideoElFromTrack(this.mobilePreviewVideoEl, vt)
+        this.mobilePreviewVideoEl?.play().catch(() => {})
+        this.syncMobilePreviewDock?.()
+      }
+      this.parcel.getFeaturesByType('showbox').forEach((f) => (f as any).refreshMirrorVideo?.())
+    } catch {
+      this.broadcastCameraLost = false
+      this.onBroadcastLost('camera reconnect failed')
+    }
+  }
+
   onBroadcastLost(reason: string) {
     if (this.broadcastLost) return
     this.broadcastReconnecting = false
     this.broadcastDisconnectStrikes = 0
+    this.broadcastCameraLost = false
     this.broadcastLost = true
     app.showSnackbar('stream ended - ' + reason, PanelType.Warning)
     if (this.broadcastDockLiveLabel) {
@@ -2077,6 +2178,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.broadcastReconnecting = false
     this.broadcastReconnectAttempts = 0
     this.broadcastDisconnectStrikes = 0
+    this.broadcastCameraLost = false
     // ending your session also drops any second-camera feeds you pushed to sibling angle mirrors
     for (const b of this.parcel.getFeaturesByType('showbox') as any[]) {
       if (b?.angleVideoTrack) b.stopAngleBroadcast()
@@ -2350,6 +2452,25 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     // Mobile one-tap camera flip. facingMode front/back is reliable on phones where deviceId enumeration is flaky.
     let flipFacing: 'user' | 'environment' = 'user'
+    this.mobileFlipFacing = 'user'
+    const cameraReconnectBtn = document.createElement('button')
+    cameraReconnectBtn.type = 'button'
+    cameraReconnectBtn.textContent = 'reconnect camera'
+    Object.assign(cameraReconnectBtn.style, {
+      display: 'none',
+      background: '#dc1e1e',
+      color: '#fff',
+      border: '0',
+      padding: mobile ? '8px 12px' : '6px 10px',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      fontSize: mobile ? '14px' : '12px',
+      fontWeight: 'bold',
+      width: mobile ? '100%' : 'auto',
+      minHeight: mobile ? '40px' : '32px',
+    })
+    cameraReconnectBtn.onclick = () => void this.tryResumeCamera()
+    this.broadcastCameraReconnectBtn = cameraReconnectBtn
     const flipBtn = document.createElement('button')
     flipBtn.type = 'button'
     flipBtn.textContent = 'flip camera'
@@ -2368,6 +2489,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     flipBtn.onclick = async () => {
       if (!this.broadcastRoom || !liveVideoTrack) return
       flipFacing = flipFacing === 'user' ? 'environment' : 'user'
+      this.mobileFlipFacing = flipFacing
       await liveVideoTrack.restartTrack(showboxMobileCameraConstraints(flipFacing)).catch(() => {})
       syncVideoElFromTrack(this.localBroadcastVideoEl, liveVideoTrack)
       syncVideoElFromTrack(mobilePreviewVideo, liveVideoTrack)
@@ -2974,17 +3096,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         liveAudioTrack = tracks.find((t) => t.kind === Track.Kind.Audio) ?? null
         this.broadcastLiveVideoTrack = liveVideoTrack
         this.broadcastLiveAudioTrack = liveAudioTrack
-        const camMst = videoTrack?.mediaStreamTrack
-        if (camMst) {
-          camMst.addEventListener('ended', () => {
-            if (!this.broadcastRoom) return
-            if (this.liveStartedAt && Date.now() - this.liveStartedAt < BROADCAST_LIVE_GRACE_MS) return
-            this.onBroadcastLost('camera stopped')
-          })
-        }
+        this.wireCameraEndedListener(videoTrack)
         if (mobile) {
           const onVis = () => {
             if (document.visibilityState !== 'visible' || !this.broadcastRoom) return
+            if (this.broadcastCameraLost) {
+              void this.tryResumeCamera()
+              return
+            }
             syncVideoElFromTrack(this.localBroadcastVideoEl, liveVideoTrack)
             syncVideoElFromTrack(mobilePreviewVideo, liveVideoTrack)
             syncMobilePreview?.()
@@ -3176,6 +3295,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             previewWrap.append(previewVideo, previewLabel, meterTrack)
             panel.insertBefore(previewWrap, chatRow ?? moveRow)
             previewWrap.insertAdjacentElement('afterend', deviceToggle)
+            deviceToggle.insertAdjacentElement('afterend', cameraReconnectBtn)
           } else {
             mobilePreviewWrap = document.createElement('div')
             mobilePreviewWrap.dataset.dot = '1'
@@ -3201,6 +3321,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             mobilePreviewWrap.append(mobilePreviewVideo, previewLabel, meterTrack)
             panel.insertBefore(mobilePreviewWrap, chatRow ?? moveRow)
             mobilePreviewWrap.insertAdjacentElement('afterend', flipBtn)
+            flipBtn.insertAdjacentElement('afterend', cameraReconnectBtn)
             syncVideoElFromTrack(mobilePreviewVideo, videoTrack)
             mobilePreviewVideo.play().catch(() => {})
             syncMobilePreview?.()
