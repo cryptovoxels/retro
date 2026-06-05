@@ -3060,6 +3060,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.joinDockAutoOpened = true
       this.broadcastPanel?.remove()
       this.broadcastPanel = null
+      if (mobile) {
+        refreshMobileCanvasAfterReturn()
+        window.setTimeout(refreshMobileCanvasAfterReturn, 500)
+      }
     }
 
     // Mobile chat lives in the dock when live - bottom sheet covers world chat. Desktop uses normal chat.
