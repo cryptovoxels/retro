@@ -61,7 +61,7 @@ function parcelFeatureList(parcel: any): any[] {
 }
 
 function showboxFeatureId(f: any): string | null {
-  const id = f?.uuid || f?.id
+  const id = f?.uuid
   return typeof id === 'string' && id ? id : null
 }
 
