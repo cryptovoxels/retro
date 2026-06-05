@@ -111,6 +111,13 @@ export function resetMobileViewportLayout() {
 }
 
 // native UI handoffs (share sheet, mic/camera permission, app switch) can leave the babylon canvas blank until resize runs again
+export function reloadIfWebglContextLost() {
+  try {
+    const gl = (window.engine as any)?._gl as WebGLRenderingContext | undefined
+    if (gl?.isContextLost?.()) window.location.reload()
+  } catch {}
+}
+
 export function refreshMobileCanvasAfterReturn() {
   resetMobileViewportLayout()
   const resize = () => window.engine?.resize()
