@@ -2485,6 +2485,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         panel.style.padding = '0.75rem'
         panel.style.paddingBottom = 'max(6px, env(safe-area-inset-bottom))'
         panel.style.minHeight = '0'
+        refreshMobileCanvasAfterReturn()
       }
     }
     const setDesktopDockLayout = (live: boolean) => {
