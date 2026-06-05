@@ -254,7 +254,7 @@ type GuestMode = 'solo' | 'cohost'
 type MirrorSource = 'auto' | 'host' | 'collaborator' | 'guest'
 type MirrorRole = 'host' | 'collaborator' | 'guest'
 
-const DEFAULT_GUEST_MODE: GuestMode = 'solo'
+const DEFAULT_GUEST_MODE: GuestMode = 'cohost'
 
 function cohostIdentityPrefix(identity: string) {
   const i = identity.lastIndexOf('-')
@@ -277,7 +277,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   static template = {
     type: 'showbox',
     scale: [2, 1, 0],
-    guestMode: 'solo',
+    guestMode: 'cohost',
   } as FeatureTemplate
 
   livekitRoom: Room | null = null
@@ -871,7 +871,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   get guestMode(): GuestMode {
-    return this.description.guestMode === 'cohost' ? 'cohost' : 'solo'
+    return this.description.guestMode === 'solo' ? 'solo' : 'cohost'
   }
 
   isCohostMode() {
@@ -3261,7 +3261,7 @@ class Editor extends FeatureEditor<Showbox> {
       id: props.feature.description.id,
       rolloffFactor: props.feature.rolloffFactor,
       volume: props.feature.volume,
-      guestMode: props.feature.guestMode === 'cohost' ? 'cohost' : 'solo',
+      guestMode: props.feature.guestMode === 'solo' ? 'solo' : 'cohost',
       mirrorSource: props.feature.mirrorSource,
       angleMode: !!props.feature.description.angleMode,
     }
@@ -3545,17 +3545,18 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
                 </div>
                 <div className="f">
                   <label>guest link mode</label>
+                  <small>default co-host -- if only one person goes live the screen stays full (feels like guest only). split when you are both live.</small>
                   <div>
-                    <label>
-                      <input type="radio" name="guestMode" checked={this.props.guestMode === 'solo'} onChange={() => this.props.onGuestModeChange('solo')} />
-                      guest only
-                    </label>
-                    <small>DJ, artist, or speaker -- full screen, one stream</small>
                     <label>
                       <input type="radio" name="guestMode" checked={this.props.guestMode === 'cohost'} onChange={() => this.props.onGuestModeChange('cohost')} />
                       guest + you (co-host)
                     </label>
-                    <small>split screen: you left, guest right. use headphones to reduce echo</small>
+                    <small>split screen when both live: you left, guest right. use headphones to reduce echo</small>
+                    <label>
+                      <input type="radio" name="guestMode" checked={this.props.guestMode === 'solo'} onChange={() => this.props.onGuestModeChange('solo')} />
+                      guest only
+                    </label>
+                    <small>DJ or artist handoff -- full screen, one stream, no host on screen</small>
                   </div>
                 </div>
               </div>
