@@ -2,6 +2,7 @@ import { Component, h } from 'preact'
 import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { isMobile } from '../../common/helpers/detector'
+import { refreshMobileCanvasAfterReturn } from '../controls/mobile/controls'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { encodeCoords } from '../../common/helpers/utils'
@@ -2633,13 +2634,18 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       Object.assign(shareBtn.style, { background: '#333', color: '#f5f5f0', border: '0', padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', flex: '1', minHeight: '36px' })
       shareBtn.onclick = async () => {
         const text = `Going live in voxels - Teleport in! ${showUrl}`
-        try {
-          if (navigator.share) {
+        if (navigator.share) {
+          try {
             await navigator.share({ title: 'voxels show', text, url: showUrl })
-            return
+          } catch (e) {
+            if ((e as DOMException)?.name !== 'AbortError') {
+              navigator.clipboard.writeText(showUrl).catch(() => {})
+              app.showSnackbar('link copied - paste in your app', PanelType.Success)
+            }
+          } finally {
+            refreshMobileCanvasAfterReturn()
           }
-        } catch (e) {
-          if ((e as DOMException)?.name === 'AbortError') return
+          return
         }
         navigator.clipboard.writeText(showUrl).catch(() => {})
         app.showSnackbar('link copied - paste in your app', PanelType.Success)
