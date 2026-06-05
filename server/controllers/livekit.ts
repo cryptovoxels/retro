@@ -127,6 +127,7 @@ export default async function LivekitController(db: Db, passport: PassportStatic
       res.status(400).send({ error: 'Invalid room name' })
       return
     }
+    await refresh()
     const room = rooms.find((r) => r.name === name)
     if (!room) {
       res.status(404).send({ error: 'Room not found' })

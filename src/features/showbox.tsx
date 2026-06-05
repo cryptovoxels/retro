@@ -16,7 +16,7 @@ import { messageList, type ChatMessageRecord } from '../connector'
 import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
 import { Animations } from '../avatar-animations'
 import { EmoteAnimation, Idle } from '../states'
-import { cameraPosition, cameraRotation } from '../utils/camera'
+import { cameraPosition, cameraRotation, setCameraRotation } from '../utils/camera'
 import { emote as emoteParticles } from '../utils/emote'
 import { AudioBus } from '../audio/audio-engine'
 import { SpatialAudio } from '../audio/spatial-audio'
@@ -722,7 +722,19 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     app.showSnackbar(celebrateLabel(n), PanelType.Success)
   }
 
+  broadcastRoomParticipantCount() {
+    const room = this.broadcastRoom
+    if (!room) return 0
+    try {
+      const n = (room as any).participants?.size
+      if (typeof n === 'number' && n > 0) return n
+    } catch {}
+    return 0
+  }
+
   async fetchViewerCount() {
+    const live = this.broadcastRoomParticipantCount()
+    if (live > 0) return live
     try {
       const r = await fetch(`/api/rooms/${this.roomName()}`)
       if (!r.ok) return 0
@@ -978,6 +990,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   wireBroadcastRoom(room: Room) {
+    const bumpViewerCount = () => {
+      const total = this.broadcastRoomParticipantCount()
+      if (total > 0) this.onViewerCountTick?.(total)
+    }
+    room.on(RoomEvent.ParticipantConnected, bumpViewerCount)
+    room.on(RoomEvent.ParticipantDisconnected, bumpViewerCount)
     room.on(RoomEvent.Disconnected, () => {
       if (this.broadcastLost || !this.broadcastRoom) return
       this.maybeReconnectAfterDisconnect('connection lost')
@@ -2338,6 +2356,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       mobileWorldBtn.onclick = () => {
         mobileShowWorld = !mobileShowWorld
         setMobileDockLayout(true)
+        const cam = window.connector?.controls?.camera
+        if (cam) {
+          // host spawns facing the screen; audience stands further out in the opposite direction
+          const yaw = this.rotation.y + (mobileShowWorld ? Math.PI : 0)
+          setCameraRotation(this.scene, new BABYLON.Vector3(cam.rotation.x, yaw, cam.rotation.z))
+        }
       }
       mobileExtrasBtn = document.createElement('button')
       mobileExtrasBtn.type = 'button'
