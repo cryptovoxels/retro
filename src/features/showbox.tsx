@@ -2,9 +2,7 @@ import { Component, h } from 'preact'
 import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { isMobile } from '../../common/helpers/detector'
-import { refreshMobileCanvasAfterPermission, refreshMobileCanvasAfterReturn, reloadIfWebglContextLost } from '../controls/mobile/controls'
-import { isLoaded } from '../utils/loading-done'
-import { ParcelActivationState } from '../parcel'
+import { refreshMobileCanvasAfterReturn } from '../controls/mobile/controls'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { encodeCoords } from '../../common/helpers/utils'
@@ -164,21 +162,6 @@ function syncVideoElFromTrack(el: HTMLVideoElement | null, track: { mediaStreamT
   el.play().catch(() => {})
 }
 
-function waitMobilePageVisible() {
-  if (!mobile || document.visibilityState === 'visible') return Promise.resolve()
-  return new Promise<void>((resolve) => {
-    const done = () => {
-      document.removeEventListener('visibilitychange', onVis)
-      resolve()
-    }
-    const onVis = () => {
-      if (document.visibilityState === 'visible') done()
-    }
-    document.addEventListener('visibilitychange', onVis)
-    window.setTimeout(done, 3000)
-  })
-}
-
 function makeDockPreviewVideo(track: { mediaStreamTrack?: MediaStreamTrack } | null | undefined) {
   const v = document.createElement('video')
   v.muted = true
@@ -283,52 +266,15 @@ function hostJoinShowUrl(feature: Showbox): string {
   return `${window.location.origin}/play?${showboxHostPlayQuery(coords, feature.uuid, mobile)}`
 }
 
-const HOST_JOIN_KEY = 'showbox_host_join'
-const HOST_DOCK_PENDING_KEY = 'showbox_host_dock_pending'
-
-function rememberHostDockPending(uuid: string) {
-  try {
-    sessionStorage.setItem(HOST_DOCK_PENDING_KEY, uuid.toLowerCase())
-  } catch {}
-}
-
-function consumeHostDockPending(uuid: string) {
-  try {
-    const pending = sessionStorage.getItem(HOST_DOCK_PENDING_KEY)
-    if (pending !== uuid.toLowerCase()) return false
-    sessionStorage.removeItem(HOST_DOCK_PENDING_KEY)
-    return true
-  } catch {
-    return false
-  }
-}
-
-function rememberHostJoinShow(show: string) {
-  try {
-    sessionStorage.setItem(HOST_JOIN_KEY, show.toLowerCase())
-  } catch {}
-}
-
-function hostJoinShowUuid(): string | null {
+function isHostJoinForShowbox(uuid: string): boolean {
+  if (isGuestForShowbox(uuid)) return false
   try {
     const q = new URL(window.location.href).searchParams
     const show = q.get('show')
-    if (q.get('host') === '1' && show) {
-      rememberHostJoinShow(show)
-      return show.toLowerCase()
-    }
-  } catch {}
-  try {
-    return sessionStorage.getItem(HOST_JOIN_KEY)
+    return q.get('host') === '1' && !!show && show.toLowerCase() === uuid.toLowerCase()
   } catch {
-    return null
+    return false
   }
-}
-
-function isHostJoinForShowbox(uuid: string): boolean {
-  if (isGuestForShowbox(uuid)) return false
-  const show = hostJoinShowUuid()
-  return !!show && show === uuid.toLowerCase()
 }
 
 function wantsHostJoin(uuid: string): boolean {
@@ -338,11 +284,8 @@ function wantsHostJoin(uuid: string): boolean {
 // Drop show=/host= from the URL so ending a stream does not re-open the dock on parcel re-enter.
 function clearShowboxJoinParams() {
   try {
-    sessionStorage.removeItem(HOST_JOIN_KEY)
-  } catch {}
-  try {
     const u = new URL(window.location.href)
-    if (!u.searchParams.has('show') && !u.searchParams.has('host') && !u.searchParams.has('guest_pass')) return
+    if (!u.searchParams.has('show') && !u.searchParams.has('host')) return
     u.searchParams.delete('show')
     u.searchParams.delete('host')
     u.searchParams.delete('guest_pass')
@@ -460,8 +403,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   streamAttachAttempts = 0
   hostJoinLoginPending = false
   joinDockAutoOpened = false
+  hostJoinAutoOpenStarted = false
   hostDockAutoOpenedAt = 0
-  hostDockOpenTimer: ReturnType<typeof setTimeout> | null = null
   meshLetterboxRaf: number | null = null
   meshLetterboxCanvas: HTMLCanvasElement | null = null
 
@@ -925,7 +868,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           app.showSnackbar('link copied - paste in your app', PanelType.Success)
         }
       } finally {
-        if (mobile) refreshMobileCanvasAfterPermission()
+        if (mobile) {
+          refreshMobileCanvasAfterReturn()
+          window.setTimeout(refreshMobileCanvasAfterReturn, 500)
+        }
       }
       return
     }
@@ -1781,9 +1727,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.isInCurrentParcel) {
       this.onEnter()
     }
-    if (mobile && (wantsHostJoin(this.uuid) || isGuestForShowbox(this.uuid) || consumeHostDockPending(this.uuid))) {
-      this.scheduleMobileHostDockOpen()
-    }
     if (process.env.NODE_ENV !== 'production') {
       try {
         const q = new URLSearchParams(location.search)
@@ -1799,53 +1742,44 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (!this.livekitRoom) {
       this.connectViewer()
     }
-  }
+    if (this.broadcastPanel) return
+    const hostOrGuest = wantsHostJoin(this.uuid) || isGuestForShowbox(this.uuid)
+    if (hostOrGuest && this.hostJoinAutoOpenStarted) return
+    if (hostOrGuest) this.hostJoinAutoOpenStarted = true
 
-  tryOpenHostDock() {
-    if (this.broadcastPanel || this.joinDockAutoOpened) return true
-    if (isGuestForShowbox(this.uuid)) {
-      this.openBroadcastPanel(true)
-      if (!this.broadcastPanel) return false
-      this.joinDockAutoOpened = true
-      this.hostDockAutoOpenedAt = Date.now()
-      return true
-    }
-    if (wantsHostJoin(this.uuid)) {
-      if (!app.signedIn) return false
-      if (!this.parcel.canEdit) {
-        app.showSnackbar('sign in as the parcel owner to use this host link', PanelType.Warning)
-        return false
+    const tryAutoOpen = () => {
+      if (this.broadcastPanel || this.joinDockAutoOpened) return true
+      if (isGuestForShowbox(this.uuid)) {
+        this.joinDockAutoOpened = true
+        clearShowboxJoinParams()
+        this.openBroadcastPanel(true)
+        this.hostDockAutoOpenedAt = Date.now()
+        return true
       }
-      this.openBroadcastPanel(true)
-      if (!this.broadcastPanel) return false
-      this.joinDockAutoOpened = true
-      this.hostDockAutoOpenedAt = Date.now()
-      return true
+      if (wantsHostJoin(this.uuid)) {
+        if (!app.signedIn) return false
+        if (!this.parcel.canEdit) {
+          app.showSnackbar('sign in as the parcel owner to use this host link', PanelType.Warning)
+          return false
+        }
+        this.joinDockAutoOpened = true
+        clearShowboxJoinParams()
+        this.openBroadcastPanel(true)
+        this.hostDockAutoOpenedAt = Date.now()
+        return true
+      }
+      return false
     }
-    return false
-  }
+    if (!hostOrGuest) return
 
-  scheduleMobileHostDockOpen() {
-    if (!mobile) return
-    if (!wantsHostJoin(this.uuid) && !isGuestForShowbox(this.uuid)) return
-    if (this.hostDockOpenTimer) {
-      clearTimeout(this.hostDockOpenTimer)
-      this.hostDockOpenTimer = null
-    }
-    const stopAt = Date.now() + 15000
-    const tick = () => {
-      this.hostDockOpenTimer = null
-      if (this.disposed || Date.now() > stopAt) return
-      if (!wantsHostJoin(this.uuid) && !isGuestForShowbox(this.uuid)) return
-      if (!isLoaded() || this.parcel.activationStatus !== ParcelActivationState.Active) {
-        this.hostDockOpenTimer = setTimeout(tick, 200)
-        return
-      }
-      if (this.tryOpenHostDock()) return
+    setTimeout(() => {
+      if (tryAutoOpen()) return
       void app.getState().then(() => {
-        if (!this.disposed && this.tryOpenHostDock()) return
+        if (tryAutoOpen()) return
         if (!this.broadcastRoom && !this.hasActiveVideo) this.setPreview()
       })
+      if (!wantsHostJoin(this.uuid) && !isGuestForShowbox(this.uuid)) return
+      const stopAt = Date.now() + 15000
       const onWalletReady = () => {
         if (Date.now() > stopAt || this.disposed || this.broadcastPanel || this.joinDockAutoOpened) {
           app.removeListener(AppEvent.Change, onWalletReady)
@@ -1855,7 +1789,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           app.removeListener(AppEvent.Change, onWalletReady)
           return
         }
-        if (this.tryOpenHostDock()) app.removeListener(AppEvent.Change, onWalletReady)
+        if (tryAutoOpen()) app.removeListener(AppEvent.Change, onWalletReady)
       }
       app.on(AppEvent.Change, onWalletReady)
       setTimeout(() => app.removeListener(AppEvent.Change, onWalletReady), 15000)
@@ -1863,8 +1797,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (this.disposed || this.broadcastPanel || this.joinDockAutoOpened || !wantsHostJoin(this.uuid) || app.signedIn) return
         this.promptHostSignIn()
       }, 3000)
-    }
-    this.hostDockOpenTimer = setTimeout(tick, 300)
+    }, 250)
   }
 
   promptHostSignIn() {
@@ -1882,9 +1815,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           app.showSnackbar('this account cannot host here - use the parcel owner account', PanelType.Warning)
           return
         }
-        this.openBroadcastPanel(true)
-        if (!this.broadcastPanel) return
         this.joinDockAutoOpened = true
+        clearShowboxJoinParams()
+        this.openBroadcastPanel(true)
         this.hostDockAutoOpenedAt = Date.now()
       }, 500)
     })
@@ -1967,13 +1900,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   dispose() {
-    if (this.hostDockOpenTimer) {
-      clearTimeout(this.hostDockOpenTimer)
-      this.hostDockOpenTimer = null
-    }
-    if (this.broadcastPanel && !this.broadcastRoom && (wantsHostJoin(this.uuid) || isGuestForShowbox(this.uuid))) {
-      rememberHostDockPending(this.uuid)
-    }
     this._dispose()
     this.stopMilestonePoll()
     this.stopViewerRetry()
@@ -2518,6 +2444,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.stopBroadcast()
       this.clearBroadcastDockUi()
       return
+    }
+
+    if ((wantsHostJoin(this.uuid) || isGuestForShowbox(this.uuid)) && !this.joinDockAutoOpened) {
+      this.joinDockAutoOpened = true
+      clearShowboxJoinParams()
     }
 
     exitPointerLock()
@@ -3089,11 +3020,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     cancelBtn.textContent = 'cancel'
     Object.assign(cancelBtn.style, { background: 'transparent', color: '#888', border: '0', padding: '4px 0', cursor: 'pointer', fontFamily: 'inherit', fontSize: mobile ? '14px' : '12px', textDecoration: 'underline', flexShrink: '0' })
     cancelBtn.onclick = () => {
-      clearShowboxJoinParams()
-      this.joinDockAutoOpened = true
       this.broadcastPanel?.remove()
       this.broadcastPanel = null
-      if (mobile) refreshMobileCanvasAfterPermission()
     }
 
     // Mobile chat lives in the dock when live - bottom sheet covers world chat. Desktop uses normal chat.
@@ -3252,7 +3180,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           if (document.activeElement === chatInput) return
           panel.style.paddingBottom = ''
           setMobileChatComposing(false)
-          refreshMobileCanvasAfterPermission()
         }, 150)
       })
 
@@ -3369,7 +3296,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (this.broadcastRoom) {
         if (mobile) {
           const ok = confirm('stop streaming?')
-          refreshMobileCanvasAfterPermission()
+          refreshMobileCanvasAfterReturn()
           if (!ok) return
         }
         this.broadcastStopping = true
@@ -3457,19 +3384,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             tracks = await createLocalTracks({
               // exact: a plain string deviceId is only a preference, so 3-cam setups grab the wrong camera. Force the pick.
               video: showboxCameraVideoConstraints(camSel.value || undefined),
-              // mobile: device pickers are filled before mic permission - exact ids can be stale right after the prompt
-              audio: mobile ? true : { deviceId: micSel.value ? { exact: micSel.value } : undefined },
+              audio: { deviceId: micSel.value ? { exact: micSel.value } : undefined },
             })
           }
         } catch (err) {
-          if (mobile) refreshMobileCanvasAfterPermission()
           // empty message = silent reset (user cancelled the screenshare picker). camera errors get a plain-language nudge.
           throw new Error(screenChk.checked ? '' : cameraErrorMessage(err))
-        }
-        await waitMobilePageVisible()
-        if (mobile) {
-          refreshMobileCanvasAfterPermission()
-          reloadIfWebglContextLost()
         }
         acquiredTracks = tracks
         this.broadcastLiveTracks = tracks
@@ -3480,8 +3400,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         if (mobile && !screenChk.checked) {
           await videoTrack.restartTrack(showboxMobileCameraConstraints('user')).catch(() => {})
-          refreshMobileCanvasAfterPermission()
-          reloadIfWebglContextLost()
         }
         const room = new Room()
         this.broadcastRoom = room
@@ -3509,14 +3427,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
 
         await room.connect(LIVEKIT_URL, res.token)
-        if (mobile) refreshMobileCanvasAfterPermission()
         this.parcel.sendStatePatch({ [this.uuid]: { live: 1 }, __showbox_live: this.uuid })
 
         for (const t of tracks) {
           await room.localParticipant.publishTrack(t)
         }
         this.liveStartedAt = Date.now()
-        clearShowboxJoinParams()
 
         // mirror showboxes can't subscribe to our own feed (same client) - have them read it locally now
         this.parcel.getFeaturesByType('showbox').forEach((f) => (f as any).refreshMirrorVideo?.())
@@ -3561,17 +3477,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             this.startThumbCapture()
           } else {
             this.localBroadcastVideoEl = el
-            if (mobile) {
-              refreshMobileCanvasAfterPermission()
-              requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                  if (this.disposed || !this.broadcastRoom) return
-                  this.attachVideoToMesh(el, true)
-                })
-              })
-            } else {
-              this.attachVideoToMesh(el, true)
-            }
+            this.attachVideoToMesh(el, true)
             this.startThumbCapture(el)
           }
         }
@@ -3804,10 +3710,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
         setMobileDockLayout(true)
         setDesktopDockLayout(true)
-        if (mobile) {
-          refreshMobileCanvasAfterPermission()
-          reloadIfWebglContextLost()
-        }
         renderDockChat?.()
         this.announceLiveInChat()
         this.onViewerCountTick = (total) => {
@@ -3817,7 +3719,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.fetchViewerCount().then((total) => this.onViewerCountTick?.(total))
         this.startMilestonePoll()
       } catch (e) {
-        if (mobile) refreshMobileCanvasAfterPermission()
         clearMobileBroadcastHooks?.()
         const errMsg = e instanceof Error ? e.message : 'failed to connect'
         status.textContent = errMsg
