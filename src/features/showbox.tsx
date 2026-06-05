@@ -2733,9 +2733,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       requestAnimationFrame(() => this.syncBroadcastVideoFromTrack(liveVideoTrack))
     }
 
-    // Screenshare goes live with no mic. This lets you add your voice mid-stream - livekit
-    // publishes a mic track the first time, then just mutes/unmutes on toggle. Hidden unless screensharing.
-    let screenMicOn = false
+    // livekit mutes/unmutes the published mic without killing video. screenshare starts muted; camera starts on.
+    let micOn = false
     const micToggle = document.createElement('button')
     micToggle.type = 'button'
     micToggle.textContent = 'turn on mic'
@@ -2749,14 +2748,22 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       fontFamily: 'inherit',
       minHeight: '36px',
     })
+    const syncMicToggle = () => {
+      if (!micOn) {
+        micToggle.textContent = screenChk.checked ? 'turn on mic' : mobile ? 'unmute mic' : 'mic muted'
+        micToggle.style.color = '#888'
+        return
+      }
+      micToggle.textContent = mobile ? 'mute mic' : 'mic on'
+      micToggle.style.color = '#f5f5f0'
+    }
     micToggle.onclick = async () => {
       if (!this.broadcastRoom) return
-      screenMicOn = !screenMicOn
+      micOn = !micOn
       micToggle.disabled = true
-      await this.broadcastRoom.localParticipant.setMicrophoneEnabled(screenMicOn, { deviceId: micSel.value || undefined }).catch(() => (screenMicOn = !screenMicOn)) // fail soft: revert if permission denied
+      await this.broadcastRoom.localParticipant.setMicrophoneEnabled(micOn, micOn ? { deviceId: micSel.value || undefined } : undefined).catch(() => (micOn = !micOn))
       micToggle.disabled = false
-      micToggle.textContent = screenMicOn ? 'mic on' : 'mic muted'
-      micToggle.style.color = screenMicOn ? '#f5f5f0' : '#888'
+      syncMicToggle()
     }
 
     // Name row only for anonymous guests on /live/ links. Signed-in users keep their account name.
@@ -3176,7 +3183,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (dockFooter) dockFooter.style.display = on ? 'none' : 'flex'
         if (mobileExtrasBtn) mobileExtrasBtn.style.display = on ? 'none' : 'block'
         if (flipBtn && !screenChk.checked) flipBtn.style.display = on ? 'none' : 'block'
-        if (screenChk.checked) micToggle.style.display = on ? 'none' : 'block'
+        if (micToggle.style.display === 'block') micToggle.style.display = on ? 'none' : 'block'
         if (on) {
           Object.assign(chatReplyRow!.style, {
             position: 'sticky',
@@ -3527,15 +3534,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         if (screenChk.checked) {
           // cohost screenshare is a two-way conversation, so default the mic on. solo screenshare stays muted (usually video playback).
-          screenMicOn = this.isCohostMode()
-          micToggle.textContent = screenMicOn ? 'mic on' : 'turn on mic'
-          micToggle.style.color = screenMicOn ? '#f5f5f0' : '#888'
+          micOn = this.isCohostMode()
           micToggle.style.display = 'block'
-          if (screenMicOn) {
+          syncMicToggle()
+          if (micOn) {
             this.broadcastRoom.localParticipant.setMicrophoneEnabled(true, { deviceId: micSel.value || undefined }).catch(() => {
-              screenMicOn = false
-              micToggle.textContent = 'turn on mic'
-              micToggle.style.color = '#888'
+              micOn = false
+              syncMicToggle()
             })
           }
         }
@@ -3544,7 +3549,23 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           if (shareRow) shareRow.style.display = 'flex'
           moveRow.style.display = 'none'
           if (mobileExtrasBtn) mobileExtrasBtn.style.display = 'block'
-          if (!screenChk.checked) flipBtn.style.display = 'block'
+          if (!screenChk.checked) {
+            flipBtn.style.display = 'block'
+            if (liveAudioTrack) {
+              micOn = true
+              micToggle.style.display = 'block'
+              Object.assign(micToggle.style, {
+                background: 'transparent',
+                border: '0',
+                padding: '4px 0',
+                fontSize: '12px',
+                textAlign: 'left',
+                textDecoration: 'underline',
+                minHeight: '0',
+              })
+              syncMicToggle()
+            }
+          }
         } else {
           if (shareRow) shareRow.style.display = 'flex'
           moveRow.style.display = 'flex'
