@@ -3223,6 +3223,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           if (document.activeElement === chatInput) return
           panel.style.paddingBottom = ''
           setMobileChatComposing(false)
+          refreshMobileCanvasAfterReturn()
+          window.setTimeout(refreshMobileCanvasAfterReturn, 500)
         }, 150)
       })
 
