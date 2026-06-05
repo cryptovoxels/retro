@@ -1375,18 +1375,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return isGuestForShowbox(this.uuid) || this.parcel.canEdit
   }
 
-  parcelEditorWallet(wallet: string) {
-    const w = (wallet || '').toLowerCase().trim()
-    if (!w || w.startsWith('anon-')) return false
-    const editors = [...this.parcel.contributors, ...this.parcel.owners].map((x) => (x || '').toLowerCase().trim()).filter(Boolean)
-    return editors.includes(w)
-  }
-
   isGuestPublisherIdentity(identity: string) {
-    const prefix = cohostIdentityPrefix(identity)
-    if (prefix.startsWith('guest-')) return true
-    // signed-in guest cohosts publish under their wallet - only parcel editors are hosts
-    return !this.parcelEditorWallet(prefix)
+    return cohostIdentityPrefix(identity).startsWith('guest-')
   }
 
   isHostPublisherIdentity(identity: string) {
@@ -1398,7 +1388,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return s === 'host' || s === 'collaborator' || s === 'guest' ? s : 'auto'
   }
 
-  // classify a publisher by parcel role (anon guests use guest- livekit identity; signed-in guests use wallet)
+  // classify a publisher by the parcel role of their wallet (guests are guest-prefixed identities)
   publisherRole(identity: string): MirrorRole {
     if (this.isGuestPublisherIdentity(identity)) return 'guest'
     const wallet = cohostIdentityPrefix(identity).toLowerCase()
@@ -2123,13 +2113,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     room.on(RoomEvent.ParticipantConnected, () => {
       if (this.livekitRoom !== room) return
-      if (this.broadcastRoom && this.isCohostMode()) {
-        this.syncExistingCohostVideos()
-        this.syncExistingCohostAudio()
-        this.updateCohostComposite()
-      } else if (!this.broadcastRoom) {
-        this.tryAttachExistingStream()
-      }
+      if (!this.broadcastRoom) this.tryAttachExistingStream()
       this.setPreview()
     })
     room.on(RoomEvent.ParticipantDisconnected, () => {
