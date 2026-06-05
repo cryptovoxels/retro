@@ -320,6 +320,11 @@ function cohostVideoReady(el: HTMLVideoElement | null) {
   return !!(el && el.readyState >= 1 && el.videoWidth > 0)
 }
 
+function cohostVideoTrackLive(el: HTMLVideoElement | null) {
+  const mst = (el?.srcObject as MediaStream | null)?.getVideoTracks?.()?.[0]
+  return !!mst && mst.readyState !== 'ended'
+}
+
 type ShowboxCelebrateState = { celebrate?: number; at?: number }
 
 export default class Showbox extends Feature2D<ShowboxRecord> {
@@ -357,6 +362,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   cohostCompositeRaf: number | null = null
   cohostMonitorEls: HTMLAudioElement[] = []
   cohostCompositeAttached = false
+  cohostOwnerHadFrame = false
+  cohostGuestHadFrame = false
   syncCohostPreview: (() => void) | null = null
   cohostCompositeRetryRaf: number | null = null
   milestonePollInterval: ReturnType<typeof setInterval> | null = null
@@ -1452,15 +1459,24 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.cohostCompositeEl = null
     this.cohostCanvas = null
     this.cohostCompositeAttached = false
+    this.cohostOwnerHadFrame = false
+    this.cohostGuestHadFrame = false
     this.syncCohostPreview = null
     this.clearCohostMonitor()
   }
 
   drawCohostFrame() {
     if (!this.cohostCanvas) return false
-    const ownerReady = cohostVideoReady(this.ownerVideoEl)
-    const guestReady = cohostVideoReady(this.guestVideoEl)
-    if (!ownerReady && !guestReady) return false
+    const ownerEl = this.ownerVideoEl
+    const guestEl = this.guestVideoEl
+    if (ownerEl && !cohostVideoTrackLive(ownerEl)) this.cohostOwnerHadFrame = false
+    else if (cohostVideoReady(ownerEl)) this.cohostOwnerHadFrame = true
+    if (guestEl && !cohostVideoTrackLive(guestEl)) this.cohostGuestHadFrame = false
+    else if (cohostVideoReady(guestEl)) this.cohostGuestHadFrame = true
+
+    const ownerDraw = this.cohostOwnerHadFrame && ownerEl
+    const guestDraw = this.cohostGuestHadFrame && guestEl
+    if (!ownerDraw && !guestDraw) return false
 
     const canvas = this.cohostCanvas
     const ctx = canvas.getContext('2d')!
@@ -1468,13 +1484,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const h = canvas.height
     ctx.fillStyle = '#0d0d0d'
     ctx.fillRect(0, 0, w, h)
-    if (ownerReady && guestReady) {
-      ctx.drawImage(this.ownerVideoEl!, 0, 0, w / 2, h)
-      ctx.drawImage(this.guestVideoEl!, w / 2, 0, w / 2, h)
-    } else if (ownerReady) {
-      ctx.drawImage(this.ownerVideoEl!, 0, 0, w, h)
-    } else if (guestReady) {
-      ctx.drawImage(this.guestVideoEl!, 0, 0, w, h)
+    const drawVid = (el: HTMLVideoElement, x: number, dw: number) => {
+      if (el.videoWidth > 0) ctx.drawImage(el, x, 0, dw, h)
+    }
+    // mobile hidden videos flicker videoWidth - once both slots had frames, stay split
+    if (ownerDraw && guestDraw) {
+      drawVid(ownerEl!, 0, w / 2)
+      drawVid(guestEl!, w / 2, w / 2)
+    } else if (ownerDraw) {
+      drawVid(ownerEl!, 0, w)
+    } else if (guestDraw) {
+      drawVid(guestEl!, 0, w)
     }
     return true
   }
@@ -1626,6 +1646,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   routeCohostVideo(track: any, identity: string) {
+    const mst = track?.mediaStreamTrack as MediaStreamTrack | undefined
+    const isGuest = this.isGuestPublisherIdentity(identity)
+    const slot = isGuest ? this.guestVideoEl : this.ownerVideoEl
+    if (slot && mst) {
+      const cur = slot.srcObject instanceof MediaStream ? slot.srcObject.getVideoTracks()[0] : null
+      if (cur === mst) return
+    }
     const el = track.attach() as HTMLVideoElement
     el.muted = true
     el.playsInline = true
@@ -1635,7 +1662,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     el.play().catch(() => {})
     el.addEventListener('loadeddata', () => this.updateCohostComposite(), { once: true })
 
-    if (this.isGuestPublisherIdentity(identity)) {
+    if (isGuest) {
       if (this.guestVideoEl !== el) this.guestVideoEl?.remove()
       this.guestVideoEl = el
     } else {
@@ -1649,9 +1676,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.isGuestPublisherIdentity(identity)) {
       this.guestVideoEl?.remove()
       this.guestVideoEl = null
+      this.cohostGuestHadFrame = false
     } else {
       this.ownerVideoEl?.remove()
       this.ownerVideoEl = null
+      this.cohostOwnerHadFrame = false
     }
   }
 
