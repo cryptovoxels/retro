@@ -16,7 +16,7 @@ import { messageList, type ChatMessageRecord } from '../connector'
 import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
 import { Animations } from '../avatar-animations'
 import { EmoteAnimation, Idle } from '../states'
-import { cameraPosition, cameraRotation } from '../utils/camera'
+import { cameraPosition, cameraRotation, setCameraRotation } from '../utils/camera'
 import { emote as emoteParticles } from '../utils/emote'
 import { AudioBus } from '../audio/audio-engine'
 import { SpatialAudio } from '../audio/spatial-audio'
@@ -2356,6 +2356,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       mobileWorldBtn.onclick = () => {
         mobileShowWorld = !mobileShowWorld
         setMobileDockLayout(true)
+        const cam = window.connector?.controls?.camera
+        if (cam) {
+          // host spawns facing the screen; audience stands further out in the opposite direction
+          const yaw = this.rotation.y + (mobileShowWorld ? Math.PI : 0)
+          setCameraRotation(this.scene, new BABYLON.Vector3(cam.rotation.x, yaw, cam.rotation.z))
+        }
       }
       mobileExtrasBtn = document.createElement('button')
       mobileExtrasBtn.type = 'button'
