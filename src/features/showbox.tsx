@@ -3876,8 +3876,10 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
           </button>
         </div>
 
-        <label>invite a guest</label>
-        <small>A link that you can give to someone to go live here without a voxels account</small>
+        <label>Guest link</label>
+        <small>Send this to your DJ, artist, or guest.</small>
+        <small>They can go live without a Voxels account.</small>
+        <small>Don't share this as the public audience link.</small>
 
         <div className="f">
           {canCreate ? (
@@ -3901,8 +3903,10 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
             {active.map((p) => (
               <div key={p.token}>
                 <div className="f">
-                  <label>{p.name?.trim() || 'guest link'}</label>
-                  <small>send to your DJ or guest only -- not the public audience link. if you open it while signed in you'll join as host instead</small>
+                  <label>{p.name?.trim() || 'Guest link'}</label>
+                  <small>Send this to your DJ, artist, or guest.</small>
+                  <small>They can go live without a Voxels account.</small>
+                  <small>Don't share this as the public audience link.</small>
                   <input type="text" readOnly value={this.liveUrl(p.token)} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexDirection: mobile ? 'column' : 'row', marginBottom: '0.5rem' }}>
@@ -3916,19 +3920,18 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
                   )}
                 </div>
                 <div className="f">
-                  <label>guest link mode</label>
-                  <small>default co-host -- if only one person goes live the screen stays full (feels like guest only). split when you are both live.</small>
+                  <label>Guest mode</label>
                   <div>
                     <label>
                       <input type="radio" name="guestMode" checked={this.props.guestMode === 'cohost'} onChange={() => this.props.onGuestModeChange('cohost')} />
-                      guest + you (co-host)
+                      Co-host
                     </label>
-                    <small>split screen when both live: you left, guest right. use headphones to reduce echo</small>
+                    <small>Host + guest can both go live. Split screen when both are live.</small>
                     <label>
                       <input type="radio" name="guestMode" checked={this.props.guestMode === 'solo'} onChange={() => this.props.onGuestModeChange('solo')} />
-                      guest only
+                      Guest only
                     </label>
-                    <small>DJ or artist handoff -- full screen, one stream, no host on screen</small>
+                    <small>Guest takes the full screen. Best for DJ sets or artist handoffs.</small>
                   </div>
                 </div>
               </div>
