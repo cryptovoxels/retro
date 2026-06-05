@@ -722,7 +722,19 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     app.showSnackbar(celebrateLabel(n), PanelType.Success)
   }
 
+  broadcastRoomParticipantCount() {
+    const room = this.broadcastRoom
+    if (!room) return 0
+    try {
+      const n = (room as any).participants?.size
+      if (typeof n === 'number' && n > 0) return n
+    } catch {}
+    return 0
+  }
+
   async fetchViewerCount() {
+    const live = this.broadcastRoomParticipantCount()
+    if (live > 0) return live
     try {
       const r = await fetch(`/api/rooms/${this.roomName()}`)
       if (!r.ok) return 0
@@ -978,6 +990,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   wireBroadcastRoom(room: Room) {
+    const bumpViewerCount = () => {
+      const total = this.broadcastRoomParticipantCount()
+      if (total > 0) this.onViewerCountTick?.(total)
+    }
+    room.on(RoomEvent.ParticipantConnected, bumpViewerCount)
+    room.on(RoomEvent.ParticipantDisconnected, bumpViewerCount)
     room.on(RoomEvent.Disconnected, () => {
       if (this.broadcastLost || !this.broadcastRoom) return
       this.maybeReconnectAfterDisconnect('connection lost')
