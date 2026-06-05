@@ -1,4 +1,3 @@
-import { isIOS } from '../../../common/helpers/detector'
 import Controls, { CAMERA_DISTANCE } from '../controls'
 import DpadControls, { toggleDpadControls } from '../../ui/mobile/dpad'
 import OurCamera from '../utils/our-camera'
@@ -110,38 +109,16 @@ export function resetMobileViewportLayout() {
   document.body.style.height = ''
 }
 
-// native UI handoffs (share sheet, mic/camera permission, app switch) can leave the babylon canvas blank until resize runs again
-export function reloadIfWebglContextLost() {
-  try {
-    const gl = (window.engine as any)?._gl as WebGLRenderingContext | undefined
-    if (gl?.isContextLost?.()) window.location.reload()
-  } catch {}
-}
-
-let skipMobileCanvasRefreshUntil = 0
-
-// permission + go-live handoff: global visibility/focus handlers must not resize mid-connect
-export function holdMobileCanvasRefresh(ms: number) {
-  skipMobileCanvasRefreshUntil = Date.now() + ms
-}
-
+// share sheet / app switch can leave the babylon canvas blank until resize runs again
 export function refreshMobileCanvasAfterReturn() {
-  if (Date.now() < skipMobileCanvasRefreshUntil) return
   resetMobileViewportLayout()
   const resize = () => window.engine?.resize()
   requestAnimationFrame(() => {
     resize()
     requestAnimationFrame(resize)
   })
+  // imessage/x handoff can settle after visibilitychange - one delayed retry
   window.setTimeout(resize, 300)
-}
-
-// permission prompts and share sheets can settle the viewport late - do not call at dock open or world boot
-export function refreshMobileCanvasAfterPermission() {
-  refreshMobileCanvasAfterReturn()
-  const resize = () => window.engine?.resize()
-  window.setTimeout(resize, 500)
-  if (isIOS()) window.setTimeout(resize, 1500)
 }
 
 export function viewportChangeHandler() {
