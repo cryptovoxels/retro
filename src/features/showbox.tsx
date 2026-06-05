@@ -811,8 +811,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const room = this.broadcastRoom
     if (!room) return 0
     try {
-      const n = (room as any).participants?.size
-      if (typeof n === 'number' && n > 0) return n
+      // livekit participants map is remotes only - add local so fetchViewerCount matches API numParticipants
+      const remotes = (room as any).remoteParticipants?.size ?? (room as any).participants?.size
+      if (typeof remotes === 'number') return remotes + 1
     } catch {}
     return 0
   }
