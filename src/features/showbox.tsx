@@ -40,8 +40,9 @@ const VIEWER_RETRY_INTERVAL = 20_000
 const STREAM_ATTACH_RETRY_MS = 2000
 const STREAM_ATTACH_RECONNECT_AFTER = 5
 const VIEWER_MILESTONES = [10, 25, 50] as const
-const MILESTONE_POLL_MS = 8000
+const MILESTONE_POLL_MS = 4000
 const BROADCAST_RECONNECT_MAX = 5
+const BROADCAST_DISCONNECT_STRIKES = 2
 // How long a joining co-host shows the "connecting" card while waiting for the host's video.
 const COHOST_CONNECT_GRACE_MS = 8000
 
@@ -322,6 +323,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   broadcastLiveAudioTrack: any = null
   broadcastReconnectAttempts = 0
   broadcastReconnecting = false
+  broadcastDisconnectStrikes = 0
   viewerConnectGen = 0
   localBroadcastVideoEl: HTMLVideoElement | null = null
   mirrorVideoIdentity: string | null = null
@@ -905,6 +907,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.broadcastLost = false
     this.broadcastReconnecting = false
     this.broadcastReconnectAttempts = 0
+    this.broadcastDisconnectStrikes = 0
     this.broadcastLiveTracks = null
     this.broadcastLiveVideoTrack = null
     this.broadcastLiveAudioTrack = null
@@ -930,10 +933,24 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
   }
 
+  maybeReconnectAfterDisconnect(reason: string) {
+    if (this.broadcastLost || this.broadcastReconnecting || !this.broadcastPanel) return
+    this.broadcastDisconnectStrikes++
+    if (this.broadcastDisconnectStrikes < BROADCAST_DISCONNECT_STRIKES) {
+      if (this.broadcastDockStatusEl && !this.broadcastLost) {
+        this.broadcastDockStatusEl.style.display = 'block'
+        this.broadcastDockStatusEl.textContent = 'connection unstable...'
+        this.broadcastDockStatusEl.style.color = '#f5b942'
+      }
+      return
+    }
+    void this.tryBroadcastReconnect(reason)
+  }
+
   wireBroadcastRoom(room: Room) {
     room.on(RoomEvent.Disconnected, () => {
       if (this.broadcastLost || !this.broadcastRoom) return
-      void this.tryBroadcastReconnect('connection lost')
+      this.maybeReconnectAfterDisconnect('connection lost')
     })
     const reconnected = (RoomEvent as any).Reconnected
     if (reconnected) {
@@ -941,6 +958,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (this.broadcastLost) return
         this.broadcastReconnecting = false
         this.broadcastReconnectAttempts = 0
+        this.broadcastDisconnectStrikes = 0
         this.ensureShowboxLiveFlag()
         this.restoreLiveDockUi()
         void this.refreshBroadcastPreview()
@@ -985,6 +1003,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.broadcastDockStatusEl.textContent = `reconnecting (${this.broadcastReconnectAttempts}/${BROADCAST_RECONNECT_MAX})...`
       this.broadcastDockStatusEl.style.color = '#f5b942'
     }
+    await new Promise((r) => setTimeout(r, 1000 * this.broadcastReconnectAttempts))
     try {
       this.broadcastRoom?.disconnect()
       const tokenRes = await fetch(`/api/rooms/${this.roomName()}/token`, { credentials: 'include' })
@@ -1000,6 +1019,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
       this.broadcastReconnecting = false
       this.broadcastReconnectAttempts = 0
+      this.broadcastDisconnectStrikes = 0
       this.ensureShowboxLiveFlag()
       this.restoreLiveDockUi()
       await this.refreshBroadcastPreview()
@@ -1017,7 +1037,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.broadcastReconnecting) return null
     const state = (room as any).state
     if (state === 'disconnected') {
-      void this.tryBroadcastReconnect('connection lost')
+      this.maybeReconnectAfterDisconnect('connection lost')
       return null
     }
     if (state === 'reconnecting') {
@@ -1043,6 +1063,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (mst && mst.readyState !== 'ended') hasVideo = true
       }
       if (!hasVideo) return 'camera feed lost'
+      this.broadcastDisconnectStrikes = 0
+      if (this.streamTargetsThisShowbox()) {
+        try {
+          this.parcel.sendStatePatch({ __showbox_live: this.uuid })
+        } catch {}
+      }
     } catch {}
     return null
   }
@@ -1050,6 +1076,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   onBroadcastLost(reason: string) {
     if (this.broadcastLost) return
     this.broadcastReconnecting = false
+    this.broadcastDisconnectStrikes = 0
     this.broadcastLost = true
     app.showSnackbar('stream ended - ' + reason, PanelType.Warning)
     if (this.broadcastDockLiveLabel) {
@@ -2009,6 +2036,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.broadcastLiveAudioTrack = null
     this.broadcastReconnecting = false
     this.broadcastReconnectAttempts = 0
+    this.broadcastDisconnectStrikes = 0
     // ending your session also drops any second-camera feeds you pushed to sibling angle mirrors
     for (const b of this.parcel.getFeaturesByType('showbox') as any[]) {
       if (b?.angleVideoTrack) b.stopAngleBroadcast()
@@ -2864,6 +2892,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.broadcastRoom = room
         this.broadcastReconnectAttempts = 0
         this.broadcastReconnecting = false
+        this.broadcastDisconnectStrikes = 0
         this.wireBroadcastRoom(room)
 
         // Hear the co-host ASAP. broadcastRoom is set first so their audio routes straight to a
