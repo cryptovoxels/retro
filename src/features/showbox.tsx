@@ -105,7 +105,10 @@ function cameraErrorMessage(e: unknown): string {
 
 // Mobile: facingMode beats enumerated deviceId (first cam is often back/wide and stretches). Matches flip camera.
 function showboxMobileCameraConstraints(facing: 'user' | 'environment' = 'user') {
-  return { facingMode: facing, aspectRatio: { ideal: 9 / 16 } }
+  const c: Record<string, any> = { facingMode: facing }
+  // back cameras are usually landscape - forcing 9:16 can fail restartTrack and leave a dead feed
+  if (facing === 'user') c.aspectRatio = { ideal: 9 / 16 }
+  return c
 }
 
 function showboxCameraVideoConstraints(deviceId: string | undefined) {
@@ -1138,7 +1141,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const track = this.broadcastLiveVideoTrack
     if (!track) return
     if (this.isCohostMode()) {
-      this.updateCohostComposite()
+      this.syncBroadcastVideoFromTrack(track)
       return
     }
     try {
@@ -1498,6 +1501,21 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (this.ownerVideoEl !== el) this.ownerVideoEl?.remove()
       this.ownerVideoEl = el
     }
+  }
+
+  syncBroadcastVideoFromTrack(track: any) {
+    if (!track) return
+    if (this.isCohostMode()) {
+      const el = isGuestForShowbox(this.uuid) ? this.guestVideoEl : this.ownerVideoEl
+      syncVideoElFromTrack(el, track)
+      el?.addEventListener('loadeddata', () => this.updateCohostComposite(), { once: true })
+      this.updateCohostComposite()
+      this.syncCohostPreview?.()
+      return
+    }
+    syncVideoElFromTrack(this.localBroadcastVideoEl, track)
+    syncVideoElFromTrack(this.mobilePreviewVideoEl, track)
+    this.syncMobilePreviewDock?.()
   }
 
   syncExistingCohostVideos() {
@@ -2656,10 +2674,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       flipFacing = flipFacing === 'user' ? 'environment' : 'user'
       this.mobileFlipFacing = flipFacing
       await liveVideoTrack.restartTrack(showboxMobileCameraConstraints(flipFacing)).catch(() => {})
-      syncVideoElFromTrack(this.localBroadcastVideoEl, liveVideoTrack)
-      syncVideoElFromTrack(mobilePreviewVideo, liveVideoTrack)
-      syncMobilePreview?.()
-      requestAnimationFrame(() => syncMobilePreview?.())
+      this.syncBroadcastVideoFromTrack(liveVideoTrack)
+      requestAnimationFrame(() => this.syncBroadcastVideoFromTrack(liveVideoTrack))
     }
 
     // Screenshare goes live with no mic. This lets you add your voice mid-stream - livekit
@@ -3187,6 +3203,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     camSel.onchange = async () => {
       if (this.broadcastRoom && liveVideoTrack && camSel.value) {
         await liveVideoTrack.setDeviceId({ exact: camSel.value }).catch(() => {})
+        this.syncBroadcastVideoFromTrack(liveVideoTrack)
       }
     }
     micSel.onchange = async () => {
@@ -3358,9 +3375,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
               void this.tryResumeCamera()
               return
             }
-            syncVideoElFromTrack(this.localBroadcastVideoEl, liveVideoTrack)
-            syncVideoElFromTrack(mobilePreviewVideo, liveVideoTrack)
-            syncMobilePreview?.()
+            this.syncBroadcastVideoFromTrack(liveVideoTrack)
           }
           document.addEventListener('visibilitychange', onVis)
           clearMobileBroadcastHooks = () => {
