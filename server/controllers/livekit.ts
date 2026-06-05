@@ -145,14 +145,15 @@ export default async function LivekitController(db: Db, passport: PassportStatic
 
     const user = (req.user ?? null) as (VoxelsUser & { guest_pass?: string }) | null
     const wallet = user?.wallet ?? `anon-${Math.random().toString(36).slice(2)}`
+    const guestPassToken = String(user?.guest_pass ?? req.query.guest_pass ?? '').trim()
 
     // Subscribe is open (audience). Publish requires a collaborator or a valid guest pass scoped to this room.
     let canPublish = false
     const parcelMatch = name.match(/^parcel-(\d+)$/)
     if (parcelMatch) {
       const parcelId = parseInt(parcelMatch[1], 10)
-      if (user?.guest_pass) {
-        const pass = await loadGuestPass(db, user.guest_pass)
+      if (guestPassToken) {
+        const pass = await loadGuestPass(db, guestPassToken)
         if (pass && !pass.revoked_at && pass.parcel_id === parcelId) {
           canPublish = true
         }
@@ -173,7 +174,7 @@ export default async function LivekitController(db: Db, passport: PassportStatic
       refresh()
     }
 
-    // Identity prefix encodes wallet (or pass-prefix) so revoke can locate participants.
+    // Synthetic guest jwt uses guest- prefix so revoke can kick. Signed-in guest links use their wallet.
     const identityPrefix = user?.guest_pass ? `guest-${user.guest_pass.slice(0, 12)}` : wallet
     const identity = `${identityPrefix}-${Math.random().toString(36).slice(2, 10)}`
 

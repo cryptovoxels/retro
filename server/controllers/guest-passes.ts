@@ -38,8 +38,9 @@ function isMobileUserAgent(ua: string): boolean {
 
 // Broadcaster session only (/live/:token -> /play). Not for audience share links.
 // isolate + distance=close keep one parcel loaded; ui=off drops HUD so mobile can run live + showbox video.
-function guestBroadcastPlayQuery(parcelLocation: string, featureUuid: string, userAgent: string): string {
+function guestBroadcastPlayQuery(parcelLocation: string, featureUuid: string, userAgent: string, guestPass?: string): string {
   const qs = new URLSearchParams({ coords: parcelLocation, show: featureUuid, isolate: 'true', distance: 'close' })
+  if (guestPass) qs.set('guest_pass', guestPass)
   if (isMobileUserAgent(userAgent)) qs.set('ui', 'off')
   return qs.toString()
 }
@@ -283,30 +284,30 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       const parcel = await Parcel.load(pass.parcel_id)
       if (!parcel) return res.status(404).send('Parcel not found')
 
+      const ua = String(req.headers['user-agent'] ?? '')
       const signedIn = walletFromJwtCookie(req)
       if (signedIn?.wallet) {
         const auth = await authParcel(parcel, signedIn as any)
-        // Collaborators can publish (see livekit token grant), so a signed-in collaborator opening
-        // the guest link should host-join as themselves, not get their session replaced by a guest.
+        // Parcel editors host-join as themselves. Everyone else signed in keeps their account and
+        // uses guest_pass in the play URL for publish permission.
         if (auth === 'Owner' || auth === 'Collaborator' || auth === 'Moderator') {
-          return res.redirect(302, `/play?${showboxHostPlayQuery(showboxHostPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid, isMobileUserAgent(String(req.headers['user-agent'] ?? '')))}`)
+          return res.redirect(302, `/play?${showboxHostPlayQuery(showboxHostPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid, isMobileUserAgent(ua))}`)
         }
+        const playQs = guestBroadcastPlayQuery(showboxGuestPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid, ua, token)
+        return res.redirect(302, `/play?${playQs}`)
       }
 
       const syntheticWallet = `guest:${token.slice(0, 12)}`.toLowerCase()
 
-      // Avatar row for the synthetic wallet. Name is chosen by the guest in the broadcast dock,
-      // not by the parcel owner - only overwrite an existing name when the pass already has one.
-      // Store an empty name as NULL: avatars.name has a UNIQUE constraint and '' collides across
-      // every nameless guest, so plain '' throws on the second redeem and 503s the link.
+      // Anonymous guests pick a fresh name in the dock - never recycle a previous guest's name.
       await db.query(
         'sql/guest-passes/upsert-avatar',
         `insert into avatars (owner, name, last_online)
-         values ($1, nullif($2, ''), now())
+         values ($1, null, now())
          on conflict (owner) do update set
            last_online = now(),
-           name = case when excluded.name is not null then excluded.name else avatars.name end`,
-        [syntheticWallet, pass.name],
+           name = null`,
+        [syntheticWallet],
       )
 
       const jwt = await new SignJWT({
@@ -321,7 +322,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
         .sign(JWT_SECRET_KEY)
 
       res.cookie('jwt', jwt, { maxAge: GUEST_JWT_TTL_SECONDS * 1000, httpOnly: false, sameSite: 'lax' })
-      const playQs = guestBroadcastPlayQuery(showboxGuestPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid, String(req.headers['user-agent'] ?? ''))
+      const playQs = guestBroadcastPlayQuery(showboxGuestPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid, ua)
       res.redirect(302, `/play?${playQs}`)
     } catch (err) {
       // Don't let an async throw hang the request into a proxy 503. Log the real cause and fail soft.
