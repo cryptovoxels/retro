@@ -2113,7 +2113,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     room.on(RoomEvent.ParticipantConnected, () => {
       if (this.livekitRoom !== room) return
-      if (!this.broadcastRoom) this.tryAttachExistingStream()
+      if (this.broadcastRoom && this.isCohostMode()) {
+        this.syncExistingCohostVideos()
+        this.syncExistingCohostAudio()
+        this.updateCohostComposite()
+      } else if (!this.broadcastRoom) {
+        this.tryAttachExistingStream()
+      }
       this.setPreview()
     })
     room.on(RoomEvent.ParticipantDisconnected, () => {

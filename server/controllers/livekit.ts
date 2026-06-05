@@ -149,6 +149,7 @@ export default async function LivekitController(db: Db, passport: PassportStatic
 
     // Subscribe is open (audience). Publish requires a collaborator or a valid guest pass scoped to this room.
     let canPublish = false
+    let publishViaGuestPass = false
     const parcelMatch = name.match(/^parcel-(\d+)$/)
     if (parcelMatch) {
       const parcelId = parseInt(parcelMatch[1], 10)
@@ -156,6 +157,7 @@ export default async function LivekitController(db: Db, passport: PassportStatic
         const pass = await loadGuestPass(db, guestPassToken)
         if (pass && !pass.revoked_at && pass.parcel_id === parcelId) {
           canPublish = true
+          publishViaGuestPass = true
         }
       } else if (user?.wallet) {
         const parcel = await Parcel.load(parcelId)
@@ -174,8 +176,8 @@ export default async function LivekitController(db: Db, passport: PassportStatic
       refresh()
     }
 
-    // Synthetic guest jwt uses guest- prefix so revoke can kick. Signed-in guest links use their wallet.
-    const identityPrefix = user?.guest_pass ? `guest-${user.guest_pass.slice(0, 12)}` : wallet
+    // guest- prefix so cohost routing + revoke work the same for anon and signed-in guest links
+    const identityPrefix = publishViaGuestPass ? `guest-${guestPassToken.slice(0, 12)}` : wallet
     const identity = `${identityPrefix}-${Math.random().toString(36).slice(2, 10)}`
 
     const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, { identity })
