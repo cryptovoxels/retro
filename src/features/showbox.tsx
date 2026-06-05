@@ -2746,36 +2746,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         fontSize: mobile ? '16px' : 'inherit',
         boxSizing: 'border-box',
       })
-      const nameStatus = document.createElement('small')
-      nameStatus.style.color = '#888'
-      let saveTimer: ReturnType<typeof setTimeout> | null = null
-      const save = async (reconnectMp = false) => {
-        const next = nameInput.value.trim()
-        if (!next || next === app.state.name) return
-        nameStatus.textContent = 'saving...'
-        try {
-          const r = await fetch(`/api/guest/${guestToken}/name`, {
-            method: 'PATCH',
-            headers: { 'Content-Type': 'application/json' },
-            credentials: 'include',
-            body: JSON.stringify({ name: next }),
-          })
-          const j = await r.json()
-          if (!j.success) throw new Error(j.error || 'failed')
-          if (reconnectMp) syncGuestDisplayName(next)
-          else app.setName(next)
-          nameStatus.textContent = 'saved'
-          setTimeout(() => (nameStatus.textContent = ''), 1500)
-        } catch (e) {
-          nameStatus.textContent = (e as Error)?.message || 'could not save'
-        }
-      }
-      nameInput.oninput = () => {
-        if (saveTimer) clearTimeout(saveTimer)
-        saveTimer = setTimeout(() => save(false), 600)
-      }
-      nameInput.onblur = () => save(true)
-      identityRow.append(identityLabel, nameInput, nameStatus)
+      const nameHint = document.createElement('small')
+      nameHint.textContent = 'saved when you go live'
+      nameHint.style.color = '#888'
+      identityRow.append(identityLabel, nameInput, nameHint)
     }
 
     // Fan coords link - audience spawns back from the screen, slightly off center.
