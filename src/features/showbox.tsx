@@ -2,7 +2,7 @@ import { Component, h } from 'preact'
 import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { isMobile } from '../../common/helpers/detector'
-import { refreshMobileCanvasAfterReturn } from '../controls/mobile/controls'
+import { refreshMobileCanvasAfterReturn, reloadIfWebglContextLost } from '../controls/mobile/controls'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { encodeCoords } from '../../common/helpers/utils'
@@ -160,6 +160,21 @@ function syncVideoElFromTrack(el: HTMLVideoElement | null, track: { mediaStreamT
   if (cur === mst) return
   el.srcObject = new MediaStream([mst])
   el.play().catch(() => {})
+}
+
+function waitMobilePageVisible() {
+  if (!mobile || document.visibilityState === 'visible') return Promise.resolve()
+  return new Promise<void>((resolve) => {
+    const done = () => {
+      document.removeEventListener('visibilitychange', onVis)
+      resolve()
+    }
+    const onVis = () => {
+      if (document.visibilityState === 'visible') done()
+    }
+    document.addEventListener('visibilitychange', onVis)
+    window.setTimeout(done, 3000)
+  })
 }
 
 function makeDockPreviewVideo(track: { mediaStreamTrack?: MediaStreamTrack } | null | undefined) {
@@ -3433,13 +3448,22 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           // empty message = silent reset (user cancelled the screenshare picker). camera errors get a plain-language nudge.
           throw new Error(screenChk.checked ? '' : cameraErrorMessage(err))
         }
-        if (mobile) refreshMobileCanvasAfterReturn()
+        await waitMobilePageVisible()
+        if (mobile) {
+          refreshMobileCanvasAfterReturn()
+          reloadIfWebglContextLost()
+        }
         acquiredTracks = tracks
         this.broadcastLiveTracks = tracks
 
         const videoTrack = tracks.find((t) => t.kind === Track.Kind.Video)
         if (!videoTrack) {
           throw new Error('showbox needs a camera or screenshare. for audio only, drop a Boombox instead.')
+        }
+        if (mobile && !screenChk.checked) {
+          await videoTrack.restartTrack(showboxMobileCameraConstraints('user')).catch(() => {})
+          refreshMobileCanvasAfterReturn()
+          reloadIfWebglContextLost()
         }
         const room = new Room()
         this.broadcastRoom = room
@@ -3519,7 +3543,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             this.startThumbCapture()
           } else {
             this.localBroadcastVideoEl = el
-            this.attachVideoToMesh(el, true)
+            if (mobile) {
+              refreshMobileCanvasAfterReturn()
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  if (this.disposed || !this.broadcastRoom) return
+                  this.attachVideoToMesh(el, true)
+                })
+              })
+            } else {
+              this.attachVideoToMesh(el, true)
+            }
             this.startThumbCapture(el)
           }
         }
@@ -3752,6 +3786,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
         setMobileDockLayout(true)
         setDesktopDockLayout(true)
+        if (mobile) {
+          refreshMobileCanvasAfterReturn()
+          reloadIfWebglContextLost()
+        }
         renderDockChat?.()
         this.announceLiveInChat()
         this.onViewerCountTick = (total) => {
