@@ -3175,7 +3175,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     goBtn.onclick = async () => {
       if (this.broadcastRoom) {
-        if (mobile && !confirm('stop streaming?')) return
+        if (mobile) {
+          const ok = confirm('stop streaming?')
+          refreshMobileCanvasAfterReturn()
+          if (!ok) return
+        }
         this.broadcastStopping = true
         this.cameraResumeGen++
         this.mobileBroadcastHooksClear?.()
