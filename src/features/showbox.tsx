@@ -1375,8 +1375,18 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return isGuestForShowbox(this.uuid) || this.parcel.canEdit
   }
 
+  parcelEditorWallet(wallet: string) {
+    const w = (wallet || '').toLowerCase().trim()
+    if (!w || w.startsWith('anon-')) return false
+    const editors = [...this.parcel.contributors, ...this.parcel.owners].map((x) => (x || '').toLowerCase().trim()).filter(Boolean)
+    return editors.includes(w)
+  }
+
   isGuestPublisherIdentity(identity: string) {
-    return cohostIdentityPrefix(identity).startsWith('guest-')
+    const prefix = cohostIdentityPrefix(identity)
+    if (prefix.startsWith('guest-')) return true
+    // signed-in guest cohosts publish under their wallet - only parcel editors are hosts
+    return !this.parcelEditorWallet(prefix)
   }
 
   isHostPublisherIdentity(identity: string) {
@@ -1388,7 +1398,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return s === 'host' || s === 'collaborator' || s === 'guest' ? s : 'auto'
   }
 
-  // classify a publisher by the parcel role of their wallet (guests are guest-prefixed identities)
+  // classify a publisher by parcel role (anon guests use guest- livekit identity; signed-in guests use wallet)
   publisherRole(identity: string): MirrorRole {
     if (this.isGuestPublisherIdentity(identity)) return 'guest'
     const wallet = cohostIdentityPrefix(identity).toLowerCase()
