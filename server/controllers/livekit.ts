@@ -174,7 +174,7 @@ export default async function LivekitController(db: Db, passport: PassportStatic
       refresh()
     }
 
-    // Synthetic guest jwt uses guest- prefix so revoke can kick. Signed-in guest links use their wallet.
+    // anon guest jwt uses guest- prefix so revoke can kick. signed-in guest links keep their wallet.
     const identityPrefix = user?.guest_pass ? `guest-${user.guest_pass.slice(0, 12)}` : wallet
     const identity = `${identityPrefix}-${Math.random().toString(36).slice(2, 10)}`
 
