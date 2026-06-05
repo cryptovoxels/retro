@@ -182,7 +182,8 @@ function isGuestForShowbox(uuid: string): boolean {
   if (!w?.startsWith('guest:')) return false
   if (payload?.feature_uuid === uuid) return true
   try {
-    return new URL(window.location.href).searchParams.get('show') === uuid
+    const show = new URL(window.location.href).searchParams.get('show')
+    return !!show && show.toLowerCase() === uuid.toLowerCase()
   } catch {
     return false
   }
@@ -215,7 +216,8 @@ function isHostJoinForShowbox(uuid: string): boolean {
   if (isGuestForShowbox(uuid)) return false
   try {
     const q = new URL(window.location.href).searchParams
-    return q.get('host') === '1' && q.get('show') === uuid
+    const show = q.get('show')
+    return q.get('host') === '1' && !!show && show.toLowerCase() === uuid.toLowerCase()
   } catch {
     return false
   }
@@ -1446,6 +1448,22 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (tryAutoOpen()) return
         if (!this.broadcastRoom && !this.hasActiveVideo) this.setPreview()
       })
+      // /play cold load: jwt wallet often lands after onEnter; keep trying while ?host=1&show= is set.
+      if (!wantsHostJoin(this.uuid)) return
+      const stopAt = Date.now() + 15000
+      const onWalletReady = () => {
+        if (Date.now() > stopAt || this.disposed || this.broadcastPanel || this.joinDockAutoOpened) {
+          app.removeListener(AppEvent.Change, onWalletReady)
+          return
+        }
+        if (!wantsHostJoin(this.uuid)) {
+          app.removeListener(AppEvent.Change, onWalletReady)
+          return
+        }
+        if (tryAutoOpen()) app.removeListener(AppEvent.Change, onWalletReady)
+      }
+      app.on(AppEvent.Change, onWalletReady)
+      setTimeout(() => app.removeListener(AppEvent.Change, onWalletReady), 15000)
     }, 250)
   }
 
