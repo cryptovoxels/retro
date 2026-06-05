@@ -98,18 +98,11 @@ export class StateLogin {
     return true
   }
 
-  async startMetamaskLogin(): Promise<boolean> {
-    if (this.signedIn) return true
-    if (!this.provider || !this.state.unverifiedWallet) {
-      const ok = await this.setProvider()
-      if (!ok) return false
+  async signin() {
+    if (!this.state.unverifiedWallet || !this.provider) {
+      this.setProvider()
+      return
     }
-    if (this.signedIn) return true
-    return this.signin()
-  }
-
-  async signin(): Promise<boolean> {
-    if (!this.state.unverifiedWallet || !this.provider) return false
 
     this.message = this.generateMessage()
 
@@ -118,12 +111,10 @@ export class StateLogin {
       if (!signature) {
         console.error('Signature could not be generated')
         this.#app.emit(AppEvent.ErrorLogin)
-        return false
+        return
       }
-      await this.onSignature(signature)
-      return this.signedIn
+      this.onSignature(signature)
     }
-    return false
   }
 
   async onSignature(signature: string) {
@@ -196,6 +187,7 @@ export class StateLogin {
     this.#app.setState({ unverifiedWallet: accounts[0] })
     this.handleEvents()
     await this.setSigner()
+    this.signin()
     return true
   }
 
