@@ -1713,6 +1713,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.joinDockAutoOpened = true
         clearShowboxJoinParams()
         this.openBroadcastPanel(true)
+        if (!this.broadcastPanel) {
+          this.joinDockAutoOpened = false
+          return false
+        }
         this.hostDockAutoOpenedAt = Date.now()
         return true
       }
@@ -1722,10 +1726,21 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           app.showSnackbar('sign in as the parcel owner to use this host link', PanelType.Warning)
           return false
         }
-        this.joinDockAutoOpened = true
+        let opener: Showbox = this
+        if (this.isMirror()) {
+          const primary = this.parcel.getFeaturesByType('showbox')[0] as Showbox | undefined
+          if (primary?.uuid && primary.uuid !== this.uuid) opener = primary
+        }
+        if (opener.broadcastPanel || opener.joinDockAutoOpened) return true
+        opener.joinDockAutoOpened = true
         clearShowboxJoinParams()
-        this.openBroadcastPanel(true)
-        this.hostDockAutoOpenedAt = Date.now()
+        opener.openBroadcastPanel(true)
+        if (!opener.broadcastPanel) {
+          opener.joinDockAutoOpened = false
+          return false
+        }
+        opener.hostDockAutoOpenedAt = Date.now()
+        this.joinDockAutoOpened = true
         return true
       }
       return false
@@ -1775,10 +1790,21 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           app.showSnackbar('this account cannot host here - use the parcel owner account', PanelType.Warning)
           return
         }
-        this.joinDockAutoOpened = true
+        let opener: Showbox = this
+        if (this.isMirror()) {
+          const primary = this.parcel.getFeaturesByType('showbox')[0] as Showbox | undefined
+          if (primary?.uuid && primary.uuid !== this.uuid) opener = primary
+        }
+        if (opener.broadcastPanel) return
+        opener.joinDockAutoOpened = true
         clearShowboxJoinParams()
-        this.openBroadcastPanel(true)
-        this.hostDockAutoOpenedAt = Date.now()
+        opener.openBroadcastPanel(true)
+        if (!opener.broadcastPanel) {
+          opener.joinDockAutoOpened = false
+          return
+        }
+        opener.hostDockAutoOpenedAt = Date.now()
+        this.joinDockAutoOpened = true
       }, 500)
     })
   }
