@@ -2628,16 +2628,33 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         const text = `Going live in voxels - Teleport in! ${showUrl}`
         window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
       }
+      const shareBtn = document.createElement('button')
+      shareBtn.textContent = 'share'
+      Object.assign(shareBtn.style, { background: '#333', color: '#f5f5f0', border: '0', padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', flex: '1', minHeight: '36px' })
+      shareBtn.onclick = async () => {
+        const text = `Going live in voxels - Teleport in! ${showUrl}`
+        try {
+          if (navigator.share) {
+            await navigator.share({ title: 'voxels show', text, url: showUrl })
+            return
+          }
+        } catch (e) {
+          if ((e as DOMException)?.name === 'AbortError') return
+        }
+        navigator.clipboard.writeText(showUrl).catch(() => {})
+        app.showSnackbar('link copied - paste in your app', PanelType.Success)
+      }
       shareBtnRow.append(copyBtn)
-      if (!mobile) shareBtnRow.append(xBtn)
+      if (mobile) shareBtnRow.append(shareBtn)
+      else shareBtnRow.append(xBtn)
       shareLabel.style.display = 'block'
       if (mobile) {
-        // one slim row under chat - stacked copy + post on x ate half the dock on a phone
+        // one slim row under chat - native share sheet is gentler than opening x in a new tab
         Object.assign(shareRow.style, { padding: '4px 0', borderTop: '1px solid #222', borderBottom: 'none', gap: '2px' })
         shareBtnRow.style.flexDirection = 'row'
         copyBtn.textContent = 'copy fan link'
         Object.assign(copyBtn.style, { background: '#dc1e1e', fontWeight: 'bold', flex: '2', minHeight: '32px', padding: '6px 8px', width: 'auto' })
-        Object.assign(xBtn.style, { flex: '1', minHeight: '32px', padding: '6px 8px', width: 'auto', fontSize: '12px' })
+        Object.assign(shareBtn.style, { flex: '1', minHeight: '32px', padding: '6px 8px', width: 'auto', fontSize: '12px' })
         shareRow.append(shareBtnRow)
       } else {
         shareRow.append(shareLabel, shareInput, shareBtnRow)
