@@ -336,6 +336,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   streamAttachAttempts = 0
   hostJoinLoginPending = false
   joinDockAutoOpened = false
+  hostJoinAutoOpenStarted = false
+  hostDockAutoOpenedAt = 0
   meshLetterboxRaf: number | null = null
   meshLetterboxCanvas: HTMLCanvasElement | null = null
 
@@ -1418,37 +1420,41 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     // Host links (?host=1) need a signed-in parcel owner - prompt login first if needed.
     // Wallet may still be loading from the jwt cookie when onEnter fires; retry after app state settles.
     if (this.broadcastPanel) return
+    const hostOrGuest = wantsHostJoin(this.uuid) || isGuestForShowbox(this.uuid)
+    if (hostOrGuest && this.hostJoinAutoOpenStarted) return
+    if (hostOrGuest) this.hostJoinAutoOpenStarted = true
+
     const tryAutoOpen = () => {
       if (this.broadcastPanel || this.joinDockAutoOpened) return true
       if (isGuestForShowbox(this.uuid)) {
         this.joinDockAutoOpened = true
         clearShowboxJoinParams()
-        this.openBroadcastPanel()
+        this.openBroadcastPanel(true)
+        this.hostDockAutoOpenedAt = Date.now()
         return true
       }
       if (wantsHostJoin(this.uuid)) {
-        if (!app.signedIn) {
-          this.promptHostSignIn()
-          return false
-        }
+        if (!app.signedIn) return false
         if (!this.parcel.canEdit) {
           app.showSnackbar('sign in as the parcel owner to use this host link', PanelType.Warning)
           return false
         }
         this.joinDockAutoOpened = true
         clearShowboxJoinParams()
-        this.openBroadcastPanel()
+        this.openBroadcastPanel(true)
+        this.hostDockAutoOpenedAt = Date.now()
         return true
       }
       return false
     }
+    if (!hostOrGuest) return
+
     setTimeout(() => {
       if (tryAutoOpen()) return
       void app.getState().then(() => {
         if (tryAutoOpen()) return
         if (!this.broadcastRoom && !this.hasActiveVideo) this.setPreview()
       })
-      // /play cold load: jwt wallet often lands after onEnter; keep trying while ?host=1&show= is set.
       if (!wantsHostJoin(this.uuid)) return
       const stopAt = Date.now() + 15000
       const onWalletReady = () => {
@@ -1464,6 +1470,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
       app.on(AppEvent.Change, onWalletReady)
       setTimeout(() => app.removeListener(AppEvent.Change, onWalletReady), 15000)
+      setTimeout(() => {
+        if (this.disposed || this.broadcastPanel || this.joinDockAutoOpened || !wantsHostJoin(this.uuid) || app.signedIn) return
+        this.promptHostSignIn()
+      }, 3000)
     }, 250)
   }
 
@@ -1484,7 +1494,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         this.joinDockAutoOpened = true
         clearShowboxJoinParams()
-        this.openBroadcastPanel()
+        this.openBroadcastPanel(true)
+        this.hostDockAutoOpenedAt = Date.now()
       }, 500)
     })
   }
@@ -2089,9 +2100,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
   }
 
-  openBroadcastPanel() {
+  openBroadcastPanel(openOnly = false) {
     if (this.isMirror()) return
     if (this.broadcastPanel) {
+      if (openOnly) return
       this.broadcastPanel.remove()
       this.broadcastPanel = null
       this.stopBroadcast()
@@ -3223,6 +3235,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       return
     }
     if (this.isMirror()) return
+    if (this.hostDockAutoOpenedAt && Date.now() - this.hostDockAutoOpenedAt < 800) return
     if (!this.broadcastRoom) {
       const guest = isGuestForShowbox(this.uuid)
       if (this.isCohostMode()) {
