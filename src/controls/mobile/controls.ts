@@ -109,7 +109,7 @@ export function resetMobileViewportLayout() {
   document.body.style.height = ''
 }
 
-// share sheet / app switch can leave the babylon canvas blank until resize runs again
+// native UI handoffs and cold /play loads can leave the babylon canvas blank until resize runs again
 export function refreshMobileCanvasAfterReturn() {
   resetMobileViewportLayout()
   const resize = () => window.engine?.resize()
