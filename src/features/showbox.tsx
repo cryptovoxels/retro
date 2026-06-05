@@ -343,6 +343,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   broadcastReconnecting = false
   broadcastDisconnectStrikes = 0
   broadcastCameraLost = false
+  broadcastStopping = false
+  cameraResumeGen = 0
   broadcastCameraReconnectBtn: HTMLButtonElement | null = null
   mobileFlipFacing: 'user' | 'environment' = 'user'
   viewerConnectGen = 0
@@ -932,6 +934,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.broadcastReconnectAttempts = 0
     this.broadcastDisconnectStrikes = 0
     this.broadcastCameraLost = false
+    this.broadcastStopping = false
+    this.cameraResumeGen++
     this.broadcastCameraReconnectBtn = null
     this.broadcastLiveTracks = null
     this.broadcastLiveVideoTrack = null
@@ -1128,7 +1132,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   async tryResumeCamera() {
-    if (!this.broadcastRoom || this.broadcastLost || !this.broadcastCameraLost) return
+    if (!this.broadcastRoom || this.broadcastLost || !this.broadcastCameraLost || this.broadcastStopping) return
+    const gen = ++this.cameraResumeGen
     if (this.broadcastDockStatusEl) {
       this.broadcastDockStatusEl.style.display = 'block'
       this.broadcastDockStatusEl.textContent = 'reconnecting camera...'
@@ -1143,6 +1148,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (!dead && vt?.restartTrack) {
         if (mobile) await vt.restartTrack(showboxMobileCameraConstraints(this.mobileFlipFacing))
         else await vt.restartTrack({})
+        if (gen !== this.cameraResumeGen || this.broadcastStopping || !this.broadcastRoom) return
       } else {
         const tracks = await createLocalTracks({
           video: showboxCameraVideoConstraints(undefined),
@@ -1150,6 +1156,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         })
         const newVt = tracks.find((t) => t.kind === Track.Kind.Video)
         if (!newVt) throw new Error('no camera')
+        if (gen !== this.cameraResumeGen || this.broadcastStopping || !this.broadcastRoom) return
         if (vt) {
           try {
             await lp.unpublishTrack(vt, true)
@@ -1183,6 +1190,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
       this.parcel.getFeaturesByType('showbox').forEach((f) => (f as any).refreshMirrorVideo?.())
     } catch {
+      if (gen !== this.cameraResumeGen || this.broadcastStopping) return
       this.broadcastCameraLost = false
       this.onBroadcastLost('camera reconnect failed')
     }
@@ -1211,7 +1219,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     this.mobileBroadcastHooksClear?.()
     this.mobileBroadcastHooksClear = null
+    this.broadcastStopping = true
+    this.cameraResumeGen++
     this.stopBroadcast(true)
+    this.broadcastPanel?.remove()
+    this.broadcastPanel = null
+    this.clearBroadcastDockUi()
+    this.setPreview()
   }
 
   canOpenBroadcastPanel() {
@@ -2614,7 +2628,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         const text = `Going live in voxels - Teleport in! ${showUrl}`
         window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
       }
-      shareBtnRow.append(copyBtn, xBtn)
+      shareBtnRow.append(copyBtn)
+      if (!mobile) shareBtnRow.append(xBtn)
       shareLabel.style.display = 'block'
       if (mobile) {
         // one slim row under chat - stacked copy + post on x ate half the dock on a phone
@@ -2960,9 +2975,20 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     goBtn.onclick = async () => {
       if (this.broadcastRoom) {
         if (mobile && !confirm('stop streaming?')) return
+        this.broadcastStopping = true
+        this.cameraResumeGen++
         this.mobileBroadcastHooksClear?.()
         // stopping ends the show - close the dock entirely instead of bouncing back to the go-live form
         this.stopBroadcast()
+        this.broadcastPanel?.remove()
+        this.broadcastPanel = null
+        this.clearBroadcastDockUi()
+        this.setPreview()
+        return
+      }
+
+      // stream already ended but the dock is still open - dismiss, don't start a second go-live
+      if (this.broadcastLost) {
         this.broadcastPanel?.remove()
         this.broadcastPanel = null
         this.clearBroadcastDockUi()
@@ -3099,7 +3125,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.wireCameraEndedListener(videoTrack)
         if (mobile) {
           const onVis = () => {
-            if (document.visibilityState !== 'visible' || !this.broadcastRoom) return
+            if (document.visibilityState !== 'visible' || !this.broadcastRoom || this.broadcastStopping) return
             if (this.broadcastCameraLost) {
               void this.tryResumeCamera()
               return
@@ -3190,9 +3216,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         mobileShowWorld = false
 
+        panel.querySelectorAll('[data-showbox-dock-live-h]').forEach((n) => n.remove())
+        panel.querySelectorAll('[data-showbox-dock-preview]').forEach((n) => n.remove())
+
         // live header: pulsing red dot + count-up timer so the broadcaster sees they are actually streaming.
         const liveHeader = document.createElement('div')
         liveHeader.dataset.dot = '1'
+        liveHeader.dataset.showboxDockLiveH = '1'
         Object.assign(liveHeader.style, { display: 'flex', alignItems: 'center', gap: '8px', color: '#dc1e1e', fontWeight: 'bold', fontSize: '14px', letterSpacing: '0.5px' })
         const liveDot = document.createElement('span')
         liveDot.textContent = '\u25CF'
@@ -3276,6 +3306,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           if (!mobile) {
             const previewWrap = document.createElement('div')
             previewWrap.dataset.dot = '1'
+            previewWrap.dataset.showboxDockPreview = '1'
             Object.assign(previewWrap.style, {
               position: 'relative',
               width: '100%',
@@ -3299,6 +3330,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           } else {
             mobilePreviewWrap = document.createElement('div')
             mobilePreviewWrap.dataset.dot = '1'
+            mobilePreviewWrap.dataset.showboxDockPreview = '1'
             Object.assign(mobilePreviewWrap.style, {
               position: 'relative',
               width: '100%',
