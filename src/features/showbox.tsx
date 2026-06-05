@@ -2802,18 +2802,24 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       const copyBtn = document.createElement('button')
       copyBtn.textContent = 'copy'
       Object.assign(copyBtn.style, { background: '#333', color: '#f5f5f0', border: '0', padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', flex: '1', minHeight: '36px' })
-      const copyBtnLabel = mobile ? 'copy link for fans' : 'copy'
-      copyBtn.onclick = () => {
-        navigator.clipboard.writeText(showUrl).catch(() => {})
-        copyBtn.textContent = 'copied'
-        setTimeout(() => (copyBtn.textContent = copyBtnLabel), 1500)
-      }
+      const copyBtnLabel = 'copy'
       const xBtn = document.createElement('button')
       xBtn.textContent = 'post on x'
       Object.assign(xBtn.style, { background: '#333', color: '#f5f5f0', border: '0', padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', flex: '1', minHeight: '36px' })
-      xBtn.onclick = () => {
-        const text = `Going live in voxels - Teleport in! ${showUrl}`
-        window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
+      const wireDesktopShareActions = (getKind: () => 'fan' | 'guest', getUrl: () => string) => {
+        copyBtn.onclick = () => {
+          const url = getUrl().trim()
+          if (!url || url.startsWith('loading')) return
+          navigator.clipboard.writeText(url).catch(() => {})
+          copyBtn.textContent = 'copied'
+          setTimeout(() => (copyBtn.textContent = copyBtnLabel), 1500)
+        }
+        xBtn.onclick = () => {
+          const url = getUrl().trim()
+          if (!url || url.startsWith('loading')) return
+          const text = getKind() === 'guest' ? `Join my show in voxels - go live here: ${url}` : `Going live in voxels - Teleport in! ${url}`
+          window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
+        }
       }
       const runMobileShare = async (kind: 'fan' | 'guest') => {
         if (kind === 'guest') {
@@ -2899,7 +2905,53 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           shareBtnRow.append(shareBtn)
           shareRow.append(shareBtnRow)
         }
+      } else if (this.canManageGuestPasses()) {
+        let shareLinkKind: 'fan' | 'guest' = 'fan'
+        const shareKindSel = document.createElement('select')
+        Object.assign(shareKindSel.style, {
+          width: '100%',
+          background: '#1a1a1a',
+          color: '#888',
+          border: '1px solid #333',
+          padding: '4px',
+          fontFamily: 'inherit',
+        })
+        const fanOpt = document.createElement('option')
+        fanOpt.value = 'fan'
+        fanOpt.textContent = 'fan link - for people watching'
+        const guestOpt = document.createElement('option')
+        guestOpt.value = 'guest'
+        guestOpt.textContent = 'guest link - for your co-host or DJ/Artist'
+        shareKindSel.append(fanOpt, guestOpt)
+        const syncShareUrl = async () => {
+          if (shareLinkKind === 'fan') {
+            shareInput.value = showUrl
+            return
+          }
+          shareInput.value = 'loading guest link...'
+          const guestUrl = await this.resolveGuestShareUrl()
+          if (!guestUrl) {
+            shareLinkKind = 'fan'
+            shareKindSel.value = 'fan'
+            shareInput.value = showUrl
+            return
+          }
+          shareInput.value = guestUrl
+        }
+        shareKindSel.onchange = () => {
+          shareLinkKind = shareKindSel.value === 'guest' ? 'guest' : 'fan'
+          void syncShareUrl()
+        }
+        wireDesktopShareActions(
+          () => shareLinkKind,
+          () => shareInput.value,
+        )
+        shareRow.append(shareKindSel, shareInput, shareBtnRow)
       } else {
+        wireDesktopShareActions(
+          () => 'fan',
+          () => showUrl,
+        )
         shareRow.append(shareLabel, shareInput, shareBtnRow)
       }
     }
