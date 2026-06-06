@@ -151,7 +151,7 @@ export default function GoLive() {
     )
   }
 
-  const lightHref = (row: ShowboxRow) => `/account/go-live/broadcast?parcel=${row.parcelId}&show=${row.featureUuid}`
+  const lightHref = (row: ShowboxRow) => `/account/go-live/broadcast?parcel=${row.parcelId}&show=${row.featureUuid}&host=1`
 
   return (
     <section>

@@ -7,7 +7,7 @@ import { isMobile } from '../../common/helpers/detector'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery } from '../../common/helpers/parcel-helper'
 import { avatarName } from '../../common/messages/avatar-ref'
 import { Login } from '../src/auth/login'
-import cachedFetch from '../src/helpers/cached-fetch'
+import cachedFetch, { invalidateUrl } from '../src/helpers/cached-fetch'
 import { announceShowLive, chatMessages, connectShardChat, disconnectShardChat, sendChat } from '../src/shard-chat'
 import { Spinner } from '../src/spinner'
 import { app } from '../src/state'
@@ -132,13 +132,16 @@ function guestPassToken(): string | null {
 }
 
 function isGuestForShowbox(showUuid: string): boolean {
-  const showMatch = new URL(window.location.href).searchParams.get('show')?.toLowerCase() === showUuid.toLowerCase()
+  const url = new URL(window.location.href)
+  if (url.searchParams.get('host') === '1') return false
+  const showMatch = url.searchParams.get('show')?.toLowerCase() === showUuid.toLowerCase()
+  if (!showMatch) return false
   if (isSyntheticGuestWallet()) {
     const payload = guestJwtPayload()
     if (payload?.feature_uuid?.toLowerCase() === showUuid.toLowerCase()) return true
-    return showMatch
+    return true
   }
-  if (app.signedIn && guestPassToken() && showMatch) return true
+  if (url.searchParams.get('guest_pass') || guestJwtPayload()?.guest_pass) return true
   return false
 }
 
@@ -513,6 +516,7 @@ export default function GoLiveBroadcast() {
     let dead = false
     const run = async () => {
       try {
+        await invalidateUrl(`/api/parcels/${parcelId}.json`, true)
         const r = await cachedFetch(`/api/parcels/${parcelId}.json`, fetchOptions())
         const j = await r.json()
         const p = j?.parcel
