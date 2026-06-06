@@ -2925,7 +2925,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             closeSharePickMenu()
           }
           Object.assign(shareMainBtn.style, { ...btnBase, flex: '1', fontWeight: 'bold', padding: '6px 8px' })
-          Object.assign(sharePickBtn.style, { ...btnBase, padding: '6px 10px', borderLeft: '1px solid #111', flexShrink: '0' })
+          Object.assign(sharePickBtn.style, { ...btnBase, padding: '6px 12px', borderLeft: '1px solid rgba(245, 245, 240, 0.45)', flexShrink: '0', minWidth: '40px' })
           sharePickBtn.textContent = 'v'
           sharePickBtn.title = 'pick fan or guest link'
           Object.assign(sharePickMenu.style, {
