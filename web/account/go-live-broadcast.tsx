@@ -170,9 +170,11 @@ function parcelEditorWallets(parcel: any): string[] {
 }
 
 function canManageGuestPasses(parcel: any): boolean {
-  const wallet = app.state.wallet?.toLowerCase()
+  const wallet = app.state.wallet
   if (!wallet || !parcel) return false
-  return parcelEditorWallets(parcel).includes(wallet)
+  const h = new ParcelHelper(parcel)
+  if (h.isOwner(wallet) || h.isContributor(wallet)) return true
+  return parcelEditorWallets(parcel).includes(wallet.toLowerCase())
 }
 
 function formatTimer(ms: number) {
@@ -1267,7 +1269,7 @@ export default function GoLiveBroadcast() {
       {!live && status && <div class="showbox-dock-status">{status}</div>}
 
       <div class="showbox-dock-footer">
-        {live && !isGuest && mobile && canManageGuests && (
+        {live && !isGuest && mobile && (
           <div class="showbox-dock-share-split">
             {sharePickOpen && (
               <div class="showbox-dock-share-menu">
@@ -1313,11 +1315,6 @@ export default function GoLiveBroadcast() {
               v
             </button>
           </div>
-        )}
-        {live && !isGuest && mobile && !canManageGuests && (
-          <button type="button" class="showbox-dock-share-btn" onClick={() => void shareShowUrl('fan')}>
-            share fan link
-          </button>
         )}
         {live && !isGuest && !mobile && (
           <div class="showbox-dock-share-block">
