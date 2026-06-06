@@ -1188,6 +1188,11 @@ table.spaces {
     box-sizing: border-box;
   }
 
+  button {
+    -webkit-tap-highlight-color: transparent;
+    border: 0;
+  }
+
   label {
     display: block;
     color: #888;
@@ -1611,4 +1616,72 @@ table.spaces {
   text-decoration: underline;
   flex-shrink: 0;
   align-self: center;
+}
+
+// global web button:hover sticks on mobile after tap
+.showbox-dock {
+  .showbox-dock-link-btn,
+  .showbox-dock-cancel {
+    &:hover,
+    &:focus,
+    &:active {
+      background: transparent;
+      color: #888;
+      outline: none;
+    }
+  }
+
+  .showbox-dock-viewer-count {
+    &:hover,
+    &:focus,
+    &:active {
+      background: transparent;
+      color: inherit;
+      outline: none;
+    }
+  }
+
+  .showbox-dock-share-btn,
+  .showbox-dock-share-main,
+  .showbox-dock-share-pick,
+  .showbox-dock-go:not(.stop) {
+    &:hover,
+    &:focus,
+    &:active {
+      background: #dc1e1e;
+      color: #f5f5f0;
+      outline: none;
+    }
+  }
+
+  .showbox-dock-go.stop {
+    &:hover,
+    &:focus,
+    &:active {
+      background: #444;
+      color: #f5f5f0;
+      outline: none;
+    }
+  }
+
+  .showbox-dock-chat-reply button,
+  .showbox-dock-share-row button {
+    &:hover,
+    &:focus,
+    &:active {
+      background: #333;
+      color: #f5f5f0;
+      outline: none;
+    }
+  }
+
+  .showbox-dock-share-menu button {
+    &:hover,
+    &:focus,
+    &:active {
+      background: #1a1a1a;
+      color: #f5f5f0;
+      outline: none;
+    }
+  }
 }
