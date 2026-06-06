@@ -371,6 +371,7 @@ export default function GoLiveBroadcast() {
   const [flipFacing, setFlipFacing] = useState<'user' | 'environment'>('user')
   const [remoteCohostLive, setRemoteCohostLive] = useState(false)
   const [chatComposing, setChatComposing] = useState(false)
+  const [, setChatRev] = useState(0)
 
   const broadcastRoom = useRef<Room | null>(null)
   const viewerRoom = useRef<Room | null>(null)
@@ -458,6 +459,7 @@ export default function GoLiveBroadcast() {
   useEffect(() => {
     const dispose = effect(() => {
       chatMessages.value
+      setChatRev((n) => n + 1)
       scrollChatToEnd()
     })
     return dispose
@@ -574,6 +576,10 @@ export default function GoLiveBroadcast() {
   }
 
   const startThumb = (videoEl: HTMLVideoElement | null) => {
+    if (thumbInterval.current) {
+      clearInterval(thumbInterval.current)
+      thumbInterval.current = null
+    }
     if (!thumbCanvas.current) {
       thumbCanvas.current = document.createElement('canvas')
       thumbCanvas.current.width = 256
@@ -600,6 +606,27 @@ export default function GoLiveBroadcast() {
       } catch {}
     }, 1000)
   }
+
+  const armLivePreview = () => {
+    const vt = liveVideoTrack.current
+    if (!vt) return
+    syncPreviewVideo(vt)
+    if (isCohost && cohostBag.current && !remoteCohostLive) {
+      const bag = cohostBag.current
+      const slot = bag.isGuest ? bag.guestVideoEl : bag.ownerVideoEl
+      if (!slot) wireLocalCohostVideo(bag, vt.attach() as HTMLVideoElement)
+    }
+    startThumb(previewVideo.current)
+    const el = previewVideo.current
+    if (el && el.videoWidth === 0) {
+      el.addEventListener('loadeddata', () => startThumb(previewVideo.current), { once: true })
+    }
+  }
+
+  useEffect(() => {
+    if (!live) return
+    requestAnimationFrame(() => requestAnimationFrame(armLivePreview))
+  }, [live, remoteCohostLive, isCohost])
 
   const setShowboxLive = async (on: boolean) => {
     try {
@@ -794,18 +821,11 @@ export default function GoLiveBroadcast() {
       liveAudioTrack.current = tracks.find((t) => t.kind === Track.Kind.Audio) ?? null
       setMicOn(!!liveAudioTrack.current)
 
-      const el = videoTrack.attach() as HTMLVideoElement
-      el.muted = true
-      el.playsInline = true
+      if (isCohost && cohostBag.current) await viewerConnect
 
-      if (isCohost && cohostBag.current) {
-        await viewerConnect
-        syncPreviewVideo(videoTrack)
-        startThumb(previewVideo.current)
-      } else {
-        syncPreviewVideo(videoTrack)
-        startThumb(previewVideo.current)
-      }
+      setLive(true)
+      setStatus('')
+      setElapsed(0)
 
       if (!liveChatAnnounced.current) {
         const hostName = (app.state.name || guestName || '').trim()
@@ -817,10 +837,6 @@ export default function GoLiveBroadcast() {
           liveChatAnnounced.current = true
         }
       }
-
-      setLive(true)
-      setStatus('')
-      setElapsed(0)
     } catch (e) {
       stopAll()
       setStatus((e as Error)?.message || 'could not go live')
