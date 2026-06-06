@@ -4,7 +4,7 @@ import { Room, RoomEvent, Track, createLocalTracks } from 'livekit-client'
 import { effect } from '@preact/signals'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { isMobile } from '../../common/helpers/detector'
-import ParcelHelper, { showboxAudiencePlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
+import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery } from '../../common/helpers/parcel-helper'
 import { avatarName } from '../../common/messages/avatar-ref'
 import { Login } from '../src/auth/login'
 import cachedFetch from '../src/helpers/cached-fetch'
@@ -502,7 +502,7 @@ export default function GoLiveBroadcast() {
           setFeature(f)
           const helper = new ParcelHelper(p)
           const audienceCoords = showboxAudiencePlayCoordsFromRecord(helper, f)
-          setFanUrl(`${window.location.origin}/play?coords=${encodeURIComponent(audienceCoords)}&show=${encodeURIComponent(showUuid)}&isolate=true&distance=close`)
+          setFanUrl(`${window.location.origin}/play?${showboxFanSharePlayQuery(audienceCoords, showUuid)}`)
         }
         if (!isGuest && app.signedIn) {
           try {

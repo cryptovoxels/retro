@@ -3,7 +3,7 @@ import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { isMobile } from '../../common/helpers/detector'
 import { holdMobileCanvasRefresh, refreshMobileCanvasAfterReturn } from '../controls/mobile/controls'
-import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
+import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { encodeCoords } from '../../common/helpers/utils'
 import { ShowboxRecord } from '../../common/messages/feature'
@@ -253,10 +253,11 @@ function showboxFeatureCoords(feature: Showbox) {
   return { parcel, f }
 }
 
-// Plain /play?coords= link for the audience. No isolate, ui=off, or show= - just drop people at the showbox.
+// Fan link for the share panel (copy, post on x, mobile share sheet).
 function audienceShowUrl(feature: Showbox): string {
   const { parcel, f } = showboxFeatureCoords(feature)
-  return `${window.location.origin}/play?coords=${encodeURIComponent(showboxAudiencePlayCoordsFromRecord(parcel, f))}`
+  const coords = showboxAudiencePlayCoordsFromRecord(parcel, f)
+  return `${window.location.origin}/play?${showboxFanSharePlayQuery(coords, feature.uuid)}`
 }
 
 // Owner/co-host join link. Keeps your normal login - just lands at the showbox and opens the broadcast dock.

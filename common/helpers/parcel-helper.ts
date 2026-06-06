@@ -374,6 +374,12 @@ export function showboxAudiencePlayCoordsFromRecord(parcel: Partial<FullParcelRe
   return showboxSpawnCoords(parcel, feature, { standoff: SHOWBOX_AUDIENCE_STANDOFF, lateral: SHOWBOX_AUDIENCE_LATERAL })
 }
 
+// Fan share links (copy, share sheet, post). Lean boot for watchers: one parcel, close draw.
+export function showboxFanSharePlayQuery(coords: string, featureUuid: string): string {
+  const qs = new URLSearchParams({ coords, show: featureUuid, isolate: 'true', distance: 'close' })
+  return qs.toString()
+}
+
 // Audience /live homepage links. Mobile gets lean boot: one parcel, close draw.
 export function audiencePlayQuery(coords: string, mobileLean = false): string {
   const qs = new URLSearchParams({ coords })
