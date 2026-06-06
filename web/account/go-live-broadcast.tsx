@@ -309,6 +309,24 @@ function routeCohostVideo(
   updateCohostComposite(bag)
 }
 
+function routeCohostAudio(bag: CohostBag, track: any, identity: string, broadcastRoom: Room | null, viewerRoom: Room | null, room: Room) {
+  if (!shouldPlayCohostAudio(bag, broadcastRoom, viewerRoom, identity)) return
+  const prefix = cohostIdentityPrefix(identity)
+  for (let i = bag.cohostMonitorEls.length - 1; i >= 0; i--) {
+    const el = bag.cohostMonitorEls[i] as HTMLAudioElement & { dataset: { cohostPrefix?: string } }
+    if (el.dataset?.cohostPrefix === prefix) {
+      el.remove()
+      bag.cohostMonitorEls.splice(i, 1)
+    }
+  }
+  const el = track.attach() as HTMLAudioElement
+  el.dataset.cohostPrefix = prefix
+  el.style.display = 'none'
+  document.body.appendChild(el)
+  bag.cohostMonitorEls.push(el)
+  room.startAudio().catch(() => {})
+}
+
 function wireLocalCohostVideo(bag: CohostBag, el: HTMLVideoElement) {
   el.muted = true
   el.playsInline = true
@@ -682,13 +700,7 @@ export default function GoLiveBroadcast() {
       if (viewerRoom.current !== room) return
       const identity = participant?.identity ?? ''
       if (track.kind === Track.Kind.Video) routeCohostVideo(bag, track, identity, broadcastRoom.current, room, onRemoteCohostVideo)
-      if (track.kind === Track.Kind.Audio && shouldPlayCohostAudio(bag, broadcastRoom.current, room, identity)) {
-        const el = track.attach() as HTMLAudioElement
-        el.style.display = 'none'
-        document.body.appendChild(el)
-        bag.cohostMonitorEls.push(el)
-        room.startAudio().catch(() => {})
-      }
+      if (track.kind === Track.Kind.Audio) routeCohostAudio(bag, track, identity, broadcastRoom.current, room, room)
     })
 
     room.on(RoomEvent.ParticipantConnected, () => {
@@ -706,18 +718,10 @@ export default function GoLiveBroadcast() {
         for (const pub of p.videoTracks?.values() ?? []) {
           if (pub.isSubscribed && pub.track) routeCohostVideo(bag, pub.track, p.identity, broadcastRoom.current, room, onRemoteCohostVideo)
         }
-        if (shouldPlayCohostAudio(bag, broadcastRoom.current, room, p.identity)) {
-          for (const pub of p.audioTracks?.values() ?? []) {
-            if (pub.isSubscribed && pub.track) {
-              const el = pub.track.attach() as HTMLAudioElement
-              el.style.display = 'none'
-              document.body.appendChild(el)
-              bag.cohostMonitorEls.push(el)
-            }
-          }
+        for (const pub of p.audioTracks?.values() ?? []) {
+          if (pub.isSubscribed && pub.track) routeCohostAudio(bag, pub.track, p.identity, broadcastRoom.current, room, room)
         }
       }
-      room.startAudio().catch(() => {})
       updateCohostComposite(bag)
     } catch {
       room.disconnect()
@@ -858,7 +862,10 @@ export default function GoLiveBroadcast() {
   const toggleMic = async () => {
     if (!broadcastRoom.current) return
     const next = !micOn
-    await broadcastRoom.current.localParticipant.setMicrophoneEnabled(next, next ? { deviceId: micId || undefined } : undefined).catch(() => {})
+    const lp = broadcastRoom.current.localParticipant
+    // mic is already published at go-live - passing deviceId on unmute can open a second audio track (echo).
+    const opts = next && !liveAudioTrack.current ? { deviceId: micId || undefined } : undefined
+    await lp.setMicrophoneEnabled(next, opts).catch(() => {})
     setMicOn(next)
   }
 

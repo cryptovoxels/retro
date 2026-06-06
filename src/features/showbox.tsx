@@ -1424,7 +1424,18 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return this.isGuestPublisherIdentity(participantIdentity)
   }
 
-  trackCohostMonitor(el: HTMLAudioElement) {
+  trackCohostMonitor(el: HTMLAudioElement, identity?: string) {
+    if (identity) {
+      const prefix = cohostIdentityPrefix(identity)
+      for (let i = this.cohostMonitorEls.length - 1; i >= 0; i--) {
+        const old = this.cohostMonitorEls[i] as HTMLAudioElement & { dataset: { cohostPrefix?: string } }
+        if (old.dataset?.cohostPrefix === prefix) {
+          old.remove()
+          this.cohostMonitorEls.splice(i, 1)
+        }
+      }
+      el.dataset.cohostPrefix = prefix
+    }
     el.volume = this.effectiveStreamVolume()
     el.style.display = 'none'
     document.body.appendChild(el)
@@ -1566,7 +1577,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     for (const p of (this.livekitRoom as any).participants?.values() ?? []) {
       if (!this.shouldPlayCohostAudio(p.identity)) continue
       for (const pub of p.audioTracks?.values() ?? []) {
-        if (pub.isSubscribed && pub.track) this.trackCohostMonitor(pub.track.attach() as HTMLAudioElement)
+        if (pub.isSubscribed && pub.track) this.trackCohostMonitor(pub.track.attach() as HTMLAudioElement, p.identity)
       }
     }
     this.startBroadcastAudio()
@@ -2083,8 +2094,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
       if (this.broadcastRoom) {
         if (this.isCohostMode() && track.kind === Track.Kind.Audio && this.shouldPlayCohostAudio(identity)) {
-          this.trackCohostMonitor(track.attach() as HTMLAudioElement)
-          this.startBroadcastAudio()
+          this.syncExistingCohostAudio()
           return
         }
         if (this.isCohostMode() && track.kind === Track.Kind.Video) {
@@ -2777,7 +2787,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (!this.broadcastRoom) return
       micOn = !micOn
       micToggle.disabled = true
-      await this.broadcastRoom.localParticipant.setMicrophoneEnabled(micOn, micOn ? { deviceId: micSel.value || undefined } : undefined).catch(() => (micOn = !micOn))
+      // mic is already published at go-live - deviceId on unmute can open a second audio track (echo).
+      const micOpts = micOn && !liveAudioTrack ? { deviceId: micSel.value || undefined } : undefined
+      await this.broadcastRoom.localParticipant.setMicrophoneEnabled(micOn, micOpts).catch(() => (micOn = !micOn))
       micToggle.disabled = false
       syncMicToggle()
     }
@@ -3554,7 +3566,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           micToggle.style.display = 'block'
           syncMicToggle()
           if (micOn) {
-            this.broadcastRoom.localParticipant.setMicrophoneEnabled(true, { deviceId: micSel.value || undefined }).catch(() => {
+            const micOpts = liveAudioTrack ? undefined : { deviceId: micSel.value || undefined }
+            this.broadcastRoom.localParticipant.setMicrophoneEnabled(true, micOpts).catch(() => {
               micOn = false
               syncMicToggle()
             })
