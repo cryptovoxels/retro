@@ -3,6 +3,13 @@ import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { isMobile } from '../../common/helpers/detector'
 import { holdMobileCanvasRefresh, refreshMobileCanvasAfterReturn } from '../controls/mobile/controls'
+import {
+  BROADCAST_DISCONNECT_STRIKES,
+  BROADCAST_HEALTH_POLL_MS,
+  BROADCAST_LIVE_GRACE_MS,
+  BROADCAST_RECONNECT_MAX,
+  broadcastVideoTrackLive,
+} from '../../common/helpers/showbox-broadcast-health'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { encodeCoords } from '../../common/helpers/utils'
@@ -41,13 +48,8 @@ const VIEWER_RETRY_INTERVAL = 20_000
 const STREAM_ATTACH_RETRY_MS = 2000
 const STREAM_ATTACH_RECONNECT_AFTER = 5
 const VIEWER_MILESTONES = [10, 25, 50] as const
-const MILESTONE_POLL_MS = 4000
-const BROADCAST_RECONNECT_MAX = 5
-const BROADCAST_DISCONNECT_STRIKES = 2
 // How long a joining co-host shows the "connecting" card while waiting for the host's video.
 const COHOST_CONNECT_GRACE_MS = 8000
-// Mobile go-live: camera publications and preview can lag; don't call feed lost during this window.
-const BROADCAST_LIVE_GRACE_MS = 15000
 
 function viewerCountLabel(n: number) {
   return n === 1 ? '1 viewer' : `${n} viewers`
@@ -171,17 +173,6 @@ function makeDockPreviewVideo(track: { mediaStreamTrack?: MediaStreamTrack } | n
   v.setAttribute('webkit-playsinline', 'true')
   syncVideoElFromTrack(v, track)
   return v
-}
-
-function broadcastVideoTrackLive(room: Room | null, liveVideoTrack: any): boolean {
-  const mst = liveVideoTrack?.mediaStreamTrack as MediaStreamTrack | undefined
-  if (mst && mst.readyState !== 'ended') return true
-  const lp = (room as any)?.localParticipant
-  for (const pub of lp?.videoTrackPublications?.values() ?? []) {
-    const t = (pub?.track?.mediaStreamTrack ?? pub?.videoTrack?.mediaStreamTrack) as MediaStreamTrack | undefined
-    if (t && t.readyState !== 'ended') return true
-  }
-  return false
 }
 
 // True when the page was opened via /live/:token and the guest pass targets this showbox.
@@ -935,8 +926,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
       }
     }
-    this.milestonePollInterval = setInterval(tick, MILESTONE_POLL_MS)
-    setTimeout(tick, MILESTONE_POLL_MS)
+    this.milestonePollInterval = setInterval(tick, BROADCAST_HEALTH_POLL_MS)
+    setTimeout(tick, BROADCAST_HEALTH_POLL_MS)
   }
 
   get volume() {
