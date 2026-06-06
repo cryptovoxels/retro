@@ -136,9 +136,17 @@ function roomTokenUrl(roomName: string) {
   return `/api/rooms/${roomName}/token`
 }
 
+function parcelOwnerWallet(parcel: any): string {
+  const o = parcel?.owner
+  if (!o) return ''
+  if (typeof o === 'object') return String(o.owner || '').toLowerCase()
+  return String(o).toLowerCase()
+}
+
 function parcelEditorWallets(parcel: any): string[] {
   const out = new Set<string>()
-  if (parcel?.owner) out.add(String(parcel.owner).toLowerCase())
+  const ownerWallet = parcelOwnerWallet(parcel)
+  if (ownerWallet) out.add(ownerWallet)
   for (const pu of parcel?.parcel_users ?? []) {
     if (pu?.role === 'owner' || pu?.role === 'contributor' || pu?.role === 'moderator') {
       if (pu.wallet) out.add(String(pu.wallet).toLowerCase())
