@@ -1,6 +1,8 @@
 import { Component, Fragment } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { avatarName } from '../../common/messages/avatar-ref'
+import { isMobile } from '../../common/helpers/detector'
+import { audiencePlayQuery } from '../../common/helpers/parcel-helper'
 import { jitterCoord, orderLiveStrip } from '../../common/helpers/utils'
 import { currentVersion } from '../../common/version'
 import { Event } from '../../common/messages/event'
@@ -59,7 +61,7 @@ function LiveSection() {
       <ul class="live-streams">
         {ordered.map((s) => (
           <li key={s.room}>
-            <a href={s.coord ? `/play?coords=${jitterCoord(s.coord)}` : `/parcels/${s.parcel.id}`}>
+            <a href={s.coord ? `/play?${audiencePlayQuery(jitterCoord(s.coord), isMobile())}` : `/parcels/${s.parcel.id}`}>
               <img loading="lazy" src={s.thumbnail} alt="" />
               <span>{s.parcel.name || s.parcel.address}</span>
               <small>{avatarName(s.avatar)}</small>

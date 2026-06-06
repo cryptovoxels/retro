@@ -374,6 +374,16 @@ export function showboxAudiencePlayCoordsFromRecord(parcel: Partial<FullParcelRe
   return showboxSpawnCoords(parcel, feature, { standoff: SHOWBOX_AUDIENCE_STANDOFF, lateral: SHOWBOX_AUDIENCE_LATERAL })
 }
 
+// Audience /live homepage links. Mobile gets lean boot: one parcel, close draw.
+export function audiencePlayQuery(coords: string, mobileLean = false): string {
+  const qs = new URLSearchParams({ coords })
+  if (mobileLean) {
+    qs.set('isolate', 'true')
+    qs.set('distance', 'close')
+  }
+  return qs.toString()
+}
+
 export function getParcelHelper(parcel: MapParcelRecord | SingleParcelRecord) {
   return new ParcelHelper(parcel)
 }
