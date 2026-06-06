@@ -88,6 +88,7 @@ export function disconnectShardChat() {
 export function sendChat(text: string) {
   const trimmed = text.trim()
   if (!trimmed) return false
+  if (!ws || ws.readyState !== WebSocket.OPEN) connectShardChat()
   const who = (app.state.name || '').trim() || undefined
   // mp publish skips the sender - show our line locally so reply feels instant
   chatMessages.value = [...chatMessages.value, { text: trimmed, who }]
