@@ -1,11 +1,16 @@
 import { Component } from 'preact'
+import ParcelHelper from '../../../common/helpers/parcel-helper'
 import type { AvatarRef } from '../../../common/messages/avatar-ref'
 import { AvatarLink } from './avatar-link'
 import { getParcel, summaryReady } from '../store/index'
 
 type User = { avatar: AvatarRef | null; parcel: number | null }
 
-export default class Radar extends Component<{}, { users: Map<string, User> }> {
+interface Props {
+  teleportTo?: (coords: string) => void
+}
+
+export default class Radar extends Component<Props, { users: Map<string, User> }> {
   state = { users: new Map<string, User>() }
   es: EventSource | null = null
 
@@ -35,6 +40,13 @@ export default class Radar extends Component<{}, { users: Map<string, User> }> {
     this.es?.close()
   }
 
+  onParcelClick = (e: MouseEvent, parcelId: number) => {
+    if (!this.props.teleportTo) return
+    e.preventDefault()
+    const info = getParcel(parcelId).value
+    new ParcelHelper(info ?? { id: parcelId }).spawnUrl().then((url) => this.props.teleportTo?.(url))
+  }
+
   render() {
     const byParcel = new Map<number | null, { uuid: string; avatar: AvatarRef | null }[]>()
     for (const [uuid, u] of this.state.users) {
@@ -43,25 +55,34 @@ export default class Radar extends Component<{}, { users: Map<string, User> }> {
       byParcel.get(key)!.push({ uuid, avatar: u.avatar })
     }
 
-    if (byParcel.size === 0) return <p>no one online</p>
+    if (byParcel.size === 0) return null
 
     return (
-      <ul class="radar">
-        {[...byParcel.entries()].map(([parcelId, users]) => {
-          const info = parcelId != null ? getParcel(parcelId).value : null
-          const label = info?.name || info?.address || (parcelId ? `parcel ${parcelId}` : 'somewhere')
-          return (
-            <li key={parcelId ?? 'none'}>
-              {parcelId ? <a href={`/parcels/${parcelId}`}>{label}</a> : <span>{label}</span>}
-              <ul>
-                {users.map(({ uuid, avatar }) => (
-                  <li key={uuid}>{avatar ? <AvatarLink avatar={avatar} /> : <span>anon</span>}</li>
-                ))}
-              </ul>
-            </li>
-          )
-        })}
-      </ul>
+      <>
+        <h3>Radar</h3>
+        <ul class="radar">
+          {[...byParcel.entries()].map(([parcelId, users]) => {
+            const info = parcelId != null ? getParcel(parcelId).value : null
+            const label = info?.name || info?.address || (parcelId ? `parcel ${parcelId}` : 'somewhere')
+            return (
+              <li key={parcelId ?? 'none'}>
+                {parcelId ? (
+                  <a href={`/parcels/${parcelId}`} onClick={(e) => this.onParcelClick(e, parcelId)}>
+                    {label}
+                  </a>
+                ) : (
+                  <span>{label}</span>
+                )}
+                <ul>
+                  {users.map(({ uuid, avatar }) => (
+                    <li key={uuid}>{avatar ? <AvatarLink avatar={avatar} /> : <span>anon</span>}</li>
+                  ))}
+                </ul>
+              </li>
+            )
+          })}
+        </ul>
+      </>
     )
   }
 }

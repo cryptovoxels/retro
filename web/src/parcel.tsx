@@ -30,40 +30,80 @@ export class Client extends Component<FrameProps, FrameState> {
   static wrapper: HTMLDivElement | null = null
   static parcelId: number | null = null
   static instance: Client = null!
+  static lastPeek: boolean | undefined
+
+  static playUrl(src: string | undefined, coords: string, peek: boolean): string {
+    const url = new URL(src ?? '/play', window.location.origin)
+    if (coords) {
+      url.searchParams.set('coords', coords)
+    }
+    if (peek) {
+      url.searchParams.set('ui', 'off')
+    } else {
+      url.searchParams.delete('ui')
+    }
+    return url.toString()
+  }
+
+  static syncUiMode(peek: boolean) {
+    const iframe = Client.wrapper?.querySelector('iframe') as HTMLIFrameElement | undefined
+    if (!iframe || !Client.instance) {
+      return
+    }
+    const next = Client.playUrl(iframe.src, Client.instance.props.coords, peek)
+    if (iframe.src !== next) {
+      iframe.src = next
+    }
+  }
+
+  static peekUrl(): string | null {
+    const id = Client.parcelId ?? Client.instance?.props.parcelId
+    if (id) {
+      return `/parcels/${id}`
+    }
+    const coords = Client.instance?.props.coords
+    if (coords) {
+      return `/play?coords=${coords}`
+    }
+    return null
+  }
 
   private create() {
     if (!canUseDom) {
       return
     }
 
+    const peek = !document.getElementsByClassName('client-placeholder')[0]
+    Client.lastPeek = peek
+
     const div = document.createElement('div')
     div.classList.add('magic-frame')
 
     const iframe = document.createElement('iframe')
-    iframe.src = this.props.src ?? '/play'
+    iframe.src = Client.playUrl(this.props.src, this.props.coords, peek)
     div.appendChild(iframe)
 
-    const block = document.createElement('div')
-    block.classList.add('block')
-    block.addEventListener('click', Client.onClick)
-    div.appendChild(block)
-
-    document.body.appendChild(div)
-    Client.wrapper = div
-    Client.updatePosition()
+    const hit = document.createElement('div')
+    hit.className = 'magic-frame-hit'
+    hit.addEventListener('click', Client.onHitClick)
+    div.appendChild(hit)
 
     const closeButton = document.createElement('button')
-    closeButton.id = 'magic-frame-close'
+    closeButton.className = 'magic-frame-close'
+    closeButton.type = 'button'
     closeButton.title = 'Close'
+    closeButton.setAttribute('aria-label', 'Close')
+    closeButton.textContent = '×'
     closeButton.onclick = (e) => {
       e.preventDefault()
       e.stopPropagation()
       Client.dispose()
     }
+    div.appendChild(closeButton)
 
-    closeButton.innerHTML = 'x'
-
-    block.appendChild(closeButton)
+    document.body.appendChild(div)
+    Client.wrapper = div
+    Client.updatePosition()
 
     // Listen for messages from the iframe
 
@@ -83,17 +123,17 @@ export class Client extends Component<FrameProps, FrameState> {
     })
   }
 
-  static onClick = () => {
-    console.log('clicked')
-
-    const target = document.querySelector('div.client-placeholder')
-
-    if (target) {
+  static onHitClick = (e: MouseEvent) => {
+    if (!Client.wrapper || Client.wrapper.classList.contains('attached')) {
       return
     }
-
-    console.log('onClick: route to', `/parcels/${Client.parcelId}`)
-    route(`/parcels/${Client.parcelId}`)
+    if ((e.target as HTMLElement).closest('.magic-frame-close')) {
+      return
+    }
+    const url = Client.peekUrl()
+    if (url) {
+      route(url)
+    }
   }
 
   static updatePosition = () => {
@@ -130,13 +170,10 @@ export class Client extends Component<FrameProps, FrameState> {
       wrapper.classList.remove('attached')
     }
 
-    const closeDiv = document.getElementById('magic-frame-close')
-    if (closeDiv) {
-      if (wrapper.classList.contains('attached')) {
-        closeDiv.style.visibility = 'hidden'
-      } else {
-        closeDiv.style.visibility = 'visible'
-      }
+    const peek = !target
+    if (Client.lastPeek !== peek) {
+      Client.lastPeek = peek
+      Client.syncUiMode(peek)
     }
 
     requestAnimationFrame(Client.updatePosition)
@@ -147,6 +184,7 @@ export class Client extends Component<FrameProps, FrameState> {
       document.body.removeChild(Client.wrapper)
       Client.wrapper = null
       Client.instance = null!
+      Client.lastPeek = undefined
     }
   }
 
@@ -155,9 +193,8 @@ export class Client extends Component<FrameProps, FrameState> {
 
     if (!Client.wrapper) {
       this.create()
-      Client.instance = this
-      return
     }
+    Client.instance = this
   }
 
   componentDidMount() {
@@ -166,15 +203,13 @@ export class Client extends Component<FrameProps, FrameState> {
     }
 
     Client.parcelId = this.props.parcelId!
-    console.log('#componentDidMount: Client.parcelId', Client.parcelId)
 
     const iframe = Client.wrapper.querySelector('iframe')!
 
     try {
-      console.log('didMount: naviporting to', this.props.coords)
       iframe.contentWindow?.persona.naviport(this.props.coords)
     } catch (e) {
-      iframe.src = `/play?coords=${this.props.coords}`
+      iframe.src = Client.playUrl(undefined, this.props.coords, Client.lastPeek ?? true)
     }
   }
 
@@ -189,14 +224,11 @@ export class Client extends Component<FrameProps, FrameState> {
 
     if (this.props.parcelId != Client.parcelId) {
       Client.parcelId = this.props.parcelId!
-      console.log('#componentDidUpdate: Client.parcelId', Client.parcelId)
 
       if (document.activeElement === iframe) {
         return
       } else {
-        console.log('didUpdate: naviporting to', this.props.coords)
         iframe.contentWindow?.persona.naviport(this.props.coords)
-        // iframe.src = this.props.src
       }
     }
   }
@@ -585,7 +617,7 @@ export default class Parcel extends Component<Props, State> {
               <ul>
                 {this.state.parcel.parcel_users.map((u: any) => (
                   <li key={u.wallet}>
-                    <a href={`/u/${u.wallet}`}>{u.wallet.substring(0, 10)}...</a>
+                    <AvatarLink avatar={u} />
                   </li>
                 ))}
               </ul>

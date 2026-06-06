@@ -1,4 +1,4 @@
-\restrict Ie3SMC4agiorrcXjdC1UsvBVaLVu1FgEB0b6XNCsKRdh4aOfuV84MaGXQYIX1Nv
+\restrict nXd6WDwMoT9y7hAd5SudVkxUhtgjGUH7c0KBv8KG39AY0lmgmzyrweI95rXK5wu
 CREATE SCHEMA metrics;
 CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
@@ -359,6 +359,15 @@ CREATE SEQUENCE public.favorites_id_seq
     NO MAXVALUE
     CACHE 1;
 ALTER SEQUENCE public.favorites_id_seq OWNED BY public.favorites.id;
+CREATE TABLE public.guest_passes (
+    token text NOT NULL,
+    parcel_id integer NOT NULL,
+    feature_uuid text NOT NULL,
+    name text NOT NULL,
+    created_by text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    revoked_at timestamp with time zone
+);
 CREATE TABLE public.islands (
     id integer NOT NULL,
     name text,
@@ -742,6 +751,8 @@ ALTER TABLE ONLY public.emoji_badges
     ADD CONSTRAINT emoji_badges_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.favorites
     ADD CONSTRAINT favorites_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.guest_passes
+    ADD CONSTRAINT guest_passes_pkey PRIMARY KEY (token);
 ALTER TABLE ONLY public.islands
     ADD CONSTRAINT islands_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.jobs
@@ -808,6 +819,7 @@ CREATE INDEX destinator_index_mails ON public.mails USING btree (lower(destinato
 CREATE INDEX emoji_badges_index ON public.emoji_badges USING btree (emojiable_id, emojiable_type);
 CREATE INDEX emoji_badges_index_with_author ON public.emoji_badges USING btree (emojiable_id, emojiable_type, lower(author));
 CREATE INDEX events_index_parcel_id ON public.parcel_events USING btree (parcel_id);
+CREATE INDEX guest_passes_parcel_id_idx ON public.guest_passes USING btree (parcel_id);
 CREATE INDEX idx_avatars_lower_owner ON public.avatars USING btree (lower(owner));
 CREATE INDEX idx_avatars_name ON public.avatars USING btree (name);
 CREATE INDEX idx_avatars_owner_last_online ON public.avatars USING btree (lower(owner), last_online);
@@ -839,4 +851,4 @@ CREATE INDEX womps_author ON public.womps USING btree (lower(author));
 CREATE UNIQUE INDEX womps_id ON public.womps USING btree (id);
 CREATE INDEX womps_parcel_id ON public.womps USING btree (parcel_id);
 CREATE TRIGGER wearables_recalculate_total_wearables_trigger AFTER INSERT ON public.wearables FOR EACH ROW WHEN ((new.token_id IS NOT NULL)) EXECUTE FUNCTION public.recalculate_total_wearables();
-\unrestrict Ie3SMC4agiorrcXjdC1UsvBVaLVu1FgEB0b6XNCsKRdh4aOfuV84MaGXQYIX1Nv
+\unrestrict nXd6WDwMoT9y7hAd5SudVkxUhtgjGUH7c0KBv8KG39AY0lmgmzyrweI95rXK5wu

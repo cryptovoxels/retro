@@ -6,7 +6,6 @@ import { pluralize } from '../../common/helpers/english-helper'
 import { exitPointerLock, requestPointerLockIfNoOverlays } from '../../common/helpers/ui-helpers'
 import { copyTextToClipboard } from '../../common/helpers/utils'
 import { PanelType } from '../../web/src/components/panel'
-import { OwnerAndCollaboratorOnly } from '../../web/src/components/parcels/permissions'
 import { app, AppEvent } from '../../web/src/state'
 import GuestBook from '../features/guest-book'
 import type Parcel from '../parcel'
@@ -225,19 +224,17 @@ function Signers(props: { wallets: string[]; currentParcel: () => Parcel | undef
             })}
         </ul>
       </div>
-      <OwnerAndCollaboratorOnly parcel={parcel}>
-        {!!wallets.length && (
-          <div className="Center -no-flex">
-            <button onClick={cleanBook} title="Clean the guest book">
-              Reset Book
-            </button>
+      {!!wallets.length && (
+        <div className="Center -no-flex">
+          <button onClick={cleanBook} title="Clean the guest book">
+            Reset Book
+          </button>
 
-            <button onClick={copyToClipBoard} title="Copy all addresses separated by a comma">
-              Copy to clipboard
-            </button>
-          </div>
-        )}
-      </OwnerAndCollaboratorOnly>
+          <button onClick={copyToClipBoard} title="Copy all addresses separated by a comma">
+            Copy to clipboard
+          </button>
+        </div>
+      )}
     </div>
   )
 }

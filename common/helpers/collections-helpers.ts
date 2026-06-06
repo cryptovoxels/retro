@@ -102,7 +102,7 @@ export async function fetchUsersCollectiblesData(wallet: string | undefined, cac
       collection_name: null,
       gif: config.wearablePreviewURL(item.token_id?.toString() ?? '0', `Mock Item #${item.token_id}`),
       quantity: item.quantity ?? 0,
-      default_bone: undefined,
+      default_bone: typeof (item as any).default_bone == 'string' && (item as any).default_bone ? (item as any).default_bone : undefined,
       is_free: false,
     })
   }

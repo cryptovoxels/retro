@@ -14,6 +14,7 @@ import { createEvent, TypedEventTarget } from './utils/EventEmitter'
 import { ConnectionState } from './utils/socket-client'
 import { Transform } from './utils/transform'
 import { signal } from '@preact/signals'
+import { decodeCoords } from '../common/helpers/utils'
 
 const UPDATE_AVATAR_INTERVAL_MS = 200
 
@@ -415,6 +416,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   }
 
   send(message: messages.Message.ClientStateMessage): void {
+    if (!this.isOpen) return
     this.multiplayerClient.send(messages.encode(message))
   }
 
@@ -462,6 +464,8 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     const avatarRecord = message.description as unknown as AvatarRecord
 
     const avatar = await LoadAvatar(this.scene, this.parent, joined, message.uuid, avatarRecord)
+    // a position-only anon placeholder may have landed while we awaited the mesh; this identity is authoritative
+    this._avatarsByUuid.get(message.uuid)?.disposeLocal()
     this._avatarsByUuid.set(message.uuid, avatar)
 
     // if we have a transform, apply it (should be pretty rare)
@@ -526,14 +530,19 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       // received update for unknown avatar, will load a partial
       this.lazyAvatarDisposer.cancelDisposal(message.uuid)
 
-      avatar = await LoadAvatar(this.scene, this.parent, Date.now(), message.uuid, { name: '', wallet: null })
+      const placeholder = await LoadAvatar(this.scene, this.parent, Date.now(), message.uuid, { name: '', wallet: null })
 
-      if (!avatar) {
-        throw new Error(`Failed to load avatar ${message.uuid}`)
+      // a join/createAvatar carrying the real identity (name+wallet+costume) may have landed while we awaited
+      // the mesh load; if so, don't clobber it with this anon placeholder
+      const real = this._avatarsByUuid.get(message.uuid)
+      if (real) {
+        placeholder.disposeLocal()
+        avatar = real
+      } else {
+        avatar = placeholder
+        this._avatarsByUuid.set(message.uuid, avatar)
+        this.dispatchEvent(createEvent('avatar_joined', message.uuid))
       }
-
-      this._avatarsByUuid.set(message.uuid, avatar)
-      this.dispatchEvent(createEvent('avatar_joined', message.uuid))
     }
 
     avatar.move({
@@ -771,7 +780,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       return
     }
 
-    if (text.startsWith('/conga')) {
+    if (text.trim().toLowerCase().startsWith('/conga')) {
       this.handleConga(text)
       return
     }
@@ -803,8 +812,37 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     this.send(message)
   }
 
+  /** Shard chat blast when a showbox goes live (Watch link uses encoded coords). */
+  announceShowLive(hostName: string, location: string, encodedCoords: string) {
+    const name = hostName.trim()
+    const coords = encodedCoords.trim()
+    if (!name || !coords) return
+    const announcement: messages.ChatMessage = {
+      type: messages.MessageType.chat,
+      id: '',
+      uuid: this.persona.uuid,
+      text: entityEncode(`${name} is live at ${location}. [[show:${coords}]]`),
+    }
+    this.send(announcement)
+  }
+
+  /** Chat "Watch" link: teleport to the showbox, or open /play?coords= if that fails. */
+  joinShowFromInvitation(encodedCoords: string) {
+    const coords = encodedCoords.trim()
+    if (!coords) return
+    try {
+      this.persona.teleportNoHistory(decodeCoords(coords))
+    } catch {
+      try {
+        const url = `${window.location.origin}/play?coords=${encodeURIComponent(coords)}`
+        window.location.assign(url)
+      } catch {}
+    }
+  }
+
   /** Chat "Join" link or programmatic join: teleport if far, then follow the leader (uuid). */
   joinCongaFromInvitation(leaderUuid: string) {
+    if (leaderUuid === this.persona.uuid) return // you started this line; can't follow yourself
     if (this.inConga) {
       this.controls.stopConga()
     }

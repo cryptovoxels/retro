@@ -15,6 +15,45 @@ export const hasMetamask = (): boolean => {
   return !!ssrFriendlyWindow?.ethereum?.isMetaMask
 }
 
+const MM_LOGIN_KEY = 'voxels_mm_login'
+const MM_LOGIN_PARAM = 'mm_login'
+
+export function markMetamaskLoginPending() {
+  try {
+    sessionStorage.setItem(MM_LOGIN_KEY, '1')
+  } catch {}
+}
+
+// After metamask.app.link opens the in-app browser, auto-start wallet login instead of making users tap again.
+export function consumeMetamaskLoginPending(): boolean {
+  try {
+    const urlPending = new URL(location.href).searchParams.get(MM_LOGIN_PARAM) === '1'
+    const storePending = sessionStorage.getItem(MM_LOGIN_KEY) === '1'
+    if (!urlPending && !storePending) return false
+    sessionStorage.removeItem(MM_LOGIN_KEY)
+    const u = new URL(location.href)
+    if (u.searchParams.has(MM_LOGIN_PARAM)) {
+      u.searchParams.delete(MM_LOGIN_PARAM)
+      const qs = u.searchParams.toString()
+      history.replaceState(history.state, '', u.pathname + (qs ? `?${qs}` : '') + u.hash)
+    }
+    return true
+  } catch {
+    return false
+  }
+}
+
+// Mobile Safari/Chrome have no injected provider - open this page in MetaMask's in-app browser instead.
+export function openMetamaskMobileDapp() {
+  const loc = ssrFriendlyWindow?.location
+  if (!loc) return
+  markMetamaskLoginPending()
+  const u = new URL(loc.href)
+  u.searchParams.set(MM_LOGIN_PARAM, '1')
+  const dapp = `${u.host}${u.pathname}${u.search}`
+  loc.href = `https://metamask.app.link/dapp/${dapp}`
+}
+
 // ------------------------------------------
 // Chain Interaction helpers
 

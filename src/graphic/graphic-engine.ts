@@ -12,6 +12,7 @@ export enum GraphicLevels {
 
 export interface GraphicSettings {
   level: GraphicLevels
+  realisticLighting?: boolean
   // Custom preset granular controls
   customDrawDistance?: number
   customWaterQuality?: 'simple' | 'reflection'
@@ -34,6 +35,7 @@ export class GraphicEngine extends TypedEventTarget<{
   #customSharpening: boolean
   #customMaxActiveParcels: number
   #customFog: boolean
+  #realisticLighting: boolean
   public postProcesses?: PostProcesses
 
   constructor(engine: BABYLON.Engine) {
@@ -51,6 +53,7 @@ export class GraphicEngine extends TypedEventTarget<{
     this.#customSharpening = true
     this.#customMaxActiveParcels = 11
     this.#customFog = true
+    this.#realisticLighting = false
   }
 
   get level() {
@@ -89,6 +92,10 @@ export class GraphicEngine extends TypedEventTarget<{
     return this.#customFog
   }
 
+  get realisticLighting() {
+    return this.#realisticLighting
+  }
+
   private get devicePixelRatio() {
     return Math.min(2.0, window.devicePixelRatio || 1.0)
   }
@@ -109,6 +116,7 @@ export class GraphicEngine extends TypedEventTarget<{
 
   setSettings(settings: GraphicSettings) {
     this.#level = settings.level
+    if (settings.realisticLighting !== undefined) this.#realisticLighting = settings.realisticLighting
 
     // Update custom settings if provided (only for Custom level)
     if (settings.level === GraphicLevels.Custom) {
@@ -162,6 +170,7 @@ export class GraphicEngine extends TypedEventTarget<{
   getSettings(): GraphicSettings {
     return {
       level: this.#level,
+      realisticLighting: this.#realisticLighting,
       customDrawDistance: this.#customDrawDistance,
       customWaterQuality: this.#customWaterQuality,
       customGlowEffects: this.#customGlowEffects,

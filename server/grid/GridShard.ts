@@ -400,6 +400,10 @@ export default class GridShard {
 
     const broadcastResult: Record<string, unknown> = {}
     for (const [uuid, value] of Object.entries(msg.patch)) {
+      if (uuid === '__showbox_live') {
+        broadcastResult[uuid] = value
+        continue
+      }
       const feature = await this.getFeature(parcel, uuid)
       if (feature) {
         broadcastResult[uuid] = value

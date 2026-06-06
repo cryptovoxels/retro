@@ -115,6 +115,7 @@ const VoxelToolBelt = ({ parcel, scene }: Props) => {
     ui.voxelTool.tint = index
     setTint(index)
     setTintChooser(false)
+    activateBuildTool()
   }
 
   const selectTexture = (index: number) => {

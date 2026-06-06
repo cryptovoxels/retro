@@ -22,7 +22,7 @@ export default class Conduct extends Component<any, any> {
             <li value="4">Future changes to Code of Conduct</li>
           </ol>
           <div>
-            <img src="https://img.cryptovoxels.com/img.php?url=https://i.imgur.com/dtFLzUC.png" width="200" height="200" />
+            <img src="/images/excellent.webp" width="200" />
             <p>
               <em>
                 <strong>TL;DR</strong> Be excellent to each other!

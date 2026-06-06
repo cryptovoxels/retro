@@ -1,6 +1,6 @@
 import { ethers } from 'ethers'
 import { cameraPosition } from './utils/camera'
-import { throttle } from 'lodash'
+import { debounce, throttle } from 'lodash'
 import type { NdArray } from 'ndarray'
 import ndarray from 'ndarray'
 import { v7 as uuid } from 'uuid'
@@ -13,6 +13,8 @@ import { FeatureRecord } from '../common/messages/feature'
 import type { ParcelGeometry, ParcelKind, ParcelPatch, ParcelRecord, ParcelRef, ParcelSettings } from '../common/messages/parcel'
 import { getBufferFromVoxels, getFieldShape, getVoxelsFromBuffer } from '../common/voxels/helpers'
 import { VoxelSize } from '../common/voxels/mesher'
+import { buildCleanMesh } from './clean-mesher'
+import type { LanternRecord } from '../common/messages/feature'
 import { app } from '../web/src/state'
 import Autobuilder from './autobuild'
 import { createFeature } from './features/create'
@@ -107,6 +109,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   private fieldUpdateTimeout: NodeJS.Timeout | null = null
   private readonly afterGenerateCallbacks: (() => void)[] = []
   private readonly refreshVoxels: () => void
+  readonly relight: () => void
   private readonly soundSprite: BABYLON.Sound | null = null
   private readonly _parcelBouncer: ParcelBouncer
   private featuresLoaded = false
@@ -191,6 +194,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.content = record
 
     this.refreshVoxels = throttle(() => this.generate(), 10, { leading: false, trailing: true })
+    this.relight = debounce(() => this.generate(), 150)
 
     this.transform = new BABYLON.TransformNode(`parcel/${this.id}`, scene)
     this.transform.metadata = { isParcel: true }
@@ -503,6 +507,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
   sendStatePatch(patch: Record<string, any>) {
     if (this.sandbox) return
+    this.receiveStatePatch(patch)
     this.grid.patchParcelState(this.id, patch)
   }
 
@@ -677,6 +682,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // An out of date hash can cause snapshot switching to fail. Better just to have no hash at this point.
     this.invalidateHash()
     if (patch.features) {
+      let showboxRemoved = false
       for (const uuid in patch.features) {
         if (!Object.prototype.hasOwnProperty.call(patch.features, uuid)) continue
 
@@ -686,6 +692,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
         if (!value) {
           // DELETE
           if (feature) {
+            if (feature.type === 'showbox') showboxRemoved = true
             const i = this.featuresList.indexOf(feature)
             if (i > -1) {
               this.featuresList.splice(i, 1)
@@ -700,6 +707,12 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
           // todo: if feature value is only partial then the create might fail
           this.createFeature(value as FeatureRecord).then()
         }
+      }
+      // deleting a showbox can promote the next one to primary - refresh all showboxes
+      if (showboxRemoved) {
+        this.featuresList.forEach((f) => {
+          if (f?.type === 'showbox') (f as any).reconcileActiveStream?.()
+        })
       }
     }
     if (patch.voxels) {
@@ -735,7 +748,14 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   receiveStatePatch(patch: Record<string, Partial<FeatureRecord>>) {
+    const showboxLiveMoved = '__showbox_live' in patch
+    if (showboxLiveMoved) {
+      const live = (patch as Record<string, any>).__showbox_live
+      if (live == null) delete (this.state as any).__showbox_live
+      else (this.state as any).__showbox_live = live
+    }
     Object.entries(patch).forEach(([uuid, value]) => {
+      if (uuid === '__showbox_live') return
       const feature = this.getFeatureByUuid(uuid)
 
       // cache the value in case the feature hasn't loaded yet
@@ -744,6 +764,11 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
         feature.receiveState(value)
       }
     })
+    if (showboxLiveMoved) {
+      this.featuresList.forEach((f) => {
+        if (f?.type === 'showbox') (f as any).reconcileActiveStream?.()
+      })
+    }
   }
 
   updateLodDistance(distance: number) {
@@ -1048,7 +1073,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       await this.awaitVoxelMesh()
     }
 
-    if (this.voxelMesh && !this.isBaked) {
+    if (this.voxelMesh && !this.isBaked && !window.graphic?.realisticLighting) {
       // Load tileset for unbaked parcels. Baked parcels already have the lightmap
       // shader material applied by setLightBakedMaterial; stomping it here applies
       // the unbaked shader to a mesh missing the `ambientOcclusion` attribute, which
@@ -1364,12 +1389,14 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       return
     }
 
-    const material = this.voxelMesh.material as BABYLON.ShaderMaterial
+    // todo - disabled brightness toggle
 
-    // regenerate if we are still using greedy blocks so that we don't change the brightness of surrounding parcels
-    if (isShared(material)) return this.refreshVoxels()
+    // const material = this.voxelMesh.material as BABYLON.ShaderMaterial
 
-    material.setFloat('brightness', this.brightness || window.environment?.brightness || 1.5)
+    // // regenerate if we are still using greedy blocks so that we don't change the brightness of surrounding parcels
+    // if (isShared(material)) return this.refreshVoxels()
+
+    // material.setFloat('brightness', this.brightness || window.environment?.brightness || 1.5)
   }
 
   /**
@@ -1481,6 +1508,25 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   async generateVoxelField() {
     if (!this.voxels || this.voxels.trim() === '') {
       console.debug(`Skipping meshing for parcel ${this.id} - no voxel data`)
+      return
+    }
+
+    if (window.graphic?.realisticLighting && this.field) {
+      const lanterns = this.features.filter((f) => f.type === 'lantern') as LanternRecord[]
+      // Y matches setVoxelMesh so voxel.ts pick/place math is correct
+      const off: [number, number, number] = [-this.width / 4 + 0.25, -0.75 + this.ZFightingNudge, -this.depth / 4 + 0.25]
+      const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id, this.paletteColors, this.tilesetTexture ?? undefined)
+      this.voxelMesh?.dispose()
+      this.voxelMesh = opaque
+      opaque.parent = this.transform
+      opaque.position.set(off[0], off[1], off[2])
+      opaque.isPickable = true
+      opaque.checkCollisions = opaque.getTotalVertices() !== 0
+      opaque.freezeWorldMatrix()
+      if (glass) {
+        this.setGlassMesh(glass, { collidable: false, pickable: false })
+      }
+      this.dispatchEvent(createEvent('MeshLoaded', opaque))
       return
     }
 

@@ -309,6 +309,7 @@ function roundHalf(value: number) {
 
 type FeaturePlayCoordsOpts = { standoff?: number; lateral?: number }
 
+// Parcel center + feature position/rotation -> play coords string (same math as inspect-feature teleport).
 export function featurePlayCoords(parcel: ParcelHelper, position: [number, number, number], rotation?: [number, number, number] | null, opts?: FeaturePlayCoordsOpts): string {
   const standoff = opts?.standoff ?? 0
   const lateral = opts?.lateral ?? 0
@@ -337,6 +338,7 @@ export function featurePlayCoordsFromRecord(parcel: Partial<FullParcelRecord> | 
   return featurePlayCoords(helper, position, rotation, opts)
 }
 
+// Showbox links: parcel floor Y. Lateral matches co-host layout (host/solo guest left, co-host guest right).
 const SHOWBOX_BROADCAST_STANDOFF = 1.5
 const SHOWBOX_AUDIENCE_STANDOFF = 3.5
 const SHOWBOX_HOST_LATERAL = -1
@@ -356,10 +358,16 @@ export function showboxHostPlayCoordsFromRecord(parcel: Partial<FullParcelRecord
   return showboxSpawnCoords(parcel, feature, { standoff: SHOWBOX_BROADCAST_STANDOFF, lateral: SHOWBOX_HOST_LATERAL })
 }
 
+// Host go-live: one parcel, close draw, optional bare UI on mobile (matches guest broadcast links).
 export function showboxHostPlayQuery(coords: string, featureUuid: string, mobileUiOff = false): string {
   const qs = new URLSearchParams({ coords, show: featureUuid, host: '1', isolate: 'true', distance: 'close' })
   if (mobileUiOff) qs.set('ui', 'off')
   return qs.toString()
+}
+
+export function showboxGuestPlayCoordsFromRecord(parcel: Partial<FullParcelRecord> | ParcelHelper, feature: { position?: number[] | null; rotation?: number[] | null; guestMode?: string | null }) {
+  const lateral = feature.guestMode === 'cohost' ? SHOWBOX_GUEST_LATERAL : SHOWBOX_HOST_LATERAL
+  return showboxSpawnCoords(parcel, feature, { standoff: SHOWBOX_BROADCAST_STANDOFF, lateral })
 }
 
 export function showboxAudiencePlayCoordsFromRecord(parcel: Partial<FullParcelRecord> | ParcelHelper, feature: { position?: number[] | null; rotation?: number[] | null }) {

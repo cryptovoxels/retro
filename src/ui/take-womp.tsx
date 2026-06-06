@@ -102,16 +102,17 @@ export default class TakeWomp extends Component<Props, State> {
 
     engine.resize(true)
 
-    const image = await BABYLON.ScreenshotTools.CreateScreenshotAsync(engine, scene.activeCamera, WompSize, 'image/jpeg')
-
-    // restore the canvas size..
-    canvas.style.width = currentCanvasSizeWidth
-    canvas.style.height = currentCanvasSizeHeight
-
-    engine.resize(true)
-
-    // and make sure to restore the minimap!
-    minimapSettings.hide = false
+    let image: string
+    try {
+      image = await BABYLON.ScreenshotTools.CreateScreenshotAsync(engine, scene.activeCamera, WompSize, 'image/jpeg')
+    } finally {
+      // always restore the canvas size and minimap, even if the screenshot throws,
+      // otherwise the minimap stays hidden/disposed while its controls remain visible
+      canvas.style.width = currentCanvasSizeWidth
+      canvas.style.height = currentCanvasSizeHeight
+      engine.resize(true)
+      minimapSettings.hide = false
+    }
 
     openPostWompUI(coords, parcel, image, scene)
   }

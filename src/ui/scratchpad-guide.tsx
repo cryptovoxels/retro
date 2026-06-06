@@ -111,7 +111,7 @@ export function ScratchpadGuide({ voxelTool, onComplete }: ScratchpadGuideProps)
                   <p class="hint">{step.hint}</p>
                   {'upsell' in step && step.upsell && (
                     <p class="hint">
-                      <a href="/parcels/new" target="_top">
+                      <a href="https://opensea.io/collection/cryptovoxels" target="_top">
                         get a parcel
                       </a>
                     </p>
