@@ -185,10 +185,6 @@ function viewerCountLabel(n: number) {
   return n === 1 ? '1 viewer' : `${n} viewers`
 }
 
-function audienceFromRoomTotal(total: number, cohostBroadcaster: boolean) {
-  return Math.max(0, total - (cohostBroadcaster ? 2 : 1))
-}
-
 function isSelfConnection(identity: string, hostWallet: string) {
   if (!hostWallet) return false
   return cohostIdentityPrefix(identity).toLowerCase() === hostWallet.toLowerCase()
@@ -209,14 +205,17 @@ function participantLabel(identity: string, radarNames: Map<string, string>) {
 
 function audienceFromRoom(room: Room | null, hostWallet: string, radarNames: Map<string, string>) {
   if (!room) return []
-  const lines: { id: string; name: string }[] = []
-  for (const p of (room as any).remoteParticipants?.values() ?? []) {
-    const identity = p?.identity ?? ''
+  const byWallet = new Map<string, string>()
+  for (const p of room.remoteParticipants.values()) {
+    const identity = p.identity ?? ''
     if (!identity || isSelfConnection(identity, hostWallet)) continue
-    lines.push({ id: identity, name: participantLabel(identity, radarNames) })
+    const wallet = cohostIdentityPrefix(identity).toLowerCase()
+    if (!wallet) continue
+    byWallet.set(wallet, participantLabel(identity, radarNames))
   }
-  lines.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
-  return lines
+  return [...byWallet.entries()]
+    .map(([id, name]) => ({ id, name }))
+    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
 }
 
 function radarParcelLabel(avatar: any, hostWallet: string): string | null {
@@ -637,27 +636,23 @@ export default function GoLiveBroadcast() {
     previewSync.current = wireDockPreview(wrap, el, mobile, () => flipFacingRef.current)
   }, [live, remoteCohostLive, isCohost, loading])
 
-  const refreshViewers = async () => {
+  const refreshViewers = () => {
     const hostWallet = (app.state.wallet || '').toLowerCase()
     const lkLines = audienceFromRoom(broadcastRoom.current, hostWallet, radarNames.current)
 
-    let apiAudience = 0
-    try {
-      const r = await fetch(`/api/rooms/${roomName}`, { credentials: 'include', cache: 'no-store' })
-      const j = await r.json().catch(() => null)
-      if (j?.room) apiAudience = audienceFromRoomTotal(j.room.numParticipants ?? 0, isCohost)
-    } catch {}
-
     const merged = new Map<string, string>()
     for (const [uuid, name] of parcelPresence.current) merged.set(uuid, name)
-    for (const l of lkLines) merged.set(l.id, l.name)
+    for (const l of lkLines) {
+      if (radarNames.current.has(l.id)) continue
+      merged.set(`lk:${l.id}`, l.name)
+    }
 
     const lines = [...merged.entries()]
       .map(([id, name]) => ({ id, name }))
       .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
 
     setViewerLines(lines)
-    setViewers(Math.max(apiAudience, lines.length))
+    setViewers(lines.length)
   }
 
   useEffect(() => {
@@ -668,28 +663,32 @@ export default function GoLiveBroadcast() {
       const names = new Map<string, string>()
       const presence = new Map<string, string>()
       for (const u of users ?? []) {
-        if (u?.parcel !== parcelId || !u?.uuid) continue
+        if (Number(u?.parcel) !== parcelId || !u?.uuid) continue
         const label = radarParcelLabel(u.avatar, hostWallet)
         if (!label) continue
         presence.set(u.uuid, label)
         const wallet = (typeof u.avatar === 'string' ? u.avatar : u.avatar?.owner)?.toLowerCase()
-        if (wallet && typeof u.avatar === 'object' && u.avatar?.name?.trim()) names.set(wallet, label)
+        if (wallet) names.set(wallet, label)
       }
       radarNames.current = names
       parcelPresence.current = presence
-      void refreshViewers()
+      refreshViewers()
     }
 
     const applyRadarMove = (u: any) => {
       if (!u?.uuid) return
-      if (u.parcel !== parcelId) {
+      if (Number(u.parcel) !== parcelId) {
         parcelPresence.current.delete(u.uuid)
       } else {
         const label = radarParcelLabel(u.avatar, hostWallet)
         if (!label) parcelPresence.current.delete(u.uuid)
-        else parcelPresence.current.set(u.uuid, label)
+        else {
+          parcelPresence.current.set(u.uuid, label)
+          const wallet = (typeof u.avatar === 'string' ? u.avatar : u.avatar?.owner)?.toLowerCase()
+          if (wallet) radarNames.current.set(wallet, label)
+        }
       }
-      void refreshViewers()
+      refreshViewers()
     }
 
     const es = new EventSource('/api/users/live')
@@ -700,7 +699,7 @@ export default function GoLiveBroadcast() {
         else if (msg.type === 'move') applyRadarMove(msg)
         else if (msg.type === 'leave') {
           if (msg.uuid) parcelPresence.current.delete(msg.uuid)
-          void refreshViewers()
+          refreshViewers()
         }
       } catch {}
     }
@@ -710,8 +709,8 @@ export default function GoLiveBroadcast() {
   useEffect(() => {
     if (!live) return
     const t = setInterval(() => setElapsed(Date.now() - liveStartedAt.current), 1000)
-    void refreshViewers()
-    const v = setInterval(() => void refreshViewers(), 4000)
+    refreshViewers()
+    const v = setInterval(() => refreshViewers(), 4000)
     return () => {
       clearInterval(t)
       clearInterval(v)
@@ -975,10 +974,10 @@ export default function GoLiveBroadcast() {
       await room.connect(LIVEKIT_URL, res.token)
       await setShowboxLive(true)
 
-      const bumpViewers = () => void refreshViewers()
+      const bumpViewers = () => refreshViewers()
       room.on(RoomEvent.ParticipantConnected, bumpViewers)
       room.on(RoomEvent.ParticipantDisconnected, bumpViewers)
-      void refreshViewers()
+      refreshViewers()
 
       for (const t of tracks) await room.localParticipant.publishTrack(t)
 
