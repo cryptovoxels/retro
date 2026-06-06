@@ -1163,3 +1163,372 @@ table.spaces {
     list-style: none;
   }
 }
+
+// light go-live: no site chrome, showbox dock skin
+.showbox-light-shell {
+  padding: 0;
+  margin: 0;
+  max-width: none;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: #0d0d0d;
+}
+
+.showbox-dock {
+  position: fixed;
+  z-index: 999999;
+  background: #0d0d0d;
+  color: #f5f5f0;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Source Code Pro', monospace;
+  box-sizing: border-box;
+
+  * {
+    box-sizing: border-box;
+  }
+
+  label {
+    display: block;
+    color: #888;
+    margin-bottom: 2px;
+  }
+
+  input[type='text'],
+  select {
+    width: 100%;
+    background: #1a1a1a;
+    color: #f5f5f0;
+    border: 1px solid #333;
+    padding: 8px;
+    font-family: inherit;
+    min-height: 36px;
+  }
+
+  select {
+    padding: 4px;
+  }
+}
+
+.showbox-dock-mobile {
+  inset: 0;
+  padding: 1.25rem;
+  gap: 0.5rem;
+  font-size: 15px;
+  overflow-y: auto;
+
+  &.showbox-dock-live {
+    padding: 0.75rem;
+    padding-bottom: max(6px, env(safe-area-inset-bottom));
+    overflow: hidden;
+
+    .showbox-dock-title,
+    .showbox-dock-hint {
+      display: none;
+    }
+  }
+
+  &.showbox-dock-live .showbox-dock-chat-block {
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
+  &.showbox-dock-live .showbox-dock-chat-reply {
+    position: sticky;
+    bottom: 0;
+    z-index: 2;
+    background: #0d0d0d;
+  }
+
+  &.showbox-dock-live.showbox-dock-chat-focus {
+    .showbox-dock-live-tools,
+    .showbox-dock-link-btn,
+    .showbox-dock-footer,
+    .showbox-dock-share-block {
+      display: none;
+    }
+
+    .showbox-dock-chat-reply {
+      position: sticky;
+      bottom: 0;
+      z-index: 3;
+      background: #0d0d0d;
+      padding-bottom: max(6px, env(safe-area-inset-bottom));
+    }
+  }
+}
+
+.showbox-dock-desktop {
+  width: 340px;
+  padding: 1rem;
+  gap: 0.75rem;
+  font-size: 13px;
+  overflow-y: auto;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.6);
+
+  &.showbox-dock-setup {
+    top: 50%;
+    left: 50%;
+    right: auto;
+    transform: translate(-50%, -50%);
+    max-height: 85vh;
+  }
+
+  &.showbox-dock-live {
+    top: 12px;
+    right: 12px;
+    left: auto;
+    transform: none;
+    max-height: calc(100vh - 24px);
+
+    .showbox-dock-chat-block {
+      flex: 1 1 0;
+      min-height: 120px;
+    }
+  }
+}
+
+.showbox-dock-title {
+  font-weight: bold;
+  font-size: 16px;
+}
+
+.showbox-dock-hint {
+  color: #888;
+  display: block;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.showbox-dock-live-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #dc1e1e;
+  font-weight: bold;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.showbox-dock-live-dot {
+  animation: showbox-live-pulse 1.2s ease-in-out infinite;
+}
+
+.showbox-dock-timer {
+  color: #f5f5f0;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+@keyframes showbox-live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+.showbox-dock-preview {
+  position: relative;
+  width: 100%;
+  background: #000;
+  overflow: hidden;
+  flex-shrink: 0;
+
+  &.mobile {
+    max-height: 18vh;
+    min-height: 80px;
+    aspect-ratio: 9 / 16;
+  }
+
+  &.desktop {
+    aspect-ratio: 16 / 9;
+  }
+}
+
+.showbox-dock-preview-label {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 2px 6px;
+  pointer-events: none;
+}
+
+.showbox-dock-device-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.showbox-dock-link-btn {
+  background: transparent;
+  color: #888;
+  border: 0;
+  padding: 4px 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  text-align: left;
+  text-decoration: underline;
+  flex-shrink: 0;
+}
+
+.showbox-dock-chat-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.showbox-dock-chat-box {
+  flex: 1 1 auto;
+  min-height: 64px;
+  overflow-y: auto;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  padding: 8px;
+  font-size: 14px;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.showbox-dock-chat-empty {
+  color: #888;
+}
+
+.showbox-dock-chat-who {
+  color: #f5b942;
+  font-weight: bold;
+}
+
+.showbox-dock-live-tools {
+  display: flex;
+  gap: 1rem;
+  flex-shrink: 0;
+}
+
+.showbox-dock-chat-reply {
+  display: flex;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  padding-top: 6px;
+  border-top: 1px solid #333;
+
+  input {
+    flex: 1;
+    background: #1a1a1a;
+    color: #f5f5f0;
+    border: 1px solid #666;
+    padding: 10px 8px;
+    font-family: inherit;
+    font-size: 16px;
+    min-height: 44px;
+  }
+
+  button {
+    background: #333;
+    color: #f5f5f0;
+    border: 0;
+    padding: 10px 14px;
+    font-family: inherit;
+    min-height: 44px;
+    flex-shrink: 0;
+    cursor: pointer;
+  }
+}
+
+.showbox-dock-share-block {
+  border-top: 1px solid #222;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.showbox-dock-share-row {
+  display: flex;
+  gap: 0.5rem;
+
+  input {
+    flex: 1;
+  }
+
+  button {
+    background: #333;
+    color: #f5f5f0;
+    border: 0;
+    padding: 8px 12px;
+    font-family: inherit;
+    min-height: 36px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+}
+
+.showbox-dock-status {
+  color: #888;
+  flex-shrink: 0;
+}
+
+.showbox-dock-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex-shrink: 0;
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
+
+.showbox-dock-footer-row {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.showbox-dock-share-btn {
+  background: #dc1e1e;
+  color: #f5f5f0;
+  border: 0;
+  padding: 8px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  font-weight: bold;
+  width: 100%;
+  min-height: 36px;
+}
+
+.showbox-dock-go {
+  background: #dc1e1e;
+  color: #f5f5f0;
+  border: 0;
+  padding: 12px 16px;
+  cursor: pointer;
+  font-family: inherit;
+  flex: 2;
+  min-height: 44px;
+  font-weight: bold;
+
+  &.stop {
+    background: #444;
+  }
+}
+
+.showbox-dock-cancel {
+  background: transparent;
+  color: #888;
+  border: 0;
+  padding: 4px 0;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 12px;
+  text-decoration: underline;
+  flex-shrink: 0;
+  align-self: center;
+}

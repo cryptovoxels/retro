@@ -791,6 +791,23 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     return this.featuresList.filter((f) => f && f.type === type)
   }
 
+  // First non-angle showbox in parcel content order (not featuresList load order).
+  primaryShowboxUuid(): string | null {
+    for (const f of this.features) {
+      if (!f || f.type !== 'showbox' || !f.uuid || f.angleMode) continue
+      return f.uuid
+    }
+    for (const f of this.features) {
+      if (f?.type === 'showbox' && f.uuid) return f.uuid
+    }
+    return null
+  }
+
+  primaryShowbox(): Feature | undefined {
+    const id = this.primaryShowboxUuid()
+    return id ? this.getFeatureByUuid(id) : undefined
+  }
+
   update(record: Record<string, any>) {
     // legacy
     delete record.contributors

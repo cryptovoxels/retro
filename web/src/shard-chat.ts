@@ -1,12 +1,13 @@
 import { v7 as uuid } from 'uuid'
 import Cookies from 'js-cookie'
 import { signal } from '@preact/signals'
+import { avatarName } from '../../common/messages/avatar-ref'
 import * as messages from '../../common/messages'
 import { app } from './state'
 
 const clientUUID = uuid()
 
-export type ShardChatLine = { text: string; uuid?: string }
+export type ShardChatLine = { text: string; uuid?: string; who?: string }
 
 export const chatMessages = signal<ShardChatLine[]>([])
 
@@ -65,7 +66,8 @@ export function connectShardChat() {
       if (result.message.type !== messages.MessageType.chat) return
       const m = result.message
       const text = entityDecode(m.text)
-      chatMessages.value = [...chatMessages.value, { text, uuid: m.uuid }]
+      const who = m.avatar ? avatarName(m.avatar) : undefined
+      chatMessages.value = [...chatMessages.value, { text, uuid: m.uuid, who }]
     } catch {}
   }
 
@@ -85,13 +87,17 @@ export function disconnectShardChat() {
 
 export function sendChat(text: string) {
   const trimmed = text.trim()
-  if (!trimmed) return
+  if (!trimmed) return false
+  const who = (app.state.name || '').trim() || undefined
+  // mp publish skips the sender - show our line locally so reply feels instant
+  chatMessages.value = [...chatMessages.value, { text: trimmed, who }]
   send({
     type: messages.MessageType.chat,
     id: '',
     uuid: clientUUID,
     text: trimmed,
   })
+  return true
 }
 
 export function announceShowLive(hostName: string, location: string, encodedCoords: string) {

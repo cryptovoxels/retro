@@ -423,8 +423,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   isMirror() {
-    const boxes = this.parcel.getFeaturesByType('showbox')
-    return boxes.length > 1 && boxes[0]?.uuid !== this.uuid
+    const primary = this.parcel.primaryShowboxUuid()
+    return !!primary && primary !== this.uuid
   }
 
   // a mirror shows the primary showbox video (muted) whenever a stream is live on the parcel.
@@ -441,7 +441,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     for (const p of (this.livekitRoom as any)?.participants?.values() ?? []) {
       if (p.videoTracks?.size > 0) return true
     }
-    const primary = this.parcel.getFeaturesByType('showbox')[0] as any
+    const primary = this.parcel.primaryShowbox() as any
     return (primary?.broadcastRoom?.localParticipant?.videoTracks?.size ?? 0) > 0
   }
 
@@ -692,7 +692,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
     }
     // our own broadcast isn't a remote participant on this client - read it off the primary showbox
-    const local = (this.parcel.getFeaturesByType('showbox')[0] as any)?.broadcastRoom?.localParticipant
+    const local = (this.parcel.primaryShowbox() as any)?.broadcastRoom?.localParticipant
     for (const pub of local?.videoTracks?.values() ?? []) {
       consider(pub.track, local.identity, pub.trackName)
     }
@@ -1767,7 +1767,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         let opener: Showbox = this
         if (this.isMirror()) {
-          const primary = this.parcel.getFeaturesByType('showbox')[0] as Showbox | undefined
+          const primary = this.parcel.primaryShowbox() as Showbox | undefined
           if (primary?.uuid && primary.uuid !== this.uuid) opener = primary
         }
         if (opener.broadcastPanel || opener.joinDockAutoOpened) return true
@@ -1831,7 +1831,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         let opener: Showbox = this
         if (this.isMirror()) {
-          const primary = this.parcel.getFeaturesByType('showbox')[0] as Showbox | undefined
+          const primary = this.parcel.primaryShowbox() as Showbox | undefined
           if (primary?.uuid && primary.uuid !== this.uuid) opener = primary
         }
         if (opener.broadcastPanel) return
