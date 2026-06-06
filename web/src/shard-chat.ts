@@ -1,13 +1,20 @@
 import { v7 as uuid } from 'uuid'
 import Cookies from 'js-cookie'
 import { signal } from '@preact/signals'
-import { avatarName } from '../../common/messages/avatar-ref'
+import { avatarName, type AvatarRef } from '../../common/messages/avatar-ref'
 import * as messages from '../../common/messages'
 import { app } from './state'
 
 const clientUUID = uuid()
 
 export type ShardChatLine = { text: string; uuid?: string; who?: string }
+
+function chatLineName(avatar?: AvatarRef): string {
+  if (!avatar) return 'anon'
+  if (typeof avatar === 'object') return avatar.name || 'anon'
+  const n = avatarName(avatar)
+  return n === '...' ? 'anon' : n
+}
 
 export const chatMessages = signal<ShardChatLine[]>([])
 
@@ -66,7 +73,7 @@ export function connectShardChat() {
       if (result.message.type !== messages.MessageType.chat) return
       const m = result.message
       const text = entityDecode(m.text)
-      const who = m.avatar ? avatarName(m.avatar) : undefined
+      const who = chatLineName(m.avatar)
       chatMessages.value = [...chatMessages.value, { text, uuid: m.uuid, who }]
     } catch {}
   }
@@ -89,7 +96,7 @@ export function sendChat(text: string) {
   const trimmed = text.trim()
   if (!trimmed) return false
   if (!ws || ws.readyState !== WebSocket.OPEN) connectShardChat()
-  const who = (app.state.name || '').trim() || undefined
+  const who = (app.state.name || '').trim() || 'anon'
   // mp publish skips the sender - show our line locally so reply feels instant
   chatMessages.value = [...chatMessages.value, { text: trimmed, who }]
   send({
