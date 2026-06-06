@@ -17,7 +17,7 @@ const LIVEKIT_URL = 'https://voxels-7pvk06qt.livekit.cloud'
 const mobile = isMobile()
 
 function showboxMobileCameraConstraints(facing: 'user' | 'environment' = 'user') {
-  return { facingMode: facing, aspectRatio: { ideal: 9 / 16 } }
+  return { facingMode: facing, aspectRatio: { ideal: 16 / 9 } }
 }
 
 async function restartMobileCameraTrack(track: any, facing: 'user' | 'environment') {
@@ -53,8 +53,8 @@ function wireDockPreview(wrap: HTMLElement, el: HTMLVideoElement, mobilePreview:
     el.removeAttribute('width')
     el.removeAttribute('height')
     if (mobilePreview) {
-      wrap.style.aspectRatio = '9 / 16'
-      el.style.objectFit = 'cover'
+      wrap.style.aspectRatio = '16 / 9'
+      el.style.objectFit = 'contain'
       return
     }
     const w = el.videoWidth
