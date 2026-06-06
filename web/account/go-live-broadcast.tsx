@@ -5,6 +5,7 @@ import { effect } from '@preact/signals'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { isMobile } from '../../common/helpers/detector'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
+import { avatarName } from '../../common/messages/avatar-ref'
 import { Login } from '../src/auth/login'
 import cachedFetch from '../src/helpers/cached-fetch'
 import { announceShowLive, chatMessages, connectShardChat, disconnectShardChat, sendChat } from '../src/shard-chat'
@@ -146,10 +147,63 @@ function parcelEditorWallets(parcel: any): string[] {
   return [...out]
 }
 
+function canManageGuestPasses(parcel: any): boolean {
+  const wallet = app.state.wallet?.toLowerCase()
+  if (!wallet || !parcel) return false
+  return parcelEditorWallets(parcel).includes(wallet)
+}
+
 function formatTimer(ms: number) {
   const s = Math.floor(ms / 1000)
   const m = Math.floor(s / 60)
   return `${m}:${String(s % 60).padStart(2, '0')}`
+}
+
+function viewerCountLabel(n: number) {
+  return n === 1 ? '1 viewer' : `${n} viewers`
+}
+
+function broadcastRoomTotal(room: Room | null): number {
+  if (!room) return 0
+  try {
+    const remotes = (room as any).remoteParticipants?.size ?? (room as any).participants?.size ?? 0
+    if (typeof remotes === 'number') return remotes + 1
+  } catch {}
+  return 0
+}
+
+function audienceFromRoomTotal(total: number, cohostBroadcaster: boolean) {
+  return Math.max(0, total - (cohostBroadcaster ? 2 : 1))
+}
+
+function isSelfConnection(identity: string, hostWallet: string) {
+  if (!hostWallet) return false
+  return cohostIdentityPrefix(identity).toLowerCase() === hostWallet.toLowerCase()
+}
+
+function participantLabel(identity: string, radarNames: Map<string, string>) {
+  const prefix = cohostIdentityPrefix(identity).toLowerCase()
+  if (prefix.startsWith('guest-')) return 'co-host'
+  const named = radarNames.get(prefix)
+  if (named) return named
+  if (prefix.startsWith('anon-') || prefix === 'anon') return 'anon'
+  if (prefix.startsWith('0x')) {
+    const n = avatarName(prefix)
+    return n === '...' ? 'anon' : n
+  }
+  return 'anon'
+}
+
+function audienceFromRoom(room: Room | null, hostWallet: string, radarNames: Map<string, string>) {
+  if (!room) return []
+  const lines: { id: string; name: string }[] = []
+  for (const p of (room as any).remoteParticipants?.values() ?? []) {
+    const identity = p?.identity ?? ''
+    if (!identity || isSelfConnection(identity, hostWallet)) continue
+    lines.push({ id: identity, name: participantLabel(identity, radarNames) })
+  }
+  lines.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+  return lines
 }
 
 function parcelFeature(parcel: any, showUuid: string) {
@@ -376,6 +430,8 @@ export default function GoLiveBroadcast() {
   const [live, setLive] = useState(false)
   const [status, setStatus] = useState('tap go live when ready')
   const [viewers, setViewers] = useState(0)
+  const [viewerLines, setViewerLines] = useState<{ id: string; name: string }[]>([])
+  const [viewerListOpen, setViewerListOpen] = useState(false)
   const [elapsed, setElapsed] = useState(0)
   const [micOn, setMicOn] = useState(true)
   const [chatDraft, setChatDraft] = useState('')
@@ -389,6 +445,8 @@ export default function GoLiveBroadcast() {
   const [flipFacing, setFlipFacing] = useState<'user' | 'environment'>('user')
   const [remoteCohostLive, setRemoteCohostLive] = useState(false)
   const [chatComposing, setChatComposing] = useState(false)
+  const [shareLinkKind, setShareLinkKind] = useState<'fan' | 'guest'>('fan')
+  const [sharePickOpen, setSharePickOpen] = useState(false)
   const [, setChatRev] = useState(0)
 
   const broadcastRoom = useRef<Room | null>(null)
@@ -407,8 +465,10 @@ export default function GoLiveBroadcast() {
   const dockRef = useRef<HTMLDivElement | null>(null)
   const chatBox = useRef<HTMLDivElement | null>(null)
   const chatInputRef = useRef<HTMLInputElement | null>(null)
+  const radarNames = useRef(new Map<string, string>())
 
   const isGuest = showUuid ? isGuestForShowbox(showUuid) : false
+  const canManageGuests = parcel ? canManageGuestPasses(parcel) : false
   const syntheticGuest = isGuest && isSyntheticGuestWallet()
   const guestMode = feature?.guestMode === 'solo' ? 'solo' : 'cohost'
   const isCohost = guestMode === 'cohost'
@@ -554,21 +614,62 @@ export default function GoLiveBroadcast() {
     previewSync.current = wireDockPreview(wrap, el, mobile)
   }, [live, remoteCohostLive, isCohost, loading])
 
+  const refreshViewers = async () => {
+    const hostWallet = (app.state.wallet || '').toLowerCase()
+    const lines = audienceFromRoom(broadcastRoom.current, hostWallet, radarNames.current)
+    if (lines.length || broadcastRoom.current) {
+      setViewerLines(lines)
+      setViewers(lines.length)
+      return
+    }
+    let total = broadcastRoomTotal(broadcastRoom.current)
+    if (total <= 0) {
+      try {
+        const r = await fetch(`/api/rooms/${roomName}`, { credentials: 'include', cache: 'no-store' })
+        const j = await r.json().catch(() => null)
+        total = j?.room?.numParticipants ?? 0
+      } catch {}
+    }
+    setViewerLines([])
+    setViewers(audienceFromRoomTotal(total, isCohost))
+  }
+
+  useEffect(() => {
+    if (!live) return
+    const ingestRadar = (users: any[]) => {
+      const next = new Map(radarNames.current)
+      for (const u of users) {
+        if (u?.parcel !== parcelId) continue
+        const av = u.avatar
+        const wallet = (typeof av === 'string' ? av : av?.owner)?.toLowerCase()
+        const name = typeof av === 'object' ? av?.name?.trim() : ''
+        if (wallet && name) next.set(wallet, name)
+      }
+      radarNames.current = next
+      void refreshViewers()
+    }
+    const es = new EventSource('/api/users/live')
+    es.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data)
+        if (msg.type === 'snapshot') ingestRadar(msg.users ?? [])
+        else if (msg.type === 'move' && msg.parcel === parcelId) ingestRadar([msg])
+        else if (msg.type === 'leave') void refreshViewers()
+      } catch {}
+    }
+    return () => es.close()
+  }, [live, parcelId])
+
   useEffect(() => {
     if (!live) return
     const t = setInterval(() => setElapsed(Date.now() - liveStartedAt.current), 1000)
-    const v = setInterval(async () => {
-      try {
-        const r = await fetch(`/api/rooms/${roomName}`, { credentials: 'include' })
-        const j = await r.json().catch(() => null)
-        setViewers(j?.room?.numParticipants ?? 0)
-      } catch {}
-    }, 5000)
+    void refreshViewers()
+    const v = setInterval(() => void refreshViewers(), 4000)
     return () => {
       clearInterval(t)
       clearInterval(v)
     }
-  }, [live, roomName])
+  }, [live, roomName, isCohost])
 
   const syncPreviewVideo = (track: any) => {
     const el = previewVideo.current
@@ -671,6 +772,9 @@ export default function GoLiveBroadcast() {
     liveAudioTrack.current = null
     setRemoteCohostLive(false)
     setLive(false)
+    setViewerListOpen(false)
+    setViewerLines([])
+    radarNames.current = new Map()
     void setShowboxLive(false)
   }
 
@@ -818,6 +922,11 @@ export default function GoLiveBroadcast() {
       await room.connect(LIVEKIT_URL, res.token)
       await setShowboxLive(true)
 
+      const bumpViewers = () => void refreshViewers()
+      room.on(RoomEvent.ParticipantConnected, bumpViewers)
+      room.on(RoomEvent.ParticipantDisconnected, bumpViewers)
+      void refreshViewers()
+
       for (const t of tracks) await room.localParticipant.publishTrack(t)
 
       liveStartedAt.current = Date.now()
@@ -893,14 +1002,75 @@ export default function GoLiveBroadcast() {
     }, 150)
   }
 
-  const shareFanLink = async () => {
+  const createGuestPassToken = async () => {
+    if (!canManageGuests) return null
+    try {
+      const r = await fetch(`/api/parcels/${parcelId}/guest-passes`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        cache: 'no-store',
+        body: JSON.stringify({ feature_uuid: showUuid }),
+      })
+      const j = await r.json().catch(() => null)
+      if (!r.ok || !j?.success) return null
+      return j.pass?.token ?? null
+    } catch {
+      return null
+    }
+  }
+
+  const resolveGuestShareUrl = async () => {
+    if (guestUrl) return guestUrl
+    let token: string | null = null
+    try {
+      const gr = await fetch(`/api/parcels/${parcelId}/guest-passes?feature_uuid=${encodeURIComponent(showUuid)}`, { credentials: 'include', cache: 'no-store' })
+      const gj = await gr.json().catch(() => null)
+      const pass = (gj?.passes ?? []).find((x: any) => !x.revoked_at)
+      token = pass?.token ?? null
+    } catch {}
+    if (!token && canManageGuests) {
+      if (!confirm('create a guest link?')) return null
+      token = await createGuestPassToken()
+      if (!token) {
+        setStatus('could not create guest link')
+        return null
+      }
+    }
+    if (!token) return null
+    const url = `${window.location.origin}/live/${token}?light=1`
+    setGuestUrl(url)
+    return url
+  }
+
+  const shareShowUrl = async (kind: 'fan' | 'guest') => {
+    if (kind === 'guest') {
+      const url = await resolveGuestShareUrl()
+      if (!url) {
+        if (!canManageGuests) setStatus('no guest link yet - ask someone with edit access')
+        return
+      }
+      const text = `Join my show in voxels - go live here: ${url}`
+      if (navigator.share) {
+        try {
+          await navigator.share({ title: 'voxels show', text, url })
+          return
+        } catch (e) {
+          if ((e as DOMException)?.name === 'AbortError') return
+        }
+      }
+      copyUrl(url)
+      return
+    }
     if (!fanUrl) return
     const text = `Going live in voxels - Teleport in! ${fanUrl}`
     if (navigator.share) {
       try {
-        await navigator.share({ text, url: fanUrl })
+        await navigator.share({ title: 'voxels show', text, url: fanUrl })
         return
-      } catch {}
+      } catch (e) {
+        if ((e as DOMException)?.name === 'AbortError') return
+      }
     }
     copyUrl(fanUrl)
   }
@@ -944,9 +1114,25 @@ export default function GoLiveBroadcast() {
       {live && (
         <>
           <div class="showbox-dock-live-head">
-            <span class="showbox-dock-live-dot">&#9679;</span> live <span>{viewers} viewers</span>
+            <span class="showbox-dock-live-dot">&#9679;</span> live{' '}
+            {mobile ? (
+              <button type="button" class="showbox-dock-viewer-count" onClick={() => setViewerListOpen(!viewerListOpen)}>
+                {viewerCountLabel(viewers)}
+              </button>
+            ) : (
+              <span>{viewerCountLabel(viewers)}</span>
+            )}
             <span class="showbox-dock-timer">{formatTimer(elapsed)}</span>
           </div>
+          {mobile && viewerListOpen && (
+            <div class="showbox-dock-viewer-list">
+              {viewerLines.length ? (
+                viewerLines.map((v) => <div key={v.id}>{v.name}</div>)
+              ) : (
+                <div class="showbox-dock-viewer-empty">no one watching yet</div>
+              )}
+            </div>
+          )}
 
           <div ref={previewWrap} class={`showbox-dock-preview ${mobile ? 'mobile' : 'desktop'}`}>
             {isCohost && remoteCohostLive ? (
@@ -1028,8 +1214,55 @@ export default function GoLiveBroadcast() {
       {!live && status && <div class="showbox-dock-status">{status}</div>}
 
       <div class="showbox-dock-footer">
-        {live && !isGuest && mobile && (
-          <button type="button" class="showbox-dock-share-btn" onClick={() => void shareFanLink()}>
+        {live && !isGuest && mobile && canManageGuests && (
+          <div class="showbox-dock-share-split">
+            {sharePickOpen && (
+              <div class="showbox-dock-share-menu">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShareLinkKind('fan')
+                    setSharePickOpen(false)
+                  }}
+                >
+                  fan link - for people watching
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShareLinkKind('guest')
+                    setSharePickOpen(false)
+                  }}
+                >
+                  guest link - for your co-host or DJ/Artist
+                </button>
+              </div>
+            )}
+            <button
+              type="button"
+              class="showbox-dock-share-main"
+              onClick={() => {
+                setSharePickOpen(false)
+                void shareShowUrl(shareLinkKind)
+              }}
+            >
+              {shareLinkKind === 'fan' ? 'share fan link' : 'share guest link'}
+            </button>
+            <button
+              type="button"
+              class="showbox-dock-share-pick"
+              title="pick fan or guest link"
+              onClick={(e) => {
+                e.stopPropagation()
+                setSharePickOpen(!sharePickOpen)
+              }}
+            >
+              v
+            </button>
+          </div>
+        )}
+        {live && !isGuest && mobile && !canManageGuests && (
+          <button type="button" class="showbox-dock-share-btn" onClick={() => void shareShowUrl('fan')}>
             share fan link
           </button>
         )}
