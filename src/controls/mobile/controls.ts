@@ -109,8 +109,16 @@ export function resetMobileViewportLayout() {
   document.body.style.height = ''
 }
 
+let skipMobileCanvasRefreshUntil = 0
+
+// native confirms and permission sheets: block global visibility resize until handoff settles
+export function holdMobileCanvasRefresh(ms: number) {
+  skipMobileCanvasRefreshUntil = Date.now() + ms
+}
+
 // share sheet / app switch can leave the babylon canvas blank until resize runs again
 export function refreshMobileCanvasAfterReturn() {
+  if (Date.now() < skipMobileCanvasRefreshUntil) return
   resetMobileViewportLayout()
   requestAnimationFrame(() => window.engine?.resize())
 }

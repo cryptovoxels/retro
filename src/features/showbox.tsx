@@ -2,7 +2,7 @@ import { Component, h } from 'preact'
 import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { isMobile } from '../../common/helpers/detector'
-import { refreshMobileCanvasAfterReturn } from '../controls/mobile/controls'
+import { holdMobileCanvasRefresh, refreshMobileCanvasAfterReturn } from '../controls/mobile/controls'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { encodeCoords } from '../../common/helpers/utils'
@@ -3242,9 +3242,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     goBtn.onclick = async () => {
       if (this.broadcastRoom) {
         if (mobile) {
-          const ok = confirm('stop streaming?')
-          refreshMobileCanvasAfterReturn()
-          if (!ok) return
+          holdMobileCanvasRefresh(3000)
+          if (!confirm('stop streaming?')) return
         }
         this.broadcastStopping = true
         this.cameraResumeGen++
