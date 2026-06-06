@@ -297,6 +297,75 @@ export default class ParcelHelper {
   }
 }
 
+const PLAY_HEADINGS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const
+
+function playMod(n: number, m: number) {
+  return ((n % m) + m) % m
+}
+
+function roundHalf(value: number) {
+  return Math.round(value * 2) / 2
+}
+
+type FeaturePlayCoordsOpts = { standoff?: number; lateral?: number }
+
+export function featurePlayCoords(parcel: ParcelHelper, position: [number, number, number], rotation?: [number, number, number] | null, opts?: FeaturePlayCoordsOpts): string {
+  const standoff = opts?.standoff ?? 0
+  const lateral = opts?.lateral ?? 0
+  const yaw = rotation?.[1] ?? 0
+  const px = position[0] - Math.sin(yaw) * standoff + Math.cos(yaw) * lateral
+  const py = position[1]
+  const pz = position[2] - Math.cos(yaw) * standoff - Math.sin(yaw) * lateral
+
+  const z = roundHalf(parcel.center[1] * 100 + pz)
+  const x = roundHalf(parcel.center[0] * 100 + px)
+  const y = roundHalf(parcel.y1 + (py - 0.25))
+
+  const parts = [x < 0 ? `${Math.abs(x)}W` : `${x}E`, z < 0 ? `${Math.abs(z)}S` : `${z}N`]
+  if (y > 0) parts.push(`${y}U`)
+
+  const i = playMod(Math.round(yaw / ((Math.PI * 2) / PLAY_HEADINGS.length)), PLAY_HEADINGS.length)
+  const heading = PLAY_HEADINGS[i]
+
+  return parts.length === 0 ? heading : `${heading}@${parts.join(',')}`
+}
+
+export function featurePlayCoordsFromRecord(parcel: Partial<FullParcelRecord> | ParcelHelper, feature: { position?: number[] | null; rotation?: number[] | null }, opts?: FeaturePlayCoordsOpts): string {
+  const helper = parcel instanceof ParcelHelper ? parcel : new ParcelHelper(parcel)
+  const position: [number, number, number] = [feature.position?.[0] ?? 0, feature.position?.[1] ?? 0, feature.position?.[2] ?? 0]
+  const rotation: [number, number, number] | null = feature.rotation ? [feature.rotation[0] ?? 0, feature.rotation[1] ?? 0, feature.rotation[2] ?? 0] : null
+  return featurePlayCoords(helper, position, rotation, opts)
+}
+
+const SHOWBOX_BROADCAST_STANDOFF = 1.5
+const SHOWBOX_AUDIENCE_STANDOFF = 3.5
+const SHOWBOX_HOST_LATERAL = -1
+const SHOWBOX_GUEST_LATERAL = 1
+const SHOWBOX_AUDIENCE_LATERAL = 0.75
+
+function showboxFloorFeature(feature: { position?: number[] | null; rotation?: number[] | null }) {
+  const position = feature.position
+  return { position: [position?.[0] ?? 0, 0, position?.[2] ?? 0] as [number, number, number], rotation: feature.rotation }
+}
+
+function showboxSpawnCoords(parcel: Partial<FullParcelRecord> | ParcelHelper, feature: { position?: number[] | null; rotation?: number[] | null }, opts: FeaturePlayCoordsOpts) {
+  return featurePlayCoordsFromRecord(parcel, showboxFloorFeature(feature), opts)
+}
+
+export function showboxHostPlayCoordsFromRecord(parcel: Partial<FullParcelRecord> | ParcelHelper, feature: { position?: number[] | null; rotation?: number[] | null }) {
+  return showboxSpawnCoords(parcel, feature, { standoff: SHOWBOX_BROADCAST_STANDOFF, lateral: SHOWBOX_HOST_LATERAL })
+}
+
+export function showboxHostPlayQuery(coords: string, featureUuid: string, mobileUiOff = false): string {
+  const qs = new URLSearchParams({ coords, show: featureUuid, host: '1', isolate: 'true', distance: 'close' })
+  if (mobileUiOff) qs.set('ui', 'off')
+  return qs.toString()
+}
+
+export function showboxAudiencePlayCoordsFromRecord(parcel: Partial<FullParcelRecord> | ParcelHelper, feature: { position?: number[] | null; rotation?: number[] | null }) {
+  return showboxSpawnCoords(parcel, feature, { standoff: SHOWBOX_AUDIENCE_STANDOFF, lateral: SHOWBOX_AUDIENCE_LATERAL })
+}
+
 export function getParcelHelper(parcel: MapParcelRecord | SingleParcelRecord) {
   return new ParcelHelper(parcel)
 }

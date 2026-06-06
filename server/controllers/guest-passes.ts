@@ -8,6 +8,8 @@ import Parcel from '../parcel'
 import { Db } from '../pg'
 import { VoxelsUserRequest } from '../user'
 import { RoomServiceClient } from 'livekit-server-sdk'
+import log from '../lib/logger'
+import type GridSocket from '../grid/GridSocket'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret'
 const JWT_SECRET_KEY = new TextEncoder().encode(JWT_SECRET)
@@ -33,8 +35,13 @@ function isMobileUserAgent(ua: string): boolean {
   return /mobile|android|iphone|ipad|ipod/i.test(ua)
 }
 
+function lightBroadcastPath(parcelId: number, featureUuid: string, guestPass?: string) {
+  const qs = new URLSearchParams({ parcel: String(parcelId), show: featureUuid, light: '1' })
+  if (guestPass) qs.set('guest_pass', guestPass)
+  return `/account/go-live/broadcast?${qs.toString()}`
+}
+
 // Broadcaster session only (/live/:token -> /play). Not for audience share links.
-// isolate + distance=close keep one parcel loaded; ui=off drops HUD so mobile can run live + showbox video.
 function guestBroadcastPlayQuery(parcelLocation: string, featureUuid: string, userAgent: string): string {
   const qs = new URLSearchParams({ coords: parcelLocation, show: featureUuid, isolate: 'true', distance: 'close' })
   if (isMobileUserAgent(userAgent)) qs.set('ui', 'off')
@@ -68,7 +75,49 @@ function noStoreJson(res: Response, body: Record<string, unknown>) {
   res.json(body)
 }
 
-export default function GuestPassesController(db: Db, passport: PassportStatic, app: Express, livekit: RoomServiceClient) {
+export default function GuestPassesController(db: Db, passport: PassportStatic, app: Express, livekit: RoomServiceClient, gridSocket: GridSocket) {
+  app.post('/api/parcels/:id/showbox-live', passport.authenticate(['jwt', 'anonymous'], { session: false }), async (req: VoxelsUserRequest, res: Response) => {
+    const parcelId = parseInt(req.params.id, 10)
+    if (isNaN(parcelId)) return res.status(400).json({ success: false, error: 'Invalid parcel id' })
+
+    const featureUuid = String(req.body?.feature_uuid ?? '').trim()
+    if (!featureUuid) return res.status(400).json({ success: false, error: 'feature_uuid required' })
+
+    const live = !!req.body?.live
+
+    const parcel = await Parcel.load(parcelId)
+    if (!parcel) return res.status(404).json({ success: false, error: 'Parcel not found' })
+
+    const feature = parcel.getFeaturesByType('showbox').find((f) => f.uuid?.toLowerCase() === featureUuid.toLowerCase())
+    if (!feature?.uuid) return res.status(400).json({ success: false, error: 'feature_uuid must reference a Showbox on this parcel' })
+
+    const user = req.user as (typeof req.user & { guest_pass?: string }) | undefined
+    let allowed = false
+    if (user?.wallet) {
+      const auth = await authParcel(parcel, user)
+      if (auth === 'Owner' || auth === 'Moderator' || auth === 'Collaborator') allowed = true
+    }
+    if (!allowed && user?.guest_pass) {
+      const pass = await loadGuestPass(db, user.guest_pass)
+      if (pass && !pass.revoked_at && pass.parcel_id === parcelId && pass.feature_uuid.toLowerCase() === featureUuid.toLowerCase()) {
+        allowed = true
+      }
+    }
+    if (!allowed) return res.status(403).json({ success: false, error: 'No permission to broadcast here' })
+
+    const patch: Record<string, unknown> = live
+      ? { [feature.uuid]: { live: 1 }, __showbox_live: feature.uuid }
+      : { [feature.uuid]: {}, __showbox_live: null }
+
+    try {
+      await gridSocket.publishParcelStatePatch(parcelId, patch)
+      return res.json({ success: true, live })
+    } catch (err) {
+      log.error('[showbox-live] patch failed', { parcelId, featureUuid, error: err })
+      return res.status(500).json({ success: false, error: 'Could not update showbox live state' })
+    }
+  })
+
   // List passes for a parcel - owner only
   app.get('/api/parcels/:id/guest-passes', passport.authenticate('jwt', { session: false }), async (req: VoxelsUserRequest, res: Response) => {
     const parcelId = parseInt(req.params.id, 10)
@@ -163,7 +212,6 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       return res.status(500).json({ success: false, error: 'Could not revoke link' })
     }
 
-    // Best-effort live kick: any participant whose identity carries a revoked pass prefix
     try {
       const roomName = `parcel-${parcelId}`
       const participants = await livekit.listParticipants(roomName)
@@ -175,16 +223,11 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
           }
         }
       }
-    } catch {
-      // room may not exist; nothing to kick
-    }
+    } catch {}
 
     noStoreJson(res, { success: true, pass: updated, passes })
   })
 
-  // Guest can update their own display name. Auth via the guest_pass jwt - if it doesn't match
-  // the pass in the path, reject. Updates both the pass row and the synthetic avatar row so the
-  // new name shows up on next page load for everyone in the parcel.
   app.patch('/api/guest/:token/name', passport.authenticate('jwt', { session: false }), async (req: VoxelsUserRequest, res: Response) => {
     const token = String(req.params.token)
     const user = req.user as (typeof req.user & { guest_pass?: string }) | undefined
@@ -209,7 +252,6 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
     res.json({ success: true, name })
   })
 
-  // Public: lookup pass info from token (used by the live page)
   app.get('/api/guest/:token', async (req, res) => {
     const pass = await loadGuestPass(db, String(req.params.token))
     if (!pass || pass.revoked_at) {
@@ -226,53 +268,60 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
     })
   })
 
-  // Public: redeem token, set jwt cookie with synthetic guest wallet, redirect into the parcel
   app.get('/live/:token', async (req, res) => {
     const token = String(req.params.token)
-    const pass = await loadGuestPass(db, token)
-    if (!pass || pass.revoked_at) {
-      return res.status(404).send('This guest link is no longer active. Ask the parcel owner for a fresh link.')
-    }
-
-    const parcel = await Parcel.load(pass.parcel_id)
-    if (!parcel) return res.status(404).send('Parcel not found')
-
-    const signedIn = walletFromJwtCookie(req)
-    if (signedIn?.wallet) {
-      const auth = await authParcel(parcel, signedIn as any)
-      if (auth === 'Owner' || auth === 'Moderator') {
-        return res.redirect(302, `/play?${hostJoinPlayQuery(parcel.location, pass.feature_uuid)}`)
+    const light = req.query.light === '1'
+    try {
+      const pass = await loadGuestPass(db, token)
+      if (!pass || pass.revoked_at) {
+        return res.status(404).send('This guest link is no longer active. Ask the parcel owner for a fresh link.')
       }
+
+      const parcel = await Parcel.load(pass.parcel_id)
+      if (!parcel) return res.status(404).send('Parcel not found')
+
+      const ua = String(req.headers['user-agent'] ?? '')
+      const signedIn = walletFromJwtCookie(req)
+      if (signedIn?.wallet) {
+        const auth = await authParcel(parcel, signedIn as any)
+        if (auth === 'Owner' || auth === 'Moderator') {
+          if (light) return res.redirect(302, lightBroadcastPath(pass.parcel_id, pass.feature_uuid))
+          return res.redirect(302, `/play?${hostJoinPlayQuery(parcel.location, pass.feature_uuid)}`)
+        }
+        if (light) return res.redirect(302, lightBroadcastPath(pass.parcel_id, pass.feature_uuid, token))
+      }
+
+      const syntheticWallet = `guest:${token.slice(0, 12)}`.toLowerCase()
+
+      await db.query(
+        'sql/guest-passes/upsert-avatar',
+        `insert into avatars (owner, name, last_online)
+         values ($1, $2, now())
+         on conflict (owner) do update set
+           last_online = now(),
+           name = case when excluded.name <> '' then excluded.name else avatars.name end`,
+        [syntheticWallet, pass.name],
+      )
+
+      const jwt = await new SignJWT({
+        wallet: syntheticWallet,
+        guest_pass: token,
+        parcel_id: pass.parcel_id,
+        feature_uuid: pass.feature_uuid,
+      } as any)
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime(Math.floor(Date.now() / 1000) + GUEST_JWT_TTL_SECONDS)
+        .sign(JWT_SECRET_KEY)
+
+      res.cookie('jwt', jwt, { maxAge: GUEST_JWT_TTL_SECONDS * 1000, httpOnly: false, sameSite: 'lax' })
+      if (light) return res.redirect(302, lightBroadcastPath(pass.parcel_id, pass.feature_uuid))
+      const playQs = guestBroadcastPlayQuery(parcel.location, pass.feature_uuid, ua)
+      res.redirect(302, `/play?${playQs}`)
+    } catch (err) {
+      log.error('[guest-pass] /live/:token failed', { token: token.slice(0, 12), error: err })
+      res.status(500).send('Something went wrong opening this guest link. Try again in a moment or ask the parcel owner for a fresh link.')
     }
-
-    const syntheticWallet = `guest:${token.slice(0, 12)}`.toLowerCase()
-
-    // Avatar row for the synthetic wallet. Name is chosen by the guest in the broadcast dock,
-    // not by the parcel owner - only overwrite an existing name when the pass already has one.
-    await db.query(
-      'sql/guest-passes/upsert-avatar',
-      `insert into avatars (owner, name, last_online)
-       values ($1, $2, now())
-       on conflict (owner) do update set
-         last_online = now(),
-         name = case when excluded.name <> '' then excluded.name else avatars.name end`,
-      [syntheticWallet, pass.name],
-    )
-
-    const jwt = await new SignJWT({
-      wallet: syntheticWallet,
-      guest_pass: token,
-      parcel_id: pass.parcel_id,
-      feature_uuid: pass.feature_uuid,
-    } as any)
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime(Math.floor(Date.now() / 1000) + GUEST_JWT_TTL_SECONDS)
-      .sign(JWT_SECRET_KEY)
-
-    res.cookie('jwt', jwt, { maxAge: GUEST_JWT_TTL_SECONDS * 1000, httpOnly: false, sameSite: 'lax' })
-    const playQs = guestBroadcastPlayQuery(parcel.location, pass.feature_uuid, String(req.headers['user-agent'] ?? ''))
-    res.redirect(302, `/play?${playQs}`)
   })
 
   if (process.env.NODE_ENV !== 'production') {

@@ -242,6 +242,13 @@ export default class GridSocket {
     return Parcel.getState(parcelId)
   }
 
+  async publishParcelStatePatch(parcelId: number, patch: Record<string, unknown>) {
+    await this.worldPublishShardMessage({
+      type: 'patchStateCreate',
+      payload: { parcelId, patch, sender: 'showbox-light' },
+    })
+  }
+
   private async worldPublishShardMessage(message: GridShardMessage): Promise<void> {
     if (message.type === 'patchCreate') {
       const patchSet = this.patchSetByClientId.get(message.payload.sender)

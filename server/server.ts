@@ -343,7 +343,7 @@ LivekitController(db, passport, app)
 RadarController(app)
 
 // Guest broadcast passes (token-based access to a specific Showbox without an account)
-GuestPassesController(db, passport, app, livekitService)
+GuestPassesController(db, passport, app, livekitService, gridSocket)
 
 // The NFTs
 NftController(db, passport, app)

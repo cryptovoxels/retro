@@ -8,6 +8,8 @@ import { Component, render } from 'preact'
 import { Route, Router, type RouterOnChangeArgs } from 'preact-router'
 
 import EditAccount from '../account/edit'
+import GoLive from '../account/go-live'
+import GoLiveBroadcast from '../account/go-live-broadcast'
 import NewSpace from '../account/new-space'
 import Asset from './asset'
 import Assets from './assets'
@@ -222,6 +224,8 @@ function AccountRoutes(props: { path?: string }) {
   return (
     <Router>
       <Route path="/account/edit" component={EditAccount} />
+      <Route path="/account/go-live/broadcast" component={GoLiveBroadcast} />
+      <Route path="/account/go-live" component={GoLive} />
       <Route path="/account/:tab?" component={Home} />
     </Router>
   )
