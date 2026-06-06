@@ -17,9 +17,16 @@ const LIVEKIT_URL = 'https://voxels-7pvk06qt.livekit.cloud'
 const mobile = isMobile()
 
 function showboxMobileCameraConstraints(facing: 'user' | 'environment' = 'user') {
-  const c: Record<string, any> = { facingMode: facing }
-  if (facing === 'user') c.aspectRatio = { ideal: 9 / 16 }
-  return c
+  return { facingMode: facing, aspectRatio: { ideal: 9 / 16 } }
+}
+
+async function restartMobileCameraTrack(track: any, facing: 'user' | 'environment') {
+  if (!track?.restartTrack) return
+  try {
+    await track.restartTrack(showboxMobileCameraConstraints(facing))
+  } catch {
+    await track.restartTrack({ facingMode: facing }).catch(() => {})
+  }
 }
 
 function showboxCameraVideoConstraints(deviceId: string | undefined) {
@@ -717,8 +724,13 @@ export default function GoLiveBroadcast() {
     if (!el || !mst || mst.readyState === 'ended') return
     el.srcObject = new MediaStream([mst])
     el.play().catch(() => {})
-    previewSync.current?.()
-    requestAnimationFrame(() => previewSync.current?.())
+    const bumpPreview = () => {
+      previewSync.current?.()
+      requestAnimationFrame(() => previewSync.current?.())
+    }
+    bumpPreview()
+    el.addEventListener('loadedmetadata', bumpPreview, { once: true })
+    el.addEventListener('resize', bumpPreview, { once: true })
   }
 
 
@@ -926,7 +938,7 @@ export default function GoLiveBroadcast() {
 
       const videoTrack = tracks.find((t) => t.kind === Track.Kind.Video)
       if (!videoTrack) throw new Error('showbox needs a camera')
-      if (mobile) await videoTrack.restartTrack(showboxMobileCameraConstraints('user')).catch(() => {})
+      if (mobile) await restartMobileCameraTrack(videoTrack, 'user')
 
       if (isCohost) {
         cohostBag.current = {
@@ -999,9 +1011,10 @@ export default function GoLiveBroadcast() {
 
   const flipCamera = async () => {
     const next = flipFacing === 'user' ? 'environment' : 'user'
+    flipFacingRef.current = next
     setFlipFacing(next)
     const vt = liveVideoTrack.current
-    if (vt && mobile) await vt.restartTrack(showboxMobileCameraConstraints(next)).catch(() => {})
+    if (vt && mobile) await restartMobileCameraTrack(vt, next)
     syncPreviewVideo(vt)
     if (remoteCohostLive && cohostBag.current && broadcastRoom.current) {
       const el = vt?.attach() as HTMLVideoElement
