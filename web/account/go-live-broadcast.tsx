@@ -30,7 +30,7 @@ function showboxCameraVideoConstraints(deviceId: string | undefined) {
 }
 
 // livekit attach() can set width/height attrs that fight object-fit; sync the preview box to real frame size.
-function wireDockPreview(wrap: HTMLElement, el: HTMLVideoElement, contain: boolean) {
+function wireDockPreview(wrap: HTMLElement, el: HTMLVideoElement, contain: boolean, facing: () => 'user' | 'environment') {
   el.removeAttribute('width')
   el.removeAttribute('height')
   Object.assign(el.style, {
@@ -48,8 +48,7 @@ function wireDockPreview(wrap: HTMLElement, el: HTMLVideoElement, contain: boole
     const w = el.videoWidth
     const h = el.videoHeight
     if (w <= 0 || h <= 0 || !contain) return
-    // back camera is usually landscape - keep the portrait preview crop instead of stretching the box
-    if (w > h) {
+    if (facing() === 'environment') {
       wrap.style.aspectRatio = '9 / 16'
       el.style.objectFit = 'cover'
       return
@@ -457,6 +456,8 @@ export default function GoLiveBroadcast() {
   const [camId, setCamId] = useState('')
   const [micId, setMicId] = useState('')
   const [flipFacing, setFlipFacing] = useState<'user' | 'environment'>('user')
+  const flipFacingRef = useRef<'user' | 'environment'>('user')
+  flipFacingRef.current = flipFacing
   const [remoteCohostLive, setRemoteCohostLive] = useState(false)
   const [chatComposing, setChatComposing] = useState(false)
   const [shareLinkKind, setShareLinkKind] = useState<'fan' | 'guest'>('fan')
@@ -626,7 +627,7 @@ export default function GoLiveBroadcast() {
     const wrap = previewWrap.current
     const el = previewVideo.current
     if (!wrap || !el) return
-    previewSync.current = wireDockPreview(wrap, el, mobile)
+    previewSync.current = wireDockPreview(wrap, el, mobile, () => flipFacingRef.current)
   }, [live, remoteCohostLive, isCohost, loading])
 
   const refreshViewers = async () => {
