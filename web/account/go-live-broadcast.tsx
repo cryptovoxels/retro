@@ -47,7 +47,15 @@ function wireDockPreview(wrap: HTMLElement, el: HTMLVideoElement, contain: boole
     el.removeAttribute('height')
     const w = el.videoWidth
     const h = el.videoHeight
-    if (w > 0 && h > 0 && contain) wrap.style.aspectRatio = `${w} / ${h}`
+    if (w <= 0 || h <= 0 || !contain) return
+    // back camera is usually landscape - keep the portrait preview crop instead of stretching the box
+    if (w > h) {
+      wrap.style.aspectRatio = '9 / 16'
+      el.style.objectFit = 'cover'
+      return
+    }
+    wrap.style.aspectRatio = `${w} / ${h}`
+    el.style.objectFit = 'contain'
   }
   el.addEventListener('loadedmetadata', sync)
   el.addEventListener('loadeddata', sync)
