@@ -37,7 +37,7 @@ function showboxCameraVideoConstraints(deviceId: string | undefined) {
 }
 
 // livekit attach() can set width/height attrs that fight object-fit; sync the preview box to real frame size.
-function wireDockPreview(wrap: HTMLElement, el: HTMLVideoElement, contain: boolean, facing: () => 'user' | 'environment') {
+function wireDockPreview(wrap: HTMLElement, el: HTMLVideoElement, mobilePreview: boolean) {
   el.removeAttribute('width')
   el.removeAttribute('height')
   Object.assign(el.style, {
@@ -46,22 +46,22 @@ function wireDockPreview(wrap: HTMLElement, el: HTMLVideoElement, contain: boole
     left: '0',
     width: '100%',
     height: '100%',
-    objectFit: contain ? 'contain' : 'cover',
+    objectFit: 'cover',
     display: 'block',
   })
   const sync = () => {
     el.removeAttribute('width')
     el.removeAttribute('height')
-    const w = el.videoWidth
-    const h = el.videoHeight
-    if (w <= 0 || h <= 0 || !contain) return
-    if (facing() === 'environment') {
+    if (mobilePreview) {
       wrap.style.aspectRatio = '9 / 16'
       el.style.objectFit = 'cover'
       return
     }
+    const w = el.videoWidth
+    const h = el.videoHeight
+    if (w <= 0 || h <= 0) return
     wrap.style.aspectRatio = `${w} / ${h}`
-    el.style.objectFit = 'contain'
+    el.style.objectFit = 'cover'
   }
   el.addEventListener('loadedmetadata', sync)
   el.addEventListener('loadeddata', sync)
@@ -633,7 +633,7 @@ export default function GoLiveBroadcast() {
     const wrap = previewWrap.current
     const el = previewVideo.current
     if (!wrap || !el) return
-    previewSync.current = wireDockPreview(wrap, el, mobile, () => flipFacingRef.current)
+    previewSync.current = wireDockPreview(wrap, el, mobile)
   }, [live, remoteCohostLive, isCohost, loading])
 
   const refreshViewers = () => {
