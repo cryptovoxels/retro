@@ -154,7 +154,7 @@ export default function GoLive() {
   return (
     <section>
       <h1>go live</h1>
-      <p>pick a showbox on land you own or collaborate on. opens the world with the broadcast dock.</p>
+      <p>pick a showbox on land you own or collaborate on. go live opens the world with the broadcast dock. go live - light is camera and chat only, faster on phone.</p>
       {error && <p>{error}</p>}
       {rows.length === 0 && !error && (
         <p>
@@ -167,10 +167,10 @@ export default function GoLive() {
         <ul>
           {rows.map((row) => (
             <li key={`${row.parcelId}-${row.featureUuid}`}>
-              <a href={row.href}>
-                {row.parcelLabel}
-                {row.via === 'collab' ? ' (collab)' : ''}
-              </a>
+              {row.parcelLabel}
+              {row.via === 'collab' ? ' (collab)' : ''}{' '}
+              <a href={row.href}>go live</a>{' '}
+              <a href={`/account/go-live/broadcast?parcel=${row.parcelId}&show=${row.featureUuid}`}>go live - light</a>
             </li>
           ))}
         </ul>
