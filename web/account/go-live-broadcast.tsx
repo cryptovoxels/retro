@@ -972,7 +972,7 @@ export default function GoLiveBroadcast() {
             <div ref={chatBox} class="showbox-dock-chat-box">
               {chatMessages.value.slice(-30).map((m, i) => (
                 <div key={m.uuid || i}>
-                  {m.who && <span class="showbox-dock-chat-who">{m.who}: </span>}
+                  <span class="showbox-dock-chat-who">{m.who || 'anon'}: </span>
                   <span>{m.text}</span>
                 </div>
               ))}
