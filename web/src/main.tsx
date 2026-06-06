@@ -104,11 +104,12 @@ const Main = () => {
   }
 
   const [currentPath, setCurrentPath] = useState(window.location.pathname)
+  const lightBroadcast = currentPath === '/account/go-live/broadcast'
 
   return (
     <MainApp>
-      <main class="container-fluid">
-        <WebHeader path={currentPath} />
+      <main class={lightBroadcast ? 'showbox-light-shell' : 'container-fluid'}>
+        {!lightBroadcast && <WebHeader path={currentPath} />}
 
         <Router onChange={handleRoute}>
           <Explore path="/" />
@@ -168,7 +169,7 @@ const Main = () => {
 
           <IslandsAdmin path="/propose/islands" />
         </Router>
-        <Footer />
+        {!lightBroadcast && <Footer />}
       </main>
 
       <Snackbar />

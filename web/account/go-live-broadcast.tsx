@@ -1,6 +1,7 @@
 import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { Room, RoomEvent, Track, createLocalTracks } from 'livekit-client'
+import { effect } from '@preact/signals'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { isMobile } from '../../common/helpers/detector'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
@@ -25,6 +26,40 @@ function showboxCameraVideoConstraints(deviceId: string | undefined) {
   const c: Record<string, any> = {}
   if (deviceId) c.deviceId = { exact: deviceId }
   return c
+}
+
+// livekit attach() can set width/height attrs that fight object-fit; sync the preview box to real frame size.
+function wireDockPreview(wrap: HTMLElement, el: HTMLVideoElement, contain: boolean) {
+  el.removeAttribute('width')
+  el.removeAttribute('height')
+  Object.assign(el.style, {
+    position: 'absolute',
+    top: '0',
+    left: '0',
+    width: '100%',
+    height: '100%',
+    objectFit: contain ? 'contain' : 'cover',
+    display: 'block',
+  })
+  const sync = () => {
+    el.removeAttribute('width')
+    el.removeAttribute('height')
+    const w = el.videoWidth
+    const h = el.videoHeight
+    if (w > 0 && h > 0 && contain) wrap.style.aspectRatio = `${w} / ${h}`
+  }
+  el.addEventListener('loadedmetadata', sync)
+  el.addEventListener('loadeddata', sync)
+  el.addEventListener('resize', sync)
+  sync()
+  let n = 0
+  const poll = () => {
+    sync()
+    if (el.videoWidth > 0 || ++n > 90) return
+    requestAnimationFrame(poll)
+  }
+  poll()
+  return sync
 }
 
 function cameraErrorMessage(e: unknown): string {
@@ -164,6 +199,10 @@ function shouldPlayCohostAudio(bag: CohostBag, broadcastRoom: Room | null, viewe
   return isGuestPublisherIdentity(bag, participantIdentity)
 }
 
+function shouldRouteCohostVideo(bag: CohostBag, broadcastRoom: Room | null, viewerRoom: Room | null, participantIdentity: string) {
+  return shouldPlayCohostAudio(bag, broadcastRoom, viewerRoom, participantIdentity)
+}
+
 function drawCohostFrame(bag: CohostBag) {
   if (!bag.cohostCanvas) return false
   const ownerEl = bag.ownerVideoEl
@@ -241,7 +280,16 @@ function updateCohostComposite(bag: CohostBag) {
   bag.onRedraw()
 }
 
-function routeCohostVideo(bag: CohostBag, track: any, identity: string) {
+function routeCohostVideo(
+  bag: CohostBag,
+  track: any,
+  identity: string,
+  broadcastRoom: Room | null,
+  viewerRoom: Room | null,
+  onRemote?: () => void,
+) {
+  if (!shouldRouteCohostVideo(bag, broadcastRoom, viewerRoom, identity)) return
+  onRemote?.()
   const isGuest = isGuestPublisherIdentity(bag, identity)
   const el = track.attach() as HTMLVideoElement
   el.muted = true
@@ -292,12 +340,10 @@ function stopCohost(bag: CohostBag) {
   bag.cohostMonitorEls = []
 }
 
-const panelStyle: Record<string, string> = {
-  background: '#1a1a1a',
-  color: '#f5f5f0',
-  padding: '1rem',
-  maxWidth: '480px',
-  margin: '0 auto',
+function dockClass(live: boolean, chatFocus = false) {
+  let c = `showbox-dock ${mobile ? 'showbox-dock-mobile' : 'showbox-dock-desktop'} ${live ? 'showbox-dock-live' : 'showbox-dock-setup'}`
+  if (chatFocus) c += ' showbox-dock-chat-focus'
+  return c
 }
 
 export default function GoLiveBroadcast() {
@@ -323,7 +369,8 @@ export default function GoLiveBroadcast() {
   const [camId, setCamId] = useState('')
   const [micId, setMicId] = useState('')
   const [flipFacing, setFlipFacing] = useState<'user' | 'environment'>('user')
-  const [previewTick, setPreviewTick] = useState(0)
+  const [remoteCohostLive, setRemoteCohostLive] = useState(false)
+  const [chatComposing, setChatComposing] = useState(false)
 
   const broadcastRoom = useRef<Room | null>(null)
   const viewerRoom = useRef<Room | null>(null)
@@ -334,8 +381,13 @@ export default function GoLiveBroadcast() {
   const thumbCanvas = useRef<HTMLCanvasElement | null>(null)
   const previewVideo = useRef<HTMLVideoElement | null>(null)
   const previewWrap = useRef<HTMLDivElement | null>(null)
+  const previewSync = useRef<(() => void) | null>(null)
+  const displayCanvas = useRef<HTMLCanvasElement | null>(null)
   const cohostBag = useRef<CohostBag | null>(null)
   const liveChatAnnounced = useRef(false)
+  const dockRef = useRef<HTMLDivElement | null>(null)
+  const chatBox = useRef<HTMLDivElement | null>(null)
+  const chatInputRef = useRef<HTMLInputElement | null>(null)
 
   const isGuest = showUuid ? isGuestForShowbox(showUuid) : false
   const syntheticGuest = isGuest && isSyntheticGuestWallet()
@@ -395,6 +447,46 @@ export default function GoLiveBroadcast() {
     }
   }, [parcelId, showUuid, isGuest])
 
+  const scrollChatToEnd = () => {
+    const el = chatBox.current
+    if (!el) return
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight
+    })
+  }
+
+  useEffect(() => {
+    const dispose = effect(() => {
+      chatMessages.value
+      scrollChatToEnd()
+    })
+    return dispose
+  }, [])
+
+  useEffect(() => {
+    if (!live) return
+    scrollChatToEnd()
+  }, [live])
+
+  useEffect(() => {
+    if (!mobile || !live) return
+    const dock = dockRef.current
+    const onVp = () => {
+      const vv = window.visualViewport
+      if (!dock || !vv) return
+      const inset = Math.max(0, window.innerHeight - vv.height)
+      dock.style.paddingBottom = chatComposing && inset > 48 ? `${inset}px` : ''
+    }
+    onVp()
+    window.visualViewport?.addEventListener('resize', onVp)
+    window.visualViewport?.addEventListener('scroll', onVp)
+    return () => {
+      if (dock) dock.style.paddingBottom = ''
+      window.visualViewport?.removeEventListener('resize', onVp)
+      window.visualViewport?.removeEventListener('scroll', onVp)
+    }
+  }, [live, chatComposing])
+
   useEffect(() => {
     connectShardChat()
     navigator.mediaDevices
@@ -435,6 +527,14 @@ export default function GoLiveBroadcast() {
   }, [camId, live, loading])
 
   useEffect(() => {
+    if (isCohost && live && remoteCohostLive) return
+    const wrap = previewWrap.current
+    const el = previewVideo.current
+    if (!wrap || !el) return
+    previewSync.current = wireDockPreview(wrap, el, mobile)
+  }, [live, remoteCohostLive, isCohost, loading])
+
+  useEffect(() => {
     if (!live) return
     const t = setInterval(() => setElapsed(Date.now() - liveStartedAt.current), 1000)
     const v = setInterval(async () => {
@@ -456,7 +556,10 @@ export default function GoLiveBroadcast() {
     if (!el || !mst || mst.readyState === 'ended') return
     el.srcObject = new MediaStream([mst])
     el.play().catch(() => {})
+    previewSync.current?.()
+    requestAnimationFrame(() => previewSync.current?.())
   }
+
 
   const stopThumb = () => {
     if (thumbInterval.current) {
@@ -521,8 +624,21 @@ export default function GoLiveBroadcast() {
     viewerRoom.current = null
     liveVideoTrack.current = null
     liveAudioTrack.current = null
+    setRemoteCohostLive(false)
     setLive(false)
     void setShowboxLive(false)
+  }
+
+  const onRemoteCohostVideo = () => {
+    setRemoteCohostLive(true)
+    const bag = cohostBag.current
+    const vt = liveVideoTrack.current
+    if (bag && vt) {
+      const localSlot = bag.isGuest ? bag.guestVideoEl : bag.ownerVideoEl
+      if (!localSlot) wireLocalCohostVideo(bag, vt.attach() as HTMLVideoElement)
+      updateCohostComposite(bag)
+      startThumb(null)
+    }
   }
 
   const connectViewer = async () => {
@@ -538,7 +654,7 @@ export default function GoLiveBroadcast() {
     room.on(RoomEvent.TrackSubscribed, (track, _pub, participant) => {
       if (viewerRoom.current !== room) return
       const identity = participant?.identity ?? ''
-      if (track.kind === Track.Kind.Video) routeCohostVideo(bag, track, identity)
+      if (track.kind === Track.Kind.Video) routeCohostVideo(bag, track, identity, broadcastRoom.current, room, onRemoteCohostVideo)
       if (track.kind === Track.Kind.Audio && shouldPlayCohostAudio(bag, broadcastRoom.current, room, identity)) {
         const el = track.attach() as HTMLAudioElement
         el.style.display = 'none'
@@ -552,7 +668,7 @@ export default function GoLiveBroadcast() {
       if (viewerRoom.current !== room || !broadcastRoom.current) return
       for (const p of (room as any).participants?.values() ?? []) {
         for (const pub of p.videoTracks?.values() ?? []) {
-          if (pub.isSubscribed && pub.track) routeCohostVideo(bag, pub.track, p.identity)
+          if (pub.isSubscribed && pub.track) routeCohostVideo(bag, pub.track, p.identity, broadcastRoom.current, room, onRemoteCohostVideo)
         }
       }
     })
@@ -561,7 +677,7 @@ export default function GoLiveBroadcast() {
       await room.connect(LIVEKIT_URL, res.token)
       for (const p of (room as any).participants?.values() ?? []) {
         for (const pub of p.videoTracks?.values() ?? []) {
-          if (pub.isSubscribed && pub.track) routeCohostVideo(bag, pub.track, p.identity)
+          if (pub.isSubscribed && pub.track) routeCohostVideo(bag, pub.track, p.identity, broadcastRoom.current, room, onRemoteCohostVideo)
         }
         if (shouldPlayCohostAudio(bag, broadcastRoom.current, room, p.identity)) {
           for (const pub of p.audioTracks?.values() ?? []) {
@@ -650,14 +766,14 @@ export default function GoLiveBroadcast() {
           isGuest,
           showUuid,
           onRedraw: () => {
-            const wrap = previewWrap.current
-            const canvas = cohostBag.current?.cohostCanvas
-            if (wrap && canvas && canvas.parentElement !== wrap) {
-              canvas.style.width = '100%'
-              canvas.style.display = 'block'
-              wrap.replaceChildren(canvas)
-            }
-            setPreviewTick((n) => n + 1)
+            const src = cohostBag.current?.cohostCanvas
+            const dst = displayCanvas.current
+            if (!src || !dst) return
+            const ctx = dst.getContext('2d')
+            if (!ctx) return
+            if (dst.width !== src.width) dst.width = src.width
+            if (dst.height !== src.height) dst.height = src.height
+            ctx.drawImage(src, 0, 0)
           },
         }
       }
@@ -684,9 +800,8 @@ export default function GoLiveBroadcast() {
 
       if (isCohost && cohostBag.current) {
         await viewerConnect
-        wireLocalCohostVideo(cohostBag.current, el)
-        updateCohostComposite(cohostBag.current)
-        startThumb(null)
+        syncPreviewVideo(videoTrack)
+        startThumb(previewVideo.current)
       } else {
         syncPreviewVideo(videoTrack)
         startThumb(previewVideo.current)
@@ -718,7 +833,7 @@ export default function GoLiveBroadcast() {
     const vt = liveVideoTrack.current
     if (vt && mobile) await vt.restartTrack(showboxMobileCameraConstraints(next)).catch(() => {})
     syncPreviewVideo(vt)
-    if (cohostBag.current && broadcastRoom.current) {
+    if (remoteCohostLive && cohostBag.current && broadcastRoom.current) {
       const el = vt?.attach() as HTMLVideoElement
       if (el) wireLocalCohostVideo(cohostBag.current, el)
     }
@@ -736,138 +851,194 @@ export default function GoLiveBroadcast() {
     navigator.clipboard?.writeText(url).catch(() => {})
   }
 
+  const replyToChat = () => {
+    if (!sendChat(chatDraft)) return
+    setChatDraft('')
+    scrollChatToEnd()
+    chatInputRef.current?.blur()
+  }
+
+  const onChatFocus = () => {
+    setChatComposing(true)
+    requestAnimationFrame(() => chatInputRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+  }
+
+  const onChatBlur = () => {
+    setTimeout(() => {
+      if (document.activeElement === chatInputRef.current) return
+      setChatComposing(false)
+    }, 150)
+  }
+
+  const shareFanLink = async () => {
+    if (!fanUrl) return
+    const text = `Going live in voxels - Teleport in! ${fanUrl}`
+    if (navigator.share) {
+      try {
+        await navigator.share({ text, url: fanUrl })
+        return
+      } catch {}
+    }
+    copyUrl(fanUrl)
+  }
+
   if (!isGuest && !app.signedIn) return <Login reason="go live" />
 
   if (loading) {
     return (
-      <section style={panelStyle}>
+      <div class={dockClass(false)}>
         <Spinner size={24} />
-      </section>
+      </div>
     )
   }
 
   if (error) {
     return (
-      <section style={panelStyle}>
+      <div class={dockClass(false)}>
+        <div class="showbox-dock-title">Showbox</div>
         <p>{error}</p>
-      </section>
+      </div>
     )
   }
 
   return (
-    <section style={panelStyle}>
-      <h1>{parcelLabel}</h1>
-      {isGuest && <p>you're joining as guest</p>}
+    <div ref={dockRef} class={dockClass(live, chatComposing)}>
+      <div class="showbox-dock-title">Showbox</div>
+      {isCohost && (
+        <small class="showbox-dock-hint">
+          {isGuest ? 'co-host -- go live when ready. use headphones to reduce echo' : 'co-host -- share the guest link, then go live. use headphones to reduce echo'}
+        </small>
+      )}
+      {isGuest && !live && <small class="showbox-dock-hint">you're joining as guest at {parcelLabel}</small>}
 
       {syntheticGuest && !live && (
-        <div class="f">
-          <label>name</label>
-          <input type="text" value={guestName} onInput={(e) => setGuestName((e.target as HTMLInputElement).value)} />
+        <div class="showbox-dock-device-row">
+          <label>Name</label>
+          <input type="text" value={guestName} placeholder="e.g. DJ ANON" onInput={(e) => setGuestName((e.target as HTMLInputElement).value)} />
         </div>
       )}
 
       {live && (
-        <p>
-          * live {viewers} viewers {formatTimer(elapsed)}
-        </p>
-      )}
+        <>
+          <div class="showbox-dock-live-head">
+            <span class="showbox-dock-live-dot">&#9679;</span> live <span>{viewers} viewers</span>
+            <span class="showbox-dock-timer">{formatTimer(elapsed)}</span>
+          </div>
 
-      <div ref={previewWrap} style={{ position: 'relative', width: '100%', background: '#0d0d0d', minHeight: '180px' }}>
-        {!(isCohost && live) && <video ref={previewVideo} playsInline muted autoplay style={{ width: '100%', display: 'block' }} />}
-      </div>
+          <div ref={previewWrap} class={`showbox-dock-preview ${mobile ? 'mobile' : 'desktop'}`}>
+            {isCohost && remoteCohostLive ? (
+              <canvas ref={displayCanvas} width={640} height={360} style={{ position: 'absolute', top: '0', left: '0', width: '100%', height: '100%', display: 'block' }} />
+            ) : (
+              <video ref={previewVideo} playsInline muted autoplay />
+            )}
+            <div class="showbox-dock-preview-label">what your audience sees</div>
+          </div>
+
+          {mobile && (
+            <div class="showbox-dock-live-tools">
+              <button type="button" class="showbox-dock-link-btn" onClick={toggleMic}>
+                {micOn ? 'mute mic' : 'unmute mic'}
+              </button>
+              <button type="button" class="showbox-dock-link-btn" onClick={flipCamera}>
+                flip camera
+              </button>
+            </div>
+          )}
+
+          <div class="showbox-dock-chat-block">
+            <div ref={chatBox} class="showbox-dock-chat-box">
+              {chatMessages.value.slice(-30).map((m, i) => (
+                <div key={m.uuid || i}>
+                  {m.who && <span class="showbox-dock-chat-who">{m.who}: </span>}
+                  <span>{m.text}</span>
+                </div>
+              ))}
+              {!chatMessages.value.length && <div class="showbox-dock-chat-empty">audience chat shows up here</div>}
+            </div>
+            <div class="showbox-dock-chat-reply">
+              <input
+                ref={chatInputRef}
+                type="text"
+                value={chatDraft}
+                placeholder="reply to chat"
+                onInput={(e) => setChatDraft((e.target as HTMLInputElement).value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    replyToChat()
+                  }
+                }}
+                onFocus={onChatFocus}
+                onBlur={onChatBlur}
+              />
+              <button type="button" onClick={replyToChat}>
+                send
+              </button>
+            </div>
+          </div>
+        </>
+      )}
 
       {!live && (
-        <>
-          <div class="f">
-            <label>mic</label>
-            <select value={micId} onChange={(e) => setMicId((e.target as HTMLSelectElement).value)}>
-              <option value="">default</option>
-              {mics.map((d) => (
-                <option key={d.deviceId} value={d.deviceId}>
-                  {d.label || 'mic'}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div class="f">
-            <label>camera</label>
-            <select value={camId} onChange={(e) => setCamId((e.target as HTMLSelectElement).value)}>
-              <option value="">default</option>
-              {cameras.map((d) => (
-                <option key={d.deviceId} value={d.deviceId}>
-                  {d.label || 'camera'}
-                </option>
-              ))}
-            </select>
-          </div>
-          {mobile && (
-            <p>
-              <button type="button" onClick={flipCamera}>
-                flip camera
-              </button>
-            </p>
-          )}
-          {status && <p>{status}</p>}
-        </>
-      )}
-
-      {live && (
-        <>
-          <p>chat</p>
-          <div style={{ maxHeight: '120px', overflowY: 'auto', padding: '0.5rem 0' }}>
-            {chatMessages.value.map((m, i) => (
-              <div key={i}>{m.text}</div>
+        <div class="showbox-dock-device-row">
+          <label>camera</label>
+          <select value={camId} onChange={(e) => setCamId((e.target as HTMLSelectElement).value)}>
+            <option value="">default</option>
+            {cameras.map((d) => (
+              <option key={d.deviceId} value={d.deviceId}>
+                {d.label || 'camera'}
+              </option>
             ))}
-          </div>
-          <div class="f">
-            <input type="text" value={chatDraft} placeholder="reply..." onInput={(e) => setChatDraft((e.target as HTMLInputElement).value)} onKeyDown={(e) => e.key === 'Enter' && (sendChat(chatDraft), setChatDraft(''))} />
-            <button type="button" onClick={() => (sendChat(chatDraft), setChatDraft(''))}>
-              send
-            </button>
-          </div>
-
-          {!isGuest && (
-            <>
-              <div class="f">
-                <label>fan link</label>
-                <input type="text" readonly value={fanUrl} />
-                <button type="button" onClick={() => copyUrl(fanUrl)}>
-                  copy
-                </button>
-              </div>
-              <div class="f">
-                <label>guest link</label>
-                <input type="text" readonly value={guestUrl || 'no guest link yet'} />
-                <button type="button" onClick={() => copyUrl(guestUrl)} disabled={!guestUrl}>
-                  copy
-                </button>
-              </div>
-            </>
-          )}
-
-          {mobile && micOn && (
-            <p>
-              <button type="button" onClick={toggleMic}>
-                mute mic
-              </button>
-            </p>
-          )}
-          {mobile && (
-            <p>
-              <button type="button" onClick={flipCamera}>
-                flip camera
-              </button>
-            </p>
-          )}
-        </>
+          </select>
+          <label>microphone</label>
+          <select value={micId} onChange={(e) => setMicId((e.target as HTMLSelectElement).value)}>
+            <option value="">default</option>
+            {mics.map((d) => (
+              <option key={d.deviceId} value={d.deviceId}>
+                {d.label || 'mic'}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
 
-      <p>
-        <button type="button" onClick={goLive}>
-          {live ? 'stop streaming' : 'go live'}
-        </button>
-      </p>
-      {!live && !status && <p>tap go live when ready</p>}
-    </section>
+      {!live && status && <div class="showbox-dock-status">{status}</div>}
+
+      <div class="showbox-dock-footer">
+        {live && !isGuest && mobile && (
+          <button type="button" class="showbox-dock-share-btn" onClick={() => void shareFanLink()}>
+            share fan link
+          </button>
+        )}
+        {live && !isGuest && !mobile && (
+          <div class="showbox-dock-share-block">
+            <label>fan link - share with your audience</label>
+            <div class="showbox-dock-share-row">
+              <input type="text" readonly value={fanUrl} onClick={(e) => (e.target as HTMLInputElement).select()} />
+              <button type="button" onClick={() => copyUrl(fanUrl)}>
+                copy
+              </button>
+            </div>
+            <label>guest link - for your co-host or DJ/Artist</label>
+            <div class="showbox-dock-share-row">
+              <input type="text" readonly value={guestUrl || 'no guest link yet'} onClick={(e) => (e.target as HTMLInputElement).select()} />
+              <button type="button" onClick={() => copyUrl(guestUrl)} disabled={!guestUrl}>
+                copy
+              </button>
+            </div>
+          </div>
+        )}
+        <div class="showbox-dock-footer-row">
+          <button type="button" class={`showbox-dock-go${live ? ' stop' : ''}`} onClick={goLive}>
+            {live ? 'stop streaming' : 'go live'}
+          </button>
+          {!live && (
+            <button type="button" class="showbox-dock-cancel" onClick={() => window.history.back()}>
+              close
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
   )
 }
