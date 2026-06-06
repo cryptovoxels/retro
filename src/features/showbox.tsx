@@ -2645,14 +2645,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     const title = document.createElement('div')
     title.textContent = 'Showbox'
-    if (this.isCohostMode()) {
-      const cohostHint = document.createElement('small')
-      cohostHint.textContent = isGuest ? 'co-host -- go live when ready. use headphones to reduce echo' : 'co-host -- share the guest link, then go live. use headphones to reduce echo'
-      cohostHint.style.color = '#888'
-      cohostHint.style.display = 'block'
-      title.appendChild(document.createElement('br'))
-      title.appendChild(cohostHint)
-    }
     title.style.fontWeight = 'bold'
     title.style.fontSize = '16px'
 
