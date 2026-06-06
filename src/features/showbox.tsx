@@ -320,6 +320,11 @@ function cohostVideoReady(el: HTMLVideoElement | null) {
   return !!(el && el.readyState >= 1 && el.videoWidth > 0)
 }
 
+function cohostVideoTrackLive(el: HTMLVideoElement | null) {
+  const mst = (el?.srcObject as MediaStream | null)?.getVideoTracks?.()?.[0]
+  return !!mst && mst.readyState !== 'ended'
+}
+
 type ShowboxCelebrateState = { celebrate?: number; at?: number }
 
 export default class Showbox extends Feature2D<ShowboxRecord> {
@@ -357,6 +362,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   cohostCompositeRaf: number | null = null
   cohostMonitorEls: HTMLAudioElement[] = []
   cohostCompositeAttached = false
+  cohostOwnerHadFrame = false
+  cohostGuestHadFrame = false
   syncCohostPreview: (() => void) | null = null
   cohostCompositeRetryRaf: number | null = null
   milestonePollInterval: ReturnType<typeof setInterval> | null = null
@@ -1442,15 +1449,24 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.cohostCompositeEl = null
     this.cohostCanvas = null
     this.cohostCompositeAttached = false
+    this.cohostOwnerHadFrame = false
+    this.cohostGuestHadFrame = false
     this.syncCohostPreview = null
     this.clearCohostMonitor()
   }
 
   drawCohostFrame() {
     if (!this.cohostCanvas) return false
-    const ownerReady = cohostVideoReady(this.ownerVideoEl)
-    const guestReady = cohostVideoReady(this.guestVideoEl)
-    if (!ownerReady && !guestReady) return false
+    const ownerEl = this.ownerVideoEl
+    const guestEl = this.guestVideoEl
+    if (ownerEl && !cohostVideoTrackLive(ownerEl)) this.cohostOwnerHadFrame = false
+    else if (cohostVideoReady(ownerEl)) this.cohostOwnerHadFrame = true
+    if (guestEl && !cohostVideoTrackLive(guestEl)) this.cohostGuestHadFrame = false
+    else if (cohostVideoReady(guestEl)) this.cohostGuestHadFrame = true
+
+    const ownerDraw = this.cohostOwnerHadFrame && ownerEl
+    const guestDraw = this.cohostGuestHadFrame && guestEl
+    if (!ownerDraw && !guestDraw) return false
 
     const canvas = this.cohostCanvas
     const ctx = canvas.getContext('2d')!
@@ -1458,13 +1474,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const h = canvas.height
     ctx.fillStyle = '#0d0d0d'
     ctx.fillRect(0, 0, w, h)
-    if (ownerReady && guestReady) {
-      ctx.drawImage(this.ownerVideoEl!, 0, 0, w / 2, h)
-      ctx.drawImage(this.guestVideoEl!, w / 2, 0, w / 2, h)
-    } else if (ownerReady) {
-      ctx.drawImage(this.ownerVideoEl!, 0, 0, w, h)
-    } else if (guestReady) {
-      ctx.drawImage(this.guestVideoEl!, 0, 0, w, h)
+    const drawVid = (el: HTMLVideoElement, x: number, dw: number) => {
+      if (el.videoWidth > 0) ctx.drawImage(el, x, 0, dw, h)
+    }
+    // mobile hidden videos flicker videoWidth - once both slots had frames, stay split
+    if (ownerDraw && guestDraw) {
+      drawVid(ownerEl!, 0, w / 2)
+      drawVid(guestEl!, w / 2, w / 2)
+    } else if (ownerDraw) {
+      drawVid(ownerEl!, 0, w)
+    } else if (guestDraw) {
+      drawVid(guestEl!, 0, w)
     }
     return true
   }
@@ -1616,6 +1636,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   routeCohostVideo(track: any, identity: string) {
+    const mst = track?.mediaStreamTrack as MediaStreamTrack | undefined
+    const isGuest = this.isGuestPublisherIdentity(identity)
+    const slot = isGuest ? this.guestVideoEl : this.ownerVideoEl
+    if (slot && mst) {
+      const cur = slot.srcObject instanceof MediaStream ? slot.srcObject.getVideoTracks()[0] : null
+      if (cur === mst) return
+    }
     const el = track.attach() as HTMLVideoElement
     el.muted = true
     el.playsInline = true
@@ -1625,7 +1652,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     el.play().catch(() => {})
     el.addEventListener('loadeddata', () => this.updateCohostComposite(), { once: true })
 
-    if (this.isGuestPublisherIdentity(identity)) {
+    if (isGuest) {
       if (this.guestVideoEl !== el) this.guestVideoEl?.remove()
       this.guestVideoEl = el
     } else {
@@ -1639,9 +1666,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.isGuestPublisherIdentity(identity)) {
       this.guestVideoEl?.remove()
       this.guestVideoEl = null
+      this.cohostGuestHadFrame = false
     } else {
       this.ownerVideoEl?.remove()
       this.ownerVideoEl = null
+      this.cohostOwnerHadFrame = false
     }
   }
 
@@ -2704,9 +2733,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       requestAnimationFrame(() => this.syncBroadcastVideoFromTrack(liveVideoTrack))
     }
 
-    // Screenshare goes live with no mic. This lets you add your voice mid-stream - livekit
-    // publishes a mic track the first time, then just mutes/unmutes on toggle. Hidden unless screensharing.
-    let screenMicOn = false
+    // livekit mutes/unmutes the published mic without killing video. screenshare starts muted; camera starts on.
+    let micOn = false
     const micToggle = document.createElement('button')
     micToggle.type = 'button'
     micToggle.textContent = 'turn on mic'
@@ -2720,14 +2748,22 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       fontFamily: 'inherit',
       minHeight: '36px',
     })
+    const syncMicToggle = () => {
+      if (!micOn) {
+        micToggle.textContent = screenChk.checked ? 'turn on mic' : mobile ? 'unmute mic' : 'mic muted'
+        micToggle.style.color = '#888'
+        return
+      }
+      micToggle.textContent = mobile ? 'mute mic' : 'mic on'
+      micToggle.style.color = '#f5f5f0'
+    }
     micToggle.onclick = async () => {
       if (!this.broadcastRoom) return
-      screenMicOn = !screenMicOn
+      micOn = !micOn
       micToggle.disabled = true
-      await this.broadcastRoom.localParticipant.setMicrophoneEnabled(screenMicOn, { deviceId: micSel.value || undefined }).catch(() => (screenMicOn = !screenMicOn)) // fail soft: revert if permission denied
+      await this.broadcastRoom.localParticipant.setMicrophoneEnabled(micOn, micOn ? { deviceId: micSel.value || undefined } : undefined).catch(() => (micOn = !micOn))
       micToggle.disabled = false
-      micToggle.textContent = screenMicOn ? 'mic on' : 'mic muted'
-      micToggle.style.color = screenMicOn ? '#f5f5f0' : '#888'
+      syncMicToggle()
     }
 
     // Name row only for anonymous guests on /live/ links. Signed-in users keep their account name.
@@ -2808,18 +2844,24 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       const copyBtn = document.createElement('button')
       copyBtn.textContent = 'copy'
       Object.assign(copyBtn.style, { background: '#333', color: '#f5f5f0', border: '0', padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', flex: '1', minHeight: '36px' })
-      const copyBtnLabel = mobile ? 'copy link for fans' : 'copy'
-      copyBtn.onclick = () => {
-        navigator.clipboard.writeText(showUrl).catch(() => {})
-        copyBtn.textContent = 'copied'
-        setTimeout(() => (copyBtn.textContent = copyBtnLabel), 1500)
-      }
+      const copyBtnLabel = 'copy'
       const xBtn = document.createElement('button')
       xBtn.textContent = 'post on x'
       Object.assign(xBtn.style, { background: '#333', color: '#f5f5f0', border: '0', padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', flex: '1', minHeight: '36px' })
-      xBtn.onclick = () => {
-        const text = `Going live in voxels - Teleport in! ${showUrl}`
-        window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
+      const wireDesktopShareActions = (getKind: () => 'fan' | 'guest', getUrl: () => string) => {
+        copyBtn.onclick = () => {
+          const url = getUrl().trim()
+          if (!url || url.startsWith('loading')) return
+          navigator.clipboard.writeText(url).catch(() => {})
+          copyBtn.textContent = 'copied'
+          setTimeout(() => (copyBtn.textContent = copyBtnLabel), 1500)
+        }
+        xBtn.onclick = () => {
+          const url = getUrl().trim()
+          if (!url || url.startsWith('loading')) return
+          const text = getKind() === 'guest' ? `Join my show in voxels - go live here: ${url}` : `Going live in voxels - Teleport in! ${url}`
+          window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
+        }
       }
       const runMobileShare = async (kind: 'fan' | 'guest') => {
         if (kind === 'guest') {
@@ -2905,7 +2947,53 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           shareBtnRow.append(shareBtn)
           shareRow.append(shareBtnRow)
         }
+      } else if (this.canManageGuestPasses()) {
+        let shareLinkKind: 'fan' | 'guest' = 'fan'
+        const shareKindSel = document.createElement('select')
+        Object.assign(shareKindSel.style, {
+          width: '100%',
+          background: '#1a1a1a',
+          color: '#888',
+          border: '1px solid #333',
+          padding: '4px',
+          fontFamily: 'inherit',
+        })
+        const fanOpt = document.createElement('option')
+        fanOpt.value = 'fan'
+        fanOpt.textContent = 'fan link - for people watching'
+        const guestOpt = document.createElement('option')
+        guestOpt.value = 'guest'
+        guestOpt.textContent = 'guest link - for your co-host or DJ/Artist'
+        shareKindSel.append(fanOpt, guestOpt)
+        const syncShareUrl = async () => {
+          if (shareLinkKind === 'fan') {
+            shareInput.value = showUrl
+            return
+          }
+          shareInput.value = 'loading guest link...'
+          const guestUrl = await this.resolveGuestShareUrl()
+          if (!guestUrl) {
+            shareLinkKind = 'fan'
+            shareKindSel.value = 'fan'
+            shareInput.value = showUrl
+            return
+          }
+          shareInput.value = guestUrl
+        }
+        shareKindSel.onchange = () => {
+          shareLinkKind = shareKindSel.value === 'guest' ? 'guest' : 'fan'
+          void syncShareUrl()
+        }
+        wireDesktopShareActions(
+          () => shareLinkKind,
+          () => shareInput.value,
+        )
+        shareRow.append(shareKindSel, shareInput, shareBtnRow)
       } else {
+        wireDesktopShareActions(
+          () => 'fan',
+          () => showUrl,
+        )
         shareRow.append(shareLabel, shareInput, shareBtnRow)
       }
     }
@@ -3095,7 +3183,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (dockFooter) dockFooter.style.display = on ? 'none' : 'flex'
         if (mobileExtrasBtn) mobileExtrasBtn.style.display = on ? 'none' : 'block'
         if (flipBtn && !screenChk.checked) flipBtn.style.display = on ? 'none' : 'block'
-        if (screenChk.checked) micToggle.style.display = on ? 'none' : 'block'
+        if (micToggle.style.display === 'block') micToggle.style.display = on ? 'none' : 'block'
         if (on) {
           Object.assign(chatReplyRow!.style, {
             position: 'sticky',
@@ -3446,15 +3534,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         if (screenChk.checked) {
           // cohost screenshare is a two-way conversation, so default the mic on. solo screenshare stays muted (usually video playback).
-          screenMicOn = this.isCohostMode()
-          micToggle.textContent = screenMicOn ? 'mic on' : 'turn on mic'
-          micToggle.style.color = screenMicOn ? '#f5f5f0' : '#888'
+          micOn = this.isCohostMode()
           micToggle.style.display = 'block'
-          if (screenMicOn) {
+          syncMicToggle()
+          if (micOn) {
             this.broadcastRoom.localParticipant.setMicrophoneEnabled(true, { deviceId: micSel.value || undefined }).catch(() => {
-              screenMicOn = false
-              micToggle.textContent = 'turn on mic'
-              micToggle.style.color = '#888'
+              micOn = false
+              syncMicToggle()
             })
           }
         }
@@ -3463,7 +3549,23 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           if (shareRow) shareRow.style.display = 'flex'
           moveRow.style.display = 'none'
           if (mobileExtrasBtn) mobileExtrasBtn.style.display = 'block'
-          if (!screenChk.checked) flipBtn.style.display = 'block'
+          if (!screenChk.checked) {
+            flipBtn.style.display = 'block'
+            if (liveAudioTrack) {
+              micOn = true
+              micToggle.style.display = 'block'
+              Object.assign(micToggle.style, {
+                background: 'transparent',
+                border: '0',
+                padding: '4px 0',
+                fontSize: '12px',
+                textAlign: 'left',
+                textDecoration: 'underline',
+                minHeight: '0',
+              })
+              syncMicToggle()
+            }
+          }
         } else {
           if (shareRow) shareRow.style.display = 'flex'
           moveRow.style.display = 'flex'
@@ -3970,10 +4072,7 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
             {active.map((p) => (
               <div key={p.token}>
                 <div className="f">
-                  <label>{p.name?.trim() || 'Guest link'}</label>
-                  <small>Send this to your DJ, artist, or guest.</small>
-                  <small>They can go live without a Voxels account.</small>
-                  <small>Don't share this as the public audience link.</small>
+                  {!!p.name?.trim() && <label>{p.name.trim()}</label>}
                   <input type="text" readOnly value={this.liveUrl(p.token)} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
                 </div>
                 <div style={{ display: 'flex', gap: '0.5rem', flexDirection: mobile ? 'column' : 'row', marginBottom: '0.5rem' }}>
