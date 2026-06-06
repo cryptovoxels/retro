@@ -145,36 +145,39 @@ export default function GoLive() {
   if (rows === null) {
     return (
       <section>
-        <h1>go live</h1>
+        <h1>Go live</h1>
         <Spinner size={24} />
       </section>
     )
   }
 
+  const lightHref = (row: ShowboxRow) => `/account/go-live/broadcast?parcel=${row.parcelId}&show=${row.featureUuid}`
+
   return (
     <section>
-      <h1>go live</h1>
-      <p>pick a showbox on land you own or collaborate on. go live opens the world with the broadcast dock. go live - light is camera and chat only, faster on phone.</p>
+      <h1>Go live</h1>
+      <p>Each heading below is a showbox stage on land you own or collaborate on. Light is the mobile version of that same stage - camera and chat only, no world view.</p>
       {error && <p>{error}</p>}
       {rows.length === 0 && !error && (
         <p>
           {parcelCount > 0
-            ? `checked ${parcelCount} parcel${parcelCount === 1 ? '' : 's'} - no showbox features found. add a showbox on land you can edit.`
-            : 'no parcels found for this account. sign in with the wallet that owns or collaborates on the land.'}
+            ? `Checked ${parcelCount} parcel${parcelCount === 1 ? '' : 's'} - no showbox features found. Add a showbox on land you can edit.`
+            : 'No parcels found for this account. Sign in with the wallet that owns or collaborates on the land.'}
         </p>
       )}
-      {rows.length > 0 && (
-        <ul>
-          {rows.map((row) => (
-            <li key={`${row.parcelId}-${row.featureUuid}`}>
-              {row.parcelLabel}
-              {row.via === 'collab' ? ' (collab)' : ''}{' '}
-              <a href={row.href}>go live</a>{' '}
-              <a href={`/account/go-live/broadcast?parcel=${row.parcelId}&show=${row.featureUuid}`}>go live - light</a>
-            </li>
-          ))}
-        </ul>
-      )}
+      {rows.map((row) => (
+        <section key={`${row.parcelId}-${row.featureUuid}`}>
+          <h2>
+            {row.parcelLabel}
+            {row.via === 'collab' ? ' (collab)' : ''}
+          </h2>
+          <p>
+            <a href={row.href}>In world</a>
+            {' · '}
+            <a href={lightHref(row)}>Light (mobile)</a>
+          </p>
+        </section>
+      ))}
     </section>
   )
 }
