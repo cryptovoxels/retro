@@ -732,7 +732,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         const track = pub.track
         if (!track || !pub.isSubscribed) continue
         if (this.isAngleTrackName(pub.trackName)) continue // a dedicated angle feed belongs to its mirror, not here
-        this.attachVideoToMesh(track.attach() as HTMLVideoElement)
+        this.attachVideoToMesh(track.attach() as HTMLVideoElement, true)
         this.startBroadcastAudio()
         this.stopStreamAttachRetry()
         return
@@ -990,6 +990,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const i = this.streamAudioEls.indexOf(el)
     if (i >= 0) this.streamAudioEls.splice(i, 1)
     this.disposeStreamSpatial(el)
+    el.remove()
   }
 
   wireStreamSpatial(el: HTMLAudioElement) {
@@ -1014,7 +1015,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
   }
 
-  trackStreamAudio(el: HTMLAudioElement) {
+  trackStreamAudio(el: HTMLAudioElement, identity?: string) {
+    if (identity) {
+      const prefix = cohostIdentityPrefix(identity)
+      for (let i = this.streamAudioEls.length - 1; i >= 0; i--) {
+        const old = this.streamAudioEls[i] as HTMLAudioElement & { dataset: { streamPrefix?: string } }
+        if (old.dataset?.streamPrefix === prefix) {
+          this.untrackStreamAudio(old)
+        }
+      }
+      el.dataset.streamPrefix = prefix
+    }
     this.streamAudioEls.push(el)
     if (!this.wireStreamSpatial(el)) {
       el.volume = this.effectiveStreamVolume()
@@ -2112,7 +2123,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         const el = track.attach() as HTMLAudioElement
         el.style.display = 'none'
         document.body.appendChild(el)
-        this.trackStreamAudio(el)
+        this.trackStreamAudio(el, identity)
         this.audio?.addUserAudioReference(this)
         this.startBroadcastAudio()
         return
@@ -2121,7 +2132,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (this.isCohostMode()) {
           this.routeCohostVideo(track, identity)
         } else {
-          this.attachVideoToMesh(track.attach() as HTMLVideoElement)
+          this.attachVideoToMesh(track.attach() as HTMLVideoElement, true)
         }
         this.startBroadcastAudio()
         this.stopStreamAttachRetry()
