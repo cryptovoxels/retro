@@ -218,7 +218,7 @@ function participantLabel(identity: string, radarNames: Map<string, string>) {
 function audienceFromRoom(room: Room | null, hostWallet: string, radarNames: Map<string, string>) {
   if (!room) return []
   const byWallet = new Map<string, string>()
-  for (const p of room.remoteParticipants.values()) {
+  for (const p of room.participants.values()) {
     const identity = p.identity ?? ''
     if (!identity || isSelfConnection(identity, hostWallet)) continue
     const wallet = cohostIdentityPrefix(identity).toLowerCase()
