@@ -2768,11 +2768,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     })
     const syncMicToggle = () => {
       if (!micOn) {
-        micToggle.textContent = screenChk.checked ? 'turn on mic' : mobile ? 'unmute mic' : 'mic muted'
+        micToggle.textContent = screenChk.checked ? 'turn on mic' : 'unmute mic'
         micToggle.style.color = '#888'
         return
       }
-      micToggle.textContent = mobile ? 'mute mic' : 'mic on'
+      micToggle.textContent = 'mute mic'
       micToggle.style.color = '#f5f5f0'
     }
     micToggle.onclick = async () => {
@@ -3590,6 +3590,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         } else {
           if (shareRow) shareRow.style.display = 'flex'
           moveRow.style.display = 'flex'
+          if (!screenChk.checked && liveAudioTrack) {
+            micOn = true
+            micToggle.style.display = 'block'
+            syncMicToggle()
+          }
         }
         if (chatRow) {
           chatRow.style.display = 'flex'

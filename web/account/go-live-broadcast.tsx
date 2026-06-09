@@ -1414,16 +1414,16 @@ export default function GoLiveBroadcast() {
             <div class="showbox-dock-preview-label">what your audience sees</div>
           </div>
 
-          {mobile && (
-            <div class="showbox-dock-live-tools">
-              <button type="button" class="showbox-dock-link-btn" onClick={toggleMic}>
-                {micOn ? 'mute mic' : 'unmute mic'}
-              </button>
+          <div class="showbox-dock-live-tools">
+            <button type="button" class="showbox-dock-link-btn" onClick={toggleMic}>
+              {micOn ? 'mute mic' : 'unmute mic'}
+            </button>
+            {mobile && (
               <button type="button" class="showbox-dock-link-btn" onClick={flipCamera}>
                 flip camera
               </button>
-            </div>
-          )}
+            )}
+          </div>
           {cameraLost && !broadcastLost && (
             <button type="button" class="showbox-dock-link-btn" onClick={() => void tryResumeCamera()}>
               reconnect camera
