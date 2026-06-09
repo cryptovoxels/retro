@@ -289,11 +289,17 @@ export class AudioEngine {
   }
 
   setSettings(settings: AudioSettings) {
-    this.trackOut.gain.value = defaultValueOfType('number', settings.musicVolume, 1)
+    const musicVolume = defaultValueOfType('number', settings.musicVolume, 1)
+    this.trackOut.gain.value = musicVolume
     this.parcelAudioBus.setVolume(defaultValueOfType('number', settings.parcelAudioVolume, 1))
     this.soundEffectsBus.setVolume(defaultValueOfType('number', settings.soundEffectsVolume, 1))
 
-    this.refreshTrack()
+    if (musicVolume === 0) {
+      this.fadeOutTracks(1)
+      this.currentTrack = null
+    } else {
+      this.refreshTrack()
+    }
     window.localStorage.setItem('audioSettings', JSON.stringify(settings))
   }
 
@@ -386,7 +392,7 @@ export class AudioEngine {
   }
 
   removeUserAudioReference(userAudio: object) {
-    this.userAudioReferences.delete(userAudio)
+    if (!this.userAudioReferences.delete(userAudio)) return
     this.refreshPlayState()
   }
 
@@ -415,6 +421,9 @@ export class AudioEngine {
       this.resetExploring()
     } else if (this.userAudioReferences.size > 0) {
       // if there is user audio playing (boombox, audio feature, video etc), pause the soundtrack
+      newState = PlayState.Paused
+    } else if (!this.platformSupportsMusic) {
+      // mobile/tablet skip the music loop - do not start ambient via feature ref churn
       newState = PlayState.Paused
     } else {
       // this will be the default once the initial exploreDetectorLow has been met
