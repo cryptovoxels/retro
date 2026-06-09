@@ -175,11 +175,13 @@ export const wantsEmail = (): boolean => {
 export const isOrbit = (): boolean => searchParams.get('mode') === 'orbit'
 
 export const wantsAudio = (): boolean => {
-  if (isOrbit()) {
-    return false
-  }
-
-  return searchParams.get('audio') !== 'off'
+  if (isOrbit()) return false
+  const audio = searchParams.get('audio')
+  if (audio === 'off' || audio === '0' || audio === 'false') return false
+  if (audio === 'on' || audio === '1' || audio === 'true') return true
+  // iframe embeds default silent - pass audio=on if you want sound
+  if (isEmbedded()) return false
+  return true
 }
 
 export const isBatterySaver = (): boolean => {

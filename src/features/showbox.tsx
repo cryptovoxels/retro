@@ -1,7 +1,7 @@
 import { Component, h } from 'preact'
 import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
-import { isMobile } from '../../common/helpers/detector'
+import { isMobile, wantsAudio } from '../../common/helpers/detector'
 import { holdMobileCanvasRefresh, refreshMobileCanvasAfterReturn } from '../controls/mobile/controls'
 import {
   BROADCAST_DISCONNECT_STRIKES,
@@ -2120,6 +2120,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         return
       }
       if (track.kind === Track.Kind.Audio) {
+        if (!wantsAudio()) return
         const el = track.attach() as HTMLAudioElement
         el.style.display = 'none'
         document.body.appendChild(el)
@@ -2253,7 +2254,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   startBroadcastAudio() {
-    if (!this.livekitRoom) return
+    if (!this.livekitRoom || !wantsAudio()) return
     this.livekitRoom.startAudio().catch(() => {})
     this.audio?.addUserAudioReference(this)
   }
