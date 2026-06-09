@@ -10,6 +10,7 @@ import {
   BROADCAST_RECONNECT_MAX,
   broadcastVideoTrackLive,
 } from '../../common/helpers/showbox-broadcast-health'
+import { showboxAudioConstraints, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
 import { isMobile } from '../../common/helpers/detector'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery } from '../../common/helpers/parcel-helper'
 import { avatarName } from '../../common/messages/avatar-ref'
@@ -473,6 +474,7 @@ export default function GoLiveBroadcast() {
   const [mics, setMics] = useState<MediaDeviceInfo[]>([])
   const [camId, setCamId] = useState('')
   const [micId, setMicId] = useState('')
+  const [audioMode, setAudioMode] = useState<ShowboxAudioMode>('voice')
   const [flipFacing, setFlipFacing] = useState<'user' | 'environment'>('user')
   const flipFacingRef = useRef<'user' | 'environment'>('user')
   flipFacingRef.current = flipFacing
@@ -1143,7 +1145,7 @@ export default function GoLiveBroadcast() {
       try {
         tracks = await createLocalTracks({
           video: showboxCameraVideoConstraints(camId || undefined),
-          audio: { deviceId: micId ? { exact: micId } : undefined },
+          audio: showboxAudioConstraints(audioMode, micId || undefined),
         })
       } catch (err) {
         throw new Error(cameraErrorMessage(err))
@@ -1484,6 +1486,13 @@ export default function GoLiveBroadcast() {
                 {d.label || 'mic'}
               </option>
             ))}
+          </select>
+          <label>audio mode</label>
+          <select value={audioMode} onChange={(e) => setAudioMode((e.target as HTMLSelectElement).value as ShowboxAudioMode)}>
+            <option value="voice">voice</option>
+            <option value="loud">loud room</option>
+            <option value="headphones">headphones</option>
+            <option value="external">OBS / external</option>
           </select>
         </div>
       )}

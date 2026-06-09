@@ -10,6 +10,7 @@ import {
   BROADCAST_RECONNECT_MAX,
   broadcastVideoTrackLive,
 } from '../../common/helpers/showbox-broadcast-health'
+import { showboxAudioConstraints, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { encodeCoords } from '../../common/helpers/utils'
@@ -2657,9 +2658,29 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     micLabel.textContent = 'microphone'
     const micSel = document.createElement('select')
     Object.assign(micSel.style, { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: '4px' })
+    const audioModeLabel = document.createElement('label')
+    audioModeLabel.textContent = 'audio mode'
+    const audioModeSel = document.createElement('select')
+    Object.assign(audioModeSel.style, { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: '4px' })
+    let audioMode: ShowboxAudioMode = 'voice'
+    for (const [val, label] of [
+      ['voice', 'voice'],
+      ['loud', 'loud room'],
+      ['headphones', 'headphones'],
+      ['external', 'OBS / external'],
+    ] as const) {
+      const o = document.createElement('option')
+      o.value = val
+      o.textContent = label
+      audioModeSel.appendChild(o)
+    }
+    audioModeSel.onchange = () => {
+      audioMode = audioModeSel.value as ShowboxAudioMode
+    }
     if (mobile) {
       Object.assign(camSel.style, { fontSize: '16px', minHeight: '44px', padding: '8px' })
       Object.assign(micSel.style, { fontSize: '16px', minHeight: '44px', padding: '8px' })
+      Object.assign(audioModeSel.style, { fontSize: '16px', minHeight: '44px', padding: '8px' })
     }
 
     const screenOpt = document.createElement('label')
@@ -2682,8 +2703,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (mobile) {
       camLabel.style.display = 'block'
       micLabel.style.display = 'block'
+      audioModeLabel.style.display = 'block'
     }
-    deviceRow.append(camLabel, camSel, micLabel, micSel)
+    deviceRow.append(camLabel, camSel, micLabel, micSel, audioModeLabel, audioModeSel)
 
     const deviceToggle = document.createElement('button')
     deviceToggle.type = 'button'
@@ -3433,12 +3455,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         let tracks: any[]
         try {
           if (screenChk.checked) {
-            tracks = await createLocalScreenTracks({ audio: true })
+            tracks = await createLocalScreenTracks({ audio: showboxAudioConstraints('external') })
           } else {
             tracks = await createLocalTracks({
               // exact: a plain string deviceId is only a preference, so 3-cam setups grab the wrong camera. Force the pick.
               video: showboxCameraVideoConstraints(camSel.value || undefined),
-              audio: { deviceId: micSel.value ? { exact: micSel.value } : undefined },
+              audio: showboxAudioConstraints(audioMode, micSel.value || undefined),
             })
           }
         } catch (err) {
