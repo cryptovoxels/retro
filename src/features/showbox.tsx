@@ -177,7 +177,7 @@ function makeDockPreviewVideo(track: { mediaStreamTrack?: MediaStreamTrack } | n
 
 // True when the page was opened via /live/:token and the guest pass targets this showbox.
 // The synthetic wallet `guest:*` and `?show=<uuid>` are both set by the server on redeem.
-function guestJwtPayload(): { wallet?: string; guest_pass?: string; feature_uuid?: string } | null {
+function guestJwtPayload(): { wallet?: string; guest_pass?: string; feature_uuid?: string; parcel_id?: number } | null {
   try {
     const key = app.state.key || Cookies.get('jwt')
     if (!key) return null
@@ -228,6 +228,14 @@ function isGuestForShowbox(uuid: string): boolean {
   }
   if (app.signedIn && guestPassToken() && showMatch) return true
   return false
+}
+
+// guest pass is scoped to one primary showbox, but angle mirrors are sibling screens on the same parcel.
+function isGuestOnParcel(parcelId: number): boolean {
+  if (!guestPassToken()) return false
+  const payload = guestJwtPayload()
+  if (payload?.parcel_id != null) return Number(payload.parcel_id) === parcelId
+  return !!showboxJoinShowUuid()
 }
 
 function showboxRoomTokenUrl(roomName: string) {
@@ -519,7 +527,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   // owners/collaborators + valid guest links can drive a second camera into an angle mirror
   canBroadcastAngle() {
-    return this.isAngleMirror() && (this.parcel.canEdit || isGuestForShowbox(this.uuid))
+    return this.isAngleMirror() && (this.parcel.canEdit || isGuestForShowbox(this.uuid) || isGuestOnParcel(this.parcel.id))
   }
 
   // walk up to an angle mirror and push your camera straight to it (video only, no audio, no __showbox_live).
