@@ -289,7 +289,7 @@ export class AudioEngine {
   }
 
   setSettings(settings: AudioSettings) {
-    const musicVolume = defaultValueOfType('number', settings.musicVolume, 1)
+    const musicVolume: number = defaultValueOfType('number', settings.musicVolume, 1)
     this.trackOut.gain.value = musicVolume
     this.parcelAudioBus.setVolume(defaultValueOfType('number', settings.parcelAudioVolume, 1))
     this.soundEffectsBus.setVolume(defaultValueOfType('number', settings.soundEffectsVolume, 1))
