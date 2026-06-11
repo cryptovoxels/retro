@@ -12,6 +12,7 @@ import {
 } from '../../common/helpers/showbox-broadcast-health'
 import { showboxAudioConstraints, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
 import { isMobile } from '../../common/helpers/detector'
+import { consumeGuestFreshFromUrl } from '../../common/helpers/guest-pass-client'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery } from '../../common/helpers/parcel-helper'
 import { avatarName } from '../../common/messages/avatar-ref'
 import { Login } from '../src/auth/login'
@@ -467,7 +468,7 @@ export default function GoLiveBroadcast() {
   const [elapsed, setElapsed] = useState(0)
   const [micOn, setMicOn] = useState(true)
   const [chatDraft, setChatDraft] = useState('')
-  const [guestName, setGuestName] = useState(app.state.name || '')
+  const [guestName, setGuestName] = useState(() => (isSyntheticGuestWallet() ? '' : (app.state.name || '')))
   const [fanUrl, setFanUrl] = useState('')
   const [guestUrl, setGuestUrl] = useState('')
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([])
@@ -521,6 +522,10 @@ export default function GoLiveBroadcast() {
   const isCohost = guestMode === 'cohost'
   const roomName = parcelId ? `parcel-${parcelId}` : ''
   const parcelLabel = parcel ? new ParcelHelper(parcel).ownerName || parcel.name?.trim() || parcel.address?.trim() || `parcel #${parcelId}` : ''
+
+  useEffect(() => {
+    if (consumeGuestFreshFromUrl((n) => app.setName(n))) setGuestName('')
+  }, [])
 
   useEffect(() => {
     if (!parcelId || !showUuid) {

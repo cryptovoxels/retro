@@ -13,6 +13,7 @@ import {
 import { showboxAudioConstraints, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
+import { consumeGuestFreshFromUrl } from '../../common/helpers/guest-pass-client'
 import { encodeCoords } from '../../common/helpers/utils'
 import { ShowboxRecord } from '../../common/messages/feature'
 import { effect } from '@preact/signals'
@@ -1804,6 +1805,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   onEnter = () => {
+    if (isSyntheticGuestWallet()) consumeGuestFreshFromUrl((n) => app.setName(n))
     if (!this.livekitRoom) {
       this.connectViewer()
     }
@@ -2541,6 +2543,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     const isGuest = isGuestForShowbox(this.uuid)
     const syntheticGuest = isGuest && isSyntheticGuestWallet()
+    if (syntheticGuest) consumeGuestFreshFromUrl((n) => app.setName(n))
 
     const panel = document.createElement('div')
     this.broadcastPanel = panel
