@@ -1505,7 +1505,7 @@ export default function GoLiveBroadcast() {
       {!live && status && <div class="showbox-dock-status">{status}</div>}
 
       <div class="showbox-dock-footer">
-        {live && !isGuest && mobile && (
+        {live && mobile && !isGuest && (
           <div class="showbox-dock-share-split">
             {sharePickOpen && (
               <div class="showbox-dock-share-menu">
@@ -1552,7 +1552,12 @@ export default function GoLiveBroadcast() {
             </button>
           </div>
         )}
-        {live && !isGuest && !mobile && (
+        {live && mobile && isGuest && (
+          <button type="button" class="showbox-dock-share-main" onClick={() => void shareShowUrl('fan')}>
+            share fan link
+          </button>
+        )}
+        {live && !mobile && (
           <div class="showbox-dock-share-block">
             <label>fan link - share with your audience</label>
             <div class="showbox-dock-share-row">
@@ -1561,13 +1566,17 @@ export default function GoLiveBroadcast() {
                 copy
               </button>
             </div>
-            <label>guest link - for your co-host or DJ/Artist</label>
-            <div class="showbox-dock-share-row">
-              <input type="text" readonly value={guestUrl || 'no guest link yet'} onClick={(e) => (e.target as HTMLInputElement).select()} />
-              <button type="button" onClick={() => copyUrl(guestUrl)} disabled={!guestUrl}>
-                copy
-              </button>
-            </div>
+            {!isGuest && (
+              <>
+                <label>guest link - for your co-host or DJ/Artist</label>
+                <div class="showbox-dock-share-row">
+                  <input type="text" readonly value={guestUrl || 'no guest link yet'} onClick={(e) => (e.target as HTMLInputElement).select()} />
+                  <button type="button" onClick={() => copyUrl(guestUrl)} disabled={!guestUrl}>
+                    copy
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
         <div class="showbox-dock-footer-row">
