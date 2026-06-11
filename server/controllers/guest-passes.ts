@@ -91,11 +91,8 @@ function noStoreJson(res: Response, body: Record<string, unknown>) {
   res.json(body)
 }
 
-export async function revokeGuestPassesForFeature(db: Db, livekit: RoomServiceClient, parcelId: number, featureUuid: string) {
-  const revoked = await db.query('sql/guest-passes/revoke-for-feature', `update guest_passes set revoked_at = now() where parcel_id = $1 and lower(feature_uuid) = lower($2) and revoked_at is null returning *`, [parcelId, featureUuid])
-  const passes = revoked.rows as GuestPassRow[]
+async function kickGuestPassParticipants(livekit: RoomServiceClient, parcelId: number, passes: GuestPassRow[]) {
   if (!passes.length) return
-
   try {
     const roomName = `parcel-${parcelId}`
     const participants = await livekit.listParticipants(roomName)
@@ -110,6 +107,27 @@ export async function revokeGuestPassesForFeature(db: Db, livekit: RoomServiceCl
   } catch {
     // room may not exist; nothing to kick
   }
+}
+
+async function issueGuestJwt(pass: GuestPassRow) {
+  const syntheticWallet = `guest:${pass.token.slice(0, 12)}`.toLowerCase()
+  return new SignJWT({
+    wallet: syntheticWallet,
+    guest_pass: pass.token,
+    parcel_id: pass.parcel_id,
+    feature_uuid: pass.feature_uuid,
+  } as any)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime(Math.floor(Date.now() / 1000) + GUEST_JWT_TTL_SECONDS)
+    .sign(JWT_SECRET_KEY)
+}
+
+export async function revokeGuestPassesForFeature(db: Db, livekit: RoomServiceClient, parcelId: number, featureUuid: string) {
+  const revoked = await db.query('sql/guest-passes/revoke-for-feature', `update guest_passes set revoked_at = now() where parcel_id = $1 and lower(feature_uuid) = lower($2) and revoked_at is null returning *`, [parcelId, featureUuid])
+  const passes = revoked.rows as GuestPassRow[]
+  if (!passes.length) return
+  await kickGuestPassParticipants(livekit, parcelId, passes)
 }
 
 export default function GuestPassesController(db: Db, passport: PassportStatic, app: Express, livekit: RoomServiceClient, gridSocket: GridSocket) {
@@ -249,23 +267,32 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       return res.status(500).json({ success: false, error: 'Could not revoke link' })
     }
 
-    // Best-effort live kick: any participant whose identity carries a revoked pass prefix
-    try {
-      const roomName = `parcel-${parcelId}`
-      const participants = await livekit.listParticipants(roomName)
-      for (const row of passes) {
-        const tokenPrefix = row.token.slice(0, 12)
-        for (const p of participants) {
-          if (p.identity.startsWith(`guest-${tokenPrefix}`)) {
-            await livekit.removeParticipant(roomName, p.identity).catch(() => {})
-          }
-        }
-      }
-    } catch {
-      // room may not exist; nothing to kick
-    }
+    await kickGuestPassParticipants(livekit, parcelId, passes)
 
     noStoreJson(res, { success: true, pass: updated, passes })
+  })
+
+  // Re-issue guest jwt before expiry so long streams don't lose auth mid-broadcast
+  app.post('/api/guest/:token/refresh', passport.authenticate('jwt', { session: false }), async (req: VoxelsUserRequest, res: Response) => {
+    const token = String(req.params.token)
+    const user = req.user as (typeof req.user & { guest_pass?: string }) | undefined
+    if (!user?.guest_pass || user.guest_pass !== token) {
+      return res.status(403).json({ success: false, error: 'Not your pass' })
+    }
+
+    const pass = await loadGuestPass(db, token)
+    if (!pass || pass.revoked_at) {
+      return res.status(403).json({ success: false, error: 'Invalid or revoked link' })
+    }
+
+    try {
+      const jwt = await issueGuestJwt(pass)
+      res.cookie('jwt', jwt, { maxAge: GUEST_JWT_TTL_SECONDS * 1000, httpOnly: false, sameSite: 'lax' })
+      noStoreJson(res, { success: true, jwt })
+    } catch (err) {
+      log.error('[guest-pass] refresh failed', { token: token.slice(0, 12), error: err })
+      res.status(500).json({ success: false, error: 'Could not refresh session' })
+    }
   })
 
   // Guest can update their own display name. Auth via the guest_pass jwt - if it doesn't match
@@ -361,16 +388,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       )
       await db.query('sql/guest-passes/clear-pass-name', `update guest_passes set name = '' where token = $1`, [token])
 
-      const jwt = await new SignJWT({
-        wallet: syntheticWallet,
-        guest_pass: token,
-        parcel_id: pass.parcel_id,
-        feature_uuid: pass.feature_uuid,
-      } as any)
-        .setProtectedHeader({ alg: 'HS256' })
-        .setIssuedAt()
-        .setExpirationTime(Math.floor(Date.now() / 1000) + GUEST_JWT_TTL_SECONDS)
-        .sign(JWT_SECRET_KEY)
+      const jwt = await issueGuestJwt(pass)
 
       res.cookie('jwt', jwt, { maxAge: GUEST_JWT_TTL_SECONDS * 1000, httpOnly: false, sameSite: 'lax' })
       if (light) {

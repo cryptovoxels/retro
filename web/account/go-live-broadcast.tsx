@@ -19,7 +19,7 @@ import {
 } from '../../common/helpers/showbox-broadcast-health'
 import { showboxAudioConstraints, showboxRoomHint, SHOWBOX_ROOM_OPTIONS, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
 import { isMobile } from '../../common/helpers/detector'
-import { consumeGuestFreshFromUrl } from '../../common/helpers/guest-pass-client'
+import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery } from '../../common/helpers/parcel-helper'
 import { avatarName } from '../../common/messages/avatar-ref'
 import { Login } from '../src/auth/login'
@@ -635,6 +635,13 @@ export default function GoLiveBroadcast() {
   }, [live, chatComposing])
 
   useEffect(() => {
+    if (!isSyntheticGuestWallet()) return
+    void maybeRefreshGuestJwt()
+    const t = setInterval(() => void maybeRefreshGuestJwt(), 5 * 60 * 1000)
+    return () => clearInterval(t)
+  }, [])
+
+  useEffect(() => {
     connectShardChat()
     navigator.mediaDevices
       ?.enumerateDevices()
@@ -774,6 +781,7 @@ export default function GoLiveBroadcast() {
     const v = setInterval(() => {
       checkBroadcastHealth()
       refreshViewers()
+      void maybeRefreshGuestJwt()
     }, BROADCAST_HEALTH_POLL_MS)
     return () => {
       clearInterval(t)
