@@ -176,7 +176,13 @@ export default async function LivekitController(db: Db, passport: PassportStatic
 
     // anon guest jwt uses guest- prefix so revoke can kick. signed-in guest links keep their wallet.
     const identityPrefix = user?.guest_pass ? `guest-${user.guest_pass.slice(0, 12)}` : wallet
-    const identity = `${identityPrefix}-${Math.random().toString(36).slice(2, 10)}`
+    const reuseIdentity = String(req.query.identity ?? '').trim()
+    let identity: string
+    if (reuseIdentity && /^[a-zA-Z0-9._-]+$/.test(reuseIdentity) && reuseIdentity.startsWith(`${identityPrefix}-`)) {
+      identity = reuseIdentity
+    } else {
+      identity = `${identityPrefix}-${Math.random().toString(36).slice(2, 10)}`
+    }
 
     const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, { identity })
     at.addGrant({ roomJoin: true, room: name, canPublish, canSubscribe: true })
