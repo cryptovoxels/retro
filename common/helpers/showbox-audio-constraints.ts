@@ -1,10 +1,23 @@
-export type ShowboxAudioMode = 'voice' | 'loud' | 'headphones' | 'external'
+export type ShowboxAudioMode = 'voice' | 'presenter' | 'loud' | 'headphones' | 'external'
+
+export const SHOWBOX_ROOM_OPTIONS: { value: ShowboxAudioMode; label: string; hint: string }[] = [
+  { value: 'voice', label: 'quiet — just talking', hint: 'home, office, or gallery. start here.' },
+  { value: 'presenter', label: 'speakers on — I talk too', hint: 'PA or monitors on, but you talk between songs.' },
+  { value: 'headphones', label: 'headset — quiet spot', hint: 'earbuds or gaming mic. no speaker bleed.' },
+  { value: 'loud', label: 'party — music or crowd', hint: 'the room sound is the show. not for talking much.' },
+  { value: 'external', label: 'OBS or mixer', hint: 'audio already mixed elsewhere. not this mic.' },
+]
+
+export function showboxRoomHint(mode: ShowboxAudioMode): string {
+  return SHOWBOX_ROOM_OPTIONS.find((o) => o.value === mode)?.hint ?? ''
+}
 
 export function showboxAudioConstraints(mode: ShowboxAudioMode, deviceId?: string): Record<string, any> {
   const c: Record<string, any> = {}
   if (deviceId) c.deviceId = { exact: deviceId }
   if (mode === 'voice') return c
-  if (mode === 'headphones') {
+  // presenter: PA/speakers on but you still talk - no echo cancel, auto-level voice when music drops
+  if (mode === 'presenter' || mode === 'headphones') {
     c.echoCancellation = false
     c.noiseSuppression = true
     c.autoGainControl = true
