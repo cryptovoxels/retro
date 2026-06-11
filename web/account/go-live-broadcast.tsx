@@ -1591,6 +1591,9 @@ export default function GoLiveBroadcast() {
             </button>
           )}
         </div>
+        <a href="/logout" class="showbox-dock-link-btn">
+          log out
+        </a>
       </div>
     </div>
   )

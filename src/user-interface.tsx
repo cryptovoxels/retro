@@ -671,7 +671,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   onLogout = () => {
-    app.signout()
+    window.location.href = '/logout'
   }
 
   render() {

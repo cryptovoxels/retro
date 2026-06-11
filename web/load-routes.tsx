@@ -187,6 +187,7 @@ export default function loadRoutes(app: Express) {
     { path: '/account/go-live', cache: '1 minute' },
     { path: '/account/go-live/broadcast', cache: '1 minute' },
     { path: '/login', cache: '1 minute' },
+    { path: '/logout', cache: false },
     { path: '/account/:section', cache: '30 seconds' },
     { path: '/costumes/', cache: '30 seconds' },
     { path: '/assets', cache: '1 minute' },

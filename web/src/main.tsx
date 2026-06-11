@@ -32,6 +32,7 @@ import EventsEdit from './events-edit'
 import Explore from './explore'
 import Footer from './footer'
 import Home from './home'
+import Logout from './logout'
 import Island from './island'
 import Islands from './islands'
 import Mail from './mail'
@@ -116,6 +117,7 @@ const Main = () => {
           <Terms path="/terms" />
           <Privacy path="/privacy" />
           <Conduct path="/conduct" />
+          <Logout path="/logout" />
           <NotFound path="/not-found" />
 
           <Mail path="/mail" />
