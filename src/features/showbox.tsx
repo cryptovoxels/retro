@@ -1772,8 +1772,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       // toggled off angle mode while broadcasting one - drop the orphaned track
       if (this.angleVideoTrack && !this.isAngleMirror()) this.stopAngleBroadcast()
       this.refreshMirrorVideo()
-      this.setPreview()
     }
+    if (!this.hasActiveVideo && !this.broadcastRoom) this.setPreview()
   }
 
   generate() {
@@ -2022,8 +2022,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     if (this.broadcastRoom) return
     if (this.hasActiveVideo) return
-    const w = 640
-    const h = 360
+    const { w, h } = this.meshVideoSize()
     const tex = new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), { width: w, height: h }, this.scene, false)
     const ctx = tex.getContext() as CanvasRenderingContext2D
     const font = 'bold 18px "Source Code Pro", monospace'
