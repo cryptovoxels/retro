@@ -325,6 +325,7 @@ export const ShowboxRecord = t.intersection(
         rolloffFactor: t.number,
         volume: t.number,
         guestMode: t.union([t.literal('solo'), t.literal('cohost')]),
+        screenShape: t.union([t.literal('landscape'), t.literal('portrait')]),
         mirrorSource: t.union([t.literal('auto'), t.literal('host'), t.literal('collaborator'), t.literal('guest')]),
         angleMode: t.boolean,
       },

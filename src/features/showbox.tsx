@@ -91,6 +91,27 @@ function celebrateMoves(n: number, uuid: string) {
 
 const LIVEKIT_URL = 'https://voxels-7pvk06qt.livekit.cloud'
 const mobile = isMobile()
+const LANDSCAPE_MESH_W = 640
+const LANDSCAPE_MESH_H = 360
+const PORTRAIT_MESH_W = 360
+const PORTRAIT_MESH_H = 640
+const THUMB_W = 256
+const THUMB_H = 144
+const LANDSCAPE_SCALE: [number, number, number] = [2, 1, 0]
+const PORTRAIT_SCALE: [number, number, number] = [1, 16 / 9, 0]
+
+function drawVideoCover(ctx: CanvasRenderingContext2D, src: CanvasImageSource, dx: number, dy: number, dw: number, dh: number) {
+  const el = src as HTMLVideoElement
+  const vw = el.videoWidth || (src as HTMLImageElement).width || 0
+  const vh = el.videoHeight || (src as HTMLImageElement).height || 0
+  if (!vw || !vh) return
+  const scale = Math.max(dw / vw, dh / vh)
+  const sw = dw / scale
+  const sh = dh / scale
+  const sx = (vw - sw) / 2
+  const sy = (vh - sh) / 2
+  ctx.drawImage(src, sx, sy, sw, sh, dx, dy, dw, dh)
+}
 
 function isRoomFullError(e: unknown) {
   const msg = (e instanceof Error ? e.message : String(e ?? '')).toLowerCase()
@@ -1050,6 +1071,24 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return this.description.guestMode === 'solo' ? 'solo' : 'cohost'
   }
 
+  get screenShape(): 'landscape' | 'portrait' {
+    if (this.isMirror()) {
+      const primary = this.parcel.getFeaturesByType('showbox')[0] as Showbox | undefined
+      return primary?.description.screenShape === 'portrait' ? 'portrait' : 'landscape'
+    }
+    return this.description.screenShape === 'portrait' ? 'portrait' : 'landscape'
+  }
+
+  isPortraitScreen() {
+    return this.screenShape === 'portrait'
+  }
+
+  meshVideoSize() {
+    return this.isPortraitScreen()
+      ? { w: PORTRAIT_MESH_W, h: PORTRAIT_MESH_H }
+      : { w: LANDSCAPE_MESH_W, h: LANDSCAPE_MESH_H }
+  }
+
   isCohostMode() {
     return this.guestMode === 'cohost'
   }
@@ -1507,17 +1546,22 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const h = canvas.height
     ctx.fillStyle = '#0d0d0d'
     ctx.fillRect(0, 0, w, h)
-    const drawVid = (el: HTMLVideoElement, x: number, dw: number) => {
-      if (el.videoWidth > 0) ctx.drawImage(el, x, 0, dw, h)
+    const drawVid = (el: HTMLVideoElement, x: number, y: number, dw: number, dh: number) => {
+      if (el.videoWidth > 0) drawVideoCover(ctx, el, x, y, dw, dh)
     }
     // mobile hidden videos flicker videoWidth - once both slots had frames, stay split
     if (ownerDraw && guestDraw) {
-      drawVid(ownerEl!, 0, w / 2)
-      drawVid(guestEl!, w / 2, w / 2)
+      if (this.isPortraitScreen()) {
+        drawVid(ownerEl!, 0, 0, w, h / 2)
+        drawVid(guestEl!, 0, h / 2, w, h / 2)
+      } else {
+        drawVid(ownerEl!, 0, 0, w / 2, h)
+        drawVid(guestEl!, w / 2, 0, w / 2, h)
+      }
     } else if (ownerDraw) {
-      drawVid(ownerEl!, 0, w)
+      drawVid(ownerEl!, 0, 0, w, h)
     } else if (guestDraw) {
-      drawVid(guestEl!, 0, w)
+      drawVid(guestEl!, 0, 0, w, h)
     }
     return true
   }
@@ -1606,10 +1650,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       return
     }
 
-    if (!this.cohostCanvas) {
-      this.cohostCanvas = document.createElement('canvas')
-      this.cohostCanvas.width = 640
-      this.cohostCanvas.height = 360
+    if (!this.cohostCanvas) this.cohostCanvas = document.createElement('canvas')
+    const { w: cw, h: ch } = this.meshVideoSize()
+    if (this.cohostCanvas.width !== cw || this.cohostCanvas.height !== ch) {
+      this.cohostCanvas.width = cw
+      this.cohostCanvas.height = ch
+      this.cohostCompositeAttached = false
     }
 
     if (!this.drawCohostFrame()) {
@@ -2316,12 +2362,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       applyMaterial(tex)
     }
 
-    // Portrait frames on a wide showbox plane stretch without letterboxing - draw contain into a canvas instead.
-    const attachLetterboxed = () => {
+    const attachCovered = () => {
       if (!this.meshLetterboxCanvas) this.meshLetterboxCanvas = document.createElement('canvas')
       const canvas = this.meshLetterboxCanvas
-      const outW = 640
-      const outH = 360
+      const { w: outW, h: outH } = this.meshVideoSize()
       canvas.width = outW
       canvas.height = outH
       const ctx = canvas.getContext('2d')
@@ -2334,27 +2378,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       applyMaterial(tex)
       const tick = () => {
         if (this.disposed || !this.mesh) return
-        const vw = el.videoWidth
-        const vh = el.videoHeight
-        if (vw > 0 && vh > 0) {
-          ctx.fillStyle = '#0d0d0d'
-          ctx.fillRect(0, 0, outW, outH)
-          const s = Math.min(outW / vw, outH / vh)
-          const dw = vw * s
-          const dh = vh * s
-          ctx.drawImage(el, (outW - dw) / 2, (outH - dh) / 2, dw, dh)
-          tex.update()
-        }
+        ctx.fillStyle = '#0d0d0d'
+        ctx.fillRect(0, 0, outW, outH)
+        if (el.videoWidth > 0 && el.videoHeight > 0) drawVideoCover(ctx, el, 0, 0, outW, outH)
+        tex.update()
         this.meshLetterboxRaf = requestAnimationFrame(tick)
       }
       tick()
     }
 
     const pickMode = () => {
-      // per-frame canvas + webgl while live on a phone often kills the context (white screen). dock preview already letterboxes.
-      if (mobile) attachDirect()
-      else if (el.videoWidth > 0 && el.videoHeight > el.videoWidth) attachLetterboxed()
-      else attachDirect()
+      attachCovered()
     }
     if (el.videoWidth > 0) pickMode()
     else el.addEventListener('loadedmetadata', pickMode, { once: true })
@@ -2367,8 +2401,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     if (!this.thumbCanvas) {
       this.thumbCanvas = document.createElement('canvas')
-      this.thumbCanvas.width = 256
-      this.thumbCanvas.height = 144
+      this.thumbCanvas.width = THUMB_W
+      this.thumbCanvas.height = THUMB_H
     }
     const canvas = this.thumbCanvas
     const ctx = canvas.getContext('2d')!
@@ -2380,13 +2414,18 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (this.isCohostMode()) {
           if (!this.cohostCanvas) {
             this.cohostCanvas = document.createElement('canvas')
-            this.cohostCanvas.width = 640
-            this.cohostCanvas.height = 360
+            const { w: cw, h: ch } = this.meshVideoSize()
+            this.cohostCanvas.width = cw
+            this.cohostCanvas.height = ch
           }
           if (!this.drawCohostFrame()) return
-          ctx.drawImage(this.cohostCanvas, 0, 0, 256, 144)
+          ctx.fillStyle = '#0d0d0d'
+          ctx.fillRect(0, 0, THUMB_W, THUMB_H)
+          drawVideoCover(ctx, this.cohostCanvas, 0, 0, THUMB_W, THUMB_H)
         } else if (videoEl) {
-          ctx.drawImage(videoEl, 0, 0, 256, 144)
+          ctx.fillStyle = '#0d0d0d'
+          ctx.fillRect(0, 0, THUMB_W, THUMB_H)
+          drawVideoCover(ctx, videoEl, 0, 0, THUMB_W, THUMB_H)
         } else return
         const thumbnail = canvas.toDataURL('image/jpeg', 0.2)
         const coord = encodeCoords({ position: cameraPosition(this.scene), rotation: cameraRotation(this.scene) })
@@ -3868,17 +3907,24 @@ class Editor extends FeatureEditor<Showbox> {
       guestMode: props.feature.guestMode === 'solo' ? 'solo' : 'cohost',
       mirrorSource: props.feature.mirrorSource,
       angleMode: !!props.feature.description.angleMode,
+      screenShape: props.feature.screenShape === 'portrait' ? 'portrait' : 'landscape',
     }
   }
 
-  componentDidUpdate() {
+  componentDidUpdate(_prevProps: FeatureEditorProps<Showbox>, prevState: typeof this.state) {
     this.merge({
       rolloffFactor: this.state.rolloffFactor,
       volume: this.state.volume,
       guestMode: this.state.guestMode,
       mirrorSource: this.state.mirrorSource,
       angleMode: this.state.angleMode,
+      screenShape: this.state.screenShape,
     })
+    if (prevState.screenShape !== this.state.screenShape) {
+      this.props.feature.set({
+        scale: this.state.screenShape === 'portrait' ? PORTRAIT_SCALE : LANDSCAPE_SCALE,
+      })
+    }
   }
 
   render() {
@@ -3917,6 +3963,22 @@ class Editor extends FeatureEditor<Showbox> {
             </div>
           ) : (
             <GuestPasses feature={this.props.feature} guestMode={this.state.guestMode} onGuestModeChange={(guestMode) => this.setState({ guestMode })} />
+          )}
+          {!isMirror && (
+            <div className="f">
+              <label>screen shape</label>
+              <div>
+                <label>
+                  <input type="radio" name="screenShape" checked={this.state.screenShape === 'landscape'} onChange={() => this.setState({ screenShape: 'landscape' })} />
+                  landscape
+                </label>
+                <label>
+                  <input type="radio" name="screenShape" checked={this.state.screenShape === 'portrait'} onChange={() => this.setState({ screenShape: 'portrait' })} />
+                  portrait
+                </label>
+              </div>
+              <small>portrait fits phone video better. co-host stacks top and bottom on portrait screens.</small>
+            </div>
           )}
           <Advanced>
             <FeatureID feature={this.props.feature} />
