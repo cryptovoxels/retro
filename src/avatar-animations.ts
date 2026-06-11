@@ -1,5 +1,6 @@
 export enum Animations {
   Idle = 0,
+  Wave = 1,
   Walk = 2,
   Dance = 3,
   Run = 4,
@@ -32,6 +33,7 @@ export function AnimationYOffset(animation: Animations): number {
 /** Emotes/dances to mirror when following someone in a conga line (not locomotion/base poses). */
 export function isCongaSyncedDance(a: Animations): boolean {
   switch (a) {
+    case Animations.Wave:
     case Animations.Dance:
     case Animations.Spin:
     case Animations.Savage:
@@ -176,7 +178,7 @@ export class AvatarAnimations {
 export async function loadAnimation(scene: BABYLON.Scene): Promise<void> {
   const basicAnimationsPromise = loadBasicAnimations(scene)
 
-  const EXTRA_AVATAR_ANIMATIONS = ['Sitting', 'Spin', 'Savage', 'Kick', 'Uprock', 'Floss', 'Backflip', 'Celebration', 'Orange', 'Hype', 'Shocked', 'Wipe', 'Applause'] as const
+  const EXTRA_AVATAR_ANIMATIONS = ['Wave', 'Sitting', 'Spin', 'Savage', 'Kick', 'Uprock', 'Floss', 'Backflip', 'Celebration', 'Orange', 'Hype', 'Shocked', 'Wipe', 'Applause'] as const
   const extraAnimationsPromise = Promise.all(EXTRA_AVATAR_ANIMATIONS.map((name) => loadExtraAnimation(scene, name)))
 
   const [basicAnimations, extraAnimations] = await Promise.all([basicAnimationsPromise, extraAnimationsPromise])
