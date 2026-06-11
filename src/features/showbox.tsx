@@ -20,7 +20,7 @@ import {
 import { showboxAudioConstraints, showboxRoomHint, SHOWBOX_ROOM_OPTIONS, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
-import { consumeGuestFreshFromUrl } from '../../common/helpers/guest-pass-client'
+import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
 import { encodeCoords } from '../../common/helpers/utils'
 import { ShowboxRecord } from '../../common/messages/feature'
 import { effect } from '@preact/signals'
@@ -442,6 +442,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   onlineReconnectWired = false
   streamAttachRetryInterval: ReturnType<typeof setInterval> | null = null
   streamAttachAttempts = 0
+  mirrorRefreshTimer: ReturnType<typeof setTimeout> | null = null
+  guestJwtRefreshInterval: ReturnType<typeof setInterval> | null = null
   hostJoinLoginPending = false
   joinDockAutoOpened = false
   hostJoinAutoOpenStarted = false
@@ -718,29 +720,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   refreshMirrorVideo() {
     if (!this.isMirror() || this.broadcastRoom || !this.livekitRoom) return
     if (this.isAngleMirror()) return this.refreshAngleVideo()
-    const byRole: Partial<Record<MirrorRole, { track: any; id: string }>> = {}
-    let first: { track: any; id: string } | null = null
-    const consider = (track: any, identity: string, trackName?: string) => {
-      if (!track) return
-      if (this.isAngleTrackName(trackName)) return // angle feeds belong to their own mirror, not the echo
-      const role = this.publisherRole(identity)
-      if (!byRole[role]) byRole[role] = { track, id: identity }
-      if (!first) first = { track, id: identity }
-    }
-    for (const p of (this.livekitRoom as any).participants?.values() ?? []) {
-      for (const pub of p.videoTracks.values()) {
-        if (pub.isSubscribed) consider(pub.track, p.identity, pub.trackName)
-      }
-    }
-    // our own broadcast isn't a remote participant on this client - read it off the primary showbox
-    const local = (this.parcel.primaryShowbox() as any)?.broadcastRoom?.localParticipant
-    for (const pub of local?.videoTracks?.values() ?? []) {
-      consider(pub.track, local.identity, pub.trackName)
-    }
-    const want = this.mirrorSource
-    // chosen role if it's live, else fall back to whoever is live (host preferred)
-    const pick = (want !== 'auto' ? byRole[want] : null) ?? byRole.host ?? byRole.collaborator ?? byRole.guest ?? first
+    const pick = this.pickVideoSource(true)
     if (!pick) {
+      if (this.hasRemoteBroadcaster()) return
       if (this.hasActiveVideo) {
         this.hasActiveVideo = false
         this.mirrorVideoIdentity = null
@@ -767,17 +749,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       return
     }
     if (this.hasActiveVideo) return
-    for (const participant of (this.livekitRoom as any).participants?.values() ?? []) {
-      for (const pub of participant.videoTracks.values()) {
-        const track = pub.track
-        if (!track || !pub.isSubscribed) continue
-        if (this.isAngleTrackName(pub.trackName)) continue // a dedicated angle feed belongs to its mirror, not here
-        this.attachVideoToMesh(track.attach() as HTMLVideoElement, true)
-        this.startBroadcastAudio()
-        this.stopStreamAttachRetry()
-        return
-      }
-    }
+    const pick = this.pickVideoSource(false)
+    if (!pick) return
+    this.attachVideoToMesh(pick.track.attach() as HTMLVideoElement, true)
+    this.startBroadcastAudio()
+    this.stopStreamAttachRetry()
   }
 
   isShowLive() {
@@ -824,6 +800,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.playCelebrateMoves(anims, gapMs)
 
     app.showSnackbar(celebrateLabel(n), PanelType.Success)
+  }
+
+  runTipCelebrate(amount: number) {
+    let n = 10
+    if (amount >= 0.05) n = 50
+    else if (amount >= 0.01) n = 25
+    this.runCelebrate(n)
   }
 
   broadcastRoomParticipantCount() {
@@ -965,6 +948,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         return
       }
       this.warnIfWalkingAway()
+      void maybeRefreshGuestJwt()
       const count = await this.fetchViewerCount()
       this.onViewerCountTick?.(count)
       if (!count) return
@@ -1110,6 +1094,52 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   isCohostMode() {
     return this.guestMode === 'cohost'
+  }
+
+  isSoloGuestMode() {
+    return this.guestMode === 'solo'
+  }
+
+  collectVideoSources() {
+    const byRole: Partial<Record<MirrorRole, { track: any; id: string }>> = {}
+    let first: { track: any; id: string } | null = null
+    const consider = (track: any, identity: string, trackName?: string) => {
+      if (!track) return
+      if (this.isAngleTrackName(trackName)) return
+      const role = this.publisherRole(identity)
+      if (!byRole[role]) byRole[role] = { track, id: identity }
+      if (!first) first = { track, id: identity }
+    }
+    for (const p of (this.livekitRoom as any)?.participants?.values() ?? []) {
+      for (const pub of p.videoTracks.values()) {
+        if (pub.isSubscribed) consider(pub.track, p.identity, pub.trackName)
+      }
+    }
+    const local = (this.parcel.primaryShowbox() as any)?.broadcastRoom?.localParticipant
+    for (const pub of local?.videoTracks?.values() ?? []) {
+      consider(pub.track, local.identity, pub.trackName)
+    }
+    return { byRole, first }
+  }
+
+  pickVideoSource(forMirror = false): { track: any; id: string } | null {
+    const { byRole, first } = this.collectVideoSources()
+    if (!first) return null
+    const want = forMirror ? this.mirrorSource : 'auto'
+    const solo = forMirror ? (this.parcel.primaryShowbox() as Showbox)?.guestMode === 'solo' : this.isSoloGuestMode()
+    if (want !== 'auto' && byRole[want]) return byRole[want]!
+    if (solo) return byRole.guest ?? byRole.host ?? byRole.collaborator ?? first
+    return byRole.host ?? byRole.collaborator ?? byRole.guest ?? first
+  }
+
+  scheduleMirrorRefresh() {
+    if (!this.isMirror() || this.disposed) return
+    if (this.mirrorRefreshTimer) clearTimeout(this.mirrorRefreshTimer)
+    this.mirrorRefreshTimer = setTimeout(() => {
+      this.mirrorRefreshTimer = null
+      if (!this.isMirror() || this.disposed) return
+      this.refreshMirrorVideo()
+    }, 500)
   }
 
   hasRemoteBroadcaster() {
@@ -1955,6 +1985,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   onEnter = () => {
     this.wireOnlineReconnect()
     if (isSyntheticGuestWallet()) consumeGuestFreshFromUrl((n) => app.setName(n))
+    if (guestJwtPayload()?.guest_pass) {
+      void maybeRefreshGuestJwt()
+      if (!this.guestJwtRefreshInterval) {
+        this.guestJwtRefreshInterval = setInterval(() => void maybeRefreshGuestJwt(), 5 * 60 * 1000)
+      }
+    }
     if (!this.livekitRoom) {
       this.connectViewer()
     }
@@ -2133,8 +2169,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
       this.streamAttachAttempts++
       if (this.streamAttachAttempts >= STREAM_ATTACH_RECONNECT_AFTER && this.livekitRoom && !this.viewerConnecting) {
-        // nuking the viewer room mid-angle-feed just unsubscribes and replays the flash loop
-        if (this.isAngleMirror()) {
+        // nuking the viewer room mid-feed just unsubscribes and replays the flash loop
+        if (this.isMirror()) {
           this.streamAttachAttempts = 0
           return
         }
@@ -2151,6 +2187,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this._dispose()
     window.removeEventListener('online', this.onlineReconnectHandler)
     this.onlineReconnectWired = false
+    if (this.mirrorRefreshTimer) clearTimeout(this.mirrorRefreshTimer)
+    this.mirrorRefreshTimer = null
+    if (this.guestJwtRefreshInterval) clearInterval(this.guestJwtRefreshInterval)
+    this.guestJwtRefreshInterval = null
     this.stopMilestonePoll()
     this.stopViewerRetry()
     this.stopStreamAttachRetry()
@@ -2317,7 +2357,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         return
       }
       if (!this.streamTargetsThisShowbox()) {
-        if (this.mirrorsActiveStream() && track.kind === Track.Kind.Video) this.refreshMirrorVideo()
+        if (this.mirrorsActiveStream() && track.kind === Track.Kind.Video) this.scheduleMirrorRefresh()
         return
       }
       if (track.kind === Track.Kind.Audio) {
@@ -2334,7 +2374,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (this.isCohostMode()) {
           this.routeCohostVideo(track, identity)
         } else {
-          this.attachVideoToMesh(track.attach() as HTMLVideoElement, true)
+          const pick = this.pickVideoSource(false)
+          if (pick) this.attachVideoToMesh(pick.track.attach() as HTMLVideoElement, true)
         }
         this.startBroadcastAudio()
         this.stopStreamAttachRetry()
@@ -2349,7 +2390,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         return
       }
       if (this.isMirror()) {
-        if (track.kind === Track.Kind.Video) this.refreshMirrorVideo()
+        if (track.kind === Track.Kind.Video) this.scheduleMirrorRefresh()
         return
       }
       if (this.broadcastRoom) {
@@ -2384,8 +2425,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           this.clearCohostVideoForIdentity(identity)
           this.updateCohostComposite()
         } else {
-          this.hasActiveVideo = false
-          if (!this.broadcastRoom) this.setPreview()
+          const pick = this.pickVideoSource(false)
+          if (pick) {
+            this.attachVideoToMesh(pick.track.attach() as HTMLVideoElement, true)
+          } else if (!this.hasRemoteBroadcaster()) {
+            this.hasActiveVideo = false
+            if (!this.broadcastRoom) this.setPreview()
+          }
         }
         return
       }
@@ -2413,6 +2459,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     })
     room.on(RoomEvent.ParticipantDisconnected, () => {
       if (this.livekitRoom !== room) return
+      if (this.isMirror()) {
+        this.scheduleMirrorRefresh()
+        return
+      }
       if (this.isCohostMode()) {
         this.updateCohostComposite()
         this.ensureShowboxLiveFlag()

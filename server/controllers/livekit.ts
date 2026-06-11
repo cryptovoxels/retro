@@ -174,8 +174,13 @@ export default async function LivekitController(db: Db, passport: PassportStatic
       refresh()
     }
 
-    // anon guest jwt uses guest- prefix so revoke can kick. signed-in guest links keep their wallet.
-    const identityPrefix = user?.guest_pass ? `guest-${user.guest_pass.slice(0, 12)}` : wallet
+    // guest- prefix when publishing via pass so revoke kicks anon and signed-in guest co-hosts
+    let identityPrefix = wallet
+    if (user?.guest_pass) {
+      identityPrefix = `guest-${user.guest_pass.slice(0, 12)}`
+    } else if (canPublish && guestPassToken) {
+      identityPrefix = `guest-${guestPassToken.slice(0, 12)}`
+    }
     const reuseIdentity = String(req.query.identity ?? '').trim()
     let identity: string
     if (reuseIdentity && /^[a-zA-Z0-9._-]+$/.test(reuseIdentity) && reuseIdentity.startsWith(`${identityPrefix}-`)) {

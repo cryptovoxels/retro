@@ -1,5 +1,8 @@
 // Client helpers for anonymous showbox guest links.
 
+import Cookies from 'js-cookie'
+import { decodeJwt } from 'jose'
+
 export function clearSyntheticGuestClientName(setName: (name: string | undefined) => void) {
   setName(undefined)
   try {
@@ -24,4 +27,21 @@ export function consumeGuestFreshFromUrl(setName: (name: string | undefined) => 
   } catch {
     return false
   }
+}
+
+// Re-issue anon guest jwt before the 1h cookie expires mid-stream
+export async function maybeRefreshGuestJwt() {
+  try {
+    const app = (window as any).app
+    const key = app?.state?.key || Cookies.get('jwt')
+    if (!key) return
+    const payload = decodeJwt(key) as { exp?: number; guest_pass?: string }
+    if (!payload.guest_pass) return
+    const exp = payload.exp ? payload.exp * 1000 : 0
+    if (!exp || exp - Date.now() > 10 * 60 * 1000) return
+    const r = await fetch(`/api/guest/${encodeURIComponent(payload.guest_pass)}/refresh`, { method: 'POST', credentials: 'include' })
+    if (!r.ok) return
+    const data = await r.json()
+    if (data.jwt && app?.state) app.state.key = data.jwt
+  } catch {}
 }
