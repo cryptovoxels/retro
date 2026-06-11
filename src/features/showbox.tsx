@@ -10,7 +10,7 @@ import {
   BROADCAST_RECONNECT_MAX,
   broadcastVideoTrackLive,
 } from '../../common/helpers/showbox-broadcast-health'
-import { showboxAudioConstraints, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
+import { showboxAudioConstraints, showboxRoomHint, SHOWBOX_ROOM_OPTIONS, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { consumeGuestFreshFromUrl } from '../../common/helpers/guest-pass-client'
@@ -2712,23 +2712,22 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const micSel = document.createElement('select')
     Object.assign(micSel.style, { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: '4px' })
     const audioModeLabel = document.createElement('label')
-    audioModeLabel.textContent = 'audio mode'
+    audioModeLabel.textContent = "what's your room like?"
     const audioModeSel = document.createElement('select')
     Object.assign(audioModeSel.style, { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: '4px' })
     let audioMode: ShowboxAudioMode = 'voice'
-    for (const [val, label] of [
-      ['voice', 'voice'],
-      ['loud', 'loud room'],
-      ['headphones', 'headphones'],
-      ['external', 'OBS / external'],
-    ] as const) {
+    for (const opt of SHOWBOX_ROOM_OPTIONS) {
       const o = document.createElement('option')
-      o.value = val
-      o.textContent = label
+      o.value = opt.value
+      o.textContent = opt.label
       audioModeSel.appendChild(o)
     }
+    const audioModeHint = document.createElement('small')
+    audioModeHint.textContent = showboxRoomHint(audioMode)
+    Object.assign(audioModeHint.style, { color: '#888', display: 'block' })
     audioModeSel.onchange = () => {
       audioMode = audioModeSel.value as ShowboxAudioMode
+      audioModeHint.textContent = showboxRoomHint(audioMode)
     }
     if (mobile) {
       Object.assign(camSel.style, { fontSize: '16px', minHeight: '44px', padding: '8px' })
@@ -2758,7 +2757,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       micLabel.style.display = 'block'
       audioModeLabel.style.display = 'block'
     }
-    deviceRow.append(camLabel, camSel, micLabel, micSel, audioModeLabel, audioModeSel)
+    deviceRow.append(camLabel, camSel, micLabel, micSel, audioModeLabel, audioModeSel, audioModeHint)
 
     const deviceToggle = document.createElement('button')
     deviceToggle.type = 'button'

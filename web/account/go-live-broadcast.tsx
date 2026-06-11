@@ -10,7 +10,7 @@ import {
   BROADCAST_RECONNECT_MAX,
   broadcastVideoTrackLive,
 } from '../../common/helpers/showbox-broadcast-health'
-import { showboxAudioConstraints, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
+import { showboxAudioConstraints, showboxRoomHint, SHOWBOX_ROOM_OPTIONS, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
 import { isMobile } from '../../common/helpers/detector'
 import { consumeGuestFreshFromUrl } from '../../common/helpers/guest-pass-client'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery } from '../../common/helpers/parcel-helper'
@@ -1492,13 +1492,15 @@ export default function GoLiveBroadcast() {
               </option>
             ))}
           </select>
-          <label>audio mode</label>
+          <label>what's your room like?</label>
           <select value={audioMode} onChange={(e) => setAudioMode((e.target as HTMLSelectElement).value as ShowboxAudioMode)}>
-            <option value="voice">voice</option>
-            <option value="loud">loud room</option>
-            <option value="headphones">headphones</option>
-            <option value="external">OBS / external</option>
+            {SHOWBOX_ROOM_OPTIONS.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
           </select>
+          <small class="showbox-dock-hint">{showboxRoomHint(audioMode)}</small>
         </div>
       )}
 
