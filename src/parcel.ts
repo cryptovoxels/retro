@@ -691,6 +691,8 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
         const feature = this.getFeatureByUuid(uuid)
         if (!value) {
           // DELETE
+          const fi = this.features.findIndex((f) => f?.uuid === uuid)
+          if (fi > -1) this.features.splice(fi, 1)
           if (feature) {
             if (feature.type === 'showbox') showboxRemoved = true
             const i = this.featuresList.indexOf(feature)
@@ -792,13 +794,21 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   // First non-angle showbox in parcel content order (not featuresList load order).
+  // Skip uuids that were deleted locally but not yet dropped from this.features.
   primaryShowboxUuid(): string | null {
     for (const f of this.features) {
       if (!f || f.type !== 'showbox' || !f.uuid || f.angleMode) continue
-      return f.uuid
+      if (this.getFeatureByUuid(f.uuid)) return f.uuid
     }
     for (const f of this.features) {
-      if (f?.type === 'showbox' && f.uuid) return f.uuid
+      if (f?.type === 'showbox' && f.uuid && this.getFeatureByUuid(f.uuid)) return f.uuid
+    }
+    for (const f of this.featuresList) {
+      if (f?.type !== 'showbox' || (f as any).description?.angleMode) continue
+      return f.uuid
+    }
+    for (const f of this.featuresList) {
+      if (f?.type === 'showbox') return f.uuid
     }
     return null
   }
