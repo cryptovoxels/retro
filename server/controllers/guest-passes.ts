@@ -45,9 +45,10 @@ function lightBroadcastPath(parcelId: number, featureUuid: string, guestPass?: s
 
 // Broadcaster session only (/live/:token -> /play). Not for audience share links.
 // isolate + distance=close keep one parcel loaded; ui=off drops HUD so mobile can run live + showbox video.
-function guestBroadcastPlayQuery(parcelLocation: string, featureUuid: string, userAgent: string, guestPass?: string): string {
+function guestBroadcastPlayQuery(parcelLocation: string, featureUuid: string, userAgent: string, guestPass?: string, guestFresh = false): string {
   const qs = new URLSearchParams({ coords: parcelLocation, show: featureUuid, isolate: 'true', distance: 'close' })
   if (guestPass) qs.set('guest_pass', guestPass)
+  if (guestFresh) qs.set('guest_fresh', '1')
   if (isMobileUserAgent(userAgent)) qs.set('ui', 'off')
   return qs.toString()
 }
@@ -268,8 +269,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
   })
 
   // Guest can update their own display name. Auth via the guest_pass jwt - if it doesn't match
-  // the pass in the path, reject. Updates both the pass row and the synthetic avatar row so the
-  // new name shows up on next page load for everyone in the parcel.
+  // the pass in the path, reject. Name lives on the synthetic avatar row only.
   app.patch('/api/guest/:token/name', passport.authenticate('jwt', { session: false }), async (req: VoxelsUserRequest, res: Response) => {
     const token = String(req.params.token)
     const user = req.user as (typeof req.user & { guest_pass?: string }) | undefined
@@ -299,8 +299,6 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       log.error('[guest-pass] rename failed', { token: token.slice(0, 12), error: err })
       return res.status(500).json({ success: false, error: 'Could not save name' })
     }
-    await db.query('sql/guest-passes/update-name', `update guest_passes set name = $1 where token = $2`, [name, token])
-
     res.json({ success: true, name })
   })
 
@@ -361,6 +359,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
            name = null`,
         [syntheticWallet],
       )
+      await db.query('sql/guest-passes/clear-pass-name', `update guest_passes set name = '' where token = $1`, [token])
 
       const jwt = await new SignJWT({
         wallet: syntheticWallet,
@@ -374,8 +373,11 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
         .sign(JWT_SECRET_KEY)
 
       res.cookie('jwt', jwt, { maxAge: GUEST_JWT_TTL_SECONDS * 1000, httpOnly: false, sameSite: 'lax' })
-      if (light) return res.redirect(302, lightBroadcastPath(pass.parcel_id, pass.feature_uuid))
-      const playQs = guestBroadcastPlayQuery(showboxGuestPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid, ua)
+      if (light) {
+        const lightQs = new URLSearchParams({ parcel: String(pass.parcel_id), show: pass.feature_uuid, light: '1', guest_fresh: '1' })
+        return res.redirect(302, `/account/go-live/broadcast?${lightQs.toString()}`)
+      }
+      const playQs = guestBroadcastPlayQuery(showboxGuestPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid, ua, undefined, true)
       res.redirect(302, `/play?${playQs}`)
     } catch (err) {
       // Don't let an async throw hang the request into a proxy 503. Log the real cause and fail soft.
