@@ -109,8 +109,6 @@ export default class WebHeader extends Component<Props, State> {
     route(`/search?q=${encodeURIComponent(this.state.query)}`)
   }
 
-  onSignOut = () => app.signout()
-
   render() {
     const toggleMenu = (e: any) => {
       e.preventDefault()
@@ -195,19 +193,7 @@ export default class WebHeader extends Component<Props, State> {
               <li>{navLink('Womps', '/womps', 'womps', isActive('womps'))}</li>
               <li>{navLink('Scratchpad', '/scratchpad', 'scratchpad', isActive('scratchpad'))}</li>
 
-              {signedIn && (
-                <li>
-                  <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      this.onSignOut()
-                    }}
-                  >
-                    Logout
-                  </a>
-                </li>
-              )}
+              {signedIn && <li>{navLink('Log out', '/logout', 'account', isActive('logout'))}</li>}
 
               <li>
                 <form action="/search" onSubmit={this.onSubmit}>

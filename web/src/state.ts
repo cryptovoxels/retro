@@ -228,6 +228,9 @@ export class Appstate extends State {
 
   signout() {
     this.localStorage?.removeItem('cv-wearables-owned')
+    try {
+      sessionStorage.removeItem('showbox_guest_pass')
+    } catch {}
 
     Cookies.remove('jwt')
 
