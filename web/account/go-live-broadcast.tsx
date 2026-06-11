@@ -4,11 +4,18 @@ import { Room, RoomEvent, Track, createLocalTracks } from 'livekit-client'
 import { effect } from '@preact/signals'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import {
+  BROADCAST_CAMERA_ENDED_DELAY_MS,
+  BROADCAST_CAMERA_STRIKES,
   BROADCAST_DISCONNECT_STRIKES,
   BROADCAST_HEALTH_POLL_MS,
   BROADCAST_LIVE_GRACE_MS,
   BROADCAST_RECONNECT_MAX,
   broadcastVideoTrackLive,
+  fetchShowboxRoomToken,
+  livekitRoomState,
+  publishedVideoTrack,
+  saveShowboxPublisherIdentity,
+  showboxTokenUrlWithIdentity,
 } from '../../common/helpers/showbox-broadcast-health'
 import { showboxAudioConstraints, showboxRoomHint, SHOWBOX_ROOM_OPTIONS, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
 import { isMobile } from '../../common/helpers/detector'
@@ -154,12 +161,13 @@ function isGuestForShowbox(showUuid: string): boolean {
   return false
 }
 
-function roomTokenUrl(roomName: string) {
+function roomTokenUrl(roomName: string, reusePublisher = false) {
+  let base = `/api/rooms/${roomName}/token`
   const pass = guestPassToken()
   if (pass && !guestJwtPayload()?.guest_pass) {
-    return `/api/rooms/${roomName}/token?guest_pass=${encodeURIComponent(pass)}`
+    base = `${base}?guest_pass=${encodeURIComponent(pass)}`
   }
-  return `/api/rooms/${roomName}/token`
+  return showboxTokenUrlWithIdentity(base, roomName, reusePublisher)
 }
 
 function parcelOwnerWallet(parcel: any): string {
@@ -497,7 +505,13 @@ export default function GoLiveBroadcast() {
   const broadcastReconnectAttempts = useRef(0)
   const broadcastDisconnectStrikes = useRef(0)
   const cameraResumeGen = useRef(0)
+  const cameraHealthStrikes = useRef(0)
+  const cameraEndedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const viewerRoom = useRef<Room | null>(null)
+  const viewerReconnectAttempts = useRef(0)
+  const viewerReconnecting = useRef(false)
+  const viewerDisconnectStrikes = useRef(0)
+  const viewerConnectGen = useRef(0)
   const liveVideoTrack = useRef<any>(null)
   const liveAudioTrack = useRef<any>(null)
   const liveStartedAt = useRef(0)
@@ -739,6 +753,22 @@ export default function GoLiveBroadcast() {
 
   useEffect(() => {
     if (!live) return
+    const onOnline = () => {
+      if (broadcastRoom.current && livekitRoomState(broadcastRoom.current) === 'disconnected') {
+        maybeReconnectAfterDisconnect('back online')
+      }
+      if (viewerRoom.current && livekitRoomState(viewerRoom.current) === 'disconnected') {
+        maybeReconnectViewer('back online')
+      } else if (isCohost && !viewerRoom.current) {
+        void connectViewer()
+      }
+    }
+    window.addEventListener('online', onOnline)
+    return () => window.removeEventListener('online', onOnline)
+  }, [live, isCohost, roomName])
+
+  useEffect(() => {
+    if (!live) return
     const t = setInterval(() => setElapsed(Date.now() - liveStartedAt.current), 1000)
     refreshViewers()
     const v = setInterval(() => {
@@ -858,6 +888,31 @@ export default function GoLiveBroadcast() {
     void setShowboxLive(false)
   }
 
+  const noteCameraHealthy = (room: Room) => {
+    cameraHealthStrikes.current = 0
+    const pub = publishedVideoTrack(room)
+    if (pub) liveVideoTrack.current = pub
+    if (cameraLostRef.current) clearHealthUi()
+  }
+
+  const noteCameraUnhealthy = () => {
+    cameraHealthStrikes.current++
+    if (cameraHealthStrikes.current >= BROADCAST_CAMERA_STRIKES) onCameraDisconnected()
+  }
+
+  const scheduleCameraEndedCheck = () => {
+    if (cameraEndedTimer.current) clearTimeout(cameraEndedTimer.current)
+    cameraEndedTimer.current = setTimeout(() => {
+      cameraEndedTimer.current = null
+      if (!broadcastRoom.current || broadcastStopping.current) return
+      if (broadcastVideoTrackLive(broadcastRoom.current, liveVideoTrack.current)) {
+        noteCameraHealthy(broadcastRoom.current)
+        return
+      }
+      noteCameraUnhealthy()
+    }, BROADCAST_CAMERA_ENDED_DELAY_MS)
+  }
+
   const onCameraDisconnected = () => {
     if (broadcastLost || cameraLost || !broadcastRoom.current) return
     setCameraLost(true)
@@ -870,7 +925,7 @@ export default function GoLiveBroadcast() {
     mst.addEventListener('ended', () => {
       if (!broadcastRoom.current || broadcastStopping.current) return
       if (liveStartedAt.current && Date.now() - liveStartedAt.current < BROADCAST_LIVE_GRACE_MS) return
-      onCameraDisconnected()
+      scheduleCameraEndedCheck()
     })
   }
 
@@ -901,6 +956,7 @@ export default function GoLiveBroadcast() {
 
   const maybeReconnectAfterDisconnect = (reason: string) => {
     if (broadcastLost || broadcastReconnecting.current || broadcastStopping.current || !live) return
+    if (livekitRoomState(broadcastRoom.current) === 'reconnecting') return
     broadcastDisconnectStrikes.current++
     if (broadcastDisconnectStrikes.current < BROADCAST_DISCONNECT_STRIKES) {
       setHealthStatus('connection unstable...')
@@ -925,10 +981,14 @@ export default function GoLiveBroadcast() {
     setHealthStatus(`reconnecting (${broadcastReconnectAttempts.current}/${BROADCAST_RECONNECT_MAX})...`)
     await new Promise((r) => setTimeout(r, 1000 * broadcastReconnectAttempts.current))
     try {
+      if (livekitRoomState(broadcastRoom.current) === 'reconnecting') {
+        broadcastReconnecting.current = false
+        return
+      }
       broadcastRoom.current?.disconnect()
-      const tokenRes = await fetch(roomTokenUrl(roomName), { credentials: 'include' })
-      const res = await tokenRes.json().catch(() => null)
-      if (!tokenRes.ok || !res?.token) throw new Error('no token')
+      const res = await fetchShowboxRoomToken(roomTokenUrl(roomName, true))
+      if (!res?.token) throw new Error('no token')
+      saveShowboxPublisherIdentity(roomName, res.token)
       const room = new Room()
       broadcastRoom.current = room
       wireBroadcastRoom(room)
@@ -960,18 +1020,23 @@ export default function GoLiveBroadcast() {
       return
     }
     if (!cameraLostRef.current && !broadcastReconnecting.current) setHealthStatus('')
-    if (cameraLostRef.current) return
     if (liveStartedAt.current && Date.now() - liveStartedAt.current < BROADCAST_LIVE_GRACE_MS) return
-    if (!broadcastVideoTrackLive(room, liveVideoTrack.current)) {
-      onCameraDisconnected()
-      return
+    if (broadcastVideoTrackLive(room, liveVideoTrack.current)) {
+      noteCameraHealthy(room)
+    } else {
+      noteCameraUnhealthy()
     }
     broadcastDisconnectStrikes.current = 0
     void setShowboxLive(true)
   }
 
   const tryResumeCamera = async () => {
-    if (!broadcastRoom.current || broadcastLost || !cameraLost || broadcastStopping.current) return
+    if (!broadcastRoom.current || broadcastLost || broadcastStopping.current) return
+    if (broadcastVideoTrackLive(broadcastRoom.current, liveVideoTrack.current)) {
+      noteCameraHealthy(broadcastRoom.current)
+      return
+    }
+    if (!cameraLost) return
     const gen = ++cameraResumeGen.current
     setHealthStatus('reconnecting camera...')
     const room = broadcastRoom.current
@@ -1024,6 +1089,14 @@ export default function GoLiveBroadcast() {
     broadcastReconnecting.current = false
     broadcastReconnectAttempts.current = 0
     broadcastDisconnectStrikes.current = 0
+    viewerReconnectAttempts.current = 0
+    viewerDisconnectStrikes.current = 0
+    viewerReconnecting.current = false
+    cameraHealthStrikes.current = 0
+    if (cameraEndedTimer.current) {
+      clearTimeout(cameraEndedTimer.current)
+      cameraEndedTimer.current = null
+    }
     liveTracks.current = []
     setBroadcastLost(false)
     clearHealthUi()
@@ -1060,14 +1133,83 @@ export default function GoLiveBroadcast() {
     }
   }
 
+  const wireViewerRoom = (room: Room) => {
+    room.on(RoomEvent.Disconnected, () => {
+      if (viewerRoom.current !== room || !live) return
+      maybeReconnectViewer('connection lost')
+    })
+    const reconnected = (RoomEvent as any).Reconnected
+    if (reconnected) {
+      room.on(reconnected, () => {
+        if (viewerRoom.current !== room) return
+        viewerReconnecting.current = false
+        viewerReconnectAttempts.current = 0
+        viewerDisconnectStrikes.current = 0
+        const bag = cohostBag.current
+        if (bag && broadcastRoom.current) {
+          for (const p of (room as any).participants?.values() ?? []) {
+            for (const pub of p.videoTracks?.values() ?? []) {
+              if (pub.isSubscribed && pub.track) routeCohostVideo(bag, pub.track, p.identity, broadcastRoom.current, room, onRemoteCohostVideo)
+            }
+            for (const pub of p.audioTracks?.values() ?? []) {
+              if (pub.isSubscribed && pub.track) routeCohostAudio(bag, pub.track, p.identity, broadcastRoom.current, room, room)
+            }
+          }
+          updateCohostComposite(bag)
+        }
+      })
+    }
+  }
+
+  const maybeReconnectViewer = (_reason: string) => {
+    if (viewerReconnecting.current || !live || !isCohost) return
+    if (livekitRoomState(viewerRoom.current) === 'reconnecting') return
+    viewerDisconnectStrikes.current++
+    if (viewerDisconnectStrikes.current < BROADCAST_DISCONNECT_STRIKES) return
+    void tryViewerReconnect(_reason)
+  }
+
+  const tryViewerReconnect = async (_reason: string) => {
+    if (viewerReconnecting.current || !live || !isCohost) return
+    if (viewerReconnectAttempts.current >= BROADCAST_RECONNECT_MAX) {
+      viewerReconnectAttempts.current = 0
+      viewerDisconnectStrikes.current = 0
+      viewerRoom.current?.disconnect()
+      viewerRoom.current = null
+      await connectViewer()
+      return
+    }
+    viewerReconnectAttempts.current++
+    viewerReconnecting.current = true
+    await new Promise((r) => setTimeout(r, 500 * viewerReconnectAttempts.current))
+    if (!live) {
+      viewerReconnecting.current = false
+      return
+    }
+    if (livekitRoomState(viewerRoom.current) === 'reconnecting') {
+      viewerReconnecting.current = false
+      return
+    }
+    viewerConnectGen.current++
+    viewerRoom.current?.disconnect()
+    viewerRoom.current = null
+    viewerReconnecting.current = false
+    await connectViewer()
+    if (viewerRoom.current) {
+      viewerReconnectAttempts.current = 0
+      viewerDisconnectStrikes.current = 0
+    }
+  }
+
   const connectViewer = async () => {
     if (!isCohost) return
-    const tokenRes = await fetch(roomTokenUrl(roomName), { credentials: 'include' })
-    const res = await tokenRes.json().catch(() => null)
-    if (!tokenRes.ok || !res?.token) return
+    const gen = ++viewerConnectGen.current
+    const res = await fetchShowboxRoomToken(roomTokenUrl(roomName))
+    if (!res?.token) return
 
     const room = new Room()
     viewerRoom.current = room
+    wireViewerRoom(room)
     const bag = cohostBag.current!
 
     room.on(RoomEvent.TrackSubscribed, (track, _pub, participant) => {
@@ -1088,6 +1230,10 @@ export default function GoLiveBroadcast() {
 
     try {
       await room.connect(LIVEKIT_URL, res.token)
+      if (gen !== viewerConnectGen.current) {
+        room.disconnect()
+        return
+      }
       for (const p of (room as any).participants?.values() ?? []) {
         for (const pub of p.videoTracks?.values() ?? []) {
           if (pub.isSubscribed && pub.track) routeCohostVideo(bag, pub.track, p.identity, broadcastRoom.current, room, onRemoteCohostVideo)
@@ -1097,7 +1243,10 @@ export default function GoLiveBroadcast() {
         }
       }
       updateCohostComposite(bag)
+      viewerReconnectAttempts.current = 0
+      viewerDisconnectStrikes.current = 0
     } catch {
+      if (gen !== viewerConnectGen.current) return
       room.disconnect()
       viewerRoom.current = null
     }
@@ -1141,10 +1290,11 @@ export default function GoLiveBroadcast() {
     clearHealthUi()
     setStatus('connecting...')
     try {
-      const tokenRes = await fetch(roomTokenUrl(roomName), { credentials: 'include' })
-      const res = await tokenRes.json().catch(() => null)
-      if (!tokenRes.ok || !res?.token) throw new Error(res?.error || 'could not get stream token - sign in again')
+      const tokenRes = await fetchShowboxRoomToken(roomTokenUrl(roomName, true))
+      const res = tokenRes
+      if (!res?.token) throw new Error(res?.error || 'could not get stream token - sign in again')
       if (res.canPublish === false) throw new Error('no permission to broadcast here')
+      saveShowboxPublisherIdentity(roomName, res.token)
 
       let tracks: any[]
       try {
@@ -1238,6 +1388,8 @@ export default function GoLiveBroadcast() {
     setFlipFacing(next)
     const vt = liveVideoTrack.current
     if (vt && mobile) await restartMobileCameraTrack(vt, next)
+    if (vt) wireCameraEndedListener(vt)
+    if (broadcastRoom.current) noteCameraHealthy(broadcastRoom.current)
     syncPreviewVideo(vt)
     if (remoteCohostLive && cohostBag.current && broadcastRoom.current) {
       const el = vt?.attach() as HTMLVideoElement

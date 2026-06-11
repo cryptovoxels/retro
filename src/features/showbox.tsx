@@ -4,11 +4,18 @@ import { decodeJwt } from 'jose'
 import { isMobile, wantsAudio } from '../../common/helpers/detector'
 import { holdMobileCanvasRefresh, refreshMobileCanvasAfterReturn } from '../controls/mobile/controls'
 import {
+  BROADCAST_CAMERA_ENDED_DELAY_MS,
+  BROADCAST_CAMERA_STRIKES,
   BROADCAST_DISCONNECT_STRIKES,
   BROADCAST_HEALTH_POLL_MS,
   BROADCAST_LIVE_GRACE_MS,
   BROADCAST_RECONNECT_MAX,
   broadcastVideoTrackLive,
+  fetchShowboxRoomToken,
+  livekitRoomState,
+  publishedVideoTrack,
+  saveShowboxPublisherIdentity,
+  showboxTokenUrlWithIdentity,
 } from '../../common/helpers/showbox-broadcast-health'
 import { showboxAudioConstraints, showboxRoomHint, SHOWBOX_ROOM_OPTIONS, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
@@ -261,12 +268,13 @@ function isGuestOnParcel(parcelId: number): boolean {
   return !!showboxJoinShowUuid()
 }
 
-function showboxRoomTokenUrl(roomName: string) {
+function showboxRoomTokenUrl(roomName: string, reusePublisher = false) {
+  let base = `/api/rooms/${roomName}/token`
   const pass = guestPassToken()
   if (pass && !guestJwtPayload()?.guest_pass) {
-    return `/api/rooms/${roomName}/token?guest_pass=${encodeURIComponent(pass)}`
+    base = `${base}?guest_pass=${encodeURIComponent(pass)}`
   }
-  return `/api/rooms/${roomName}/token`
+  return showboxTokenUrlWithIdentity(base, roomName, reusePublisher)
 }
 
 function showboxFeatureCoords(feature: Showbox) {
@@ -325,6 +333,10 @@ function syncGuestDisplayName(name: string) {
   }
   const av = window.persona?.avatar as { _description?: { name?: string } } | undefined
   if (av?._description) av._description.name = name
+  try {
+    const boxes = (window as any).persona?.parcel?.getFeaturesByType?.('showbox') ?? []
+    if (boxes.some((f: any) => f?.broadcastRoom)) return
+  } catch {}
   window.connector?.reconnect()
 }
 
@@ -413,6 +425,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   broadcastDisconnectStrikes = 0
   broadcastCameraLost = false
   broadcastStopping = false
+  cameraHealthStrikes = 0
+  cameraEndedTimer: ReturnType<typeof setTimeout> | null = null
   cameraResumeGen = 0
   broadcastCameraReconnectBtn: HTMLButtonElement | null = null
   mobileFlipFacing: 'user' | 'environment' = 'user'
@@ -422,6 +436,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   angleVideoTrack: any = null
   anglePanel: HTMLDivElement | null = null
   viewerRetryInterval: ReturnType<typeof setInterval> | null = null
+  viewerReconnectAttempts = 0
+  viewerReconnecting = false
+  viewerDisconnectStrikes = 0
+  onlineReconnectWired = false
   streamAttachRetryInterval: ReturnType<typeof setInterval> | null = null
   streamAttachAttempts = 0
   hostJoinLoginPending = false
@@ -1129,6 +1147,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.broadcastReconnectAttempts = 0
     this.broadcastDisconnectStrikes = 0
     this.broadcastCameraLost = false
+    this.cameraHealthStrikes = 0
+    if (this.cameraEndedTimer) {
+      clearTimeout(this.cameraEndedTimer)
+      this.cameraEndedTimer = null
+    }
     this.broadcastStopping = false
     this.cameraResumeGen++
     this.broadcastCameraReconnectBtn = null
@@ -1159,6 +1182,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   maybeReconnectAfterDisconnect(reason: string) {
     if (this.broadcastLost || this.broadcastReconnecting || !this.broadcastPanel) return
+    if (livekitRoomState(this.broadcastRoom) === 'reconnecting') return
     this.broadcastDisconnectStrikes++
     if (this.broadcastDisconnectStrikes < BROADCAST_DISCONNECT_STRIKES) {
       if (this.broadcastDockStatusEl && !this.broadcastLost) {
@@ -1235,10 +1259,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     await new Promise((r) => setTimeout(r, 1000 * this.broadcastReconnectAttempts))
     try {
+      if (livekitRoomState(this.broadcastRoom) === 'reconnecting') {
+        this.broadcastReconnecting = false
+        return
+      }
       this.broadcastRoom?.disconnect()
-      const tokenRes = await fetch(showboxRoomTokenUrl(this.roomName()), { credentials: 'include' })
-      const res = await tokenRes.json().catch(() => null)
-      if (!tokenRes.ok || !res?.token) throw new Error('no token')
+      const res = await fetchShowboxRoomToken(showboxRoomTokenUrl(this.roomName(), true))
+      if (!res?.token) throw new Error('no token')
+      saveShowboxPublisherIdentity(this.roomName(), res.token)
       const room = new Room()
       this.broadcastRoom = room
       this.wireBroadcastRoom(room)
@@ -1283,14 +1311,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     if (!this.streamTargetsThisShowbox()) {
       this.ensureShowboxLiveFlag()
-      if (!this.streamTargetsThisShowbox()) return 'show is no longer live in world'
     }
-    if (this.broadcastCameraLost) return null
     if (this.liveStartedAt && Date.now() - this.liveStartedAt < BROADCAST_LIVE_GRACE_MS) return null
     try {
-      if (!broadcastVideoTrackLive(room, this.broadcastLiveVideoTrack)) {
-        this.onCameraDisconnected()
-        return null
+      if (broadcastVideoTrackLive(room, this.broadcastLiveVideoTrack)) {
+        this.noteCameraHealthy(room)
+      } else {
+        this.noteCameraUnhealthy()
       }
       this.broadcastDisconnectStrikes = 0
       if (this.streamTargetsThisShowbox()) {
@@ -1302,13 +1329,129 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return null
   }
 
+  needsViewerRoom() {
+    if (this.broadcastRoom && !this.isCohostMode()) return false
+    if (this.broadcastRoom && this.isCohostMode()) return true
+    return this.displaysStream() || this.isInCurrentParcel
+  }
+
+  wireViewerRoom(room: Room) {
+    room.on(RoomEvent.Disconnected, () => {
+      if (this.livekitRoom !== room || this.disposed) return
+      if (this.broadcastRoom && !this.isCohostMode()) return
+      this.maybeReconnectViewer('connection lost')
+    })
+    const reconnected = (RoomEvent as any).Reconnected
+    if (reconnected) {
+      room.on(reconnected, () => {
+        if (this.livekitRoom !== room) return
+        this.viewerReconnecting = false
+        this.viewerReconnectAttempts = 0
+        this.viewerDisconnectStrikes = 0
+        if (this.broadcastRoom && this.isCohostMode()) {
+          this.syncExistingCohostVideos()
+          this.syncExistingCohostAudio()
+          this.updateCohostComposite()
+        } else {
+          this.tryAttachExistingStream()
+          if (!this.hasActiveVideo) this.scheduleStreamAttachRetry()
+        }
+      })
+    }
+  }
+
+  maybeReconnectViewer(_reason: string) {
+    if (this.viewerReconnecting || this.viewerConnecting || this.disposed) return
+    if (this.broadcastRoom && !this.isCohostMode()) return
+    if (livekitRoomState(this.livekitRoom) === 'reconnecting') return
+    this.viewerDisconnectStrikes++
+    if (this.viewerDisconnectStrikes < BROADCAST_DISCONNECT_STRIKES) return
+    void this.tryViewerReconnect(_reason)
+  }
+
+  async tryViewerReconnect(_reason: string) {
+    if (this.viewerReconnecting || this.viewerConnecting || this.disposed) return
+    if (this.broadcastRoom && !this.isCohostMode()) return
+    if (this.viewerReconnectAttempts >= BROADCAST_RECONNECT_MAX) {
+      this.viewerReconnectAttempts = 0
+      this.viewerDisconnectStrikes = 0
+      this.livekitRoom?.disconnect()
+      this.livekitRoom = null
+      this.scheduleViewerRetry()
+      return
+    }
+    this.viewerReconnectAttempts++
+    this.viewerReconnecting = true
+    await new Promise((r) => setTimeout(r, 500 * this.viewerReconnectAttempts))
+    if (this.disposed) {
+      this.viewerReconnecting = false
+      return
+    }
+    if (livekitRoomState(this.livekitRoom) === 'reconnecting') {
+      this.viewerReconnecting = false
+      return
+    }
+    this.viewerConnectGen++
+    this.livekitRoom?.disconnect()
+    this.livekitRoom = null
+    this.viewerReconnecting = false
+    await this.connectViewer()
+    if (this.livekitRoom) {
+      this.viewerReconnectAttempts = 0
+      this.viewerDisconnectStrikes = 0
+    }
+  }
+
+  onlineReconnectHandler = () => {
+    if (this.disposed) return
+    if (this.broadcastRoom && livekitRoomState(this.broadcastRoom) === 'disconnected') {
+      this.maybeReconnectAfterDisconnect('back online')
+    }
+    if (this.livekitRoom && livekitRoomState(this.livekitRoom) === 'disconnected') {
+      this.maybeReconnectViewer('back online')
+    } else if (!this.livekitRoom && this.needsViewerRoom()) {
+      void this.connectViewer()
+    }
+  }
+
+  wireOnlineReconnect() {
+    if (this.onlineReconnectWired) return
+    this.onlineReconnectWired = true
+    window.addEventListener('online', this.onlineReconnectHandler)
+  }
+
+  noteCameraHealthy(room: Room) {
+    this.cameraHealthStrikes = 0
+    const pub = publishedVideoTrack(room)
+    if (pub) this.broadcastLiveVideoTrack = pub
+    if (this.broadcastCameraLost) this.clearCameraDisconnectedUi()
+  }
+
+  noteCameraUnhealthy() {
+    this.cameraHealthStrikes++
+    if (this.cameraHealthStrikes >= BROADCAST_CAMERA_STRIKES) this.onCameraDisconnected()
+  }
+
+  scheduleCameraEndedCheck() {
+    if (this.cameraEndedTimer) clearTimeout(this.cameraEndedTimer)
+    this.cameraEndedTimer = setTimeout(() => {
+      this.cameraEndedTimer = null
+      if (!this.broadcastRoom || this.broadcastStopping) return
+      if (broadcastVideoTrackLive(this.broadcastRoom, this.broadcastLiveVideoTrack)) {
+        this.noteCameraHealthy(this.broadcastRoom)
+        return
+      }
+      this.noteCameraUnhealthy()
+    }, BROADCAST_CAMERA_ENDED_DELAY_MS)
+  }
+
   wireCameraEndedListener(track: any) {
     const mst = track?.mediaStreamTrack as MediaStreamTrack | undefined
     if (!mst) return
     mst.addEventListener('ended', () => {
       if (!this.broadcastRoom) return
       if (this.liveStartedAt && Date.now() - this.liveStartedAt < BROADCAST_LIVE_GRACE_MS) return
-      this.onCameraDisconnected()
+      this.scheduleCameraEndedCheck()
     })
   }
 
@@ -1333,7 +1476,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   async tryResumeCamera() {
-    if (!this.broadcastRoom || this.broadcastLost || !this.broadcastCameraLost || this.broadcastStopping) return
+    if (!this.broadcastRoom || this.broadcastLost || this.broadcastStopping) return
+    if (broadcastVideoTrackLive(this.broadcastRoom, this.broadcastLiveVideoTrack)) {
+      this.noteCameraHealthy(this.broadcastRoom)
+      return
+    }
+    if (!this.broadcastCameraLost) return
     const gen = ++this.cameraResumeGen
     if (this.broadcastDockStatusEl) {
       this.broadcastDockStatusEl.style.display = 'block'
@@ -1805,6 +1953,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   onEnter = () => {
+    this.wireOnlineReconnect()
     if (isSyntheticGuestWallet()) consumeGuestFreshFromUrl((n) => app.setName(n))
     if (!this.livekitRoom) {
       this.connectViewer()
@@ -1942,10 +2091,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   scheduleViewerRetry() {
-    if (this.viewerRetryInterval || this.disposed || !this.isInCurrentParcel) return
+    if (this.viewerRetryInterval || this.disposed) return
     this.viewerRetryInterval = setInterval(() => {
-      if (this.disposed || !this.isInCurrentParcel || this.broadcastRoom || this.livekitRoom || this.viewerConnecting) return
-      if (this.viewerRoomFull) this.connectViewer()
+      if (this.disposed || this.viewerConnecting) return
+      if (this.broadcastRoom && !this.isCohostMode()) return
+      if (this.livekitRoom) return
+      if (!this.isInCurrentParcel && !this.viewerRoomFull && !this.broadcastRoom) return
+      this.connectViewer()
     }, VIEWER_RETRY_INTERVAL)
   }
 
@@ -1997,6 +2149,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   dispose() {
     this._dispose()
+    window.removeEventListener('online', this.onlineReconnectHandler)
+    this.onlineReconnectWired = false
     this.stopMilestonePoll()
     this.stopViewerRetry()
     this.stopStreamAttachRetry()
@@ -2133,16 +2287,16 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.livekitRoom || this.viewerConnecting) return
     const gen = ++this.viewerConnectGen
     this.viewerConnecting = true
-    const res = await fetch(showboxRoomTokenUrl(this.roomName()), { credentials: 'include' })
-      .then((r) => r.json())
-      .catch(() => null)
+    const res = await fetchShowboxRoomToken(showboxRoomTokenUrl(this.roomName()))
     if (!res?.token || this.disposed) {
       this.viewerConnecting = false
+      if (this.needsViewerRoom()) this.scheduleViewerRetry()
       return
     }
 
     const room = new Room()
     this.livekitRoom = room
+    this.wireViewerRoom(room)
 
     room.on(RoomEvent.TrackSubscribed, (track, _pub, participant) => {
       if (this.livekitRoom !== room) return
@@ -2269,14 +2423,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     try {
       await room.connect(LIVEKIT_URL, res.token)
       this.viewerRoomFull = false
+      this.viewerReconnectAttempts = 0
+      this.viewerDisconnectStrikes = 0
+      this.viewerReconnecting = false
       this.stopViewerRetry()
     } catch (e) {
       room.disconnect()
       this.livekitRoom = null
       if (isRoomFullError(e)) {
         this.viewerRoomFull = true
-        this.scheduleViewerRetry()
       }
+      if (this.needsViewerRoom()) this.scheduleViewerRetry()
     } finally {
       this.viewerConnecting = false
       if (gen !== this.viewerConnectGen) {
@@ -2489,6 +2646,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.broadcastReconnectAttempts = 0
     this.broadcastDisconnectStrikes = 0
     this.broadcastCameraLost = false
+    this.cameraHealthStrikes = 0
+    if (this.cameraEndedTimer) {
+      clearTimeout(this.cameraEndedTimer)
+      this.cameraEndedTimer = null
+    }
+    this.viewerReconnectAttempts = 0
+    this.viewerDisconnectStrikes = 0
+    this.viewerReconnecting = false
     // ending your session also drops any second-camera feeds you pushed to sibling angle mirrors
     for (const b of this.parcel.getFeaturesByType('showbox') as any[]) {
       if (b?.angleVideoTrack) b.stopAngleBroadcast()
@@ -2821,6 +2986,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       flipFacing = flipFacing === 'user' ? 'environment' : 'user'
       this.mobileFlipFacing = flipFacing
       await liveVideoTrack.restartTrack(showboxMobileCameraConstraints(flipFacing)).catch(() => {})
+      this.wireCameraEndedListener(liveVideoTrack)
+      if (this.broadcastRoom) this.noteCameraHealthy(this.broadcastRoom)
       this.syncBroadcastVideoFromTrack(liveVideoTrack)
       requestAnimationFrame(() => this.syncBroadcastVideoFromTrack(liveVideoTrack))
     }
@@ -3497,14 +3664,15 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       }
 
       try {
-        const tokenRes = await fetch(showboxRoomTokenUrl(this.roomName()), { credentials: 'include' })
-        const res = await tokenRes.json().catch(() => null)
-        if (!tokenRes.ok || !res?.token) {
+        const tokenRes = await fetchShowboxRoomToken(showboxRoomTokenUrl(this.roomName(), true))
+        const res = tokenRes
+        if (!res?.token) {
           throw new Error(res?.error || 'could not get stream token - sign in again')
         }
         if (res.canPublish === false) {
           throw new Error('no permission to broadcast here - sign in as parcel owner or use a guest link')
         }
+        saveShowboxPublisherIdentity(this.roomName(), res.token)
 
         // Acquire camera/screenshare BEFORE going live: the permission prompt can sit open for a while,
         // and we don't want the audience staring at "connecting..." for a stream that may never start.
@@ -3583,7 +3751,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (mobile) {
           const onVis = () => {
             if (document.visibilityState !== 'visible' || !this.broadcastRoom || this.broadcastStopping) return
+            const brState = livekitRoomState(this.broadcastRoom)
+            if (brState === 'disconnected') {
+              void this.tryBroadcastReconnect('connection lost')
+              return
+            }
+            if (brState === 'reconnecting') return
             if (this.broadcastCameraLost) {
+              if (broadcastVideoTrackLive(this.broadcastRoom, liveVideoTrack)) {
+                this.noteCameraHealthy(this.broadcastRoom)
+                return
+              }
               void this.tryResumeCamera()
               return
             }
