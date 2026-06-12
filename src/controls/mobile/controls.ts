@@ -111,6 +111,8 @@ export function resetMobileViewportLayout() {
 
 let skipMobileCanvasRefreshUntil = 0
 
+let settleResizeTimer = 0
+
 // native confirms and permission sheets: block global visibility resize until handoff settles
 export function holdMobileCanvasRefresh(ms: number) {
   skipMobileCanvasRefreshUntil = Date.now() + ms
@@ -144,5 +146,10 @@ export function viewportChangeHandler() {
     resetMobileViewportLayout()
   }
 
-  window.engine?.resize()
+  // iOS fires a stream of resize events while the keyboard animates. Resizing the
+  // engine mid-animation wipes the canvas to black until the next painted frame
+  // (which Safari delays during the animation), so wait for the viewport to settle
+  // and resize once inside a frame.
+  window.clearTimeout(settleResizeTimer)
+  settleResizeTimer = window.setTimeout(() => requestAnimationFrame(() => window.engine?.resize()), 150)
 }
