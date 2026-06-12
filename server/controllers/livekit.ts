@@ -174,12 +174,18 @@ export default async function LivekitController(db: Db, passport: PassportStatic
       refresh()
     }
 
-    // guest- prefix when publishing via pass so revoke kicks anon and signed-in guest co-hosts
+    // guest- prefix when publishing via pass so revoke kicks anon and signed-in guest co-hosts.
+    // the session wallet (guest:tok12.sess) appends the session to the identity prefix - without
+    // it, two guests sharing one link are filtered as each other's "self" and can't be heard.
     let identityPrefix = wallet
     if (user?.guest_pass) {
-      identityPrefix = `guest-${user.guest_pass.slice(0, 12)}`
+      const sess = String(user.wallet ?? '').split('.')[1]
+      identityPrefix = `guest-${user.guest_pass.slice(0, 12)}` + (sess ? `-${sess}` : '')
     } else if (canPublish && guestPassToken) {
-      identityPrefix = `guest-${guestPassToken.slice(0, 12)}`
+      // signed-in (non-editor) guests have no session wallet - their real wallet is the session,
+      // so two signed-in users on the same link don't collide either
+      const w = wallet.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toLowerCase()
+      identityPrefix = `guest-${guestPassToken.slice(0, 12)}` + (w ? `-${w}` : '')
     }
     const reuseIdentity = String(req.query.identity ?? '').trim()
     let identity: string

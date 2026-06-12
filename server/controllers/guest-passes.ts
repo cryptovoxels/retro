@@ -110,10 +110,15 @@ async function kickGuestPassParticipants(livekit: RoomServiceClient, parcelId: n
   }
 }
 
-async function issueGuestJwt(pass: GuestPassRow) {
-  const syntheticWallet = `guest:${pass.token.slice(0, 12)}`.toLowerCase()
+// every visit to the link mints its own session wallet (guest:tok12.sess) so several guests
+// can share ONE co-host link and still get distinct identities, names, and audio routing.
+function mintGuestSessionWallet(token: string) {
+  return `guest:${token.slice(0, 12)}.${crypto.randomBytes(3).toString('hex')}`.toLowerCase()
+}
+
+async function issueGuestJwt(pass: GuestPassRow, wallet: string) {
   return new SignJWT({
-    wallet: syntheticWallet,
+    wallet,
     guest_pass: pass.token,
     parcel_id: pass.parcel_id,
     feature_uuid: pass.feature_uuid,
@@ -287,7 +292,8 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
     }
 
     try {
-      const jwt = await issueGuestJwt(pass)
+      // keep the SESSION wallet from the verified jwt - re-deriving it would merge guests
+      const jwt = await issueGuestJwt(pass, String(user.wallet ?? mintGuestSessionWallet(token)).toLowerCase())
       res.cookie('jwt', jwt, { maxAge: GUEST_JWT_TTL_SECONDS * 1000, httpOnly: false, sameSite: 'lax' })
       noStoreJson(res, { success: true, jwt })
     } catch (err) {
@@ -315,10 +321,11 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       .slice(0, 64)
     if (!name) return res.status(400).json({ success: false, error: 'name required' })
 
-    const syntheticWallet = `guest:${token.slice(0, 12)}`.toLowerCase()
+    // rename the SESSION avatar from the jwt, not the shared link wallet - with several guests
+    // on one link, the old derivation renamed everyone at once
+    const syntheticWallet = String(user.wallet ?? `guest:${token.slice(0, 12)}`).toLowerCase()
     try {
-      // avatars.name is UNIQUE - do this write first so a clash fails before we persist the pass name,
-      // keeping both rows in sync. 23505 is the Postgres unique-violation code.
+      // avatars.name is UNIQUE - 23505 is the Postgres unique-violation code.
       await db.query('sql/guest-passes/rename-avatar', `update avatars set name = $1 where owner = $2`, [name, syntheticWallet])
     } catch (err) {
       if ((err as { code?: string })?.code === '23505') {
@@ -380,9 +387,9 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
         return res.redirect(302, `/play?${playQs}`)
       }
 
-      const syntheticWallet = `guest:${token.slice(0, 12)}`.toLowerCase()
-
-      // Anonymous guests pick a fresh name in the dock - never recycle a previous guest's name.
+      // each visit is its own guest session (own wallet/avatar/name) so the one link can host
+      // several co-hosts at once. fresh row = fresh name; no recycling, no renaming a live guest.
+      const syntheticWallet = mintGuestSessionWallet(token)
       await db.query(
         'sql/guest-passes/upsert-avatar',
         `insert into avatars (owner, name, last_online)
@@ -392,9 +399,8 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
            name = null`,
         [syntheticWallet],
       )
-      await db.query('sql/guest-passes/clear-pass-name', `update guest_passes set name = '' where token = $1`, [token])
 
-      const jwt = await issueGuestJwt(pass)
+      const jwt = await issueGuestJwt(pass, syntheticWallet)
 
       res.cookie('jwt', jwt, { maxAge: GUEST_JWT_TTL_SECONDS * 1000, httpOnly: false, sameSite: 'lax' })
       if (light) {
