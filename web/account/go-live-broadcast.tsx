@@ -469,6 +469,11 @@ export default function GoLiveBroadcast() {
   const [parcel, setParcel] = useState<any>(null)
   const [feature, setFeature] = useState<any>(null)
   const [live, setLive] = useState(false)
+  // room event handlers are wired in goLive's render (live === false) - they must read live
+  // through a ref or every Disconnected handler sees a stale false and never reconnects
+  const liveRef = useRef(false)
+  // bumped by stopAll so reconnects sleeping through a stop can't resurrect a dead session
+  const sessionGen = useRef(0)
   const [status, setStatus] = useState('tap go live when ready')
   const [viewers, setViewers] = useState(0)
   const [viewerLines, setViewerLines] = useState<{ id: string; name: string }[]>([])
@@ -672,6 +677,16 @@ export default function GoLiveBroadcast() {
         tracks = t
         const vt = t.find((x) => x.kind === Track.Kind.Video)
         if (vt) syncPreviewVideo(vt)
+        // first-time visitors get blank device labels from the pre-permission enumerate -
+        // now that the permission prompt resolved, list them again with real names
+        navigator.mediaDevices
+          ?.enumerateDevices()
+          .then((devs) => {
+            if (dead) return
+            setCameras(devs.filter((d) => d.kind === 'videoinput'))
+            setMics(devs.filter((d) => d.kind === 'audioinput'))
+          })
+          .catch(() => {})
       })
       .catch(() => {})
     return () => {
@@ -963,7 +978,7 @@ export default function GoLiveBroadcast() {
   }
 
   const maybeReconnectAfterDisconnect = (reason: string) => {
-    if (broadcastLost || broadcastReconnecting.current || broadcastStopping.current || !live) return
+    if (broadcastLost || broadcastReconnecting.current || broadcastStopping.current || !liveRef.current) return
     if (livekitRoomState(broadcastRoom.current) === 'reconnecting') return
     broadcastDisconnectStrikes.current++
     if (broadcastDisconnectStrikes.current < BROADCAST_DISCONNECT_STRIKES) {
@@ -974,7 +989,8 @@ export default function GoLiveBroadcast() {
   }
 
   const tryBroadcastReconnect = async (reason: string) => {
-    if (broadcastLost || broadcastReconnecting.current || broadcastStopping.current || !live) return
+    if (broadcastLost || broadcastReconnecting.current || broadcastStopping.current || !liveRef.current) return
+    const gen = sessionGen.current
     const tracks = liveTracks.current
     if (!tracks.length) {
       onBroadcastLost(reason)
@@ -989,6 +1005,12 @@ export default function GoLiveBroadcast() {
     setHealthStatus(`reconnecting (${broadcastReconnectAttempts.current}/${BROADCAST_RECONNECT_MAX})...`)
     await new Promise((r) => setTimeout(r, 1000 * broadcastReconnectAttempts.current))
     try {
+      // the host may have stopped (or navigated away) during the backoff sleep - reconnecting
+      // now would resurrect a dead session and flag the showbox live with stopped tracks
+      if (gen !== sessionGen.current || broadcastStopping.current || !liveRef.current) {
+        broadcastReconnecting.current = false
+        return
+      }
       if (livekitRoomState(broadcastRoom.current) === 'reconnecting') {
         broadcastReconnecting.current = false
         return
@@ -996,11 +1018,21 @@ export default function GoLiveBroadcast() {
       broadcastRoom.current?.disconnect()
       const res = await fetchShowboxRoomToken(roomTokenUrl(roomName, true))
       if (!res?.token) throw new Error('no token')
+      if (gen !== sessionGen.current) {
+        broadcastReconnecting.current = false
+        return
+      }
       saveShowboxPublisherIdentity(roomName, res.token)
       const room = new Room()
       broadcastRoom.current = room
       wireBroadcastRoom(room)
       await room.connect(LIVEKIT_URL, res.token)
+      if (gen !== sessionGen.current) {
+        room.disconnect()
+        if (broadcastRoom.current === room) broadcastRoom.current = null
+        broadcastReconnecting.current = false
+        return
+      }
       await setShowboxLive(true)
       for (const t of tracks) await room.localParticipant.publishTrack(t)
       broadcastReconnecting.current = false
@@ -1016,7 +1048,7 @@ export default function GoLiveBroadcast() {
 
   const checkBroadcastHealth = () => {
     const room = broadcastRoom.current
-    if (!room || broadcastLost || broadcastStopping.current || !live) return
+    if (!room || broadcastLost || broadcastStopping.current || !liveRef.current) return
     if (broadcastReconnecting.current) return
     const state = (room as any).state
     if (state === 'disconnected') {
@@ -1064,7 +1096,15 @@ export default function GoLiveBroadcast() {
         })
         const newVt = tracks.find((t) => t.kind === Track.Kind.Video)
         if (!newVt) throw new Error('no camera')
-        if (gen !== cameraResumeGen.current || broadcastStopping.current || !broadcastRoom.current) return
+        if (gen !== cameraResumeGen.current || broadcastStopping.current || !broadcastRoom.current) {
+          // resume lost the race to a stop - kill the fresh camera or its light stays on
+          for (const t of tracks) {
+            try {
+              t.stop()
+            } catch {}
+          }
+          return
+        }
         if (vt) {
           try {
             await lp.unpublishTrack(vt, true)
@@ -1093,6 +1133,8 @@ export default function GoLiveBroadcast() {
 
   const stopAll = () => {
     broadcastStopping.current = true
+    sessionGen.current++
+    viewerConnectGen.current++
     cameraResumeGen.current++
     broadcastReconnecting.current = false
     broadcastReconnectAttempts.current = 0
@@ -1120,13 +1162,14 @@ export default function GoLiveBroadcast() {
     liveVideoTrack.current = null
     liveAudioTrack.current = null
     setRemoteCohostLive(false)
+    liveRef.current = false
     setLive(false)
     setViewerListOpen(false)
     setViewerLines([])
     radarNames.current = new Map()
     parcelPresence.current = new Map()
     void setShowboxLive(false)
-    broadcastStopping.current = false
+    // stays true until the next goLive - async reconnects woken after a stop must see it
   }
 
   const onRemoteCohostVideo = () => {
@@ -1143,7 +1186,7 @@ export default function GoLiveBroadcast() {
 
   const wireViewerRoom = (room: Room) => {
     room.on(RoomEvent.Disconnected, () => {
-      if (viewerRoom.current !== room || !live) return
+      if (viewerRoom.current !== room || !liveRef.current) return
       maybeReconnectViewer('connection lost')
     })
     const reconnected = (RoomEvent as any).Reconnected
@@ -1170,15 +1213,17 @@ export default function GoLiveBroadcast() {
   }
 
   const maybeReconnectViewer = (_reason: string) => {
-    if (viewerReconnecting.current || !live || !isCohost) return
+    if (viewerReconnecting.current || !liveRef.current || !isCohost) return
     if (livekitRoomState(viewerRoom.current) === 'reconnecting') return
+    // no strike threshold: there is no health poll on the viewer room, so Disconnected (which
+    // fires once) is the only trigger - waiting for a second strike left it dead forever
     viewerDisconnectStrikes.current++
-    if (viewerDisconnectStrikes.current < BROADCAST_DISCONNECT_STRIKES) return
     void tryViewerReconnect(_reason)
   }
 
   const tryViewerReconnect = async (_reason: string) => {
-    if (viewerReconnecting.current || !live || !isCohost) return
+    if (viewerReconnecting.current || !liveRef.current || !isCohost) return
+    const gen = sessionGen.current
     if (viewerReconnectAttempts.current >= BROADCAST_RECONNECT_MAX) {
       viewerReconnectAttempts.current = 0
       viewerDisconnectStrikes.current = 0
@@ -1190,7 +1235,7 @@ export default function GoLiveBroadcast() {
     viewerReconnectAttempts.current++
     viewerReconnecting.current = true
     await new Promise((r) => setTimeout(r, 500 * viewerReconnectAttempts.current))
-    if (!live) {
+    if (!liveRef.current || gen !== sessionGen.current) {
       viewerReconnecting.current = false
       return
     }
@@ -1297,6 +1342,9 @@ export default function GoLiveBroadcast() {
     setBroadcastLost(false)
     clearHealthUi()
     setStatus('connecting...')
+    // declared outside the try so a failed connect/publish can still stop them - otherwise
+    // the camera light stays on after "could not go live"
+    let tracks: any[] = []
     try {
       const tokenRes = await fetchShowboxRoomToken(roomTokenUrl(roomName, true))
       const res = tokenRes
@@ -1304,7 +1352,6 @@ export default function GoLiveBroadcast() {
       if (res.canPublish === false) throw new Error('no permission to broadcast here')
       saveShowboxPublisherIdentity(roomName, res.token)
 
-      let tracks: any[]
       try {
         tracks = await createLocalTracks({
           video: showboxCameraVideoConstraints(camId || undefined),
@@ -1316,7 +1363,13 @@ export default function GoLiveBroadcast() {
 
       const videoTrack = tracks.find((t) => t.kind === Track.Kind.Video)
       if (!videoTrack) throw new Error('showbox needs a camera')
-      if (mobile) await restartMobileCameraTrack(videoTrack, 'user')
+      if (mobile) {
+        await restartMobileCameraTrack(videoTrack, 'user')
+        // every go-live starts front-facing - reset the flip state or the flip button needs
+        // two taps and an auto camera-resume can silently switch to the rear camera
+        flipFacingRef.current = 'user'
+        setFlipFacing('user')
+      }
 
       if (isCohost) {
         cohostBag.current = {
@@ -1370,6 +1423,7 @@ export default function GoLiveBroadcast() {
 
       if (isCohost && cohostBag.current) await viewerConnect
 
+      liveRef.current = true
       setLive(true)
       setStatus('')
       setElapsed(0)
@@ -1385,6 +1439,11 @@ export default function GoLiveBroadcast() {
         }
       }
     } catch (e) {
+      for (const t of tracks) {
+        try {
+          t.stop()
+        } catch {}
+      }
       stopAll()
       setStatus((e as Error)?.message || 'could not go live')
     }

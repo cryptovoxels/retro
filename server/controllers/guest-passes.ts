@@ -361,6 +361,11 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       if (!parcel) return res.status(404).send('Parcel not found')
 
       const ua = String(req.headers['user-agent'] ?? '')
+      // link unfurl bots (discord, slack, imessage) GET this url with no cookie. the anonymous
+      // branch below resets the guest's name - a pasted link must not rename a live guest.
+      if (/bot|crawler|spider|facebookexternalhit|whatsapp|telegram|slack|discord|twitter|preview|embed|curl|wget/i.test(ua)) {
+        return res.status(200).send('showbox guest link - open it in your browser to join the show')
+      }
       const signedIn = walletFromJwtCookie(req)
       if (signedIn?.wallet) {
         const auth = await authParcel(parcel, signedIn as any)
