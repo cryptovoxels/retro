@@ -4434,10 +4434,6 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
     return `${window.location.origin}/live/${token}`
   }
 
-  hostJoinUrl() {
-    return hostJoinShowUrl(this.props.feature)
-  }
-
   render() {
     if (!this.props.feature.parcel.canEdit) return null
     const active = this.state.passes.filter((p) => this.passActive(p))
@@ -4445,13 +4441,10 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
 
     return (
       <div className="f">
-        <div className="f">
-          <label>host link</label>
-          <input type="text" readOnly value={this.hostJoinUrl()} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
-          <button type="button" style={mobile ? { minHeight: '44px' } : undefined} onClick={() => this.copy(this.hostJoinUrl())}>
-            copy host link
-          </button>
-        </div>
+        <label>Go live</label>
+        <small>
+          To stream from this showbox, go to <a href="/golive">/golive</a> and sign in with the wallet that owns or edits this parcel.
+        </small>
 
         <label>Co-host link</label>
         <small>Send this to your DJ, artist, or guest on camera. Not for the audience.</small>
