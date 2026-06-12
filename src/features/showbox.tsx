@@ -481,11 +481,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   mirrorHasVideoSource() {
+    // angle feeds only belong to their own mirror - don't let them count as the primary stream
     for (const p of (this.livekitRoom as any)?.participants?.values() ?? []) {
-      if (p.videoTracks?.size > 0) return true
+      for (const pub of p.videoTracks?.values() ?? []) {
+        if (!this.isAngleTrackName(pub.trackName)) return true
+      }
     }
     const primary = this.parcel.primaryShowbox() as any
-    return (primary?.broadcastRoom?.localParticipant?.videoTracks?.size ?? 0) > 0
+    for (const pub of primary?.broadcastRoom?.localParticipant?.videoTracks?.values() ?? []) {
+      if (!this.isAngleTrackName(pub.trackName)) return true
+    }
+    return false
   }
 
   // a mirror set to "second camera" shows a dedicated video-only track named with its own uuid,
@@ -1016,6 +1022,16 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     el.remove()
   }
 
+  // removing a playing media element from the DOM does not stop it - the livekit track still
+  // feeds it. kill the source before dropping the element or the audio stacks up per re-attach.
+  silenceAudioEl(el: HTMLAudioElement) {
+    try {
+      el.pause()
+      el.srcObject = null
+    } catch {}
+    el.remove()
+  }
+
   wireStreamSpatial(el: HTMLAudioElement) {
     if (this.rolloffFactor <= 0 || !this.audio) return false
     // createMediaElementSource throws if the element is already wired to WebAudio - fall back to flat volume.
@@ -1075,7 +1091,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   get screenShape(): 'landscape' | 'portrait' {
     if (this.isMirror()) {
-      const primary = this.parcel.getFeaturesByType('showbox')[0] as Showbox | undefined
+      const primary = this.parcel.primaryShowbox() as Showbox | undefined
       return primary?.description.screenShape === 'portrait' ? 'portrait' : 'landscape'
     }
     return this.description.screenShape === 'portrait' ? 'portrait' : 'landscape'
@@ -1143,7 +1159,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   hasRemoteBroadcaster() {
     if (!this.displaysStream()) return false
-    return [...((this.livekitRoom as any)?.participants?.values() ?? [])].some((p: any) => p?.videoTracks?.size > 0 || p?.audioTracks?.size > 0)
+    for (const p of (this.livekitRoom as any)?.participants?.values() ?? []) {
+      if (p?.audioTracks?.size > 0) return true
+      // angle feeds are video-only side channels, not a live show
+      for (const pub of p?.videoTracks?.values() ?? []) {
+        if (!this.isAngleTrackName(pub.trackName)) return true
+      }
+    }
+    return false
   }
 
   // Before we drop __showbox_live, check if another co-host is still publishing.
@@ -1393,8 +1416,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.viewerReconnecting || this.viewerConnecting || this.disposed) return
     if (this.broadcastRoom && !this.isCohostMode()) return
     if (livekitRoomState(this.livekitRoom) === 'reconnecting') return
+    // no strike threshold here: unlike the broadcast side there is no health poll re-calling
+    // this, and RoomEvent.Disconnected only fires once - waiting for a second strike that
+    // never comes left mirrors and co-host monitors dead until reload.
     this.viewerDisconnectStrikes++
-    if (this.viewerDisconnectStrikes < BROADCAST_DISCONNECT_STRIKES) return
     void this.tryViewerReconnect(_reason)
   }
 
@@ -1659,7 +1684,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       for (let i = this.cohostMonitorEls.length - 1; i >= 0; i--) {
         const old = this.cohostMonitorEls[i] as HTMLAudioElement & { dataset: { cohostPrefix?: string } }
         if (old.dataset?.cohostPrefix === prefix) {
-          old.remove()
+          this.silenceAudioEl(old)
           this.cohostMonitorEls.splice(i, 1)
         }
       }
@@ -1677,7 +1702,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   clearCohostMonitor() {
     for (const el of this.cohostMonitorEls) {
-      el.remove()
+      this.silenceAudioEl(el)
     }
     this.cohostMonitorEls = []
   }
@@ -2110,6 +2135,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     // if we're on the stage (publishing), stay connected as a viewer too so our own composite
     // doesn't go blank when we step outside the parcel. we only tear down on dispose / stopBroadcast.
     if (this.livekitRoom && !this.broadcastRoom) {
+      // the angle feed publishes on the viewer room - disconnecting silently kills it, so tear
+      // it down properly or hasAngleFeed()/startAngleBroadcast() get stuck on a dead track
+      if (this.angleVideoTrack) this.stopAngleBroadcast(true)
       this.livekitRoom.disconnect()
       this.livekitRoom = null
       this.hasActiveVideo = false
@@ -2196,6 +2224,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.viewerRoomFull = false
     this.closeAnglePanel()
     this.stopMeshLetterbox()
+    this.screenMaterial?.dispose(true, true)
+    this.screenMaterial = null
     this.stopAngleBroadcast(true)
     this.livekitRoom?.disconnect()
     this.livekitRoom = null
@@ -2217,6 +2247,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     if (this.broadcastRoom) return
     if (this.hasActiveVideo) return
+    // the stream is gone - stop the letterbox raf or it keeps uploading the dead frame forever
+    this.stopMeshLetterbox()
     const { w, h } = this.meshVideoSize()
     const tex = new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), { width: w, height: h }, this.scene, false)
     const ctx = tex.getContext() as CanvasRenderingContext2D
@@ -2289,7 +2321,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     material.emissiveColor.set(1, 1, 1)
     material.blockDirtyMechanism = true
 
-    if (this.mesh) this.mesh.material = material
+    this.swapScreenMaterial(material)
   }
 
   setCohostConnecting() {
@@ -2319,7 +2351,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     material.emissiveColor.set(1, 1, 1)
     material.blockDirtyMechanism = true
 
-    if (this.mesh) this.mesh.material = material
+    this.swapScreenMaterial(material)
   }
 
   async connectViewer() {
@@ -2540,6 +2572,16 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.meshLetterboxCanvas = null
   }
 
+  // babylon does not refcount replaced materials/textures - dispose the previous screen
+  // material we made (never the mesh's original one) or every preview/attach leaks GPU memory.
+  screenMaterial: BABYLON.Material | null = null
+  swapScreenMaterial(material: BABYLON.Material) {
+    const old = this.screenMaterial
+    this.screenMaterial = material
+    if (this.mesh) this.mesh.material = material
+    if (old && old !== material) old.dispose(true, true)
+  }
+
   attachVideoToMesh(el: HTMLVideoElement, muted = false, retries = 0) {
     if (!this.mesh) {
       if (retries < 30) requestAnimationFrame(() => this.attachVideoToMesh(el, muted, retries + 1))
@@ -2560,7 +2602,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       mat.specularColor.set(0, 0, 0)
       mat.emissiveColor.set(1, 1, 1)
       mat.blockDirtyMechanism = true
-      if (this.mesh) this.mesh.material = mat
+      this.swapScreenMaterial(mat)
     }
 
     const attachDirect = () => {
@@ -3381,6 +3423,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     cancelBtn.textContent = 'cancel'
     Object.assign(cancelBtn.style, { background: 'transparent', color: '#888', border: '0', padding: '4px 0', cursor: 'pointer', fontFamily: 'inherit', fontSize: mobile ? '14px' : '12px', textDecoration: 'underline', flexShrink: '0' })
     cancelBtn.onclick = () => {
+      if (this.broadcastChatDispose) {
+        this.broadcastChatDispose()
+        this.broadcastChatDispose = null
+      }
       this.broadcastPanel?.remove()
       this.broadcastPanel = null
     }
@@ -3449,6 +3495,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         })
       }
 
+      // dispose any effect left from a previous open/cancel or it re-renders a detached panel forever
+      this.broadcastChatDispose?.()
       this.broadcastChatDispose = effect(() => {
         messageList.value
         renderDockChat?.()
@@ -3784,7 +3832,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (this.isCohostMode()) {
           this.cohostLiveSince = Date.now()
           if (this.livekitRoom) {
-            for (const audioEl of this.streamAudioEls) audioEl.remove()
+            for (const audioEl of [...this.streamAudioEls]) {
+              this.silenceAudioEl(audioEl)
+              this.untrackStreamAudio(audioEl)
+            }
             this.stopStreamVolumePoll()
             this.syncExistingCohostAudio()
           } else {

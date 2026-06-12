@@ -189,7 +189,11 @@ export default async function LivekitController(db: Db, passport: PassportStatic
       identity = `${identityPrefix}-${Math.random().toString(36).slice(2, 10)}`
     }
 
-    const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, { identity })
+    // guest-pass tokens expire fast so revoke actually revokes: livekit has no token blocklist,
+    // and the sdk default 6h ttl let a kicked guest rejoin with a cached token. reconnect paths
+    // always fetch a fresh token, so a short ttl only narrows the post-revoke window.
+    const guestTtl = user?.guest_pass || (canPublish && guestPassToken) ? '15m' : undefined
+    const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, guestTtl ? { identity, ttl: guestTtl } : { identity })
     at.addGrant({ roomJoin: true, room: name, canPublish, canSubscribe: true })
     res.json({ success, room, token: at.toJwt(), canPublish })
   })

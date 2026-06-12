@@ -398,6 +398,22 @@ export default class GridShard {
     const parcel = await this.getParcel(msg.parcelId)
     if (!parcel || !msg.patch) return
 
+    // showbox live flags drive real UI (live badge, tip jar). only broadcasters may set them:
+    // parcel editors, or a guest whose signed jwt is bound to this parcel. without this an
+    // anonymous socket could flip any parcel live, bypassing the authed showbox-live endpoint.
+    const showboxKeys = Object.keys(msg.patch).filter((k) => k === '__showbox_live' || (msg.patch![k] as any)?.live !== undefined)
+    if (showboxKeys.length) {
+      const user = client.user as (VoxelsUser & { guest_pass?: string; parcel_id?: number }) | null
+      let allowed = !!user?.guest_pass && user?.parcel_id === msg.parcelId
+      if (!allowed && user?.wallet) {
+        const auth = await this.authParcel(parcel, user)
+        allowed = auth === 'Owner' || auth === 'Moderator' || auth === 'Collaborator'
+      }
+      if (!allowed) {
+        for (const k of showboxKeys) delete (msg.patch as any)[k]
+      }
+    }
+
     const broadcastResult: Record<string, unknown> = {}
     for (const [uuid, value] of Object.entries(msg.patch)) {
       if (uuid === '__showbox_live') {
