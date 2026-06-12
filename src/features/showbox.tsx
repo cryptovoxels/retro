@@ -433,6 +433,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   viewerConnectGen = 0
   localBroadcastVideoEl: HTMLVideoElement | null = null
   mirrorVideoIdentity: string | null = null
+  // the actual track behind mirrorVideoIdentity - a reconnect delivers a new track under the
+  // same identity, and comparing only the id left mirrors frozen on the dead element
+  mirrorVideoTrack: any = null
   angleVideoTrack: any = null
   anglePanel: HTMLDivElement | null = null
   viewerRetryInterval: ReturnType<typeof setInterval> | null = null
@@ -482,7 +485,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   mirrorHasVideoSource() {
     // angle feeds only belong to their own mirror - don't let them count as the primary stream
-    for (const p of (this.livekitRoom as any)?.participants?.values() ?? []) {
+    for (const p of (this.mirrorSourceRoom() as any)?.participants?.values() ?? []) {
       for (const pub of p.videoTracks?.values() ?? []) {
         if (!this.isAngleTrackName(pub.trackName)) return true
       }
@@ -529,6 +532,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   reconcileActiveStream() {
     if (this.broadcastRoom || this.angleVideoTrack) return
     if (this.displaysStream()) {
+      // a mirror promoted to primary (old primary deleted mid-show) starts with no room
+      if (!this.livekitRoom && this.needsViewerRoom() && this.isInCurrentParcel) this.scheduleViewerRetry()
       this.tryAttachExistingStream()
       if (!this.hasActiveVideo) this.scheduleStreamAttachRetry()
       return
@@ -540,17 +545,36 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     this.hasActiveVideo = false
     this.mirrorVideoIdentity = null
+    this.mirrorVideoTrack = null
     if (this.isCohostMode()) this.stopCohostComposite()
     this.setPreview()
+  }
+
+  // plain mirrors subscribe nothing themselves - the primary showbox's viewer room is the track
+  // source. a room per mirror downloaded and decoded the same stream n times, which is what
+  // killed phones. angle mirrors keep their own room (named track + walk-up publishing).
+  mirrorSourceRoom() {
+    if (this.isMirror() && !this.isAngleMirror()) {
+      return (this.parcel.primaryShowbox() as any)?.livekitRoom ?? this.livekitRoom
+    }
+    return this.livekitRoom
+  }
+
+  // one <video> per track: every attach() spawns a fresh element, and each element is another
+  // hardware decoder on ios. reuse the element the track already has.
+  attachedVideoEl(track: any): HTMLVideoElement {
+    const existing = track?.attachedElements?.find((e: any) => e instanceof HTMLVideoElement)
+    return (existing as HTMLVideoElement) ?? (track.attach() as HTMLVideoElement)
   }
 
   // angle mirrors show only the track named with their uuid (a dedicated second camera), muted. no echo fallback.
   refreshAngleVideo() {
     const attach = (track: any) => {
       if (!track) return false
-      if (this.mirrorVideoIdentity !== this.uuid) {
-        this.attachVideoToMesh(track.attach() as HTMLVideoElement, true)
+      if (this.mirrorVideoIdentity !== this.uuid || this.mirrorVideoTrack !== track) {
+        this.attachVideoToMesh(this.attachedVideoEl(track), true)
         this.mirrorVideoIdentity = this.uuid
+        this.mirrorVideoTrack = track
         this.stopStreamAttachRetry()
       }
       return true
@@ -570,6 +594,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.hasActiveVideo) {
       this.hasActiveVideo = false
       this.mirrorVideoIdentity = null
+      this.mirrorVideoTrack = null
       this.setPreview()
     }
   }
@@ -716,6 +741,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (silent) return
     this.hasActiveVideo = false
     this.mirrorVideoIdentity = null
+    this.mirrorVideoTrack = null
     this.refreshAngleVideo()
     // refreshAngleVideo only repaints when it had an active feed; clearing it first leaves the last frame
     // frozen, so restore the idle "broadcast to this mirror" CTA when nothing else is driving the screen.
@@ -724,30 +750,37 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   // mirrors show the chosen source muted (default: whoever is live, host preferred), so every mirror is consistent
   refreshMirrorVideo() {
-    if (!this.isMirror() || this.broadcastRoom || !this.livekitRoom) return
-    if (this.isAngleMirror()) return this.refreshAngleVideo()
+    if (!this.isMirror() || this.broadcastRoom) return
+    if (this.isAngleMirror()) {
+      if (!this.livekitRoom) return
+      return this.refreshAngleVideo()
+    }
     const pick = this.pickVideoSource(true)
     if (!pick) {
       if (this.hasRemoteBroadcaster()) return
       if (this.hasActiveVideo) {
         this.hasActiveVideo = false
         this.mirrorVideoIdentity = null
+        this.mirrorVideoTrack = null
         this.setPreview()
       }
       return
     }
-    if (this.hasActiveVideo && this.mirrorVideoIdentity === pick.id) return
-    this.attachVideoToMesh(pick.track.attach() as HTMLVideoElement, true)
+    if (this.hasActiveVideo && this.mirrorVideoIdentity === pick.id && this.mirrorVideoTrack === pick.track) return
+    this.attachVideoToMesh(this.attachedVideoEl(pick.track), true)
     this.mirrorVideoIdentity = pick.id
+    this.mirrorVideoTrack = pick.track
     this.stopStreamAttachRetry()
   }
 
   tryAttachExistingStream() {
-    if (this.broadcastRoom || !this.livekitRoom) return
+    if (this.broadcastRoom) return
     if (this.isMirror()) {
+      // plain mirrors have no room of their own - they read the primary's
       this.refreshMirrorVideo()
       return
     }
+    if (!this.livekitRoom) return
     if (this.isCohostMode()) {
       if (this.hasActiveVideo) return
       this.syncExistingCohostVideos()
@@ -757,7 +790,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.hasActiveVideo) return
     const pick = this.pickVideoSource(false)
     if (!pick) return
-    this.attachVideoToMesh(pick.track.attach() as HTMLVideoElement, true)
+    this.attachVideoToMesh(this.attachedVideoEl(pick.track), true)
     this.startBroadcastAudio()
     this.stopStreamAttachRetry()
   }
@@ -1125,7 +1158,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (!byRole[role]) byRole[role] = { track, id: identity }
       if (!first) first = { track, id: identity }
     }
-    for (const p of (this.livekitRoom as any)?.participants?.values() ?? []) {
+    for (const p of (this.mirrorSourceRoom() as any)?.participants?.values() ?? []) {
       for (const pub of p.videoTracks.values()) {
         if (pub.isSubscribed) consider(pub.track, p.identity, pub.trackName)
       }
@@ -1157,9 +1190,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }, 500)
   }
 
+  // plain mirrors run no room of their own, so the primary's room events drive their refresh
+  refreshParcelMirrors() {
+    if (this.isMirror()) return
+    for (const f of this.parcel.getFeaturesByType('showbox')) {
+      if (f !== this) (f as any).scheduleMirrorRefresh?.()
+    }
+  }
+
   hasRemoteBroadcaster() {
     if (!this.displaysStream()) return false
-    for (const p of (this.livekitRoom as any)?.participants?.values() ?? []) {
+    for (const p of (this.mirrorSourceRoom() as any)?.participants?.values() ?? []) {
       if (p?.audioTracks?.size > 0) return true
       // angle feeds are video-only side channels, not a live show
       for (const pub of p?.videoTracks?.values() ?? []) {
@@ -1384,6 +1425,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   needsViewerRoom() {
     if (this.broadcastRoom && !this.isCohostMode()) return false
     if (this.broadcastRoom && this.isCohostMode()) return true
+    // plain mirrors render from the primary's room - their own connection would download and
+    // decode the same stream again (n mirrors = n decoders on ios)
+    if (this.isMirror() && !this.isAngleMirror()) return false
     return this.displaysStream() || this.isInCurrentParcel
   }
 
@@ -1407,6 +1451,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         } else {
           this.tryAttachExistingStream()
           if (!this.hasActiveVideo) this.scheduleStreamAttachRetry()
+          this.refreshParcelMirrors()
         }
       })
     }
@@ -2015,7 +2060,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.guestJwtRefreshInterval = setInterval(() => void maybeRefreshGuestJwt(), 5 * 60 * 1000)
       }
     }
-    if (!this.livekitRoom) {
+    if (!this.livekitRoom && this.needsViewerRoom()) {
       this.connectViewer()
     }
     // Guest pass redirects with ?show=<uuid> - auto-open the broadcast dock so they don't have to find/click the panel.
@@ -2406,10 +2451,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           this.routeCohostVideo(track, identity)
         } else {
           const pick = this.pickVideoSource(false)
-          if (pick) this.attachVideoToMesh(pick.track.attach() as HTMLVideoElement, true)
+          if (pick) this.attachVideoToMesh(this.attachedVideoEl(pick.track), true)
         }
         this.startBroadcastAudio()
         this.stopStreamAttachRetry()
+        this.refreshParcelMirrors()
       }
     })
 
@@ -2458,12 +2504,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         } else {
           const pick = this.pickVideoSource(false)
           if (pick) {
-            this.attachVideoToMesh(pick.track.attach() as HTMLVideoElement, true)
+            this.attachVideoToMesh(this.attachedVideoEl(pick.track), true)
           } else if (!this.hasRemoteBroadcaster()) {
             this.hasActiveVideo = false
             if (!this.broadcastRoom) this.setPreview()
           }
         }
+        this.refreshParcelMirrors()
         return
       }
       if (!this.broadcastRoom && !this.hasActiveVideo) this.setPreview()
@@ -2499,6 +2546,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.ensureShowboxLiveFlag()
       }
       if (!this.hasActiveVideo) this.setPreview()
+      this.refreshParcelMirrors()
     })
 
     try {
@@ -2545,7 +2593,15 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   unblockAudiencePlayback() {
-    if (this.broadcastRoom || !this.livekitRoom) return
+    if (this.broadcastRoom) return
+    // tapping a plain mirror should unblock the show's audio - that lives on the primary's room
+    if (this.isMirror() && !this.isAngleMirror()) {
+      const primary = this.parcel.primaryShowbox() as Showbox | undefined
+      if (primary && primary !== this) primary.unblockAudiencePlayback()
+      this.refreshMirrorVideo()
+      return
+    }
+    if (!this.livekitRoom) return
     this.startBroadcastAudio()
     this.tryAttachExistingStream()
     if (this.streamTargetsThisShowbox() && !this.hasActiveVideo) this.scheduleStreamAttachRetry()
