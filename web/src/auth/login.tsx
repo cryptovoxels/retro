@@ -74,7 +74,7 @@ export const AddPasskey = ({ username, onDone }: { username: string; onDone?: ()
   )
 }
 
-export const Login = ({ reason }: { reason?: string }) => {
+export const Login = ({ reason, hideHeading }: { reason?: string; hideHeading?: boolean }) => {
   const [stage, setStage] = useState<Stage>('email')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -299,7 +299,7 @@ export const Login = ({ reason }: { reason?: string }) => {
 
   return (
     <section class="login">
-      <h1>log in{reason ? ` to ${reason}` : ''}</h1>
+      {!hideHeading && <h1>log in{reason ? ` to ${reason}` : ''}</h1>}
       <div class="login-form">
         <div class="login-block">
           <h1>wallet</h1>

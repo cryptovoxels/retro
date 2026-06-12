@@ -20,7 +20,12 @@ const MAX_PARCELS = 40
 
 function hostPlayHref(parcel: SimpleParcelRecord, feature: { uuid: string; position?: number[] | null; rotation?: number[] | null }) {
   const coords = showboxHostPlayCoordsFromRecord(parcel, feature)
-  return `/play?${showboxHostPlayQuery(coords, feature.uuid, isMobile())}`
+  return `/play?${showboxHostPlayQuery(coords, feature.uuid, false)}`
+}
+
+function hostGoLiveHref(row: ShowboxRow) {
+  if (isMobile()) return `/golive/broadcast?parcel=${row.parcelId}&show=${row.featureUuid}&host=1`
+  return row.href
 }
 
 function parcelLabel(p: SimpleParcelRecord) {
@@ -75,8 +80,25 @@ function primaryShowbox(parcel: any): { uuid: string; position?: number[] | null
   return null
 }
 
+function goLiveIntro() {
+  return (
+    <p>
+      You need a showbox on land you own or can edit. Place one in the{' '}
+      <a href="/account/parcels">parcel editor</a>, then come back here to go live.
+    </p>
+  )
+}
+
 export default function GoLive() {
-  if (!app.signedIn) return <Login reason="go live" />
+  if (!app.signedIn) {
+    return (
+      <section>
+        <h1>Go live</h1>
+        <p>Sign in to start streaming. Use the wallet that owns your parcel or can edit it — you need a showbox on that land.</p>
+        <Login hideHeading />
+      </section>
+    )
+  }
 
   const wallet = app.wallet
   const [rows, setRows] = useState<ShowboxRow[] | null>(null)
@@ -142,27 +164,41 @@ export default function GoLive() {
     }
   }, [wallet])
 
+  useEffect(() => {
+    if (rows?.length === 1) window.location.href = hostGoLiveHref(rows[0])
+  }, [rows])
+
   if (rows === null) {
     return (
       <section>
         <h1>Go live</h1>
+        {goLiveIntro()}
         <Spinner size={24} />
       </section>
     )
   }
 
-  const lightHref = (row: ShowboxRow) => `/account/go-live/broadcast?parcel=${row.parcelId}&show=${row.featureUuid}&host=1`
+  if (rows.length === 1) {
+    return (
+      <section>
+        <h1>Go live</h1>
+        {goLiveIntro()}
+        <Spinner size={24} />
+      </section>
+    )
+  }
 
   return (
     <section>
       <h1>Go live</h1>
-      <p>Each heading below is a showbox stage on land you own or collaborate on. Light is the mobile version of that same stage - camera and chat only, no world view.</p>
+      {goLiveIntro()}
+      <p>Pick a stage. Phone opens the camera dock; desktop lands you in-world at the showbox.</p>
       {error && <p>{error}</p>}
       {rows.length === 0 && !error && (
         <p>
           {parcelCount > 0
-            ? `Checked ${parcelCount} parcel${parcelCount === 1 ? '' : 's'} - no showbox features found. Add a showbox on land you can edit.`
-            : 'No parcels found for this account. Sign in with the wallet that owns or collaborates on the land.'}
+            ? `Checked ${parcelCount} parcel${parcelCount === 1 ? '' : 's'} - no showbox found yet.`
+            : 'No parcels on this account. Sign in with the wallet that owns or collaborates on the land.'}
         </p>
       )}
       {rows.map((row) => (
@@ -172,9 +208,7 @@ export default function GoLive() {
             {row.via === 'collab' ? ' (collab)' : ''}
           </h2>
           <p>
-            <a href={row.href}>In world</a>
-            {' · '}
-            <a href={lightHref(row)}>Light (mobile)</a>
+            <a href={hostGoLiveHref(row)}>Go live</a>
           </p>
         </section>
       ))}

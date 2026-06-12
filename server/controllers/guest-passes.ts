@@ -37,10 +37,11 @@ function isMobileUserAgent(ua: string): boolean {
   return /mobile|android|iphone|ipad|ipod/i.test(ua)
 }
 
-function lightBroadcastPath(parcelId: number, featureUuid: string, guestPass?: string) {
+function lightBroadcastPath(parcelId: number, featureUuid: string, guestPass?: string, host = false) {
   const qs = new URLSearchParams({ parcel: String(parcelId), show: featureUuid, light: '1' })
+  if (host) qs.set('host', '1')
   if (guestPass) qs.set('guest_pass', guestPass)
-  return `/account/go-live/broadcast?${qs.toString()}`
+  return `/golive/broadcast?${qs.toString()}`
 }
 
 // Broadcaster session only (/live/:token -> /play). Not for audience share links.
@@ -366,7 +367,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
         // Parcel editors host-join as themselves. Everyone else signed in keeps their account and
         // uses guest_pass in the play URL for publish permission.
         if (auth === 'Owner' || auth === 'Collaborator' || auth === 'Moderator') {
-          if (light) return res.redirect(302, lightBroadcastPath(pass.parcel_id, pass.feature_uuid))
+          if (light) return res.redirect(302, lightBroadcastPath(pass.parcel_id, pass.feature_uuid, undefined, true))
           return res.redirect(302, `/play?${showboxHostPlayQuery(showboxHostPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid, isMobileUserAgent(ua))}`)
         }
         if (light) return res.redirect(302, lightBroadcastPath(pass.parcel_id, pass.feature_uuid, token))
@@ -393,7 +394,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       res.cookie('jwt', jwt, { maxAge: GUEST_JWT_TTL_SECONDS * 1000, httpOnly: false, sameSite: 'lax' })
       if (light) {
         const lightQs = new URLSearchParams({ parcel: String(pass.parcel_id), show: pass.feature_uuid, light: '1', guest_fresh: '1' })
-        return res.redirect(302, `/account/go-live/broadcast?${lightQs.toString()}`)
+        return res.redirect(302, `/golive/broadcast?${lightQs.toString()}`)
       }
       const playQs = guestBroadcastPlayQuery(showboxGuestPlayCoords(parcel, pass.feature_uuid), pass.feature_uuid, ua, undefined, true)
       res.redirect(302, `/play?${playQs}`)
