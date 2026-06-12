@@ -92,6 +92,11 @@ function noStoreJson(res: Response, body: Record<string, unknown>) {
   res.json(body)
 }
 
+// proto TrackType is numeric (AUDIO = 0) but tolerate string representations too
+function isAudioTrackInfo(t: { type?: unknown }) {
+  return t?.type === 0 || String(t?.type).toUpperCase() === 'AUDIO'
+}
+
 async function kickGuestPassParticipants(livekit: RoomServiceClient, parcelId: number, passes: GuestPassRow[]) {
   if (!passes.length) return
   try {
@@ -203,6 +208,81 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
 
     const r = await db.query('sql/guest-passes/list', sql, params)
     noStoreJson(res, { success: true, passes: r.rows })
+  })
+
+  // Live guests currently publishing on the parcel room, with their session names - editors only
+  app.get('/api/parcels/:id/showbox-guests', passport.authenticate('jwt', { session: false }), async (req: VoxelsUserRequest, res: Response) => {
+    const parcelId = parseInt(req.params.id, 10)
+    if (isNaN(parcelId)) return res.status(400).json({ success: false, error: 'Invalid parcel id' })
+
+    const parcel = await Parcel.load(parcelId)
+    if (!parcel) return res.status(404).json({ success: false, error: 'Parcel not found' })
+
+    const auth = await authParcel(parcel, req.user ?? null)
+    if (auth !== 'Owner' && auth !== 'Moderator' && auth !== 'Collaborator') {
+      return res.status(403).json({ success: false, error: 'Owner only' })
+    }
+
+    const participants = await livekit.listParticipants(`parcel-${parcelId}`).catch(() => [])
+    const passesRes = await db.query('sql/guest-passes/active-for-parcel', `select token from guest_passes where parcel_id = $1 and revoked_at is null`, [parcelId])
+    const tokens = (passesRes.rows as { token: string }[]).map((r) => r.token)
+
+    const guests: { identity: string; name: string; audioMuted: boolean }[] = []
+    for (const p of participants) {
+      if (!p.identity.startsWith('guest-') || !p.tracks?.length) continue
+      // identity guest-<tok12>-<sess>-<rand> -> session wallet guest:tok12.sess -> avatar name.
+      // signed-in guests (wallet-derived sess) have no session avatar; they fall back to ''.
+      let name = ''
+      for (const token of tokens) {
+        const pre = `guest-${token.slice(0, 12)}-`
+        if (!p.identity.startsWith(pre)) continue
+        const sess = p.identity.slice(pre.length).split('-')[0]
+        const wallet = `guest:${token.slice(0, 12)}.${sess}`.toLowerCase()
+        const av = await db.query('sql/guest-passes/avatar-name', `select name from avatars where owner = $1`, [wallet])
+        name = av.rows[0]?.name ?? ''
+        break
+      }
+      const audioMuted = p.tracks.filter(isAudioTrackInfo).every((t) => t.muted)
+      guests.push({ identity: p.identity, name, audioMuted })
+    }
+    noStoreJson(res, { success: true, guests })
+  })
+
+  // Editors can moderate a live guest: soft-mute their mic or kick the session off stage.
+  // kick is not a ban - the link still works; revoke the link to ban everyone on it.
+  app.post('/api/parcels/:id/showbox-moderate', passport.authenticate('jwt', { session: false }), async (req: VoxelsUserRequest, res: Response) => {
+    const parcelId = parseInt(req.params.id, 10)
+    if (isNaN(parcelId)) return res.status(400).json({ success: false, error: 'Invalid parcel id' })
+
+    const parcel = await Parcel.load(parcelId)
+    if (!parcel) return res.status(404).json({ success: false, error: 'Parcel not found' })
+
+    const auth = await authParcel(parcel, req.user ?? null)
+    if (auth !== 'Owner' && auth !== 'Moderator' && auth !== 'Collaborator') {
+      return res.status(403).json({ success: false, error: 'Owner only' })
+    }
+
+    const identity = String(req.body?.identity ?? '').trim()
+    const action = String(req.body?.action ?? '')
+    // guests only - editors can never be kicked/muted through this
+    if (!identity.startsWith('guest-')) return res.status(400).json({ success: false, error: 'Can only moderate guests' })
+    if (action !== 'kick' && action !== 'mute') return res.status(400).json({ success: false, error: 'action must be kick or mute' })
+
+    const roomName = `parcel-${parcelId}`
+    try {
+      if (action === 'kick') {
+        await livekit.removeParticipant(roomName, identity)
+      } else {
+        const p = await livekit.getParticipant(roomName, identity)
+        for (const t of p?.tracks ?? []) {
+          if (isAudioTrackInfo(t)) await livekit.mutePublishedTrack(roomName, identity, t.sid, true).catch(() => {})
+        }
+      }
+      return noStoreJson(res, { success: true })
+    } catch (err) {
+      log.error('[showbox-moderate] failed', { parcelId, identity: identity.slice(0, 24), action, error: err })
+      return res.status(500).json({ success: false, error: 'Could not moderate guest' })
+    }
   })
 
   // Create a new pass - owner only

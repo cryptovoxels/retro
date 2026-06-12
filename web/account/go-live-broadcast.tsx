@@ -478,6 +478,7 @@ export default function GoLiveBroadcast() {
   const [viewers, setViewers] = useState(0)
   const [viewerLines, setViewerLines] = useState<{ id: string; name: string }[]>([])
   const [viewerListOpen, setViewerListOpen] = useState(false)
+  const [stageGuests, setStageGuests] = useState<{ identity: string; name: string; audioMuted: boolean }[]>([])
   const [elapsed, setElapsed] = useState(0)
   const [micOn, setMicOn] = useState(true)
   const [chatDraft, setChatDraft] = useState('')
@@ -788,6 +789,35 @@ export default function GoLiveBroadcast() {
     window.addEventListener('online', onOnline)
     return () => window.removeEventListener('online', onOnline)
   }, [live, isCohost, roomName])
+
+  const refreshStageGuests = async () => {
+    if (!canManageGuests) return
+    try {
+      const r = await fetch(`/api/parcels/${parcelId}/showbox-guests`, { credentials: 'include', cache: 'no-store' })
+      const j = await r.json().catch(() => null)
+      if (j?.success) setStageGuests(j.guests ?? [])
+    } catch {}
+  }
+
+  const moderateGuest = async (identity: string, action: 'mute' | 'kick') => {
+    if (action === 'kick' && !confirm('Remove this guest from the stage? They can rejoin with their link.')) return
+    try {
+      await fetch(`/api/parcels/${parcelId}/showbox-moderate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ identity, action }),
+      })
+    } catch {}
+    void refreshStageGuests()
+  }
+
+  useEffect(() => {
+    if (!live || !canManageGuests) return
+    void refreshStageGuests()
+    const t = setInterval(() => void refreshStageGuests(), 10000)
+    return () => clearInterval(t)
+  }, [live, canManageGuests])
 
   useEffect(() => {
     if (!live) return
@@ -1655,6 +1685,24 @@ export default function GoLiveBroadcast() {
               </button>
             )}
           </div>
+          {!isGuest && canManageGuests && stageGuests.length > 0 && (
+            <div class="f">
+              <label>on stage</label>
+              {stageGuests.map((g) => (
+                <div key={g.identity} style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                  <span style={{ flex: '1', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{g.name || 'guest'}</span>
+                  {!g.audioMuted && (
+                    <button type="button" class="showbox-dock-link-btn" onClick={() => void moderateGuest(g.identity, 'mute')}>
+                      mute
+                    </button>
+                  )}
+                  <button type="button" class="showbox-dock-link-btn" onClick={() => void moderateGuest(g.identity, 'kick')}>
+                    remove
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           {cameraLost && !broadcastLost && (
             <button type="button" class="showbox-dock-link-btn" onClick={() => void tryResumeCamera()}>
               reconnect camera
