@@ -106,7 +106,9 @@ const initialHeight = window.visualViewport?.height ?? window.innerHeight
 let orientation = window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape'
 
 export function resetMobileViewportLayout() {
-  document.body.style.height = ''
+  // body's only height is the inline 100% set at boot. Clearing it collapses body
+  // to auto, the absolute canvas (height 100%) goes to 0, and the world turns black.
+  document.body.style.height = '100%'
 }
 
 let skipMobileCanvasRefreshUntil = 0
