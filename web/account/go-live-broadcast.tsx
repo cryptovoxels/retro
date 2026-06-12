@@ -269,7 +269,26 @@ type CohostBag = {
   editorWallets: string[]
   isGuest: boolean
   showUuid: string
+  // showbox feature uuids - angle feeds publish video named with their mirror's uuid and
+  // must never land in the dock composite
+  angleTrackNames: string[]
   onRedraw: () => void
+}
+
+function isAngleTrackPub(bag: CohostBag, pub: any) {
+  const name = String(pub?.trackName ?? '').toLowerCase()
+  return !!name && bag.angleTrackNames.includes(name)
+}
+
+// removing a playing media element from the DOM does not stop it - the livekit track still
+// feeds it. kill the source before dropping the element or audio/decoders stack up.
+function silenceMediaEl(el: HTMLMediaElement | null) {
+  if (!el) return
+  try {
+    el.pause()
+    el.srcObject = null
+  } catch {}
+  el.remove()
 }
 
 function parcelEditorWallet(bag: CohostBag, wallet: string) {
@@ -289,13 +308,17 @@ function shouldPlayCohostAudio(bag: CohostBag, broadcastRoom: Room | null, viewe
   const theirs = cohostIdentityPrefix(participantIdentity)
   const myPub = cohostIdentityPrefix(broadcastRoom.localParticipant.identity)
   const mySub = cohostIdentityPrefix(viewerRoom.localParticipant.identity)
-  if (theirs === myPub || theirs === mySub) return false
-  if (bag.isGuest) return !isGuestPublisherIdentity(bag, participantIdentity)
-  return isGuestPublisherIdentity(bag, participantIdentity)
+  // every other publisher gets a monitor. camp gating (editors hear guests, guests hear
+  // editors) left host<->collaborator and guest<->guest pairs mutually silent.
+  return theirs !== myPub && theirs !== mySub
 }
 
 function shouldRouteCohostVideo(bag: CohostBag, broadcastRoom: Room | null, viewerRoom: Room | null, participantIdentity: string) {
-  return shouldPlayCohostAudio(bag, broadcastRoom, viewerRoom, participantIdentity)
+  if (!shouldPlayCohostAudio(bag, broadcastRoom, viewerRoom, participantIdentity)) return false
+  // the composite has exactly two panes (owner + guest). only the opposite camp's video routes -
+  // a second editor's video would stomp the local pane.
+  if (bag.isGuest) return !isGuestPublisherIdentity(bag, participantIdentity)
+  return isGuestPublisherIdentity(bag, participantIdentity)
 }
 
 function drawCohostFrame(bag: CohostBag) {
@@ -395,10 +418,10 @@ function routeCohostVideo(
   el.play().catch(() => {})
   el.addEventListener('loadeddata', () => updateCohostComposite(bag), { once: true })
   if (isGuest) {
-    bag.guestVideoEl?.remove()
+    silenceMediaEl(bag.guestVideoEl)
     bag.guestVideoEl = el
   } else {
-    bag.ownerVideoEl?.remove()
+    silenceMediaEl(bag.ownerVideoEl)
     bag.ownerVideoEl = el
   }
   updateCohostComposite(bag)
@@ -410,7 +433,7 @@ function routeCohostAudio(bag: CohostBag, track: any, identity: string, broadcas
   for (let i = bag.cohostMonitorEls.length - 1; i >= 0; i--) {
     const el = bag.cohostMonitorEls[i] as HTMLAudioElement & { dataset: { cohostPrefix?: string } }
     if (el.dataset?.cohostPrefix === prefix) {
-      el.remove()
+      silenceMediaEl(el)
       bag.cohostMonitorEls.splice(i, 1)
     }
   }
@@ -430,10 +453,10 @@ function wireLocalCohostVideo(bag: CohostBag, el: HTMLVideoElement) {
   document.body.appendChild(el)
   el.play().catch(() => {})
   if (bag.isGuest) {
-    bag.guestVideoEl?.remove()
+    silenceMediaEl(bag.guestVideoEl)
     bag.guestVideoEl = el
   } else {
-    bag.ownerVideoEl?.remove()
+    silenceMediaEl(bag.ownerVideoEl)
     bag.ownerVideoEl = el
   }
   updateCohostComposite(bag)
@@ -444,9 +467,9 @@ function stopCohost(bag: CohostBag) {
   if (bag.cohostCompositeRetryRaf) cancelAnimationFrame(bag.cohostCompositeRetryRaf)
   bag.cohostCompositeRaf = null
   bag.cohostCompositeRetryRaf = null
-  bag.ownerVideoEl?.remove()
-  bag.guestVideoEl?.remove()
-  for (const el of bag.cohostMonitorEls) el.remove()
+  silenceMediaEl(bag.ownerVideoEl)
+  silenceMediaEl(bag.guestVideoEl)
+  for (const el of bag.cohostMonitorEls) silenceMediaEl(el)
   bag.ownerVideoEl = null
   bag.guestVideoEl = null
   bag.cohostCanvas = null
@@ -1200,6 +1223,7 @@ export default function GoLiveBroadcast() {
         if (bag && broadcastRoom.current) {
           for (const p of (room as any).participants?.values() ?? []) {
             for (const pub of p.videoTracks?.values() ?? []) {
+              if (isAngleTrackPub(bag, pub)) continue
               if (pub.isSubscribed && pub.track) routeCohostVideo(bag, pub.track, p.identity, broadcastRoom.current, room, onRemoteCohostVideo)
             }
             for (const pub of p.audioTracks?.values() ?? []) {
@@ -1268,7 +1292,7 @@ export default function GoLiveBroadcast() {
     room.on(RoomEvent.TrackSubscribed, (track, _pub, participant) => {
       if (viewerRoom.current !== room) return
       const identity = participant?.identity ?? ''
-      if (track.kind === Track.Kind.Video) routeCohostVideo(bag, track, identity, broadcastRoom.current, room, onRemoteCohostVideo)
+      if (track.kind === Track.Kind.Video && !isAngleTrackPub(bag, _pub)) routeCohostVideo(bag, track, identity, broadcastRoom.current, room, onRemoteCohostVideo)
       if (track.kind === Track.Kind.Audio) routeCohostAudio(bag, track, identity, broadcastRoom.current, room, room)
     })
 
@@ -1276,6 +1300,7 @@ export default function GoLiveBroadcast() {
       if (viewerRoom.current !== room || !broadcastRoom.current) return
       for (const p of (room as any).participants?.values() ?? []) {
         for (const pub of p.videoTracks?.values() ?? []) {
+          if (isAngleTrackPub(bag, pub)) continue
           if (pub.isSubscribed && pub.track) routeCohostVideo(bag, pub.track, p.identity, broadcastRoom.current, room, onRemoteCohostVideo)
         }
       }
@@ -1289,6 +1314,7 @@ export default function GoLiveBroadcast() {
       }
       for (const p of (room as any).participants?.values() ?? []) {
         for (const pub of p.videoTracks?.values() ?? []) {
+          if (isAngleTrackPub(bag, pub)) continue
           if (pub.isSubscribed && pub.track) routeCohostVideo(bag, pub.track, p.identity, broadcastRoom.current, room, onRemoteCohostVideo)
         }
         for (const pub of p.audioTracks?.values() ?? []) {
@@ -1384,6 +1410,8 @@ export default function GoLiveBroadcast() {
           editorWallets: parcelEditorWallets(parcel),
           isGuest,
           showUuid,
+          // any showbox uuid as a track name marks an angle feed - main feeds are unnamed
+          angleTrackNames: ((parcel?.content?.features ?? []) as any[]).filter((f) => f?.type === 'showbox').map((f) => String(f?.uuid || '').toLowerCase()),
           onRedraw: () => {
             const src = cohostBag.current?.cohostCanvas
             const dst = displayCanvas.current
@@ -1469,7 +1497,8 @@ export default function GoLiveBroadcast() {
     const next = !micOn
     const lp = broadcastRoom.current.localParticipant
     // mic is already published at go-live - passing deviceId on unmute can open a second audio track (echo).
-    const opts = next && !liveAudioTrack.current ? { deviceId: micId || undefined } : undefined
+    // when there never was a mic, publish with the chosen room preset, not livekit defaults.
+    const opts = next && !liveAudioTrack.current ? showboxAudioConstraints(audioMode, micId || undefined) : undefined
     await lp.setMicrophoneEnabled(next, opts).catch(() => {})
     setMicOn(next)
   }

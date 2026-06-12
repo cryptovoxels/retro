@@ -781,6 +781,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       return
     }
     if (!this.livekitRoom) return
+    this.syncExistingStreamAudio()
     if (this.isCohostMode()) {
       if (this.hasActiveVideo) return
       this.syncExistingCohostVideos()
@@ -1085,6 +1086,27 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     } catch {
       return false
     }
+  }
+
+  // audience audio normally lands in the TrackSubscribed handler, but livekit can deliver the
+  // tracks before the __showbox_live patch arrives - that handler bails on the flag check and
+  // nothing else attaches audio, so the viewer gets a silent show. sync on every reconcile.
+  syncExistingStreamAudio() {
+    if (this.broadcastRoom || !this.livekitRoom || !wantsAudio()) return
+    if (!this.streamTargetsThisShowbox()) return
+    for (const p of (this.livekitRoom as any).participants?.values() ?? []) {
+      for (const pub of p.audioTracks?.values() ?? []) {
+        if (!pub.isSubscribed || !pub.track) continue
+        const els: any[] = pub.track.attachedElements ?? []
+        if (els.some((e) => this.streamAudioEls.includes(e))) continue
+        const el = pub.track.attach() as HTMLAudioElement
+        el.style.display = 'none'
+        document.body.appendChild(el)
+        this.trackStreamAudio(el, p.identity)
+        this.audio?.addUserAudioReference(this)
+      }
+    }
+    this.startBroadcastAudio()
   }
 
   trackStreamAudio(el: HTMLAudioElement, identity?: string) {
@@ -1695,10 +1717,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     return !this.parcelEditorWallet(prefix)
   }
 
-  isHostPublisherIdentity(identity: string) {
-    return !this.isGuestPublisherIdentity(identity)
-  }
-
   get mirrorSource(): MirrorSource {
     const s = this.description.mirrorSource
     return s === 'host' || s === 'collaborator' || s === 'guest' ? s : 'auto'
@@ -1717,10 +1735,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const theirs = cohostIdentityPrefix(participantIdentity)
     const myPub = cohostIdentityPrefix(this.broadcastRoom.localParticipant.identity)
     const mySub = cohostIdentityPrefix(this.livekitRoom.localParticipant.identity)
-    if (theirs === myPub || theirs === mySub) return false
-    const iAmGuest = isGuestForShowbox(this.uuid)
-    if (iAmGuest) return this.isHostPublisherIdentity(participantIdentity)
-    return this.isGuestPublisherIdentity(participantIdentity)
+    // every other publisher on the stage gets a monitor. camp gating (editors hear guests,
+    // guests hear editors) left host<->collaborator and guest<->guest pairs mutually silent.
+    return theirs !== myPub && theirs !== mySub
   }
 
   trackCohostMonitor(el: HTMLAudioElement, identity?: string) {
@@ -3168,7 +3185,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       micOn = !micOn
       micToggle.disabled = true
       // mic is already published at go-live - deviceId on unmute can open a second audio track (echo).
-      const micOpts = micOn && !liveAudioTrack ? { deviceId: micSel.value || undefined } : undefined
+      // when there never was a mic, publish with the chosen room preset, not livekit defaults.
+      const micOpts = micOn && !liveAudioTrack ? showboxAudioConstraints(audioMode, micSel.value || undefined) : undefined
       await this.broadcastRoom.localParticipant.setMicrophoneEnabled(micOn, micOpts).catch(() => (micOn = !micOn))
       micToggle.disabled = false
       syncMicToggle()
@@ -3988,7 +4006,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           micToggle.style.display = 'block'
           syncMicToggle()
           if (micOn) {
-            const micOpts = liveAudioTrack ? undefined : { deviceId: micSel.value || undefined }
+            const micOpts = liveAudioTrack ? undefined : showboxAudioConstraints(audioMode, micSel.value || undefined)
             this.broadcastRoom.localParticipant.setMicrophoneEnabled(true, micOpts).catch(() => {
               micOn = false
               syncMicToggle()
