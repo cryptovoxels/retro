@@ -7,6 +7,7 @@ export function PlayButton(props: { url: string }) {
 
 export interface Props {
   to?: string
+  path?: string
 }
 
 export interface State {
