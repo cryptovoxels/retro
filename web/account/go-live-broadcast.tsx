@@ -577,7 +577,7 @@ export default function GoLiveBroadcast() {
             const gj = await gr.json().catch(() => null)
             const pass = (gj?.passes ?? []).find((x: any) => !x.revoked_at)
             if (pass?.token) {
-              setGuestUrl(`${window.location.origin}/live/${pass.token}?light=1`)
+              setGuestUrl(`${window.location.origin}/live/${pass.token}`)
             }
           } catch {}
         }
@@ -1467,7 +1467,6 @@ export default function GoLiveBroadcast() {
       token = pass?.token ?? null
     } catch {}
     if (!token && canManageGuests) {
-      if (!confirm('create a guest link?')) return null
       token = await createGuestPassToken()
       if (!token) {
         setStatus('could not create guest link')
@@ -1475,9 +1474,15 @@ export default function GoLiveBroadcast() {
       }
     }
     if (!token) return null
-    const url = `${window.location.origin}/live/${token}?light=1`
+    const url = `${window.location.origin}/live/${token}`
     setGuestUrl(url)
     return url
+  }
+
+  const copyGuestUrl = async () => {
+    const url = await resolveGuestShareUrl()
+    if (url) copyUrl(url)
+    else if (!canManageGuests) setStatus('ask someone with edit access for a co-host link')
   }
 
   const shareShowUrl = async (kind: 'fan' | 'guest') => {
@@ -1487,7 +1492,7 @@ export default function GoLiveBroadcast() {
         if (!canManageGuests) setStatus('no guest link yet - ask someone with edit access')
         return
       }
-      const text = `Join my show in voxels - go live here: ${url}`
+      const text = `Join my show on camera in voxels: ${url}`
       if (navigator.share) {
         try {
           await navigator.share({ title: 'voxels show', text, url })
@@ -1534,12 +1539,12 @@ export default function GoLiveBroadcast() {
   return (
     <div ref={dockRef} class={dockClass(live, chatComposing)}>
       <div class="showbox-dock-title">Showbox</div>
-      {isCohost && (
+      {isGuest && !live && (
         <small class="showbox-dock-hint">
-          {isGuest ? 'co-host -- go live when ready. use headphones to reduce echo' : 'co-host -- share the guest link, then go live. use headphones to reduce echo'}
+          {isCohost ? 'co-host -- go live when ready. use headphones to reduce echo' : `you're joining as guest at ${parcelLabel}`}
         </small>
       )}
-      {isGuest && !live && <small class="showbox-dock-hint">you're joining as guest at {parcelLabel}</small>}
+      {!isGuest && !live && !status && <small class="showbox-dock-hint">tap go live when ready</small>}
 
       {syntheticGuest && !live && (
         <div class="showbox-dock-device-row">
@@ -1667,7 +1672,7 @@ export default function GoLiveBroadcast() {
       {!live && status && <div class="showbox-dock-status">{status}</div>}
 
       <div class="showbox-dock-footer">
-        {live && mobile && !isGuest && (
+        {!isGuest && canManageGuests && mobile && (
           <div class="showbox-dock-share-split">
             {sharePickOpen && (
               <div class="showbox-dock-share-menu">
@@ -1687,7 +1692,7 @@ export default function GoLiveBroadcast() {
                     setSharePickOpen(false)
                   }}
                 >
-                  guest link - for your co-host or DJ/Artist
+                  co-host link - for your DJ or guest on camera
                 </button>
               </div>
             )}
@@ -1699,7 +1704,7 @@ export default function GoLiveBroadcast() {
                 void shareShowUrl(shareLinkKind)
               }}
             >
-              {shareLinkKind === 'fan' ? 'share fan link' : 'share guest link'}
+              {shareLinkKind === 'fan' ? 'share fan link' : 'share co-host link'}
             </button>
             <button
               type="button"
@@ -1714,12 +1719,17 @@ export default function GoLiveBroadcast() {
             </button>
           </div>
         )}
-        {live && mobile && isGuest && (
+        {!isGuest && !canManageGuests && mobile && fanUrl && (
           <button type="button" class="showbox-dock-share-main" onClick={() => void shareShowUrl('fan')}>
             share fan link
           </button>
         )}
-        {live && !mobile && (
+        {isGuest && mobile && (
+          <button type="button" class="showbox-dock-share-main" onClick={() => void shareShowUrl('fan')}>
+            share fan link
+          </button>
+        )}
+        {!isGuest && canManageGuests && !mobile && (
           <div class="showbox-dock-share-block">
             <label>fan link - share with your audience</label>
             <div class="showbox-dock-share-row">
@@ -1728,17 +1738,24 @@ export default function GoLiveBroadcast() {
                 copy
               </button>
             </div>
-            {!isGuest && (
-              <>
-                <label>guest link - for your co-host or DJ/Artist</label>
-                <div class="showbox-dock-share-row">
-                  <input type="text" readonly value={guestUrl || 'no guest link yet'} onClick={(e) => (e.target as HTMLInputElement).select()} />
-                  <button type="button" onClick={() => copyUrl(guestUrl)} disabled={!guestUrl}>
-                    copy
-                  </button>
-                </div>
-              </>
-            )}
+            <label>co-host link - for your DJ or guest on camera</label>
+            <div class="showbox-dock-share-row">
+              <input type="text" readonly value={guestUrl || 'tap copy to get co-host link'} onClick={(e) => (e.target as HTMLInputElement).select()} />
+              <button type="button" onClick={() => void copyGuestUrl()}>
+                copy
+              </button>
+            </div>
+          </div>
+        )}
+        {!isGuest && !canManageGuests && !mobile && fanUrl && (
+          <div class="showbox-dock-share-block">
+            <label>fan link - share with your audience</label>
+            <div class="showbox-dock-share-row">
+              <input type="text" readonly value={fanUrl} onClick={(e) => (e.target as HTMLInputElement).select()} />
+              <button type="button" onClick={() => copyUrl(fanUrl)}>
+                copy
+              </button>
+            </div>
           </div>
         )}
         <div class="showbox-dock-footer-row">

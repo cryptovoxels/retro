@@ -105,7 +105,7 @@ const Main = () => {
   }
 
   const [currentPath, setCurrentPath] = useState(window.location.pathname)
-  const lightBroadcast = currentPath === '/account/go-live/broadcast'
+  const lightBroadcast = currentPath.startsWith('/golive/broadcast')
 
   return (
     <MainApp>
@@ -143,6 +143,9 @@ const Main = () => {
           <Islands path="/islands" />
           <Island path="/islands/:slug" />
           <WorldMap path="/map" />
+
+          <Route path="/golive/broadcast" component={GoLiveBroadcast} />
+          <Route path="/golive" component={GoLive} />
 
           <AccountRoutes path="/account/:path*" />
 
@@ -227,8 +230,6 @@ function AccountRoutes(props: { path?: string }) {
   return (
     <Router>
       <Route path="/account/edit" component={EditAccount} />
-      <Route path="/account/go-live/broadcast" component={GoLiveBroadcast} />
-      <Route path="/account/go-live" component={GoLive} />
       <Route path="/account/:tab?" component={Home} />
     </Router>
   )

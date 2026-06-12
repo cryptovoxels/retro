@@ -179,6 +179,8 @@ export default class WebHeader extends Component<Props, State> {
                 </button>
               </li>
 
+              {signedIn && <li>{navLink('Go live', '/golive', 'events', path?.startsWith('/golive') ?? false)}</li>}
+
               <li>{navLink(signedIn ? 'Account' : 'Login', '/account', 'account', isActive('account'))}</li>
 
               {signedIn && <li>{navLink('Costume', '/costumer', 'costume', isActive('costumer'))}</li>}

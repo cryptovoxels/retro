@@ -873,7 +873,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   async resolveGuestShareUrl() {
     let token = await this.fetchActiveGuestPassToken()
     if (!token && this.canManageGuestPasses()) {
-      if (!confirm('create a guest link?')) return null
       token = await this.createGuestPassToken()
       if (!token) app.showSnackbar('could not create guest link', PanelType.Warning)
     }
@@ -3160,17 +3159,33 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       xBtn.textContent = 'post on x'
       Object.assign(xBtn.style, { background: '#333', color: '#f5f5f0', border: '0', padding: '8px 12px', cursor: 'pointer', fontFamily: 'inherit', flex: '1', minHeight: '36px' })
       const wireDesktopShareActions = (getKind: () => 'fan' | 'guest', getUrl: () => string) => {
-        copyBtn.onclick = () => {
-          const url = getUrl().trim()
+        copyBtn.onclick = async () => {
+          let url = getUrl().trim()
+          if (getKind() === 'guest') {
+            shareInput.value = 'loading guest link...'
+            const guestUrl = await this.resolveGuestShareUrl()
+            if (!guestUrl) {
+              shareInput.value = showUrl
+              return
+            }
+            shareInput.value = guestUrl
+            url = guestUrl
+          }
           if (!url || url.startsWith('loading')) return
           navigator.clipboard.writeText(url).catch(() => {})
           copyBtn.textContent = 'copied'
           setTimeout(() => (copyBtn.textContent = copyBtnLabel), 1500)
         }
-        xBtn.onclick = () => {
-          const url = getUrl().trim()
+        xBtn.onclick = async () => {
+          let url = getUrl().trim()
+          if (getKind() === 'guest') {
+            const guestUrl = await this.resolveGuestShareUrl()
+            if (!guestUrl) return
+            url = guestUrl
+            shareInput.value = guestUrl
+          }
           if (!url || url.startsWith('loading')) return
-          const text = getKind() === 'guest' ? `Join my show in voxels - go live here: ${url}` : `Going live in voxels - Teleport in! ${url}`
+          const text = getKind() === 'guest' ? `Join my show on camera in voxels: ${url}` : `Going live in voxels - Teleport in! ${url}`
           window.open(`https://x.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank', 'noopener')
         }
       }
@@ -3181,7 +3196,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             if (!this.canManageGuestPasses()) app.showSnackbar('no guest link yet - ask someone with edit access', PanelType.Warning)
             return
           }
-          await this.shareShowUrl(guestUrl, `Join my show in voxels - go live here: ${guestUrl}`)
+          await this.shareShowUrl(guestUrl, `Join my show on camera in voxels: ${guestUrl}`)
           return
         }
         await this.shareShowUrl(showUrl, `Going live in voxels - Teleport in! ${showUrl}`)
@@ -3204,7 +3219,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           const sharePickMenu = document.createElement('div')
           const btnBase = { background: '#dc1e1e', color: '#f5f5f0', border: '0', cursor: 'pointer', fontFamily: 'inherit', minHeight: '32px' as const }
           const syncShareLabel = () => {
-            shareMainBtn.textContent = shareLinkKind === 'fan' ? 'share fan link' : 'share guest link'
+            shareMainBtn.textContent = shareLinkKind === 'fan' ? 'share fan link' : 'share co-host link'
           }
           const closeSharePickMenu = () => {
             sharePickMenu.style.display = 'none'
@@ -3237,7 +3252,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           fanPick.onclick = () => pickShareKind('fan')
           const guestPick = document.createElement('button')
           guestPick.type = 'button'
-          guestPick.textContent = 'guest link - for your co-host or DJ/Artist'
+          guestPick.textContent = 'co-host link - for your DJ or guest on camera'
           Object.assign(guestPick.style, { background: '#1a1a1a', color: '#f5f5f0', border: '0', padding: '8px', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', minHeight: '32px' })
           guestPick.onclick = () => pickShareKind('guest')
           sharePickMenu.append(fanPick, guestPick)
@@ -3274,7 +3289,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         fanOpt.textContent = 'fan link - for people watching'
         const guestOpt = document.createElement('option')
         guestOpt.value = 'guest'
-        guestOpt.textContent = 'guest link - for your co-host or DJ/Artist'
+        guestOpt.textContent = 'co-host link - for your DJ or guest on camera'
         shareKindSel.append(fanOpt, guestOpt)
         const syncShareUrl = async () => {
           if (shareLinkKind === 'fan') {
@@ -3570,6 +3585,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       panel.append(...desktopKids)
     }
     document.body.appendChild(panel)
+    if (shareRow && !isGuestForShowbox(this.uuid)) shareRow.style.display = 'flex'
 
     navigator.mediaDevices.enumerateDevices().then((devices) => {
       const cams = devices.filter((d) => d.kind === 'videoinput')
@@ -4302,6 +4318,43 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
     }
   }
 
+  async copyGuestLink() {
+    if (!this.canManagePasses()) {
+      this.setState({ error: 'you need edit access on this parcel to copy guest links' })
+      return
+    }
+    this.setState({ creating: true, error: null })
+    try {
+      let token = this.state.passes.find((p) => this.passActive(p))?.token ?? null
+      if (!token) {
+        const r = await fetch(`/api/parcels/${this.parcelId()}/guest-passes`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          cache: 'no-store',
+          body: JSON.stringify({ feature_uuid: this.featureUuid() }),
+        })
+        const j = await r.json().catch(() => ({}))
+        if (!r.ok || !j.success) throw new Error(j.error || 'Could not create link')
+        const pass = j.pass as Pass | undefined
+        if (!pass?.token) throw new Error('Could not create link')
+        token = pass.token
+        this.applyPass(pass)
+      }
+      this.copy(this.liveUrl(token), 'co-host link copied')
+    } catch (e: any) {
+      const msg = e?.message ?? 'Could not create link'
+      if (String(msg).toLowerCase().includes('revoke')) {
+        await this.refresh()
+        this.setState({ error: 'a guest link is already active - copy it below' })
+      } else {
+        this.setState({ error: msg })
+      }
+    } finally {
+      this.setState({ creating: false })
+    }
+  }
+
   async create() {
     if (!this.canManagePasses()) {
       this.setState({ error: 'you need edit access on this parcel to create guest links' })
@@ -4389,7 +4442,6 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
     if (!this.props.feature.parcel.canEdit) return null
     const active = this.state.passes.filter((p) => this.passActive(p))
     const canManage = this.canManagePasses()
-    const canCreate = canManage && active.length === 0
 
     return (
       <div className="f">
@@ -4401,21 +4453,17 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
           </button>
         </div>
 
-        <label>Guest link</label>
-        <small>Send this to your DJ, artist, or guest.</small>
-        <small>They can go live without a Voxels account.</small>
-        <small>Don't share this as the public audience link.</small>
+        <label>Co-host link</label>
+        <small>Send this to your DJ, artist, or guest on camera. Not for the audience.</small>
 
-        <div className="f">
-          {canCreate ? (
-            <button type="button" style={mobile ? { minHeight: '44px' } : undefined} onClick={() => this.create()} disabled={this.state.creating}>
-              {this.state.creating ? 'creating...' : 'create link'}
-            </button>
-          ) : !canManage ? (
-            <small>edit access required</small>
-          ) : null}
-          {this.state.error && <div style={{ color: '#dc1e1e' }}>{this.state.error}</div>}
-        </div>
+        {canManage && (
+          <button type="button" style={mobile ? { minHeight: '44px' } : undefined} onClick={() => void this.copyGuestLink()} disabled={this.state.creating}>
+            {this.state.creating ? 'creating...' : 'copy co-host link'}
+          </button>
+        )}
+        {!canManage && <small>edit access required</small>}
+
+        {this.state.error && <div style={{ color: '#dc1e1e' }}>{this.state.error}</div>}
 
         {this.state.loading && <small>loading...</small>}
 
