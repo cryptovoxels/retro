@@ -1,3 +1,5 @@
+import { isIOS } from './detector'
+
 export type ShowboxAudioMode = 'voice' | 'presenter' | 'loud' | 'headphones' | 'external'
 
 export const SHOWBOX_ROOM_OPTIONS: { value: ShowboxAudioMode; label: string; hint: string }[] = [
@@ -15,7 +17,20 @@ export function showboxRoomHint(mode: ShowboxAudioMode): string {
 export function showboxAudioConstraints(mode: ShowboxAudioMode, deviceId?: string): Record<string, any> {
   const c: Record<string, any> = {}
   if (deviceId) c.deviceId = { exact: deviceId }
-  if (mode === 'voice') return c
+  if (mode === 'voice') {
+    // iOS Safari crackles when the mic opens at a rate that doesn't match the hardware
+    // (WebKit #154538/#221334). Pin native 48k/mono so the pipeline doesn't resample, but
+    // KEEP echo cancellation - phones are held FaceTime-style on speaker, so AEC must stay on.
+    // Desktop is unaffected, so leave its voice mode on browser defaults.
+    if (isIOS()) {
+      c.echoCancellation = true
+      c.noiseSuppression = true
+      c.autoGainControl = true
+      c.channelCount = 1
+      c.sampleRate = 48000
+    }
+    return c
+  }
   // presenter: PA/speakers on but you still talk - no echo cancel, auto-level voice when music drops
   if (mode === 'presenter' || mode === 'headphones') {
     c.echoCancellation = false
