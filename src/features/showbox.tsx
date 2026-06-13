@@ -4136,12 +4136,15 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             const previewWrap = document.createElement('div')
             previewWrap.dataset.dot = '1'
             previewWrap.dataset.showboxDockPreview = '1'
+            // match the showbox orientation so a portrait composite shows whole, not cropped.
+            // portrait is driven by a capped height (centered) so it doesn't dominate the panel.
+            const portraitPreview = this.isPortraitScreen()
             Object.assign(previewWrap.style, {
               position: 'relative',
-              width: '100%',
-              aspectRatio: '16 / 9',
               background: '#000',
               overflow: 'hidden',
+              aspectRatio: portraitPreview ? '9 / 16' : '16 / 9',
+              ...(portraitPreview ? { height: '280px', margin: '0 auto' } : { width: '100%' }),
             })
             const previewVideo = this.isCohostMode() ? this.mountCohostPreviewVideo('cover') : makeDockPreviewVideo(videoTrack)
             if (!this.isCohostMode()) {
