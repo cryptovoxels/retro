@@ -60,7 +60,7 @@ const NUMBER_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const
 const Location = (props: { scene: BABYLON.Scene; signedIn: any }) => {
   const currentOrNearestParcel = selectCurrentOrNearestParcel()
   if (!currentOrNearestParcel) {
-    return null
+    return <a href="/">Home</a>
   }
 
   const owner = currentOrNearestParcel.owner ? shorterWallet(currentOrNearestParcel.owner) : 'nobody'
@@ -68,7 +68,7 @@ const Location = (props: { scene: BABYLON.Scene; signedIn: any }) => {
   const link = `/parcels/${currentOrNearestParcel.id}`
 
   return (
-    <a key={currentOrNearestParcel.id} class="address" href={link} target="_top">
+    <a key={currentOrNearestParcel.id} class="address" href={link}>
       {currentOrNearestParcel.name || currentOrNearestParcel.address}
     </a>
   )
@@ -803,9 +803,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           </aside>
           <aside data-active={this.state.active}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
-              <li>
-                <HomeButton grid={this.props.grid} scene={this.props.scene} />
-              </li>
               <li>
                 <Location signedIn={this.state.signedIn} scene={this.props.scene} />
               </li>
