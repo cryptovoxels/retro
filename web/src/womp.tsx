@@ -9,6 +9,7 @@ import { app } from './state'
 import { wompCache } from './store/index'
 import { AvatarLink } from './components/avatar-link'
 import { avatarName } from '../../common/messages/avatar-ref'
+import { PlayButton } from './components/play-button'
 
 const TTL = 60
 
@@ -103,14 +104,6 @@ export default class Womp extends Component<Props, State> {
       app.visitUrl.value = this.visitUrl
     }
 
-    const onFullscreen = () => {
-      const iframe = document.querySelector('iframe') as HTMLIFrameElement
-
-      if (iframe) {
-        iframe.requestFullscreen()
-      }
-    }
-
     const onZoom = () => {
       const img = document.querySelector('img.womp') as HTMLImageElement
 
@@ -132,12 +125,7 @@ export default class Womp extends Component<Props, State> {
 
           <h1>{this.state.womp.parcel_address}</h1>
           <figcaption>
-            <a class="buttonish" onClick={onFullscreen}>
-              Full screen
-            </a>
-            <a href={this.visitUrl!} class="buttonish">
-              Teleport
-            </a>
+            <PlayButton url={this.visitUrl!} />
           </figcaption>
 
           <figure>

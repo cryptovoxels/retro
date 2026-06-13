@@ -15,6 +15,7 @@ import { fetchOptions } from './utils'
 import WompsList from './womps-list'
 import { AvatarLink } from './components/avatar-link'
 import { ParcelMetrics as Metrics } from './components/metrics'
+import { PlayButton } from './components/play-button'
 
 // Lazily evaluate the engine. Dynamic import keeps src/** out of the SSR import
 // graph (it pulls in shaders + babylon, which tsx can't parse). webpackMode
@@ -263,7 +264,7 @@ export default class Parcel extends Component<Props, State> {
   }
 
   get visitUrl() {
-    return this.helper ? this.helper.visitUrl : undefined
+    return this.helper ? this.helper.iframeUrl : undefined
   }
 
   get name() {
@@ -418,13 +419,6 @@ export default class Parcel extends Component<Props, State> {
     const islandSlug = this.state.parcel?.island?.toLowerCase().replace(/\s+/, '-')
     const nearby = this.state.nearby?.slice(0, 5).map((p) => <ParcelThumb key={p.id} parcel={p} />)
 
-    const onFullscreen = () => {
-      const iframe = document.querySelector('iframe') as HTMLIFrameElement
-      if (iframe) {
-        iframe.requestFullscreen()
-      }
-    }
-
     const iframeUrl = this.helper?.iframeUrl
 
     const parcelName = this.state.parcel?.name ?? this.state.parcel?.address ?? `Parcel #${this.state.parcelId}`
@@ -439,19 +433,13 @@ export default class Parcel extends Component<Props, State> {
           <Head title={parcelName} description={parcelDesc} url={`/parcels/${this.state.parcelId}`} imageURL={ogImage} />
           <h1>{parcelName}</h1>
           <figcaption>
-            <button class="secondary" onClick={onFullscreen}>
-              <span>Fullscreen</span>
-            </button>
+            <PlayButton url={this.helper!.iframeUrl} />
 
             {modes.map((mode) => (
               <button class={`secondary ${this.state.viewTab === mode.mode ? 'contrast' : ''}`} data-active={this.state.viewTab === mode.mode} onClick={() => this.setViewTab(mode.mode)} key={mode.mode}>
                 {mode.label}
               </button>
             ))}
-
-            <a class="buttonish" href={this.visitUrl}>
-              Teleport
-            </a>
 
             {this.isOwner && (
               <a class="buttonish" href={`/parcels/${this.state.parcelId}/edit`}>
@@ -547,7 +535,7 @@ export default class Parcel extends Component<Props, State> {
               )}
             </p>
           ) : null}
-          <a href={this.visitUrl}>Teleport</a>
+          <PlayButton url={this.helper!.iframeUrl} />
 
           {this.state.parcel?.parcel_users && this.state.parcel.parcel_users.length > 0 && (
             <div>

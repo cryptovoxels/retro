@@ -12,6 +12,7 @@ import ParcelEvent, { removeEvent } from './helpers/event'
 import { app, AppEvent } from './state'
 import cachedFetch from './helpers/cached-fetch'
 import { fetchOptions } from './utils'
+import { PlayButton } from './components/play-button'
 
 export interface Props {
   event?: Event
@@ -41,10 +42,6 @@ export default class EventPage extends Component<Props, State> {
       visitor_wallets: [],
     }
     this.setEventHelpers(event)
-  }
-
-  get visitUrl() {
-    return `/parcels/${this.helper?.parcel_id}/visit`
   }
 
   componentDidMount() {
@@ -126,9 +123,7 @@ export default class EventPage extends Component<Props, State> {
             <h1>{this.state.event.name}</h1>
           </hgroup>
           <figcaption>
-            <a class="buttonish" href={this.visitUrl}>
-              Visit
-            </a>
+            {this.parcel && <PlayButton url={this.parcel.iframeUrl} />}
 
             {canEdit && (
               <>
@@ -165,11 +160,7 @@ export default class EventPage extends Component<Props, State> {
               </a>
             </dd>
             <dt>Visit</dt>
-            <dd>
-              <a id="PlayNowButton" role="button" href={this.parcel?.visitUrl}>
-                {this.helper.isLive ? 'Join' : 'Visit'}
-              </a>
-            </dd>
+            <dd>{this.parcel && <PlayButton url={this.parcel.iframeUrl} label={this.helper.isLive ? 'Join' : 'Visit'} />}</dd>
           </dl>
         </aside>
       </section>
