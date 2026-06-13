@@ -236,9 +236,7 @@ function audienceFromRoom(room: Room | null, hostWallet: string, radarNames: Map
     if (!wallet) continue
     byWallet.set(wallet, participantLabel(identity, radarNames))
   }
-  return [...byWallet.entries()]
-    .map(([id, name]) => ({ id, name }))
-    .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+  return [...byWallet.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
 }
 
 function radarParcelLabel(avatar: any, hostWallet: string): string | null {
@@ -413,14 +411,7 @@ function updateCohostComposite(bag: CohostBag) {
   bag.onRedraw()
 }
 
-function routeCohostVideo(
-  bag: CohostBag,
-  track: any,
-  identity: string,
-  broadcastRoom: Room | null,
-  viewerRoom: Room | null,
-  onRemote?: () => void,
-) {
+function routeCohostVideo(bag: CohostBag, track: any, identity: string, broadcastRoom: Room | null, viewerRoom: Room | null, onRemote?: () => void) {
   // same self/non-self gate as audio: every other publisher gets a pane
   if (!shouldPlayCohostAudio(bag, broadcastRoom, viewerRoom, identity)) return
   onRemote?.()
@@ -506,7 +497,7 @@ export default function GoLiveBroadcast() {
   const [elapsed, setElapsed] = useState(0)
   const [micOn, setMicOn] = useState(true)
   const [chatDraft, setChatDraft] = useState('')
-  const [guestName, setGuestName] = useState(() => (isSyntheticGuestWallet() ? '' : (app.state.name || '')))
+  const [guestName, setGuestName] = useState(() => (isSyntheticGuestWallet() ? '' : app.state.name || ''))
   const [fanUrl, setFanUrl] = useState('')
   const [guestUrl, setGuestUrl] = useState('')
   const [cameras, setCameras] = useState<MediaDeviceInfo[]>([])
@@ -739,9 +730,7 @@ export default function GoLiveBroadcast() {
       merged.set(`lk:${l.id}`, l.name)
     }
 
-    const lines = [...merged.entries()]
-      .map(([id, name]) => ({ id, name }))
-      .sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
+    const lines = [...merged.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id))
 
     setViewerLines(lines)
     setViewers(lines.length)
@@ -872,7 +861,6 @@ export default function GoLiveBroadcast() {
     el.addEventListener('loadedmetadata', bumpPreview, { once: true })
     el.addEventListener('resize', bumpPreview, { once: true })
   }
-
 
   const stopThumb = () => {
     if (thumbInterval.current) {
@@ -1653,11 +1641,7 @@ export default function GoLiveBroadcast() {
   return (
     <div ref={dockRef} class={dockClass(live, chatComposing)}>
       <div class="showbox-dock-title">Showbox</div>
-      {isGuest && !live && (
-        <small class="showbox-dock-hint">
-          {isCohost ? 'co-host -- go live when ready. use headphones to reduce echo' : `you're joining as guest at ${parcelLabel}`}
-        </small>
-      )}
+      {isGuest && !live && <small class="showbox-dock-hint">{isCohost ? 'co-host -- go live when ready. use headphones to reduce echo' : `you're joining as guest at ${parcelLabel}`}</small>}
       {!isGuest && !live && !status && <small class="showbox-dock-hint">tap go live when ready</small>}
 
       {syntheticGuest && !live && (
@@ -1670,7 +1654,9 @@ export default function GoLiveBroadcast() {
       {live && (
         <>
           <div class="showbox-dock-live-head" style={broadcastLost ? 'color:#888' : ''}>
-            <span class="showbox-dock-live-dot" style={broadcastLost ? 'color:#888;animation:none' : ''}>&#9679;</span>{' '}
+            <span class="showbox-dock-live-dot" style={broadcastLost ? 'color:#888;animation:none' : ''}>
+              &#9679;
+            </span>{' '}
             {broadcastLost ? 'offline' : 'live'}{' '}
             {mobile ? (
               <button type="button" class="showbox-dock-viewer-count" onClick={() => setViewerListOpen(!viewerListOpen)}>
@@ -1681,15 +1667,7 @@ export default function GoLiveBroadcast() {
             )}
             <span class="showbox-dock-timer">{formatTimer(elapsed)}</span>
           </div>
-          {mobile && viewerListOpen && (
-            <div class="showbox-dock-viewer-list">
-              {viewerLines.length ? (
-                viewerLines.map((v) => <div key={v.id}>{v.name}</div>)
-              ) : (
-                <div class="showbox-dock-viewer-empty">no one watching yet</div>
-              )}
-            </div>
-          )}
+          {mobile && viewerListOpen && <div class="showbox-dock-viewer-list">{viewerLines.length ? viewerLines.map((v) => <div key={v.id}>{v.name}</div>) : <div class="showbox-dock-viewer-empty">no one watching yet</div>}</div>}
 
           <div ref={previewWrap} class={`showbox-dock-preview ${mobile ? 'mobile' : 'desktop'}`}>
             {isCohost && remoteCohostLive ? (
@@ -1733,7 +1711,11 @@ export default function GoLiveBroadcast() {
               reconnect camera
             </button>
           )}
-          {healthStatus && <div class="showbox-dock-status" style="color:#f5b942">{healthStatus}</div>}
+          {healthStatus && (
+            <div class="showbox-dock-status" style="color:#f5b942">
+              {healthStatus}
+            </div>
+          )}
 
           <div class="showbox-dock-chat-block">
             <div ref={chatBox} class="showbox-dock-chat-box">

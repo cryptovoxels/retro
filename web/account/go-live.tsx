@@ -83,8 +83,7 @@ function primaryShowbox(parcel: any): { uuid: string; position?: number[] | null
 function goLiveIntro() {
   return (
     <p>
-      You need a showbox on land you own or can edit. Place one in the{' '}
-      <a href="/account/parcels">parcel editor</a>, then come back here to go live.
+      You need a showbox on land you own or can edit. Place one in the <a href="/account/parcels">parcel editor</a>, then come back here to go live.
     </p>
   )
 }
@@ -195,11 +194,7 @@ export default function GoLive() {
       <p>Pick a stage. Phone opens the camera dock; desktop lands you in-world at the showbox.</p>
       {error && <p>{error}</p>}
       {rows.length === 0 && !error && (
-        <p>
-          {parcelCount > 0
-            ? `Checked ${parcelCount} parcel${parcelCount === 1 ? '' : 's'} - no showbox found yet.`
-            : 'No parcels on this account. Sign in with the wallet that owns or collaborates on the land.'}
-        </p>
+        <p>{parcelCount > 0 ? `Checked ${parcelCount} parcel${parcelCount === 1 ? '' : 's'} - no showbox found yet.` : 'No parcels on this account. Sign in with the wallet that owns or collaborates on the land.'}</p>
       )}
       {rows.map((row) => (
         <section key={`${row.parcelId}-${row.featureUuid}`}>

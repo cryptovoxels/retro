@@ -1157,9 +1157,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   meshVideoSize() {
-    return this.isPortraitScreen()
-      ? { w: PORTRAIT_MESH_W, h: PORTRAIT_MESH_H }
-      : { w: LANDSCAPE_MESH_W, h: LANDSCAPE_MESH_H }
+    return this.isPortraitScreen() ? { w: PORTRAIT_MESH_W, h: PORTRAIT_MESH_H } : { w: LANDSCAPE_MESH_W, h: LANDSCAPE_MESH_H }
   }
 
   isCohostMode() {
@@ -1909,7 +1907,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     // A guest who just went live is waiting on the host's video. Show a connecting card instead of
     // a half-empty composite, but only briefly - after the grace window we show whatever we have.
-    const waitingForHost = !!this.broadcastRoom && !this.cohostCompositeAttached && isGuestForShowbox(this.uuid) && !this.cohostPanes.some((p) => p.editor && cohostVideoReady(p.el)) && Date.now() - this.cohostLiveSince < COHOST_CONNECT_GRACE_MS
+    const waitingForHost =
+      !!this.broadcastRoom && !this.cohostCompositeAttached && isGuestForShowbox(this.uuid) && !this.cohostPanes.some((p) => p.editor && cohostVideoReady(p.el)) && Date.now() - this.cohostLiveSince < COHOST_CONNECT_GRACE_MS
     if (waitingForHost) {
       this.setCohostConnecting()
       return
