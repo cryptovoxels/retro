@@ -27,7 +27,7 @@ import { Login } from '../src/auth/login'
 import cachedFetch, { invalidateUrl } from '../src/helpers/cached-fetch'
 import { announceShowLive, chatMessages, connectShardChat, disconnectShardChat, sendChat } from '../src/shard-chat'
 import { Spinner } from '../src/spinner'
-import { app } from '../src/state'
+import { app, AppEvent } from '../src/state'
 import { fetchOptions } from '../src/utils'
 
 const LIVEKIT_URL = 'https://voxels-7pvk06qt.livekit.cloud'
@@ -479,6 +479,7 @@ export default function GoLiveBroadcast() {
   const parcelId = parseInt(params.get('parcel') || '', 10)
   const showUuid = (params.get('show') || '').trim()
 
+  const [signedIn, setSignedIn] = useState(app.signedIn)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [parcel, setParcel] = useState<any>(null)
@@ -489,7 +490,7 @@ export default function GoLiveBroadcast() {
   const liveRef = useRef(false)
   // bumped by stopAll so reconnects sleeping through a stop can't resurrect a dead session
   const sessionGen = useRef(0)
-  const [status, setStatus] = useState('tap go live when ready')
+  const [status, setStatus] = useState('Tap go live when ready.')
   const [viewers, setViewers] = useState(0)
   const [viewerLines, setViewerLines] = useState<{ id: string; name: string }[]>([])
   const [viewerListOpen, setViewerListOpen] = useState(false)
@@ -559,6 +560,16 @@ export default function GoLiveBroadcast() {
   const parcelLabel = parcel ? new ParcelHelper(parcel).ownerName || parcel.name?.trim() || parcel.address?.trim() || `parcel #${parcelId}` : ''
 
   useEffect(() => {
+    const sync = () => setSignedIn(app.signedIn)
+    app.on(AppEvent.Login, sync)
+    app.on(AppEvent.Logout, sync)
+    return () => {
+      app.removeListener(AppEvent.Login, sync)
+      app.removeListener(AppEvent.Logout, sync)
+    }
+  }, [])
+
+  useEffect(() => {
     if (consumeGuestFreshFromUrl((n) => app.setName(n))) setGuestName('')
   }, [])
 
@@ -568,7 +579,7 @@ export default function GoLiveBroadcast() {
       setLoading(false)
       return
     }
-    if (!isGuest && !app.signedIn) {
+    if (!isGuest && !signedIn) {
       setLoading(false)
       return
     }
@@ -612,7 +623,7 @@ export default function GoLiveBroadcast() {
     return () => {
       dead = true
     }
-  }, [parcelId, showUuid, isGuest])
+  }, [parcelId, showUuid, isGuest, signedIn])
 
   const scrollChatToEnd = () => {
     const el = chatBox.current
@@ -1351,7 +1362,7 @@ export default function GoLiveBroadcast() {
   const goLive = async () => {
     if (live) {
       stopAll()
-      setStatus('tap go live when ready')
+      setStatus('Tap go live when ready.')
       return
     }
 
@@ -1619,7 +1630,7 @@ export default function GoLiveBroadcast() {
     copyUrl(fanUrl)
   }
 
-  if (!isGuest && !app.signedIn) return <Login reason="go live" />
+  if (!isGuest && !signedIn) return <Login reason="go live" />
 
   if (loading) {
     return (
@@ -1641,8 +1652,8 @@ export default function GoLiveBroadcast() {
   return (
     <div ref={dockRef} class={dockClass(live, chatComposing)}>
       <div class="showbox-dock-title">Showbox</div>
-      {isGuest && !live && <small class="showbox-dock-hint">{isCohost ? 'co-host -- go live when ready. use headphones to reduce echo' : `you're joining as guest at ${parcelLabel}`}</small>}
-      {!isGuest && !live && !status && <small class="showbox-dock-hint">tap go live when ready</small>}
+      {isGuest && !live && <small class="showbox-dock-hint">{isCohost ? 'Co-host: go live when ready. Use headphones to reduce echo.' : `You're joining as a guest at ${parcelLabel}.`}</small>}
+      {!isGuest && !live && !status && <small class="showbox-dock-hint">Tap go live when ready.</small>}
 
       {syntheticGuest && !live && (
         <div class="showbox-dock-device-row">
@@ -1786,7 +1797,7 @@ export default function GoLiveBroadcast() {
       {!live && status && <div class="showbox-dock-status">{status}</div>}
 
       <div class="showbox-dock-footer">
-        {!isGuest && canManageGuests && mobile && (
+        {live && !isGuest && canManageGuests && mobile && (
           <div class="showbox-dock-share-split">
             {sharePickOpen && (
               <div class="showbox-dock-share-menu">
@@ -1833,17 +1844,17 @@ export default function GoLiveBroadcast() {
             </button>
           </div>
         )}
-        {!isGuest && !canManageGuests && mobile && fanUrl && (
+        {live && !isGuest && !canManageGuests && mobile && fanUrl && (
           <button type="button" class="showbox-dock-share-main" onClick={() => void shareShowUrl('fan')}>
             share fan link
           </button>
         )}
-        {isGuest && mobile && (
+        {live && isGuest && mobile && (
           <button type="button" class="showbox-dock-share-main" onClick={() => void shareShowUrl('fan')}>
             share fan link
           </button>
         )}
-        {!isGuest && canManageGuests && !mobile && (
+        {live && !isGuest && canManageGuests && !mobile && (
           <div class="showbox-dock-share-block">
             <label>fan link - share with your audience</label>
             <div class="showbox-dock-share-row">
@@ -1861,7 +1872,7 @@ export default function GoLiveBroadcast() {
             </div>
           </div>
         )}
-        {!isGuest && !canManageGuests && !mobile && fanUrl && (
+        {live && !isGuest && !canManageGuests && !mobile && fanUrl && (
           <div class="showbox-dock-share-block">
             <label>fan link - share with your audience</label>
             <div class="showbox-dock-share-row">
@@ -1882,9 +1893,6 @@ export default function GoLiveBroadcast() {
             </button>
           )}
         </div>
-        <a href="/logout" class="showbox-dock-link-btn">
-          log out
-        </a>
       </div>
     </div>
   )

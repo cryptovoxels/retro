@@ -3502,10 +3502,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     let chatReplyRow: HTMLDivElement | null = null
     let dockFooter: HTMLDivElement | null = null
     let renderDockChat: (() => void) | null = null
-    const logoutLink = document.createElement('a')
-    logoutLink.href = '/logout'
-    logoutLink.textContent = 'log out'
-    Object.assign(logoutLink.style, { color: '#888', fontSize: '12px', textDecoration: 'underline', alignSelf: 'flex-start' })
     if (mobile) {
       const chatLabel = document.createElement('label')
       chatLabel.textContent = 'chat'
@@ -3682,7 +3678,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       })
       if (shareRow) dockFooter.append(shareRow)
       dockFooter.append(row)
-      dockFooter.append(logoutLink)
 
       const mobileKids: Node[] = [title]
       if (identityRow) mobileKids.push(identityRow)
@@ -3694,11 +3689,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (identityRow) desktopKids.push(identityRow)
       desktopKids.push(deviceRow, screenOpt, screenHint, deviceToggle, micToggle)
       if (shareRow) desktopKids.push(shareRow)
-      desktopKids.push(moveRow, status, row, logoutLink, cancelBtn)
+      desktopKids.push(moveRow, status, row, cancelBtn)
       panel.append(...desktopKids)
     }
     document.body.appendChild(panel)
-    if (shareRow && !isGuestForShowbox(this.uuid)) shareRow.style.display = 'flex'
 
     navigator.mediaDevices.enumerateDevices().then((devices) => {
       const cams = devices.filter((d) => d.kind === 'videoinput')
