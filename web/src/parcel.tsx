@@ -15,7 +15,13 @@ import { fetchOptions } from './utils'
 import WompsList from './womps-list'
 import { AvatarLink } from './components/avatar-link'
 import { ParcelMetrics as Metrics } from './components/metrics'
-import { bootEngine } from '../../src'
+
+// Lazily evaluate the engine. Dynamic import keeps src/** out of the SSR import
+// graph (it pulls in shaders + babylon, which tsx can't parse). webpackMode
+// "eager" keeps it in the single app.js bundle for the browser.
+function boot(): Promise<void> {
+  return import(/* webpackMode: "eager" */ '../../src').then((m) => m.bootEngine())
+}
 
 type FrameProps = {
   src?: string
@@ -62,7 +68,7 @@ export class Client extends Component<FrameProps, FrameState> {
     // boot() runs synchronously up to its first await (which is where it creates
     // #world-layer), so attach() usually finds the layer immediately. The promise
     // covers the case where it doesn't.
-    void bootEngine().then(attach)
+    void boot().then(attach)
     attach()
   }
 
@@ -156,7 +162,7 @@ export class Client extends Component<FrameProps, FrameState> {
     if (!coords) {
       return
     }
-    void bootEngine().then(() => {
+    void boot().then(() => {
       try {
         window.persona?.naviport(coords)
       } catch (e) {

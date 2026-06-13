@@ -27,7 +27,6 @@ try {
 
 // Continue loading...
 import { toggleFPSStats } from './utils/fps-stats'
-import 'handjs'
 
 import { CreateControls, xr } from './controls/create'
 
