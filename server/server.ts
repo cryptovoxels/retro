@@ -202,9 +202,8 @@ preCorsController(passport, app)
 if (config.isDevelopment) {
   const protocol = 'http'
 
-  // In dev mode we need to proxy to the webpack dev servers
+  // In dev mode we need to proxy to the single webpack dev server
   app.use('/proxy/web', cache(false), proxy(`${protocol}://localhost:9200`))
-  app.use('/proxy/client', cache(false), proxy(`${protocol}://localhost:9100`))
   app.use(cors())
 
   // uncomment to test csp settings in report only mode
@@ -247,20 +246,13 @@ if (config.isDevelopment) {
   )
 }
 
-app.get(`/${currentVersion}-client.js`, cache('1 day'), (req, res) => {
-  return res.sendFile(path.join(__dirname, '..', 'dist', `${currentVersion}-client.js`))
+// THE GREAT MERGE: one bundle, one stylesheet.
+app.get(`/${currentVersion}-app.js`, cache('1 day'), (req, res) => {
+  return res.sendFile(path.join(__dirname, '..', 'dist', `${currentVersion}-app.js`))
 })
 
-app.get(`/${currentVersion}-web.js`, cache('1 day'), (req, res) => {
-  return res.sendFile(path.join(__dirname, '..', 'dist', `${currentVersion}-web.js`))
-})
-
-app.get(`/${currentVersion}-web.css`, cache(config.isDevelopment ? false : '1 day'), (req, res) => {
-  return res.sendFile(path.join(__dirname, '..', 'dist', `web.css`))
-})
-
-app.get(`/${currentVersion}-client.css`, cache('1 day'), (req, res) => {
-  return res.sendFile(path.join(__dirname, '..', 'dist', `client.css`))
+app.get(`/${currentVersion}-app.css`, cache(config.isDevelopment ? false : '1 day'), (req, res) => {
+  return res.sendFile(path.join(__dirname, '..', 'dist', `app.css`))
 })
 
 app.use(

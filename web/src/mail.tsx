@@ -1,10 +1,6 @@
 import { Component } from 'preact'
 import MailboxUI from './components/mailbox/mailbox-ui'
 
-export function PlayButton(props: { url: string }) {
-  return <a href={props.url}>Play</a>
-}
-
 export interface Props {
   to?: string
   path?: string

@@ -1,7 +1,6 @@
 import { h } from 'preact'
-import ClientRoot from '../../web/src/client-root'
 import JsonData from '../../web/src/components/json-data'
-import renderRoot from '../handlers/render-root'
+import renderComponent from '../handlers/render-component'
 import { Express } from 'express'
 
 const space = {
@@ -29,11 +28,13 @@ const space = {
 
 export default function ScratchpadController(app: Express) {
   app.get('/scratchpad', (_req, res) => {
-    const html = (
-      <ClientRoot title="Voxels Scratchpad" ogTitle="Scratchpad" ogDescription="Free practice space. Learn to build voxels before you buy land.">
+    // fastboot JSON in <head> (see play.tsx for why)
+    const head = (
+      <head>
+        <title>Voxels Scratchpad</title>
         <JsonData id="space" data={{ ...space, voxels: '' }} dataId="scratchpad" />
-      </ClientRoot>
+      </head>
     )
-    res.send(renderRoot(html))
+    res.send(renderComponent(head))
   })
 }

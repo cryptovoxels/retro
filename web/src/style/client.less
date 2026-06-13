@@ -64,16 +64,6 @@ a {
   }
 }
 
-canvas#renderCanvas {
-  margin: 0;
-  padding: 0;
-  position: absolute;
-  inset: 0;
-  outline: none !important;
-  width: 100vw;
-  height: 100vh;
-}
-
 .no-touch {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -168,11 +158,6 @@ aside:not(.ui-toggle-mobile) {
 
 aside {
   @width: 8rem;
-  width: @width;
-  position: fixed;
-  top: 0;
-  left: 0;
-  bottom: 0;
 
   & > ul {
     height: 100vh;
@@ -227,7 +212,6 @@ aside {
   }
 
   dialog {
-    position: fixed;
     top: 1rem;
     left: 8rem;
     bottom: 0;
@@ -284,7 +268,6 @@ dialog .baking textarea {
 
 /* Chat */
 main.chat {
-  position: fixed;
   bottom: 0;
   left: 0;
   margin: 0 0 4px 0;
@@ -932,7 +915,6 @@ aside .login a.button {
 
 /* Voxel tool belt (minecraft-like bottom bar) */
 .VoxelToolBelt {
-  position: fixed;
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
@@ -1182,7 +1164,6 @@ aside .login a.button {
 
 /* Tint editor modal + customize voxels */
 .tint-modal-backdrop {
-  position: fixed;
   inset: 0;
   z-index: 9999;
   display: flex;
@@ -1835,7 +1816,6 @@ form.PermissionsRadioSelector > div {
 
 /* Scratchpad guide */
 .scratchpad-guide {
-  position: fixed;
   left: 12rem;
   bottom: 7rem;
   z-index: 600;
@@ -1911,7 +1891,6 @@ form.PermissionsRadioSelector > div {
 }
 
 .scratchpad-guide-restart {
-  position: fixed;
   left: 12rem;
   bottom: 7rem;
   z-index: 600;
@@ -2402,7 +2381,6 @@ div.NearbyPlayers {
 
 /* Upload status */
 .upload-status {
-  position: fixed;
   top: 10px;
   left: 10px;
   z-index: 1000000;
@@ -2432,7 +2410,6 @@ div.NearbyPlayers {
 
 /* Minimap corner controls */
 .minimap-corner-controls {
-  position: fixed;
   bottom: calc(15vw - 26px);
   right: 4px;
   z-index: 10;
@@ -2585,7 +2562,6 @@ div.mobile-buttons {
 }
 
 .mobile-dpad {
-  position: fixed;
   bottom: 64px;
   left: 0;
   height: 150px;
@@ -2666,7 +2642,6 @@ div.mobile-buttons {
   }
 
   &.-fixed {
-    position: fixed;
   }
 
   iframe {

@@ -1,6 +1,7 @@
 import type { Signal } from '@preact/signals'
 import { effect } from '@preact/signals'
 import { Component, createRef, Fragment, h } from 'preact'
+import { route } from 'preact-router'
 import { isMobileMedia } from '../common/helpers/detector'
 import { exitPointerLock, hasPointerLock, requestPointerLock } from '../common/helpers/ui-helpers'
 import { onBeginUpload, onCompleteUpload, onFailUpload } from '../common/helpers/upload-media'
@@ -59,7 +60,7 @@ const NUMBER_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const
 const Location = (props: { scene: BABYLON.Scene; signedIn: any }) => {
   const currentOrNearestParcel = selectCurrentOrNearestParcel()
   if (!currentOrNearestParcel) {
-    return null
+    return <a href="/">Home</a>
   }
 
   const owner = currentOrNearestParcel.owner ? shorterWallet(currentOrNearestParcel.owner) : 'nobody'
@@ -67,7 +68,7 @@ const Location = (props: { scene: BABYLON.Scene; signedIn: any }) => {
   const link = `/parcels/${currentOrNearestParcel.id}`
 
   return (
-    <a key={currentOrNearestParcel.id} class="address" href={link} target="_top">
+    <a key={currentOrNearestParcel.id} class="address" href={link}>
       {currentOrNearestParcel.name || currentOrNearestParcel.address}
     </a>
   )
@@ -375,7 +376,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         { code: 'KeyG', handleEvent: () => this.setPane('emote') },
         { code: 'KeyZ', handleEvent: () => this.connector.controls.toggleZoom() },
         { code: 'Enter', handleEvent: this.focusChat },
-        { code: 'Escape', handleEvent: () => this.closeInteractOverlay() },
+        { code: 'Escape', handleEvent: () => this.onEscape() },
         {
           code: 'Tab',
           handleEvent: (e) => {
@@ -457,6 +458,20 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   closeInteractOverlay() {
     this.setState({ pane: undefined, active: false })
+  }
+
+  // the one ESC: leave fullscreen/theatre. two-step -- a locked pointer eats the
+  // first ESC (browser releases it), the next ESC exits /play back to the parcel.
+  onEscape() {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen()
+      return
+    }
+    if (document.pointerLockElement) return
+    if (!location.pathname.endsWith('/play')) return
+    const id = this.grid?.currentParcel()?.id
+    const coords = new URLSearchParams(location.search).get('coords') || ''
+    route(id ? `/parcels/${id}?coords=${coords}` : '/parcels')
   }
 
   focusChat = (e: KeyboardEvent) => {
@@ -788,9 +803,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           </aside>
           <aside data-active={this.state.active}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
-              <li>
-                <HomeButton grid={this.props.grid} scene={this.props.scene} />
-              </li>
               <li>
                 <Location signedIn={this.state.signedIn} scene={this.props.scene} />
               </li>

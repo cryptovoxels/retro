@@ -296,6 +296,7 @@ button.hamburger {
 }
 
 .columns {
+  margin: 0 1rem;
   display: flex;
   flex-direction: row;
   align-items: start;
@@ -445,65 +446,15 @@ div.map {
   height: 60vh;
 }
 
-div.magic-frame {
-  z-index: 2;
-  position: fixed;
-  bottom: -5px;
-  right: 15px;
-  width: 320px;
-  height: 320px;
-  box-sizing: border-box;
-  box-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3);
+// Fullscreen world view (the /play route). The persistent canvas gets reparented
+// into the .client-placeholder box, which fills this fixed fullscreen container.
+.world-fullscreen {
+  inset: 0;
+  z-index: 1;
 
-  .magic-frame-hit {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    cursor: pointer;
-  }
-
-  iframe {
+  .client-placeholder {
     width: 100%;
     height: 100%;
-    pointer-events: none;
-    border: none;
-  }
-
-  .magic-frame-close {
-    position: absolute;
-    top: 0;
-    right: 0;
-    z-index: 3;
-    color: white;
-    padding: 0.4rem 0.6rem;
-    font-size: 1rem;
-    line-height: 1;
-    background: none;
-    border: none;
-    cursor: pointer;
-    pointer-events: auto;
-    text-shadow: 1px 1px 2px black;
-
-    &:hover {
-      font-weight: bold;
-      background: none;
-    }
-  }
-
-  &.attached {
-    box-shadow: none;
-
-    .magic-frame-hit {
-      display: none;
-    }
-
-    .magic-frame-close {
-      display: none;
-    }
-
-    iframe {
-      pointer-events: unset;
-    }
   }
 }
 
@@ -545,7 +496,7 @@ figure {
   width: 100%;
   height: 100%;
   border: none;
-  position: fixed;
+
   left: 0;
   top: 0;
   background: none;
@@ -1125,7 +1076,6 @@ table.spaces {
 }
 
 .showbox-dock {
-  position: fixed;
   z-index: 999999;
   background: #0d0d0d;
   color: #f5f5f0;

@@ -15,228 +15,8 @@ import { fetchOptions } from './utils'
 import WompsList from './womps-list'
 import { AvatarLink } from './components/avatar-link'
 import { ParcelMetrics as Metrics } from './components/metrics'
-
-type FrameProps = {
-  src?: string
-  hidden?: boolean
-  parcelId?: number
-  coords: string
-}
-
-type FrameState = {}
-
-export class Client extends Component<FrameProps, FrameState> {
-  div = createRef<HTMLDivElement>()
-  static wrapper: HTMLDivElement | null = null
-  static parcelId: number | null = null
-  static instance: Client = null!
-  static lastPeek: boolean | undefined
-
-  static playUrl(src: string | undefined, coords: string, peek: boolean): string {
-    const url = new URL(src ?? '/play', window.location.origin)
-    if (coords) {
-      url.searchParams.set('coords', coords)
-    }
-    if (peek) {
-      url.searchParams.set('ui', 'off')
-    } else {
-      url.searchParams.delete('ui')
-    }
-    return url.toString()
-  }
-
-  static syncUiMode(peek: boolean) {
-    const iframe = Client.wrapper?.querySelector('iframe') as HTMLIFrameElement | undefined
-    if (!iframe || !Client.instance) {
-      return
-    }
-    const next = Client.playUrl(iframe.src, Client.instance.props.coords, peek)
-    if (iframe.src !== next) {
-      iframe.src = next
-    }
-  }
-
-  static peekUrl(): string | null {
-    const id = Client.parcelId ?? Client.instance?.props.parcelId
-    if (id) {
-      return `/parcels/${id}`
-    }
-    const coords = Client.instance?.props.coords
-    if (coords) {
-      return `/play?coords=${coords}`
-    }
-    return null
-  }
-
-  private create() {
-    if (!canUseDom) {
-      return
-    }
-
-    const peek = !document.getElementsByClassName('client-placeholder')[0]
-    Client.lastPeek = peek
-
-    const div = document.createElement('div')
-    div.classList.add('magic-frame')
-
-    const iframe = document.createElement('iframe')
-    iframe.src = Client.playUrl(this.props.src, this.props.coords, peek)
-    div.appendChild(iframe)
-
-    const hit = document.createElement('div')
-    hit.className = 'magic-frame-hit'
-    hit.addEventListener('click', Client.onHitClick)
-    div.appendChild(hit)
-
-    const closeButton = document.createElement('button')
-    closeButton.className = 'magic-frame-close'
-    closeButton.type = 'button'
-    closeButton.title = 'Close'
-    closeButton.setAttribute('aria-label', 'Close')
-    closeButton.textContent = '×'
-    closeButton.onclick = (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      Client.dispose()
-    }
-    div.appendChild(closeButton)
-
-    document.body.appendChild(div)
-    Client.wrapper = div
-    Client.updatePosition()
-
-    // Listen for messages from the iframe
-
-    window.addEventListener('message', (e) => {
-      // const attached = Client.wrapper?.classList.contains('attached')
-
-      const active = document.activeElement === iframe
-
-      if (e.data.type === 'parcel') {
-        const parcel = e.data.parcel as ParcelRecord
-        // const path = window.location.pathname
-
-        if (active && window.location.pathname.match(/^\/parcels\/\d+$/)) {
-          route(`/parcels/${parcel.id}`, true)
-        }
-      }
-    })
-  }
-
-  static onHitClick = (e: MouseEvent) => {
-    if (!Client.wrapper || Client.wrapper.classList.contains('attached')) {
-      return
-    }
-    if ((e.target as HTMLElement).closest('.magic-frame-close')) {
-      return
-    }
-    const url = Client.peekUrl()
-    if (url) {
-      route(url)
-    }
-  }
-
-  static updatePosition = () => {
-    if (!Client.wrapper) {
-      return
-    }
-
-    const target = document.getElementsByClassName('client-placeholder')[0] as HTMLDivElement
-    const wrapper = Client.wrapper
-
-    if (target) {
-      const rect = target.getBoundingClientRect()
-
-      wrapper.style.left = `${rect.left}px`
-      wrapper.style.top = `${rect.top}px`
-      wrapper.style.width = `${rect.width}px`
-      wrapper.style.height = `${rect.height}px`
-      wrapper.classList.add('attached')
-      if (!!Client.instance?.props.hidden) {
-        Client.wrapper!.style.visibility = 'hidden'
-        target.style.display = 'none'
-      } else {
-        Client.wrapper!.style.visibility = 'visible'
-        target.style.display = 'block'
-      }
-    } else {
-      /**
-       * If no target, the iframe moves to the bottom left of the screen
-       */
-      wrapper.style.removeProperty('left')
-      wrapper.style.removeProperty('top')
-      wrapper.style.removeProperty('width')
-      wrapper.style.removeProperty('height')
-      wrapper.classList.remove('attached')
-    }
-
-    const peek = !target
-    if (Client.lastPeek !== peek) {
-      Client.lastPeek = peek
-      Client.syncUiMode(peek)
-    }
-
-    requestAnimationFrame(Client.updatePosition)
-  }
-
-  static dispose = () => {
-    if (Client.wrapper) {
-      document.body.removeChild(Client.wrapper)
-      Client.wrapper = null
-      Client.instance = null!
-      Client.lastPeek = undefined
-    }
-  }
-
-  constructor(props: FrameProps) {
-    super(props)
-
-    if (!Client.wrapper) {
-      this.create()
-    }
-    Client.instance = this
-  }
-
-  componentDidMount() {
-    if (!Client.wrapper) {
-      return
-    }
-
-    Client.parcelId = this.props.parcelId!
-
-    const iframe = Client.wrapper.querySelector('iframe')!
-
-    try {
-      iframe.contentWindow?.persona.naviport(this.props.coords)
-    } catch (e) {
-      iframe.src = Client.playUrl(undefined, this.props.coords, Client.lastPeek ?? true)
-    }
-  }
-
-  componentDidUpdate(previousProps: Readonly<FrameProps>, previousState: Readonly<any>, snapshot: any): void {
-    // console.log('componentDidUpdate', this.props.parcelId, previousProps.parcelId)
-
-    if (!Client.wrapper) {
-      return
-    }
-
-    const iframe = Client.wrapper.querySelector('iframe')!
-
-    if (this.props.parcelId != Client.parcelId) {
-      Client.parcelId = this.props.parcelId!
-
-      if (document.activeElement === iframe) {
-        return
-      } else {
-        iframe.contentWindow?.persona.naviport(this.props.coords)
-      }
-    }
-  }
-
-  render() {
-    return <div class="client-placeholder" data-src={this.props.src} ref={this.div} />
-  }
-}
+import { PlayButton } from './components/play-button'
+import { Client } from './client'
 
 export interface Props {
   parcel?: ParcelWithMintednessRecord
@@ -325,7 +105,7 @@ export default class Parcel extends Component<Props, State> {
   }
 
   get visitUrl() {
-    return this.helper ? this.helper.visitUrl : undefined
+    return this.helper ? this.helper.iframeUrl : undefined
   }
 
   get name() {
@@ -480,15 +260,6 @@ export default class Parcel extends Component<Props, State> {
     const islandSlug = this.state.parcel?.island?.toLowerCase().replace(/\s+/, '-')
     const nearby = this.state.nearby?.slice(0, 5).map((p) => <ParcelThumb key={p.id} parcel={p} />)
 
-    const onFullscreen = () => {
-      const iframe = document.querySelector('iframe') as HTMLIFrameElement
-      if (iframe) {
-        iframe.requestFullscreen()
-      }
-    }
-
-    const iframeUrl = this.helper?.iframeUrl
-
     const parcelName = this.state.parcel?.name ?? this.state.parcel?.address ?? `Parcel #${this.state.parcelId}`
     const location = [this.state.parcel?.address, this.state.parcel?.suburb, this.state.parcel?.island].filter(Boolean).join(', ')
     const parcelDesc = this.state.parcel?.description || (location ? `${location}. The permanent exhibit of crypto art across thousands of galleries in an endlessly evolving world.` : '')
@@ -501,19 +272,13 @@ export default class Parcel extends Component<Props, State> {
           <Head title={parcelName} description={parcelDesc} url={`/parcels/${this.state.parcelId}`} imageURL={ogImage} />
           <h1>{parcelName}</h1>
           <figcaption>
-            <button class="secondary" onClick={onFullscreen}>
-              <span>Fullscreen</span>
-            </button>
+            {this.helper && <PlayButton url={this.helper.iframeUrl} />}
 
             {modes.map((mode) => (
               <button class={`secondary ${this.state.viewTab === mode.mode ? 'contrast' : ''}`} data-active={this.state.viewTab === mode.mode} onClick={() => this.setViewTab(mode.mode)} key={mode.mode}>
                 {mode.label}
               </button>
             ))}
-
-            <a class="buttonish" href={this.visitUrl}>
-              Teleport
-            </a>
 
             {this.isOwner && (
               <a class="buttonish" href={`/parcels/${this.state.parcelId}/edit`}>
@@ -525,12 +290,12 @@ export default class Parcel extends Component<Props, State> {
           <figure>
             {this.state.viewTab === 'map' && <div className="map map-web slippy-map">&nbsp;</div>}
             {this.state.viewTab === 'orbit' && <iframe id="ParcelorbitView" src={this.helper?.orbitUrl} className="play-view" />}
-            {this.state.parcel && <Client hidden={this.state.viewTab !== 'client'} parcelId={this.props.id!} src={iframeUrl} coords={this.helper!.spawnCoords} />}
+            {this.state.parcel && this.state.viewTab === 'client' && <Client parcelId={this.props.id!} coords={this.helper!.spawnCoords} />}
           </figure>
           <WompsList key={this.state.parcelId} fetch={`/womps/at/parcel/${this.state.parcelId}.json`} numberToShow={10} smaller={true} collapsed={true} />
         </article>
 
-        <aside class="push-header">
+        <aside>
           <Listings parcel={this.props.id!} name={this.state.parcel?.address!} />
 
           {this.state.parcel &&
@@ -609,7 +374,7 @@ export default class Parcel extends Component<Props, State> {
               )}
             </p>
           ) : null}
-          <a href={this.visitUrl}>Teleport</a>
+          {this.helper && <PlayButton url={this.helper.iframeUrl} />}
 
           {this.state.parcel?.parcel_users && this.state.parcel.parcel_users.length > 0 && (
             <div>
