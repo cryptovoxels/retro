@@ -1685,3 +1685,92 @@ table.spaces {
     }
   }
 }
+
+// ============================================================
+// QUICK HACK: skin the whole site like the showbox dock.
+// Just the primitives (bg / colors / fonts / gaps / borders).
+// Not production ready. Delete this block to revert.
+// ============================================================
+
+:root {
+  --border: 1px solid #333;
+  --softborder: 1px solid #333;
+  --soft: #888;
+}
+
+body {
+  background: #0d0d0d;
+  color: #f5f5f0;
+  font-family: 'Source Code Pro', monospace;
+}
+
+a {
+  color: #f5f5f0;
+}
+
+a:hover {
+  color: #dc1e1e;
+}
+
+a.active,
+a.buttonish {
+  color: #f5f5f0;
+}
+
+header,
+footer nav ul {
+  background: #0d0d0d;
+}
+
+header nav ul {
+  background: #0d0d0d;
+}
+
+main,
+article {
+  background: #0d0d0d;
+}
+
+button,
+a.buttonish {
+  background: #1a1a1a;
+  color: #f5f5f0;
+  border-color: #333;
+
+  &:hover {
+    background: #333;
+  }
+}
+
+input[type='text'],
+input[type='number'],
+input[type='email'],
+textarea,
+select {
+  background: #1a1a1a;
+  color: #f5f5f0;
+  border: 1px solid #333;
+}
+
+table th,
+table td {
+  border-bottom: 1px solid #333;
+}
+
+footer p,
+small,
+.login-hint,
+.account-welcome-msg {
+  color: #888;
+}
+
+.upload-button {
+  background: #1a1a1a;
+}
+
+menu.context,
+.parcel-field ul {
+  background: #1a1a1a;
+  color: #f5f5f0;
+  border-color: #333;
+}
