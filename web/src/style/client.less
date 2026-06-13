@@ -5,6 +5,7 @@
  */
 
 @import 'common';
+@import 'cube-logo';
 @import (inline) '../../../dist/leaflet.css';
 
 @font-face {
@@ -2876,18 +2877,9 @@ div.mobile-buttons {
 
 /* Misc */
 .home-button {
-  img {
-    width: 26px;
-    opacity: 0.8;
-
-    @media @desktop {
-      width: 38px;
-      opacity: 1;
-    }
-
-    @media @dark {
-      filter: invert();
-    }
+  .cube-logo {
+    --size: 0.75rem;
+    top: 0;
   }
 
   & > a:hover {

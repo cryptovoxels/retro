@@ -1,4 +1,5 @@
 import Grid from '../grid'
+import { CubeIcon } from '../../web/src/components/icons/icons'
 
 interface Props {
   grid: Grid
@@ -8,7 +9,7 @@ interface Props {
 export default function HomeButton(props: Props) {
   return (
     <a class="home-button" href="/">
-      <img src="/images/newlogo.png" alt="Home" />
+      <CubeIcon name="v" />
     </a>
   )
 }

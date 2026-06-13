@@ -1,0 +1,80 @@
+@keyframes cube-rock {
+  0% {
+    transform: rotateX(-15deg) rotateY(-35deg);
+  }
+
+  50% {
+    transform: rotateX(-15deg) rotateY(-215deg);
+  }
+
+  100% {
+    transform: rotateX(-15deg) rotateY(-395deg);
+  }
+}
+
+.cube-logo {
+  box-sizing: border-box;
+  position: relative;
+  top: -0.5rem;
+  display: inline-block;
+  --size: 1rem;
+  --fore: #ccc;
+  --back: #777;
+  --half: calc(var(--size) / 2);
+  min-width: calc(7 * var(--size));
+  min-height: calc(3 * var(--size));
+  transform-style: preserve-3d;
+  transform: rotateX(-15deg) rotateY(-35deg);
+
+  &:hover {
+    animation: cube-rock 1s linear infinite;
+  }
+
+  .box {
+    width: ~'calc(var(--size) + 1px)';
+    height: ~'calc(var(--size) + 1px)';
+    position: absolute;
+    transform-style: preserve-3d;
+  }
+
+  .face-N,
+  .face-E,
+  .face-S,
+  .face-W,
+  .face-F,
+  .face-B {
+    position: absolute;
+    inset: 0;
+    backface-visibility: hidden;
+    border: 1px solid #333;
+  }
+
+  .face-F {
+    transform: rotateY(0deg) translateZ(var(--half));
+    background: var(--fore);
+  }
+
+  .face-B {
+    transform: rotateY(180deg) translateZ(var(--half));
+    background: var(--back);
+  }
+
+  .face-E {
+    transform: rotateY(90deg) translateZ(var(--half));
+    background: linear-gradient(to right, var(--fore), var(--back));
+  }
+
+  .face-W {
+    transform: rotateY(-90deg) translateZ(var(--half));
+    background: linear-gradient(to left, var(--fore), var(--back));
+  }
+
+  .face-N {
+    transform: rotateX(90deg) translateZ(var(--half));
+    background: linear-gradient(to top, var(--fore), var(--back));
+  }
+
+  .face-S {
+    transform: rotateX(-90deg) translateZ(var(--half));
+  }
+}
