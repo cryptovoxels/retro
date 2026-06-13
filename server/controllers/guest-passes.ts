@@ -37,6 +37,14 @@ function isMobileUserAgent(ua: string): boolean {
   return /mobile|android|iphone|ipad|ipod/i.test(ua)
 }
 
+// Link unfurl bots only. In-app browsers (WhatsApp, Discord, etc) still send Chrome/Safari.
+function isLinkPreviewBot(ua: string): boolean {
+  if (!ua) return false
+  if (/facebookexternalhit|Facebot|Twitterbot|Slackbot|Discordbot|TelegramBot|LinkedInBot|Googlebot|Applebot|bingbot|crawler|spider|curl\/|wget\//i.test(ua)) return true
+  if (/WhatsApp\//i.test(ua) && !/(Chrome|CriOS|Safari|Firefox|FxiOS|Edg)\//i.test(ua)) return true
+  return false
+}
+
 function lightBroadcastPath(parcelId: number, featureUuid: string, guestPass?: string, host = false) {
   const qs = new URLSearchParams({ parcel: String(parcelId), show: featureUuid, light: '1' })
   if (host) qs.set('host', '1')
@@ -448,7 +456,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
       const ua = String(req.headers['user-agent'] ?? '')
       // link unfurl bots (discord, slack, imessage) GET this url with no cookie. the anonymous
       // branch below resets the guest's name - a pasted link must not rename a live guest.
-      if (/bot|crawler|spider|facebookexternalhit|whatsapp|telegram|slack|discord|twitter|preview|embed|curl|wget/i.test(ua)) {
+      if (isLinkPreviewBot(ua)) {
         return res.status(200).send('showbox guest link - open it in your browser to join the show')
       }
       const signedIn = walletFromJwtCookie(req)
