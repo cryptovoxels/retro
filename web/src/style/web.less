@@ -445,8 +445,8 @@ div.map {
   height: 60vh;
 }
 
-// Fullscreen world view (the /play route). The placeholder is just an invisible
-// positioning target; the real canvas lives in #world-layer behind it.
+// Fullscreen world view (the /play route). The persistent canvas gets reparented
+// into the .client-placeholder box, which fills this fixed fullscreen container.
 .world-fullscreen {
   position: fixed;
   inset: 0;

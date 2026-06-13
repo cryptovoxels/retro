@@ -25,8 +25,7 @@ function boot(): Promise<void> {
 }
 
 type FrameProps = {
-  src?: string
-  hidden?: boolean
+  full?: boolean
   parcelId?: number
   coords: string
 }
@@ -35,45 +34,16 @@ type FrameState = {}
 
 /*
  * THE GREAT MERGE: this used to spin up an <iframe src="/play">. Now the engine
- * lives in the same bundle. We lazily boot it (once) into a persistent fixed
- * #world-layer and position that layer over the .client-placeholder box.
+ * lives in the same bundle on a single persistent canvas. We reparent that one
+ * canvas into our .client-placeholder box on mount and park it back in
+ * #world-holder on unmount, so the WebGL context survives navigation.
  */
 export class Client extends Component<FrameProps, FrameState> {
-  div = createRef<HTMLDivElement>()
-  static wrapper: HTMLDivElement | null = null
+  box = createRef<HTMLDivElement>()
+  observer: ResizeObserver | null = null
   static parcelId: number | null = null
-  static instance: Client = null!
-  static lastPeek: boolean | undefined
-  static rafStarted = false
-  static lastW = 0
-  static lastH = 0
 
-  // Lazily boot the engine and grab the persistent #world-layer.
-  private create() {
-    if (!canUseDom) {
-      return
-    }
-
-    const attach = () => {
-      const layer = document.getElementById('world-layer') as HTMLDivElement | null
-      if (!layer) {
-        return
-      }
-      Client.wrapper = layer
-      if (!Client.rafStarted) {
-        Client.rafStarted = true
-        Client.updatePosition()
-      }
-    }
-
-    // boot() runs synchronously up to its first await (which is where it creates
-    // #world-layer), so attach() usually finds the layer immediately. The promise
-    // covers the case where it doesn't.
-    void boot().then(attach)
-    attach()
-  }
-
-  // peek = web view: show the world in the background, hide the in-world UI chrome
+  // peek = web view: hide the in-world UI chrome (chat/minimap/toolbelt). full = /play.
   static syncUiMode(peek: boolean) {
     if (window.config) {
       ;(window.config as any).wantsUI = !peek
@@ -84,81 +54,55 @@ export class Client extends Component<FrameProps, FrameState> {
     }
   }
 
-  static updatePosition = () => {
-    const wrapper = Client.wrapper
-    if (!wrapper) {
+  componentDidMount() {
+    Client.parcelId = this.props.parcelId!
+    if (!canUseDom) {
       return
     }
-
-    const target = document.getElementsByClassName('client-placeholder')[0] as HTMLDivElement
-
-    if (target) {
-      const rect = target.getBoundingClientRect()
-
-      wrapper.style.left = `${rect.left}px`
-      wrapper.style.top = `${rect.top}px`
-      wrapper.style.right = 'auto'
-      wrapper.style.bottom = 'auto'
-      wrapper.style.width = `${rect.width}px`
-      wrapper.style.height = `${rect.height}px`
-      wrapper.classList.add('attached')
-
-      wrapper.style.visibility = Client.instance?.props.hidden ? 'hidden' : 'visible'
-
-      // keep the engine render resolution in sync with the box
-      if (rect.width !== Client.lastW || rect.height !== Client.lastH) {
-        Client.lastW = rect.width
-        Client.lastH = rect.height
-        window.engine?.resize()
-      }
-    } else {
-      // no placeholder on this route (pure web page) -> hide the world. The engine
-      // keeps running; we just don't show it.
-      wrapper.style.visibility = 'hidden'
-      wrapper.classList.remove('attached')
-    }
-
-    const peek = !target
-    if (Client.lastPeek !== peek) {
-      Client.lastPeek = peek
-      Client.syncUiMode(peek)
-    }
-
-    requestAnimationFrame(Client.updatePosition)
-  }
-
-  // The engine is persistent; disposing just drops our handle. The rAF loop keeps
-  // the layer positioned for the next view.
-  static dispose = () => {
-    Client.instance = null!
-    Client.parcelId = null
-  }
-
-  constructor(props: FrameProps) {
-    super(props)
-
-    if (!Client.wrapper) {
-      this.create()
-    }
-    Client.instance = this
-  }
-
-  componentDidMount() {
-    Client.instance = this
-    Client.parcelId = this.props.parcelId!
-    this.go()
+    void boot().then(() => this.adopt())
   }
 
   componentDidUpdate(previousProps: Readonly<FrameProps>): void {
-    Client.instance = this
     if (this.props.parcelId != Client.parcelId || this.props.coords != previousProps.coords) {
       Client.parcelId = this.props.parcelId!
-      this.go()
+      this.naviport()
     }
   }
 
+  componentWillUnmount() {
+    this.observer?.disconnect()
+    this.observer = null
+
+    // only park the canvas if we still own it (a newly-mounted Client may have
+    // already adopted it during the route transition).
+    const canvas = document.getElementById('renderCanvas')
+    if (canvas && this.box.current?.contains(canvas)) {
+      document.getElementById('world-holder')?.appendChild(canvas)
+    }
+    Client.syncUiMode(true)
+  }
+
+  // pull the one persistent canvas into our box and keep the engine sized to it
+  private adopt() {
+    const canvas = document.getElementById('renderCanvas')
+    const box = this.box.current
+    if (!canvas || !box) {
+      return
+    }
+
+    box.appendChild(canvas)
+
+    this.observer?.disconnect()
+    this.observer = new ResizeObserver(() => window.engine?.resize())
+    this.observer.observe(box)
+    window.engine?.resize()
+
+    Client.syncUiMode(!this.props.full)
+    this.naviport()
+  }
+
   // teleport once the engine is up
-  private go() {
+  private naviport() {
     const coords = this.props.coords
     if (!coords) {
       return
@@ -173,7 +117,7 @@ export class Client extends Component<FrameProps, FrameState> {
   }
 
   render() {
-    return <div class="client-placeholder" data-src={this.props.src} ref={this.div} />
+    return <div class="client-placeholder" ref={this.box} />
   }
 }
 
@@ -419,8 +363,6 @@ export default class Parcel extends Component<Props, State> {
     const islandSlug = this.state.parcel?.island?.toLowerCase().replace(/\s+/, '-')
     const nearby = this.state.nearby?.slice(0, 5).map((p) => <ParcelThumb key={p.id} parcel={p} />)
 
-    const iframeUrl = this.helper?.iframeUrl
-
     const parcelName = this.state.parcel?.name ?? this.state.parcel?.address ?? `Parcel #${this.state.parcelId}`
     const location = [this.state.parcel?.address, this.state.parcel?.suburb, this.state.parcel?.island].filter(Boolean).join(', ')
     const parcelDesc = this.state.parcel?.description || (location ? `${location}. The permanent exhibit of crypto art across thousands of galleries in an endlessly evolving world.` : '')
@@ -433,7 +375,7 @@ export default class Parcel extends Component<Props, State> {
           <Head title={parcelName} description={parcelDesc} url={`/parcels/${this.state.parcelId}`} imageURL={ogImage} />
           <h1>{parcelName}</h1>
           <figcaption>
-            <PlayButton url={this.helper!.iframeUrl} />
+            {this.helper && <PlayButton url={this.helper.iframeUrl} />}
 
             {modes.map((mode) => (
               <button class={`secondary ${this.state.viewTab === mode.mode ? 'contrast' : ''}`} data-active={this.state.viewTab === mode.mode} onClick={() => this.setViewTab(mode.mode)} key={mode.mode}>
@@ -451,7 +393,7 @@ export default class Parcel extends Component<Props, State> {
           <figure>
             {this.state.viewTab === 'map' && <div className="map map-web slippy-map">&nbsp;</div>}
             {this.state.viewTab === 'orbit' && <iframe id="ParcelorbitView" src={this.helper?.orbitUrl} className="play-view" />}
-            {this.state.parcel && <Client hidden={this.state.viewTab !== 'client'} parcelId={this.props.id!} src={iframeUrl} coords={this.helper!.spawnCoords} />}
+            {this.state.parcel && this.state.viewTab === 'client' && <Client parcelId={this.props.id!} coords={this.helper!.spawnCoords} />}
           </figure>
           <WompsList key={this.state.parcelId} fetch={`/womps/at/parcel/${this.state.parcelId}.json`} numberToShow={10} smaller={true} collapsed={true} />
         </article>
@@ -535,7 +477,7 @@ export default class Parcel extends Component<Props, State> {
               )}
             </p>
           ) : null}
-          <PlayButton url={this.helper!.iframeUrl} />
+          {this.helper && <PlayButton url={this.helper.iframeUrl} />}
 
           {this.state.parcel?.parcel_users && this.state.parcel.parcel_users.length > 0 && (
             <div>

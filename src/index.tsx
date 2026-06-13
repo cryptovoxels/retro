@@ -157,19 +157,16 @@ async function main() {
 
   const canvas = document.createElement('canvas')
   canvas.id = 'renderCanvas'
-  canvas.style.cssText = 'width: 100%; touch-action: none;'
-  canvas.style.height = '100%'
+  canvas.style.cssText = 'width: 100%; height: 100%; display: block; touch-action: none;'
 
-  // Persistent fixed layer that lives behind the web UI. The web router shows,
-  // hides and positions this layer (see web/src/parcel.tsx). We no longer hijack
-  // <body> so web pages keep scrolling normally.
-  const worldLayer = document.createElement('div')
-  worldLayer.id = 'world-layer'
-  // z-index 2 so the world paints above static web content (matching the old
-  // magic-frame). The web router hides it on pure web pages.
-  worldLayer.style.cssText = 'position: fixed; inset: 0; z-index: 2;'
-  worldLayer.appendChild(canvas)
-  document.body.appendChild(worldLayer)
+  // The one canvas lives forever. The web router (web/src/parcel.tsx Client)
+  // reparents it into whatever view is on screen and parks it back here when no
+  // world is visible, so the WebGL context never dies between navigations.
+  const holder = document.createElement('div')
+  holder.id = 'world-holder'
+  holder.style.cssText = 'position: fixed; left: -99999px; width: 1px; height: 1px; overflow: hidden;'
+  holder.appendChild(canvas)
+  document.body.appendChild(holder)
 
   try {
     var r = await fetch(process.env.ASSET_PATH + '/acknowtt.json')

@@ -193,7 +193,7 @@ function Play(_props: { path?: string }) {
   const coords = new URLSearchParams(window.location.search).get('coords') || ''
   return (
     <div class="world-fullscreen">
-      <Client coords={coords} parcelId={0} src="/play" />
+      <Client full coords={coords} parcelId={0} />
     </div>
   )
 }

@@ -112,8 +112,6 @@ export default class Womp extends Component<Props, State> {
       }
     }
 
-    const iframeUrl = `/play?coords=${this.state.womp.coords}`
-
     return (
       <section class="columns">
         <article>
@@ -129,7 +127,7 @@ export default class Womp extends Component<Props, State> {
           </figcaption>
 
           <figure>
-            <Client src={iframeUrl} parcelId={this.state.womp.parcel_id} coords={this.state.womp.coords} />
+            <Client parcelId={this.state.womp.parcel_id} coords={this.state.womp.coords} />
           </figure>
 
           {this.state.womp.content && (
