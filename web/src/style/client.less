@@ -69,7 +69,6 @@ a {
 /* Scrollbar thumb */
 ::-webkit-scrollbar-thumb {
   background: #999;
-  border-radius: 6px;
 }
 
 /* Scrollbar track background */
@@ -77,7 +76,6 @@ a {
   background: #444;
   margin-top: 1rem;
   margin-bottom: 1rem;
-  border-radius: 6px;
 }
 
 // Size of hexagon buttons
@@ -85,9 +83,9 @@ a {
 @moderator: #7684ff;
 @builder: #ffef76;
 
-/* Overlay Window */
-@overlayWindowBackground: #181511;
-@overlayWindowBorderColor: #090807;
+/* Overlay Window - showbox black */
+@overlayWindowBackground: #0d0d0d;
+@overlayWindowBorderColor: #333;
 @overlayWindowTextColor: #f5f5f0;
 @overlayWindowInputColor: #f5f5f0; // input boxes have dark backgrounds due to color-scheme:dark
 
@@ -196,8 +194,6 @@ h4 {
   font-size: 0.8em;
   padding: 8px;
   text-shadow: 1px 1px 1px black;
-
-  border-radius: 4px;
 }
 
 main.chat {
@@ -236,7 +232,6 @@ main.chat {
       padding: 2px 0.4rem;
       text-shadow: 1px 1px 1px black;
       background: #0005;
-      border-radius: 2px;
     }
   }
 
@@ -260,7 +255,6 @@ main.chat {
 .AnimateList {
   margin: 5px 0;
   background: var(--tinge);
-  border-radius: 5px;
 
   ul {
     margin: 0;
@@ -277,7 +271,7 @@ main.chat {
       padding: 10px 0;
       cursor: pointer;
       text-align: center;
-      border-radius: 5px;
+
       display: inline-block;
       width: 100%;
 
@@ -291,7 +285,6 @@ main.chat {
 
       &:hover {
         background: #333a;
-        border-radius: 2px;
       }
     }
   }
@@ -318,7 +311,6 @@ main.chat {
 
     li:hover {
       background: #333a;
-      border-radius: 2px;
     }
   }
 }
@@ -373,7 +365,7 @@ main.chat {
   max-width: 80%;
   height: 580px;
   background: #3337;
-  border-radius: 4px;
+
   padding: 10px;
 
   button {
@@ -475,7 +467,6 @@ main.chat {
   right: 10px;
 
   form.uncollapsed {
-    border-radius: 4px;
     padding: 4px;
     box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
     width: 240px;
@@ -599,7 +590,6 @@ main.chat {
 
         display: inline-block;
         margin-left: 2px;
-        border-radius: 2px;
       }
 
       ul {
@@ -609,7 +599,7 @@ main.chat {
         left: 0;
         right: 0;
         display: flex;
-        border-radius: 4px;
+
         flex-wrap: wrap;
         list-style: none;
         margin-top: 3px;
@@ -635,7 +625,7 @@ main.chat {
 
     button {
       margin: 0 !important;
-      border-radius: 0 !important;
+
       @r: 4px !important;
 
       &.-erase {
@@ -664,7 +654,6 @@ main.chat {
     padding-left: 0;
 
     > div {
-      border-radius: 4px;
       cursor: pointer;
       margin: 2px;
       position: relative;
@@ -688,7 +677,7 @@ main.chat {
         background-repeat: repeat;
         background-blend-mode: multiply;
         background-color: black;
-        border-radius: 2px;
+
         width: 48px;
         height: 48px;
       }
@@ -734,7 +723,7 @@ button.iconish {
     height: 44px;
     padding: 0;
     border: none;
-    border-radius: 3px 0 0 3px;
+
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -784,7 +773,7 @@ button.iconish {
     position: relative;
     top: 100px;
     transition: top 0.2s ease-out;
-    border-radius: 5px;
+
     background: rgb(211, 211, 211, 0.3);
 
     div.toolbelt-pagination {
@@ -798,7 +787,7 @@ button.iconish {
         background-color: rgba(129, 129, 129, 0.4);
         color: #000;
         text-align: center;
-        border-radius: 3px;
+
         width: 1rem;
         aspect-ratio: '1 / 1';
 
@@ -826,7 +815,7 @@ button.iconish {
 
     button.tint {
       outline: none;
-      border-radius: 4px;
+
       border-width: 0;
       height: 38px;
       margin-right: 0;
@@ -880,7 +869,7 @@ button.iconish {
       top: -50px;
       width: 90px;
       display: flex;
-      border-radius: 4px;
+
       flex-wrap: wrap;
       list-style: none;
       padding: 3px;
@@ -908,7 +897,7 @@ button.iconish {
         padding: 2px 4px;
         font-size: 0.65rem;
         cursor: pointer;
-        border-radius: 2px;
+
         border: 1px solid rgba(0, 0, 0, 0.25);
         background: rgba(255, 255, 255, 0.6);
         color: #000;
@@ -942,7 +931,6 @@ button.iconish {
         color: white;
         font-size: 0.7rem;
         padding: 0px 3px;
-        border-radius: 3px;
       }
     }
     img,
@@ -952,7 +940,7 @@ button.iconish {
       background-repeat: repeat;
       background-blend-mode: multiply;
       background-color: black;
-      border-radius: 2px;
+
       width: 40px;
       height: 40px;
 
@@ -1014,7 +1002,7 @@ button.iconish {
   overflow-x: hidden;
   overflow-y: auto;
   padding: 16px 18px 14px;
-  border-radius: 8px;
+
   background: @overlayWindowBackground;
   border: 1px solid @overlayWindowBorderColor;
   color: @overlayWindowTextColor;
@@ -1064,7 +1052,7 @@ button.iconish {
       &:hover,
       &.-dragOver {
         background-color: #000;
-        border-radius: 5px;
+
         position: relative;
 
         &:after {
@@ -1088,7 +1076,7 @@ button.iconish {
         margin: 7px;
         background-size: 384px 384px;
         background-repeat: repeat;
-        border-radius: 2px;
+
         width: 48px;
         height: 48px;
       }
@@ -1118,7 +1106,6 @@ button.iconish {
   div.OtherTextures {
     border-top: 2px solid #3c2744;
     padding: 2px 0;
-    border-radius: 5px;
 
     img.other-parcel-texture {
       margin: 4px;
@@ -1220,7 +1207,7 @@ dialog.editor {
       color: rgb(212, 212, 212); // white-ish for inactive items
       background: initial;
       padding: @gap;
-      border-radius: @gap @gap 0 0;
+
       margin: 0 @gap 0 0;
 
       &.active {
@@ -1288,7 +1275,6 @@ dialog.editor {
       }
     }
     span:has(+ input) {
-      border-radius: 0.4rem 0 0 0.4rem;
       background: @color;
       color: white;
     }
@@ -1307,7 +1293,6 @@ dialog.editor {
 
     // Span after input
     input + span {
-      border-radius: 0 0.4rem 0.4rem 0;
       background: @color;
       color: white;
       margin-right: 0.5rem;
@@ -1357,7 +1342,6 @@ dialog.editor {
       padding: 4px;
       background: #222;
       color: #aaa;
-      border-radius: 4px;
     }
 
     &.uv input[type='number'],
@@ -1392,7 +1376,7 @@ dialog.editor {
       background-color: #272727;
       padding: 3px 5px 0 5px;
       margin: 5px 0;
-      border-radius: 2px;
+
       transition: height 0.5s linear;
     }
   }
@@ -1441,7 +1425,6 @@ dialog.editor {
         padding: 3px 0;
         text-align: center;
         background: #222;
-        border-radius: 0;
 
         &:focus {
           outline: none;
@@ -1588,7 +1571,6 @@ dialog.editor {
   background: var(--semi);
   left: unset;
 
-  border-radius: 5px;
   padding: 10px;
   width: 25vw;
 
@@ -1748,13 +1730,11 @@ form.PermissionsRadioSelector {
   &.opaque {
     background-color: #2b2b2b;
     height: fit-content;
-    border-radius: 5px;
   }
 
   .empty-window-container {
     background-color: #d6d6d6;
     padding: 10px 1px;
-    border-radius: 5px;
 
     &.aligned-flex {
       display: flex;
@@ -1927,7 +1907,7 @@ form.PermissionsRadioSelector {
 
       background: linear-gradient(#444, #666);
       border: 2px solid black;
-      border-radius: 4px;
+
       box-shadow: inset -4px -4px 0 #333;
     }
 
@@ -1966,7 +1946,7 @@ form.PermissionsRadioSelector {
   max-width: 14rem;
   padding: 0.75rem 1rem;
   background: rgba(0, 0, 0, 0.55);
-  border-radius: 0.5rem;
+
   color: white;
   pointer-events: auto;
   text-shadow: 1px 1px 1px black;
@@ -2049,7 +2029,7 @@ form.PermissionsRadioSelector {
   z-index: 600;
   padding: 0.5rem 0.75rem;
   background: rgba(0, 0, 0, 0.55);
-  border-radius: 0.5rem;
+
   color: white;
   text-shadow: 1px 1px 1px black;
   border: none;
@@ -2247,7 +2227,7 @@ i.e. overrides the colors */
 
   .parcels-details {
     padding: 5px;
-    border-radius: 4px;
+
     border: none;
     background-color: var(--tinge);
   }
@@ -2281,7 +2261,6 @@ i.e. overrides the colors */
     background-color: var(--tinge);
     overflow: visible;
 
-    border-radius: 4px;
     padding: 8px;
     margin: 2px 2px 10px;
 
@@ -2351,7 +2330,7 @@ i.e. overrides the colors */
 
   .overlay-header {
     background: var(--tinge);
-    border-radius: 4px;
+
     padding: 8px;
     margin-bottom: 10px;
 
@@ -2365,7 +2344,7 @@ i.e. overrides the colors */
 /* Screen feature overlay */
 .presenter.overlay {
   background: #3338;
-  border-radius: 4px;
+
   left: 10px;
   top: 80px;
   margin: 0 0 0 0;
@@ -2380,7 +2359,7 @@ i.e. overrides the colors */
   background: #555;
   box-shadow: none;
   color: #ccc;
-  border-radius: 4px;
+
   padding: 15px;
 
   .close {
@@ -2506,7 +2485,7 @@ i.e. overrides the colors */
   animation-name: vidscreenslide;
   transform: translate(-50%, 0%);
   background: #333a;
-  border-radius: 4px;
+
   top: 60px;
 }
 
@@ -2535,7 +2514,6 @@ textarea.script-editor {
 
 /* Scripting container */
 .scripting-container-overlay {
-  border-radius: 3px;
   padding: 5px;
   width: 60vw;
   background: #333;
@@ -2697,7 +2675,6 @@ textarea.script-editor {
       background: #eee;
       color: #555;
       border: none;
-      border-radius: 4px;
     }
 
     button:hover {
@@ -2719,7 +2696,6 @@ textarea.script-editor {
     height: 48px;
     padding: 4px;
     border: none;
-    border-radius: 4px;
   }
 
   @media only screen and (max-width: 1000px) {
@@ -2763,7 +2739,7 @@ textarea.script-editor {
     left: 0;
     right: 0;
     border: 1px solid #424242;
-    border-radius: 3px;
+
     box-shadow: 1px 1px 3px #171717;
   }
 
@@ -2776,7 +2752,7 @@ textarea.script-editor {
     }
 
     &:hover {
-      background: #5a2973;
+      background: #dc1e1e;
     }
   }
 }
@@ -2825,7 +2801,7 @@ textarea.script-editor {
 .SmallHomeMenu {
   display: block;
   position: absolute;
-  border-radius: 4px;
+
   margin-left: 10px;
   width: 90px;
   padding: 15px;
@@ -2854,7 +2830,7 @@ textarea.script-editor {
     cursor: pointer;
 
     &:hover {
-      background: #5a2973;
+      background: #dc1e1e;
     }
 
     > div.pendingBadge {
@@ -2868,7 +2844,7 @@ textarea.script-editor {
     > div.pendingBadge {
       display: block;
       padding: 0.5em 0.5em;
-      border-radius: 12px;
+
       font-size: 10px;
       position: absolute;
       right: 10px;
@@ -2922,7 +2898,6 @@ textarea.script-editor {
       > span.pendingBadge {
         padding: 0.3em 0.5em;
 
-        border-radius: 12px;
         font-size: 10px;
         position: absolute;
         line-height: 10px;
@@ -3023,7 +2998,7 @@ textarea.script-editor {
   z-index: 1000000;
 
   width: 220px;
-  border-radius: 10px;
+
   padding: 15px 50px 15px 20px;
   background-size: 40px;
 
@@ -3087,7 +3062,7 @@ textarea.script-editor {
     border: none;
     color: #111;
     text-decoration: none;
-    border-radius: 5px;
+
     cursor: pointer;
     &:hover {
       color: #111;
@@ -3107,7 +3082,7 @@ textarea.script-editor {
   position: absolute;
 
   padding: 5px;
-  border-radius: 4px;
+
   width: 120px;
   right: -40px;
   transition: 0.2s ease;
@@ -3120,7 +3095,6 @@ textarea.script-editor {
 
 div.GraphDebugWindow {
   padding: 5px;
-  border-radius: 5px;
 
   color: #dbdbdb;
   width: 340px;
@@ -3134,7 +3108,6 @@ div.GraphDebugWindow {
 // MAP icons
 div.css-icon {
   div.party {
-    border-radius: 50%;
     height: 18px;
     width: 18px;
     animation: pulsate 1s ease-out infinite;
@@ -3147,13 +3120,12 @@ div.css-icon {
       text-align: center;
       line-height: 25px;
       background-color: @officialPurpleColor;
-      border-radius: 50%;
+
       display: inline-block;
     }
   }
 
   div.exhibition {
-    border-radius: 50%;
     height: 18px;
     width: 18px;
     animation: pulsate 3s ease-out infinite;
@@ -3165,7 +3137,7 @@ div.css-icon {
       text-align: center;
       line-height: 25px;
       // Semi-transparent green
-      border-radius: 50%;
+
       display: inline-block;
     }
   }
@@ -3246,7 +3218,6 @@ div.CheckUserIsAllowedInParcel {
     background: #1a1a1a;
     padding: 2px;
     display: table;
-    border-radius: 4px;
   }
 
   h3 {
@@ -3269,7 +3240,6 @@ div.CheckUserIsAllowedInParcel {
     background: #eeeeee;
     padding: 4px;
     color: #333;
-    border-radius: 2px;
 
     position: absolute;
     z-index: 10;
@@ -3313,7 +3283,7 @@ div.CheckUserIsAllowedInParcel {
 
     a {
       background-color: #333;
-      border-radius: 0.5rem;
+
       text-decoration: underline;
     }
   }
@@ -3406,7 +3376,7 @@ section.login {
 //   background: black;
 //   border: 2px solid white;
 //   box-shadow: 2px 2px 0 white;
-//   border-radius: 2px;
+//
 //   color: white;
 //   padding: 1rem;
 // }
@@ -3438,7 +3408,7 @@ button[accesskey] {
     line-height: 16px;
     background: #222;
     color: #fff;
-    border-radius: 4px;
+
     border: none;
     resize: vertical;
     overflow: auto;
@@ -3559,7 +3529,6 @@ button[accesskey] {
 }
 .codeflask ::-webkit-scrollbar-thumb {
   background: #2c2e31;
-  border-radius: 4px;
 }
 
 /* Minimap corner: online count (left) + map expand M (right). Not .iconish on online count -- iconish uses aspect-ratio 1/1 and blows up width. */
@@ -3595,7 +3564,7 @@ button[accesskey] {
   color: rgba(255, 255, 255, 0.75);
   padding: 0 5px;
   cursor: pointer;
-  border-radius: 3px;
+
   line-height: @minimap-corner-h;
   display: inline-flex;
   align-items: center;
@@ -3639,7 +3608,7 @@ aside.ui-toggle-mobile {
     right: 4px;
     width: 6px;
     height: 6px;
-    border-radius: 50%;
+
     background: #e74c3c;
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
     pointer-events: none;
@@ -3788,7 +3757,7 @@ aside {
     & > section {
       max-height: ~'calc(100vh - 12rem)';
       overflow-y: auto;
-      border-radius: 1rem;
+
       padding: 0.5rem;
       background: #333;
     }
@@ -3826,7 +3795,6 @@ dialog .baking {
 
       img {
         width: 120px;
-        border-radius: 0.4rem;
       }
     }
   }
@@ -3890,7 +3858,7 @@ aside .login {
     position: relative;
     background: white;
     color: black;
-    border-radius: 2rem;
+
     padding: 0.5rem 1rem;
     line-height: 2rem;
     display: inline-block;
@@ -3919,7 +3887,7 @@ aside .EmoteList ul {
   li:hover {
     background: white;
     color: black;
-    border-radius: 1rem;
+
     filter: unset;
   }
 }
@@ -3932,7 +3900,6 @@ aside .AnimateList ul {
   li:hover {
     background: white;
     color: black;
-    border-radius: 1rem;
   }
 }
 
@@ -4001,14 +3968,16 @@ dialog {
       flex: 0 1 auto;
 
       button {
-        // Match selector color
-        background: #007fff;
-        color: white;
+        background: #222;
+        color: #f5f5f0;
+        border: 1px solid #555;
         margin-left: 2px;
         font-size: unset;
 
         &:hover {
-          background: darken(white, 15%);
+          background: #dc1e1e;
+          border-color: #dc1e1e;
+          color: #fff;
         }
       }
     }
@@ -4026,7 +3995,7 @@ dialog {
   background: rgba(170, 170, 170, 0.582);
   color: white;
   padding: 0.5rem 1rem;
-  border-radius: 0.5rem;
+
   z-index: 1000;
   pointer-events: none;
   white-space: nowrap;
@@ -4041,7 +4010,7 @@ dialog {
   background: rgba(170, 170, 170, 0.582);
   color: white;
   padding: 0.45rem 1rem 0.5rem;
-  border-radius: 0.5rem;
+
   z-index: 1000;
   pointer-events: none;
   text-align: center;
@@ -4101,7 +4070,6 @@ dialog {
         width: 100%;
         aspect-ratio: 1 / 2;
         object-fit: cover;
-        border-radius: 0.5rem;
       }
     }
   }
@@ -4137,7 +4105,7 @@ dialog {
   img,
   video {
     display: block;
-    border-radius: 1rem;
+
     height: ~'calc(100vh - 20rem)';
     object-fit: contain;
     image-rendering: auto; /* default: smooth */
@@ -4154,4 +4122,44 @@ dialog {
     color: #ccc;
     padding: 1rem;
   }
+}
+
+// ============================================================
+// QUICK HACK: skin the in-world client like the showbox dock.
+// Just primitives (red splash + flat + dark). Delete to revert.
+// ============================================================
+
+// red splash on every checkbox / radio / slider / select
+* {
+  accent-color: #dc1e1e;
+}
+
+// active tab underline + selected nav = red instead of white
+.demi-tabs li.-active,
+.inline-tabs li.-active {
+  border-bottom-color: #dc1e1e;
+}
+
+dialog.editor .button-tabs button.active,
+dialog.editor .tabs li.active {
+  color: #dc1e1e;
+}
+
+// in-world overlays/panels: drop warm-grey for showbox black
+.overlay.inspect-feature,
+.overlay.suspended-window,
+.scripting-container-overlay,
+.boombox-broadcast,
+.post-womp,
+.nft-view,
+.vid-screen,
+.presenter.overlay {
+  background: #0d0d0d;
+  color: #f5f5f0;
+}
+
+// active interact-bar hex: red, not washed white
+.interact-bar > ul > li.-active u {
+  background: #dc1e1e !important;
+  color: #fff;
 }
