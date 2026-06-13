@@ -491,7 +491,7 @@ export default function GoLiveBroadcast() {
   const liveRef = useRef(false)
   // bumped by stopAll so reconnects sleeping through a stop can't resurrect a dead session
   const sessionGen = useRef(0)
-  const [status, setStatus] = useState('Tap go live when ready.')
+  const [status, setStatus] = useState('')
   const [viewers, setViewers] = useState(0)
   const [viewerLines, setViewerLines] = useState<{ id: string; name: string }[]>([])
   const [viewerListOpen, setViewerListOpen] = useState(false)
@@ -1363,7 +1363,7 @@ export default function GoLiveBroadcast() {
   const goLive = async () => {
     if (live) {
       stopAll()
-      setStatus('Tap go live when ready.')
+      setStatus('')
       return
     }
 
@@ -1654,7 +1654,6 @@ export default function GoLiveBroadcast() {
     <div ref={dockRef} class={dockClass(live, chatComposing)}>
       <div class="showbox-dock-title">Showbox</div>
       {isGuest && !live && <small class="showbox-dock-hint">{isCohost ? 'Co-host: go live when ready. Use headphones to reduce echo.' : `You're joining as a guest at ${parcelLabel}.`}</small>}
-      {!isGuest && !live && !status && <small class="showbox-dock-hint">Tap go live when ready.</small>}
 
       {syntheticGuest && !live && (
         <div class="showbox-dock-device-row">
