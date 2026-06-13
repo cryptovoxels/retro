@@ -9,11 +9,10 @@ import { v7 as uuid } from 'uuid'
 import { FeatureRecord } from '../../common/messages/feature'
 import Scope from '../../common/scope'
 import type { FeatureTemplate } from '../../src/features/_metadata'
-import ClientRoot from '../../web/src/client-root'
 import JsonData from '../../web/src/components/json-data'
 import cache from '../cache'
 import { addAssetToLibrary, removeAssetFromLibrary, updateAssetFromLibrary } from '../handlers/asset-library-handler'
-import renderRoot from '../handlers/render-root'
+import renderComponent from '../handlers/render-component'
 import { isAdmin, isValidUUID } from '../lib/helpers'
 import log from '../lib/logger'
 import { createRequestHandlerForQuery, queryAndCallback } from '../lib/query-helpers'
@@ -523,13 +522,15 @@ export default function AssetLibraryController(db: Db, passport: PassportStatic,
       spaceId: id,
     }
 
-    const html = (
-      <ClientRoot title="Asset">
+    // fastboot JSON in <head> (see play.tsx for why)
+    const head = (
+      <head>
+        <title>Asset</title>
         <JsonData id="space" data={summary} dataId={id} />
-      </ClientRoot>
+      </head>
     )
 
-    res.send(renderRoot(html))
+    res.send(renderComponent(head))
   })
 
   // AssetLibrary

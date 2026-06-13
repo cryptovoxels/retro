@@ -15,6 +15,7 @@ import { fetchOptions } from './utils'
 import WompsList from './womps-list'
 import { AvatarLink } from './components/avatar-link'
 import { ParcelMetrics as Metrics } from './components/metrics'
+import { bootEngine } from '../../src'
 
 type FrameProps = {
   src?: string
@@ -25,148 +26,88 @@ type FrameProps = {
 
 type FrameState = {}
 
+/*
+ * THE GREAT MERGE: this used to spin up an <iframe src="/play">. Now the engine
+ * lives in the same bundle. We lazily boot it (once) into a persistent fixed
+ * #world-layer and position that layer over the .client-placeholder box.
+ */
 export class Client extends Component<FrameProps, FrameState> {
   div = createRef<HTMLDivElement>()
   static wrapper: HTMLDivElement | null = null
   static parcelId: number | null = null
   static instance: Client = null!
   static lastPeek: boolean | undefined
+  static rafStarted = false
+  static lastW = 0
+  static lastH = 0
 
-  static playUrl(src: string | undefined, coords: string, peek: boolean): string {
-    const url = new URL(src ?? '/play', window.location.origin)
-    if (coords) {
-      url.searchParams.set('coords', coords)
-    }
-    if (peek) {
-      url.searchParams.set('ui', 'off')
-    } else {
-      url.searchParams.delete('ui')
-    }
-    return url.toString()
-  }
-
-  static syncUiMode(peek: boolean) {
-    const iframe = Client.wrapper?.querySelector('iframe') as HTMLIFrameElement | undefined
-    if (!iframe || !Client.instance) {
-      return
-    }
-    const next = Client.playUrl(iframe.src, Client.instance.props.coords, peek)
-    if (iframe.src !== next) {
-      iframe.src = next
-    }
-  }
-
-  static peekUrl(): string | null {
-    const id = Client.parcelId ?? Client.instance?.props.parcelId
-    if (id) {
-      return `/parcels/${id}`
-    }
-    const coords = Client.instance?.props.coords
-    if (coords) {
-      return `/play?coords=${coords}`
-    }
-    return null
-  }
-
+  // Lazily boot the engine and grab the persistent #world-layer.
   private create() {
     if (!canUseDom) {
       return
     }
 
-    const peek = !document.getElementsByClassName('client-placeholder')[0]
-    Client.lastPeek = peek
-
-    const div = document.createElement('div')
-    div.classList.add('magic-frame')
-
-    const iframe = document.createElement('iframe')
-    iframe.src = Client.playUrl(this.props.src, this.props.coords, peek)
-    div.appendChild(iframe)
-
-    const hit = document.createElement('div')
-    hit.className = 'magic-frame-hit'
-    hit.addEventListener('click', Client.onHitClick)
-    div.appendChild(hit)
-
-    const closeButton = document.createElement('button')
-    closeButton.className = 'magic-frame-close'
-    closeButton.type = 'button'
-    closeButton.title = 'Close'
-    closeButton.setAttribute('aria-label', 'Close')
-    closeButton.textContent = '×'
-    closeButton.onclick = (e) => {
-      e.preventDefault()
-      e.stopPropagation()
-      Client.dispose()
-    }
-    div.appendChild(closeButton)
-
-    document.body.appendChild(div)
-    Client.wrapper = div
-    Client.updatePosition()
-
-    // Listen for messages from the iframe
-
-    window.addEventListener('message', (e) => {
-      // const attached = Client.wrapper?.classList.contains('attached')
-
-      const active = document.activeElement === iframe
-
-      if (e.data.type === 'parcel') {
-        const parcel = e.data.parcel as ParcelRecord
-        // const path = window.location.pathname
-
-        if (active && window.location.pathname.match(/^\/parcels\/\d+$/)) {
-          route(`/parcels/${parcel.id}`, true)
-        }
+    const attach = () => {
+      const layer = document.getElementById('world-layer') as HTMLDivElement | null
+      if (!layer) {
+        return
       }
-    })
+      Client.wrapper = layer
+      if (!Client.rafStarted) {
+        Client.rafStarted = true
+        Client.updatePosition()
+      }
+    }
+
+    // boot() runs synchronously up to its first await (which is where it creates
+    // #world-layer), so attach() usually finds the layer immediately. The promise
+    // covers the case where it doesn't.
+    void bootEngine().then(attach)
+    attach()
   }
 
-  static onHitClick = (e: MouseEvent) => {
-    if (!Client.wrapper || Client.wrapper.classList.contains('attached')) {
-      return
+  // peek = web view: show the world in the background, hide the in-world UI chrome
+  static syncUiMode(peek: boolean) {
+    if (window.config) {
+      ;(window.config as any).wantsUI = !peek
     }
-    if ((e.target as HTMLElement).closest('.magic-frame-close')) {
-      return
-    }
-    const url = Client.peekUrl()
-    if (url) {
-      route(url)
+    const ui = document.getElementById('world-ui')
+    if (ui) {
+      ui.style.display = peek ? 'none' : ''
     }
   }
 
   static updatePosition = () => {
-    if (!Client.wrapper) {
+    const wrapper = Client.wrapper
+    if (!wrapper) {
       return
     }
 
     const target = document.getElementsByClassName('client-placeholder')[0] as HTMLDivElement
-    const wrapper = Client.wrapper
 
     if (target) {
       const rect = target.getBoundingClientRect()
 
       wrapper.style.left = `${rect.left}px`
       wrapper.style.top = `${rect.top}px`
+      wrapper.style.right = 'auto'
+      wrapper.style.bottom = 'auto'
       wrapper.style.width = `${rect.width}px`
       wrapper.style.height = `${rect.height}px`
       wrapper.classList.add('attached')
-      if (!!Client.instance?.props.hidden) {
-        Client.wrapper!.style.visibility = 'hidden'
-        target.style.display = 'none'
-      } else {
-        Client.wrapper!.style.visibility = 'visible'
-        target.style.display = 'block'
+
+      wrapper.style.visibility = Client.instance?.props.hidden ? 'hidden' : 'visible'
+
+      // keep the engine render resolution in sync with the box
+      if (rect.width !== Client.lastW || rect.height !== Client.lastH) {
+        Client.lastW = rect.width
+        Client.lastH = rect.height
+        window.engine?.resize()
       }
     } else {
-      /**
-       * If no target, the iframe moves to the bottom left of the screen
-       */
-      wrapper.style.removeProperty('left')
-      wrapper.style.removeProperty('top')
-      wrapper.style.removeProperty('width')
-      wrapper.style.removeProperty('height')
+      // no placeholder on this route (pure web page) -> hide the world. The engine
+      // keeps running; we just don't show it.
+      wrapper.style.visibility = 'hidden'
       wrapper.classList.remove('attached')
     }
 
@@ -179,13 +120,11 @@ export class Client extends Component<FrameProps, FrameState> {
     requestAnimationFrame(Client.updatePosition)
   }
 
+  // The engine is persistent; disposing just drops our handle. The rAF loop keeps
+  // the layer positioned for the next view.
   static dispose = () => {
-    if (Client.wrapper) {
-      document.body.removeChild(Client.wrapper)
-      Client.wrapper = null
-      Client.instance = null!
-      Client.lastPeek = undefined
-    }
+    Client.instance = null!
+    Client.parcelId = null
   }
 
   constructor(props: FrameProps) {
@@ -198,39 +137,32 @@ export class Client extends Component<FrameProps, FrameState> {
   }
 
   componentDidMount() {
-    if (!Client.wrapper) {
-      return
-    }
-
+    Client.instance = this
     Client.parcelId = this.props.parcelId!
+    this.go()
+  }
 
-    const iframe = Client.wrapper.querySelector('iframe')!
-
-    try {
-      iframe.contentWindow?.persona.naviport(this.props.coords)
-    } catch (e) {
-      iframe.src = Client.playUrl(undefined, this.props.coords, Client.lastPeek ?? true)
+  componentDidUpdate(previousProps: Readonly<FrameProps>): void {
+    Client.instance = this
+    if (this.props.parcelId != Client.parcelId || this.props.coords != previousProps.coords) {
+      Client.parcelId = this.props.parcelId!
+      this.go()
     }
   }
 
-  componentDidUpdate(previousProps: Readonly<FrameProps>, previousState: Readonly<any>, snapshot: any): void {
-    // console.log('componentDidUpdate', this.props.parcelId, previousProps.parcelId)
-
-    if (!Client.wrapper) {
+  // teleport once the engine is up
+  private go() {
+    const coords = this.props.coords
+    if (!coords) {
       return
     }
-
-    const iframe = Client.wrapper.querySelector('iframe')!
-
-    if (this.props.parcelId != Client.parcelId) {
-      Client.parcelId = this.props.parcelId!
-
-      if (document.activeElement === iframe) {
-        return
-      } else {
-        iframe.contentWindow?.persona.naviport(this.props.coords)
+    void bootEngine().then(() => {
+      try {
+        window.persona?.naviport(coords)
+      } catch (e) {
+        console.error('[great-merge] naviport failed', e)
       }
-    }
+    })
   }
 
   render() {

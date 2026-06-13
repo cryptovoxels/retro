@@ -37,7 +37,7 @@ import Island from './island'
 import Islands from './islands'
 import Mail from './mail'
 import WorldMap from './map'
-import Parcel from './parcel'
+import Parcel, { Client } from './parcel'
 import ParcelEdit from './parcel-edit'
 import Parcels from './parcels'
 import Privacy from './privacy'
@@ -106,14 +106,20 @@ const Main = () => {
 
   const [currentPath, setCurrentPath] = useState(window.location.pathname)
   const lightBroadcast = currentPath.startsWith('/golive/broadcast')
+  // fullscreen world view: no web header/footer chrome
+  const fullWorld = currentPath.startsWith('/play') || currentPath.startsWith('/scratchpad') || currentPath.endsWith('/play')
 
   return (
     <MainApp>
       <main class={lightBroadcast ? 'showbox-light-shell' : 'container-fluid'}>
-        {!lightBroadcast && <WebHeader path={currentPath} />}
+        {!lightBroadcast && !fullWorld && <WebHeader path={currentPath} />}
 
         <Router onChange={handleRoute}>
           <Explore path="/" />
+          <Play path="/play" />
+          <Play path="/scratchpad" />
+          <Play path="/spaces/:id/play" />
+          <Play path="/assets/:id/play" />
           <Terms path="/terms" />
           <Privacy path="/privacy" />
           <Conduct path="/conduct" />
@@ -174,11 +180,21 @@ const Main = () => {
 
           <IslandsAdmin path="/propose/islands" />
         </Router>
-        {!lightBroadcast && <Footer />}
+        {!lightBroadcast && !fullWorld && <Footer />}
       </main>
 
       <Snackbar />
     </MainApp>
+  )
+}
+
+// Fullscreen world. Mounts the persistent canvas layer over a fullscreen placeholder.
+function Play(_props: { path?: string }) {
+  const coords = new URLSearchParams(window.location.search).get('coords') || ''
+  return (
+    <div class="world-fullscreen">
+      <Client coords={coords} parcelId={0} src="/play" />
+    </div>
   )
 }
 

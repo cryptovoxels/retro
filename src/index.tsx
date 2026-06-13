@@ -131,7 +131,16 @@ declare global {
   }
 }
 
-;(async function main() {
+let bootPromise: Promise<void> | null = null
+
+// Lazy, run-once engine boot. Called by the web bundle the first time a world
+// view is shown. Importing this module must have no side effects.
+export function bootEngine(): Promise<void> {
+  if (!bootPromise) bootPromise = main()
+  return bootPromise
+}
+
+async function main() {
   const voxels = (window.voxels = {} as Voxels)
 
   // if the inspector breaks, try downloading the correct version into `/dist/vendor` like this:
@@ -152,9 +161,16 @@ declare global {
   canvas.style.cssText = 'width: 100%; touch-action: none;'
   canvas.style.height = '100%'
 
-  document.documentElement.style.cssText = document.body.style.cssText = 'width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; position: relative;'
-
-  document.body.appendChild(canvas)
+  // Persistent fixed layer that lives behind the web UI. The web router shows,
+  // hides and positions this layer (see web/src/parcel.tsx). We no longer hijack
+  // <body> so web pages keep scrolling normally.
+  const worldLayer = document.createElement('div')
+  worldLayer.id = 'world-layer'
+  // z-index 2 so the world paints above static web content (matching the old
+  // magic-frame). The web router hides it on pure web pages.
+  worldLayer.style.cssText = 'position: fixed; inset: 0; z-index: 2;'
+  worldLayer.appendChild(canvas)
+  document.body.appendChild(worldLayer)
 
   try {
     var r = await fetch(process.env.ASSET_PATH + '/acknowtt.json')
@@ -376,6 +392,7 @@ declare global {
   function startUserInterface(grid: Grid, connector: Connector, environment: Environment, minimapSettings: MinimapSettings) {
     // start up the user interface
     const div = document.createElement('div')
+    div.id = 'world-ui'
     render(<UserInterface scene={scene} parent={controls.worldOffset} grid={grid} canvas={canvas} connector={connector} environment={environment} enabled={!wantsXR()} minimapSettings={minimapSettings} />, div)
     document.body.appendChild(div)
   }
@@ -405,4 +422,4 @@ declare global {
       })
     })
   }
-})()
+}

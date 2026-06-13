@@ -1,8 +1,8 @@
+import { h } from 'preact'
 import cache from '../cache'
 import { createRequestHandlerForQuery } from '../lib/query-helpers'
-import ClientRoot from '../../web/src/client-root'
 import JsonData from '../../web/src/components/json-data'
-import renderRoot from '../handlers/render-root'
+import renderComponent from '../handlers/render-component'
 import Space from '../space'
 import { ParcelContentRecord } from '../../common/messages/parcel'
 import { isLeft } from 'fp-ts/lib/Either'
@@ -146,10 +146,12 @@ export default function SpacesController(db: Db, passport: PassportStatic, app: 
     const title = `${space.name || 'My Space'} | Voxels Space`
     // .voxels is a getter, pulling from content, which does not work with ... spread syntax
     const summary = { ...space, voxels: space.voxels }
-    const html = (
-      <ClientRoot title={title} ogTitle={title} ogDescription="Visit this Voxels Space!">
+    // fastboot JSON in <head> (see play.tsx for why)
+    const head = (
+      <head>
+        <title>{title}</title>
         <JsonData id="space" data={summary} dataId={space.spaceId} />
-      </ClientRoot>
+      </head>
     )
 
     // todo - prevent multiple reloads updating visits unless different wallet or
@@ -168,7 +170,7 @@ export default function SpacesController(db: Db, passport: PassportStatic, app: 
       [id],
     )
 
-    res.send(renderRoot(html))
+    res.send(renderComponent(head))
   })
 
   app.get(

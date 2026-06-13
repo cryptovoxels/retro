@@ -5,6 +5,7 @@ const webpack = require('webpack')
 const webpackCommon = require('./webpack-common.config')
 const { merge } = require('webpack-merge')
 const CompressionPlugin = require('compression-webpack-plugin')
+const CircularDependencyPlugin = require('circular-dependency-plugin')
 const zlib = require('zlib')
 
 const opts = {
@@ -57,8 +58,16 @@ module.exports = (env, argv) => {
               options: opts,
             },
           ],
-          // The front-end web can depend on neither the client nor the server, even though they can both depend on web/
+          // The merged app bundle compiles both web/ and src/ (the client), but never the server.
           exclude: [path.resolve(__dirname, '../node_modules'), path.resolve(__dirname, '../server')],
+        },
+
+        // strip comments out of the shaders (client engine imports these)
+        {
+          test: /\.(vsh|fsh|fx)$/,
+          use: {
+            loader: 'strip-json-comments-loader',
+          },
         },
       ],
     },
@@ -82,7 +91,7 @@ module.exports = (env, argv) => {
       fullySpecified: false,
     },
     output: {
-      filename: `${BUILD_NUMBER}-web.js`,
+      filename: `${BUILD_NUMBER}-app.js`,
       path: path.resolve(__dirname, '../dist'),
     },
     plugins: [
@@ -90,6 +99,14 @@ module.exports = (env, argv) => {
         process: require.resolve('process/browser'),
         Buffer: ['buffer', 'Buffer'],
       }),
+      isProduction &&
+        new CircularDependencyPlugin({
+          exclude: /node_modules/,
+          // merging web + client may surface new cycles; warn instead of failing the build
+          failOnError: false,
+          allowAsyncCycles: true,
+          cwd: process.cwd(),
+        }),
       isProduction &&
         new CompressionPlugin({
           filename: '[path][base].gz',
