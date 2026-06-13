@@ -4,7 +4,7 @@ import LoadingPage from './loading-page'
 
 import { Component } from 'preact'
 import cachedFetch from '../src/helpers/cached-fetch'
-import { Client } from './parcel'
+import { Client } from './client'
 import { app } from './state'
 import { wompCache } from './store/index'
 import { AvatarLink } from './components/avatar-link'
