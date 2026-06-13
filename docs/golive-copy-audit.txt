@@ -1,0 +1,35 @@
+GO LIVE - HEADER AND BODY COPY
+=================================
+
+id: golive-out-h1
+current: Go live
+
+id: golive-out-lead
+current: Sign in so you can go live.
+
+id: golive-h1
+current: Go live
+
+id: golive-intro
+current: Your parcels with a Showbox
+
+id: golive-empty-has-parcels
+current: No Showbox found on your {N} parcel(s).
+
+id: golive-empty-no-parcels
+current: No parcels found for this wallet.
+
+id: golive-error
+current: Could not load your parcels.
+
+id: golive-parcel-link
+current: Go live
+
+id: broadcast-hint-host
+current: Tap go live when ready.
+
+id: broadcast-hint-cohost
+current: Co-host: go live when ready. Use headphones to reduce echo.
+
+id: broadcast-hint-guest
+current: You're joining as a guest at {parcelLabel}.

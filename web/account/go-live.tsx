@@ -5,7 +5,7 @@ import { SimpleParcelRecord } from '../../common/messages/parcel'
 import { Login } from '../src/auth/login'
 import cachedFetch from '../src/helpers/cached-fetch'
 import { Spinner } from '../src/spinner'
-import { app } from '../src/state'
+import { app, AppEvent } from '../src/state'
 import { fetchOptions } from '../src/utils'
 
 type ShowboxRow = {
@@ -80,32 +80,25 @@ function primaryShowbox(parcel: any): { uuid: string; position?: number[] | null
   return null
 }
 
-function goLiveIntro() {
-  return (
-    <p>
-      You need a showbox on land you own or can edit. Place one in the <a href="/account/parcels">parcel editor</a>, then come back here to go live.
-    </p>
-  )
-}
-
 export default function GoLive() {
-  if (!app.signedIn) {
-    return (
-      <section>
-        <h1>Go live</h1>
-        <p>Sign in to start streaming. Use the wallet that owns your parcel or can edit it — you need a showbox on that land.</p>
-        <Login hideHeading />
-      </section>
-    )
-  }
-
-  const wallet = app.wallet
+  const [signedIn, setSignedIn] = useState(app.signedIn)
   const [rows, setRows] = useState<ShowboxRow[] | null>(null)
   const [parcelCount, setParcelCount] = useState(0)
   const [error, setError] = useState('')
+  const wallet = app.wallet
 
   useEffect(() => {
-    if (!wallet) return
+    const sync = () => setSignedIn(app.signedIn)
+    app.on(AppEvent.Login, sync)
+    app.on(AppEvent.Logout, sync)
+    return () => {
+      app.removeListener(AppEvent.Login, sync)
+      app.removeListener(AppEvent.Logout, sync)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!signedIn || !wallet) return
     let dead = false
 
     const run = async () => {
@@ -153,7 +146,7 @@ export default function GoLive() {
           setRows(found)
         }
       } catch {
-        if (!dead) setError('could not load your parcels')
+        if (!dead) setError('Could not load your parcels.')
       }
     }
 
@@ -161,17 +154,27 @@ export default function GoLive() {
     return () => {
       dead = true
     }
-  }, [wallet])
+  }, [wallet, signedIn])
 
   useEffect(() => {
     if (rows?.length === 1) window.location.href = hostGoLiveHref(rows[0])
   }, [rows])
 
+  if (!signedIn) {
+    return (
+      <section>
+        <h1>Go live</h1>
+        <p>Sign in so you can go live.</p>
+        <Login hideHeading />
+      </section>
+    )
+  }
+
   if (rows === null) {
     return (
       <section>
         <h1>Go live</h1>
-        {goLiveIntro()}
+        <p>Your parcels with a Showbox</p>
         <Spinner size={24} />
       </section>
     )
@@ -181,7 +184,7 @@ export default function GoLive() {
     return (
       <section>
         <h1>Go live</h1>
-        {goLiveIntro()}
+        <p>Your parcels with a Showbox</p>
         <Spinner size={24} />
       </section>
     )
@@ -190,12 +193,9 @@ export default function GoLive() {
   return (
     <section>
       <h1>Go live</h1>
-      {goLiveIntro()}
-      <p>Pick a stage. Phone opens the camera dock; desktop lands you in-world at the showbox.</p>
+      <p>Your parcels with a Showbox</p>
       {error && <p>{error}</p>}
-      {rows.length === 0 && !error && (
-        <p>{parcelCount > 0 ? `Checked ${parcelCount} parcel${parcelCount === 1 ? '' : 's'} - no showbox found yet.` : 'No parcels on this account. Sign in with the wallet that owns or collaborates on the land.'}</p>
-      )}
+      {rows.length === 0 && !error && <p>{parcelCount > 0 ? `No Showbox found on your ${parcelCount} parcel${parcelCount === 1 ? '' : 's'}.` : 'No parcels found for this wallet.'}</p>}
       {rows.map((row) => (
         <section key={`${row.parcelId}-${row.featureUuid}`}>
           <h2>
