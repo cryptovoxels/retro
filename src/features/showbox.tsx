@@ -21,6 +21,7 @@ import { showboxAudioConstraints, showboxRoomHint, SHOWBOX_ROOM_OPTIONS, type Sh
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
+import { cohostPaneRects, MAX_COHOST_PANES } from '../../common/helpers/cohost-panes'
 import { encodeCoords } from '../../common/helpers/utils'
 import { ShowboxRecord } from '../../common/messages/feature'
 import { effect } from '@preact/signals'
@@ -389,16 +390,15 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   streamSpatialByEl = new Map<HTMLAudioElement, SpatialAudio>()
   streamVolumeInterval: ReturnType<typeof setInterval> | null = null
   hasActiveVideo = false
-  ownerVideoEl: HTMLVideoElement | null = null
-  guestVideoEl: HTMLVideoElement | null = null
+  // one pane per publisher: the editor anchor + up to 4 guests, in arrival order.
+  // 'local' is our own camera when broadcasting; remote publishers key by identity prefix.
+  cohostPanes: { key: string; el: HTMLVideoElement; hadFrame: boolean; editor: boolean }[] = []
   cohostLiveSince = 0
   cohostCanvas: HTMLCanvasElement | null = null
   cohostCompositeEl: HTMLVideoElement | null = null
   cohostCompositeRaf: number | null = null
   cohostMonitorEls: HTMLAudioElement[] = []
   cohostCompositeAttached = false
-  cohostOwnerHadFrame = false
-  cohostGuestHadFrame = false
   syncCohostPreview: (() => void) | null = null
   cohostCompositeRetryRaf: number | null = null
   milestonePollInterval: ReturnType<typeof setInterval> | null = null
@@ -1778,56 +1778,62 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       cancelAnimationFrame(this.cohostCompositeRaf)
       this.cohostCompositeRaf = null
     }
-    this.ownerVideoEl?.remove()
-    this.ownerVideoEl = null
-    this.guestVideoEl?.remove()
-    this.guestVideoEl = null
+    for (const p of this.cohostPanes) p.el.remove()
+    this.cohostPanes = []
     this.cohostCompositeEl?.remove()
     this.cohostCompositeEl = null
     this.cohostCanvas = null
     this.cohostCompositeAttached = false
-    this.cohostOwnerHadFrame = false
-    this.cohostGuestHadFrame = false
     this.syncCohostPreview = null
     this.clearCohostMonitor()
   }
 
+  cohostPaneFor(key: string) {
+    return this.cohostPanes.find((p) => p.key === key)
+  }
+
+  setCohostPane(key: string, el: HTMLVideoElement, editor: boolean) {
+    const existing = this.cohostPaneFor(key)
+    if (existing) {
+      if (existing.el !== el) {
+        existing.el.remove()
+        existing.el = el
+        existing.hadFrame = false
+      }
+      existing.editor = editor
+      return
+    }
+    // stage is full - everyone is still heard, but the screen caps at host + 4
+    if (this.cohostPanes.length >= MAX_COHOST_PANES) {
+      el.remove()
+      return
+    }
+    this.cohostPanes.push({ key, el, hadFrame: false, editor })
+  }
+
   drawCohostFrame() {
     if (!this.cohostCanvas) return false
-    const ownerEl = this.ownerVideoEl
-    const guestEl = this.guestVideoEl
-    if (ownerEl && !cohostVideoTrackLive(ownerEl)) this.cohostOwnerHadFrame = false
-    else if (cohostVideoReady(ownerEl)) this.cohostOwnerHadFrame = true
-    if (guestEl && !cohostVideoTrackLive(guestEl)) this.cohostGuestHadFrame = false
-    else if (cohostVideoReady(guestEl)) this.cohostGuestHadFrame = true
+    // mobile hidden videos flicker videoWidth - once a pane had frames it keeps its spot
+    for (const p of this.cohostPanes) {
+      if (!cohostVideoTrackLive(p.el)) p.hadFrame = false
+      else if (cohostVideoReady(p.el)) p.hadFrame = true
+    }
+    const visible = this.cohostPanes.filter((p) => p.hadFrame)
+    if (!visible.length) return false
 
-    const ownerDraw = this.cohostOwnerHadFrame && ownerEl
-    const guestDraw = this.cohostGuestHadFrame && guestEl
-    if (!ownerDraw && !guestDraw) return false
+    // host-anchored: the first editor with video is the big pane, guests fill the rest
+    const anchor = visible.find((p) => p.editor) ?? visible[0]
+    const ordered = [anchor, ...visible.filter((p) => p !== anchor)]
 
     const canvas = this.cohostCanvas
     const ctx = canvas.getContext('2d')!
-    const w = canvas.width
-    const h = canvas.height
     ctx.fillStyle = '#0d0d0d'
-    ctx.fillRect(0, 0, w, h)
-    const drawVid = (el: HTMLVideoElement, x: number, y: number, dw: number, dh: number) => {
-      if (el.videoWidth > 0) drawVideoCover(ctx, el, x, y, dw, dh)
-    }
-    // mobile hidden videos flicker videoWidth - once both slots had frames, stay split
-    if (ownerDraw && guestDraw) {
-      if (this.isPortraitScreen()) {
-        drawVid(ownerEl!, 0, 0, w, h / 2)
-        drawVid(guestEl!, 0, h / 2, w, h / 2)
-      } else {
-        drawVid(ownerEl!, 0, 0, w / 2, h)
-        drawVid(guestEl!, w / 2, 0, w / 2, h)
-      }
-    } else if (ownerDraw) {
-      drawVid(ownerEl!, 0, 0, w, h)
-    } else if (guestDraw) {
-      drawVid(guestEl!, 0, 0, w, h)
-    }
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    const rects = cohostPaneRects(ordered.length, canvas.width, canvas.height, this.isPortraitScreen())
+    ordered.forEach((p, i) => {
+      const r = rects[i]
+      if (r && p.el.videoWidth > 0) drawVideoCover(ctx, p.el, r.x, r.y, r.w, r.h)
+    })
     return true
   }
 
@@ -1856,19 +1862,13 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     document.body.appendChild(el)
     el.play().catch(() => {})
     el.addEventListener('loadeddata', () => this.updateCohostComposite(), { once: true })
-    if (isGuestForShowbox(this.uuid)) {
-      if (this.guestVideoEl !== el) this.guestVideoEl?.remove()
-      this.guestVideoEl = el
-    } else {
-      if (this.ownerVideoEl !== el) this.ownerVideoEl?.remove()
-      this.ownerVideoEl = el
-    }
+    this.setCohostPane('local', el, !isGuestForShowbox(this.uuid))
   }
 
   syncBroadcastVideoFromTrack(track: any) {
     if (!track) return
     if (this.isCohostMode()) {
-      const el = isGuestForShowbox(this.uuid) ? this.guestVideoEl : this.ownerVideoEl
+      const el = this.cohostPaneFor('local')?.el ?? null
       syncVideoElFromTrack(el, track)
       el?.addEventListener('loadeddata', () => this.updateCohostComposite(), { once: true })
       this.updateCohostComposite()
@@ -1909,7 +1909,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     // A guest who just went live is waiting on the host's video. Show a connecting card instead of
     // a half-empty composite, but only briefly - after the grace window we show whatever we have.
-    const waitingForHost = !!this.broadcastRoom && !this.cohostCompositeAttached && isGuestForShowbox(this.uuid) && !cohostVideoReady(this.ownerVideoEl) && Date.now() - this.cohostLiveSince < COHOST_CONNECT_GRACE_MS
+    const waitingForHost = !!this.broadcastRoom && !this.cohostCompositeAttached && isGuestForShowbox(this.uuid) && !this.cohostPanes.some((p) => p.editor && cohostVideoReady(p.el)) && Date.now() - this.cohostLiveSince < COHOST_CONNECT_GRACE_MS
     if (waitingForHost) {
       this.setCohostConnecting()
       return
@@ -1980,11 +1980,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   routeCohostVideo(track: any, identity: string) {
+    const key = cohostIdentityPrefix(identity)
+    // our own published video echoes back through the viewer room - the 'local' pane already has us
+    const myPub = this.broadcastRoom ? cohostIdentityPrefix((this.broadcastRoom as any).localParticipant.identity) : null
+    if (myPub && key === myPub) return
     const mst = track?.mediaStreamTrack as MediaStreamTrack | undefined
-    const isGuest = this.isGuestPublisherIdentity(identity)
-    const slot = isGuest ? this.guestVideoEl : this.ownerVideoEl
-    if (slot && mst) {
-      const cur = slot.srcObject instanceof MediaStream ? slot.srcObject.getVideoTracks()[0] : null
+    const existing = this.cohostPaneFor(key)
+    if (existing && mst) {
+      const cur = existing.el.srcObject instanceof MediaStream ? existing.el.srcObject.getVideoTracks()[0] : null
       if (cur === mst) return
     }
     const el = track.attach() as HTMLVideoElement
@@ -1995,27 +1998,16 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     document.body.appendChild(el)
     el.play().catch(() => {})
     el.addEventListener('loadeddata', () => this.updateCohostComposite(), { once: true })
-
-    if (isGuest) {
-      if (this.guestVideoEl !== el) this.guestVideoEl?.remove()
-      this.guestVideoEl = el
-    } else {
-      if (this.ownerVideoEl !== el) this.ownerVideoEl?.remove()
-      this.ownerVideoEl = el
-    }
+    this.setCohostPane(key, el, !this.isGuestPublisherIdentity(identity))
     this.updateCohostComposite()
   }
 
   clearCohostVideoForIdentity(identity: string) {
-    if (this.isGuestPublisherIdentity(identity)) {
-      this.guestVideoEl?.remove()
-      this.guestVideoEl = null
-      this.cohostGuestHadFrame = false
-    } else {
-      this.ownerVideoEl?.remove()
-      this.ownerVideoEl = null
-      this.cohostOwnerHadFrame = false
-    }
+    const key = cohostIdentityPrefix(identity)
+    const i = this.cohostPanes.findIndex((p) => p.key === key)
+    if (i < 0) return
+    this.cohostPanes[i].el.remove()
+    this.cohostPanes.splice(i, 1)
   }
 
   shouldBeInteractive(): boolean {

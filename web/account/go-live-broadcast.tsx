@@ -20,6 +20,7 @@ import {
 import { showboxAudioConstraints, showboxRoomHint, SHOWBOX_ROOM_OPTIONS, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
 import { isMobile } from '../../common/helpers/detector'
 import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
+import { cohostPaneRects, MAX_COHOST_PANES } from '../../common/helpers/cohost-panes'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery } from '../../common/helpers/parcel-helper'
 import { avatarName } from '../../common/messages/avatar-ref'
 import { Login } from '../src/auth/login'
@@ -257,13 +258,13 @@ function parcelFeature(parcel: any, showUuid: string) {
   return list.find((f: any) => f?.uuid?.toLowerCase() === showUuid.toLowerCase())
 }
 
+type CohostPane = { key: string; el: HTMLVideoElement; hadFrame: boolean; editor: boolean }
+
 type CohostBag = {
-  ownerVideoEl: HTMLVideoElement | null
-  guestVideoEl: HTMLVideoElement | null
+  // one pane per publisher: 'local' is our camera, remotes key by identity prefix
+  panes: CohostPane[]
   cohostCanvas: HTMLCanvasElement | null
   cohostMonitorEls: HTMLAudioElement[]
-  cohostOwnerHadFrame: boolean
-  cohostGuestHadFrame: boolean
   cohostCompositeRaf: number | null
   cohostCompositeRetryRaf: number | null
   editorWallets: string[]
@@ -313,44 +314,58 @@ function shouldPlayCohostAudio(bag: CohostBag, broadcastRoom: Room | null, viewe
   return theirs !== myPub && theirs !== mySub
 }
 
-function shouldRouteCohostVideo(bag: CohostBag, broadcastRoom: Room | null, viewerRoom: Room | null, participantIdentity: string) {
-  if (!shouldPlayCohostAudio(bag, broadcastRoom, viewerRoom, participantIdentity)) return false
-  // the composite has exactly two panes (owner + guest). only the opposite camp's video routes -
-  // a second editor's video would stomp the local pane.
-  if (bag.isGuest) return !isGuestPublisherIdentity(bag, participantIdentity)
-  return isGuestPublisherIdentity(bag, participantIdentity)
+function cohostPaneFor(bag: CohostBag, key: string) {
+  return bag.panes.find((p) => p.key === key)
+}
+
+function setCohostPane(bag: CohostBag, key: string, el: HTMLVideoElement, editor: boolean) {
+  const existing = cohostPaneFor(bag, key)
+  if (existing) {
+    if (existing.el !== el) {
+      silenceMediaEl(existing.el)
+      existing.el = el
+      existing.hadFrame = false
+    }
+    existing.editor = editor
+    return
+  }
+  // the dock has no unsubscribe cleanup - evict a dead pane before refusing a live one
+  if (bag.panes.length >= MAX_COHOST_PANES) {
+    const dead = bag.panes.findIndex((p) => !cohostVideoTrackLive(p.el))
+    if (dead < 0) {
+      // stage is full - everyone is still heard, but the preview caps at host + 4
+      silenceMediaEl(el)
+      return
+    }
+    silenceMediaEl(bag.panes[dead].el)
+    bag.panes.splice(dead, 1)
+  }
+  bag.panes.push({ key, el, hadFrame: false, editor })
 }
 
 function drawCohostFrame(bag: CohostBag) {
   if (!bag.cohostCanvas) return false
-  const ownerEl = bag.ownerVideoEl
-  const guestEl = bag.guestVideoEl
-  if (ownerEl && !cohostVideoTrackLive(ownerEl)) bag.cohostOwnerHadFrame = false
-  else if (cohostVideoReady(ownerEl)) bag.cohostOwnerHadFrame = true
-  if (guestEl && !cohostVideoTrackLive(guestEl)) bag.cohostGuestHadFrame = false
-  else if (cohostVideoReady(guestEl)) bag.cohostGuestHadFrame = true
+  // mobile hidden videos flicker videoWidth - once a pane had frames it keeps its spot
+  for (const p of bag.panes) {
+    if (!cohostVideoTrackLive(p.el)) p.hadFrame = false
+    else if (cohostVideoReady(p.el)) p.hadFrame = true
+  }
+  const visible = bag.panes.filter((p) => p.hadFrame)
+  if (!visible.length) return false
 
-  const ownerDraw = bag.cohostOwnerHadFrame && ownerEl
-  const guestDraw = bag.cohostGuestHadFrame && guestEl
-  if (!ownerDraw && !guestDraw) return false
+  // host-anchored: the first editor with video is the big pane, guests fill the rest
+  const anchor = visible.find((p) => p.editor) ?? visible[0]
+  const ordered = [anchor, ...visible.filter((p) => p !== anchor)]
 
   const canvas = bag.cohostCanvas
   const ctx = canvas.getContext('2d')!
-  const w = canvas.width
-  const h = canvas.height
   ctx.fillStyle = '#0d0d0d'
-  ctx.fillRect(0, 0, w, h)
-  const drawVid = (el: HTMLVideoElement, x: number, dw: number) => {
-    if (el.videoWidth > 0) ctx.drawImage(el, x, 0, dw, h)
-  }
-  if (ownerDraw && guestDraw) {
-    drawVid(ownerEl!, 0, w / 2)
-    drawVid(guestEl!, w / 2, w / 2)
-  } else if (ownerDraw) {
-    drawVid(ownerEl!, 0, w)
-  } else if (guestDraw) {
-    drawVid(guestEl!, 0, w)
-  }
+  ctx.fillRect(0, 0, canvas.width, canvas.height)
+  const rects = cohostPaneRects(ordered.length, canvas.width, canvas.height, false)
+  ordered.forEach((p, i) => {
+    const r = rects[i]
+    if (r && p.el.videoWidth > 0) ctx.drawImage(p.el, r.x, r.y, r.w, r.h)
+  })
   return true
 }
 
@@ -406,9 +421,9 @@ function routeCohostVideo(
   viewerRoom: Room | null,
   onRemote?: () => void,
 ) {
-  if (!shouldRouteCohostVideo(bag, broadcastRoom, viewerRoom, identity)) return
+  // same self/non-self gate as audio: every other publisher gets a pane
+  if (!shouldPlayCohostAudio(bag, broadcastRoom, viewerRoom, identity)) return
   onRemote?.()
-  const isGuest = isGuestPublisherIdentity(bag, identity)
   const el = track.attach() as HTMLVideoElement
   el.muted = true
   el.playsInline = true
@@ -417,13 +432,7 @@ function routeCohostVideo(
   document.body.appendChild(el)
   el.play().catch(() => {})
   el.addEventListener('loadeddata', () => updateCohostComposite(bag), { once: true })
-  if (isGuest) {
-    silenceMediaEl(bag.guestVideoEl)
-    bag.guestVideoEl = el
-  } else {
-    silenceMediaEl(bag.ownerVideoEl)
-    bag.ownerVideoEl = el
-  }
+  setCohostPane(bag, cohostIdentityPrefix(identity), el, !isGuestPublisherIdentity(bag, identity))
   updateCohostComposite(bag)
 }
 
@@ -452,13 +461,7 @@ function wireLocalCohostVideo(bag: CohostBag, el: HTMLVideoElement) {
   el.style.display = 'none'
   document.body.appendChild(el)
   el.play().catch(() => {})
-  if (bag.isGuest) {
-    silenceMediaEl(bag.guestVideoEl)
-    bag.guestVideoEl = el
-  } else {
-    silenceMediaEl(bag.ownerVideoEl)
-    bag.ownerVideoEl = el
-  }
+  setCohostPane(bag, 'local', el, !bag.isGuest)
   updateCohostComposite(bag)
 }
 
@@ -467,11 +470,9 @@ function stopCohost(bag: CohostBag) {
   if (bag.cohostCompositeRetryRaf) cancelAnimationFrame(bag.cohostCompositeRetryRaf)
   bag.cohostCompositeRaf = null
   bag.cohostCompositeRetryRaf = null
-  silenceMediaEl(bag.ownerVideoEl)
-  silenceMediaEl(bag.guestVideoEl)
+  for (const p of bag.panes) silenceMediaEl(p.el)
+  bag.panes = []
   for (const el of bag.cohostMonitorEls) silenceMediaEl(el)
-  bag.ownerVideoEl = null
-  bag.guestVideoEl = null
   bag.cohostCanvas = null
   bag.cohostMonitorEls = []
 }
@@ -923,8 +924,7 @@ export default function GoLiveBroadcast() {
     syncPreviewVideo(vt)
     if (isCohost && cohostBag.current && !remoteCohostLive) {
       const bag = cohostBag.current
-      const slot = bag.isGuest ? bag.guestVideoEl : bag.ownerVideoEl
-      if (!slot) wireLocalCohostVideo(bag, vt.attach() as HTMLVideoElement)
+      if (!cohostPaneFor(bag, 'local')) wireLocalCohostVideo(bag, vt.attach() as HTMLVideoElement)
     }
     startThumb(previewVideo.current)
     const el = previewVideo.current
@@ -1230,8 +1230,7 @@ export default function GoLiveBroadcast() {
     const bag = cohostBag.current
     const vt = liveVideoTrack.current
     if (bag && vt) {
-      const localSlot = bag.isGuest ? bag.guestVideoEl : bag.ownerVideoEl
-      if (!localSlot) wireLocalCohostVideo(bag, vt.attach() as HTMLVideoElement)
+      if (!cohostPaneFor(bag, 'local')) wireLocalCohostVideo(bag, vt.attach() as HTMLVideoElement)
       updateCohostComposite(bag)
       startThumb(null)
     }
@@ -1429,12 +1428,9 @@ export default function GoLiveBroadcast() {
 
       if (isCohost) {
         cohostBag.current = {
-          ownerVideoEl: null,
-          guestVideoEl: null,
+          panes: [],
           cohostCanvas: null,
           cohostMonitorEls: [],
-          cohostOwnerHadFrame: false,
-          cohostGuestHadFrame: false,
           cohostCompositeRaf: null,
           cohostCompositeRetryRaf: null,
           editorWallets: parcelEditorWallets(parcel),
