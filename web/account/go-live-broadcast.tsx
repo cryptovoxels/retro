@@ -17,6 +17,7 @@ import {
   saveShowboxPublisherIdentity,
   showboxTokenUrlWithIdentity,
 } from '../../common/helpers/showbox-broadcast-health'
+import { drawVideoCover } from '../../common/helpers/draw-video-cover'
 import { showboxAudioConstraints, showboxRoomHint, SHOWBOX_ROOM_OPTIONS, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
 import { isMobile } from '../../common/helpers/detector'
 import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
@@ -362,7 +363,7 @@ function drawCohostFrame(bag: CohostBag) {
   const rects = cohostPaneRects(ordered.length, canvas.width, canvas.height, false)
   ordered.forEach((p, i) => {
     const r = rects[i]
-    if (r && p.el.videoWidth > 0) ctx.drawImage(p.el, r.x, r.y, r.w, r.h)
+    if (r && p.el.videoWidth > 0) drawVideoCover(ctx, p.el, r.x, r.y, r.w, r.h)
   })
   return true
 }
@@ -903,9 +904,9 @@ export default function GoLiveBroadcast() {
       try {
         if (isCohost && cohostBag.current?.cohostCanvas) {
           if (!drawCohostFrame(cohostBag.current)) return
-          ctx.drawImage(cohostBag.current.cohostCanvas, 0, 0, 256, 144)
+          drawVideoCover(ctx, cohostBag.current.cohostCanvas, 0, 0, 256, 144)
         } else if (videoEl && videoEl.videoWidth > 0) {
-          ctx.drawImage(videoEl, 0, 0, 256, 144)
+          drawVideoCover(ctx, videoEl, 0, 0, 256, 144)
         } else return
         const thumbnail = canvas.toDataURL('image/jpeg', 0.2)
         fetch(`/api/rooms/${roomName}/thumbnail`, {
