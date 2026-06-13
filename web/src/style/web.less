@@ -238,6 +238,40 @@ header nav img.logo {
       text-align: left;
     }
   }
+
+  footer nav {
+    position: relative;
+
+    &::after {
+      content: '';
+      position: absolute;
+      right: 0;
+      top: 0;
+      bottom: 0;
+      width: 2.5rem;
+      background: linear-gradient(to right, rgba(13, 13, 13, 0), #0d0d0d);
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    ul {
+      width: 100%;
+      overflow-x: auto;
+      flex-wrap: nowrap;
+      justify-content: flex-start;
+      scrollbar-width: none;
+      -ms-overflow-style: none;
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
+    }
+
+    li {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+  }
 }
 
 @media @pc {
