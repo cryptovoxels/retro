@@ -112,7 +112,7 @@ const Main = () => {
 
   return (
     <MainApp>
-      <main class={lightBroadcast ? 'showbox-light-shell' : 'container-fluid'}>
+      <main class={lightBroadcast ? 'showbox-light-shell' : ''}>
         {!lightBroadcast && !fullWorld && <WebHeader path={currentPath} />}
 
         <Router onChange={handleRoute}>

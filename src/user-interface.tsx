@@ -1,6 +1,7 @@
 import type { Signal } from '@preact/signals'
 import { effect } from '@preact/signals'
 import { Component, createRef, Fragment, h } from 'preact'
+import { route } from 'preact-router'
 import { isMobileMedia } from '../common/helpers/detector'
 import { exitPointerLock, hasPointerLock, requestPointerLock } from '../common/helpers/ui-helpers'
 import { onBeginUpload, onCompleteUpload, onFailUpload } from '../common/helpers/upload-media'
@@ -375,7 +376,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         { code: 'KeyG', handleEvent: () => this.setPane('emote') },
         { code: 'KeyZ', handleEvent: () => this.connector.controls.toggleZoom() },
         { code: 'Enter', handleEvent: this.focusChat },
-        { code: 'Escape', handleEvent: () => this.closeInteractOverlay() },
+        { code: 'Escape', handleEvent: () => this.onEscape() },
         {
           code: 'Tab',
           handleEvent: (e) => {
@@ -457,6 +458,20 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   closeInteractOverlay() {
     this.setState({ pane: undefined, active: false })
+  }
+
+  // the one ESC: leave fullscreen/theatre. two-step -- a locked pointer eats the
+  // first ESC (browser releases it), the next ESC exits /play back to the parcel.
+  onEscape() {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen()
+      return
+    }
+    if (document.pointerLockElement) return
+    if (!location.pathname.endsWith('/play')) return
+    const id = this.grid?.currentParcel()?.id
+    const coords = new URLSearchParams(location.search).get('coords') || ''
+    route(id ? `/parcels/${id}?coords=${coords}` : '/parcels')
   }
 
   focusChat = (e: KeyboardEvent) => {

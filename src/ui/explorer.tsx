@@ -164,10 +164,6 @@ export class ExplorerUI extends Component<Props, State> {
     requestPointerLockIfNoOverlays()
   }
 
-  handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') this.close() //TODO: closeWithPointerLock() here loses the pointer lock immediately -- other Esc handling?
-  }
-
   async setTab(tab: Tab, subTab?: ParcelsSubTab) {
     console.debug('setTab', tab, subTab)
     await new Promise<void>((resolve) =>

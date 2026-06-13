@@ -1,4 +1,5 @@
 import { Component, createRef } from 'preact'
+import { route } from 'preact-router'
 import { canUseDom } from '../../common/helpers/utils'
 
 // Lazily evaluate the engine. Dynamic import keeps src/** out of the SSR import
@@ -25,6 +26,8 @@ type FrameState = {}
 export class Client extends Component<FrameProps, FrameState> {
   box = createRef<HTMLDivElement>()
   observer: ResizeObserver | null = null
+  watch: ReturnType<typeof setInterval> | null = null
+  skipNaviport = false
   static parcelId: number | null = null
 
   // peek = web view: hide the in-world UI chrome (chat/minimap/toolbelt). full = /play.
@@ -49,6 +52,11 @@ export class Client extends Component<FrameProps, FrameState> {
   componentDidUpdate(previousProps: Readonly<FrameProps>): void {
     if (this.props.parcelId != Client.parcelId || this.props.coords != previousProps.coords) {
       Client.parcelId = this.props.parcelId!
+      // a parcel change we triggered ourselves by walking -- update the chrome, don't yank the camera
+      if (this.skipNaviport) {
+        this.skipNaviport = false
+        return
+      }
       this.naviport()
     }
   }
@@ -56,6 +64,8 @@ export class Client extends Component<FrameProps, FrameState> {
   componentWillUnmount() {
     this.observer?.disconnect()
     this.observer = null
+    if (this.watch) clearInterval(this.watch)
+    this.watch = null
 
     // only park the canvas if we still own it (a newly-mounted Client may have
     // already adopted it during the route transition).
@@ -83,6 +93,19 @@ export class Client extends Component<FrameProps, FrameState> {
 
     Client.syncUiMode(!this.props.full)
     this.naviport()
+
+    // while embedded on a parcel page, reflect the parcel you walk into into the URL.
+    // route() re-renders <Parcel> -> its componentDidUpdate refetches the aside/header.
+    if (this.watch) clearInterval(this.watch)
+    this.watch = setInterval(() => {
+      if (!location.pathname.startsWith('/parcels/')) return
+      const id = window.grid?.currentParcel()?.id
+      if (id && id !== this.props.parcelId) {
+        this.skipNaviport = true
+        const coords = new URLSearchParams(location.search).get('coords') || ''
+        route(`/parcels/${id}?coords=${coords}`, true)
+      }
+    }, 200)
   }
 
   // teleport once the engine is up
