@@ -4326,7 +4326,7 @@ class Editor extends FeatureEditor<Showbox> {
           )}
           {!isMirror && (
             <div className="f">
-              <label>screen shape</label>
+              <label>Screen shape</label>
               <div>
                 <label>
                   <input type="radio" name="screenShape" checked={this.state.screenShape === 'landscape'} onChange={() => this.setState({ screenShape: 'landscape' })} />
@@ -4337,7 +4337,6 @@ class Editor extends FeatureEditor<Showbox> {
                   portrait
                 </label>
               </div>
-              <small>portrait fits phone video better. co-host stacks top and bottom on portrait screens.</small>
             </div>
           )}
           <Advanced>
@@ -4551,9 +4550,9 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
 
     return (
       <div className="f">
-        <label>Go live</label>
+        <label>Go Live</label>
         <small>
-          To stream from this showbox, go to <a href="/golive">/golive</a> and sign in with the wallet that owns or edits this parcel.
+          From anywhere. <a href="/golive">http://voxels.com/golive</a>
         </small>
 
         <label>Co-host link</label>
@@ -4582,16 +4581,13 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
                   {!!p.name?.trim() && <label>{p.name.trim()}</label>}
                   <input type="text" readOnly value={this.liveUrl(p.token)} onClick={(e) => (e.currentTarget as HTMLInputElement).select()} style={mobile ? { fontSize: '16px', minHeight: '44px' } : undefined} />
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem', flexDirection: mobile ? 'column' : 'row', marginBottom: '0.5rem' }}>
-                  <button type="button" style={mobile ? { minHeight: '44px', width: '100%' } : undefined} onClick={() => this.copy(this.liveUrl(p.token))}>
-                    copy
-                  </button>
-                  {canManage && (
-                    <button type="button" style={mobile ? { minHeight: '44px', width: '100%' } : undefined} onClick={() => this.revoke(p.token)}>
+                {canManage && (
+                  <div style={{ marginBottom: '0.5rem' }}>
+                    <button type="button" style={mobile ? { minHeight: '44px' } : undefined} onClick={() => this.revoke(p.token)}>
                       revoke
                     </button>
-                  )}
-                </div>
+                  </div>
+                )}
                 <div className="f">
                   <label>Guest mode</label>
                   <div>
@@ -4599,12 +4595,10 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
                       <input type="radio" name="guestMode" checked={this.props.guestMode === 'cohost'} onChange={() => this.props.onGuestModeChange('cohost')} />
                       Co-host
                     </label>
-                    <small>Host + guest can both go live. Split screen when both are live.</small>
                     <label>
                       <input type="radio" name="guestMode" checked={this.props.guestMode === 'solo'} onChange={() => this.props.onGuestModeChange('solo')} />
                       Guest only
                     </label>
-                    <small>Guest takes the full screen. Best for DJ sets or artist handoffs.</small>
                   </div>
                 </div>
               </div>
