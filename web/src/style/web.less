@@ -1685,3 +1685,129 @@ table.spaces {
     }
   }
 }
+
+// ============================================================
+// QUICK HACK: skin the whole site like the showbox dock.
+// Just the primitives (bg / colors / fonts / gaps / borders).
+// Not production ready. Delete this block to revert.
+// ============================================================
+
+:root {
+  --border: 1px solid #333;
+  --softborder: 1px solid #333;
+  --soft: #888;
+}
+
+body {
+  background: #0d0d0d;
+  color: #f5f5f0;
+  font-family: 'Source Code Pro', monospace;
+}
+
+a {
+  color: #f5f5f0;
+}
+
+a:hover {
+  color: #dc1e1e;
+}
+
+a.buttonish {
+  color: #f5f5f0;
+}
+
+// red splash: active nav + selected sidebar items
+a.active,
+.columns.nav li[aria-selected='true'] a,
+header nav a.active {
+  color: #dc1e1e;
+}
+
+header,
+footer nav ul {
+  background: #0d0d0d;
+}
+
+header nav ul {
+  background: #0d0d0d;
+}
+
+main,
+article {
+  background: #0d0d0d;
+}
+
+// flat, higher-contrast buttons: kill the bevel, brighter face + border
+button,
+a.buttonish {
+  background: #222;
+  color: #f5f5f0;
+  border: 1px solid #555;
+  border-radius: 0;
+  box-shadow: none;
+
+  &:hover {
+    background: #dc1e1e;
+    border-color: #dc1e1e;
+    color: #fff;
+  }
+
+  &[disabled] {
+    color: #f5f5f066;
+  }
+}
+
+// primary action: solid red, flat
+button[type='submit'],
+button.primary,
+button.big-play {
+  background: #dc1e1e;
+  border-color: #dc1e1e;
+  color: #fff;
+
+  &:hover {
+    background: #fff;
+    border-color: #fff;
+    color: #0d0d0d;
+  }
+}
+
+input[type='text'],
+input[type='number'],
+input[type='email'],
+textarea,
+select {
+  background: #1a1a1a;
+  color: #f5f5f0;
+  border: 1px solid #333;
+}
+
+table th,
+table td {
+  border-bottom: 1px solid #333;
+}
+
+footer p,
+small,
+.login-hint,
+.account-welcome-msg {
+  color: #888;
+}
+
+.upload-button {
+  background: #1a1a1a;
+}
+
+// active view toggle (figcaption) gets the red, not white
+figcaption button[data-active='true'] {
+  background: #dc1e1e;
+  border-color: #dc1e1e;
+  color: #fff;
+}
+
+menu.context,
+.parcel-field ul {
+  background: #1a1a1a;
+  color: #f5f5f0;
+  border-color: #333;
+}
