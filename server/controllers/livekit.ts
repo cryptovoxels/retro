@@ -184,7 +184,10 @@ export default async function LivekitController(db: Db, passport: PassportStatic
     } else if (canPublish && guestPassToken) {
       // signed-in (non-editor) guests have no session wallet - their real wallet is the session,
       // so two signed-in users on the same link don't collide either
-      const w = wallet.replace(/[^a-zA-Z0-9]/g, '').slice(-6).toLowerCase()
+      const w = wallet
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .slice(-6)
+        .toLowerCase()
       identityPrefix = `guest-${guestPassToken.slice(0, 12)}` + (w ? `-${w}` : '')
     }
     const reuseIdentity = String(req.query.identity ?? '').trim()

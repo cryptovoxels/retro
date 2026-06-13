@@ -171,9 +171,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
     }
     if (!allowed) return res.status(403).json({ success: false, error: 'No permission to broadcast here' })
 
-    const patch: Record<string, unknown> = live
-      ? { [feature.uuid]: { live: 1 }, __showbox_live: feature.uuid }
-      : { [feature.uuid]: {}, __showbox_live: null }
+    const patch: Record<string, unknown> = live ? { [feature.uuid]: { live: 1 }, __showbox_live: feature.uuid } : { [feature.uuid]: {}, __showbox_live: null }
 
     try {
       await gridSocket.publishParcelStatePatch(parcelId, patch)

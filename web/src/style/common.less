@@ -14,8 +14,11 @@
 @import 'fields/fields.less';
 
 :root {
-  --semi: #2225;
-  --bright: #f3f3f3;
+  // showbox skin primitives (in-world panels read these)
+  --semi: rgba(13, 13, 13, 0.85);
+  --bright: #f5f5f0;
+  --dark: #0d0d0d;
+  --tinge: #1a1a1a;
 }
 
 * {
@@ -170,18 +173,22 @@ p {
   line-height: 1.5em;
 }
 
-// Button in overlays
+// Button in overlays - flat showbox skin
 .roundedButton {
   padding: 4px 8px;
   margin-right: 8px;
-  background: #aaa;
+  background: #222;
+  color: #f5f5f0;
   font: inherit;
   font-size: smaller;
-  border-radius: 4px;
-  border: none;
+  border-radius: 0;
+  border: 1px solid #555;
   cursor: pointer;
 
   &:hover {
+    background: #dc1e1e;
+    border-color: #dc1e1e;
+    color: #fff;
   }
 
   &[disabled] {
@@ -189,7 +196,9 @@ p {
     cursor: not-allowed;
 
     &:hover {
-      background: #aaa;
+      background: #222;
+      border-color: #555;
+      color: #f5f5f0;
     }
   }
 }
@@ -506,11 +515,10 @@ button.play-now,
 a.play-now,
 a.xr-now {
   cursor: pointer;
-  border-radius: 4px;
-  border: black solid 2px;
-  background-size: 200% 200%;
-  background-position: 0 100%;
-  background-color: #55278c;
+  border-radius: 0;
+  border: 1px solid #dc1e1e;
+  background: #dc1e1e;
+  color: #fff;
   white-space: nowrap;
   text-align: center;
 
@@ -524,12 +532,9 @@ a.xr-now {
   text-decoration: none !important;
 
   &:hover {
-    background: linear-gradient(45deg, #ae2dde, #4283df, #d13465);
-    background-size: 400% 400%;
-    -webkit-animation: button-rainbow-hover 1.5s ease infinite;
-    animation: button-rainbow-hover 1.5s ease infinite;
-    animation-fill-mode: forwards;
-    color: white !important;
+    background: #fff;
+    border-color: #fff;
+    color: #0d0d0d !important;
   }
 }
 
@@ -544,7 +549,6 @@ a.play-now {
 a.xr-now {
   flex: 0.2;
   margin-left: 4px;
-  background: linear-gradient(-42deg, #d13465, #ae2dde, #4283df);
 
   img {
     width: 1rem;
@@ -605,55 +609,8 @@ a.xr-now {
   }
 
   .add-colors:hover {
-    background: linear-gradient(339deg, #ff0000, #ffe300, #02ff00, #00fdff, #1c00ff, #fd00ff, #ff0000);
-    background-size: 1400% 1400%;
-    color: black;
-
-    -webkit-animation: ColorRoll 4s ease infinite;
-    -moz-animation: ColorRoll 4s ease infinite;
-    animation: ColorRoll 4s ease infinite;
-
-    @-webkit-keyframes ColorRoll {
-      0% {
-        background-position: 14% 0;
-      }
-
-      50% {
-        background-position: 87% 100%;
-      }
-
-      100% {
-        background-position: 14% 0;
-      }
-    }
-
-    @-moz-keyframes ColorRoll {
-      0% {
-        background-position: 14% 0;
-      }
-
-      50% {
-        background-position: 87% 100%;
-      }
-
-      100% {
-        background-position: 14% 0;
-      }
-    }
-
-    @keyframes ColorRoll {
-      0% {
-        background-position: 14% 0;
-      }
-
-      50% {
-        background-position: 87% 100%;
-      }
-
-      100% {
-        background-position: 14% 0;
-      }
-    }
+    background: #dc1e1e;
+    color: #fff;
   }
 
   div.BuildTab {
