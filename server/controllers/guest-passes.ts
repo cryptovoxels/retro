@@ -12,6 +12,7 @@ import { VoxelsUserRequest } from '../user'
 import { RoomServiceClient } from 'livekit-server-sdk'
 import log from '../lib/logger'
 import type GridSocket from '../grid/GridSocket'
+import { noCache } from '../cache'
 
 const JWT_SECRET = process.env.JWT_SECRET || 'secret'
 const JWT_SECRET_KEY = new TextEncoder().encode(JWT_SECRET)
@@ -37,11 +38,12 @@ function isMobileUserAgent(ua: string): boolean {
   return /mobile|android|iphone|ipad|ipod/i.test(ua)
 }
 
-// Link unfurl bots only. In-app browsers (WhatsApp, Discord, etc) still send Chrome/Safari.
+// Link unfurl bots only - not in-app browsers (WhatsApp iOS often has WhatsApp/ but no Safari/).
 function isLinkPreviewBot(ua: string): boolean {
   if (!ua) return false
-  if (/facebookexternalhit|Facebot|Twitterbot|Slackbot|Discordbot|TelegramBot|LinkedInBot|Googlebot|Applebot|bingbot|crawler|spider|curl\/|wget\//i.test(ua)) return true
-  if (/WhatsApp\//i.test(ua) && !/(Chrome|CriOS|Safari|Firefox|FxiOS|Edg)\//i.test(ua)) return true
+  if (/facebookexternalhit|Facebot|Twitterbot|Slackbot|Discordbot|TelegramBot|LinkedInBot|Googlebot|Applebot|bingbot/i.test(ua)) return true
+  if (/^WhatsApp\//i.test(ua)) return true
+  if (/^curl\/|^wget\//i.test(ua)) return true
   return false
 }
 
@@ -444,6 +446,7 @@ export default function GuestPassesController(db: Db, passport: PassportStatic, 
   app.get('/live/:token', async (req, res) => {
     const token = String(req.params.token)
     const light = req.query.light === '1'
+    noCache(res)
     try {
       const pass = await loadGuestPass(db, token)
       if (!pass || pass.revoked_at) {
