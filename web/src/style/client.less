@@ -55,15 +55,6 @@
   border-radius: 6px;
 }
 
-a {
-  text-decoration: none;
-  color: white;
-
-  &:hover {
-    text-decoration: underline;
-  }
-}
-
 .no-touch {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -207,7 +198,7 @@ aside {
     .active u {
       text-decoration: underline;
       font-weight: bold;
-      color: #dc1e1e;
+      color: var(--red);
     }
   }
 
@@ -493,7 +484,7 @@ dialog.editor {
       margin: 0 0.4rem 0 0;
 
       &.active {
-        color: #dc1e1e;
+        color: var(--red);
         font-weight: bold;
       }
     }
@@ -762,8 +753,8 @@ dialog ul.toolbar {
     margin-left: 2px;
 
     &:hover {
-      background: #dc1e1e;
-      border-color: #dc1e1e;
+      background: var(--red);
+      border-color: var(--red);
       color: #fff;
     }
   }
@@ -774,7 +765,7 @@ section.build-tab nav.build-main-tabs {
   display: flex;
   padding: 8px;
   margin-bottom: 4px;
-  background-color: @editorBackground;
+  background-color: #0d0d0d;
 
   div.separator {
     width: 1px;
@@ -1375,8 +1366,8 @@ aside .login a.button {
     }
 
     &:hover {
-      background: #dc1e1e;
-      border-color: #dc1e1e;
+      background: var(--red);
+      border-color: var(--red);
     }
   }
 
@@ -1451,7 +1442,7 @@ aside .login a.button {
     color: #f5f5f0;
 
     &:hover {
-      color: #dc1e1e;
+      color: var(--red);
     }
   }
 
@@ -1747,7 +1738,7 @@ aside .login a.button {
   }
 
   li small > a {
-    color: #dc1e1e;
+    color: var(--red);
   }
 }
 
@@ -2266,7 +2257,7 @@ div.NearbyPlayers {
     }
 
     &:hover {
-      background: #dc1e1e;
+      background: var(--red);
     }
   }
 }
@@ -2910,7 +2901,7 @@ div.mobile-buttons {
     cursor: pointer;
 
     &.-active {
-      border-bottom: 2px solid #dc1e1e;
+      border-bottom: 2px solid var(--red);
     }
   }
 }
@@ -3037,12 +3028,12 @@ div.css-icon {
 // showbox skin: red splash + flat + dark, applied site-wide.
 // ============================================================
 * {
-  accent-color: #dc1e1e;
+  accent-color: var(--red);
 }
 
 .demi-tabs li.-active,
 .inline-tabs li.-active {
-  border-bottom-color: #dc1e1e;
+  border-bottom-color: var(--red);
 }
 
 .overlay.inspect-feature,

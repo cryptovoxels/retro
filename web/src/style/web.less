@@ -13,6 +13,7 @@
 @pc: ~'only screen and (min-width: 800px)';
 
 :root {
+  --red: #dc1e1e;
   --border: 1px solid #aaa;
   --softborder: 1px solid #aaa;
   --soft: #888;
@@ -319,6 +320,11 @@ button.hamburger {
 
   & > aside {
     width: 25vw;
+
+    a {
+      color: var(--red);
+      text-decoration: underline;
+    }
   }
 
   .hamburger {
@@ -385,12 +391,6 @@ button.hamburger {
     padding: 0;
     flex: 0 0 14rem;
     scroll-snap-align: start;
-  }
-
-  a {
-    display: block;
-    text-decoration: none;
-    color: inherit;
   }
 
   img {
@@ -1209,7 +1209,7 @@ table.spaces {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #dc1e1e;
+  color: var(--red);
   font-weight: bold;
   font-size: 14px;
   flex-shrink: 0;
@@ -1421,7 +1421,7 @@ table.spaces {
 }
 
 .showbox-dock-share-btn {
-  background: #dc1e1e;
+  background: var(--red);
   color: #f5f5f0;
   border: 0;
   padding: 8px 12px;
@@ -1440,7 +1440,7 @@ table.spaces {
 
 .showbox-dock-share-main,
 .showbox-dock-share-pick {
-  background: #dc1e1e;
+  background: var(--red);
   color: #f5f5f0;
   border: 0;
   cursor: pointer;
@@ -1490,7 +1490,7 @@ table.spaces {
 }
 
 .showbox-dock-go {
-  background: #dc1e1e;
+  background: var(--red);
   color: #f5f5f0;
   border: 0;
   padding: 12px 16px;
@@ -1548,7 +1548,7 @@ table.spaces {
     &:hover,
     &:focus,
     &:active {
-      background: #dc1e1e;
+      background: var(--red);
       color: #f5f5f0;
       outline: none;
     }
@@ -1604,12 +1604,8 @@ body {
   font-family: 'Source Code Pro', monospace;
 }
 
-a {
-  color: #f5f5f0;
-}
-
 a:hover {
-  color: #dc1e1e;
+  color: var(--red);
 }
 
 a.buttonish {
@@ -1620,7 +1616,7 @@ a.buttonish {
 a.active,
 .columns.nav li[aria-selected='true'] a,
 header nav a.active {
-  color: #dc1e1e;
+  color: var(--red);
 }
 
 header,
@@ -1647,8 +1643,8 @@ a.buttonish {
   box-shadow: none;
 
   &:hover {
-    background: #dc1e1e;
-    border-color: #dc1e1e;
+    background: var(--red);
+    border-color: var(--red);
     color: #fff;
   }
 
@@ -1661,8 +1657,8 @@ a.buttonish {
 button[type='submit'],
 button.primary,
 button.big-play {
-  background: #dc1e1e;
-  border-color: #dc1e1e;
+  background: var(--red);
+  border-color: var(--red);
   color: #fff;
 
   &:hover {
@@ -1700,8 +1696,8 @@ small,
 
 // active view toggle (figcaption) gets the red, not white
 figcaption button[data-active='true'] {
-  background: #dc1e1e;
-  border-color: #dc1e1e;
+  background: var(--red);
+  border-color: var(--red);
   color: #fff;
 }
 

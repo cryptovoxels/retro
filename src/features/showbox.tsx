@@ -687,7 +687,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const go = document.createElement('button')
     go.type = 'button'
     go.textContent = this.angleVideoTrack ? 'stop broadcasting' : 'broadcast to this screen'
-    Object.assign(go.style, { background: '#dc1e1e', color: '#fff', border: '0', padding: mobile ? '12px' : '8px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' })
+    Object.assign(go.style, { background: 'var(--red)', color: '#fff', border: '0', padding: mobile ? '12px' : '8px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' })
     go.onclick = async () => {
       if (this.angleVideoTrack) {
         this.stopAngleBroadcast()
@@ -1281,7 +1281,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (!this.broadcastDockLiveLabel) return
     this.broadcastDockLiveLabel.textContent = 'live'
     const header = this.broadcastDockLiveLabel.parentElement as HTMLElement | null
-    if (header) header.style.color = '#dc1e1e'
+    if (header) header.style.color = 'var(--red)'
     if (this.broadcastDockLiveDot) {
       this.broadcastDockLiveDot.style.color = ''
       this.broadcastDockLiveDot.style.animation = 'showbox-live-pulse 1.2s ease-in-out infinite'
@@ -3108,7 +3108,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     cameraReconnectBtn.textContent = 'reconnect camera'
     Object.assign(cameraReconnectBtn.style, {
       display: 'none',
-      background: '#dc1e1e',
+      background: 'var(--red)',
       color: '#fff',
       border: '0',
       padding: mobile ? '8px 12px' : '6px 10px',
@@ -3324,7 +3324,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           const shareMainBtn = document.createElement('button')
           const sharePickBtn = document.createElement('button')
           const sharePickMenu = document.createElement('div')
-          const btnBase = { background: '#dc1e1e', color: '#f5f5f0', border: '0', cursor: 'pointer', fontFamily: 'inherit', minHeight: '32px' as const }
+          const btnBase = { background: 'var(--red)', color: '#f5f5f0', border: '0', cursor: 'pointer', fontFamily: 'inherit', minHeight: '32px' as const }
           const syncShareLabel = () => {
             shareMainBtn.textContent = shareLinkKind === 'fan' ? 'share fan link' : 'share co-host link'
           }
@@ -3376,7 +3376,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           shareRow.append(shareSplit)
         } else {
           shareBtn.textContent = 'share fan link'
-          Object.assign(shareBtn.style, { background: '#dc1e1e', fontWeight: 'bold', width: '100%', minHeight: '32px', padding: '6px 8px', fontSize: '12px' })
+          Object.assign(shareBtn.style, { background: 'var(--red)', fontWeight: 'bold', width: '100%', minHeight: '32px', padding: '6px 8px', fontSize: '12px' })
           shareBtnRow.append(shareBtn)
           shareRow.append(shareBtnRow)
         }
@@ -3475,7 +3475,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const goBtn = document.createElement('button')
     goBtn.type = 'button'
     goBtn.textContent = 'go live'
-    Object.assign(goBtn.style, { background: '#dc1e1e', color: '#f5f5f0', border: '0', padding: '12px 16px', cursor: 'pointer', fontFamily: 'inherit', flex: '2', minHeight: '44px', fontWeight: 'bold' })
+    Object.assign(goBtn.style, { background: 'var(--red)', color: '#f5f5f0', border: '0', padding: '12px 16px', cursor: 'pointer', fontFamily: 'inherit', flex: '2', minHeight: '44px', fontWeight: 'bold' })
 
     const row = document.createElement('div')
     row.style.display = 'flex'
@@ -3744,7 +3744,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           }
           const pct = Math.min(100, Math.sqrt(sum / data.length) * 200)
           meterFillEl.style.width = pct + '%'
-          meterFillEl.style.background = pct > 85 ? '#dc1e1e' : pct > 60 ? '#f5b942' : '#22c55e'
+          meterFillEl.style.background = pct > 85 ? 'var(--red)' : pct > 60 ? '#f5b942' : '#22c55e'
           this.audioMeterRaf = requestAnimationFrame(tick)
         }
         tick()
@@ -4052,7 +4052,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         const liveHeader = document.createElement('div')
         liveHeader.dataset.dot = '1'
         liveHeader.dataset.showboxDockLiveH = '1'
-        Object.assign(liveHeader.style, { display: 'flex', alignItems: 'center', gap: '8px', color: '#dc1e1e', fontWeight: 'bold', fontSize: '14px', letterSpacing: '0.5px' })
+        Object.assign(liveHeader.style, { display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--red)', fontWeight: 'bold', fontSize: '14px', letterSpacing: '0.5px' })
         const liveDot = document.createElement('span')
         liveDot.textContent = '\u25CF'
         Object.assign(liveDot.style, { animation: 'showbox-live-pulse 1.2s ease-in-out infinite' })
@@ -4568,7 +4568,7 @@ class GuestPasses extends Component<{ feature: Showbox; guestMode: GuestMode; on
         )}
         {!canManage && <small>edit access required</small>}
 
-        {this.state.error && <div style={{ color: '#dc1e1e' }}>{this.state.error}</div>}
+        {this.state.error && <div style={{ color: 'var(--red)' }}>{this.state.error}</div>}
 
         {this.state.loading && <small>loading...</small>}
 
