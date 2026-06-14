@@ -479,6 +479,22 @@ dialog.first-time {
   z-index: 1;
 }
 
+.play-preview {
+  display: none;
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  width: 240px;
+  aspect-ratio: 4 / 3;
+  z-index: 999999;
+  cursor: pointer;
+  overflow: hidden;
+
+  &.on {
+    display: block;
+  }
+}
+
 // Table
 
 table {

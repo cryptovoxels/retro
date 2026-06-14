@@ -91,6 +91,7 @@ export class Appstate extends State {
   rememberSignIn = false
   showSnackbar = Snackbar.show ?? console.log
   visitUrl = signal<string | undefined>(undefined)
+  playPreview = signal<{ returnPath: string } | null>(null)
   private lastOnlineIntervalHandle: NodeJS.Timeout | null = null
 
   constructor() {
@@ -390,6 +391,16 @@ export class Appstate extends State {
       // clean name if we dont have a JWT
       this.setState({ name: undefined })
     }
+  }
+
+  enterPlayPreview(returnPath?: string) {
+    this.playPreview.value = { returnPath: returnPath ?? location.pathname + location.search }
+  }
+
+  exitPlayPreview(): string {
+    const path = this.playPreview.value?.returnPath || '/play'
+    this.playPreview.value = null
+    return path
   }
 }
 

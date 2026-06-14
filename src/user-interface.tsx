@@ -792,201 +792,199 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       <>
         <FirstTimeInstructions />
         <ViewOnCondition condition={window.config.wantsUI}>
-        <div class={classes}>
-          <Snackbar />
+          <div class={classes}>
+            <Snackbar />
 
-          <aside style={{ zIndex: 500 }} class={`ui-toggle-mobile ${this.state.active ? 'hidden' : ''}`}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                this.setState({ active: !this.state.active })
-              }}
-              title={unreadChat ? 'Toggle UI (unread chat)' : 'Toggle UI'}
-            >
-              ☰{unreadChat && <span class="chat-unread-badge" />}
-            </button>
-          </aside>
-          <aside data-active={this.state.active}>
-            <ul class="ui-sidebar" onMouseLeave={onBlur}>
-              <li>
-                <Location signedIn={this.state.signedIn} scene={this.props.scene} />
-              </li>
+            <aside style={{ zIndex: 500 }} class={`ui-toggle-mobile ${this.state.active ? 'hidden' : ''}`}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  this.setState({ active: !this.state.active })
+                }}
+                title={unreadChat ? 'Toggle UI (unread chat)' : 'Toggle UI'}
+              >
+                ☰{unreadChat && <span class="chat-unread-badge" />}
+              </button>
+            </aside>
+            <aside data-active={this.state.active}>
+              <ul class="ui-sidebar" onMouseLeave={onBlur}>
+                <li>
+                  <Location signedIn={this.state.signedIn} scene={this.props.scene} />
+                </li>
 
-              {!isMobileMedia() && (
-                /**
-                 * Fullscreen toggle; no point showing "fullscreen on mobile" as most devices are always fullscreen
-                 */
-                <li title={this.state.fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}>
-                  <a
-                    onClick={(e) => {
-                      e.preventDefault()
-                      this.engine.enterFullscreen(!this.state.fullscreen)
-                    }}
-                    href="#"
-                  >
-                    {this.state.fullscreen ? `Exit Fullscreen` : `Fullscreen`}
+                {!isMobileMedia() && (
+                  /**
+                   * Fullscreen toggle; no point showing "fullscreen on mobile" as most devices are always fullscreen
+                   */
+                  <li title={this.state.fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}>
+                    <a
+                      onClick={(e) => {
+                        e.preventDefault()
+                        this.engine.enterFullscreen(!this.state.fullscreen)
+                      }}
+                      href="#"
+                    >
+                      {this.state.fullscreen ? `Exit Fullscreen` : `Fullscreen`}
+                    </a>
+                  </li>
+                )}
+
+                <li class={active('explorer')}>
+                  <a href="#explorer" onMouseOver={onHover('explorer')} onClick={onClick('explorer')}>
+                    Explore
                   </a>
                 </li>
-              )}
-
-              <li class={active('explorer')}>
-                <a href="#explorer" onMouseOver={onHover('explorer')} onClick={onClick('explorer')}>
-                  Explore
-                </a>
-              </li>
-              {/* <li class={active('account')}>
+                {/* <li class={active('account')}>
                 <a href="#" onMouseOver={onHover('account')} onClick={onClick('account')}>
                   Account
                 </a>
               </li> */}
 
-              {!this.state.signedIn && (
-                <li class={active('login')}>
-                  <a href="#" onMouseOver={onHover('login')} onClick={onClick('login')}>
-                    Log in
+                {!this.state.signedIn && (
+                  <li class={active('login')}>
+                    <a href="#" onMouseOver={onHover('login')} onClick={onClick('login')}>
+                      Log in
+                    </a>
+                  </li>
+                )}
+
+                <li class={active('settings')}>
+                  <a href="#preferences" onMouseOver={onHover('settings')} onClick={onClick('settings')}>
+                    Settings
                   </a>
                 </li>
-              )}
-
-              <li class={active('settings')}>
-                <a href="#preferences" onMouseOver={onHover('settings')} onClick={onClick('settings')}>
-                  Settings
-                </a>
-              </li>
-              <li class={active('emote')}>
-                <a href="#dance" onMouseOver={onHover('emote')} onClick={onClick('emote')}>
-                  Dance
-                </a>
-              </li>
-              <li class={active('womp')}>
-                <a href="#womps" onMouseOver={onHover('womp')} onClick={onClick('womp')}>
-                  Womps
-                </a>
-              </li>
-              <li class={!this.state.signedIn ? 'disabled' : ''}>
-                <a href="/costumer" target="_blank" rel="noopener">
-                  Costumes
-                </a>
-              </li>
-              {/* <li class={active('summon')}>
+                <li class={active('emote')}>
+                  <a href="#dance" onMouseOver={onHover('emote')} onClick={onClick('emote')}>
+                    Dance
+                  </a>
+                </li>
+                <li class={active('womp')}>
+                  <a href="#womps" onMouseOver={onHover('womp')} onClick={onClick('womp')}>
+                    Womps
+                  </a>
+                </li>
+                <li class={!this.state.signedIn ? 'disabled' : ''}>
+                  <a href="/costumer">Costumes</a>
+                </li>
+                {/* <li class={active('summon')}>
                 <a title="I for one welcome our robot overlords" onClick={onSummon}>
                   Summon
                 </a>
               </li> */}
-              <li class={active('info')}>
-                <a href="#info" onMouseOver={onHover('info')} onClick={onClick('info')}>
-                  Info
-                </a>
-              </li>
-              <li class={active('add', !canEdit)}>
-                <a title="Add things to your thing" href="#add" onMouseOver={onHover('add')} onClick={onClick('add')} accessKey="a">
-                  Add
-                </a>
-              </li>
-              <li class={active('parcelSnapshots', !canEdit)}>
-                <a href="#snapshots" onMouseOver={onHover('parcelSnapshots')} onClick={onClick('parcelSnapshots')}>
-                  Shots
-                </a>
-              </li>
-              {/* <li class={active('edit', !canEdit)}>
+                <li class={active('info')}>
+                  <a href="#info" onMouseOver={onHover('info')} onClick={onClick('info')}>
+                    Info
+                  </a>
+                </li>
+                <li class={active('add', !canEdit)}>
+                  <a title="Add things to your thing" href="#add" onMouseOver={onHover('add')} onClick={onClick('add')} accessKey="a">
+                    Add
+                  </a>
+                </li>
+                <li class={active('parcelSnapshots', !canEdit)}>
+                  <a href="#snapshots" onMouseOver={onHover('parcelSnapshots')} onClick={onClick('parcelSnapshots')}>
+                    Shots
+                  </a>
+                </li>
+                {/* <li class={active('edit', !canEdit)}>
                 <a href="#" onMouseOver={onHover('edit')} onClick={onClick('edit')}>
                   Edit
                 </a>
               </li> */}
-              <li class={active('inspector', !canEdit)}>
-                <a href="#inspector" onMouseOver={onHover('inspector')} onClick={onClick('inspector')}>
-                  Tree
-                </a>
-              </li>
-
-              <li class={active('bake', !canEdit)}>
-                <a href="#bake" onMouseOver={onHover('bake')} accessKey="b" onClick={onClick('bake')}>
-                  <kbd>B</kbd>ake
-                </a>
-              </li>
-              <li class={active('map')}>
-                <a href="#map" onMouseOver={onHover('map')} onClick={() => this.showExplorerMap()}>
-                  Map
-                </a>
-              </li>
-
-              <li class={active('help')}>
-                <a href="#help" onMouseOver={onHover('help')} onClick={onClick('help')}>
-                  Help
-                </a>
-              </li>
-
-              {mintable && (
-                <u
-                  onClick={async (e) => {
-                    e.preventDefault()
-                    await nearestEditableParcel?.requestMint()
-                  }}
-                >
-                  Mint
-                </u>
-              )}
-
-              {app.isAdmin() && (
-                <li class={active('debugTool')}>
-                  <a href="#" onMouseOver={onHover('debugTool')} onClick={onClick('debugTool')}>
-                    Debug
+                <li class={active('inspector', !canEdit)}>
+                  <a href="#inspector" onMouseOver={onHover('inspector')} onClick={onClick('inspector')}>
+                    Tree
                   </a>
                 </li>
-              )}
 
-              {this.state.signedIn && (
-                <>
-                  <li>
-                    <a href="#" onClick={this.onLogout}>
-                      Log out
+                <li class={active('bake', !canEdit)}>
+                  <a href="#bake" onMouseOver={onHover('bake')} accessKey="b" onClick={onClick('bake')}>
+                    <kbd>B</kbd>ake
+                  </a>
+                </li>
+                <li class={active('map')}>
+                  <a href="#map" onMouseOver={onHover('map')} onClick={() => this.showExplorerMap()}>
+                    Map
+                  </a>
+                </li>
+
+                <li class={active('help')}>
+                  <a href="#help" onMouseOver={onHover('help')} onClick={onClick('help')}>
+                    Help
+                  </a>
+                </li>
+
+                {mintable && (
+                  <u
+                    onClick={async (e) => {
+                      e.preventDefault()
+                      await nearestEditableParcel?.requestMint()
+                    }}
+                  >
+                    Mint
+                  </u>
+                )}
+
+                {app.isAdmin() && (
+                  <li class={active('debugTool')}>
+                    <a href="#" onMouseOver={onHover('debugTool')} onClick={onClick('debugTool')}>
+                      Debug
                     </a>
                   </li>
-                </>
+                )}
+
+                {this.state.signedIn && (
+                  <>
+                    <li>
+                      <a href="#" onClick={this.onLogout}>
+                        Log out
+                      </a>
+                    </li>
+                  </>
+                )}
+              </ul>
+
+              {this.state.chatEnabled && <ChatOverlay scene={this.props.scene} />}
+
+              {pane && (
+                <dialog class="editor" open>
+                  {pane}
+                </dialog>
               )}
-            </ul>
+            </aside>
 
-            {this.state.chatEnabled && <ChatOverlay scene={this.props.scene} />}
+            {this.state.scratchpadGuideOpen && !this.state.scratchpadGuideMini && <ScratchpadGuide key={this.state.scratchpadGuideKey || 0} voxelTool={this.voxelTool} onComplete={this.celebrateScratchpadGuideComplete} />}
 
-            {pane && (
-              <dialog class="editor" open>
-                {pane}
-              </dialog>
+            {this.state.scratchpadGuideOpen && this.state.scratchpadGuideMini && <ScratchpadGuideMini onGotIt={this.celebrateScratchpadGuideComplete} onStartOver={this.restartScratchpadGuide} />}
+
+            {!this.state.scratchpadGuideOpen && this.state.scratchpadGuideRestart && isScratchpad() && (
+              <button type="button" class="scratchpad-guide-restart linkish" onClick={this.openScratchpadGuide}>
+                start over
+              </button>
             )}
-          </aside>
 
-          {this.state.scratchpadGuideOpen && !this.state.scratchpadGuideMini && <ScratchpadGuide key={this.state.scratchpadGuideKey || 0} voxelTool={this.voxelTool} onComplete={this.celebrateScratchpadGuideComplete} />}
+            {nearestEditableParcel && <ToolBelt parcel={nearestEditableParcel} scene={this.props.scene} />}
 
-          {this.state.scratchpadGuideOpen && this.state.scratchpadGuideMini && <ScratchpadGuideMini onGotIt={this.celebrateScratchpadGuideComplete} onStartOver={this.restartScratchpadGuide} />}
+            <UploadStatusUI onCompleteUpload={onCompleteUpload} onFailUpload={onFailUpload} onBeginUpload={onBeginUpload} ref={this.uploadStatusRef} />
+            <ConnectionStatusUI connector={this.connector} grid={this.grid} scene={this.props.scene} />
+            {this.props.minimapSettings.enabled && !window.config.isOrbit && !window.config.isSpace && (
+              <div class="minimap-corner-controls">
+                <button type="button" class="iconish minimap-expand" onClick={() => this.showExplorerMap()} title="Open map">
+                  M
+                </button>
+                <button type="button" class="minimap-online-count" onClick={() => this.showExplorerOnline()} title="Who is online">
+                  {this.state.onlineCount} Online
+                </button>
+              </div>
+            )}
+            <OnlyMobile>
+              <MobileButtons connector={this.connector} scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
+            </OnlyMobile>
 
-          {!this.state.scratchpadGuideOpen && this.state.scratchpadGuideRestart && isScratchpad() && (
-            <button type="button" class="scratchpad-guide-restart linkish" onClick={this.openScratchpadGuide}>
-              start over
-            </button>
-          )}
-
-          {nearestEditableParcel && <ToolBelt parcel={nearestEditableParcel} scene={this.props.scene} />}
-
-          <UploadStatusUI onCompleteUpload={onCompleteUpload} onFailUpload={onFailUpload} onBeginUpload={onBeginUpload} ref={this.uploadStatusRef} />
-          <ConnectionStatusUI connector={this.connector} grid={this.grid} scene={this.props.scene} />
-          {this.props.minimapSettings.enabled && !window.config.isOrbit && !window.config.isSpace && (
-            <div class="minimap-corner-controls">
-              <button type="button" class="iconish minimap-expand" onClick={() => this.showExplorerMap()} title="Open map">
-                M
-              </button>
-              <button type="button" class="minimap-online-count" onClick={() => this.showExplorerOnline()} title="Who is online">
-                {this.state.onlineCount} Online
-              </button>
-            </div>
-          )}
-          <OnlyMobile>
-            <MobileButtons connector={this.connector} scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
-          </OnlyMobile>
-
-          <CongaJoinHintOverlay />
-          <CongaStatusOverlay />
-        </div>
-      </ViewOnCondition>
+            <CongaJoinHintOverlay />
+            <CongaStatusOverlay />
+          </div>
+        </ViewOnCondition>
       </>
     )
   }

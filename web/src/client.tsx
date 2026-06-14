@@ -1,6 +1,7 @@
 import { Component, createRef } from 'preact'
 import { route } from 'preact-router'
 import { canUseDom } from '../../common/helpers/utils'
+import { app } from './state'
 
 // Lazily evaluate the engine. Dynamic import keeps src/** out of the SSR import
 // graph (it pulls in shaders + babylon, which tsx can't parse). webpackMode
@@ -71,7 +72,12 @@ export class Client extends Component<FrameProps, FrameState> {
     // already adopted it during the route transition).
     const canvas = document.getElementById('renderCanvas')
     if (canvas && this.box.current?.contains(canvas)) {
-      document.getElementById('world-holder')?.appendChild(canvas)
+      if (app.playPreview.value) {
+        document.getElementById('world-preview')?.appendChild(canvas)
+        window.engine?.resize()
+      } else {
+        document.getElementById('world-holder')?.appendChild(canvas)
+      }
     }
     Client.syncUiMode(true)
   }
