@@ -179,9 +179,11 @@ export default class WebHeader extends Component<Props, State> {
                 </button>
               </li>
 
-              {signedIn && <li>{navLink('Go live', '/golive', 'events', path?.startsWith('/golive') ?? false)}</li>}
+              <li>{navLink('Go live', '/golive', 'events', path?.startsWith('/golive') ?? false)}</li>
 
               <li>{navLink(signedIn ? 'Account' : 'Login', '/account', 'account', isActive('account'))}</li>
+
+              {signedIn && <li>{navLink('Log out', '/logout', 'account', isActive('logout'))}</li>}
 
               {signedIn && <li>{navLink('Costume', '/costumer', 'costume', isActive('costumer'))}</li>}
 
@@ -194,8 +196,6 @@ export default class WebHeader extends Component<Props, State> {
               <li>{navLink('Spaces', '/spaces', 'spaces', isActive('spaces'))}</li>
               <li>{navLink('Womps', '/womps', 'womps', isActive('womps'))}</li>
               <li>{navLink('Scratchpad', '/scratchpad', 'scratchpad', isActive('scratchpad'))}</li>
-
-              {signedIn && <li>{navLink('Log out', '/logout', 'account', isActive('logout'))}</li>}
 
               <li>
                 <form action="/search" onSubmit={this.onSubmit}>
