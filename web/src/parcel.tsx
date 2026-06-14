@@ -28,7 +28,7 @@ export interface State {
   parcel?: ParcelWithMintednessRecord | (ParcelWithMintednessRecord & FullParcelRecord)
   querying?: boolean
   price?: number
-  viewTab: 'client' | 'map' | 'orbit'
+  viewTab: 'client' | 'map'
   nearby?: NearbyParcelRecord[]
   loading: boolean
   parcelId: number
@@ -54,14 +54,10 @@ const modes = [
     label: 'Explore',
   },
   {
-    mode: 'orbit',
-    label: 'Orbit',
-  },
-  {
     mode: 'map',
     label: 'Map',
   },
-] as { mode: 'client' | 'orbit' | 'map'; label: string }[]
+] as { mode: 'client' | 'map'; label: string }[]
 
 export default class Parcel extends Component<Props, State> {
   map: Map | null = null
@@ -225,7 +221,7 @@ export default class Parcel extends Component<Props, State> {
     window.L.geoJSON([this.state.parcel.geometry], { style }).addTo(this.map)
   }
 
-  setViewTab(viewTab: 'client' | 'map' | 'orbit') {
+  setViewTab(viewTab: 'client' | 'map') {
     this.setState({ viewTab })
   }
 
@@ -272,8 +268,6 @@ export default class Parcel extends Component<Props, State> {
           <Head title={parcelName} description={parcelDesc} url={`/parcels/${this.state.parcelId}`} imageURL={ogImage} />
           <h1>{parcelName}</h1>
           <figcaption>
-            {this.helper && <PlayButton url={this.helper.iframeUrl} />}
-
             {modes.map((mode) => (
               <button class={`secondary ${this.state.viewTab === mode.mode ? 'contrast' : ''}`} data-active={this.state.viewTab === mode.mode} onClick={() => this.setViewTab(mode.mode)} key={mode.mode}>
                 {mode.label}
@@ -285,11 +279,12 @@ export default class Parcel extends Component<Props, State> {
                 Edit
               </a>
             )}
+
+            {this.helper && <PlayButton url={this.helper.iframeUrl} />}
           </figcaption>
 
           <figure>
             {this.state.viewTab === 'map' && <div className="map map-web slippy-map">&nbsp;</div>}
-            {this.state.viewTab === 'orbit' && <iframe id="ParcelorbitView" src={this.helper?.orbitUrl} className="play-view" />}
             {this.state.parcel && this.state.viewTab === 'client' && <Client parcelId={this.props.id!} coords={this.helper!.spawnCoords} />}
           </figure>
           <WompsList key={this.state.parcelId} fetch={`/womps/at/parcel/${this.state.parcelId}.json`} numberToShow={10} smaller={true} collapsed={true} />
