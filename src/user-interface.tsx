@@ -40,6 +40,7 @@ import { ChatOverlay, chatSettings } from './ui/interact/chat'
 import { EmoteOverlay } from './ui/interact/emote'
 import { HelpOverlay } from './ui/interact/help'
 import { ScratchpadGuide, ScratchpadGuideMini } from './ui/scratchpad-guide'
+import { FirstTimeInstructions } from '../web/src/components/first-time-instructions'
 import { WompOverlay } from './ui/interact/womps'
 import MobileButtons from './ui/mobile/buttons'
 import OpenLink from './ui/open-link'
@@ -228,7 +229,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     document.addEventListener('fullscreenchange', this.refreshFullscreen)
     document.addEventListener('pointerlockchange', this.onPointerLockChange)
     if (isMobileMedia()) {
-      this.canvas.addEventListener('touchstart', (e) => {
+      this.canvas.addEventListener('touchstart', () => {
+        app.emit(AppEvent.CanvasEngaged)
         this.hide()
       })
     }
@@ -324,6 +326,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   onPointerLockChange = () => {
     if (document.pointerLockElement) {
+      app.emit(AppEvent.CanvasEngaged)
       // close overlays on pointer lock
       this.setState({ pane: undefined, active: false })
     }
@@ -786,7 +789,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     const unreadChat = this.state.chatEnabled && !this.state.active ? messageList.value.some((m) => m.timestamp > this.chatLastReadAt) : false
 
     return (
-      <ViewOnCondition condition={window.config.wantsUI}>
+      <>
+        <FirstTimeInstructions />
+        <ViewOnCondition condition={window.config.wantsUI}>
         <div class={classes}>
           <Snackbar />
 
@@ -982,6 +987,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           <CongaStatusOverlay />
         </div>
       </ViewOnCondition>
+      </>
     )
   }
 }

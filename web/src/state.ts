@@ -35,6 +35,7 @@ export enum AppEvent {
   ErrorLogin = 'error-login',
   Change = 'change',
   ProviderMessage = 'provider-message',
+  CanvasEngaged = 'canvas-engaged',
 }
 
 export interface StateObject {
