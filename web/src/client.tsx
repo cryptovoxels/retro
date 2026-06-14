@@ -50,15 +50,15 @@ export class Client extends Component<FrameProps, FrameState> {
   }
 
   componentDidUpdate(previousProps: Readonly<FrameProps>): void {
-    if (this.props.parcelId != Client.parcelId || this.props.coords != previousProps.coords) {
-      Client.parcelId = this.props.parcelId!
-      // a parcel change we triggered ourselves by walking -- update the chrome, don't yank the camera
-      if (this.skipNaviport) {
-        this.skipNaviport = false
-        return
-      }
-      this.naviport()
+    if (this.props.parcelId == previousProps.parcelId) return
+
+    Client.parcelId = this.props.parcelId!
+    // walking into another parcel updates the url -- sync chrome only, don't naviport
+    if (this.skipNaviport) {
+      this.skipNaviport = false
+      return
     }
+    this.naviport()
   }
 
   componentWillUnmount() {
