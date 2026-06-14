@@ -369,7 +369,6 @@ export default class Parcel extends Component<Props, State> {
               )}
             </p>
           ) : null}
-          {this.helper && <PlayButton url={this.helper.iframeUrl} />}
 
           {this.state.parcel?.parcel_users && this.state.parcel.parcel_users.length > 0 && (
             <div>

@@ -26,19 +26,15 @@ export function FirstTimeInstructions() {
 
     const find = () => {
       const el = document.querySelector('.client-placeholder') as HTMLElement | null
-      if (el) {
-        setHost(el)
-        return true
+      if (!el?.isConnected) {
+        setHost(null)
+        return
       }
-      return false
+      setHost((prev) => (prev === el ? prev : el))
     }
 
-    if (find()) return
-
-    const id = window.setInterval(() => {
-      if (find()) window.clearInterval(id)
-    }, 100)
-
+    find()
+    const id = window.setInterval(find, 100)
     return () => window.clearInterval(id)
   }, [show])
 
