@@ -168,6 +168,9 @@ export default class WebHeader extends Component<Props, State> {
         <header>
           <nav>
             <ul>
+              <li class="home-mobile">
+                <a href="/">Home</a>
+              </li>
               <li class="logo">
                 <a href="/">
                   <CubeIcon name={activeIcon} />

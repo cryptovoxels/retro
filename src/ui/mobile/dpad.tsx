@@ -44,7 +44,12 @@ export default class DpadControls extends Component<any, any> {
 
     this.controls.facingForward = y < 0
     this.controls.direction?.set((x / half) * SPEED, 0, (y / half) * -1 * SPEED)
-    this.nubElement && (this.nubElement.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`)
+
+    // nub is 33% of the box, so cap its visual offset to keep it inside the box (speed unchanged)
+    const vis = half * 0.67
+    const nx = Math.max(-vis, Math.min(vis, x))
+    const ny = Math.max(-vis, Math.min(vis, y))
+    this.nubElement && (this.nubElement.style.transform = `translate(calc(-50% + ${nx}px), calc(-50% + ${ny}px))`)
   }
 
   ontouchstart = (e: TouchEvent) => {

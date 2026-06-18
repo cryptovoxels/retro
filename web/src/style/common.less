@@ -41,15 +41,6 @@ html {
   padding: 0;
 }
 
-body {
-  font-family: 'helvetica neue', sans-serif;
-  font-size: 0.85em;
-
-  * {
-    font-family: inherit;
-  }
-}
-
 img.blockie {
   clip-path: polygon(25% 5%, 75% 5%, 100% 50%, 75% 95%, 25% 95%, 0% 50%);
 }
@@ -165,6 +156,7 @@ h1 {
   font-size: 1.6em;
   font-weight: normal;
   margin: 0 0 0.4em 0;
+
   @media @desktop {
     font-size: 2em;
   }
@@ -222,6 +214,7 @@ button {
 
 .desktop-only {
   display: none;
+
   @media @desktop {
     display: block;
   }
@@ -370,6 +363,7 @@ div.leaflet-marker-icon.MarkersClusters {
     }
   }
 }
+
 /**
   * Fix popup image size in leaflet map for WOMP cards
   */
@@ -506,10 +500,12 @@ div.leaflet-popup-content {
       align-self: center;
       display: flex;
       cursor: default;
+
       @media @desktop {
         width: 25px;
         height: 25px;
       }
+
       font-size: large;
     }
   }
@@ -759,442 +755,6 @@ a.xr-now {
   border-bottom: 2px solid;
 }
 
-.PopupAction {
-  position: relative;
-
-  .PopupWindow {
-    color: black;
-    position: absolute;
-    background-color: #fafafa;
-    border: 1px solid gainsboro;
-    border-radius: 4px;
-    height: 500px;
-    width: 300px;
-    right: -120px;
-    top: 16px;
-    padding: 1px 4px;
-    z-index: 50000;
-    overflow: hidden;
-    overflow-y: auto;
-    @media @desktop {
-      height: 300px;
-      width: 250px;
-      right: -100px;
-    }
-    -webkit-box-shadow: 11px 10px 5px -11px rgba(0, 0, 0, 0.75);
-    -moz-box-shadow: 11px 10px 5px -11px rgba(0, 0, 0, 0.75);
-    box-shadow: 11px 10px 5px -11px rgba(0, 0, 0, 0.75);
-
-    .submenu {
-      margin-bottom: 15px;
-      display: block;
-      padding: 4px 0;
-
-      h2 {
-        margin: auto;
-        display: inline-block;
-        font-size: inherit;
-      }
-
-      span {
-        &:hover {
-          cursor: pointer;
-          background-color: #eeeeee;
-        }
-
-        margin: 0 2px;
-        float: right;
-        border: 1px solid black;
-        border-radius: 5px;
-        padding: 2px;
-      }
-    }
-  }
-
-  &.-inWorld {
-    a {
-      color: #ddd;
-    }
-
-    > a {
-      padding: 8px 1px;
-    }
-
-    button {
-      .roundedButton();
-    }
-
-    .PopupWindow {
-      text-shadow: none;
-
-      background: #444;
-      border: 1px solid #767676;
-
-      .submenu {
-        h2 {
-        }
-
-        span {
-          border: 1px solid #555;
-          background: #aaa;
-          color: #111;
-
-          &:hover {
-            background-color: #555;
-          }
-        }
-      }
-    }
-  }
-}
-
-.mailbox-icon {
-  .PopupAction();
-
-  .inbox {
-    .submenu {
-      span {
-        &.cog {
-          font-size: smaller;
-        }
-      }
-    }
-
-    .mail-subject {
-      cursor: pointer;
-
-      &:hover {
-        background-color: #f0f0f0;
-      }
-
-      b {
-        color: black;
-        display: block;
-        text-overflow: ellipsis;
-        white-space: pre;
-        overflow: hidden;
-
-        &.read {
-          color: #777;
-        }
-      }
-    }
-
-    .mail-content {
-      color: black;
-      margin-top: 4px;
-      background-color: #f3f3f3;
-      padding: 2px;
-      border: 1px solid #dedede;
-      word-break: break-word;
-    }
-
-    .mail-write-form {
-      input[type='text'] {
-        width: 90%;
-      }
-
-      textarea {
-        width: 90%;
-      }
-    }
-  }
-
-  .unread-mails {
-    position: absolute;
-    top: 0;
-    right: -2px;
-    height: 8px;
-    width: 8px;
-    border-radius: 50%;
-    background-color: red;
-  }
-
-  &.-inWorld {
-    .mail-subject {
-      b {
-        color: rgb(255, 255, 255);
-
-        &.read {
-          color: #777;
-        }
-      }
-
-      small {
-        color: #a2a2a2;
-      }
-
-      &:hover {
-        b {
-          color: rgb(73, 73, 73);
-
-          &.read {
-            color: rgb(185, 185, 185);
-          }
-        }
-
-        small {
-          color: #a2a2a2;
-        }
-      }
-    }
-
-    .mail-content {
-      color: rgb(255, 255, 255);
-      background-color: rgb(49, 49, 49);
-      border: 1px solid #747474;
-
-      a {
-        color: darkgray;
-      }
-    }
-
-    .mail-write-form {
-      input,
-      textarea {
-        background: #222;
-        color: #aaa;
-      }
-    }
-  }
-}
-
-.Center {
-  justify-content: center;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-
-  &.-no-flex {
-    display: block;
-    flex-direction: unset;
-  }
-}
-
-.ScrollPane {
-  max-height: 250px;
-  overflow-y: auto;
-  @media only screen and (max-height: 900px) {
-    max-height: 95px;
-  }
-}
-
-.SplitPanel {
-  display: flex;
-
-  > aside.panel_left {
-    width: auto;
-    position: initial;
-    min-width: 20%;
-
-    &.-max40 {
-      max-width: 40%;
-    }
-  }
-
-  > div {
-    flex: 1;
-    overflow-y: auto;
-    overflow-x: hidden;
-    -webkit-overflow-scrolling: touch;
-    min-height: 0;
-  }
-
-  > * + * {
-    margin-left: 10px;
-  }
-
-  &.-column {
-    flex-direction: column;
-
-    .Panel {
-      margin-left: 0;
-    }
-  }
-
-  @media @mobile {
-    flex-direction: column;
-    /* This is to make the whole SplitPanel scrollable */
-    overflow-y: auto;
-    /* remove scrollable attribute of Panels; */
-    > div.Panel {
-      overflow: unset;
-      min-height: unset;
-    }
-
-    > * + * {
-      margin-left: 0;
-      margin-bottom: 5px;
-    }
-  }
-}
-
-.Panel {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 1rem;
-
-  > header {
-    position: relative;
-
-    h3 {
-      background: none;
-    }
-
-    button {
-      .roundedButton();
-      position: absolute;
-      cursor: pointer;
-      right: 0;
-      top: 0;
-    }
-  }
-
-  h4 {
-    color: black;
-    margin: 5px 0;
-  }
-}
-
-.PanelTabs {
-  margin: 0;
-  padding: 0;
-
-  a {
-    color: rgb(31, 41, 80);
-  }
-
-  &.-numbered {
-    li {
-      list-style: number;
-      padding: 0 !important;
-      background: transparent;
-      margin-left: 20px;
-      margin-top: 10px !important;
-
-      &.-none {
-        list-style: none;
-
-        &:hover {
-          background: transparent;
-        }
-      }
-    }
-  }
-
-  li + li {
-    margin-top: 5px;
-  }
-
-  li {
-    color: #0e0e0e;
-    cursor: pointer;
-    list-style: none;
-    padding: 10px !important;
-    background: #555555;
-    border-radius: 4px;
-
-    ol {
-      padding: 0;
-      margin: 10px 0 0;
-
-      li {
-        background: transparent;
-        padding: 5px 10px;
-        font-weight: normal !important;
-
-        &:hover {
-          background-color: #313131;
-        }
-      }
-    }
-
-    h5 {
-      color: #e6e6e6;
-      font-size: 1em;
-      margin: 0;
-    }
-
-    &:hover {
-      background-color: #313131;
-    }
-
-    &.-active {
-      > h5 {
-        color: #ffe100;
-      }
-    }
-  }
-}
-
-.MessageWriteForm {
-  padding: 8px 10px;
-
-  * + section {
-    margin-top: 10px;
-  }
-
-  input,
-  textarea {
-    width: 100%;
-    box-sizing: border-box;
-    font-size: 120%;
-    padding: 4px;
-    display: block;
-    margin-top: 4px;
-  }
-
-  button {
-    padding: 5px 10px;
-
-    i {
-      margin-right: 4px;
-    }
-  }
-}
-
-.MailboxMessage {
-  div.subject {
-    cursor: pointer;
-    padding: 10px;
-    border-radius: 6px;
-
-    &:hover {
-      background: #f4e4fc;
-    }
-
-    b {
-      color: rgb(55, 12, 99);
-      display: block;
-      text-overflow: ellipsis;
-      white-space: pre;
-      overflow: hidden;
-
-      &.read {
-        color: #414141;
-      }
-    }
-  }
-
-  div.content {
-    color: black;
-    background-color: #f3f3f3;
-    padding: 10px;
-    border: 1px solid #dedede;
-    word-break: break-word;
-    border-radius: 4px;
-  }
-
-  p {
-    margin: 0;
-  }
-}
-
-.login-options {
-  .PopupAction();
-}
-
 /* Parcel Details on parcel page and parcel-info tab.*/
 dl.deets {
   dt {
@@ -1282,6 +842,7 @@ dl.deets {
       width: 30px;
       height: 30px;
       border: 1px solid rgba(0, 0, 0, 0.2);
+
       @media @desktop {
         width: 50px;
         height: 50px;
@@ -1293,6 +854,7 @@ dl.deets {
       margin: auto 5px auto auto;
       display: flex;
       flex-direction: column;
+
       @media @desktop {
         a:last-child {
           margin: 0 0 0 10px;
@@ -1316,6 +878,7 @@ dl.deets {
     justify-content: space-evenly;
     margin: 8px 0;
     font-size: xx-small;
+
     @media @desktop {
       font-size: inherit;
     }

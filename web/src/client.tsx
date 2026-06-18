@@ -79,7 +79,12 @@ export class Client extends Component<FrameProps, FrameState> {
         document.getElementById('world-holder')?.appendChild(canvas)
       }
     }
-    Client.syncUiMode(true)
+
+    // leaving the world: hide the game overlay and drop the in-world skin so client.less
+    // stops painting over web pages
+    document.body.classList.remove('in-world')
+    const ui = document.getElementById('world-ui')
+    if (ui) ui.style.display = 'none'
   }
 
   // pull the one persistent canvas into our box and keep the engine sized to it
@@ -91,6 +96,7 @@ export class Client extends Component<FrameProps, FrameState> {
     }
 
     box.appendChild(canvas)
+    document.body.classList.add('in-world')
 
     this.observer?.disconnect()
     this.observer = new ResizeObserver(() => window.engine?.resize())

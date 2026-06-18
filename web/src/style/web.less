@@ -205,12 +205,20 @@ header nav img.logo {
   margin: 2px;
 }
 
+li.home-mobile {
+  display: none;
+}
+
 @media @mobile {
   header nav {
     position: relative;
 
     li.logo {
       display: none;
+    }
+
+    li.home-mobile {
+      display: block;
     }
 
     &::after {

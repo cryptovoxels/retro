@@ -38,23 +38,6 @@
 @overlayWindowTextColor: #f5f5f0;
 @overlayWindowInputColor: #f5f5f0;
 
-:root {
-  color-scheme: dark;
-}
-
-::-webkit-scrollbar {
-  width: 12px;
-}
-::-webkit-scrollbar-thumb {
-  background: #999;
-  border-radius: 6px;
-}
-::-webkit-scrollbar-track {
-  background: #444;
-  margin: 1rem 0;
-  border-radius: 6px;
-}
-
 .no-touch {
   -webkit-touch-callout: none;
   -webkit-user-select: none;
@@ -62,7 +45,10 @@
   touch-action: none;
 }
 
-body {
+// The in-world skin only applies under body.in-world (toggled by Client.adopt/unmount),
+// so client.less's global resets stop bleeding onto web pages.
+body.in-world {
+  color-scheme: dark;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
@@ -73,18 +59,33 @@ body {
   #babylonUnmuteIconBtn {
     left: 60px !important;
   }
-}
 
-p,
-li,
-ul,
-section,
-h1,
-h2,
-h3,
-h4 {
-  margin: 0;
-  padding: 0;
+  ::-webkit-scrollbar {
+    width: 12px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #999;
+    border-radius: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #444;
+    margin: 1rem 0;
+    border-radius: 6px;
+  }
+
+  p,
+  li,
+  ul,
+  section,
+  h1,
+  h2,
+  h3,
+  h4 {
+    margin: 0;
+    padding: 0;
+  }
 }
 
 button.iconish {
@@ -99,7 +100,7 @@ button.iconish {
 }
 
 /* Sidebar nav */
-aside.ui-toggle-mobile {
+.UserInterface aside.ui-toggle-mobile {
   position: absolute;
   top: 1rem;
   left: 1rem;
@@ -130,24 +131,7 @@ aside.ui-toggle-mobile {
   }
 }
 
-aside:not(.ui-toggle-mobile) {
-  @media screen and (max-width: 799px), screen and (max-height: 449px) {
-    &[data-active='false'] {
-      & > ul.ui-sidebar {
-        transform: translateX(-100%);
-        visibility: hidden;
-        pointer-events: none;
-      }
-
-      main.chat {
-        visibility: hidden;
-        pointer-events: none;
-      }
-    }
-  }
-}
-
-aside {
+.UserInterface aside {
   @width: 8rem;
 
   & > ul {
@@ -250,7 +234,7 @@ aside {
   }
 }
 
-dialog .baking textarea {
+.UserInterface dialog .baking textarea {
   width: 100%;
   background: transparent;
   height: 80vh;
@@ -258,7 +242,7 @@ dialog .baking textarea {
 }
 
 /* Chat */
-main.chat {
+.UserInterface main.chat {
   bottom: 0;
   left: 0;
   margin: 0 0 4px 0;
@@ -319,17 +303,9 @@ main.chat {
 // Mobile: chat is a full-width bar pinned to the bottom of the screen.
 // Messages float above the input over the canvas; the canvas is shrunk by --chatbar.
 @media @mobile {
-  main.chat {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    width: 100%;
+  .UserInterface main.chat {
     margin: 0;
     padding: 0;
-    z-index: 2500;
-    visibility: visible !important;
-    pointer-events: none;
 
     .chat-messages {
       pointer-events: none;
@@ -337,6 +313,11 @@ main.chat {
       overflow: hidden;
       margin: 0;
       padding: 0.25rem 0.5rem;
+
+      // float text over the canvas: no bubble, lean on the text-shadow for legibility
+      p span {
+        background: transparent;
+      }
     }
 
     form {
@@ -415,7 +396,7 @@ main.chat {
   }
 }
 
-aside .EmoteList ul {
+.UserInterface aside .EmoteList ul {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
   gap: 0.5rem;
@@ -432,7 +413,7 @@ aside .EmoteList ul {
   }
 }
 
-aside .AnimateList ul {
+.UserInterface aside .AnimateList ul {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 0.5rem;
@@ -445,7 +426,7 @@ aside .AnimateList ul {
 }
 
 /* Feature editor */
-dialog.editor {
+.UserInterface dialog.editor {
   font-size: 1em;
 
   textarea,
@@ -777,7 +758,7 @@ dialog.editor {
   }
 }
 
-dialog ul.toolbar {
+.UserInterface dialog ul.toolbar {
   margin-bottom: 10px;
   padding-left: 0;
   display: flex;
@@ -915,7 +896,7 @@ section.build-tab nav.build-main-tabs {
 }
 
 /* Login */
-section.login {
+.UserInterface section.login {
   padding: 1rem;
 
   img {
@@ -923,7 +904,7 @@ section.login {
   }
 }
 
-aside .login a.button {
+.UserInterface aside .login a.button {
   position: relative;
   background: white;
   color: black;
@@ -1651,11 +1632,6 @@ aside .login a.button {
     flex-wrap: wrap;
   }
 
-  .scrollContainer {
-    overflow: hidden auto;
-    -webkit-overflow-scrolling: touch;
-  }
-
   h3,
   h4 {
     color: #eee;
@@ -2227,11 +2203,6 @@ div.NearbyPlayers {
   p {
     color: #fbfafb;
     margin: 3px 0 0 5px;
-  }
-
-  div.ScrollContainer {
-    max-height: 100px;
-    overflow: hidden auto;
   }
 
   ul {
@@ -3062,9 +3033,11 @@ div.css-icon {
     transform: scale(0.1, 0.1);
     opacity: 0;
   }
+
   50% {
     opacity: 1;
   }
+
   100% {
     transform: scale(1.2, 1.2);
     opacity: 0;
