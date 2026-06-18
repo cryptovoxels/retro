@@ -42,11 +42,19 @@ export function FirstTimeInstructions() {
       if (MOVEMENT_KEYS.has(e.code)) dismiss()
     }
 
+    const onTouch = () => dismiss()
+
     app.on(AppEvent.CanvasEngaged, dismiss)
     window.addEventListener('keydown', onKey)
+    if (isMobile()) {
+      document.addEventListener('touchstart', onTouch, { capture: true, passive: true })
+    }
     return () => {
       app.removeListener(AppEvent.CanvasEngaged, dismiss)
       window.removeEventListener('keydown', onKey)
+      if (isMobile()) {
+        document.removeEventListener('touchstart', onTouch, { capture: true })
+      }
     }
   }, [show])
 
