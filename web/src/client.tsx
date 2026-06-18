@@ -76,6 +76,8 @@ export class Client extends Component<FrameProps, FrameState> {
     // leaving the world: drop the in-world skin so client.less stops painting over
     // web pages (the UI itself unmounts with this component)
     document.body.classList.remove('in-world')
+    document.documentElement.classList.remove('in-world-theatre')
+    document.body.classList.remove('in-world-theatre')
   }
 
   // pull the one persistent canvas into our box and keep the engine sized to it
@@ -88,6 +90,10 @@ export class Client extends Component<FrameProps, FrameState> {
 
     box.appendChild(canvas)
     document.body.classList.add('in-world')
+    if (this.props.full) {
+      document.documentElement.classList.add('in-world-theatre')
+      document.body.classList.add('in-world-theatre')
+    }
 
     this.observer?.disconnect()
     this.observer = new ResizeObserver(() => window.engine?.resize())

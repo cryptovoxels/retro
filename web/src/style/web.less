@@ -466,7 +466,10 @@ div.map {
 // Fullscreen world view (the /play route). The persistent canvas gets reparented
 // into the .client-placeholder box, which fills this fixed fullscreen container.
 .world-fullscreen {
+  position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100vh;
   z-index: 1;
 
   .client-placeholder {

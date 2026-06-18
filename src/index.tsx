@@ -170,6 +170,14 @@ async function main() {
   holder.appendChild(canvas)
   document.body.appendChild(holder)
 
+  canvas.addEventListener(
+    'wheel',
+    (e) => {
+      if (document.body.classList.contains('in-world')) e.preventDefault()
+    },
+    { passive: false },
+  )
+
   try {
     var r = await fetch(process.env.ASSET_PATH + '/acknowtt.json')
     var font = await r.json()
