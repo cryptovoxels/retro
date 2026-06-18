@@ -17,6 +17,8 @@
   --border: 1px solid #aaa;
   --softborder: 1px solid #aaa;
   --soft: #888;
+  // mobile chat bar height; canvas shrinks and controls lift by this
+  --chatbar: 3rem;
 }
 
 * {
@@ -445,7 +447,7 @@ div.map {
 
   @media @mobile {
     width: 100%;
-    height: 85dvh;
+    height: calc(85dvh - var(--chatbar));
   }
 }
 
@@ -463,6 +465,10 @@ div.map {
     position: relative;
     width: 100%;
     height: 100%;
+
+    @media @mobile {
+      height: calc(100dvh - var(--chatbar));
+    }
   }
 }
 

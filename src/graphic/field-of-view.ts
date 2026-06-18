@@ -1,4 +1,5 @@
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
+import { isMobile } from '../../common/helpers/detector'
 
 const getSavedFOV = (): number | null => {
   if (typeof localStorage === 'undefined') return null
@@ -20,7 +21,7 @@ export const WIDE_FOV = Math.PI / 2
 export const NORMAL_FOV = 1.2
 
 export class FOV extends TypedEventTarget<{ changed: { value: number } }> {
-  private fov: number = getSavedFOV() ?? NORMAL_FOV // default to normal FOV
+  private fov: number = getSavedFOV() ?? (isMobile() ? WIDE_FOV : NORMAL_FOV) // wide by default on mobile, normal on desktop
 
   constructor() {
     super()

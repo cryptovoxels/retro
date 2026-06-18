@@ -1,5 +1,6 @@
 import { createPortal } from 'preact/compat'
 import { useEffect, useState } from 'preact/hooks'
+import { isMobile } from '../../../common/helpers/detector'
 import { app, AppEvent } from '../state'
 
 let dismissed = false
@@ -42,7 +43,7 @@ export function FirstTimeInstructions() {
 
   return createPortal(
     <dialog open class="first-time">
-      Click to look around, Arrow keys to walk, Press space to jump
+      {isMobile() ? 'Drag to look around. Use the pad to walk, tap it to jump.' : 'Click to look around, Arrow keys to walk, Press space to jump'}
     </dialog>,
     host,
   )

@@ -316,6 +316,44 @@ main.chat {
   }
 }
 
+// Mobile: chat is a full-width bar pinned to the bottom of the screen.
+// Messages float above the input over the canvas; the canvas is shrunk by --chatbar.
+@media @mobile {
+  main.chat {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    z-index: 2500;
+    visibility: visible !important;
+    pointer-events: none;
+
+    .chat-messages {
+      pointer-events: none;
+      max-height: 30vh;
+      overflow: hidden;
+      margin: 0;
+      padding: 0.25rem 0.5rem;
+    }
+
+    form {
+      pointer-events: auto;
+      width: 100%;
+      margin: 0;
+      padding: 0.4rem 0.5rem;
+      box-sizing: border-box;
+      background: rgba(0, 0, 0, 0.5);
+
+      input {
+        flex: 1;
+      }
+    }
+  }
+}
+
 /* Emote + animate lists */
 .AnimateList {
   margin: 5px 0;
@@ -2522,7 +2560,7 @@ div.NearbyPlayers {
 /* Mobile controls */
 div.mobile-buttons {
   position: absolute;
-  bottom: 0;
+  bottom: var(--chatbar);
   right: 0;
   display: flex;
   flex-direction: column;
@@ -2551,17 +2589,26 @@ div.mobile-buttons {
   }
 }
 
-.mobile-dpad {
+.mobile-pad {
   position: fixed;
-  bottom: 64px;
-  left: 0;
-  height: 150px;
-  width: 150px;
-  padding: 0;
-  border: 30px solid transparent;
+  bottom: calc(var(--chatbar) + 1rem);
+  left: 1rem;
+  width: 40vw;
+  aspect-ratio: 1 / 1;
+  background: rgba(128, 128, 128, 0.3);
   touch-action: none;
-  display: flex;
   z-index: 2000;
+}
+
+.mobile-pad-nub {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 33%;
+  aspect-ratio: 1 / 1;
+  background: rgba(128, 128, 128, 0.6);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
 }
 
 /* Overlay windows (admin / nft / take-womp etc) */
