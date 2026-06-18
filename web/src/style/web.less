@@ -137,6 +137,7 @@ header nav {
   ul {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: 1rem;
     margin: 0;
     padding: 0;
@@ -205,6 +206,10 @@ header nav img.logo {
 @media @mobile {
   header nav {
     position: relative;
+
+    li.logo {
+      display: none;
+    }
 
     &::after {
       content: '';
@@ -440,7 +445,7 @@ div.map {
 
   @media @mobile {
     width: 100%;
-    aspect-ratio: 1 / 1;
+    height: 85dvh;
   }
 }
 
@@ -463,6 +468,19 @@ div.map {
 
 .client-placeholder {
   position: relative;
+}
+
+// We fullscreen <body> (not the canvas) so the in-world UI overlay stays visible.
+// But on a parcel page the canvas box is still boxed inside the article column, so
+// pin it to cover the whole viewport while fullscreen, or you get a small centered
+// canvas with a cropped field of view.
+body:fullscreen .client-placeholder,
+body:-webkit-full-screen .client-placeholder {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 1;
 }
 
 dialog.first-time {
@@ -576,6 +594,44 @@ figcaption {
   button[data-active='true'] {
     background: black;
     color: white;
+  }
+}
+
+// Parcel title row: crop the title into the space left of the mode buttons
+.parcel-head {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1rem;
+
+  h1 {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  figcaption {
+    flex: 0 0 auto;
+    position: static;
+    top: 0;
+  }
+}
+
+// Mode buttons show full words on desktop, single letters on mobile
+.mode-short {
+  display: none;
+}
+
+@media @mobile {
+  .mode-full {
+    display: none;
+  }
+
+  .mode-short {
+    display: inline;
   }
 }
 

@@ -52,12 +52,14 @@ const modes = [
   {
     mode: 'client',
     label: 'Explore',
+    short: 'E',
   },
   {
     mode: 'map',
     label: 'Map',
+    short: 'M',
   },
-] as { mode: 'client' | 'map'; label: string }[]
+] as { mode: 'client' | 'map'; label: string; short: string }[]
 
 export default class Parcel extends Component<Props, State> {
   map: Map | null = null
@@ -266,22 +268,25 @@ export default class Parcel extends Component<Props, State> {
       <section class="columns parcel-page">
         <article>
           <Head title={parcelName} description={parcelDesc} url={`/parcels/${this.state.parcelId}`} imageURL={ogImage} />
-          <h1>{parcelName}</h1>
-          <figcaption>
-            {modes.map((mode) => (
-              <button class={`secondary ${this.state.viewTab === mode.mode ? 'contrast' : ''}`} data-active={this.state.viewTab === mode.mode} onClick={() => this.setViewTab(mode.mode)} key={mode.mode}>
-                {mode.label}
-              </button>
-            ))}
+          <div class="parcel-head">
+            <h1>{parcelName}</h1>
+            <figcaption>
+              {modes.map((mode) => (
+                <button class={`secondary ${this.state.viewTab === mode.mode ? 'contrast' : ''}`} data-active={this.state.viewTab === mode.mode} onClick={() => this.setViewTab(mode.mode)} key={mode.mode}>
+                  <span class="mode-full">{mode.label}</span>
+                  <span class="mode-short">{mode.short}</span>
+                </button>
+              ))}
 
-            {this.isOwner && (
-              <a class="buttonish" href={`/parcels/${this.state.parcelId}/edit`}>
-                Edit
-              </a>
-            )}
+              {this.isOwner && (
+                <a class="buttonish" href={`/parcels/${this.state.parcelId}/edit`}>
+                  Edit
+                </a>
+              )}
 
-            {this.helper && <PlayButton url={this.helper.iframeUrl} />}
-          </figcaption>
+              {this.helper && <PlayButton url={this.helper.iframeUrl} />}
+            </figcaption>
+          </div>
 
           <figure>
             {this.state.viewTab === 'map' && <div className="map map-web slippy-map">&nbsp;</div>}
