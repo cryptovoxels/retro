@@ -134,10 +134,10 @@ export class Client extends Component<FrameProps, FrameState> {
   render() {
     const ui = this.state.ui
     return (
-      <>
+      <div class="world-client">
         <div class="client-placeholder" ref={this.box} />
         {ui && <ui.UI {...ui.props} />}
-      </>
+      </div>
     )
   }
 }
