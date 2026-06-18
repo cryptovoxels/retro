@@ -203,7 +203,9 @@ export default function GoLive() {
             {row.via === 'collab' ? ' (collab)' : ''}
           </h2>
           <p>
-            <a href={hostGoLiveHref(row)}>Go live</a>
+            <a class="buttonish primary" href={hostGoLiveHref(row)}>
+              Go live
+            </a>
           </p>
         </section>
       ))}
