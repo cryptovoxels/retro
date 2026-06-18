@@ -193,7 +193,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
 
   get websocketUrl() {
     if (process.env.NODE_ENV === 'development') {
-      let url = `ws://localhost:3780/socket?client_uuid=${Connector.clientUUID}`
+      let url = `ws://${window.location.hostname}:3780/socket?client_uuid=${Connector.clientUUID}`
       if (window.config.spaceId) {
         url += `&space_id=${window.config.spaceId}`
       }

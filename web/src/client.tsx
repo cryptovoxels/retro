@@ -31,14 +31,14 @@ export class Client extends Component<FrameProps, FrameState> {
   skipNaviport = false
   static parcelId: number | null = null
 
-  // peek = web view: hide the in-world UI chrome (chat/minimap/toolbelt). full = /play.
-  static syncUiMode(peek: boolean) {
+  // UI chrome stays up everywhere now, even embedded on a parcel page.
+  static syncUiMode(_peek: boolean) {
     if (window.config) {
-      ;(window.config as any).wantsUI = !peek
+      ;(window.config as any).wantsUI = true
     }
     const ui = document.getElementById('world-ui')
     if (ui) {
-      ui.style.display = peek ? 'none' : ''
+      ui.style.display = ''
     }
   }
 

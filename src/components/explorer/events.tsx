@@ -62,9 +62,6 @@ export class CommunityEvents extends Component<any, CommunityEventsState> {
   }
 
   async fetchPlayersPresent() {
-    const hostURL = new URL(process!.env.MULTIPLAYER_HOST!)
-    hostURL.protocol = hostURL.protocol.replace('ws', 'http') // switch from ws to http protocol
-
     const e = await Promise.all(
       this.state.events.map(async (event) => {
         const r = await fetchFromMPServer<{ count?: number }>(`/api/parcels/${event.parcel_id}.json`)
