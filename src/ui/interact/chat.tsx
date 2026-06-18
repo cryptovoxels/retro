@@ -100,7 +100,7 @@ export class ChatOverlay extends Component<Props, State> {
     }
 
     return (
-      <main class="chat" style={isGuest ? 'font-size: 14px' : undefined}>
+      <div class="chat" style={isGuest ? 'font-size: 14px' : undefined}>
         <div class={'chat-messages' + (messageList.value.length >= chatCap ? ' at-cap' : '')}>
           {messageList.value.slice(-chatCap).map((m: ChatMessageRecord) => (
             <p>
@@ -112,7 +112,7 @@ export class ChatOverlay extends Component<Props, State> {
         </div>
 
         <ChatInput />
-      </main>
+      </div>
     )
   }
 }
