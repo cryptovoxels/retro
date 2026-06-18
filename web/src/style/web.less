@@ -66,7 +66,7 @@ h4 {
     max-width: 100%;
   }
 
-  img+p {
+  img + p {
     margin: 0;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -233,7 +233,7 @@ li.home-mobile {
       z-index: 1;
     }
 
-    >ul {
+    > ul {
       width: 100%;
       overflow-x: auto;
       flex-wrap: nowrap;
@@ -245,7 +245,7 @@ li.home-mobile {
       }
     }
 
-    >ul>li {
+    > ul > li {
       flex: 0 0 auto;
       white-space: nowrap;
     }
@@ -318,22 +318,22 @@ button.hamburger {
   align-items: start;
   gap: 0.5rem 1rem;
 
-  &>nav {
+  & > nav {
     margin-top: 4rem;
     overflow: hidden;
     max-width: 10rem;
     transition: max-width 200ms ease-in-out;
   }
 
-  &.nav-collapsed>nav {
+  &.nav-collapsed > nav {
     max-width: 0;
   }
 
-  &>article {
+  & > article {
     flex: 1;
   }
 
-  &>aside {
+  & > aside {
     width: 25vw;
 
     a {
@@ -358,8 +358,8 @@ button.hamburger {
   .columns {
     flex-direction: column;
 
-    &>article,
-    &>aside {
+    & > article,
+    & > aside {
       width: 100%;
     }
   }
@@ -586,7 +586,7 @@ body.done-loading {
 
 // Figcaption
 
-figcaption+figure {
+figcaption + figure {
   margin-top: -2rem;
 }
 
@@ -810,7 +810,6 @@ div.f {
 }
 
 .island-admin {
-
   article,
   aside {
     width: 40vw;
@@ -1012,7 +1011,7 @@ hgroup {
     margin: 1rem 0 0 0;
   }
 
-  h1+p {
+  h1 + p {
     margin-top: -0.5rem;
   }
 }
@@ -1089,7 +1088,7 @@ p.empty {
       margin: 0;
       padding: 0;
 
-      &>a {
+      & > a {
         display: block;
 
         // truncate
@@ -1154,7 +1153,6 @@ table.spaces {
 // Radar
 
 .radar {
-
   &,
   ul,
   li {
@@ -1168,7 +1166,7 @@ table.spaces {
     list-style-type: '>';
   }
 
-  &>li {
+  & > li {
     margin-bottom: 1rem;
     list-style: none;
   }
@@ -1255,7 +1253,6 @@ table.spaces {
   }
 
   &.showbox-dock-live.showbox-dock-chat-focus {
-
     .showbox-dock-live-tools,
     .showbox-dock-link-btn,
     .showbox-dock-footer,
@@ -1360,7 +1357,6 @@ table.spaces {
 }
 
 @keyframes showbox-live-pulse {
-
   0%,
   100% {
     opacity: 1;
@@ -1632,10 +1628,8 @@ table.spaces {
 
 // global web button:hover sticks on mobile after tap
 .showbox-dock {
-
   .showbox-dock-link-btn,
   .showbox-dock-cancel {
-
     &:hover,
     &:focus,
     &:active {
@@ -1646,7 +1640,6 @@ table.spaces {
   }
 
   .showbox-dock-viewer-count {
-
     &:hover,
     &:focus,
     &:active {
@@ -1660,7 +1653,6 @@ table.spaces {
   .showbox-dock-share-main,
   .showbox-dock-share-pick,
   .showbox-dock-go:not(.stop) {
-
     &:hover,
     &:focus,
     &:active {
@@ -1671,7 +1663,6 @@ table.spaces {
   }
 
   .showbox-dock-go.stop {
-
     &:hover,
     &:focus,
     &:active {
@@ -1683,7 +1674,6 @@ table.spaces {
 
   .showbox-dock-chat-reply button,
   .showbox-dock-share-row button {
-
     &:hover,
     &:focus,
     &:active {
@@ -1694,7 +1684,6 @@ table.spaces {
   }
 
   .showbox-dock-share-menu button {
-
     &:hover,
     &:focus,
     &:active {

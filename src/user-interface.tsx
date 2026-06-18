@@ -54,7 +54,6 @@ import ToolBelt from './ui/overlay/tool-belt'
 import ParcelSnapshots from './ui/parcel-snapshots'
 import { SettingsUI } from './ui/settings'
 import TakeWomp from './ui/take-womp'
-import UploadStatusUI from './ui/upload-status'
 
 const NUMBER_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const
 
@@ -146,9 +145,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   featureTool: FeatureTool
   defaultTool: Tool | null
   keyboardHandler: KeyboardHandler = undefined!
-
-  //Overlay
-  uploadStatusRef = createRef<UploadStatusUI>()
 
   /**
    * Only used for setting initial tab of the explorer; default undefined
@@ -796,10 +792,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           <aside data-active={this.state.active}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
-              <li>
-                <Location signedIn={this.state.signedIn} scene={this.props.scene} />
-              </li>
-
               {!isMobileMedia() && (
                 /**
                  * Fullscreen toggle; no point showing "fullscreen on mobile" as most devices are always fullscreen
@@ -953,7 +945,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           {nearestEditableParcel && <ToolBelt parcel={nearestEditableParcel} scene={this.props.scene} />}
 
-          <UploadStatusUI onCompleteUpload={onCompleteUpload} onFailUpload={onFailUpload} onBeginUpload={onBeginUpload} ref={this.uploadStatusRef} />
           <ConnectionStatusUI connector={this.connector} grid={this.grid} scene={this.props.scene} />
           {this.props.minimapSettings.enabled && !window.config.isOrbit && !window.config.isSpace && (
             <div class="minimap-corner-controls">
