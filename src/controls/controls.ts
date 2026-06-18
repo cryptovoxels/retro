@@ -156,7 +156,7 @@ export default abstract class Controls implements IControls {
     this.reticuleHighlight.setEnabled(false)
     this.reticuleHighlight.parent = this.camera
 
-    if (isDesktop() && window.config.wantsUI) {
+    if (isDesktop()) {
       this.scene.registerBeforeRender(() => {
         // Show the reticule in 20% visibility in 3rd person mode.
         this.reticuleNormal.visibility = hasPointerLock() || this.hasGamepad ? (this.firstPersonView ? 1 : 0.2) : 0

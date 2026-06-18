@@ -11,7 +11,6 @@ export type SceneConfig = BABYLON.DeepImmutableObject<{
   wantsAudio?: boolean
   wantsURL: boolean
   isMultiuser: boolean
-  wantsUI: boolean
 }>
 
 export const isScratchpad = () => document.location.pathname.includes('scratchpad')
@@ -28,7 +27,6 @@ const defaultConfig: SceneConfig = {
   wantsURL: true,
   isOrbit: false,
   isMultiuser: false,
-  wantsUI: false,
 }
 
 export const sceneConfigFromURL = (): SceneConfig => {
@@ -49,8 +47,6 @@ export const sceneConfigFromURL = (): SceneConfig => {
 
   const isMultiuser = (): boolean => !isOrbit() && searchParams.get('mp') !== 'off'
 
-  const wantsUI = (): boolean => !isOrbit() && !['off', 'false', '0'].includes(searchParams.get('ui') ?? 'on')
-
   const isGrid = !_isSpace() && !isScratchpad()
 
   return Object.assign({}, defaultConfig, {
@@ -63,6 +59,5 @@ export const sceneConfigFromURL = (): SceneConfig => {
     wantsURL: wantsURL(),
     isOrbit: isOrbit(),
     isMultiuser: isMultiuser(),
-    wantsUI: wantsUI(),
   })
 }

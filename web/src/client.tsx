@@ -2,11 +2,12 @@ import { Component, createRef } from 'preact'
 import { route } from 'preact-router'
 import { canUseDom } from '../../common/helpers/utils'
 import { app } from './state'
+import type { BootResult } from '../../src'
 
 // Lazily evaluate the engine. Dynamic import keeps src/** out of the SSR import
 // graph (it pulls in shaders + babylon, which tsx can't parse). webpackMode
 // "eager" keeps it in the single app.js bundle for the browser.
-function boot(): Promise<void> {
+function boot(): Promise<BootResult> {
   return import(/* webpackMode: "eager" */ '../../src').then((m) => m.bootEngine())
 }
 
@@ -16,7 +17,7 @@ type FrameProps = {
   coords: string
 }
 
-type FrameState = {}
+type FrameState = { ui?: BootResult }
 
 /*
  * THE GREAT MERGE: this used to spin up an <iframe src="/play">. Now the engine
@@ -31,23 +32,15 @@ export class Client extends Component<FrameProps, FrameState> {
   skipNaviport = false
   static parcelId: number | null = null
 
-  // UI chrome stays up everywhere now, even embedded on a parcel page.
-  static syncUiMode(_peek: boolean) {
-    if (window.config) {
-      ;(window.config as any).wantsUI = true
-    }
-    const ui = document.getElementById('world-ui')
-    if (ui) {
-      ui.style.display = ''
-    }
-  }
-
   componentDidMount() {
     Client.parcelId = this.props.parcelId!
     if (!canUseDom) {
       return
     }
-    void boot().then(() => this.adopt())
+    void boot().then((ui) => {
+      this.setState({ ui })
+      this.adopt()
+    })
   }
 
   componentDidUpdate(previousProps: Readonly<FrameProps>): void {
@@ -80,11 +73,9 @@ export class Client extends Component<FrameProps, FrameState> {
       }
     }
 
-    // leaving the world: hide the game overlay and drop the in-world skin so client.less
-    // stops painting over web pages
+    // leaving the world: drop the in-world skin so client.less stops painting over
+    // web pages (the UI itself unmounts with this component)
     document.body.classList.remove('in-world')
-    const ui = document.getElementById('world-ui')
-    if (ui) ui.style.display = 'none'
   }
 
   // pull the one persistent canvas into our box and keep the engine sized to it
@@ -103,7 +94,6 @@ export class Client extends Component<FrameProps, FrameState> {
     this.observer.observe(box)
     window.engine?.resize()
 
-    Client.syncUiMode(!this.props.full)
     this.naviport()
 
     // while embedded on a parcel page, reflect the parcel you walk into into the URL.
@@ -136,6 +126,12 @@ export class Client extends Component<FrameProps, FrameState> {
   }
 
   render() {
-    return <div class="client-placeholder" ref={this.box} />
+    const ui = this.state.ui
+    return (
+      <>
+        <div class="client-placeholder" ref={this.box} />
+        {ui && <ui.UI {...ui.props} />}
+      </>
+    )
   }
 }
