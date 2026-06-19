@@ -108,6 +108,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   private activationState = ParcelActivationState.Inactive
   private fieldUpdateTimeout: NodeJS.Timeout | null = null
   private readonly afterGenerateCallbacks: (() => void)[] = []
+  private voxelFieldGen = 0
   private readonly refreshVoxels: () => void
   readonly relight: () => void
   private readonly soundSprite: BABYLON.Sound | null = null
@@ -1538,11 +1539,17 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       return
     }
 
+    const gen = ++this.voxelFieldGen
+
     if (window.graphic?.realisticLighting && this.field) {
       const lanterns = this.features.filter((f) => f.type === 'lantern') as LanternRecord[]
       // Y matches setVoxelMesh so voxel.ts pick/place math is correct
       const off: [number, number, number] = [-this.width / 4 + 0.25, -0.75 + this.ZFightingNudge, -this.depth / 4 + 0.25]
       const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id, this.paletteColors, this.tilesetTexture ?? undefined)
+      if (gen !== this.voxelFieldGen) {
+        this.disposeGeneratedMeshes(opaque, glass)
+        return
+      }
       this.voxelMesh?.dispose()
       this.voxelMesh = opaque
       opaque.parent = this.transform
@@ -1569,17 +1576,45 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
         false,
         BABYLON.Texture.BILINEAR_SAMPLINGMODE,
         () => {
-          this.mesher.generateBaked(this, this.configureBakedVoxelFieldMeshes.bind(this), texture)
+          if (gen !== this.voxelFieldGen) return
+          this.mesher.generateBaked(this, (opaque, glass) => {
+            if (gen !== this.voxelFieldGen) {
+              this.disposeGeneratedMeshes(opaque, glass)
+              return
+            }
+            this.configureBakedVoxelFieldMeshes(opaque, glass)
+          }, texture)
         },
         () => {
+          if (gen !== this.voxelFieldGen) return
           // Lightmap fetch failed -- fall back to unbaked so the parcel is still visible
-          this.mesher.generate(this, null, this.configureUnbakedVoxelFieldMeshes.bind(this))
+          this.mesher.generate(this, null, (opaque, glass, collider) => {
+            if (gen !== this.voxelFieldGen) {
+              this.disposeGeneratedMeshes(opaque, glass, collider)
+              return
+            }
+            this.configureUnbakedVoxelFieldMeshes(opaque, glass, collider)
+          })
         },
       )
       return
     }
 
-    this.mesher.generate(this, null, this.configureUnbakedVoxelFieldMeshes.bind(this))
+    this.mesher.generate(this, null, (opaque, glass, collider) => {
+      if (gen !== this.voxelFieldGen) {
+        this.disposeGeneratedMeshes(opaque, glass, collider)
+        return
+      }
+      this.configureUnbakedVoxelFieldMeshes(opaque, glass, collider)
+    })
+  }
+
+  private disposeGeneratedMeshes(...meshes: (BABYLON.Mesh | null | undefined)[]) {
+    for (const mesh of meshes) {
+      if (!mesh) continue
+      if (mesh.material && !isShared(mesh.material)) mesh.material.dispose()
+      mesh.dispose()
+    }
   }
 
   private flushOnGenerateCallbacks = () => {
