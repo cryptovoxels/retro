@@ -471,6 +471,14 @@ div.map {
   width: 100vw;
   height: 100vh;
   z-index: 1;
+  overflow: hidden;
+
+  .world-client {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
 
   .client-placeholder {
     position: relative;
@@ -479,6 +487,22 @@ div.map {
 
     @media @mobile {
       height: calc(100dvh - var(--chatbar));
+    }
+  }
+}
+
+.world-client {
+  position: relative;
+  width: 100%;
+
+  > .UserInterface {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    pointer-events: none;
+
+    > * {
+      pointer-events: auto;
     }
   }
 }

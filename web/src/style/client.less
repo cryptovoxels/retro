@@ -139,6 +139,7 @@ button.iconish {
 
 .UserInterface aside {
   @width: 8rem;
+  position: relative;
 
   & > ul {
     height: 100vh;
@@ -262,6 +263,8 @@ button.iconish {
     flex-direction: column;
     gap: 2px;
     margin-bottom: 2px;
+    max-height: 50vh;
+    overflow: hidden;
   }
 
   s.profanity {
@@ -310,7 +313,7 @@ button.iconish {
 // Mobile: chat is a full-width bar pinned to the bottom of the screen.
 // Messages float above the input over the canvas; the canvas is shrunk by --chatbar.
 @media @mobile {
-  .UserInterface main.chat {
+  .UserInterface div.chat {
     margin: 0;
     padding: 0;
 
