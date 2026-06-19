@@ -940,11 +940,13 @@ section.build-tab nav.build-main-tabs {
 
 /* Voxel tool belt (minecraft-like bottom bar) */
 .VoxelToolBelt {
+  position: fixed;
   bottom: 0;
   left: 50%;
   transform: translateX(-50%);
   padding: 20px;
   max-height: 100px;
+  z-index: 10;
 
   .add-menu-anchor {
     position: relative;
