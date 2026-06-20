@@ -24,7 +24,7 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
 
   if (wantsAudio()) {
     try {
-      audio = new AudioEngine(scene, grid)
+      audio = new AudioEngine(scene)
       window._audio = audio
     } catch (e: any) {
       console.error(`Unable to create audio engine\n\n${e.toString()}`)

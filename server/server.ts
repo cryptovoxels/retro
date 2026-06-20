@@ -33,6 +33,7 @@ import PlayController from './controllers/play'
 import SpacesController from './controllers/spaces'
 import MetricsController from './controllers/metrics'
 import ModelsController from './controllers/models'
+import RadioController from './controllers/radio'
 
 import cache, { defaultCache, noCache } from './cache'
 import db, { pgp } from './pg'
@@ -348,6 +349,9 @@ ModelsController(app)
 
 // Metrics controller
 MetricsController(db, app)
+
+// Radio (soundtrack station + DJ spots)
+RadioController(db, app)
 
 // Main client controller
 PlayController(db, passport, app)

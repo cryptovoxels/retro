@@ -1,0 +1,126 @@
+.voxel-radio-wrap {
+  margin-bottom: 1rem;
+
+  &.popped {
+    margin: 1rem;
+  }
+}
+
+.voxel-radio {
+  display: flex;
+  align-items: stretch;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background: var(--dark);
+  color: var(--bright);
+  font-family: monospace;
+
+  .vr-toggle,
+  .vr-btn {
+    background: none;
+    border: var(--border);
+    color: var(--bright);
+    padding: 0 0.75rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+  }
+
+  .vr-screen {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.25rem;
+  }
+
+  .vr-label {
+    color: var(--soft);
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+  }
+
+  // shoutcast-style scrolling now-playing line
+  .vr-track {
+    overflow: hidden;
+    white-space: nowrap;
+
+    span {
+      display: inline-block;
+      padding-left: 100%;
+      animation: vr-marquee 12s linear infinite;
+    }
+  }
+
+  &.on-air .vr-label {
+    color: var(--red);
+  }
+}
+
+// winamp playlist drawer
+.vr-playlist {
+  background: var(--dark);
+  color: var(--bright);
+  font-family: monospace;
+  padding: 0.5rem;
+
+  .vr-progress {
+    height: 0.4rem;
+    background: var(--tinge);
+
+    span {
+      display: block;
+      height: 100%;
+      background: var(--bright);
+    }
+  }
+
+  .vr-day {
+    display: block;
+    color: var(--soft);
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    padding: 0.25rem 0;
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    max-height: 18rem;
+    overflow-y: auto;
+  }
+
+  li {
+    display: flex;
+    gap: 0.75rem;
+    padding: 0.15rem 0;
+
+    .vr-time {
+      color: var(--soft);
+    }
+
+    &.live .vr-name {
+      color: var(--red);
+    }
+
+    &.past {
+      opacity: 0.5;
+    }
+
+    &.spot {
+      cursor: pointer;
+
+      .vr-name {
+        text-decoration: underline;
+      }
+    }
+  }
+}
+
+@keyframes vr-marquee {
+  to {
+    transform: translateX(-100%);
+  }
+}

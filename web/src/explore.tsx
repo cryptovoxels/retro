@@ -13,6 +13,7 @@ import { getClientPath } from './helpers/client-helpers'
 import { app, AppEvent } from './state'
 import WompsList from './womps-list'
 import Radar from './components/radar'
+import VoxelRadio from './components/voxel-radio'
 
 type Props = {
   womps?: Womp[]
@@ -189,6 +190,8 @@ export default class Explore extends Component<any, Props> {
 
         <section class="columns">
           <aside>
+            <VoxelRadio />
+
             <Radar />
 
             <EventsList />

@@ -222,6 +222,7 @@ export default function loadRoutes(app: Express) {
     { path: '/search', cache: '1 minute' },
     { path: '/womps', cache: '1 minute' },
     { path: '/metrics', cache: false },
+    { path: '/radio', cache: '1 minute' },
     { path: '/spaces', cache: duration },
   ] as const
 

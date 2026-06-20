@@ -24,6 +24,7 @@ import PublishCollection from './collection-publish'
 import Collections from './collections'
 import CollectionsNew from './collections-new'
 import Snackbar from './components/snackbar'
+import VoxelRadio from './components/voxel-radio'
 import Conduct from './conduct'
 import EventPage from './event-page'
 import Events from './events'
@@ -114,7 +115,7 @@ const Main = () => {
   const prevUrl = useRef(location.pathname + location.search)
   const lightBroadcast = currentPath.startsWith('/golive/broadcast')
   // fullscreen world view: no web header/footer chrome
-  const fullWorld = currentPath.startsWith('/play') || currentPath.startsWith('/scratchpad') || currentPath.endsWith('/play')
+  const fullWorld = currentPath.startsWith('/play') || currentPath.startsWith('/scratchpad') || currentPath.endsWith('/play') || currentPath.startsWith('/radio')
 
   return (
     <MainApp>
@@ -123,6 +124,7 @@ const Main = () => {
 
         <Router onChange={handleRoute}>
           <Explore path="/" />
+          <RadioPopout path="/radio" />
           <Play path="/play" />
           <Play path="/scratchpad" />
           <Play path="/spaces/:id/play" />
@@ -193,6 +195,15 @@ const Main = () => {
       <Snackbar />
       <PlayPreview />
     </MainApp>
+  )
+}
+
+// Popped-out radio window (window.open('/radio'))
+function RadioPopout(_props: { path?: string }) {
+  return (
+    <div class="radio-popout">
+      <VoxelRadio popped />
+    </div>
   )
 }
 
