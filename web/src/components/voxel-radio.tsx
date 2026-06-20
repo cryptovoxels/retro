@@ -164,9 +164,21 @@ export default class VoxelRadio extends Component<Props, State> {
   }
 
   popout = () => {
-    window.open('/radio', 'voxelradio', 'width=480,height=560,menubar=no,toolbar=no,location=no')
+    const w = window.open('/radio', 'voxelradio', 'width=480,height=560,menubar=no,toolbar=no,location=no')
     // hand the audio to the popup so we're not playing twice
-    if (this.radio && !this.radio.muted) this.radio.toggle()
+    if (w && this.radio && !this.radio.muted) this.radio.toggle()
+  }
+
+  transport = () => {
+    const r = this.radio
+    if (!r) return
+    if (r.muted || r.stalled) {
+      if (r.muted) r.toggle()
+      else r.wake()
+    } else {
+      r.toggle()
+    }
+    this.forceUpdate()
   }
 
   // current track + everything coming up, tracks and spots interleaved by clock
@@ -255,6 +267,7 @@ export default class VoxelRadio extends Component<Props, State> {
             step={0.05}
             value={value}
             onWake={() => {
+              r.wake()
               if (id !== 'vol' && !r.chain.includes(id)) r.addPedal(id)
             }}
             onChange={(v) => {
@@ -274,6 +287,7 @@ export default class VoxelRadio extends Component<Props, State> {
   render() {
     const r = this.radio
     const muted = r?.muted ?? false
+    const showPlay = !r || muted || r.stalled
     const onAir = r?.onAir ?? false
     const text = onAir ? 'dj on the mic...' : r?.title || 'tuning in...'
     const pct = Math.round((sec() / DAY) * 100)
@@ -294,8 +308,8 @@ export default class VoxelRadio extends Component<Props, State> {
                   </div>
                   <div class="vr-calc-head">
                     <div class="vr-key-row">
-                      <button type="button" class="vr-key fn" onClick={() => r?.toggle()} title={muted ? 'play' : 'stop'}>
-                        {muted ? '>' : '||'}
+                      <button type="button" class="vr-key fn" onClick={this.transport} title={showPlay ? 'play' : 'stop'}>
+                        {showPlay ? '>' : '||'}
                       </button>
                       <button type="button" class={`vr-key fn${this.state.open ? ' on' : ''}`} onClick={() => this.setState({ open: !this.state.open })} title="playlist">
                         PL
@@ -333,8 +347,8 @@ export default class VoxelRadio extends Component<Props, State> {
                 </span>
               </div>
               <div class="vr-transport">
-                <button type="button" class="vr-toggle" onClick={() => r?.toggle()} title={muted ? 'play' : 'stop'}>
-                  {muted ? 'play' : 'stop'}
+                <button type="button" class="vr-toggle" onClick={this.transport} title={showPlay ? 'play' : 'stop'}>
+                  {showPlay ? 'play' : 'stop'}
                 </button>
                 <button type="button" class={`vr-btn${this.state.fx ? ' active' : ''}`} onClick={() => this.setState({ fx: !this.state.fx })} title="fx pedals">
                   fx
