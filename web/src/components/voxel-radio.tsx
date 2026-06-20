@@ -123,14 +123,13 @@ export default class VoxelRadio extends Component<Props, State> {
       const kind = it.spot ? 'spot' : 'music'
       const when = live ? 'live' : it.at <= now ? 'past' : ''
       const parcelId = it.spot?.parcelId
-      const name =
-        parcelId ? (
-          <a href={`/parcels/${parcelId}/play`} class="vr-name">
-            {it.label}
-          </a>
-        ) : (
-          <span class="vr-name">{it.label}</span>
-        )
+      const name = parcelId ? (
+        <a href={`/parcels/${parcelId}/play`} class="vr-name">
+          {it.label}
+        </a>
+      ) : (
+        <span class="vr-name">{it.label}</span>
+      )
       return (
         <li key={`${it.at}-${it.label}`} class={[when, kind].filter(Boolean).join(' ')} onClick={it.spot && !parcelId ? () => r?.previewSpot(it.spot!) : undefined}>
           {live && <span class="vr-now">now</span>}
