@@ -1,5 +1,10 @@
 # ugc -> single bucket migration
 
+by: ben
+authored: 2026-06-20
+complete: no
+migration notes: nil
+
 ## what this was
 
 A migration that pulls all parcel user content (images, vox models, audio, video,
