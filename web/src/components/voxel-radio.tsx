@@ -386,31 +386,35 @@ export default class VoxelRadio extends Component<Props, State> {
         <div class={`voxel-radio${onAir ? ' on-air' : ''}${compact ? ' compact' : ''}`}>
           {compact ? (
             <>
-              <div class="vr-viz-box">
-                <canvas ref={this.canvas} class="vr-viz" />
-              </div>
               <div class="vr-calc-face">
-                <span class="vr-brand">voxels radio{onAir ? ' *' : ''}</span>
-                <div class="vr-calc-display">
-                  <span class="vr-track">
-                    <span>{text}</span>
-                  </span>
+                <div class="vr-calc-body">
+                  <div class="vr-viz-box">
+                    <canvas ref={this.canvas} class="vr-viz" />
+                  </div>
+                  <div class="vr-calc-head">
+                    <div class="vr-key-row">
+                      <button type="button" class="vr-key fn" onClick={() => r?.toggle()} title={muted ? 'play' : 'stop'}>
+                        {muted ? '>' : '||'}
+                      </button>
+                      <button type="button" class={`vr-key fn${this.state.open ? ' on' : ''}`} onClick={() => this.setState({ open: !this.state.open })} title="playlist">
+                        PL
+                      </button>
+                      <button type="button" class={`vr-key fn${this.state.fx ? ' on' : ''}`} onClick={() => this.setState({ fx: !this.state.fx })} title="fx chain">
+                        FX
+                      </button>
+                      <button type="button" class="vr-key fn" onClick={this.popout} title="pop out">
+                        ^
+                      </button>
+                    </div>
+                    <div class="vr-calc-display">
+                      <span class="vr-brand">voxels radio{onAir ? ' *' : ''}</span>
+                      <span class="vr-track">
+                        <span>{text}</span>
+                      </span>
+                    </div>
+                  </div>
+                  {r && <div class="vr-key-grid">{this.padGrid(r)}</div>}
                 </div>
-                <div class="vr-key-row">
-                  <button type="button" class="vr-key fn" onClick={() => r?.toggle()} title={muted ? 'play' : 'stop'}>
-                    {muted ? '>' : '||'}
-                  </button>
-                  <button type="button" class={`vr-key fn${this.state.open ? ' on' : ''}`} onClick={() => this.setState({ open: !this.state.open })} title="playlist">
-                    PL
-                  </button>
-                  <button type="button" class={`vr-key fn${this.state.fx ? ' on' : ''}`} onClick={() => this.setState({ fx: !this.state.fx })} title="fx chain">
-                    FX
-                  </button>
-                  <button type="button" class="vr-key fn" onClick={this.popout} title="pop out">
-                    ^
-                  </button>
-                </div>
-                {r && <div class="vr-key-grid">{this.padGrid(r)}</div>}
               </div>
               <div class="vr-progress vr-progress-main">
                 <span style={`width:${pct}%`} />
