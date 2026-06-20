@@ -65,45 +65,56 @@
   }
 }
 
-// homepage aside: winamp-style compact chassis
+// homepage aside: compact single row, viz full bleed behind controls
 .voxel-radio-wrap:not(.popped) .voxel-radio.compact {
-  display: grid;
-  grid-template-columns: 5rem 1fr;
-  grid-template-rows: 1fr auto;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  min-height: 2.5rem;
   padding: 0;
   gap: 0;
 
   .vr-viz-box {
-    grid-row: 1 / span 2;
-    border-right: var(--border);
-    min-height: 4rem;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    border: none;
   }
 
   .vr-screen {
-    grid-column: 2;
-    grid-row: 1;
-    padding: 0.25rem 0.5rem;
+    flex: 1;
+    order: 1;
+    min-width: 0;
+    padding: 0.15rem 0.35rem;
+    z-index: 1;
   }
 
   .vr-label {
-    font-size: 0.65em;
+    display: none;
+  }
+
+  .vr-track {
+    font-size: 0.85em;
+    line-height: 1.2;
   }
 
   .vr-transport {
-    grid-column: 2;
-    grid-row: 2;
+    order: 0;
     display: flex;
-    border-top: var(--border);
+    flex-shrink: 0;
+    z-index: 1;
+    border-top: none;
+    border-right: var(--border);
   }
 
   .vr-toggle,
   .vr-btn {
     border: none;
     border-right: var(--border);
-    padding: 0.2rem 0.5rem;
-    min-width: 1.75rem;
-    font-size: 0.75em;
-    line-height: 1.2;
+    padding: 0.15rem 0.4rem;
+    min-width: 1.5rem;
+    font-size: 0.7em;
+    line-height: 1.1;
     text-transform: none;
     letter-spacing: 0;
   }
