@@ -4,7 +4,7 @@ import { DAY, PedalId, Spot, VoxelRadioEngine } from '../radio/engine'
 import { startVisualiser } from '../radio/visualiser'
 
 type Props = { popped?: boolean }
-type PanelMode = 'closed' | 'open' | 'shade'
+type PanelMode = 'closed' | 'open'
 type State = { viz: PanelMode; pl: PanelMode }
 
 const sec = () => (Date.now() / 1000) % DAY
@@ -18,7 +18,8 @@ const clock = (off: number) => {
 function loadPanel(key: string, def: PanelMode): PanelMode {
   try {
     const v = localStorage.getItem(`radio.panel.${key}`)
-    if (v === 'open' || v === 'shade' || v === 'closed') return v
+    if (v === 'open' || v === 'closed') return v
+    if (v === 'shade') return 'open'
   } catch {}
   return def
 }
@@ -143,12 +144,6 @@ export default class VoxelRadio extends Component<Props, State> {
     this.setPanel(id, this.state[id] === 'closed' ? 'open' : 'closed')
   }
 
-  shadePanel(id: 'viz' | 'pl') {
-    const cur = this.state[id]
-    if (cur === 'closed') return
-    this.setPanel(id, cur === 'shade' ? 'open' : 'shade')
-  }
-
   popout = () => {
     const w = window.open('/radio', 'voxelradio', 'width=480,height=560,menubar=no,toolbar=no,location=no')
     if (w && this.radio && !this.radio.muted) this.radio.toggle()
@@ -235,20 +230,13 @@ export default class VoxelRadio extends Component<Props, State> {
   }
 
   panel(id: 'viz' | 'pl', title: string, body: preact.ComponentChildren) {
-    const mode = this.state[id]
-    if (mode === 'closed') return null
+    if (this.state[id] === 'closed') return null
     return (
-      <div class={`vr-panel${mode === 'shade' ? ' shade' : ''}`}>
+      <div class="vr-panel">
         <div class="vr-panel-head">
           <span class="vr-panel-title">{title}</span>
-          <button type="button" class="vr-panel-btn" onClick={() => this.shadePanel(id)} title={mode === 'shade' ? 'expand' : 'shade'}>
-            _
-          </button>
-          <button type="button" class="vr-panel-btn" onClick={() => this.setPanel(id, 'closed')} title="close">
-            x
-          </button>
         </div>
-        {mode === 'open' && <div class={`vr-panel-body${id === 'pl' ? ' vr-playlist' : ''}`}>{body}</div>}
+        <div class={`vr-panel-body${id === 'pl' ? ' vr-playlist' : ''}`}>{body}</div>
       </div>
     )
   }
