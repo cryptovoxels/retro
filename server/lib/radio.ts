@@ -30,6 +30,7 @@ export interface Spot {
   kind: SpotKind
   url?: string // filled once generated (from redis state)
   summary?: string
+  parcelId?: number
 }
 
 export interface Schedule {
@@ -89,11 +90,11 @@ export function buildSchedule(day: number): Schedule {
 
 // generate text + speech, upload wav to S3, return the url + raw text.
 // caching/coordination lives in the controller (redis), this is pure work.
-export async function generateSpot(db: Db, redis: any, id: string, kind: SpotKind): Promise<{ url: string; text: string }> {
-  const text = await script(db, redis, kind)
+export async function generateSpot(db: Db, redis: any, id: string, kind: SpotKind): Promise<{ url: string; text: string; parcelId?: number }> {
+  const { text, parcelId } = await script(db, redis, kind)
   const audio = await speak(text)
   const url = await upload(id, audio)
-  return { url, text }
+  return { url, text, parcelId }
 }
 
 async function chat(prompt: string, temperature: number): Promise<string> {
@@ -119,7 +120,7 @@ async function chat(prompt: string, temperature: number): Promise<string> {
   return text
 }
 
-async function script(db: Db, redis: any, kind: SpotKind): Promise<string> {
+async function script(db: Db, redis: any, kind: SpotKind): Promise<{ text: string; parcelId?: number }> {
   const [pop, live] = await Promise.all([popular(db), presence(redis)])
 
   const ids = [...new Set(live.map((u) => u.parcel).filter((p): p is number => !!p))]
@@ -155,7 +156,24 @@ async function script(db: Db, redis: any, kind: SpotKind): Promise<string> {
       ? `You are the late-night DJ on Voxels Radio, a 3D virtual world. Using the data below, say ONE short casual hype line in Arabic (Saudi dialect), UNDER 120 CHARACTERS. You may name a place or who's around. Arabic script only, no transliteration, no emojis, no quotes.\n\n${brief}`
       : `You are the late-night DJ on Voxels Radio, a 3D virtual world. Using the data below, say ONE short, casual, lowercase on-air shout-out, UNDER 120 CHARACTERS. Name a place, and who's there if it fits. Vibe like: "sit back and relapse at 2 harriot terrace", "join pierceone at gallery", "anons at flashmint". No emojis, no quotes, no hashtags, no stage directions.\n\n${brief}`
 
-  return chat(prompt, kind === 'ar' ? 0.9 : 0.8)
+  // link the spot to wherever the brief is mostly about
+  let parcelId: number | undefined
+  if (groups.size) {
+    let best = 0
+    let n = 0
+    for (const [pid, ppl] of groups) {
+      if (ppl.length > n) {
+        best = pid
+        n = ppl.length
+      }
+    }
+    parcelId = best || undefined
+  } else if (pop[0]?.id) {
+    parcelId = pop[0].id
+  }
+
+  const text = await chat(prompt, kind === 'ar' ? 0.9 : 0.8)
+  return { text, parcelId }
 }
 
 // live users straight from redis (same data /api/users/live streams)
@@ -192,7 +210,7 @@ async function parcelNames(db: Db, ids: number[]): Promise<Record<number, string
   return out
 }
 
-async function popular(db: Db): Promise<{ name: string; address: string }[]> {
+async function popular(db: Db): Promise<{ id: number; name: string; address: string }[]> {
   const t = (i: number) => `day_${i.toString().padStart(2, '0')}`
   const today = new Date().getUTCDay()
   const yesterday = (today + 6) % 7
@@ -205,11 +223,11 @@ async function popular(db: Db): Promise<{ name: string; address: string }[]> {
     stats AS (
       SELECT parcel, COUNT(*) AS actions FROM umetrics GROUP BY parcel HAVING COUNT(*) > 1
     )
-    SELECT p.name, p.address FROM stats s JOIN properties p ON p.id = s.parcel
+    SELECT p.id, p.name, p.address FROM stats s JOIN properties p ON p.id = s.parcel
     ORDER BY s.actions DESC LIMIT 6
   `
   const { rows } = await db.query('sql/radio/popular', sql)
-  return (rows as any[]).map((p) => ({ name: p.name, address: p.address }))
+  return (rows as any[]).map((p) => ({ id: p.id, name: p.name, address: p.address }))
 }
 
 async function speak(text: string): Promise<Buffer> {

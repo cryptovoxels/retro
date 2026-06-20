@@ -10,6 +10,7 @@ export interface Spot {
   kind: 'en' | 'ar'
   url?: string
   summary?: string
+  parcelId?: number
 }
 export interface Schedule {
   utcDay: number
