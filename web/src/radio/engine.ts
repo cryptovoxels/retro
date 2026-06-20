@@ -364,6 +364,18 @@ export class VoxelRadioEngine {
     return this.track ? trackTitle(this.track) : ''
   }
 
+  // waiting on a user gesture (autoplay policy) or not loaded yet
+  get stalled() {
+    return !this.muted && (!this.el || this.el.paused)
+  }
+
+  wake() {
+    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {})
+    this.el?.play()
+      .then(() => this.onChange?.())
+      .catch(() => {})
+  }
+
   start() {
     if (this.ctx.state === 'suspended') {
       const resume = () => this.ctx.resume()
@@ -417,7 +429,9 @@ export class VoxelRadioEngine {
 
     el.play().catch(() => {
       const retry = () => {
-        el.play().catch(() => {})
+        el.play()
+          .then(() => this.onChange?.())
+          .catch(() => {})
         window.removeEventListener('pointerdown', retry)
         window.removeEventListener('keydown', retry)
       }
@@ -524,7 +538,7 @@ export class VoxelRadioEngine {
   toggle() {
     this.muted = !this.muted
     this.master.gain.setTargetAtTime(this.muted ? 0 : 1, this.ctx.currentTime, 0.05)
-    if (!this.muted && this.ctx.state === 'suspended') this.ctx.resume()
+    if (!this.muted) this.wake()
     this.onChange?.()
   }
 
