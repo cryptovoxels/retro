@@ -70,7 +70,7 @@
   display: flex;
   flex-direction: row;
   align-items: center;
-  min-height: 2.5rem;
+  min-height: 2.75rem;
   padding: 0;
   gap: 0;
 
@@ -121,6 +121,35 @@
 
   .vr-btn:last-child {
     border-right: none;
+  }
+
+  .vr-compact-knobs {
+    order: 2;
+    display: flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0 0.2rem;
+    z-index: 1;
+    border-left: var(--border);
+
+    .vr-knob.mini {
+      width: 1.35rem;
+      cursor: ns-resize;
+
+      svg {
+        width: 1.35rem;
+        height: 1.35rem;
+      }
+
+      .vr-knob-val {
+        display: none;
+      }
+
+      .val {
+        stroke: var(--red);
+      }
+    }
   }
 }
 

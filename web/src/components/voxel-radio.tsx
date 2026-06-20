@@ -31,7 +31,7 @@ const arc = (to: number) => {
 }
 const FULL = arc(A0 + SPAN)
 
-type KnobProps = { label: string; min: number; max: number; step: number; value: number; onChange: (v: number) => void }
+type KnobProps = { label: string; min: number; max: number; step: number; value: number; compact?: boolean; onChange: (v: number) => void }
 
 // 2rem svg arc knob, drag up/down to turn
 class Knob extends Component<KnobProps> {
@@ -57,16 +57,16 @@ class Knob extends Component<KnobProps> {
   }
 
   render() {
-    const { label, min, max, value } = this.props
+    const { label, min, max, value, compact } = this.props
     const t = (value - min) / (max - min)
     return (
-      <div class="vr-knob" onPointerDown={this.down}>
+      <div class={`vr-knob${compact ? ' mini' : ''}`} onPointerDown={this.down}>
         <svg viewBox="0 0 32 32">
           <path class="track" d={FULL} />
           <path class="val" d={arc(A0 + t * SPAN)} />
         </svg>
         <span class="vr-knob-val">{Math.round(value * 100)}</span>
-        <label>{label}</label>
+        {!compact && <label>{label}</label>}
       </div>
     )
   }
@@ -160,6 +160,34 @@ export default class VoxelRadio extends Component<Props, State> {
               <span>{text}</span>
             </span>
           </div>
+          {compact && (
+            <div class="vr-compact-knobs">
+              <Knob
+                compact
+                label="track"
+                min={0}
+                max={1}
+                step={0.05}
+                value={r?.trackVolume ?? 1}
+                onChange={(v) => {
+                  r?.setTrackVolume(v)
+                  this.forceUpdate()
+                }}
+              />
+              <Knob
+                compact
+                label="filter"
+                min={-1}
+                max={1}
+                step={0.05}
+                value={r?.filterAmount ?? 0}
+                onChange={(v) => {
+                  r?.setFilter(v)
+                  this.forceUpdate()
+                }}
+              />
+            </div>
+          )}
           <div class="vr-transport">
             <button type="button" class="vr-toggle" onClick={() => r?.toggle()} title={muted ? 'play' : 'stop'}>
               {compact ? (muted ? '>' : '||') : muted ? 'play' : 'stop'}
