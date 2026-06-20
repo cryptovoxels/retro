@@ -120,8 +120,11 @@ export default class VoxelRadio extends Component<Props, State> {
     const from = Math.max(0, cur - 6)
     return items.slice(from, cur + 14).map((it) => {
       const live = it === items[cur]
+      const kind = it.spot ? 'spot' : 'music'
+      const when = live ? 'live' : it.at <= now ? 'past' : ''
       return (
-        <li key={`${it.at}-${it.label}`} class={`${live ? 'live' : it.at <= now ? 'past' : ''}${it.spot ? ' spot' : ''}`} onClick={it.spot ? () => r?.previewSpot(it.spot!) : undefined}>
+        <li key={`${it.at}-${it.label}`} class={[when, kind].filter(Boolean).join(' ')} onClick={it.spot ? () => r?.previewSpot(it.spot!) : undefined}>
+          {live && <span class="vr-now">now</span>}
           <span class="vr-time">{clock(it.at)}</span>
           <span class="vr-name">{it.label}</span>
         </li>
@@ -137,7 +140,7 @@ export default class VoxelRadio extends Component<Props, State> {
     const pct = Math.round((sec() / DAY) * 100)
 
     return (
-      <div class={`voxel-radio-wrap${this.props.popped ? ' popped' : ''}`}>
+      <div class={`voxel-radio-wrap${this.props.popped ? ' popped' : ''}${this.state.open ? ' open' : ''}`}>
         <div class={`voxel-radio${onAir ? ' on-air' : ''}`}>
           <canvas ref={this.canvas} class="vr-viz" />
           <button class="vr-toggle" onClick={() => r?.toggle()}>
@@ -169,7 +172,7 @@ export default class VoxelRadio extends Component<Props, State> {
             </small>
             <div class="vr-controls">
               <Knob
-                label="track"
+                label="music"
                 min={0}
                 max={1}
                 step={0.05}
@@ -191,7 +194,7 @@ export default class VoxelRadio extends Component<Props, State> {
                 }}
               />
               <Knob
-                label="spot"
+                label="dj"
                 min={0}
                 max={1}
                 step={0.05}

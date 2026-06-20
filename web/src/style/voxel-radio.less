@@ -78,6 +78,12 @@
   }
 }
 
+// pause marquee while the schedule drawer is open
+.voxel-radio-wrap.open .vr-track span {
+  animation: none;
+  padding-left: 0;
+}
+
 // winamp playlist drawer
 .vr-playlist {
   position: relative;
@@ -89,13 +95,17 @@
 
   .vr-controls {
     display: flex;
-    gap: 1.5rem;
+    justify-content: space-between;
+    width: 100%;
+    gap: 0.5rem;
     padding: 0.5rem 0;
   }
 
   .vr-knob {
     position: relative;
-    width: 2rem;
+    flex: 1;
+    min-width: 4rem;
+    max-width: 5rem;
     cursor: ns-resize;
     text-align: center;
     touch-action: none;
@@ -104,6 +114,7 @@
       display: block;
       width: 2rem;
       height: 2rem;
+      margin: 0 auto;
     }
 
     path {
@@ -124,9 +135,10 @@
     .vr-knob-val {
       position: absolute;
       top: 0;
-      left: 0;
+      left: 50%;
       width: 2rem;
       height: 2rem;
+      margin-left: -1rem;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -136,7 +148,9 @@
       display: block;
       color: var(--soft);
       text-transform: uppercase;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.05em;
+      font-size: 0.65em;
+      white-space: nowrap;
     }
   }
 
@@ -157,6 +171,8 @@
     text-transform: uppercase;
     letter-spacing: 0.1em;
     padding: 0.25rem 0;
+    font-size: 0.75em;
+    opacity: 0.7;
   }
 
   ul {
@@ -170,18 +186,40 @@
   li {
     display: flex;
     gap: 0.75rem;
-    padding: 0.15rem 0;
+    padding: 0.15rem 0.35rem;
+    align-items: baseline;
+
+    .vr-now {
+      color: var(--red);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      font-size: 0.75em;
+      flex: 0 0 auto;
+    }
 
     .vr-time {
       color: var(--soft);
+      flex: 0 0 auto;
     }
 
-    &.live .vr-name {
-      color: var(--red);
+    .vr-name {
+      min-width: 0;
+    }
+
+    &.live {
+      background: var(--tinge);
+
+      .vr-name {
+        color: var(--red);
+      }
     }
 
     &.past {
       opacity: 0.5;
+    }
+
+    &.music .vr-name {
+      color: var(--soft);
     }
 
     &.spot {
