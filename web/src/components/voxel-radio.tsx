@@ -1,10 +1,10 @@
 import { Component, createRef } from 'preact'
 import { trackTitle } from '../../../common/soundtracks'
-import { DAY, Spot, VoxelRadioEngine } from '../radio/engine'
+import { DAY, PEDALS, PedalId, Spot, VoxelRadioEngine } from '../radio/engine'
 import { startVisualiser } from '../radio/visualiser'
 
 type Props = { popped?: boolean }
-type State = { open: boolean }
+type State = { open: boolean; fx: boolean }
 
 const sec = () => (Date.now() / 1000) % DAY
 
@@ -30,6 +30,70 @@ const arc = (to: number) => {
   return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${R} ${R} 0 ${big} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`
 }
 const FULL = arc(A0 + SPAN)
+
+type SliderProps = {
+  label: string
+  min: number
+  max: number
+  step: number
+  value: number
+  center?: boolean
+  accent?: boolean
+  onChange: (v: number) => void
+}
+
+// winamp-style horizontal bar, drag left/right
+class Slider extends Component<SliderProps> {
+  el: HTMLElement | null = null
+
+  set = (clientX: number) => {
+    if (!this.el) return
+    const { min, max, step, onChange } = this.props
+    const rect = this.el.getBoundingClientRect()
+    const t = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    const v = min + t * (max - min)
+    onChange(Math.max(min, Math.min(max, Math.round(v / step) * step)))
+  }
+
+  down = (e: PointerEvent) => {
+    e.preventDefault()
+    this.el = e.currentTarget as HTMLElement
+    this.set(e.clientX)
+    const move = (ev: PointerEvent) => this.set(ev.clientX)
+    const up = () => {
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+
+  render() {
+    const { label, min, max, value, center } = this.props
+    const t = (value - min) / (max - min)
+    const mid = center ? (-min / (max - min)) * 100 : 0
+    let fillLeft = 0
+    let fillWidth = t * 100
+    if (center) {
+      if (value >= 0) {
+        fillLeft = mid
+        fillWidth = t * 100 - mid
+      } else {
+        fillLeft = t * 100
+        fillWidth = mid - t * 100
+      }
+    }
+    return (
+      <div class="vr-slider" onPointerDown={this.down}>
+        <span class="vr-slider-label">{label}</span>
+        <div class="vr-slider-track">
+          {center && <span class="vr-slider-mid" />}
+          <span class={`vr-slider-fill${this.props.accent ? ' accent' : ''}`} style={`left:${fillLeft}%;width:${fillWidth}%`} />
+        </div>
+      </div>
+    )
+  }
+}
 
 type KnobProps = { label: string; min: number; max: number; step: number; value: number; compact?: boolean; onChange: (v: number) => void }
 
@@ -77,7 +141,7 @@ export default class VoxelRadio extends Component<Props, State> {
   tick: ReturnType<typeof setInterval> | null = null
   canvas = createRef<HTMLCanvasElement>()
   disposeViz: (() => void) | null = null
-  state = { open: !!this.props.popped }
+  state = { open: !!this.props.popped, fx: false }
 
   componentDidMount() {
     this.radio = new VoxelRadioEngine()
@@ -140,6 +204,32 @@ export default class VoxelRadio extends Component<Props, State> {
     })
   }
 
+  pedals(r: VoxelRadioEngine) {
+    return r.chain.map((id, i) => (
+      <div class="vr-pedal" key={`${id}-${i}`}>
+        <div class="vr-pedal-head">
+          <span class="vr-pedal-name">{id}</span>
+          <button type="button" class="vr-pedal-x" onClick={() => r.removePedal(id)} title="remove">
+            x
+          </button>
+        </div>
+        <Slider
+          label={id}
+          min={id === 'eq' ? -1 : 0}
+          max={1}
+          step={0.05}
+          center={id === 'eq'}
+          accent={id === 'eq'}
+          value={r.pedalAmount(id)}
+          onChange={(v) => {
+            r.setPedal(id, v)
+            this.forceUpdate()
+          }}
+        />
+      </div>
+    ))
+  }
+
   render() {
     const r = this.radio
     const muted = r?.muted ?? false
@@ -148,66 +238,102 @@ export default class VoxelRadio extends Component<Props, State> {
     const pct = Math.round((sec() / DAY) * 100)
     const compact = !this.props.popped
 
+    const chain = r?.chain ?? []
+    const spare = r ? PEDALS.filter((id) => !chain.includes(id)) : []
+
     return (
-      <div class={`voxel-radio-wrap${this.props.popped ? ' popped' : ''}${this.state.open ? ' open' : ''}`}>
+      <div class={`voxel-radio-wrap${this.props.popped ? ' popped' : ''}${this.state.open ? ' open' : ''}${this.state.fx ? ' fx' : ''}`}>
         <div class={`voxel-radio${onAir ? ' on-air' : ''}${compact ? ' compact' : ''}`}>
+          {compact && (
+            <div class="vr-titlebar">
+              <span>voxels radio{onAir ? ' / on air' : ''}</span>
+            </div>
+          )}
           <div class="vr-viz-box">
             <canvas ref={this.canvas} class="vr-viz" />
           </div>
           <div class="vr-screen">
-            <span class="vr-label">voxels radio{onAir ? ' / on air' : ''}</span>
+            {!compact && <span class="vr-label">voxels radio{onAir ? ' / on air' : ''}</span>}
             <span class="vr-track">
               <span>{text}</span>
             </span>
-          </div>
-          {compact && (
-            <div class="vr-compact-knobs">
-              <Knob
-                compact
-                label="track"
-                min={0}
-                max={1}
-                step={0.05}
-                value={r?.trackVolume ?? 1}
-                onChange={(v) => {
-                  r?.setTrackVolume(v)
-                  this.forceUpdate()
-                }}
-              />
-              <Knob
-                compact
-                label="filter"
-                min={-1}
-                max={1}
-                step={0.05}
-                value={r?.filterAmount ?? 0}
-                onChange={(v) => {
-                  r?.setFilter(v)
-                  this.forceUpdate()
-                }}
-              />
-            </div>
-          )}
-          <div class="vr-transport">
-            <button type="button" class="vr-toggle" onClick={() => r?.toggle()} title={muted ? 'play' : 'stop'}>
-              {compact ? (muted ? '>' : '||') : muted ? 'play' : 'stop'}
-            </button>
-            <button type="button" class="vr-btn" onClick={() => this.setState({ open: !this.state.open })} title="schedule">
-              {compact ? 'L' : 'list'}
-            </button>
-            {!this.props.popped && (
-              <button type="button" class="vr-btn" onClick={this.popout} title="pop out">
-                {compact ? '^' : 'pop'}
-              </button>
+            {compact && (
+              <div class="vr-sliders">
+                <Slider
+                  label="vol"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={r?.trackVolume ?? 1}
+                  onChange={(v) => {
+                    r?.setTrackVolume(v)
+                    this.forceUpdate()
+                  }}
+                />
+              </div>
             )}
           </div>
+          {compact ? (
+            <div class="vr-deck">
+              <div class="vr-transport">
+                <button type="button" class="vr-toggle" onClick={() => r?.toggle()} title={muted ? 'play' : 'stop'}>
+                  {muted ? '>' : '||'}
+                </button>
+                <button type="button" class={`vr-btn${this.state.fx ? ' active' : ''}`} onClick={() => this.setState({ fx: !this.state.fx })} title="fx pedals">
+                  FX
+                </button>
+                <button type="button" class={`vr-btn${this.state.open ? ' active' : ''}`} onClick={() => this.setState({ open: !this.state.open })} title="playlist">
+                  PL
+                </button>
+                <button type="button" class="vr-btn" onClick={this.popout} title="pop out">
+                  POP
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div class="vr-transport">
+              <button type="button" class="vr-toggle" onClick={() => r?.toggle()} title={muted ? 'play' : 'stop'}>
+                {muted ? 'play' : 'stop'}
+              </button>
+              <button type="button" class={`vr-btn${this.state.fx ? ' active' : ''}`} onClick={() => this.setState({ fx: !this.state.fx })} title="fx pedals">
+                fx
+              </button>
+              <button type="button" class="vr-btn" onClick={() => this.setState({ open: !this.state.open })} title="schedule">
+                list
+              </button>
+            </div>
+          )}
+          {compact && (
+            <div class="vr-progress vr-progress-main">
+              <span style={`width:${pct}%`} />
+            </div>
+          )}
         </div>
+
+        {this.state.fx && r && (
+          <div class="vr-pedals">
+            <div class="vr-pl-title">fx chain</div>
+            <div class="vr-pedal-chain">{this.pedals(r)}</div>
+            {spare.length > 0 && (
+              <div class="vr-pedal-add">
+                {spare.map((id) => (
+                  <button type="button" key={id} class="vr-btn" onClick={() => r.addPedal(id as PedalId)}>
+                    +{id}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {this.state.open && (
           <div class="vr-playlist">
-            <div class="vr-progress">
-              <span style={`width:${pct}%`} />
-            </div>
+            {compact && <div class="vr-pl-title">playlist</div>}
+            {!compact && (
+              <div class="vr-progress">
+                <span style={`width:${pct}%`} />
+              </div>
+            )}
             <small class="vr-day">
               {clock(sec())} utc / day {pct}%
             </small>
@@ -220,17 +346,6 @@ export default class VoxelRadio extends Component<Props, State> {
                 value={r?.trackVolume ?? 1}
                 onChange={(v) => {
                   r?.setTrackVolume(v)
-                  this.forceUpdate()
-                }}
-              />
-              <Knob
-                label="filter"
-                min={-1}
-                max={1}
-                step={0.05}
-                value={r?.filterAmount ?? 0}
-                onChange={(v) => {
-                  r?.setFilter(v)
                   this.forceUpdate()
                 }}
               />
