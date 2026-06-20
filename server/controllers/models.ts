@@ -30,28 +30,32 @@ async function parseTime(req: Request, res: Response) {
 
 const BEHAVIOUR_DSL_SPEC = `You write Lua for the Voxels behaviour DSL. Output ONLY raw Lua source - no prose, no markdown fences.
 
-A behaviour file calls behaviour "name" { ... } exactly once, with these fields (all optional):
+A behaviour is a normal Lua "class". Create it with Behave.new(), give it state, define methods, and RETURN it:
 
-  params = { key = number(default,{min,max,step}) | text(default) | boolean(default), ... }
-  state  = { key = <plain value>, ... }     -- plain Lua values: numbers, booleans, strings, tables. No wrappers.
-  slots  = { name = function(self, data) ... end, ... }
-  init   = function(self) ... end           -- runs once on attach
-  tick   = function(self, t) ... end        -- runs every frame WHILE animating; t is 0..1
+  local Door = Behave.new("door")
+  Door.state = { shut = true }       -- plain Lua values: numbers, booleans, strings, tables
+
+  function Door:open(t) ... end       -- animation method (t is 0..1)
+  function Door:onclick() ... end     -- event handler (slot)
+
+  return Door                         -- the file MUST end by returning the spec
+
+Method naming:
+- function X:on<Event>(self, data)  -- a SLOT, runs when that event fires on this feature (e.g. onclick).
+- function X:<name>(self, t)         -- a named ANIMATION, played by self:animate("<name>", ms) with t in 0..1.
 
 The runtime exposes on self:
-  self.params.<name>                  -- read configured params
-  self.state.<name>                   -- read state (mutate via :animate)
-  self.position                       -- Vec3, world position. Read/write x/y/z directly.
-  self.rotation                       -- Euler in DEGREES. Read/write x/y/z directly.
+  self.state.<name>                   -- read/write behaviour state (persists across calls)
+  self.position                       -- world position. Read/write x/y/z directly (numbers).
+  self.rotation                       -- rotation in DEGREES. Read/write x/y/z directly.
   self.visible                        -- boolean, mesh visibility
-  self:animate({k=v, ...}, ms)        -- merge into state, start a ms-long animation window
-  self:emit("name", data?)            -- fire a signal; same-named slots on this feature run, plus any wired connections
+  self:animate("methodName", ms)      -- play the named animation method over ms milliseconds
+  self:emit("event", data?)           -- fire an event: runs on<Event> on THIS feature's behaviours
 
 Animation model:
-- self:animate(target, ms) merges target into self.state and stamps t0=now, t1=now+ms.
-- While now < t1, the runtime calls tick(self, t) every frame with t = (now-t0)/ms clamped to 0..1.
-- After t1, tick stops. Behaviour is "active" iff in an animate window.
-- The dev does the easing math themselves inside tick. Use ease.linear/in_quad/out_quad/in_out_quad/in_cubic/out_cubic/in_out_cubic, or lerp(a, b, t).
+- self:animate("spin", ms) stamps t0=now, t1=now+ms and remembers "spin".
+- While now < t1, the runtime calls self:spin(t) every frame with t = (now-t0)/ms clamped to 0..1.
+- It runs once more at t=1 to land exactly, then stops. Use ease.* or lerp(a,b,t) for easing inside the method.
 
 Globals available everywhere:
   Vec3.new(x,y,z)                     -- with operator overloading: + - * / scalar or vec
@@ -60,38 +64,36 @@ Globals available everywhere:
   lerp(a, b, t)
   now()                               -- ms since epoch
 
-Built-in events that fire as slots when relevant:
-  click       -- user clicked the feature (no wiring needed; just declare slots.click)
-  trigger     -- proximity trigger fired
-  changed     -- text-input/slider changed (data has .text or .value)
+Built-in events that fire as on<Event> handlers when relevant:
+  onclick     -- user clicked the feature
+  ontrigger   -- proximity trigger fired
+  onchanged   -- text-input/slider changed (data has .text or .value)
 
 Rules:
-- Use 'text' not 'string' for text params (Lua's string stdlib must not be shadowed).
+- Behaviours act on their OWN feature only. There is no cross-feature wiring.
+- The file MUST end with: return <YourSpec>.
 - Don't invent globals beyond the list above.
 - Keep behaviours small and obvious. One responsibility per behaviour.
-- Don't create new state keys without a reason. Only what tick / slots actually read.
 
-Worked example - a door that swings open on click:
+Worked example - a door that swings open/shut on click:
 
-behaviour "door" {
-  state = { open = false },
-  tick = function(self, t)
-    if self.state.open then
-      self.rotation.y = t * 90
-    else
-      self.rotation.y = (1 - t) * 90
-    end
-  end,
-  slots = {
-    click = function(self)
-      if self.state.open then
-        self:animate({ open = false }, 1000)
-      else
-        self:animate({ open = true }, 1000)
-      end
-    end,
-  },
-}
+local Door = Behave.new("door")
+Door.state = { shut = true }
+
+function Door:open(t)
+  self.rotation.y = t * 90
+end
+
+function Door:close(t)
+  self.rotation.y = (1.0 - t) * 90
+end
+
+function Door:onclick()
+  self:animate(self.state.shut and "open" or "close", 1000)
+  self.state.shut = not self.state.shut
+end
+
+return Door
 
 Reply with the FULL updated Lua source for the file, ready to save as-is.`
 

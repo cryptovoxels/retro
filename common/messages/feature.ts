@@ -116,22 +116,10 @@ export const EasingDescription = t.union([
 ])
 export type EasingDescription = t.TypeOf<typeof EasingDescription>
 
-// Behaviour attachment: { id (asset uuid), params (per-instance config) }
-export const BehaviourParam = t.union([t.number, t.string, t.boolean])
-export type BehaviourParam = t.TypeOf<typeof BehaviourParam>
-
-export const BehaviourAttachment = t.type({
-  id: t.string,
-  params: t.record(t.string, BehaviourParam),
-})
-export type BehaviourAttachment = t.TypeOf<typeof BehaviourAttachment>
-
-// Signal/slot wire stored on receiving feature
-export const Connection = t.type({
-  from: t.type({ featureId: t.string, signal: t.string }),
-  slot: t.string,
-})
-export type Connection = t.TypeOf<typeof Connection>
+// Inline behaviour: lua source lives on the feature. Pick a preset or have an LLM
+// write one - behaviours never touch the asset library.
+export const Behaviour = t.type({ name: t.string, code: t.string })
+export type Behaviour = t.TypeOf<typeof Behaviour>
 
 // Message descriptions for parcel features
 export const FeatureCommon = t.intersection(
@@ -161,8 +149,7 @@ export const FeatureCommon = t.intersection(
         triggerIsAudible: t.boolean,
         link: NullableStr,
         script: NullableStr,
-        behaviours: t.array(BehaviourAttachment),
-        connections: t.array(Connection),
+        behave: t.array(Behaviour),
         animation: t.type({
           destination: AnimationDestination,
           keyframes: t.array(KeyFrame),

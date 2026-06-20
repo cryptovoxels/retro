@@ -1,34 +1,25 @@
 // Lua behaviour runtime - one instance per parcel.
-// Plain-state model: state is a Lua table of plain values. self:animate(target, ms)
-// merges target into state and stamps t0/t1. While now < t1 the runtime calls
-// spec.tick(self, t) every frame with t in [0,1]. After t1, behaviour stops
-// ticking until the next animate.
+// Behaviours act on their own feature only. A feature event (e.g. 'click') runs the
+// matching on<Event> method on that feature's behaviours; self:animate("name", ms)
+// plays a named method with t in [0,1] until now >= t1; self:emit fires an event on
+// the same feature. Animation state syncs to peers; no cross-feature wiring (yet).
 
 import { LuaEngine, LuaFactory } from 'wasmoon'
 import * as messages from '../../common/messages'
-import type { BehaviourAttachment, Connection } from '../../common/messages/feature'
+import type { Behaviour } from '../../common/messages/feature'
 import type Feature from '../features/feature'
 import type Parcel from '../parcel'
 import { DSL_PRELUDE } from './dsl'
-import type { BehaviourMeta } from './parse-metadata'
-import { parseBehaviourMeta } from './parse-metadata'
 import { clamp01 } from './state'
-
-type BehaviourSpec = {
-  name: string
-  params: Record<string, { default: unknown }>
-  slots: Record<string, true>
-  hasTick: boolean
-}
 
 type BehaviourInstance = {
   feature: Feature
-  attachment: BehaviourAttachment
+  behave: Behaviour
   idx: number
-  assetId: string
-  spec: BehaviourSpec
+  specKey: string
   state: Record<string, unknown>
   selfName: string
+  anim: string | null
   seq: number
   t0: number
   t1: number
@@ -39,29 +30,18 @@ const TICK_BUDGET_MS = 4
 const RAD_PER_DEG = Math.PI / 180
 const DEG_PER_RAD = 180 / Math.PI
 
-// Cache of (assetId -> { source, meta }) shared across parcel runtimes for the session.
-const assetCache = new Map<string, { source: string; meta: BehaviourMeta }>()
+// Stable namespace key from inline source - identical code shares one compiled spec.
+const hash = (s: string): string => {
+  let h = 5381
+  for (let i = 0; i < s.length; i++) h = (h * 33) ^ s.charCodeAt(i)
+  return (h >>> 0).toString(36)
+}
 
 let factory: LuaFactory | null = null
 
 const ensureFactory = (): LuaFactory => {
   if (!factory) factory = new LuaFactory()
   return factory
-}
-
-const fetchAsset = async (assetId: string): Promise<{ source: string; meta: BehaviourMeta }> => {
-  const hit = assetCache.get(assetId)
-  if (hit) return hit
-  const res = await fetch(`/api/library/asset/${assetId}`, { method: 'POST', credentials: 'include' })
-  if (!res.ok) throw new Error(`behaviour asset ${assetId} fetch failed`)
-  const json: any = await res.json()
-  const content = json?.asset?.content?.[0] ?? json?.content?.[0]
-  const source: string = content?.script ?? ''
-  if (!source) throw new Error(`behaviour asset ${assetId} has no script`)
-  const meta = parseBehaviourMeta(source)
-  const rec = { source, meta }
-  assetCache.set(assetId, rec)
-  return rec
 }
 
 // Build a JS object that looks like Vec3 to Lua: x/y/z fields readable and writable.
@@ -150,56 +130,55 @@ export default class LuaBehaviours {
 
   async attachFeature(feature: Feature): Promise<void> {
     if (!this.engine) return
-    const list: BehaviourAttachment[] = (feature.description as any).behaviours ?? []
+    const list: Behaviour[] = (feature.description as any).behave ?? []
     for (let idx = 0; idx < list.length; idx++) {
-      const att = list[idx]
+      const b = list[idx]
       try {
-        const { source, meta } = await fetchAsset(att.id)
-        const spec = await this.ensureSpec(att.id, source, meta)
-        await this.createInstance(feature, att, idx, spec)
+        const specKey = hash(b.code)
+        await this.ensureCompiled(specKey, b.code)
+        await this.createInstance(feature, b, idx, specKey)
       } catch (err) {
-        console.error(`[behaviours] attach ${att.id} on ${feature.uuid}`, err)
+        console.error(`[behaviours] attach ${b.name} on ${feature.uuid}`, err)
       }
     }
   }
 
-  private async ensureSpec(assetId: string, source: string, meta: BehaviourMeta): Promise<BehaviourSpec> {
-    if (!this.engine) throw new Error('no engine')
-    const ns = `__spec_${assetId.replace(/-/g, '_')}`
-    const cached = this.engine.global.get(ns)
-    if (cached) return cached as BehaviourSpec
-
-    await this.engine.doString(`__behaviour_specs = {}\n${source}\n${ns} = __behaviour_specs[1]`)
-    const raw = this.engine.global.get(ns)
-    if (!raw) throw new Error(`behaviour script for ${assetId} did not register`)
-
-    const spec: BehaviourSpec = {
-      name: meta.name,
-      params: (raw as any).params ?? {},
-      slots: Object.fromEntries(meta.slots.map((s) => [s, true as const])),
-      hasTick: typeof (raw as any).tick === 'function',
-    }
-    return spec
+  // Drop this feature's instances and rebuild them from its current behave list.
+  // Called by the editor when behaviours are added/edited/removed live.
+  async reattachFeature(feature: Feature): Promise<void> {
+    this.behaviours = this.behaviours.filter((inst) => inst.feature.uuid !== feature.uuid)
+    for (const key of [...this.byKey.keys()]) if (key.startsWith(`${feature.uuid}:`)) this.byKey.delete(key)
+    await this.attachFeature(feature)
   }
 
-  private async createInstance(feature: Feature, attachment: BehaviourAttachment, idx: number, spec: BehaviourSpec): Promise<void> {
+  // Compile the script once per unique source: run it as an IIFE and stash its
+  // explicit `return Spec` table in global __spec_<key>, live for method calls.
+  private async ensureCompiled(specKey: string, source: string): Promise<void> {
+    if (!this.engine) throw new Error('no engine')
+    const ns = `__spec_${specKey}`
+    if (this.engine.global.get(ns)) return
+    await this.engine.doString(`${ns} = (function()\n${source}\nend)()`)
+    if (!this.engine.global.get(ns)) throw new Error(`behaviour script ${specKey} returned nothing`)
+  }
+
+  private async createInstance(feature: Feature, behave: Behaviour, idx: number, specKey: string): Promise<void> {
     if (!this.engine) return
     const key = `${feature.uuid}:${idx}`
     const selfName = `__self_${key.replace(/[^A-Za-z0-9]/g, '_')}`
 
-    // Initial state from spec defaults. Lua spec.state is the prototype table; deep-clone it
-    // so nested tables aren't shared across instances of the same behaviour.
-    const protoState = (this.engine.global.get(`__spec_${attachment.id.replace(/-/g, '_')}`) as any)?.state ?? {}
+    // Initial state from the spec's `state` prototype table; deep-clone it so nested
+    // tables aren't shared across instances of the same behaviour.
+    const protoState = (this.engine.global.get(`__spec_${specKey}`) as any)?.state ?? {}
     const state = deepClone(protoState) as Record<string, unknown>
 
     const inst: BehaviourInstance = {
       feature,
-      attachment,
+      behave,
       idx,
-      assetId: attachment.id,
-      spec,
+      specKey,
       state,
       selfName,
+      anim: null,
       seq: 0,
       t0: 0,
       t1: 0,
@@ -210,17 +189,16 @@ export default class LuaBehaviours {
     this.installSelf(inst)
 
     try {
-      const ns = `__spec_${attachment.id.replace(/-/g, '_')}`
+      const ns = `__spec_${specKey}`
       await this.engine.doString(`if type(${ns}.init) == 'function' then ${ns}.init(${selfName}) end`)
     } catch (err) {
-      console.error(`[behaviours] init failed ${attachment.id} on ${feature.uuid}`, err)
+      console.error(`[behaviours] init failed ${behave.name} on ${feature.uuid}`, err)
     }
   }
 
   // (Re)install the per-instance self table. Called once at create + every tick to refresh proxies.
   private installSelf(inst: BehaviourInstance): void {
     if (!this.engine) return
-    const params = this.resolveParams(inst.spec, inst.attachment)
     const feature = inst.feature
     const position = makeVec3Bridge(
       () => readPosition(feature),
@@ -232,12 +210,11 @@ export default class LuaBehaviours {
     )
 
     this.engine.global.set(inst.selfName, {
-      params,
       state: inst.state,
       position,
       rotation,
       visible: feature.mesh?.isEnabled() ?? true,
-      animate: (target: Record<string, unknown>, ms: number) => this.handleAnimate(inst, target, ms),
+      animate: (name: string, ms: number) => this.handleAnimate(inst, name, ms),
       emit: (signal: string, data?: unknown) => this.handleEmit(inst, signal, data),
     })
   }
@@ -275,36 +252,28 @@ export default class LuaBehaviours {
     }
   }
 
-  private resolveParams(spec: BehaviourSpec, attachment: BehaviourAttachment): Record<string, unknown> {
-    const out: Record<string, unknown> = {}
-    for (const [k, def] of Object.entries(spec.params)) {
-      out[k] = attachment.params?.[k] ?? def.default
-    }
-    return out
-  }
-
-  // self:animate({key=val, ...}, ms) - merge into state, stamp t0/t1, broadcast.
-  private handleAnimate(inst: BehaviourInstance, target: Record<string, unknown>, ms: number): void {
-    if (target && typeof target === 'object') Object.assign(inst.state, target)
+  // self:animate("name", ms) - play the named method over ms, stamp t0/t1, broadcast.
+  private handleAnimate(inst: BehaviourInstance, name: string, ms: number): void {
+    inst.anim = String(name).replace(/[^A-Za-z0-9_]/g, '')
     const now = Date.now()
     inst.t0 = now
     inst.t1 = now + Math.max(0, Number(ms) || 0)
     this.broadcastState(inst)
   }
 
+  // Run on<signal> for every behaviour on this one feature. No cross-feature wiring.
   private dispatchSync(featureId: string, signal: string, data: unknown, depth: number): void {
     if (depth >= MAX_SIGNAL_DEPTH) {
       console.warn('[behaviours] dropping signal at depth', depth)
       return
     }
-    for (const { inst, slot } of this.findSlotsForSignal(featureId, signal)) {
-      this.runSlot(inst, slot, data, depth)
+    for (const inst of this.behaviours) {
+      if (inst.feature.uuid === featureId) this.runSlot(inst, signal, data, depth)
     }
   }
 
   private handleEmit(inst: BehaviourInstance, signal: string, data?: unknown): void {
     this.dispatchSync(inst.feature.uuid, signal, data, this.currentDepth + 1)
-    this.sendSignal(inst.feature.uuid, signal, data)
   }
 
   dispatch(featureId: string, signal: string, data?: unknown): void {
@@ -322,10 +291,11 @@ export default class LuaBehaviours {
     if (!inst) return
     if (seq <= inst.seq) return
     inst.seq = seq
-    const { __t0, __t1, ...rest } = payload as any
+    const { __t0, __t1, __anim, ...rest } = payload as any
     Object.assign(inst.state, rest)
     if (typeof __t0 === 'number') inst.t0 = __t0
     if (typeof __t1 === 'number') inst.t1 = __t1
+    if (typeof __anim === 'string') inst.anim = __anim
   }
 
   isActive(inst: BehaviourInstance): boolean {
@@ -348,49 +318,21 @@ export default class LuaBehaviours {
       parcelId: this.parcel.id,
       featureId: inst.feature.uuid,
       behaviourIdx: inst.idx,
-      state: { ...inst.state, __t0: inst.t0, __t1: inst.t1 } as Record<string, unknown>,
+      state: { ...inst.state, __t0: inst.t0, __t1: inst.t1, __anim: inst.anim } as Record<string, unknown>,
       seq: inst.seq,
     }
     window.connector?.send(msg)
   }
 
-  private sendSignal(featureId: string, signal: string, data?: unknown): void {
-    if (typeof this.parcel.id !== 'number') return
-    const msg: messages.BehaviourSignalMessage = {
-      type: messages.MessageType.behaviourSignal,
-      parcelId: this.parcel.id,
-      featureId,
-      signal,
-      data,
-    }
-    window.connector?.send(msg)
-  }
-
-  private findSlotsForSignal(featureId: string, signal: string): Array<{ inst: BehaviourInstance; slot: string }> {
-    const out: Array<{ inst: BehaviourInstance; slot: string }> = []
-    for (const inst of this.behaviours) {
-      // Built-in: a feature's own dispatch ('click') runs same-named slots on its own behaviours, no wiring needed.
-      if (inst.feature.uuid === featureId && inst.spec.slots[signal]) {
-        out.push({ inst, slot: signal })
-      }
-      const conns: Connection[] = (inst.feature.description as any).connections ?? []
-      for (const c of conns) {
-        if (c.from.featureId === featureId && c.from.signal === signal && inst.spec.slots[c.slot]) {
-          out.push({ inst, slot: c.slot })
-        }
-      }
-    }
-    return out
-  }
-
   private runSlot(inst: BehaviourInstance, slot: string, data: unknown, depth: number): void {
     if (!this.engine) return
-    const ns = `__spec_${inst.assetId.replace(/-/g, '_')}`
+    const ns = `__spec_${inst.specKey}`
+    const fn = `${ns}.on${slot.replace(/[^A-Za-z0-9_]/g, '')}`
     this.installSelf(inst)
     this.currentDepth = depth
     try {
       this.engine.global.set('__slot_arg', data ?? null)
-      this.engine.doStringSync(`if ${ns}.slots and ${ns}.slots.${slot} then ${ns}.slots.${slot}(${inst.selfName}, __slot_arg) end`)
+      this.engine.doStringSync(`if type(${fn}) == 'function' then ${fn}(${inst.selfName}, __slot_arg) end`)
       this.flushSelfWrites(inst)
     } catch (err) {
       console.error(`[behaviours] slot ${slot} on ${inst.feature.uuid}`, err)
@@ -404,18 +346,19 @@ export default class LuaBehaviours {
 
     if (!this.engine) return
     for (const inst of this.behaviours) {
-      if (!inst.spec.hasTick) continue
-      if (now >= inst.t1) continue
+      if (!inst.anim) continue
       const dur = inst.t1 - inst.t0
-      const t = dur <= 0 ? 1 : clamp01((now - inst.t0) / dur)
-      const ns = `__spec_${inst.assetId.replace(/-/g, '_')}`
+      const done = now >= inst.t1
+      const t = done || dur <= 0 ? 1 : clamp01((now - inst.t0) / dur)
+      const fn = `__spec_${inst.specKey}.${inst.anim.replace(/[^A-Za-z0-9_]/g, '')}`
       this.installSelf(inst)
       try {
-        this.engine.doStringSync(`${ns}.tick(${inst.selfName}, ${t})`)
+        this.engine.doStringSync(`if type(${fn}) == 'function' then ${fn}(${inst.selfName}, ${t}) end`)
         this.flushSelfWrites(inst)
       } catch (err) {
-        console.error(`[behaviours] tick ${inst.assetId}`, err)
+        console.error(`[behaviours] anim ${inst.anim}`, err)
       }
+      if (done) inst.anim = null
     }
   }
 

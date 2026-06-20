@@ -1,208 +1,157 @@
 # Behaviours
 
-Behaviours are tiny Lua scripts you attach to features. They have parameters,
-state (plain values), and slots (functions that fire on signals). State changes
-animate over a duration via `self:animate`, and you write a `tick(self, t)`
-function that runs every frame while an animation is in flight.
+Behaviours are tiny Lua scripts you attach to a feature. A behaviour is a normal
+Lua "class": you make one with `Behave.new()`, give it state, define methods, and
+return it. Methods named `on<Event>` react to events (clicks, triggers). Other
+methods are named animations you play over a duration with `self:animate`.
 
-Replaces the old QuickJS parcel scripting. Built on
-[wasmoon](https://github.com/ceifa/wasmoon) (Lua 5.4 in WASM).
+Behaviours act on their own feature only. The code lives inline on the feature -
+there's no asset library. Grab a preset, write your own, or ask the LLM.
+
+Built on [wasmoon](https://github.com/ceifa/wasmoon) (Lua in WASM). Replaces the
+old QuickJS parcel scripting.
 
 ## the dsl
 
-A behaviour file calls `behaviour "name" { ... }` exactly once. Everything is optional.
-
 ```lua
-behaviour "door" {
-  state = { open = false },
+local Door = Behave.new("door")
+Door.state = { shut = true }
 
-  tick = function(self, t)
-    if self.state.open then
-      self.rotation.y = t * 90
-    else
-      self.rotation.y = (1 - t) * 90
-    end
-  end,
+function Door:open(t)
+  self.rotation.y = t * 90
+end
 
-  slots = {
-    click = function(self)
-      if self.state.open then
-        self:animate({ open = false }, 1000)
-      else
-        self:animate({ open = true }, 1000)
-      end
-    end,
-  },
-}
+function Door:close(t)
+  self.rotation.y = (1.0 - t) * 90
+end
+
+function Door:onclick()
+  self:animate(self.state.shut and "open" or "close", 1000)
+  self.state.shut = not self.state.shut
+end
+
+return Door
 ```
 
-Click the feature -> the slot toggles `state.open` and calls
-`self:animate(target, 1000)` -> tick fires every frame for 1 second with
-`t = 0..1`, rotating the door.
+Click the feature -> `onclick` runs -> it picks an animation by name and calls
+`self:animate("open", 1000)` -> the runtime drives `Door:open(t)` every frame for
+1 second with `t` going 0..1 -> the door swings.
 
-## state
+Three rules:
 
-State is a plain Lua table of plain values. No wrappers, no descriptors.
+- `Behave.new(name)` makes the spec. `name` is optional (defaults to the variable name).
+- Define methods with `function X:method()`. The `self` is passed automatically.
+- The file MUST end with `return X`.
 
-```lua
-state = {
-  open    = false,
-  speed   = 1.5,
-  message = "hi",
-}
-```
+## methods: animations vs handlers
 
-You change state via `self:animate(target, ms)`:
+Method names decide what they are:
 
-```lua
-self:animate({ open = true, speed = 3 }, 1000)
-```
+- `function X:on<Event>(self, data)` - an **event handler**. Runs when that event
+  fires on the feature. `onclick`, `ontrigger`, etc.
+- `function X:<name>(self, t)` - a **named animation**. Played by
+  `self:animate("<name>", ms)`. `t` runs 0..1 over `ms` milliseconds.
 
-That merges `target` into `self.state` immediately (so anyone reading the
-state next frame sees the new values), AND opens an animation window for
-`ms` milliseconds. While the window is open, `tick(self, t)` runs every frame
-with `t` going from 0 to 1.
-
-Want an instant change with no animation? `self:animate({...}, 0)` - the
-window closes the same frame so tick won't fire.
-
-State auto-syncs to peers in the same parcel via the multiplayer relay.
-
-## tick
+## animations
 
 ```lua
-tick = function(self, t)
-  -- t is 0..1, clamped, computed from now / animate window.
-  -- runs every frame while now < t1. stops after.
+function Spinner:spin(t)
+  self.rotation.y = t * 360
+end
+
+function Spinner:onclick()
+  self:animate("spin", 2000)
 end
 ```
 
-Tick only fires while the behaviour is "active" (mid-animate). If you've never
-called `self:animate`, tick never runs. After the animation window closes,
-tick stops until the next animate.
+`self:animate("spin", 2000)` plays `Spinner:spin(t)` every frame for 2 seconds,
+with `t = (now - start) / 2000` clamped to 0..1. It runs once more at exactly
+`t = 1` to land cleanly, then stops. Calling `animate` again (any name) switches
+to that animation.
 
-For a continuous tick (e.g. a spinning thing), call `self:animate({}, 99999)`
-in `init` and use `now()` directly inside tick.
+Do the easing math yourself inside the method - use `ease.*` or `lerp(a, b, t)`.
 
-## params
+## state
 
-Params show up as form fields in the editor.
-
-- `number(default, { min, max, step })`
-- `text(default)` - named `text`, not `string`, so Lua's `string` stdlib stays usable.
-- `boolean(default)`
+State is a plain Lua table of plain values - no wrappers.
 
 ```lua
-params = {
-  swingDeg = number(90, { min = 10, max = 180, step = 5 }),
-  locked   = boolean(false),
-  label    = text("front door"),
-},
+Door.state = { shut = true, base = 0 }
 ```
 
-Read with `self.params.swingDeg` etc.
+Read and write it directly (`self.state.shut = false`). Each attached instance
+gets its own deep copy. Animation state (and which animation is playing) syncs to
+peers in the same parcel via the multiplayer relay, so a door opens for everyone.
 
 ## the self table
 
-Everywhere you have a `self` (init, tick, slots), you get:
+Inside any method you get `self`:
 
-| field            | type     | description                                                               |
-| ---------------- | -------- | ------------------------------------------------------------------------- |
-| `self.params`    | table    | param values for this attachment, read-only                               |
-| `self.state`     | table    | current state, read-only (mutate via `:animate`)                          |
-| `self.position`  | Vec3     | feature world position - read or write `.x` / `.y` / `.z` directly        |
-| `self.rotation`  | Euler    | feature rotation in DEGREES - read or write `.x` / `.y` / `.z` directly   |
-| `self.visible`   | boolean  | mesh visibility                                                           |
-| `self:animate(target, ms)` | method | merge target into state and run tick for ms                       |
-| `self:emit(signal, data?)` | method | fire a named signal                                               |
+| field                       | type    | description                                                             |
+| --------------------------- | ------- | ----------------------------------------------------------------------- |
+| `self.state`                | table   | this instance's state - read and write freely                           |
+| `self.position`             | vector  | feature world position - read/write `.x` / `.y` / `.z` (numbers)        |
+| `self.rotation`             | vector  | feature rotation in DEGREES - read/write `.x` / `.y` / `.z`             |
+| `self.visible`              | boolean | mesh visibility                                                         |
+| `self:animate(name, ms)`    | method  | play the named animation method over `ms` milliseconds                  |
+| `self:emit(event, data?)`   | method  | fire an event on this feature (runs matching `on<Event>` handlers)      |
 
-Setting `self.rotation.y = 45` rotates the feature 45 degrees around y.
-Setting `self.visible = false` hides the mesh. The runtime applies your
-writes back to the feature after each tick / slot.
+Setting `self.rotation.y = 45` rotates the feature 45 degrees around y. Setting
+`self.visible = false` hides it. The runtime writes your changes back to the
+feature after each call.
 
-## signals and slots
+## events
 
-A slot is a function in `slots = {...}` that runs when its name is signalled.
+A feature fires events; matching `on<Event>` handlers on that feature's
+behaviours run. No wiring.
 
-```lua
-slots = {
-  click   = function(self) ... end,
-  trigger = function(self) ... end,
-  open    = function(self) self:animate({ open = true }, 500) end,
-}
-```
+- `onclick` - user clicked the feature
+- `ontrigger` - proximity trigger fired
+- `onchanged` - text-input / slider changed (`data.text` or `data.value`)
 
-Built-in events that fire as same-named slots on the feature, no wiring needed:
+Some features fire more (`onstart` / `onstop` on video, `onkeys` on vid-screen).
+Any `on<Name>` handler works - the runtime just calls `on` + the event name.
 
-- `click` - user clicked the feature
-- `trigger` - proximity trigger fired
-- `changed` - text-input/slider value changed (`data.text` or `data.value`)
+### emit
 
-You fire your own signals with `self:emit("name", data?)`. The editor walks
-your script's AST to discover what you emit, so the wiring dropdowns
-populate automatically. Wire your signal to another feature's slot in the
-behaviours panel.
-
-### loop guard
-
-Signal chains carry a depth counter. At depth 256 the runtime drops the
-signal. Chains start at depth 1 from a user interaction or peer signal, so
-two slots that emit each other won't loop forever.
+`self:emit("ping")` fires `onping` on the same feature's behaviours - handy for
+splitting one behaviour into a few. It's local to the feature; there's no
+cross-feature wiring (yet). Emit chains carry a depth counter and bail at 256 so
+two handlers that emit each other can't loop forever.
 
 ## globals
 
 Available in every behaviour:
 
-- `Vec3.new(x, y, z)` - 3-component vector with operator overloads.
-  - `a + b`, `a - b`, `a * b`, `a / b` work for scalar+vec, vec+scalar, vec+vec.
-  - `:magnitude()`, `:unit()`, `:dot(b)`, `:cross(b)`, `:lerp(b, t)`.
+- `Vec3.new(x, y, z)` - 3-component vector with operator overloads (`+ - * /` for
+  scalar+vec / vec+vec) and `:magnitude()`, `:unit()`, `:dot(b)`, `:cross(b)`, `:lerp(b, t)`.
 - `Euler.new(x, y, z)` - rotation triple in degrees.
 - `lerp(a, b, t)` - scalar linear interpolation.
-- `ease.linear / in_quad / out_quad / in_out_quad / in_cubic / out_cubic / in_out_cubic` - easing fns, all `t -> t`.
+- `ease.linear / in_quad / out_quad / in_out_quad / in_cubic / out_cubic / in_out_cubic`.
 - `now()` - milliseconds since epoch.
 
-Plus all of Lua's standard library (`math`, `string`, `table`, etc).
+Plus Lua's standard library (`math`, `string`, `table`, ...).
 
-## attaching a behaviour
+## adding a behaviour
 
 In the feature editor, scroll to the **behaviours** section.
 
-- `+ new` makes a fresh behaviour asset and opens the editor modal.
-- `+ attach` lets you paste a uuid of an existing behaviour asset to reuse.
-- expand a row to set params and wire slots to other features' signals.
-
-The editor modal has an inline Lua editor with syntax check, an "ask the
-agent" prompt that rewrites your code, and undo/redo for agent edits.
-
-## a wired example
-
-Door behaviour as above, plus a button that toggles it:
-
-```lua
-behaviour "button" {
-  slots = {
-    click = function(self) self:emit("pressed") end,
-  },
-}
-```
-
-In the editor, attach `button` to a button feature and `door` to a model
-shaped like a door. On the button's `pressed` signal row, pick `door / click`
-from the dropdown.
-
-Click the button -> button emits `pressed` -> connected to door's `click` ->
-door swings.
+- `+ add` - pick a built-in preset (door, spinner, lift, bob, flip, toggle, wobble).
+  Presets live in [src/lua/presets.ts](src/lua/presets.ts) - edit that file to change them.
+- `+ new` - start a blank behaviour and open the editor.
+- `edit` - opens the inline Lua editor: syntax checking, undo/redo, and an "ask"
+  prompt that has an LLM rewrite the script for you.
 
 ## debugging
 
-Errors print to the dev console with a `[behaviours]` prefix. The script
-editor modal shows syntax errors with line:col before save. Toggle the
-behaviours runtime on/off in the debug overlay (`F4`).
+Errors print to the dev console with a `[behaviours]` prefix. The editor shows
+syntax errors with line:col as you type.
 
 ## limits
 
-- One Lua VM per parcel. All behaviours share it.
-- Tick rate is adaptive: 60Hz default, drops to 30Hz / 15Hz if the runtime
-  exceeds the per-frame budget.
-- State broadcasts on every `:animate`. Don't call animate from inside `tick`
-  unless you want a broadcast storm.
+- One Lua VM per parcel; all behaviours share it. Identical source shares one
+  compiled copy.
+- Tick rate is adaptive: 60Hz default, backing off to 30Hz / 15Hz if a frame
+  blows the budget.
+- Animation state broadcasts on every `:animate`. Don't call `animate` from inside
+  an animation method unless you want a broadcast storm.

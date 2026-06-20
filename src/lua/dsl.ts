@@ -1,44 +1,20 @@
 // Lua DSL prelude loaded into every behaviour VM.
-// State is plain Lua values now - no descriptor wrappers. Animation is driven
-// by self:animate(target, ms) + a tick(self, t) function. The runtime stamps
-// t0/t1 on the JS side and only invokes tick while now < t1.
+// A behaviour is a normal Lua "class": local B = Behave.new(); define methods
+// with function B:method(). Methods named on<X> (e.g. onclick) are slots. Other
+// methods are named animations played by self:animate("name", ms) - the runtime
+// stamps t0/t1 and drives that method with t in [0,1] until now >= t1. The script
+// ends by returning its spec table.
 //
 // Vec3 and Euler are global helpers. Euler is degrees - the runtime converts
 // to radians before writing to feature.description.rotation.
 
 export const DSL_PRELUDE = `
-__behaviour_specs = __behaviour_specs or {}
-
-function number(default, opts)
-  opts = opts or {}
-  return {
-    __kind = "param",
-    paramType = "number",
-    default = default,
-    min = opts.min,
-    max = opts.max,
-    step = opts.step,
-  }
+Behave = {}
+function Behave.new(name)
+  return { name = name }
 end
 
--- 'text' instead of 'string' so we don't shadow Lua's string stdlib.
-function text(default)
-  return { __kind = "param", paramType = "string", default = default }
-end
-
-function boolean(default)
-  return { __kind = "param", paramType = "boolean", default = default }
-end
-
-function behaviour(name)
-  return function(spec)
-    spec.name = name
-    table.insert(__behaviour_specs, spec)
-    return spec
-  end
-end
-
--- Easing helpers. Use however you like inside tick(self, t).
+-- Easing helpers. Use however you like inside an animation method.
 ease = {
   linear      = function(t) return t end,
   in_quad     = function(t) return t * t end,
