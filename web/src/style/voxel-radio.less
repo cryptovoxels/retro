@@ -102,9 +102,14 @@
     border-bottom: var(--border);
   }
 
-  .vr-key-grid {
+  .vr-dial-grid {
     grid-column: 2;
     grid-row: 2;
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.15rem;
+    padding: 0.2rem;
+    background: var(--tinge);
   }
 
   .vr-brand {
@@ -144,20 +149,8 @@
     background: var(--tinge);
   }
 
-  .vr-key-grid {
-    display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 0.15rem;
-    padding: 0.2rem;
-    background: var(--tinge);
-  }
-
   .vr-key {
-    position: relative;
     border: var(--border);
-    overflow: hidden;
-    cursor: pointer;
-    touch-action: none;
     background: var(--dark);
     color: var(--bright);
     padding: 0;
@@ -169,6 +162,7 @@
       text-align: center;
       border-top: none;
       border-bottom: none;
+      cursor: pointer;
 
       &:first-child {
         border-left: none;
@@ -178,70 +172,54 @@
         color: var(--red);
       }
     }
+  }
 
-    &.op {
-      min-height: 1.35rem;
+  .vr-dial {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.1rem;
+    border: var(--border);
+    background: var(--dark);
+
+    &.off {
+      opacity: 0.45;
+    }
+
+    .vr-knob.mini {
+      width: 1.5rem;
       cursor: ns-resize;
+      touch-action: none;
 
-      &.off {
-        opacity: 0.45;
+      svg {
+        display: block;
+        width: 1.5rem;
+        height: 1.5rem;
       }
 
-      &.hot .vr-key-fill {
-        opacity: 0.28;
+      .face {
+        fill: var(--dark);
+        stroke: var(--tinge);
+        stroke-width: 1;
       }
 
-      &.lit {
-        background: var(--tinge);
+      path.track {
+        stroke: var(--tinge);
+        stroke-width: 2.5;
       }
 
-      &.punch {
-        border-color: var(--red);
-        color: var(--red);
-
-        .vr-key-fill {
-          background: var(--red);
-          opacity: 0.45;
-        }
+      path.val {
+        stroke: var(--red);
+        stroke-width: 3;
       }
     }
-  }
 
-  .vr-key-mid {
-    position: absolute;
-    left: 0.25rem;
-    right: 0.25rem;
-    top: 50%;
-    height: 1px;
-    margin-top: -1px;
-    background: var(--soft);
-    z-index: 1;
-    pointer-events: none;
-  }
-
-  .vr-key-fill {
-    position: absolute;
-    left: 0;
-    right: 0;
-    background: var(--bright);
-    opacity: 0.12;
-    pointer-events: none;
-  }
-
-  .vr-key-label {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    line-height: 1.35rem;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    text-align: center;
-    color: var(--soft);
-    pointer-events: none;
-  }
-
-  .vr-key-digits {
-    display: none;
+    .vr-dial-label {
+      line-height: 1;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--soft);
+    }
   }
 
   .vr-progress-main {
