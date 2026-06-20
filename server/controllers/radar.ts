@@ -68,6 +68,9 @@ export default async function RadarController(app: Express) {
     try {
       const client = createClient({ url: process.env.REDIS_URL })
       const sub = client.duplicate()
+      // without an error listener a dropped socket throws uncaught and kills the process
+      client.on('error', (e) => console.error('radar redis', e?.toString?.() ?? e))
+      sub.on('error', (e) => console.error('radar redis sub', e?.toString?.() ?? e))
       await Promise.all([client.connect(), sub.connect()])
       pub = client
 

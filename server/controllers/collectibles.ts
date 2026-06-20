@@ -49,7 +49,6 @@ export default function (db: Db, passport: any, app: any) {
 
   app.get(`/api/collectibles/:uuid/vox`, cache('10 minutes'), async (req: Request, res: Response) => {
     const result = await db.query('sql/get-wearable', `select data from wearables where id=$1 limit 1`, [req.params.uuid])
-    console.log(result)
 
     const data = result.rows[0].data
 

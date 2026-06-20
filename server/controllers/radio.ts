@@ -86,6 +86,9 @@ export default function RadioController(db: Db, app: Express) {
     try {
       const client = createClient({ url: process.env.REDIS_URL })
       const sub = client.duplicate()
+      // without an error listener a dropped socket throws uncaught and kills the process
+      client.on('error', (e) => console.error('radio redis', e?.toString?.() ?? e))
+      sub.on('error', (e) => console.error('radio redis sub', e?.toString?.() ?? e))
       await Promise.all([client.connect(), sub.connect()])
       pub = client
 

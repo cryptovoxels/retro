@@ -131,7 +131,7 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
     }
 
     try {
-      var result = await db.query(
+      await db.query(
         'sql/upsert-island',
         `
       WITH upsert AS (
@@ -161,8 +161,6 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
       res.status(500).json({ success: false, message: e.toString() })
       return
     }
-
-    console.log(result)
 
     res.status(200).json({ success: true })
   })
