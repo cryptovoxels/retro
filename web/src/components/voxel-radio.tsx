@@ -1,7 +1,7 @@
 import { Component, createRef } from 'preact'
 import { trackTitle } from '../../../common/soundtracks'
 import { DAY, PedalId, Spot, VoxelRadioEngine } from '../radio/engine'
-import { startVisualiser } from '../radio/visualiser'
+import { startVisualiser, Visualiser } from '../radio/visualiser'
 
 type Props = { popped?: boolean }
 type PanelMode = 'closed' | 'open'
@@ -95,7 +95,7 @@ export default class VoxelRadio extends Component<Props, State> {
   radio: VoxelRadioEngine | null = null
   tick: ReturnType<typeof setInterval> | null = null
   canvas = createRef<HTMLCanvasElement>()
-  disposeViz: (() => void) | null = null
+  viz: Visualiser | null = null
 
   constructor(props: Props) {
     super(props)
@@ -119,20 +119,24 @@ export default class VoxelRadio extends Component<Props, State> {
 
   componentWillUnmount() {
     if (this.tick) clearInterval(this.tick)
-    this.disposeViz?.()
-    this.disposeViz = null
+    this.viz?.dispose()
+    this.viz = null
     this.radio?.stop()
     this.radio = null
   }
 
   syncViz() {
     const want = this.state.viz === 'open'
-    if (want && this.canvas.current && this.radio && !this.disposeViz) {
-      this.disposeViz = startVisualiser(this.canvas.current, this.radio.analyser)
-    } else if (!want && this.disposeViz) {
-      this.disposeViz()
-      this.disposeViz = null
+    if (want && this.canvas.current && this.radio && !this.viz) {
+      this.viz = startVisualiser(this.canvas.current, this.radio.analyser, Math.floor(Math.random() * 6))
+    } else if (!want && this.viz) {
+      this.viz.dispose()
+      this.viz = null
     }
+  }
+
+  shuffleViz = () => {
+    this.viz?.shuffle()
   }
 
   setPanel(id: 'viz' | 'pl', mode: PanelMode) {
@@ -235,6 +239,16 @@ export default class VoxelRadio extends Component<Props, State> {
       <div class="vr-panel">
         <div class="vr-panel-head">
           <span class="vr-panel-title">{title}</span>
+          {id === 'viz' && (
+            <span class="vr-panel-arrows">
+              <button type="button" class="vr-panel-btn" onClick={this.shuffleViz} title="random viz">
+                &lt;
+              </button>
+              <button type="button" class="vr-panel-btn" onClick={this.shuffleViz} title="random viz">
+                &gt;
+              </button>
+            </span>
+          )}
         </div>
         <div class={`vr-panel-body${id === 'pl' ? ' vr-playlist' : ''}`}>{body}</div>
       </div>
