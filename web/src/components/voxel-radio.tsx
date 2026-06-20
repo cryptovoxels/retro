@@ -46,18 +46,23 @@ export default class VoxelRadio extends Component<Props, State> {
 
     const items: { at: number; label: string; spot?: Spot }[] = []
     sched.segments.forEach((g) => items.push({ at: g.startsAt, label: trackTitle(g) }))
-    sched.spots.forEach((s) => items.push({ at: s.atOffset, label: s.kind === 'vibe' ? 'arabic vibe' : `${s.kind} spot`, spot: s }))
+    sched.spots.forEach((s) => items.push({ at: s.atOffset, label: s.summary || (s.kind === 'ar' ? 'فاصل' : 'spot'), spot: s }))
     items.sort((a, b) => a.at - b.at)
 
     let cur = 0
     for (let i = 0; i < items.length; i++) if (items[i].at <= now) cur = i
 
-    return items.slice(cur, cur + 14).map((it, i) => (
-      <li class={`${i === 0 ? 'live' : ''}${it.spot ? ' spot' : ''}`} onClick={it.spot ? () => r?.previewSpot(it.spot!) : undefined}>
-        <span class="vr-time">{clock(it.at)}</span>
-        <span class="vr-name">{it.label}</span>
-      </li>
-    ))
+    // show a little history above the live track, plus what's coming up
+    const from = Math.max(0, cur - 6)
+    return items.slice(from, cur + 14).map((it) => {
+      const live = it === items[cur]
+      return (
+        <li key={`${it.at}-${it.label}`} class={`${live ? 'live' : it.at <= now ? 'past' : ''}${it.spot ? ' spot' : ''}`} onClick={it.spot ? () => r?.previewSpot(it.spot!) : undefined}>
+          <span class="vr-time">{clock(it.at)}</span>
+          <span class="vr-name">{it.label}</span>
+        </li>
+      )
+    })
   }
 
   render() {
@@ -94,7 +99,9 @@ export default class VoxelRadio extends Component<Props, State> {
             <div class="vr-progress">
               <span style={`width:${pct}%`} />
             </div>
-            <small class="vr-day">{clock(sec())} utc / day {pct}%</small>
+            <small class="vr-day">
+              {clock(sec())} utc / day {pct}%
+            </small>
             <ul>{this.rows()}</ul>
           </div>
         )}

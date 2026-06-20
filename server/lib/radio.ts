@@ -1,10 +1,12 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { MUSIC_URI, tracks } from '../../common/soundtracks'
 import { seededShuffle } from '../../common/helpers/utils'
+import { avatarName } from '../../common/messages/avatar-ref'
 import { Db } from '../pg'
 
 const DAY = 86400
-const SPOT_EVERY = 600 // a DJ spot every 10 minutes
+const MIN_GAP = 180
+const MAX_GAP = 540 // avg 360s -> ~10 spots/hour
 
 const BUCKET = 'voxels-ugc'
 const REGION = 'syd1'
@@ -12,15 +14,7 @@ const ENDPOINT = 'https://syd1.digitaloceanspaces.com'
 const ACCESS_KEY_ID = 'DO801UZARQ8UZC3XFWTT'
 const CDN = 'https://ugc.crvox.com'
 
-export type SpotKind = 'event' | 'parcel' | 'vibe'
-
-// Which kind of spot plays at a given index. 1 in 4 is an Arabic "vibe" spot;
-// the rest alternate events and popular parcels. Shared so the schedule builder
-// and the spot endpoint stay in sync.
-export function spotKind(idx: number): SpotKind {
-  if (idx % 4 === 0) return 'vibe'
-  return idx % 2 === 0 ? 'event' : 'parcel'
-}
+export type SpotKind = 'en' | 'ar'
 
 export interface Segment {
   fileName: string
@@ -34,6 +28,8 @@ export interface Spot {
   id: string
   atOffset: number
   kind: SpotKind
+  url?: string // filled once generated (from redis state)
+  summary?: string
 }
 
 export interface Schedule {
@@ -46,6 +42,20 @@ export interface Schedule {
 
 export function utcDay(): number {
   return Math.floor(Date.now() / 1000 / DAY)
+}
+
+// truncate to ascii-safe summary for the playlist
+export function clip(s: string, n: number): string {
+  const t = s.replace(/\s+/g, ' ').trim()
+  return t.length > n ? t.slice(0, n).trim() + '...' : t
+}
+
+function rng(seed: number) {
+  let s = seed || 1
+  return () => {
+    const x = Math.sin(s++) * 10000
+    return x - Math.floor(x)
+  }
 }
 
 // Deterministic per UTC day: same station for everyone, regenerates at midnight.
@@ -62,46 +72,28 @@ export function buildSchedule(day: number): Schedule {
     i++
   }
 
+  // one rng sequence drives both spacing and language so the schedule is stable
+  const r = rng(day + 7)
   const spots: Spot[] = []
-  for (let off = SPOT_EVERY; off < DAY; off += SPOT_EVERY) {
-    const idx = off / SPOT_EVERY
-    spots.push({ id: `${day}-${idx}`, atOffset: off, kind: spotKind(idx) })
+  let off = MIN_GAP + r() * (MAX_GAP - MIN_GAP)
+  let idx = 0
+  while (off < DAY) {
+    const kind: SpotKind = r() < 0.25 ? 'ar' : 'en'
+    spots.push({ id: `${day}-${idx}`, atOffset: Math.round(off), kind })
+    off += MIN_GAP + r() * (MAX_GAP - MIN_GAP)
+    idx++
   }
 
   return { utcDay: day, daySeconds: DAY, musicUri: MUSIC_URI, segments, spots }
 }
 
-const inflight = new Map<string, Promise<{ url: string; text: string }>>()
-
-export function generateSpot(db: Db, id: string, kind: SpotKind) {
-  let job = inflight.get(id)
-  if (!job) {
-    job = run(db, id, kind).finally(() => inflight.delete(id))
-    inflight.set(id, job)
-  }
-  return job
-}
-
-async function run(db: Db, id: string, kind: SpotKind): Promise<{ url: string; text: string }> {
-  // already on S3 from an earlier listener? share it.
-  const cached = await readCache(id)
-  if (cached) return cached
-
-  const text = await script(db, kind)
-  const audio = await speak(text, kind)
-  const url = await upload(id, audio, text)
+// generate text + speech, upload wav to S3, return the url + raw text.
+// caching/coordination lives in the controller (redis), this is pure work.
+export async function generateSpot(db: Db, redis: any, id: string, kind: SpotKind): Promise<{ url: string; text: string }> {
+  const text = await script(db, redis, kind)
+  const audio = await speak(text)
+  const url = await upload(id, audio)
   return { url, text }
-}
-
-async function readCache(id: string): Promise<{ url: string; text: string } | null> {
-  try {
-    const r = await fetch(`${CDN}/radio/${id}.json`)
-    if (!r.ok) return null
-    const meta = await r.json()
-    return { url: `${CDN}/radio/${id}.wav`, text: meta.text ?? '' }
-  } catch {
-    return null
-  }
 }
 
 async function chat(prompt: string, temperature: number): Promise<string> {
@@ -116,49 +108,91 @@ async function chat(prompt: string, temperature: number): Promise<string> {
       temperature,
       messages: [{ role: 'user', content: prompt }],
     }),
-  }).then((r) => r.json())
-
-  const text = r.choices?.[0]?.message?.content?.trim()
+  })
+  if (!r.ok) {
+    const body = await r.text().catch(() => '')
+    throw new Error(`chat failed: ${r.status} ${body}`)
+  }
+  const data = await r.json()
+  const text = data.choices?.[0]?.message?.content?.trim()
   if (!text) throw new Error('no script')
   return text
 }
 
-async function script(db: Db, kind: SpotKind): Promise<string> {
-  if (kind === 'vibe') return arabicVibe()
+async function script(db: Db, redis: any, kind: SpotKind): Promise<string> {
+  const [pop, live] = await Promise.all([popular(db), presence(redis)])
 
-  const data = kind === 'event' ? await eventLines(db) : await parcelLines(db)
+  const ids = [...new Set(live.map((u) => u.parcel).filter((p): p is number => !!p))]
+  const names = ids.length ? await parcelNames(db, ids) : {}
 
-  const brief =
-    kind === 'event'
-      ? `Upcoming events in Voxels:\n${data}`
-      : `Parcels buzzing with activity right now in Voxels:\n${data}`
+  // group live users by the parcel they're standing in
+  const groups = new Map<number, string[]>()
+  for (const u of live) {
+    if (!u.parcel) continue
+    if (!groups.has(u.parcel)) groups.set(u.parcel, [])
+    groups.get(u.parcel)!.push(u.name)
+  }
+  const here: string[] = []
+  for (const [pid, ppl] of groups) {
+    const place = names[pid] || `parcel ${pid}`
+    const named = ppl.filter((n) => n && n !== 'anon' && n !== '...')
+    const anons = ppl.length - named.length
+    const who = named.length ? named.slice(0, 3).join(', ') : `${anons} anon${anons === 1 ? '' : 's'}`
+    here.push(`${who} at ${place}`)
+  }
 
-  // Orpheus caps input at 200 chars, so keep the line short.
-  const prompt = `You are the hyped late-night DJ on Voxels Radio. In ONE punchy spoken sentence UNDER 180 CHARACTERS, give a quick shout-out based on this. No emojis, no stage directions, just what you'd say on air.\n\n${brief}`
+  const hot = pop.length ? pop.map((p) => `- ${p.name || p.address}`).join('\n') : '- the streets are quiet'
+  const onln = here.length
+    ? here
+        .slice(0, 6)
+        .map((h) => `- ${h}`)
+        .join('\n')
+    : '- nobody around right now'
+  const brief = `Hot parcels right now:\n${hot}\n\nWho's online and where:\n${onln}`
 
-  return chat(prompt, 0.8)
+  const prompt =
+    kind === 'ar'
+      ? `You are the late-night DJ on Voxels Radio, a 3D virtual world. Using the data below, say ONE short casual hype line in Arabic (Saudi dialect), UNDER 120 CHARACTERS. You may name a place or who's around. Arabic script only, no transliteration, no emojis, no quotes.\n\n${brief}`
+      : `You are the late-night DJ on Voxels Radio, a 3D virtual world. Using the data below, say ONE short, casual, lowercase on-air shout-out, UNDER 120 CHARACTERS. Name a place, and who's there if it fits. Vibe like: "sit back and relapse at 2 harriot terrace", "join pierceone at gallery", "anons at flashmint". No emojis, no quotes, no hashtags, no stage directions.\n\n${brief}`
+
+  return chat(prompt, kind === 'ar' ? 0.9 : 0.8)
 }
 
-// Arabic flavour drop - pure vibes, not info. Spoken by Noura.
-async function arabicVibe(): Promise<string> {
-  const prompt = `You are a late-night DJ on Voxels Radio, a 3D virtual world. Say ONE short atmospheric hype line in Arabic (Saudi dialect), UNDER 100 CHARACTERS. Pure vibes and mood, NOT informational. Arabic script only, no transliteration, no emojis, no quotes.`
-  return chat(prompt, 1.0)
+// live users straight from redis (same data /api/users/live streams)
+async function presence(redis: any): Promise<{ parcel: number | null; name: string }[]> {
+  try {
+    if (!redis) return []
+    const keys: string[] = []
+    let cursor = 0
+    do {
+      const r = await redis.scan(cursor, { MATCH: 'radar:*', COUNT: 100 })
+      cursor = r.cursor
+      keys.push(...r.keys)
+    } while (cursor !== 0)
+    if (!keys.length) return []
+    const vals = await redis.mGet(keys)
+    const out: { parcel: number | null; name: string }[] = []
+    for (const v of vals) {
+      try {
+        const u = JSON.parse(v ?? 'null')
+        if (u) out.push({ parcel: u.parcel ?? null, name: avatarName(u.avatar) })
+      } catch {}
+    }
+    return out
+  } catch {
+    return []
+  }
 }
 
-async function eventLines(db: Db): Promise<string> {
-  const sql = `
-    SELECT name, (SELECT name FROM properties WHERE id = parcel_id) AS parcel
-    FROM parcel_events
-    WHERE expires_at > NOW() AND starts_at > NOW()
-    ORDER BY starts_at ASC
-    LIMIT 5
-  `
-  const { rows } = await db.query('sql/radio/events', sql)
-  if (!rows.length) return 'Nothing on the calendar - tell them to throw a party.'
-  return rows.map((e: any) => `- ${e.name}${e.parcel ? ` at ${e.parcel}` : ''}`).join('\n')
+async function parcelNames(db: Db, ids: number[]): Promise<Record<number, string>> {
+  const sql = `SELECT id, name, address FROM properties WHERE id = ANY($1)`
+  const { rows } = await db.query('sql/radio/parcel-names', sql, [ids])
+  const out: Record<number, string> = {}
+  for (const r of rows as any[]) out[r.id] = r.name || r.address
+  return out
 }
 
-async function parcelLines(db: Db): Promise<string> {
+async function popular(db: Db): Promise<{ name: string; address: string }[]> {
   const t = (i: number) => `day_${i.toString().padStart(2, '0')}`
   const today = new Date().getUTCDay()
   const yesterday = (today + 6) % 7
@@ -172,17 +206,16 @@ async function parcelLines(db: Db): Promise<string> {
       SELECT parcel, COUNT(*) AS actions FROM umetrics GROUP BY parcel HAVING COUNT(*) > 1
     )
     SELECT p.name, p.address FROM stats s JOIN properties p ON p.id = s.parcel
-    ORDER BY s.actions DESC LIMIT 5
+    ORDER BY s.actions DESC LIMIT 6
   `
   const { rows } = await db.query('sql/radio/popular', sql)
-  if (!rows.length) return 'The streets are quiet - be the first one out there.'
-  return rows.map((p: any) => `- ${p.name || p.address}`).join('\n')
+  return (rows as any[]).map((p) => ({ name: p.name, address: p.address }))
 }
 
-async function speak(text: string, kind: SpotKind): Promise<Buffer> {
-  const arabic = kind === 'vibe'
-  // English Orpheus reads [bracketed] words as vocal direction, not speech.
-  const input = (arabic ? text : `[casual] [warm] ${text}`).slice(0, 200) // Orpheus hard limit
+async function speak(text: string): Promise<Buffer> {
+  // one voice for the whole station - the Saudi Orpheus voice sounds great on english too.
+  // strip quotes/whitespace and hard-cap under Orpheus' 200-char limit.
+  const input = text.replace(/["'`]/g, '').replace(/\s+/g, ' ').trim().slice(0, 170)
   const r = await fetch('https://api.groq.com/openai/v1/audio/speech', {
     method: 'POST',
     headers: {
@@ -190,17 +223,20 @@ async function speak(text: string, kind: SpotKind): Promise<Buffer> {
       Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: arabic ? 'canopylabs/orpheus-arabic-saudi' : 'canopylabs/orpheus-v1-english',
-      voice: arabic ? 'noura' : 'autumn',
+      model: 'canopylabs/orpheus-arabic-saudi',
+      voice: 'noura',
       input,
       response_format: 'wav',
     }),
   })
-  if (!r.ok) throw new Error(`tts failed: ${r.status}`)
+  if (!r.ok) {
+    const body = await r.text().catch(() => '')
+    throw new Error(`tts failed: ${r.status} ${body}`)
+  }
   return Buffer.from(await r.arrayBuffer())
 }
 
-async function upload(id: string, audio: Buffer, text: string): Promise<string> {
+async function upload(id: string, audio: Buffer): Promise<string> {
   const secret = process.env.UGC_SECRET
   if (!secret) throw new Error('UGC_SECRET not set')
 
@@ -211,8 +247,8 @@ async function upload(id: string, audio: Buffer, text: string): Promise<string> 
     forcePathStyle: false,
   })
 
-  await s3.send(new PutObjectCommand({ Bucket: BUCKET, Key: `radio/${id}.wav`, Body: audio, ContentType: 'audio/wav', ACL: 'public-read' }))
-  await s3.send(new PutObjectCommand({ Bucket: BUCKET, Key: `radio/${id}.json`, Body: JSON.stringify({ text }), ContentType: 'application/json', ACL: 'public-read' }))
-
-  return `${CDN}/radio/${id}.wav`
+  // v2 namespace: old cached audio (the dreaded "high alert" spot) lives under radio/<id>.wav
+  // and the CDN keeps serving it even after overwrite. New keys = pristine, can never come back.
+  await s3.send(new PutObjectCommand({ Bucket: BUCKET, Key: `radio/v2/${id}.wav`, Body: audio, ContentType: 'audio/wav', ACL: 'public-read' }))
+  return `${CDN}/radio/v2/${id}.wav`
 }

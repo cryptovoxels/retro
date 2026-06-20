@@ -7,7 +7,9 @@ export interface Segment extends Track {
 export interface Spot {
   id: string
   atOffset: number
-  kind: 'event' | 'parcel' | 'vibe'
+  kind: 'en' | 'ar'
+  url?: string
+  summary?: string
 }
 export interface Schedule {
   utcDay: number
@@ -35,8 +37,10 @@ function canOpus() {
 
 /*
  * The one global station. Deterministic per UTC day, so everyone tuning in
- * hears the same track at the same second. Plays on its own AudioContext on
- * the homepage, or plugs into the in-world music bus when handed a destination.
+ * hears the same track at the same second. The schedule + generated spots
+ * stream in over SSE (/api/radio/live); the server owns generation. Plays on
+ * its own AudioContext on the homepage, or plugs into the in-world music bus
+ * when handed a destination.
  */
 export class VoxelRadioEngine {
   ctx: AudioContext
@@ -48,8 +52,10 @@ export class VoxelRadioEngine {
   track: Track | null = null
   el: HTMLAudioElement | null = null
   source: MediaElementAudioSourceNode | null = null
+  es: EventSource | null = null
   next: ReturnType<typeof setTimeout> | null = null
   watch: ReturnType<typeof setInterval> | null = null
+  started = false
 
   spots = new Map<string, AudioBuffer>()
   played = new Set<string>()
@@ -77,15 +83,7 @@ export class VoxelRadioEngine {
     return this.track ? trackTitle(this.track) : ''
   }
 
-  async start() {
-    try {
-      const r = await fetch('/api/radio/today.json')
-      this.schedule = await r.json()
-    } catch (e) {
-      console.error('[radio] no schedule', e)
-      return
-    }
-
+  start() {
     // autoplay may be blocked until a gesture; resume on the first one.
     if (this.ctx.state === 'suspended') {
       const resume = () => this.ctx.resume()
@@ -93,8 +91,23 @@ export class VoxelRadioEngine {
       window.addEventListener('keydown', resume, { passive: true })
     }
 
-    this.sync()
-    this.watch = setInterval(() => this.tickSpots(), 2000)
+    this.es = new EventSource('/api/radio/live')
+    this.es.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data)
+        if (msg.type === 'snapshot') this.applySchedule(msg.schedule)
+      } catch {}
+    }
+  }
+
+  private applySchedule(sched: Schedule) {
+    this.schedule = sched
+    if (!this.started) {
+      this.started = true
+      this.sync()
+      this.watch = setInterval(() => this.tickSpots(), 2000)
+    }
+    this.onChange?.()
   }
 
   // play whatever the clock says should be playing right now
@@ -124,7 +137,7 @@ export class VoxelRadioEngine {
     this.source.connect(this.music)
     this.music.gain.value = seg.volume ?? 1
 
-    el.play().catch((err) => {
+    el.play().catch(() => {
       // blocked until a gesture; retry once the user interacts
       const retry = () => {
         el.play().catch(() => {})
@@ -150,24 +163,25 @@ export class VoxelRadioEngine {
     this.source = null
   }
 
-  // prefetch upcoming spots and fire them dead on the clock
+  // prefetch generated spots and fire them dead on the clock
   private tickSpots() {
     if (!this.schedule) return
     const s = sec()
     for (const spot of this.schedule.spots) {
+      if (!spot.url) continue // not generated yet
       if (this.played.has(spot.id) || this.spots.has(spot.id)) continue
       const until = spot.atOffset - s
-      if (until <= PREFETCH && until > -2) this.prefetch(spot, s)
+      if (until <= PREFETCH && until > -2) this.prefetch(spot)
     }
   }
 
-  private async prefetch(spot: Spot, at: number) {
+  private async prefetch(spot: Spot) {
     this.spots.set(spot.id, null as any) // claim it so we don't double-fetch
     try {
       const audio = await this.load(spot)
       const delay = Math.max(0, spot.atOffset - sec())
       setTimeout(() => this.air(spot, audio), delay * 1000)
-    } catch (e) {
+    } catch {
       this.spots.delete(spot.id) // let a later tick retry
     }
   }
@@ -175,10 +189,8 @@ export class VoxelRadioEngine {
   private async load(spot: Spot): Promise<AudioBuffer> {
     const have = this.spots.get(spot.id)
     if (have) return have
-    const r = await fetch(`/api/radio/spot/${spot.id}.json`)
-    const data = await r.json()
-    if (!data.ok) throw new Error('spot not ready')
-    const raw = await fetch(data.url).then((x) => x.arrayBuffer())
+    if (!spot.url) throw new Error('spot not ready')
+    const raw = await fetch(spot.url).then((x) => x.arrayBuffer())
     const audio = await this.ctx.decodeAudioData(raw)
     this.spots.set(spot.id, audio)
     return audio
@@ -213,6 +225,7 @@ export class VoxelRadioEngine {
   // playlist click: play a spot for this listener now, over the music,
   // without touching the track playhead or the global schedule
   async previewSpot(spot: Spot) {
+    if (!spot.url) return
     try {
       const buf = await this.load(spot)
       this.ring(buf)
@@ -247,6 +260,8 @@ export class VoxelRadioEngine {
   stop() {
     if (this.next) clearTimeout(this.next)
     if (this.watch) clearInterval(this.watch)
+    this.es?.close()
+    this.es = null
     this.next = null
     this.watch = null
     this.teardownTrack()
