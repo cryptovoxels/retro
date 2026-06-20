@@ -65,90 +65,152 @@
   }
 }
 
-// homepage aside: compact single row, viz full bleed behind controls
+// homepage aside: winamp-style main window
 .voxel-radio-wrap:not(.popped) .voxel-radio.compact {
-  display: flex;
-  flex-direction: row;
-  align-items: center;
-  min-height: 2.75rem;
+  display: grid;
+  grid-template-columns: 3.5rem 1fr;
+  grid-template-rows: auto auto auto auto;
   padding: 0;
   gap: 0;
 
+  .vr-titlebar {
+    grid-column: 1 / -1;
+    grid-row: 1;
+    padding: 0.12rem 0.35rem;
+    font-size: 0.65em;
+    line-height: 1.1;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    border-bottom: var(--border);
+    background: var(--tinge);
+    color: var(--soft);
+  }
+
+  &.on-air .vr-titlebar {
+    color: var(--red);
+  }
+
   .vr-viz-box {
-    position: absolute;
-    inset: 0;
+    grid-column: 1;
+    grid-row: 2 / 4;
+    position: relative;
     z-index: 0;
-    border: none;
+    min-height: 3.25rem;
+    margin: 0.25rem 0 0.25rem 0.25rem;
+    border: var(--border);
+    box-shadow: inset 0 0 0 1px var(--dark);
   }
 
   .vr-screen {
-    flex: 1;
-    order: 1;
+    grid-column: 2;
+    grid-row: 2;
     min-width: 0;
-    padding: 0.15rem 0.35rem;
+    padding: 0.2rem 0.35rem 0.15rem;
     z-index: 1;
-  }
-
-  .vr-label {
-    display: none;
+    border-bottom: var(--border);
+    gap: 0.1rem;
   }
 
   .vr-track {
-    font-size: 0.85em;
+    font-size: 0.8em;
     line-height: 1.2;
   }
 
-  .vr-transport {
-    order: 0;
+  .vr-sliders {
     display: flex;
-    flex-shrink: 0;
+    flex-direction: column;
+    gap: 0.12rem;
+    padding-top: 0.1rem;
+  }
+
+  .vr-slider {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    cursor: ew-resize;
+    touch-action: none;
+  }
+
+  .vr-slider-label {
+    flex: 0 0 1.25rem;
+    font-size: 0.55em;
+    line-height: 1;
+    color: var(--soft);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .vr-slider-track {
+    position: relative;
+    flex: 1;
+    height: 0.35rem;
+    background: repeating-linear-gradient(90deg, var(--tinge) 0, var(--tinge) 2px, var(--dark) 2px, var(--dark) 4px);
+  }
+
+  .vr-slider-mid {
+    position: absolute;
+    left: 50%;
+    top: 0;
+    bottom: 0;
+    width: 1px;
+    margin-left: -1px;
+    background: var(--soft);
+  }
+
+  .vr-slider-fill {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    background: var(--bright);
+
+    &.accent {
+      background: var(--red);
+    }
+  }
+
+  .vr-deck {
+    grid-column: 2;
+    grid-row: 3;
+    display: flex;
+    align-items: stretch;
     z-index: 1;
-    border-top: none;
-    border-right: var(--border);
+  }
+
+  .vr-transport {
+    display: flex;
+    flex: 1;
   }
 
   .vr-toggle,
   .vr-btn {
     border: none;
     border-right: var(--border);
-    padding: 0.15rem 0.4rem;
+    padding: 0.15rem 0.35rem;
     min-width: 1.5rem;
-    font-size: 0.7em;
+    font-size: 0.65em;
     line-height: 1.1;
     text-transform: none;
     letter-spacing: 0;
+  }
+
+  .vr-btn.active {
+    color: var(--red);
   }
 
   .vr-btn:last-child {
     border-right: none;
   }
 
-  .vr-compact-knobs {
-    order: 2;
-    display: flex;
-    flex-shrink: 0;
-    align-items: center;
-    gap: 0.15rem;
-    padding: 0 0.2rem;
-    z-index: 1;
-    border-left: var(--border);
+  .vr-progress-main {
+    grid-column: 1 / -1;
+    grid-row: 4;
+    height: 0.35rem;
+    background: repeating-linear-gradient(90deg, var(--tinge) 0, var(--tinge) 2px, var(--dark) 2px, var(--dark) 4px);
 
-    .vr-knob.mini {
-      width: 1.35rem;
-      cursor: ns-resize;
-
-      svg {
-        width: 1.35rem;
-        height: 1.35rem;
-      }
-
-      .vr-knob-val {
-        display: none;
-      }
-
-      .val {
-        stroke: var(--red);
-      }
+    span {
+      display: block;
+      height: 100%;
+      background: var(--bright);
     }
   }
 }
@@ -202,7 +264,114 @@
   padding-left: 0;
 }
 
-// winamp playlist drawer
+// fx pedal chain drawer
+.voxel-radio-wrap.fx .vr-pedals {
+  border-top: none;
+}
+
+.vr-pedals {
+  position: relative;
+  z-index: 1;
+  background: var(--dark);
+  border: var(--border);
+  border-top: none;
+
+  .vr-pedal-chain {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.35rem;
+  }
+
+  .vr-pedal {
+    flex: 1 1 5rem;
+    min-width: 4.5rem;
+    border: var(--border);
+    padding: 0.25rem;
+    box-shadow: inset 0 0 0 1px var(--dark);
+  }
+
+  .vr-pedal-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.15rem;
+  }
+
+  .vr-pedal-name {
+    font-size: 0.6em;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--soft);
+  }
+
+  .vr-pedal-x {
+    background: none;
+    border: none;
+    color: var(--soft);
+    cursor: pointer;
+    font-size: 0.65em;
+    line-height: 1;
+    padding: 0;
+  }
+
+  .vr-pedal-add {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0 0.35rem 0.35rem;
+    border-top: var(--border);
+
+    .vr-btn {
+      border: var(--border);
+      padding: 0.15rem 0.4rem;
+      font-size: 0.65em;
+      background: none;
+      color: var(--bright);
+      cursor: pointer;
+    }
+  }
+
+  .vr-slider-label {
+    flex: 0 0 1rem;
+  }
+}
+
+// winamp playlist drawer (PL window)
+.voxel-radio-wrap:not(.popped).open .vr-playlist {
+  border-top: none;
+  padding: 0;
+
+  .vr-pl-title {
+    padding: 0.12rem 0.35rem;
+    font-size: 0.65em;
+    line-height: 1.1;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    border-bottom: var(--border);
+    background: var(--tinge);
+    color: var(--soft);
+  }
+
+  .vr-day {
+    padding: 0.2rem 0.35rem;
+  }
+
+  ul {
+    max-height: 14rem;
+  }
+
+  li {
+    padding: 0.1rem 0.35rem;
+    font-size: 0.85em;
+  }
+
+  .vr-controls {
+    padding: 0.35rem 0.35rem 0.5rem;
+    border-top: var(--border);
+  }
+}
+
 .vr-playlist {
   position: relative;
   z-index: 1;
