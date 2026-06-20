@@ -247,7 +247,36 @@ export class VoxelRadioEngine {
     return this.drvOut
   }
 
+  private wirePedals() {
+    const link = (from: AudioNode, to: AudioNode) => {
+      try {
+        from.disconnect(to)
+      } catch {}
+      from.connect(to)
+    }
+    link(this.eqIn, this.eqFilter)
+    link(this.eqFilter, this.eqOut)
+    link(this.rvbIn, this.rvbDry)
+    link(this.rvbIn, this.rvbConv)
+    link(this.rvbDry, this.rvbOut)
+    link(this.rvbWet, this.rvbOut)
+    link(this.rvbConv, this.rvbWet)
+    link(this.dlyIn, this.dlyDry)
+    link(this.dlyIn, this.dlyNode)
+    link(this.dlyDry, this.dlyOut)
+    link(this.dlyNode, this.dlyWet)
+    link(this.dlyWet, this.dlyOut)
+    link(this.dlyNode, this.dlyFb)
+    link(this.dlyFb, this.dlyNode)
+    link(this.drvIn, this.drvDry)
+    link(this.drvIn, this.drvShape)
+    link(this.drvDry, this.drvOut)
+    link(this.drvShape, this.drvWet)
+    link(this.drvWet, this.drvOut)
+  }
+
   connectChain() {
+    this.wirePedals()
     try {
       this.music.disconnect()
     } catch {}
@@ -255,9 +284,6 @@ export class VoxelRadioEngine {
     for (const id of this.chain) {
       const input = this.pedalIn(id)
       const output = this.pedalOut(id)
-      try {
-        input.disconnect()
-      } catch {}
       try {
         output.disconnect()
       } catch {}
@@ -371,7 +397,8 @@ export class VoxelRadioEngine {
 
   wake() {
     if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {})
-    this.el?.play()
+    this.el
+      ?.play()
       .then(() => this.onChange?.())
       .catch(() => {})
   }
