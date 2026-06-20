@@ -165,8 +165,8 @@ export class VoxelRadioEngine {
   onChange: (() => void) | null = null
 
   constructor(destination?: AudioNode) {
-    const dest = destination ?? new AudioContext().destination
-    this.ctx = dest.context as AudioContext
+    this.ctx = (destination?.context as AudioContext) ?? new AudioContext()
+    const dest = destination ?? this.ctx.destination
 
     this.master = this.ctx.createGain()
     this.duckGain = this.ctx.createGain()
@@ -247,36 +247,7 @@ export class VoxelRadioEngine {
     return this.drvOut
   }
 
-  private wirePedals() {
-    const link = (from: AudioNode, to: AudioNode) => {
-      try {
-        from.disconnect(to)
-      } catch {}
-      from.connect(to)
-    }
-    link(this.eqIn, this.eqFilter)
-    link(this.eqFilter, this.eqOut)
-    link(this.rvbIn, this.rvbDry)
-    link(this.rvbIn, this.rvbConv)
-    link(this.rvbDry, this.rvbOut)
-    link(this.rvbWet, this.rvbOut)
-    link(this.rvbConv, this.rvbWet)
-    link(this.dlyIn, this.dlyDry)
-    link(this.dlyIn, this.dlyNode)
-    link(this.dlyDry, this.dlyOut)
-    link(this.dlyNode, this.dlyWet)
-    link(this.dlyWet, this.dlyOut)
-    link(this.dlyNode, this.dlyFb)
-    link(this.dlyFb, this.dlyNode)
-    link(this.drvIn, this.drvDry)
-    link(this.drvIn, this.drvShape)
-    link(this.drvDry, this.drvOut)
-    link(this.drvShape, this.drvWet)
-    link(this.drvWet, this.drvOut)
-  }
-
   connectChain() {
-    this.wirePedals()
     try {
       this.music.disconnect()
     } catch {}
@@ -291,6 +262,15 @@ export class VoxelRadioEngine {
       node = output
     }
     node.connect(this.trackVol)
+    this.hookTrack()
+  }
+
+  private hookTrack() {
+    if (!this.source) return
+    try {
+      this.source.disconnect()
+    } catch {}
+    this.source.connect(this.music)
   }
 
   private loadSettings() {
@@ -397,6 +377,7 @@ export class VoxelRadioEngine {
 
   wake() {
     if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {})
+    if (!this.muted) this.master.gain.value = 1
     this.el
       ?.play()
       .then(() => this.onChange?.())
@@ -447,24 +428,44 @@ export class VoxelRadioEngine {
     const file = !canOpus() && seg.fallback ? seg.fallback : seg.fileName
     const el = document.createElement('audio')
     el.crossOrigin = 'anonymous'
+    el.preload = 'auto'
     el.src = `${MUSIC_URI}/${file}`
-    el.currentTime = Math.max(0, offset)
+    el.style.display = 'none'
+    document.body.appendChild(el)
 
-    this.source = this.ctx.createMediaElementSource(el)
-    this.source.connect(this.music)
-    this.music.gain.value = seg.volume ?? 1
+    const dur = seg.duration || 0
+    const t = dur > 0 ? Math.min(Math.max(0, offset), dur - 0.25) : Math.max(0, offset)
 
-    el.play().catch(() => {
-      const retry = () => {
-        el.play()
-          .then(() => this.onChange?.())
-          .catch(() => {})
-        window.removeEventListener('pointerdown', retry)
-        window.removeEventListener('keydown', retry)
-      }
-      window.addEventListener('pointerdown', retry, { passive: true })
-      window.addEventListener('keydown', retry, { passive: true })
-    })
+    const start = () => {
+      try {
+        el.currentTime = t
+      } catch {}
+      this.source = this.ctx.createMediaElementSource(el)
+      this.hookTrack()
+      this.music.gain.value = seg.volume ?? 1
+      el.play()
+        .then(() => this.onChange?.())
+        .catch(() => {
+          const retry = () => {
+            this.wake()
+            window.removeEventListener('pointerdown', retry)
+            window.removeEventListener('keydown', retry)
+          }
+          window.addEventListener('pointerdown', retry, { passive: true })
+          window.addEventListener('keydown', retry, { passive: true })
+        })
+    }
+
+    if (el.readyState >= 1) start()
+    else el.addEventListener('loadedmetadata', start, { once: true })
+    el.addEventListener(
+      'error',
+      () => {
+        console.error('[radio] track load failed', file)
+        this.onChange?.()
+      },
+      { once: true }
+    )
 
     this.el = el
     this.track = seg
@@ -477,8 +478,12 @@ export class VoxelRadioEngine {
       this.el.remove()
       this.el = null
     }
-    this.source?.disconnect()
-    this.source = null
+    if (this.source) {
+      try {
+        this.source.disconnect()
+      } catch {}
+      this.source = null
+    }
   }
 
   private tickSpots() {

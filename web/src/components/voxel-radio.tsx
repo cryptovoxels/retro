@@ -288,7 +288,7 @@ export default class VoxelRadio extends Component<Props, State> {
 
     return (
       <div class={`voxel-radio-wrap${this.props.popped ? ' popped' : ''}${pl === 'open' ? ' pl-open' : ''}`}>
-        <div class={`voxel-radio${onAir ? ' on-air' : ''}${compact ? ' compact' : ''}`}>
+        <div class={`voxel-radio${onAir ? ' on-air' : ''}${compact ? ' compact' : ''}`} onPointerDown={() => this.radio?.wake()}>
           <div class="vr-stack">
             <div class="vr-main">
               {compact ? (
