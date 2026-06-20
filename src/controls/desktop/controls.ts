@@ -275,7 +275,7 @@ export default class DesktopControls extends Controls {
     // Moving the camera
     this.keyboardInput = new LocaleKeyboardMoveInput({
       keysUp: ['ArrowUp', 'KeyW'],
-      keysUpward: ['PageUp', 'Space', 'KeyF'],
+      keysUpward: ['PageUp', 'Space'],
       keysDown: ['ArrowDown', 'KeyS'],
       keysDownward: ['PageDown', 'KeyV'],
       keysLeft: ['ArrowLeft', 'KeyA'],
