@@ -11,57 +11,37 @@
   position: relative;
   z-index: 1;
   overflow: hidden;
-  min-height: 6rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem;
   color: var(--bright);
   font-family: monospace;
+  background: var(--dark);
+  border: var(--border);
 
-  // FFT shader visualiser sitting behind the stop/list controls
+  .vr-viz-box {
+    position: relative;
+    overflow: hidden;
+    background: var(--dark);
+  }
+
   .vr-viz {
-    position: absolute;
-    inset: 0;
+    display: block;
     width: 100%;
     height: 100%;
-    z-index: 0;
-  }
-
-  .vr-toggle,
-  .vr-btn,
-  .vr-screen {
-    position: relative;
-    z-index: 1;
-  }
-
-  .vr-toggle,
-  .vr-btn {
-    background: none;
-    border: var(--border);
-    color: var(--bright);
-    padding: 0 0.75rem;
-    cursor: pointer;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
   }
 
   .vr-screen {
-    flex: 1;
     min-width: 0;
     display: flex;
     flex-direction: column;
     justify-content: center;
-    gap: 0.25rem;
+    gap: 0.15rem;
   }
 
   .vr-label {
     color: var(--soft);
     text-transform: uppercase;
-    letter-spacing: 0.2em;
+    letter-spacing: 0.12em;
   }
 
-  // shoutcast-style scrolling now-playing line
   .vr-track {
     overflow: hidden;
     white-space: nowrap;
@@ -73,8 +53,106 @@
     }
   }
 
+  .vr-toggle,
+  .vr-btn {
+    background: none;
+    color: var(--bright);
+    cursor: pointer;
+  }
+
   &.on-air .vr-label {
     color: var(--red);
+  }
+}
+
+// homepage aside: winamp-style compact chassis
+.voxel-radio-wrap:not(.popped) .voxel-radio.compact {
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  grid-template-rows: 1fr auto;
+  padding: 0;
+  gap: 0;
+
+  .vr-viz-box {
+    grid-row: 1 / span 2;
+    border-right: var(--border);
+    min-height: 4rem;
+  }
+
+  .vr-screen {
+    grid-column: 2;
+    grid-row: 1;
+    padding: 0.25rem 0.5rem;
+  }
+
+  .vr-label {
+    font-size: 0.65em;
+  }
+
+  .vr-transport {
+    grid-column: 2;
+    grid-row: 2;
+    display: flex;
+    border-top: var(--border);
+  }
+
+  .vr-toggle,
+  .vr-btn {
+    border: none;
+    border-right: var(--border);
+    padding: 0.2rem 0.5rem;
+    min-width: 1.75rem;
+    font-size: 0.75em;
+    line-height: 1.2;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .vr-btn:last-child {
+    border-right: none;
+  }
+}
+
+// popped-out window: full-width viz behind controls
+.voxel-radio-wrap.popped .voxel-radio {
+  min-height: 6rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+
+  .vr-viz-box {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+
+  .vr-screen,
+  .vr-transport {
+    position: relative;
+    z-index: 1;
+  }
+
+  .vr-screen {
+    flex: 1;
+    gap: 0.25rem;
+  }
+
+  .vr-label {
+    letter-spacing: 0.2em;
+  }
+
+  .vr-transport {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .vr-toggle,
+  .vr-btn {
+    border: var(--border);
+    padding: 0 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
   }
 }
 
@@ -92,6 +170,8 @@
   color: var(--bright);
   font-family: monospace;
   padding: 0.5rem;
+  border: var(--border);
+  border-top: none;
 
   .vr-controls {
     display: flex;
@@ -131,7 +211,6 @@
       stroke: var(--bright);
     }
 
-    // value sits inside the arc
     .vr-knob-val {
       position: absolute;
       top: 0;
@@ -225,8 +304,13 @@
     &.spot {
       cursor: pointer;
 
-      .vr-name {
+      .vr-name,
+      a.vr-name {
         text-decoration: underline;
+      }
+
+      a.vr-name {
+        color: inherit;
       }
     }
   }
