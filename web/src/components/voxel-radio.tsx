@@ -95,6 +95,108 @@ class Slider extends Component<SliderProps> {
   }
 }
 
+type PadProps = {
+  id: string
+  min: number
+  max: number
+  step: number
+  value: number
+  active: boolean
+  onChange: (v: number) => void
+  onWake?: () => void
+}
+
+// vintage calc key: drag up/down, hold to punch in
+class FxPad extends Component<PadProps> {
+  el: HTMLElement | null = null
+  y0 = 0
+  v0 = 0
+  moved = false
+  punching = false
+  punchT: ReturnType<typeof setTimeout> | null = null
+  state = { lit: false, punch: false }
+
+  setY = (clientY: number) => {
+    if (!this.el) return
+    const { min, max, step, onChange } = this.props
+    const rect = this.el.getBoundingClientRect()
+    const t = Math.max(0, Math.min(1, 1 - (clientY - rect.top) / rect.height))
+    const v = min + t * (max - min)
+    onChange(Math.max(min, Math.min(max, Math.round(v / step) * step)))
+  }
+
+  punchVal = () => {
+    const { id, max } = this.props
+    if (id === 'eq') return max
+    return max
+  }
+
+  down = (e: PointerEvent) => {
+    e.preventDefault()
+    this.props.onWake?.()
+    this.el = e.currentTarget as HTMLElement
+    this.y0 = e.clientY
+    this.v0 = this.props.value
+    this.moved = false
+    this.setState({ lit: true, punch: false })
+    this.setY(e.clientY)
+    this.punchT = setTimeout(() => {
+      if (!this.moved) {
+        this.punching = true
+        this.setState({ punch: true })
+        this.props.onChange(this.punchVal())
+      }
+    }, 160)
+    const move = (ev: PointerEvent) => {
+      if (Math.abs(ev.clientY - this.y0) > 6) {
+        this.moved = true
+        if (this.punchT) clearTimeout(this.punchT)
+        if (this.punching) this.props.onChange(this.v0)
+        this.punching = false
+        this.setState({ punch: false })
+      }
+      this.setY(ev.clientY)
+    }
+    const up = () => {
+      if (this.punchT) clearTimeout(this.punchT)
+      if (this.punching) this.props.onChange(this.v0)
+      this.punching = false
+      this.setState({ lit: false, punch: false })
+      window.removeEventListener('pointermove', move)
+      window.removeEventListener('pointerup', up)
+    }
+    window.addEventListener('pointermove', move)
+    window.addEventListener('pointerup', up)
+  }
+
+  render() {
+    const { id, min, max, value, active } = this.props
+    const t = (value - min) / (max - min)
+    const mid = id === 'eq' ? 50 : 0
+    let fillBottom = 0
+    let fillHeight = t * 100
+    if (id === 'eq') {
+      if (value >= 0) {
+        fillBottom = mid
+        fillHeight = t * 100 - mid
+      } else {
+        fillBottom = t * 100
+        fillHeight = mid - t * 100
+      }
+    }
+    const hot = active && (Math.abs(value) > 0.08 || (id !== 'eq' && value > 0.08) || (id === 'vol' && value < 0.92))
+    const digits = id === 'eq' ? `${value >= 0 ? '+' : ''}${Math.round(value * 100)}` : String(Math.round(t * 99)).padStart(2, '0')
+    return (
+      <div class={`vr-key op${active ? '' : ' off'}${hot ? ' hot' : ''}${this.state.lit ? ' lit' : ''}${this.state.punch ? ' punch' : ''}`} onPointerDown={this.down} title={`${id}: drag or hold`}>
+        {id === 'eq' && <span class="vr-key-mid" />}
+        <span class="vr-key-fill" style={`bottom:${fillBottom}%;height:${fillHeight}%`} />
+        <span class="vr-key-label">{id}</span>
+        <span class="vr-key-digits">{digits}</span>
+      </div>
+    )
+  }
+}
+
 type KnobProps = { label: string; min: number; max: number; step: number; value: number; compact?: boolean; onChange: (v: number) => void }
 
 // 2rem svg arc knob, drag up/down to turn
@@ -123,13 +225,15 @@ class Knob extends Component<KnobProps> {
   render() {
     const { label, min, max, value, compact } = this.props
     const t = (value - min) / (max - min)
+    const pct = compact ? Math.round(t * 100) : Math.round(value * 100)
     return (
-      <div class={`vr-knob${compact ? ' mini' : ''}`} onPointerDown={this.down}>
+      <div class={`vr-knob${compact ? ' mini' : ''}`} onPointerDown={this.down} title={label}>
         <svg viewBox="0 0 32 32">
+          {compact && <circle class="face" cx={C} cy={C} r={R + 2} />}
           <path class="track" d={FULL} />
           <path class="val" d={arc(A0 + t * SPAN)} />
         </svg>
-        <span class="vr-knob-val">{Math.round(value * 100)}</span>
+        {!compact && <span class="vr-knob-val">{pct}</span>}
         {!compact && <label>{label}</label>}
       </div>
     )
@@ -230,6 +334,42 @@ export default class VoxelRadio extends Component<Props, State> {
     ))
   }
 
+  padGrid(r: VoxelRadioEngine) {
+    const pads: { id: 'vol' | PedalId; min: number; max: number }[] = [
+      { id: 'vol', min: 0, max: 1 },
+      { id: 'eq', min: -1, max: 1 },
+      { id: 'rvb', min: 0, max: 1 },
+      { id: 'dly', min: 0, max: 1 },
+      { id: 'drv', min: 0, max: 1 },
+    ]
+    return pads.map(({ id, min, max }) => {
+      const active = id === 'vol' || r.chain.includes(id)
+      const value = id === 'vol' ? r.trackVolume : r.pedalAmount(id)
+      return (
+        <FxPad
+          key={id}
+          id={id}
+          min={min}
+          max={max}
+          step={0.05}
+          active={active}
+          value={value}
+          onWake={() => {
+            if (id !== 'vol' && !r.chain.includes(id)) r.addPedal(id)
+          }}
+          onChange={(v) => {
+            if (id === 'vol') r.setTrackVolume(v)
+            else {
+              if (!r.chain.includes(id)) r.addPedal(id)
+              r.setPedal(id, v)
+            }
+            this.forceUpdate()
+          }}
+        />
+      )
+    })
+  }
+
   render() {
     const r = this.radio
     const muted = r?.muted ?? false
@@ -244,69 +384,61 @@ export default class VoxelRadio extends Component<Props, State> {
     return (
       <div class={`voxel-radio-wrap${this.props.popped ? ' popped' : ''}${this.state.open ? ' open' : ''}${this.state.fx ? ' fx' : ''}`}>
         <div class={`voxel-radio${onAir ? ' on-air' : ''}${compact ? ' compact' : ''}`}>
-          {compact && (
-            <div class="vr-titlebar">
-              <span>voxels radio{onAir ? ' / on air' : ''}</span>
-            </div>
-          )}
-          <div class="vr-viz-box">
-            <canvas ref={this.canvas} class="vr-viz" />
-          </div>
-          <div class="vr-screen">
-            {!compact && <span class="vr-label">voxels radio{onAir ? ' / on air' : ''}</span>}
-            <span class="vr-track">
-              <span>{text}</span>
-            </span>
-            {compact && (
-              <div class="vr-sliders">
-                <Slider
-                  label="vol"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  value={r?.trackVolume ?? 1}
-                  onChange={(v) => {
-                    r?.setTrackVolume(v)
-                    this.forceUpdate()
-                  }}
-                />
-              </div>
-            )}
-          </div>
           {compact ? (
-            <div class="vr-deck">
+            <>
+              <div class="vr-viz-box">
+                <canvas ref={this.canvas} class="vr-viz" />
+              </div>
+              <div class="vr-calc-face">
+                <span class="vr-brand">voxels radio{onAir ? ' *' : ''}</span>
+                <div class="vr-calc-display">
+                  <span class="vr-track">
+                    <span>{text}</span>
+                  </span>
+                </div>
+                <div class="vr-key-row">
+                  <button type="button" class="vr-key fn" onClick={() => r?.toggle()} title={muted ? 'play' : 'stop'}>
+                    {muted ? '>' : '||'}
+                  </button>
+                  <button type="button" class={`vr-key fn${this.state.open ? ' on' : ''}`} onClick={() => this.setState({ open: !this.state.open })} title="playlist">
+                    PL
+                  </button>
+                  <button type="button" class={`vr-key fn${this.state.fx ? ' on' : ''}`} onClick={() => this.setState({ fx: !this.state.fx })} title="fx chain">
+                    FX
+                  </button>
+                  <button type="button" class="vr-key fn" onClick={this.popout} title="pop out">
+                    ^
+                  </button>
+                </div>
+                {r && <div class="vr-key-grid">{this.padGrid(r)}</div>}
+              </div>
+              <div class="vr-progress vr-progress-main">
+                <span style={`width:${pct}%`} />
+              </div>
+            </>
+          ) : (
+            <>
+              <div class="vr-viz-box">
+                <canvas ref={this.canvas} class="vr-viz" />
+              </div>
+              <div class="vr-screen">
+                <span class="vr-label">voxels radio{onAir ? ' / on air' : ''}</span>
+                <span class="vr-track">
+                  <span>{text}</span>
+                </span>
+              </div>
               <div class="vr-transport">
                 <button type="button" class="vr-toggle" onClick={() => r?.toggle()} title={muted ? 'play' : 'stop'}>
-                  {muted ? '>' : '||'}
+                  {muted ? 'play' : 'stop'}
                 </button>
                 <button type="button" class={`vr-btn${this.state.fx ? ' active' : ''}`} onClick={() => this.setState({ fx: !this.state.fx })} title="fx pedals">
-                  FX
+                  fx
                 </button>
-                <button type="button" class={`vr-btn${this.state.open ? ' active' : ''}`} onClick={() => this.setState({ open: !this.state.open })} title="playlist">
-                  PL
-                </button>
-                <button type="button" class="vr-btn" onClick={this.popout} title="pop out">
-                  POP
+                <button type="button" class="vr-btn" onClick={() => this.setState({ open: !this.state.open })} title="schedule">
+                  list
                 </button>
               </div>
-            </div>
-          ) : (
-            <div class="vr-transport">
-              <button type="button" class="vr-toggle" onClick={() => r?.toggle()} title={muted ? 'play' : 'stop'}>
-                {muted ? 'play' : 'stop'}
-              </button>
-              <button type="button" class={`vr-btn${this.state.fx ? ' active' : ''}`} onClick={() => this.setState({ fx: !this.state.fx })} title="fx pedals">
-                fx
-              </button>
-              <button type="button" class="vr-btn" onClick={() => this.setState({ open: !this.state.open })} title="schedule">
-                list
-              </button>
-            </div>
-          )}
-          {compact && (
-            <div class="vr-progress vr-progress-main">
-              <span style={`width:${pct}%`} />
-            </div>
+            </>
           )}
         </div>
 

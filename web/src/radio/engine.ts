@@ -59,7 +59,7 @@ function save(key: string, v: number) {
 function loadChain(): PedalId[] {
   try {
     const raw = localStorage.getItem('radio.chain')
-    if (!raw) return ['eq']
+    if (!raw) return ['eq', 'rvb', 'dly', 'drv']
     const chain = JSON.parse(raw) as PedalId[]
     if (!Array.isArray(chain)) return ['eq']
     return chain.filter((id) => PEDALS.includes(id))
