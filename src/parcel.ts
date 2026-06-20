@@ -1577,13 +1577,17 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
         BABYLON.Texture.BILINEAR_SAMPLINGMODE,
         () => {
           if (gen !== this.voxelFieldGen) return
-          this.mesher.generateBaked(this, (opaque, glass) => {
-            if (gen !== this.voxelFieldGen) {
-              this.disposeGeneratedMeshes(opaque, glass)
-              return
-            }
-            this.configureBakedVoxelFieldMeshes(opaque, glass)
-          }, texture)
+          this.mesher.generateBaked(
+            this,
+            (opaque, glass) => {
+              if (gen !== this.voxelFieldGen) {
+                this.disposeGeneratedMeshes(opaque, glass)
+                return
+              }
+              this.configureBakedVoxelFieldMeshes(opaque, glass)
+            },
+            texture,
+          )
         },
         () => {
           if (gen !== this.voxelFieldGen) return
