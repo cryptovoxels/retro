@@ -24,17 +24,14 @@ const ROUTE_ICONS: Record<string, string> = {
 }
 
 function AdminMenu() {
+  return <li>{navLinkActive('Admin', '/admin')}</li>
+}
+
+function navLinkActive(label: string, href: string) {
   return (
-    <li>
-      Admin
-      <ul>
-        <li>
-          <Link activeClassName="active" href="/admin/islands">
-            Islands
-          </Link>
-        </li>
-      </ul>
-    </li>
+    <Link activeClassName="active" href={href}>
+      {label}
+    </Link>
   )
 }
 type Props = {
@@ -199,6 +196,8 @@ export default class WebHeader extends Component<Props, State> {
               <li>{navLink('Spaces', '/spaces', 'spaces', isActive('spaces'))}</li>
               <li>{navLink('Womps', '/womps', 'womps', isActive('womps'))}</li>
               <li>{navLink('Scratchpad', '/scratchpad', 'scratchpad', isActive('scratchpad'))}</li>
+
+              {admin && <AdminMenu />}
 
               <li>
                 <form action="/search" onSubmit={this.onSubmit}>

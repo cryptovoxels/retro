@@ -58,6 +58,7 @@ import WompsPage from './womps'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { JSXInternal } from 'preact/src/jsx'
 import IslandsAdmin from './admin/islands'
+import Admin from './admin/admin'
 import NotFound from './not-found'
 import { PlayPreview } from './play-preview'
 import { maybePlayPreview } from './play-preview-route'
@@ -188,6 +189,7 @@ const Main = () => {
           <WompsPage path="/womps" />
 
           <IslandsAdmin path="/propose/islands" />
+          <Admin path="/admin" />
         </Router>
         {!lightBroadcast && !fullWorld && <Footer />}
       </main>

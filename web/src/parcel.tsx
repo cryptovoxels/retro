@@ -5,7 +5,6 @@ import ParcelHelper from '../../common/helpers/parcel-helper'
 import { canUseDom, ssrFriendlyWindow } from '../../common/helpers/utils'
 import { FullParcelRecord, NearbyParcelRecord, ParcelRecord, ParcelWithMintednessRecord } from '../../common/messages/parcel'
 import type { Map } from '../../vendor/library/leaflet'
-import Listings from './components/listings'
 import ParcelEvents from './components/parcel-events'
 import cachedFetch from './helpers/cached-fetch'
 import Head from './components/head'
@@ -296,8 +295,6 @@ export default class Parcel extends Component<Props, State> {
         </article>
 
         <aside>
-          <Listings parcel={this.props.id!} name={this.state.parcel?.address!} />
-
           {this.state.parcel &&
             (() => {
               const p = this.state.parcel
