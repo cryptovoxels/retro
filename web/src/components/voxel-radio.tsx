@@ -186,7 +186,7 @@ export default class VoxelRadio extends Component<Props, State> {
             </small>
             <div class="vr-controls">
               <Knob
-                label="music"
+                label="track"
                 min={0}
                 max={1}
                 step={0.05}
@@ -208,7 +208,7 @@ export default class VoxelRadio extends Component<Props, State> {
                 }}
               />
               <Knob
-                label="dj"
+                label="spot"
                 min={0}
                 max={1}
                 step={0.05}
