@@ -1,6 +1,6 @@
 import { Feature3D, MeshExtended } from './feature'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, SpecularColorSetting, Toolbar, UrlSourceImages, UuidReadOnly } from '../ui/features'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale } from '../../web/src/components/editor'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import type { AssetRecord } from '../../common/messages/feature'
 

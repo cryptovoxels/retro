@@ -130,8 +130,8 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     return this.parcel.id === this.parcel.grid?.currentParcel()?.id
   }
 
-  get parcelScript() {
-    return this.parcel.parcelScript
+  get behaviours() {
+    return this.parcel.behaviours
   }
 
   get blendMode(): ImageMode {
@@ -407,7 +407,8 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     if (!this.mesh) {
       return false
     }
-    return !!this.isLink || (!!this.script && !!this.script.match(/on\('click'/g))
+    const hasBehaviours = ((this.description as any).behave?.length ?? 0) > 0
+    return !!this.isLink || hasBehaviours || (!!this.script && !!this.script.match(/on\('click'/g))
   }
 
   refreshWorldMatrix() {
@@ -600,8 +601,8 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     if (!this.description.isTrigger) {
       return
     }
-    if (this.parcelScript) {
-      this.parcelScript.dispatch('trigger', this, {})
+    if (this.behaviours) {
+      this.behaviours.dispatch(this.uuid, 'trigger')
     }
     !!this.description.triggerIsAudible && this.playSound(0)
   }
@@ -708,11 +709,6 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     }
     this.update(props)
     this.sendToServer(Object.keys(props) as Array<keyof Description>)
-
-    // patch the feature in parcel-script
-    if (this.parcelScript?.connected) {
-      this.parcelScript.dispatch('patch', this, props)
-    }
 
     this.dispatchEvent(createEvent('updated', true))
     if (this.type === 'lantern') this.parcel.relight()

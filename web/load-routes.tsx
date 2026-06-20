@@ -1,4 +1,5 @@
 import Avatar from './src/avatar'
+import BehavioursDoc from './src/behaviours-doc'
 import Conduct from './src/conduct'
 import EventPage from './src/event-page'
 import Explore from './src/explore'
@@ -78,6 +79,9 @@ export default function loadRoutes(app: Express) {
 
   app.get('/conduct', cache(duration), (req, res) => {
     res.send(renderPage(<Conduct />))
+  })
+  app.get('/behaviours', cache(duration), (req, res) => {
+    res.send(renderPage(<BehavioursDoc />))
   })
   app.get('/not-found', cache(duration), (req, res) => {
     res.send(renderPage(<NotFound path="/not-found" />))

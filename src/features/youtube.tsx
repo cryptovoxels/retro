@@ -2,7 +2,7 @@ import { h } from 'preact'
 import { isBatterySaver, isMobile } from '../../common/helpers/detector'
 import { YoutubeRecord } from '../../common/messages/feature'
 import { CSS3DObject, CSS3DRenderer } from '../../vendor/CSS3DRenderer'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 import { fetchNoImageTexture, fetchTexture } from '../textures/textures'
 import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
 import { isURL } from '../utils/helpers'
@@ -322,7 +322,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
   onClick() {
     if (this.isTwitch) {
       window.open('https://twitch.tv/' + this.videoId, '_blank')
-      this.parcelScript?.dispatch('click', this, {})
+      this.behaviours?.dispatch(this.uuid, 'click')
       return
     }
     if (this.playing) {
@@ -334,7 +334,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
     } else {
       this.play()
     }
-    this.parcelScript?.dispatch('click', this, {})
+    this.behaviours?.dispatch(this.uuid, 'click')
   }
 
   pause() {
@@ -545,7 +545,7 @@ class Editor extends FeatureEditor<Youtube> {
             </div>
 
             <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
           </Advanced>
         </div>
       </section>
@@ -756,6 +756,10 @@ class YoutubePlayer {
   }
 
   addIframe() {
+    if (this.feature.isTwitch) {
+      return // twitch playback disabled: do nothing
+    }
+
     this.iframe = document.createElement('iframe')
     this.iframe.id = 'video-' + this.feature.videoId
     this.iframe.style.width = this.width + 'px'

@@ -1,7 +1,7 @@
 import { throttle } from 'lodash'
 import { micromark } from 'micromark'
 import { RichTextRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 import { Advanced, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
 // @ts-expect-error this is some dodgy vendor thing
 import * as htmlToCanvas from '../vendor/html-to-canvas'
@@ -251,7 +251,7 @@ class RichtextEditor extends FeatureEditor<Richtext> {
               </label>
             </div>
 
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
             <UuidReadOnly feature={this.props.feature} />
           </Advanced>
         </div>

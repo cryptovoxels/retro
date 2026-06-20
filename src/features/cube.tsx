@@ -1,5 +1,5 @@
 import { CubeRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 import { fetchTexture } from '../textures/textures'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, SpecularColorSetting, Toolbar, UrlSourceImages, UuidReadOnly } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -171,7 +171,7 @@ class Editor extends FeatureEditor<Cube> {
               <SpecularColorSetting feature={this.props.feature} />
             </div>
             <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
           </Advanced>
         </div>
       </section>

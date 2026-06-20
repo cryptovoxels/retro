@@ -1,6 +1,6 @@
 import { BoomboxRecord } from '../../common/messages/feature'
 import { voxImporter } from '../../common/vox-import/vox-import'
-import { Position, Rotation, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Behaviours } from '../../web/src/components/editor'
 import { AudioBus } from '../audio/audio-engine'
 import Avatar from '../avatar'
 import { BoomboxBroadcast, BroadcastStatus, openBoomboxBroadcastUI } from '../ui/boombox-broadcast'
@@ -395,7 +395,7 @@ class Editor extends FeatureEditor<Boombox> {
             <FeatureID feature={this.props.feature} />
             <SetParentDropdown feature={this.props.feature} />
             <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
           </Advanced>
         </div>
       </section>

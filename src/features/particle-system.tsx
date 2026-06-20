@@ -1,5 +1,5 @@
 import { ParticlesRecord } from '../../common/messages/feature'
-import { Position, Rotation, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Behaviours } from '../../web/src/components/editor'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, TriggerEditor, UuidReadOnly } from '../ui/features'
 import { tidyColor3, tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -269,7 +269,7 @@ class Editor extends FeatureEditor<ParticleSystem> {
 
             <TriggerEditor feature={this.props.feature} />
             <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
           </Advanced>
         </div>
       </section>

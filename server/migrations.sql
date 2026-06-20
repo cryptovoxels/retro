@@ -254,3 +254,7 @@ SELECT apply_migration('guest-passes', $$
   CREATE INDEX IF NOT EXISTS guest_passes_parcel_id_idx ON guest_passes (parcel_id);
 $$);
 
+SELECT apply_migration('asset-library-id-default', $$
+  ALTER TABLE asset_library ALTER COLUMN id SET DEFAULT gen_random_uuid();
+$$);
+

@@ -1,5 +1,5 @@
 import { GroupRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 import { Advanced, Animation, FeatureEditor, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
 import InspectorTab from '../ui/overlay/inspector'
 import { FeatureTemplate } from './_metadata'
@@ -164,7 +164,7 @@ class Editor extends FeatureEditor<Group> {
             <UuidReadOnly feature={this.props.feature} key={`UuidReadOnly-${this.props.feature.uuid}`} />
             <Animation feature={this.props.feature} scaleAspectRatioAlwaysLocked key={`Animation-${this.props.feature.uuid}`} />
             <SetParentDropdown feature={this.props.feature} key={`SetParentDropdown-${this.props.feature.uuid}`} />
-            <Script feature={this.props.feature} key={`Script-${this.props.feature.uuid}`} />
+            <Behaviours feature={this.props.feature} key={`Behaviours-${this.props.feature.uuid}`} />
           </Advanced>
         </div>
       </section>

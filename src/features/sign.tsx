@@ -1,5 +1,5 @@
 import { SignRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 import { Advanced, Animation, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
 import { tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -225,7 +225,7 @@ class Editor extends FeatureEditor<Sign> {
 
             <UuidReadOnly feature={this.props.feature} />
 
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
           </Advanced>
         </div>
       </section>

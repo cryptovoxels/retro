@@ -176,6 +176,12 @@ export class Client {
       case messages.MessageType.metric:
         this.handleMetric(msg)
         break
+      case messages.MessageType.behaviourState:
+        this.shard.behaviourRelay.handleState(this, msg, message)
+        break
+      case messages.MessageType.behaviourSignal:
+        this.shard.behaviourRelay.handleSignal(this, msg, message)
+        break
       default:
         console.error(`unknown message type ${(msg as any).type}`, this.whois())
         break
@@ -320,6 +326,7 @@ export class Client {
     if (parcelId != null && this.lastSeenParcel !== parcelId) {
       this.lastSeenParcel = parcelId
       this.shard.onRadarEvent?.({ type: 'move', uuid: this.clientUUID, avatar: this.avatar, parcel: parcelId })
+      this.shard.behaviourRelay.sendSnapshot(this, parcelId)
     }
     const anonId = this.anonymizedClientId()
     const position = msg.position

@@ -1,7 +1,7 @@
 import { createComlinkWorker } from '../../common/helpers/comlink-worker'
 import { isBatterySaver } from '../../common/helpers/detector'
 import { PolytextV2Record } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
 import { TimeOfDay } from '../utils/time-of-day'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -311,7 +311,7 @@ class Editor extends FeatureEditor<PolytextV2> {
             </div>
             <UuidReadOnly feature={this.props.feature} />
 
-            <Script feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
           </Advanced>
         </div>
       </section>

@@ -140,9 +140,9 @@ export default class LibraryAsset {
       'embedded/insert-asset-library',
       `
       insert into
-      asset_library (type, author,name,description,category,public,image_url,content,hash,has_script,has_unsafe_script,created_at,updated_at)
+      asset_library (id, type, author,name,description,category,public,image_url,content,hash,has_script,has_unsafe_script,created_at,updated_at)
       values
-        ($1, lower($2),$3,$4,$5,$6,$7,$8,$9,$10,$11, NOW(), NOW())
+        (gen_random_uuid(), $1, lower($2),$3,$4,$5,$6,$7,$8,$9,$10,$11, NOW(), NOW())
       returning
         id
     `,
