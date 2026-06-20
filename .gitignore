@@ -44,3 +44,5 @@ render/*.png
 scripting/meta.json
 /art
 *.rdb
+dump.rdb
+db/import.sql

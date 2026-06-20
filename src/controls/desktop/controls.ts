@@ -290,7 +290,7 @@ export default class DesktopControls extends Controls {
       this.shiftKey = e.shiftKey
       this.ctrlKey = e.ctrlKey || e.metaKey
 
-      const congaCancelKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Escape']
+      const congaCancelKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
       if (this.congaTarget && congaCancelKeys.includes(e.code)) {
         this.stopConga()
       }

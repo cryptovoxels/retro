@@ -8,6 +8,8 @@ import { Component, render } from 'preact'
 import { Route, Router, type RouterOnChangeArgs } from 'preact-router'
 
 import EditAccount from '../account/edit'
+import GoLive from '../account/go-live'
+import GoLiveBroadcast from '../account/go-live-broadcast'
 import NewSpace from '../account/new-space'
 import Asset from './asset'
 import Assets from './assets'
@@ -22,6 +24,7 @@ import PublishCollection from './collection-publish'
 import Collections from './collections'
 import CollectionsNew from './collections-new'
 import Snackbar from './components/snackbar'
+import VoxelRadio from './components/voxel-radio'
 import Conduct from './conduct'
 import EventPage from './event-page'
 import Events from './events'
@@ -30,11 +33,13 @@ import EventsEdit from './events-edit'
 import Explore from './explore'
 import Footer from './footer'
 import Home from './home'
+import Logout from './logout'
 import Island from './island'
 import Islands from './islands'
 import Mail from './mail'
 import WorldMap from './map'
 import Parcel from './parcel'
+import { Client } from './client'
 import ParcelEdit from './parcel-edit'
 import Parcels from './parcels'
 import Privacy from './privacy'
@@ -50,10 +55,12 @@ import WebHeader from './web-header'
 import Womp from './womp'
 import WompsPage from './womps'
 
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { JSXInternal } from 'preact/src/jsx'
 import IslandsAdmin from './admin/islands'
 import NotFound from './not-found'
+import { PlayPreview } from './play-preview'
+import { maybePlayPreview } from './play-preview-route'
 import { app, AppEvent } from './state'
 
 class MainApp extends Component {
@@ -96,23 +103,36 @@ const Main = () => {
       window.location.href = e.url
     }
 
+    maybePlayPreview(prevUrl.current, e.url)
+    prevUrl.current = location.pathname + location.search
+
     setCurrentPath(e.url)
 
     app.send({ type: 'navigate', data: e.url })
   }
 
   const [currentPath, setCurrentPath] = useState(window.location.pathname)
+  const prevUrl = useRef(location.pathname + location.search)
+  const lightBroadcast = currentPath.startsWith('/golive/broadcast')
+  // fullscreen world view: no web header/footer chrome
+  const fullWorld = currentPath.startsWith('/play') || currentPath.startsWith('/scratchpad') || currentPath.endsWith('/play') || currentPath.startsWith('/radio')
 
   return (
     <MainApp>
-      <main class="container-fluid">
-        <WebHeader path={currentPath} />
+      <main class={lightBroadcast ? 'showbox-light-shell' : ''}>
+        {!lightBroadcast && !fullWorld && <WebHeader path={currentPath} />}
 
         <Router onChange={handleRoute}>
           <Explore path="/" />
+          <RadioPopout path="/radio" />
+          <Play path="/play" />
+          <Play path="/scratchpad" />
+          <Play path="/spaces/:id/play" />
+          <Play path="/assets/:id/play" />
           <Terms path="/terms" />
           <Privacy path="/privacy" />
           <Conduct path="/conduct" />
+          <Logout path="/logout" />
           <NotFound path="/not-found" />
 
           <Mail path="/mail" />
@@ -138,6 +158,9 @@ const Main = () => {
           <Islands path="/islands" />
           <Island path="/islands/:slug" />
           <WorldMap path="/map" />
+
+          <Route path="/golive/broadcast" component={GoLiveBroadcast} />
+          <Route path="/golive" component={GoLive} />
 
           <AccountRoutes path="/account/:path*" />
 
@@ -166,11 +189,31 @@ const Main = () => {
 
           <IslandsAdmin path="/propose/islands" />
         </Router>
-        <Footer />
+        {!lightBroadcast && !fullWorld && <Footer />}
       </main>
 
       <Snackbar />
+      <PlayPreview />
     </MainApp>
+  )
+}
+
+// Popped-out radio window (window.open('/radio'))
+function RadioPopout(_props: { path?: string }) {
+  return (
+    <div class="radio-popout">
+      <VoxelRadio popped />
+    </div>
+  )
+}
+
+// Fullscreen world. Mounts the persistent canvas layer over a fullscreen placeholder.
+function Play(_props: { path?: string }) {
+  const coords = new URLSearchParams(window.location.search).get('coords') || ''
+  return (
+    <div class="world-fullscreen">
+      <Client full coords={coords} parcelId={0} />
+    </div>
   )
 }
 

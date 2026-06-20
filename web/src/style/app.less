@@ -1,0 +1,9 @@
+/*
+ * THE GREAT MERGE: one stylesheet for the one bundle.
+ * web.less = traditional web pages. client.less = in-world UI.
+ * Both now load on every page. client.less wins on conflicts (imported last).
+ * Heads up: client.less has global body/a/list rules that bleed onto web pages.
+ */
+
+@import './web.less';
+@import './client.less';

@@ -75,15 +75,6 @@ const VoxelToolBelt = ({ parcel, scene }: Props) => {
   }, [tintChooser])
 
   useEffect(() => {
-    if (!tintModalOpen) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setTintModalOpen(false)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [tintModalOpen])
-
-  useEffect(() => {
     setTileset(parcel.tileset)
     setPalette(parcel.palette)
   }, [parcel.id])

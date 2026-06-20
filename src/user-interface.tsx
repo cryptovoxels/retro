@@ -1,5 +1,7 @@
 import type { Signal } from '@preact/signals'
+import { effect } from '@preact/signals'
 import { Component, createRef, Fragment, h } from 'preact'
+import { route } from 'preact-router'
 import { isMobileMedia } from '../common/helpers/detector'
 import { exitPointerLock, hasPointerLock, requestPointerLock } from '../common/helpers/ui-helpers'
 import { onBeginUpload, onCompleteUpload, onFailUpload } from '../common/helpers/upload-media'
@@ -9,10 +11,10 @@ import { PanelType } from '../web/src/components/panel'
 import Snackbar from '../web/src/components/snackbar'
 import { app, AppEvent } from '../web/src/state'
 import { KeyboardHandler } from './components/keyboard-handler'
-import { OnlyMobile, ViewOnCondition } from './components/utils'
+import { OnlyMobile } from './components/utils'
 import { Animations } from './avatar-animations'
 import { EmoteAnimation } from './states'
-import Connector from './connector'
+import Connector, { messageList } from './connector'
 import DesktopControls from './controls/desktop/controls'
 import { Environment } from './enviroments/environment'
 import { createFeature } from './features/create'
@@ -27,8 +29,6 @@ import FeatureTool, { templateFromFeature } from './tools/feature'
 import VoxelTool, { SelectionMode, SelectionModeOptions } from './tools/voxel'
 import ConnectionStatusUI from './ui/connection-status'
 import { CongaJoinHintOverlay, CongaStatusOverlay } from './ui/conga-status'
-import { CurrentModeOverlay } from './ui/current-mode'
-import { DebugUI } from './ui/debug/base-debug'
 import { MaterialDebugTab } from './ui/debug/material-debug-tab'
 import { OceanDebugTab } from './ui/debug/ocean-debug-tab'
 import { PumpDebugTab } from './ui/debug/pump-debug-tab'
@@ -40,6 +40,7 @@ import { ChatOverlay, chatSettings } from './ui/interact/chat'
 import { EmoteOverlay } from './ui/interact/emote'
 import { HelpOverlay } from './ui/interact/help'
 import { ScratchpadGuide, ScratchpadGuideMini } from './ui/scratchpad-guide'
+import { FirstTimeInstructions } from '../web/src/components/first-time-instructions'
 import { WompOverlay } from './ui/interact/womps'
 import MobileButtons from './ui/mobile/buttons'
 import OpenLink from './ui/open-link'
@@ -53,14 +54,13 @@ import ToolBelt from './ui/overlay/tool-belt'
 import ParcelSnapshots from './ui/parcel-snapshots'
 import { SettingsUI } from './ui/settings'
 import TakeWomp from './ui/take-womp'
-import UploadStatusUI from './ui/upload-status'
 
 const NUMBER_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const
 
 const Location = (props: { scene: BABYLON.Scene; signedIn: any }) => {
   const currentOrNearestParcel = selectCurrentOrNearestParcel()
   if (!currentOrNearestParcel) {
-    return null
+    return <a href="/">Home</a>
   }
 
   const owner = currentOrNearestParcel.owner ? shorterWallet(currentOrNearestParcel.owner) : 'nobody'
@@ -68,7 +68,7 @@ const Location = (props: { scene: BABYLON.Scene; signedIn: any }) => {
   const link = `/parcels/${currentOrNearestParcel.id}`
 
   return (
-    <a key={currentOrNearestParcel.id} class="address" href={link} target="_top">
+    <a key={currentOrNearestParcel.id} class="address" href={link}>
       {currentOrNearestParcel.name || currentOrNearestParcel.address}
     </a>
   )
@@ -145,10 +145,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   featureTool: FeatureTool
   defaultTool: Tool | null
   keyboardHandler: KeyboardHandler = undefined!
-  debugUI: DebugUI = undefined!
-
-  //Overlay
-  uploadStatusRef = createRef<UploadStatusUI>()
 
   /**
    * Only used for setting initial tab of the explorer; default undefined
@@ -157,6 +153,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   explorerPaneInitialTab = createRef<Tab | undefined>()
   presenceEs: EventSource | null = null
   presenceUuids = new Set<string>()
+  chatLastReadAt = Date.now()
+  chatListDispose?: () => void
 
   constructor(props: UserInterfaceProps) {
     super(props)
@@ -174,12 +172,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     window.ui = this
 
     // this.setTool(this.defaultTool)
-
-    // Initialize debug UI with tabs
-    this.debugUI = new DebugUI(this.props.scene)
-    this.debugUI.addTab(new PumpDebugTab(this.props.scene))
-    this.debugUI.addTab(new OceanDebugTab(this.props.scene))
-    this.debugUI.addTab(new MaterialDebugTab(this.props.scene))
 
     this.addKeyboardHandlers()
 
@@ -233,7 +225,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     document.addEventListener('fullscreenchange', this.refreshFullscreen)
     document.addEventListener('pointerlockchange', this.onPointerLockChange)
     if (isMobileMedia()) {
-      this.canvas.addEventListener('touchstart', (e) => {
+      this.canvas.addEventListener('touchstart', () => {
+        app.emit(AppEvent.CanvasEngaged)
         this.hide()
       })
     }
@@ -265,6 +258,17 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     })
 
     chatSettings.addEventListener('changed', this.onChatSettingsChange)
+
+    this.chatListDispose = effect(() => {
+      messageList.value
+      this.forceUpdate()
+    })
+  }
+
+  componentDidUpdate(_prevProps: UserInterfaceProps, prevState: UserInterfaceState) {
+    if (!prevState.active && this.state.active) {
+      this.chatLastReadAt = Date.now()
+    }
   }
 
   onChatSettingsChange = () => {
@@ -313,10 +317,12 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     document.removeEventListener('fullscreenchange', this.refreshFullscreen)
     document.removeEventListener('pointerlockchange', this.onPointerLockChange)
     chatSettings.removeEventListener('changed', this.onChatSettingsChange)
+    this.chatListDispose?.()
   }
 
   onPointerLockChange = () => {
     if (document.pointerLockElement) {
+      app.emit(AppEvent.CanvasEngaged)
       // close overlays on pointer lock
       this.setState({ pane: undefined, active: false })
     }
@@ -331,10 +337,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     return this.props.scene.activeCamera as BABYLON.UniversalCamera
   }
 
-  toggleFeaturePumpDebug = () => {
-    this.debugUI.toggle()
-  }
-
   refocus() {
     requestPointerLock()
 
@@ -343,6 +345,12 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   disable() {
     this.setState({ enabled: false })
+  }
+
+  toggleRealism() {
+    const g = window.graphic.getSettings()
+    g.realisticLighting = !g.realisticLighting
+    window.graphic.setSettings(g)
   }
 
   addKeyboardHandlers() {
@@ -358,7 +366,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         { code: 'KeyE', handleEvent: () => this.editFeatureIfHasLock() },
         { code: 'KeyX', handleEvent: () => this.deleteFeature() },
         { code: 'KeyM', handleEvent: () => this.editFeatureThenMove() },
-        { code: 'KeyR', handleEvent: () => this.editFeatureThenCopy() },
+        { code: 'KeyR', handleEvent: () => this.toggleRealism() },
         { code: 'KeyP', handleEvent: () => this.takeWomp(this.props.scene) },
         { code: 'KeyI', handleEvent: () => this.activateInspectorIfHasLock() },
         { code: 'KeyF', handleEvent: () => this.connector.controls.toggleFlying() },
@@ -367,8 +375,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         { code: 'KeyG', handleEvent: () => this.setPane('emote') },
         { code: 'KeyZ', handleEvent: () => this.connector.controls.toggleZoom() },
         { code: 'Enter', handleEvent: this.focusChat },
-        { code: 'Escape', handleEvent: () => this.closeInteractOverlay() },
-        { code: 'Backquote', ctrlKey: true, handleEvent: () => this.toggleFeaturePumpDebug() },
+        { code: 'Escape', handleEvent: () => this.onEscape() },
         {
           code: 'Tab',
           handleEvent: (e) => {
@@ -450,6 +457,20 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   closeInteractOverlay() {
     this.setState({ pane: undefined, active: false })
+  }
+
+  // the one ESC: leave fullscreen/theatre. two-step -- a locked pointer eats the
+  // first ESC (browser releases it), the next ESC exits /play back to the parcel.
+  onEscape() {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen()
+      return
+    }
+    if (document.pointerLockElement) return
+    if (!location.pathname.endsWith('/play')) return
+    const id = this.grid?.currentParcel()?.id
+    const coords = new URLSearchParams(location.search).get('coords') || ''
+    route(id ? `/parcels/${id}?coords=${coords}` : '/parcels')
   }
 
   focusChat = (e: KeyboardEvent) => {
@@ -664,7 +685,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   onLogout = () => {
-    app.signout()
+    window.location.href = '/logout'
   }
 
   render() {
@@ -761,28 +782,16 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
     const active = (pane: string, disabled?: boolean) => (this.state.pane === pane ? 'active' : disabled ? 'disabled' : '')
 
+    const unreadChat = this.state.chatEnabled && !this.state.active ? messageList.value.some((m) => m.timestamp > this.chatLastReadAt) : false
+
     return (
-      <ViewOnCondition condition={window.config.wantsUI}>
+      <>
+        <FirstTimeInstructions />
         <div class={classes}>
           <Snackbar />
 
-          <aside style={{ zIndex: 500 }} class={`ui-toggle-mobile ${this.state.active ? 'hidden' : ''}`}>
-            <button
-              onClick={(e) => {
-                e.stopPropagation()
-                this.setState({ active: !this.state.active })
-              }}
-              title="Toggle UI"
-            >
-              ☰
-            </button>
-          </aside>
           <aside data-active={this.state.active}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
-              <li>
-                <Location signedIn={this.state.signedIn} scene={this.props.scene} />
-              </li>
-
               {!isMobileMedia() && (
                 /**
                  * Fullscreen toggle; no point showing "fullscreen on mobile" as most devices are always fullscreen
@@ -835,9 +844,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                 </a>
               </li>
               <li class={!this.state.signedIn ? 'disabled' : ''}>
-                <a href="/costumer" target="_blank" rel="noopener">
-                  Costumes
-                </a>
+                <a href="/costumer">Costumes</a>
               </li>
               {/* <li class={active('summon')}>
                 <a title="I for one welcome our robot overlords" onClick={onSummon}>
@@ -915,9 +922,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   </li>
                 </>
               )}
-              <li>
-                <HomeButton grid={this.props.grid} scene={this.props.scene} />
-              </li>
             </ul>
 
             {this.state.chatEnabled && <ChatOverlay scene={this.props.scene} />}
@@ -941,7 +945,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           {nearestEditableParcel && <ToolBelt parcel={nearestEditableParcel} scene={this.props.scene} />}
 
-          <UploadStatusUI onCompleteUpload={onCompleteUpload} onFailUpload={onFailUpload} onBeginUpload={onBeginUpload} ref={this.uploadStatusRef} />
           <ConnectionStatusUI connector={this.connector} grid={this.grid} scene={this.props.scene} />
           {this.props.minimapSettings.enabled && !window.config.isOrbit && !window.config.isSpace && (
             <div class="minimap-corner-controls">
@@ -959,9 +962,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           <CongaJoinHintOverlay />
           <CongaStatusOverlay />
-          <CurrentModeOverlay nextMode={this.featureTool.nextMode} mode={this.featureTool.selection.mode} enabled={this.featureTool.enabled} />
         </div>
-      </ViewOnCondition>
+      </>
     )
   }
 }

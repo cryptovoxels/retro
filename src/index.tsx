@@ -27,13 +27,12 @@ try {
 
 // Continue loading...
 import { toggleFPSStats } from './utils/fps-stats'
-import 'handjs'
 
 import { CreateControls, xr } from './controls/create'
 
 import type Grid from './grid'
 import { FeaturePump } from './pump/feature-pump'
-import UserInterface from './user-interface'
+import UserInterface, { UserInterfaceProps } from './user-interface'
 import Connector from './connector'
 
 // Robots (NPCs)
@@ -53,8 +52,7 @@ import { extendTabIndexOnClick } from '../common/helpers/ui-helpers'
 import { User } from './user'
 import Persona from './persona'
 import { Appstate } from '../web/src/state'
-import { render } from 'preact'
-import { viewportChangeHandler } from './controls/mobile/controls'
+import { refreshMobileCanvasAfterReturn, viewportChangeHandler } from './controls/mobile/controls'
 import PolytextV2 from './features/polytext-v2'
 import { DrawDistance } from './graphic/draw-distance'
 import MainLoop from './main-loop'
@@ -131,7 +129,19 @@ declare global {
   }
 }
 
-;(async function main() {
+export type BootResult = { UI: typeof UserInterface; props: UserInterfaceProps }
+
+let bootPromise: Promise<BootResult> | null = null
+
+// Lazy, run-once engine boot. Called by the web bundle the first time a world
+// view is shown. Importing this module must have no side effects. Resolves with
+// the UI component + its props so <Client> can render it in its own tree.
+export function bootEngine(): Promise<BootResult> {
+  if (!bootPromise) bootPromise = main()
+  return bootPromise
+}
+
+async function main() {
   const voxels = (window.voxels = {} as Voxels)
 
   // if the inspector breaks, try downloading the correct version into `/dist/vendor` like this:
@@ -149,12 +159,24 @@ declare global {
 
   const canvas = document.createElement('canvas')
   canvas.id = 'renderCanvas'
-  canvas.style.cssText = 'width: 100%; touch-action: none;'
-  canvas.style.height = '100%'
+  canvas.style.cssText = 'width: 100%; height: 100%; display: block; touch-action: none;'
 
-  document.documentElement.style.cssText = document.body.style.cssText = 'width: 100%; height: 100%; margin: 0; padding: 0; overflow: hidden; position: relative;'
+  // The one canvas lives forever. The web router (web/src/parcel.tsx Client)
+  // reparents it into whatever view is on screen and parks it back here when no
+  // world is visible, so the WebGL context never dies between navigations.
+  const holder = document.createElement('div')
+  holder.id = 'world-holder'
+  holder.style.cssText = 'position: fixed; left: -99999px; width: 1px; height: 1px; overflow: hidden;'
+  holder.appendChild(canvas)
+  document.body.appendChild(holder)
 
-  document.body.appendChild(canvas)
+  canvas.addEventListener(
+    'wheel',
+    (e) => {
+      if (document.body.classList.contains('in-world')) e.preventDefault()
+    },
+    { passive: false },
+  )
 
   try {
     var r = await fetch(process.env.ASSET_PATH + '/acknowtt.json')
@@ -184,6 +206,14 @@ declare global {
 
   if (isMobile() && window.visualViewport) {
     window.visualViewport.addEventListener('resize', viewportChangeHandler)
+    document.addEventListener(
+      'visibilitychange',
+      () => {
+        if (document.visibilityState === 'visible') refreshMobileCanvasAfterReturn()
+      },
+      { passive: true },
+    )
+    window.addEventListener('pageshow', refreshMobileCanvasAfterReturn, { passive: true })
   }
 
   // Don't use babylon spinner
@@ -323,7 +353,7 @@ declare global {
     mapSettings = map.getSettings()
 
     if (!window.config.isBot) {
-      if (mapSettings.enabled && !window.config.isOrbit && window.config.wantsUI && !window.config.isSpace) {
+      if (mapSettings.enabled && !window.config.isOrbit && !window.config.isSpace) {
         mapScene = map.start(scene)
         main.setMapScene(mapScene)
       }
@@ -352,8 +382,15 @@ declare global {
   voxels.robots.start()
 
   extendTabIndexOnClick()
-  startUserInterface(grid, connector, environment, mapSettings ?? new MinimapSettings())
-  if (wantsXR()) return
+
+  // <Client> renders this in its own tree, so the UI mounts with the canvas and
+  // unmounts when you leave the world (instead of living on <body> forever).
+  const ui: BootResult = {
+    UI: UserInterface,
+    props: { scene, parent: controls.worldOffset, canvas, grid, connector, environment, enabled: !wantsXR(), minimapSettings: mapSettings ?? new MinimapSettings() },
+  }
+
+  if (wantsXR()) return ui
 
   isInspect() && toggleBabylonInspector(scene).then(/** ignore promise */)
   // also toggle the inspector on Shift + CTRL + Meta + I
@@ -363,14 +400,7 @@ declare global {
     }
   })
 
-  // now we can create an environment and stuff the scene object with a reference.
-  // this will load islands, weather, skyboxes, terrain and all that jazz that is
-  function startUserInterface(grid: Grid, connector: Connector, environment: Environment, minimapSettings: MinimapSettings) {
-    // start up the user interface
-    const div = document.createElement('div')
-    render(<UserInterface scene={scene} parent={controls.worldOffset} grid={grid} canvas={canvas} connector={connector} environment={environment} enabled={!wantsXR()} minimapSettings={minimapSettings} />, div)
-    document.body.appendChild(div)
-  }
+  return ui
 
   async function toggleBabylonInspector(scene: BABYLON.Scene | null) {
     // show babylonjs built in scene explorer, we need to wait until the loading spinner is gone
@@ -397,4 +427,4 @@ declare global {
       })
     })
   }
-})()
+}

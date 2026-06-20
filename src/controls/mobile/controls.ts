@@ -105,23 +105,53 @@ const initialHeight = window.visualViewport?.height ?? window.innerHeight
 
 let orientation = window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape'
 
+export function resetMobileViewportLayout() {
+  // body's only height is the inline 100% set at boot. Clearing it collapses body
+  // to auto, the absolute canvas (height 100%) goes to 0, and the world turns black.
+  document.body.style.height = '100%'
+}
+
+let skipMobileCanvasRefreshUntil = 0
+
+let settleResizeTimer = 0
+
+// native confirms and permission sheets: block global visibility resize until handoff settles
+export function holdMobileCanvasRefresh(ms: number) {
+  skipMobileCanvasRefreshUntil = Date.now() + ms
+}
+
+// share sheet / app switch can leave the babylon canvas blank until resize runs again
+export function refreshMobileCanvasAfterReturn() {
+  if (Date.now() < skipMobileCanvasRefreshUntil) return
+  resetMobileViewportLayout()
+  requestAnimationFrame(() => window.engine?.resize())
+}
+
 export function viewportChangeHandler() {
   // Check if viewPort change is caused by a rotation (dont do anything)
   if (!window.matchMedia(`(orientation: ${orientation})`).matches) {
     orientation = window.matchMedia('(orientation: portrait)').matches ? 'portrait' : 'landscape'
-    return
-  }
-  const input = document.activeElement as HTMLInputElement | null
-
-  // We don't have an element focused, virtual Keyboard is likely not up
-  if (!input) {
+    resetMobileViewportLayout()
     return
   }
 
-  // Viewport height is significantly lower (keyboard is up)
-  if (window.innerHeight < initialHeight - 30) {
+  const viewHeight = window.visualViewport?.height ?? window.innerHeight
+  const keyboardUp = viewHeight < initialHeight - 30
+  const input = document.activeElement
+  const typing = input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement
+
+  // Only stretch body while the keyboard is up and a field is focused. Otherwise reset
+  // or the canvas + dpad scroll off-screen when send blurs the input.
+  if (keyboardUp && typing) {
     document.body.style.height = initialHeight + 'px'
   } else {
-    document.body.style.height = '100%'
+    resetMobileViewportLayout()
   }
+
+  // iOS fires a stream of resize events while the keyboard animates. Resizing the
+  // engine mid-animation wipes the canvas to black until the next painted frame
+  // (which Safari delays during the animation), so wait for the viewport to settle
+  // and resize once inside a frame.
+  window.clearTimeout(settleResizeTimer)
+  settleResizeTimer = window.setTimeout(() => requestAnimationFrame(() => window.engine?.resize()), 150)
 }

@@ -1,6 +1,5 @@
 import { Component } from 'preact'
 import ParcelSnapshot, { type ParcelSnapshotRecord } from '../../web/src/components/parcel-snapshot'
-import { OwnersOnly } from '../../web/src/components/parcels/permissions'
 import type Parcel from '../parcel'
 
 interface Props {
@@ -107,11 +106,9 @@ export default class ParcelSnapshots extends Component<Props, State> {
 
             {!this.state.takingSnapshot ? (
               <div>
-                <OwnersOnly parcel={this.parcel}>
-                  <button name="snapshot" title="Take a snapshot of this parcel's version" id="snapshot" onClick={() => this.takeSnapshot()}>
-                    Take snapshot
-                  </button>
-                </OwnersOnly>
+                <button name="snapshot" title="Take a snapshot of this parcel's version" id="snapshot" onClick={() => this.takeSnapshot()}>
+                  Take snapshot
+                </button>
                 <button onClick={() => this.refresh()}>Refresh</button>
                 <p style={{ margin: '0' }}>
                   <small>Only owners can take Snapshots</small>

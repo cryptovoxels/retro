@@ -20,7 +20,7 @@ export function CongaStatusOverlay() {
       </div>
     )
   }
-  const line = target ? `Following ${target.name}` : 'Leading the line'
+  const line = target ? `Following ${(c.controls?.congaLeaderAvatar ?? target).name}` : 'Leading the line'
   const hint = target ? 'WASD or Escape to leave' : 'Type /conga again to stop'
   return (
     <div class="conga-status-overlay">

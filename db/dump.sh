@@ -52,14 +52,18 @@ dump_table "properties" "SELECT * FROM properties WHERE island = '$ISLAND_NAME'"
 dump_table "womps" "SELECT w.* FROM womps w JOIN properties p ON w.parcel_id = p.id WHERE p.island = '$ISLAND_NAME'"
 
 dump_table "avatars" "
-  SELECT a.* FROM avatars a
-  JOIN properties p ON lower(a.owner) = lower(p.owner)
-  WHERE p.island = '$ISLAND_NAME'
-  UNION
-  SELECT a.* FROM avatars a
-  JOIN womps w ON lower(a.owner) = lower(w.author)
-  JOIN properties p ON w.parcel_id = p.id
-  WHERE p.island = '$ISLAND_NAME'
+  SELECT DISTINCT ON (a.id) a.* FROM avatars a
+  WHERE lower(a.owner) IN (
+    SELECT DISTINCT lower(owner) FROM properties WHERE island = '$ISLAND_NAME'
+    UNION
+    SELECT DISTINCT lower(author) FROM womps w
+    JOIN properties p ON w.parcel_id = p.id
+    WHERE p.island = '$ISLAND_NAME'
+    UNION
+    SELECT DISTINCT lower(pu.wallet) FROM parcel_users pu
+    JOIN properties p ON pu.parcel_id = p.id
+    WHERE p.island = '$ISLAND_NAME'
+  )
 "
 
 dump_table "costumes" "
@@ -76,6 +80,7 @@ dump_table "costumes" "
 # bnolan wearables (costumes already captured above via Poneke dump)
 dump_table "wearables" "SELECT DISTINCT ON (w.id) w.* FROM wearables w JOIN (SELECT e->>'wid' AS wid FROM costumes c JOIN avatars a ON lower(a.owner) = lower(c.wallet) CROSS JOIN LATERAL jsonb_array_elements(c.attachments::jsonb) e WHERE a.name = 'bnolan') wids ON w.id::text = wids.wid"
 dump_table "collections" "SELECT DISTINCT ON (col.id) col.* FROM collections col JOIN wearables w ON w.collection_id = col.id JOIN (SELECT e->>'wid' AS wid FROM costumes c JOIN avatars a ON lower(a.owner) = lower(c.wallet) CROSS JOIN LATERAL jsonb_array_elements(c.attachments::jsonb) e WHERE a.name = 'bnolan') wids ON w.id::text = wids.wid"
+dump_table "parcel_users" "SELECT pu.* FROM parcel_users pu JOIN properties p ON pu.parcel_id = p.id WHERE p.island = '$ISLAND_NAME'"
 dump_table "asset_library" "SELECT * FROM asset_library WHERE name ILIKE '%fish%' OR name ILIKE '%toilet%'"
 
 cat <<EOF >> $OUTPUT_FILE
@@ -84,7 +89,7 @@ SET session_replication_role = 'origin';
 EOF
 
 # Gzip the output file
-gzip $OUTPUT_FILE
+gzip -f $OUTPUT_FILE
 
 echo "-- Done! Created $OUTPUT_FILE.gz --"
 echo "Usage: createdb voxels && psql voxels < $OUTPUT_FILE.gz"

@@ -181,6 +181,15 @@ export default function loadRoutes(app: Express) {
   })
 
   // These routes don't have any static content, are only available in the bundle
+  app.get('/account/go-live/broadcast', (req, res) => {
+    const q = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : ''
+    res.redirect(301, `/golive/broadcast${q}`)
+  })
+  app.get('/account/go-live', (req, res) => {
+    const q = req.originalUrl.includes('?') ? req.originalUrl.slice(req.originalUrl.indexOf('?')) : ''
+    res.redirect(301, `/golive${q}`)
+  })
+
   const dynamicRoutes = [
     { path: '/propose/*', cache: '1 minute' },
     { path: '/map', cache: '1 minute' },
@@ -188,7 +197,10 @@ export default function loadRoutes(app: Express) {
     { path: '/home', cache: '1 minute' },
     { path: '/account', cache: '1 minute' },
     { path: '/account/edit', cache: '1 minute' },
+    { path: '/golive', cache: '1 minute' },
+    { path: '/golive/broadcast', cache: '1 minute' },
     { path: '/login', cache: '1 minute' },
+    { path: '/logout', cache: false },
     { path: '/account/:section', cache: '30 seconds' },
     { path: '/costumes/', cache: '30 seconds' },
     { path: '/assets', cache: '1 minute' },
@@ -214,6 +226,7 @@ export default function loadRoutes(app: Express) {
     { path: '/search', cache: '1 minute' },
     { path: '/womps', cache: '1 minute' },
     { path: '/metrics', cache: false },
+    { path: '/radio', cache: '1 minute' },
     { path: '/spaces', cache: duration },
   ] as const
 

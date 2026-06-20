@@ -35,6 +35,7 @@ export enum AppEvent {
   ErrorLogin = 'error-login',
   Change = 'change',
   ProviderMessage = 'provider-message',
+  CanvasEngaged = 'canvas-engaged',
 }
 
 export interface StateObject {
@@ -90,6 +91,7 @@ export class Appstate extends State {
   rememberSignIn = false
   showSnackbar = Snackbar.show ?? console.log
   visitUrl = signal<string | undefined>(undefined)
+  playPreview = signal<{ returnPath: string } | null>(null)
   private lastOnlineIntervalHandle: NodeJS.Timeout | null = null
 
   constructor() {
@@ -228,6 +230,9 @@ export class Appstate extends State {
 
   signout() {
     this.localStorage?.removeItem('cv-wearables-owned')
+    try {
+      sessionStorage.removeItem('showbox_guest_pass')
+    } catch {}
 
     Cookies.remove('jwt')
 
@@ -386,6 +391,16 @@ export class Appstate extends State {
       // clean name if we dont have a JWT
       this.setState({ name: undefined })
     }
+  }
+
+  enterPlayPreview(returnPath?: string) {
+    this.playPreview.value = { returnPath: returnPath ?? location.pathname + location.search }
+  }
+
+  exitPlayPreview(): string {
+    const path = this.playPreview.value?.returnPath || '/play'
+    this.playPreview.value = null
+    return path
   }
 }
 

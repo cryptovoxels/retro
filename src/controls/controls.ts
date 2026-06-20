@@ -156,7 +156,7 @@ export default abstract class Controls implements IControls {
     this.reticuleHighlight.setEnabled(false)
     this.reticuleHighlight.parent = this.camera
 
-    if (isDesktop() && window.config.wantsUI) {
+    if (isDesktop()) {
       this.scene.registerBeforeRender(() => {
         // Show the reticule in 20% visibility in 3rd person mode.
         this.reticuleNormal.visibility = hasPointerLock() || this.hasGamepad ? (this.firstPersonView ? 1 : 0.2) : 0
@@ -401,14 +401,7 @@ export default abstract class Controls implements IControls {
   }
 
   toggleFlying() {
-    if (!this.grounded) {
-      // allow user to escape ungrounded state by pressing "F"
-      // without this, if a user spawns in the air, they will be stuck flying until they get near the ground
-      this.flying = false
-      this.grounded = true
-    } else {
-      this.setFlying(!this.flying)
-    }
+    this.setFlying(!this.flying)
   }
 
   // called on spawn and teleport
@@ -504,6 +497,7 @@ export default abstract class Controls implements IControls {
 
   startConga(target: Avatar) {
     if (target.isDisposed()) return
+    this.canvas.focus() // joining via a chat link leaves focus on the <a>; canvas needs focus or WASD/Escape can't leave the line
     this.congaTarget = target
     this.congaSyncGraceUntil = Date.now() + 2500
     this.congaSawLeaderInConga = false
@@ -529,6 +523,11 @@ export default abstract class Controls implements IControls {
     this.connector.clearCongaLeaderStartedBanner()
     this.connector.inConga = false
     this.connector.beginCongaJoinHintSuppressionAfterLeave()
+  }
+
+  /** The avatar who started this line (head of the chain), for UI. Null when leading or not in a line. */
+  get congaLeaderAvatar(): Avatar | null {
+    return this.congaTarget ? this.resolveCongaLeaderAvatar(this.congaTarget) : null
   }
 
   /** Walk toward conga head using each avatar's congaFollowsUuid (who they follow). Old clients omit it; then `first` is used. */

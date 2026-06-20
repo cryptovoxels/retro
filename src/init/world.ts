@@ -1,6 +1,5 @@
 import { isDebug, wantsAudio } from '../../common/helpers/detector'
 import { decodeCoords, encodeCoords } from '../../common/helpers/utils'
-import { app } from '../../web/src/state'
 import { AudioEngine } from '../audio/audio-engine'
 import Connector from '../connector'
 import type Controls from '../controls/controls'
@@ -25,7 +24,7 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
 
   if (wantsAudio()) {
     try {
-      audio = new AudioEngine(scene, grid)
+      audio = new AudioEngine(scene)
       window._audio = audio
     } catch (e: any) {
       console.error(`Unable to create audio engine\n\n${e.toString()}`)
@@ -178,18 +177,16 @@ function updateNavbarWithCoords(scene: BABYLON.Scene, connector: Connector) {
       queryParams.set('coords', coordsParam)
       const params = queryParams.toString().replace('%40', '@').replace(/%2C/g, ',')
 
-      const url = params ? '/play?' + params : '/play'
+      // only reflect coords into the URL when the world canvas is actually on screen.
+      // (peek/hidden on pure web pages like /events -> don't touch the URL)
+      if (!document.getElementsByClassName('client-placeholder')[0]) return
 
-      const current = window.grid?.currentParcel()
+      const path = document.location.pathname
+      const url = params ? `${path}?${params}` : path
 
-      if (window === window.parent && url !== oldUrl) {
-        // not a nested iframe, so update the url
+      if (url !== oldUrl) {
         oldUrl = url
         history.replaceState(coordsParam, 'Voxels', url)
-        app.send({ type: 'navigate', data: url })
-      } else if (current) {
-        // send current parcel data to parent iframe
-        window.parent.postMessage({ type: 'parcel', parcel: { ...current.summary } }, '*')
       }
     }
   }, 200)

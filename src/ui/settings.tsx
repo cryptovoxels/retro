@@ -33,6 +33,7 @@ interface State {
   showMinimapSettings: boolean
   mouseSensitivityPercentage: number
   activeCategory: SettingsCategory
+  realisticLighting: boolean
 }
 
 export class SettingsUI extends Component<Props, State> {
@@ -47,6 +48,7 @@ export class SettingsUI extends Component<Props, State> {
       // we reverse the value as higher values are lower sensitivities
       mouseSensitivityPercentage: toReversedPercentage(this.cameraSettings.angularSensitivity, MIN_SENSITIVITY, MAX_SENSITIVITY),
       activeCategory: 'general',
+      realisticLighting: this.graphicsEngine.getSettings().realisticLighting ?? false,
     }
 
     this.fov.addEventListener(
@@ -170,6 +172,13 @@ export class SettingsUI extends Component<Props, State> {
   onToggleChat(inputElement: HTMLInputElement) {
     chatSettings.enabled = inputElement.checked
     this.forceUpdate()
+  }
+
+  onRealisticLightingChange(el: HTMLInputElement) {
+    const g = this.state.graphic
+    g.realisticLighting = el.checked
+    this.setState({ graphic: g, realisticLighting: el.checked })
+    this.sendGraphicsSettings()
   }
 
   sendGraphicsSettings() {
@@ -335,6 +344,12 @@ export class SettingsUI extends Component<Props, State> {
                   </label>
                 </div>
               )}
+              <div className="fs checkbox">
+                <label>
+                  <input type="checkbox" checked={this.state.realisticLighting} onChange={(e) => this.onRealisticLightingChange(e.target as HTMLInputElement)} />
+                  Realistic lighting
+                </label>
+              </div>
               {isCustomGraphics && !isMobile() && (
                 <>
                   <div className="fs">

@@ -711,6 +711,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     this.sendToServer(Object.keys(props) as Array<keyof Description>)
 
     this.dispatchEvent(createEvent('updated', true))
+    if (this.type === 'lantern') this.parcel.relight()
   }
 
   public abstract generate(): Promise<void>
@@ -794,6 +795,12 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       }
     }
 
+    if (!onlyInclude) {
+      const fi = this.parcel.features.findIndex((f) => f?.uuid === this.uuid)
+      if (fi >= 0) Object.assign(this.parcel.features[fi], patch)
+      else this.parcel.features.push({ ...patch, uuid: this.uuid } as FeatureRecord)
+    }
+
     this.parcel.sendPatch({
       features: {
         [this.uuid]: patch,
@@ -833,11 +840,19 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   public delete() {
+    const isLantern = this.type === 'lantern'
+    const isShowbox = this.type === 'showbox'
     this.deinstance()
     this.dispose()
     this.budgetUnconsume()
     this.sendDeletePatch()
     this.group?.deleteIfNoChildren()
+    if (isShowbox) {
+      this.parcel.featuresList.forEach((f) => {
+        if (f?.type === 'showbox') (f as any).reconcileActiveStream?.()
+      })
+    }
+    if (isLantern) this.parcel.relight()
   }
 
   budgetUnconsume = () => {
@@ -847,6 +862,8 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       this.parcel.budget.unconsume(this)
       this.parcel.featuresList.splice(i, 1)
     }
+    const fi = this.parcel.features.findIndex((f) => f?.uuid === this.uuid)
+    if (fi > -1) this.parcel.features.splice(fi, 1)
   }
 
   sendDeletePatch() {

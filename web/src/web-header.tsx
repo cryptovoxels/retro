@@ -109,8 +109,6 @@ export default class WebHeader extends Component<Props, State> {
     route(`/search?q=${encodeURIComponent(this.state.query)}`)
   }
 
-  onSignOut = () => app.signout()
-
   render() {
     const toggleMenu = (e: any) => {
       e.preventDefault()
@@ -134,7 +132,7 @@ export default class WebHeader extends Component<Props, State> {
 
     const onPlay = (e: any) => {
       e.preventDefault()
-      window.location.href = '/play?coords=N@257N'
+      route(app.visitUrl?.value || '/play')
     }
 
     const isActive = (label?: string) => {
@@ -150,7 +148,7 @@ export default class WebHeader extends Component<Props, State> {
       if (canInstallMetamask) {
         window.open('https://chrome.google.com/webstore/detail/metamask/nkbihfbeogaeaoehlefnkodbefgpgknn', '_blank', 'noopener')
       } else {
-        login.signin()
+        void login.startMetamaskLogin()
       }
     }
 
@@ -170,7 +168,10 @@ export default class WebHeader extends Component<Props, State> {
         <header>
           <nav>
             <ul>
-              <li>
+              <li class="home-mobile">
+                <a href="/">Home</a>
+              </li>
+              <li class="logo">
                 <a href="/">
                   <CubeIcon name={activeIcon} />
                 </a>
@@ -181,7 +182,11 @@ export default class WebHeader extends Component<Props, State> {
                 </button>
               </li>
 
+              <li>{navLink('Go live', '/golive', 'events', path?.startsWith('/golive') ?? false)}</li>
+
               <li>{navLink(signedIn ? 'Account' : 'Login', '/account', 'account', isActive('account'))}</li>
+
+              {signedIn && <li>{navLink('Log out', '/logout', 'account', isActive('logout'))}</li>}
 
               {signedIn && <li>{navLink('Costume', '/costumer', 'costume', isActive('costumer'))}</li>}
 
@@ -194,18 +199,6 @@ export default class WebHeader extends Component<Props, State> {
               <li>{navLink('Spaces', '/spaces', 'spaces', isActive('spaces'))}</li>
               <li>{navLink('Womps', '/womps', 'womps', isActive('womps'))}</li>
               <li>{navLink('Scratchpad', '/scratchpad', 'scratchpad', isActive('scratchpad'))}</li>
-
-              {signedIn && (
-                <li>
-                  <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      this.onSignOut()
-                    }}
-                  ></a>
-                </li>
-              )}
 
               <li>
                 <form action="/search" onSubmit={this.onSubmit}>

@@ -35,6 +35,7 @@ export class EmoteOverlay extends Component<Props, any> {
   get animations() {
     return [
       { name: 'Idle', animation: null },
+      { name: 'Wave', animation: Animations.Wave },
       { name: 'Dance', animation: Animations.Dance },
       { name: 'Sitting', animation: Animations.Sitting },
       { name: 'Spin', animation: Animations.Spin },

@@ -127,6 +127,7 @@ export default async function LivekitController(db: Db, passport: PassportStatic
       res.status(400).send({ error: 'Invalid room name' })
       return
     }
+    await refresh()
     const room = rooms.find((r) => r.name === name)
     if (!room) {
       res.status(404).send({ error: 'Room not found' })
@@ -144,14 +145,15 @@ export default async function LivekitController(db: Db, passport: PassportStatic
 
     const user = (req.user ?? null) as (VoxelsUser & { guest_pass?: string }) | null
     const wallet = user?.wallet ?? `anon-${Math.random().toString(36).slice(2)}`
+    const guestPassToken = String(user?.guest_pass ?? req.query.guest_pass ?? '').trim()
 
     // Subscribe is open (audience). Publish requires a collaborator or a valid guest pass scoped to this room.
     let canPublish = false
     const parcelMatch = name.match(/^parcel-(\d+)$/)
     if (parcelMatch) {
       const parcelId = parseInt(parcelMatch[1], 10)
-      if (user?.guest_pass) {
-        const pass = await loadGuestPass(db, user.guest_pass)
+      if (guestPassToken) {
+        const pass = await loadGuestPass(db, guestPassToken)
         if (pass && !pass.revoked_at && pass.parcel_id === parcelId) {
           canPublish = true
         }
@@ -172,11 +174,35 @@ export default async function LivekitController(db: Db, passport: PassportStatic
       refresh()
     }
 
-    // Identity prefix encodes wallet (or pass-prefix) so revoke can locate participants.
-    const identityPrefix = user?.guest_pass ? `guest-${user.guest_pass.slice(0, 12)}` : wallet
-    const identity = `${identityPrefix}-${Math.random().toString(36).slice(2, 10)}`
+    // guest- prefix when publishing via pass so revoke kicks anon and signed-in guest co-hosts.
+    // the session wallet (guest:tok12.sess) appends the session to the identity prefix - without
+    // it, two guests sharing one link are filtered as each other's "self" and can't be heard.
+    let identityPrefix = wallet
+    if (user?.guest_pass) {
+      const sess = String(user.wallet ?? '').split('.')[1]
+      identityPrefix = `guest-${user.guest_pass.slice(0, 12)}` + (sess ? `-${sess}` : '')
+    } else if (canPublish && guestPassToken) {
+      // signed-in (non-editor) guests have no session wallet - their real wallet is the session,
+      // so two signed-in users on the same link don't collide either
+      const w = wallet
+        .replace(/[^a-zA-Z0-9]/g, '')
+        .slice(-6)
+        .toLowerCase()
+      identityPrefix = `guest-${guestPassToken.slice(0, 12)}` + (w ? `-${w}` : '')
+    }
+    const reuseIdentity = String(req.query.identity ?? '').trim()
+    let identity: string
+    if (reuseIdentity && /^[a-zA-Z0-9._-]+$/.test(reuseIdentity) && reuseIdentity.startsWith(`${identityPrefix}-`)) {
+      identity = reuseIdentity
+    } else {
+      identity = `${identityPrefix}-${Math.random().toString(36).slice(2, 10)}`
+    }
 
-    const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, { identity })
+    // guest-pass tokens expire fast so revoke actually revokes: livekit has no token blocklist,
+    // and the sdk default 6h ttl let a kicked guest rejoin with a cached token. reconnect paths
+    // always fetch a fresh token, so a short ttl only narrows the post-revoke window.
+    const guestTtl = user?.guest_pass || (canPublish && guestPassToken) ? '15m' : undefined
+    const at = new AccessToken(process.env.LIVEKIT_API_KEY, process.env.LIVEKIT_API_SECRET, guestTtl ? { identity, ttl: guestTtl } : { identity })
     at.addGrant({ roomJoin: true, room: name, canPublish, canSubscribe: true })
     res.json({ success, room, token: at.toJwt(), canPublish })
   })

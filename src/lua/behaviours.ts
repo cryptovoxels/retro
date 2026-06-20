@@ -98,6 +98,7 @@ export default class LuaBehaviours {
   parcel: Parcel
   engine: LuaEngine | null = null
   disposed = false
+  connected = false
   private behaviours: BehaviourInstance[] = []
   private byKey: Map<string, BehaviourInstance> = new Map() // featureId:idx -> instance
   private tickObserver: { remove: () => void } | null = null
@@ -110,8 +111,8 @@ export default class LuaBehaviours {
     this.parcel = parcel
   }
 
-  async init(features: Feature[]): Promise<void> {
-    if (this.disposed) return
+  async init(features?: Feature[]): Promise<void> {
+    if (this.disposed || this.connected) return
     try {
       this.engine = await ensureFactory().createEngine({ injectObjects: true })
       this.engine.global.set('now', () => Date.now())
@@ -121,13 +122,30 @@ export default class LuaBehaviours {
       return
     }
 
-    console.log('engine', this.engine)
-
-    for (const feature of this.parcel.featuresList) {
+    for (const feature of features ?? this.parcel.featuresList) {
       await this.attachFeature(feature)
     }
 
     this.startTicker()
+    this.connected = true
+  }
+
+  // Drive tick() off the scene render loop. Adaptive: back off to 30/15Hz when a
+  // tick blows the per-frame budget, recover when it's cheap again.
+  private startTicker(): void {
+    if (this.tickObserver) return
+    const scene = this.parcel.scene
+    if (!scene) return
+    const obs = scene.onBeforeRenderObservable.add(() => {
+      const now = Date.now()
+      if (this.tickInterval && now - this.lastTickAt < this.tickInterval) return
+      this.lastTickAt = now
+      this.tick()
+      const cost = Date.now() - now
+      if (cost > TICK_BUDGET_MS) this.tickInterval = this.tickInterval === 0 ? 33 : 66
+      else if (cost < TICK_BUDGET_MS / 2) this.tickInterval = this.tickInterval === 66 ? 33 : 0
+    })
+    this.tickObserver = { remove: () => scene.onBeforeRenderObservable.remove(obs) }
   }
 
   async attachFeature(feature: Feature): Promise<void> {
@@ -403,6 +421,7 @@ export default class LuaBehaviours {
 
   dispose(): void {
     this.disposed = true
+    this.connected = false
     this.tickObserver?.remove()
     this.tickObserver = null
     try {

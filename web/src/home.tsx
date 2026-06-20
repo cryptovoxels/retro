@@ -50,7 +50,9 @@ export default class Home extends Component<Props, State> {
 
     return (
       <>
-        <a href="/events/new">New event</a>
+        <nav class="account-quick-links">
+          <a href="/events/new">New event</a>
+        </nav>
         <Profile walletOrUUId={this.wallet} isOwner={true} tab={this.props.tab} />
       </>
     )

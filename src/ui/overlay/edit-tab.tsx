@@ -2,7 +2,6 @@ import { Component } from 'preact'
 import type Parcel from '../../parcel'
 import { requestPointerLock } from '../../../common/helpers/ui-helpers'
 import CustomizeVoxels from './customize-voxels'
-import { OwnerAndCollaboratorOnly, SignedInOnly } from '../../../web/src/components/parcels/permissions'
 import { toggleParcelAdminOverlay } from '../parcel-admin'
 import { debounce } from 'lodash'
 import { LightmapStatus } from '../../../common/messages/parcel'
@@ -76,29 +75,27 @@ export default class EditTab extends Component<Props, State> {
     return (
       <section className="tile-selector">
         <div className="scrollContainer">
-          <SignedInOnly>
-            <div className="f">
-              <h4>Edit Features</h4>
-              <small>Right-click on features in world to edit, or use the tools below.</small>
-              <ul className="toolbar">
-                <li>
-                  <button title="Click to activate Feature Edit Mode [or press E]" class="-edit" onClick={() => this.editFeature()}>
-                    <u>E</u>dit
-                  </button>
-                </li>
-                <li>
-                  <button title="Click to activate Feature Replicate Mode [or press R]" class="-replicate" onClick={() => this.replicateFeature()}>
-                    <u>R</u>eplicate
-                  </button>
-                </li>
-                <li>
-                  <button title="Click to activate Feature Move Mode [or press M]" class="-move" onClick={() => this.moveFeature()}>
-                    <u>M</u>ove
-                  </button>
-                </li>
-              </ul>
-            </div>
-          </SignedInOnly>
+          <div className="f">
+            <h4>Edit Features</h4>
+            <small>Right-click on features in world to edit, or use the tools below.</small>
+            <ul className="toolbar">
+              <li>
+                <button title="Click to activate Feature Edit Mode [or press E]" class="-edit" onClick={() => this.editFeature()}>
+                  <u>E</u>dit
+                </button>
+              </li>
+              <li>
+                <button title="Click to activate Feature Replicate Mode [or press R]" class="-replicate" onClick={() => this.replicateFeature()}>
+                  <u>R</u>eplicate
+                </button>
+              </li>
+              <li>
+                <button title="Click to activate Feature Move Mode [or press M]" class="-move" onClick={() => this.moveFeature()}>
+                  <u>M</u>ove
+                </button>
+              </li>
+            </ul>
+          </div>
 
           <CustomizeVoxels parcel={this.props.parcel} scene={this.props.scene} />
         </div>

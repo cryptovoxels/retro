@@ -10,10 +10,7 @@ import WompsList from './womps-list'
 import LoadingIcon from './components/loading-icon'
 import { SpaceRecord } from '../../common/messages/space'
 import Head from './components/head'
-
-export function PlayButton(props: { url: string }) {
-  return <a href={props.url}>Visit</a>
-}
+import { PlayButton } from './components/play-button'
 
 export interface Props {
   space?: SpaceRecord

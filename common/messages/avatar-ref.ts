@@ -15,7 +15,7 @@ export const avatarName = (a: AvatarRef | null | undefined): string => {
 
 export const avatarSlug = (a: AvatarRef | null | undefined): string => {
   if (!a) return ''
-  return typeof a === 'string' ? a : a.name || ''
+  return typeof a === 'string' ? a : a.name?.toLowerCase() || ''
 }
 
 export const avatarWallet = (a: AvatarRef | null | undefined): string => {

@@ -1,9 +1,9 @@
-import { useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import { startAuthentication, startRegistration } from '@simplewebauthn/browser'
 import { isMobile } from '../../../common/helpers/detector'
-import { hasMetamask } from '../auth/login-helper'
+import { consumeMetamaskLoginPending, hasMetamask, openMetamaskMobileDapp } from '../auth/login-helper'
 import { login } from '../auth/state-login'
-import { app } from '../state'
+import { app, AppEvent } from '../state'
 
 const fetchParams = {
   headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
@@ -74,7 +74,7 @@ export const AddPasskey = ({ username, onDone }: { username: string; onDone?: ()
   )
 }
 
-export const Login = ({ reason }: { reason?: string }) => {
+export const Login = ({ reason, hideHeading }: { reason?: string; hideHeading?: boolean }) => {
   const [stage, setStage] = useState<Stage>('email')
   const [email, setEmail] = useState('')
   const [code, setCode] = useState('')
@@ -86,6 +86,31 @@ export const Login = ({ reason }: { reason?: string }) => {
   const [chosenName, setChosenName] = useState('')
   const [nameAvailable, setNameAvailable] = useState<boolean | null>(null)
   const [nameChecking, setNameChecking] = useState(false)
+  const [mmHint, setMmHint] = useState('')
+
+  useEffect(() => {
+    const onErr = () => {
+      setBusy(false)
+      setMmHint('')
+    }
+    app.on(AppEvent.ErrorLogin, onErr)
+    return () => app.off(AppEvent.ErrorLogin, onErr)
+  }, [])
+
+  useEffect(() => {
+    if (!hasMetamask() || app.signedIn || !consumeMetamaskLoginPending()) return
+    let dead = false
+    setBusy(true)
+    setMmHint('connecting wallet...')
+    void login.startMetamaskLogin().finally(() => {
+      if (dead) return
+      setBusy(false)
+      setMmHint('')
+    })
+    return () => {
+      dead = true
+    }
+  }, [])
 
   const onContinue = async (e: Event) => {
     e.preventDefault()
@@ -174,13 +199,25 @@ export const Login = ({ reason }: { reason?: string }) => {
     }).catch(() => {})
   }
 
-  const onMetamask = () => {
-    const canInstall = !isMobile() && !hasMetamask()
-    if (canInstall) {
-      window.open('https://chrome.google.com/webstore/detail/metamask/nkbihfbeogaeaoehlefnkodbefgpgknn', '_blank', 'noopener')
-    } else {
-      login.signin()
+  const onMetamask = async () => {
+    if (busy) return
+    if (!hasMetamask() && isMobile()) {
+      setBusy(true)
+      setMmHint('opening metamask app...')
+      openMetamaskMobileDapp()
+      return
     }
+    if (!hasMetamask()) {
+      window.open('https://chrome.google.com/webstore/detail/metamask/nkbihfbeogaeaoehlefnkodbefgpgknn', '_blank', 'noopener')
+      return
+    }
+    setBusy(true)
+    setError('')
+    setMmHint('approve in metamask if prompted')
+    const ok = await login.startMetamaskLogin()
+    setBusy(false)
+    setMmHint('')
+    if (!ok && !app.signedIn) setError('wallet login cancelled')
   }
 
   if (stage === 'name' && pendingToken) {
@@ -262,14 +299,15 @@ export const Login = ({ reason }: { reason?: string }) => {
 
   return (
     <section class="login">
-      <h1>log in{reason ? ` to ${reason}` : ''}</h1>
+      {!hideHeading && <h1>log in{reason ? ` to ${reason}` : ''}</h1>}
       <div class="login-form">
         <div class="login-block">
           <h1>wallet</h1>
-          <button type="button" onClick={onMetamask}>
+          <button type="button" onClick={onMetamask} disabled={busy}>
             <img src={'/images/metamask.png'} width={30} height={30} title={'Metamask'} alt="" />
-            &nbsp;Metamask
+            &nbsp;{busy ? 'connecting...' : 'Metamask'}
           </button>
+          {mmHint && <p>{mmHint}</p>}
         </div>
 
         <hr class="login-form-divider" />

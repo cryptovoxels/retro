@@ -262,6 +262,11 @@ It's simple, we can style it simply. Add fuck all classes,
 never add styling css unless instructed to. Layout is ok,
 use `1rem` whenever required for padding, no borders, or colors. No solid backgrounds. No font sizes.
 
+## Styling
+
+* Never use border-radius
+* Never hard code colors (use css vars)
+
 ## Contributor cheat sheet
 
 - Make the diff smaller.

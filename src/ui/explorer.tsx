@@ -1,6 +1,5 @@
 import { Component, ComponentChildren } from 'preact'
 import { requestPointerLockIfNoOverlays } from '../../common/helpers/ui-helpers'
-import { WS2HTTPBaseURL } from '../../common/helpers/utils'
 import { app, AppEvent } from '../../web/src/state'
 import { CommunityEvents } from '../components/explorer/events'
 import { Home } from '../components/explorer/home'
@@ -132,10 +131,9 @@ export class ExplorerUI extends Component<Props, State> {
    * Fetch clients online.
    */
   fetchClients(signal?: AbortSignal) {
-    if (!process.env.MULTIPLAYER_HOST) {
-      return
-    }
-    return fetch(`${WS2HTTPBaseURL(process.env.MULTIPLAYER_HOST)}/`, {
+    // /mp routes to the multiplayer server (same origin in prod). Dev points at prod MP, same as fetchFromMPServer.
+    const host = process.env.NODE_ENV === 'production' ? '' : 'https://voxels.com'
+    return fetch(`${host}/mp/`, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -162,10 +160,6 @@ export class ExplorerUI extends Component<Props, State> {
   closeWithPointerLock = () => {
     this.close()
     requestPointerLockIfNoOverlays()
-  }
-
-  handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') this.close() //TODO: closeWithPointerLock() here loses the pointer lock immediately -- other Esc handling?
   }
 
   async setTab(tab: Tab, subTab?: ParcelsSubTab) {
@@ -208,7 +202,14 @@ export class ExplorerUI extends Component<Props, State> {
         openTab = <CommunityEvents />
         break
       case 'users':
-        openTab = <Radar />
+        openTab = (
+          <Radar
+            teleportTo={(coords) => {
+              window.persona.teleport(coords)
+              this.closeWithPointerLock()
+            }}
+          />
+        )
         break
       case 'home':
         openTab = <Home onTeleport={this.closeWithPointerLock} scene={this.props.scene} />

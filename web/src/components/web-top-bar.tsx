@@ -46,11 +46,6 @@ export default class WebTopBar extends Component<unknown, State> {
     app.removeListener(AppEvent.Change, this.onAppChange)
   }
 
-  logout() {
-    this.closeOverlays()
-    app.signout()
-  }
-
   render() {
     if (!this.state.signedIn) {
       return (
@@ -105,15 +100,7 @@ export default class WebTopBar extends Component<unknown, State> {
         </li>
 
         <li>
-          <a
-            href="#signout"
-            onClick={(e) => {
-              this.logout()
-              e.preventDefault()
-            }}
-          >
-            Log out
-          </a>
+          <a href="/logout">Log out</a>
         </li>
       </>
     )

@@ -4,6 +4,7 @@ import { forwardRef } from 'preact/compat'
 import { useEffect, useRef, useState } from 'preact/hooks'
 
 import { isMobile } from '../../../common/helpers/detector'
+import { resetMobileViewportLayout } from '../../controls/mobile/controls'
 import { Emojis, replaceEmojiText, replaceEmoticonsAndEmojiText } from '../../../common/helpers/emojis'
 import { Emotes } from '../../../common/messages/constant'
 import { avatarName } from '../../../common/messages/avatar-ref'
@@ -99,7 +100,7 @@ export class ChatOverlay extends Component<Props, State> {
     }
 
     return (
-      <main class="chat" style={isGuest ? 'font-size: 14px' : undefined}>
+      <div class="chat" style={isGuest ? 'font-size: 14px' : undefined}>
         <div class={'chat-messages' + (messageList.value.length >= chatCap ? ' at-cap' : '')}>
           {messageList.value.slice(-chatCap).map((m: ChatMessageRecord) => (
             <p>
@@ -111,13 +112,13 @@ export class ChatOverlay extends Component<Props, State> {
         </div>
 
         <ChatInput />
-      </main>
+      </div>
     )
   }
 }
 
 const CONGA_CMD_PATTERN = /\/conga\b/
-const CONGA_INVITE_PATTERN = /\[\[conga:([0-9a-f-]{36})\]\]/gi
+const CHAT_INVITE_PATTERN = /\[\[(conga|show):([^\]]+)\]\]/gi
 
 function decodeChatHtmlEntities(encoded: string): string {
   const el = document.createElement('textarea')
@@ -184,27 +185,29 @@ const ChatText = ({ text }: { text: string }) => {
 }
 
 const CongaText = ({ text }: { text: string }) => {
-  if (CONGA_INVITE_PATTERN.test(text)) {
-    CONGA_INVITE_PATTERN.lastIndex = 0
+  if (CHAT_INVITE_PATTERN.test(text)) {
+    CHAT_INVITE_PATTERN.lastIndex = 0
     const parts: JSX.Element[] = []
     let last = 0
     let k = 0
     let m: RegExpExecArray | null
-    while ((m = CONGA_INVITE_PATTERN.exec(text)) !== null) {
+    while ((m = CHAT_INVITE_PATTERN.exec(text)) !== null) {
       if (m.index > last)
         parts.push(
           <Fragment key={k++}>
             <SlashCongaLinks text={text.slice(last, m.index)} />
           </Fragment>,
         )
-      const uuid = m[1] as string
-      const onJoin = (e: Event) => {
+      const kind = m[1]
+      const payload = m[2] as string
+      const onClick = (e: Event) => {
         e.preventDefault()
-        window.connector.joinCongaFromInvitation(uuid)
+        if (kind === 'conga') window.connector.joinCongaFromInvitation(payload)
+        else window.connector.joinShowFromInvitation(payload)
       }
       parts.push(
-        <a key={k++} href="#" onClick={onJoin} style="text-decoration: underline; cursor: pointer;">
-          Join
+        <a key={k++} href="#" onClick={onClick} style="text-decoration: underline; cursor: pointer;">
+          {kind === 'conga' ? 'Join' : 'Watch'}
         </a>,
       )
       last = m.index + m[0].length
@@ -230,28 +233,25 @@ const ChatInput = () => {
   }
 
   const say = (e: Event) => {
+    const msg = currentMessage
     setMessage('')
 
-    if (currentMessage) {
-      window.connector.sendMessage(currentMessage)
-    } else {
-      blur()
+    if (msg) {
+      window.connector.sendMessage(msg)
     }
 
+    blur()
     e.preventDefault()
   }
 
   const blur = () => {
     inputRef.current?.blur()
+    if (isMobile()) resetMobileViewportLayout()
   }
 
   const onChatKeydown = (e: KeyboardEvent) => {
     if (e.key === 'Enter') {
       say(e)
-
-      if (!e.shiftKey) {
-        blur()
-      }
     } else if (e.key === 'Escape') {
       setMessage('')
       blur()
@@ -263,7 +263,7 @@ const ChatInput = () => {
   return (
     <div>
       <form onSubmit={say}>
-        <input type="text" onKeyDown={onChatKeydown} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} ref={inputRef} />
+        <input type="text" onKeyDown={onChatKeydown} onBlur={() => isMobile() && resetMobileViewportLayout()} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} ref={inputRef} />
         <button type="submit">Send</button>
       </form>
     </div>

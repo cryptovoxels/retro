@@ -406,6 +406,10 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
       ratio = 4 / 3
     }
 
+    if (YoutubePlayer.disabled) {
+      return
+    }
+
     this.player = new YoutubePlayer(this, this.scene, ratio)
     this.player.volume = this.volume
     this.player.rolloffFactor = this.rolloffFactor
@@ -565,6 +569,7 @@ export interface IYoutubePlayer {
 }
 
 class YoutubePlayer {
+  static disabled = true
   static depthMask: BABYLON.StandardMaterial
   static initiated: boolean
   static renderObservable: BABYLON.Observer<BABYLON.Scene> | null

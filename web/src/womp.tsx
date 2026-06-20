@@ -4,11 +4,12 @@ import LoadingPage from './loading-page'
 
 import { Component } from 'preact'
 import cachedFetch from '../src/helpers/cached-fetch'
-import { Client } from './parcel'
+import { Client } from './client'
 import { app } from './state'
 import { wompCache } from './store/index'
 import { AvatarLink } from './components/avatar-link'
 import { avatarName } from '../../common/messages/avatar-ref'
+import { PlayButton } from './components/play-button'
 
 const TTL = 60
 
@@ -103,14 +104,6 @@ export default class Womp extends Component<Props, State> {
       app.visitUrl.value = this.visitUrl
     }
 
-    const onFullscreen = () => {
-      const iframe = document.querySelector('iframe') as HTMLIFrameElement
-
-      if (iframe) {
-        iframe.requestFullscreen()
-      }
-    }
-
     const onZoom = () => {
       const img = document.querySelector('img.womp') as HTMLImageElement
 
@@ -118,8 +111,6 @@ export default class Womp extends Component<Props, State> {
         img.requestFullscreen()
       }
     }
-
-    const iframeUrl = `/play?coords=${this.state.womp.coords}`
 
     return (
       <section class="columns">
@@ -132,13 +123,11 @@ export default class Womp extends Component<Props, State> {
 
           <h1>{this.state.womp.parcel_address}</h1>
           <figcaption>
-            <a class="buttonish" onClick={onFullscreen}>
-              Full screen
-            </a>
+            <PlayButton url={this.visitUrl!} />
           </figcaption>
 
           <figure>
-            <Client src={iframeUrl} parcelId={this.state.womp.parcel_id} coords={this.state.womp.coords} />
+            <Client parcelId={this.state.womp.parcel_id} coords={this.state.womp.coords} />
           </figure>
 
           {this.state.womp.content && (
@@ -163,10 +152,6 @@ export default class Womp extends Component<Props, State> {
             <dt>Created at</dt>
             <dd>{new Date(this.state.womp.created_at).toLocaleString()}</dd>
           </dl>
-
-          <a href={this.visitUrl!} class="secondary button">
-            Teleport
-          </a>
 
           <h3>Image</h3>
 

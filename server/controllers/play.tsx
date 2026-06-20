@@ -1,8 +1,7 @@
 import { h } from 'preact'
-import ClientRoot from '../../web/src/client-root'
 import JsonData from '../../web/src/components/json-data'
 import cache from '../cache'
-import renderRoot from '../handlers/render-root'
+import renderComponent from '../handlers/render-component'
 import { Islands } from '../islands'
 import Parcel from '../parcel'
 import { Db } from '../pg'
@@ -17,11 +16,8 @@ export default function PlayController(db: Db, passport: PassportStatic, app: Ex
 
     let parcel: Parcel | null = null
 
-    let nftAuth = false
-
-    // user was rejected from a parcel,
-    // get the parcel that rejected the user as fastboot so the bouncer can show the UI saying the user got kickedout
-    if (!parcel && req.query.rejectedFrom && !isNaN(parseInt(req.query.rejectedFrom as string))) {
+    // user was rejected from a parcel, fastboot it so the bouncer UI can show the kickout message
+    if (req.query.rejectedFrom && !isNaN(parseInt(req.query.rejectedFrom as string))) {
       try {
         parcel = await Parcel.load(parseInt(req.query.rejectedFrom as string))
       } catch (e) {
@@ -30,18 +26,18 @@ export default function PlayController(db: Db, passport: PassportStatic, app: Ex
     }
 
     const windowTitle = isProduction ? 'Voxels' : '⚙️ Voxels local'
-    const ogTitle = `${parcel?.name || parcel?.address || 'In-world'} | Voxels`
-    const ogDescription = parcel?.description ? parcel.description : 'Visit this Voxels Parcel!'
-    // Add 'bouncerShouldAllowUser' to the parcel summary
-    const summary = (parcel && { ...parcel.summary, ...(nftAuth ? { bouncerShouldAllowUser: true } : {}) }) || {}
+    const summary = parcel?.summary || {}
 
-    const html = (
-      <ClientRoot title={windowTitle} ogTitle={ogTitle} ogDescription={ogDescription}>
+    // THE GREAT MERGE: serve the one web shell. Fastboot JSON goes in <head> so the
+    // web bundle's body hydration doesn't strip it before the engine reads it.
+    const head = (
+      <head>
+        <title>{windowTitle}</title>
         <JsonData id="islands" data={islands} />
         {!!parcel && <JsonData id="parcel" data={summary} dataId={parcel.id} />}
-      </ClientRoot>
+      </head>
     )
 
-    res.send(renderRoot(html))
+    res.send(renderComponent(head))
   })
 }

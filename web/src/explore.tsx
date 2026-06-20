@@ -1,6 +1,8 @@
 import { Component, Fragment } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { avatarName } from '../../common/messages/avatar-ref'
+import { isMobile } from '../../common/helpers/detector'
+import { audiencePlayQuery } from '../../common/helpers/parcel-helper'
 import { jitterCoord, orderLiveStrip } from '../../common/helpers/utils'
 import { currentVersion } from '../../common/version'
 import { Event } from '../../common/messages/event'
@@ -11,6 +13,7 @@ import { getClientPath } from './helpers/client-helpers'
 import { app, AppEvent } from './state'
 import WompsList from './womps-list'
 import Radar from './components/radar'
+import VoxelRadio from './components/voxel-radio'
 
 type Props = {
   womps?: Womp[]
@@ -49,22 +52,25 @@ function LiveSection() {
     return () => es.close()
   }, [])
 
-  if (streams.size === 0) return <p>no one is live right now</p>
+  if (streams.size === 0) return null
 
   const ordered = orderLiveStrip([...streams.values()])
 
   return (
-    <ul class="live-streams">
-      {ordered.map((s) => (
-        <li key={s.room}>
-          <a href={s.coord ? `/play?coords=${jitterCoord(s.coord)}` : `/parcels/${s.parcel.id}`}>
-            <img loading="lazy" src={s.thumbnail} alt="" />
-            <span>{s.parcel.name || s.parcel.address}</span>
-            <small>{avatarName(s.avatar)}</small>
-          </a>
-        </li>
-      ))}
-    </ul>
+    <>
+      <h3>Live</h3>
+      <ul class="live-streams">
+        {ordered.map((s) => (
+          <li key={s.room}>
+            <a href={s.coord ? `/play?${audiencePlayQuery(jitterCoord(s.coord), isMobile())}` : `/parcels/${s.parcel.id}`}>
+              <img loading="lazy" src={s.thumbnail} alt="" />
+              <span>{s.parcel.name || s.parcel.address}</span>
+              <small>{avatarName(s.avatar)}</small>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </>
   )
 }
 
@@ -126,23 +132,29 @@ function EventsList() {
   }, [])
   const cutoff = now - 24 * 60 * 60 * 1000
   const visible = events.filter((e) => new Date(e.expires_at).getTime() >= cutoff)
+
+  if (visible.length === 0) return null
+
   return (
-    <table class="events">
-      <tbody>
-        {visible.slice(0, 5).map((e) => {
-          const startsIn = new Date(e.starts_at).getTime() - now
-          const live = startsIn <= 0 && new Date(e.expires_at).getTime() > now
-          return (
-            <tr key={e.id}>
-              <td>
-                <a href={`/events/${e.id}`}>{e.name}</a>
-              </td>
-              <td>{startsIn > 0 ? countdown(startsIn) : live ? 'live' : 'ended'}</td>
-            </tr>
-          )
-        })}
-      </tbody>
-    </table>
+    <>
+      <h3>Events</h3>
+      <table class="events">
+        <tbody>
+          {visible.slice(0, 5).map((e) => {
+            const startsIn = new Date(e.starts_at).getTime() - now
+            const live = startsIn <= 0 && new Date(e.expires_at).getTime() > now
+            return (
+              <tr key={e.id}>
+                <td>
+                  <a href={`/events/${e.id}`}>{e.name}</a>
+                </td>
+                <td>{startsIn > 0 ? countdown(startsIn) : live ? 'live' : 'ended'}</td>
+              </tr>
+            )
+          })}
+        </tbody>
+      </table>
+    </>
   )
 }
 
@@ -173,32 +185,25 @@ export default class Explore extends Component<any, Props> {
         </Head>
 
         <section class="live-hero">
-          <h3>Live</h3>
           <LiveSection />
         </section>
 
         <section class="columns">
-          <article>
-            <h3>Womps</h3>
-            <WompsList numberToShow={20} mobilePreview={6} collapsed={false} fetch="/womps.json" womps={this.props.womps ?? undefined} ttl={600} />
-          </article>
-
           <aside>
-            <h3>Radar</h3>
+            <VoxelRadio />
+
             <Radar />
 
-            <h3>Events</h3>
             <EventsList />
-
-            <p>
-              <a class="buttonish" href="/events/new">
-                New Event
-              </a>
-            </p>
 
             <h3>Popular</h3>
             <PopularParcels />
           </aside>
+
+          <article>
+            <h3>Womps</h3>
+            <WompsList numberToShow={20} mobilePreview={6} collapsed={false} fetch="/womps.json" womps={this.props.womps ?? undefined} ttl={600} />
+          </article>
         </section>
       </Fragment>
     )
