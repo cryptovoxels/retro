@@ -19,11 +19,11 @@ export default function RadioController(db: Db, app: Express) {
   let pub: ReturnType<typeof createClient> | null = null
   let busy = false
 
-  async function spotStates(day: number): Promise<Record<string, { url: string; summary: string }>> {
+  async function spotStates(day: number): Promise<Record<string, { url: string; summary: string; parcelId?: number }>> {
     if (!pub) return {}
     try {
       const all = await pub.hGetAll(HASH(day))
-      const out: Record<string, { url: string; summary: string }> = {}
+      const out: Record<string, { url: string; summary: string; parcelId?: number }> = {}
       for (const [id, v] of Object.entries(all)) {
         try {
           out[id] = JSON.parse(v)
@@ -44,6 +44,7 @@ export default function RadioController(db: Db, app: Express) {
       if (st) {
         spot.url = st.url
         spot.summary = st.summary
+        if (st.parcelId) spot.parcelId = st.parcelId
       }
     }
     return sched
@@ -70,8 +71,8 @@ export default function RadioController(db: Db, app: Express) {
         const lock = await pub.set(`radio:gen:v2:${spot.id}`, '1', { NX: true, EX: 600 })
         if (!lock) continue // another web server is on it
         try {
-          const { url, text } = await generateSpot(db, pub, spot.id, spot.kind)
-          await pub.hSet(HASH(day), spot.id, JSON.stringify({ url, summary: clip(text, 60) }))
+          const { url, text, parcelId } = await generateSpot(db, pub, spot.id, spot.kind)
+          await pub.hSet(HASH(day), spot.id, JSON.stringify({ url, summary: clip(text, 60), parcelId }))
           await pub.expire(HASH(day), 2 * DAY)
         } catch (e: any) {
           console.error('radio spot failed', spot.id, e?.toString())
