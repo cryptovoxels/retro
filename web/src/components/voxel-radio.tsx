@@ -138,28 +138,33 @@ export default class VoxelRadio extends Component<Props, State> {
     const onAir = r?.onAir ?? false
     const text = onAir ? 'dj on the mic...' : r?.title || 'tuning in...'
     const pct = Math.round((sec() / DAY) * 100)
+    const compact = !this.props.popped
 
     return (
       <div class={`voxel-radio-wrap${this.props.popped ? ' popped' : ''}${this.state.open ? ' open' : ''}`}>
-        <div class={`voxel-radio${onAir ? ' on-air' : ''}`}>
-          <canvas ref={this.canvas} class="vr-viz" />
-          <button class="vr-toggle" onClick={() => r?.toggle()}>
-            {muted ? 'play' : 'stop'}
-          </button>
+        <div class={`voxel-radio${onAir ? ' on-air' : ''}${compact ? ' compact' : ''}`}>
+          <div class="vr-viz-box">
+            <canvas ref={this.canvas} class="vr-viz" />
+          </div>
           <div class="vr-screen">
             <span class="vr-label">voxels radio{onAir ? ' / on air' : ''}</span>
             <span class="vr-track">
               <span>{text}</span>
             </span>
           </div>
-          <button class="vr-btn" onClick={() => this.setState({ open: !this.state.open })}>
-            list
-          </button>
-          {!this.props.popped && (
-            <button class="vr-btn" onClick={this.popout}>
-              pop
+          <div class="vr-transport">
+            <button type="button" class="vr-toggle" onClick={() => r?.toggle()} title={muted ? 'play' : 'stop'}>
+              {compact ? (muted ? '>' : '||') : muted ? 'play' : 'stop'}
             </button>
-          )}
+            <button type="button" class="vr-btn" onClick={() => this.setState({ open: !this.state.open })} title="schedule">
+              {compact ? 'L' : 'list'}
+            </button>
+            {!this.props.popped && (
+              <button type="button" class="vr-btn" onClick={this.popout} title="pop out">
+                {compact ? '^' : 'pop'}
+              </button>
+            )}
+          </div>
         </div>
 
         {this.state.open && (

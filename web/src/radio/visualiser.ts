@@ -100,9 +100,12 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
 
   const resize = () => engine.resize()
   window.addEventListener('resize', resize, { passive: true })
+  const ro = new ResizeObserver(resize)
+  ro.observe(canvas)
 
   return () => {
     window.removeEventListener('resize', resize)
+    ro.disconnect()
     engine.stopRenderLoop()
     pp.dispose()
     tex.dispose()
