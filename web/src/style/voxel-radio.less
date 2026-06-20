@@ -1,19 +1,39 @@
 .voxel-radio-wrap {
   margin-bottom: 1rem;
+  position: relative;
 
   &.popped {
-    margin: 1rem;
+    margin: 0;
   }
 }
 
 .voxel-radio {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  min-height: 6rem;
   display: flex;
-  align-items: stretch;
+  align-items: center;
   gap: 0.5rem;
   padding: 0.5rem;
-  background: var(--dark);
   color: var(--bright);
   font-family: monospace;
+
+  // FFT shader visualiser sitting behind the stop/list controls
+  .vr-viz {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
+  }
+
+  .vr-toggle,
+  .vr-btn,
+  .vr-screen {
+    position: relative;
+    z-index: 1;
+  }
 
   .vr-toggle,
   .vr-btn {
@@ -60,10 +80,65 @@
 
 // winamp playlist drawer
 .vr-playlist {
+  position: relative;
+  z-index: 1;
   background: var(--dark);
   color: var(--bright);
   font-family: monospace;
   padding: 0.5rem;
+
+  .vr-controls {
+    display: flex;
+    gap: 1.5rem;
+    padding: 0.5rem 0;
+  }
+
+  .vr-knob {
+    position: relative;
+    width: 2rem;
+    cursor: ns-resize;
+    text-align: center;
+    touch-action: none;
+
+    svg {
+      display: block;
+      width: 2rem;
+      height: 2rem;
+    }
+
+    path {
+      fill: none;
+      stroke-width: 3;
+      stroke-linecap: round;
+    }
+
+    .track {
+      stroke: var(--tinge);
+    }
+
+    .val {
+      stroke: var(--bright);
+    }
+
+    // value sits inside the arc
+    .vr-knob-val {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 2rem;
+      height: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    label {
+      display: block;
+      color: var(--soft);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+  }
 
   .vr-progress {
     height: 0.4rem;

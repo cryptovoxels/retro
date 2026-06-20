@@ -35,6 +35,37 @@ function canOpus() {
   return opus
 }
 
+const clamp = (v: number) => Math.max(0, Math.min(1, v || 0))
+
+function num(key: string, def: number): number {
+  try {
+    const v = parseFloat(localStorage.getItem(key) ?? '')
+    return isNaN(v) ? def : v
+  } catch {
+    return def
+  }
+}
+
+function save(key: string, v: number) {
+  try {
+    localStorage.setItem(key, String(v))
+  } catch {}
+}
+
+// synthetic reverb tail - decaying stereo noise, no asset fetch
+let ir: AudioBuffer | null = null
+function impulse(ctx: AudioContext): AudioBuffer {
+  if (ir && ir.sampleRate === ctx.sampleRate) return ir
+  const len = ctx.sampleRate * 2
+  const buf = ctx.createBuffer(2, len, ctx.sampleRate)
+  for (let c = 0; c < 2; c++) {
+    const data = buf.getChannelData(c)
+    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3)
+  }
+  ir = buf
+  return buf
+}
+
 /*
  * The one global station. Deterministic per UTC day, so everyone tuning in
  * hears the same track at the same second. The schedule + generated spots
@@ -47,6 +78,13 @@ export class VoxelRadioEngine {
   master: GainNode
   music: GainNode
   duckGain: GainNode
+  filter: BiquadFilterNode
+  convolver: ConvolverNode
+  dry: GainNode
+  wet: GainNode
+  trackVol: GainNode
+  spotVol: GainNode
+  analyser: AnalyserNode
 
   schedule: Schedule | null = null
   track: Track | null = null
@@ -73,10 +111,79 @@ export class VoxelRadioEngine {
     this.master = this.ctx.createGain()
     this.duckGain = this.ctx.createGain()
     this.music = this.ctx.createGain()
+    this.filter = this.ctx.createBiquadFilter()
+    this.filter.type = 'lowpass'
+    this.filter.frequency.value = 20000
+    this.convolver = this.ctx.createConvolver()
+    this.convolver.buffer = impulse(this.ctx)
+    this.dry = this.ctx.createGain()
+    this.wet = this.ctx.createGain()
+    this.wet.gain.value = 0
+    this.trackVol = this.ctx.createGain()
+    this.spotVol = this.ctx.createGain()
+    this.analyser = this.ctx.createAnalyser()
+    this.analyser.fftSize = 256
 
-    this.music.connect(this.duckGain)
+    // music -> filter -> (dry + reverb wet) -> trackVol -> duck -> master -> dest
+    this.music.connect(this.filter)
+    this.filter.connect(this.dry)
+    this.filter.connect(this.convolver)
+    this.convolver.connect(this.wet)
+    this.dry.connect(this.trackVol)
+    this.wet.connect(this.trackVol)
+    this.trackVol.connect(this.duckGain)
     this.duckGain.connect(this.master)
     this.master.connect(dest)
+    this.master.connect(this.analyser) // tap for the visualiser
+
+    // spots ride over the (ducked) music at their own volume
+    this.spotVol.connect(this.master)
+
+    this.loadSettings()
+  }
+
+  private loadSettings() {
+    this.setTrackVolume(num('radio.track', 1))
+    this.setSpotVolume(num('radio.spot', 1))
+    this.setFilter(num('radio.filter', 0))
+  }
+
+  setTrackVolume(v: number) {
+    this.trackVol.gain.value = clamp(v)
+    save('radio.track', clamp(v))
+  }
+
+  setSpotVolume(v: number) {
+    this.spotVol.gain.value = clamp(v)
+    save('radio.spot', clamp(v))
+  }
+
+  // dj-style bipolar filter: -1 = lowpass, 0 = clean, +1 = highpass.
+  // resonance and reverb climb as you leave centre for that sweep feel.
+  setFilter(f: number) {
+    f = Math.max(-1, Math.min(1, f || 0))
+    const a = Math.abs(f)
+    if (f < 0) {
+      this.filter.type = 'lowpass'
+      this.filter.frequency.value = 20000 * Math.pow(300 / 20000, a) // 20k -> 300hz
+    } else {
+      this.filter.type = 'highpass'
+      this.filter.frequency.value = 20 * Math.pow(5000 / 20, a) // 20hz -> 5k
+    }
+    this.filter.Q.value = a * 6 // resonant peak grows off centre
+    this.wet.gain.value = 0.5 * a
+    this.dry.gain.value = 1 - 0.3 * a
+    save('radio.filter', f)
+  }
+
+  get trackVolume() {
+    return this.trackVol.gain.value
+  }
+  get spotVolume() {
+    return this.spotVol.gain.value
+  }
+  get filterAmount() {
+    return num('radio.filter', 0)
   }
 
   get title() {
@@ -207,7 +314,7 @@ export class VoxelRadioEngine {
   private ring(buf: AudioBuffer) {
     const src = this.ctx.createBufferSource()
     src.buffer = buf
-    src.connect(this.master) // spots ride over the (ducked) music
+    src.connect(this.spotVol) // spots ride over the (ducked) music at their own volume
     src.onended = () => {
       this.spotDucked = false
       this.applyDuck()

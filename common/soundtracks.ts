@@ -39,7 +39,7 @@ export const tracks: Track[] = [
   { fileName: 'glitched.webm', duration: 582 },
 
   // nerfed by ben
-  // { fileName: 'frontier.webm', duration: 1248 },
+  { fileName: 'frontier.webm', duration: 1248, volume: 0.5 },
 
   { fileName: 'electron.webm', duration: 276, volume: 0.5 },
   { fileName: 'ceres.webm', duration: 190, volume: 0.5 },
