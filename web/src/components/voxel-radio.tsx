@@ -1,10 +1,11 @@
 import { Component, createRef } from 'preact'
 import { trackTitle } from '../../../common/soundtracks'
-import { DAY, PEDALS, PedalId, Spot, VoxelRadioEngine } from '../radio/engine'
+import { DAY, PedalId, Spot, VoxelRadioEngine } from '../radio/engine'
 import { startVisualiser } from '../radio/visualiser'
 
 type Props = { popped?: boolean }
-type State = { open: boolean; fx: boolean }
+type PanelMode = 'closed' | 'open' | 'shade'
+type State = { viz: PanelMode; pl: PanelMode }
 
 const sec = () => (Date.now() / 1000) % DAY
 
@@ -12,6 +13,20 @@ const clock = (off: number) => {
   const h = Math.floor(off / 3600) % 24
   const m = Math.floor((off % 3600) / 60)
   return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`
+}
+
+function loadPanel(key: string, def: PanelMode): PanelMode {
+  try {
+    const v = localStorage.getItem(`radio.panel.${key}`)
+    if (v === 'open' || v === 'shade' || v === 'closed') return v
+  } catch {}
+  return def
+}
+
+function savePanel(key: string, mode: PanelMode) {
+  try {
+    localStorage.setItem(`radio.panel.${key}`, mode)
+  } catch {}
 }
 
 // 270deg gauge arc, gap at the bottom, 0 at top (12 o'clock)
@@ -31,73 +46,8 @@ const arc = (to: number) => {
 }
 const FULL = arc(A0 + SPAN)
 
-type SliderProps = {
-  label: string
-  min: number
-  max: number
-  step: number
-  value: number
-  center?: boolean
-  accent?: boolean
-  onChange: (v: number) => void
-}
-
-// winamp-style horizontal bar, drag left/right
-class Slider extends Component<SliderProps> {
-  el: HTMLElement | null = null
-
-  set = (clientX: number) => {
-    if (!this.el) return
-    const { min, max, step, onChange } = this.props
-    const rect = this.el.getBoundingClientRect()
-    const t = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
-    const v = min + t * (max - min)
-    onChange(Math.max(min, Math.min(max, Math.round(v / step) * step)))
-  }
-
-  down = (e: PointerEvent) => {
-    e.preventDefault()
-    this.el = e.currentTarget as HTMLElement
-    this.set(e.clientX)
-    const move = (ev: PointerEvent) => this.set(ev.clientX)
-    const up = () => {
-      window.removeEventListener('pointermove', move)
-      window.removeEventListener('pointerup', up)
-    }
-    window.addEventListener('pointermove', move)
-    window.addEventListener('pointerup', up)
-  }
-
-  render() {
-    const { label, min, max, value, center } = this.props
-    const t = (value - min) / (max - min)
-    const mid = center ? (-min / (max - min)) * 100 : 0
-    let fillLeft = 0
-    let fillWidth = t * 100
-    if (center) {
-      if (value >= 0) {
-        fillLeft = mid
-        fillWidth = t * 100 - mid
-      } else {
-        fillLeft = t * 100
-        fillWidth = mid - t * 100
-      }
-    }
-    return (
-      <div class="vr-slider" onPointerDown={this.down}>
-        <span class="vr-slider-label">{label}</span>
-        <div class="vr-slider-track">
-          {center && <span class="vr-slider-mid" />}
-          <span class={`vr-slider-fill${this.props.accent ? ' accent' : ''}`} style={`left:${fillLeft}%;width:${fillWidth}%`} />
-        </div>
-      </div>
-    )
-  }
-}
-
 type KnobProps = { label: string; min: number; max: number; step: number; value: number; compact?: boolean; onWake?: () => void; onChange: (v: number) => void }
 
-// 2rem svg arc knob, drag up/down to turn
 class Knob extends Component<KnobProps> {
   y = 0
   v = 0
@@ -145,14 +95,25 @@ export default class VoxelRadio extends Component<Props, State> {
   tick: ReturnType<typeof setInterval> | null = null
   canvas = createRef<HTMLCanvasElement>()
   disposeViz: (() => void) | null = null
-  state = { open: !!this.props.popped, fx: false }
+
+  constructor(props: Props) {
+    super(props)
+    this.state = {
+      viz: loadPanel('viz', props.popped ? 'open' : 'closed'),
+      pl: loadPanel('pl', 'closed'),
+    }
+  }
 
   componentDidMount() {
     this.radio = new VoxelRadioEngine()
     this.radio.onChange = () => this.forceUpdate()
     this.radio.start()
-    if (this.canvas.current) this.disposeViz = startVisualiser(this.canvas.current, this.radio.analyser)
+    this.syncViz()
     this.tick = setInterval(() => this.forceUpdate(), 1000)
+  }
+
+  componentDidUpdate(_prevProps: Props, prevState: State) {
+    if (prevState.viz !== this.state.viz) this.syncViz()
   }
 
   componentWillUnmount() {
@@ -163,9 +124,33 @@ export default class VoxelRadio extends Component<Props, State> {
     this.radio = null
   }
 
+  syncViz() {
+    const want = this.state.viz === 'open'
+    if (want && this.canvas.current && this.radio && !this.disposeViz) {
+      this.disposeViz = startVisualiser(this.canvas.current, this.radio.analyser)
+    } else if (!want && this.disposeViz) {
+      this.disposeViz()
+      this.disposeViz = null
+    }
+  }
+
+  setPanel(id: 'viz' | 'pl', mode: PanelMode) {
+    this.setState({ [id]: mode } as Pick<State, typeof id>, () => this.syncViz())
+    savePanel(id, mode)
+  }
+
+  togglePanel(id: 'viz' | 'pl') {
+    this.setPanel(id, this.state[id] === 'closed' ? 'open' : 'closed')
+  }
+
+  shadePanel(id: 'viz' | 'pl') {
+    const cur = this.state[id]
+    if (cur === 'closed') return
+    this.setPanel(id, cur === 'shade' ? 'open' : 'shade')
+  }
+
   popout = () => {
     const w = window.open('/radio', 'voxelradio', 'width=480,height=560,menubar=no,toolbar=no,location=no')
-    // hand the audio to the popup so we're not playing twice
     if (w && this.radio && !this.radio.muted) this.radio.toggle()
   }
 
@@ -181,7 +166,6 @@ export default class VoxelRadio extends Component<Props, State> {
     this.forceUpdate()
   }
 
-  // current track + everything coming up, tracks and spots interleaved by clock
   rows() {
     const r = this.radio
     const sched = r?.schedule
@@ -196,7 +180,6 @@ export default class VoxelRadio extends Component<Props, State> {
     let cur = 0
     for (let i = 0; i < items.length; i++) if (items[i].at <= now) cur = i
 
-    // show a little history above the live track, plus what's coming up
     const from = Math.max(0, cur - 6)
     return items.slice(from, cur + 14).map((it) => {
       const live = it === items[cur]
@@ -220,25 +203,30 @@ export default class VoxelRadio extends Component<Props, State> {
     })
   }
 
-  pedals(r: VoxelRadioEngine) {
-    return r.chain.map((id, i) => (
-      <div class="vr-pedal" key={`${id}-${i}`}>
-        <div class="vr-pedal-head">
-          <span class="vr-pedal-name">{id}</span>
-          <button type="button" class="vr-pedal-x" onClick={() => r.removePedal(id)} title="remove">
-            x
-          </button>
-        </div>
-        <Slider
+  dialGrid(r: VoxelRadioEngine) {
+    const dials: { id: 'vol' | PedalId; min: number; max: number }[] = [
+      { id: 'vol', min: 0, max: 1 },
+      { id: 'eq', min: -1, max: 1 },
+      { id: 'rvb', min: 0, max: 1 },
+      { id: 'dly', min: 0, max: 1 },
+      { id: 'drv', min: 0, max: 1 },
+    ]
+    return dials.map(({ id, min, max }) => (
+      <div class="vr-dial" key={id}>
+        <Knob
+          compact
           label={id}
-          min={id === 'eq' ? -1 : 0}
-          max={1}
+          min={min}
+          max={max}
           step={0.05}
-          center={id === 'eq'}
-          accent={id === 'eq'}
-          value={r.pedalAmount(id)}
+          value={id === 'vol' ? r.trackVolume : r.pedalAmount(id)}
+          onWake={() => r.wake()}
           onChange={(v) => {
-            r.setPedal(id, v)
+            if (id === 'vol') r.setTrackVolume(v)
+            else {
+              if (!r.chain.includes(id)) r.addPedal(id)
+              r.setPedal(id, v)
+            }
             this.forceUpdate()
           }}
         />
@@ -246,42 +234,58 @@ export default class VoxelRadio extends Component<Props, State> {
     ))
   }
 
-  dialGrid(r: VoxelRadioEngine) {
-    const pads: { id: 'vol' | PedalId; min: number; max: number }[] = [
-      { id: 'vol', min: 0, max: 1 },
-      { id: 'eq', min: -1, max: 1 },
-      { id: 'rvb', min: 0, max: 1 },
-      { id: 'dly', min: 0, max: 1 },
-      { id: 'drv', min: 0, max: 1 },
-    ]
-    return pads.map(({ id, min, max }) => {
-      const active = id === 'vol' || r.chain.includes(id)
-      const value = id === 'vol' ? r.trackVolume : r.pedalAmount(id)
-      return (
-        <div class={`vr-dial${active ? '' : ' off'}`} key={id}>
+  panel(id: 'viz' | 'pl', title: string, body: preact.ComponentChildren) {
+    const mode = this.state[id]
+    if (mode === 'closed') return null
+    return (
+      <div class={`vr-panel${mode === 'shade' ? ' shade' : ''}`}>
+        <div class="vr-panel-head">
+          <span class="vr-panel-title">{title}</span>
+          <button type="button" class="vr-panel-btn" onClick={() => this.shadePanel(id)} title={mode === 'shade' ? 'expand' : 'shade'}>
+            _
+          </button>
+          <button type="button" class="vr-panel-btn" onClick={() => this.setPanel(id, 'closed')} title="close">
+            x
+          </button>
+        </div>
+        {mode === 'open' && <div class={`vr-panel-body${id === 'pl' ? ' vr-playlist' : ''}`}>{body}</div>}
+      </div>
+    )
+  }
+
+  playlistBody(r: VoxelRadioEngine | null, pct: number) {
+    return (
+      <>
+        <small class="vr-day">
+          {clock(sec())} utc / day {pct}%
+        </small>
+        <div class="vr-controls">
           <Knob
-            compact
-            label={id}
-            min={min}
-            max={max}
+            label="track"
+            min={0}
+            max={1}
             step={0.05}
-            value={value}
-            onWake={() => {
-              r.wake()
-              if (id !== 'vol' && !r.chain.includes(id)) r.addPedal(id)
-            }}
+            value={r?.trackVolume ?? 1}
             onChange={(v) => {
-              if (id === 'vol') r.setTrackVolume(v)
-              else {
-                if (!r.chain.includes(id)) r.addPedal(id)
-                r.setPedal(id, v)
-              }
+              r?.setTrackVolume(v)
+              this.forceUpdate()
+            }}
+          />
+          <Knob
+            label="spot"
+            min={0}
+            max={1}
+            step={0.05}
+            value={r?.spotVolume ?? 1}
+            onChange={(v) => {
+              r?.setSpotVolume(v)
               this.forceUpdate()
             }}
           />
         </div>
-      )
-    })
+        <ul>{this.rows()}</ul>
+      </>
+    )
   }
 
   render() {
@@ -292,30 +296,25 @@ export default class VoxelRadio extends Component<Props, State> {
     const text = onAir ? 'dj on the mic...' : r?.title || 'tuning in...'
     const pct = Math.round((sec() / DAY) * 100)
     const compact = !this.props.popped
-
-    const chain = r?.chain ?? []
-    const spare = r ? PEDALS.filter((id) => !chain.includes(id)) : []
+    const { viz, pl } = this.state
 
     return (
-      <div class={`voxel-radio-wrap${this.props.popped ? ' popped' : ''}${this.state.open ? ' open' : ''}${this.state.fx ? ' fx' : ''}`}>
+      <div class={`voxel-radio-wrap${this.props.popped ? ' popped' : ''}${pl === 'open' ? ' pl-open' : ''}`}>
         <div class={`voxel-radio${onAir ? ' on-air' : ''}${compact ? ' compact' : ''}`}>
-          {compact ? (
-            <>
-              <div class="vr-calc-face">
-                <div class="vr-calc-body">
-                  <div class="vr-viz-box">
-                    <canvas ref={this.canvas} class="vr-viz" />
-                  </div>
+          <div class="vr-stack">
+            <div class="vr-main">
+              {compact ? (
+                <>
                   <div class="vr-calc-head">
                     <div class="vr-key-row">
                       <button type="button" class="vr-key fn" onClick={this.transport} title={showPlay ? 'play' : 'stop'}>
                         {showPlay ? '>' : '||'}
                       </button>
-                      <button type="button" class={`vr-key fn${this.state.open ? ' on' : ''}`} onClick={() => this.setState({ open: !this.state.open })} title="playlist">
+                      <button type="button" class={`vr-key fn${pl !== 'closed' ? ' on' : ''}`} onClick={() => this.togglePanel('pl')} title="playlist">
                         PL
                       </button>
-                      <button type="button" class={`vr-key fn${this.state.fx ? ' on' : ''}`} onClick={() => this.setState({ fx: !this.state.fx })} title="fx chain">
-                        FX
+                      <button type="button" class={`vr-key fn${viz !== 'closed' ? ' on' : ''}`} onClick={() => this.togglePanel('viz')} title="visualization">
+                        VZ
                       </button>
                       <button type="button" class="vr-key fn" onClick={this.popout} title="pop out">
                         ^
@@ -329,92 +328,49 @@ export default class VoxelRadio extends Component<Props, State> {
                     </div>
                   </div>
                   {r && <div class="vr-dial-grid">{this.dialGrid(r)}</div>}
-                </div>
-              </div>
-              <div class="vr-progress vr-progress-main">
-                <span style={`width:${pct}%`} />
-              </div>
-            </>
-          ) : (
-            <>
+                  <div class="vr-progress vr-progress-main">
+                    <span style={`width:${pct}%`} />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div class="vr-calc-head popped-head">
+                    <div class="vr-screen">
+                      <span class="vr-label">voxels radio{onAir ? ' / on air' : ''}</span>
+                      <span class="vr-track">
+                        <span>{text}</span>
+                      </span>
+                    </div>
+                    <div class="vr-transport">
+                      <button type="button" class="vr-toggle" onClick={this.transport} title={showPlay ? 'play' : 'stop'}>
+                        {showPlay ? 'play' : 'stop'}
+                      </button>
+                      <button type="button" class={`vr-btn${pl !== 'closed' ? ' active' : ''}`} onClick={() => this.togglePanel('pl')} title="playlist">
+                        pl
+                      </button>
+                      <button type="button" class={`vr-btn${viz !== 'closed' ? ' active' : ''}`} onClick={() => this.togglePanel('viz')} title="visualization">
+                        vz
+                      </button>
+                    </div>
+                  </div>
+                  <div class="vr-progress vr-progress-main">
+                    <span style={`width:${pct}%`} />
+                  </div>
+                </>
+              )}
+            </div>
+
+            {this.panel(
+              'viz',
+              'visualization',
               <div class="vr-viz-box">
                 <canvas ref={this.canvas} class="vr-viz" />
-              </div>
-              <div class="vr-screen">
-                <span class="vr-label">voxels radio{onAir ? ' / on air' : ''}</span>
-                <span class="vr-track">
-                  <span>{text}</span>
-                </span>
-              </div>
-              <div class="vr-transport">
-                <button type="button" class="vr-toggle" onClick={this.transport} title={showPlay ? 'play' : 'stop'}>
-                  {showPlay ? 'play' : 'stop'}
-                </button>
-                <button type="button" class={`vr-btn${this.state.fx ? ' active' : ''}`} onClick={() => this.setState({ fx: !this.state.fx })} title="fx pedals">
-                  fx
-                </button>
-                <button type="button" class="vr-btn" onClick={() => this.setState({ open: !this.state.open })} title="schedule">
-                  list
-                </button>
-              </div>
-            </>
-          )}
+              </div>,
+            )}
+
+            {this.panel('pl', 'playlist', this.playlistBody(r, pct))}
+          </div>
         </div>
-
-        {this.state.fx && r && (
-          <div class="vr-pedals">
-            <div class="vr-pl-title">fx chain</div>
-            <div class="vr-pedal-chain">{this.pedals(r)}</div>
-            {spare.length > 0 && (
-              <div class="vr-pedal-add">
-                {spare.map((id) => (
-                  <button type="button" key={id} class="vr-btn" onClick={() => r.addPedal(id as PedalId)}>
-                    +{id}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {this.state.open && (
-          <div class="vr-playlist">
-            {compact && <div class="vr-pl-title">playlist</div>}
-            {!compact && (
-              <div class="vr-progress">
-                <span style={`width:${pct}%`} />
-              </div>
-            )}
-            <small class="vr-day">
-              {clock(sec())} utc / day {pct}%
-            </small>
-            <div class="vr-controls">
-              <Knob
-                label="track"
-                min={0}
-                max={1}
-                step={0.05}
-                value={r?.trackVolume ?? 1}
-                onChange={(v) => {
-                  r?.setTrackVolume(v)
-                  this.forceUpdate()
-                }}
-              />
-              <Knob
-                label="spot"
-                min={0}
-                max={1}
-                step={0.05}
-                value={r?.spotVolume ?? 1}
-                onChange={(v) => {
-                  r?.setSpotVolume(v)
-                  this.forceUpdate()
-                }}
-              />
-            </div>
-            <ul>{this.rows()}</ul>
-          </div>
-        )}
       </div>
     )
   }
