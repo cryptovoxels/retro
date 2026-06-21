@@ -50,6 +50,72 @@ const FULL = arc(A0 + SPAN)
 
 type KnobProps = { label: string; min: number; max: number; step: number; value: number; compact?: boolean; onWake?: () => void; onChange: (v: number) => void }
 
+type KaossProps = { label: string; x: number; y: number; onWake?: () => void; onChange: (x: number, y: number) => void }
+
+class KaossPad extends Component<KaossProps> {
+  pad = createRef<HTMLDivElement>()
+  dots: HTMLSpanElement[] = []
+
+  down = (e: PointerEvent) => {
+    e.preventDefault()
+    this.props.onWake?.()
+    this.drag(e)
+    window.addEventListener('pointermove', this.drag)
+    window.addEventListener('pointerup', this.up)
+  }
+
+  drag = (e: PointerEvent) => {
+    const el = this.pad.current
+    if (!el) return
+    const r = el.getBoundingClientRect()
+    const x = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1))
+    const y = Math.max(-1, Math.min(1, (1 - (e.clientY - r.top) / r.height) * 2 - 1))
+    this.light(x, y)
+    this.props.onChange(x, y)
+  }
+
+  up = () => {
+    window.removeEventListener('pointermove', this.drag)
+    window.removeEventListener('pointerup', this.up)
+    this.light(0, 0)
+    this.props.onChange(0, 0)
+  }
+
+  light(x: number, y: number) {
+    const amt = Math.min(1, Math.hypot(x, y))
+    for (let i = 0; i < this.dots.length; i++) {
+      const dot = this.dots[i]
+      if (!dot) continue
+      const col = i % 5
+      const row = Math.floor(i / 5)
+      const dx = x - (col / 2 - 1) * 0.55
+      const dy = y - (1 - row / 2) * 0.55
+      const d = Math.hypot(dx, dy)
+      const on = Math.max(0, 1 - d * 1.35) * (0.15 + amt * 0.85)
+      dot.style.opacity = String(on)
+    }
+  }
+
+  render() {
+    const { label } = this.props
+    return (
+      <div class="vr-kaoss" ref={this.pad} onPointerDown={this.down} title={label}>
+        <div class="vr-kaoss-grid">
+          {Array.from({ length: 15 }, (_, i) => (
+            <span
+              key={i}
+              ref={(el) => {
+                if (el) this.dots[i] = el
+              }}
+            />
+          ))}
+        </div>
+        <span class="vr-dial-label">{label}</span>
+      </div>
+    )
+  }
+}
+
 class Knob extends Component<KnobProps> {
   y = 0
   v = 0
@@ -251,31 +317,46 @@ export default class VoxelRadio extends Component<Props, State> {
   }
 
   dialGrid(r: VoxelRadioEngine) {
-    const dials: { id: 'vol' | PedalId; min: number; max: number }[] = [
-      { id: 'vol', min: 0, max: 1 },
-      { id: 'eq', min: -1, max: 1 },
-      { id: 'wob', min: -1, max: 1 },
-      { id: 'dly', min: -1, max: 1 },
-      { id: 'chp', min: -1, max: 1 },
+    const dials: { id: 'vol' | PedalId; label: string; min: number; max: number }[] = [
+      { id: 'vol', label: 'vol', min: 0, max: 1 },
+      { id: 'eq', label: 'eq', min: -1, max: 1 },
+      { id: 'dly', label: 'tape', min: -1, max: 1 },
+      { id: 'chp', label: 'gate', min: -1, max: 1 },
     ]
-    return dials.map(({ id, min, max }) => (
-      <div class="vr-dial" key={id}>
-        <Knob
-          compact
-          label={id}
-          min={min}
-          max={max}
-          step={0.03}
-          value={id === 'vol' ? r.trackVolume : r.pedalAmount(id)}
-          onWake={() => r.wake()}
-          onChange={(v) => {
-            if (id === 'vol') r.setTrackVolume(v)
-            else r.setPedal(id, v)
-            this.forceUpdate()
-          }}
-        />
-      </div>
-    ))
+    return (
+      <>
+        {dials.map(({ id, label, min, max }) => (
+          <div class="vr-dial" key={id}>
+            <Knob
+              compact
+              label={label}
+              min={min}
+              max={max}
+              step={0.03}
+              value={id === 'vol' ? r.trackVolume : r.pedalAmount(id)}
+              onWake={() => r.wake()}
+              onChange={(v) => {
+                if (id === 'vol') r.setTrackVolume(v)
+                else r.setPedal(id, v)
+                this.forceUpdate()
+              }}
+            />
+          </div>
+        ))}
+        <div class="vr-dial vr-dial-pad" key="wob">
+          <KaossPad
+            label="wob"
+            x={r.wobX}
+            y={r.wobY}
+            onWake={() => r.wake()}
+            onChange={(x, y) => {
+              r.setWobPad(x, y)
+              this.forceUpdate()
+            }}
+          />
+        </div>
+      </>
+    )
   }
 
   panel(id: 'viz' | 'pl', title: string, body: preact.ComponentChildren) {
