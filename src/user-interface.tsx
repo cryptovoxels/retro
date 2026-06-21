@@ -478,7 +478,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
     exitPointerLock()
 
-    const input = document.querySelector('main.chat input') as HTMLInputElement
+    const input = document.querySelector('.UserInterface div.chat input') as HTMLInputElement
 
     if (!input) {
       return
