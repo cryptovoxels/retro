@@ -401,8 +401,7 @@ export class VoxelRadioEngine {
   }
 
   setPedal(id: PedalId, v: number) {
-    if (id === 'eq') v = Math.max(-1, Math.min(1, v || 0))
-    else v = clamp(v)
+    v = Math.max(-1, Math.min(1, v || 0))
     this.applyPedal(id, v)
     save(`radio.${id}`, v)
     if (this.ctx.state !== 'running') this.wake()
@@ -417,18 +416,19 @@ export class VoxelRadioEngine {
       this.applyEq(v)
       return
     }
+    const amt = Math.abs(v)
     if (id === 'wob') {
-      this.wobAmt = v
-      this.applyWob(v)
+      this.wobAmt = amt
+      this.applyWob(amt)
       return
     }
     if (id === 'dly') {
-      this.dlyAmt = v
-      this.applyDly(v)
+      this.dlyAmt = amt
+      this.applyDly(amt)
       return
     }
-    this.chpAmt = v
-    this.applyChp(v)
+    this.chpAmt = amt
+    this.applyChp(amt)
   }
 
   addPedal(id: PedalId) {
