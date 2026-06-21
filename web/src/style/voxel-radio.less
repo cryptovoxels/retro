@@ -169,6 +169,29 @@
     border: var(--border);
     background: var(--dark);
 
+    .vr-dial-foot {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.25rem;
+      width: 100%;
+    }
+
+    .vr-fx-sw {
+      flex-shrink: 0;
+      width: 0.5rem;
+      height: 0.4rem;
+      padding: 0;
+      border: var(--border);
+      background: var(--dark);
+      cursor: pointer;
+
+      &.live {
+        background: var(--red);
+        border-color: var(--red);
+      }
+    }
+
     .vr-knob.mini {
       display: flex;
       flex-direction: column;
@@ -221,28 +244,33 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 0.1rem;
+    gap: 0.08rem;
     width: 100%;
-    cursor: crosshair;
-    touch-action: none;
+
+    &.bypassed .vr-kaoss-grid {
+      cursor: default;
+      opacity: 0.55;
+    }
   }
 
   .vr-kaoss-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
-    gap: 1px;
+    grid-template-columns: repeat(8, 1fr);
+    gap: 0.5px;
     width: 100%;
-    max-width: 2.4rem;
+    max-width: 1.85rem;
     aspect-ratio: 1;
-    padding: 2px;
+    padding: 1px;
     border: var(--border);
     background: var(--tinge);
+    cursor: crosshair;
+    touch-action: none;
 
     span {
       display: block;
-      border-radius: 1px;
+      border-radius: 0;
       background: var(--red);
-      opacity: 0.08;
+      opacity: 0.06;
     }
   }
 

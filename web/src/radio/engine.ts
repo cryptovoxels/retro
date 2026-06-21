@@ -116,10 +116,12 @@ export class VoxelRadioEngine {
   wobAmt = 0
   wobX = 0
   wobY = 0
+  wobBypass = true
   dlyAmt = 0
   dlyV = 0
   chpAmt = 0
   chpV = 0
+  fx: Record<PedalId, number> = { eq: 0, wob: 0, dly: 0, chp: 0 }
   fxBytes = new Uint8Array(128)
   fxTd = new Uint8Array(256)
   fxWatch: ReturnType<typeof setInterval> | null = null
@@ -281,6 +283,15 @@ export class VoxelRadioEngine {
     return Math.min(1, Math.sqrt(rms / this.fxTd.length) * 3)
   }
 
+  readLevel() {
+    if (this.muted || this.stalled) return 0
+    try {
+      return this.readBass()
+    } catch {
+      return 0
+    }
+  }
+
   private pumpFx() {
     if (this.wobAmt < 0.02 && this.dlyAmt < 0.02 && this.chpAmt < 0.02) return
     const bass = this.readBass()
@@ -402,14 +413,12 @@ export class VoxelRadioEngine {
   }
 
   private loadSettings() {
-    const legacy = localStorage.getItem('radio.filter')
-    if (legacy != null && localStorage.getItem('radio.eq') == null) {
-      save('radio.eq', num('radio.filter', 0))
-    }
     this.setTrackVolume(num('radio.track', 1))
     this.setSpotVolume(num('radio.spot', 1))
     this.chain = loadChain()
-    for (const id of PEDALS) this.applyPedal(id, this.pedalAmount(id))
+    this.wobBypass = localStorage.getItem('radio.wobOff') !== '0'
+    for (const id of PEDALS) this.applyPedal(id, 0)
+    if (this.wobBypass) this.applyWob(0, 0, 0, 0)
     this.connectChain()
   }
 
@@ -424,21 +433,31 @@ export class VoxelRadioEngine {
   }
 
   pedalAmount(id: PedalId) {
-    if (id === 'eq') return num('radio.eq', num('radio.filter', 0))
-    const v = num(`radio.${id}`, NaN)
-    if (!isNaN(v)) return v
-    if (id === 'dly') return num('radio.phs', num('radio.bit', 0))
-    return 0
+    return this.fx[id] ?? 0
   }
 
   setPedal(id: PedalId, v: number) {
     v = Math.max(-1, Math.min(1, v || 0))
+    this.fx[id] = v
     this.applyPedal(id, v)
-    save(`radio.${id}`, v)
     if (this.ctx.state !== 'running') this.wake()
   }
 
+  setWobBypass(off: boolean) {
+    this.wobBypass = off
+    try {
+      localStorage.setItem('radio.wobOff', off ? '1' : '0')
+    } catch {}
+    if (off) {
+      this.wobX = 0
+      this.wobY = 0
+      this.wobAmt = 0
+      this.applyWob(0, 0, 0, 0)
+    }
+  }
+
   setWobPad(x: number, y: number) {
+    if (this.wobBypass) return
     x = Math.max(-1, Math.min(1, x || 0))
     y = Math.max(-1, Math.min(1, y || 0))
     this.wobX = x
