@@ -160,8 +160,14 @@ export default class VoxelRadio extends Component<Props, State> {
     e.stopPropagation()
     const r = this.radio
     if (!r) return
-    if (r.muted || r.stalled) this.transport()
+    const stalled = r.muted || r.stalled
+    if (stalled) this.transport()
     else this.wakeViz()
+    if (stalled) {
+      this.viz?.dispose()
+      this.viz = null
+      setTimeout(() => this.syncViz(), 80)
+    }
   }
 
   wakeViz = () => {
