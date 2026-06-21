@@ -181,7 +181,7 @@ function startCanvas2D(canvas: HTMLCanvasElement, analyser: AnalyserNode): Visua
   const resize = () => fitCanvas(canvas)
   window.addEventListener('resize', resize, { passive: true })
   const ro = new ResizeObserver(resize)
-  ro.observe(canvas.parentElement ?? canvas)
+  if (canvas.parentElement) ro.observe(canvas.parentElement)
 
   const tick = () => {
     if (dead) return
@@ -347,7 +347,7 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
   }
   window.addEventListener('resize', resize, { passive: true })
   const ro = new ResizeObserver(resize)
-  ro.observe(canvas.parentElement ?? canvas)
+  if (canvas.parentElement) ro.observe(canvas.parentElement)
 
   return {
     alive: () => true,
