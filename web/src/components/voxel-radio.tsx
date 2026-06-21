@@ -48,7 +48,7 @@ const arc = (to: number) => {
 }
 const FULL = arc(A0 + SPAN)
 
-type KnobProps = { label: string; min: number; max: number; step: number; value: number; compact?: boolean; onWake?: () => void; onOff?: () => void; onChange: (v: number) => void }
+type KnobProps = { label: string; min: number; max: number; step: number; value: number; compact?: boolean; onWake?: () => void; onChange: (v: number) => void }
 
 type KaossProps = {
   label: string
@@ -180,7 +180,7 @@ class KaossPad extends Component<KaossProps> {
   render() {
     const { label, off, live } = this.props
     return (
-      <div class={`vr-kaoss${off ? ' bypassed' : ''}`}>
+      <>
         <div
           class="vr-kaoss-grid"
           ref={this.pad}
@@ -204,7 +204,7 @@ class KaossPad extends Component<KaossProps> {
           <span class="vr-dial-label">{label}</span>
           <FxSw live={!!live} title={off ? 'turn on' : 'turn off'} onTap={() => this.props.onOff?.()} />
         </div>
-      </div>
+      </>
     )
   }
 }
@@ -233,11 +233,9 @@ class Knob extends Component<KnobProps> {
   }
 
   render() {
-    const { label, min, max, value, compact, onOff } = this.props
+    const { label, min, max, value, compact } = this.props
     const t = (value - min) / (max - min)
     const pct = compact ? Math.round(t * 100) : Math.round(value * 100)
-    const offVal = min < 0 ? 0 : min
-    const isOff = Math.abs(value - offVal) < 0.02
     return (
       <div class={`vr-knob${compact ? ' mini' : ''}`} onPointerDown={this.down} title={label}>
         <svg viewBox="0 0 32 32">
@@ -247,12 +245,6 @@ class Knob extends Component<KnobProps> {
         </svg>
         {!compact && <span class="vr-knob-val">{pct}</span>}
         {!compact && <label>{label}</label>}
-        {compact && (
-          <div class="vr-dial-foot">
-            <span class="vr-dial-label">{label}</span>
-            {onOff && <FxSw live={!isOff} title="turn off" onTap={onOff} />}
-          </div>
-        )}
       </div>
     )
   }
@@ -427,38 +419,48 @@ export default class VoxelRadio extends Component<Props, State> {
       <>
         {dials.map(({ id, label, min, max }) => (
           <div class="vr-dial" key={id}>
-            <Knob
-              compact
-              label={label}
-              min={min}
-              max={max}
-              step={0.03}
-              value={id === 'vol' ? r.trackVolume : r.pedalAmount(id)}
-              onWake={() => r.wake()}
-              onOff={() => {
-                if (id === 'vol') r.setTrackVolume(0)
-                else r.setPedal(id, 0)
-                this.forceUpdate()
-              }}
-              onChange={(v) => {
-                if (id === 'vol') r.setTrackVolume(v)
-                else r.setPedal(id, v)
-                this.forceUpdate()
-              }}
-            />
+            <div class="vr-dial-body">
+              <Knob
+                compact
+                label={label}
+                min={min}
+                max={max}
+                step={0.03}
+                value={id === 'vol' ? r.trackVolume : r.pedalAmount(id)}
+                onWake={() => r.wake()}
+                onChange={(v) => {
+                  if (id === 'vol') r.setTrackVolume(v)
+                  else r.setPedal(id, v)
+                  this.forceUpdate()
+                }}
+              />
+            </div>
+            <div class="vr-dial-foot">
+              <span class="vr-dial-label">{label}</span>
+              {id !== 'vol' && (
+                <FxSw
+                  live={r.fxOn(id as PedalId)}
+                  title={r.fxOn(id as PedalId) ? 'turn off' : 'turn on'}
+                  onTap={() => {
+                    r.toggleFx(id as PedalId)
+                    this.forceUpdate()
+                  }}
+                />
+              )}
+            </div>
           </div>
         ))}
-        <div class="vr-dial vr-dial-pad" key="wob">
+        <div class={`vr-dial vr-dial-pad${r.wobBypass ? ' bypassed' : ''}`} key="wob">
           <KaossPad
             label="wob"
             x={r.wobX}
             y={r.wobY}
             off={r.wobBypass}
-            live={!r.wobBypass && r.wobAmt > 0.02}
+            live={r.fxOn('wob')}
             level={() => r.readLevel()}
             onWake={() => r.wake()}
             onOff={() => {
-              r.setWobBypass(!r.wobBypass)
+              r.toggleFx('wob')
               this.forceUpdate()
             }}
             onChange={(x, y) => {

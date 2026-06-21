@@ -122,6 +122,7 @@ export class VoxelRadioEngine {
   chpAmt = 0
   chpV = 0
   fx: Record<PedalId, number> = { eq: 0, wob: 0, dly: 0, chp: 0 }
+  fxArm: Record<PedalId, boolean> = { eq: false, wob: false, dly: false, chp: false }
   fxBytes = new Uint8Array(128)
   fxTd = new Uint8Array(256)
   fxWatch: ReturnType<typeof setInterval> | null = null
@@ -418,6 +419,7 @@ export class VoxelRadioEngine {
     this.chain = loadChain()
     this.wobBypass = true
     this.fx = { eq: 0, wob: 0, dly: 0, chp: 0 }
+    this.fxArm = { eq: false, wob: false, dly: false, chp: false }
     for (const id of PEDALS) this.applyPedal(id, 0)
     this.applyWob(0, 0, 0, 0)
     this.connectChain()
@@ -439,9 +441,26 @@ export class VoxelRadioEngine {
 
   setPedal(id: PedalId, v: number) {
     v = Math.max(-1, Math.min(1, v || 0))
+    if (Math.abs(v) > 0.02) this.fxArm[id] = true
     this.fx[id] = v
     this.applyPedal(id, v)
     if (this.ctx.state !== 'running') this.wake()
+  }
+
+  fxOn(id: PedalId) {
+    if (id === 'wob') return !this.wobBypass
+    return this.fxArm[id]
+  }
+
+  toggleFx(id: PedalId) {
+    if (id === 'wob') {
+      this.setWobBypass(!this.wobBypass)
+    } else {
+      const on = !this.fxArm[id]
+      this.fxArm[id] = on
+      if (!on) this.setPedal(id, 0)
+    }
+    this.onChange?.()
   }
 
   setWobBypass(off: boolean) {
