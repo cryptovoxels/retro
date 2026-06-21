@@ -23,6 +23,8 @@ varying vec2 vUV;
 uniform sampler2D bins;
 uniform float time;
 ${PALETTE}
+float vox(float v, float steps) { return floor(v * steps) / steps; }
+vec2 vox2(vec2 p, float steps) { return floor(p * steps) / steps; }
 `
 
 const SHADERS = [
@@ -109,6 +111,60 @@ void main() {
     col += palette(i) * smoothstep(0.25, 0.0, d) * (0.2 + lvl * 0.45);
   }
   gl_FragColor = vec4(col * 0.6, 1.0);
+}`,
+  // vox bars - chunky columns
+  `${HEAD}
+void main() {
+  vec2 g = vox2(vUV, vec2(18.0, 10.0));
+  vec3 col = vec3(0.06, 0.07, 0.12);
+  for (int i = 0; i < 6; i++) {
+    float lvl = texture2D(bins, vec2(1.0, (float(i) + 0.5) / 6.0)).r;
+    float cx = vox((float(i) + 0.5) / 6.0, 6.0);
+    float bw = 1.0 / 6.0;
+    if (g.x >= cx - bw * 0.35 && g.x <= cx + bw * 0.35) {
+      float h = vox(lvl * 0.9 + 0.08, 8.0);
+      if (g.y < h) {
+        vec3 c = palette(i);
+        float face = mod(g.x * 18.0 + g.y * 10.0, 2.0) < 1.0 ? 0.85 : 1.0;
+        col = c * face * (0.35 + lvl * 0.5);
+      }
+    }
+  }
+  gl_FragColor = vec4(col, 1.0);
+}`,
+  // vox terrain - stepped block waves
+  `${HEAD}
+void main() {
+  vec2 g = vox2(vUV, vec2(24.0, 12.0));
+  vec3 col = vec3(0.05, 0.06, 0.11);
+  for (int i = 0; i < 6; i++) {
+    float lvl = texture2D(bins, vec2(1.0, (float(i) + 0.5) / 6.0)).r;
+    float wave = 0.12 + float(i) * 0.12;
+    wave += vox(lvl * 0.14, 6.0) * sin(g.x * 6.28 + time * 0.9 + float(i));
+    if (g.y < wave) {
+      vec3 c = palette(i);
+      float top = step(wave - (1.0 / 12.0), g.y);
+      col = mix(c * 0.55, c * (0.9 + lvl * 0.3), top);
+    }
+  }
+  gl_FragColor = vec4(col * 0.75, 1.0);
+}`,
+  // vox matrix - block grid pulse
+  `${HEAD}
+void main() {
+  vec2 g = vox2(vUV, vec2(20.0, 12.0));
+  vec2 cell = floor(vUV * vec2(20.0, 12.0));
+  float band = clamp(floor((1.0 - vUV.y) * 6.0), 0.0, 5.0);
+  float lvl = texture2D(bins, vec2(1.0, (band + 0.5) / 6.0)).r;
+  float pulse = step(0.5, fract(sin(dot(cell, vec2(12.9898, 78.233)) + time * (1.0 + lvl)) * 43758.5453));
+  pulse *= step(0.35, lvl + 0.15 * sin(time * 2.0 + cell.x * 0.7));
+  vec3 col = vec3(0.04, 0.05, 0.09);
+  if (pulse > 0.5) {
+    vec3 c = palette(int(band));
+    float edge = step(0.92, fract(vUV.x * 20.0)) + step(0.92, fract(vUV.y * 12.0));
+    col = c * (0.5 + lvl * 0.6) * (1.0 - edge * 0.35);
+  }
+  gl_FragColor = vec4(col, 1.0);
 }`,
 ]
 

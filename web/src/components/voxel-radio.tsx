@@ -325,7 +325,7 @@ export default class VoxelRadio extends Component<Props, State> {
                       <button type="button" class={`vr-key fn${pl !== 'closed' ? ' on' : ''}`} onClick={() => this.togglePanel('pl')} title="playlist">
                         PL
                       </button>
-                      <button type="button" class={`vr-key fn${viz !== 'closed' ? ' on' : ''}`} onClick={() => this.togglePanel('viz')} title="visualization">
+                      <button type="button" class={`vr-key fn${viz !== 'closed' ? ' on' : ''}`} onClick={() => this.togglePanel('viz')} title="voxelizr">
                         VZ
                       </button>
                       <button type="button" class="vr-key fn" onClick={this.popout} title="pop out">
@@ -357,7 +357,7 @@ export default class VoxelRadio extends Component<Props, State> {
                       <button type="button" class={`vr-btn${pl !== 'closed' ? ' active' : ''}`} onClick={() => this.togglePanel('pl')} title="playlist">
                         pl
                       </button>
-                      <button type="button" class={`vr-btn${viz !== 'closed' ? ' active' : ''}`} onClick={() => this.togglePanel('viz')} title="visualization">
+                      <button type="button" class={`vr-btn${viz !== 'closed' ? ' active' : ''}`} onClick={() => this.togglePanel('viz')} title="voxelizr">
                         vz
                       </button>
                     </div>
@@ -371,7 +371,7 @@ export default class VoxelRadio extends Component<Props, State> {
 
             {this.panel(
               'viz',
-              'visualization',
+              'voxelizr',
               <div class="vr-viz-box">
                 <canvas ref={this.canvas} class="vr-viz" />
               </div>,
