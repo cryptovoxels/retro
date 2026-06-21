@@ -23,8 +23,6 @@ export interface Schedule {
 export type PedalId = 'eq' | 'bit' | 'dly' | 'wob'
 export const PEDALS: PedalId[] = ['eq', 'bit', 'dly', 'wob']
 
-const LEGACY_PEDAL: Record<string, PedalId> = { rvb: 'bit', drv: 'wob' }
-
 export const DAY = 86400
 const PREFETCH = 300 // grab the spot audio 5 min before it airs
 const USER_DUCK = 0.15 // parcel audio playing
@@ -59,15 +57,7 @@ function save(key: string, v: number) {
 }
 
 function loadChain(): PedalId[] {
-  try {
-    const raw = localStorage.getItem('radio.chain')
-    if (!raw) return ['eq', 'wob', 'dly', 'bit']
-    const chain = JSON.parse(raw) as string[]
-    if (!Array.isArray(chain)) return ['eq']
-    return chain.map((id) => LEGACY_PEDAL[id] ?? id).filter((id) => PEDALS.includes(id as PedalId)) as PedalId[]
-  } catch {
-    return ['eq']
-  }
+  return [...PEDALS]
 }
 
 function saveChain(chain: PedalId[]) {
@@ -141,10 +131,19 @@ export class VoxelRadioEngine {
   fxWatch: ReturnType<typeof setInterval> | null = null
 
   private glide(param: AudioParam, val: number, s = 0.03) {
-    param.setTargetAtTime(val, this.ctx.currentTime, s)
+    if (this.ctx.state !== 'running') {
+      try {
+        param.cancelScheduledValues(0)
+      } catch {}
+      param.value = val
+      return
+    }
+    const t = this.ctx.currentTime
+    param.cancelScheduledValues(t)
+    param.setTargetAtTime(val, t, s)
   }
 
-  chain: PedalId[] = ['eq']
+  chain: PedalId[] = [...PEDALS]
 
   schedule: Schedule | null = null
   track: Track | null = null
@@ -376,6 +375,11 @@ export class VoxelRadioEngine {
     else v = clamp(v)
     this.applyPedal(id, v)
     save(`radio.${id}`, v)
+    if (this.ctx.state !== 'running') this.wake()
+  }
+
+  private refreshFx() {
+    for (const id of PEDALS) this.applyPedal(id, this.pedalAmount(id))
   }
 
   private applyPedal(id: PedalId, v: number) {
@@ -437,12 +441,18 @@ export class VoxelRadioEngine {
   }
 
   wake() {
-    if (this.ctx.state === 'suspended') this.ctx.resume().catch(() => {})
-    if (!this.muted) this.master.gain.value = 1
-    this.el
-      ?.play()
-      .then(() => this.onChange?.())
-      .catch(() => {})
+    const reconnect = this.ctx.state !== 'running'
+    const go = () => {
+      if (!this.muted) this.master.gain.value = 1
+      this.refreshFx()
+      if (reconnect) this.connectChain()
+      this.el
+        ?.play()
+        .then(() => this.onChange?.())
+        .catch(() => {})
+    }
+    if (this.ctx.state === 'suspended') this.ctx.resume().then(go).catch(go)
+    else go()
   }
 
   start() {
