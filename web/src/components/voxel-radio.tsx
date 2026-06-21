@@ -128,7 +128,17 @@ export default class VoxelRadio extends Component<Props, State> {
   syncViz() {
     const want = this.state.viz === 'open'
     if (want && this.canvas.current && this.radio && !this.viz) {
-      this.viz = startVisualiser(this.canvas.current, this.radio.analyser, Math.floor(Math.random() * 6))
+      const canvas = this.canvas.current
+      const analyser = this.radio.analyser
+      const go = () => {
+        if (!this.canvas.current || this.viz) return
+        if (canvas.clientWidth < 1 || canvas.clientHeight < 1) {
+          requestAnimationFrame(go)
+          return
+        }
+        this.viz = startVisualiser(canvas, analyser, 0)
+      }
+      requestAnimationFrame(go)
     } else if (!want && this.viz) {
       this.viz.dispose()
       this.viz = null
@@ -330,9 +340,6 @@ export default class VoxelRadio extends Component<Props, State> {
                     </div>
                   </div>
                   {r && <div class="vr-dial-grid">{this.dialGrid(r)}</div>}
-                  <div class="vr-progress vr-progress-main">
-                    <span style={`width:${pct}%`} />
-                  </div>
                 </>
               ) : (
                 <>
