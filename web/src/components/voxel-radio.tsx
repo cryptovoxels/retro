@@ -216,9 +216,9 @@ export default class VoxelRadio extends Component<Props, State> {
     const dials: { id: 'vol' | PedalId; min: number; max: number }[] = [
       { id: 'vol', min: 0, max: 1 },
       { id: 'eq', min: -1, max: 1 },
-      { id: 'rvb', min: 0, max: 1 },
+      { id: 'bit', min: 0, max: 1 },
       { id: 'dly', min: 0, max: 1 },
-      { id: 'drv', min: 0, max: 1 },
+      { id: 'wob', min: 0, max: 1 },
     ]
     return dials.map(({ id, min, max }) => (
       <div class="vr-dial" key={id}>
