@@ -20,8 +20,10 @@ export interface Schedule {
   spots: Spot[]
 }
 
-export type PedalId = 'eq' | 'rvb' | 'dly' | 'drv'
-export const PEDALS: PedalId[] = ['eq', 'rvb', 'dly', 'drv']
+export type PedalId = 'eq' | 'bit' | 'dly' | 'wob'
+export const PEDALS: PedalId[] = ['eq', 'bit', 'dly', 'wob']
+
+const LEGACY_PEDAL: Record<string, PedalId> = { rvb: 'bit', drv: 'wob' }
 
 export const DAY = 86400
 const PREFETCH = 300 // grab the spot audio 5 min before it airs
@@ -59,10 +61,10 @@ function save(key: string, v: number) {
 function loadChain(): PedalId[] {
   try {
     const raw = localStorage.getItem('radio.chain')
-    if (!raw) return ['eq', 'rvb', 'dly', 'drv']
-    const chain = JSON.parse(raw) as PedalId[]
+    if (!raw) return ['eq', 'bit', 'dly', 'wob']
+    const chain = JSON.parse(raw) as string[]
     if (!Array.isArray(chain)) return ['eq']
-    return chain.filter((id) => PEDALS.includes(id))
+    return chain.map((id) => LEGACY_PEDAL[id] ?? id).filter((id) => PEDALS.includes(id as PedalId)) as PedalId[]
   } catch {
     return ['eq']
   }
@@ -74,30 +76,14 @@ function saveChain(chain: PedalId[]) {
   } catch {}
 }
 
-// synthetic reverb tail - decaying stereo noise, no asset fetch
-let ir: AudioBuffer | null = null
-function impulse(ctx: AudioContext): AudioBuffer {
-  if (ir && ir.sampleRate === ctx.sampleRate) return ir
-  const len = ctx.sampleRate * 2
-  const buf = ctx.createBuffer(2, len, ctx.sampleRate)
-  for (let c = 0; c < 2; c++) {
-    const data = buf.getChannelData(c)
-    for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 3)
-  }
-  ir = buf
-  return buf
-}
-
-let drive: Float32Array | null = null
-function driveCurve(): Float32Array {
-  if (drive) return drive
+function bitCurve(v: number): Float32Array {
+  const steps = Math.max(2, Math.pow(2, Math.floor(16 - v * 13)))
   const n = 256
   const c = new Float32Array(n)
   for (let i = 0; i < n; i++) {
     const x = (i * 2) / (n - 1) - 1
-    c[i] = Math.tanh(x * 4)
+    c[i] = Math.round(x * steps) / steps
   }
-  drive = c
   return c
 }
 
@@ -122,12 +108,12 @@ export class VoxelRadioEngine {
   eqOut: GainNode
   eqFilter: BiquadFilterNode
 
-  // rvb pedal
-  rvbIn: GainNode
-  rvbOut: GainNode
-  rvbDry: GainNode
-  rvbWet: GainNode
-  rvbConv: ConvolverNode
+  // bit pedal
+  bitIn: GainNode
+  bitOut: GainNode
+  bitDry: GainNode
+  bitWet: GainNode
+  bitShape: WaveShaperNode
 
   // dly pedal
   dlyIn: GainNode
@@ -137,12 +123,14 @@ export class VoxelRadioEngine {
   dlyNode: DelayNode
   dlyFb: GainNode
 
-  // drv pedal
-  drvIn: GainNode
-  drvOut: GainNode
-  drvDry: GainNode
-  drvWet: GainNode
-  drvShape: WaveShaperNode
+  // wob pedal
+  wobIn: GainNode
+  wobOut: GainNode
+  wobDry: GainNode
+  wobWet: GainNode
+  wobFilter: BiquadFilterNode
+  wobLfo: OscillatorNode
+  wobLfoGain: GainNode
 
   chain: PedalId[] = ['eq']
 
@@ -184,17 +172,17 @@ export class VoxelRadioEngine {
     this.eqIn.connect(this.eqFilter)
     this.eqFilter.connect(this.eqOut)
 
-    this.rvbIn = this.ctx.createGain()
-    this.rvbOut = this.ctx.createGain()
-    this.rvbDry = this.ctx.createGain()
-    this.rvbWet = this.ctx.createGain()
-    this.rvbConv = this.ctx.createConvolver()
-    this.rvbConv.buffer = impulse(this.ctx)
-    this.rvbIn.connect(this.rvbDry)
-    this.rvbIn.connect(this.rvbConv)
-    this.rvbDry.connect(this.rvbOut)
-    this.rvbConv.connect(this.rvbWet)
-    this.rvbWet.connect(this.rvbOut)
+    this.bitIn = this.ctx.createGain()
+    this.bitOut = this.ctx.createGain()
+    this.bitDry = this.ctx.createGain()
+    this.bitWet = this.ctx.createGain()
+    this.bitShape = this.ctx.createWaveShaper()
+    this.bitShape.curve = bitCurve(0)
+    this.bitIn.connect(this.bitDry)
+    this.bitIn.connect(this.bitShape)
+    this.bitDry.connect(this.bitOut)
+    this.bitShape.connect(this.bitWet)
+    this.bitWet.connect(this.bitOut)
 
     this.dlyIn = this.ctx.createGain()
     this.dlyOut = this.ctx.createGain()
@@ -211,18 +199,27 @@ export class VoxelRadioEngine {
     this.dlyNode.connect(this.dlyFb)
     this.dlyFb.connect(this.dlyNode)
 
-    this.drvIn = this.ctx.createGain()
-    this.drvOut = this.ctx.createGain()
-    this.drvDry = this.ctx.createGain()
-    this.drvWet = this.ctx.createGain()
-    this.drvShape = this.ctx.createWaveShaper()
-    this.drvShape.curve = driveCurve()
-    this.drvShape.oversample = '2x'
-    this.drvIn.connect(this.drvDry)
-    this.drvIn.connect(this.drvShape)
-    this.drvDry.connect(this.drvOut)
-    this.drvShape.connect(this.drvWet)
-    this.drvWet.connect(this.drvOut)
+    this.wobIn = this.ctx.createGain()
+    this.wobOut = this.ctx.createGain()
+    this.wobDry = this.ctx.createGain()
+    this.wobWet = this.ctx.createGain()
+    this.wobFilter = this.ctx.createBiquadFilter()
+    this.wobFilter.type = 'lowpass'
+    this.wobFilter.frequency.value = 900
+    this.wobFilter.Q.value = 1
+    this.wobLfo = this.ctx.createOscillator()
+    this.wobLfo.type = 'sine'
+    this.wobLfo.frequency.value = 2.2
+    this.wobLfoGain = this.ctx.createGain()
+    this.wobLfoGain.gain.value = 0
+    this.wobLfo.connect(this.wobLfoGain)
+    this.wobLfoGain.connect(this.wobFilter.frequency)
+    this.wobIn.connect(this.wobDry)
+    this.wobIn.connect(this.wobFilter)
+    this.wobDry.connect(this.wobOut)
+    this.wobFilter.connect(this.wobWet)
+    this.wobWet.connect(this.wobOut)
+    this.wobLfo.start()
 
     this.trackVol.connect(this.duckGain)
     this.duckGain.connect(this.master)
@@ -235,16 +232,16 @@ export class VoxelRadioEngine {
 
   private pedalIn(id: PedalId) {
     if (id === 'eq') return this.eqIn
-    if (id === 'rvb') return this.rvbIn
+    if (id === 'bit') return this.bitIn
     if (id === 'dly') return this.dlyIn
-    return this.drvIn
+    return this.wobIn
   }
 
   private pedalOut(id: PedalId) {
     if (id === 'eq') return this.eqOut
-    if (id === 'rvb') return this.rvbOut
+    if (id === 'bit') return this.bitOut
     if (id === 'dly') return this.dlyOut
-    return this.drvOut
+    return this.wobOut
   }
 
   connectChain() {
@@ -320,9 +317,10 @@ export class VoxelRadioEngine {
       this.eqFilter.Q.value = a * 6
       return
     }
-    if (id === 'rvb') {
-      this.rvbWet.gain.value = v * 0.75
-      this.rvbDry.gain.value = 1 - v * 0.35
+    if (id === 'bit') {
+      this.bitWet.gain.value = v * 0.9
+      this.bitDry.gain.value = 1 - v * 0.55
+      if (v > 0) this.bitShape.curve = bitCurve(v)
       return
     }
     if (id === 'dly') {
@@ -332,8 +330,11 @@ export class VoxelRadioEngine {
       this.dlyNode.delayTime.value = 0.15 + v * 0.35
       return
     }
-    this.drvWet.gain.value = v * 0.85
-    this.drvDry.gain.value = 1 - v * 0.55
+    this.wobWet.gain.value = v * 0.85
+    this.wobDry.gain.value = 1 - v * 0.45
+    this.wobLfoGain.gain.value = v * 1400
+    this.wobFilter.frequency.value = 500 + v * 700
+    this.wobFilter.Q.value = 1 + v * 12
   }
 
   addPedal(id: PedalId) {
