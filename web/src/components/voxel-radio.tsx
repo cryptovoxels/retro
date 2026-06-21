@@ -100,7 +100,7 @@ export default class VoxelRadio extends Component<Props, State> {
   constructor(props: Props) {
     super(props)
     this.state = {
-      viz: loadPanel('viz', props.popped ? 'open' : 'closed'),
+      viz: loadPanel('viz', 'open'),
       pl: loadPanel('pl', 'closed'),
     }
   }
