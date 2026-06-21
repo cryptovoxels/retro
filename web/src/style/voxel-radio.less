@@ -266,6 +266,26 @@
     min-height: 3.5rem;
     overflow: hidden;
     background: var(--dark);
+
+    &.needs-tap {
+      cursor: pointer;
+    }
+  }
+
+  .vr-viz-play {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: none;
+    background: rgba(0, 0, 0, 0.45);
+    color: var(--bright);
+    font-family: 'Source Code Pro', monospace;
+    font-size: 8px;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
   }
 
   .vr-viz {

@@ -1,4 +1,5 @@
 import { Component, createRef } from 'preact'
+import { isMobile } from '../../../common/helpers/detector'
 import { trackTitle } from '../../../common/soundtracks'
 import { DAY, PedalId, Spot, VoxelRadioEngine } from '../radio/engine'
 import { startVisualiser, Visualiser } from '../radio/visualiser'
@@ -155,6 +156,14 @@ export default class VoxelRadio extends Component<Props, State> {
     }
   }
 
+  tapViz = (e: Event) => {
+    e.stopPropagation()
+    const r = this.radio
+    if (!r) return
+    if (r.muted || r.stalled) this.transport()
+    else this.wakeViz()
+  }
+
   wakeViz = () => {
     this.radio?.wake()
     if (this.state.viz === 'open' && !this.viz) this.syncViz()
@@ -247,10 +256,7 @@ export default class VoxelRadio extends Component<Props, State> {
           onWake={() => r.wake()}
           onChange={(v) => {
             if (id === 'vol') r.setTrackVolume(v)
-            else {
-              if (!r.chain.includes(id)) r.addPedal(id)
-              r.setPedal(id, v)
-            }
+            else r.setPedal(id, v)
             this.forceUpdate()
           }}
         />
@@ -387,8 +393,13 @@ export default class VoxelRadio extends Component<Props, State> {
             {this.panel(
               'viz',
               'voxelizr',
-              <div class="vr-viz-box">
+              <div class={`vr-viz-box${showPlay && isMobile() ? ' needs-tap' : ''}`} onClick={showPlay && isMobile() ? this.tapViz : undefined}>
                 <canvas ref={this.canvas} class="vr-viz" />
+                {showPlay && isMobile() && (
+                  <button type="button" class="vr-viz-play" onClick={this.tapViz}>
+                    tap to listen
+                  </button>
+                )}
               </div>,
             )}
 
