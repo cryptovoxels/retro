@@ -227,7 +227,7 @@ export default class VoxelRadio extends Component<Props, State> {
           label={id}
           min={min}
           max={max}
-          step={0.05}
+          step={id === 'eq' ? 0.03 : 0.04}
           value={id === 'vol' ? r.trackVolume : r.pedalAmount(id)}
           onWake={() => r.wake()}
           onChange={(v) => {
