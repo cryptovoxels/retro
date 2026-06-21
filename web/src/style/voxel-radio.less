@@ -213,6 +213,39 @@
     }
   }
 
+  .vr-dial-pad {
+    padding: 0.1rem 0.05rem 0.12rem;
+  }
+
+  .vr-kaoss {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.1rem;
+    width: 100%;
+    cursor: crosshair;
+    touch-action: none;
+  }
+
+  .vr-kaoss-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 1px;
+    width: 100%;
+    max-width: 2.4rem;
+    aspect-ratio: 1;
+    padding: 2px;
+    border: var(--border);
+    background: var(--tinge);
+
+    span {
+      display: block;
+      border-radius: 1px;
+      background: var(--red);
+      opacity: 0.08;
+    }
+  }
+
   &.on-air .vr-track {
     color: var(--red);
   }

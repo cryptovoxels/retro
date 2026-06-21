@@ -97,8 +97,9 @@ export class VoxelRadioEngine {
   dlyWet: GainNode
   dlyNode: DelayNode
   dlyFb: GainNode
+  dlyLp: BiquadFilterNode
 
-  // chp pedal - tremolo chop
+  // chp pedal - trance gate
   chpIn: GainNode
   chpOut: GainNode
   chpGain: GainNode
@@ -113,8 +114,12 @@ export class VoxelRadioEngine {
   wobLfoGain: GainNode
 
   wobAmt = 0
+  wobX = 0
+  wobY = 0
   dlyAmt = 0
+  dlyV = 0
   chpAmt = 0
+  chpV = 0
   fxBytes = new Uint8Array(128)
   fxTd = new Uint8Array(256)
   fxWatch: ReturnType<typeof setInterval> | null = null
@@ -182,12 +187,16 @@ export class VoxelRadioEngine {
     this.dlyNode = this.ctx.createDelay(1)
     this.dlyNode.delayTime.value = 0.28
     this.dlyFb = this.ctx.createGain()
+    this.dlyLp = this.ctx.createBiquadFilter()
+    this.dlyLp.type = 'lowpass'
+    this.dlyLp.frequency.value = 20000
     this.dlyIn.connect(this.dlyDry)
     this.dlyIn.connect(this.dlyNode)
     this.dlyDry.connect(this.dlyOut)
-    this.dlyNode.connect(this.dlyWet)
+    this.dlyNode.connect(this.dlyLp)
+    this.dlyLp.connect(this.dlyWet)
     this.dlyWet.connect(this.dlyOut)
-    this.dlyNode.connect(this.dlyFb)
+    this.dlyLp.connect(this.dlyFb)
     this.dlyFb.connect(this.dlyNode)
 
     this.chpIn = this.ctx.createGain()
@@ -195,7 +204,7 @@ export class VoxelRadioEngine {
     this.chpGain = this.ctx.createGain()
     this.chpGain.gain.value = 1
     this.chpLfo = this.ctx.createOscillator()
-    this.chpLfo.type = 'sine'
+    this.chpLfo.type = 'square'
     this.chpLfo.frequency.value = 4
     this.chpLfoGain = this.ctx.createGain()
     this.chpLfoGain.gain.value = 0
@@ -283,35 +292,57 @@ export class VoxelRadioEngine {
       if (mid < 0.01) mid = bass
     }
     if (this.wobAmt > 0.02) this.applyWob(this.wobAmt, bass)
-    if (this.dlyAmt > 0.02) this.applyDly(this.dlyAmt, mid)
-    if (this.chpAmt > 0.02) this.applyChp(this.chpAmt, bass)
+    if (this.dlyAmt > 0.02) this.applyDly(this.dlyV, mid)
+    if (this.chpAmt > 0.02) this.applyChp(this.chpV, bass)
   }
 
   private applyDly(v: number, mid = 0) {
-    const t = 1 - Math.pow(1 - v, 1.55)
-    const times = [0.14, 0.22, 0.33, 0.44]
-    const slot = v * (times.length - 0.001)
+    const a = Math.abs(v)
+    const t = a * a
+    if (t < 0.001) {
+      this.glide(this.dlyWet.gain, 0, 0.02)
+      this.glide(this.dlyDry.gain, 1, 0.02)
+      this.glide(this.dlyFb.gain, 0, 0.02)
+      this.glide(this.dlyLp.frequency, 20000, 0.02)
+      return
+    }
+    const short = [0.07, 0.11, 0.16, 0.22]
+    const long = [0.32, 0.48, 0.62, 0.78]
+    const times = v < 0 ? short : long
+    const slot = t * (times.length - 0.001)
     const i = Math.min(times.length - 2, Math.floor(slot))
     const time = times[i] + (times[i + 1] - times[i]) * (slot - i)
-    this.glide(this.dlyWet.gain, t * 0.85, 0.025)
-    this.glide(this.dlyDry.gain, 1 - t * 0.5, 0.025)
-    this.glide(this.dlyFb.gain, t * 0.6 + mid * v * 0.3, 0.03)
-    this.glide(this.dlyNode.delayTime, time, 0.04)
+    this.glide(this.dlyWet.gain, 0.45 + t * 0.55, 0.02)
+    this.glide(this.dlyDry.gain, 1 - t * 0.7, 0.02)
+    this.glide(this.dlyFb.gain, 0.35 + t * 0.65 + mid * t * 0.4, 0.025)
+    this.glide(this.dlyNode.delayTime, time, 0.03)
+    if (v < 0) this.glide(this.dlyLp.frequency, 600 + (1 - t) * 2200, 0.025)
+    else this.glide(this.dlyLp.frequency, 1800 + t * 8000, 0.025)
+    this.glide(this.dlyLp.Q, v < 0 ? 1.2 + t * 2 : 0.6, 0.02)
   }
 
   private applyChp(v: number, bass = 0) {
-    const t = 1 - Math.pow(1 - v, 1.55)
-    this.glide(this.chpGain.gain, 1 - t * 0.52, 0.025)
-    this.glide(this.chpLfoGain.gain, t * 0.52, 0.025)
-    this.glide(this.chpLfo.frequency, 2 + t * 12 + bass * 4, 0.04)
+    const a = Math.abs(v)
+    const t = a * a
+    if (t < 0.001) {
+      this.glide(this.chpGain.gain, 1, 0.02)
+      this.glide(this.chpLfoGain.gain, 0, 0.02)
+      return
+    }
+    const hz = v < 0 ? 2.5 + t * 5 : 7 + t * 14
+    this.glide(this.chpGain.gain, 0.5, 0.015)
+    this.glide(this.chpLfoGain.gain, 0.5 * t, 0.015)
+    this.glide(this.chpLfo.frequency, hz + bass * t * 5, 0.025)
   }
 
-  private applyWob(v: number, bass = 0) {
-    const t = 1 - Math.pow(1 - v, 1.55)
-    this.glide(this.wobFilter.frequency, 400 + (1 - t) * 17000, 0.04)
-    this.glide(this.wobFilter.Q, 1 + t * 18, 0.03)
-    this.glide(this.wobLfoGain.gain, t * 3400 + bass * v * 2000, 0.035)
-    this.glide(this.wobLfo.frequency, 1 + t * 4 + bass * 3.5, 0.04)
+  private applyWob(v: number, bass = 0, x = this.wobX, y = this.wobY) {
+    const t = v > 0.001 ? 1 - Math.pow(1 - v, 1.55) : 0
+    const xf = (x + 1) / 2
+    const yf = (y + 1) / 2
+    this.glide(this.wobFilter.frequency, 400 + (1 - t) * (8000 + xf * 9000), 0.04)
+    this.glide(this.wobFilter.Q, 1 + t * (8 + yf * 10), 0.03)
+    this.glide(this.wobLfoGain.gain, t * (2000 + yf * 1400) + bass * v * 2000, 0.035)
+    this.glide(this.wobLfo.frequency, 0.5 + t * (2 + yf * 6) + bass * 3.5, 0.04)
   }
 
   private applyEq(v: number) {
@@ -407,6 +438,16 @@ export class VoxelRadioEngine {
     if (this.ctx.state !== 'running') this.wake()
   }
 
+  setWobPad(x: number, y: number) {
+    x = Math.max(-1, Math.min(1, x || 0))
+    y = Math.max(-1, Math.min(1, y || 0))
+    this.wobX = x
+    this.wobY = y
+    this.wobAmt = Math.min(1, Math.hypot(x, y))
+    this.applyWob(this.wobAmt, 0, x, y)
+    if (this.ctx.state !== 'running') this.wake()
+  }
+
   private refreshFx() {
     for (const id of PEDALS) this.applyPedal(id, this.pedalAmount(id))
   }
@@ -419,16 +460,20 @@ export class VoxelRadioEngine {
     const amt = Math.abs(v)
     if (id === 'wob') {
       this.wobAmt = amt
-      this.applyWob(amt)
+      this.wobX = 0
+      this.wobY = amt > 0 ? 1 : 0
+      this.applyWob(amt, 0, this.wobX, this.wobY)
       return
     }
     if (id === 'dly') {
       this.dlyAmt = amt
-      this.applyDly(amt)
+      this.dlyV = v
+      this.applyDly(v)
       return
     }
     this.chpAmt = amt
-    this.applyChp(amt)
+    this.chpV = v
+    this.applyChp(v)
   }
 
   addPedal(id: PedalId) {
