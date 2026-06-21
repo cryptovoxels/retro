@@ -20,8 +20,8 @@ export interface Schedule {
   spots: Spot[]
 }
 
-export type PedalId = 'eq' | 'bit' | 'dly' | 'wob'
-export const PEDALS: PedalId[] = ['eq', 'bit', 'dly', 'wob']
+export type PedalId = 'eq' | 'wob' | 'phs' | 'chp'
+export const PEDALS: PedalId[] = ['eq', 'wob', 'phs', 'chp']
 
 export const DAY = 86400
 const PREFETCH = 300 // grab the spot audio 5 min before it airs
@@ -66,18 +66,7 @@ function saveChain(chain: PedalId[]) {
   } catch {}
 }
 
-function bitCurve(v: number): Float32Array {
-  const t = v * v
-  const steps = Math.max(4, Math.pow(2, Math.floor(13 - t * 9)))
-  const drive = 1 + t * 5
-  const n = 256
-  const c = new Float32Array(n)
-  for (let i = 0; i < n; i++) {
-    const x = (i * 2) / (n - 1) - 1
-    c[i] = Math.round(Math.tanh(x * drive) * steps) / steps
-  }
-  return c
-}
+const LEGACY_PEDAL: Record<string, PedalId> = { bit: 'phs', dly: 'chp', rvb: 'phs', drv: 'wob' }
 
 /*
  * The one global station. Deterministic per UTC day, so everyone tuning in
@@ -100,22 +89,19 @@ export class VoxelRadioEngine {
   eqOut: GainNode
   eqFilter: BiquadFilterNode
 
-  // bit pedal
-  bitIn: GainNode
-  bitOut: GainNode
-  bitDry: GainNode
-  bitWet: GainNode
-  bitPre: GainNode
-  bitShape: WaveShaperNode
-  bitTone: BiquadFilterNode
+  // phs pedal - phaser swirl
+  phsIn: GainNode
+  phsOut: GainNode
+  phsFilter: BiquadFilterNode
+  phsLfo: OscillatorNode
+  phsLfoGain: GainNode
 
-  // dly pedal
-  dlyIn: GainNode
-  dlyOut: GainNode
-  dlyDry: GainNode
-  dlyWet: GainNode
-  dlyNode: DelayNode
-  dlyFb: GainNode
+  // chp pedal - tremolo chop
+  chpIn: GainNode
+  chpOut: GainNode
+  chpGain: GainNode
+  chpLfo: OscillatorNode
+  chpLfoGain: GainNode
 
   // wob pedal - serial filter, lfo on cutoff
   wobIn: GainNode
@@ -125,8 +111,8 @@ export class VoxelRadioEngine {
   wobLfoGain: GainNode
 
   wobAmt = 0
-  bitAmt = 0
-  dlyAmt = 0
+  phsAmt = 0
+  chpAmt = 0
   fxBytes = new Uint8Array(128)
   fxWatch: ReturnType<typeof setInterval> | null = null
 
@@ -183,39 +169,37 @@ export class VoxelRadioEngine {
     this.eqIn.connect(this.eqFilter)
     this.eqFilter.connect(this.eqOut)
 
-    this.bitIn = this.ctx.createGain()
-    this.bitOut = this.ctx.createGain()
-    this.bitDry = this.ctx.createGain()
-    this.bitWet = this.ctx.createGain()
-    this.bitPre = this.ctx.createGain()
-    this.bitShape = this.ctx.createWaveShaper()
-    this.bitShape.curve = bitCurve(0)
-    this.bitShape.oversample = '2x'
-    this.bitTone = this.ctx.createBiquadFilter()
-    this.bitTone.type = 'lowpass'
-    this.bitTone.frequency.value = 12000
-    this.bitIn.connect(this.bitDry)
-    this.bitIn.connect(this.bitPre)
-    this.bitDry.connect(this.bitOut)
-    this.bitPre.connect(this.bitShape)
-    this.bitShape.connect(this.bitTone)
-    this.bitTone.connect(this.bitWet)
-    this.bitWet.connect(this.bitOut)
+    this.phsIn = this.ctx.createGain()
+    this.phsOut = this.ctx.createGain()
+    this.phsFilter = this.ctx.createBiquadFilter()
+    this.phsFilter.type = 'allpass'
+    this.phsFilter.frequency.value = 12000
+    this.phsFilter.Q.value = 0.7
+    this.phsLfo = this.ctx.createOscillator()
+    this.phsLfo.type = 'sine'
+    this.phsLfo.frequency.value = 0.5
+    this.phsLfoGain = this.ctx.createGain()
+    this.phsLfoGain.gain.value = 0
+    this.phsLfo.connect(this.phsLfoGain)
+    this.phsLfoGain.connect(this.phsFilter.frequency)
+    this.phsIn.connect(this.phsFilter)
+    this.phsFilter.connect(this.phsOut)
+    this.phsLfo.start()
 
-    this.dlyIn = this.ctx.createGain()
-    this.dlyOut = this.ctx.createGain()
-    this.dlyDry = this.ctx.createGain()
-    this.dlyWet = this.ctx.createGain()
-    this.dlyNode = this.ctx.createDelay(1)
-    this.dlyNode.delayTime.value = 0.28
-    this.dlyFb = this.ctx.createGain()
-    this.dlyIn.connect(this.dlyDry)
-    this.dlyIn.connect(this.dlyNode)
-    this.dlyDry.connect(this.dlyOut)
-    this.dlyNode.connect(this.dlyWet)
-    this.dlyWet.connect(this.dlyOut)
-    this.dlyNode.connect(this.dlyFb)
-    this.dlyFb.connect(this.dlyNode)
+    this.chpIn = this.ctx.createGain()
+    this.chpOut = this.ctx.createGain()
+    this.chpGain = this.ctx.createGain()
+    this.chpGain.gain.value = 1
+    this.chpLfo = this.ctx.createOscillator()
+    this.chpLfo.type = 'sine'
+    this.chpLfo.frequency.value = 4
+    this.chpLfoGain = this.ctx.createGain()
+    this.chpLfoGain.gain.value = 0
+    this.chpLfo.connect(this.chpLfoGain)
+    this.chpLfoGain.connect(this.chpGain.gain)
+    this.chpIn.connect(this.chpGain)
+    this.chpGain.connect(this.chpOut)
+    this.chpLfo.start()
 
     this.wobIn = this.ctx.createGain()
     this.wobOut = this.ctx.createGain()
@@ -245,26 +229,29 @@ export class VoxelRadioEngine {
   }
 
   private pumpFx() {
-    if (this.wobAmt < 0.04 && this.bitAmt < 0.04 && this.dlyAmt < 0.06) return
+    if (this.wobAmt < 0.04 && this.phsAmt < 0.04 && this.chpAmt < 0.04) return
     this.analyser.getByteFrequencyData(this.fxBytes)
     let bass = 0
-    let mid = 0
     for (let i = 0; i < 6; i++) bass += this.fxBytes[i]
-    for (let i = 8; i < 22; i++) mid += this.fxBytes[i]
     bass /= 6 * 255
-    mid /= 14 * 255
     if (this.wobAmt > 0.04) this.applyWob(this.wobAmt, bass)
-    if (this.bitAmt > 0.04) this.applyBit(this.bitAmt, bass)
-    if (this.dlyAmt > 0.06) this.applyDly(this.dlyAmt, mid)
+    if (this.phsAmt > 0.04) this.applyPhs(this.phsAmt, bass)
+    if (this.chpAmt > 0.04) this.applyChp(this.chpAmt, bass)
   }
 
-  private applyBit(v: number, bass = 0) {
+  private applyPhs(v: number, bass = 0) {
+    const t = Math.pow(v, 1.3)
+    this.glide(this.phsFilter.frequency, 500 + (1 - t) * 6000 + t * 900, 0.04)
+    this.glide(this.phsFilter.Q, 0.7 + t * 5, 0.03)
+    this.glide(this.phsLfoGain.gain, t * 2200 + bass * v * 800, 0.035)
+    this.glide(this.phsLfo.frequency, 0.4 + t * 2.5 + bass * 2, 0.04)
+  }
+
+  private applyChp(v: number, bass = 0) {
     const t = Math.pow(v, 1.4)
-    this.glide(this.bitWet.gain, v * 0.95, 0.02)
-    this.glide(this.bitDry.gain, 1 - v * 0.92, 0.02)
-    this.glide(this.bitPre.gain, 1 + t * 4 + bass * v * 2, 0.03)
-    this.glide(this.bitTone.frequency, 400 + (1 - v) * 8000, 0.04)
-    if (v > 0) this.bitShape.curve = bitCurve(v)
+    this.glide(this.chpGain.gain, 1 - t * 0.42, 0.025)
+    this.glide(this.chpLfoGain.gain, t * 0.42, 0.025)
+    this.glide(this.chpLfo.frequency, 2 + t * 12 + bass * 4, 0.04)
   }
 
   private applyWob(v: number, bass = 0) {
@@ -273,18 +260,6 @@ export class VoxelRadioEngine {
     this.glide(this.wobFilter.Q, 1 + t * 18, 0.03)
     this.glide(this.wobLfoGain.gain, t * 3000 + bass * v * 1800, 0.035)
     this.glide(this.wobLfo.frequency, 1 + t * 4 + bass * 3.5, 0.04)
-  }
-
-  private applyDly(v: number, mid = 0) {
-    const t = 1 - Math.pow(1 - v, 1.5)
-    const times = [0.14, 0.22, 0.33, 0.44]
-    const slot = v * (times.length - 0.001)
-    const i = Math.min(times.length - 2, Math.floor(slot))
-    const time = times[i] + (times[i + 1] - times[i]) * (slot - i)
-    this.glide(this.dlyWet.gain, t * 0.8, 0.025)
-    this.glide(this.dlyDry.gain, 1 - t * 0.45, 0.025)
-    this.glide(this.dlyFb.gain, t * 0.55 + mid * v * 0.25, 0.03)
-    this.glide(this.dlyNode.delayTime, time, 0.04)
   }
 
   private applyEq(v: number) {
@@ -305,16 +280,16 @@ export class VoxelRadioEngine {
 
   private pedalIn(id: PedalId) {
     if (id === 'eq') return this.eqIn
-    if (id === 'bit') return this.bitIn
-    if (id === 'dly') return this.dlyIn
-    return this.wobIn
+    if (id === 'wob') return this.wobIn
+    if (id === 'phs') return this.phsIn
+    return this.chpIn
   }
 
   private pedalOut(id: PedalId) {
     if (id === 'eq') return this.eqOut
-    if (id === 'bit') return this.bitOut
-    if (id === 'dly') return this.dlyOut
-    return this.wobOut
+    if (id === 'wob') return this.wobOut
+    if (id === 'phs') return this.phsOut
+    return this.chpOut
   }
 
   connectChain() {
@@ -367,7 +342,11 @@ export class VoxelRadioEngine {
 
   pedalAmount(id: PedalId) {
     if (id === 'eq') return num('radio.eq', num('radio.filter', 0))
-    return num(`radio.${id}`, 0)
+    const v = num(`radio.${id}`, NaN)
+    if (!isNaN(v)) return v
+    if (id === 'phs') return num('radio.bit', 0)
+    if (id === 'chp') return num('radio.dly', 0)
+    return 0
   }
 
   setPedal(id: PedalId, v: number) {
@@ -387,18 +366,18 @@ export class VoxelRadioEngine {
       this.applyEq(v)
       return
     }
-    if (id === 'bit') {
-      this.bitAmt = v
-      this.applyBit(v)
+    if (id === 'wob') {
+      this.wobAmt = v
+      this.applyWob(v)
       return
     }
-    if (id === 'dly') {
-      this.dlyAmt = v
-      this.applyDly(v)
+    if (id === 'phs') {
+      this.phsAmt = v
+      this.applyPhs(v)
       return
     }
-    this.wobAmt = v
-    this.applyWob(v)
+    this.chpAmt = v
+    this.applyChp(v)
   }
 
   addPedal(id: PedalId) {
