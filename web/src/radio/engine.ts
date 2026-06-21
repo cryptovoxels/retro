@@ -416,9 +416,10 @@ export class VoxelRadioEngine {
     this.setTrackVolume(num('radio.track', 1))
     this.setSpotVolume(num('radio.spot', 1))
     this.chain = loadChain()
-    this.wobBypass = localStorage.getItem('radio.wobOff') !== '0'
+    this.wobBypass = true
+    this.fx = { eq: 0, wob: 0, dly: 0, chp: 0 }
     for (const id of PEDALS) this.applyPedal(id, 0)
-    if (this.wobBypass) this.applyWob(0, 0, 0, 0)
+    this.applyWob(0, 0, 0, 0)
     this.connectChain()
   }
 
@@ -445,9 +446,6 @@ export class VoxelRadioEngine {
 
   setWobBypass(off: boolean) {
     this.wobBypass = off
-    try {
-      localStorage.setItem('radio.wobOff', off ? '1' : '0')
-    } catch {}
     if (off) {
       this.wobX = 0
       this.wobY = 0
