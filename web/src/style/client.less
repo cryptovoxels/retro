@@ -137,9 +137,30 @@ button.iconish {
   }
 }
 
+.UserInterface aside:not(.ui-toggle-mobile) {
+  @media screen and (max-width: 799px), screen and (max-height: 449px) {
+    &[data-active='false'] {
+      & > ul.ui-sidebar {
+        transform: translateX(-100%);
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      div.chat {
+        visibility: hidden;
+        pointer-events: none;
+      }
+    }
+  }
+}
+
 .UserInterface aside {
   @width: 8rem;
-  position: relative;
+  width: @width;
+  position: fixed;
+  top: 0;
+  left: 0;
+  bottom: 0;
 
   & > ul {
     height: 100vh;
@@ -250,13 +271,21 @@ button.iconish {
 
 /* Chat */
 .UserInterface div.chat {
-  position: absolute;
+  position: fixed;
   bottom: 0;
   left: 0;
+  z-index: 100;
+  color: #f5f5f0;
   margin: 0 0 4px 0;
   padding: 4px;
   display: flex;
   flex-direction: column;
+  pointer-events: none;
+
+  form,
+  .chat-messages {
+    pointer-events: auto;
+  }
 
   .chat-messages {
     display: flex;
@@ -2427,6 +2456,7 @@ div.NearbyPlayers {
 
 /* Minimap corner controls */
 .minimap-corner-controls {
+  position: fixed;
   bottom: calc(15vw - 26px);
   right: 4px;
   z-index: 10;
