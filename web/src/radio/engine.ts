@@ -61,7 +61,7 @@ function save(key: string, v: number) {
 function loadChain(): PedalId[] {
   try {
     const raw = localStorage.getItem('radio.chain')
-    if (!raw) return ['eq', 'bit', 'dly', 'wob']
+    if (!raw) return ['eq', 'wob', 'dly', 'bit']
     const chain = JSON.parse(raw) as string[]
     if (!Array.isArray(chain)) return ['eq']
     return chain.map((id) => LEGACY_PEDAL[id] ?? id).filter((id) => PEDALS.includes(id as PedalId)) as PedalId[]
@@ -136,8 +136,13 @@ export class VoxelRadioEngine {
 
   wobAmt = 0
   bitAmt = 0
+  dlyAmt = 0
   fxBytes = new Uint8Array(128)
   fxWatch: ReturnType<typeof setInterval> | null = null
+
+  private glide(param: AudioParam, val: number, s = 0.03) {
+    param.setTargetAtTime(val, this.ctx.currentTime, s)
+  }
 
   chain: PedalId[] = ['eq']
 
@@ -241,31 +246,62 @@ export class VoxelRadioEngine {
   }
 
   private pumpFx() {
-    if (this.wobAmt < 0.04 && this.bitAmt < 0.04) return
+    if (this.wobAmt < 0.04 && this.bitAmt < 0.04 && this.dlyAmt < 0.06) return
     this.analyser.getByteFrequencyData(this.fxBytes)
     let bass = 0
+    let mid = 0
     for (let i = 0; i < 6; i++) bass += this.fxBytes[i]
+    for (let i = 8; i < 22; i++) mid += this.fxBytes[i]
     bass /= 6 * 255
+    mid /= 14 * 255
     if (this.wobAmt > 0.04) this.applyWob(this.wobAmt, bass)
     if (this.bitAmt > 0.04) this.applyBit(this.bitAmt, bass)
+    if (this.dlyAmt > 0.06) this.applyDly(this.dlyAmt, mid)
   }
 
   private applyBit(v: number, bass = 0) {
-    const t = v * v
-    this.bitWet.gain.value = v * 0.95
-    this.bitDry.gain.value = 1 - v * 0.9
-    this.bitPre.gain.value = 1 + t * 3 + bass * v * 1.5
-    this.bitTone.frequency.value = 500 + (1 - v) * 7500
+    const t = Math.pow(v, 1.4)
+    this.glide(this.bitWet.gain, v * 0.95, 0.02)
+    this.glide(this.bitDry.gain, 1 - v * 0.92, 0.02)
+    this.glide(this.bitPre.gain, 1 + t * 4 + bass * v * 2, 0.03)
+    this.glide(this.bitTone.frequency, 400 + (1 - v) * 8000, 0.04)
     if (v > 0) this.bitShape.curve = bitCurve(v)
   }
 
   private applyWob(v: number, bass = 0) {
-    const t = v * v
-    const now = this.ctx.currentTime
-    this.wobFilter.frequency.value = 500 + (1 - t) * 16000
-    this.wobFilter.Q.value = 0.7 + t * 15
-    this.wobLfoGain.gain.setTargetAtTime(t * 2600 + bass * v * 1400, now, 0.04)
-    this.wobLfo.frequency.setTargetAtTime(1.2 + t * 3.5 + bass * 3, now, 0.05)
+    const t = Math.pow(v, 1.3)
+    this.glide(this.wobFilter.frequency, 400 + (1 - t) * 17000, 0.04)
+    this.glide(this.wobFilter.Q, 1 + t * 18, 0.03)
+    this.glide(this.wobLfoGain.gain, t * 3000 + bass * v * 1800, 0.035)
+    this.glide(this.wobLfo.frequency, 1 + t * 4 + bass * 3.5, 0.04)
+  }
+
+  private applyDly(v: number, mid = 0) {
+    const t = 1 - Math.pow(1 - v, 1.5)
+    const times = [0.14, 0.22, 0.33, 0.44]
+    const slot = v * (times.length - 0.001)
+    const i = Math.min(times.length - 2, Math.floor(slot))
+    const time = times[i] + (times[i + 1] - times[i]) * (slot - i)
+    this.glide(this.dlyWet.gain, t * 0.8, 0.025)
+    this.glide(this.dlyDry.gain, 1 - t * 0.45, 0.025)
+    this.glide(this.dlyFb.gain, t * 0.55 + mid * v * 0.25, 0.03)
+    this.glide(this.dlyNode.delayTime, time, 0.04)
+  }
+
+  private applyEq(v: number) {
+    const a = Math.abs(v)
+    const t = a * a
+    if (v < 0) {
+      this.eqFilter.type = 'lowpass'
+      this.glide(this.eqFilter.frequency, 20000 * Math.pow(180 / 20000, t), 0.025)
+    } else if (v > 0) {
+      this.eqFilter.type = 'highpass'
+      this.glide(this.eqFilter.frequency, 20 * Math.pow(6000 / 20, t), 0.025)
+    } else {
+      this.eqFilter.type = 'lowpass'
+      this.glide(this.eqFilter.frequency, 20000, 0.02)
+    }
+    this.glide(this.eqFilter.Q, 2 + t * 18, 0.02)
   }
 
   private pedalIn(id: PedalId) {
@@ -344,15 +380,7 @@ export class VoxelRadioEngine {
 
   private applyPedal(id: PedalId, v: number) {
     if (id === 'eq') {
-      const a = Math.abs(v)
-      if (v < 0) {
-        this.eqFilter.type = 'lowpass'
-        this.eqFilter.frequency.value = 20000 * Math.pow(300 / 20000, a)
-      } else {
-        this.eqFilter.type = 'highpass'
-        this.eqFilter.frequency.value = 20 * Math.pow(5000 / 20, a)
-      }
-      this.eqFilter.Q.value = a * 6
+      this.applyEq(v)
       return
     }
     if (id === 'bit') {
@@ -361,10 +389,8 @@ export class VoxelRadioEngine {
       return
     }
     if (id === 'dly') {
-      this.dlyWet.gain.value = v * 0.55
-      this.dlyDry.gain.value = 1 - v * 0.25
-      this.dlyFb.gain.value = v * 0.42
-      this.dlyNode.delayTime.value = 0.15 + v * 0.35
+      this.dlyAmt = v
+      this.applyDly(v)
       return
     }
     this.wobAmt = v
