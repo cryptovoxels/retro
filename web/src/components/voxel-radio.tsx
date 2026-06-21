@@ -48,23 +48,87 @@ const arc = (to: number) => {
 }
 const FULL = arc(A0 + SPAN)
 
-type KnobProps = { label: string; min: number; max: number; step: number; value: number; compact?: boolean; onWake?: () => void; onChange: (v: number) => void }
+type KnobProps = { label: string; min: number; max: number; step: number; value: number; compact?: boolean; onWake?: () => void; onOff?: () => void; onChange: (v: number) => void }
 
-type KaossProps = { label: string; x: number; y: number; onWake?: () => void; onChange: (x: number, y: number) => void }
+type KaossProps = {
+  label: string
+  x: number
+  y: number
+  off?: boolean
+  live?: boolean
+  level?: () => number
+  onWake?: () => void
+  onOff?: () => void
+  onChange: (x: number, y: number) => void
+}
+
+const KCOLS = 8
+const KROWS = 8
+const KDOTS = KCOLS * KROWS
+
+const FxSw = ({ live, title, onTap }: { live: boolean; title: string; onTap: () => void }) => (
+  <button
+    type="button"
+    class={`vr-fx-sw${live ? ' live' : ''}`}
+    title={title}
+    onPointerDown={(e) => e.stopPropagation()}
+    onClick={(e) => {
+      e.stopPropagation()
+      onTap()
+    }}
+  />
+)
 
 class KaossPad extends Component<KaossProps> {
   pad = createRef<HTMLDivElement>()
   dots: HTMLSpanElement[] = []
+  held = false
+  over = false
+  idleT = 0
+  raf = 0
 
-  down = (e: PointerEvent) => {
-    e.preventDefault()
-    this.props.onWake?.()
-    this.drag(e)
-    window.addEventListener('pointermove', this.drag)
-    window.addEventListener('pointerup', this.up)
+  componentDidMount() {
+    this.loop()
   }
 
-  drag = (e: PointerEvent) => {
+  componentWillUnmount() {
+    if (this.raf) cancelAnimationFrame(this.raf)
+  }
+
+  loop = () => {
+    this.raf = requestAnimationFrame(this.loop)
+    if (this.props.off) {
+      this.dim()
+      return
+    }
+    if (this.over || this.held) return
+    this.idleT += 0.016
+    const lvl = this.props.level?.() ?? 0
+    const orbit = 0.12 + lvl * 0.38
+    const x = Math.sin(this.idleT * 1.15) * orbit
+    const y = Math.cos(this.idleT * 0.92) * orbit
+    this.light(x, y, 0.07 + lvl * 0.42)
+  }
+
+  enter = () => {
+    if (this.props.off) return
+    this.over = true
+    this.props.onWake?.()
+  }
+
+  down = (e: PointerEvent) => {
+    if (this.props.off) return
+    e.preventDefault()
+    this.held = true
+    this.props.onWake?.()
+    try {
+      this.pad.current?.setPointerCapture(e.pointerId)
+    } catch {}
+    this.move(e)
+  }
+
+  move = (e: PointerEvent) => {
+    if (this.props.off) return
     const el = this.pad.current
     if (!el) return
     const r = el.getBoundingClientRect()
@@ -74,34 +138,60 @@ class KaossPad extends Component<KaossProps> {
     this.props.onChange(x, y)
   }
 
-  up = () => {
-    window.removeEventListener('pointermove', this.drag)
-    window.removeEventListener('pointerup', this.up)
-    this.light(0, 0)
+  up = (e: PointerEvent) => {
+    this.held = false
+    try {
+      this.pad.current?.releasePointerCapture(e.pointerId)
+    } catch {}
+    this.reset()
+  }
+
+  leave = () => {
+    this.over = false
+    if (this.held) return
+    this.reset()
+  }
+
+  reset = () => {
     this.props.onChange(0, 0)
   }
 
-  light(x: number, y: number) {
-    const amt = Math.min(1, Math.hypot(x, y))
+  light(x: number, y: number, boost = 0) {
+    const amt = Math.min(1, Math.max(Math.hypot(x, y), boost))
     for (let i = 0; i < this.dots.length; i++) {
       const dot = this.dots[i]
       if (!dot) continue
-      const col = i % 5
-      const row = Math.floor(i / 5)
-      const dx = x - (col / 2 - 1) * 0.55
-      const dy = y - (1 - row / 2) * 0.55
+      const col = i % KCOLS
+      const row = Math.floor(i / KCOLS)
+      const dx = x - ((col / (KCOLS - 1)) * 2 - 1) * 0.55
+      const dy = y - ((1 - row / (KROWS - 1)) * 2 - 1) * 0.55
       const d = Math.hypot(dx, dy)
-      const on = Math.max(0, 1 - d * 1.35) * (0.15 + amt * 0.85)
+      const on = Math.max(0, 1 - d * 1.45) * (0.12 + amt * 0.88)
       dot.style.opacity = String(on)
     }
   }
 
+  dim = () => {
+    for (const dot of this.dots) {
+      if (dot) dot.style.opacity = '0.06'
+    }
+  }
+
   render() {
-    const { label } = this.props
+    const { label, off, live } = this.props
     return (
-      <div class="vr-kaoss" ref={this.pad} onPointerDown={this.down} title={label}>
-        <div class="vr-kaoss-grid">
-          {Array.from({ length: 15 }, (_, i) => (
+      <div class={`vr-kaoss${off ? ' bypassed' : ''}`}>
+        <div
+          class="vr-kaoss-grid"
+          ref={this.pad}
+          onPointerEnter={this.enter}
+          onPointerMove={this.move}
+          onPointerLeave={this.leave}
+          onPointerDown={this.down}
+          onPointerUp={this.up}
+          title={label}
+        >
+          {Array.from({ length: KDOTS }, (_, i) => (
             <span
               key={i}
               ref={(el) => {
@@ -110,7 +200,10 @@ class KaossPad extends Component<KaossProps> {
             />
           ))}
         </div>
-        <span class="vr-dial-label">{label}</span>
+        <div class="vr-dial-foot">
+          <span class="vr-dial-label">{label}</span>
+          <FxSw live={!!live} title={off ? 'turn on' : 'turn off'} onTap={() => this.props.onOff?.()} />
+        </div>
       </div>
     )
   }
@@ -140,9 +233,11 @@ class Knob extends Component<KnobProps> {
   }
 
   render() {
-    const { label, min, max, value, compact } = this.props
+    const { label, min, max, value, compact, onOff } = this.props
     const t = (value - min) / (max - min)
     const pct = compact ? Math.round(t * 100) : Math.round(value * 100)
+    const offVal = min < 0 ? 0 : min
+    const isOff = Math.abs(value - offVal) < 0.02
     return (
       <div class={`vr-knob${compact ? ' mini' : ''}`} onPointerDown={this.down} title={label}>
         <svg viewBox="0 0 32 32">
@@ -152,7 +247,12 @@ class Knob extends Component<KnobProps> {
         </svg>
         {!compact && <span class="vr-knob-val">{pct}</span>}
         {!compact && <label>{label}</label>}
-        {compact && <span class="vr-dial-label">{label}</span>}
+        {compact && (
+          <div class="vr-dial-foot">
+            <span class="vr-dial-label">{label}</span>
+            {onOff && <FxSw live={!isOff} title="turn off" onTap={onOff} />}
+          </div>
+        )}
       </div>
     )
   }
@@ -335,6 +435,11 @@ export default class VoxelRadio extends Component<Props, State> {
               step={0.03}
               value={id === 'vol' ? r.trackVolume : r.pedalAmount(id)}
               onWake={() => r.wake()}
+              onOff={() => {
+                if (id === 'vol') r.setTrackVolume(0)
+                else r.setPedal(id, 0)
+                this.forceUpdate()
+              }}
               onChange={(v) => {
                 if (id === 'vol') r.setTrackVolume(v)
                 else r.setPedal(id, v)
@@ -348,7 +453,14 @@ export default class VoxelRadio extends Component<Props, State> {
             label="wob"
             x={r.wobX}
             y={r.wobY}
+            off={r.wobBypass}
+            live={!r.wobBypass && r.wobAmt > 0.02}
+            level={() => r.readLevel()}
             onWake={() => r.wake()}
+            onOff={() => {
+              r.setWobBypass(!r.wobBypass)
+              this.forceUpdate()
+            }}
             onChange={(x, y) => {
               r.setWobPad(x, y)
               this.forceUpdate()
