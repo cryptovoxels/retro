@@ -3,6 +3,8 @@
 // data for future shaders), but render it stylistically as chill, dark
 // blue/purple sine waves rather than a literal spectrogram.
 
+import { isIOS } from '../../../common/helpers/detector'
+
 const BANDS = 6
 const STEPS = 512
 
@@ -13,6 +15,14 @@ vec3 palette(int i) {
   if (i == 2) return vec3(0.32, 0.24, 0.58);
   if (i == 3) return vec3(0.22, 0.30, 0.60);
   if (i == 4) return vec3(0.40, 0.28, 0.62);
+  return vec3(0.20, 0.34, 0.58);
+}
+vec3 paletteBand(float b) {
+  if (b < 0.5) return vec3(0.18, 0.20, 0.45);
+  if (b < 1.5) return vec3(0.24, 0.20, 0.52);
+  if (b < 2.5) return vec3(0.32, 0.24, 0.58);
+  if (b < 3.5) return vec3(0.22, 0.30, 0.60);
+  if (b < 4.5) return vec3(0.40, 0.28, 0.62);
   return vec3(0.20, 0.34, 0.58);
 }
 `
@@ -160,7 +170,7 @@ void main() {
   pulse *= step(0.35, lvl + 0.15 * sin(time * 2.0 + cell.x * 0.7));
   vec3 col = vec3(0.04, 0.05, 0.09);
   if (pulse > 0.5) {
-    vec3 c = palette(int(band));
+    vec3 c = paletteBand(band);
     float edge = step(0.92, fract(vUV.x * 20.0)) + step(0.92, fract(vUV.y * 12.0));
     col = c * (0.5 + lvl * 0.6) * (1.0 - edge * 0.35);
   }
@@ -168,11 +178,94 @@ void main() {
 }`,
 ]
 
-export type Visualiser = { dispose: () => void; shuffle: () => void }
+export type Visualiser = { dispose: () => void; shuffle: () => void; alive: () => boolean }
+
+function fitCanvas(canvas: HTMLCanvasElement) {
+  const r = canvas.getBoundingClientRect()
+  let w = Math.floor(r.width)
+  let h = Math.floor(r.height)
+  if (w < 1) w = Math.floor(canvas.clientWidth) || 200
+  if (h < 1) h = Math.floor(canvas.clientHeight) || 56
+  const dpr = Math.min(window.devicePixelRatio || 1, isIOS() ? 1.5 : 2)
+  canvas.width = Math.max(1, Math.floor(w * dpr))
+  canvas.height = Math.max(1, Math.floor(h * dpr))
+}
+
+const PAL = [
+  [0.18, 0.2, 0.45],
+  [0.24, 0.2, 0.52],
+  [0.32, 0.24, 0.58],
+  [0.22, 0.3, 0.6],
+  [0.4, 0.28, 0.62],
+  [0.2, 0.34, 0.58],
+]
+
+function startCanvas2D(canvas: HTMLCanvasElement, analyser: AnalyserNode): Visualiser {
+  const noop = { dispose: () => {}, shuffle: () => {}, alive: () => false }
+  fitCanvas(canvas)
+  const ctx = canvas.getContext('2d')
+  if (!ctx || canvas.width < 1) return noop
+
+  const bytes = new Uint8Array(analyser.frequencyBinCount)
+  const lvls = new Float32Array(BANDS)
+  let t = 0
+  let raf = 0
+  let dead = false
+
+  const tick = () => {
+    if (dead) return
+    t += 0.016
+    analyser.getByteFrequencyData(bytes)
+    const n = bytes.length
+    for (let i = 0; i < BANDS; i++) {
+      const start = Math.floor(Math.pow(n, i / BANDS))
+      const end = Math.max(start + 1, Math.floor(Math.pow(n, (i + 1) / BANDS)))
+      let max = 0
+      for (let j = start; j < end && j < n; j++) if (bytes[j] > max) max = bytes[j]
+      lvls[i] = Math.min(1, (max / 255) * (1 + i * 0.5))
+    }
+
+    const w = canvas.width
+    const h = canvas.height
+    ctx.fillStyle = '#0a0b12'
+    ctx.fillRect(0, 0, w, h)
+
+    for (let i = 0; i < BANDS; i++) {
+      const lvl = lvls[i]
+      const [r, g, b] = PAL[i]
+      const base = 0.13 * i
+      ctx.strokeStyle = `rgba(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)},${0.35 + lvl * 0.5})`
+      ctx.lineWidth = Math.max(1, w / 180)
+      ctx.beginPath()
+      for (let x = 0; x <= w; x += 2) {
+        const u = x / w
+        const wave = base + lvl * 0.1 * Math.sin(u * 9 + t * 1.1 + i * 1.7)
+        const y = (1 - wave) * h
+        if (x === 0) ctx.moveTo(x, y)
+        else ctx.lineTo(x, y)
+      }
+      ctx.stroke()
+    }
+    raf = requestAnimationFrame(tick)
+  }
+
+  raf = requestAnimationFrame(tick)
+  return {
+    alive: () => !dead,
+    shuffle: () => {},
+    dispose: () => {
+      dead = true
+      cancelAnimationFrame(raf)
+    },
+  }
+}
 
 export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNode, mode = 0): Visualiser {
-  const noop = { dispose: () => {}, shuffle: () => {} }
-  if (!BABYLON.Engine.isSupported()) return noop
+  const noop = { dispose: () => {}, shuffle: () => {}, alive: () => false }
+  if (!BABYLON.Engine.isSupported()) return startCanvas2D(canvas, analyser)
+
+  fitCanvas(canvas)
+  if (canvas.width < 2 || canvas.height < 2) return noop
 
   let engine: BABYLON.Engine
   try {
@@ -180,12 +273,28 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
       preserveDrawingBuffer: false,
       antialias: false,
       stencil: false,
+      disableWebGL2Support: isIOS(),
+      doNotHandleContextLost: true,
     })
   } catch {
-    return noop
+    return startCanvas2D(canvas, analyser)
   }
   const scene = new BABYLON.Scene(engine)
+  scene.clearColor = new BABYLON.Color4(0.04, 0.05, 0.09, 1)
   const camera = new BABYLON.FreeCamera('viz-cam', new BABYLON.Vector3(0, 0, -1), scene)
+  camera.minZ = 0.01
+  scene.activeCamera = camera
+
+  const plane = BABYLON.MeshBuilder.CreatePlane('viz-bg', { size: 2 }, scene)
+  plane.isPickable = false
+  const bg = new BABYLON.StandardMaterial('viz-bg-m', scene)
+  bg.disableLighting = true
+  bg.emissiveColor = new BABYLON.Color3(0.04, 0.05, 0.09)
+  bg.backFaceCulling = false
+  plane.material = bg
+  plane.freezeWorldMatrix()
+
+  new BABYLON.PassPostProcess('viz-pass', 1, camera)
 
   const bytes = new Uint8Array(analyser.frequencyBinCount)
   const cur = new Uint8Array(BANDS)
@@ -223,6 +332,12 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
   }
 
   mount(curMode)
+  if (!pp) {
+    engine.dispose()
+    scene.dispose()
+    return startCanvas2D(canvas, analyser)
+  }
+  fitCanvas(canvas)
   engine.resize()
 
   const n = bytes.length
@@ -256,12 +371,16 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
     scene.render()
   })
 
-  const resize = () => engine.resize()
+  const resize = () => {
+    fitCanvas(canvas)
+    engine.resize()
+  }
   window.addEventListener('resize', resize, { passive: true })
   const ro = new ResizeObserver(resize)
-  ro.observe(canvas as any)
+  ro.observe(canvas)
 
   return {
+    alive: () => true,
     shuffle,
     dispose: () => {
       window.removeEventListener('resize', resize)

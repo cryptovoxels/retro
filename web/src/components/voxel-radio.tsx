@@ -111,6 +111,8 @@ export default class VoxelRadio extends Component<Props, State> {
     this.radio.start()
     this.syncViz()
     this.tick = setInterval(() => this.forceUpdate(), 1000)
+    setTimeout(() => this.syncViz(), 100)
+    setTimeout(() => this.syncViz(), 400)
   }
 
   componentDidUpdate(_prevProps: Props, prevState: State) {
@@ -130,19 +132,32 @@ export default class VoxelRadio extends Component<Props, State> {
     if (want && this.canvas.current && this.radio && !this.viz) {
       const canvas = this.canvas.current
       const analyser = this.radio.analyser
+      let tries = 0
       const go = () => {
         if (!this.canvas.current || this.viz) return
-        if (canvas.clientWidth < 1 || canvas.clientHeight < 1) {
+        tries++
+        const r = canvas.getBoundingClientRect()
+        if ((r.width < 1 || r.height < 1) && tries < 120) {
           requestAnimationFrame(go)
           return
         }
         this.viz = startVisualiser(canvas, analyser, 0)
+        if (!this.viz.alive()) {
+          this.viz.dispose()
+          this.viz = null
+          if (tries < 120) requestAnimationFrame(go)
+        }
       }
       requestAnimationFrame(go)
     } else if (!want && this.viz) {
       this.viz.dispose()
       this.viz = null
     }
+  }
+
+  wakeViz = () => {
+    this.radio?.wake()
+    if (this.state.viz === 'open' && !this.viz) this.syncViz()
   }
 
   shuffleViz = () => {
@@ -312,7 +327,7 @@ export default class VoxelRadio extends Component<Props, State> {
 
     return (
       <div class={`voxel-radio-wrap${this.props.popped ? ' popped' : ''}${pl === 'open' ? ' pl-open' : ''}`}>
-        <div class={`voxel-radio${onAir ? ' on-air' : ''}${compact ? ' compact' : ''}`} onPointerDown={() => this.radio?.wake()}>
+        <div class={`voxel-radio${onAir ? ' on-air' : ''}${compact ? ' compact' : ''}`} onPointerDown={this.wakeViz}>
           <div class="vr-stack">
             <div class="vr-main">
               {compact ? (
