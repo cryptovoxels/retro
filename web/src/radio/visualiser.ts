@@ -115,7 +115,19 @@ void main() {
 export type Visualiser = { dispose: () => void; shuffle: () => void }
 
 export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNode, mode = 0): Visualiser {
-  const engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: false })
+  const noop = { dispose: () => {}, shuffle: () => {} }
+  if (!BABYLON.Engine.isSupported()) return noop
+
+  let engine: BABYLON.Engine
+  try {
+    engine = new BABYLON.Engine(canvas, true, {
+      preserveDrawingBuffer: false,
+      antialias: false,
+      stencil: false,
+    })
+  } catch {
+    return noop
+  }
   const scene = new BABYLON.Scene(engine)
   const camera = new BABYLON.FreeCamera('viz-cam', new BABYLON.Vector3(0, 0, -1), scene)
 
@@ -133,10 +145,14 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
     const name = `vizradio${curMode}`
     BABYLON.Effect.ShadersStore[`${name}PixelShader`] = SHADERS[curMode]
     pp?.dispose()
-    pp = new BABYLON.PostProcess(name, name, ['time'], ['bins'], 1.0, camera)
-    pp.onApply = (effect: any) => {
-      effect.setTexture('bins', tex)
-      effect.setFloat('time', t)
+    try {
+      pp = new BABYLON.PostProcess(name, name, ['time'], ['bins'], 1.0, camera)
+      pp.onApply = (effect: any) => {
+        effect.setTexture('bins', tex)
+        effect.setFloat('time', t)
+      }
+    } catch {
+      pp = null
     }
   }
 
@@ -148,6 +164,7 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
   }
 
   mount(curMode)
+  engine.resize()
 
   const n = bytes.length
 
