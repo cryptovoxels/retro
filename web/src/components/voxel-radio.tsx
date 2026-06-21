@@ -418,7 +418,7 @@ export default class VoxelRadio extends Component<Props, State> {
     return (
       <>
         {dials.map(({ id, label, min, max }) => (
-          <div class="vr-dial" key={id}>
+          <div class={`vr-dial${id !== 'vol' && !r.fxOn(id as PedalId) ? ' fx-off' : ''}`} key={id}>
             <div class="vr-dial-body">
               <Knob
                 compact
@@ -450,7 +450,7 @@ export default class VoxelRadio extends Component<Props, State> {
             </div>
           </div>
         ))}
-        <div class={`vr-dial vr-dial-pad${r.wobBypass ? ' bypassed' : ''}`} key="wob">
+        <div class={`vr-dial vr-dial-pad${r.wobBypass ? ' fx-off' : ''}`} key="wob">
           <KaossPad
             label="wob"
             x={r.wobX}
