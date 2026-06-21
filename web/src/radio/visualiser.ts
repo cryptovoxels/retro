@@ -24,7 +24,7 @@ uniform sampler2D bins;
 uniform float time;
 ${PALETTE}
 float vox(float v, float steps) { return floor(v * steps) / steps; }
-vec2 vox2(vec2 p, float steps) { return floor(p * steps) / steps; }
+vec2 vox2(vec2 p, vec2 steps) { return floor(p * steps) / steps; }
 `
 
 const SHADERS = [
@@ -197,18 +197,21 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
   let t = 0
 
   const mount = (idx: number) => {
-    curMode = ((idx % SHADERS.length) + SHADERS.length) % SHADERS.length
-    const name = `vizradio${curMode}`
-    BABYLON.Effect.ShadersStore[`${name}PixelShader`] = SHADERS[curMode]
-    pp?.dispose()
+    const next = ((idx % SHADERS.length) + SHADERS.length) % SHADERS.length
+    const name = `vizradio${next}`
+    BABYLON.Effect.ShadersStore[`${name}PixelShader`] = SHADERS[next]
+    const prev = pp
     try {
-      pp = new BABYLON.PostProcess(name, name, ['time'], ['bins'], 1.0, camera)
-      pp.onApply = (effect: any) => {
+      const nextPp = new BABYLON.PostProcess(name, name, ['time'], ['bins'], 1.0, camera)
+      nextPp.onApply = (effect: any) => {
         effect.setTexture('bins', tex)
         effect.setFloat('time', t)
       }
+      curMode = next
+      prev?.dispose()
+      pp = nextPp
     } catch {
-      pp = null
+      pp = prev
     }
   }
 
