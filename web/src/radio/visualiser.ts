@@ -136,38 +136,73 @@ const PAL = [
   [0.2, 0.34, 0.58],
 ]
 
+function readBands(analyser: AnalyserNode, bytes: Uint8Array, lvls: Float32Array, td: Uint8Array, t: number) {
+  analyser.getByteFrequencyData(bytes)
+  const n = bytes.length
+  let sum = 0
+  for (let i = 0; i < BANDS; i++) {
+    const start = Math.floor(Math.pow(n, i / BANDS))
+    const end = Math.max(start + 1, Math.floor(Math.pow(n, (i + 1) / BANDS)))
+    let max = 0
+    for (let j = start; j < end && j < n; j++) if (bytes[j] > max) max = bytes[j]
+    lvls[i] = Math.min(1, (max / 255) * (1.2 + i * 0.35))
+    sum += max
+  }
+  if (sum > 8) return
+
+  // ios safari: fft often stays zero on MediaElementSource; waveform still moves
+  analyser.getByteTimeDomainData(td)
+  let rms = 0
+  for (let i = 0; i < td.length; i++) {
+    const v = (td[i] - 128) / 128
+    rms += v * v
+  }
+  rms = Math.sqrt(rms / td.length)
+  const amp = Math.min(1, rms * 5)
+  for (let i = 0; i < BANDS; i++) {
+    const wobble = 0.55 + 0.45 * Math.sin(i * 2.1 + t * 2.8)
+    lvls[i] = Math.max(lvls[i], amp * wobble)
+  }
+}
+
 function startCanvas2D(canvas: HTMLCanvasElement, analyser: AnalyserNode): Visualiser {
   const noop = { dispose: () => {}, shuffle: () => {}, alive: () => false }
   fitCanvas(canvas)
-  const ctx = canvas.getContext('2d')
+  const ctx = canvas.getContext('2d', { alpha: false })
   if (!ctx || canvas.width < 1) return noop
 
   const bytes = new Uint8Array(analyser.frequencyBinCount)
+  const td = new Uint8Array(analyser.fftSize)
   const lvls = new Float32Array(BANDS)
   let t = 0
   let raf = 0
   let dead = false
 
+  const resize = () => fitCanvas(canvas)
+  window.addEventListener('resize', resize, { passive: true })
+  const ro = new ResizeObserver(resize)
+  if (canvas.parentElement) ro.observe(canvas.parentElement)
+
   const tick = () => {
     if (dead) return
     t += 0.016
-    analyser.getByteFrequencyData(bytes)
-    const n = bytes.length
-    for (let i = 0; i < BANDS; i++) {
-      const start = Math.floor(Math.pow(n, i / BANDS))
-      const end = Math.max(start + 1, Math.floor(Math.pow(n, (i + 1) / BANDS)))
-      let max = 0
-      for (let j = start; j < end && j < n; j++) if (bytes[j] > max) max = bytes[j]
-      lvls[i] = Math.min(1, (max / 255) * (1 + i * 0.5))
-    }
+    readBands(analyser, bytes, lvls, td, t)
+    let sum = 0
+    for (let i = 0; i < BANDS; i++) sum += lvls[i]
+    const hasAudio = sum > 0.04
 
     const w = canvas.width
     const h = canvas.height
+    if (w < 1 || h < 1) {
+      raf = requestAnimationFrame(tick)
+      return
+    }
     ctx.fillStyle = '#0a0b12'
     ctx.fillRect(0, 0, w, h)
 
     for (let i = 0; i < BANDS; i++) {
-      const lvl = lvls[i]
+      const idle = 0.06 + 0.03 * Math.sin(t * 0.8 + i * 1.3)
+      const lvl = hasAudio ? lvls[i] : idle
       const [r, g, b] = PAL[i]
       const base = 0.13 * i
       ctx.strokeStyle = `rgba(${Math.round(r * 255)},${Math.round(g * 255)},${Math.round(b * 255)},${0.35 + lvl * 0.5})`
@@ -175,7 +210,7 @@ function startCanvas2D(canvas: HTMLCanvasElement, analyser: AnalyserNode): Visua
       ctx.beginPath()
       for (let x = 0; x <= w; x += 2) {
         const u = x / w
-        const wave = base + lvl * 0.1 * Math.sin(u * 9 + t * 1.1 + i * 1.7)
+        const wave = base + lvl * 0.22 * Math.sin(u * 9 + t * 1.1 + i * 1.7)
         const y = (1 - wave) * h
         if (x === 0) ctx.moveTo(x, y)
         else ctx.lineTo(x, y)
@@ -191,6 +226,8 @@ function startCanvas2D(canvas: HTMLCanvasElement, analyser: AnalyserNode): Visua
     shuffle: () => {},
     dispose: () => {
       dead = true
+      window.removeEventListener('resize', resize)
+      ro.disconnect()
       cancelAnimationFrame(raf)
     },
   }
@@ -198,7 +235,9 @@ function startCanvas2D(canvas: HTMLCanvasElement, analyser: AnalyserNode): Visua
 
 export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNode, mode = 0): Visualiser {
   const noop = { dispose: () => {}, shuffle: () => {}, alive: () => false }
-  if (!BABYLON.Engine.isSupported()) return startCanvas2D(canvas, analyser)
+  // ios safari: babylon post-process init succeeds but renders black
+  if (isIOS()) return startCanvas2D(canvas, analyser)
+  if (typeof BABYLON === 'undefined' || !BABYLON.Engine.isSupported()) return startCanvas2D(canvas, analyser)
 
   fitCanvas(canvas)
   if (canvas.width < 2 || canvas.height < 2) return noop
@@ -233,6 +272,7 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
   new BABYLON.PassPostProcess('viz-pass', 1, camera)
 
   const bytes = new Uint8Array(analyser.frequencyBinCount)
+  const td = new Uint8Array(analyser.fftSize)
   const cur = new Uint8Array(BANDS)
   const data = new Uint8Array(STEPS * BANDS * 4)
   const tex = BABYLON.RawTexture.CreateRGBATexture(data, STEPS, BANDS, scene, false, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE)
@@ -276,17 +316,11 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
   fitCanvas(canvas)
   engine.resize()
 
-  const n = bytes.length
+  const lvls = new Float32Array(BANDS)
 
   function sample() {
-    analyser.getByteFrequencyData(bytes)
-    for (let i = 0; i < BANDS; i++) {
-      const start = Math.floor(Math.pow(n, i / BANDS))
-      const end = Math.max(start + 1, Math.floor(Math.pow(n, (i + 1) / BANDS)))
-      let max = 0
-      for (let j = start; j < end && j < n; j++) if (bytes[j] > max) max = bytes[j]
-      cur[i] = Math.min(255, Math.round(max * (1 + i * 0.5)))
-    }
+    readBands(analyser, bytes, lvls, td, t)
+    for (let i = 0; i < BANDS; i++) cur[i] = Math.min(255, Math.round(lvls[i] * 255))
   }
 
   function pushStep() {
@@ -313,7 +347,7 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
   }
   window.addEventListener('resize', resize, { passive: true })
   const ro = new ResizeObserver(resize)
-  ro.observe(canvas)
+  if (canvas.parentElement) ro.observe(canvas.parentElement)
 
   return {
     alive: () => true,

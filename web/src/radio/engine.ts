@@ -114,6 +114,7 @@ export class VoxelRadioEngine {
   phsAmt = 0
   chpAmt = 0
   fxBytes = new Uint8Array(128)
+  fxTd = new Uint8Array(256)
   fxWatch: ReturnType<typeof setInterval> | null = null
 
   private glide(param: AudioParam, val: number, s = 0.03) {
@@ -160,6 +161,9 @@ export class VoxelRadioEngine {
     this.spotVol = this.ctx.createGain()
     this.analyser = this.ctx.createAnalyser()
     this.analyser.fftSize = 256
+    this.analyser.smoothingTimeConstant = 0.55
+    this.analyser.minDecibels = -85
+    this.analyser.maxDecibels = -10
 
     this.eqIn = this.ctx.createGain()
     this.eqOut = this.ctx.createGain()
@@ -220,20 +224,33 @@ export class VoxelRadioEngine {
 
     this.trackVol.connect(this.duckGain)
     this.duckGain.connect(this.master)
-    this.master.connect(dest)
     this.master.connect(this.analyser)
+    this.analyser.connect(dest)
     this.spotVol.connect(this.master)
 
     this.loadSettings()
     this.fxWatch = setInterval(() => this.pumpFx(), 50)
   }
 
-  private pumpFx() {
-    if (this.wobAmt < 0.04 && this.phsAmt < 0.04 && this.chpAmt < 0.04) return
+  private readBass() {
     this.analyser.getByteFrequencyData(this.fxBytes)
     let bass = 0
     for (let i = 0; i < 6; i++) bass += this.fxBytes[i]
     bass /= 6 * 255
+    if (bass > 0.01) return bass
+
+    this.analyser.getByteTimeDomainData(this.fxTd)
+    let rms = 0
+    for (let i = 0; i < this.fxTd.length; i++) {
+      const v = (this.fxTd[i] - 128) / 128
+      rms += v * v
+    }
+    return Math.min(1, Math.sqrt(rms / this.fxTd.length) * 3)
+  }
+
+  private pumpFx() {
+    if (this.wobAmt < 0.04 && this.phsAmt < 0.04 && this.chpAmt < 0.04) return
+    const bass = this.readBass()
     if (this.wobAmt > 0.04) this.applyWob(this.wobAmt, bass)
     if (this.phsAmt > 0.04) this.applyPhs(this.phsAmt, bass)
     if (this.chpAmt > 0.04) this.applyChp(this.chpAmt, bass)
