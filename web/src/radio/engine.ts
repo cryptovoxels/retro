@@ -1,4 +1,7 @@
 import { MUSIC_URI, Track, trackTitle } from '../../../common/soundtracks'
+import { isIOS, isTablet } from '../../../common/helpers/detector'
+
+const appleTouch = () => isIOS() || isTablet()
 
 // Mirrors server/lib/radio.ts output (kept local: that lib is server-only).
 export interface Segment extends Track {
@@ -232,7 +235,31 @@ export class VoxelRadioEngine {
     this.fxWatch = setInterval(() => this.pumpFx(), 50)
   }
 
+  private ensureSource() {
+    if (this.source || !this.el) return
+    try {
+      this.source = this.ctx.createMediaElementSource(this.el)
+    } catch (e) {
+      console.error('[radio] media source failed', e)
+      return
+    }
+    this.hookTrack()
+  }
+
   private readBass() {
+    if (appleTouch()) {
+      this.analyser.getByteTimeDomainData(this.fxTd)
+      let peak = 0
+      let rms = 0
+      for (let i = 0; i < this.fxTd.length; i++) {
+        const v = (this.fxTd[i] - 128) / 128
+        const a = Math.abs(v)
+        if (a > peak) peak = a
+        rms += v * v
+      }
+      return Math.min(1, Math.max(Math.sqrt(rms / this.fxTd.length) * 10, peak * 3))
+    }
+
     this.analyser.getByteFrequencyData(this.fxBytes)
     let bass = 0
     for (let i = 0; i < 6; i++) bass += this.fxBytes[i]
@@ -440,8 +467,10 @@ export class VoxelRadioEngine {
     const reconnect = this.ctx.state !== 'running'
     const go = () => {
       if (!this.muted) this.master.gain.value = 1
+      this.ensureSource()
       this.refreshFx()
       if (reconnect) this.connectChain()
+      else if (this.source) this.hookTrack()
       this.el
         ?.play()
         .then(() => this.onChange?.())
@@ -503,13 +532,16 @@ export class VoxelRadioEngine {
     const dur = seg.duration || 0
     const t = dur > 0 ? Math.min(Math.max(0, offset), dur - 0.25) : Math.max(0, offset)
 
+    this.el = el
+    this.track = seg
+
     const start = () => {
       try {
         el.currentTime = t
       } catch {}
-      this.source = this.ctx.createMediaElementSource(el)
-      this.hookTrack()
       this.music.gain.value = seg.volume ?? 1
+      if (this.muted || this.ctx.state !== 'running') return
+      this.ensureSource()
       el.play()
         .then(() => this.onChange?.())
         .catch(() => {
@@ -534,8 +566,6 @@ export class VoxelRadioEngine {
       { once: true }
     )
 
-    this.el = el
-    this.track = seg
     this.onChange?.()
   }
 

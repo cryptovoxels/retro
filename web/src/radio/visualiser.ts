@@ -3,7 +3,9 @@
 // data for future shaders), but render it stylistically as chill, dark
 // blue/purple sine waves rather than a literal spectrogram.
 
-import { isIOS } from '../../../common/helpers/detector'
+import { isIOS, isTablet } from '../../../common/helpers/detector'
+
+const appleTouch = () => isIOS() || isTablet()
 
 const BANDS = 6
 const STEPS = 512
@@ -122,7 +124,7 @@ function fitCanvas(canvas: HTMLCanvasElement) {
   let h = Math.floor(r.height)
   if (w < 1) w = Math.floor(canvas.clientWidth) || 200
   if (h < 1) h = Math.floor(canvas.clientHeight) || 56
-  const dpr = Math.min(window.devicePixelRatio || 1, isIOS() ? 1.5 : 2)
+  const dpr = Math.min(window.devicePixelRatio || 1, appleTouch() ? 1.5 : 2)
   canvas.width = Math.max(1, Math.floor(w * dpr))
   canvas.height = Math.max(1, Math.floor(h * dpr))
 }
@@ -137,6 +139,25 @@ const PAL = [
 ]
 
 function readBands(analyser: AnalyserNode, bytes: Uint8Array, lvls: Float32Array, td: Uint8Array, t: number) {
+  if (appleTouch()) {
+    analyser.getByteTimeDomainData(td)
+    let peak = 0
+    let rms = 0
+    for (let i = 0; i < td.length; i++) {
+      const v = (td[i] - 128) / 128
+      const a = Math.abs(v)
+      if (a > peak) peak = a
+      rms += v * v
+    }
+    rms = Math.sqrt(rms / td.length)
+    const amp = Math.min(1, Math.max(rms * 10, peak * 3))
+    for (let i = 0; i < BANDS; i++) {
+      const wobble = 0.5 + 0.5 * Math.sin(i * 2.1 + t * 3.2)
+      lvls[i] = amp * wobble
+    }
+    return
+  }
+
   analyser.getByteFrequencyData(bytes)
   const n = bytes.length
   let sum = 0
@@ -150,15 +171,18 @@ function readBands(analyser: AnalyserNode, bytes: Uint8Array, lvls: Float32Array
   }
   if (sum > 8) return
 
-  // ios safari: fft often stays zero on MediaElementSource; waveform still moves
+  // safari desktop: fft can stay zero on MediaElementSource; waveform still moves
   analyser.getByteTimeDomainData(td)
+  let peak = 0
   let rms = 0
   for (let i = 0; i < td.length; i++) {
     const v = (td[i] - 128) / 128
+    const a = Math.abs(v)
+    if (a > peak) peak = a
     rms += v * v
   }
   rms = Math.sqrt(rms / td.length)
-  const amp = Math.min(1, rms * 5)
+  const amp = Math.min(1, Math.max(rms * 8, peak * 2.5))
   for (let i = 0; i < BANDS; i++) {
     const wobble = 0.55 + 0.45 * Math.sin(i * 2.1 + t * 2.8)
     lvls[i] = Math.max(lvls[i], amp * wobble)
@@ -189,7 +213,7 @@ function startCanvas2D(canvas: HTMLCanvasElement, analyser: AnalyserNode): Visua
     readBands(analyser, bytes, lvls, td, t)
     let sum = 0
     for (let i = 0; i < BANDS; i++) sum += lvls[i]
-    const hasAudio = sum > 0.04
+    const hasAudio = sum > 0.025
 
     const w = canvas.width
     const h = canvas.height
@@ -210,7 +234,7 @@ function startCanvas2D(canvas: HTMLCanvasElement, analyser: AnalyserNode): Visua
       ctx.beginPath()
       for (let x = 0; x <= w; x += 2) {
         const u = x / w
-        const wave = base + lvl * 0.22 * Math.sin(u * 9 + t * 1.1 + i * 1.7)
+        const wave = base + lvl * 0.35 * Math.sin(u * 9 + t * 1.1 + i * 1.7)
         const y = (1 - wave) * h
         if (x === 0) ctx.moveTo(x, y)
         else ctx.lineTo(x, y)
@@ -236,7 +260,7 @@ function startCanvas2D(canvas: HTMLCanvasElement, analyser: AnalyserNode): Visua
 export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNode, mode = 0): Visualiser {
   const noop = { dispose: () => {}, shuffle: () => {}, alive: () => false }
   // ios safari: babylon post-process init succeeds but renders black
-  if (isIOS()) return startCanvas2D(canvas, analyser)
+  if (appleTouch()) return startCanvas2D(canvas, analyser)
   if (typeof BABYLON === 'undefined' || !BABYLON.Engine.isSupported()) return startCanvas2D(canvas, analyser)
 
   fitCanvas(canvas)

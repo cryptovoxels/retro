@@ -156,6 +156,12 @@ export default class VoxelRadio extends Component<Props, State> {
     }
   }
 
+  restartViz = () => {
+    this.viz?.dispose()
+    this.viz = null
+    setTimeout(() => this.syncViz(), 80)
+  }
+
   tapViz = (e: Event) => {
     e.stopPropagation()
     const r = this.radio
@@ -163,16 +169,16 @@ export default class VoxelRadio extends Component<Props, State> {
     const stalled = r.muted || r.stalled
     if (stalled) this.transport()
     else this.wakeViz()
-    if (stalled) {
-      this.viz?.dispose()
-      this.viz = null
-      setTimeout(() => this.syncViz(), 80)
-    }
+    if (stalled) this.restartViz()
   }
 
   wakeViz = () => {
-    this.radio?.wake()
-    if (this.state.viz === 'open' && !this.viz) this.syncViz()
+    const r = this.radio
+    const needRestart = r && (r.ctx.state !== 'running' || r.stalled)
+    r?.wake()
+    if (this.state.viz !== 'open') return
+    if (needRestart) this.restartViz()
+    else if (!this.viz) this.syncViz()
   }
 
   shuffleViz = () => {
@@ -196,9 +202,11 @@ export default class VoxelRadio extends Component<Props, State> {
   transport = () => {
     const r = this.radio
     if (!r) return
-    if (r.muted || r.stalled) {
+    const stalled = r.muted || r.stalled
+    if (stalled) {
       if (r.muted) r.toggle()
       else r.wake()
+      if (this.state.viz === 'open') this.restartViz()
     } else {
       r.toggle()
     }
