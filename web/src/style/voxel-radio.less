@@ -162,19 +162,30 @@
   .vr-dial {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    min-height: 2rem;
-    padding: 0.15rem 0.05rem;
+    min-height: 2.5rem;
+    padding: 0;
     border: var(--border);
     background: var(--dark);
+    overflow: hidden;
+
+    .vr-dial-body {
+      flex: 1 1 auto;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 1.35rem;
+      padding: 0.1rem 0.05rem 0;
+    }
 
     .vr-dial-foot {
+      flex: 0 0 auto;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 0.25rem;
       width: 100%;
+      min-height: 0.85rem;
+      padding: 0.06rem 0.05rem 0.08rem;
     }
 
     .vr-fx-sw {
@@ -197,7 +208,6 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 0.15rem;
       width: auto;
       cursor: ns-resize;
       touch-action: none;
@@ -237,40 +247,35 @@
   }
 
   .vr-dial-pad {
-    padding: 0.1rem 0.05rem 0.12rem;
-  }
-
-  .vr-kaoss {
     display: flex;
     flex-direction: column;
-    align-items: center;
-    gap: 0.08rem;
-    width: 100%;
+    padding: 0;
 
     &.bypassed .vr-kaoss-grid {
       cursor: default;
       opacity: 0.55;
     }
-  }
 
-  .vr-kaoss-grid {
-    display: grid;
-    grid-template-columns: repeat(8, 1fr);
-    gap: 0.5px;
-    width: 100%;
-    max-width: 1.85rem;
-    aspect-ratio: 1;
-    padding: 1px;
-    border: var(--border);
-    background: var(--tinge);
-    cursor: crosshair;
-    touch-action: none;
+    .vr-kaoss-grid {
+      flex: 1 1 auto;
+      display: grid;
+      grid-template-columns: repeat(8, 1fr);
+      gap: 0.5px;
+      width: 100%;
+      max-width: none;
+      min-height: 1.35rem;
+      padding: 2px;
+      border: none;
+      background: var(--tinge);
+      cursor: default;
+      touch-action: none;
 
-    span {
-      display: block;
-      border-radius: 0;
-      background: var(--red);
-      opacity: 0.06;
+      span {
+        display: block;
+        border-radius: 0;
+        background: var(--red);
+        opacity: 0.06;
+      }
     }
   }
 
