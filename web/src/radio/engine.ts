@@ -116,7 +116,6 @@ export class VoxelRadioEngine {
   wobAmt = 0
   wobX = 0
   wobY = 0
-  wobBypass = true
   dlyAmt = 0
   dlyV = 0
   chpAmt = 0
@@ -417,7 +416,6 @@ export class VoxelRadioEngine {
     this.setTrackVolume(num('radio.track', 1))
     this.setSpotVolume(num('radio.spot', 1))
     this.chain = loadChain()
-    this.wobBypass = true
     this.fx = { eq: 0, wob: 0, dly: 0, chp: 0 }
     this.fxArm = { eq: false, wob: false, dly: false, chp: false }
     for (const id of PEDALS) this.applyPedal(id, 0)
@@ -448,33 +446,19 @@ export class VoxelRadioEngine {
   }
 
   fxOn(id: PedalId) {
-    if (id === 'wob') return !this.wobBypass
+    if (id === 'wob') return false
     return this.fxArm[id]
   }
 
   toggleFx(id: PedalId) {
-    if (id === 'wob') {
-      this.setWobBypass(!this.wobBypass)
-    } else {
-      const on = !this.fxArm[id]
-      this.fxArm[id] = on
-      if (!on) this.setPedal(id, 0)
-    }
+    if (id === 'wob') return
+    const on = !this.fxArm[id]
+    this.fxArm[id] = on
+    if (!on) this.setPedal(id, 0)
     this.onChange?.()
   }
 
-  setWobBypass(off: boolean) {
-    this.wobBypass = off
-    if (off) {
-      this.wobX = 0
-      this.wobY = 0
-      this.wobAmt = 0
-      this.applyWob(0, 0, 0, 0)
-    }
-  }
-
   setWobPad(x: number, y: number) {
-    if (this.wobBypass) return
     x = Math.max(-1, Math.min(1, x || 0))
     y = Math.max(-1, Math.min(1, y || 0))
     this.wobX = x
