@@ -471,7 +471,7 @@ div.map {
   inset: 0;
   width: 100vw;
   height: 100vh;
-  z-index: 1;
+  z-index: 101;
   overflow: hidden;
 
   .world-client {
@@ -492,9 +492,10 @@ div.map {
   }
 }
 
-// one nav: hide web header/footer while the world canvas is active
+// one nav: hide web header/footer/radio while the world canvas is active
 body.in-world > main > header,
-body.in-world > main > footer {
+body.in-world > main > footer,
+body.in-world .voxel-radio-wrap {
   display: none;
 }
 
