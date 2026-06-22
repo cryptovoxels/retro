@@ -7,6 +7,18 @@ import { isIOS, isTablet } from '../../../common/helpers/detector'
 
 const appleTouch = () => isIOS() || isTablet()
 
+const VIZ_VERT = `
+precision highp float;
+attribute vec3 position;
+attribute vec2 uv;
+uniform mat4 worldViewProjection;
+varying vec2 vUV;
+void main(void) {
+  gl_Position = worldViewProjection * vec4(position, 1.0);
+  vUV = uv;
+}
+`
+
 const BANDS = 6
 const STEPS = 512
 
@@ -139,25 +151,6 @@ const PAL = [
 ]
 
 function readBands(analyser: AnalyserNode, bytes: Uint8Array, lvls: Float32Array, td: Uint8Array, t: number) {
-  if (appleTouch()) {
-    analyser.getByteTimeDomainData(td)
-    let peak = 0
-    let rms = 0
-    for (let i = 0; i < td.length; i++) {
-      const v = (td[i] - 128) / 128
-      const a = Math.abs(v)
-      if (a > peak) peak = a
-      rms += v * v
-    }
-    rms = Math.sqrt(rms / td.length)
-    const amp = Math.min(1, Math.max(rms * 10, peak * 3))
-    for (let i = 0; i < BANDS; i++) {
-      const wobble = 0.5 + 0.5 * Math.sin(i * 2.1 + t * 3.2)
-      lvls[i] = amp * wobble
-    }
-    return
-  }
-
   analyser.getByteFrequencyData(bytes)
   const n = bytes.length
   let sum = 0
@@ -259,8 +252,6 @@ function startCanvas2D(canvas: HTMLCanvasElement, analyser: AnalyserNode): Visua
 
 export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNode, mode = 0): Visualiser {
   const noop = { dispose: () => {}, shuffle: () => {}, alive: () => false }
-  // ios safari: babylon post-process init succeeds but renders black
-  if (appleTouch()) return startCanvas2D(canvas, analyser)
   if (typeof BABYLON === 'undefined' || !BABYLON.Engine.isSupported()) return startCanvas2D(canvas, analyser)
 
   fitCanvas(canvas)
@@ -272,7 +263,7 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
       preserveDrawingBuffer: false,
       antialias: false,
       stencil: false,
-      disableWebGL2Support: isIOS(),
+      disableWebGL2Support: appleTouch(),
       doNotHandleContextLost: true,
     })
   } catch {
@@ -284,16 +275,9 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
   camera.minZ = 0.01
   scene.activeCamera = camera
 
-  const plane = BABYLON.MeshBuilder.CreatePlane('viz-bg', { size: 2 }, scene)
+  const plane = BABYLON.MeshBuilder.CreatePlane('viz-plane', { size: 2 }, scene)
   plane.isPickable = false
-  const bg = new BABYLON.StandardMaterial('viz-bg-m', scene)
-  bg.disableLighting = true
-  bg.emissiveColor = new BABYLON.Color3(0.04, 0.05, 0.09)
-  bg.backFaceCulling = false
-  plane.material = bg
   plane.freezeWorldMatrix()
-
-  new BABYLON.PassPostProcess('viz-pass', 1, camera)
 
   const bytes = new Uint8Array(analyser.frequencyBinCount)
   const td = new Uint8Array(analyser.fftSize)
@@ -302,25 +286,35 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
   const tex = BABYLON.RawTexture.CreateRGBATexture(data, STEPS, BANDS, scene, false, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE)
 
   let curMode = mode % SHADERS.length
-  let pp: BABYLON.PostProcess | null = null
+  let mat: BABYLON.ShaderMaterial | null = null
   let t = 0
+
+  BABYLON.Effect.ShadersStore['vizradioVertVertexShader'] = VIZ_VERT
 
   const mount = (idx: number) => {
     const next = ((idx % SHADERS.length) + SHADERS.length) % SHADERS.length
     const name = `vizradio${next}`
     BABYLON.Effect.ShadersStore[`${name}PixelShader`] = SHADERS[next]
-    const prev = pp
+    const prev = mat
     try {
-      const nextPp = new BABYLON.PostProcess(name, name, ['time'], ['bins'], 1.0, camera)
-      nextPp.onApply = (effect: any) => {
-        effect.setTexture('bins', tex)
-        effect.setFloat('time', t)
-      }
+      const nextMat = new BABYLON.ShaderMaterial(
+        name,
+        scene,
+        { vertex: 'vizradioVert', fragment: name },
+        {
+          attributes: ['position', 'uv'],
+          uniforms: ['worldViewProjection', 'time'],
+          samplers: ['bins'],
+        },
+      )
+      nextMat.backFaceCulling = false
+      nextMat.setTexture('bins', tex)
+      plane.material = nextMat
       curMode = next
       prev?.dispose()
-      pp = nextPp
+      mat = nextMat
     } catch {
-      pp = prev
+      mat = prev
     }
   }
 
@@ -332,7 +326,7 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
   }
 
   mount(curMode)
-  if (!pp) {
+  if (!mat) {
     engine.dispose()
     scene.dispose()
     return startCanvas2D(canvas, analyser)
@@ -362,6 +356,7 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
     sample()
     pushStep()
     tex.update(data)
+    mat?.setFloat('time', t)
     scene.render()
   })
 
@@ -380,7 +375,7 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
       window.removeEventListener('resize', resize)
       ro.disconnect()
       engine.stopRenderLoop()
-      pp?.dispose()
+      mat?.dispose()
       tex.dispose()
       scene.dispose()
       engine.dispose()
