@@ -8,7 +8,6 @@ import Parcels from './src/parcels'
 import Privacy from './src/privacy'
 import Space from './src/space'
 import Terms from './src/terms'
-import WebHeader from './src/web-header'
 import Womp from './src/womp'
 
 import * as passport from 'passport'
@@ -24,14 +23,7 @@ import { Express } from 'express'
 import { SUPPORTED_CHAINS_BY_ID } from '../common/helpers/chain-helpers'
 import NotFound from './src/not-found'
 
-const renderPage = (content: any) => {
-  return renderComponent(
-    <div>
-      <WebHeader path="/" />
-      {content}
-    </div>,
-  )
-}
+const renderPage = (content: any) => renderComponent(content)
 
 export default function loadRoutes(app: Express) {
   const duration = '10 minutes'
