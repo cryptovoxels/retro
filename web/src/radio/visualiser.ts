@@ -273,7 +273,16 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
   scene.clearColor = new BABYLON.Color4(0.04, 0.05, 0.09, 1)
   const camera = new BABYLON.FreeCamera('viz-cam', new BABYLON.Vector3(0, 0, -1), scene)
   camera.minZ = 0.01
+  camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
   scene.activeCamera = camera
+
+  const fitCam = () => {
+    const aspect = canvas.clientWidth / canvas.clientHeight || 1
+    camera.orthoTop = 1
+    camera.orthoBottom = -1
+    camera.orthoLeft = -aspect
+    camera.orthoRight = aspect
+  }
 
   const plane = BABYLON.MeshBuilder.CreatePlane('viz-plane', { size: 2 }, scene)
   plane.isPickable = false
@@ -332,6 +341,7 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
     return startCanvas2D(canvas, analyser)
   }
   fitCanvas(canvas)
+  fitCam()
   engine.resize()
 
   const lvls = new Float32Array(BANDS)
@@ -362,6 +372,7 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
 
   const resize = () => {
     fitCanvas(canvas)
+    fitCam()
     engine.resize()
   }
   window.addEventListener('resize', resize, { passive: true })

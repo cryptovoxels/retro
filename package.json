@@ -46,7 +46,7 @@
     "webpack:server:build:watch": "npx webpack --watch --mode=development --config webpack/webpack-server.config",
     "webpack:server:start:watch": "nodemon --watch server/bundle_server.js server/bundle_server.js",
     "webpack:server:stable": "npx webpack --mode=development --config webpack/webpack-server.config.js && node server/bundle_server.js",
-    "build:check": "npm run build",
+    "build:check": "node scripts/precommit-build-check.mjs",
     "precommit": "tsc --noEmit --project tsconfig.precommit.json && npm run build:check && prettier --write --log-level warn .",
     "test": "vitest run",
     "test:watch": "vitest watch",
