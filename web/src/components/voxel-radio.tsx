@@ -54,16 +54,13 @@ type KaossProps = {
   label: string
   x: number
   y: number
-  off?: boolean
-  live?: boolean
   level?: () => number
   onWake?: () => void
-  onOff?: () => void
   onChange: (x: number, y: number) => void
 }
 
-const KCOLS = 8
-const KROWS = 8
+const KCOLS = 7
+const KROWS = 7
 const KDOTS = KCOLS * KROWS
 
 const FxSw = ({ live, title, onTap }: { live: boolean; title: string; onTap: () => void }) => (
@@ -97,27 +94,21 @@ class KaossPad extends Component<KaossProps> {
 
   loop = () => {
     this.raf = requestAnimationFrame(this.loop)
-    if (this.props.off) {
-      this.dim()
-      return
-    }
     if (this.over || this.held) return
     this.idleT += 0.016
     const lvl = this.props.level?.() ?? 0
     const orbit = 0.12 + lvl * 0.38
     const x = Math.sin(this.idleT * 1.15) * orbit
     const y = Math.cos(this.idleT * 0.92) * orbit
-    this.light(x, y, 0.07 + lvl * 0.42)
+    this.light(x, y, 0.1 + lvl * 0.4)
   }
 
   enter = () => {
-    if (this.props.off) return
     this.over = true
     this.props.onWake?.()
   }
 
   down = (e: PointerEvent) => {
-    if (this.props.off) return
     e.preventDefault()
     this.held = true
     this.props.onWake?.()
@@ -128,7 +119,6 @@ class KaossPad extends Component<KaossProps> {
   }
 
   move = (e: PointerEvent) => {
-    if (this.props.off) return
     const el = this.pad.current
     if (!el) return
     const r = el.getBoundingClientRect()
@@ -166,19 +156,13 @@ class KaossPad extends Component<KaossProps> {
       const dx = x - ((col / (KCOLS - 1)) * 2 - 1) * 0.55
       const dy = y - ((1 - row / (KROWS - 1)) * 2 - 1) * 0.55
       const d = Math.hypot(dx, dy)
-      const on = Math.max(0, 1 - d * 1.45) * (0.12 + amt * 0.88)
-      dot.style.opacity = String(on)
-    }
-  }
-
-  dim = () => {
-    for (const dot of this.dots) {
-      if (dot) dot.style.opacity = '0.06'
+      const on = Math.max(0, 1 - d * 1.45) * (0.1 + amt * 0.9)
+      dot.style.opacity = String(Math.min(1, on))
     }
   }
 
   render() {
-    const { label, off, live } = this.props
+    const { label } = this.props
     return (
       <>
         <div
@@ -202,7 +186,6 @@ class KaossPad extends Component<KaossProps> {
         </div>
         <div class="vr-dial-foot">
           <span class="vr-dial-label">{label}</span>
-          <FxSw live={!!live} title={off ? 'turn on' : 'turn off'} onTap={() => this.props.onOff?.()} />
         </div>
       </>
     )
@@ -450,19 +433,13 @@ export default class VoxelRadio extends Component<Props, State> {
             </div>
           </div>
         ))}
-        <div class={`vr-dial vr-dial-pad${r.wobBypass ? ' fx-off' : ''}`} key="wob">
+        <div class="vr-dial vr-dial-pad" key="wob">
           <KaossPad
             label="wob"
             x={r.wobX}
             y={r.wobY}
-            off={r.wobBypass}
-            live={r.fxOn('wob')}
             level={() => r.readLevel()}
             onWake={() => r.wake()}
-            onOff={() => {
-              r.toggleFx('wob')
-              this.forceUpdate()
-            }}
             onChange={(x, y) => {
               r.setWobPad(x, y)
               this.forceUpdate()
