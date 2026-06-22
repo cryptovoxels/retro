@@ -492,6 +492,12 @@ div.map {
   }
 }
 
+// one nav: hide web header/footer while the world canvas is active
+body.in-world > main > header,
+body.in-world > main > footer {
+  display: none;
+}
+
 .world-client {
   position: relative;
   width: 100%;
