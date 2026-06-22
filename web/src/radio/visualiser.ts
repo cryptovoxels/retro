@@ -257,13 +257,14 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
   fitCanvas(canvas)
   if (canvas.width < 2 || canvas.height < 2) return noop
 
+  const touch = appleTouch()
   let engine: BABYLON.Engine
   try {
     engine = new BABYLON.Engine(canvas, true, {
       preserveDrawingBuffer: false,
       antialias: false,
       stencil: false,
-      disableWebGL2Support: appleTouch(),
+      disableWebGL2Support: touch,
       doNotHandleContextLost: true,
     })
   } catch {
@@ -273,20 +274,7 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
   scene.clearColor = new BABYLON.Color4(0.04, 0.05, 0.09, 1)
   const camera = new BABYLON.FreeCamera('viz-cam', new BABYLON.Vector3(0, 0, -1), scene)
   camera.minZ = 0.01
-  camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
   scene.activeCamera = camera
-
-  const fitCam = () => {
-    const aspect = canvas.clientWidth / canvas.clientHeight || 1
-    camera.orthoTop = 1
-    camera.orthoBottom = -1
-    camera.orthoLeft = -aspect
-    camera.orthoRight = aspect
-  }
-
-  const plane = BABYLON.MeshBuilder.CreatePlane('viz-plane', { size: 2 }, scene)
-  plane.isPickable = false
-  plane.freezeWorldMatrix()
 
   const bytes = new Uint8Array(analyser.frequencyBinCount)
   const td = new Uint8Array(analyser.fftSize)
@@ -295,14 +283,56 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
   const tex = BABYLON.RawTexture.CreateRGBATexture(data, STEPS, BANDS, scene, false, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE)
 
   let curMode = mode % SHADERS.length
+  let pp: BABYLON.PostProcess | null = null
   let mat: BABYLON.ShaderMaterial | null = null
+  let plane: BABYLON.Mesh | null = null
   let t = 0
 
-  BABYLON.Effect.ShadersStore['vizradioVertVertexShader'] = VIZ_VERT
-
-  const mount = (idx: number) => {
+  const mountPp = (idx: number) => {
     const next = ((idx % SHADERS.length) + SHADERS.length) % SHADERS.length
     const name = `vizradio${next}`
+    BABYLON.Effect.ShadersStore[`${name}PixelShader`] = SHADERS[next]
+    const prev = pp
+    try {
+      const nextPp = new BABYLON.PostProcess(name, name, ['time'], ['bins'], 1.0, camera)
+      nextPp.onApply = (effect: any) => {
+        effect.setTexture('bins', tex)
+        effect.setFloat('time', t)
+      }
+      curMode = next
+      prev?.dispose()
+      pp = nextPp
+    } catch {
+      pp = prev
+    }
+  }
+
+  const fitPlane = () => {
+    if (!plane) return
+    const aspect = canvas.clientWidth / canvas.clientHeight || 1
+    if (aspect >= 1) {
+      camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
+      camera.orthoTop = 1
+      camera.orthoBottom = -1
+      camera.orthoLeft = -aspect
+      camera.orthoRight = aspect
+      plane.scaling.x = aspect
+      plane.scaling.y = 1
+    } else {
+      camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
+      camera.orthoTop = 1 / aspect
+      camera.orthoBottom = -1 / aspect
+      camera.orthoLeft = -1
+      camera.orthoRight = 1
+      plane.scaling.x = 1
+      plane.scaling.y = 1 / aspect
+    }
+  }
+
+  const mountMat = (idx: number) => {
+    const next = ((idx % SHADERS.length) + SHADERS.length) % SHADERS.length
+    const name = `vizradio${next}`
+    BABYLON.Effect.ShadersStore['vizradioVertVertexShader'] = VIZ_VERT
     BABYLON.Effect.ShadersStore[`${name}PixelShader`] = SHADERS[next]
     const prev = mat
     try {
@@ -318,7 +348,7 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
       )
       nextMat.backFaceCulling = false
       nextMat.setTexture('bins', tex)
-      plane.material = nextMat
+      if (plane) plane.material = nextMat
       curMode = next
       prev?.dispose()
       mat = nextMat
@@ -327,21 +357,35 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
     }
   }
 
-  const shuffle = () => {
-    if (SHADERS.length < 2) return
-    let next = curMode
-    while (next === curMode) next = Math.floor(Math.random() * SHADERS.length)
-    mount(next)
+  if (touch) {
+    plane = BABYLON.MeshBuilder.CreatePlane('viz-plane', { size: 2 }, scene)
+    plane.isPickable = false
+    mountMat(curMode)
+    if (!mat) {
+      engine.dispose()
+      scene.dispose()
+      return startCanvas2D(canvas, analyser)
+    }
+    fitPlane()
+  } else {
+    const bgPlane = BABYLON.MeshBuilder.CreatePlane('viz-bg', { size: 2 }, scene)
+    bgPlane.isPickable = false
+    const bg = new BABYLON.StandardMaterial('viz-bg-m', scene)
+    bg.disableLighting = true
+    bg.emissiveColor = new BABYLON.Color3(0.04, 0.05, 0.09)
+    bg.backFaceCulling = false
+    bgPlane.material = bg
+    bgPlane.freezeWorldMatrix()
+    new BABYLON.PassPostProcess('viz-pass', 1, camera)
+    mountPp(curMode)
+    if (!pp) {
+      engine.dispose()
+      scene.dispose()
+      return startCanvas2D(canvas, analyser)
+    }
   }
 
-  mount(curMode)
-  if (!mat) {
-    engine.dispose()
-    scene.dispose()
-    return startCanvas2D(canvas, analyser)
-  }
   fitCanvas(canvas)
-  fitCam()
   engine.resize()
 
   const lvls = new Float32Array(BANDS)
@@ -361,18 +405,26 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
     }
   }
 
+  const shuffle = () => {
+    if (SHADERS.length < 2) return
+    let next = curMode
+    while (next === curMode) next = Math.floor(Math.random() * SHADERS.length)
+    if (touch) mountMat(next)
+    else mountPp(next)
+  }
+
   engine.runRenderLoop(() => {
     t += engine.getDeltaTime() / 1000
     sample()
     pushStep()
     tex.update(data)
-    mat?.setFloat('time', t)
+    if (mat) mat.setFloat('time', t)
     scene.render()
   })
 
   const resize = () => {
     fitCanvas(canvas)
-    fitCam()
+    if (touch) fitPlane()
     engine.resize()
   }
   window.addEventListener('resize', resize, { passive: true })
@@ -387,6 +439,7 @@ export function startVisualiser(canvas: HTMLCanvasElement, analyser: AnalyserNod
       ro.disconnect()
       engine.stopRenderLoop()
       mat?.dispose()
+      pp?.dispose()
       tex.dispose()
       scene.dispose()
       engine.dispose()
