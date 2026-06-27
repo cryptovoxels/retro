@@ -1990,7 +1990,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.cohostCompositeEl.play().catch(() => {})
     }
 
-    if (!this.cohostCompositeAttached) {
+    // don't claim the composite is on the mesh while a standby card is suppressing the attach - the
+    // flags would lie and a viewer who joined during the card (cold-open) would never re-pin the
+    // composite when the card clears. stays false now; reconcile re-runs this once intermission ends.
+    if (!this.cohostCompositeAttached && !this.isIntermissionActive()) {
       this.attachVideoToMesh(this.cohostCompositeEl, true)
       this.cohostCompositeAttached = true
       this.hasActiveVideo = true
