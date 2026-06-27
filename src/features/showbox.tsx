@@ -838,6 +838,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     } else {
       this.stopIntermissionCard()
       this.hasActiveVideo = false
+      // the card replaced the mesh material but left cohostCompositeAttached=true, so updateCohostComposite
+      // would skip re-pinning the composite and the viewer stays stuck on the card. force a re-attach.
+      this.cohostCompositeAttached = false
       this.reconcileActiveStream()
     }
     // plain mirrors read the primary's flag - nudge them to repaint too
@@ -2513,79 +2516,36 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     })
 
     const title = document.createElement('div')
-    title.textContent = 'raise standby screen'
+    title.textContent = 'take a break'
     title.style.fontWeight = 'bold'
     title.style.fontSize = mobile ? '16px' : '14px'
 
-    const hint = document.createElement('small')
-    hint.textContent = 'mutes your mic behind a moving card. your camera is hidden. drop it when you are back.'
-    hint.style.color = '#888'
-
-    const inputStyle: Record<string, string> = { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: mobile ? '8px' : '4px' }
+    const inputStyle: Record<string, string> = { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: mobile ? '10px' : '6px' }
     if (mobile) Object.assign(inputStyle, { fontSize: '16px', minHeight: '44px' })
 
-    const msgSel = document.createElement('select')
-    Object.assign(msgSel.style, inputStyle)
-    ;[
-      ['starting soon', 'starting soon'],
-      ['be right back', 'be right back'],
-      ['custom...', 'custom'],
-    ].forEach(([label, value]) => {
-      const o = document.createElement('option')
-      o.value = value
-      o.textContent = label
-      msgSel.appendChild(o)
-    })
-
-    const customInput = document.createElement('input')
-    customInput.type = 'text'
-    customInput.placeholder = 'your message'
-    customInput.maxLength = 40
-    Object.assign(customInput.style, inputStyle)
-    customInput.style.display = 'none'
-    msgSel.onchange = () => {
-      customInput.style.display = msgSel.value === 'custom' ? 'block' : 'none'
-    }
-
-    const timerLabel = document.createElement('small')
-    timerLabel.textContent = 'optional countdown'
-    timerLabel.style.color = '#888'
+    // pre-filled with the common case; type over it for "starting soon" or anything else.
+    const msgInput = document.createElement('input')
+    msgInput.type = 'text'
+    msgInput.value = 'be right back'
+    msgInput.maxLength = 40
+    Object.assign(msgInput.style, inputStyle)
 
     const minInput = document.createElement('input')
     minInput.type = 'number'
     minInput.min = '1'
-    minInput.placeholder = 'in N minutes'
+    minInput.placeholder = 'minutes until start (optional)'
     Object.assign(minInput.style, inputStyle)
-
-    const timeInput = document.createElement('input')
-    timeInput.type = 'time'
-    Object.assign(timeInput.style, inputStyle)
-
-    const orLabel = document.createElement('small')
-    orLabel.textContent = 'or back at (clock time)'
-    orLabel.style.color = '#888'
 
     const go = document.createElement('button')
     go.type = 'button'
     go.textContent = 'raise'
     Object.assign(go.style, { background: 'var(--red)', color: '#fff', border: '0', padding: mobile ? '12px' : '8px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' })
     go.onclick = () => {
-      const label = msgSel.value === 'custom' ? customInput.value.trim() || 'starting soon' : msgSel.value
-      let untilMs: number | null = null
-      if (timeInput.value) {
-        const [hh, mm] = timeInput.value.split(':').map((v) => parseInt(v, 10))
-        const d = new Date()
-        d.setHours(hh, mm, 0, 0)
-        let t = d.getTime()
-        if (t <= Date.now()) t += 24 * 60 * 60 * 1000
-        untilMs = t
-      } else {
-        const mins = parseFloat(minInput.value)
-        if (!isNaN(mins) && mins > 0) untilMs = Date.now() + mins * 60_000
-      }
+      const mins = parseFloat(minInput.value)
+      const untilMs = !isNaN(mins) && mins > 0 ? Date.now() + mins * 60_000 : null
       panel.remove()
       if (mobile) refreshMobileCanvasAfterReturn()
-      onConfirm(label, untilMs)
+      onConfirm(msgInput.value.trim() || 'be right back', untilMs)
     }
 
     const cancel = document.createElement('button')
@@ -2597,7 +2557,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (mobile) refreshMobileCanvasAfterReturn()
     }
 
-    panel.append(title, hint, msgSel, customInput, timerLabel, minInput, orLabel, timeInput, go, cancel)
+    panel.append(title, msgInput, minInput, go, cancel)
     document.body.appendChild(panel)
   }
 
@@ -3042,7 +3002,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const parcel = { id, name: this.parcel.name, address: this.parcel.address }
     this.thumbInterval = setInterval(() => {
       try {
-        if (this.isCohostMode()) {
+        if (this.isIntermissionActive()) {
+          // on a break the homepage should show the standby card, not the hidden camera
+          ctx.fillStyle = '#0d0d0d'
+          ctx.fillRect(0, 0, THUMB_W, THUMB_H)
+          if (this.intermissionCanvas) drawVideoCover(ctx, this.intermissionCanvas, 0, 0, THUMB_W, THUMB_H)
+        } else if (this.isCohostMode()) {
           if (!this.cohostCanvas) {
             this.cohostCanvas = document.createElement('canvas')
             const { w: cw, h: ch } = this.meshVideoSize()
@@ -3393,6 +3358,32 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       deviceRow.style.display = screenChk.checked ? 'none' : 'flex'
     }
     if (mobile) screenOpt.style.display = 'none' // screenshare from a phone is unreliable; stick to the camera
+
+    // "open with a 'starting soon' screen": go live straight into the standby card so the audience
+    // gathers behind it before the show starts. Checking it reveals the message + countdown fields.
+    const standbyFieldStyle: Record<string, string> = { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: mobile ? '10px' : '6px' }
+    if (mobile) Object.assign(standbyFieldStyle, { fontSize: '16px', minHeight: '44px' })
+    const standbyOpt = document.createElement('label')
+    Object.assign(standbyOpt.style, { display: 'flex', alignItems: 'center', gap: '6px' })
+    const standbyChk = document.createElement('input')
+    standbyChk.type = 'checkbox'
+    standbyOpt.append(standbyChk, " open with a 'starting soon' screen")
+    const standbyConfig = document.createElement('div')
+    Object.assign(standbyConfig.style, { display: 'none', flexDirection: 'column', gap: '4px', paddingLeft: mobile ? '0' : '22px' })
+    const standbyMsgInput = document.createElement('input')
+    standbyMsgInput.type = 'text'
+    standbyMsgInput.value = 'starting soon'
+    standbyMsgInput.maxLength = 40
+    Object.assign(standbyMsgInput.style, standbyFieldStyle)
+    const standbyMinInput = document.createElement('input')
+    standbyMinInput.type = 'number'
+    standbyMinInput.min = '1'
+    standbyMinInput.placeholder = 'minutes until start (optional)'
+    Object.assign(standbyMinInput.style, standbyFieldStyle)
+    standbyConfig.append(standbyMsgInput, standbyMinInput)
+    standbyChk.onchange = () => {
+      standbyConfig.style.display = standbyChk.checked ? 'flex' : 'none'
+    }
 
     const deviceRow = document.createElement('div')
     Object.assign(deviceRow.style, { display: 'flex', flexDirection: 'column', gap: '4px' })
@@ -3801,29 +3792,40 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     goBtn.textContent = 'go live'
     Object.assign(goBtn.style, { background: 'var(--red)', color: '#f5f5f0', border: '0', padding: '12px 16px', cursor: 'pointer', fontFamily: 'inherit', flex: '2', minHeight: '44px', fontWeight: 'bold' })
 
-    // Intermission control. Hidden until live, then sits left of "stop streaming" (in both the desktop
-    // and mobile docks, since both append `row`). Raise opens the setup dialog; return is one tap.
+    // Intermission control. A small secondary button left of "stop streaming" (in both the desktop and
+    // mobile docks, since both append `row`), hidden until live. Raise opens the setup dialog; return is
+    // one tap. The dock preview stays a live mirror of your camera during standby (so you can check your
+    // look) - we just relabel it. The label ref is assigned when the preview is built.
+    let intermissionPreviewLabel: HTMLElement | null = null
+    // cold-open "starting soon" via the go-live checkbox sets these: standbyStartLabel makes the
+    // return button read "start show" instead of "back to live"; pendingStandby is raised once live.
+    let standbyStartLabel = false
+    let pendingStandby: { label: string; mins: number | null } | null = null
     const intermissionBtn = document.createElement('button')
     intermissionBtn.type = 'button'
     intermissionBtn.textContent = 'take a break'
     Object.assign(intermissionBtn.style, {
       display: 'none',
-      background: '#3a2f12',
+      background: 'transparent',
       color: '#f5b942',
       border: '1px solid #5a4718',
-      padding: '12px 16px',
+      padding: mobile ? '10px 12px' : '6px 10px',
       cursor: 'pointer',
       fontFamily: 'inherit',
-      flex: '1',
-      minHeight: '44px',
-      fontWeight: 'bold',
+      flex: '0 0 auto',
+      fontSize: mobile ? '14px' : '12px',
+      minHeight: mobile ? '44px' : 'auto',
+      whiteSpace: 'nowrap',
     })
-    const syncIntermissionBtn = () => {
+    const syncIntermissionUi = () => {
       const on = !!this.intermission
-      intermissionBtn.textContent = on ? 'back to live' : 'take a break'
-      // on break the return button carries the live accent; idle it stays a softer amber (pause, not stop)
-      intermissionBtn.style.background = on ? 'var(--red)' : '#3a2f12'
+      intermissionBtn.textContent = on ? (standbyStartLabel ? 'start show' : 'back to live') : 'take a break'
+      // on break the return button fills in (the action to get back on); idle it's a quiet amber outline
+      intermissionBtn.style.background = on ? 'var(--red)' : 'transparent'
       intermissionBtn.style.color = on ? '#f5f5f0' : '#f5b942'
+      intermissionBtn.style.borderColor = on ? 'var(--red)' : '#5a4718'
+      // keep showing your camera as a mirror; just say what's actually going out
+      if (intermissionPreviewLabel) intermissionPreviewLabel.textContent = on ? 'your camera · audience sees the standby screen' : 'what your audience sees'
     }
     const stopIntermissionStatus = () => {
       if (this.intermissionStatusInterval) {
@@ -3855,13 +3857,16 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     intermissionBtn.onclick = () => {
       if (this.intermission) {
         this.dropIntermission()
+        standbyStartLabel = false
         clearIntermissionStatusLine()
-        syncIntermissionBtn()
+        syncIntermissionUi()
         return
       }
+      // a mid-show break is always "be right back" -> "back to live", not a cold-open start
+      standbyStartLabel = false
       this.openIntermissionPanel((label, untilMs) => {
         this.raiseIntermission(label, untilMs)
-        syncIntermissionBtn()
+        syncIntermissionUi()
         runIntermissionStatus()
       })
     }
@@ -4071,12 +4076,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       const mobileKids: Node[] = [title]
       if (identityRow) mobileKids.push(identityRow)
       // mobile live uses flip camera link instead of "change camera or mic" (pick cam/mic before go-live in deviceRow)
-      mobileKids.push(deviceRow, screenOpt, screenHint, flipBtn, micToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status, cancelBtn)
+      mobileKids.push(deviceRow, screenOpt, screenHint, standbyOpt, standbyConfig, flipBtn, micToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status, cancelBtn)
       panel.append(...mobileKids)
     } else {
       const desktopKids: Node[] = [title]
       if (identityRow) desktopKids.push(identityRow)
-      desktopKids.push(deviceRow, screenOpt, screenHint, deviceToggle, micToggle)
+      desktopKids.push(deviceRow, screenOpt, screenHint, standbyOpt, standbyConfig, deviceToggle, micToggle)
       if (shareRow) desktopKids.push(shareRow)
       desktopKids.push(moveRow, status, row, cancelBtn)
       panel.append(...desktopKids)
@@ -4188,6 +4193,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (!this.withinBounds) {
         app.showSnackbar('move the showbox inside your parcel to go live', PanelType.Warning)
         return
+      }
+
+      // "open with a starting soon screen" - remember it so the live transition raises the card at once
+      if (standbyChk.checked) {
+        const mins = parseFloat(standbyMinInput.value)
+        pendingStandby = { label: standbyMsgInput.value.trim() || 'starting soon', mins: !isNaN(mins) && mins > 0 ? mins : null }
+      } else {
+        pendingStandby = null
       }
 
       if (syntheticGuest) {
@@ -4364,10 +4377,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         goBtn.style.background = '#444'
         goBtn.disabled = false
         status.textContent = ''
-        ;[title, screenOpt, status, cancelBtn].forEach((el) => ((el as HTMLElement).style.display = 'none'))
+        ;[title, screenOpt, standbyOpt, standbyConfig, status, cancelBtn].forEach((el) => ((el as HTMLElement).style.display = 'none'))
         // intermission control only makes sense once you're live
         intermissionBtn.style.display = 'block'
-        syncIntermissionBtn()
+        if (pendingStandby) {
+          // "open with a starting soon screen" - raise the card immediately so the raw camera never airs
+          const { label, mins } = pendingStandby
+          pendingStandby = null
+          standbyStartLabel = true
+          this.raiseIntermission(label, mins && mins > 0 ? Date.now() + mins * 60_000 : null)
+        }
+        syncIntermissionUi()
         if (this.intermission) runIntermissionStatus()
         if (identityRow) identityRow.style.display = 'none'
         deviceRow.style.display = 'none'
@@ -4545,8 +4565,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
               Object.assign(previewVideo.style, { width: '100%', height: '100%', objectFit: 'cover', display: 'block' })
             }
             const previewLabel = document.createElement('div')
-            previewLabel.textContent = 'what your audience sees'
+            previewLabel.textContent = this.intermission ? 'your camera · audience sees the standby screen' : 'what your audience sees'
             Object.assign(previewLabel.style, { position: 'absolute', top: '4px', left: '6px', color: '#f5f5f0', fontSize: '11px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px' })
+            intermissionPreviewLabel = previewLabel
             Object.assign(meterTrack.style, { position: 'absolute', bottom: '0', left: '0', right: '0' })
             previewWrap.append(previewVideo, previewLabel, meterTrack)
             panel.insertBefore(previewWrap, chatRow ?? moveRow)
@@ -4572,8 +4593,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             syncMobilePreview = wireMobilePreviewVideo(mobilePreviewWrap, mobilePreviewVideo)
             this.syncMobilePreviewDock = syncMobilePreview
             const previewLabel = document.createElement('div')
-            previewLabel.textContent = 'what your audience sees'
+            previewLabel.textContent = this.intermission ? 'your camera · audience sees the standby screen' : 'what your audience sees'
             Object.assign(previewLabel.style, { position: 'absolute', top: '4px', left: '6px', color: '#f5f5f0', fontSize: '11px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px' })
+            intermissionPreviewLabel = previewLabel
             Object.assign(meterTrack.style, { position: 'absolute', bottom: '0', left: '0', right: '0' })
             mobilePreviewWrap.append(mobilePreviewVideo, previewLabel, meterTrack)
             panel.insertBefore(mobilePreviewWrap, chatRow ?? moveRow)
