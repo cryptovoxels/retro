@@ -361,7 +361,8 @@ function cohostVideoTrackLive(el: HTMLVideoElement | null) {
   return !!mst && mst.readyState !== 'ended'
 }
 
-type ShowboxCelebrateState = { celebrate?: number; at?: number }
+type ShowboxIntermission = { label: string; until: number | null; at: number }
+type ShowboxCelebrateState = { celebrate?: number; at?: number; intermission?: ShowboxIntermission | null }
 
 export default class Showbox extends Feature2D<ShowboxRecord> {
   static metadata: FeatureMetadata = {
@@ -453,6 +454,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   hostDockAutoOpenedAt = 0
   meshLetterboxRaf: number | null = null
   meshLetterboxCanvas: HTMLCanvasElement | null = null
+  // intermission ("starting soon" / "be right back"): a raise-able animated standby card.
+  // null when the show is running normally; set locally on the broadcaster and mirrored to
+  // viewers over the existing ephemeral parcel-state channel (no backend).
+  intermission: ShowboxIntermission | null = null
+  intermissionRaf: number | null = null
+  intermissionCanvas: HTMLCanvasElement | null = null
+  intermissionPrevMic = false
+  intermissionStatusInterval: ReturnType<typeof setInterval> | null = null
 
   roomName() {
     return `parcel-${this.parcel.id}`
@@ -751,6 +760,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   // mirrors show the chosen source muted (default: whoever is live, host preferred), so every mirror is consistent
   refreshMirrorVideo() {
     if (!this.isMirror() || this.broadcastRoom) return
+    // primary on a standby card -> the mirror shows the same card, not a frozen last frame
+    if (this.isIntermissionActive()) {
+      this.drawIntermissionCard()
+      return
+    }
     if (this.isAngleMirror()) {
       if (!this.livekitRoom) return
       return this.refreshAngleVideo()
@@ -801,6 +815,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   receiveState(state: ShowboxCelebrateState) {
+    if (state && 'intermission' in state) this.applyIntermissionState(state.intermission ?? null)
     const n = state?.celebrate
     const at = state?.at ?? 0
     if (!n || n < 10 || !at || !this.isInCurrentParcel || !this.isShowLive()) return
@@ -808,6 +823,25 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.lastCelebrateAt = at
     this.lastCelebrateN = n
     this.runCelebrate(n)
+  }
+
+  // viewer side: the broadcaster's raise/drop arrives on this showbox's state slice. the host drives
+  // its own card locally (and would only echo its own patch), so it ignores this.
+  applyIntermissionState(next: ShowboxIntermission | null) {
+    if (this.broadcastRoom) return
+    const cur = this.intermission
+    const changed = !!cur !== !!next || (!!cur && !!next && cur.at !== next.at)
+    if (!changed) return
+    this.intermission = next
+    if (this.intermission) {
+      this.drawIntermissionCard()
+    } else {
+      this.stopIntermissionCard()
+      this.hasActiveVideo = false
+      this.reconcileActiveStream()
+    }
+    // plain mirrors read the primary's flag - nudge them to repaint too
+    this.refreshParcelMirrors()
   }
 
   playCelebrateMoves(anims: Animations[], gapMs: number) {
@@ -2276,6 +2310,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.stopStreamAttachRetry()
     this.viewerRoomFull = false
     this.closeAnglePanel()
+    this.stopIntermissionCard()
+    if (this.intermissionStatusInterval) {
+      clearInterval(this.intermissionStatusInterval)
+      this.intermissionStatusInterval = null
+    }
     this.stopMeshLetterbox()
     this.screenMaterial?.dispose(true, true)
     this.screenMaterial = null
@@ -2292,8 +2331,282 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.audio?.removeUserAudioReference(this)
   }
 
+  // a plain mirror shows whatever the primary showbox is showing, so it reflects the primary's
+  // intermission. the primary (and angle mirrors) use their own flag.
+  effectiveIntermission(): ShowboxIntermission | null {
+    if (this.isMirror() && !this.isAngleMirror()) {
+      return (this.parcel.primaryShowbox() as Showbox | undefined)?.intermission ?? null
+    }
+    return this.intermission
+  }
+
+  isIntermissionActive() {
+    return !!this.effectiveIntermission()
+  }
+
+  // mm:ss until `until`, or '' when there's no countdown. holds at "starting now" past zero - the
+  // host flips back manually, we never auto-reveal onto an empty chair.
+  intermissionCountdownLabel(until: number | null) {
+    if (!until) return ''
+    const ms = until - Date.now()
+    if (ms <= 0) return 'starting now'
+    const total = Math.ceil(ms / 1000)
+    const m = Math.floor(total / 60)
+    const s = total % 60
+    return `${m}:${s.toString().padStart(2, '0')}`
+  }
+
+  // broadcaster raises the screen: mute the mic, broadcast the flag, draw the card. the camera keeps
+  // running underneath (the card material just covers it) - muting the livekit camera track ends the
+  // MediaStreamTrack and trips the "camera lost" health teardown, so we don't.
+  raiseIntermission(label: string, untilMs: number | null) {
+    if (!this.broadcastRoom) return
+    const at = Date.now()
+    this.intermission = { label, until: untilMs, at }
+    try {
+      this.intermissionPrevMic = !!this.broadcastRoom.localParticipant.isMicrophoneEnabled
+    } catch {
+      this.intermissionPrevMic = false
+    }
+    try {
+      void this.broadcastRoom.localParticipant.setMicrophoneEnabled(false)
+    } catch {}
+    try {
+      this.parcel.sendStatePatch({ [this.uuid]: { intermission: { label, until: untilMs, at } } })
+    } catch {}
+    this.drawIntermissionCard()
+    this.refreshParcelMirrors()
+  }
+
+  // broadcaster drops the screen: clear the flag, restore the mic to whatever it was, let the normal
+  // reconcile repaint the live feed (the camera never stopped, so it comes back instantly).
+  dropIntermission() {
+    if (!this.intermission) return
+    this.intermission = null
+    this.stopIntermissionCard()
+    if (this.intermissionStatusInterval) {
+      clearInterval(this.intermissionStatusInterval)
+      this.intermissionStatusInterval = null
+    }
+    try {
+      void this.broadcastRoom?.localParticipant.setMicrophoneEnabled(this.intermissionPrevMic)
+    } catch {}
+    try {
+      this.parcel.sendStatePatch({ [this.uuid]: { intermission: null } })
+    } catch {}
+    this.hasActiveVideo = false
+    if (this.broadcastRoom && this.isCohostMode()) {
+      // cohost shows (the default) render a composite, not a single element - force it back onto the mesh
+      this.cohostCompositeAttached = false
+      this.updateCohostComposite()
+    } else if (this.broadcastRoom && this.localBroadcastVideoEl) {
+      this.attachVideoToMesh(this.localBroadcastVideoEl, true)
+    } else {
+      this.setPreview()
+    }
+    this.refreshParcelMirrors()
+  }
+
+  stopIntermissionCard() {
+    if (this.intermissionRaf) {
+      cancelAnimationFrame(this.intermissionRaf)
+      this.intermissionRaf = null
+    }
+    this.intermissionCanvas = null
+  }
+
+  // the animated standby card. the motion (sweep bar + pulsing dots) is the whole point: it proves the
+  // stream is alive even though the camera is hidden. one raf reads the live flag/clock each frame, so
+  // repeated calls are a no-op rather than a rebuild/flicker.
+  drawIntermissionCard() {
+    if (this.disposed || !this.mesh) return
+    if (!this.effectiveIntermission()) return
+    if (this.intermissionRaf) return
+    this.stopMeshLetterbox()
+    this.hasActiveVideo = false
+    const { w, h } = this.meshVideoSize()
+    if (!this.intermissionCanvas) this.intermissionCanvas = document.createElement('canvas')
+    const canvas = this.intermissionCanvas
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const tex = new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), canvas, this.scene, false)
+    tex.hasAlpha = false
+    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    material.diffuseTexture = tex
+    material.backFaceCulling = false
+    material.zOffset = -4
+    material.specularColor.set(0, 0, 0)
+    material.emissiveColor.set(1, 1, 1)
+    material.blockDirtyMechanism = true
+    this.swapScreenMaterial(material)
+    let frame = 0
+    const tick = () => {
+      if (this.disposed || !this.mesh) {
+        this.stopIntermissionCard()
+        return
+      }
+      const cur = this.effectiveIntermission()
+      if (!cur) {
+        this.stopIntermissionCard()
+        return
+      }
+      frame++
+      ctx.fillStyle = '#0d0d0d'
+      ctx.fillRect(0, 0, w, h)
+      // sweep bar travelling left-to-right under the title
+      const barW = w * 0.5
+      const x = ((frame * 2) % (w + barW)) - barW
+      const grad = ctx.createLinearGradient(x, 0, x + barW, 0)
+      grad.addColorStop(0, 'rgba(220,30,30,0)')
+      grad.addColorStop(0.5, 'rgba(220,30,30,0.55)')
+      grad.addColorStop(1, 'rgba(220,30,30,0)')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, h * 0.5 + 30, w, 4)
+      // three pulsing dots
+      for (let i = 0; i < 3; i++) {
+        const a = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(frame * 0.08 - i * 0.7))
+        ctx.fillStyle = `rgba(245,245,240,${a})`
+        ctx.beginPath()
+        ctx.arc(w / 2 - 16 + i * 16, h * 0.5 + 56, 4, 0, Math.PI * 2)
+        ctx.fill()
+      }
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = '#f5f5f0'
+      ctx.font = 'bold 28px "Source Code Pro", monospace'
+      ctx.fillText(cur.label || 'starting soon', w / 2, h * 0.5 - 16)
+      const countdown = this.intermissionCountdownLabel(cur.until)
+      if (countdown) {
+        ctx.font = '20px "Source Code Pro", monospace'
+        ctx.fillStyle = '#f5b942'
+        ctx.fillText(countdown, w / 2, h * 0.5 + 10)
+      }
+      tex.update()
+      this.intermissionRaf = requestAnimationFrame(tick)
+    }
+    tick()
+  }
+
+  // small setup dialog (modelled on the second-camera panel): pick a message + optional countdown,
+  // then raise. coming back is a single tap on the dock button - no dialog.
+  openIntermissionPanel(onConfirm: (label: string, untilMs: number | null) => void) {
+    exitPointerLock()
+    const panel = document.createElement('div')
+    Object.assign(panel.style, {
+      position: 'fixed',
+      zIndex: '999999',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: mobile ? 'calc(100vw - 2rem)' : '320px',
+      background: '#0d0d0d',
+      color: '#f5f5f0',
+      padding: '1rem',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.75rem',
+      fontFamily: '"Source Code Pro", monospace',
+      fontSize: mobile ? '15px' : '13px',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
+    })
+
+    const title = document.createElement('div')
+    title.textContent = 'raise standby screen'
+    title.style.fontWeight = 'bold'
+    title.style.fontSize = mobile ? '16px' : '14px'
+
+    const hint = document.createElement('small')
+    hint.textContent = 'mutes your mic behind a moving card. your camera is hidden. drop it when you are back.'
+    hint.style.color = '#888'
+
+    const inputStyle: Record<string, string> = { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: mobile ? '8px' : '4px' }
+    if (mobile) Object.assign(inputStyle, { fontSize: '16px', minHeight: '44px' })
+
+    const msgSel = document.createElement('select')
+    Object.assign(msgSel.style, inputStyle)
+    ;[
+      ['starting soon', 'starting soon'],
+      ['be right back', 'be right back'],
+      ['custom...', 'custom'],
+    ].forEach(([label, value]) => {
+      const o = document.createElement('option')
+      o.value = value
+      o.textContent = label
+      msgSel.appendChild(o)
+    })
+
+    const customInput = document.createElement('input')
+    customInput.type = 'text'
+    customInput.placeholder = 'your message'
+    customInput.maxLength = 40
+    Object.assign(customInput.style, inputStyle)
+    customInput.style.display = 'none'
+    msgSel.onchange = () => {
+      customInput.style.display = msgSel.value === 'custom' ? 'block' : 'none'
+    }
+
+    const timerLabel = document.createElement('small')
+    timerLabel.textContent = 'optional countdown'
+    timerLabel.style.color = '#888'
+
+    const minInput = document.createElement('input')
+    minInput.type = 'number'
+    minInput.min = '1'
+    minInput.placeholder = 'in N minutes'
+    Object.assign(minInput.style, inputStyle)
+
+    const timeInput = document.createElement('input')
+    timeInput.type = 'time'
+    Object.assign(timeInput.style, inputStyle)
+
+    const orLabel = document.createElement('small')
+    orLabel.textContent = 'or back at (clock time)'
+    orLabel.style.color = '#888'
+
+    const go = document.createElement('button')
+    go.type = 'button'
+    go.textContent = 'raise'
+    Object.assign(go.style, { background: 'var(--red)', color: '#fff', border: '0', padding: mobile ? '12px' : '8px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' })
+    go.onclick = () => {
+      const label = msgSel.value === 'custom' ? customInput.value.trim() || 'starting soon' : msgSel.value
+      let untilMs: number | null = null
+      if (timeInput.value) {
+        const [hh, mm] = timeInput.value.split(':').map((v) => parseInt(v, 10))
+        const d = new Date()
+        d.setHours(hh, mm, 0, 0)
+        let t = d.getTime()
+        if (t <= Date.now()) t += 24 * 60 * 60 * 1000
+        untilMs = t
+      } else {
+        const mins = parseFloat(minInput.value)
+        if (!isNaN(mins) && mins > 0) untilMs = Date.now() + mins * 60_000
+      }
+      panel.remove()
+      if (mobile) refreshMobileCanvasAfterReturn()
+      onConfirm(label, untilMs)
+    }
+
+    const cancel = document.createElement('button')
+    cancel.type = 'button'
+    cancel.textContent = 'cancel'
+    Object.assign(cancel.style, { background: 'transparent', color: '#888', border: '0', padding: '4px 0', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' })
+    cancel.onclick = () => {
+      panel.remove()
+      if (mobile) refreshMobileCanvasAfterReturn()
+    }
+
+    panel.append(title, hint, msgSel, customInput, timerLabel, minInput, orLabel, timeInput, go, cancel)
+    document.body.appendChild(panel)
+  }
+
   setPreview() {
     if (this.disposed) return
+    if (this.isIntermissionActive()) {
+      this.drawIntermissionCard()
+      return
+    }
     if (this.broadcastRoom && this.localBroadcastVideoEl) {
       this.attachVideoToMesh(this.localBroadcastVideoEl, true)
       return
@@ -2651,6 +2964,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (retries < 30) requestAnimationFrame(() => this.attachVideoToMesh(el, muted, retries + 1))
       return
     }
+    // standby card outranks any live feed on the mesh - every video repaint funnels through here.
+    if (this.isIntermissionActive()) {
+      this.drawIntermissionCard()
+      return
+    }
     el.muted = muted
     el.autoplay = true
     el.play().catch(() => {})
@@ -2784,8 +3102,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.walkAwayWarned = false
     this.stopMilestonePoll()
     const othersLive = this.hasOtherLivePublishers()
+    if (this.intermission) this.intermission = null
+    this.stopIntermissionCard()
+    if (this.intermissionStatusInterval) {
+      clearInterval(this.intermissionStatusInterval)
+      this.intermissionStatusInterval = null
+    }
     try {
-      const patch: Record<string, any> = { [this.uuid]: {} }
+      const patch: Record<string, any> = { [this.uuid]: { intermission: null } }
       // only a real broadcaster clears the live flag; audience teardown must not nuke it for everyone
       if (this.broadcastRoom && this.activeLiveShowboxUuid() === this.uuid && !othersLive) patch.__showbox_live = null
       this.parcel.sendStatePatch(patch)
@@ -3477,10 +3801,75 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     goBtn.textContent = 'go live'
     Object.assign(goBtn.style, { background: 'var(--red)', color: '#f5f5f0', border: '0', padding: '12px 16px', cursor: 'pointer', fontFamily: 'inherit', flex: '2', minHeight: '44px', fontWeight: 'bold' })
 
+    // Intermission control. Hidden until live, then sits left of "stop streaming" (in both the desktop
+    // and mobile docks, since both append `row`). Raise opens the setup dialog; return is one tap.
+    const intermissionBtn = document.createElement('button')
+    intermissionBtn.type = 'button'
+    intermissionBtn.textContent = 'take a break'
+    Object.assign(intermissionBtn.style, {
+      display: 'none',
+      background: '#3a2f12',
+      color: '#f5b942',
+      border: '1px solid #5a4718',
+      padding: '12px 16px',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      flex: '1',
+      minHeight: '44px',
+      fontWeight: 'bold',
+    })
+    const syncIntermissionBtn = () => {
+      const on = !!this.intermission
+      intermissionBtn.textContent = on ? 'back to live' : 'take a break'
+      // on break the return button carries the live accent; idle it stays a softer amber (pause, not stop)
+      intermissionBtn.style.background = on ? 'var(--red)' : '#3a2f12'
+      intermissionBtn.style.color = on ? '#f5f5f0' : '#f5b942'
+    }
+    const stopIntermissionStatus = () => {
+      if (this.intermissionStatusInterval) {
+        clearInterval(this.intermissionStatusInterval)
+        this.intermissionStatusInterval = null
+      }
+    }
+    const clearIntermissionStatusLine = () => {
+      stopIntermissionStatus()
+      status.style.display = 'none'
+      status.textContent = ''
+      status.style.color = ''
+    }
+    const runIntermissionStatus = () => {
+      stopIntermissionStatus()
+      const render = () => {
+        if (!this.intermission) {
+          clearIntermissionStatusLine()
+          return
+        }
+        const cd = this.intermissionCountdownLabel(this.intermission.until)
+        status.style.display = 'block'
+        status.style.color = '#f5b942'
+        status.textContent = cd ? `${this.intermission.label} - ${cd}` : this.intermission.label
+      }
+      render()
+      this.intermissionStatusInterval = setInterval(render, 1000)
+    }
+    intermissionBtn.onclick = () => {
+      if (this.intermission) {
+        this.dropIntermission()
+        clearIntermissionStatusLine()
+        syncIntermissionBtn()
+        return
+      }
+      this.openIntermissionPanel((label, untilMs) => {
+        this.raiseIntermission(label, untilMs)
+        syncIntermissionBtn()
+        runIntermissionStatus()
+      })
+    }
+
     const row = document.createElement('div')
     row.style.display = 'flex'
     row.style.gap = '0.5rem'
-    row.append(goBtn)
+    row.append(intermissionBtn, goBtn)
 
     // setup-only escape hatch: close the dialog without going live. hidden once streaming.
     const cancelBtn = document.createElement('button')
@@ -3976,6 +4365,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         goBtn.disabled = false
         status.textContent = ''
         ;[title, screenOpt, status, cancelBtn].forEach((el) => ((el as HTMLElement).style.display = 'none'))
+        // intermission control only makes sense once you're live
+        intermissionBtn.style.display = 'block'
+        syncIntermissionBtn()
+        if (this.intermission) runIntermissionStatus()
         if (identityRow) identityRow.style.display = 'none'
         deviceRow.style.display = 'none'
         // screensharing has no camera and the mic is handled by the mic toggle below - hide the device picker
