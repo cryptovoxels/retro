@@ -18,6 +18,7 @@ import {
   showboxTokenUrlWithIdentity,
 } from '../../common/helpers/showbox-broadcast-health'
 import { showboxAudioConstraints, showboxRoomHint, SHOWBOX_ROOM_OPTIONS, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
+import { SonarVideoProcessor } from '../../common/helpers/showbox-video-fx'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
@@ -462,6 +463,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   intermissionCanvas: HTMLCanvasElement | null = null
   intermissionPrevMic = false
   intermissionStatusInterval: ReturnType<typeof setInterval> | null = null
+  // video FX (prototype): live broadcast audio level (0..1) tapped from the dock meter, read by the
+  // sonar processor for audio reactivity; the active processor on the broadcast camera track.
+  fxAudioLevel = 0
+  broadcastFxProcessor: SonarVideoProcessor | null = null
 
   roomName() {
     return `parcel-${this.parcel.id}`
@@ -3067,6 +3072,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.walkAwayWarned = false
     this.stopMilestonePoll()
     const othersLive = this.hasOtherLivePublishers()
+    if (this.broadcastFxProcessor) {
+      void this.broadcastFxProcessor.destroy?.()
+      this.broadcastFxProcessor = null
+    }
     if (this.intermission) this.intermission = null
     this.stopIntermissionCard()
     if (this.intermissionStatusInterval) {
@@ -3782,7 +3791,99 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       b.onclick = () => window.connector?.emote(e)
       emojiRow.appendChild(b)
     })
-    moveRow.append(danceRow, emojiRow)
+    // "visual board": tab between the emote reactions and live video FX on the broadcast (desktop only).
+    const reactRow = document.createElement('div')
+    Object.assign(reactRow.style, { display: 'flex', flexDirection: 'column', gap: '4px' })
+    reactRow.append(danceRow, emojiRow)
+
+    let fxTabs: HTMLDivElement | null = null
+    let fxRow: HTMLDivElement | null = null
+    // solo-mode desktop preview is its own <video> bound to the raw track; captured here so the fx
+    // toggle can re-point it to the processed track too (cohost mode's preview is the composite, which
+    // already follows). assigned when the desktop preview is built.
+    let fxSoloPreviewEl: HTMLVideoElement | null = null
+    if (!mobile) {
+      const tabStyle = (active: boolean): Record<string, string> => ({
+        background: active ? '#333' : '#1a1a1a',
+        color: active ? '#f5f5f0' : '#888',
+        border: '1px solid #333',
+        padding: '6px 10px',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        flex: '1',
+        minHeight: '32px',
+      })
+      const emotesTab = document.createElement('button')
+      emotesTab.type = 'button'
+      emotesTab.textContent = 'emotes'
+      Object.assign(emotesTab.style, tabStyle(true))
+      const fxTab = document.createElement('button')
+      fxTab.type = 'button'
+      fxTab.textContent = 'fx'
+      Object.assign(fxTab.style, tabStyle(false))
+      fxTabs = document.createElement('div')
+      Object.assign(fxTabs.style, { display: 'flex', gap: '4px' })
+      fxTabs.append(emotesTab, fxTab)
+
+      fxRow = document.createElement('div')
+      Object.assign(fxRow.style, { display: 'none', flexDirection: 'column', gap: '6px' })
+      const fxHint = document.createElement('small')
+      fxHint.textContent = 'live effect on your broadcast - reacts to your audio. (desktop prototype)'
+      fxHint.style.color = '#888'
+      let fxOn = false
+      const sonarBtn = document.createElement('button')
+      sonarBtn.type = 'button'
+      Object.assign(sonarBtn.style, { border: '1px solid #333', padding: '10px', cursor: 'pointer', fontFamily: 'inherit', minHeight: '40px', fontWeight: 'bold' })
+      const syncSonar = () => {
+        sonarBtn.textContent = fxOn ? 'sonar: on' : 'sonar: off'
+        sonarBtn.style.background = fxOn ? 'var(--red)' : '#1a1a1a'
+        sonarBtn.style.color = fxOn ? '#fff' : '#f5f5f0'
+      }
+      syncSonar()
+      sonarBtn.onclick = async () => {
+        if (!this.broadcastRoom || !liveVideoTrack) {
+          app.showSnackbar('go live first to use fx', PanelType.Warning)
+          return
+        }
+        sonarBtn.disabled = true
+        try {
+          if (!fxOn) {
+            this.broadcastFxProcessor = new SonarVideoProcessor(() => this.fxAudioLevel)
+            await liveVideoTrack.setProcessor(this.broadcastFxProcessor)
+            fxOn = true
+          } else {
+            await liveVideoTrack.stopProcessor()
+            this.broadcastFxProcessor = null
+            fxOn = false
+          }
+        } catch (e) {
+          console.error('showbox: sonar fx toggle failed', e)
+          app.showSnackbar('could not toggle effect', PanelType.Warning)
+        }
+        // setProcessor/stopProcessor swaps liveVideoTrack.mediaStreamTrack (processed <-> raw); re-point
+        // the host's own view so they see what the audience sees. Reuses the camera-flip resync path,
+        // which covers both the solo mesh element and the cohost composite (the default). rAF guards timing.
+        this.syncBroadcastVideoFromTrack(liveVideoTrack)
+        requestAnimationFrame(() => this.syncBroadcastVideoFromTrack(liveVideoTrack))
+        // solo-mode dock preview is a standalone <video> the resync above doesn't touch - re-point it too
+        if (fxSoloPreviewEl) syncVideoElFromTrack(fxSoloPreviewEl, liveVideoTrack)
+        sonarBtn.disabled = false
+        syncSonar()
+      }
+      fxRow.append(fxHint, sonarBtn)
+
+      const selectTab = (fx: boolean) => {
+        reactRow.style.display = fx ? 'none' : 'flex'
+        fxRow!.style.display = fx ? 'flex' : 'none'
+        Object.assign(emotesTab.style, tabStyle(!fx))
+        Object.assign(fxTab.style, tabStyle(fx))
+      }
+      emotesTab.onclick = () => selectTab(false)
+      fxTab.onclick = () => selectTab(true)
+    }
+
+    if (fxTabs && fxRow) moveRow.append(fxTabs, reactRow, fxRow)
+    else moveRow.append(reactRow)
 
     const status = document.createElement('div')
     status.style.color = '#888'
@@ -4137,6 +4238,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             sum += v * v
           }
           const pct = Math.min(100, Math.sqrt(sum / data.length) * 200)
+          this.fxAudioLevel = pct / 100 // feed the video FX so the visuals react to the broadcast audio
           meterFillEl.style.width = pct + '%'
           meterFillEl.style.background = pct > 85 ? 'var(--red)' : pct > 60 ? '#f5b942' : '#22c55e'
           this.audioMeterRaf = requestAnimationFrame(tick)
@@ -4563,6 +4665,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             if (!this.isCohostMode()) {
               previewVideo.volume = 0
               Object.assign(previewVideo.style, { width: '100%', height: '100%', objectFit: 'cover', display: 'block' })
+              fxSoloPreviewEl = previewVideo
             }
             const previewLabel = document.createElement('div')
             previewLabel.textContent = this.intermission ? 'your camera · audience sees the standby screen' : 'what your audience sees'
