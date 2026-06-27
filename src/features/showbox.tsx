@@ -18,7 +18,7 @@ import {
   showboxTokenUrlWithIdentity,
 } from '../../common/helpers/showbox-broadcast-health'
 import { showboxAudioConstraints, showboxRoomHint, SHOWBOX_ROOM_OPTIONS, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
-import { SonarVideoProcessor } from '../../common/helpers/showbox-video-fx'
+import { SonarVideoProcessor, FX_PALETTES, FX_DEFAULT_PALETTE, SONAR_PERIOD_MIN, SONAR_PERIOD_MAX } from '../../common/helpers/showbox-video-fx'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
@@ -3834,6 +3834,42 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       fxHint.textContent = 'live effect on your broadcast - reacts to your audio. (desktop prototype)'
       fxHint.style.color = '#888'
       let fxOn = false
+      // current effect settings - applied when sonar starts, and pushed live to a running processor.
+      let fxPalette = FX_DEFAULT_PALETTE
+      let fxPeriod = 3
+
+      // palette picker (Voxelator colors)
+      const paletteSel = document.createElement('select')
+      Object.assign(paletteSel.style, { background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: '6px', fontFamily: 'inherit' })
+      FX_PALETTES.forEach((p, i) => {
+        const o = document.createElement('option')
+        o.value = String(i)
+        o.textContent = p.label
+        paletteSel.appendChild(o)
+      })
+      paletteSel.onchange = () => {
+        fxPalette = FX_PALETTES[parseInt(paletteSel.value, 10) || 0].lut
+        this.broadcastFxProcessor?.setPalette(fxPalette)
+      }
+
+      // sweep-period slider (faithful to Voxelator's sonar param); left = faster, right = slower
+      const speedWrap = document.createElement('label')
+      Object.assign(speedWrap.style, { display: 'flex', alignItems: 'center', gap: '8px', color: '#888', fontSize: '12px' })
+      const speedLabel = document.createElement('span')
+      speedLabel.textContent = 'sweep'
+      const speed = document.createElement('input')
+      speed.type = 'range'
+      speed.min = String(SONAR_PERIOD_MIN)
+      speed.max = String(SONAR_PERIOD_MAX)
+      speed.step = '0.1'
+      speed.value = String(fxPeriod)
+      speed.style.flex = '1'
+      speed.oninput = () => {
+        fxPeriod = parseFloat(speed.value) || 3
+        this.broadcastFxProcessor?.setPeriod(fxPeriod)
+      }
+      speedWrap.append(speedLabel, speed)
+
       const sonarBtn = document.createElement('button')
       sonarBtn.type = 'button'
       Object.assign(sonarBtn.style, { border: '1px solid #333', padding: '10px', cursor: 'pointer', fontFamily: 'inherit', minHeight: '40px', fontWeight: 'bold' })
@@ -3852,6 +3888,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         try {
           if (!fxOn) {
             this.broadcastFxProcessor = new SonarVideoProcessor(() => this.fxAudioLevel)
+            this.broadcastFxProcessor.setPalette(fxPalette)
+            this.broadcastFxProcessor.setPeriod(fxPeriod)
             await liveVideoTrack.setProcessor(this.broadcastFxProcessor)
             fxOn = true
           } else {
@@ -3873,7 +3911,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         sonarBtn.disabled = false
         syncSonar()
       }
-      fxRow.append(fxHint, sonarBtn)
+      fxRow.append(fxHint, sonarBtn, paletteSel, speedWrap)
 
       const selectTab = (fx: boolean) => {
         reactRow.style.display = fx ? 'none' : 'flex'
