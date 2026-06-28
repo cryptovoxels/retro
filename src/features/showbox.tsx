@@ -18,7 +18,7 @@ import {
   showboxTokenUrlWithIdentity,
 } from '../../common/helpers/showbox-broadcast-health'
 import { showboxAudioConstraints, showboxRoomHint, SHOWBOX_ROOM_OPTIONS, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
-import { SonarVideoProcessor, FX_PALETTES, FX_DEFAULT_PALETTE, SONAR_PERIOD_MIN, SONAR_PERIOD_MAX } from '../../common/helpers/showbox-video-fx'
+import { VideoFxProcessor, FX_PALETTES, FX_DEFAULT_PALETTE, VIDEO_FX, type FxAudio } from '../../common/helpers/showbox-video-fx'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
@@ -463,10 +463,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   intermissionCanvas: HTMLCanvasElement | null = null
   intermissionPrevMic = false
   intermissionStatusInterval: ReturnType<typeof setInterval> | null = null
-  // video FX (prototype): live broadcast audio level (0..1) tapped from the dock meter, read by the
-  // sonar processor for audio reactivity; the active processor on the broadcast camera track.
-  fxAudioLevel = 0
-  broadcastFxProcessor: SonarVideoProcessor | null = null
+  // video FX (prototype): live audio analysis (level + bass/mid/treble + beat-punch envelope) tapped
+  // from the dock meter, read by the fx processor so the visuals dance to the music; the active processor.
+  fxAudio: FxAudio = { level: 0, bass: 0, mid: 0, treble: 0, punch: 0 }
+  broadcastFxProcessor: VideoFxProcessor | null = null
 
   roomName() {
     return `parcel-${this.parcel.id}`
@@ -3833,12 +3833,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       const fxHint = document.createElement('small')
       fxHint.textContent = 'live effect on your broadcast - reacts to your audio. (desktop prototype)'
       fxHint.style.color = '#888'
-      let fxOn = false
-      // current effect settings - applied when sonar starts, and pushed live to a running processor.
+      // active effect (null = off), slider position (0..1), and palette
+      let fxActiveKey: string | null = null
+      let fxSlider = 0.5
       let fxPalette = FX_DEFAULT_PALETTE
-      let fxPeriod = 3
 
-      // palette picker (Voxelator colors)
+      // palette picker (Voxelator colors) - applies to whichever effect is active
       const paletteSel = document.createElement('select')
       Object.assign(paletteSel.style, { background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: '6px', fontFamily: 'inherit' })
       FX_PALETTES.forEach((p, i) => {
@@ -3852,72 +3852,87 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.broadcastFxProcessor?.setPalette(fxPalette)
       }
 
-      // sweep-period slider (faithful to Voxelator's sonar param); left = faster, right = slower
-      const speedWrap = document.createElement('label')
-      Object.assign(speedWrap.style, { display: 'flex', alignItems: 'center', gap: '8px', color: '#888', fontSize: '12px' })
-      const speedLabel = document.createElement('span')
-      speedLabel.textContent = 'sweep'
-      const speed = document.createElement('input')
-      speed.type = 'range'
-      speed.min = String(SONAR_PERIOD_MIN)
-      speed.max = String(SONAR_PERIOD_MAX)
-      speed.step = '0.1'
-      speed.value = String(fxPeriod)
-      speed.style.flex = '1'
-      speed.oninput = () => {
-        fxPeriod = parseFloat(speed.value) || 3
-        this.broadcastFxProcessor?.setPeriod(fxPeriod)
+      // one slider for the active effect's parameter (right = stronger/faster for every effect)
+      const slider = document.createElement('input')
+      slider.type = 'range'
+      slider.min = '0'
+      slider.max = '100'
+      slider.step = '1'
+      slider.value = '50'
+      slider.style.width = '100%'
+      slider.oninput = () => {
+        fxSlider = (parseInt(slider.value, 10) || 50) / 100
+        this.broadcastFxProcessor?.setSlider(fxSlider)
       }
-      speedWrap.append(speedLabel, speed)
 
-      const sonarBtn = document.createElement('button')
-      sonarBtn.type = 'button'
-      Object.assign(sonarBtn.style, { border: '1px solid #333', padding: '10px', cursor: 'pointer', fontFamily: 'inherit', minHeight: '40px', fontWeight: 'bold' })
-      const syncSonar = () => {
-        sonarBtn.textContent = fxOn ? 'sonar: on' : 'sonar: off'
-        sonarBtn.style.background = fxOn ? 'var(--red)' : '#1a1a1a'
-        sonarBtn.style.color = fxOn ? '#fff' : '#f5f5f0'
+      // 2x2 grid of effects - select one at a time; clicking the active one turns fx off
+      const fxGrid = document.createElement('div')
+      Object.assign(fxGrid.style, { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' })
+      const fxButtons: Record<string, HTMLButtonElement> = {}
+      const styleFxBtn = (btn: HTMLButtonElement, active: boolean) => {
+        btn.style.background = active ? 'var(--red)' : '#1a1a1a'
+        btn.style.color = active ? '#fff' : '#f5f5f0'
+        btn.style.border = active ? '1px solid var(--red)' : '1px solid #333'
       }
-      syncSonar()
-      sonarBtn.onclick = async () => {
+      const selectFx = async (key: string) => {
         if (!this.broadcastRoom || !liveVideoTrack) {
           app.showSnackbar('go live first to use fx', PanelType.Warning)
           return
         }
-        sonarBtn.disabled = true
+        const turningOff = fxActiveKey === key
+        Object.values(fxButtons).forEach((b) => (b.disabled = true))
         try {
-          if (!fxOn) {
-            this.broadcastFxProcessor = new SonarVideoProcessor(() => this.fxAudioLevel)
-            this.broadcastFxProcessor.setPalette(fxPalette)
-            this.broadcastFxProcessor.setPeriod(fxPeriod)
-            await liveVideoTrack.setProcessor(this.broadcastFxProcessor)
-            fxOn = true
-          } else {
+          if (turningOff) {
             await liveVideoTrack.stopProcessor()
             this.broadcastFxProcessor = null
-            fxOn = false
+            fxActiveKey = null
+          } else if (!this.broadcastFxProcessor) {
+            fxSlider = VIDEO_FX.find((f) => f.key === key)?.defaultSlider ?? 0.5
+            this.broadcastFxProcessor = new VideoFxProcessor(() => this.fxAudio)
+            this.broadcastFxProcessor.setPalette(fxPalette)
+            this.broadcastFxProcessor.setEffect(key)
+            this.broadcastFxProcessor.setSlider(fxSlider)
+            await liveVideoTrack.setProcessor(this.broadcastFxProcessor)
+            fxActiveKey = key
+          } else {
+            // switch effect on the running processor; reset the slider to the new effect's default
+            fxSlider = VIDEO_FX.find((f) => f.key === key)?.defaultSlider ?? 0.5
+            this.broadcastFxProcessor.setEffect(key)
+            this.broadcastFxProcessor.setSlider(fxSlider)
+            fxActiveKey = key
           }
         } catch (e) {
-          console.error('showbox: sonar fx toggle failed', e)
-          // failed mid-toggle - don't leak a half-attached processor; reset to "off"
+          console.error('showbox: fx toggle failed', e)
           if (this.broadcastFxProcessor) {
             void this.broadcastFxProcessor.destroy?.()
             this.broadcastFxProcessor = null
           }
-          fxOn = false
-          app.showSnackbar('could not toggle effect', PanelType.Warning)
+          fxActiveKey = null
+          app.showSnackbar('could not apply effect', PanelType.Warning)
         }
-        // setProcessor/stopProcessor swaps liveVideoTrack.mediaStreamTrack (processed <-> raw); re-point
-        // the host's own view so they see what the audience sees. Reuses the camera-flip resync path,
-        // which covers both the solo mesh element and the cohost composite (the default). rAF guards timing.
+        // turning fx on/off swaps liveVideoTrack.mediaStreamTrack (processed <-> raw); re-point the host's
+        // own view so they see what the audience sees (switching effects keeps the same processed track).
         this.syncBroadcastVideoFromTrack(liveVideoTrack)
         requestAnimationFrame(() => this.syncBroadcastVideoFromTrack(liveVideoTrack))
-        // solo-mode dock preview is a standalone <video> the resync above doesn't touch - re-point it too
         if (fxSoloPreviewEl) syncVideoElFromTrack(fxSoloPreviewEl, liveVideoTrack)
-        sonarBtn.disabled = false
-        syncSonar()
+        Object.entries(fxButtons).forEach(([k, b]) => {
+          b.disabled = false
+          styleFxBtn(b, k === fxActiveKey)
+        })
+        slider.value = String(Math.round(fxSlider * 100))
       }
-      fxRow.append(fxHint, sonarBtn, paletteSel, speedWrap)
+      VIDEO_FX.forEach((fx) => {
+        const b = document.createElement('button')
+        b.type = 'button'
+        b.textContent = fx.label
+        Object.assign(b.style, { padding: '10px', cursor: 'pointer', fontFamily: 'inherit', minHeight: '44px', fontWeight: 'bold' })
+        styleFxBtn(b, false)
+        b.onclick = () => void selectFx(fx.key)
+        fxButtons[fx.key] = b
+        fxGrid.appendChild(b)
+      })
+
+      fxRow.append(fxHint, fxGrid, slider, paletteSel)
 
       const selectTab = (fx: boolean) => {
         reactRow.style.display = fx ? 'none' : 'flex'
@@ -4273,19 +4288,45 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.audioMeterCtx = ctx
         const source = ctx.createMediaStreamSource(new MediaStream([mst]))
         const analyser = ctx.createAnalyser()
-        analyser.fftSize = 512
+        analyser.fftSize = 1024 // finer bass resolution (~43Hz/bin) to catch the kick
+        analyser.smoothingTimeConstant = 0.4 // less spectral smoothing so transients stay sharp
         source.connect(analyser)
         const data = new Uint8Array(analyser.frequencyBinCount)
+        const freq = new Uint8Array(analyser.frequencyBinCount)
+        const avgBins = (arr: Uint8Array, lo: number, hi: number) => {
+          let s = 0
+          for (let i = lo; i < hi; i++) s += arr[i]
+          return hi > lo ? s / (hi - lo) / 255 : 0
+        }
+        let bassAvg = 0
+        let punchEnv = 0
+        let lastTs = performance.now()
         const tick = () => {
           if (!meterFillEl) return
+          // overall loudness (RMS of the waveform) - drives the meter bar
           analyser.getByteTimeDomainData(data)
           let sum = 0
           for (let i = 0; i < data.length; i++) {
             const v = (data[i] - 128) / 128
             sum += v * v
           }
-          const pct = Math.min(100, Math.sqrt(sum / data.length) * 200)
-          this.fxAudioLevel = pct / 100 // feed the video FX so the visuals react to the broadcast audio
+          const level = Math.min(1, Math.sqrt(sum / data.length) * 2)
+          // frequency bands for the video FX (so the visuals dance, not just pulse)
+          analyser.getByteFrequencyData(freq)
+          const n = freq.length
+          const bass = Math.min(1, avgBins(freq, 1, Math.max(2, (n * 0.02) | 0)) * 1.3)
+          const mid = Math.min(1, avgBins(freq, Math.max(2, (n * 0.02) | 0), (n * 0.25) | 0) * 1.3)
+          const treble = Math.min(1, avgBins(freq, (n * 0.25) | 0, (n * 0.6) | 0) * 1.6)
+          // beat-punch = the bass TRANSIENT (how far bass jumps above its own slow average), auto-gained
+          // so it snaps on kicks across loud AND quiet music instead of pinning to 1. time-based decay.
+          const now = performance.now()
+          const dt = Math.min(0.1, (now - lastTs) / 1000 || 0.016)
+          lastTs = now
+          bassAvg += (bass - bassAvg) * 0.06
+          const transient = Math.min(1, Math.max(0, (bass - bassAvg) * 6))
+          punchEnv = Math.max(transient, punchEnv * Math.exp(-dt / 0.12))
+          this.fxAudio = { level, bass, mid, treble, punch: punchEnv }
+          const pct = Math.min(100, level * 100)
           meterFillEl.style.width = pct + '%'
           meterFillEl.style.background = pct > 85 ? 'var(--red)' : pct > 60 ? '#f5b942' : '#22c55e'
           this.audioMeterRaf = requestAnimationFrame(tick)

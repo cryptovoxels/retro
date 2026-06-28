@@ -1,11 +1,13 @@
-// Showbox video effects (prototype). Ports the "sonar sweep" filter from the Voxelator app and wraps
-// it in a LiveKit TrackProcessor so the effect is baked into the published camera stream - viewers,
-// mirrors, the homepage thumbnail, and the "what your audience sees" preview all get it for free,
-// because they just render whatever track is published.
+// Showbox video effects (prototype). Ports four 2D-canvas filters from the Voxelator app and wraps
+// them in a LiveKit TrackProcessor so the chosen effect is baked into the published camera stream -
+// viewers, mirrors, the homepage thumbnail, and the "what your audience sees" preview all get it for
+// free, because they just render whatever track is published.
 //
-// The effect is a pure 2D-canvas pixel pass (no WebGL). It runs on a downscaled processing canvas so
-// it stays real-time on desktop; prototype is desktop-only. The sweep is time-driven and modulated by
-// the live broadcast audio level (passed in via getAudioLevel) so the visuals react to the music.
+// Each effect is a pure per-pixel pass (no WebGL), run on a downscaled processing canvas so it stays
+// real-time on desktop; prototype is desktop-only. A single normalized slider (0..1) drives the active
+// effect's parameter, oriented so right = stronger/faster. Live audio analysis (level + bass/mid/treble
+// + a beat-punch envelope, passed in via getAudio) drives each effect's geometry so the video reads as
+// a visualizer for the music, not just a video that pulses.
 
 type Stop = { at: number; rgb: [number, number, number] }
 
@@ -93,7 +95,6 @@ function samplePalette(stops: Stop[], t: number): [number, number, number] {
   return stops[stops.length - 1].rgb
 }
 
-// precompute a 256-entry luminance -> RGB lookup, exactly like Voxelator.
 function buildLut(stops: Stop[]): Uint8Array {
   const lut = new Uint8Array(256 * 3)
   for (let i = 0; i < 256; i++) {
@@ -109,34 +110,37 @@ function buildLut(stops: Stop[]): Uint8Array {
 export const FX_PALETTES = PALETTE_DEFS.map((p) => ({ key: p.key, label: p.label, lut: buildLut(p.stops) }))
 export const FX_DEFAULT_PALETTE = FX_PALETTES[0].lut // iridescent, Voxelator's default
 
-// sonar sweep period range (seconds), from Voxelator's sonarPeriod slider
-export const SONAR_PERIOD_MIN = 1.5
-export const SONAR_PERIOD_MAX = 6
+const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
-// Ported from Voxelator's processSonar, with two changes for the in-world prototype:
-//  - a dim palette-tinted base so the camera is faintly visible (reads as a hologram, and makes it
-//    obvious the feed is live rather than a pure-black "is it broken?" frame);
-//  - audio (0..1) widens + brightens the sweep band so it pulses with the music.
-// t is seconds, period is sweep seconds.
-function drawSonar(src: ImageData, dst: ImageData, lut: Uint8Array, t: number, period: number, audio: number) {
+// audio analysis passed to every effect: overall level + frequency bands + a beat-punch envelope
+// (fast attack / slow decay on the bass, so it snaps on kicks). all 0..1.
+export type FxAudio = { level: number; bass: number; mid: number; treble: number; punch: number }
+
+// --- effects (ported from Voxelator). Audio drives GEOMETRY (size/speed/density), not just brightness,
+//     so the video reads as a visualizer for the music rather than a video that pulses. ---
+
+// Sonar sweep: a luminance band sweeps over time; BASS shoves the sweep position (it lurches on a kick)
+// and the PUNCH flares the band wide + bright. A dim palette base keeps the camera visible.
+function drawSonar(src: ImageData, dst: ImageData, lut: Uint8Array, t: number, period: number, a: FxAudio) {
   const px = src.data
   const out = dst.data
   const phase = (t / period) % 1
-  const sweep = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2)
+  let sweep = 0.5 - 0.5 * Math.cos(phase * Math.PI * 2)
+  sweep = Math.min(1, sweep + a.punch * 0.4) // the beat punch jumps the sweep toward the bright end
   const sweepLi = (sweep * 255) | 0
   const sR = lut[sweepLi * 3]
   const sG = lut[sweepLi * 3 + 1]
   const sB = lut[sweepLi * 3 + 2]
-  const bandWidth = 0.07 + 0.12 * audio
-  const gain = 0.7 + 0.6 * audio
+  const bandWidth = 0.05 + 0.25 * a.punch + 0.05 * a.level // flares on the beat
+  const gain = 0.55 + 0.9 * a.level
+  const baseAmt = 0.32 + 0.25 * a.level
   for (let i = 0; i < px.length; i += 4) {
     const lum = (0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]) / 255
     const li = (lum * 255) | 0
     const k3 = li * 3
-    // palette-tinted base so the camera is clearly visible as a hologram (not a near-black frame)
-    let r = lut[k3] * lum * 0.5
-    let g = lut[k3 + 1] * lum * 0.5
-    let b = lut[k3 + 2] * lum * 0.5
+    let r = lut[k3] * lum * baseAmt
+    let g = lut[k3 + 1] * lum * baseAmt
+    let b = lut[k3 + 2] * lum * baseAmt
     const dist = Math.abs(lum - sweep)
     if (dist < bandWidth) {
       const k = (1 - dist / bandWidth) * gain
@@ -151,17 +155,169 @@ function drawSonar(src: ImageData, dst: ImageData, lut: Uint8Array, t: number, p
   }
 }
 
+// Vector mesh: trace grid distorted by luminance; PUNCH bunches the grid denser on the beat, level brightens.
+function drawVectorMesh(src: ImageData, dst: ImageData, lut: Uint8Array, _t: number, spacing: number, a: FxAudio) {
+  const W = src.width
+  const H = src.height
+  const px = src.data
+  const out = dst.data
+  for (let i = 0; i < out.length; i += 4) {
+    out[i] = 0
+    out[i + 1] = 0
+    out[i + 2] = 0
+    out[i + 3] = 255
+  }
+  const sp = Math.max(4, (spacing * (1 - 0.45 * a.punch)) | 0) // denser on the beat
+  const bright = 0.55 + 0.85 * a.level
+  const trace = (lum: number, k: number, oi: number) => {
+    const nr = out[oi] + lut[k] * bright
+    out[oi] = nr > 255 ? 255 : nr
+    const ng = out[oi + 1] + lut[k + 1] * bright
+    out[oi + 1] = ng > 255 ? 255 : ng
+    const nb = out[oi + 2] + lut[k + 2] * bright
+    out[oi + 2] = nb > 255 ? 255 : nb
+  }
+  for (let baseY = sp; baseY < H; baseY += sp) {
+    let prevY = -1
+    for (let x = 0; x < W; x++) {
+      const i = (baseY * W + x) << 2
+      const lum = (0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]) / 255
+      const dispY = (baseY - (lum - 0.5) * sp * 1.8) | 0
+      const cY = dispY < 0 ? 0 : dispY >= H ? H - 1 : dispY
+      const k = ((lum * 255) | 0) * 3
+      const yA = prevY === -1 ? cY : prevY < cY ? prevY : cY
+      const yB = prevY === -1 ? cY : prevY < cY ? cY : prevY
+      for (let y = yA; y <= yB; y++) trace(lum, k, (y * W + x) << 2)
+      prevY = cY
+    }
+  }
+  for (let baseX = sp; baseX < W; baseX += sp) {
+    let prevX = -1
+    for (let y = 0; y < H; y++) {
+      const i = (y * W + baseX) << 2
+      const lum = (0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]) / 255
+      const dispX = (baseX + (lum - 0.5) * sp * 1.8) | 0
+      const cX = dispX < 0 ? 0 : dispX >= W ? W - 1 : dispX
+      const k = ((lum * 255) | 0) * 3
+      const xA = prevX === -1 ? cX : prevX < cX ? prevX : cX
+      const xB = prevX === -1 ? cX : prevX < cX ? cX : prevX
+      for (let x = xA; x <= xB; x++) trace(lum, k, (y * W + x) << 2)
+      prevX = cX
+    }
+  }
+}
+
+// Iso contours: quantize luminance into N bands, draw only the band boundaries in palette colors.
+// Iso contours: PUNCH blooms extra bands on the beat (more detail floods in); treble sparkles the lines.
+let contourBandIdx: Uint8Array | null = null
+function drawContour(src: ImageData, dst: ImageData, lut: Uint8Array, _t: number, bands: number, a: FxAudio) {
+  const W = src.width
+  const H = src.height
+  const N = W * H
+  if (!contourBandIdx || contourBandIdx.length !== N) contourBandIdx = new Uint8Array(N)
+  const idx = contourBandIdx
+  const px = src.data
+  const out = dst.data
+  const b = Math.max(2, (bands + a.punch * 6) | 0) // extra bands bloom on the beat
+  const inv = b / 255
+  const bright = 0.7 + 0.6 * a.treble
+  for (let i = 0, j = 0; i < px.length; i += 4, j++) {
+    const lum = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]
+    let bb = (lum * inv) | 0
+    if (bb >= b) bb = b - 1
+    idx[j] = bb
+  }
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      const j = y * W + x
+      const i = j << 2
+      const bv = idx[j]
+      let boundary = false
+      if (x > 0 && idx[j - 1] !== bv) boundary = true
+      else if (x < W - 1 && idx[j + 1] !== bv) boundary = true
+      else if (y > 0 && idx[j - W] !== bv) boundary = true
+      else if (y < H - 1 && idx[j + W] !== bv) boundary = true
+      if (boundary) {
+        const k3 = ((((bv + 1) / b) * 255) | 0) * 3
+        out[i] = Math.min(255, lut[k3] * bright)
+        out[i + 1] = Math.min(255, lut[k3 + 1] * bright)
+        out[i + 2] = Math.min(255, lut[k3 + 2] * bright)
+      } else {
+        out[i] = 0
+        out[i + 1] = 0
+        out[i + 2] = 0
+      }
+      out[i + 3] = 255
+    }
+  }
+}
+
+// 8-bit pixelate: PUNCH balloons the cell size on the beat (blocks visibly grow on the kick); treble adds glint.
+function drawPixelate(src: ImageData, dst: ImageData, lut: Uint8Array, _t: number, cellSize: number, a: FxAudio) {
+  const W = src.width
+  const H = src.height
+  const px = src.data
+  const out = dst.data
+  const cs = Math.max(2, (cellSize * (1 + 1.3 * a.punch)) | 0) // blocks balloon on the beat
+  const bright = 0.7 + 0.6 * a.level + 0.4 * a.treble
+  for (let cy = 0; cy < H; cy += cs) {
+    const yEnd = Math.min(H, cy + cs)
+    for (let cx = 0; cx < W; cx += cs) {
+      const xEnd = Math.min(W, cx + cs)
+      let sum = 0
+      let cnt = 0
+      for (let y = cy; y < yEnd; y += 2) {
+        for (let x = cx; x < xEnd; x += 2) {
+          const i = (y * W + x) << 2
+          sum += 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]
+          cnt++
+        }
+      }
+      const avg = cnt > 0 ? sum / cnt / 255 : 0
+      let r = 0
+      let g = 0
+      let b = 0
+      if (avg >= 0.08) {
+        const k = ((avg * 255) | 0) * 3
+        r = Math.min(255, lut[k] * avg * bright)
+        g = Math.min(255, lut[k + 1] * avg * bright)
+        b = Math.min(255, lut[k + 2] * avg * bright)
+      }
+      for (let y = cy; y < yEnd; y++) {
+        for (let x = cx; x < xEnd; x++) {
+          const oi = (y * W + x) << 2
+          out[oi] = r
+          out[oi + 1] = g
+          out[oi + 2] = b
+          out[oi + 3] = 255
+        }
+      }
+    }
+  }
+}
+
+type FxDraw = (src: ImageData, dst: ImageData, lut: Uint8Array, t: number, param: number, audio: FxAudio) => void
+
+// the effect grid. sliderToParam maps the 0..1 slider so right = stronger/faster for every effect.
+export const VIDEO_FX: { key: string; label: string; draw: FxDraw; sliderToParam: (t01: number) => number; defaultSlider: number }[] = [
+  { key: 'sonar', label: 'Sonar', draw: drawSonar, sliderToParam: (t) => lerp(6, 1.5, t), defaultSlider: 0.5 }, // right = faster sweep
+  { key: 'vmesh', label: 'Vector mesh', draw: drawVectorMesh, sliderToParam: (t) => lerp(40, 6, t), defaultSlider: 0.5 }, // right = denser
+  { key: 'contour', label: 'Iso contours', draw: drawContour, sliderToParam: (t) => lerp(3, 14, t), defaultSlider: 0.5 }, // right = more bands
+  { key: 'pixelate', label: '8-bit', draw: drawPixelate, sliderToParam: (t) => lerp(6, 32, t), defaultSlider: 0.5 }, // right = chunkier
+]
+
 // cap the processing resolution so the per-pixel pass stays real-time; the published track is this size.
 const PROC_MAX_W = 480
 
 // Structurally implements livekit-client's TrackProcessor<Video> (name/init/restart/destroy/processedTrack)
 // without importing the experimental type, so it stays decoupled from the livekit version.
-export class SonarVideoProcessor {
-  name = 'showbox-sonar'
+export class VideoFxProcessor {
+  name = 'showbox-fx'
   processedTrack?: MediaStreamTrack
 
-  private getAudioLevel: () => number
-  private period: number
+  private getAudio: () => FxAudio
+  private effect = VIDEO_FX[0]
+  private slider = VIDEO_FX[0].defaultSlider
   private lut: Uint8Array = FX_DEFAULT_PALETTE
   private video: HTMLVideoElement | null = null
   private srcCanvas: HTMLCanvasElement | null = null
@@ -174,17 +330,20 @@ export class SonarVideoProcessor {
   private outImageData: ImageData | null = null
   private t0 = 0
 
-  constructor(getAudioLevel: () => number, periodSeconds = 3) {
-    this.getAudioLevel = getAudioLevel
-    this.period = periodSeconds
+  constructor(getAudio: () => FxAudio) {
+    this.getAudio = getAudio
   }
 
   // live controls - safe to call while the effect is running (the loop reads them each frame)
+  setEffect(key: string) {
+    const fx = VIDEO_FX.find((f) => f.key === key)
+    if (fx) this.effect = fx
+  }
+  setSlider(t01: number) {
+    this.slider = Math.max(0, Math.min(1, t01))
+  }
   setPalette(lut: Uint8Array) {
     this.lut = lut
-  }
-  setPeriod(seconds: number) {
-    this.period = Math.max(SONAR_PERIOD_MIN, Math.min(SONAR_PERIOD_MAX, seconds))
   }
 
   private mountVideo(track: MediaStreamTrack) {
@@ -193,7 +352,6 @@ export class SonarVideoProcessor {
     v.playsInline = true
     v.autoplay = true
     v.setAttribute('playsinline', '')
-    // some browsers won't decode an off-DOM <video> reliably; keep it in the DOM but effectively invisible
     Object.assign(v.style, { position: 'fixed', left: '-10px', top: '-10px', width: '2px', height: '2px', opacity: '0', pointerEvents: 'none' })
     v.srcObject = new MediaStream([track])
     document.body.appendChild(v)
@@ -233,12 +391,10 @@ export class SonarVideoProcessor {
     this.srcCanvas.height = this.outCanvas.height = h
     this.srcCtx = this.srcCanvas.getContext('2d', { willReadFrequently: true })
     this.outCtx = this.outCanvas.getContext('2d')
-    // paint one frame so the published track is opaque immediately, before the first processed frame
     if (this.outCtx) {
-      this.outCtx.fillStyle = '#0a0a18'
+      this.outCtx.fillStyle = '#000'
       this.outCtx.fillRect(0, 0, w, h)
     }
-    // set processedTrack synchronously so livekit has a valid track the moment init resolves
     this.processedTrack = (this.outCanvas as any).captureStream(30).getVideoTracks()[0]
     this.t0 = performance.now()
     this.loop()
@@ -257,25 +413,27 @@ export class SonarVideoProcessor {
         sc.width = oc.width = w
         sc.height = oc.height = h
       }
-      this.srcCtx.drawImage(v, 0, 0, w, h)
+      const audio = this.getAudio()
+      // global beat pulse: a subtle zoom on the source so the whole frame throbs on the kick (every effect)
+      const z = 1 + 0.07 * audio.punch
+      const zw = w * z
+      const zh = h * z
+      this.srcCtx.drawImage(v, (w - zw) / 2, (h - zh) / 2, zw, zh)
       const srcData = this.srcCtx.getImageData(0, 0, w, h)
-      // reuse one output buffer (drawSonar writes every pixel incl. alpha) to avoid per-frame GC churn
       if (!this.outImageData || this.outImageData.width !== w || this.outImageData.height !== h) {
         this.outImageData = this.outCtx.createImageData(w, h)
       }
       const dstData = this.outImageData
       const t = (performance.now() - this.t0) / 1000
-      const audio = Math.max(0, Math.min(1, this.getAudioLevel()))
-      drawSonar(srcData, dstData, this.lut, t, this.period, audio)
+      const param = this.effect.sliderToParam(this.slider)
+      this.effect.draw(srcData, dstData, this.lut, t, param, audio)
       this.outCtx.putImageData(dstData, 0, 0)
     }
-    // requestVideoFrameCallback fires per decoded frame (reliable); fall back to rAF
     const rvfc = (this.video as any)?.requestVideoFrameCallback
     if (rvfc) rvfc.call(this.video, () => this.loop())
     else this.raf = requestAnimationFrame(this.loop)
   }
 
-  // livekit calls this when the underlying camera track changes (device switch / restart)
   async restart(opts: { track: MediaStreamTrack; element?: HTMLMediaElement }) {
     const el = opts.element instanceof HTMLVideoElement ? opts.element : null
     if (el) {
@@ -297,7 +455,6 @@ export class SonarVideoProcessor {
     try {
       this.processedTrack?.stop()
     } catch {}
-    // only tear down the video if we made it; livekit owns opts.element and removes it in stopProcessor
     if (this.video && this.ownsVideo) {
       try {
         this.video.pause()
