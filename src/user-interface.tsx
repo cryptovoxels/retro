@@ -318,6 +318,10 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     document.removeEventListener('pointerlockchange', this.onPointerLockChange)
     chatSettings.removeEventListener('changed', this.onChatSettingsChange)
     this.chatListDispose?.()
+    // dispose the keyboard handler too - it attaches keydown/keyup on `document` in addKeyboardHandlers,
+    // and without this each unmount (e.g. womp preview -> /play, every page hop) leaks a live handler.
+    // They accumulate and re-fire shortcuts N times, so camera toggles (C perspective, F fly) cancel out.
+    this.keyboardHandler?.dispose()
   }
 
   onPointerLockChange = () => {
