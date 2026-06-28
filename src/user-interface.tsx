@@ -129,6 +129,7 @@ type UserInterfaceState = {
   scratchpadGuideRestart?: boolean
   scratchpadGuideKey?: number
   chatEnabled: boolean
+  dragging?: boolean
 }
 
 export default class UserInterface extends Component<UserInterfaceProps, UserInterfaceState> {
@@ -214,6 +215,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   refreshFullscreen = () => {
     this.setState({ fullscreen: !!document.fullscreenElement })
   }
+
+  setDragging = (v: boolean) => this.setState({ dragging: v })
 
   openEditor(editor: FeatureEditor, feature: Feature) {
     this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'feature-editor' })
@@ -931,7 +934,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
             {this.state.chatEnabled && <ChatOverlay scene={this.props.scene} />}
 
             {pane && (
-              <dialog class="editor" open>
+              <dialog class="editor" open style={this.state.dragging ? { display: 'none' } : undefined}>
                 {pane}
               </dialog>
             )}

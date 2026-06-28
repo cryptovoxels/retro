@@ -303,6 +303,7 @@ const roundNumberArray = (array: number[], dp: number) => array.map((i: number) 
  * @returns void
  */
 const GenericOnDragStart = (gizmo: BABYLON.Gizmo) => () => {
+  window.ui?.setDragging(true)
   const feature = getFeature(gizmo)
   if (!feature) return
 
@@ -312,6 +313,7 @@ const GenericOnDragStart = (gizmo: BABYLON.Gizmo) => () => {
   }
 }
 const GenericOnDragEnd = (gizmo: BABYLON.Gizmo) => () => {
+  window.ui?.setDragging(false)
   const feature = getFeature(gizmo)
   if (!feature) return
 
