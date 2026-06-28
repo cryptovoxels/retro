@@ -296,6 +296,73 @@ function drawPixelate(src: ImageData, dst: ImageData, lut: Uint8Array, _t: numbe
   }
 }
 
+// Bayer dither: ordered-threshold dither, palette-graded by luminance; the beat PUNCH lowers the
+// threshold so the image floods in on the kick. Param (slider) is the bias: right = darker / sparser dots.
+const BAYER8 = new Float32Array([
+  0, 32, 8, 40, 2, 34, 10, 42, 48, 16, 56, 24, 50, 18, 58, 26, 12, 44, 4, 36, 14, 46, 6, 38, 60, 28, 52, 20, 62, 30, 54, 22, 3, 35, 11, 43, 1, 33, 9, 41, 51, 19, 59, 27, 49, 17, 57, 25, 15, 47, 7, 39, 13, 45, 5, 37, 63, 31, 55, 23, 61, 29,
+  53, 21,
+])
+for (let i = 0; i < BAYER8.length; i++) BAYER8[i] = (BAYER8[i] + 0.5) / 64
+function drawBayer(src: ImageData, dst: ImageData, lut: Uint8Array, _t: number, bias: number, a: FxAudio) {
+  const W = src.width
+  const H = src.height
+  const px = src.data
+  const out = dst.data
+  const effBias = bias - a.punch * 0.3 // beat floods more pixels in
+  const bright = 0.8 + 0.5 * a.level
+  for (let y = 0; y < H; y++) {
+    const row = (y & 7) << 3
+    for (let x = 0; x < W; x++) {
+      const i = (y * W + x) << 2
+      const lum = (0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]) / 255
+      if (lum > BAYER8[row + (x & 7)] + effBias) {
+        const k = ((lum * 255) | 0) * 3
+        out[i] = Math.min(255, lut[k] * bright)
+        out[i + 1] = Math.min(255, lut[k + 1] * bright)
+        out[i + 2] = Math.min(255, lut[k + 2] * bright)
+      } else {
+        out[i] = 0
+        out[i + 1] = 0
+        out[i + 2] = 0
+      }
+      out[i + 3] = 255
+    }
+  }
+}
+
+// Motion ink: palette-colored trails wherever the image moves; they fade by `decay` (right = longer
+// trails). level + punch brighten the ink, so movement on the beat flares.
+let motionPrev: Float32Array | null = null
+let motionTrail: Float32Array | null = null
+function drawMotion(src: ImageData, dst: ImageData, lut: Uint8Array, _t: number, decay: number, a: FxAudio) {
+  const N = src.width * src.height
+  if (!motionPrev || motionPrev.length !== N) {
+    motionPrev = new Float32Array(N)
+    motionTrail = new Float32Array(N)
+  }
+  const prev = motionPrev
+  const trail = motionTrail as Float32Array
+  const px = src.data
+  const out = dst.data
+  const threshold = 8
+  const bright = 0.7 + 0.6 * a.level + 0.5 * a.punch
+  for (let i = 0, j = 0; i < px.length; i += 4, j++) {
+    const lum = 0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]
+    const diff = lum - prev[j]
+    const absDiff = diff < 0 ? -diff : diff
+    const newTrail = absDiff > threshold ? Math.min(255, absDiff * 3) : 0
+    const decayed = trail[j] * decay
+    trail[j] = newTrail > decayed ? newTrail : decayed
+    prev[j] = lum
+    const u = trail[j] / 255
+    const k = ((u * 255) | 0) * 3
+    out[i] = Math.min(255, lut[k] * u * bright)
+    out[i + 1] = Math.min(255, lut[k + 1] * u * bright)
+    out[i + 2] = Math.min(255, lut[k + 2] * u * bright)
+    out[i + 3] = 255
+  }
+}
+
 type FxDraw = (src: ImageData, dst: ImageData, lut: Uint8Array, t: number, param: number, audio: FxAudio) => void
 
 // the effect grid. sliderToParam maps the 0..1 slider so right = stronger/faster for every effect.
@@ -304,6 +371,8 @@ export const VIDEO_FX: { key: string; label: string; draw: FxDraw; sliderToParam
   { key: 'vmesh', label: 'Vector mesh', draw: drawVectorMesh, sliderToParam: (t) => lerp(40, 6, t), defaultSlider: 0.5 }, // right = denser
   { key: 'contour', label: 'Iso contours', draw: drawContour, sliderToParam: (t) => lerp(3, 14, t), defaultSlider: 0.5 }, // right = more bands
   { key: 'pixelate', label: '8-bit', draw: drawPixelate, sliderToParam: (t) => lerp(6, 32, t), defaultSlider: 0.5 }, // right = chunkier
+  { key: 'bayer', label: 'Bayer dither', draw: drawBayer, sliderToParam: (t) => lerp(-0.1, 0.35, t), defaultSlider: 0.5 }, // right = sparser dots
+  { key: 'motion', label: 'Motion ink', draw: drawMotion, sliderToParam: (t) => lerp(0.7, 0.97, t), defaultSlider: 0.5 }, // right = longer trails
 ]
 
 // cap the processing resolution so the per-pixel pass stays real-time; the published track is this size.
@@ -319,6 +388,11 @@ export class VideoFxProcessor {
   private effect = VIDEO_FX[0]
   private slider = VIDEO_FX[0].defaultSlider
   private lut: Uint8Array = FX_DEFAULT_PALETTE
+  // crossfade: while fading, both the prev and current effect are drawn and blended by `alpha`
+  private prevEffect: (typeof VIDEO_FX)[number] | null = null
+  private prevSlider = 0.5
+  private fadeStart = 0
+  private fadeDurMs = 0
   private video: HTMLVideoElement | null = null
   private srcCanvas: HTMLCanvasElement | null = null
   private outCanvas: HTMLCanvasElement | null = null
@@ -328,6 +402,8 @@ export class VideoFxProcessor {
   private stopped = false
   private ownsVideo = false
   private outImageData: ImageData | null = null
+  private fadeA: ImageData | null = null
+  private fadeB: ImageData | null = null
   private t0 = 0
 
   constructor(getAudio: () => FxAudio) {
@@ -335,9 +411,19 @@ export class VideoFxProcessor {
   }
 
   // live controls - safe to call while the effect is running (the loop reads them each frame)
-  setEffect(key: string) {
+  // fadeMs > 0 crossfades from the current effect to the new one over that many ms.
+  setEffect(key: string, fadeMs = 0) {
     const fx = VIDEO_FX.find((f) => f.key === key)
-    if (fx) this.effect = fx
+    if (!fx || fx === this.effect) return
+    if (fadeMs > 0) {
+      this.prevEffect = this.effect
+      this.prevSlider = this.slider // capture the outgoing effect's param before the UI sets the new one
+      this.fadeStart = performance.now()
+      this.fadeDurMs = fadeMs
+    } else {
+      this.prevEffect = null
+    }
+    this.effect = fx
   }
   setSlider(t01: number) {
     this.slider = Math.max(0, Math.min(1, t01))
@@ -425,8 +511,24 @@ export class VideoFxProcessor {
       }
       const dstData = this.outImageData
       const t = (performance.now() - this.t0) / 1000
-      const param = this.effect.sliderToParam(this.slider)
-      this.effect.draw(srcData, dstData, this.lut, t, param, audio)
+      const now = performance.now()
+      const fading = this.prevEffect && now - this.fadeStart < this.fadeDurMs
+      if (fading && this.prevEffect) {
+        // draw both effects into scratch buffers and blend by alpha (0 -> 1 over the fade)
+        if (!this.fadeA || this.fadeA.width !== w || this.fadeA.height !== h) this.fadeA = this.outCtx.createImageData(w, h)
+        if (!this.fadeB || this.fadeB.width !== w || this.fadeB.height !== h) this.fadeB = this.outCtx.createImageData(w, h)
+        const alpha = (now - this.fadeStart) / this.fadeDurMs
+        this.prevEffect.draw(srcData, this.fadeA, this.lut, t, this.prevEffect.sliderToParam(this.prevSlider), audio)
+        this.effect.draw(srcData, this.fadeB, this.lut, t, this.effect.sliderToParam(this.slider), audio)
+        const a = this.fadeA.data
+        const b = this.fadeB.data
+        const o = dstData.data
+        const ia = 1 - alpha
+        for (let i = 0; i < o.length; i++) o[i] = a[i] * ia + b[i] * alpha
+      } else {
+        this.prevEffect = null // fade finished (or none) - run just the current effect
+        this.effect.draw(srcData, dstData, this.lut, t, this.effect.sliderToParam(this.slider), audio)
+      }
       this.outCtx.putImageData(dstData, 0, 0)
     }
     const rvfc = (this.video as any)?.requestVideoFrameCallback
