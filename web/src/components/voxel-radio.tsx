@@ -165,16 +165,7 @@ class KaossPad extends Component<KaossProps> {
     const { label } = this.props
     return (
       <>
-        <div
-          class="vr-kaoss-grid"
-          ref={this.pad}
-          onPointerEnter={this.enter}
-          onPointerMove={this.move}
-          onPointerLeave={this.leave}
-          onPointerDown={this.down}
-          onPointerUp={this.up}
-          title={label}
-        >
+        <div class="vr-kaoss-grid" ref={this.pad} onPointerEnter={this.enter} onPointerMove={this.move} onPointerLeave={this.leave} onPointerDown={this.down} onPointerUp={this.up} title={label}>
           {Array.from({ length: KDOTS }, (_, i) => (
             <span
               key={i}

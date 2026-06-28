@@ -635,7 +635,7 @@ export class VoxelRadioEngine {
         console.error('[radio] track load failed', file)
         this.onChange?.()
       },
-      { once: true }
+      { once: true },
     )
 
     this.onChange?.()
