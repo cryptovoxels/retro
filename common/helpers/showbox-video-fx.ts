@@ -133,10 +133,10 @@ function drawSonar(src: ImageData, dst: ImageData, lut: Uint8Array, t: number, p
     const lum = (0.299 * px[i] + 0.587 * px[i + 1] + 0.114 * px[i + 2]) / 255
     const li = (lum * 255) | 0
     const k3 = li * 3
-    // faint hologram base
-    let r = lut[k3] * lum * 0.18
-    let g = lut[k3 + 1] * lum * 0.18
-    let b = lut[k3 + 2] * lum * 0.18
+    // palette-tinted base so the camera is clearly visible as a hologram (not a near-black frame)
+    let r = lut[k3] * lum * 0.5
+    let g = lut[k3 + 1] * lum * 0.5
+    let b = lut[k3 + 2] * lum * 0.5
     const dist = Math.abs(lum - sweep)
     if (dist < bandWidth) {
       const k = (1 - dist / bandWidth) * gain
@@ -170,6 +170,8 @@ export class SonarVideoProcessor {
   private outCtx: CanvasRenderingContext2D | null = null
   private raf: number | null = null
   private stopped = false
+  private ownsVideo = false
+  private outImageData: ImageData | null = null
   private t0 = 0
 
   constructor(getAudioLevel: () => number, periodSeconds = 3) {
@@ -199,9 +201,25 @@ export class SonarVideoProcessor {
     this.video = v
   }
 
-  async init(opts: { track: MediaStreamTrack }) {
+  async init(opts: { track: MediaStreamTrack; element?: HTMLMediaElement }) {
     this.stopped = false
-    this.mountVideo(opts.track)
+    // LiveKit attaches the camera track to a <video> and plays it, then hands it to us as opts.element.
+    // Draw from THAT (building our own MediaStream from opts.track produced black/empty frames).
+    const el = opts.element instanceof HTMLVideoElement ? opts.element : null
+    if (el) {
+      el.muted = true
+      el.setAttribute('playsinline', '')
+      if (!el.isConnected) {
+        Object.assign(el.style, { position: 'fixed', left: '-10px', top: '-10px', width: '2px', height: '2px', opacity: '0', pointerEvents: 'none' })
+        document.body.appendChild(el)
+      }
+      void el.play().catch(() => {})
+      this.video = el
+      this.ownsVideo = false
+    } else {
+      this.mountVideo(opts.track)
+      this.ownsVideo = true
+    }
 
     this.srcCanvas = document.createElement('canvas')
     this.outCanvas = document.createElement('canvas')
@@ -241,7 +259,11 @@ export class SonarVideoProcessor {
       }
       this.srcCtx.drawImage(v, 0, 0, w, h)
       const srcData = this.srcCtx.getImageData(0, 0, w, h)
-      const dstData = this.outCtx.createImageData(w, h)
+      // reuse one output buffer (drawSonar writes every pixel incl. alpha) to avoid per-frame GC churn
+      if (!this.outImageData || this.outImageData.width !== w || this.outImageData.height !== h) {
+        this.outImageData = this.outCtx.createImageData(w, h)
+      }
+      const dstData = this.outImageData
       const t = (performance.now() - this.t0) / 1000
       const audio = Math.max(0, Math.min(1, this.getAudioLevel()))
       drawSonar(srcData, dstData, this.lut, t, this.period, audio)
@@ -254,7 +276,15 @@ export class SonarVideoProcessor {
   }
 
   // livekit calls this when the underlying camera track changes (device switch / restart)
-  async restart(opts: { track: MediaStreamTrack }) {
+  async restart(opts: { track: MediaStreamTrack; element?: HTMLMediaElement }) {
+    const el = opts.element instanceof HTMLVideoElement ? opts.element : null
+    if (el) {
+      el.muted = true
+      void el.play().catch(() => {})
+      this.video = el
+      this.ownsVideo = false
+      return
+    }
     if (!this.video) return this.init(opts)
     this.video.srcObject = new MediaStream([opts.track])
     void this.video.play().catch(() => {})
@@ -267,7 +297,8 @@ export class SonarVideoProcessor {
     try {
       this.processedTrack?.stop()
     } catch {}
-    if (this.video) {
+    // only tear down the video if we made it; livekit owns opts.element and removes it in stopProcessor
+    if (this.video && this.ownsVideo) {
       try {
         this.video.pause()
         this.video.srcObject = null
