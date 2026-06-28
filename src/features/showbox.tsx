@@ -467,6 +467,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   // from the dock meter, read by the fx processor so the visuals dance to the music; the active processor.
   fxAudio: FxAudio = { level: 0, bass: 0, mid: 0, treble: 0, punch: 0 }
   broadcastFxProcessor: VideoFxProcessor | null = null
+  fxAutoTimer: ReturnType<typeof setTimeout> | null = null
 
   roomName() {
     return `parcel-${this.parcel.id}`
@@ -3075,6 +3076,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.walkAwayWarned = false
     this.stopMilestonePoll()
     const othersLive = this.hasOtherLivePublishers()
+    if (this.fxAutoTimer) {
+      clearTimeout(this.fxAutoTimer)
+      this.fxAutoTimer = null
+    }
     if (this.broadcastFxProcessor) {
       void this.broadcastFxProcessor.destroy?.()
       this.broadcastFxProcessor = null
@@ -3831,12 +3836,19 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       fxRow = document.createElement('div')
       Object.assign(fxRow.style, { display: 'none', flexDirection: 'column', gap: '6px' })
       const fxHint = document.createElement('small')
-      fxHint.textContent = 'live effect on your broadcast - reacts to your audio. (desktop prototype)'
+      fxHint.textContent = 'live effect on your broadcast - reacts to your audio.'
       fxHint.style.color = '#888'
-      // active effect (null = off), slider position (0..1), and palette
+      // active effect (null = off), palette, per-effect remembered slider positions, and auto-mode state
       let fxActiveKey: string | null = null
-      let fxSlider = 0.5
       let fxPalette = FX_DEFAULT_PALETTE
+      const fxSliderByKey: Record<string, number> = {}
+      VIDEO_FX.forEach((f) => (fxSliderByKey[f.key] = f.defaultSlider))
+      const MANUAL_FADE_MS = 500
+      // auto mode: crossfade through a chosen subset of effects on a hold + fade timer
+      let autoOn = false
+      const autoSet = new Set<string>()
+      let holdMs = 8000
+      let fadeMs = 4000
 
       // palette picker (Voxelator colors) - applies to whichever effect is active
       const paletteSel = document.createElement('select')
@@ -3861,19 +3873,34 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       slider.value = '50'
       slider.style.width = '100%'
       slider.oninput = () => {
-        fxSlider = (parseInt(slider.value, 10) || 50) / 100
-        this.broadcastFxProcessor?.setSlider(fxSlider)
+        const v = (parseInt(slider.value, 10) || 50) / 100
+        if (fxActiveKey) fxSliderByKey[fxActiveKey] = v // remember it for this effect
+        this.broadcastFxProcessor?.setSlider(v)
       }
 
-      // 2x2 grid of effects - select one at a time; clicking the active one turns fx off
       const fxGrid = document.createElement('div')
       Object.assign(fxGrid.style, { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' })
       const fxButtons: Record<string, HTMLButtonElement> = {}
-      const styleFxBtn = (btn: HTMLButtonElement, active: boolean) => {
-        btn.style.background = active ? 'var(--red)' : '#1a1a1a'
-        btn.style.color = active ? '#fff' : '#f5f5f0'
-        btn.style.border = active ? '1px solid var(--red)' : '1px solid #333'
+      // tile look: the effect on screen is red; in auto mode, effects in the rotation are amber, others dim.
+      const refreshTiles = () => {
+        Object.entries(fxButtons).forEach(([k, b]) => {
+          const showing = k === fxActiveKey
+          const inSet = autoSet.has(k)
+          b.style.background = showing ? 'var(--red)' : '#1a1a1a'
+          if (showing) {
+            b.style.color = '#fff'
+            b.style.border = '1px solid var(--red)'
+          } else if (autoOn) {
+            b.style.color = inSet ? '#f5b942' : '#888'
+            b.style.border = inSet ? '1px solid #5a4718' : '1px solid #333'
+          } else {
+            b.style.color = '#f5f5f0'
+            b.style.border = '1px solid #333'
+          }
+        })
       }
+
+      // manual: turn fx on / crossfade between effects / turn off (tap the active one)
       const selectFx = async (key: string) => {
         if (!this.broadcastRoom || !liveVideoTrack) {
           app.showSnackbar('go live first to use fx', PanelType.Warning)
@@ -3887,18 +3914,16 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             this.broadcastFxProcessor = null
             fxActiveKey = null
           } else if (!this.broadcastFxProcessor) {
-            fxSlider = VIDEO_FX.find((f) => f.key === key)?.defaultSlider ?? 0.5
             this.broadcastFxProcessor = new VideoFxProcessor(() => this.fxAudio)
             this.broadcastFxProcessor.setPalette(fxPalette)
             this.broadcastFxProcessor.setEffect(key)
-            this.broadcastFxProcessor.setSlider(fxSlider)
+            this.broadcastFxProcessor.setSlider(fxSliderByKey[key] ?? 0.5)
             await liveVideoTrack.setProcessor(this.broadcastFxProcessor)
             fxActiveKey = key
           } else {
-            // switch effect on the running processor; reset the slider to the new effect's default
-            fxSlider = VIDEO_FX.find((f) => f.key === key)?.defaultSlider ?? 0.5
-            this.broadcastFxProcessor.setEffect(key)
-            this.broadcastFxProcessor.setSlider(fxSlider)
+            // crossfade to the new effect on the running processor; restore its remembered slider
+            this.broadcastFxProcessor.setEffect(key, MANUAL_FADE_MS)
+            this.broadcastFxProcessor.setSlider(fxSliderByKey[key] ?? 0.5)
             fxActiveKey = key
           }
         } catch (e) {
@@ -3915,24 +3940,141 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.syncBroadcastVideoFromTrack(liveVideoTrack)
         requestAnimationFrame(() => this.syncBroadcastVideoFromTrack(liveVideoTrack))
         if (fxSoloPreviewEl) syncVideoElFromTrack(fxSoloPreviewEl, liveVideoTrack)
-        Object.entries(fxButtons).forEach(([k, b]) => {
-          b.disabled = false
-          styleFxBtn(b, k === fxActiveKey)
-        })
-        slider.value = String(Math.round(fxSlider * 100))
+        Object.values(fxButtons).forEach((b) => (b.disabled = false))
+        refreshTiles()
+        slider.value = String(Math.round((fxActiveKey ? fxSliderByKey[fxActiveKey] : 0.5) * 100))
       }
+
+      // auto-mode driver: step to the next effect in the rotation, crossfading over `fadeMs`
+      const stopAuto = () => {
+        if (this.fxAutoTimer) {
+          clearTimeout(this.fxAutoTimer)
+          this.fxAutoTimer = null
+        }
+      }
+      const autoStep = () => {
+        // self-terminate if fx ended or the dock was closed (closure autoOn can't be reached from teardown)
+        if (!autoOn || !this.broadcastFxProcessor || !this.broadcastPanel) {
+          stopAuto()
+          return
+        }
+        const members = VIDEO_FX.map((f) => f.key).filter((k) => autoSet.has(k))
+        if (members.length < 2) {
+          this.fxAutoTimer = setTimeout(autoStep, holdMs) // nothing to cross to - just wait
+          return
+        }
+        const curIdx = members.indexOf(fxActiveKey ?? members[0])
+        const next = members[(curIdx + 1) % members.length]
+        this.broadcastFxProcessor.setEffect(next, fadeMs)
+        this.broadcastFxProcessor.setSlider(fxSliderByKey[next] ?? 0.5)
+        fxActiveKey = next
+        slider.value = String(Math.round((fxSliderByKey[next] ?? 0.5) * 100))
+        refreshTiles()
+        this.fxAutoTimer = setTimeout(autoStep, holdMs + fadeMs)
+      }
+      const startAuto = async () => {
+        const members = VIDEO_FX.map((f) => f.key).filter((k) => autoSet.has(k))
+        if (!this.broadcastFxProcessor && members.length) await selectFx(members[0])
+        stopAuto()
+        this.fxAutoTimer = setTimeout(autoStep, holdMs)
+      }
+
+      // hold + fade sliders (shown only in auto mode)
+      const labeledSlider = (label: string, min: number, max: number, val: number, onChange: (s: number) => void) => {
+        const wrap = document.createElement('label')
+        Object.assign(wrap.style, { display: 'none', alignItems: 'center', gap: '8px', color: '#888', fontSize: '12px' })
+        const span = document.createElement('span')
+        span.textContent = label
+        span.style.minWidth = '32px'
+        const r = document.createElement('input')
+        r.type = 'range'
+        r.min = String(min)
+        r.max = String(max)
+        r.step = '0.5'
+        r.value = String(val)
+        r.style.flex = '1'
+        const out = document.createElement('span')
+        out.style.minWidth = '34px'
+        const sync = () => (out.textContent = r.value + 's')
+        r.oninput = () => {
+          sync()
+          onChange(parseFloat(r.value) || val)
+        }
+        sync()
+        wrap.append(span, r, out)
+        return wrap
+      }
+      const holdRow = labeledSlider('hold', 1, 60, 8, (s) => (holdMs = s * 1000))
+      const fadeRow = labeledSlider('fade', 0.5, 30, 4, (s) => (fadeMs = s * 1000))
+
+      // auto on/off toggle
+      const autoBtn = document.createElement('button')
+      autoBtn.type = 'button'
+      Object.assign(autoBtn.style, { padding: '8px', cursor: 'pointer', fontFamily: 'inherit', minHeight: '36px', fontWeight: 'bold', border: '1px solid #333' })
+      const syncAutoBtn = () => {
+        autoBtn.textContent = autoOn ? 'auto: on' : 'auto: off'
+        autoBtn.style.background = autoOn ? 'var(--red)' : '#1a1a1a'
+        autoBtn.style.color = autoOn ? '#fff' : '#888'
+      }
+      syncAutoBtn()
+      autoBtn.onclick = () => {
+        if (!this.broadcastRoom || !liveVideoTrack) {
+          app.showSnackbar('go live first to use fx', PanelType.Warning)
+          return
+        }
+        autoOn = !autoOn
+        if (autoOn) {
+          if (autoSet.size === 0) VIDEO_FX.forEach((f) => autoSet.add(f.key)) // default: cycle all of them
+          holdRow.style.display = 'flex'
+          fadeRow.style.display = 'flex'
+          fxHint.textContent = 'auto: cross-fading the highlighted effects. tap tiles to add/remove.'
+          void startAuto()
+        } else {
+          stopAuto()
+          holdRow.style.display = 'none'
+          fadeRow.style.display = 'none'
+          fxHint.textContent = 'live effect on your broadcast - reacts to your audio.'
+        }
+        syncAutoBtn()
+        refreshTiles()
+      }
+
       VIDEO_FX.forEach((fx) => {
         const b = document.createElement('button')
         b.type = 'button'
         b.textContent = fx.label
         Object.assign(b.style, { padding: '10px', cursor: 'pointer', fontFamily: 'inherit', minHeight: '44px', fontWeight: 'bold' })
-        styleFxBtn(b, false)
-        b.onclick = () => void selectFx(fx.key)
+        b.onclick = () => {
+          if (autoOn) {
+            // curate the rotation: add/remove this effect
+            if (autoSet.has(fx.key)) {
+              if (autoSet.size <= 1) return // keep at least one effect in the rotation
+              autoSet.delete(fx.key)
+              // if we removed the effect currently on screen, cross to a remaining one now so the
+              // highlight isn't stuck on a non-member
+              if (fxActiveKey === fx.key && this.broadcastFxProcessor) {
+                const next = VIDEO_FX.map((f) => f.key).filter((k) => autoSet.has(k))[0]
+                if (next) {
+                  this.broadcastFxProcessor.setEffect(next, MANUAL_FADE_MS)
+                  this.broadcastFxProcessor.setSlider(fxSliderByKey[next] ?? 0.5)
+                  fxActiveKey = next
+                  slider.value = String(Math.round((fxSliderByKey[next] ?? 0.5) * 100))
+                }
+              }
+            } else {
+              autoSet.add(fx.key)
+            }
+            refreshTiles()
+          } else {
+            void selectFx(fx.key)
+          }
+        }
         fxButtons[fx.key] = b
         fxGrid.appendChild(b)
       })
+      refreshTiles()
 
-      fxRow.append(fxHint, fxGrid, slider, paletteSel)
+      fxRow.append(fxHint, autoBtn, fxGrid, slider, paletteSel, holdRow, fadeRow)
 
       const selectTab = (fx: boolean) => {
         reactRow.style.display = fx ? 'none' : 'flex'
