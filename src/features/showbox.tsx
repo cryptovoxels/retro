@@ -3899,6 +3899,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           }
         } catch (e) {
           console.error('showbox: sonar fx toggle failed', e)
+          // failed mid-toggle - don't leak a half-attached processor; reset to "off"
+          if (this.broadcastFxProcessor) {
+            void this.broadcastFxProcessor.destroy?.()
+            this.broadcastFxProcessor = null
+          }
+          fxOn = false
           app.showSnackbar('could not toggle effect', PanelType.Warning)
         }
         // setProcessor/stopProcessor swaps liveVideoTrack.mediaStreamTrack (processed <-> raw); re-point
