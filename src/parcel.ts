@@ -1085,7 +1085,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     if (!this.behaviours) {
       this.behaviours = new LuaBehaviours(this)
     }
-    await this.behaviours.init()
+    // The pump loads features async, so featuresList is empty here. Initing now
+    // builds an empty registry and flips connected=true, so onFeaturesLoaded never
+    // re-inits. Defer to onFeaturesLoaded; only init now when there's no pump (tests).
+    if (!window.main) await this.behaviours.init()
     // On fastBoot we initiate the parcelBouncer and handle the user.
     // handleUser() generates the box around the parcel if not allowed
 
@@ -1456,7 +1459,9 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
   }
 
-  private onFeaturesLoaded() {
+  // Arrow so `this` stays the parcel: the pump calls it as tracking.onDone(parcel),
+  // which would otherwise bind `this` to the pump's tracking object and bail instantly.
+  private onFeaturesLoaded = () => {
     // bail if the parcel gets deactivated before we finish the load
     if (!this.activated) return
 
