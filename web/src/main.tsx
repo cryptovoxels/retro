@@ -40,7 +40,7 @@ import Mail from './mail'
 import WorldMap from './map'
 import Parcel from './parcel'
 import { Client } from './client'
-import { getCoords, getParcelId, notifyUrlChange } from './helpers/coords-nav'
+import { getCoords, getParcelId, notifyUrlChange, syncParcelUrl } from './helpers/coords-nav'
 import ParcelEdit from './parcel-edit'
 import Parcels from './parcels'
 import Privacy from './privacy'
@@ -139,11 +139,7 @@ const Main = () => {
       const id = getParcelId()
       const c = getCoords()
       if (!id || !c) return
-      const u = new URL(location.href)
-      u.pathname = `/parcels/${id}`
-      u.searchParams.delete('parcel')
-      route(u.pathname + u.search, true)
-      notifyUrlChange()
+      syncParcelUrl(id)
     }
     app.on(AppEvent.Exploring, onExploring)
     return () => app.removeListener(AppEvent.Exploring, onExploring)
