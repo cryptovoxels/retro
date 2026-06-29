@@ -7,9 +7,15 @@ import { createEvent } from '../utils/EventEmitter'
 import { axisNames3D, limitAbsoluteValue, round, XYZ } from '../utils/helpers'
 
 let utilLayer = undefined as BABYLON.UtilityLayerRenderer | undefined
-const gizmos: (BABYLON.AxisDragGizmo | BABYLON.RotationGizmo | BABYLON.AxisScaleGizmo)[] = []
+const gizmos: (BABYLON.AxisDragGizmo | BABYLON.RotationGizmo | BABYLON.AxisScaleGizmo | BABYLON.BoundingBoxGizmo)[] = []
 // This is to allow reverting the position if the new position set by gizmo is not allowed (outside hard limit)
 let initialPosition: BABYLON.Vector3
+
+// showboxes drag around like a window: grab the body, slide it in its own plane. one behavior, re-attached per selection.
+let windowDrag: BABYLON.PointerDragBehavior | null = null
+let windowDragMesh: BABYLON.Mesh | null = null
+let windowDragFeatureStart: BABYLON.Vector3 | null = null
+let windowDragMeshStart: BABYLON.Vector3 | null = null
 
 type AxisLabel = 'X' | 'Y' | 'Z'
 
@@ -29,8 +35,23 @@ export const createGizmos = (scene: BABYLON.Scene) => {
   gizmos.push(...createAxisDragGizmos())
   // gizmos.push(...createAxisScaleGizmos())
   // gizmos.push(createRotationGizmo())
+  gizmos.push(createResizeGizmo())
 
   return gizmos
+}
+
+// showbox-only resize: corner grab-boxes that scale a screen uniformly. rotation handles off - screens only want sizing.
+const createResizeGizmo = () => {
+  const gizmo = new BABYLON.BoundingBoxGizmo(BABYLON.Color3.FromHexString('#e6635a'), utilLayer)
+  gizmo.setEnabledRotationAxis('')
+  gizmo.scaleBoxSize = 0.05
+  gizmo.onScaleBoxDragEndObservable.add(() => {
+    const feature = getFeature(gizmo)
+    if (!feature) return
+    setScale(feature)
+    setSelectedFeature(feature)
+  })
+  return gizmo
 }
 
 // create position gizmos
@@ -243,9 +264,13 @@ export const bindGizmosToFeature = (feature: Feature) => {
   gizmos.forEach((gizmo: BABYLON.Gizmo) => {
     bindGizmoToFeature(gizmo, feature)
   })
+  if (feature.type === 'showbox') attachWindowDrag(feature)
+  else detachWindowDrag()
 }
 
 const bindGizmoToFeature = (gizmo: BABYLON.Gizmo, feature: Feature) => {
+  // corner resize grip is showbox-only - everything else keeps its existing handles
+  if (gizmo instanceof BABYLON.BoundingBoxGizmo && feature.type !== 'showbox') return
   // No need to show the z-axis of the scale gizmo for images and 2d features
   if (feature.scaleAxes.length == 2 && gizmo instanceof BABYLON.AxisScaleGizmo && gizmo._rootMesh.metadata?.axis == BABYLON.Axis.Z) {
     return
@@ -277,6 +302,43 @@ export const unbindGizmosFromFeature = (feature: Feature) => {
       gizmo.isEnabled = false
     }
   })
+  detachWindowDrag()
+}
+
+// grab a showbox anywhere and slide it in its own plane (depth locked), like dragging a window on the wall it faces.
+const attachWindowDrag = (feature: Feature) => {
+  const mesh = feature.mesh as BABYLON.Mesh | undefined
+  if (!mesh) return
+  detachWindowDrag()
+
+  const behavior = new BABYLON.PointerDragBehavior({ dragPlaneNormal: BABYLON.Axis.Z })
+  behavior.useObjectOrientationForDragging = true // the plane follows the screen's facing, so it slides on its wall
+  behavior.onDragStartObservable.add(() => {
+    window.ui?.setDragging(true)
+    windowDragFeatureStart = feature.position.clone()
+    windowDragMeshStart = mesh.position.clone()
+  })
+  behavior.onDragEndObservable.add(() => {
+    window.ui?.setDragging(false)
+    if (!windowDragFeatureStart || !windowDragMeshStart) return
+    // persist as feature.position + the mesh delta, mirroring onAxisDragEnd (mesh space can differ under a group)
+    const position = windowDragFeatureStart.add(mesh.position.subtract(windowDragMeshStart))
+    feature.set({ position: roundNumberArray(position.asArray(), 4) as Vec3Description })
+    feature.dispatchEvent(createEvent('dragged', true))
+    setSelectedFeature(feature)
+    windowDragFeatureStart = windowDragMeshStart = null
+  })
+
+  mesh.addBehavior(behavior)
+  windowDrag = behavior
+  windowDragMesh = mesh
+}
+
+const detachWindowDrag = () => {
+  if (windowDrag && windowDragMesh) windowDragMesh.removeBehavior(windowDrag)
+  windowDrag = null
+  windowDragMesh = null
+  windowDragFeatureStart = windowDragMeshStart = null
 }
 
 const getFeature = (gizmo: BABYLON.IGizmo): Feature | null => {
