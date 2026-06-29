@@ -43,6 +43,8 @@ export default class Avatar extends Entity {
   private neckBone: BABYLON.Bone | undefined
   private nameMesh: BABYLON.Mesh | null = null
   private nameTexture: BABYLON.DynamicTexture | null = null
+  private voiceMesh: BABYLON.Mesh | null = null
+  private voiceTexture: BABYLON.DynamicTexture | null = null
   private collider: MeshExtended | undefined
   private _bubble: Bubble | null = null
   private clearBubbleTimer: NodeJS.Timeout | undefined
@@ -440,6 +442,64 @@ export default class Avatar extends Entity {
     this.nameMesh = null
   }
 
+  // little mic chip above the nameplate: dim when voice is on, green pulse while speaking, red when muted, gone when off.
+  setVoiceState(state: 'off' | 'on' | 'muted' | 'speaking', level = 0) {
+    if (state === 'off') {
+      this.voiceMesh?.setEnabled(false)
+      return
+    }
+    if (!this.voiceMesh) this.makeVoiceMesh()
+    const mesh = this.voiceMesh
+    if (!mesh) return
+    mesh.setEnabled(true)
+    const mat = mesh.material as BABYLON.StandardMaterial | null
+    if (mat) {
+      if (state === 'muted') mat.emissiveColor.set(1, 0.25, 0.25)
+      else if (state === 'speaking') mat.emissiveColor.set(0.25, 1, 0.4)
+      else mat.emissiveColor.set(0.7, 0.7, 0.7)
+    }
+    // pulse with how loud you are while speaking; sit still otherwise. (-s y: the neck bone is mirrored, see addName)
+    const s = 0.9 * (state === 'speaking' ? 1 + Math.min(level, 1) * 0.5 : 1)
+    mesh.scaling.set(s, -s, s)
+  }
+
+  private makeVoiceMesh() {
+    if (this.voiceMesh || !this.neckBone || !this._avatarMesh) return
+    const tex = new BABYLON.DynamicTexture('avatar/voice', { width: 128, height: 128 }, this.scene, true)
+    tex.hasAlpha = true
+    const ctx = tex.getContext()
+    if (ctx) {
+      ctx.clearRect(0, 0, 128, 128)
+      //@ts-ignore
+      ctx.textAlign = 'center'
+      //@ts-ignore
+      ctx.textBaseline = 'middle'
+      ctx.font = '96px sans-serif'
+      ctx.fillStyle = '#fff'
+      ctx.fillText('🎤', 64, 72)
+    }
+    tex.update()
+    this.voiceTexture = tex
+
+    const mesh = BABYLON.MeshBuilder.CreatePlane('avatar/voice', { size: 0.3 }, this.scene)
+    mesh.billboardMode = BABYLON.Mesh.BILLBOARDMODE_Y
+    mesh.metadata = { isAvatarPart: true }
+    mesh.position.set(0, -AVATAR_NAME_OFFSET - 0.28, 0) // sit just above the nameplate
+    mesh.attachToBone(this.neckBone, this._avatarMesh)
+    mesh.addLODLevel(AVATAR_VIEW_DISTANCE, null)
+
+    const mat = new BABYLON.StandardMaterial('avatar/voice', this.scene)
+    mat.blockDirtyMechanism = true
+    mat.emissiveTexture = tex
+    mat.opacityTexture = tex
+    mat.diffuseColor = new BABYLON.Color3(0, 0, 0)
+    mat.specularColor = new BABYLON.Color3(0, 0, 0)
+    mat.disableLighting = true
+    mat.sideOrientation = BABYLON.Mesh.DOUBLESIDE // visible from any angle, like the nameplate
+    mesh.material = mat
+    this.voiceMesh = mesh
+  }
+
   /**
    * Dispose of the avatar and all the elements attached to it
    * such as: bubbles, names, mesh...
@@ -448,6 +508,11 @@ export default class Avatar extends Entity {
   public disposeLocal = () => {
     this.nameMesh?.dispose()
     this.nameMesh = null
+
+    this.voiceMesh?.dispose()
+    this.voiceMesh = null
+    this.voiceTexture?.dispose()
+    this.voiceTexture = null
 
     this._material?.dispose(true, true)
     this._material = null

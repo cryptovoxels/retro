@@ -250,7 +250,44 @@ export default class DesktopControls extends Controls {
         } else {
           this.setActiveReticule(false)
         }
+        this.updateMuteHint(eventData)
     }
+  }
+
+  // hover hint: aim at someone while you're in voice and we nudge that right-click silences them (just for you).
+  private muteHintEl: HTMLDivElement | null = null
+  private updateMuteHint(eventData: BABYLON.PointerInfo) {
+    const avatar = eventData.pickInfo?.pickedMesh?.metadata?.avatar as { uuid: string } | undefined
+    const vc = window.persona?.voiceChat
+    const near = (eventData.pickInfo?.distance ?? Infinity) < this.MAX_PICK_DISTANCE
+    const show = !!avatar && !!vc?.on && avatar.uuid !== window.persona?.uuid && near
+    if (!show) {
+      if (this.muteHintEl) this.muteHintEl.style.opacity = '0'
+      return
+    }
+    if (!this.muteHintEl) {
+      const el = document.createElement('div')
+      Object.assign(el.style, {
+        position: 'fixed',
+        zIndex: '999998',
+        pointerEvents: 'none',
+        padding: '4px 8px',
+        background: 'rgba(13,13,13,0.85)',
+        color: '#f5f5f0',
+        fontFamily: '"Source Code Pro", monospace',
+        fontSize: '12px',
+        whiteSpace: 'nowrap',
+        transform: 'translate(-50%, -140%)',
+        transition: 'opacity 0.12s',
+        opacity: '0',
+      })
+      document.body.appendChild(el)
+      this.muteHintEl = el
+    }
+    this.muteHintEl.textContent = vc!.mutedUuids.has(avatar!.uuid) ? 'right-click to unmute' : 'right-click to mute'
+    this.muteHintEl.style.left = `${eventData.event.clientX}px`
+    this.muteHintEl.style.top = `${eventData.event.clientY}px`
+    this.muteHintEl.style.opacity = '1'
   }
 
   handlePointerWheel(delta: number) {
