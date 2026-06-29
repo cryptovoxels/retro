@@ -1,7 +1,6 @@
 import { h } from 'preact'
 import { useState } from 'preact/hooks'
 import { Spinner } from '../spinner'
-import { Spinner } from '../spinner'
 
 interface Props {
   src: string

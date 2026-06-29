@@ -53,7 +53,6 @@ import { User } from './user'
 import Persona from './persona'
 import { Appstate } from '../web/src/state'
 import { refreshMobileCanvasAfterReturn, viewportChangeHandler } from './controls/mobile/controls'
-import PolytextV2 from './features/polytext-v2'
 import { DrawDistance } from './graphic/draw-distance'
 import MainLoop from './main-loop'
 import { createScene } from './init/scene'
@@ -183,9 +182,6 @@ async function main() {
     var font = await r.json()
     Polytext.Load()
     Polytext.setWorkerData(font)
-
-    PolytextV2.Load()
-    PolytextV2.setWorkerData(font)
   } catch (e) {
     console.log('Sandboxed iframe, no assets')
   }

@@ -1,15 +1,12 @@
-import * as Comlink from 'comlink'
-import { ParcelRecord } from '../common/messages/parcel'
-import type { CachedParcelsMessage } from '../common/messages/api-parcels'
+import { ParcelRecord } from '../../common/messages/parcel'
+import type { CachedParcelsMessage } from '../../common/messages/api-parcels'
 import { type BBox, RBush3D } from 'rbush-3d'
-import type { FetchOptions } from '../web/src/utils'
+import type { FetchOptions } from '../../web/src/utils'
 import pDefer from 'p-defer'
 import { ExponentialBackoff, handleAll, retry } from 'cockatiel'
-import { LoadState, GridWorkerParcel } from './grid-worker-parcel'
+import { LoadState, GridWorkerParcel } from '../grid-worker-parcel'
 import type { NdArray } from 'ndarray'
-// Removed MeshData import - no longer meshing in worker
-
-const { UNBUNDLED_BABYLON_LIB_URL_FOR_WEB_WORKERS } = require('../vendor/library/urls.js')
+import { vec3, type Vec3 } from './math'
 
 // Create a retry policy that'll try whatever function with a randomized exponential backoff.
 // to be used by fetch!
@@ -70,8 +67,6 @@ export interface GridWorkerAPI {
   setMessageCallback(callback: (message: GridWorkerOutput) => void): void
 }
 
-if ('function' === typeof importScripts) importScripts(UNBUNDLED_BABYLON_LIB_URL_FOR_WEB_WORKERS)
-
 const MAX_PARCEL_QUEUE_SIZE = 15
 const MAX_PARCELS_TO_QUEUE_PER_CYCLE = 10
 const RBUSH_MAX_ENTRIES = 10
@@ -97,7 +92,7 @@ type ParcelRTree = Omit<RBush3D, 'search' | 'all' | 'load' | 'insert'> & {
   insert(item?: ParcelBox): ParcelRTree
 }
 
-const getSearchBox = (center: BABYLON.Vector3, distance: number): BBox => {
+const getSearchBox = (center: Vec3, distance: number): BBox => {
   return {
     minX: center.x - distance,
     minY: center.y - distance,
@@ -114,21 +109,13 @@ class GridWorker implements GridWorkerAPI {
   parcelGenerationQueue: Set<number> = new Set() // Tracks parcels sent to main thread for generation
   public self = { postMessage: (message: GridWorkerOutput, _transfer?: Transferable[]) => this.emit(message) }
   protected parcels: ParcelRTree = new RBush3D(RBUSH_MAX_ENTRIES) as unknown as ParcelRTree
-  protected engine: BABYLON.Engine
-  protected scene: BABYLON.Scene
-  protected camera: BABYLON.Camera
+  protected cam: Vec3 = vec3(0, 0, 0)
   protected loadDistance = DEFAULT_NEARBY_DISTANCE
   protected unloadDistance = DEFAULT_UNLOAD_DISTANCE
   protected cameraViewDistance = DEFAULT_DISTANCE_FROM_TARGET
   protected loadFinished = false
   private _loadedDeferred = pDefer<void>()
   private frustumPlanes?: number[][]
-
-  constructor() {
-    this.engine = new BABYLON.NullEngine()
-    this.scene = new BABYLON.Scene(this.engine)
-    this.camera = new BABYLON.Camera('grid-worker', BABYLON.Vector3.Zero(), this.scene)
-  }
 
   async load() {
     if (this.loadFinished) throw new Error('GridWorker already loaded')
@@ -170,7 +157,7 @@ class GridWorker implements GridWorkerAPI {
 
   queryParcelsAtPosition(queryId: number, position: [number, number, number]) {
     return this._loadedDeferred.promise.then(() => {
-      const parcelIds = this.getContainingParcels(BABYLON.Vector3.FromArray(position)).map(({ parcel }) => parcel.id)
+      const parcelIds = this.getContainingParcels(vec3(position[0], position[1], position[2])).map(({ parcel }) => parcel.id)
       return { type: 'QueryResponse' as const, queryId, parcelIds }
     })
   }
@@ -182,8 +169,10 @@ class GridWorker implements GridWorkerAPI {
 
   cameraUpdate(position: [number, number, number], frustumPlanes?: number[][]) {
     let moved = false
-    if (!this.camera.position.equalsToFloats(position[0], position[1], position[2])) {
-      this.camera.position.copyFromFloats(position[0], position[1], position[2])
+    if (this.cam.x !== position[0] || this.cam.y !== position[1] || this.cam.z !== position[2]) {
+      this.cam.x = position[0]
+      this.cam.y = position[1]
+      this.cam.z = position[2]
       moved = true
     }
 
@@ -201,7 +190,7 @@ class GridWorker implements GridWorkerAPI {
     const parcelsInCameraView = new Set(this.getParcelsInFrustum().map(({ parcel }) => parcel.id))
 
     // get all parcels within the unload distance
-    const parcelsWithinUnloadDistance = new Set<number>(this.parcels.search(getSearchBox(this.camera.position, this.unloadDistance)).map(({ parcel }) => parcel.id))
+    const parcelsWithinUnloadDistance = new Set<number>(this.parcels.search(getSearchBox(this.cam, this.unloadDistance)).map(({ parcel }) => parcel.id))
 
     // unload all parcels that not within the unload distance bounds
     for (const { parcel } of this.parcels.all()) {
@@ -246,13 +235,13 @@ class GridWorker implements GridWorkerAPI {
   getParcelsForLoading(): ParcelBox[] {
     // In the "isolate mode", only load parcels within spherical distance
     if (this.loadDistance === ISOLATE_MODE_DISTANCE) {
-      return this.sortByDistance(this.getParcelsWithinCircle(this.camera.position, this.loadDistance))
+      return this.sortByDistance(this.getParcelsWithinCircle(this.cam, this.loadDistance))
     }
 
     // Use frustum culling if available, otherwise fall back to forward box
     const viewDirectionParcels = this.sortByDistance(this.getParcelsInFrustum())
 
-    let surroundingParcels = this.sortByDistance(this.getParcelsWithinCircle(this.camera.position, this.loadDistance))
+    let surroundingParcels = this.sortByDistance(this.getParcelsWithinCircle(this.cam, this.loadDistance))
     surroundingParcels = this.deduplicate(surroundingParcels, viewDirectionParcels)
     // we are prioritizing the parcels the 12 closest to the camera, but prioritize the visible parcels first
     const firstPriority = viewDirectionParcels.slice(0, 6)
@@ -281,21 +270,18 @@ class GridWorker implements GridWorkerAPI {
   /** Gets parcels visible in the camera frustum using accurate frustum culling */
   private getParcelsInFrustum(): ParcelBox[] {
     // Get all parcels within draw distance to test against frustum
-    const candidateParcels = this.getParcelsWithinCircle(this.camera.position, this.loadDistance)
+    const candidateParcels = this.getParcelsWithinCircle(this.cam, this.loadDistance)
 
     // Filter parcels that are actually visible in the frustum
     return candidateParcels.filter((parcel) => this.isParcelInFrustum(parcel, this.frustumPlanes))
   }
 
   /** Gets all parcels within spherical distance from position */
-  private getParcelsWithinCircle = (position: BABYLON.Vector3, distance: number): ParcelBox[] => this.parcels.search(getSearchBox(position, distance))
+  private getParcelsWithinCircle = (position: Vec3, distance: number): ParcelBox[] => this.parcels.search(getSearchBox(position, distance))
 
-  private getContainingParcels = (pos: BABYLON.Vector3): ParcelBox[] => this.parcels.search({ minX: pos.x, minY: pos.y, minZ: pos.z, maxX: pos.x, maxY: pos.y, maxZ: pos.z })
+  private getContainingParcels = (pos: Vec3): ParcelBox[] => this.parcels.search({ minX: pos.x, minY: pos.y, minZ: pos.z, maxX: pos.x, maxY: pos.y, maxZ: pos.z })
 
-  /**
-   * Sorts parcels by distance from camera position
-   */
-  private sortByDistance = (parcels: ParcelBox[]): ParcelBox[] => parcels.sort((a, b) => a.parcel.getDistance(this.camera.position) - b.parcel.getDistance(this.camera.position))
+  private sortByDistance = (parcels: ParcelBox[]): ParcelBox[] => parcels.sort((a, b) => a.parcel.getDistance(this.cam) - b.parcel.getDistance(this.cam))
 
   /**
    * Tests if a parcel's bounding box intersects with the camera frustum
@@ -305,18 +291,15 @@ class GridWorker implements GridWorkerAPI {
       return true // No frustum data, assume visible
     }
 
-    const min = new BABYLON.Vector3(parcel.minX, parcel.minY, parcel.minZ)
-    const max = new BABYLON.Vector3(parcel.maxX, parcel.maxY, parcel.maxZ)
+    for (const plane of frustumPlanes) {
+      const nx = plane[0]
+      const ny = plane[1]
+      const nz = plane[2]
+      const px = nx >= 0 ? parcel.maxX : parcel.minX
+      const py = ny >= 0 ? parcel.maxY : parcel.minY
+      const pz = nz >= 0 ? parcel.maxZ : parcel.minZ
 
-    // Test parcel bounding box against all 6 frustum planes
-    for (const planeData of frustumPlanes) {
-      const plane = new BABYLON.Plane(planeData[0], planeData[1], planeData[2], planeData[3])
-
-      // Get the positive vertex of the AABB relative to the plane normal
-      const pVertex = new BABYLON.Vector3(plane.normal.x >= 0 ? max.x : min.x, plane.normal.y >= 0 ? max.y : min.y, plane.normal.z >= 0 ? max.z : min.z)
-
-      // If the positive vertex is outside the plane, the whole box is outside
-      if (plane.dotCoordinate(pVertex) < 0) {
+      if (nx * px + ny * py + nz * pz + plane[3] < 0) {
         return false
       }
     }
@@ -325,8 +308,3 @@ class GridWorker implements GridWorkerAPI {
 }
 
 export const gridWorker = new GridWorker()
-gridWorker.load()
-
-if (typeof self !== 'undefined' && 'postMessage' in self) {
-  Comlink.expose(gridWorker)
-}

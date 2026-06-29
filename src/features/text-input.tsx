@@ -99,23 +99,23 @@ class Editor extends FeatureEditor<TextInput> {
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <FeatureID feature={this.props.feature} />
+            <FeatureID feature={this.props.feature} />
 
-          <div className="f">
-            <label>Placeholder</label>
-            <input value={this.state.placeholder} onInput={(e) => this.setState({ placeholder: e.currentTarget.value })} type="text" />
-          </div>
-          <Advanced>
-            <SpecularColorSetting feature={this.props.feature} />
+            <div className="f">
+              <label>Placeholder</label>
+              <input value={this.state.placeholder} onInput={(e) => this.setState({ placeholder: e.currentTarget.value })} type="text" />
+            </div>
+            <Advanced>
+              <SpecularColorSetting feature={this.props.feature} />
 
-            <Behaviours feature={this.props.feature} />
-            <UuidReadOnly feature={this.props.feature} />
-          </Advanced>
+              <Behaviours feature={this.props.feature} />
+              <UuidReadOnly feature={this.props.feature} />
+            </Advanced>
           </EditorProps>
         </div>
       </section>

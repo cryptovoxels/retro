@@ -235,46 +235,46 @@ class Editor extends FeatureEditor<VoxModel> {
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
-          {!!this.importError && <Panel type="danger">{this.importError}</Panel>}
-          <UrlSourceVoxModels feature={this.props.feature} scene={this.props.scene} />
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+            {!!this.importError && <Panel type="danger">{this.importError}</Panel>}
+            <UrlSourceVoxModels feature={this.props.feature} scene={this.props.scene} />
 
-          <Advanced>
-            <Animation feature={this.props.feature} />
+            <Advanced>
+              <Animation feature={this.props.feature} />
 
-            <FeatureID feature={this.props.feature} />
-            <SetParentDropdown feature={this.props.feature} />
+              <FeatureID feature={this.props.feature} />
+              <SetParentDropdown feature={this.props.feature} />
 
-            <Hyperlink feature={this.props.feature} />
+              <Hyperlink feature={this.props.feature} />
 
-            {this.state.type === 'vox-model' && (
+              {this.state.type === 'vox-model' && (
+                <div className="f">
+                  <form>
+                    <label>
+                      <input type="checkbox" name="cubescale" onChange={(e) => this.setState({ cubescale: e.currentTarget.checked })} checked={this.state.cubescale}></input>
+                      Scale to fit into the grid
+                    </label>
+                  </form>
+                </div>
+              )}
+
               <div className="f">
                 <form>
                   <label>
-                    <input type="checkbox" name="cubescale" onChange={(e) => this.setState({ cubescale: e.currentTarget.checked })} checked={this.state.cubescale}></input>
-                    Scale to fit into the grid
+                    <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable}></input>
+                    Enable Collision
                   </label>
+                  <small>Model must be within the parcel bounds</small>
                 </form>
               </div>
-            )}
 
-            <div className="f">
-              <form>
-                <label>
-                  <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable}></input>
-                  Enable Collision
-                </label>
-                <small>Model must be within the parcel bounds</small>
-              </form>
-            </div>
-
-            <TriggerEditor feature={this.props.feature} />
-            <UuidReadOnly feature={this.props.feature} />
-            <Behaviours feature={this.props.feature} />
-          </Advanced>
+              <TriggerEditor feature={this.props.feature} />
+              <UuidReadOnly feature={this.props.feature} />
+              <Behaviours feature={this.props.feature} />
+            </Advanced>
           </EditorProps>
         </div>
       </section>

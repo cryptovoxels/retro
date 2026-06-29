@@ -29,9 +29,7 @@ export default function WhatNext(props: Props) {
 
   return (
     <>
-      <p>
-        welcome to voxels. awesome to have you. this is your home screen — here's how to set up camp.
-      </p>
+      <p>welcome to voxels. awesome to have you. this is your home screen — here's how to set up camp.</p>
       <p>what next</p>
       <ol>
         {needsName && (

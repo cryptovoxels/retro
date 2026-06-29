@@ -197,18 +197,18 @@ class Editor extends FeatureEditor<SpawnPoint> {
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <div className="f">Only the owner and contributors can see it!</div>
-          <Advanced>
-            <FeatureID feature={this.props.feature} />
-            <SetParentDropdown feature={this.props.feature} />
+            <div className="f">Only the owner and contributors can see it!</div>
+            <Advanced>
+              <FeatureID feature={this.props.feature} />
+              <SetParentDropdown feature={this.props.feature} />
 
-            <UuidReadOnly feature={this.props.feature} />
-            <Behaviours feature={this.props.feature} />
-          </Advanced>
+              <UuidReadOnly feature={this.props.feature} />
+              <Behaviours feature={this.props.feature} />
+            </Advanced>
           </EditorProps>
         </div>
       </section>

@@ -375,29 +375,29 @@ class Editor extends FeatureEditor<Boombox> {
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <div className="f">
-            <label>Spatial Rolloff Factor</label>
-            <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onInput={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
-            <small>Choose how quickly the sound fades away as the player moves away from the emitter (higher values fade away faster)</small>
-          </div>
+            <div className="f">
+              <label>Spatial Rolloff Factor</label>
+              <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onInput={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
+              <small>Choose how quickly the sound fades away as the player moves away from the emitter (higher values fade away faster)</small>
+            </div>
 
-          <div className="f">
-            <label>Permissions</label>
-            <label>
-              <input type="checkbox" checked={this.state.authBroadcast} onChange={(e) => this.setState({ authBroadcast: e.currentTarget.checked })} />
-              Only collaborators can broadcast
-            </label>
-          </div>
-          <Advanced>
-            <FeatureID feature={this.props.feature} />
-            <SetParentDropdown feature={this.props.feature} />
-            <UuidReadOnly feature={this.props.feature} />
-            <Behaviours feature={this.props.feature} />
-          </Advanced>
+            <div className="f">
+              <label>Permissions</label>
+              <label>
+                <input type="checkbox" checked={this.state.authBroadcast} onChange={(e) => this.setState({ authBroadcast: e.currentTarget.checked })} />
+                Only collaborators can broadcast
+              </label>
+            </div>
+            <Advanced>
+              <FeatureID feature={this.props.feature} />
+              <SetParentDropdown feature={this.props.feature} />
+              <UuidReadOnly feature={this.props.feature} />
+              <Behaviours feature={this.props.feature} />
+            </Advanced>
           </EditorProps>
         </div>
       </section>

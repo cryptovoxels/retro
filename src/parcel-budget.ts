@@ -28,7 +28,7 @@ export const featureBudget: BudgetLimits = {
   'text-input': 20,
   'slider-input': 20,
   'polytext-v2': 6,
-  polytext: 10,
+  polytext: 6,
   portal: 15,
   richtext: 10,
   video: 40,
@@ -78,8 +78,10 @@ export default class ParcelBudget {
 
   count(type: FeatureType) {
     let sum = this.features.filter((f) => f.type === type).length
+    if (type == 'polytext') {
+      sum += this.features.filter((f) => f.type === 'polytext-v2').length
+    }
     if (type == 'polytext-v2') {
-      // polytext v1 will be deprecated in the future.
       sum += this.features.filter((f) => f.type === 'polytext').length
     }
     return sum
