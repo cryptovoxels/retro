@@ -56,7 +56,7 @@ const TableRow = (props: TableRowProps) => {
           </p>
         ) : (
           <p>
-            <b>{link(props.record.address)}</b>
+            <b>{link(props.record.address ?? '')}</b>
             <br />
             <small>{props.record.island}</small>
           </p>
@@ -199,9 +199,7 @@ export default class Parcels extends Component<Props, State> {
     } else {
       const selected = getParcelId()
       const split = isSplit()
-      const parcels = this.state.parcels.map((p: any) => (
-        <TableRow key={p.id} record={p} helper={new ParcelHelper(p)} teleport={split} selected={split && selected === p.id} />
-      ))
+      const parcels = this.state.parcels.map((p: any) => <TableRow key={p.id} record={p} helper={new ParcelHelper(p)} teleport={split} selected={split && selected === p.id} />)
 
       view = (
         <table class="parcels-table">
@@ -221,11 +219,7 @@ export default class Parcels extends Component<Props, State> {
     const description = this.owner ? `owned by ${this.owner}` : null
 
     if (isSplit()) {
-      return (
-        <section class="sidebar-view">
-          {this.state.loading ? <Spinner size={18} /> : view}
-        </section>
-      )
+      return <section class="sidebar-view">{this.state.loading ? <Spinner size={18} /> : view}</section>
     }
 
     return (
