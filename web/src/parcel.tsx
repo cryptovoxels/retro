@@ -73,13 +73,6 @@ export default class Parcel extends Component<Props, State> {
     return this.state.parcel && this.helper?.isOwner(app.state.wallet)
   }
 
-  get visitUrl() {
-    if (!this.helper) {
-      return undefined
-    }
-    return `/parcels/${this.state.parcelId}?coords=${encodeURIComponent(this.helper.spawnCoords)}`
-  }
-
   get name() {
     return this.state.parcel?.name ?? this.state.parcel?.address
   }
@@ -118,19 +111,11 @@ export default class Parcel extends Component<Props, State> {
       history.pushState = (history as any)['oldPushState']
     }
     app.on(AppEvent.Change, this.onAppChange)
-
-    if (this.visitUrl) {
-      app.visitUrl.value = this.visitUrl
-    }
   }
 
   componentDidUpdate(prevProps: Props, prevState: State) {
     if (this.props.id != this.state.parcelId) {
       void this.fetch(this.props.id!)
-    }
-
-    if (this.visitUrl) {
-      app.visitUrl.value = this.visitUrl
     }
 
     if (this.state.tab === 'map' && prevState.tab !== 'map' && this.state.parcel && !this.map) {
@@ -144,7 +129,6 @@ export default class Parcel extends Component<Props, State> {
   }
 
   componentWillUnmount() {
-    app.visitUrl.value = undefined
     this.map?.remove()
     this.map = null
 

@@ -19,7 +19,6 @@ export class Client extends Component<FrameProps, FrameState> {
   box = createRef<HTMLDivElement>()
   observer: ResizeObserver | null = null
   watch: ReturnType<typeof setInterval> | null = null
-  skipNaviport = false
 
   componentDidMount() {
     if (!canUseDom) {
@@ -78,13 +77,15 @@ export class Client extends Component<FrameProps, FrameState> {
     if (this.watch) clearInterval(this.watch)
     this.watch = setInterval(() => {
       if (!getCoords()) return
-      if (!location.pathname.startsWith('/parcels/')) return
+      if (location.pathname === '/parcels') return
+      const m = location.pathname.match(/^\/parcels\/(\d+)$/)
+      if (!m) return
+      const urlId = parseInt(m[1], 10)
       const id = window.grid?.currentParcel()?.id
-      const m = location.pathname.match(/^\/parcels\/(\d+)/)
-      const urlId = m ? parseInt(m[1], 10) : null
-      if (id && urlId && id !== urlId) {
-        this.skipNaviport = true
-        route(`/parcels/${id}?coords=${getCoords()}`, true)
+      if (id && id !== urlId) {
+        const u = new URL(location.href)
+        u.pathname = `/parcels/${id}`
+        route(u.pathname + u.search, true)
       }
     }, 200)
   }

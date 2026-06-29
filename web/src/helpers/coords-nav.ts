@@ -59,3 +59,28 @@ export function routeWithPane(pane: string) {
 export function notifyUrlChange() {
   window.dispatchEvent(new Event('urlchange'))
 }
+
+export function getParcelId() {
+  if (typeof location === 'undefined') return null
+  const p = new URLSearchParams(location.search).get('parcel')
+  if (!p) return null
+  const id = parseInt(p, 10)
+  return Number.isFinite(id) ? id : null
+}
+
+export function naviportHere(urlOrCoords: string, parcelId?: number) {
+  let c = urlOrCoords
+  if (urlOrCoords.includes('coords=')) {
+    try {
+      c = new URL(urlOrCoords, location.origin).searchParams.get('coords') || ''
+    } catch {
+      return
+    }
+  }
+  if (!c) return
+  const u = new URL(location.href)
+  u.searchParams.set('coords', c)
+  if (parcelId) u.searchParams.set('parcel', String(parcelId))
+  history.replaceState(null, '', u.pathname + u.search)
+  notifyUrlChange()
+}

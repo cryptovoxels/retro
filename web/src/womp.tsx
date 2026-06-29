@@ -4,7 +4,6 @@ import LoadingPage from './loading-page'
 
 import { Component } from 'preact'
 import cachedFetch from '../src/helpers/cached-fetch'
-import { app } from './state'
 import { wompCache } from './store/index'
 import { AvatarLink } from './components/avatar-link'
 import { avatarName } from '../../common/messages/avatar-ref'
@@ -52,24 +51,8 @@ export default class Womp extends Component<Props, State> {
     return this.state.womp.image_url
   }
 
-  get visitUrl() {
-    if (!this.state.womp?.coords) {
-      return null
-    }
-
-    return `/womps/${this.state.id}?coords=${encodeURIComponent(this.state.womp.coords)}`
-  }
-
   componentDidMount() {
     void this.fetchWomp(this.state.id)
-
-    if (this.visitUrl) {
-      app.visitUrl.value = this.visitUrl
-    }
-  }
-
-  componentWillUnmount() {
-    app.visitUrl.value = undefined
   }
 
   async componentDidUpdate(prevProps: Props) {
@@ -135,10 +118,6 @@ export default class Womp extends Component<Props, State> {
     const img = this.state.womp.image_url
     const name = this.state.womp.author ? avatarName(this.state.womp.author) : null
     const metaTitle = name ? `Captured by ${name}` : `Captured at ${this.state.womp.parcel_name || this.state.womp.space_name}`
-
-    if (this.visitUrl) {
-      app.visitUrl.value = this.visitUrl
-    }
 
     const head = (
       <Head title={metaTitle} url={`/womps/${this.state.womp.id}`} description={this.state.womp.content || `This womp ${this.state.womp.id} was captured at ${this.state.womp.parcel_name || this.state.womp.space_name}`} imageURL={img}>

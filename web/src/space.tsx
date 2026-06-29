@@ -65,10 +65,6 @@ export default class Space extends Component<Props, State> {
     return app.isOwner(this.state.space?.owner)
   }
 
-  get visitUrl() {
-    return this.helper?.visitUrl
-  }
-
   get name() {
     return this.state.space?.name || this.state.space?.id || ''
   }
@@ -79,12 +75,6 @@ export default class Space extends Component<Props, State> {
 
   componentDidMount() {
     this.fetch()
-
-    app.visitUrl.value = this.visitUrl
-  }
-
-  componentWillUnmount() {
-    app.visitUrl.value = undefined
   }
 
   fetch() {
@@ -155,8 +145,6 @@ export default class Space extends Component<Props, State> {
         </section>
       )
     }
-
-    app.visitUrl.value = this.visitUrl
 
     return (
       <section class="columns">

@@ -20,11 +20,13 @@ export function ParcelMetrics(props: { parcelId: number }) {
 
   const [metrics, setMetrics] = useState<Metric[]>([])
   const onLoad = async (res: Response) => {
-    const data = await res.json()
-
-    console.log(data)
-
-    setMetrics(data.metrics)
+    if (!res.ok) return
+    try {
+      const data = await res.json()
+      setMetrics(data.metrics)
+    } catch {
+      return
+    }
   }
 
   useEffect(() => {

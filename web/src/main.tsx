@@ -5,7 +5,7 @@ if (process.env.NODE_ENV === 'development') {
   require('preact/debug')
 }
 import { Component, render } from 'preact'
-import { Route, Router, type RouterOnChangeArgs } from 'preact-router'
+import { Route, Router, route, type RouterOnChangeArgs } from 'preact-router'
 
 import EditAccount from '../account/edit'
 import GoLive from '../account/go-live'
@@ -40,7 +40,7 @@ import Mail from './mail'
 import WorldMap from './map'
 import Parcel from './parcel'
 import { Client } from './client'
-import { getCoords, notifyUrlChange } from './helpers/coords-nav'
+import { getCoords, getParcelId, notifyUrlChange } from './helpers/coords-nav'
 import ParcelEdit from './parcel-edit'
 import Parcels from './parcels'
 import Privacy from './privacy'
@@ -131,6 +131,22 @@ const Main = () => {
       window.removeEventListener('popstate', sync)
       window.removeEventListener('urlchange', sync)
     }
+  }, [])
+
+  useEffect(() => {
+    const onExploring = () => {
+      if (location.pathname !== '/parcels') return
+      const id = getParcelId()
+      const c = getCoords()
+      if (!id || !c) return
+      const u = new URL(location.href)
+      u.pathname = `/parcels/${id}`
+      u.searchParams.delete('parcel')
+      route(u.pathname + u.search, true)
+      notifyUrlChange()
+    }
+    app.on(AppEvent.Exploring, onExploring)
+    return () => app.removeListener(AppEvent.Exploring, onExploring)
   }, [])
 
   return (
