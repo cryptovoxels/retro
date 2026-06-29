@@ -1,6 +1,6 @@
 import { voxImporter } from '../../common/vox-import/vox-import'
 import { Feature3D } from './feature'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Sound, Toolbar, UuidReadOnly } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Sound, Toolbar } from '../ui/features'
 import { ButtonRecord } from '../../common/messages/feature'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
@@ -136,7 +136,6 @@ class Editor extends FeatureEditor<Button> {
               <FeatureID feature={this.props.feature} />
               <SetParentDropdown feature={this.props.feature} />
               <Sound feature={this.props.feature} />
-              <UuidReadOnly feature={this.props.feature} />
               <Behaviours feature={this.props.feature} />
             </Advanced>
           </EditorProps>

@@ -6,7 +6,7 @@ import { provider } from '../../web/src/auth/state-login'
 import { Position, Rotation, Scale, EditorProps } from '../../web/src/components/editor'
 import Panel from '../../web/src/components/panel'
 import { app } from '../../web/src/state'
-import { Advanced, FeatureEditor, FeatureEditorProps, Toolbar, UuidReadOnly } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, Toolbar } from '../ui/features'
 import { toggleGuestBookUi } from '../ui/guest-book-ui'
 import ActionGui from '../ui/gui/action-button-gui'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -287,8 +287,6 @@ class Editor extends FeatureEditor<GuestBook> {
                 <input type="checkbox" checked={!!this.state.allowSignChatCommand} onChange={(e) => this.setState({ allowSignChatCommand: e.currentTarget.checked })} />
                 Users can sign using the '/sign' chat command
               </label>
-
-              <UuidReadOnly feature={this.props.feature} />
             </Advanced>
           </EditorProps>
         </div>

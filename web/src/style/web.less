@@ -496,9 +496,10 @@ body.in-world main {
     min-height: 0;
     min-width: 0;
     padding: 1rem;
-    color: #fff;
-    user-select: text;
-    -webkit-user-select: text;
+
+    & > div {
+      background: #222;
+    }
 
     a {
       color: var(--red);

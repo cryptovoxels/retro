@@ -1,7 +1,7 @@
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { throttle } from 'lodash'
 import { render, unmountComponentAtNode } from 'preact/compat'
-import { FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UuidReadOnly } from '../ui/features'
+import { FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { VidScreenRecord } from '../../common/messages/feature'
 import { Feature2D } from './feature'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -214,7 +214,6 @@ class Editor extends FeatureEditor<VidScreen> {
             <FeatureID feature={this.props.feature} />
 
             <Behaviours feature={this.props.feature} />
-            <UuidReadOnly feature={this.props.feature} />
           </EditorProps>
         </div>
       </section>

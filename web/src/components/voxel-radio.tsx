@@ -61,19 +61,6 @@ const KCOLS = 7
 const KROWS = 7
 const KDOTS = KCOLS * KROWS
 
-const FxSw = ({ live, title, onTap }: { live: boolean; title: string; onTap: () => void }) => (
-  <button
-    type="button"
-    class={`vr-fx-sw${live ? ' live' : ''}`}
-    title={title}
-    onPointerDown={(e) => e.stopPropagation()}
-    onClick={(e) => {
-      e.stopPropagation()
-      onTap()
-    }}
-  />
-)
-
 class KaossPad extends Component<KaossProps> {
   pad = createRef<HTMLDivElement>()
   dots: HTMLSpanElement[] = []
@@ -324,7 +311,7 @@ export default class VoxelRadio extends Component<Props, State> {
     return (
       <>
         {dials.map(({ id, label, min, max }) => (
-          <div class={`vr-dial${id !== 'vol' && !r.fxOn(id as PedalId) ? ' fx-off' : ''}`} key={id}>
+          <div class="vr-dial" key={id}>
             <div class="vr-dial-body">
               <Knob
                 compact
@@ -343,16 +330,6 @@ export default class VoxelRadio extends Component<Props, State> {
             </div>
             <div class="vr-dial-foot">
               <span class="vr-dial-label">{label}</span>
-              {id !== 'vol' && (
-                <FxSw
-                  live={r.fxOn(id as PedalId)}
-                  title={r.fxOn(id as PedalId) ? 'turn off' : 'turn on'}
-                  onTap={() => {
-                    r.toggleFx(id as PedalId)
-                    this.forceUpdate()
-                  }}
-                />
-              )}
             </div>
           </div>
         ))}

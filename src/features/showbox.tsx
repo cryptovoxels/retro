@@ -38,7 +38,7 @@ import { cameraPosition, cameraRotation, setCameraRotation } from '../utils/came
 import { emote as emoteParticles } from '../utils/emote'
 import { AudioBus } from '../audio/audio-engine'
 import { SpatialAudio } from '../audio/spatial-audio'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
 
@@ -5299,7 +5299,6 @@ class Editor extends FeatureEditor<Showbox> {
                   <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
                 </div>
               )}
-              <UuidReadOnly feature={this.props.feature} />
               <Behaviours feature={this.props.feature} />
             </Advanced>
           </EditorProps>

@@ -3,7 +3,7 @@ import { MegavoxRecord, VoxModelRecord } from '../../common/messages/feature'
 import { Options as VoxImportOptions, voxImporter } from '../../common/vox-import/vox-import'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import Panel from '../../web/src/components/panel'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, SetParentDropdown, Toolbar, TriggerEditor, UrlSourceVoxModels, UuidReadOnly } from '../ui/features'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, SetParentDropdown, Toolbar, UrlSourceVoxModels } from '../ui/features'
 import { isURL } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, FeatureEvent, MeshExtended, transformVectors } from './feature'
@@ -255,7 +255,7 @@ class Editor extends FeatureEditor<VoxModel> {
                   <form>
                     <label>
                       <input type="checkbox" name="cubescale" onChange={(e) => this.setState({ cubescale: e.currentTarget.checked })} checked={this.state.cubescale}></input>
-                      Scale to fit into the grid
+                      scale to grid
                     </label>
                   </form>
                 </div>
@@ -267,12 +267,9 @@ class Editor extends FeatureEditor<VoxModel> {
                     <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable}></input>
                     Enable Collision
                   </label>
-                  <small>Model must be within the parcel bounds</small>
                 </form>
               </div>
 
-              <TriggerEditor feature={this.props.feature} />
-              <UuidReadOnly feature={this.props.feature} />
               <Behaviours feature={this.props.feature} />
             </Advanced>
           </EditorProps>

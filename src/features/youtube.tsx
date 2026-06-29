@@ -4,7 +4,7 @@ import { YoutubeRecord } from '../../common/messages/feature'
 import { CSS3DObject, CSS3DRenderer } from '../../vendor/CSS3DRenderer'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { fetchNoImageTexture, fetchTexture } from '../textures/textures'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar } from '../ui/features'
 import { isURL } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
@@ -545,7 +545,6 @@ class Editor extends FeatureEditor<Youtube> {
                 <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
               </div>
 
-              <UuidReadOnly feature={this.props.feature} />
               <Behaviours feature={this.props.feature} />
             </Advanced>
           </EditorProps>

@@ -218,7 +218,6 @@ button.iconish {
 body.in-world main > aside section {
   overflow-y: auto;
   padding: 0.5rem;
-  background: #333;
 }
 
 .UserInterface dialog .baking textarea {
@@ -424,8 +423,43 @@ body.in-world main > aside section {
 }
 
 /* Feature editor */
+body.in-world main > aside .editor,
 .UserInterface dialog.editor {
   font-size: 1em;
+  overflow-x: hidden;
+
+  header {
+    position: relative;
+    margin-bottom: 0.5rem;
+
+    h2 {
+      font-size: 1.22rem;
+      font-weight: bold;
+      margin: 0;
+      text-shadow: 2px 2px 2px black;
+    }
+
+    button.close {
+      display: none;
+    }
+  }
+
+  .editor-toolbar {
+    margin-bottom: 0.5rem;
+
+    ul.toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      gap: 2px;
+    }
+  }
+
+  .scrollContainer {
+    overflow-x: hidden;
+  }
 
   textarea,
   input {
@@ -458,7 +492,6 @@ body.in-world main > aside section {
       margin: 0 2px 0 0;
       padding: 4px 10px;
       list-style: none;
-      background: #222;
       color: #ccc;
       border-radius: 4px 4px 0 0;
       border-bottom: 1px solid #111;
@@ -477,7 +510,6 @@ body.in-world main > aside section {
 
     li.active {
       border-bottom: none;
-      background: #444;
       color: #eee;
     }
 
@@ -486,7 +518,6 @@ body.in-world main > aside section {
       right: -2px;
       margin-top: 1px;
       padding-bottom: 10px !important;
-      background: #444;
     }
   }
 
@@ -556,7 +587,6 @@ body.in-world main > aside section {
     }
 
     dd {
-      background: #272727;
       padding: 0;
 
       input[type='text'],
@@ -567,7 +597,7 @@ body.in-world main > aside section {
         width: 100%;
         border: none;
         padding: 4px;
-        background: #222;
+        background: transparent;
         color: #aaa;
       }
 
@@ -580,6 +610,14 @@ body.in-world main > aside section {
       display: flex;
       gap: 0;
       padding: 0;
+      min-width: 0;
+      overflow: hidden;
+
+      > input[type='checkbox'] {
+        flex: 0 0 auto;
+        margin: 0 4px;
+        align-self: center;
+      }
 
       label.axis {
         flex: 1;
@@ -624,21 +662,79 @@ body.in-world main > aside section {
     .f {
       display: grid;
       grid-column: 1 / -1;
-      grid-template-columns: subgrid;
+      grid-template-columns: 38% 1fr;
+      padding: 0;
+      border-bottom: 1px solid #222;
 
+      form {
+        display: contents;
+      }
+
+      > label,
       label:first-child {
         color: #aaa;
         font-size: 0.85em;
         padding: 4px 6px;
+        display: block;
+        padding-bottom: 0;
+        grid-column: 1;
+        align-self: center;
       }
 
       > input,
       > select,
       > textarea,
-      > button,
-      > div:not(.sub-f) {
-        background: #272727;
+      > button {
+        grid-column: 2;
         padding: 4px 6px;
+        align-self: center;
+        width: 100%;
+        box-sizing: border-box;
+        background: transparent;
+      }
+
+      > div:not(.sub-f),
+      > .button-tabs,
+      form label {
+        grid-column: 1 / -1;
+      }
+
+      > select ~ * {
+        grid-column: 1 / -1;
+      }
+
+      small {
+        grid-column: 2;
+        margin: 0;
+        padding: 0 6px 4px;
+        display: block;
+      }
+    }
+
+    .behaviours {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 38% 1fr;
+      border-bottom: 1px solid #222;
+
+      > label {
+        color: #aaa;
+        font-size: 0.85em;
+        padding: 4px 6px;
+        margin: 0;
+        align-self: center;
+      }
+
+      > small {
+        margin: 0;
+        padding: 4px 6px;
+        align-self: center;
+      }
+
+      .behaviour-row,
+      .behaviour-add,
+      > .f {
+        grid-column: 1 / -1;
       }
     }
   }
@@ -726,7 +822,7 @@ body.in-world main > aside section {
       width: 100%;
       border: none;
       padding: 4px;
-      background: #222;
+      background: transparent;
       color: #aaa;
       border-radius: 4px;
     }
@@ -760,7 +856,6 @@ body.in-world main > aside section {
     }
 
     .sub-f {
-      background-color: #272727;
       padding: 3px 5px 0 5px;
       margin: 5px 0;
       border-radius: 2px;
@@ -867,8 +962,47 @@ body.in-world main > aside section {
       width: 800px;
     }
   }
+
+  dl.props {
+    dt {
+      font-weight: normal;
+      margin-top: 0;
+    }
+
+    dd {
+      margin: 0;
+    }
+
+    .f {
+      padding: 0;
+
+      label:first-child {
+        padding-bottom: 0;
+      }
+
+      label:has(input[type='checkbox']) {
+        grid-column: 1 / -1;
+      }
+
+      form small {
+        grid-column: 1 / -1;
+      }
+
+      small {
+        margin-top: 0;
+      }
+
+      input[type='text'],
+      input[type='number'],
+      input[type='range'],
+      textarea {
+        border-radius: 0;
+      }
+    }
+  }
 }
 
+body.in-world main > aside .editor ul.toolbar,
 .UserInterface dialog ul.toolbar {
   margin-bottom: 10px;
   padding-left: 0;

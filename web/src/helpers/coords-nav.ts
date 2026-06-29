@@ -60,6 +60,10 @@ export function notifyUrlChange() {
   window.dispatchEvent(new Event('urlchange'))
 }
 
+export function notifyPaneChange() {
+  window.dispatchEvent(new Event('panechange'))
+}
+
 export function notifyParcelChange() {
   window.dispatchEvent(new Event('parcelchange'))
 }

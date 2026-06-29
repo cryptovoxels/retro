@@ -2,7 +2,7 @@ import { PortalRecord } from '../../common/messages/feature'
 import { Position, Rotation, Scale, EditorProps } from '../../web/src/components/editor'
 import { AudioBus } from '../audio/audio-engine'
 import { fetchTexture } from '../textures/textures'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UrlSourcePortalWomp, UuidReadOnly } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UrlSourcePortalWomp } from '../ui/features'
 import PortalTeleportGUI from '../ui/gui/portal-gui'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, FeatureTrigger } from './feature'
@@ -291,7 +291,6 @@ class Editor extends FeatureEditor<Portal> {
             <Advanced>
               <FeatureID feature={this.props.feature} />
               <SetParentDropdown feature={this.props.feature} />
-              <UuidReadOnly feature={this.props.feature} />
             </Advanced>
           </EditorProps>
         </div>

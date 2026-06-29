@@ -2,7 +2,7 @@ import type { Signal } from '@preact/signals'
 import { effect } from '@preact/signals'
 import { Component, createRef, Fragment, h } from 'preact'
 import { route } from 'preact-router'
-import { getCoords, getPane, routeWithPane, stripPane, withCoords } from '../web/src/helpers/coords-nav'
+import { getCoords, getPane, notifyPaneChange, routeWithPane, stripPane, withCoords } from '../web/src/helpers/coords-nav'
 import { isMobileMedia } from '../common/helpers/detector'
 import { exitPointerLock, hasPointerLock, requestPointerLock } from '../common/helpers/ui-helpers'
 import { onBeginUpload, onCompleteUpload, onFailUpload } from '../common/helpers/upload-media'
@@ -249,6 +249,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     document.addEventListener('pointerlockchange', this.onPointerLockChange)
     window.addEventListener('urlchange', this.syncPaneFromUrl)
     this.syncPaneFromUrl()
+    notifyPaneChange()
     if (isMobileMedia()) {
       this.canvas.addEventListener('touchstart', () => {
         app.emit(AppEvent.CanvasEngaged)
@@ -293,6 +294,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   componentDidUpdate(_prevProps: UserInterfaceProps, prevState: UserInterfaceState) {
     if (!prevState.active && this.state.active) {
       this.chatLastReadAt = Date.now()
+    }
+    if (prevState.pane !== this.state.pane || prevState.feature?.uuid !== this.state.feature?.uuid) {
+      notifyPaneChange()
     }
   }
 
@@ -492,7 +496,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   syncPaneFromUrl = () => {
-    const p = getPane() as UIPanes | ''
+    let p = getPane() as UIPanes | ''
+    if (p === 'feature-editor' && !this.state.feature) {
+      stripPane()
+      p = ''
+    }
     this.setState({ pane: p || undefined, active: !!p })
   }
 
@@ -722,15 +730,17 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return <Login />
       case 'feature-editor': {
         const Component = this.state.editor as any
+        const feature = this.state.feature
+        if (!Component || !feature) return null
         return (
           <FeatureContext.Provider value={{ templateFromFeature }}>
-            <Fragment key={this.state.feature?.uuid}>
+            <div class="editor" key={feature.uuid}>
               {h(Component, {
-                feature: this.state.feature,
+                feature,
                 parcel: currentOrNearestParcel,
                 scene: this.props.scene,
               })}
-            </Fragment>
+            </div>
           </FeatureContext.Provider>
         )
       }

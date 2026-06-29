@@ -3,7 +3,7 @@ import { Component } from 'preact'
 import { Dispatch, StateUpdater, useEffect, useState } from 'preact/hooks'
 import { JSXInternal } from 'preact/src/jsx'
 import { CostumeAttachment } from '../../../common/messages/costumes'
-import type { AnimationDestination, ButtonRecord, EasingDescription, FeatureCommon, ImageMode, KeyFrame } from '../../../common/messages/feature'
+import type { AnimationDestination, ButtonRecord, EasingDescription, ImageMode, KeyFrame } from '../../../common/messages/feature'
 import { ColorInput } from '../../../web/src/components/ColorInput'
 import { axisValues, ScaleInput, ScaleKeyframe } from '../../../web/src/components/editor'
 import { VectorField } from '../../../web/src/components/editor/fields/vector-field'
@@ -19,7 +19,7 @@ import type Parcel from '../../parcel'
 import { bindGizmosToFeature, unbindGizmosFromFeature } from '../../tools/gizmos'
 import { round, XYZ } from '../../utils/helpers'
 import CreateFeatureAsLibraryAsset from '../create-asset-for-library'
-import { degToRad, floatArray, RADIAN_DP, radToDeg, truncate, updateHighlight } from './common'
+import { degToRad, floatArray, RADIAN_DP, radToDeg, truncate } from './common'
 import { useFeatureContext } from './context'
 
 export const LOADING = 'Loading...'
@@ -118,15 +118,6 @@ export function BlendMode(props: { handleStateChange?: (blendMode: string) => vo
         <option value="Combine">Combine</option>
         <option value="Screen">Screen</option>
       </select>
-    </div>
-  )
-}
-
-export function UuidReadOnly(props: { feature: Feature }) {
-  return (
-    <div className="f">
-      <label>UUID</label>
-      <input readOnly={true} onClick={(e) => e.currentTarget.select()} type="text" title="The unique id of this feature" value={props.feature.description.uuid} style="background:none;font-size: smaller;" />
     </div>
   )
 }
@@ -568,67 +559,6 @@ export function easingDropdown(easing: EasingDescription, setEasing: Dispatch<St
         <select value={easingMode} onChange={(e) => set('mode')(e.currentTarget.value)}>
           {modeOptions}
         </select>
-      </div>
-    </div>
-  )
-}
-
-export function TriggerEditor(props: { feature: Feature }) {
-  const [isTrigger, setIsTrigger] = useState<boolean>(!!props.feature.description.isTrigger)
-
-  const proximityToTrigger = props.feature.description.proximityToTrigger
-  const triggerIsAudible = !!props.feature.description.triggerIsAudible
-
-  const throttledSet = throttle(
-    (dict: any) => {
-      props.feature.set(dict)
-      updateHighlight()
-    },
-    100,
-    { leading: false, trailing: true },
-  )
-
-  const update = (dict: Partial<FeatureCommon>) => {
-    const key = Object.keys(dict)[0] as keyof Partial<FeatureCommon>
-    if (props.feature.description[key] == dict[key]) return
-    throttledSet(dict)
-  }
-
-  useEffect(() => {
-    if (isTrigger === !!props.feature.description.isTrigger) return
-    update({ isTrigger })
-  }, [isTrigger])
-
-  const throttledUpdate = throttle(update, 150, { leading: false, trailing: true })
-
-  return (
-    <div>
-      <div className="f">
-        <label>Trigger</label>
-        <label>
-          <input type="checkbox" checked={isTrigger} onChange={(e) => setIsTrigger((e as any).target['checked'])} />
-          Trigger
-        </label>
-        {isTrigger && (
-          <div className="sub-f">
-            <h4>Advanced</h4>
-            <div className="f">
-              <label>Proximity</label>
-              <input type="range" step="0.1" min="1.76" max="5" value={proximityToTrigger} onInput={(e) => throttledUpdate({ proximityToTrigger: parseFloat(e.currentTarget.value) })} />
-              <small>
-                Choose how close the player has to be for the feature to trigger. (default 1.77, current:
-                {proximityToTrigger})
-              </small>
-            </div>
-
-            <div className="f">
-              <label>
-                <input type="checkbox" checked={triggerIsAudible} onChange={(e) => update({ triggerIsAudible: (e as any).target['checked'] })} />
-                Make sound on trigger
-              </label>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   )

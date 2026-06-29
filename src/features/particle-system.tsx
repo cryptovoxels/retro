@@ -1,6 +1,6 @@
 import { ParticlesRecord } from '../../common/messages/feature'
 import { Position, Rotation, Behaviours, EditorProps } from '../../web/src/components/editor'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, TriggerEditor, UuidReadOnly } from '../ui/features'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar } from '../ui/features'
 import { tidyColor3, tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D } from './feature'
@@ -268,8 +268,6 @@ class Editor extends FeatureEditor<ParticleSystem> {
                 <input type="range" value={this.state.gravity} min="0.0" max="30" onInput={(e) => this.setState({ gravity: parseFloat(e.currentTarget.value) })} />
               </div>
 
-              <TriggerEditor feature={this.props.feature} />
-              <UuidReadOnly feature={this.props.feature} />
               <Behaviours feature={this.props.feature} />
             </Advanced>
           </EditorProps>

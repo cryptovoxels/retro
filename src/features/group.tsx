@@ -1,6 +1,6 @@
 import { GroupRecord } from '../../common/messages/feature'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
-import { Advanced, Animation, FeatureEditor, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
+import { Advanced, Animation, FeatureEditor, FeatureID, SetParentDropdown, Toolbar } from '../ui/features'
 import InspectorTab from '../ui/overlay/inspector'
 import { FeatureTemplate } from './_metadata'
 import Feature, { MeshExtended, NonMeshedFeature, transformVectors } from './feature'
@@ -162,7 +162,6 @@ class Editor extends FeatureEditor<Group> {
             <Rotation feature={this.props.feature} key={`Rotation-${this.props.feature.uuid}-${this.props.feature.rotation.toString()}`} />
             <Advanced>
               <FeatureID feature={this.props.feature} key={`FeatureID-${this.props.feature.uuid}`} />
-              <UuidReadOnly feature={this.props.feature} key={`UuidReadOnly-${this.props.feature.uuid}`} />
               <Animation feature={this.props.feature} scaleAspectRatioAlwaysLocked key={`Animation-${this.props.feature.uuid}`} />
               <SetParentDropdown feature={this.props.feature} key={`SetParentDropdown-${this.props.feature.uuid}`} />
               <Behaviours feature={this.props.feature} key={`Behaviours-${this.props.feature.uuid}`} />

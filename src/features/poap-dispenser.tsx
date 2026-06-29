@@ -1,6 +1,6 @@
 import { voxImporter } from '../../common/vox-import/vox-import'
 import { Feature3D } from './feature'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, Toolbar, UuidReadOnly } from '../ui/features'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, Toolbar } from '../ui/features'
 import Panel from '../../web/src/components/panel'
 import { PoapDispenserRecord } from '../../common/messages/feature'
 import { FeatureTemplate } from './_metadata'
@@ -144,7 +144,6 @@ class Editor extends FeatureEditor<PoapDispenser> {
                 )}
               </div>
               <Animation feature={this.props.feature} />
-              <UuidReadOnly feature={this.props.feature} />
             </Advanced>
           </EditorProps>
         </div>

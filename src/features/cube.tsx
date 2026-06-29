@@ -1,7 +1,7 @@
 import { CubeRecord } from '../../common/messages/feature'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { fetchTexture } from '../textures/textures'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, SpecularColorSetting, Toolbar, UrlSourceImages, UuidReadOnly } from '../ui/features'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, SpecularColorSetting, Toolbar, UrlSourceImages } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, MeshExtended } from './feature'
 
@@ -158,7 +158,6 @@ class Editor extends FeatureEditor<Cube> {
                     <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable}></input>
                     Enable Collision
                   </label>
-                  <small>Model must be within the parcel bounds</small>
                 </form>
               </div>
 
@@ -171,7 +170,6 @@ class Editor extends FeatureEditor<Cube> {
                 </div>
                 <SpecularColorSetting feature={this.props.feature} />
               </div>
-              <UuidReadOnly feature={this.props.feature} />
               <Behaviours feature={this.props.feature} />
             </Advanced>
           </EditorProps>

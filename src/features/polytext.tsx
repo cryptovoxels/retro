@@ -1,7 +1,7 @@
 import { isBatterySaver } from '../../common/helpers/detector'
 import { PolytextRecord, PolytextV2Record } from '../../common/messages/feature'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar } from '../ui/features'
 import { TimeOfDay } from '../utils/time-of-day'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { MeshExtended, NonMeshedFeature } from './feature'
@@ -296,10 +296,8 @@ class Editor extends FeatureEditor<Polytext> {
                 <form>
                   <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable}></input>
                   <label for="collidable">Enable Collision</label>
-                  <small>Model must be within the parcel bounds</small>
                 </form>
               </div>
-              <UuidReadOnly feature={this.props.feature} />
 
               <Behaviours feature={this.props.feature} />
             </Advanced>

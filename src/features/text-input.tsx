@@ -1,6 +1,6 @@
 import { TextInputRecord } from '../../common/messages/feature'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SpecularColorSetting, Toolbar, UuidReadOnly } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SpecularColorSetting, Toolbar } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
 
@@ -114,7 +114,6 @@ class Editor extends FeatureEditor<TextInput> {
               <SpecularColorSetting feature={this.props.feature} />
 
               <Behaviours feature={this.props.feature} />
-              <UuidReadOnly feature={this.props.feature} />
             </Advanced>
           </EditorProps>
         </div>

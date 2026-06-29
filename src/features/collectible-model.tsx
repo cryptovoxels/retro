@@ -14,7 +14,6 @@ import {
   SetParentDropdown,
   Toolbar,
   UrlSourceCollectibleModels,
-  UuidReadOnly,
 } from '../ui/features'
 import showCollectibleHTMLUi from '../ui/html-ui/collectible-ui'
 import { app } from '../../web/src/state'
@@ -383,7 +382,6 @@ class Editor extends FeatureEditor<CollectibleModel> {
                 </div>
               )}
               <Animation feature={this.props.feature} />
-              <UuidReadOnly feature={this.props.feature} />
               <Behaviours feature={this.props.feature} />
             </Advanced>
           </EditorProps>

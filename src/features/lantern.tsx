@@ -1,7 +1,7 @@
 import { LanternRecord } from '../../common/messages/feature'
 import { Position, Scale, EditorProps } from '../../web/src/components/editor'
 import { createLanternMaterial } from '../materials'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar } from '../ui/features'
 import { tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D } from './feature'
@@ -117,8 +117,6 @@ class Editor extends FeatureEditor<Lantern> {
             <Advanced>
               <FeatureID feature={this.props.feature} />
               <SetParentDropdown feature={this.props.feature} />
-
-              <UuidReadOnly feature={this.props.feature} />
             </Advanced>
           </EditorProps>
         </div>

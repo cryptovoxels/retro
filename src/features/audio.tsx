@@ -3,7 +3,7 @@ import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { AudioRecord } from '../../common/messages/feature'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { AudioBus, SoundParams } from '../audio/audio-engine'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UrlSourceAudio, UuidReadOnly } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UrlSourceAudio } from '../ui/features'
 import OpenLink from '../ui/open-link'
 import { opensea, readOpenseaUrl } from '../utils/proxy'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -668,7 +668,6 @@ class Editor extends FeatureEditor<Audio> {
                 <label>Volume</label>
                 <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
               </div>
-              <UuidReadOnly feature={this.props.feature} />
               <Behaviours feature={this.props.feature} />
             </Advanced>
           </EditorProps>
