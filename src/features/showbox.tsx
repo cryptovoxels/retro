@@ -621,30 +621,38 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   // walk up to an angle mirror and push your camera straight to it (video only, no audio, no __showbox_live).
   // published on the viewer room - its token already grants canPublish for authorized users.
-  async startAngleBroadcast(deviceId?: string): Promise<boolean> {
+  async startAngleBroadcast(deviceId?: string, useScreen = false): Promise<boolean> {
     if (this.angleVideoTrack) return true
     if (!this.livekitRoom) await this.connectViewer()
     const lp = (this.livekitRoom as any)?.localParticipant
     if (!lp) return false
     let track: any
     try {
-      // exact: a plain string deviceId is only a preference, so the browser hands back the already-running primary camera. Force the pick.
-      track = await createLocalVideoTrack(deviceId ? { deviceId: { exact: deviceId } } : undefined)
+      if (useScreen) {
+        // share a window/screen, video only - a side-feed never carries audio. the browser picker chooses what.
+        ;[track] = await createLocalScreenTracks({ audio: false })
+      } else {
+        // exact: a plain string deviceId is only a preference, so the browser hands back the already-running primary camera. Force the pick.
+        track = await createLocalVideoTrack(deviceId ? { deviceId: { exact: deviceId } } : undefined)
+      }
     } catch (e) {
-      console.error('showbox: angle camera failed to capture', e)
+      console.error('showbox: angle capture failed', e)
       return false
     }
+    if (!track) return false // screenshare picker can resolve empty - never publish undefined
     this.angleVideoTrack = track
     try {
       await lp.publishTrack(track, { name: this.uuid })
     } catch (e) {
-      console.error('showbox: angle camera failed to publish', e)
+      console.error('showbox: angle capture failed to publish', e)
       try {
         track.stop()
       } catch {}
       this.angleVideoTrack = null
       return false
     }
+    // browser "stop sharing" bar (or a yanked camera) ends the track - drop back to idle so the screen isn't frozen.
+    track.mediaStreamTrack?.addEventListener('ended', () => this.stopAngleBroadcast())
     this.attachVideoToMesh(track.attach() as HTMLVideoElement, true)
     this.mirrorVideoIdentity = this.uuid
     this.stopStreamAttachRetry()
@@ -684,12 +692,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     })
 
     const title = document.createElement('div')
-    title.textContent = 'second camera'
+    title.textContent = 'second screen'
     title.style.fontWeight = 'bold'
     title.style.fontSize = mobile ? '16px' : '14px'
 
     const hint = document.createElement('small')
-    hint.textContent = 'pick a camera to broadcast to this screen. video only, no audio.'
+    hint.textContent = 'share a screen or add a camera. video only, no audio.'
     hint.style.color = '#888'
 
     const sel = document.createElement('select')
@@ -699,26 +707,43 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const status = document.createElement('div')
     Object.assign(status.style, { color: '#888', fontSize: '12px', minHeight: '14px' })
 
-    const go = document.createElement('button')
-    go.type = 'button'
-    go.textContent = this.angleVideoTrack ? 'stop broadcasting' : 'broadcast to this screen'
-    Object.assign(go.style, { background: 'var(--red)', color: '#fff', border: '0', padding: mobile ? '12px' : '8px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' })
-    go.onclick = async () => {
-      if (this.angleVideoTrack) {
-        this.stopAngleBroadcast()
-        this.closeAnglePanel()
-        return
-      }
-      go.disabled = true
-      status.textContent = 'starting camera...'
-      const ok = await this.startAngleBroadcast(sel.value || undefined)
+    const btnStyle = { background: 'var(--red)', color: '#fff', border: '0', padding: mobile ? '12px' : '8px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' }
+
+    const shareScreenBtn = document.createElement('button')
+    shareScreenBtn.type = 'button'
+    shareScreenBtn.textContent = 'share screen'
+    Object.assign(shareScreenBtn.style, btnStyle, { flex: '1' }) // shares the idle button row
+    if (mobile) shareScreenBtn.style.display = 'none' // screenshare from a phone is unreliable
+
+    const addCameraBtn = document.createElement('button')
+    addCameraBtn.type = 'button'
+    addCameraBtn.textContent = 'add camera'
+    Object.assign(addCameraBtn.style, btnStyle, { flex: '1' })
+
+    const stopBtn = document.createElement('button')
+    stopBtn.type = 'button'
+    stopBtn.textContent = 'stop'
+    Object.assign(stopBtn.style, btnStyle) // stands alone - no flex stretch in the column
+    stopBtn.onclick = () => {
+      this.stopAngleBroadcast()
+      this.closeAnglePanel()
+    }
+
+    const start = async (useScreen: boolean) => {
+      shareScreenBtn.disabled = true
+      addCameraBtn.disabled = true
+      status.textContent = useScreen ? 'pick a screen...' : 'starting camera...'
+      const ok = await this.startAngleBroadcast(useScreen ? undefined : sel.value || undefined, useScreen)
       if (ok) {
         this.closeAnglePanel()
       } else {
-        go.disabled = false
-        status.textContent = 'could not start that camera - try another'
+        shareScreenBtn.disabled = false
+        addCameraBtn.disabled = false
+        status.textContent = useScreen ? 'could not share that screen - try again' : 'could not start that camera - try another'
       }
     }
+    shareScreenBtn.onclick = () => start(true)
+    addCameraBtn.onclick = () => start(false)
 
     const cancel = document.createElement('button')
     cancel.type = 'button'
@@ -727,9 +752,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     cancel.onclick = () => this.closeAnglePanel()
 
     if (this.angleVideoTrack) {
-      panel.append(title, go, cancel)
+      panel.append(title, stopBtn, cancel)
     } else {
-      panel.append(title, hint, sel, go, status, cancel)
+      const btnRow = document.createElement('div')
+      Object.assign(btnRow.style, { display: 'flex', gap: '0.5rem' })
+      btnRow.append(shareScreenBtn, addCameraBtn)
+      panel.append(title, hint, sel, btnRow, status, cancel)
       navigator.mediaDevices.enumerateDevices().then((devices) => {
         devices
           .filter((d) => d.kind === 'videoinput')
@@ -761,6 +789,79 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     // refreshAngleVideo only repaints when it had an active feed; clearing it first leaves the last frame
     // frozen, so restore the idle "broadcast to this mirror" CTA when nothing else is driving the screen.
     if (!this.hasActiveVideo) this.setPreview()
+  }
+
+  // host quick-share from the dock: pick an idle second screen or drop a fresh one, then push your screen to it.
+  // reusable - a "new" screen persists as a real feature, so next time it shows up as "existing".
+  openShareScreenChooser() {
+    const mirrors = (this.parcel.getFeaturesByType('showbox') as Showbox[]).filter((f) => f.isAngleMirror() && !f.angleVideoTrack)
+    if (!mirrors.length) return void this.shareScreenToSecondScreen('new') // nothing to reuse - go straight to a new one
+
+    exitPointerLock()
+    const panel = document.createElement('div')
+    Object.assign(panel.style, {
+      position: 'fixed',
+      zIndex: '999999',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: '280px',
+      background: '#0d0d0d',
+      color: '#f5f5f0',
+      padding: '1rem',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.5rem',
+      fontFamily: '"Source Code Pro", monospace',
+      fontSize: '13px',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
+    })
+    const title = document.createElement('div')
+    title.textContent = 'share a screen'
+    title.style.fontWeight = 'bold'
+    const close = () => panel.remove()
+    const mkBtn = (label: string, onClick: () => void) => {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.textContent = label
+      Object.assign(b.style, { background: 'var(--red)', color: '#fff', border: '0', padding: '8px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' })
+      b.onclick = () => {
+        close()
+        onClick()
+      }
+      return b
+    }
+    panel.append(
+      title,
+      mkBtn('new screen', () => void this.shareScreenToSecondScreen('new')),
+    )
+    mirrors.forEach((m, i) => panel.append(mkBtn(`existing screen ${i + 1}`, () => void this.shareScreenToSecondScreen(m))))
+    const cancel = document.createElement('button')
+    cancel.type = 'button'
+    cancel.textContent = 'cancel'
+    Object.assign(cancel.style, { background: 'transparent', color: '#888', border: '0', padding: '4px 0', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' })
+    cancel.onclick = close
+    panel.append(cancel)
+    document.body.appendChild(panel)
+  }
+
+  // new -> drop a second screen where you're looking (slide/resize it with the in-world handles); existing -> reuse one.
+  async shareScreenToSecondScreen(target: Showbox | 'new') {
+    let mirror: Showbox | null = target === 'new' ? null : target
+    if (target === 'new') {
+      const tool = window.ui?.featureTool
+      const engine = this.scene.getEngine()
+      const pick = this.scene.pick(engine.getRenderWidth() / 2, engine.getRenderHeight() / 2)
+      if (!tool || !pick?.pickedPoint) {
+        app.showSnackbar('look at a wall or floor where the screen should go, then try again', PanelType.Warning)
+        return
+      }
+      const feature = await tool.spawn(pick, { ...Showbox.template, angleMode: true })
+      mirror = (feature as Showbox) ?? null
+    }
+    if (!mirror) return
+    const ok = await mirror.startAngleBroadcast(undefined, true)
+    if (!ok) app.showSnackbar('could not start the screen share', PanelType.Warning)
   }
 
   // mirrors show the chosen source muted (default: whoever is live, host preferred), so every mirror is consistent
@@ -2625,8 +2726,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       ctx.fillStyle = '#888'
       ctx.fillText('connecting to stream...', w / 2, h / 2)
     } else if (this.canBroadcastAngle()) {
-      ctx.fillText('second camera', w / 2, h / 2 - 20)
-      const cta = '\u25CF broadcast camera to this mirror'
+      ctx.fillText('second screen', w / 2, h / 2 - 20)
+      const cta = '\u25CF broadcast to this mirror'
       const tw = ctx.measureText(cta).width
       const padX = 14
       const padY = 10
@@ -2638,10 +2739,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       ctx.fillText(cta, w / 2, h / 2 + 10 + bh / 2)
     } else if (this.isAngleMirror()) {
       ctx.fillStyle = '#888'
-      ctx.fillText('second camera', w / 2, h / 2)
+      ctx.fillText('second screen', w / 2, h / 2)
     } else if (this.isMirror()) {
       ctx.fillStyle = '#888'
-      ctx.fillText('showbox mirror', w / 2, h / 2)
+      ctx.fillText('showbox screen mirror', w / 2, h / 2)
     } else {
       ctx.fillStyle = '#888'
       ctx.fillText('no stream active', w / 2, h / 2)
@@ -4180,10 +4281,29 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       })
     }
 
+    // host quick-share: drop a screenshare onto a second screen for the room without walking to a mirror.
+    // desktop only (screenshare is unreliable on phones), revealed once live alongside the intermission control.
+    const shareScreenDockBtn = document.createElement('button')
+    shareScreenDockBtn.type = 'button'
+    shareScreenDockBtn.textContent = 'share a screen'
+    Object.assign(shareScreenDockBtn.style, {
+      display: 'none',
+      background: 'transparent',
+      color: '#f5b942',
+      border: '1px solid #5a4718',
+      padding: '6px 10px',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      flex: '0 0 auto',
+      fontSize: '12px',
+      whiteSpace: 'nowrap',
+    })
+    shareScreenDockBtn.onclick = () => this.openShareScreenChooser()
+
     const row = document.createElement('div')
     row.style.display = 'flex'
     row.style.gap = '0.5rem'
-    row.append(intermissionBtn, goBtn)
+    row.append(intermissionBtn, shareScreenDockBtn, goBtn)
 
     // setup-only escape hatch: close the dialog without going live. hidden once streaming.
     const cancelBtn = document.createElement('button')
@@ -4716,6 +4836,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         ;[title, screenOpt, standbyOpt, standbyConfig, status, cancelBtn].forEach((el) => ((el as HTMLElement).style.display = 'none'))
         // intermission control only makes sense once you're live
         intermissionBtn.style.display = 'block'
+        // quick screen-share to a second screen - desktop only, and only while you're the one broadcasting
+        if (!mobile) shareScreenDockBtn.style.display = 'block'
         if (pendingStandby) {
           // "open with a starting soon screen" - raise the card immediately so the raw camera never airs
           const { label, mins } = pendingStandby
@@ -4772,6 +4894,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         } else {
           if (shareRow) shareRow.style.display = 'flex'
           moveRow.style.display = 'flex'
+          // fx mangles a screenshare and makes no sense there - drop the tab bar so only emote reactions show.
+          if (fxTabs) fxTabs.style.display = screenChk.checked ? 'none' : 'flex'
           if (!screenChk.checked && liveAudioTrack) {
             micOn = true
             micToggle.style.display = 'block'
@@ -5060,9 +5184,9 @@ class Editor extends FeatureEditor<Showbox> {
           {isMirror ? (
             <div className="f">
               <label>
-                <input type="checkbox" checked={this.state.angleMode} onChange={(e) => this.setState({ angleMode: e.currentTarget.checked })} /> second camera angle
+                <input type="checkbox" checked={this.state.angleMode} onChange={(e) => this.setState({ angleMode: e.currentTarget.checked })} /> second screen
               </label>
-              <small>A dedicated screen for a second camera, no audio. Walk up to it in-world and click to broadcast your camera straight to this screen.</small>
+              <small>A dedicated screen for an extra feed, no audio. Walk up to it in-world and click to share a screen or add a camera.</small>
               {!this.state.angleMode && (
                 <div className="f">
                   <label>Mirror source</label>
