@@ -30,10 +30,7 @@ const createGridCluster = (): GridClusterMessageBroker => {
 const createGridSocket = (server: http.Server, jwtSecretOrKey: string, parcelEventEmitter: ParcelEventEmitter): GridSocket => {
   const gridCluster = createGridCluster()
 
-  parcelEventEmitter
-    .on('hashUpdate', (parcelId, hash) => gridCluster.publish({ type: 'hashUpdate', payload: { parcelId, hash } }))
-    .on('metaUpdate', (parcelId) => gridCluster.publish({ type: 'metaUpdate', payload: { parcelId } }))
-    .on('scriptUpdate', (parcelId) => gridCluster.publish({ type: 'scriptUpdate', payload: { parcelId } }))
+  parcelEventEmitter.on('metaUpdate', (parcelId) => gridCluster.publish({ type: 'metaUpdate', payload: { parcelId } })).on('scriptUpdate', (parcelId) => gridCluster.publish({ type: 'scriptUpdate', payload: { parcelId } }))
 
   return new GridSocket(server, '/grid/socket', verifyToken(jwtSecretOrKey), gridCluster)
 }

@@ -1,5 +1,5 @@
 import { CubeRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { fetchTexture } from '../textures/textures'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, SpecularColorSetting, Toolbar, UrlSourceImages, UuidReadOnly } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -139,6 +139,7 @@ class Editor extends FeatureEditor<Cube> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
+          <EditorProps>
           {/* keys are provided so that the getState in the component is reset after gizmo is used */}
           <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
           <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
@@ -173,6 +174,7 @@ class Editor extends FeatureEditor<Cube> {
             <UuidReadOnly feature={this.props.feature} />
             <Behaviours feature={this.props.feature} />
           </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

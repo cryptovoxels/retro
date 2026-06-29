@@ -1,7 +1,7 @@
 import { isBatterySaver } from '../../common/helpers/detector'
 import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { AudioRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { AudioBus, SoundParams } from '../audio/audio-engine'
 import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UrlSourceAudio, UuidReadOnly } from '../ui/features'
 import OpenLink from '../ui/open-link'
@@ -620,6 +620,7 @@ class Editor extends FeatureEditor<Audio> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
+          <EditorProps>
           {/* keys are provided so that the getState in the component is reset after gizmo is used */}
           <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
           <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
@@ -670,6 +671,7 @@ class Editor extends FeatureEditor<Audio> {
             <UuidReadOnly feature={this.props.feature} />
             <Behaviours feature={this.props.feature} />
           </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

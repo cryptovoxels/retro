@@ -42,14 +42,14 @@ export function Rotation(props: RotationProps) {
 
   const step = 10
   return (
-    <div class="vectors">
-      <label>Rotation</label>
-      <div>
+    <>
+      <dt>Rotation</dt>
+      <dd class="vec3">
         <VectorField title="X" step={step} errorMessage={setError} value={x} setter={setX} convert={radToDeg} unconvert={degToRad} />
         <VectorField title="Y" step={step} errorMessage={setError} value={y} setter={setY} convert={radToDeg} unconvert={degToRad} />
         <VectorField title="Z" step={step} errorMessage={setError} value={z} setter={setZ} convert={radToDeg} unconvert={degToRad} />
-      </div>
+      </dd>
       {displayError(error)}
-    </div>
+    </>
   )
 }

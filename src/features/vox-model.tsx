@@ -1,7 +1,7 @@
 import Config from '../../common/config'
 import { MegavoxRecord, VoxModelRecord } from '../../common/messages/feature'
 import { Options as VoxImportOptions, voxImporter } from '../../common/vox-import/vox-import'
-import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import Panel from '../../web/src/components/panel'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, SetParentDropdown, Toolbar, TriggerEditor, UrlSourceVoxModels, UuidReadOnly } from '../ui/features'
 import { isURL } from '../utils/helpers'
@@ -234,6 +234,7 @@ class Editor extends FeatureEditor<VoxModel> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
+          <EditorProps>
           {/* keys are provided so that the getState in the component is reset after gizmo is used */}
           <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
           <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
@@ -274,6 +275,7 @@ class Editor extends FeatureEditor<VoxModel> {
             <UuidReadOnly feature={this.props.feature} />
             <Behaviours feature={this.props.feature} />
           </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

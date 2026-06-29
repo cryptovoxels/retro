@@ -1,5 +1,5 @@
 import { JSXInternal } from 'preact/src/jsx'
-import { Dispatch, StateUpdater, useEffect, useState } from 'preact/hooks'
+import { Dispatch, StateUpdater, useEffect, useRef, useState } from 'preact/hooks'
 import { JSX } from 'preact'
 
 export const vectorField = (title: string, n: number, isValid: boolean, onInput: (e: JSX.TargetedEvent<HTMLInputElement, Event>) => void, onKeyUp: (e: JSX.TargetedKeyboardEvent<HTMLInputElement>) => void) => {
@@ -23,6 +23,7 @@ export function VectorField(props: VectorProps): JSXInternal.Element {
     value: props.convert ? props.convert(props.value) : props.value,
     ok: true,
   })
+  const input = useRef<HTMLInputElement>(null)
 
   // make sure to update the state if the prop is changing
   useEffect(() => {
@@ -90,25 +91,28 @@ export function VectorField(props: VectorProps): JSXInternal.Element {
     if (isValid(val)) setState(val)
   }
 
-  const onClickHandler = (signedStep: number) => {
-    return () => {
-      if (!isValid(n.value)) return
-      const sign = Math.sign(signedStep)
-      const step = Math.abs(signedStep)
-      if (sign > 0) {
-        setState(stepUp(n.value, step))
-      } else if (sign < 0) {
-        setState(stepDown(n.value, step))
-      }
-    }
-  }
+  useEffect(() => {
+    const el = input.current
+    if (!el) return
 
+    const onWheel = (e: WheelEvent) => {
+      if (!isValid(n.value)) return
+      e.preventDefault()
+      const num = Number(n.value)
+      if (e.deltaY < 0) setState(stepUp(num, props.step))
+      else if (e.deltaY > 0) setState(stepDown(num, props.step))
+    }
+
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [n.value, props.step])
+
+  const axis = (props.title ?? 'x').toLowerCase()
   const className = 'number' + (!n.ok ? ' error' : '')
   return (
-    <>
-      <span onClick={onClickHandler(-props.step)}>-</span>
-      <input className={className} onInput={onInput} onKeyUp={onKeyUp} type="text" title={props.title} value={n.value} size={4} />
-      <span onClick={onClickHandler(props.step)}>+</span>
-    </>
+    <label class={`axis ${axis}`}>
+      <span>{axis}</span>
+      <input ref={input} className={className} onInput={onInput} onKeyUp={onKeyUp} type="text" title={props.title} value={n.value} />
+    </label>
   )
 }

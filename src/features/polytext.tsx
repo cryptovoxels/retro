@@ -1,7 +1,7 @@
 import { createComlinkWorker } from '../../common/helpers/comlink-worker'
 import { isBatterySaver } from '../../common/helpers/detector'
 import { PolytextRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, SpecularColorSetting, Toolbar, UuidReadOnly } from '../ui/features'
 import { MeshExtended, NonMeshedFeature } from './feature'
 import type { FontData } from './polytext-v2-worker'
@@ -206,6 +206,7 @@ class Editor extends FeatureEditor<Polytext> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
+          <EditorProps>
           {/* keys are provided so that the getState in the component is reset after gizmo is used */}
           <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
           <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
@@ -237,6 +238,7 @@ class Editor extends FeatureEditor<Polytext> {
 
             <Behaviours feature={this.props.feature} />
           </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

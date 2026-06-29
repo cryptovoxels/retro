@@ -70,16 +70,15 @@ export function Scale(props: ScaleProps) {
   const axes = aspectRatioLocked ? ['x' as XYZ] : props.feature.scaleAxes()
 
   return (
-    <div class="vectors">
-      <label>Scale</label>
-      <div>
+    <>
+      <dt>Scale</dt>
+      <dd class="vec3">
         {axes.map((axis: XYZ) => (
           <VectorField key={axis} title={axis} value={scaleValues[axis]} setter={setScale(axis)} errorMessage={setError} step={0.1} />
         ))}
-
-        {props.alwaysLocked ? <b /> : <input type="checkbox" checked={aspectRatioLocked} onChange={toggleAspectRatioLocked} />}
-      </div>
+        {props.alwaysLocked ? null : <input type="checkbox" checked={aspectRatioLocked} onChange={toggleAspectRatioLocked} title="Lock aspect ratio" />}
+      </dd>
       {displayError(error)}
-    </div>
+    </>
   )
 }

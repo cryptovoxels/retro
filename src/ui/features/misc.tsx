@@ -6,6 +6,7 @@ import { CostumeAttachment } from '../../../common/messages/costumes'
 import type { AnimationDestination, ButtonRecord, EasingDescription, FeatureCommon, ImageMode, KeyFrame } from '../../../common/messages/feature'
 import { ColorInput } from '../../../web/src/components/ColorInput'
 import { axisValues, ScaleInput, ScaleKeyframe } from '../../../web/src/components/editor'
+import { VectorField } from '../../../web/src/components/editor/fields/vector-field'
 import { Keyframe } from '../../../web/src/components/editor/keyframe'
 
 import { app } from '../../../web/src/state'
@@ -18,7 +19,7 @@ import type Parcel from '../../parcel'
 import { bindGizmosToFeature, unbindGizmosFromFeature } from '../../tools/gizmos'
 import { round, XYZ } from '../../utils/helpers'
 import CreateFeatureAsLibraryAsset from '../create-asset-for-library'
-import { degToRad, floatArray, RADIAN_DP, radToDeg, truncate, updateHighlight, xyzFields } from './common'
+import { degToRad, floatArray, RADIAN_DP, radToDeg, truncate, updateHighlight } from './common'
 import { useFeatureContext } from './context'
 
 export const LOADING = 'Loading...'
@@ -679,12 +680,17 @@ export function CollectibleTryPosition(props: { feature: CollectibleModel }) {
   }, [x, y, z])
 
   const step = 0.05
+  const [error, setError] = useState<string | undefined>('')
 
   return (
-    <div className="f fs">
-      <label>Position</label>
-      {xyzFields(x, y, z, setX, setY, setZ, step)}
-    </div>
+    <>
+      <dt>Try position</dt>
+      <dd class="vec3">
+        <VectorField title="X" step={step} errorMessage={setError} value={x} setter={setX} />
+        <VectorField title="Y" step={step} errorMessage={setError} value={y} setter={setY} />
+        <VectorField title="Z" step={step} errorMessage={setError} value={z} setter={setZ} />
+      </dd>
+    </>
   )
 }
 
@@ -714,11 +720,16 @@ export function CollectibleTryRotation(props: { feature: CollectibleModel }) {
   }, [x, y, z])
 
   const step = 10
+  const [error, setError] = useState<string | undefined>('')
   return (
-    <div className="f fs">
-      <label>Rotation</label>
-      {xyzFields(x, y, z, setX, setY, setZ, step, radToDeg, degToRad)}
-    </div>
+    <>
+      <dt>Try rotation</dt>
+      <dd class="vec3">
+        <VectorField title="X" step={step} errorMessage={setError} value={x} setter={setX} convert={radToDeg} unconvert={degToRad} />
+        <VectorField title="Y" step={step} errorMessage={setError} value={y} setter={setY} convert={radToDeg} unconvert={degToRad} />
+        <VectorField title="Z" step={step} errorMessage={setError} value={z} setter={setZ} convert={radToDeg} unconvert={degToRad} />
+      </dd>
+    </>
   )
 }
 
@@ -781,15 +792,17 @@ export function CollectibleTryScale(props: { feature: CollectibleModel }) {
   }
 
   return (
-    <div className="f fs">
-      <label>Scale</label>
-      {props.feature.scaleAxes().map((axis: XYZ) => (
-        <ScaleInput value={(scaleValues as axisValues)[axis]} axis={axis} setScale={setScale} />
-      ))}
-      <button className={`lock-aspect-ratio`} onClick={toggleAspectRatioLocked} title={`${aspectRatioLocked ? 'Locked' : 'Unlocked'}`}>
-        <i className={aspectRatioLocked ? `fi-lock` : 'fi-unlock'}></i>
-      </button>
-    </div>
+    <>
+      <dt>Try scale</dt>
+      <dd class="vec3">
+        {props.feature.scaleAxes().map((axis: XYZ) => (
+          <ScaleInput value={(scaleValues as axisValues)[axis]} axis={axis} setScale={setScale} />
+        ))}
+        <button className={`lock-aspect-ratio`} onClick={toggleAspectRatioLocked} title={`${aspectRatioLocked ? 'Locked' : 'Unlocked'}`}>
+          <i className={aspectRatioLocked ? `fi-lock` : 'fi-unlock'}></i>
+        </button>
+      </dd>
+    </>
   )
 }
 

@@ -501,7 +501,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
   sendPatch(patch: ParcelPatch) {
     if (this.sandbox) return
-    this.invalidateHash()
     this.grid.patchParcel(this.id, patch)
   }
 
@@ -678,9 +677,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   receivePatch(patch: ParcelPatch) {
-    // Invalidate hash on receive patch as the hash will no longer be current.
-    // An out of date hash can cause snapshot switching to fail. Better just to have no hash at this point.
-    this.invalidateHash()
     if (patch.features) {
       let showboxRemoved = false
       for (const uuid in patch.features) {
@@ -1166,15 +1162,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }, 5)
   }
 
-  async reload(hash?: string, cb: any = null) {
-    // use the hash provided otherwise the last known hash
-    if (!hash) {
-      hash = this.hash
-    }
-
+  async reload(cb: any = null) {
     this.disconnect()
 
-    let url = hash ? `/grid/parcels/${this.id}/at/${hash}` : `/grid/parcels/${this.id}/`
+    let url = `/grid/parcels/${this.id}/`
 
     if (process.env.NODE_ENV !== 'production') {
       url = process.env.ASSET_PATH + url
@@ -1184,6 +1175,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
     const res = await fetch(url, {
       method: 'get',
+      cache: 'no-store',
     })
     if (!res.ok) throw res
     const r = (await res.json()) as ApiParcelMessage
@@ -1192,9 +1184,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
 
     Object.assign(this, r.parcel)
-
-    // the fetch does not include the hash, so we update it here
-    this.hash = hash
 
     this.loaded = true
     this.loading = false
@@ -1357,13 +1346,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.sendPatch({
       palette: this.palette,
     })
-  }
-
-  private invalidateHash() {
-    // whenever we apply a patch to this parcel, we need to invalidate the hash to make sure that parcel rollback hash validation works correctly
-    // in a perfect world, the parcel would always have a valid hash that reflected its true state, however since the hash is calculated in psql, and
-    // we are sending diffs between client and server, this is not possible.
-    this.hash = undefined
   }
 
   private featureToCamera(description: FeatureRecord): BABYLON.Vector3 {

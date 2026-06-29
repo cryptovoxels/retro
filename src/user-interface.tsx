@@ -237,7 +237,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   openEditor(editor: FeatureEditor, feature: Feature) {
-    this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'feature-editor' })
+    this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'feature-editor', active: true })
     exitPointerLock()
   }
 
@@ -409,6 +409,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
               this.setPane('add')
               return
             }
+
+            if (this.state.pane) return
 
             if (!this.state.active) {
               this.setPane('add')

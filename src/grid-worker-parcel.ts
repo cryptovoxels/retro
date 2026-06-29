@@ -121,35 +121,26 @@ export class GridWorkerParcel {
   }
 
   private async fetchParcelData(): Promise<boolean> {
-    const fallbackUrl = `/grid/parcels/${this.id}`
-    const versionUrl = this.hash ? `/grid/parcels/${this.id}/at/${this.hash}` : fallbackUrl
+    const url = `/grid/parcels/${this.id}`
 
     const abortController = new AbortController()
     this.loadAbortController = abortController
 
-    // Try primary URL first
-    let primaryResult: boolean | null = null
     try {
-      const res = await this.fetchJson(versionUrl, abortController.signal)
+      const res = await this.fetchJson(url, abortController.signal)
       const response = (await res.json()) as ApiParcelMessage
-      primaryResult = this.handleFetchSuccess(response)
+      return this.handleFetchSuccess(response)
     } catch {
-      primaryResult = null
+      if (abortController.signal.aborted) return false
+      const fallbackResult = await retryPolicy
+        .execute(async () => {
+          const res = await this.fetchJson(url, abortController.signal)
+          const response = (await res.json()) as ApiParcelMessage
+          return this.handleFetchSuccess(response)
+        }, abortController.signal)
+        .catch(() => null)
+      return fallbackResult !== null ? fallbackResult : false
     }
-    if (primaryResult !== null) return primaryResult
-
-    // Try fallback URL if primary failed
-    if (abortController.signal.aborted) return false
-    console.info(`[grid-worker] cached parcel ${this.id} out of date, getting latest`)
-
-    const fallbackResult = await retryPolicy
-      .execute(async () => {
-        const res = await this.fetchJson(fallbackUrl, abortController.signal)
-        const response = (await res.json()) as ApiParcelMessage
-        return this.handleFetchSuccess(response)
-      }, abortController.signal)
-      .catch(() => null)
-    return fallbackResult !== null ? fallbackResult : false
   }
 
   private handleFetchSuccess(response: ApiParcelMessage): boolean {
@@ -162,7 +153,7 @@ export class GridWorkerParcel {
   }
 
   private async fetchJson(url: string, signal?: AbortSignal) {
-    const opts: FetchOptions = { method: 'get', signal, priority: 'high' }
+    const opts: FetchOptions = { method: 'get', signal, priority: 'high', cache: 'no-store' }
     const req = await fetch(url, opts)
     if (!req.ok) throw new Error(req.statusText)
     return req

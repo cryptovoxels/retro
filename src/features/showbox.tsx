@@ -31,7 +31,7 @@ import { avatarName } from '../../common/messages/avatar-ref'
 import { app, AppEvent } from '../../web/src/state'
 import { PanelType } from '../../web/src/components/panel'
 import { messageList, type ChatMessageRecord } from '../connector'
-import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { Animations } from '../avatar-animations'
 import { EmoteAnimation, Idle } from '../states'
 import { cameraPosition, cameraRotation, setCameraRotation } from '../utils/camera'
@@ -5205,6 +5205,7 @@ class Editor extends FeatureEditor<Showbox> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
+          <EditorProps>
           <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
           <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
           <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
@@ -5264,6 +5265,7 @@ class Editor extends FeatureEditor<Showbox> {
             <UuidReadOnly feature={this.props.feature} />
             <Behaviours feature={this.props.feature} />
           </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

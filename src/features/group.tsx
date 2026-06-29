@@ -1,5 +1,5 @@
 import { GroupRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { Advanced, Animation, FeatureEditor, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
 import InspectorTab from '../ui/overlay/inspector'
 import { FeatureTemplate } from './_metadata'
@@ -156,6 +156,7 @@ class Editor extends FeatureEditor<Group> {
         <div className="scrollContainer">
           {this.props.feature.children.length && <InspectorTab group={this.props.feature} key={`InspectorTab-${this.props.feature.uuid}`} />}
           <Toolbar feature={this.props.feature} key={`Toolbar-${this.props.feature.uuid}`} scene={this.props.scene} />
+          <EditorProps>
           <Position feature={this.props.feature} key={`Position-${this.props.feature.uuid}-${this.props.feature.position.toString()}`} />
           <Scale feature={this.props.feature} alwaysLocked key={`Scale-${this.props.feature.uuid}-${this.props.feature.scale.toString()}`} />
           <Rotation feature={this.props.feature} key={`Rotation-${this.props.feature.uuid}-${this.props.feature.rotation.toString()}`} />
@@ -166,6 +167,7 @@ class Editor extends FeatureEditor<Group> {
             <SetParentDropdown feature={this.props.feature} key={`SetParentDropdown-${this.props.feature.uuid}`} />
             <Behaviours feature={this.props.feature} key={`Behaviours-${this.props.feature.uuid}`} />
           </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

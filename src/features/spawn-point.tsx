@@ -1,6 +1,6 @@
 import { SpawnPointRecord } from '../../common/messages/feature'
 import { voxImporter } from '../../common/vox-import/vox-import'
-import { Position, Rotation, Behaviours } from '../../web/src/components/editor'
+import { Position, Rotation, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D } from './feature'
@@ -196,6 +196,7 @@ class Editor extends FeatureEditor<SpawnPoint> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
+          <EditorProps>
           {/* keys are provided so that the getState in the component is reset after gizmo is used */}
           <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
           <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
@@ -208,6 +209,7 @@ class Editor extends FeatureEditor<SpawnPoint> {
             <UuidReadOnly feature={this.props.feature} />
             <Behaviours feature={this.props.feature} />
           </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

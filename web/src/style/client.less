@@ -576,7 +576,115 @@ button.iconish {
     }
   }
 
-  // numeric vector inputs
+  // inspector property list
+  dl.props {
+    display: grid;
+    grid-template-columns: 38% 1fr;
+    margin: 0;
+    padding: 0;
+
+    dt,
+    dd {
+      margin: 0;
+      padding: 4px 6px;
+      border-bottom: 1px solid #222;
+      align-self: center;
+    }
+
+    dt {
+      color: #aaa;
+      font-size: 0.85em;
+    }
+
+    dd {
+      background: #272727;
+      padding: 0;
+
+      input[type='text'],
+      input[type='number'],
+      select,
+      textarea {
+        font: inherit;
+        width: 100%;
+        border: none;
+        padding: 4px;
+        background: #222;
+        color: #aaa;
+      }
+
+      input[type='checkbox'] {
+        margin: 4px;
+      }
+    }
+
+    dd.vec3 {
+      display: flex;
+      gap: 0;
+      padding: 0;
+
+      label.axis {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        border-left: 1px solid #222;
+        margin: 0;
+
+        &:first-child {
+          border-left: none;
+        }
+
+        span {
+          padding: 0 4px;
+          font-size: 0.85em;
+          text-transform: lowercase;
+        }
+
+        &.x span {
+          color: var(--axis-x);
+        }
+
+        &.y span {
+          color: var(--axis-y);
+        }
+
+        &.z span {
+          color: var(--axis-z);
+        }
+
+        input {
+          flex: 1;
+          min-width: 0;
+          border: none;
+          background: transparent;
+          color: #eee;
+          padding: 4px 2px;
+        }
+      }
+    }
+
+    .f {
+      display: grid;
+      grid-column: 1 / -1;
+      grid-template-columns: subgrid;
+
+      label:first-child {
+        color: #aaa;
+        font-size: 0.85em;
+        padding: 4px 6px;
+      }
+
+      > input,
+      > select,
+      > textarea,
+      > button,
+      > div:not(.sub-f) {
+        background: #272727;
+        padding: 4px 6px;
+      }
+    }
+  }
+
+  // legacy numeric vector inputs
   .vectors {
     @c: #111;
     box-sizing: border-box;

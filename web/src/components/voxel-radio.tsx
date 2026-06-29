@@ -1,12 +1,10 @@
 import { Component, createRef } from 'preact'
-import { isMobile } from '../../../common/helpers/detector'
 import { trackTitle } from '../../../common/soundtracks'
 import { DAY, PedalId, Spot, VoxelRadioEngine } from '../radio/engine'
-import { startVisualiser, Visualiser } from '../radio/visualiser'
 
 type Props = { popped?: boolean }
 type PanelMode = 'closed' | 'open'
-type State = { viz: PanelMode; pl: PanelMode }
+type State = { pl: PanelMode }
 
 const sec = () => (Date.now() / 1000) % DAY
 
@@ -227,13 +225,10 @@ class Knob extends Component<KnobProps> {
 export default class VoxelRadio extends Component<Props, State> {
   radio: VoxelRadioEngine | null = null
   tick: ReturnType<typeof setInterval> | null = null
-  canvas = createRef<HTMLCanvasElement>()
-  viz: Visualiser | null = null
 
   constructor(props: Props) {
     super(props)
     this.state = {
-      viz: loadPanel('viz', 'open'),
       pl: props.popped ? 'open' : loadPanel('pl', 'closed'),
     }
   }
@@ -242,88 +237,26 @@ export default class VoxelRadio extends Component<Props, State> {
     this.radio = new VoxelRadioEngine()
     this.radio.onChange = () => this.forceUpdate()
     this.radio.start()
-    this.syncViz()
     this.tick = setInterval(() => this.forceUpdate(), 1000)
-    setTimeout(() => this.syncViz(), 100)
-    setTimeout(() => this.syncViz(), 400)
-  }
-
-  componentDidUpdate(_prevProps: Props, prevState: State) {
-    if (prevState.viz !== this.state.viz) this.syncViz()
   }
 
   componentWillUnmount() {
     if (this.tick) clearInterval(this.tick)
-    this.viz?.dispose()
-    this.viz = null
     this.radio?.stop()
     this.radio = null
   }
 
-  syncViz() {
-    const want = this.state.viz === 'open'
-    if (want && this.canvas.current && this.radio && !this.viz) {
-      const canvas = this.canvas.current
-      const analyser = this.radio.analyser
-      let tries = 0
-      const go = () => {
-        if (!this.canvas.current || this.viz) return
-        tries++
-        const r = canvas.getBoundingClientRect()
-        if ((r.width < 1 || r.height < 1) && tries < 120) {
-          requestAnimationFrame(go)
-          return
-        }
-        this.viz = startVisualiser(canvas, analyser, 0)
-        if (!this.viz.alive()) {
-          this.viz.dispose()
-          this.viz = null
-          if (tries < 120) requestAnimationFrame(go)
-        }
-      }
-      requestAnimationFrame(go)
-    } else if (!want && this.viz) {
-      this.viz.dispose()
-      this.viz = null
-    }
+  wake = () => {
+    this.radio?.wake()
   }
 
-  restartViz = () => {
-    this.viz?.dispose()
-    this.viz = null
-    setTimeout(() => this.syncViz(), 80)
+  setPanel(mode: PanelMode) {
+    this.setState({ pl: mode })
+    savePanel('pl', mode)
   }
 
-  tapViz = (e: Event) => {
-    e.stopPropagation()
-    const r = this.radio
-    if (!r) return
-    const stalled = r.muted || r.stalled
-    if (stalled) this.transport()
-    else this.wakeViz()
-    if (stalled) this.restartViz()
-  }
-
-  wakeViz = () => {
-    const r = this.radio
-    const needRestart = r && (r.ctx.state !== 'running' || r.stalled)
-    r?.wake()
-    if (this.state.viz !== 'open') return
-    if (needRestart) this.restartViz()
-    else if (!this.viz) this.syncViz()
-  }
-
-  shuffleViz = () => {
-    this.viz?.shuffle()
-  }
-
-  setPanel(id: 'viz' | 'pl', mode: PanelMode) {
-    this.setState({ [id]: mode } as Pick<State, typeof id>, () => this.syncViz())
-    savePanel(id, mode)
-  }
-
-  togglePanel(id: 'viz' | 'pl') {
-    this.setPanel(id, this.state[id] === 'closed' ? 'open' : 'closed')
+  togglePanel = () => {
+    this.setPanel(this.state.pl === 'closed' ? 'open' : 'closed')
   }
 
   popout = () => {
@@ -338,7 +271,6 @@ export default class VoxelRadio extends Component<Props, State> {
     if (stalled) {
       if (r.muted) r.toggle()
       else r.wake()
-      if (this.state.viz === 'open') this.restartViz()
     } else {
       r.toggle()
     }
@@ -441,24 +373,12 @@ export default class VoxelRadio extends Component<Props, State> {
     )
   }
 
-  panel(id: 'viz' | 'pl', title: string, body: preact.ComponentChildren) {
-    if (this.state[id] === 'closed') return null
+  panel(title: string, body: preact.ComponentChildren) {
+    if (this.state.pl === 'closed') return null
     return (
       <div class="vr-panel">
-        <div class="vr-panel-head">
-          <span class="vr-panel-title">{title}</span>
-          {id === 'viz' && (
-            <span class="vr-panel-arrows">
-              <button type="button" class="vr-panel-btn" onClick={this.shuffleViz} title="random viz">
-                &lt;
-              </button>
-              <button type="button" class="vr-panel-btn" onClick={this.shuffleViz} title="random viz">
-                &gt;
-              </button>
-            </span>
-          )}
-        </div>
-        <div class={`vr-panel-body${id === 'pl' ? ' vr-playlist' : ''}`}>{body}</div>
+        <div class="vr-panel-head">{title}</div>
+        <div class="vr-panel-body vr-playlist">{body}</div>
       </div>
     )
   }
@@ -506,11 +426,11 @@ export default class VoxelRadio extends Component<Props, State> {
     const text = onAir ? 'dj on the mic...' : r?.title || 'tuning in...'
     const pct = Math.round((sec() / DAY) * 100)
     const compact = !this.props.popped
-    const { viz, pl } = this.state
+    const { pl } = this.state
 
     return (
       <div class={`voxel-radio-wrap${this.props.popped ? ' popped' : ''}${pl === 'open' ? ' pl-open' : ''}`}>
-        <div class={`voxel-radio${onAir ? ' on-air' : ''}${compact ? ' compact' : ''}`} onPointerDown={this.wakeViz}>
+        <div class={`voxel-radio${onAir ? ' on-air' : ''}${compact ? ' compact' : ''}`} onPointerDown={this.wake}>
           <div class="vr-stack">
             <div class="vr-main">
               {compact ? (
@@ -520,11 +440,8 @@ export default class VoxelRadio extends Component<Props, State> {
                       <button type="button" class="vr-key fn" onClick={this.transport} title={showPlay ? 'play' : 'stop'}>
                         {showPlay ? '>' : '||'}
                       </button>
-                      <button type="button" class={`vr-key fn${pl !== 'closed' ? ' on' : ''}`} onClick={() => this.togglePanel('pl')} title="playlist">
+                      <button type="button" class={`vr-key fn${pl !== 'closed' ? ' on' : ''}`} onClick={this.togglePanel} title="playlist">
                         PL
-                      </button>
-                      <button type="button" class={`vr-key fn${viz !== 'closed' ? ' on' : ''}`} onClick={() => this.togglePanel('viz')} title="voxelizr">
-                        VZ
                       </button>
                       <button type="button" class="vr-key fn" onClick={this.popout} title="pop out">
                         ^
@@ -552,11 +469,8 @@ export default class VoxelRadio extends Component<Props, State> {
                       <button type="button" class="vr-toggle" onClick={this.transport} title={showPlay ? 'play' : 'stop'}>
                         {showPlay ? 'play' : 'stop'}
                       </button>
-                      <button type="button" class={`vr-btn${pl !== 'closed' ? ' active' : ''}`} onClick={() => this.togglePanel('pl')} title="playlist">
+                      <button type="button" class={`vr-btn${pl !== 'closed' ? ' active' : ''}`} onClick={this.togglePanel} title="playlist">
                         pl
-                      </button>
-                      <button type="button" class={`vr-btn${viz !== 'closed' ? ' active' : ''}`} onClick={() => this.togglePanel('viz')} title="voxelizr">
-                        vz
                       </button>
                     </div>
                   </div>
@@ -567,20 +481,7 @@ export default class VoxelRadio extends Component<Props, State> {
               )}
             </div>
 
-            {this.panel(
-              'viz',
-              'voxelizr',
-              <div class={`vr-viz-box${showPlay && isMobile() ? ' needs-tap' : ''}`} onClick={showPlay && isMobile() ? this.tapViz : undefined}>
-                <canvas ref={this.canvas} class="vr-viz" />
-                {showPlay && isMobile() && (
-                  <button type="button" class="vr-viz-play" onClick={this.tapViz}>
-                    tap to listen
-                  </button>
-                )}
-              </div>,
-            )}
-
-            {this.panel('pl', 'playlist', this.playlistBody(r, pct))}
+            {this.panel('playlist', this.playlistBody(r, pct))}
           </div>
         </div>
       </div>

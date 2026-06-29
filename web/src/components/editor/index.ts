@@ -1,3 +1,4 @@
+export * from './editor-props'
 export * from './position'
 export * from './rotation'
 export * from './scale'

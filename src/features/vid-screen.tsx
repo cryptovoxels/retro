@@ -5,7 +5,7 @@ import { FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UuidReadOnly } f
 import { VidScreenRecord } from '../../common/messages/feature'
 import { Feature2D } from './feature'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
-import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 
 function openControls(vidscreen: VidScreen) {
   const div = document.createElement('div')
@@ -205,6 +205,7 @@ class Editor extends FeatureEditor<VidScreen> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
+          <EditorProps>
           {/* keys are provided so that the getState in the component is reset after gizmo is used */}
           <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
           <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
@@ -214,6 +215,7 @@ class Editor extends FeatureEditor<VidScreen> {
 
           <Behaviours feature={this.props.feature} />
           <UuidReadOnly feature={this.props.feature} />
+          </EditorProps>
         </div>
       </section>
     )

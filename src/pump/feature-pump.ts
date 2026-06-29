@@ -215,6 +215,20 @@ export class FeaturePump {
     this.instanceRelations.delete(parcelId)
   }
 
+  public dropFeature(parcelId: number, uuid: string): void {
+    const tracking = this.parcelStates.get(parcelId)
+    if (tracking) {
+      tracking.features = tracking.features.filter((f) => f.uuid !== uuid)
+      const loading = tracking.loadingFeatures.get(uuid)
+      if (loading) {
+        loading.abortController.abort('ABORT: feature deleted')
+        tracking.loadingFeatures.delete(uuid)
+        tracking.loadingFeatureCount = Math.max(0, tracking.loadingFeatureCount - 1)
+      }
+    }
+    this.removeParcelFromQueues(parcelId)
+  }
+
   private handleActivations(): void {
     if (this.loadQueue.length === 0) return
 

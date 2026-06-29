@@ -7,19 +7,7 @@ import Cookies from 'js-cookie'
 import { SocketClient } from './utils/socket-client'
 import { displaySuspendedMessage } from './ui/suspended-message'
 import type { NdArray } from 'ndarray'
-import {
-  GridClientMessage,
-  GridMessage,
-  LightMapUpdateMessage,
-  ParcelAuthMessage,
-  ParcelHashMessage,
-  ParcelMetaMessage,
-  ParcelScriptMessage,
-  PatchErrorMessage,
-  PatchMessage,
-  PatchStateMessage,
-  SuspendedMessage,
-} from '../common/messages/grid'
+import { GridClientMessage, GridMessage, LightMapUpdateMessage, ParcelAuthMessage, ParcelMetaMessage, ParcelScriptMessage, PatchErrorMessage, PatchMessage, PatchStateMessage, SuspendedMessage } from '../common/messages/grid'
 import { createComlinkWorker, createMessageHandler } from '../common/helpers/comlink-worker'
 import { GridWorkerAPI, GridWorkerOutput, GridWorkerParcelLoaded, GridWorkerParcelUnloaded, GridWorkerQueryResponse } from './grid-worker'
 import { app, AppEvent } from '../web/src/state'
@@ -627,9 +615,6 @@ export default class Grid extends SocketClient {
       case 'patch-state':
         this.handleStatePatch(message)
         break
-      case 'parcel-hash':
-        this.handleParcelHash(message)
-        break
       case 'lightmap-status':
         this.handleParcelLightmapStatus(message)
         break
@@ -704,28 +689,11 @@ export default class Grid extends SocketClient {
 
   private handleParcelPatchError(message: PatchErrorMessage) {
     console.log('handleParcelPatchError')
-
-    this.withParcel(message.parcelId, (parcel) => {
-      if (message.rollbackHash) {
-        parcel.reload(message.rollbackHash)
-      }
-    })
     this.displayPatchError(message.error)
   }
 
   private handleStatePatch(message: PatchStateMessage) {
     this.withParcel(message.parcelId, (parcel) => parcel.receiveStatePatch(message.patch))
-  }
-
-  private handleParcelHash(_message: ParcelHashMessage) {
-    this.withParcel(_message.parcelId, (parcel) => {
-      if (parcel.hash !== _message.hash) {
-        parcel.reload(_message.hash || undefined, () => {
-          this.updateParcelLightmapStatus(parcel, _message.lightmap_url || null)
-        })
-      }
-      // this.handleParcelLightmapStatus(_message as any)
-    })
   }
 
   private handleParcelAuth(message: ParcelAuthMessage) {
@@ -756,10 +724,6 @@ export default class Grid extends SocketClient {
 
   private handleParcelLightmapStatus(message: LightMapUpdateMessage) {
     this.withParcel(message.parcelId, (parcel) => {
-      if (message.hash) {
-        // update the parcel hash to match the one used for baking
-        parcel.hash = message.hash
-      }
       this.updateParcelLightmapStatus(parcel, message.lightmap_url)
     })
   }

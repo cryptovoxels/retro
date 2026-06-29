@@ -9,7 +9,6 @@ import {
   GridMessage,
   LightmapActionMessage,
   ParcelAuthMessage,
-  ParcelHashMessage,
   ParcelMetaMessage,
   ParcelScriptMessage,
   PatchErrorMessage,
@@ -68,11 +67,7 @@ export default class GridShard {
           type: 'lightmap-status',
           parcelId: message.payload.parcelId,
           lightmap_url: message.payload.lightmap_url,
-          hash: message.payload.hash,
         })
-        break
-      case 'hashUpdate':
-        this.broadcastParcelHash(message.payload.parcelId, message.payload.hash)
         break
       case 'metaUpdate':
         this.broadcastParcelMeta(message.payload.parcelId)
@@ -119,14 +114,6 @@ export default class GridShard {
       }
     }
   }
-
-  // public async updateAndSendLightmapStatus(parcel: AbstractParcel, status: LightmapStatus) {
-  //   parcel.lightmap_url = status
-  //   await parcel.save()
-
-  //   // Fire-and-forget
-  //   this.sendLightmapStatus(parcel.id, parcel?.hash, parcel?.lightmap_url)
-  // }
 
   public addClient(client: GridClient): void {
     const statefulClient: StatefulGridClient = {
@@ -192,12 +179,11 @@ export default class GridShard {
     client.send(msg)
   }
 
-  private sendPatchError(client: StatefulGridClient, originalPatch: PatchMessage, error: string, rollbackHash?: string) {
+  private sendPatchError(client: StatefulGridClient, originalPatch: PatchMessage, error: string) {
     const msg: PatchErrorMessage = {
       type: 'patch-error',
       patch: originalPatch.patch,
       parcelId: originalPatch.parcelId,
-      rollbackHash,
       error,
     }
     client.send(msg)
@@ -217,16 +203,6 @@ export default class GridShard {
         }
       }
     }
-  }
-
-  private async broadcastParcelHash(parcelId: number, hash: string) {
-    const msg: ParcelHashMessage = {
-      type: 'parcel-hash',
-      parcelId,
-      hash,
-    }
-
-    this.forEachClientInParcel('broadcastParcelHash', parcelId, (client) => client.send(msg))
   }
 
   /**
@@ -278,21 +254,14 @@ export default class GridShard {
         const subscribedClientsForParcel = previousSubscribedClientsForParcel.add(client.id)
         this.clientsByParcelId.set(parcel.id, subscribedClientsForParcel)
 
-        const parcelHashMsg: ParcelHashMessage = {
-          type: 'parcel-hash',
+        client.send({
+          type: 'lightmap-status',
           parcelId: parcel.id,
-          hash: parcel.hash,
-
-          // hack: include the lightmap_status until we can get a better cache busting mechanism (I HATE IT)
-          // see https://github.com/cryptovoxels/cryptovoxels/issues/584
           lightmap_url: parcel.lightmap_url,
-        }
-        // reply with the hash of the subscribed parcel so that the client knows if reload is needed
-        client.send(parcelHashMsg)
+        })
 
         this.sendAuth(parcel, client)
 
-        // TODO: Why this as well as hash?
         sendParcelState(client, parcel.id, (await this.getState(parcel.id)) || {})
       }
     } else {
@@ -304,19 +273,12 @@ export default class GridShard {
   private async sendAuth(parcel: ParcelAuthRef, client: StatefulGridClient) {
     const auth = await this.authParcel(parcel, client.user)
 
-    // Send a separate message including both the auth and NFT auth
     const parcelAuthMsg: ParcelAuthMessage = {
       type: 'parcel-auth',
       parcelId: parcel.id,
-
-      // include socket auth for canEdit cache busting
       auth,
-
-      // include boolean nftAuth which checks whether the user has parcel's required NFT or not.
-      // Only check NFT ownership if AUTH is Sandbox OR is false
       nftAuth: auth && auth !== 'Sandbox' ? true : await authParcelByNFT(parcel, client.user),
     }
-    // reply with the hash of the subscribed parcel so that the client knows if reload is needed
     client.send(parcelAuthMsg)
   }
 
@@ -330,20 +292,14 @@ export default class GridShard {
     }
     const authResult = await this.authParcel(parcel, client.user)
 
-    // We do not have authorization to edit the parcel, but maybe one of the features of the patch is outside the parcel and was removed by
-    // a neighbor or a moderator.
-    // In which case we check relative Position, and if the feature is outside we allow the edit.
-    // This is to allow people removing features violating their parcel's space
     if (!authResult) {
-      this.sendPatchError(client, msg, 'Incorrect permissions', parcel.hash)
+      this.sendPatchError(client, msg, 'Incorrect permissions')
       log.warn('user tried to patch a parcel without correct permissions')
       return
     }
 
-    // this allows anon users to place blocks.
-    // These anonymous users are not allowed to place features.
     if (!client.user && 'features' in msg.patch) {
-      this.sendPatchError(client, msg, 'Incorrect permissions', parcel.hash)
+      this.sendPatchError(client, msg, 'Incorrect permissions')
       log.warn('user tried to patch a parcel without correct permissions')
       return
     }
@@ -360,17 +316,13 @@ export default class GridShard {
     })
 
     if (hadLightmap) {
-      // Changes to a parcel will invalidate the lightmap, however the user won't know this has happened unless they refresh.
-      // This sends the message out immediately so that all clients (including builder) see the lightmap change immediately.
-      this.sendLightmapStatusUpdate(msg.parcelId, parcel.hash, parcel.lightmap_url)
+      this.sendLightmapStatusUpdate(msg.parcelId, null)
     }
   }
 
   private async handleDeleteFeature(client: StatefulGridClient, msg: DeleteFeatureMessage) {
     if (typeof msg.currentParcelId !== 'number') return
     if (typeof msg.parcelId !== 'number') return
-    // make sure they are allowed to delete the feature
-    // check to make sure the feature is inside their parcel
     const authFeatureResult = await authFeature(msg.parcelId, msg.featureUuid, msg.currentParcelId, client.user)
     if (!authFeatureResult) return
 
@@ -398,9 +350,6 @@ export default class GridShard {
     const parcel = await this.getParcel(msg.parcelId)
     if (!parcel || !msg.patch) return
 
-    // showbox live flags drive real UI (live badge, tip jar). only broadcasters may set them:
-    // parcel editors, or a guest whose signed jwt is bound to this parcel. without this an
-    // anonymous socket could flip any parcel live, bypassing the authed showbox-live endpoint.
     const showboxKeys = Object.keys(msg.patch).filter((k) => k === '__showbox_live' || (msg.patch![k] as any)?.live !== undefined)
     if (showboxKeys.length) {
       const user = client.user as (VoxelsUser & { guest_pass?: string; parcel_id?: number }) | null
@@ -441,7 +390,6 @@ export default class GridShard {
   private async handleLightmap(client: StatefulGridClient, msg: LightmapActionMessage) {
     const parcel = await this.getParcel(msg.parcelId)
     if (!parcel) {
-      // should probably tell the client something went wrong here.
       return
     }
     const authResult = await this.authParcel(parcel, client.user)
@@ -452,16 +400,15 @@ export default class GridShard {
       if (!newParcel) {
         return
       }
-      this.sendLightmapStatusUpdate(msg.parcelId, newParcel.hash, newParcel.lightmap_url)
+      this.sendLightmapStatusUpdate(msg.parcelId, newParcel.lightmap_url)
     }
   }
 
-  private sendLightmapStatusUpdate(parcelId: number, hash: string, lightmap_url: string | null) {
+  private sendLightmapStatusUpdate(parcelId: number, lightmap_url: string | null) {
     return this.publishShardMessage({
       type: 'lightmapUpdate',
       payload: {
         parcelId,
-        hash,
         lightmap_url,
       },
     })
@@ -477,7 +424,6 @@ export default class GridShard {
 }
 
 async function sendParcelState(client: StatefulGridClient, parcelId: number, state: Record<string, unknown>) {
-  // send the entire state as a patch
   if (Object.keys(state).length) {
     client.send({
       type: 'patch-state',

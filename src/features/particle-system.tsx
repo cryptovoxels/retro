@@ -1,5 +1,5 @@
 import { ParticlesRecord } from '../../common/messages/feature'
-import { Position, Rotation, Behaviours } from '../../web/src/components/editor'
+import { Position, Rotation, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, TriggerEditor, UuidReadOnly } from '../ui/features'
 import { tidyColor3, tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -213,6 +213,7 @@ class Editor extends FeatureEditor<ParticleSystem> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
+          <EditorProps>
           {/* keys are provided so that the getState in the component is reset after gizmo is used */}
           <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
           <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
@@ -271,6 +272,7 @@ class Editor extends FeatureEditor<ParticleSystem> {
             <UuidReadOnly feature={this.props.feature} />
             <Behaviours feature={this.props.feature} />
           </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

@@ -845,6 +845,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     this.deinstance()
     this.dispose()
     this.budgetUnconsume()
+    window.main?.pump.dropFeature(this.parcel.id, this.uuid)
     this.sendDeletePatch()
     this.group?.deleteIfNoChildren()
     if (isShowbox) {

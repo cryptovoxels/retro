@@ -1,6 +1,6 @@
 import { BoomboxRecord } from '../../common/messages/feature'
 import { voxImporter } from '../../common/vox-import/vox-import'
-import { Position, Rotation, Behaviours } from '../../web/src/components/editor'
+import { Position, Rotation, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { AudioBus } from '../audio/audio-engine'
 import Avatar from '../avatar'
 import { BoomboxBroadcast, BroadcastStatus, openBoomboxBroadcastUI } from '../ui/boombox-broadcast'
@@ -374,6 +374,7 @@ class Editor extends FeatureEditor<Boombox> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
+          <EditorProps>
           {/* keys are provided so that the getState in the component is reset after gizmo is used */}
           <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
           <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
@@ -397,6 +398,7 @@ class Editor extends FeatureEditor<Boombox> {
             <UuidReadOnly feature={this.props.feature} />
             <Behaviours feature={this.props.feature} />
           </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

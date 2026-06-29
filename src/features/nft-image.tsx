@@ -2,7 +2,7 @@ import { throttle } from 'lodash'
 import { isValidUrl } from '../../common/helpers/utils'
 import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { ImageMode, NftImageRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Behaviours } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { app } from '../../web/src/state'
 import nftFrameBlueShaderBlue from '../shaders/nft-frame-blue.fsh'
 import nftFrameShaderClassic from '../shaders/nft-frame-classic.fsh'
@@ -538,6 +538,7 @@ class Editor extends FeatureEditor<NftImage> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
+          <EditorProps>
           {/* keys are provided so that the getState in the component is reset after gizmo is used */}
           <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
           <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
@@ -614,6 +615,7 @@ class Editor extends FeatureEditor<NftImage> {
             <UuidReadOnly feature={this.props.feature} />
             <Behaviours feature={this.props.feature} />
           </Advanced>
+          </EditorProps>
         </div>
       </section>
     )
