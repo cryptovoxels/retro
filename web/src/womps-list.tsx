@@ -15,6 +15,7 @@ interface Props {
   collapsed?: boolean
   ttl?: number
   hint?: string
+  title?: string
   smaller?: boolean
   womps?: Womp[]
   mobilePreview?: number
@@ -103,19 +104,19 @@ export default class WompsList extends Component<Props, State> {
     if (!allWomps.length) {
       if (this.props.hint) {
         return <p>{this.props.hint}</p>
-      } else {
-        return null
       }
-    } else {
-      return (
-        <div>
-          <div class="wrap-grid">{womps}</div>
-          <div>
-            {showSeeAll && <button onClick={() => this.setState({ expanded: true })}>See all</button>}
-            {showMore && <button onClick={() => this.showMore()}>Show More</button>}
-          </div>
-        </div>
-      )
+      return null
     }
+
+    return (
+      <div>
+        {this.props.title && <h2>{this.props.title}</h2>}
+        <div class="wrap-grid">{womps}</div>
+        <div>
+          {showSeeAll && <button onClick={() => this.setState({ expanded: true })}>See all</button>}
+          {showMore && <button onClick={() => this.showMore()}>Show More</button>}
+        </div>
+      </div>
+    )
   }
 }

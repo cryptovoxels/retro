@@ -4,6 +4,7 @@ import { format } from 'timeago.js'
 import { fetchUsersCollectibles } from '../../../../common/helpers/collections-helpers'
 import { copyTextToClipboard } from '../../../../common/helpers/utils'
 import { ApiAvatar } from '../../../../common/messages/api-avatars'
+import { SimpleSpaceRecord } from '../../../../common/messages/space'
 import { Costume } from '../../../../common/types'
 import { ethTrunc } from '../../../../common/utils'
 import { Contributor } from '../../../account/contributor'
@@ -14,6 +15,7 @@ import { app } from '../../state'
 import { PanelType } from '../panel'
 import WompsList from '../../womps-list'
 import { truncate } from 'lodash'
+import WhatNext from './what-next'
 
 type Props = {
   walletOrUUId: string
@@ -26,6 +28,7 @@ export default function Profile(props: Props) {
   const [wearables, setWearables] = useState(0)
   const [costumes, setCostumes] = useState<Costume[]>([])
   const [collections, setCollections] = useState<{ id: number; name: string }[]>([])
+  const [spaces, setSpaces] = useState<SimpleSpaceRecord[]>([])
   const { walletOrUUId, isOwner } = props
 
   useEffect(() => {
@@ -39,6 +42,9 @@ export default function Profile(props: Props) {
     cachedFetch(`/api/collections?owner=${walletOrUUId}&limit=50`)
       .then((r) => r.json())
       .then((data) => setCollections(data.collections ?? []))
+    cachedFetch(`/api/wallet/${walletOrUUId}/spaces.json`)
+      .then((r) => r.json())
+      .then((data) => setSpaces(data.spaces ?? []))
   }, [walletOrUUId])
 
   const walletAddress = (() => {
@@ -70,51 +76,46 @@ export default function Profile(props: Props) {
             </a>
           )}
         </hgroup>
-        <h2>Parcels</h2>
+        {isOwner && <WhatNext costumes={costumes} spaces={spaces} />}
         <Parcels wallet={walletOrUUId} isOwner={isOwner} />
-
-        <h2>Collaborations</h2>
         <Contributor wallet={walletOrUUId} isOwner={isOwner} />
-
-        <h2>Spaces</h2>
         <Spaces wallet={walletOrUUId} isOwner={isOwner} />
 
-        <h2>Collections</h2>
-        {collections.length > 0 ? (
-          <table>
-            <tbody>
-              {collections.map((c) => (
-                <tr key={c.id}>
-                  <td>
-                    <a href={`/collections/${c.id}`}>{c.name}</a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p class="empty">None</p>
+        {collections.length > 0 && (
+          <>
+            <h2>Collections</h2>
+            <table>
+              <tbody>
+                {collections.map((c) => (
+                  <tr key={c.id}>
+                    <td>
+                      <a href={`/collections/${c.id}`}>{c.name}</a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
         )}
 
-        <h2>Costumes</h2>
-        {costumes.length > 0 ? (
-          <table>
-            <tbody>
-              {costumes.map((c) => (
-                <tr key={c.id}>
-                  <td>
-                    <a href={`/costumer/${c.id}`}>{c.name}</a>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p class="empty">None</p>
+        {costumes.length > 0 && (
+          <>
+            <h2>Costumes</h2>
+            <table>
+              <tbody>
+                {costumes.map((c) => (
+                  <tr key={c.id}>
+                    <td>
+                      <a href={`/costumer/${c.id}`}>{c.name}</a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
         )}
 
-        <h2>Womps</h2>
-        <WompsList hint="No womps yet." numberToShow={20} collapsed={false} ttl={60} fetch={`/womps/by/${walletOrUUId}`} />
+        <WompsList title="Womps" numberToShow={20} collapsed={false} ttl={60} fetch={`/womps/by/${walletOrUUId}`} />
       </article>
 
       <aside>

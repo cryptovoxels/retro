@@ -67,19 +67,19 @@ export class Spaces extends Component<Props, State> {
     const showTheseMany = 16
     const spaces = this.state.spaces.slice(0, this.state.showAll ? this.state.spaces.length : showTheseMany).map((s) => <SpacePropertyItem spaceHelper={new SpaceHelper(s)} record={s} onRemove={() => this.fetch(true)} />)
 
+    if (spaces.length === 0) return null
+
     return (
       <div>
-        {spaces.length > 0 || !this.props.isOwner ? (
-          <table class="spaces">
-            <tbody>{spaces}</tbody>
-          </table>
-        ) : (
+        <h2>Spaces</h2>
+        <table class="spaces">
+          <tbody>{spaces}</tbody>
+        </table>
+        {!!this.props.isOwner && (
           <p>
             <a href="/spaces/new">Create a space</a>
           </p>
         )}
-
-        {spaces.length > 0 && <p>{!!this.props.isOwner && <a href="/spaces/new">Create a space</a>}</p>}
       </div>
     )
   }
