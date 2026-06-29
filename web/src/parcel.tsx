@@ -4,17 +4,15 @@ import ParcelHelper from '../../common/helpers/parcel-helper'
 import { canUseDom } from '../../common/helpers/utils'
 import { FullParcelRecord, NearbyParcelRecord, ParcelWithMintednessRecord } from '../../common/messages/parcel'
 import type { Map } from '../../vendor/library/leaflet'
-import Listings from './components/listings'
 import ParcelEvents from './components/parcel-events'
 import cachedFetch from './helpers/cached-fetch'
 import Head from './components/head'
 import { app, AppEvent } from './state'
 import { fetchOptions } from './utils'
-import WompsList from './womps-list'
 import { AvatarLink } from './components/avatar-link'
 import { ParcelMetrics as Metrics } from './components/metrics'
 import { Client } from './client'
-import { isSplit } from './helpers/coords-nav'
+import { isSplit, getParcelIdFromPath } from './helpers/coords-nav'
 
 export interface Props {
   parcel?: ParcelWithMintednessRecord
@@ -22,7 +20,7 @@ export interface Props {
   id?: number
 }
 
-type SidebarTab = 'about' | 'womps' | 'map'
+type SidebarTab = 'about' | 'map'
 
 export interface State {
   parcel?: ParcelWithMintednessRecord | (ParcelWithMintednessRecord & FullParcelRecord)
@@ -35,12 +33,21 @@ export interface State {
 
 const tabs: { id: SidebarTab; label: string }[] = [
   { id: 'about', label: 'about' },
-  { id: 'womps', label: 'womps' },
   { id: 'map', label: 'map' },
 ]
 
+const parcelMapStyle = {
+  color: '#333333',
+  opacity: 1.0,
+  fillColor: '#ffffff',
+  fillOpacity: 0.5,
+  dashArray: '5,5',
+  weight: 4,
+}
+
 export default class Parcel extends Component<Props, State> {
   map: Map | null = null
+  parcelLayer: any = null
   mapBox = createRef<HTMLDivElement>()
 
   constructor(props: Props) {
@@ -81,13 +88,22 @@ export default class Parcel extends Component<Props, State> {
     this.forceUpdate()
   }
 
+  onUrl = () => {
+    if (!isSplit()) return
+    const id = getParcelIdFromPath()
+    if (!id || id === this.state.parcelId) return
+    void this.fetch(id)
+  }
+
   abort: AbortController | null = null
 
   async fetch(parcelId: number) {
     this.abort?.abort('ABORT:Parcel changed...')
 
     this.abort = new AbortController()
-    this.setState({ parcelId, loading: true })
+    if (!this.state.parcel) {
+      this.setState({ loading: true })
+    }
 
     const url = `/api/parcels/${parcelId}.json`
 
@@ -95,12 +111,14 @@ export default class Parcel extends Component<Props, State> {
       var f = await cachedFetch(url, { signal: this.abort.signal })
     } catch (e) {
       console.error('Fetch aborted', e)
-      this.setState({ loading: false })
+      if (!this.state.parcel) {
+        this.setState({ loading: false })
+      }
       return
     }
     const { parcel } = await f.json()
 
-    this.setState({ parcel, nearby: [], loading: false })
+    this.setState({ parcel, parcelId, nearby: [], loading: false })
     this.abort = null
   }
 
@@ -111,10 +129,13 @@ export default class Parcel extends Component<Props, State> {
       history.pushState = (history as any)['oldPushState']
     }
     app.on(AppEvent.Change, this.onAppChange)
+    if (isSplit()) {
+      window.addEventListener('parcelchange', this.onUrl)
+    }
   }
 
   componentDidUpdate(prevProps: Props, prevState: State) {
-    if (this.props.id != this.state.parcelId) {
+    if (!isSplit() && this.props.id != this.state.parcelId) {
       void this.fetch(this.props.id!)
     }
 
@@ -122,21 +143,41 @@ export default class Parcel extends Component<Props, State> {
       setTimeout(() => this.addMap(), 50)
     }
 
+    if (this.state.tab === 'map' && this.map && prevState.parcel?.id !== this.state.parcel?.id) {
+      this.updateMapParcel()
+    }
+
     if (this.state.tab !== 'map' && this.map) {
       this.map.remove()
       this.map = null
+      this.parcelLayer = null
     }
   }
 
   componentWillUnmount() {
     this.map?.remove()
     this.map = null
+    this.parcelLayer = null
+
+    if (isSplit()) {
+      window.removeEventListener('parcelchange', this.onUrl)
+    }
 
     history.pushState = function () {
       ;(history as any)['oldPushState'].apply(this, arguments as any)
       scrollTo(0, 0)
     }
     app.removeListener(AppEvent.Change, this.onAppChange)
+  }
+
+  updateMapParcel() {
+    if (!this.map || !this.state.parcel) {
+      return
+    }
+
+    this.map.setView(this.helper!.latLng, 10)
+    this.parcelLayer?.remove()
+    this.parcelLayer = window.L.geoJSON([this.state.parcel.geometry], { style: parcelMapStyle }).addTo(this.map)
   }
 
   addMap() {
@@ -157,16 +198,7 @@ export default class Parcel extends Component<Props, State> {
       id: 'Voxels',
     }).addTo(this.map)
 
-    const style = {
-      color: '#333333',
-      opacity: 1.0,
-      fillColor: '#ffffff',
-      fillOpacity: 0.5,
-      dashArray: '5,5',
-      weight: 4,
-    }
-
-    window.L.geoJSON([this.state.parcel.geometry], { style }).addTo(this.map)
+    this.parcelLayer = window.L.geoJSON([this.state.parcel.geometry], { style: parcelMapStyle }).addTo(this.map)
   }
 
   setTab(tab: SidebarTab) {
@@ -192,8 +224,6 @@ export default class Parcel extends Component<Props, State> {
   renderAbout(islandSlug: string) {
     return (
       <>
-        <Listings parcel={this.props.id!} name={this.state.parcel?.address!} />
-
         {this.state.parcel &&
           (() => {
             const p = this.state.parcel
@@ -322,14 +352,13 @@ export default class Parcel extends Component<Props, State> {
         </ul>
 
         {tab === 'about' && this.renderAbout(islandSlug)}
-        {tab === 'womps' && <WompsList key={this.state.parcelId} fetch={`/womps/at/parcel/${this.state.parcelId}.json`} numberToShow={10} smaller={true} collapsed={true} />}
         {tab === 'map' && <div class="map map-web parcel-sidebar-map" ref={this.mapBox} />}
       </>
     )
   }
 
   render() {
-    if (this.state.loading || !this.state.parcel || !this.helper) {
+    if (!this.state.parcel || !this.helper) {
       return null
     }
 
@@ -340,9 +369,7 @@ export default class Parcel extends Component<Props, State> {
     const slug = this.state.parcel.address?.toLowerCase().replace(/ /g, '-') ?? ''
     const ogImage = slug ? `https://map.voxels.com/parcel/${this.state.parcelId}-${slug}.png` : undefined
 
-    const head = (
-      <Head title={parcelName} description={parcelDesc} url={`/parcels/${this.state.parcelId}`} imageURL={ogImage} />
-    )
+    const head = <Head title={parcelName} description={parcelDesc} url={`/parcels/${this.state.parcelId}`} imageURL={ogImage} />
 
     if (isSplit()) {
       return (

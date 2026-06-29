@@ -63,14 +63,11 @@ export default class WebHeader extends Component<Props, State> {
   componentDidMount() {
     app.on(AppEvent.Change, this.onAppChange)
     app.on(AppEvent.ProviderMessage, this.onProviderMessage)
-    window.addEventListener('urlchange', this.onAppChange)
   }
 
   componentWillUnmount() {
-    // Removes listeners to avoid leaks.
     app.removeListener(AppEvent.Change, this.onAppChange)
     app.removeListener(AppEvent.ProviderMessage, this.onProviderMessage)
-    window.removeEventListener('urlchange', this.onAppChange)
   }
 
   componentDidUpdate(prevProps: Props, prevState: State) {

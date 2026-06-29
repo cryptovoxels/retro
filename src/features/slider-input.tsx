@@ -159,34 +159,34 @@ class Editor extends FeatureEditor<SliderInput> {
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <FeatureID feature={this.props.feature} />
+            <FeatureID feature={this.props.feature} />
 
-          <div className="f">
-            <label>Text</label>
-            <input value={this.state.text} onInput={(e) => this.update({ text: e.currentTarget.value })} type="text" />
-          </div>
-          <div className="f">
-            <label>Minimum</label>
-            <input value={this.state.minimum} onInput={(e) => this.update({ minimum: e.currentTarget.value })} type="number" maxLength={10} />
-          </div>
-          <div className="f">
-            <label>Maximum</label>
-            <input value={this.state.maximum} onInput={(e) => this.update({ maximum: e.currentTarget.value })} type="number" maxLength={10} />
-          </div>
-          <div className="f">
-            <label>Default</label>
-            <input value={this.state.default} onInput={(e) => this.update({ default: e.currentTarget.value })} type="number" maxLength={10} />
-          </div>
-          <Advanced>
-            <SpecularColorSetting feature={this.props.feature} />
-            <Behaviours feature={this.props.feature} />
-            <UuidReadOnly feature={this.props.feature} />
-          </Advanced>
+            <div className="f">
+              <label>Text</label>
+              <input value={this.state.text} onInput={(e) => this.update({ text: e.currentTarget.value })} type="text" />
+            </div>
+            <div className="f">
+              <label>Minimum</label>
+              <input value={this.state.minimum} onInput={(e) => this.update({ minimum: e.currentTarget.value })} type="number" maxLength={10} />
+            </div>
+            <div className="f">
+              <label>Maximum</label>
+              <input value={this.state.maximum} onInput={(e) => this.update({ maximum: e.currentTarget.value })} type="number" maxLength={10} />
+            </div>
+            <div className="f">
+              <label>Default</label>
+              <input value={this.state.default} onInput={(e) => this.update({ default: e.currentTarget.value })} type="number" maxLength={10} />
+            </div>
+            <Advanced>
+              <SpecularColorSetting feature={this.props.feature} />
+              <Behaviours feature={this.props.feature} />
+              <UuidReadOnly feature={this.props.feature} />
+            </Advanced>
           </EditorProps>
         </div>
       </section>

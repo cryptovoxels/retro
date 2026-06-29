@@ -60,12 +60,34 @@ export function notifyUrlChange() {
   window.dispatchEvent(new Event('urlchange'))
 }
 
+export function notifyParcelChange() {
+  window.dispatchEvent(new Event('parcelchange'))
+}
+
 export function getParcelId() {
   if (typeof location === 'undefined') return null
   const p = new URLSearchParams(location.search).get('parcel')
   if (!p) return null
   const id = parseInt(p, 10)
   return Number.isFinite(id) ? id : null
+}
+
+export function getParcelIdFromPath(): number | null {
+  if (typeof location === 'undefined') return null
+  const m = location.pathname.match(/^\/parcels\/(\d+)$/)
+  if (!m) return null
+  const id = parseInt(m[1], 10)
+  return Number.isFinite(id) ? id : null
+}
+
+export function syncParcelUrl(id: number) {
+  if (typeof location === 'undefined') return
+  if (getParcelIdFromPath() === id) return
+  const u = new URL(location.href)
+  u.pathname = `/parcels/${id}`
+  u.searchParams.delete('parcel')
+  history.replaceState(null, '', u.pathname + u.search)
+  notifyParcelChange()
 }
 
 export function naviportHere(urlOrCoords: string, parcelId?: number) {

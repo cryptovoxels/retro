@@ -1,6 +1,6 @@
 import { FeatureRecord, SortableFeature, WorkerTiming, WorkerOperationType, InstanceRelation, LoadOrderItem, InstanceRelationMap, ParcelInstanceRelations } from './types'
-import { createComlinkWorker } from '../../common/helpers/comlink-worker'
-import type { PumpWorkerAPI } from './pump-worker'
+import { getGridMono } from '../mono-pool'
+import type { Mono } from '../mono'
 
 interface WorkerStats {
   pendingRequests: number
@@ -11,9 +11,9 @@ interface WorkerStats {
 }
 
 export class PumpWorkerManager {
-  private workerAPI: PumpWorkerAPI | null = null
+  private workerAPI: Mono | null = null
   private workerCleanup: (() => void) | null = null
-  private workerPromise: Promise<PumpWorkerAPI> | null = null
+  private workerPromise: Promise<Mono> | null = null
   private isWorker = false
   private consecutiveTimeouts = 0
   private lastDetectionTiming: WorkerTiming | null = null
@@ -187,12 +187,7 @@ export class PumpWorkerManager {
   }
 
   private loadWorker(): void {
-    this.workerPromise = createComlinkWorker<PumpWorkerAPI>(
-      // Webpack 5 recognizes this exact pattern and automatically compiles TypeScript workers to separate bundles
-      () => new Worker(new URL('./pump-worker.ts', import.meta.url)),
-      () => import('./pump-worker').then(({ pumpWorker }) => pumpWorker),
-      { debug: true, workerName: 'pump-worker' },
-    )
+    this.workerPromise = getGridMono()
       .then(({ worker, cleanup, isWorker }) => {
         this.workerAPI = worker
         this.workerCleanup = cleanup

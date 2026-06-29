@@ -1,7 +1,7 @@
 import type { NdArray } from 'ndarray'
 import type { LanternRecord } from '../common/messages/feature'
 import { createGlassMaterial } from './materials/glass'
-import { createComlinkWorker } from '../common/helpers/comlink-worker'
+import { runCompute } from './mono-pool'
 import type { Geo, GlassGeo } from './monoworker/lightmap'
 
 const DEBUG_LIGHT_PROBES = false
@@ -15,19 +15,6 @@ function loadTex(url: string, scene: BABYLON.Scene): BABYLON.Texture {
   cachedTexUrl = url
   return cachedTex
 }
-
-// ─── monoworker ─────────────────────────────────────────────────────────────
-
-let work: Promise<import('./monoworker').Mono> | null = null
-const mono = () =>
-  (work ??= createComlinkWorker<import('./monoworker').Mono>(
-    // Webpack 5 recognizes this exact pattern and compiles the worker to a separate bundle
-    () => new Worker(new URL('./monoworker.ts', import.meta.url)),
-    () => import('./monoworker').then((m) => m.mono),
-    { workerName: 'monoworker' },
-  ).then((r) => r.worker))
-
-// ─── mesh assembly (main thread) ──────────────────────────────────────────────
 
 function mesh(geo: Geo, tex: BABYLON.Texture, scene: BABYLON.Scene, id: number): BABYLON.Mesh {
   const m = new BABYLON.Mesh(`voxelizer/opaque-${id}`, scene)
@@ -69,10 +56,9 @@ export async function buildCleanMesh(
   palette: BABYLON.Color3[],
   texOverride?: BABYLON.Texture,
 ): Promise<{ opaque: BABYLON.Mesh; glass: BABYLON.Mesh | null }> {
-  const w = await mono()
   const pal = palette.map((c) => [c.r, c.g, c.b] as [number, number, number])
   const lights = lanterns.map((l: any) => ({ position: l.position, color: l.color ?? '#ffffff', strength: l.strength }))
-  const { opaque, glass } = await w.bakeLightmap(field.data, field.shape as [number, number, number], field.stride, field.offset, lights, off, pal)
+  const { opaque, glass } = await runCompute((w) => w.bakeLightmap(field.data, field.shape as [number, number, number], field.stride, field.offset, lights, off, pal))
   const url = DEBUG_LIGHT_PROBES ? '/textures/00-grid.png' : '/textures/atlas-ao.png'
   const tex = texOverride ?? loadTex(url, scene)
   return { opaque: mesh(opaque, tex, scene, id), glass: glass ? glassMesh(glass, scene, id) : null }

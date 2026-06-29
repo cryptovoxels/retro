@@ -1,7 +1,7 @@
 import { Component, createRef } from 'preact'
 import { route } from 'preact-router'
 import { canUseDom } from '../../common/helpers/utils'
-import { getCoords, notifyUrlChange } from './helpers/coords-nav'
+import { getCoords, notifyUrlChange, syncParcelUrl } from './helpers/coords-nav'
 import { app } from './state'
 import type { BootResult } from '../../src'
 
@@ -83,9 +83,7 @@ export class Client extends Component<FrameProps, FrameState> {
       const urlId = parseInt(m[1], 10)
       const id = window.grid?.currentParcel()?.id
       if (id && id !== urlId) {
-        const u = new URL(location.href)
-        u.pathname = `/parcels/${id}`
-        route(u.pathname + u.search, true)
+        syncParcelUrl(id)
       }
     }, 200)
   }

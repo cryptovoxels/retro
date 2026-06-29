@@ -1,16 +1,34 @@
-import { TriangleLimitExceededError, voxReader } from './vox-reader'
-import type { JobRecord } from './vox-import'
-import * as Comlink from 'comlink'
+import { TriangleLimitExceededError, voxReader } from '../../common/vox-import/vox-reader'
+import type { JobRecord } from '../../common/vox-import/vox-import'
 
-export interface VoxWorkerAPI {
-  loadVox(job: JobRecord): Promise<any>
-  cancelJob(renderJob: number): void
-}
-
-// Track cancelled jobs
 const cancelledJobs = new Set<number>()
 
-async function loadVox({ renderJob, flipX, megavox, maxTriangles, dryRun, wantCollider, timeoutMs, ...urlOrBuffer }: JobRecord): Promise<any> {
+async function loadVoxUrl(url: string): Promise<ArrayBuffer> {
+  return fetch(url)
+    .then(async (response) => {
+      if (response.ok) {
+        return response
+      }
+
+      const isJson = response.headers.get('content-type')?.includes('application/json')
+      const data = isJson ? await response.json() : null
+
+      let searchParams: URLSearchParams | undefined = undefined
+      try {
+        searchParams = new URL(url, 'https://voxels.com').searchParams
+      } catch (e) {}
+
+      const originalUrl = searchParams?.get('url') || url
+      if (data.message) {
+        throw new Error(`failed fetching .vox ${data.message} - ${originalUrl}`)
+      } else {
+        throw new Error(`failed fetching .vox ${response.status} - ${originalUrl}`)
+      }
+    })
+    .then((r) => r!.arrayBuffer())
+}
+
+export async function loadVox({ renderJob, flipX, megavox, maxTriangles, dryRun, wantCollider, timeoutMs, ...urlOrBuffer }: JobRecord): Promise<any> {
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(() => reject(new Error(`Job ${renderJob} timed out after ${timeoutMs}ms`)), timeoutMs)
   })
@@ -65,47 +83,6 @@ async function loadVox({ renderJob, flipX, megavox, maxTriangles, dryRun, wantCo
   return Promise.race([workPromise, timeoutPromise])
 }
 
-function loadVoxUrl(url: string): Promise<ArrayBuffer> {
-  return fetch(url)
-    .then(async (response) => {
-      if (response.ok) {
-        return response
-      }
-
-      const isJson = response.headers.get('content-type')?.includes('application/json')
-      const data = isJson ? await response.json() : null
-
-      let searchParams: URLSearchParams | undefined = undefined
-      try {
-        searchParams = new URL(url, 'https://voxels.com').searchParams
-      } catch (e) {}
-
-      const originalUrl = searchParams?.get('url') || url
-      if (data.message) {
-        throw new Error(`failed fetching .vox ${data.message} - ${originalUrl}`)
-      } else {
-        throw new Error(`failed fetching .vox ${response.status} - ${originalUrl}`)
-      }
-    })
-    .then((r) => r!.arrayBuffer())
-}
-
-function cancelJob(renderJob: number) {
+export function cancelJob(renderJob: number) {
   cancelledJobs.add(renderJob)
-}
-
-class VoxWorker implements VoxWorkerAPI {
-  async loadVox(job: JobRecord): Promise<any> {
-    return loadVox(job)
-  }
-
-  cancelJob(renderJob: number): void {
-    cancelJob(renderJob)
-  }
-}
-
-export const voxWorker = new VoxWorker()
-
-if (typeof self !== 'undefined' && 'postMessage' in self) {
-  Comlink.expose(voxWorker)
 }

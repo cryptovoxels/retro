@@ -102,7 +102,7 @@ export default function EditAccountForm(props: Props) {
       return
     }
     app.send({ type: 'reconnect' })
-    const next = { ...avatar!, name: name || avatar?.name, description, social_link_1: link1, social_link_2: link2, home_id: home?.parcel_id ?? null }
+    const next = { ...avatar!, name: name || avatar?.name || null, description, social_link_1: link1, social_link_2: link2, home_id: home?.parcel_id ?? null }
     if (props.onSaved) {
       props.onSaved(next)
       return

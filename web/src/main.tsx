@@ -40,7 +40,7 @@ import Mail from './mail'
 import WorldMap from './map'
 import Parcel from './parcel'
 import { Client } from './client'
-import { getCoords, getParcelId, notifyUrlChange } from './helpers/coords-nav'
+import { getCoords, getParcelId, notifyUrlChange, syncParcelUrl } from './helpers/coords-nav'
 import ParcelEdit from './parcel-edit'
 import Parcels from './parcels'
 import Privacy from './privacy'
@@ -139,11 +139,7 @@ const Main = () => {
       const id = getParcelId()
       const c = getCoords()
       if (!id || !c) return
-      const u = new URL(location.href)
-      u.pathname = `/parcels/${id}`
-      u.searchParams.delete('parcel')
-      route(u.pathname + u.search, true)
-      notifyUrlChange()
+      syncParcelUrl(id)
     }
     app.on(AppEvent.Exploring, onExploring)
     return () => app.removeListener(AppEvent.Exploring, onExploring)
@@ -162,71 +158,71 @@ const Main = () => {
 
         <WorldRightSlot coords={coords} pane={pane}>
           <Router onChange={handleRoute}>
-          <Explore path="/" />
-          <RadioPopout path="/radio" />
-          <Play path="/play" />
-          <Play path="/scratchpad" />
-          <Play path="/spaces/:id/play" />
-          <Play path="/assets/:id/play" />
-          <Terms path="/terms" />
-          <Privacy path="/privacy" />
-          <Conduct path="/conduct" />
-          <Logout path="/logout" />
-          <NotFound path="/not-found" />
+            <Explore path="/" />
+            <RadioPopout path="/radio" />
+            <Play path="/play" />
+            <Play path="/scratchpad" />
+            <Play path="/spaces/:id/play" />
+            <Play path="/assets/:id/play" />
+            <Terms path="/terms" />
+            <Privacy path="/privacy" />
+            <Conduct path="/conduct" />
+            <Logout path="/logout" />
+            <NotFound path="/not-found" />
 
-          <Mail path="/mail" />
-          <Search path="/search" />
+            <Mail path="/mail" />
+            <Search path="/search" />
 
-          <Assets path="/assets" />
-          <AssetsNew path="/assets/new" />
-          <Asset path="/assets/:id" />
-          <EditAsset path="/assets/:id/edit" />
-          <RenderAsset path="/assets/:id/render" />
-          <Assets path="/u/:wallet/assets" />
+            <Assets path="/assets" />
+            <AssetsNew path="/assets/new" />
+            <Asset path="/assets/:id" />
+            <EditAsset path="/assets/:id/edit" />
+            <RenderAsset path="/assets/:id/render" />
+            <Assets path="/u/:wallet/assets" />
 
-          <Parcels path="/parcels" />
-          <Parcel path="/parcels/:id" />
-          <Parcel path="/parcels/:id/:section" />
-          <ParcelEdit path="/parcels/:id/edit" />
+            <Parcels path="/parcels" />
+            <Parcel path="/parcels/:id" />
+            <Parcel path="/parcels/:id/:section" />
+            <ParcelEdit path="/parcels/:id/edit" />
 
-          <Spaces path="/spaces" />
-          <NewSpace path="/spaces/new" />
-          <Space path="/spaces/:id" />
-          <SpaceEdit path="/spaces/:id/edit" />
+            <Spaces path="/spaces" />
+            <NewSpace path="/spaces/new" />
+            <Space path="/spaces/:id" />
+            <SpaceEdit path="/spaces/:id/edit" />
 
-          <Islands path="/islands" />
-          <Island path="/islands/:slug" />
-          <WorldMap path="/map" />
+            <Islands path="/islands" />
+            <Island path="/islands/:slug" />
+            <WorldMap path="/map" />
 
-          <Route path="/golive/broadcast" component={GoLiveBroadcast} />
-          <Route path="/golive" component={GoLive} />
+            <Route path="/golive/broadcast" component={GoLiveBroadcast} />
+            <Route path="/golive" component={GoLive} />
 
-          <AccountRoutes path="/account/:path*" />
+            <AccountRoutes path="/account/:path*" />
 
-          <RenderCostume path="/costumes/:id/render" />
-          <Avatar path="/avatar/:walletOrName" />
-          <Avatar path="/avatar/:walletOrName/:tab?" />
-          <Avatar path="/u/:walletOrName" />
-          <Avatar path="/u/:walletOrName/:tab?" />
+            <RenderCostume path="/costumes/:id/render" />
+            <Avatar path="/avatar/:walletOrName" />
+            <Avatar path="/avatar/:walletOrName/:tab?" />
+            <Avatar path="/u/:walletOrName" />
+            <Avatar path="/u/:walletOrName/:tab?" />
 
-          <Costumer path="/costumer" />
-          <Costumer path="/costumer/:costumeId" />
+            <Costumer path="/costumer" />
+            <Costumer path="/costumer/:costumeId" />
 
-          <Collections path="/collections" />
-          <CollectionsNew path="/collections/new" />
-          <PublishCollection path="/collections/:mint/publish" />
-          <CollectionEditPage path="/collections/:id/edit" />
-          <CollectionPage path="/collections/:id" />
-          <Wearable path="/collections/:cid/:address/:tid" />
+            <Collections path="/collections" />
+            <CollectionsNew path="/collections/new" />
+            <PublishCollection path="/collections/:mint/publish" />
+            <CollectionEditPage path="/collections/:id/edit" />
+            <CollectionPage path="/collections/:id" />
+            <Wearable path="/collections/:cid/:address/:tid" />
 
-          <Womp path="/womps/:id" />
-          <EventPage path="/events/:id" />
-          <EventsNew path="/events/new" />
-          <EventsEdit path="/events/:id/edit" />
-          <Events path="/events" />
-          <WompsPage path="/womps" />
+            <Womp path="/womps/:id" />
+            <EventPage path="/events/:id" />
+            <EventsNew path="/events/new" />
+            <EventsEdit path="/events/:id/edit" />
+            <Events path="/events" />
+            <WompsPage path="/womps" />
 
-          <IslandsAdmin path="/propose/islands" />
+            <IslandsAdmin path="/propose/islands" />
           </Router>
         </WorldRightSlot>
         {!lightBroadcast && !coords && <Footer />}

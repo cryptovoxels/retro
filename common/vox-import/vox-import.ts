@@ -1,8 +1,8 @@
 import VoxVertexShader from './vox.vsh'
 import VoxPixelShader from './vox.fsh'
 import type { VoxData } from './vox-reader'
-import { createComlinkWorker } from '../helpers/comlink-worker'
-import type { VoxWorkerAPI } from './vox-worker'
+import { getComputePool } from '../../src/mono-pool'
+import type { Mono } from '../../src/mono'
 
 BABYLON.Effect.ShadersStore['VoxVertexShader'] = VoxVertexShader
 BABYLON.Effect.ShadersStore['VoxPixelShader'] = VoxPixelShader
@@ -58,12 +58,13 @@ export class VoxImporter {
   private static readonly JOB_TIMEOUT_MS = 5000
 
   private jobs: JobsManager = {}
-  private jobWorkerMap: Map<number, VoxWorkerAPI> = new Map()
-  private workerBusyCount: Map<VoxWorkerAPI, number> = new Map()
+  private jobWorkerMap: Map<number, Mono> = new Map()
+  private workerBusyCount: Map<Mono, number> = new Map()
   private jobIndex = 0
   private material: BABYLON.Material | null = null
-  private workers: VoxWorkerAPI[] = []
+  private workers: Mono[] = []
   private workerCleanups: (() => void)[] = []
+  private workersReady: Promise<void> | null = null
   private _scene: BABYLON.Scene | undefined
 
   initialize(scene: BABYLON.Scene) {
@@ -89,9 +90,17 @@ export class VoxImporter {
     // Triple slash comment with #if is for the ifdef-loader plugin: https://www.npmjs.com/package/ifdef-loader
     // so that we can conditionally bundle code. We don't want the server spinning up this web workers.
     /// #if RUNTIME === 'WEB'
-    for (let i = 0; i < VoxImporter.WORKER_COUNT; i++) {
-      this.createWorker()
-    }
+    this.workersReady = getComputePool()
+      .then((handles) => {
+        for (const h of handles) {
+          this.workers.push(h.worker)
+          this.workerCleanups.push(h.cleanup)
+          this.workerBusyCount.set(h.worker, 0)
+        }
+      })
+      .catch((error) => {
+        console.error('Failed to load vox workers:', error)
+      })
     /// #endif
   }
 
@@ -164,34 +173,41 @@ export class VoxImporter {
         timeoutMs: VoxImporter.JOB_TIMEOUT_MS,
       }
       /// #if RUNTIME === 'WEB'
-      const worker = this.getFreeWorker()
-      this.jobWorkerMap.set(renderJob, worker)
-      worker
-        .loadVox(voxJob)
-        .then((result) => {
-          const voxImport = this.jobs[renderJob]
-          if (voxImport) {
-            // Handle cancelled jobs - just clean up without calling the callback
-            if ('cancelled' in result && result.cancelled) {
-              this.cleanupJob(renderJob)
-              return
+      const run = async () => {
+        if (this.workersReady) await this.workersReady
+        if (this.workers.length === 0) {
+          mesh.dispose()
+          return reject(new Error('No workers available'))
+        }
+        const worker = this.getFreeWorker()
+        this.jobWorkerMap.set(renderJob, worker)
+        worker
+          .loadVox(voxJob)
+          .then((result) => {
+            const voxImport = this.jobs[renderJob]
+            if (voxImport) {
+              if ('cancelled' in result && result.cancelled) {
+                this.cleanupJob(renderJob)
+                return
+              }
+              voxImport(result)
             }
-            voxImport(result)
-          }
-        })
-        .catch((error) => {
-          const voxImport = this.jobs[renderJob]
-          if (voxImport) {
-            voxImport({ renderJob, error: error.message || error })
-          } else {
-            throw error
-          }
-        })
+          })
+          .catch((error) => {
+            const voxImport = this.jobs[renderJob]
+            if (voxImport) {
+              voxImport({ renderJob, error: error.message || error })
+            } else {
+              throw error
+            }
+          })
+      }
+      run().catch(reject)
       /// #endif
     })
   }
 
-  private getFreeWorker(): VoxWorkerAPI {
+  private getFreeWorker(): Mono {
     if (this.workers.length === 0) {
       console.error('no workers for VoxImporter')
       throw new Error('No workers available')
@@ -219,23 +235,6 @@ export class VoxImporter {
     // Increment busy count
     this.workerBusyCount.set(leastBusyWorker, minJobs + 1)
     return leastBusyWorker
-  }
-
-  private createWorker(): void {
-    createComlinkWorker<VoxWorkerAPI>(
-      // Webpack 5 recognizes this exact pattern and automatically compiles TypeScript workers to separate bundles
-      () => new Worker(new URL('./vox-worker.ts', import.meta.url)),
-      () => import('./vox-worker').then(({ voxWorker }) => voxWorker),
-      { debug: true, workerName: 'vox-worker' },
-    )
-      .then(({ worker, cleanup }) => {
-        this.workers.push(worker)
-        this.workerCleanups.push(cleanup)
-        this.workerBusyCount.set(worker, 0)
-      })
-      .catch((error) => {
-        console.error('Failed to load vox worker:', error)
-      })
   }
 
   private cleanupJob(renderJob: number) {

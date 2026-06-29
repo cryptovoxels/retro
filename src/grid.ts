@@ -8,8 +8,9 @@ import { SocketClient } from './utils/socket-client'
 import { displaySuspendedMessage } from './ui/suspended-message'
 import type { NdArray } from 'ndarray'
 import { GridClientMessage, GridMessage, LightMapUpdateMessage, ParcelAuthMessage, ParcelMetaMessage, ParcelScriptMessage, PatchErrorMessage, PatchMessage, PatchStateMessage, SuspendedMessage } from '../common/messages/grid'
-import { createComlinkWorker, createMessageHandler } from '../common/helpers/comlink-worker'
-import { GridWorkerAPI, GridWorkerOutput, GridWorkerParcelLoaded, GridWorkerParcelUnloaded, GridWorkerQueryResponse } from './grid-worker'
+import { createMessageHandler } from '../common/helpers/comlink-worker'
+import { GridWorkerAPI, GridWorkerOutput, GridWorkerParcelLoaded, GridWorkerParcelUnloaded, GridWorkerQueryResponse } from './mono'
+import { getGridMono } from './mono-pool'
 import { app, AppEvent } from '../web/src/state'
 import { LightmapStatus, ParcelPatch, ParcelRecord } from '../common/messages/parcel'
 import { GraphicLevels } from './graphic/graphic-engine'
@@ -524,19 +525,13 @@ export default class Grid extends SocketClient {
   }
 
   public loadWorker() {
-    const workerPromise = createComlinkWorker<GridWorkerAPI>(
-      // Webpack 5 recognizes this exact pattern and automatically compiles TypeScript workers to separate bundles
-      () => new Worker(new URL('./grid-worker.ts', import.meta.url)),
-      () => import('./grid-worker').then(({ gridWorker }) => gridWorker),
-      { debug: true, workerName: 'grid-worker' },
-    ).then(({ worker, cleanup, isWorker }) => {
+    const workerPromise = getGridMono().then(({ worker, cleanup, isWorker }) => {
       this.workerAPI = worker
       this.workerCleanup = cleanup
       this.isWorker = isWorker
-      this.setupWorker()
+      return worker.load().then(() => this.setupWorker())
     })
 
-    // Store the promise so methods can await it
     this._workerReadyPromise = workerPromise
     return workerPromise
   }

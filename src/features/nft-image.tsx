@@ -539,82 +539,82 @@ class Editor extends FeatureEditor<NftImage> {
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <UrlSourceNftImages feature={this.props.feature} handleStateChange={this.onUrlChange} />
+            <UrlSourceNftImages feature={this.props.feature} handleStateChange={this.onUrlChange} />
 
-          <Advanced>
-            <FeatureID feature={this.props.feature} />
-            <SetParentDropdown feature={this.props.feature} />
+            <Advanced>
+              <FeatureID feature={this.props.feature} />
+              <SetParentDropdown feature={this.props.feature} />
 
-            <div className="f">
-              <label>Display</label>
-              <label>
-                <input type="checkbox" checked={this.state.stretch} onChange={(e) => this.setState({ stretch: e.currentTarget.checked })} />
-                Stretch
-              </label>
-              <label>
-                <input type="checkbox" checked={this.state.pixelated} onChange={(e) => this.setState({ pixelated: e.currentTarget.checked })} />
-                Pixelate
-              </label>
-            </div>
-
-            <BlendMode feature={this.props.feature} handleStateChange={this.onBlendModeChange} />
-
-            <div className="f">
-              <label>Transparency</label>
-              <select onInput={(e) => this.setState({ transparencyMode: e.currentTarget.value })} value={this.state.transparencyMode}>
-                <option value={TransparencyMode.Ignore}>Ignore Alpha</option>
-                <option value={TransparencyMode.AlphaBlend}>Alpha Blended</option>
-                <option value={TransparencyMode.AlphaTest}>Alpha Tested</option>
-                <option value={TransparencyMode.Background}>Blended Background</option>
-              </select>
-            </div>
-
-            <div className="f">
-              <label>Emissive Color Intensity {'(Current : ' + (this.state.emissiveColorIntensity * 100).toFixed(2) + '% )'}</label>
-              <input type="range" min={0.01} max={1} value={this.state.emissiveColorIntensity} step={0.01} onChange={(e) => this.setState({ emissiveColorIntensity: e.currentTarget.value })}></input>
-            </div>
-
-            <div className="f">
-              <label>Gui</label>
-              <label>
-                <input type="checkbox" checked={this.state.hasGui} onChange={(e) => this.setState({ hasGui: e.currentTarget.checked })} />
-                Show Information on click
-              </label>
-            </div>
-            {this.state.isOwner && (
               <div className="f">
-                <label>Frame</label>
+                <label>Display</label>
                 <label>
-                  <input type="checkbox" checked={this.state.hasFrame} onChange={(e) => this.setState({ hasFrame: e.currentTarget.checked })} />
-                  Show frame
+                  <input type="checkbox" checked={this.state.stretch} onChange={(e) => this.setState({ stretch: e.currentTarget.checked })} />
+                  Stretch
                 </label>
-                <small>This frame shows you (the parcel owner) owns this nft.</small>
+                <label>
+                  <input type="checkbox" checked={this.state.pixelated} onChange={(e) => this.setState({ pixelated: e.currentTarget.checked })} />
+                  Pixelate
+                </label>
               </div>
-            )}
 
-            {this.state.isOwner && !!this.state.hasFrame && (
-              <div className="sub-f">
+              <BlendMode feature={this.props.feature} handleStateChange={this.onBlendModeChange} />
+
+              <div className="f">
+                <label>Transparency</label>
+                <select onInput={(e) => this.setState({ transparencyMode: e.currentTarget.value })} value={this.state.transparencyMode}>
+                  <option value={TransparencyMode.Ignore}>Ignore Alpha</option>
+                  <option value={TransparencyMode.AlphaBlend}>Alpha Blended</option>
+                  <option value={TransparencyMode.AlphaTest}>Alpha Tested</option>
+                  <option value={TransparencyMode.Background}>Blended Background</option>
+                </select>
+              </div>
+
+              <div className="f">
+                <label>Emissive Color Intensity {'(Current : ' + (this.state.emissiveColorIntensity * 100).toFixed(2) + '% )'}</label>
+                <input type="range" min={0.01} max={1} value={this.state.emissiveColorIntensity} step={0.01} onChange={(e) => this.setState({ emissiveColorIntensity: e.currentTarget.value })}></input>
+              </div>
+
+              <div className="f">
+                <label>Gui</label>
+                <label>
+                  <input type="checkbox" checked={this.state.hasGui} onChange={(e) => this.setState({ hasGui: e.currentTarget.checked })} />
+                  Show Information on click
+                </label>
+              </div>
+              {this.state.isOwner && (
                 <div className="f">
-                  <label>Frame style</label>
-                  <select onInput={(e) => this.setState({ nftFrameStyle: e.currentTarget.value })} value={this.state.nftFrameStyle}>
-                    <option value={'classic'}>Classic</option>
-                    <option value={'colors'}>Colors</option>
-                    <option value={'blue'}>Blue</option>
-                  </select>
-                  <small>Select a frame color style</small>
+                  <label>Frame</label>
+                  <label>
+                    <input type="checkbox" checked={this.state.hasFrame} onChange={(e) => this.setState({ hasFrame: e.currentTarget.checked })} />
+                    Show frame
+                  </label>
+                  <small>This frame shows you (the parcel owner) owns this nft.</small>
                 </div>
-              </div>
-            )}
+              )}
 
-            <TriggerEditor feature={this.props.feature} />
-            <UuidReadOnly feature={this.props.feature} />
-            <Behaviours feature={this.props.feature} />
-          </Advanced>
+              {this.state.isOwner && !!this.state.hasFrame && (
+                <div className="sub-f">
+                  <div className="f">
+                    <label>Frame style</label>
+                    <select onInput={(e) => this.setState({ nftFrameStyle: e.currentTarget.value })} value={this.state.nftFrameStyle}>
+                      <option value={'classic'}>Classic</option>
+                      <option value={'colors'}>Colors</option>
+                      <option value={'blue'}>Blue</option>
+                    </select>
+                    <small>Select a frame color style</small>
+                  </div>
+                </div>
+              )}
+
+              <TriggerEditor feature={this.props.feature} />
+              <UuidReadOnly feature={this.props.feature} />
+              <Behaviours feature={this.props.feature} />
+            </Advanced>
           </EditorProps>
         </div>
       </section>
