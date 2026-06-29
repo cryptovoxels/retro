@@ -7,6 +7,7 @@ import { unmountComponentAtNode } from 'preact/compat'
 import { createFirstPersonCamera } from '../utils/fps-camera'
 import { decodeCoordsFromURL } from '../../utils/helpers'
 import { hasPointerLock } from '../../../common/helpers/ui-helpers'
+import { app, AppEvent } from '../../../web/src/state'
 const POINTER_WHEEL_MULTIPLIER = 0.001
 export default class DesktopControls extends Controls {
   keyboardInput?: LocaleKeyboardMoveInput
@@ -348,6 +349,9 @@ export default class DesktopControls extends Controls {
       // Check if key up is pressed
       if (e.code === 'KeyW' || e.code === 'ArrowUp') {
         this.facingForward = true
+        if (hasPointerLock() && location.pathname === '/parcels' && new URLSearchParams(location.search).get('parcel')) {
+          app.emit(AppEvent.Exploring)
+        }
       }
     })
 

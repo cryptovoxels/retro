@@ -157,7 +157,7 @@ button.iconish {
 .UserInterface aside {
   @width: 8rem;
   width: @width;
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
@@ -213,53 +213,12 @@ button.iconish {
       color: var(--red);
     }
   }
+}
 
-  dialog {
-    top: 1rem;
-    left: 8rem;
-    bottom: 0;
-    display: block;
-    margin: 0;
-    width: 25rem;
-    border: none;
-    background: transparent;
-
-    header {
-      position: relative;
-    }
-
-    header h1,
-    header h2 {
-      font-size: 1.22rem;
-      font-weight: bold;
-      margin: 0 0 1rem 0;
-      text-shadow: 2px 2px 2px black;
-    }
-
-    header button.close {
-      position: absolute;
-      top: 0;
-      right: 0;
-      color: white;
-      padding: 0.4rem 0.6rem;
-      font-size: 1rem;
-      background: #3335;
-      border: none;
-      cursor: pointer;
-
-      &:hover {
-        font-weight: bold;
-      }
-    }
-
-    & > section {
-      max-height: ~'calc(100vh - 12rem)';
-      overflow-y: auto;
-      border-radius: 1rem;
-      padding: 0.5rem;
-      background: #333;
-    }
-  }
+body.in-world main > aside section {
+  overflow-y: auto;
+  padding: 0.5rem;
+  background: #333;
 }
 
 .UserInterface dialog .baking textarea {

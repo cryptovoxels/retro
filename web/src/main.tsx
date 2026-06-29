@@ -5,7 +5,7 @@ if (process.env.NODE_ENV === 'development') {
   require('preact/debug')
 }
 import { Component, render } from 'preact'
-import { Route, Router, type RouterOnChangeArgs } from 'preact-router'
+import { Route, Router, route, type RouterOnChangeArgs } from 'preact-router'
 
 import EditAccount from '../account/edit'
 import GoLive from '../account/go-live'
@@ -40,6 +40,7 @@ import Mail from './mail'
 import WorldMap from './map'
 import Parcel from './parcel'
 import { Client } from './client'
+import { getCoords, getParcelId, notifyUrlChange } from './helpers/coords-nav'
 import ParcelEdit from './parcel-edit'
 import Parcels from './parcels'
 import Privacy from './privacy'
@@ -62,6 +63,7 @@ import NotFound from './not-found'
 import { PlayPreview } from './play-preview'
 import { maybePlayPreview } from './play-preview-route'
 import { app, AppEvent } from './state'
+import { WorldRightSlot } from './world-right-slot'
 
 class MainApp extends Component {
   componentDidMount() {
@@ -90,6 +92,8 @@ history.pushState = function () {
 
   ;(history as any)['oldPushState'].apply(this, arguments as any)
 
+  notifyUrlChange()
+
   // Only scroll to top if base URL changes, not query string
   if (path !== previousPath) {
     scrollTo(0, 0)
@@ -107,22 +111,57 @@ const Main = () => {
     prevUrl.current = location.pathname + location.search
 
     setCurrentPath(e.url)
+    setUrlSearch(location.search)
 
     app.send({ type: 'navigate', data: e.url })
   }
 
   const [currentPath, setCurrentPath] = useState(window.location.pathname)
+  const [urlSearch, setUrlSearch] = useState(location.search)
   const prevUrl = useRef(location.pathname + location.search)
   const lightBroadcast = currentPath.startsWith('/golive/broadcast')
-  // fullscreen world view: no web header/footer chrome
-  const fullWorld = currentPath.startsWith('/play') || currentPath.startsWith('/scratchpad') || currentPath.endsWith('/play') || currentPath.startsWith('/radio')
+  const coords = new URLSearchParams(urlSearch).get('coords') || ''
+  const pane = new URLSearchParams(urlSearch).get('pane') || ''
+
+  useEffect(() => {
+    const sync = () => setUrlSearch(location.search)
+    window.addEventListener('popstate', sync)
+    window.addEventListener('urlchange', sync)
+    return () => {
+      window.removeEventListener('popstate', sync)
+      window.removeEventListener('urlchange', sync)
+    }
+  }, [])
+
+  useEffect(() => {
+    const onExploring = () => {
+      if (location.pathname !== '/parcels') return
+      const id = getParcelId()
+      const c = getCoords()
+      if (!id || !c) return
+      const u = new URL(location.href)
+      u.pathname = `/parcels/${id}`
+      u.searchParams.delete('parcel')
+      route(u.pathname + u.search, true)
+      notifyUrlChange()
+    }
+    app.on(AppEvent.Exploring, onExploring)
+    return () => app.removeListener(AppEvent.Exploring, onExploring)
+  }, [])
 
   return (
     <MainApp>
       <main class={lightBroadcast ? 'showbox-light-shell' : ''}>
-        {!lightBroadcast && !fullWorld && <WebHeader path={currentPath} />}
+        {!lightBroadcast && <WebHeader path={currentPath} coords={coords} />}
 
-        <Router onChange={handleRoute}>
+        {coords && (
+          <article>
+            <Client coords={coords} />
+          </article>
+        )}
+
+        <WorldRightSlot coords={coords} pane={pane}>
+          <Router onChange={handleRoute}>
           <Explore path="/" />
           <RadioPopout path="/radio" />
           <Play path="/play" />
@@ -188,8 +227,9 @@ const Main = () => {
           <WompsPage path="/womps" />
 
           <IslandsAdmin path="/propose/islands" />
-        </Router>
-        {!lightBroadcast && !fullWorld && <Footer />}
+          </Router>
+        </WorldRightSlot>
+        {!lightBroadcast && !coords && <Footer />}
       </main>
 
       <Snackbar />
@@ -207,13 +247,18 @@ function RadioPopout(_props: { path?: string }) {
   )
 }
 
-// Fullscreen world. Mounts the persistent canvas layer over a fullscreen placeholder.
 function Play(_props: { path?: string }) {
-  const coords = new URLSearchParams(window.location.search).get('coords') || ''
+  if (getCoords()) {
+    return (
+      <section class="sidebar-view">
+        <p>in the world</p>
+      </section>
+    )
+  }
   return (
-    <div class="world-fullscreen">
-      <Client full coords={coords} parcelId={0} />
-    </div>
+    <section>
+      <p>add coords to play</p>
+    </section>
   )
 }
 
@@ -221,7 +266,7 @@ function hydrate(vnode: JSXInternal.Element, parent: HTMLElement) {
   let replace = parent.firstElementChild ?? undefined
   // SSR renders route content only (section/article). Main adds <main> + chrome.
   // Reusing the SSR root as replaceNode leaves that markup alongside Main.
-  if (replace?.tagName !== 'MAIN') {
+  if (replace && replace.tagName !== 'MAIN') {
     replace.remove()
     replace = undefined
   }

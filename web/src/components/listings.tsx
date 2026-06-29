@@ -9,11 +9,15 @@ export default function Listings({ parcel, name }: Props) {
   const [listing, setListing] = useState<any>(null)
 
   async function load() {
-    const res = await fetch(`/api/real-estate/listings/${parcel}`)
-    const data = await res.json()
-
-    if (data.ok) {
-      setListing(data.listing)
+    try {
+      const res = await fetch(`/api/real-estate/listings/${parcel}`)
+      if (!res.ok) return
+      const data = await res.json()
+      if (data.ok) {
+        setListing(data.listing)
+      }
+    } catch {
+      return
     }
   }
 
