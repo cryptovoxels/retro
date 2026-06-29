@@ -1352,6 +1352,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   wireBroadcastRoom(room: Room) {
+    // going live on a screen: your voice goes out the showbox, so step off the avatar voice mic
+    window.persona?.voiceChat?.setBroadcasting(true)
     const bumpViewerCount = () => {
       const total = this.broadcastRoomParticipantCount()
       if (total > 0) this.onViewerCountTick?.(total)
@@ -3072,6 +3074,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   stopBroadcast(silent = false) {
+    // done broadcasting: hand the voice mic back to the avatar
+    window.persona?.voiceChat?.setBroadcasting(false)
     this.liveChatAnnounced = false
     this.walkAwayWarned = false
     this.stopMilestonePoll()

@@ -130,6 +130,7 @@ type UserInterfaceState = {
   scratchpadGuideKey?: number
   chatEnabled: boolean
   dragging?: boolean
+  voice?: 'off' | 'live' | 'muted'
 }
 
 export default class UserInterface extends Component<UserInterfaceProps, UserInterfaceState> {
@@ -217,6 +218,23 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   setDragging = (v: boolean) => this.setState({ dragging: v })
+
+  // off -> first click prompts for the mic and joins a cluster; then click toggles mute (mic stays acquired)
+  toggleVoice = () => {
+    const vc = this.connector.persona?.voiceChat
+    if (!vc) return
+    const v = this.state.voice
+    if (!v || v === 'off') {
+      vc.enable()
+      this.setState({ voice: 'live' })
+    } else if (v === 'live') {
+      vc.setMuted(true)
+      this.setState({ voice: 'muted' })
+    } else {
+      vc.setMuted(false)
+      this.setState({ voice: 'live' })
+    }
+  }
 
   openEditor(editor: FeatureEditor, feature: Feature) {
     this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'feature-editor' })
@@ -799,6 +817,17 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           <aside data-active={this.state.active}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
+              <li title="Voice chat" class={this.state.voice === 'live' ? 'active' : ''}>
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    this.toggleVoice()
+                  }}
+                >
+                  {this.state.voice === 'live' ? 'Voice on' : this.state.voice === 'muted' ? 'Voice muted' : 'Voice off'}
+                </a>
+              </li>
               {!isMobileMedia() && (
                 /**
                  * Fullscreen toggle; no point showing "fullscreen on mobile" as most devices are always fullscreen

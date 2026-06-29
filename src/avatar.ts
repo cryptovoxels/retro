@@ -371,7 +371,31 @@ export default class Avatar extends Entity {
   }
 
   onContextClick() {
+    window.persona?.voiceChat?.toggleLocalMute(this.uuid)
     return true
+  }
+
+  private _mutedColors: { diffuse: BABYLON.Color3; emissive: BABYLON.Color3 } | null = null
+
+  // muted = red body + stripped wearables ("muted red anon"), fully reversible with no re-fetch
+  setMuted(b: boolean) {
+    const m = this._material
+    if (!m) return
+    if (b) {
+      if (!this._mutedColors) {
+        this._mutedColors = { diffuse: m.diffuseColor.clone(), emissive: m.emissiveColor.clone() }
+      }
+      m.diffuseColor.set(1, 0, 0)
+      m.emissiveColor.set(0.3, 0, 0)
+      this._attachmentManager?.hideAllWearables()
+    } else {
+      if (this._mutedColors) {
+        m.diffuseColor.copyFrom(this._mutedColors.diffuse)
+        m.emissiveColor.copyFrom(this._mutedColors.emissive)
+        this._mutedColors = null
+      }
+      this._attachmentManager?.showAllWearables()
+    }
   }
 
   disposeLocalAndRemote = () => {
