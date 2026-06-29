@@ -23,6 +23,7 @@ export default class VoiceChat {
   mutedUuids = new Set<string>()
   voices = new Map<string, Voice>()
   follow: BABYLON.Observer<BABYLON.Scene> | null = null
+  private lastIndicatorTick = 0
 
   constructor(private persona: Persona) {}
 
@@ -105,7 +106,10 @@ export default class VoiceChat {
       this.addVoice(p.identity, track)
     })
     room.on(RoomEvent.TrackUnsubscribed, (_track: any, _pub: any, p: any) => this.removeVoice(p.identity))
-    room.on(RoomEvent.ParticipantDisconnected, (p: any) => this.removeVoice(p.identity))
+    room.on(RoomEvent.ParticipantDisconnected, (p: any) => {
+      this.removeVoice(p.identity)
+      ;(window.connector?.findAvatar(p.identity) as Avatar | undefined)?.setVoiceState('off') // clear chip even if they had no track
+    })
   }
 
   // identity === avatar uuid, so the track spatializes onto that avatar (follow loop keeps it glued)
@@ -148,6 +152,7 @@ export default class VoiceChat {
     } catch {}
     v.el.remove()
     this.voices.delete(uuid)
+    ;(window.connector?.findAvatar(uuid) as Avatar | undefined)?.setVoiceState('off')
   }
 
   private startFollow() {
@@ -160,7 +165,31 @@ export default class VoiceChat {
         const a = window.connector?.findAvatar(uuid) as Avatar | undefined
         if (a) v.spatial.setPosition(a.absolutePosition)
       }
+      this.updateVoiceIndicators()
     })
+  }
+
+  // ~10Hz: paint each cluster member's mic chip - on / speaking (with level) / muted. cheap; the chip is one billboard.
+  private updateVoiceIndicators() {
+    const room = this.room
+    if (!room) return
+    const t = performance.now()
+    if (t - this.lastIndicatorTick < 100) return
+    this.lastIndicatorTick = t
+
+    const paint = (uuid: string, p: any, isLocal: boolean) => {
+      const a = window.connector?.findAvatar(uuid) as Avatar | undefined
+      if (!a) return
+      const micOff = isLocal ? this.muted || this.broadcasting : this.mutedUuids.has(uuid) || !p.isMicrophoneEnabled
+      const speaking = !micOff && p.isSpeaking
+      // you always see your own chip (live / muted / speaking); others only show up when muted or speaking, not idle.
+      if (!isLocal && !micOff && !speaking) return a.setVoiceState('off')
+      const state = micOff ? 'muted' : speaking ? 'speaking' : 'on'
+      a.setVoiceState(state, p.audioLevel ?? 0)
+    }
+    paint(this.persona.uuid, room.localParticipant, true)
+    const remote = (room as any).remoteParticipants ?? (room as any).participants
+    remote?.forEach((p: any) => paint(p.identity, p, false))
   }
 
   // your own mic. keeps the track published/acquired, just mutes.

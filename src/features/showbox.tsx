@@ -622,10 +622,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   // walk up to an angle mirror and push your camera straight to it (video only, no audio, no __showbox_live).
   // published on the viewer room - its token already grants canPublish for authorized users.
   async startAngleBroadcast(deviceId?: string, useScreen = false): Promise<boolean> {
-    if (this.angleVideoTrack) return true
-    if (!this.livekitRoom) await this.connectViewer()
-    const lp = (this.livekitRoom as any)?.localParticipant
-    if (!lp) return false
+    // capture first, in the click gesture - getDisplayMedia only opens the OS picker when called synchronously inside it.
     let track: any
     try {
       if (useScreen) {
@@ -640,6 +637,19 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       return false
     }
     if (!track) return false // screenshare picker can resolve empty - never publish undefined
+    return this.publishAngleTrack(track)
+  }
+
+  // publish an already-captured track to this mirror. split out so the capture can happen in-gesture (see shareScreenToSecondScreen).
+  async publishAngleTrack(track: any): Promise<boolean> {
+    if (this.angleVideoTrack) {
+      try {
+        track.stop()
+      } catch {}
+      return true
+    }
+    if (!this.livekitRoom) await this.connectViewer()
+    const lp = (this.livekitRoom as any)?.localParticipant
     this.angleVideoTrack = track
     try {
       await lp.publishTrack(track, { name: this.uuid })
@@ -847,20 +857,37 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   // new -> drop a second screen where you're looking (slide/resize it with the in-world handles); existing -> reuse one.
   async shareScreenToSecondScreen(target: Showbox | 'new') {
+    // capture the screen first, synchronously in the click gesture - else the OS picker silently no-ops and we leave a stray empty screen.
+    let track: any
+    try {
+      ;[track] = await createLocalScreenTracks({ audio: false })
+    } catch {
+      return // cancelled/blocked picker - spawn nothing
+    }
+    if (!track) return
     let mirror: Showbox | null = target === 'new' ? null : target
     if (target === 'new') {
       const tool = window.ui?.featureTool
       const engine = this.scene.getEngine()
       const pick = this.scene.pick(engine.getRenderWidth() / 2, engine.getRenderHeight() / 2)
       if (!tool || !pick?.pickedPoint) {
+        try {
+          track.stop()
+        } catch {}
         app.showSnackbar('look at a wall or floor where the screen should go, then try again', PanelType.Warning)
         return
       }
       const feature = await tool.spawn(pick, { ...Showbox.template, angleMode: true })
       mirror = (feature as Showbox) ?? null
     }
-    if (!mirror) return
-    const ok = await mirror.startAngleBroadcast(undefined, true)
+    if (!mirror) {
+      try {
+        track.stop()
+      } catch {}
+      app.showSnackbar('could not start the screen share', PanelType.Warning)
+      return
+    }
+    const ok = await mirror.publishAngleTrack(track)
     if (!ok) app.showSnackbar('could not start the screen share', PanelType.Warning)
   }
 
