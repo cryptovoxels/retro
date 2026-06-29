@@ -62,21 +62,25 @@ export default function Profile(props: Props) {
       () => app.showSnackbar(`Could not copy`, PanelType.Info),
     )
 
-  const name = avatar?.name ?? (walletOrUUId ? ethTrunc(walletOrUUId) : 'anon')
+  const name = avatar?.name
   const hasWallet = !!walletAddress
+
+  const refreshAvatar = (a: ApiAvatar) => setAvatar(a)
 
   return (
     <section class="columns profile">
       <article>
-        <hgroup>
-          <h1>{name}</h1>
-          {isOwner && (
-            <a href="/account/edit" role="button">
-              Edit account
-            </a>
-          )}
-        </hgroup>
-        {isOwner && <WhatNext costumes={costumes} spaces={spaces} />}
+        {name && (
+          <hgroup>
+            <h1>{name}</h1>
+            {isOwner && (
+              <a href="/account/edit" role="button">
+                Edit account
+              </a>
+            )}
+          </hgroup>
+        )}
+        {isOwner && <WhatNext avatar={avatar} costumes={costumes} spaces={spaces} onSaved={refreshAvatar} />}
         <Parcels wallet={walletOrUUId} isOwner={isOwner} />
         <Contributor wallet={walletOrUUId} isOwner={isOwner} />
         <Spaces wallet={walletOrUUId} isOwner={isOwner} />
@@ -142,7 +146,7 @@ export default function Profile(props: Props) {
 
           {avatar?.social_link_1 && (
             <>
-              <dt>External Links</dt>
+              <dt>your homepage</dt>
               <dd>
                 <a href={avatar.social_link_1} target="_blank">
                   {truncate(avatar.social_link_1, { length: 48 })}

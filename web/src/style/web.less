@@ -877,7 +877,6 @@ section.login {
     margin-top: 0.2rem;
     padding: 0.4rem 0.5rem;
     border: 1px solid #999;
-    background: #fff;
     font-family: inherit;
     font-size: 0.9rem;
   }
@@ -966,6 +965,72 @@ section.profile {
     margin: 0 0 0.5rem;
   }
 
+  .name-wizard {
+    margin: 0.5rem 0 1rem;
+    max-width: 28rem;
+
+    p {
+      margin: 0 0 0.75rem;
+    }
+
+    .name-box {
+      display: flex;
+      align-items: stretch;
+      border: 1px solid var(--red);
+
+      .chev {
+        display: flex;
+        align-items: center;
+        padding: 0 0.65rem;
+        color: var(--red);
+        user-select: none;
+        letter-spacing: -0.15em;
+      }
+
+      input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        font-family: 'source code pro', monospace;
+        font-size: 1.35rem;
+        padding: 0.85rem 0.25rem;
+        outline: none;
+        min-width: 0;
+        width: 100%;
+      }
+    }
+
+    small {
+      display: block;
+      margin-top: 0.35rem;
+      opacity: 0.65;
+    }
+
+    .name-picked {
+      margin: 0 0 0.75rem;
+
+      small {
+        opacity: 0.65;
+      }
+    }
+
+    .name-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0.65rem 0 0.5rem;
+      min-height: 1.25rem;
+
+      &.ok {
+        color: var(--red);
+      }
+
+      &.bad {
+        color: var(--red);
+      }
+    }
+  }
+
   .account-welcome-msg {
     font-size: 0.88rem;
     line-height: 1.45;
@@ -1026,6 +1091,13 @@ section.profile {
   background: #eee;
   position: relative;
 
+  .loading {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin: -8px 0 0 -8px;
+  }
+
   img {
     position: absolute;
     left: 50%;
@@ -1035,6 +1107,7 @@ section.profile {
     transform: translate(-50%, -50%);
     mix-blend-mode: multiply;
   }
+}
 }
 
 hgroup {
