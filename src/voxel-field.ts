@@ -1,13 +1,11 @@
 import type Parcel from './parcel'
 import { getFieldShape } from '../common/voxels/helpers'
+import type { ParcelMesher } from './parcel-mesher'
 // import aoMeshVertexShader from './shaders/ao-mesh.vsh'
 // import aoMeshPixelShader from './shaders/ao-mesh.fsh'
-import { createComlinkWorker } from '../common/helpers/comlink-worker'
-import type { VoxelWorkerAPI } from './voxel-worker'
-import type { ParcelMesher } from './parcel-mesher'
 import { createGlassMaterial, createVoxelMaterial } from './materials'
 import { defaultColors } from '../common/content/blocks'
-import { isBatterySaver } from '../common/helpers/detector'
+import { runCompute } from './mono-pool'
 
 // Vertex-based ambient occlusion Shader
 // BABYLON.Effect.ShadersStore['aoMeshVertexShader'] = aoMeshVertexShader
@@ -43,17 +41,12 @@ export const GLASS_MAX_VIEW_DISTANCE = 64
 export class VoxelField {
   private readonly scene: BABYLON.Scene
   private readonly mesher: ParcelMesher
-  private workerAPI: VoxelWorkerAPI | null = null
-  private workerCleanup: (() => void) | null = null
-  private workerPromise: Promise<VoxelWorkerAPI> | null = null
   private jobs: Record<number, (opaque: BABYLON.Mesh, glass: BABYLON.Mesh, collider: BABYLON.Mesh) => void> = {}
   private renderJob = 0
 
   constructor(scene: BABYLON.Scene, mesher: ParcelMesher) {
     this.scene = scene
     this.mesher = mesher
-
-    this.loadWorker()
   }
 
   async initialize() {
@@ -103,53 +96,33 @@ export class VoxelField {
       console.error('No field or voxels for parcel, this will break voxelisation')
     }
 
-    const processWithWorker = (worker: VoxelWorkerAPI) => {
-      const renderJob = this.renderJob++
-      this.jobs[renderJob] = callback
+    const renderJob = this.renderJob++
+    this.jobs[renderJob] = callback
 
-      const voxelJob: VoxelisationJob = {
-        renderJob,
-        fieldShape: getFieldShape(parcel),
-        island: parcel.island,
-        voxels: parcel.voxels || '',
-      }
-
-      worker
-        .processVoxelisation(voxelJob)
-        .then((result) => {
-          const jobCallback = this.jobs[result.renderJob]
-          if (jobCallback) {
-            this.applyData(result, opaqueMesh, glassMesh, colliderMesh)
-            jobCallback(opaqueMesh, glassMesh, colliderMesh)
-            delete this.jobs[result.renderJob]
-          }
-        })
-        .catch((error) => {
-          console.error('Voxel generation failed:', error)
-          const jobCallback = this.jobs[renderJob]
-          if (jobCallback) {
-            jobCallback(opaqueMesh, glassMesh, colliderMesh)
-            delete this.jobs[renderJob]
-          }
-        })
+    const voxelJob: VoxelisationJob = {
+      renderJob,
+      fieldShape: getFieldShape(parcel),
+      island: parcel.island,
+      voxels: parcel.voxels || '',
     }
 
-    if (this.workerAPI) {
-      processWithWorker(this.workerAPI)
-    } else if (this.workerPromise) {
-      this.workerPromise
-        .then((worker) => {
-          processWithWorker(worker)
-        })
-        .catch((error) => {
-          console.error('Failed to load worker for voxel processing:', error)
-          callback(opaqueMesh, glassMesh, colliderMesh)
-        })
-    } else {
-      console.error('No worker or worker promise available for voxel generation')
-      callback(opaqueMesh, glassMesh, colliderMesh)
-      return
-    }
+    runCompute((worker) => worker.processVoxelisation(voxelJob))
+      .then((result) => {
+        const jobCallback = this.jobs[result.renderJob]
+        if (jobCallback) {
+          this.applyData(result, opaqueMesh, glassMesh, colliderMesh)
+          jobCallback(opaqueMesh, glassMesh, colliderMesh)
+          delete this.jobs[result.renderJob]
+        }
+      })
+      .catch((error) => {
+        console.error('Voxel generation failed:', error)
+        const jobCallback = this.jobs[renderJob]
+        if (jobCallback) {
+          jobCallback(opaqueMesh, glassMesh, colliderMesh)
+          delete this.jobs[renderJob]
+        }
+      })
   }
 
   setVoxelMaterial(parcel: Parcel, mesh: BABYLON.Mesh) {
@@ -214,24 +187,5 @@ export class VoxelField {
       d.colors = colors
     }
     d.applyToMesh(mesh)
-  }
-
-  private loadWorker(): void {
-    this.workerPromise = createComlinkWorker<VoxelWorkerAPI>(
-      // Webpack 5 recognizes this exact pattern and automatically compiles TypeScript workers to separate bundles
-      () => new Worker(new URL('./voxel-worker.ts', import.meta.url)),
-      () => import('./voxel-worker').then(({ voxelWorker }) => voxelWorker),
-      { debug: true, workerName: 'voxel-worker' },
-    )
-      .then(({ worker, cleanup }) => {
-        this.workerAPI = worker
-        this.workerCleanup = cleanup
-        return worker
-      })
-      .catch((error) => {
-        console.error('Failed to load voxel worker:', error)
-        this.workerAPI = null
-        throw error
-      })
   }
 }

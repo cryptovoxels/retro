@@ -369,9 +369,7 @@ export default class Parcel extends Component<Props, State> {
     const slug = this.state.parcel.address?.toLowerCase().replace(/ /g, '-') ?? ''
     const ogImage = slug ? `https://map.voxels.com/parcel/${this.state.parcelId}-${slug}.png` : undefined
 
-    const head = (
-      <Head title={parcelName} description={parcelDesc} url={`/parcels/${this.state.parcelId}`} imageURL={ogImage} />
-    )
+    const head = <Head title={parcelName} description={parcelDesc} url={`/parcels/${this.state.parcelId}`} imageURL={ogImage} />
 
     if (isSplit()) {
       return (

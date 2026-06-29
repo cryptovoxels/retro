@@ -118,27 +118,27 @@ class Editor extends FeatureEditor<Button> {
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <div className="f">
-            <label>Color</label>
-            <select value={this.state.color || 'red'} onChange={(e) => this.setState({ color: e.currentTarget.value })}>
-              <option value="red">Red</option>
-              <option value="green">Green</option>
-              <option value="blue">Blue</option>
-              <option value="white">White</option>
-            </select>
-          </div>
-          <Advanced>
-            <FeatureID feature={this.props.feature} />
-            <SetParentDropdown feature={this.props.feature} />
-            <Sound feature={this.props.feature} />
-            <UuidReadOnly feature={this.props.feature} />
-            <Behaviours feature={this.props.feature} />
-          </Advanced>
+            <div className="f">
+              <label>Color</label>
+              <select value={this.state.color || 'red'} onChange={(e) => this.setState({ color: e.currentTarget.value })}>
+                <option value="red">Red</option>
+                <option value="green">Green</option>
+                <option value="blue">Blue</option>
+                <option value="white">White</option>
+              </select>
+            </div>
+            <Advanced>
+              <FeatureID feature={this.props.feature} />
+              <SetParentDropdown feature={this.props.feature} />
+              <Sound feature={this.props.feature} />
+              <UuidReadOnly feature={this.props.feature} />
+              <Behaviours feature={this.props.feature} />
+            </Advanced>
           </EditorProps>
         </div>
       </section>

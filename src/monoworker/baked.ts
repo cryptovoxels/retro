@@ -1,11 +1,9 @@
 // @ts-ignore
 import * as createAOMesh from 'ao-mesher'
-import { getBufferFromVoxels, oversizedField } from '../common/voxels/helpers'
-import { setVoxelData } from '../common/voxels/mesher'
-import * as Comlink from 'comlink'
-import type Parcel from './parcel'
-
-const { UNBUNDLED_BABYLON_LIB_URL_FOR_WEB_WORKERS } = require('../vendor/library/urls.js')
+import { getBufferFromVoxels, oversizedField } from '../../common/voxels/helpers'
+import { setVoxelData } from '../../common/voxels/mesher'
+import { computeNormals } from './math'
+import type Parcel from '../parcel'
 
 export type Job = { job: number }
 export type BakedVoxelizerJobType = 'glass' | 'mesh'
@@ -36,23 +34,12 @@ export type BakedVoxelizerJobResult = Job & ({ glass: BakedVoxelizedMesh } | { m
 export type BakedVoxelizerJobError = Job & { error: string }
 export type BakedVoxelizerWorkerOutput = BakedVoxelizerJobResult | BakedVoxelizerJobError
 
-export interface BakedVoxelizerWorkerAPI {
-  processJob(job: number, type: BakedVoxelizerJobType, parcel: ParcelVoxels): Promise<BakedVoxelizerWorkerOutput>
-}
-// fixme: Gross way to import BABYLON with webworkers
-
-// @ts-ignore
-if ('function' === typeof importScripts) {
-  // @ts-ignore
-  importScripts(UNBUNDLED_BABYLON_LIB_URL_FOR_WEB_WORKERS)
-}
-
-const greedyV2 = require('./vendor/greedyV2')
+const greedyV2 = require('../vendor/greedyV2')
 
 const SMALLEST_QUAD_INDEX_CW_WINDING_ORDER = 0
 const LARGEST_QUAD_INDEX_CW_WINDING_ORDER = 2
 
-const potpack = require('./vendor/potpack')
+const potpack = require('../vendor/potpack')
 
 const WHITE_BLOCK = (1 << 15) + 3
 
@@ -107,8 +94,12 @@ function swatchedMesh(parcel: ParcelVoxels): BakedVoxelizedMesh {
   let idx = 0
 
   swatches.forEach((quads) => {
-    const min = new BABYLON.Vector3(infinity, infinity, infinity)
-    const max = new BABYLON.Vector3(-infinity, -infinity, -infinity)
+    let minX = infinity
+    let minY = infinity
+    let minZ = infinity
+    let maxX = -infinity
+    let maxY = -infinity
+    let maxZ = -infinity
 
     quads.forEach((quad) => {
       for (let i = 0; i < 4; i++) {
@@ -117,13 +108,13 @@ function swatchedMesh(parcel: ParcelVoxels): BakedVoxelizedMesh {
 
         const v = quad[i] as Vertex
 
-        min.x = Math.min(min.x, v[0])
-        min.y = Math.min(min.y, v[1])
-        min.z = Math.min(min.z, v[2])
+        minX = Math.min(minX, v[0])
+        minY = Math.min(minY, v[1])
+        minZ = Math.min(minZ, v[2])
 
-        max.x = Math.max(max.x, v[0])
-        max.y = Math.max(max.y, v[1])
-        max.z = Math.max(max.z, v[2])
+        maxX = Math.max(maxX, v[0])
+        maxY = Math.max(maxY, v[1])
+        maxZ = Math.max(maxZ, v[2])
       }
     })
 
@@ -151,15 +142,15 @@ function swatchedMesh(parcel: ParcelVoxels): BakedVoxelizedMesh {
         uvs.push(yMax, zMax)
         uvs.push(yMin, zMax)
 
-        const mod = (u: number, v: number) => [(u - min.y) / (max.y - min.y), (v - min.z) / (max.z - min.z)]
+        const mod = (u: number, v: number) => [(u - minY) / (maxY - minY), (v - minZ) / (maxZ - minZ)]
 
         uv2.push(...mod(yMin, zMin))
         uv2.push(...mod(yMax, zMin))
         uv2.push(...mod(yMax, zMax))
         uv2.push(...mod(yMin, zMax))
 
-        width = max.y - min.y // shapeVector.y
-        height = max.z - min.z // shapeVector.z
+        width = maxY - minY // shapeVector.y
+        height = maxZ - minZ // shapeVector.z
 
         packIndices.push(idx)
       } else if (yMin === yMax) {
@@ -173,15 +164,15 @@ function swatchedMesh(parcel: ParcelVoxels): BakedVoxelizedMesh {
         uvs.push(xMax, zMax)
         uvs.push(xMin, zMax)
 
-        const mod = (u: number, v: number) => [(u - min.x) / (max.x - min.x), (v - min.z) / (max.z - min.z)]
+        const mod = (u: number, v: number) => [(u - minX) / (maxX - minX), (v - minZ) / (maxZ - minZ)]
 
         uv2.push(...mod(xMin, zMin))
         uv2.push(...mod(xMax, zMin))
         uv2.push(...mod(xMax, zMax))
         uv2.push(...mod(xMin, zMax))
 
-        width = max.x - min.x // shapeVector.x
-        height = max.z - min.z // shapeVector.z
+        width = maxX - minX // shapeVector.x
+        height = maxZ - minZ // shapeVector.z
 
         packIndices.push(idx)
       } else {
@@ -195,7 +186,7 @@ function swatchedMesh(parcel: ParcelVoxels): BakedVoxelizedMesh {
         uvs.push(xMax, yMax)
         uvs.push(xMin, yMax)
 
-        const mod = (u: number, v: number) => [(u - min.x) / (max.x - min.x), (v - min.y) / (max.y - min.y)]
+        const mod = (u: number, v: number) => [(u - minX) / (maxX - minX), (v - minY) / (maxY - minY)]
 
         uv2.push(...mod(xMin, yMin))
         uv2.push(...mod(xMax, yMin))
@@ -204,8 +195,8 @@ function swatchedMesh(parcel: ParcelVoxels): BakedVoxelizedMesh {
 
         packIndices.push(idx)
 
-        width = max.x - min.x // shapeVector.x
-        height = max.y - min.y // shapeVector.y
+        width = maxX - minX // shapeVector.x
+        height = maxY - minY // shapeVector.y
       }
 
       // >0 is front face ,<0 is back face
@@ -240,33 +231,24 @@ function swatchedMesh(parcel: ParcelVoxels): BakedVoxelizedMesh {
     })
   })
 
-  const normals: number[] = []
-  BABYLON.VertexData.ComputeNormals(positions, indices, normals)
+  const normals: number[] = computeNormals(positions, indices)
 
   return { positions, indices, normals, uvs, uv2, faceMaterials }
 }
 
-class BakedVoxelizerWorker implements BakedVoxelizerWorkerAPI {
-  async processJob(job: number, type: BakedVoxelizerJobType, parcel: ParcelVoxels): Promise<BakedVoxelizerWorkerOutput> {
-    try {
-      switch (type) {
-        case 'glass':
-          return { job, glass: glass(parcel) }
-        case 'mesh':
-          return { job, mesh: swatchedMesh(parcel) }
-        default:
-          const _never: never = type
-          throw new Error(`unknown job type ${type}`)
-      }
-    } catch (error: any) {
-      console.error(error)
-      return { job, error: error.message }
+export async function processJob(job: number, type: BakedVoxelizerJobType, parcel: ParcelVoxels): Promise<BakedVoxelizerWorkerOutput> {
+  try {
+    switch (type) {
+      case 'glass':
+        return { job, glass: glass(parcel) }
+      case 'mesh':
+        return { job, mesh: swatchedMesh(parcel) }
+      default:
+        const _never: never = type
+        throw new Error(`unknown job type ${type}`)
     }
+  } catch (error: any) {
+    console.error(error)
+    return { job, error: error.message }
   }
-}
-
-export const bakedVoxelizerWorker = new BakedVoxelizerWorker()
-
-if (typeof self !== 'undefined' && 'postMessage' in self) {
-  Comlink.expose(bakedVoxelizerWorker)
 }
