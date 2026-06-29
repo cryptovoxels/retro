@@ -1,0 +1,195 @@
+import { Room, RoomEvent, Track } from 'livekit-client'
+import type Persona from './persona'
+import type Avatar from './avatar'
+import { SpatialAudio } from './audio/spatial-audio'
+import { AudioBus } from './audio/audio-engine'
+import { wantsAudio } from '../common/helpers/detector'
+
+const LIVEKIT_URL = 'https://voxels-7pvk06qt.livekit.cloud'
+const JOIN_RADIUS = 200
+
+type Cluster = { room: string; center: [number, number, number]; count: number }
+type Voice = { el: HTMLAudioElement; spatial: SpatialAudio | null }
+
+// Positional voice chat in sticky "cluster" rooms. Separate from showbox: voice goes out the avatar,
+// audio only. You join the nearest cluster within 200m or found your own at the parcel you stand in.
+export default class VoiceChat {
+  room: Room | null = null
+  roomName = ''
+  clusters: Cluster[] = []
+  es: EventSource | null = null
+  broadcasting = false
+  muted = false
+  mutedUuids = new Set<string>()
+  voices = new Map<string, Voice>()
+  follow: BABYLON.Observer<BABYLON.Scene> | null = null
+
+  constructor(private persona: Persona) {}
+
+  get audio() {
+    return window._audio
+  }
+
+  get on() {
+    return !!this.room
+  }
+
+  // open the discovery stream once; it stays on so the next enable() has a fresh cluster list
+  private openSse() {
+    if (this.es) return
+    this.es = new EventSource('/api/clusters')
+    this.es.onmessage = (e) => {
+      try {
+        const d = JSON.parse(e.data)
+        if (Array.isArray(d?.clusters)) this.clusters = d.clusters
+      } catch {}
+    }
+  }
+
+  async enable() {
+    if (!wantsAudio() || this.room) return
+    this.openSse()
+    // give the SSE a beat to deliver its immediate snapshot before we pick a cluster
+    if (!this.clusters.length) await new Promise((r) => setTimeout(r, 600))
+
+    const pick = this.pickRoom()
+    this.roomName = pick.room
+
+    let url = `/api/rooms/${pick.room}/token?identity=${encodeURIComponent(this.persona.uuid)}`
+    if (pick.center) url += `&center=${encodeURIComponent(pick.center)}`
+    const res = await fetch(url, { credentials: 'include' })
+      .then((r) => r.json())
+      .catch(() => null)
+    if (!res?.token) {
+      this.roomName = ''
+      return
+    }
+
+    const room = new Room()
+    this.wire(room)
+    await room.connect(LIVEKIT_URL, res.token)
+    await room.startAudio()
+    await room.localParticipant.setMicrophoneEnabled(true)
+    this.room = room
+    this.muted = false
+    this.startFollow()
+  }
+
+  // sticky: once joined we never re-pick. else nearest cluster <=200m, else a new one where we stand.
+  private pickRoom(): { room: string; center?: string } {
+    if (this.roomName) return { room: this.roomName }
+    const me = this.persona.position
+    let best: Cluster | null = null
+    let bestDist = Infinity
+    for (const c of this.clusters) {
+      if (!c.center) continue
+      const dx = c.center[0] - me.x
+      const dy = c.center[1] - me.y
+      const dz = c.center[2] - me.z
+      const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+      if (dist < bestDist) {
+        bestDist = dist
+        best = c
+      }
+    }
+    if (best && bestDist <= JOIN_RADIUS) return { room: best.room }
+    const parcel = this.persona.connector.currentOrNearestParcel()
+    const id = parcel?.id ?? 0
+    const c = parcel ? parcel.boundingBox.center : me
+    return { room: `cluster-${id}`, center: `${c.x},${c.y},${c.z}` }
+  }
+
+  private wire(room: Room) {
+    room.on(RoomEvent.TrackSubscribed, (track: any, _pub: any, p: any) => {
+      if (track.kind !== Track.Kind.Audio) return
+      this.addVoice(p.identity, track)
+    })
+    room.on(RoomEvent.TrackUnsubscribed, (_track: any, _pub: any, p: any) => this.removeVoice(p.identity))
+    room.on(RoomEvent.ParticipantDisconnected, (p: any) => this.removeVoice(p.identity))
+  }
+
+  // identity === avatar uuid, so the track spatializes onto that avatar (follow loop keeps it glued)
+  private addVoice(uuid: string, track: any) {
+    this.removeVoice(uuid)
+    const el = track.attach() as HTMLAudioElement
+    el.style.display = 'none'
+    document.body.appendChild(el)
+
+    let spatial: SpatialAudio | null = null
+    try {
+      const node = BABYLON.Engine.audioEngine?.audioContext?.createMediaElementSource(el)
+      if (node && this.audio) {
+        const a = window.connector?.findAvatar(uuid) as Avatar | undefined
+        spatial = this.audio.createSpatialAudio({
+          name: 'voice/' + uuid,
+          outputBus: AudioBus.Parcel,
+          audioNode: node,
+          absolutePosition: (a?.absolutePosition ?? BABYLON.Vector3.Zero()).clone(),
+          rolloffFactor: 2,
+        })
+        spatial.volume = this.mutedUuids.has(uuid) ? 0 : 1
+        el.volume = 1
+      }
+    } catch {}
+    // fall back to flat element audio if webaudio wiring failed
+    if (!spatial) el.volume = this.mutedUuids.has(uuid) ? 0 : 1
+    this.voices.set(uuid, { el, spatial })
+  }
+
+  private removeVoice(uuid: string) {
+    const v = this.voices.get(uuid)
+    if (!v) return
+    try {
+      v.spatial?.dispose()
+    } catch {}
+    try {
+      v.el.pause()
+      v.el.srcObject = null
+    } catch {}
+    v.el.remove()
+    this.voices.delete(uuid)
+  }
+
+  private startFollow() {
+    if (this.follow) return
+    const scene = this.audio?.scene
+    if (!scene) return
+    this.follow = scene.onBeforeRenderObservable.add(() => {
+      for (const [uuid, v] of this.voices) {
+        if (!v.spatial) continue
+        const a = window.connector?.findAvatar(uuid) as Avatar | undefined
+        if (a) v.spatial.setPosition(a.absolutePosition)
+      }
+    })
+  }
+
+  // your own mic. keeps the track published/acquired, just mutes.
+  setMuted(b: boolean) {
+    this.muted = b
+    if (this.broadcasting) return // mic stays off while showboating
+    this.room?.localParticipant.setMicrophoneEnabled(!b)
+  }
+
+  // while live on a showbox your voice goes out the screen, not your avatar - suppress the avatar mic
+  setBroadcasting(b: boolean) {
+    if (this.broadcasting === b) return
+    this.broadcasting = b
+    if (!this.room) return
+    this.room.localParticipant.setMicrophoneEnabled(b ? false : !this.muted)
+  }
+
+  // click an avatar to locally mute it (and render it as a red anon)
+  toggleLocalMute(uuid: string) {
+    if (uuid === this.persona.uuid) return
+    const muted = !this.mutedUuids.has(uuid)
+    if (muted) this.mutedUuids.add(uuid)
+    else this.mutedUuids.delete(uuid)
+    const v = this.voices.get(uuid)
+    if (v) {
+      if (v.spatial) v.spatial.volume = muted ? 0 : 1
+      else v.el.volume = muted ? 0 : 1
+    }
+    const a = window.connector?.findAvatar(uuid) as Avatar | undefined
+    a?.setMuted(muted)
+  }
+}

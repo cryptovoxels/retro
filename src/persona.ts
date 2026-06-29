@@ -11,6 +11,7 @@ import { decodeCoordsFromURL } from './utils/helpers'
 import { wantsXR } from '../common/helpers/detector'
 import { Action, AvatarIdentity } from '../common/messages'
 import { cameraPosition, cameraRotation, setCameraPosition, setCameraRotation } from './utils/camera'
+import VoiceChat from './voice-chat'
 
 const identityEquals = (a: AvatarIdentity, b: AvatarIdentity) => a.wallet === b.wallet && a.name === b.name
 const identityFromUser = (user: User): AvatarIdentity => ({ wallet: user.wallet, name: user.name })
@@ -24,6 +25,7 @@ export default class Persona {
   rotation: BABYLON.Vector3
   avatar: Avatar | undefined = undefined
   avatarSignature: AvatarIdentity | null = null
+  voiceChat = new VoiceChat(this)
   onAnimationChanged: BABYLON.Observable<Animations> = new BABYLON.Observable()
   private facingForward: boolean
   // this is in theory a pushdown automata, eg. https://gameprogrammingpatterns.com/state.html#pushdown-automata
