@@ -19,7 +19,8 @@ export function Scale(props: ScaleProps) {
   const [z, setZ] = useState<number>(truncate(props.feature.scale.z || 0))
 
   const equal = x == y && y == z
-  const [aspectRatioLocked, setAspectRatioLocked] = useState<boolean>(props.alwaysLocked ?? equal)
+  // honor the feature's lock preference (e.g. showboxes default it on) so the checkbox and the in-world corner-resize agree
+  const [aspectRatioLocked, setAspectRatioLocked] = useState<boolean>(props.alwaysLocked ?? props.feature.scaleAspectLocked ?? equal)
   const [error, setError] = useState<string | undefined>('')
 
   const previousValues = useRef<axisValues>({
@@ -62,7 +63,9 @@ export function Scale(props: ScaleProps) {
   }
 
   const toggleAspectRatioLocked = () => {
-    setAspectRatioLocked(!aspectRatioLocked)
+    const next = !aspectRatioLocked
+    setAspectRatioLocked(next)
+    props.feature.scaleAspectLocked = next // mirror to the feature so the corner-resize handles follow the same lock
   }
 
   const displayError = (err: string | undefined) => (err ? <div>{err}</div> : null)
