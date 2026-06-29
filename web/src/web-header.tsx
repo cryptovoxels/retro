@@ -8,6 +8,7 @@ import { login } from './auth/state-login'
 import { PanelType } from './components/panel'
 import { app, AppEvent } from './state'
 import Icon, { CubeIcon } from './components/icons/icons'
+import { getCoords, withCoords } from './helpers/coords-nav'
 
 const ROUTE_ICONS: Record<string, string> = {
   account: 'account',
@@ -39,6 +40,7 @@ function AdminMenu() {
 }
 type Props = {
   path: string
+  coords?: string
 }
 
 type State = {
@@ -73,12 +75,14 @@ export default class WebHeader extends Component<Props, State> {
   componentDidMount() {
     app.on(AppEvent.Change, this.onAppChange)
     app.on(AppEvent.ProviderMessage, this.onProviderMessage)
+    window.addEventListener('urlchange', this.onAppChange)
   }
 
   componentWillUnmount() {
     // Removes listeners to avoid leaks.
     app.removeListener(AppEvent.Change, this.onAppChange)
     app.removeListener(AppEvent.ProviderMessage, this.onProviderMessage)
+    window.removeEventListener('urlchange', this.onAppChange)
   }
 
   componentDidUpdate(prevProps: Props, prevState: State) {
@@ -129,9 +133,15 @@ export default class WebHeader extends Component<Props, State> {
     const path = ssrFriendlyWindow?.location.pathname
     const admin = app.isAdmin()
     const signedIn = app.signedIn
+    const coords = this.props.coords || getCoords()
+    const href = (p: string) => (coords ? withCoords(p) : p)
 
     const onPlay = (e: any) => {
       e.preventDefault()
+      if (coords) {
+        route(href('/play'))
+        return
+      }
       route(app.visitUrl?.value || '/play')
     }
 
@@ -152,13 +162,13 @@ export default class WebHeader extends Component<Props, State> {
       }
     }
 
-    const navLink = (label: string, href: string, icon: any, active: boolean, extra?: any) =>
+    const navLink = (label: string, link: string, icon: any, active: boolean, extra?: any) =>
       active ? (
-        <Link class="active" aria-selected={true} href={href} onClick={extra}>
+        <Link class="active" aria-selected={true} href={href(link)} onClick={extra}>
           {label}
         </Link>
       ) : (
-        <Link activeClassName="active" href={href} onClick={extra}>
+        <Link activeClassName="active" href={href(link)} onClick={extra}>
           {label}
         </Link>
       )
@@ -186,8 +196,6 @@ export default class WebHeader extends Component<Props, State> {
 
               <li>{navLink(signedIn ? 'Account' : 'Login', '/account', 'account', isActive('account'))}</li>
 
-              {signedIn && <li>{navLink('Log out', '/logout', 'account', isActive('logout'))}</li>}
-
               {signedIn && <li>{navLink('Costume', '/costumer', 'costume', isActive('costumer'))}</li>}
 
               <li>{navLink('Assets', '/assets', 'assets', isActive('assets'))}</li>
@@ -199,6 +207,8 @@ export default class WebHeader extends Component<Props, State> {
               <li>{navLink('Spaces', '/spaces', 'spaces', isActive('spaces'))}</li>
               <li>{navLink('Womps', '/womps', 'womps', isActive('womps'))}</li>
               <li>{navLink('Scratchpad', '/scratchpad', 'scratchpad', isActive('scratchpad'))}</li>
+              <li>{navLink('Help', '/conduct', 'scratchpad', isActive('conduct'))}</li>
+              {signedIn && <li>{navLink('Log out', '/logout', 'account', isActive('logout'))}</li>}
 
               <li>
                 <form action="/search" onSubmit={this.onSubmit}>

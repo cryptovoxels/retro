@@ -2,6 +2,7 @@ import type { Signal } from '@preact/signals'
 import { effect } from '@preact/signals'
 import { Component, createRef, Fragment, h } from 'preact'
 import { route } from 'preact-router'
+import { getCoords, getPane, routeWithPane, stripPane, withCoords } from '../web/src/helpers/coords-nav'
 import { isMobileMedia } from '../common/helpers/detector'
 import { exitPointerLock, hasPointerLock, requestPointerLock } from '../common/helpers/ui-helpers'
 import { onBeginUpload, onCompleteUpload, onFailUpload } from '../common/helpers/upload-media'
@@ -238,6 +239,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   openEditor(editor: FeatureEditor, feature: Feature) {
     this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'feature-editor', active: true })
+    routeWithPane('feature-editor')
     exitPointerLock()
   }
 
@@ -245,6 +247,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     app.on(AppEvent.Change, this.onAppChange)
     document.addEventListener('fullscreenchange', this.refreshFullscreen)
     document.addEventListener('pointerlockchange', this.onPointerLockChange)
+    window.addEventListener('urlchange', this.syncPaneFromUrl)
+    this.syncPaneFromUrl()
     if (isMobileMedia()) {
       this.canvas.addEventListener('touchstart', () => {
         app.emit(AppEvent.CanvasEngaged)
@@ -337,6 +341,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     app.removeListener(AppEvent.Change, this.onAppChange)
     document.removeEventListener('fullscreenchange', this.refreshFullscreen)
     document.removeEventListener('pointerlockchange', this.onPointerLockChange)
+    window.removeEventListener('urlchange', this.syncPaneFromUrl)
     chatSettings.removeEventListener('changed', this.onChatSettingsChange)
     this.chatListDispose?.()
     // dispose the keyboard handler too - it attaches keydown/keyup on `document` in addKeyboardHandlers,
@@ -443,13 +448,12 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       return
     }
 
-    // Regression from b0da1ac (Ben, May 20): `if (this.state.active) return` made
-    // sidebar nav dead on load (active started true) and blocked switching panes.
-    if (this.state.pane === pane && this.state.active) {
+    if (getPane() === pane) {
       this.closeInteractOverlay()
       return
     }
 
+    routeWithPane(pane)
     this.setState({ pane: pane, active: true })
 
     exitPointerLock()
@@ -483,7 +487,13 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   closeInteractOverlay() {
+    stripPane()
     this.setState({ pane: undefined, active: false })
+  }
+
+  syncPaneFromUrl = () => {
+    const p = getPane() as UIPanes | ''
+    this.setState({ pane: p || undefined, active: !!p })
   }
 
   // the one ESC: leave fullscreen/theatre. two-step -- a locked pointer eats the
@@ -494,10 +504,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       return
     }
     if (document.pointerLockElement) return
-    if (!location.pathname.endsWith('/play')) return
+    if (!location.pathname.endsWith('/play') && !getCoords()) return
     const id = this.grid?.currentParcel()?.id
-    const coords = new URLSearchParams(location.search).get('coords') || ''
-    route(id ? `/parcels/${id}?coords=${coords}` : '/parcels')
+    route(id ? withCoords(`/parcels/${id}`) : '/parcels')
   }
 
   focusChat = (e: KeyboardEvent) => {
@@ -657,17 +666,17 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   showExplorerMap() {
-    // temporarily set the initial tab to map
     this.explorerPaneInitialTab.current = 'map'
+    routeWithPane('explorer')
     this.setState({ pane: 'explorer', active: true })
     setTimeout(() => {
-      // reset to undefined after opening (next tick because setState is async)
       this.explorerPaneInitialTab.current = undefined
     })
   }
 
   showExplorerOnline() {
     this.explorerPaneInitialTab.current = 'users'
+    routeWithPane('explorer')
     this.setState({ pane: 'explorer', active: true })
     setTimeout(() => {
       this.explorerPaneInitialTab.current = undefined
@@ -681,25 +690,71 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     }
 
     if (url.startsWith('/play') && url.match('coords')) {
-      // This is to catch the case where the link is an in-world link but with no domain name.
-      // Why? because we already catch inWorldLinks; but some links don't have a domain name and get sent to this method.
-
       const params = new URLSearchParams(url.split('?')[1])
-      // Conserve history by using href=
       window.location.href = `/play?coords=${params.get('coords')}`
       return
     }
 
     if (url.startsWith('/spaces') && url.match('/play') && url.match('coords')) {
-      // Same as above, but this is to catch a link to a Space
       const params = new URLSearchParams(url.split('?')[1])
       const spaceId = url.split('/')[2]
-      // Conserve history by using href=
       window.location.href = `/spaces/${spaceId}/play?coords=${params.get('coords')}`
       return
     }
 
-    OpenLink(url)
+    OpenLink(withCoords(url))
+  }
+
+  paneContent(paneId: UIPanes) {
+    const nearestEditableParcel = selectNearestEditableParcel() ?? null
+    const currentOrNearestParcel = selectCurrentOrNearestParcel() ?? null
+
+    switch (paneId) {
+      case 'add':
+        return <BuildTab parcel={nearestEditableParcel || undefined} scene={this.props.scene} />
+      case 'edit':
+        return <EditTab parcel={nearestEditableParcel} scene={this.props.scene} />
+      case 'parcelSnapshots':
+        return <ParcelSnapshots parcel={nearestEditableParcel || undefined} scene={this.props.scene} />
+      case 'inspector':
+        return <Inspector />
+      case 'login':
+        return <Login />
+      case 'feature-editor': {
+        const Component = this.state.editor as any
+        return (
+          <FeatureContext.Provider value={{ templateFromFeature }}>
+            <Fragment key={this.state.feature?.uuid}>
+              {h(Component, {
+                feature: this.state.feature,
+                parcel: currentOrNearestParcel,
+                scene: this.props.scene,
+              })}
+            </Fragment>
+          </FeatureContext.Provider>
+        )
+      }
+      case 'info':
+        return <ParcelInfoTab parcel={currentOrNearestParcel} scene={this.props.scene} />
+      case 'debugTool':
+        return <DebugTools parcel={currentOrNearestParcel} scene={this.props.scene} environment={this.props.environment} />
+      case 'chat':
+        return <ChatOverlay scene={this.props.scene} />
+      case 'emote':
+        return <EmoteOverlay />
+      case 'settings':
+        return <SettingsUI scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
+      case 'womp':
+        return <WompOverlay scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
+      case 'help':
+        return <HelpOverlay scene={this.props.scene} onShowScratchpadGuide={isScratchpad() ? this.openScratchpadGuide : undefined} />
+      case 'explorer':
+        return <ExplorerUI scene={this.props.scene} initialTab={this.explorerPaneInitialTab.current!} />
+      case 'bake':
+        return <Baking parcel={nearestEditableParcel!} />
+      default:
+        return null
+    }
   }
 
   showNotificationBanner(message: string, duration = 5000, onClick?: () => void) {
@@ -709,10 +764,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   enable() {
     this.setState({ enabled: true })
-  }
-
-  onLogout = () => {
-    window.location.href = '/logout'
   }
 
   render() {
@@ -726,73 +777,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     }
 
     const nearestEditableParcel = selectNearestEditableParcel() ?? null
-    const currentOrNearestParcel = selectCurrentOrNearestParcel() ?? null
-    const baking = false
     const mintable = app.isAdmin() && nearestEditableParcel?.needsMint
     const selectedFeature = selectSelectedFeature()
-
-    let pane
-    switch (this.state.hover || this.state.pane) {
-      case 'add':
-        pane = <BuildTab parcel={nearestEditableParcel || undefined} scene={this.props.scene} />
-        break
-      case 'edit':
-        pane = <EditTab parcel={nearestEditableParcel} scene={this.props.scene} />
-        break
-      case 'parcelSnapshots':
-        pane = <ParcelSnapshots parcel={nearestEditableParcel || undefined} scene={this.props.scene} />
-        break
-      case 'inspector':
-        pane = <Inspector />
-        break
-      case 'login':
-        pane = <Login />
-        break
-      case 'feature-editor':
-        // pane = <FeatureEditor feature={this.state.feature!} parcel={currentOrNearestParcel!} scene={this.props.scene} />
-        const Component = this.state.editor as any
-
-        pane = (
-          <FeatureContext.Provider value={{ templateFromFeature }}>
-            <Fragment key={this.state.feature?.uuid}>
-              {h(Component, {
-                feature: this.state.feature,
-                parcel: currentOrNearestParcel,
-                scene: this.props.scene,
-              })}
-            </Fragment>
-          </FeatureContext.Provider>
-        )
-
-        break
-      case 'info':
-        pane = <ParcelInfoTab parcel={currentOrNearestParcel} scene={this.props.scene} />
-        break
-      case 'debugTool':
-        pane = <DebugTools parcel={currentOrNearestParcel} scene={this.props.scene} environment={this.props.environment} />
-        break
-      case 'chat':
-        pane = <ChatOverlay scene={this.props.scene} />
-        break
-      case 'emote':
-        pane = <EmoteOverlay />
-        break
-      case 'settings':
-        pane = <SettingsUI scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
-        break
-      case 'womp':
-        pane = <WompOverlay scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
-        break
-      case 'help':
-        pane = <HelpOverlay scene={this.props.scene} onShowScratchpadGuide={isScratchpad() ? this.openScratchpadGuide : undefined} />
-        break
-      case 'explorer':
-        pane = <ExplorerUI scene={this.props.scene} initialTab={this.explorerPaneInitialTab.current!} />
-        break
-      case 'bake':
-        pane = <Baking parcel={nearestEditableParcel!} />
-        break
-    }
 
     const onHover = (pane: string) => (e: any) => {
       // e.preventDefault()
@@ -807,7 +793,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     const classes = `UserInterface parent-overlay toolbar-div`
     const canEdit = app.isAdmin() || (nearestEditableParcel ? nearestEditableParcel.canEdit : false)
 
-    const active = (pane: string, disabled?: boolean) => (this.state.pane === pane ? 'active' : disabled ? 'disabled' : '')
+    const currentPane = getPane() || this.state.pane
+    const active = (pane: string, disabled?: boolean) => (currentPane === pane ? 'active' : disabled ? 'disabled' : '')
 
     const unreadChat = this.state.chatEnabled && !this.state.active ? messageList.value.some((m) => m.timestamp > this.chatLastReadAt) : false
 
@@ -852,19 +839,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   Explore
                 </a>
               </li>
-              {/* <li class={active('account')}>
-                <a href="#" onMouseOver={onHover('account')} onClick={onClick('account')}>
-                  Account
-                </a>
-              </li> */}
-
-              {!this.state.signedIn && (
-                <li class={active('login')}>
-                  <a href="#" onMouseOver={onHover('login')} onClick={onClick('login')}>
-                    Log in
-                  </a>
-                </li>
-              )}
 
               <li class={active('settings')}>
                 <a href="#preferences" onMouseOver={onHover('settings')} onClick={onClick('settings')}>
@@ -876,19 +850,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   Dance
                 </a>
               </li>
-              <li class={active('womp')}>
-                <a href="#womps" onMouseOver={onHover('womp')} onClick={onClick('womp')}>
-                  Womps
-                </a>
-              </li>
-              <li class={!this.state.signedIn ? 'disabled' : ''}>
-                <a href="/costumer">Costumes</a>
-              </li>
-              {/* <li class={active('summon')}>
-                <a title="I for one welcome our robot overlords" onClick={onSummon}>
-                  Summon
-                </a>
-              </li> */}
               <li class={active('info')}>
                 <a href="#info" onMouseOver={onHover('info')} onClick={onClick('info')}>
                   Info
@@ -920,17 +881,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   <kbd>B</kbd>ake
                 </a>
               </li>
-              <li class={active('map')}>
-                <a href="#map" onMouseOver={onHover('map')} onClick={() => this.showExplorerMap()}>
-                  Map
-                </a>
-              </li>
-
-              <li class={active('help')}>
-                <a href="#help" onMouseOver={onHover('help')} onClick={onClick('help')}>
-                  Help
-                </a>
-              </li>
 
               {mintable && (
                 <u
@@ -950,25 +900,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   </a>
                 </li>
               )}
-
-              {this.state.signedIn && (
-                <>
-                  <li>
-                    <a href="#" onClick={this.onLogout}>
-                      Log out
-                    </a>
-                  </li>
-                </>
-              )}
             </ul>
 
             {this.state.chatEnabled && <ChatOverlay scene={this.props.scene} />}
-
-            {pane && (
-              <dialog class="editor" open style={this.state.dragging ? { display: 'none' } : undefined}>
-                {pane}
-              </dialog>
-            )}
           </aside>
 
           {this.state.scratchpadGuideOpen && !this.state.scratchpadGuideMini && <ScratchpadGuide key={this.state.scratchpadGuideKey || 0} voxelTool={this.voxelTool} onComplete={this.celebrateScratchpadGuideComplete} />}

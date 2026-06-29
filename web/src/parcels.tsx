@@ -10,6 +10,7 @@ import cachedFetch from './helpers/cached-fetch'
 import parse from './helpers/parse'
 import { Spinner } from './spinner'
 import { app } from './state'
+import { isSplit } from './helpers/coords-nav'
 import { parcelCache } from './store/index'
 import { fetchOptions } from './utils'
 
@@ -196,6 +197,14 @@ export default class Parcels extends Component<Props, State> {
     }
 
     const description = this.owner ? `owned by ${this.owner}` : null
+
+    if (isSplit()) {
+      return (
+        <section class="sidebar-view">
+          {this.state.loading ? <Spinner size={18} /> : view}
+        </section>
+      )
+    }
 
     return (
       <section>
