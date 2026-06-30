@@ -1,4 +1,4 @@
-import Controls, { MAX_CAMERA_DISTANCE, MIN_CAMERA_DISTANCE } from '../controls'
+import Controls, { featureFromPick, MAX_CAMERA_DISTANCE, MIN_CAMERA_DISTANCE } from '../controls'
 
 import OurCamera from '../utils/our-camera'
 import { LocaleKeyboardMoveInput } from '../utils/locale-keyboard-move-input'
@@ -8,6 +8,7 @@ import { createFirstPersonCamera } from '../utils/fps-camera'
 import { decodeCoordsFromURL } from '../../utils/helpers'
 import { hasPointerLock } from '../../../common/helpers/ui-helpers'
 import { app, AppEvent } from '../../../web/src/state'
+import { uiPane } from '../../store'
 const POINTER_WHEEL_MULTIPLIER = 0.001
 export default class DesktopControls extends Controls {
   keyboardInput?: LocaleKeyboardMoveInput
@@ -70,16 +71,6 @@ export default class DesktopControls extends Controls {
     this.featureSelectorObservable = this.featureSelectorObservable.bind(this)
 
     this.addFeatureSelector()
-
-    // spawn in third person; enterThirdPerson needs window.persona, so retry until it's ready
-    const tryThird = () => {
-      if (this.persona) {
-        this.enterThirdPerson()
-      } else {
-        requestAnimationFrame(tryThird)
-      }
-    }
-    requestAnimationFrame(tryThird)
 
     this.startSpawnGroundCheck()
   }
@@ -235,6 +226,14 @@ export default class DesktopControls extends Controls {
         // Middle-click = toggle perspective
         if (eventData.event.button === 1) {
           this.togglePerspective()
+        }
+        if (eventData.event.button === 0 && eventData.event.shiftKey && uiPane.value === 'edit') {
+          const feature = featureFromPick(eventData.pickInfo)
+          if (feature?.parcel?.canEdit) {
+            window.ui?.editShiftSelect(feature)
+            eventState.skipNextObservers = true
+            break
+          }
         }
         // Right-click only
         if (eventData.event.button === 2) {

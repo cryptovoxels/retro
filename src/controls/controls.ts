@@ -13,6 +13,7 @@ import type { Environment } from '../enviroments/environment'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
 import { IControls } from './iControls'
 import { Animations } from '../avatar-animations'
+import { uiPane } from '../store'
 
 export const CAMERA_DISTANCE = isMobile() ? 2.5 : 1.5
 export const MIN_CAMERA_DISTANCE = 0.5
@@ -241,6 +242,14 @@ export default abstract class Controls implements IControls {
     // Note that we use POINTERTAP so it's the same event that captures pointerlock
     // This means that the pointerlock capture can "skipNextObservers" and supress this behavour
     if (eventData.event.button === 0 && eventData.type === BABYLON.PointerEventTypes.POINTERPICK && this.isFeatureClickingAllowed()) {
+      if (eventData.event.shiftKey && uiPane.value === 'edit') {
+        const feature = featureFromPick(eventData.pickInfo)
+        if (feature?.parcel?.canEdit) {
+          window.ui?.editShiftSelect(feature)
+          return
+        }
+      }
+
       // Don't allow feature clicking while the UI is visible
       if (window.ui?.visible || window.ui?.activeTool) {
         return
@@ -758,4 +767,13 @@ function generateReticule(scene: BABYLON.Scene, highlight = false) {
   // }
 
   return reticule
+}
+
+export function featureFromPick(pickInfo?: BABYLON.PickingInfo | null): Feature | null {
+  const mesh = pickInfo?.pickedMesh as MeshExtended | null
+  if (!mesh) return null
+  if (mesh.feature) return mesh.feature
+  const parent = mesh.parent as MeshExtended | null
+  if (parent?.feature) return parent.feature
+  return null
 }

@@ -25,7 +25,7 @@ import type { MinimapSettings } from './minimap'
 import Parcel from './parcel'
 import { isScratchpad } from './scene-config'
 import { onLoadPromise } from './utils/loading-done'
-import { selectCurrentOrNearestParcel, selectNearestEditableParcel, selectSelectedFeature, setCheckedFeatures, setSelectedFeature, uiAsideTick, uiPane } from './store'
+import { selectCurrentOrNearestParcel, selectNearestEditableParcel, selectSelectedFeature, selectCheckedFeatures, setCheckedFeatures, setSelectedFeature, toggleCheckedFeature, uiAsideTick, uiPane } from './store'
 import FeatureTool from './tools/feature'
 import VoxelTool, { SelectionMode, SelectionModeOptions } from './tools/voxel'
 import ConnectionStatusUI from './ui/connection-status'
@@ -241,10 +241,40 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   openEditor(editor: FeatureEditor, feature: Feature) {
+    setCheckedFeatures([])
     setSelectedFeature(feature)
     uiPane.value = 'edit'
     this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'edit', active: true })
     exitPointerLock()
+  }
+
+  editShiftSelect(feature: Feature) {
+    if (!feature.parcel?.canEdit) return
+
+    const seed = this.featureTool.selection?.feature as Feature | undefined
+    toggleCheckedFeature(feature, seed)
+
+    uiPane.value = 'edit'
+    this.featureTool.setMode('edit')
+    this.featureTool.highlightFeature(feature as any)
+
+    const multi = Object.keys(selectCheckedFeatures()).length > 0
+    this.setState({
+      editor: multi ? undefined : this.state.editor,
+      feature: multi ? undefined : this.state.feature,
+      pane: 'edit',
+      active: true,
+    })
+    uiAsideTick.value++
+  }
+
+  showEditBrowse() {
+    setCheckedFeatures([])
+    selectedFeature.value = undefined
+    uiPane.value = 'edit'
+    this.featureTool.unHighlight()
+    this.setState({ editor: undefined, feature: undefined, pane: 'edit', active: true })
+    uiAsideTick.value++
   }
 
   componentDidMount() {
@@ -922,16 +952,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           {nearestEditableParcel && <ToolBelt parcel={nearestEditableParcel} scene={this.props.scene} />}
 
           <ConnectionStatusUI connector={this.connector} grid={this.grid} scene={this.props.scene} />
-          {this.props.minimapSettings.enabled && !window.config.isOrbit && !window.config.isSpace && (
-            <div class="minimap-corner-controls">
-              <button type="button" class="iconish minimap-expand" onClick={() => this.showExplorerMap()} title="Open map">
-                M
-              </button>
-              <button type="button" class="minimap-online-count" onClick={() => this.showExplorerOnline()} title="Who is online">
-                {this.state.onlineCount} Online
-              </button>
-            </div>
-          )}
           <OnlyMobile>
             <MobileButtons connector={this.connector} scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
           </OnlyMobile>

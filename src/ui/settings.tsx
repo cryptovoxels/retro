@@ -392,7 +392,10 @@ export class SettingsUI extends Component<Props, State> {
                   </select>
                 </dd>
 
-                <dt>Pitch: {this.state.voicePitch > 0 ? '+' : ''}{Math.round(this.state.voicePitch)}</dt>
+                <dt>
+                  Pitch: {this.state.voicePitch > 0 ? '+' : ''}
+                  {Math.round(this.state.voicePitch)}
+                </dt>
                 <dd>
                   <input type="range" min={-12} max={12} step={1} value={this.state.voicePitch} onInput={this.onVoicePitchChange.bind(this) as any} />
                 </dd>

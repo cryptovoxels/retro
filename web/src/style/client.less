@@ -1890,96 +1890,6 @@ section.build-tab nav.build-main-tabs {
   }
 }
 
-/* Inspector tree tab */
-.ParcelInspectorTab {
-  .InspectorTabTools {
-    padding: 4px 6px;
-    display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
-  }
-
-  h3,
-  h4 {
-    color: #eee;
-    margin-top: 10px;
-  }
-
-  ul {
-    margin: 4px 0 0 0;
-    padding: 0;
-  }
-
-  li {
-    position: relative;
-    font-size: smaller;
-    background-color: var(--tinge);
-    list-style: none;
-    padding: 8px 4px 4px 34px;
-    border: none;
-    border-bottom: 1px solid #333;
-    margin: 0 0 2px;
-
-    &:hover {
-      color: #ddd;
-      cursor: pointer;
-    }
-
-    p {
-      display: block;
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-
-    img {
-      width: 24px;
-      position: absolute;
-      left: 4px;
-    }
-
-    small {
-      color: #888 !important;
-    }
-  }
-
-  .feature-container {
-    display: flex;
-  }
-
-  .feature-copy-container,
-  .feature-copy-container-group {
-    width: 210px;
-  }
-
-  .feature-checkbox {
-    margin-top: 12px;
-  }
-
-  .checkbox {
-    cursor: pointer;
-    height: 15px;
-    width: 15px;
-  }
-
-  .inspector-bottom-bar {
-    display: flex;
-    padding: 9px 4px 9px 9px;
-  }
-
-  .inspector-bottom-bar-buttons {
-    width: 184px;
-  }
-
-  .inspector-bottom-bar-buttons-group {
-    width: 188px;
-  }
-
-  .inspector-bottom-bar-checkbox-container {
-    white-space: nowrap;
-  }
-}
-
 .edit-pane {
   display: flex;
   flex-direction: column;
@@ -2041,11 +1951,22 @@ section.build-tab nav.build-main-tabs {
   }
 }
 
+.edit-pane-multi .edit-pane-tree {
+  flex: 1;
+  max-height: none;
+}
+
+.edit-pane-multi-actions {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 6px;
+  border-top: 1px solid #333;
+}
+
 .edit-pane-inspector {
   flex: 1;
   min-height: 0;
-  overflow: auto;
-  overflow-x: hidden;
+  overflow: visible;
 
   > section {
     display: flex;
@@ -2057,7 +1978,16 @@ section.build-tab nav.build-main-tabs {
   .scrollContainer {
     flex: 1;
     min-height: 0;
-    overflow: auto;
+    overflow: visible;
+  }
+}
+
+body.in-world main > aside .edit-pane-inspector {
+  overflow: visible;
+
+  .scrollContainer {
+    overflow: visible;
+    flex: none;
   }
 }
 

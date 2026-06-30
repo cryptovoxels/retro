@@ -14,7 +14,6 @@ import Group from '../features/group'
 import { boundingBoxOfMesh } from '../features/utils/bounding-box'
 import type Grid from '../grid'
 import type Parcel from '../parcel'
-import { setCheckedFeatures } from '../store'
 import { User } from '../user'
 import type { Tool } from '../user-interface'
 import { distanceToAABB } from '../utils/boundaries'
@@ -27,7 +26,7 @@ type AABB = {
   min: BABYLON.Vector3
   max: BABYLON.Vector3
 }
-const multiSelectKeys = ['MetaRight', 'MetaLeft', 'ControlLeft']
+const OVERSIZE = 0.01
 
 const SELECTION_COLORS = {
   inside: {
@@ -54,8 +53,6 @@ interface Selection {
   mode?: FeatureSelectionMode
   axes?: Array<BABYLON.Vector3>
 }
-
-const OVERSIZE = 0.01
 
 const centreOfPositions = (positions: Array<Array<number>>): BABYLON.Vector3 => {
   const p =
@@ -87,7 +84,6 @@ export default class FeatureTool implements Tool {
 
   secondarySelectionMaterial: BABYLON.StandardMaterial
   enabled = signal(false)
-  multiSelect: boolean
   connector: Connector
   controls: Controls
   user: User
@@ -122,8 +118,6 @@ export default class FeatureTool implements Tool {
     // this.spawnPoint
     // this.spawnRotation
 
-    this.multiSelect = false
-
     // No default block
     this.selection = {}
 
@@ -150,9 +144,6 @@ export default class FeatureTool implements Tool {
 
     // Bind to the object so that this can be passed directly to Bablyon observable
     this.onPointerObservable = this.onPointerObservable.bind(this)
-
-    window.addEventListener('keydown', this.onKeydown, { capture: true })
-    window.addEventListener('keyup', this.onKeyup, { capture: true })
   }
 
   get parcel(): Parcel | undefined {
@@ -167,53 +158,10 @@ export default class FeatureTool implements Tool {
     return window.main
   }
 
-  onKeydown = (evt: KeyboardEvent) => {
-    if (multiSelectKeys.includes(evt.code)) {
-      this.multiSelect = true
-    }
-  }
-
-  onKeyup = (evt: KeyboardEvent) => {
-    if (multiSelectKeys.includes(evt.code)) {
-      this.multiSelect = false
-      // fixme: this is not implemented
-      // Object.keys(this.secondarySelection).length && this.ui?.parcelTabs?.onTabClick('inspector')()
-    }
-  }
-
   setSecondarySelection = (features: Array<MeshedFeature>) => {
     this.disposeIrrelevantSecondarySelectors(features)
     this.createMissingSecondarySelectors(features)
     this.refreshBounds()
-  }
-
-  addOrRemoveFromSecondarySelection = (feature: MeshedFeature) => {
-    if (!this.parcel) return
-
-    let features = this.parcel.featuresList.filter((f) => this.secondarySelection[f.uuid])
-
-    const addNotRemove = !features.some((f) => f.uuid === feature.uuid)
-
-    if (addNotRemove) {
-      // use featuresAreSameGeneration when adding support for grouped features and groups
-      featuresAreRoot([...features, feature]) ? features.push(feature) : app.showSnackbar('Multi-select currently works for ungrouped features only.')
-    } else {
-      features = features.filter((f) => f.uuid != feature.uuid)
-    }
-
-    if (addNotRemove) {
-      // use featuresAreSameGeneration when adding support for grouped features and groups
-      if (featuresAreRoot([...features, feature])) {
-        features.push(feature)
-      } else {
-        app.showSnackbar('Multi-select currently works for ungrouped features only.')
-      }
-    } else {
-      features = features.filter((f) => f.uuid != feature.uuid)
-    }
-
-    setCheckedFeatures(features)
-    this.setSecondarySelection(features)
   }
 
   disposeIrrelevantSecondarySelectors = (features: Array<MeshedFeature>) => {
@@ -588,9 +536,7 @@ export default class FeatureTool implements Tool {
     // As well as picking a feature, you might pick an avatar
     const pickedAvatar = pickResult.pickedMesh && this.meshAvatar(pickResult.pickedMesh)
 
-    if (!this.multiSelect) {
-      this.deactivate()
-    }
+    this.deactivate()
 
     if (!!this.overrideOnClick) {
       this.overrideOnClick()
@@ -609,13 +555,6 @@ export default class FeatureTool implements Tool {
         this.inspectFeature()
       }
     } else if (this.selection.mode === 'edit') {
-      if (this.multiSelect) {
-        const pickedFeature = featureFromPickResult(pickResult)
-        if (!pickedFeature) return
-        this.addOrRemoveFromSecondarySelection(pickedFeature)
-        return
-      }
-
       if (this.updateSelectorAndSpawnPoint(pickResult)) {
         this.editFeature()
       }
@@ -1183,20 +1122,3 @@ export const templateFromFeature =
 
     return template
   }
-
-const featureFromPickResult = (pickResult: BABYLON.PickingInfo): MeshedFeature | null => {
-  const mesh = pickResult.pickedMesh as MeshExtended | null
-
-  if (!mesh) return null
-
-  if (mesh.feature) {
-    return mesh.feature
-  } else if (mesh.parent && (mesh as any).parent['feature']) {
-    return (mesh as any).parent['feature'] as MeshedFeature
-  }
-  return null
-}
-
-const featuresAreRoot = (features: MeshedFeature[]): boolean => {
-  return features.every((feature) => !feature.groupId)
-}

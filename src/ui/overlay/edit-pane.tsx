@@ -4,7 +4,7 @@ import { useSignalEffect } from '@preact/signals'
 import Feature from '../../features/feature'
 import Group from '../../features/group'
 import type Parcel from '../../parcel'
-import { nearestEditableParcel, selectSelectedFeature } from '../../store'
+import { checkedFeatures, deleteCheckedFeatures, groupCheckedFeatures, nearestEditableParcel, selectCheckedFeatures, selectSelectedFeature } from '../../store'
 import { FeatureContext } from '../features/context'
 import { templateFromFeature } from '../../tools/feature'
 
@@ -27,11 +27,12 @@ function ancestors(feature: Feature): Group[] {
 type RowProps = {
   feature: Feature
   selected?: Feature
+  checked?: boolean
 }
 
-function FeatureTreeRow({ feature, selected }: RowProps) {
+function FeatureTreeRow({ feature, selected, checked }: RowProps) {
   const ui = window.ui
-  const isSelected = selected?.uuid === feature.uuid
+  const isSelected = checked || selected?.uuid === feature.uuid
   const liRef = useRef<HTMLLIElement>(null)
 
   useEffect(() => {
@@ -57,13 +58,7 @@ function AncestorBranch({ chain, depth, selected }: { chain: Group[]; depth: num
       <div class="feature-tree-row" onClick={() => group.openEditor()} onMouseOver={() => window.ui?.featureTool?.highlightFeature(group)}>
         <span class="feature-tree-label">{featureLabel(group)}</span>
       </div>
-      <ul>
-        {hasMore ? (
-          <AncestorBranch chain={chain} depth={depth + 1} selected={selected} />
-        ) : (
-          (selected.group ? selected.group.children : [selected]).map((f) => <FeatureTreeRow key={f.uuid} feature={f} selected={selected} />)
-        )}
-      </ul>
+      <ul>{hasMore ? <AncestorBranch chain={chain} depth={depth + 1} selected={selected} /> : (selected.group ? selected.group.children : [selected]).map((f) => <FeatureTreeRow key={f.uuid} feature={f} selected={selected} />)}</ul>
     </li>
   )
 }
@@ -85,12 +80,21 @@ function SelectionTree({ selected }: { selected?: Feature }) {
     <ul class="feature-tree">
       <li class="feature-tree-parcel">
         <span class="feature-tree-label">parcel</span>
+        <ul>{chain.length ? <AncestorBranch chain={chain} depth={0} selected={selected} /> : <FeatureTreeRow feature={selected} selected={selected} />}</ul>
+      </li>
+    </ul>
+  )
+}
+
+function MultiSelectionTree({ features }: { features: Feature[] }) {
+  return (
+    <ul class="feature-tree">
+      <li class="feature-tree-parcel">
+        <span class="feature-tree-label">parcel</span>
         <ul>
-          {chain.length ? (
-            <AncestorBranch chain={chain} depth={0} selected={selected} />
-          ) : (
-            <FeatureTreeRow feature={selected} selected={selected} />
-          )}
+          {features.map((f) => (
+            <FeatureTreeRow key={f.uuid} feature={f} checked />
+          ))}
         </ul>
       </li>
     </ul>
@@ -108,16 +112,22 @@ export default function EditPane(props: EditPaneProps) {
   const [, bump] = useState(0)
   useSignalEffect(() => {
     nearestEditableParcel.value
+    checkedFeatures.value
     bump((n) => n + 1)
   })
+
+  const checked = selectCheckedFeatures()
+  const multi = Object.keys(checked).length > 0
+  const checkedList = Object.values(checked)
   const selected = props.feature || selectSelectedFeature()
   const Component = props.editor as any
   const feature = props.feature
+  const spawn = checkedList.some((f) => f.description.type === 'spawn-point')
 
   return (
     <FeatureContext.Provider value={{ templateFromFeature }}>
-      <section class="edit-pane">
-        {Component && feature && (
+      <section class={'edit-pane' + (multi ? ' edit-pane-multi' : '')}>
+        {!multi && Component && feature && (
           <div class="edit-pane-inspector editor" key={feature.uuid}>
             {h(Component, {
               feature,
@@ -127,7 +137,17 @@ export default function EditPane(props: EditPaneProps) {
           </div>
         )}
         <div class="edit-pane-tree">
-          <SelectionTree selected={selected} />
+          {multi ? <MultiSelectionTree features={checkedList} /> : <SelectionTree selected={selected} />}
+          {multi && (
+            <div class="edit-pane-multi-actions">
+              <button disabled={spawn || !checkedList.length} onClick={() => groupCheckedFeatures()}>
+                Group
+              </button>
+              <button disabled={!checkedList.length} onClick={() => deleteCheckedFeatures()}>
+                Delete
+              </button>
+            </div>
+          )}
         </div>
       </section>
     </FeatureContext.Provider>
