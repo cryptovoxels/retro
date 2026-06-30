@@ -395,7 +395,9 @@ export default class Selector implements Tool {
       return
     }
 
-    if (this.mousedown) {
+    // Preview the mode on hover (shift = remove, ctrl = paint) so the ghost reflects what a
+    // click will do. During a drag the mode is frozen to whatever you started the drag with.
+    if (!this.mousedown) {
       this.applyPointerMode()
     }
 
@@ -435,6 +437,9 @@ export default class Selector implements Tool {
     if (!this.selection.start || !this.selection.parcel) {
       return
     }
+
+    // Remove mode shows the target block fainter so you can see it's going to be deleted.
+    this.voxelMaterial.setFloat('alpha', this.selection.mode === SelectionMode.Remove ? 0.3 : 0.85)
 
     const a = this.voxelToWorldSpace(this.selection.start, this.selection.parcel)
     if (a) {
