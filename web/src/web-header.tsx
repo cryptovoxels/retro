@@ -113,8 +113,9 @@ export default class WebHeader extends Component<Props, State> {
     const onPlay = (e: any) => {
       e.preventDefault()
       if (coords) sidebarClosed.value = false
-      // the parcel/womp page you're on sets visitUrl so Play enters that world, not an empty /play
-      route(app.visitUrl.value || (coords ? href('/play') : '/play'))
+      // the parcel/womp page you're on sets visitUrl so Play enters that world; with no
+      // context (e.g. homepage) drop in at the origin instead of an empty /play.
+      route(app.visitUrl.value || (coords ? href('/play') : '/play?coords=0E,0N'))
     }
 
     const isActive = (label?: string) => {
