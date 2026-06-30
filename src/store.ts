@@ -143,6 +143,8 @@ export const broadcastShowboxUuid = signal<string | undefined>(undefined)
 export const closeBroadcastSidebar = () => {
   broadcastShowboxUuid.value = undefined
   if (uiPane.value === 'broadcast') uiPane.value = undefined
+  // the live reopen tab is gone once the uuid clears, so don't leave the sidebar stuck collapsed
+  sidebarClosed.value = false
   uiAsideTick.value++
 }
 

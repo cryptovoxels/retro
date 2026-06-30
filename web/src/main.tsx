@@ -155,7 +155,7 @@ const Main = () => {
           </article>
         )}
 
-        <WorldSidebar coords={coords}>
+        <WorldSidebar coords={coords} path={currentPath}>
           <Router onChange={handleRoute}>
             <Explore path="/" />
             <RadioPopout path="/radio" />

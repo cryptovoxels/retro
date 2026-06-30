@@ -1,24 +1,22 @@
 import { useSignalEffect } from '@preact/signals'
 import { useState } from 'preact/hooks'
 import { isMobileMedia } from '../../common/helpers/detector'
-import { broadcastShowboxUuid, uiAsideTick, uiPane } from '../../src/store'
+import { broadcastShowboxUuid, sidebarClosed, uiAsideTick, uiPane } from '../../src/store'
 import { getCoords } from './helpers/coords-nav'
 
-type Props = {
-  fullscreen: boolean
-}
-
-export function BroadcastSidebarTab({ fullscreen }: Props) {
+export function BroadcastSidebarTab() {
   const [, bump] = useState(0)
   useSignalEffect(() => {
     broadcastShowboxUuid.value
     uiPane.value
+    sidebarClosed.value
     uiAsideTick.value
     bump((n) => n + 1)
   })
 
-  if (!fullscreen || !getCoords() || isMobileMedia()) return null
-  if (!broadcastShowboxUuid.value || uiPane.value === 'broadcast') return null
+  if (!getCoords() || isMobileMedia() || !broadcastShowboxUuid.value) return null
+  // the panel is already on screen, no need for the reopen tab
+  if (uiPane.value === 'broadcast' && !sidebarClosed.value) return null
 
   return (
     <button
@@ -27,6 +25,7 @@ export function BroadcastSidebarTab({ fullscreen }: Props) {
       title="open broadcast controls"
       onClick={() => {
         uiPane.value = 'broadcast'
+        sidebarClosed.value = false
         uiAsideTick.value++
       }}
     >
