@@ -468,7 +468,7 @@ div.map {
 // ?coords= in URL: canvas in main > article, web/panes in main > aside
 body.in-world main {
   display: grid;
-  grid-template-columns: 7fr 3fr;
+  grid-template-columns: 1fr clamp(18rem, 30%, 32rem);
   grid-template-rows: auto 1fr;
   grid-template-areas:
     'header header'
@@ -494,6 +494,18 @@ body.in-world main {
     min-height: 0;
     min-width: 0;
     padding: 1rem;
+    position: relative;
+
+    .sidebar-close {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      z-index: 3;
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: inherit;
+    }
 
     & > div {
       background: #222;
@@ -547,6 +559,19 @@ body.in-world main {
       font-weight: bold;
       color: var(--red);
     }
+  }
+}
+
+// sidebar closed: world fills the whole viewport (aside stays mounted, just hidden,
+// so the children Router and any open pane keep their state)
+body.in-world.sidebar-closed main {
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    'header'
+    'canvas';
+
+  > aside {
+    display: none;
   }
 }
 

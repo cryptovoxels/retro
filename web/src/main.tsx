@@ -63,7 +63,7 @@ import NotFound from './not-found'
 import { PlayPreview } from './play-preview'
 import { maybePlayPreview } from './play-preview-route'
 import { app, AppEvent } from './state'
-import { WorldRightSlot } from './world-right-slot'
+import { WorldSidebar } from './world-sidebar'
 
 class MainApp extends Component {
   componentDidMount() {
@@ -155,7 +155,7 @@ const Main = () => {
           </article>
         )}
 
-        <WorldRightSlot coords={coords}>
+        <WorldSidebar coords={coords}>
           <Router onChange={handleRoute}>
             <Explore path="/" />
             <RadioPopout path="/radio" />
@@ -223,7 +223,7 @@ const Main = () => {
 
             <IslandsAdmin path="/propose/islands" />
           </Router>
-        </WorldRightSlot>
+        </WorldSidebar>
         {!lightBroadcast && !coords && <Footer />}
       </main>
 

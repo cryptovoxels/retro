@@ -137,6 +137,7 @@ export const selectCheckedFeatures = (): CheckedFeatures => {
 
 export const uiPane = signal<string | undefined>(undefined)
 export const uiAsideTick = signal(0)
+export const sidebarClosed = signal(false)
 export const broadcastShowboxUuid = signal<string | undefined>(undefined)
 
 export const closeBroadcastSidebar = () => {
