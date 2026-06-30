@@ -96,6 +96,10 @@ export class AudioEngine {
 
   soundLastPlayedAt = 0 // unix timestamp
 
+  // while you're live on a showbox we kill the in-world soundtrack so it doesn't bleed into your stream
+  broadcasting = false
+  private preBroadcastVolumes: { music: number; parcel: number } | null = null
+
   constructor(scene: BABYLON.Scene) {
     if (!wantsAudio()) {
       throw new Error('Trying to create audio when not wanted')
@@ -247,6 +251,22 @@ export class AudioEngine {
       musicVolume: this.trackOut.gain.value,
       parcelAudioVolume: this.parcelOut.gain.value,
       soundEffectsVolume: this.soundEffectsOut.gain.value,
+    }
+  }
+
+  // going live mutes the in-world music + parcel audio (radio, boomboxes, ambient voices) so it stays
+  // out of your broadcast; stopping restores whatever volumes you had.
+  setBroadcasting(b: boolean) {
+    if (this.broadcasting === b) return
+    this.broadcasting = b
+    if (b) {
+      this.preBroadcastVolumes = { music: this.trackOut.gain.value, parcel: this.parcelOut.gain.value }
+      this.trackOut.gain.value = 0
+      this.parcelAudioBus.setVolume(0)
+    } else if (this.preBroadcastVolumes) {
+      this.trackOut.gain.value = this.preBroadcastVolumes.music
+      this.parcelAudioBus.setVolume(this.preBroadcastVolumes.parcel)
+      this.preBroadcastVolumes = null
     }
   }
 
