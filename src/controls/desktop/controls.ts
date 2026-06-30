@@ -103,6 +103,13 @@ export default class DesktopControls extends Controls {
     this.keyboardInput?.reset()
   }
 
+  pickAtReticule() {
+    const engine = this.scene.getEngine()
+    const pick = this.scene.pick(engine.getRenderWidth() / 2, engine.getRenderHeight() / 2)
+    if (pick?.pickedPoint) pick.pickedPoint = pick.pickedPoint.subtract(this.worldOffset.position)
+    return pick
+  }
+
   desktopClicks(eventData: BABYLON.PointerInfo, eventState: BABYLON.EventState) {
     if (eventData.pickInfo?.pickedPoint) {
       eventData.pickInfo.pickedPoint = eventData.pickInfo.pickedPoint.subtract(this.worldOffset.position)
@@ -128,7 +135,8 @@ export default class DesktopControls extends Controls {
         }
         if (btn === 2) {
           eventData.event.preventDefault()
-          this.handleContextClick(eventData.pickInfo)
+          const pick = hasPointerLock() ? this.pickAtReticule() : eventData.pickInfo
+          this.handleContextClick(pick)
           eventState.skipNextObservers = true
           break
         }
@@ -141,7 +149,7 @@ export default class DesktopControls extends Controls {
           break
         }
         if (btn === 0 && hasPointerLock()) {
-          this.lockedLeftClick(eventData.pickInfo)
+          this.lockedLeftClick(this.pickAtReticule())
           eventState.skipNextObservers = true
         }
         break

@@ -88,7 +88,7 @@ function AncestorBranch({ chain, depth, selected }: { chain: Group[]; depth: num
       <div class="feature-tree-row" onClick={() => group.openEditor()} onMouseOver={() => window.ui?.featureTool?.highlightFeature(group)}>
         <span class="feature-tree-label">{featureLabel(group)}</span>
       </div>
-      <ul>{hasMore ? <AncestorBranch chain={chain} depth={depth + 1} selected={selected} /> : (selected.group ? selected.group.children : [selected]).map((f) => <FeatureTreeRow key={f.uuid} feature={f} selected={selected} />)}</ul>
+      <ul>{hasMore ? <AncestorBranch chain={chain} depth={depth + 1} selected={selected} /> : selected.type === 'group' ? <FeatureTreeNode feature={selected} selected={selected} /> : (selected.group ? selected.group.children : [selected]).map((f) => <FeatureTreeRow key={f.uuid} feature={f} selected={selected} />)}</ul>
     </li>
   )
 }
@@ -128,7 +128,7 @@ function SelectionTree({ selected, browse, roots, onParcelClick }: { selected?: 
   return (
     <ul class="feature-tree">
       <ParcelRoot onParcelClick={onParcelClick}>
-        <ul>{chain.length ? <AncestorBranch chain={chain} depth={0} selected={selected} /> : <FeatureTreeRow feature={selected} selected={selected} />}</ul>
+        <ul>{chain.length ? <AncestorBranch chain={chain} depth={0} selected={selected} /> : selected.type === 'group' ? <FeatureTreeNode feature={selected} selected={selected} /> : <FeatureTreeRow feature={selected} selected={selected} />}</ul>
       </ParcelRoot>
     </ul>
   )

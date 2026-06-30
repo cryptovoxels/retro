@@ -144,6 +144,12 @@ export default class Group extends NonMeshedFeature<GroupRecord> {
 }
 
 class Editor extends FeatureEditor<Group> {
+  onUngroup = () => {
+    this.props.feature.dissolve()
+    window.ui?.featureTool.unHighlight()
+    window.ui?.showEditBrowse()
+  }
+
   render() {
     const f = this.props.feature
     return (
@@ -157,6 +163,7 @@ class Editor extends FeatureEditor<Group> {
         <div className="scrollContainer">
           <Toolbar feature={f} scene={this.props.scene} />
           <EditorProps>
+            <button onClick={this.onUngroup}>Dissolve</button>
             <Position feature={f} key={f.position.toString()} />
             <Rotation feature={f} key={f.rotation.toString()} />
             <FeatureID feature={f} />

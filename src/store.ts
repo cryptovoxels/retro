@@ -85,7 +85,25 @@ const actions = {
     const selection = Object.values(checkedFeatures.value)
     if (!selection.length) return
     if (selection.some((f) => f.description.type === 'spawn-point')) return
-    window.ui?.featureTool.createGroup(selection as any)
+
+    const groups = selection.filter((f) => f.type === 'group') as Group[]
+    const rest = selection.filter((f) => f.type !== 'group')
+
+    if (groups.length === 1 && rest.length) {
+      const toAdd = rest.filter((f) => !f.groupId)
+      if (toAdd.length) {
+        groups[0].addChildren(toAdd)
+        actions.setCheckedFeatures([])
+        window.ui?.featureTool.unHighlight()
+        window.ui?.showEditBrowse()
+        return
+      }
+    }
+
+    const roots = selection.filter((f) => f.type !== 'group' && !f.groupId)
+    if (roots.length < 2) return
+
+    window.ui?.featureTool.createGroup(roots as any)
     actions.setCheckedFeatures([])
   },
 }
