@@ -9,6 +9,7 @@ import { AvatarLink } from './components/avatar-link'
 import { avatarName } from '../../common/messages/avatar-ref'
 import { Client } from './client'
 import { isSplit } from './helpers/coords-nav'
+import { app } from './state'
 
 const TTL = 60
 
@@ -52,14 +53,31 @@ export default class Womp extends Component<Props, State> {
   }
 
   componentDidMount() {
+    this.syncVisitUrl()
     void this.fetchWomp(this.state.id)
   }
 
   async componentDidUpdate(prevProps: Props) {
+    this.syncVisitUrl()
     if (prevProps && prevProps.id != this.props.id) {
       const id = parseInt(this.props.id, 10)
       this.fetchWomp(id)
     }
+  }
+
+  componentWillUnmount() {
+    app.visitUrl.value = undefined
+  }
+
+  // the world this womp was shot in, so the header Play button enters it
+  get visitUrl() {
+    const coords = this.state.womp?.coords
+    if (!coords) return undefined
+    return this.isSpaceWomp() ? `/spaces/${this.state.womp.space_id}/play?coords=${coords}` : `/play?coords=${coords}`
+  }
+
+  syncVisitUrl() {
+    if (this.visitUrl) app.visitUrl.value = this.visitUrl
   }
 
   isSpaceWomp() {

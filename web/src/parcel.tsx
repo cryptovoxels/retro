@@ -72,6 +72,15 @@ export default class Parcel extends Component<Props, State> {
     return new ParcelHelper(this.state.parcel)
   }
 
+  // the world this parcel lives in, so the header Play button enters it
+  get visitUrl() {
+    return this.helper ? `/play?coords=${this.helper.spawnCoords}` : undefined
+  }
+
+  syncVisitUrl() {
+    if (this.visitUrl) app.visitUrl.value = this.visitUrl
+  }
+
   get isOwner() {
     if (!app.signedIn) {
       return false
@@ -123,6 +132,7 @@ export default class Parcel extends Component<Props, State> {
   }
 
   componentDidMount() {
+    this.syncVisitUrl()
     void this.fetch(this.props.id!)
 
     if (history) {
@@ -135,6 +145,7 @@ export default class Parcel extends Component<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props, prevState: State) {
+    this.syncVisitUrl()
     if (!isSplit() && this.props.id != this.state.parcelId) {
       void this.fetch(this.props.id!)
     }
@@ -155,6 +166,7 @@ export default class Parcel extends Component<Props, State> {
   }
 
   componentWillUnmount() {
+    app.visitUrl.value = undefined
     this.map?.remove()
     this.map = null
     this.parcelLayer = null

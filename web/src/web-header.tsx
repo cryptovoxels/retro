@@ -9,6 +9,7 @@ import { PanelType } from './components/panel'
 import { app, AppEvent } from './state'
 import Icon, { CubeIcon } from './components/icons/icons'
 import { getCoords, withCoords } from './helpers/coords-nav'
+import { sidebarClosed } from '../../src/store'
 
 const ROUTE_ICONS: Record<string, string> = {
   account: 'account',
@@ -111,7 +112,9 @@ export default class WebHeader extends Component<Props, State> {
 
     const onPlay = (e: any) => {
       e.preventDefault()
-      route(coords ? href('/play') : '/play')
+      if (coords) sidebarClosed.value = false
+      // the parcel/womp page you're on sets visitUrl so Play enters that world, not an empty /play
+      route(app.visitUrl.value || (coords ? href('/play') : '/play'))
     }
 
     const isActive = (label?: string) => {
@@ -131,16 +134,23 @@ export default class WebHeader extends Component<Props, State> {
       }
     }
 
-    const navLink = (label: string, link: string, icon: any, active: boolean, extra?: any) =>
-      active ? (
-        <Link class="active" aria-selected={true} href={href(link)} onClick={extra}>
+    // in split view a collapsed sidebar should pop back open when you click a nav item,
+    // even if it's the route you're already on (re-clicking "Go live" etc).
+    const navLink = (label: string, link: string, icon: any, active: boolean, extra?: any) => {
+      const onNav = (e: any) => {
+        if (coords) sidebarClosed.value = false
+        extra?.(e)
+      }
+      return active ? (
+        <Link class="active" aria-selected={true} href={href(link)} onClick={onNav}>
           {label}
         </Link>
       ) : (
-        <Link activeClassName="active" href={href(link)} onClick={extra}>
+        <Link activeClassName="active" href={href(link)} onClick={onNav}>
           {label}
         </Link>
       )
+    }
 
     return (
       <>
