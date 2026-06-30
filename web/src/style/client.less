@@ -414,6 +414,7 @@ body.in-world main > aside section {
 
 /* Feature editor */
 body.in-world main > aside .editor,
+body.in-world main > aside .edit-pane-inspector,
 .UserInterface dialog.editor {
   font-size: 1em;
   overflow-x: hidden;
@@ -572,10 +573,20 @@ body.in-world main > aside .editor,
     dt {
       color: #aaa;
       font-size: 0.85em;
+
+      &:empty {
+        padding: 0;
+        border-bottom: none;
+      }
     }
 
     dd {
       padding: 0;
+
+      &.full {
+        grid-column: 1 / -1;
+        padding: 4px 6px;
+      }
 
       input[type='text'],
       input[type='number'],
@@ -1922,6 +1933,100 @@ section.build-tab nav.build-main-tabs {
   .inspector-bottom-bar-checkbox-container {
     white-space: nowrap;
   }
+}
+
+.edit-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+
+  header h1 {
+    margin: 0 0 0.5rem 0;
+    font-size: 1.22rem;
+    text-transform: lowercase;
+  }
+}
+
+.edit-pane-tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overflow-x: hidden;
+
+  .feature-tree {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    ul {
+      margin: 0;
+      padding-left: 1rem;
+      list-style: none;
+    }
+
+    li {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+
+      &.-selected > .feature-tree-row {
+        color: var(--red);
+      }
+    }
+  }
+
+  .feature-tree-row {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 6px;
+    cursor: pointer;
+
+    img {
+      width: 20px;
+      height: 20px;
+      flex: 0 0 auto;
+    }
+
+    .feature-tree-label {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.85em;
+    }
+
+    .feature-checkbox {
+      flex: 0 0 auto;
+      margin: 0;
+    }
+  }
+
+  .inspector-bottom-bar {
+    display: flex;
+    padding: 9px 4px 9px 9px;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .inspector-bottom-bar-buttons {
+    flex: 1;
+  }
+}
+
+.edit-pane-inspector {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  overflow-x: hidden;
+  border-top: 1px solid #333;
+}
+
+.edit-pane-voxels {
+  border-top: 1px solid #333;
+  padding-top: 0.5rem;
 }
 
 .inspector.overlay {

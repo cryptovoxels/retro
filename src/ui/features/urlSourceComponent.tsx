@@ -127,11 +127,13 @@ export class URLTab extends Component<URLTabProps> {
       return null
     }
     return (
-      <div>
-        <label style="margin-top:3px">URL</label>
-        <input className="default-focus" type="text" value={this.props.url} onInput={(e) => this.props.setURL(e.currentTarget.value)} />
-        {this.props.children}
-      </div>
+      <>
+        <dt>URL</dt>
+        <dd>
+          <input className="default-focus" type="text" value={this.props.url} onInput={(e) => this.props.setURL(e.currentTarget.value)} />
+          {this.props.children}
+        </dd>
+      </>
     )
   }
 }
@@ -154,11 +156,13 @@ export function WompsTab(props: WompsTabProps) {
   if (!props.loading) womps = <WompCatalog womps={props.womps} callback={props.setURL} returnWomp={props.returnWomp} />
 
   return (
-    <div>
-      <label style="margin-top:3px">Womps you've taken</label>
-      <div className="voxel-library">{womps}</div>
-      <button onClick={props.onRefresh}>{props.loading ? 'Refreshing' : 'Refresh'}</button>
-    </div>
+    <>
+      <dt>Womps you've taken</dt>
+      <dd class="full">
+        <div className="voxel-library">{womps}</div>
+        <button onClick={props.onRefresh}>{props.loading ? 'Refreshing' : 'Refresh'}</button>
+      </dd>
+    </>
   )
 }
 
@@ -179,10 +183,12 @@ export function ReuseTab(props: ReuseTabProps) {
   })
 
   return (
-    <div>
-      <label style="margin-top:3px">Urls previously used</label>
-      <div className="voxel-library">{imagesUserResources || NO_PARCEL_FOUND}</div>
-    </div>
+    <>
+      <dt>Urls previously used</dt>
+      <dd class="full">
+        <div className="voxel-library">{imagesUserResources || NO_PARCEL_FOUND}</div>
+      </dd>
+    </>
   )
 }
 
@@ -197,8 +203,11 @@ export function UploadTab(props: UploadTabProps) {
     return null
   }
   return (
-    <div class="upload-url">
-      <input className="default-focus" type="file" accept=".jpeg,.jpg,.gif,.png" value={props.url} onChange={(e) => props.handleFileUpload(e.currentTarget.files)} />
-    </div>
+    <>
+      <dt>Upload</dt>
+      <dd class="upload-url">
+        <input className="default-focus" type="file" accept=".jpeg,.jpg,.gif,.png" value={props.url} onChange={(e) => props.handleFileUpload(e.currentTarget.files)} />
+      </dd>
+    </>
   )
 }

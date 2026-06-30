@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useSignalEffect } from '@preact/signals'
+import { useState } from 'preact/hooks'
+import { uiAsideTick } from '../../src/store'
 import type UserInterface from '../../src/user-interface'
 
 declare global {
@@ -8,13 +10,11 @@ declare global {
 }
 
 export function InWorldPane({ id }: { id: string }) {
-  const [, tick] = useState(0)
-
-  useEffect(() => {
-    const bump = () => tick((n) => n + 1)
-    window.addEventListener('panechange', bump)
-    return () => window.removeEventListener('panechange', bump)
-  }, [])
+  const [, bump] = useState(0)
+  useSignalEffect(() => {
+    uiAsideTick.value
+    bump((n) => n + 1)
+  })
 
   const ui = window.ui
   if (!ui) return null

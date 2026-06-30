@@ -36,10 +36,12 @@ export function FeatureID(props: { feature: Feature }) {
   )
 
   return (
-    <div className="f">
-      <label>Name</label>
-      <input value={props.feature.description.id} onInput={(e) => update(e.currentTarget.value)} type="text" />
-    </div>
+    <>
+      <dt>Name</dt>
+      <dd>
+        <input value={props.feature.description.id} onInput={(e) => update(e.currentTarget.value)} type="text" />
+      </dd>
+    </>
   )
 }
 
@@ -90,12 +92,14 @@ export function SetParentDropdown(props: { feature: Feature }) {
   }
 
   return (
-    <div className="f">
-      <label>{`Add to Group`}</label>
-      <select value={getGroupName(props.feature.group)} onInput={(e) => setParent(e.currentTarget.value)}>
-        {options}
-      </select>
-    </div>
+    <>
+      <dt>Add to Group</dt>
+      <dd>
+        <select value={getGroupName(props.feature.group)} onInput={(e) => setParent(e.currentTarget.value)}>
+          {options}
+        </select>
+      </dd>
+    </>
   )
 }
 
@@ -111,14 +115,16 @@ export function BlendMode(props: { handleStateChange?: (blendMode: string) => vo
   }
 
   return (
-    <div className="f">
-      <label>Blend</label>
-      <select onInput={(e) => update(e.currentTarget.value)} value={props.feature.description.blendMode}>
-        <option value="Multiply">Multiply</option>
-        <option value="Combine">Combine</option>
-        <option value="Screen">Screen</option>
-      </select>
-    </div>
+    <>
+      <dt>Blend</dt>
+      <dd>
+        <select onInput={(e) => update(e.currentTarget.value)} value={props.feature.description.blendMode}>
+          <option value="Multiply">Multiply</option>
+          <option value="Combine">Combine</option>
+          <option value="Screen">Screen</option>
+        </select>
+      </dd>
+    </>
   )
 }
 
@@ -139,12 +145,14 @@ export function Sound(props: { feature: Feature<ButtonRecord> }) {
   }
 
   return (
-    <div className="f">
-      <label>Sound</label>
-      <select value={soundId} onInput={(e) => update(e.currentTarget.value)}>
-        {options}
-      </select>
-    </div>
+    <>
+      <dt>Sound</dt>
+      <dd>
+        <select value={soundId} onInput={(e) => update(e.currentTarget.value)}>
+          {options}
+        </select>
+      </dd>
+    </>
   )
 }
 
@@ -413,33 +421,41 @@ export const Animation = (props: AnimationProps) => {
   }
 
   return (
-    <div className="f">
-      <label>Animation</label>
-
-      <select value={destination as string} onInput={(e) => setDestination(e.currentTarget.value as AnimationDestination)}>
-        {destinations}
-      </select>
+    <>
+      <dt>Animation</dt>
+      <dd>
+        <select value={destination as string} onInput={(e) => setDestination(e.currentTarget.value as AnimationDestination)}>
+          {destinations}
+        </select>
+      </dd>
       {destination && (
         <>
           {easingDropdown(easing, setEasing)}
 
-          {destination === 'scaling' && !!keys.length && renderLockScaleAspectRatio()}
+          {destination === 'scaling' && !!keys.length && (
+            <>
+              <dt>Aspect ratio</dt>
+              <dd>{renderLockScaleAspectRatio()}</dd>
+            </>
+          )}
 
-          <div className="keyframes">
-            <strong>Frame</strong>
-            <strong></strong>
-            <div style={{ justifySelf: 'center' }}>X</div>
-            <div style={{ justifySelf: 'center' }}>Y</div>
-            <div style={{ justifySelf: 'center' }}>Z</div>
-            <div style={{ justifySelf: 'center' }}>action</div>
-            {keys}
-          </div>
-          <button disabled={!(keyframes.length < 20 && destination)} onClick={() => addKeyframe()}>
-            + Add Keyframe
-          </button>
+          <dd class="full">
+            <div className="keyframes">
+              <strong>Frame</strong>
+              <strong></strong>
+              <div style={{ justifySelf: 'center' }}>X</div>
+              <div style={{ justifySelf: 'center' }}>Y</div>
+              <div style={{ justifySelf: 'center' }}>Z</div>
+              <div style={{ justifySelf: 'center' }}>action</div>
+              {keys}
+            </div>
+            <button disabled={!(keyframes.length < 20 && destination)} onClick={() => addKeyframe()}>
+              + Add Keyframe
+            </button>
+          </dd>
         </>
       )}
-    </div>
+    </>
   )
 }
 
@@ -547,20 +563,20 @@ export function easingDropdown(easing: EasingDescription, setEasing: Dispatch<St
   const easingMode = easing && 'mode' in easing ? easing.mode : ''
 
   return (
-    <div className="f easingContainer">
-      <div className="easingElement">
-        <label>{`Easing Function`}</label>
+    <>
+      <dt>Easing function</dt>
+      <dd>
         <select value={easingFunc} onChange={(e) => set('function')(e.currentTarget.value)}>
           {functionOptions}
         </select>
-      </div>
-      <div className="easingElement">
-        <label>{`Mode`}</label>
+      </dd>
+      <dt>Mode</dt>
+      <dd>
         <select value={easingMode} onChange={(e) => set('mode')(e.currentTarget.value)}>
           {modeOptions}
         </select>
-      </div>
-    </div>
+      </dd>
+    </>
   )
 }
 
@@ -577,10 +593,12 @@ export function Hyperlink(props: { feature: Feature }) {
   )
 
   return (
-    <div className="f">
-      <label>Hyperlink</label>
-      <input type="text" value={link || ''} onInput={(e) => update(e.currentTarget.value)} />
-    </div>
+    <>
+      <dt>Hyperlink</dt>
+      <dd>
+        <input type="text" value={link || ''} onInput={(e) => update(e.currentTarget.value)} />
+      </dd>
+    </>
   )
 }
 
@@ -738,11 +756,11 @@ export function CollectibleTryScale(props: { feature: CollectibleModel }) {
 
 export function CollectibleTryBone(props: { feature: CollectibleModel; scene: BABYLON.Scene }) {
   if (!window.connector.persona.avatar) {
-    return <div className="f"></div>
+    return null
   }
 
   if (!window.connector?.persona.avatar?.skeleton) {
-    return <div className="f"></div>
+    return null
   }
 
   const [skeleton, setSkeleton] = useState<BABYLON.Skeleton>(window.connector?.persona.avatar?.skeleton)
@@ -761,15 +779,16 @@ export function CollectibleTryBone(props: { feature: CollectibleModel; scene: BA
   }
 
   return (
-    <div className="f">
-      <label>Bone </label>
-
-      <select value={props.feature.description.tryBone} onChange={(e) => update(e.currentTarget['value'])}>
-        {skeleton?.bones.map((b) => (
-          <option value={boneName(b)}>{boneName(b)}</option>
-        ))}
-      </select>
-    </div>
+    <>
+      <dt>Bone</dt>
+      <dd>
+        <select value={props.feature.description.tryBone} onChange={(e) => update(e.currentTarget['value'])}>
+          {skeleton?.bones.map((b) => (
+            <option value={boneName(b)}>{boneName(b)}</option>
+          ))}
+        </select>
+      </dd>
+    </>
   )
 }
 
@@ -805,8 +824,7 @@ function refreshFromFeature(feature: CollectibleModel, avatar: Avatar) {
 }
 
 export function Advanced(props: any) {
-  const [visible, setVisible] = useState(false)
-  return <span class="advanced-block">{props.children}</span>
+  return <>{props.children}</>
 }
 
 export function SpecularColorSetting(props: { feature: Feature & { description: { specularColor?: [number, number, number] } } }) {
@@ -825,9 +843,11 @@ export function SpecularColorSetting(props: { feature: Feature & { description: 
   const color: string = BABYLON.Color3.FromArray(props.feature.description.specularColor || defaultSpecularColor).toHexString()
 
   return (
-    <div className="f">
-      <label>Specular color</label>
-      <ColorInput onColorSelect={update} color={color} />
-    </div>
+    <>
+      <dt>Specular color</dt>
+      <dd>
+        <ColorInput onColorSelect={update} color={color} />
+      </dd>
+    </>
   )
 }

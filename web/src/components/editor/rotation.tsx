@@ -38,7 +38,12 @@ export function Rotation(props: RotationProps) {
     if (props.handleStateChange) props.handleStateChange(x, y, z)
   }, [x, y, z])
 
-  const displayError = (err: string | undefined) => (err ? <div>{err}</div> : null)
+  const displayError = (err: string | undefined) =>
+    err ? (
+      <dd class="full">
+        <small>{err}</small>
+      </dd>
+    ) : null
 
   const step = 10
   return (

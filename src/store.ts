@@ -92,3 +92,6 @@ export const checkedFeatures = signal<CheckedFeatures>({})
 export const selectCheckedFeatures = (): CheckedFeatures => {
   return checkedFeatures.value
 }
+
+export const uiPane = signal<string | undefined>(undefined)
+export const uiAsideTick = signal(0)

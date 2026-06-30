@@ -76,17 +76,16 @@ export class UrlSourceCollectibleModels extends UrlSourceComponent<UrlSourceColl
     }
 
     return (
-      <div className="f">
-        <h4>Your Collectibles</h4>
-        <div>
-          <label style="margin-top:3px">Select one of your collectibles for display:</label>
+      <>
+        <dt>Your Collectibles</dt>
+        <dd class="full">
           <div className="voxel-library">{this.state.loading ? LOADING : collectibles}</div>
           <div style="display: flex; margin-top: 10px">
             <button onClick={() => this.getCollectibleLibrary(true)}>Refresh</button>
             <input style="font-size: smaller" value={this.state.filter} onInput={this.handleInputChange.bind(this)} placeholder="Search collectibles" type="text" />
           </div>
-        </div>
-      </div>
+        </dd>
+      </>
     )
   }
 }

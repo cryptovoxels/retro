@@ -121,7 +121,6 @@ const Main = () => {
   const prevUrl = useRef(location.pathname + location.search)
   const lightBroadcast = currentPath.startsWith('/golive/broadcast')
   const coords = new URLSearchParams(urlSearch).get('coords') || ''
-  const pane = new URLSearchParams(urlSearch).get('pane') || ''
 
   useEffect(() => {
     const sync = () => setUrlSearch(location.search)
@@ -156,7 +155,7 @@ const Main = () => {
           </article>
         )}
 
-        <WorldRightSlot coords={coords} pane={pane}>
+        <WorldRightSlot coords={coords}>
           <Router onChange={handleRoute}>
             <Explore path="/" />
             <RadioPopout path="/radio" />

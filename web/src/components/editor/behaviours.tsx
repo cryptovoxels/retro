@@ -1,6 +1,6 @@
 import { throttle } from 'lodash'
 import * as luaparse from 'luaparse'
-import { Component, createRef } from 'preact'
+import { Component, createRef, Fragment } from 'preact'
 import Feature from '../../../../src/features/feature'
 import type { Behaviour } from '../../../../common/messages/feature'
 import { BEHAVIOUR_PRESETS } from '../../../../src/lua/presets'
@@ -83,30 +83,31 @@ export class Behaviours extends Component<{ feature: Feature }, BehavioursState>
   render() {
     const { behave } = this.state
     return (
-      <div className="behaviours">
-        <label>behaviours</label>
-        {behave.length === 0 && <small>no behaviours attached</small>}
+      <>
+        <dt>behaviours</dt>
+        <dd>{behave.length === 0 && <small>no behaviours attached</small>}</dd>
         {behave.map((b, idx) => (
-          <div className="behaviour-row" key={idx}>
-            <div className="f">
-              <strong>{b.name || 'behaviour'}</strong>
+          <Fragment key={idx}>
+            <dt>{b.name || 'behaviour'}</dt>
+            <dd>
               <button onClick={() => this.setState({ editing: idx })}>edit</button>
               <button onClick={() => this.remove(idx)}>x</button>
-            </div>
-          </div>
+            </dd>
+          </Fragment>
         ))}
-        <div className="f">
+        <dt></dt>
+        <dd>
           <button onClick={() => this.setState({ addOpen: !this.state.addOpen })}>+ add</button>
           <button onClick={() => this.createNew()}>+ new</button>
-        </div>
+        </dd>
         {this.state.addOpen && (
-          <div className="behaviour-add">
+          <dd class="full behaviour-add">
             {BEHAVIOUR_PRESETS.map((p) => (
               <button key={p.name} onClick={() => this.add({ name: p.name, code: p.code })}>
                 {p.name}
               </button>
             ))}
-          </div>
+          </dd>
         )}
         {this.state.editing != null && this.state.behave[this.state.editing] && (
           <BehaviourScriptModal
@@ -116,7 +117,7 @@ export class Behaviours extends Component<{ feature: Feature }, BehavioursState>
             onClose={() => this.setState({ editing: null })}
           />
         )}
-      </div>
+      </>
     )
   }
 }

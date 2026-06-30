@@ -68,7 +68,12 @@ export function Scale(props: ScaleProps) {
     props.feature.scaleAspectLocked = next // mirror to the feature so the corner-resize handles follow the same lock
   }
 
-  const displayError = (err: string | undefined) => (err ? <div>{err}</div> : null)
+  const displayError = (err: string | undefined) =>
+    err ? (
+      <dd class="full">
+        <small>{err}</small>
+      </dd>
+    ) : null
 
   const axes = aspectRatioLocked ? ['x' as XYZ] : props.feature.scaleAxes()
 

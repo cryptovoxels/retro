@@ -62,45 +62,56 @@ export class UrlSourceVoxModels extends UrlSourceComponent<UrlSourceVoxModelsPro
     const userResources = this.state.urlTab === 're-use' && this.userResources.map((parcel) => <CategorizedItemsComponent category={parcel} type={this.props.feature.type} callback={this.setUrl.bind(this)} />)
 
     return (
-      <div className="f">
-        <div class="button-tabs">
-          <button class={(this.state.urlTab == 'url' && 'active') as any} onClick={() => this.setState({ urlTab: 'url' })}>
-            URL
-          </button>
-          <button class={(this.state.urlTab == 'upload' && 'active') as string} onClick={() => this.setState({ urlTab: 'upload' })}>
-            Upload
-          </button>
-          {!this.isMegavox && (
-            <button class={(this.state.urlTab == 'library' && 'active') as string} onClick={() => this.getLibrary()}>
-              Library
+      <>
+        <dd class="full">
+          <div class="button-tabs">
+            <button class={(this.state.urlTab == 'url' && 'active') as any} onClick={() => this.setState({ urlTab: 'url' })}>
+              URL
             </button>
-          )}
-          <button class={(this.state.urlTab == 're-use' && 'active') as string} onClick={() => this.setState({ urlTab: 're-use' })}>
-            Recent
-          </button>
-        </div>
+            <button class={(this.state.urlTab == 'upload' && 'active') as string} onClick={() => this.setState({ urlTab: 'upload' })}>
+              Upload
+            </button>
+            {!this.isMegavox && (
+              <button class={(this.state.urlTab == 'library' && 'active') as string} onClick={() => this.getLibrary()}>
+                Library
+              </button>
+            )}
+            <button class={(this.state.urlTab == 're-use' && 'active') as string} onClick={() => this.setState({ urlTab: 're-use' })}>
+              Recent
+            </button>
+          </div>
+        </dd>
         {this.state.urlTab == 'url' ? (
-          <div>
-            <label style="margin-top:3px">URL</label>
-            <input class="default-focus" type="text" value={this.state.url} onInput={(e) => this.updateUrl(e.currentTarget.value)} />
-          </div>
+          <>
+            <dt>URL</dt>
+            <dd>
+              <input class="default-focus" type="text" value={this.state.url} onInput={(e) => this.updateUrl(e.currentTarget.value)} />
+            </dd>
+          </>
         ) : this.state.urlTab == 'library' ? (
-          <div>
-            <label style="margin-top:3px">Public models</label>
-            <div className="voxel-library">{library}</div>
-            <button onClick={() => this.fetchLibrary()}>🔄 Refresh</button>
-          </div>
+          <>
+            <dt>Public models</dt>
+            <dd class="full">
+              <div className="voxel-library">{library}</div>
+              <button onClick={() => this.fetchLibrary()}>Refresh</button>
+            </dd>
+          </>
         ) : this.state.urlTab == 'upload' ? (
-          <div class="upload-url">
-            <input class="default-focus" type="file" accept=".vox" value={this.state.url} onChange={(e) => this._handleVoxFileUpload(e.currentTarget.files)} />
-          </div>
+          <>
+            <dt>Upload</dt>
+            <dd class="upload-url">
+              <input class="default-focus" type="file" accept=".vox" value={this.state.url} onChange={(e) => this._handleVoxFileUpload(e.currentTarget.files)} />
+            </dd>
+          </>
         ) : (
-          <div>
-            <label style="margin-top:3px">Urls previously used</label>
-            <div className="voxel-library">{(userResources as any).length > 0 ? userResources : NO_PARCEL_FOUND}</div>
-          </div>
+          <>
+            <dt>Urls previously used</dt>
+            <dd class="full">
+              <div className="voxel-library">{(userResources as any).length > 0 ? userResources : NO_PARCEL_FOUND}</div>
+            </dd>
+          </>
         )}
-      </div>
+      </>
     )
   }
 

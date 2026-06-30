@@ -1,8 +1,8 @@
 import type { Signal } from '@preact/signals'
 import { effect } from '@preact/signals'
-import { Component, createRef, Fragment, h } from 'preact'
+import { Component, createRef, Fragment } from 'preact'
 import { route } from 'preact-router'
-import { getCoords, getPane, notifyPaneChange, routeWithPane, stripPane, withCoords } from '../web/src/helpers/coords-nav'
+import { getCoords, withCoords } from '../web/src/helpers/coords-nav'
 import { isMobileMedia } from '../common/helpers/detector'
 import { exitPointerLock, hasPointerLock, requestPointerLock } from '../common/helpers/ui-helpers'
 import { onBeginUpload, onCompleteUpload, onFailUpload } from '../common/helpers/upload-media'
@@ -25,8 +25,8 @@ import type { MinimapSettings } from './minimap'
 import Parcel from './parcel'
 import { isScratchpad } from './scene-config'
 import { onLoadPromise } from './utils/loading-done'
-import { selectCurrentOrNearestParcel, selectNearestEditableParcel, selectSelectedFeature, setCheckedFeatures } from './store'
-import FeatureTool, { templateFromFeature } from './tools/feature'
+import { selectCurrentOrNearestParcel, selectNearestEditableParcel, selectSelectedFeature, setCheckedFeatures, setSelectedFeature, uiAsideTick, uiPane } from './store'
+import FeatureTool from './tools/feature'
 import VoxelTool, { SelectionMode, SelectionModeOptions } from './tools/voxel'
 import ConnectionStatusUI from './ui/connection-status'
 import { CongaJoinHintOverlay, CongaStatusOverlay } from './ui/conga-status'
@@ -34,7 +34,6 @@ import { MaterialDebugTab } from './ui/debug/material-debug-tab'
 import { OceanDebugTab } from './ui/debug/ocean-debug-tab'
 import { PumpDebugTab } from './ui/debug/pump-debug-tab'
 import { ExplorerUI, Tab } from './ui/explorer'
-import { FeatureContext } from './ui/features/context'
 import { FeatureEditor } from './ui/features/misc'
 import HomeButton from './ui/home-button'
 import { ChatOverlay, chatSettings } from './ui/interact/chat'
@@ -48,8 +47,7 @@ import OpenLink from './ui/open-link'
 import Baking from './ui/overlay/baking'
 import { BuildTab } from './ui/overlay/build-tab/build-tab'
 import DebugTools from './ui/overlay/debug-tools'
-import EditTab from './ui/overlay/edit-tab'
-import Inspector from './ui/overlay/inspector'
+import EditPane from './ui/overlay/edit-pane'
 import ParcelInfoTab from './ui/overlay/parcel-info'
 import ToolBelt from './ui/overlay/tool-belt'
 import ParcelSnapshots from './ui/parcel-snapshots'
@@ -83,7 +81,7 @@ export enum Mode {
   Avatar,
 }
 
-export type UIPanes = 'add' | 'edit' | 'inspector' | 'feature-editor' | 'info' | 'debugTool' | 'nfts' | 'chat' | 'emote' | 'settings' | 'womp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake'
+export type UIPanes = 'add' | 'edit' | 'info' | 'debugTool' | 'nfts' | 'chat' | 'emote' | 'settings' | 'womp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake'
 
 export interface Tool {
   activate: () => void
@@ -238,8 +236,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   openEditor(editor: FeatureEditor, feature: Feature) {
-    this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'feature-editor', active: true })
-    routeWithPane('feature-editor')
+    setSelectedFeature(feature)
+    uiPane.value = 'edit'
+    this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'edit', active: true })
     exitPointerLock()
   }
 
@@ -247,9 +246,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     app.on(AppEvent.Change, this.onAppChange)
     document.addEventListener('fullscreenchange', this.refreshFullscreen)
     document.addEventListener('pointerlockchange', this.onPointerLockChange)
-    window.addEventListener('urlchange', this.syncPaneFromUrl)
-    this.syncPaneFromUrl()
-    notifyPaneChange()
     if (isMobileMedia()) {
       this.canvas.addEventListener('touchstart', () => {
         app.emit(AppEvent.CanvasEngaged)
@@ -296,7 +292,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       this.chatLastReadAt = Date.now()
     }
     if (prevState.pane !== this.state.pane || prevState.feature?.uuid !== this.state.feature?.uuid) {
-      notifyPaneChange()
+      uiAsideTick.value++
     }
   }
 
@@ -306,6 +302,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   enterScratchpadGuideMini = () => {
     exitPointerLock()
+    uiPane.value = 'add'
     this.setState({ pane: 'add', active: true, scratchpadGuideMini: true })
   }
 
@@ -318,6 +315,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   restartScratchpadGuide = () => {
+    uiPane.value = undefined
     this.setState({
       scratchpadGuideMini: false,
       scratchpadGuideKey: (this.state.scratchpadGuideKey || 0) + 1,
@@ -327,6 +325,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   openScratchpadGuide = () => {
+    uiPane.value = undefined
     this.setState({
       scratchpadGuideOpen: true,
       scratchpadGuideMini: false,
@@ -345,7 +344,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     app.removeListener(AppEvent.Change, this.onAppChange)
     document.removeEventListener('fullscreenchange', this.refreshFullscreen)
     document.removeEventListener('pointerlockchange', this.onPointerLockChange)
-    window.removeEventListener('urlchange', this.syncPaneFromUrl)
     chatSettings.removeEventListener('changed', this.onChatSettingsChange)
     this.chatListDispose?.()
     // dispose the keyboard handler too - it attaches keydown/keyup on `document` in addKeyboardHandlers,
@@ -357,7 +355,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   onPointerLockChange = () => {
     if (document.pointerLockElement) {
       app.emit(AppEvent.CanvasEngaged)
-      // close overlays on pointer lock
+      uiPane.value = undefined
       this.setState({ pane: undefined, active: false })
     }
   }
@@ -374,6 +372,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   refocus() {
     requestPointerLock()
 
+    uiPane.value = undefined
     this.setState({ active: false, pane: undefined })
   }
 
@@ -452,12 +451,12 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       return
     }
 
-    if (getPane() === pane) {
+    if (this.state.pane === pane) {
       this.closeInteractOverlay()
       return
     }
 
-    routeWithPane(pane)
+    uiPane.value = pane
     this.setState({ pane: pane, active: true })
 
     exitPointerLock()
@@ -491,17 +490,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   closeInteractOverlay() {
-    stripPane()
+    uiPane.value = undefined
     this.setState({ pane: undefined, active: false })
-  }
-
-  syncPaneFromUrl = () => {
-    let p = getPane() as UIPanes | ''
-    if (p === 'feature-editor' && !this.state.feature) {
-      stripPane()
-      p = ''
-    }
-    this.setState({ pane: p || undefined, active: !!p })
   }
 
   // the one ESC: leave fullscreen/theatre. two-step -- a locked pointer eats the
@@ -538,6 +528,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   setTool(tool: Tool | null) {
+    uiPane.value = undefined
     this.setState({ pane: undefined, active: false })
 
     if ((this.activeTool && !this.activeTool.enabled.value) || this.activeTool !== tool) {
@@ -581,6 +572,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   hide() {
+    uiPane.value = undefined
     this.setState({ pane: undefined, active: false })
   }
 
@@ -675,7 +667,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   showExplorerMap() {
     this.explorerPaneInitialTab.current = 'map'
-    routeWithPane('explorer')
+    uiPane.value = 'explorer'
     this.setState({ pane: 'explorer', active: true })
     setTimeout(() => {
       this.explorerPaneInitialTab.current = undefined
@@ -684,7 +676,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   showExplorerOnline() {
     this.explorerPaneInitialTab.current = 'users'
-    routeWithPane('explorer')
+    uiPane.value = 'explorer'
     this.setState({ pane: 'explorer', active: true })
     setTimeout(() => {
       this.explorerPaneInitialTab.current = undefined
@@ -721,29 +713,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       case 'add':
         return <BuildTab parcel={nearestEditableParcel || undefined} scene={this.props.scene} />
       case 'edit':
-        return <EditTab parcel={nearestEditableParcel} scene={this.props.scene} />
+        return <EditPane parcel={nearestEditableParcel} scene={this.props.scene} feature={this.state.feature} editor={this.state.editor} />
       case 'parcelSnapshots':
         return <ParcelSnapshots parcel={nearestEditableParcel || undefined} scene={this.props.scene} />
-      case 'inspector':
-        return <Inspector />
       case 'login':
         return <Login />
-      case 'feature-editor': {
-        const Component = this.state.editor as any
-        const feature = this.state.feature
-        if (!Component || !feature) return null
-        return (
-          <FeatureContext.Provider value={{ templateFromFeature }}>
-            <div class="editor" key={feature.uuid}>
-              {h(Component, {
-                feature,
-                parcel: currentOrNearestParcel,
-                scene: this.props.scene,
-              })}
-            </div>
-          </FeatureContext.Provider>
-        )
-      }
       case 'info':
         return <ParcelInfoTab parcel={currentOrNearestParcel} scene={this.props.scene} />
       case 'debugTool':
@@ -803,7 +777,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     const classes = `UserInterface parent-overlay toolbar-div`
     const canEdit = app.isAdmin() || (nearestEditableParcel ? nearestEditableParcel.canEdit : false)
 
-    const currentPane = getPane() || this.state.pane
+    const currentPane = this.state.pane
     const active = (pane: string, disabled?: boolean) => (currentPane === pane ? 'active' : disabled ? 'disabled' : '')
 
     const unreadChat = this.state.chatEnabled && !this.state.active ? messageList.value.some((m) => m.timestamp > this.chatLastReadAt) : false
@@ -875,14 +849,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   Shots
                 </a>
               </li>
-              {/* <li class={active('edit', !canEdit)}>
-                <a href="#" onMouseOver={onHover('edit')} onClick={onClick('edit')}>
+              <li class={active('edit', !canEdit)}>
+                <a href="#edit" onMouseOver={onHover('edit')} onClick={onClick('edit')}>
                   Edit
-                </a>
-              </li> */}
-              <li class={active('inspector', !canEdit)}>
-                <a href="#inspector" onMouseOver={onHover('inspector')} onClick={onClick('inspector')}>
-                  Tree
                 </a>
               </li>
 

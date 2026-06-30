@@ -239,7 +239,11 @@ class Editor extends FeatureEditor<VoxModel> {
             <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
             <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
             <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
-            {!!this.importError && <Panel type="danger">{this.importError}</Panel>}
+            {!!this.importError && (
+              <dd class="full">
+                <Panel type="danger">{this.importError}</Panel>
+              </dd>
+            )}
             <UrlSourceVoxModels feature={this.props.feature} scene={this.props.scene} />
 
             <Advanced>
@@ -251,24 +255,20 @@ class Editor extends FeatureEditor<VoxModel> {
               <Hyperlink feature={this.props.feature} />
 
               {this.state.type === 'vox-model' && (
-                <div className="f">
-                  <form>
-                    <label>
-                      <input type="checkbox" name="cubescale" onChange={(e) => this.setState({ cubescale: e.currentTarget.checked })} checked={this.state.cubescale}></input>
-                      scale to grid
-                    </label>
-                  </form>
-                </div>
+                <>
+                  <dt>scale to grid</dt>
+                  <dd>
+                    <input type="checkbox" name="cubescale" onChange={(e) => this.setState({ cubescale: e.currentTarget.checked })} checked={this.state.cubescale} />
+                  </dd>
+                </>
               )}
 
-              <div className="f">
-                <form>
-                  <label>
-                    <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable}></input>
-                    Enable Collision
-                  </label>
-                </form>
-              </div>
+              <>
+                <dt>Enable Collision</dt>
+                <dd>
+                  <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable} />
+                </dd>
+              </>
 
               <Behaviours feature={this.props.feature} />
             </Advanced>

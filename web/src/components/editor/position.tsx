@@ -43,7 +43,11 @@ export function Position(props: PositionalProps) {
   const step = 0.05
 
   const displayError = (err: string | undefined) => {
-    return err ? <div>{err}</div> : null
+    return err ? (
+      <dd class="full">
+        <small>{err}</small>
+      </dd>
+    ) : null
   }
 
   return (
