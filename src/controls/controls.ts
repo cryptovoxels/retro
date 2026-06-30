@@ -236,6 +236,17 @@ export default abstract class Controls implements IControls {
     }
   }
 
+  pickAtReticule() {
+    const engine = this.scene.getEngine()
+    const pick = this.scene.pick(engine.getRenderWidth() / 2, engine.getRenderHeight() / 2)
+    if (pick?.pickedPoint) pick.pickedPoint = pick.pickedPoint.subtract(this.worldOffset.position)
+    return pick
+  }
+
+  pickForPointer(pickInfo?: BABYLON.PickingInfo | null) {
+    return hasPointerLock() ? this.pickAtReticule() : pickInfo
+  }
+
   lockedLeftClick(pickInfo?: BABYLON.PickingInfo | null) {
     if (!pickInfo) return
     if (window.ui?.visible || window.ui?.activeTool) return

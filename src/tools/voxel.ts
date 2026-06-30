@@ -10,6 +10,7 @@ import { signal } from '@preact/signals'
 import VertexShader from '../shaders/ao-mesh.vsh'
 import FragmentShader from '../shaders/ao-mesh.fsh'
 import { createGlassMaterial } from '../materials/glass'
+import { hasPointerLock } from '../../common/helpers/ui-helpers'
 
 /*
  * Fixme - this needs some refactoring around selection mode and selection
@@ -252,6 +253,8 @@ export default class Selector implements Tool {
     this.enabled.value = true
 
     this.scene.onPointerObservable.add(this.onPointerObservable)
+    document.addEventListener('pointerlockchange', this.lockListener)
+    this.lockListener()
 
     if (this.selection.mode == SelectionMode.Add) {
       // notify that build tool just got activated
@@ -280,6 +283,7 @@ export default class Selector implements Tool {
     this.mousedown = false
     this.box.visibility = 0
     this.box.scaling.set(1, 1, 1)
+    document.removeEventListener('pointerlockchange', this.lockListener)
     this.scene.onPointerObservable.removeCallback(this.onPointerObservable)
   }
 
@@ -299,7 +303,7 @@ export default class Selector implements Tool {
   }
 
   onPointerObservable(eventData: BABYLON.PointerInfo) {
-    const pickInfo = eventData.pickInfo
+    const pickInfo = this.controls.pickForPointer(eventData.pickInfo)
     if (!pickInfo) return
     switch (eventData.type) {
       case BABYLON.PointerEventTypes.POINTERDOWN:
@@ -321,6 +325,12 @@ export default class Selector implements Tool {
         this.onMove(pickInfo)
         break
     }
+  }
+
+  private lockListener = () => {
+    if (!hasPointerLock()) return
+    const pick = this.controls.pickForPointer(null)
+    if (pick) this.onMove(pick)
   }
 
   async onLeftPointerDown(e: BABYLON.IMouseEvent, pickResult: BABYLON.PickingInfo) {

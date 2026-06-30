@@ -103,13 +103,6 @@ export default class DesktopControls extends Controls {
     this.keyboardInput?.reset()
   }
 
-  pickAtReticule() {
-    const engine = this.scene.getEngine()
-    const pick = this.scene.pick(engine.getRenderWidth() / 2, engine.getRenderHeight() / 2)
-    if (pick?.pickedPoint) pick.pickedPoint = pick.pickedPoint.subtract(this.worldOffset.position)
-    return pick
-  }
-
   desktopClicks(eventData: BABYLON.PointerInfo, eventState: BABYLON.EventState) {
     if (eventData.pickInfo?.pickedPoint) {
       eventData.pickInfo.pickedPoint = eventData.pickInfo.pickedPoint.subtract(this.worldOffset.position)
@@ -148,7 +141,7 @@ export default class DesktopControls extends Controls {
           }
           break
         }
-        if (btn === 0 && hasPointerLock()) {
+        if (btn === 0 && hasPointerLock() && !window.ui?.activeTool) {
           this.lockedLeftClick(this.pickAtReticule())
           eventState.skipNextObservers = true
         }

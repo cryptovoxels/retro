@@ -20,6 +20,7 @@ import { distanceToAABB } from '../utils/boundaries'
 import { getTransformVectorsRelativeToNode } from '../utils/feature'
 import { bboxCompletelyWithin } from '../utils/helpers'
 import { cameraPosition } from '../utils/camera'
+import { hasPointerLock } from '../../common/helpers/ui-helpers'
 
 type AABB = {
   min: BABYLON.Vector3
@@ -289,17 +290,24 @@ export default class FeatureTool implements Tool {
   }
 
   onPointerObservable(eventData: BABYLON.PointerInfo) {
+    const pick = this.controls.pickForPointer(eventData.pickInfo)
     switch (eventData.type) {
       case BABYLON.PointerEventTypes.POINTERTAP:
         // Left-click only
         if (eventData.event.button === 0) {
-          this.onLeftClick(eventData.event, eventData.pickInfo)
+          this.onLeftClick(eventData.event, pick)
         }
         break
 
       case BABYLON.PointerEventTypes.POINTERMOVE:
-        this.onMove(eventData.event, eventData.pickInfo)
+        this.onMove(eventData.event, pick)
     }
+  }
+
+  private lockListener = () => {
+    if (!hasPointerLock() || this.selection.mode !== 'add') return
+    const pick = this.controls.pickForPointer(null)
+    if (pick) this.onMove(null!, pick)
   }
 
   activate() {
@@ -312,11 +320,14 @@ export default class FeatureTool implements Tool {
     this.enabled.value = true
 
     this.scene.onPointerObservable.add(this.onPointerObservable)
+    document.addEventListener('pointerlockchange', this.lockListener)
+    this.lockListener()
   }
 
   deactivate() {
     this.enabled.value = false
 
+    document.removeEventListener('pointerlockchange', this.lockListener)
     this.scene.onPointerObservable.removeCallback(this.onPointerObservable)
     this.scene.pointerMovePredicate = this.controls.defaultPointerMovePredicate
     this.unHighlight()
