@@ -252,7 +252,10 @@ export default abstract class Controls implements IControls {
       }
 
       const predicate = useMovePredicate ? this.scene.pointerMovePredicate : undefined
-      const pick = x != null && y != null ? this.scene.pick(x, y, predicate) : this.scene.pickWithRay(cam.getForwardRay(this.MAX_PICK_DISTANCE), predicate)
+      const engine = this.scene.getEngine()
+      const px = x ?? engine.getRenderWidth() / 2
+      const py = y ?? engine.getRenderHeight() / 2
+      const pick = this.scene.pick(px, py, predicate)
 
       if (pick?.pickedPoint) pick.pickedPoint = pick.pickedPoint.subtract(this.worldOffset.position)
       return pick ?? null
@@ -266,7 +269,10 @@ export default abstract class Controls implements IControls {
   }
 
   pickForPointer(pickInfo?: BABYLON.PickingInfo | null) {
-    if (hasPointerLock()) return this.pickAtView(undefined, undefined, true)
+    if (hasPointerLock()) {
+      const engine = this.scene.getEngine()
+      return this.pickAtView(engine.getRenderWidth() / 2, engine.getRenderHeight() / 2, true)
+    }
     if (!window.config.isOrbit && !this.firstPersonView) {
       return this.pickAtView(this.scene.pointerX, this.scene.pointerY, true) ?? pickInfo ?? null
     }
