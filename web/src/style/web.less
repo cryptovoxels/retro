@@ -635,22 +635,52 @@ body:-webkit-full-screen.in-world.sidebar-closed main > aside.-broadcast-open {
   min-height: 0;
 }
 
+// closing the sidebar while live drops to this: the minimized "live" pill, vertical on the edge.
 .broadcast-sidebar-tab {
   position: fixed;
   right: 0;
   top: 50%;
   transform: translateY(-50%);
   z-index: 5;
-  padding: 0.75rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.4rem;
   background: #0d0d0d;
   color: var(--red);
   border: 0;
   border-left: 2px solid var(--red);
   font-family: 'source code pro', monospace;
   font-size: 12px;
+  font-weight: bold;
   cursor: pointer;
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
+
+  span {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+
+  .broadcast-sidebar-tab-dot {
+    writing-mode: horizontal-tb;
+    font-size: 10px;
+    animation: showbox-live-pulse 1.2s ease-in-out infinite;
+  }
+
+  .broadcast-sidebar-tab-time {
+    color: #f5f5f0;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes showbox-live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 dialog.first-time {
