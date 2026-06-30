@@ -245,7 +245,10 @@ export default abstract class Controls implements IControls {
 
     const saved = cam.position.clone()
     try {
-      if (!window.config.isOrbit && this.persona) {
+      // Only third person needs to move the pick camera back to match the rendered view.
+      // First person picks with the live camera (same path as the working unlocked pick),
+      // so the ray starts at the true eye, not the persona origin.
+      if (!window.config.isOrbit && !this.firstPersonView && this.persona) {
         const q = BABYLON.Quaternion.RotationYawPitchRoll(cam.rotation.y, cam.rotation.x, cam.rotation.z)
         const back = new BABYLON.Vector3(0, 0, -1).rotateByQuaternionToRef(q, new BABYLON.Vector3())
         cam.position.copyFrom(this.persona.position.add(back.scale(this.cameraDistance)))
