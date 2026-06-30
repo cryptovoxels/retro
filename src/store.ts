@@ -139,6 +139,8 @@ export const uiPane = signal<string | undefined>(undefined)
 export const uiAsideTick = signal(0)
 export const sidebarClosed = signal(false)
 export const broadcastShowboxUuid = signal<string | undefined>(undefined)
+// when the local broadcast went live; the closed-sidebar "live" tab reads this for its timer
+export const broadcastLiveStartedAt = signal<number | undefined>(undefined)
 
 export const closeBroadcastSidebar = () => {
   broadcastShowboxUuid.value = undefined
