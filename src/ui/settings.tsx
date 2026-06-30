@@ -6,6 +6,7 @@ import { FOV, NORMAL_FOV, WIDE_FOV } from '../graphic/field-of-view'
 import { type GraphicEngine, GraphicLevels, GraphicSettings } from '../graphic/graphic-engine'
 import type { MinimapSettings } from '../minimap'
 import { chatSettings } from './interact/chat'
+import { voiceSettings } from '../voice-settings'
 import { DEFAULT_SENSITIVITY, MAX_SENSITIVITY, MIN_SENSITIVITY } from '../controls/user-control-settings'
 
 function toReversedPercentage(value: number, min: number, max: number): number {
@@ -23,6 +24,8 @@ type Props = {
   minimapSettings: MinimapSettings
 }
 
+type InputDevice = { label: string; deviceId: string }
+
 interface State {
   audio: AudioSettings | undefined
   graphic: GraphicSettings
@@ -31,6 +34,11 @@ interface State {
   showMinimapSettings: boolean
   mouseSensitivityPercentage: number
   realisticLighting: boolean
+  voiceEnabled: boolean
+  voiceDeviceId: string
+  voicePitch: number
+  voiceMonitor: boolean
+  voiceInputDevices: InputDevice[]
 }
 
 export class SettingsUI extends Component<Props, State> {
@@ -45,6 +53,11 @@ export class SettingsUI extends Component<Props, State> {
       // we reverse the value as higher values are lower sensitivities
       mouseSensitivityPercentage: toReversedPercentage(this.cameraSettings.angularSensitivity, MIN_SENSITIVITY, MAX_SENSITIVITY),
       realisticLighting: this.graphicsEngine.getSettings().realisticLighting ?? false,
+      voiceEnabled: voiceSettings.enabled,
+      voiceDeviceId: voiceSettings.deviceId,
+      voicePitch: voiceSettings.pitch,
+      voiceMonitor: voiceSettings.monitor,
+      voiceInputDevices: [{ label: 'Default', deviceId: 'default' }],
     }
 
     this.fov.addEventListener(
@@ -67,6 +80,62 @@ export class SettingsUI extends Component<Props, State> {
       },
       { passive: true },
     )
+  }
+
+  componentDidMount() {
+    this.refreshVoiceDevices()
+    navigator.mediaDevices?.addEventListener('devicechange', this.refreshVoiceDevices)
+    voiceSettings.addEventListener('changed', this.onVoiceSettingsChange)
+  }
+
+  componentWillUnmount() {
+    navigator.mediaDevices?.removeEventListener('devicechange', this.refreshVoiceDevices)
+    voiceSettings.removeEventListener('changed', this.onVoiceSettingsChange)
+  }
+
+  refreshVoiceDevices = () => {
+    if (!navigator.mediaDevices?.enumerateDevices) return
+    navigator.mediaDevices.enumerateDevices().then((devices) => {
+      const inputs = devices.filter((d) => d.kind === 'audioinput')
+      if (!inputs.length || !inputs.some((d) => d.label)) {
+        this.setState({ voiceInputDevices: [{ label: 'Default', deviceId: 'default' }] })
+        return
+      }
+      this.setState({
+        voiceInputDevices: [{ label: 'Default', deviceId: 'default' }, ...inputs.map((d) => ({ label: d.label || 'Microphone', deviceId: d.deviceId }))],
+      })
+    })
+  }
+
+  onVoiceSettingsChange = () => {
+    this.setState({
+      voiceEnabled: voiceSettings.enabled,
+      voiceDeviceId: voiceSettings.deviceId,
+      voicePitch: voiceSettings.pitch,
+      voiceMonitor: voiceSettings.monitor,
+    })
+  }
+
+  onToggleVoice(inputElement: HTMLInputElement) {
+    voiceSettings.enabled = inputElement.checked
+    this.forceUpdate()
+  }
+
+  onVoiceDeviceChange(e: InputEvent) {
+    const el = e.currentTarget as HTMLSelectElement
+    voiceSettings.deviceId = el.value
+    this.forceUpdate()
+  }
+
+  onVoicePitchChange(e: InputEvent) {
+    const el = e.currentTarget as HTMLInputElement
+    voiceSettings.pitch = parseFloat(el.value)
+    this.forceUpdate()
+  }
+
+  onToggleVoiceMonitor(inputElement: HTMLInputElement) {
+    voiceSettings.monitor = inputElement.checked
+    this.forceUpdate()
   }
 
   get audioEngine() {
@@ -301,6 +370,42 @@ export class SettingsUI extends Component<Props, State> {
             <VolumeControl settingsUI={this} channel="parcelAudioVolume" label="Parcel audio" />
             <VolumeControl settingsUI={this} channel="soundEffectsVolume" label="Sound effects" />
             <VolumeControl settingsUI={this} channel="musicVolume" label="Ambience" />
+          </dl>
+        </section>
+
+        <section>
+          <h3>voice chat</h3>
+          <dl class="props">
+            <dt>Enable voice chat</dt>
+            <dd>
+              <input type="checkbox" onChange={(e) => this.onToggleVoice(e.target as HTMLInputElement)} checked={this.state.voiceEnabled} />
+            </dd>
+
+            {this.state.voiceEnabled && (
+              <>
+                <dt>Microphone</dt>
+                <dd>
+                  <select value={this.state.voiceDeviceId} onChange={this.onVoiceDeviceChange.bind(this) as any}>
+                    {this.state.voiceInputDevices.map((d) => (
+                      <option value={d.deviceId}>{d.label}</option>
+                    ))}
+                  </select>
+                </dd>
+
+                <dt>Pitch: {this.state.voicePitch > 0 ? '+' : ''}{Math.round(this.state.voicePitch)}</dt>
+                <dd>
+                  <input type="range" min={-12} max={12} step={1} value={this.state.voicePitch} onInput={this.onVoicePitchChange.bind(this) as any} />
+                </dd>
+                <dd class="full">
+                  <small>Slide down for a deeper voice, up for higher.</small>
+                </dd>
+
+                <dt>Monitor yourself</dt>
+                <dd>
+                  <input type="checkbox" onChange={(e) => this.onToggleVoiceMonitor(e.target as HTMLInputElement)} checked={this.state.voiceMonitor} />
+                </dd>
+              </>
+            )}
           </dl>
         </section>
 

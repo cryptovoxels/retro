@@ -1991,8 +1991,10 @@ section.build-tab nav.build-main-tabs {
   flex: 0 0 15rem;
   max-height: 15rem;
   min-height: 0;
+  margin-top: auto;
   overflow: auto;
   overflow-x: hidden;
+  border-top: 1px solid #333;
 
   .feature-tree {
     margin: 0;
@@ -2014,6 +2016,12 @@ section.build-tab nav.build-main-tabs {
         color: var(--red);
       }
     }
+  }
+
+  .feature-tree-parcel > .feature-tree-label {
+    display: block;
+    padding: 4px 6px;
+    font-size: 0.85em;
   }
 
   .feature-tree-row {
@@ -2038,7 +2046,6 @@ section.build-tab nav.build-main-tabs {
   min-height: 0;
   overflow: auto;
   overflow-x: hidden;
-  border-top: 1px solid #333;
 
   > section {
     display: flex;

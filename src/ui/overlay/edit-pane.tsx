@@ -4,7 +4,7 @@ import { useSignalEffect } from '@preact/signals'
 import Feature from '../../features/feature'
 import Group from '../../features/group'
 import type Parcel from '../../parcel'
-import { nearestEditableParcel, selectNearestEditableParcel, selectSelectedFeature } from '../../store'
+import { nearestEditableParcel, selectSelectedFeature } from '../../store'
 import { FeatureContext } from '../features/context'
 import { templateFromFeature } from '../../tools/feature'
 
@@ -14,12 +14,22 @@ function featureLabel(feature: Feature) {
   return feature.type.replace(/-/g, ' ')
 }
 
-type TreeNodeProps = {
+function ancestors(feature: Feature): Group[] {
+  const chain: Group[] = []
+  let g = feature.group
+  while (g) {
+    chain.unshift(g)
+    g = g.group
+  }
+  return chain
+}
+
+type RowProps = {
   feature: Feature
   selected?: Feature
 }
 
-function FeatureTreeNode({ feature, selected }: TreeNodeProps) {
+function FeatureTreeRow({ feature, selected }: RowProps) {
   const ui = window.ui
   const isSelected = selected?.uuid === feature.uuid
   const liRef = useRef<HTMLLIElement>(null)
@@ -29,34 +39,60 @@ function FeatureTreeNode({ feature, selected }: TreeNodeProps) {
     liRef.current.scrollIntoView({ block: 'nearest', behavior: 'instant' })
   }, [isSelected, feature.uuid])
 
-  const kids = feature.type === 'group' ? (feature as Group).children : []
-
   return (
     <li ref={liRef} data-uuid={feature.uuid} class={isSelected ? '-selected' : ''}>
       <div class="feature-tree-row" onClick={() => feature.openEditor()} onMouseOver={() => ui?.featureTool?.highlightFeature(feature)}>
         <span class="feature-tree-label">{featureLabel(feature)}</span>
       </div>
-      {kids.length > 0 && (
-        <ul>
-          {kids.map((child) => (
-            <FeatureTreeNode key={child.uuid} feature={child} selected={selected} />
-          ))}
-        </ul>
-      )}
     </li>
   )
 }
 
-function FeatureTree({ roots, selected }: { roots: Feature[]; selected?: Feature }) {
-  if (!roots.length) {
-    return <p>Loading...</p>
+function AncestorBranch({ chain, depth, selected }: { chain: Group[]; depth: number; selected: Feature }) {
+  const group = chain[depth]
+  const hasMore = depth < chain.length - 1
+
+  return (
+    <li data-uuid={group.uuid}>
+      <div class="feature-tree-row" onClick={() => group.openEditor()} onMouseOver={() => window.ui?.featureTool?.highlightFeature(group)}>
+        <span class="feature-tree-label">{featureLabel(group)}</span>
+      </div>
+      <ul>
+        {hasMore ? (
+          <AncestorBranch chain={chain} depth={depth + 1} selected={selected} />
+        ) : (
+          (selected.group ? selected.group.children : [selected]).map((f) => <FeatureTreeRow key={f.uuid} feature={f} selected={selected} />)
+        )}
+      </ul>
+    </li>
+  )
+}
+
+function SelectionTree({ selected }: { selected?: Feature }) {
+  if (!selected) {
+    return (
+      <ul class="feature-tree">
+        <li class="feature-tree-parcel">
+          <span class="feature-tree-label">parcel</span>
+        </li>
+      </ul>
+    )
   }
+
+  const chain = ancestors(selected)
 
   return (
     <ul class="feature-tree">
-      {roots.map((feature) => (
-        <FeatureTreeNode key={feature.uuid} feature={feature} selected={selected} />
-      ))}
+      <li class="feature-tree-parcel">
+        <span class="feature-tree-label">parcel</span>
+        <ul>
+          {chain.length ? (
+            <AncestorBranch chain={chain} depth={0} selected={selected} />
+          ) : (
+            <FeatureTreeRow feature={selected} selected={selected} />
+          )}
+        </ul>
+      </li>
     </ul>
   )
 }
@@ -75,17 +111,12 @@ export default function EditPane(props: EditPaneProps) {
     bump((n) => n + 1)
   })
   const selected = props.feature || selectSelectedFeature()
-  const featuresList = selectNearestEditableParcel()?.featuresList
-  const roots = (featuresList || []).filter((f: Feature) => !!f && !f.groupId)
   const Component = props.editor as any
   const feature = props.feature
 
   return (
     <FeatureContext.Provider value={{ templateFromFeature }}>
       <section class="edit-pane">
-        <div class="edit-pane-tree">
-          <FeatureTree roots={roots} selected={selected} />
-        </div>
         {Component && feature && (
           <div class="edit-pane-inspector editor" key={feature.uuid}>
             {h(Component, {
@@ -95,6 +126,9 @@ export default function EditPane(props: EditPaneProps) {
             })}
           </div>
         )}
+        <div class="edit-pane-tree">
+          <SelectionTree selected={selected} />
+        </div>
       </section>
     </FeatureContext.Provider>
   )

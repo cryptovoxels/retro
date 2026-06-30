@@ -37,6 +37,7 @@ import { ExplorerUI, Tab } from './ui/explorer'
 import { FeatureEditor } from './ui/features/misc'
 import HomeButton from './ui/home-button'
 import { ChatOverlay, chatSettings } from './ui/interact/chat'
+import { voiceSettings } from './voice-settings'
 import { EmoteOverlay } from './ui/interact/emote'
 import { HelpOverlay } from './ui/interact/help'
 import { ScratchpadGuide, ScratchpadGuideMini } from './ui/scratchpad-guide'
@@ -131,6 +132,7 @@ type UserInterfaceState = {
   chatEnabled: boolean
   dragging?: boolean
   voice?: 'off' | 'live' | 'muted'
+  voiceEnabled: boolean
 }
 
 export default class UserInterface extends Component<UserInterfaceProps, UserInterfaceState> {
@@ -187,6 +189,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       active: false,
       onlineCount: 0,
       chatEnabled: chatSettings.enabled,
+      voiceEnabled: voiceSettings.enabled,
     }
 
     if (window.config.isOrbit) {
@@ -221,6 +224,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   // off -> first click prompts for the mic and joins a cluster; then click toggles mute (mic stays acquired)
   toggleVoice = () => {
+    if (!voiceSettings.enabled) return
     const vc = this.connector.persona?.voiceChat
     if (!vc) return
     const v = this.state.voice
@@ -281,6 +285,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     })
 
     chatSettings.addEventListener('changed', this.onChatSettingsChange)
+    voiceSettings.addEventListener('changed', this.onVoiceSettingsChange)
 
     this.chatListDispose = effect(() => {
       messageList.value
@@ -299,6 +304,15 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   onChatSettingsChange = () => {
     this.setState({ chatEnabled: chatSettings.enabled })
+  }
+
+  onVoiceSettingsChange = () => {
+    if (!voiceSettings.enabled) {
+      void this.connector.persona?.voiceChat?.disable()
+      this.setState({ voiceEnabled: false, voice: 'off' })
+      return
+    }
+    this.setState({ voiceEnabled: true })
   }
 
   enterScratchpadGuideMini = () => {
@@ -346,6 +360,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     document.removeEventListener('fullscreenchange', this.refreshFullscreen)
     document.removeEventListener('pointerlockchange', this.onPointerLockChange)
     chatSettings.removeEventListener('changed', this.onChatSettingsChange)
+    voiceSettings.removeEventListener('changed', this.onVoiceSettingsChange)
     this.chatListDispose?.()
     // dispose the keyboard handler too - it attaches keydown/keyup on `document` in addKeyboardHandlers,
     // and without this each unmount (e.g. womp preview -> /play, every page hop) leaks a live handler.
@@ -793,17 +808,19 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           <aside data-active={this.state.active}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
-              <li title="Voice chat" class={this.state.voice === 'live' ? 'active' : ''}>
-                <a
-                  href="#"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    this.toggleVoice()
-                  }}
-                >
-                  {this.state.voice === 'live' ? 'Voice on' : this.state.voice === 'muted' ? 'Voice muted' : 'Voice off'}
-                </a>
-              </li>
+              {this.state.voiceEnabled && (
+                <li title="Voice chat" class={this.state.voice === 'live' ? 'active' : ''}>
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      this.toggleVoice()
+                    }}
+                  >
+                    {this.state.voice === 'live' ? 'Voice on' : this.state.voice === 'muted' ? 'Voice muted' : 'Voice off'}
+                  </a>
+                </li>
+              )}
               {!isMobileMedia() && (
                 /**
                  * Fullscreen toggle; no point showing "fullscreen on mobile" as most devices are always fullscreen

@@ -1,9 +1,11 @@
-import { Room, RoomEvent, Track } from 'livekit-client'
+import { LocalAudioTrack, Room, RoomEvent, Track } from 'livekit-client'
 import type Persona from './persona'
 import type Avatar from './avatar'
 import { SpatialAudio } from './audio/spatial-audio'
 import { AudioBus } from './audio/audio-engine'
 import { wantsAudio } from '../common/helpers/detector'
+import { showboxAudioConstraints } from '../common/helpers/showbox-audio-constraints'
+import { voiceSettings } from './voice-settings'
 
 const LIVEKIT_URL = 'https://voxels-7pvk06qt.livekit.cloud'
 const JOIN_RADIUS = 200
@@ -24,8 +26,22 @@ export default class VoiceChat {
   voices = new Map<string, Voice>()
   follow: BABYLON.Observer<BABYLON.Scene> | null = null
   private lastIndicatorTick = 0
+  private customMic: LocalAudioTrack | null = null
+  private rawStream: MediaStream | null = null
+  private pitchProc: ScriptProcessorNode | null = null
+  private monitorGain: GainNode | null = null
+  private monitorNode: MediaStreamAudioSourceNode | null = null
+  private onSettingsChange = () => {
+    if (!voiceSettings.enabled) {
+      void this.disable()
+      return
+    }
+    if (this.room) void this.republishMic(!this.muted && !this.broadcasting)
+  }
 
-  constructor(private persona: Persona) {}
+  constructor(private persona: Persona) {
+    voiceSettings.addEventListener('changed', this.onSettingsChange)
+  }
 
   get audio() {
     return window._audio
@@ -48,7 +64,7 @@ export default class VoiceChat {
   }
 
   async enable() {
-    if (!wantsAudio() || this.room) return
+    if (!voiceSettings.enabled || !wantsAudio() || this.room) return
     this.openSse()
     // give the SSE a beat to deliver its immediate snapshot before we pick a cluster
     if (!this.clusters.length) await new Promise((r) => setTimeout(r, 600))
@@ -70,10 +86,142 @@ export default class VoiceChat {
     this.wire(room)
     await room.connect(LIVEKIT_URL, res.token)
     await room.startAudio()
-    await room.localParticipant.setMicrophoneEnabled(true)
     this.room = room
     this.muted = false
+    await this.republishMic(true)
     this.startFollow()
+  }
+
+  async disable() {
+    this.stopFollow()
+    await this.unpublishMic()
+    try {
+      await this.room?.disconnect()
+    } catch {}
+    this.room = null
+    this.muted = false
+  }
+
+  private micDeviceId() {
+    const id = voiceSettings.deviceId
+    return id && id !== 'default' ? id : undefined
+  }
+
+  private micConstraints(): MediaTrackConstraints {
+    return showboxAudioConstraints('voice', this.micDeviceId()) as MediaTrackConstraints
+  }
+
+  private pitchShiftStream(ctx: AudioContext, stream: MediaStream, semitones: number): MediaStream {
+    const rate = Math.pow(2, semitones / 12)
+    const source = ctx.createMediaStreamSource(stream)
+    const dest = ctx.createMediaStreamDestination()
+    const ring = new Float32Array(4096 * 8)
+    let w = 0
+    let r = 0
+    let avail = 0
+    const proc = ctx.createScriptProcessor(2048, 1, 1)
+    proc.onaudioprocess = (ev) => {
+      const inp = ev.inputBuffer.getChannelData(0)
+      const out = ev.outputBuffer.getChannelData(0)
+      for (let i = 0; i < inp.length; i++) {
+        ring[w % ring.length] = inp[i]
+        w++
+        avail = Math.min(avail + 1, ring.length)
+      }
+      for (let i = 0; i < out.length; i++) {
+        if (avail < 64) {
+          out[i] = 0
+          continue
+        }
+        const ri = Math.floor(r) % ring.length
+        const ri1 = (ri + 1) % ring.length
+        const f = r - Math.floor(r)
+        out[i] = ring[ri] * (1 - f) + ring[ri1] * f
+        r += rate
+        const consumed = Math.floor(r)
+        if (consumed > 0) {
+          r -= consumed
+          avail -= consumed
+        }
+      }
+    }
+    source.connect(proc)
+    proc.connect(dest)
+    this.pitchProc = proc
+    return dest.stream
+  }
+
+  private stopRawStream() {
+    this.pitchProc?.disconnect()
+    this.pitchProc = null
+    this.rawStream?.getTracks().forEach((t) => t.stop())
+    this.rawStream = null
+  }
+
+  private stopMonitor() {
+    this.monitorNode?.disconnect()
+    this.monitorNode = null
+    if (this.monitorGain) this.monitorGain.gain.value = 0
+  }
+
+  private tapMonitor(ctx: AudioContext, stream: MediaStream) {
+    this.stopMonitor()
+    if (!voiceSettings.monitor) return
+    if (!this.monitorGain) {
+      this.monitorGain = ctx.createGain()
+      this.monitorGain.gain.value = 0
+      this.monitorGain.connect(ctx.destination)
+    }
+    this.monitorGain.gain.value = 1
+    this.monitorNode = ctx.createMediaStreamSource(stream)
+    this.monitorNode.connect(this.monitorGain)
+  }
+
+  private async unpublishMic() {
+    try {
+      if (this.customMic) {
+        await this.room?.localParticipant.unpublishTrack(this.customMic)
+        this.customMic.stop()
+        this.customMic = null
+      }
+    } catch {}
+    this.stopRawStream()
+    this.stopMonitor()
+    try {
+      await this.room?.localParticipant.setMicrophoneEnabled(false)
+    } catch {}
+  }
+
+  private async republishMic(on: boolean) {
+    if (!this.room) return
+    await this.unpublishMic()
+    if (!on) return
+
+    const pitch = voiceSettings.pitch
+    const custom = Math.abs(pitch) >= 0.01 || voiceSettings.monitor
+    if (!custom) {
+      await this.room.localParticipant.setMicrophoneEnabled(true, this.micConstraints())
+      return
+    }
+
+    const ctx = BABYLON.Engine.audioEngine?.audioContext
+    if (!ctx) {
+      await this.room.localParticipant.setMicrophoneEnabled(true, this.micConstraints())
+      return
+    }
+
+    try {
+      this.rawStream = await navigator.mediaDevices.getUserMedia({ audio: this.micConstraints() })
+      let out = this.rawStream
+      if (Math.abs(pitch) >= 0.01) out = this.pitchShiftStream(ctx, this.rawStream, pitch)
+      this.tapMonitor(ctx, out)
+      const track = out.getAudioTracks()[0]
+      if (!track) return
+      this.customMic = new LocalAudioTrack(track, this.micConstraints(), true)
+      await this.room.localParticipant.publishTrack(this.customMic)
+    } catch {
+      await this.room.localParticipant.setMicrophoneEnabled(true, this.micConstraints())
+    }
   }
 
   // sticky: once joined we never re-pick. else nearest cluster <=200m, else a new one where we stand.
@@ -196,7 +344,7 @@ export default class VoiceChat {
   setMuted(b: boolean) {
     this.muted = b
     if (this.broadcasting) return // mic stays off while showboating
-    this.room?.localParticipant.setMicrophoneEnabled(!b)
+    void this.republishMic(!b)
   }
 
   // while live on a showbox your voice goes out the screen, not your avatar - suppress the avatar mic
@@ -204,7 +352,13 @@ export default class VoiceChat {
     if (this.broadcasting === b) return
     this.broadcasting = b
     if (!this.room) return
-    this.room.localParticipant.setMicrophoneEnabled(b ? false : !this.muted)
+    void this.republishMic(b ? false : !this.muted)
+  }
+
+  private stopFollow() {
+    if (!this.follow) return
+    this.audio?.scene?.onBeforeRenderObservable.remove(this.follow)
+    this.follow = null
   }
 
   // click an avatar to locally mute it (and render it as a red anon)

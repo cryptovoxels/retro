@@ -12,7 +12,7 @@ import { fetchOptions } from './utils'
 import { AvatarLink } from './components/avatar-link'
 import { ParcelMetrics as Metrics } from './components/metrics'
 import { Client } from './client'
-import { isSplit, getParcelIdFromPath } from './helpers/coords-nav'
+import { isSplit, getParcelIdFromPath, routeWithCoords, withCoords } from './helpers/coords-nav'
 
 export interface Props {
   parcel?: ParcelWithMintednessRecord
@@ -289,7 +289,17 @@ export default class Parcel extends Component<Props, State> {
             )
           })()}
 
-        {this.isOwner && <a href={`/parcels/${this.state.parcelId}/edit`}>Edit</a>}
+        {this.isOwner && (
+          <a
+            href={withCoords(`/parcels/${this.state.parcelId}/edit`)}
+            onClick={(e) => {
+              e.preventDefault()
+              routeWithCoords(`/parcels/${this.state.parcelId}/edit`)
+            }}
+          >
+            Edit
+          </a>
+        )}
 
         {this.state.parcel ? (
           <p title="Refresh owner and parcel state from the chain (e.g. after an OpenSea sale)">
