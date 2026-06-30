@@ -2,6 +2,7 @@ import { wantsAudio } from '../../common/helpers/detector'
 import type Persona from '../persona'
 import { VoxelRadioEngine } from '../../web/src/radio/engine'
 import { FootstepSounds } from './footstep-sounds'
+import { FlySound } from './fly-sound'
 import { soundFx, SoundName } from './soundfx'
 import { SpatialAudio } from './spatial-audio'
 
@@ -82,6 +83,7 @@ export class AudioEngine {
   radio: VoxelRadioEngine | null = null
 
   footstepSounds: FootstepSounds
+  flySound: FlySound
   soundFx: Record<SoundName, BABYLON.Sound>
 
   trackOut: GainNode
@@ -112,7 +114,8 @@ export class AudioEngine {
     // avatar audio
     this.avatarOut = this.audioContext.createGain()
     this.avatarOut.gain.value = 1
-    this.footstepSounds = new FootstepSounds(this.avatarOut)
+    this.footstepSounds = new FootstepSounds(this.avatarOut, this.scene, this.soundEffectsOut)
+    this.flySound = new FlySound(this.avatarOut)
 
     // soundtrack mixer (the radio plugs into trackOut)
     this.trackOut = this.audioContext.createGain()

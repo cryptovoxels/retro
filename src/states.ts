@@ -64,9 +64,11 @@ export class Idle extends CharacterState {
 }
 
 export class Moving extends CharacterState {
-  enter(persona: Persona) {
+  enter(persona: Persona, controls: Controls) {
     persona.animation = Animations.Walk
-    persona.audio?.footstepSounds?.walk()
+    if (!controls.flying && !controls.swimming) {
+      persona.audio?.footstepSounds?.walk()
+    }
   }
 
   handleControls(persona: Persona, controls: Controls): Transition | void {
@@ -94,9 +96,11 @@ export class Moving extends CharacterState {
 }
 
 class Running extends Moving {
-  enter(persona: Persona) {
+  enter(persona: Persona, controls: Controls) {
     persona.animation = Animations.Run
-    persona.audio?.footstepSounds?.running()
+    if (!controls.flying && !controls.swimming) {
+      persona.audio?.footstepSounds?.running()
+    }
   }
 
   handleControls(persona: Persona, controls: Controls): Transition | void {
@@ -158,6 +162,8 @@ class Falling extends JumpState {
 class Flying extends CharacterState {
   enter(persona: Persona) {
     persona.animation = Animations.Floating
+    persona.audio?.footstepSounds?.noStep()
+    persona.audio?.flySound?.stop()
   }
 
   handleControls(persona: Persona, controls: Controls): Transition | void {
@@ -188,8 +194,17 @@ class Swimming extends CharacterState {
 class FloatMoving extends Moving {
   // needed to revert animations correctly when animating underwater or in the sky
 
-  enter(persona: Persona) {
+  enter(persona: Persona, controls: Controls) {
     persona.animation = Animations.Floating
+    persona.audio?.footstepSounds?.noStep()
+    if (controls.flying) {
+      persona.audio?.flySound?.start()
+    }
+  }
+
+  exit(persona: Persona) {
+    persona.audio?.footstepSounds?.noStep()
+    persona.audio?.flySound?.stop()
   }
 
   handleControls(persona: Persona, controls: Controls): Transition | void {

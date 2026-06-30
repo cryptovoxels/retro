@@ -3,6 +3,7 @@ import { app } from '../web/src/state'
 import { stringEllipsisInCanvas } from '../web/src/utils'
 import { AvatarAttachmentManager } from './attachment-manager'
 import { AudioEngine } from './audio/audio-engine'
+import { RemoteFlySound } from './audio/fly-sound'
 import { Animations, loadAnimation } from './avatar-animations'
 import type Connector from './connector'
 import { AVATAR_VIEW_DISTANCE } from './constants'
@@ -16,7 +17,6 @@ import { Bubble } from './chat'
 const ANONYMOUS_NAME = 'anon'
 const DEFAULT_SKIN_SVG =
   '<?xml version="1.0" encoding="UTF-8"?><svg width="644px" style="background-color:white" height="641px" viewBox="0 0 644 641" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"></svg>'
-const MAX_NEARBY_AVATARS_FOR_EFFECTS = 50
 
 enum LoadState {
   None,
@@ -54,6 +54,8 @@ export default class Avatar extends Entity {
   private _inConga = false
   /** Remote: uuid of the avatar they follow in conga (from multiplayer). Local unused. */
   private _congaFollowsUuid: string | null = null
+  private remoteFly?: RemoteFlySound
+  private remoteStepAt = 0
 
   constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, joined: number, uuid: string, description: AvatarRecord, isUser = false) {
     super(scene, parent, joined)
@@ -83,10 +85,6 @@ export default class Avatar extends Entity {
    */
   private static get connector(): Connector {
     return window.connector
-  }
-
-  private static get IsCrowded(): boolean {
-    return Avatar.connector.getNearbyAvatarsToSelf().length > MAX_NEARBY_AVATARS_FOR_EFFECTS
   }
 
   private _lastSeen = Date.now()
@@ -529,6 +527,9 @@ export default class Avatar extends Entity {
     this._attachmentManager?.dispose()
     this._attachmentManager = null
 
+    this.remoteFly?.dispose()
+    this.remoteFly = undefined
+
     super.dispose()
   }
 
@@ -579,13 +580,53 @@ export default class Avatar extends Entity {
     if (sqrDistance > 16 * 16 && !this.isUser) {
       this.teleportFX(this.absolutePosition, 'avatar.arrive')
     }
+
+    if (this.isUser) return
+
+    this.updateRemoteLocomotionAudio(previous)
+  }
+
+  private updateRemoteLocomotionAudio(previous: Readonly<Transform>) {
+    if (this.distanceFromCamera >= SOUND_DISTANCE) {
+      this.remoteFly?.stop()
+      return
+    }
+
+    const dx = this.position.x - previous.position.x
+    const dz = this.position.z - previous.position.z
+    const moving = dx * dx + dz * dz > 0.05 * 0.05
+    const anim = this.animation?.state
+
+    if (anim === Animations.Walk || anim === Animations.Run) {
+      this.remoteFly?.stop()
+      if (moving) {
+        const delay = anim === Animations.Run ? 300 : 490
+        if (Date.now() - this.remoteStepAt >= delay) {
+          this.remoteStepAt = Date.now()
+          Avatar.audio?.footstepSounds.playSpatialStep(this.absolutePosition, anim === Animations.Run)
+        }
+      }
+      return
+    }
+
+    if (anim === Animations.Floating && moving) {
+      const audio = Avatar.audio
+      if (!audio) return
+      if (!this.remoteFly) {
+        this.remoteFly = new RemoteFlySound(this.scene, audio.soundEffectsOut, audio.flySound.buffer)
+      }
+      if (this.remoteFly.playing) {
+        this.remoteFly.setPosition(this.absolutePosition)
+      } else {
+        this.remoteFly.start(this.absolutePosition)
+      }
+      return
+    }
+
+    this.remoteFly?.stop()
   }
 
   private useTeleportEffects(position: BABYLON.Vector3) {
-    if (Avatar.IsCrowded) {
-      return false
-    }
-
     if (!this.isLoaded()) {
       return false
     }
