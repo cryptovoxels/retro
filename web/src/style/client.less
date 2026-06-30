@@ -1932,6 +1932,17 @@ body.in-world main > aside .edit-pane-inspector {
   }
 }
 
+// these panes set overflow-x: hidden, which per spec forces overflow-y to auto and
+// makes a second scrollbar; the aside is the only scroller in split view
+body.in-world main > aside .editor,
+body.in-world main > aside section.settings {
+  overflow: visible;
+
+  .scrollContainer {
+    overflow: visible;
+  }
+}
+
 .inspector.overlay {
   width: 240px;
   inset: 40px auto 40px 40px;
