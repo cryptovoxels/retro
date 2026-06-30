@@ -38,6 +38,7 @@ import {
   enterAuthoring,
   uiAsideTick,
   uiPane,
+  sidebarClosed,
 } from './store'
 import FeatureTool from './tools/feature'
 import VoxelTool, { SelectionMode, SelectionModeOptions } from './tools/voxel'
@@ -534,7 +535,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       return
     }
 
-    if (this.state.pane === pane) {
+    // opening a pane always reveals the sidebar; if it was collapsed, reveal instead of toggling shut
+    const wasCollapsed = sidebarClosed.value
+    sidebarClosed.value = false
+
+    if (!wasCollapsed && this.state.pane === pane) {
       this.closeInteractOverlay()
       return
     }
