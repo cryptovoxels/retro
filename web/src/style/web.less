@@ -624,6 +624,12 @@ body:-webkit-full-screen.in-world main > aside.-broadcast-open {
   background: #0d0d0d;
 }
 
+// closing collapses the dock even in fullscreen; the live tab brings it back
+body:fullscreen.in-world.sidebar-closed main > aside.-broadcast-open,
+body:-webkit-full-screen.in-world.sidebar-closed main > aside.-broadcast-open {
+  display: none;
+}
+
 .showbox-broadcast-mount {
   width: 100%;
   min-height: 0;

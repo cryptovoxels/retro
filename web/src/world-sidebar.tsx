@@ -1,12 +1,13 @@
 import type { ComponentChildren } from 'preact'
 import { useSignalEffect } from '@preact/signals'
-import { useRef, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { authoring, isAuthoring, nearestEditableParcel, selectNearestEditableParcel, sidebarClosed, uiAsideTick, uiPane } from '../../src/store'
 import { Authoring } from './authoring'
 import { InWorldPane } from './in-world-pane'
 
 type Props = {
   coords: string
+  path?: string
   children: ComponentChildren
 }
 
@@ -15,9 +16,15 @@ type Props = {
 // broadcast is excluded: it has its own show/hide tab and would get trapped here.
 const PERSISTENT = new Set(['info', 'explorer', 'settings', 'help'])
 
-export function WorldSidebar({ coords, children }: Props) {
+export function WorldSidebar({ coords, path, children }: Props) {
   const [, bump] = useState(0)
   const prevKey = useRef('')
+
+  // landing on (or navigating to) a womp should reveal the sidebar so you can read it
+  useEffect(() => {
+    if (path?.startsWith('/womps/')) sidebarClosed.value = false
+  }, [path])
+
   useSignalEffect(() => {
     authoring.value
     uiPane.value
@@ -47,6 +54,7 @@ export function WorldSidebar({ coords, children }: Props) {
   if (uiPane.value === 'broadcast') {
     return (
       <aside class="-broadcast-open">
+        {close}
         <InWorldPane id="broadcast" />
       </aside>
     )

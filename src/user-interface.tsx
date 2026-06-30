@@ -1000,7 +1000,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           {nearestEditableParcel && <ToolBelt parcel={nearestEditableParcel} scene={this.props.scene} />}
 
-          <BroadcastSidebarTab fullscreen={this.state.fullscreen} />
+          <BroadcastSidebarTab />
 
           <ConnectionStatusUI connector={this.connector} grid={this.grid} scene={this.props.scene} />
           <OnlyMobile>

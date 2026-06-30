@@ -212,8 +212,11 @@ button.iconish {
   }
 }
 
+// the aside is the single scroll container in split view; inner pane sections
+// must not make a second one (that was the double-scrollbar). pin headers with
+// position: sticky instead of a nested scroller.
 body.in-world main > aside section {
-  overflow-y: auto;
+  overflow: visible;
   padding: 0.5rem;
 }
 
