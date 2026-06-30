@@ -22,6 +22,14 @@ export function WorldRightSlot({ coords, children }: Props) {
 
   if (!coords) return <>{children}</>
 
+  if (uiPane.value === 'broadcast') {
+    return (
+      <aside class="-broadcast-open">
+        <InWorldPane id="broadcast" />
+      </aside>
+    )
+  }
+
   const parcel = selectNearestEditableParcel()
   if (parcel && isAuthoring(parcel.id)) {
     return (

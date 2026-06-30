@@ -21,6 +21,8 @@ import { showboxAudioConstraints, showboxRoomHint, SHOWBOX_ROOM_OPTIONS, type Sh
 import { VideoFxProcessor, FX_PALETTES, FX_DEFAULT_PALETTE, VIDEO_FX, type FxAudio } from '../../common/helpers/showbox-video-fx'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
+import { isSplit } from '../../web/src/helpers/coords-nav'
+import { broadcastShowboxUuid, closeBroadcastSidebar, uiAsideTick, uiPane } from '../store'
 import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
 import { cohostPaneRects, MAX_COHOST_PANES } from '../../common/helpers/cohost-panes'
 import { encodeCoords } from '../../common/helpers/utils'
@@ -382,6 +384,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   broadcastRoom: Room | null = null
   scaleAspectLocked = true // screens keep their aspect ratio by default (editor lock + corner-resize honor this)
   broadcastPanel: HTMLDivElement | null = null
+  broadcastPanelSidebar = false
   broadcastChatDispose: (() => void) | null = null
   thumbCanvas: HTMLCanvasElement | null = null
   thumbInterval: ReturnType<typeof setInterval> | null = null
@@ -1472,6 +1475,55 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.mobileBroadcastHooksClear = null
   }
 
+  sidebarDock() {
+    return isSplit() && !mobile
+  }
+
+  dismissBroadcastPanel() {
+    this.broadcastPanel?.remove()
+    this.broadcastPanel = null
+    this.broadcastPanelSidebar = false
+    if (this.sidebarDock()) closeBroadcastSidebar()
+  }
+
+  applySidebarDockStyles(panel: HTMLDivElement) {
+    Object.assign(panel.style, {
+      position: 'relative',
+      zIndex: 'auto',
+      inset: 'auto',
+      top: 'auto',
+      right: 'auto',
+      left: 'auto',
+      bottom: 'auto',
+      transform: 'none',
+      width: '100%',
+      maxWidth: 'none',
+      maxHeight: 'none',
+      boxShadow: 'none',
+    })
+  }
+
+  attachBroadcastPanel(panel: HTMLDivElement) {
+    if (!this.sidebarDock()) {
+      document.body.appendChild(panel)
+      return
+    }
+    this.broadcastPanelSidebar = true
+    broadcastShowboxUuid.value = this.uuid
+    uiPane.value = 'broadcast'
+    uiAsideTick.value++
+    this.applySidebarDockStyles(panel)
+    const attach = () => {
+      const mount = document.getElementById('showbox-broadcast-mount')
+      if (!mount) {
+        requestAnimationFrame(attach)
+        return
+      }
+      mount.appendChild(panel)
+    }
+    attach()
+  }
+
   restoreLiveDockUi() {
     if (!this.broadcastDockLiveLabel) return
     this.broadcastDockLiveLabel.textContent = 'live'
@@ -1887,8 +1939,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.broadcastStopping = true
     this.cameraResumeGen++
     this.stopBroadcast(true)
-    this.broadcastPanel?.remove()
-    this.broadcastPanel = null
+    this.dismissBroadcastPanel()
     this.clearBroadcastDockUi()
     this.setPreview()
   }
@@ -2490,8 +2541,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.stopStreamVolumePoll()
     this.stopCohostComposite()
     this.stopBroadcast(true)
-    this.broadcastPanel?.remove()
-    this.broadcastPanel = null
+    this.dismissBroadcastPanel()
     this.clearBroadcastDockUi()
     this.hostJoinLoginPending = false
     this.audio?.removeUserAudioReference(this)
@@ -3309,8 +3359,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.isMirror()) return
     if (this.broadcastPanel) {
       if (openOnly) return
-      this.broadcastPanel.remove()
-      this.broadcastPanel = null
+      this.dismissBroadcastPanel()
       this.stopBroadcast()
       this.clearBroadcastDockUi()
       return
@@ -3390,6 +3439,15 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     const setDesktopDockLayout = (live: boolean) => {
       if (mobile) return
+      if (this.broadcastPanelSidebar) {
+        panel.style.width = '100%'
+        panel.style.maxHeight = 'none'
+        panel.style.top = 'auto'
+        panel.style.right = 'auto'
+        panel.style.left = 'auto'
+        panel.style.transform = 'none'
+        return
+      }
       panel.style.top = live ? '12px' : '50%'
       panel.style.right = live ? '12px' : 'auto'
       panel.style.left = live ? 'auto' : '50%'
@@ -4366,8 +4424,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.broadcastChatDispose()
         this.broadcastChatDispose = null
       }
-      this.broadcastPanel?.remove()
-      this.broadcastPanel = null
+      this.dismissBroadcastPanel()
     }
 
     // Mobile chat lives in the dock when live - bottom sheet covers world chat. Desktop uses normal chat.
@@ -4566,7 +4623,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       desktopKids.push(moveRow, status, row, cancelBtn)
       panel.append(...desktopKids)
     }
-    document.body.appendChild(panel)
+    this.attachBroadcastPanel(panel)
 
     navigator.mediaDevices.enumerateDevices().then((devices) => {
       const cams = devices.filter((d) => d.kind === 'videoinput')
@@ -4678,8 +4735,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.mobileBroadcastHooksClear?.()
         // stopping ends the show - close the dock entirely instead of bouncing back to the go-live form
         this.stopBroadcast()
-        this.broadcastPanel?.remove()
-        this.broadcastPanel = null
+        this.dismissBroadcastPanel()
         this.clearBroadcastDockUi()
         this.setPreview()
         return
@@ -4687,8 +4743,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
       // stream already ended but the dock is still open - dismiss, don't start a second go-live
       if (this.broadcastLost) {
-        this.broadcastPanel?.remove()
-        this.broadcastPanel = null
+        this.dismissBroadcastPanel()
         this.clearBroadcastDockUi()
         this.setPreview()
         return

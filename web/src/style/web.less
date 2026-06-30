@@ -584,6 +584,44 @@ body:-webkit-full-screen .client-placeholder {
   z-index: 1;
 }
 
+// Fullscreen: broadcast controls slide in from the right; canvas stays full viewport.
+body:fullscreen.in-world main > aside.-broadcast-open,
+body:-webkit-full-screen.in-world main > aside.-broadcast-open {
+  display: block;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(360px, 36vw);
+  z-index: 4;
+  overflow-y: auto;
+  padding: 1rem;
+  background: #0d0d0d;
+}
+
+.showbox-broadcast-mount {
+  width: 100%;
+  min-height: 0;
+}
+
+.broadcast-sidebar-tab {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  padding: 0.75rem 0.5rem;
+  background: #0d0d0d;
+  color: var(--red);
+  border: 0;
+  border-left: 2px solid var(--red);
+  font-family: 'source code pro', monospace;
+  font-size: 12px;
+  cursor: pointer;
+  writing-mode: vertical-rl;
+  text-orientation: mixed;
+}
+
 dialog.first-time {
   position: absolute;
   inset: 0;
