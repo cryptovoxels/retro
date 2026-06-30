@@ -245,7 +245,7 @@ export default abstract class Controls implements IControls {
 
     const saved = cam.position.clone()
     try {
-      if (!window.config.isOrbit && !this.firstPersonView && this.persona) {
+      if (!window.config.isOrbit && this.persona) {
         const q = BABYLON.Quaternion.RotationYawPitchRoll(cam.rotation.y, cam.rotation.x, cam.rotation.z)
         const back = new BABYLON.Vector3(0, 0, -1).rotateByQuaternionToRef(q, new BABYLON.Vector3())
         cam.position.copyFrom(this.persona.position.add(back.scale(this.cameraDistance)))
@@ -255,7 +255,7 @@ export default abstract class Controls implements IControls {
       const engine = this.scene.getEngine()
       const px = x ?? engine.getRenderWidth() / 2
       const py = y ?? engine.getRenderHeight() / 2
-      const pick = this.scene.pick(px, py, predicate)
+      const pick = this.scene.pick(px, py, predicate, false, cam)
 
       if (pick?.pickedPoint) pick.pickedPoint = pick.pickedPoint.subtract(this.worldOffset.position)
       return pick ?? null

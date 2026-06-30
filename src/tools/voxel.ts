@@ -339,6 +339,7 @@ export default class Selector implements Tool {
     this.selection.start = undefined
     this.selection.end = undefined
     this.selection.count = 1
+    this.applyPointerMode(e)
     this.onMove(pickResult)
 
     this.mousedown = true
@@ -387,20 +388,8 @@ export default class Selector implements Tool {
       return
     }
 
-    // todo - repick on keypress but no mousemove
-
-    // When we activate remove mode from the "Activate Erase Tool" we don't want to update the tool
-    // using keyboard controls
-    if (!this.selection.fixedMode) {
-      // TODO: rewrite this to use a much better method of switching modes on keypress instead of on mouse move
-
-      if (this.controls.shiftKey) {
-        this.selection.mode = SelectionMode.Remove
-      } else if (this.controls.ctrlKey) {
-        this.selection.mode = SelectionMode.Paint
-      } else {
-        this.selection.mode = SelectionMode.Add
-      }
+    if (this.mousedown) {
+      this.applyPointerMode()
     }
 
     const voxelCenter = this.getVoxelCenter(pickResult, this.selection.mode)
@@ -474,6 +463,19 @@ export default class Selector implements Tool {
     const z2 = Math.max(a.z, b.z)
 
     return new BABYLON.BoundingBox(new BABYLON.Vector3(x1, y1, z1), new BABYLON.Vector3(x2, y2, z2))
+  }
+
+  private applyPointerMode(e?: BABYLON.IMouseEvent) {
+    if (this.selection.fixedMode) return
+    const shift = e?.shiftKey ?? this.controls.shiftKey
+    const ctrl = e?.ctrlKey ?? e?.metaKey ?? this.controls.ctrlKey
+    if (shift) {
+      this.selection.mode = SelectionMode.Remove
+    } else if (ctrl) {
+      this.selection.mode = SelectionMode.Paint
+    } else {
+      this.selection.mode = SelectionMode.Add
+    }
   }
 
   getVoxelCenter(pickResult: BABYLON.PickingInfo, mode: SelectionMode): BABYLON.Vector3 | null {
