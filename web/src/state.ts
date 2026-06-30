@@ -92,6 +92,8 @@ export class Appstate extends State {
   rememberSignIn = false
   showSnackbar = Snackbar.show ?? console.log
   playPreview = signal<{ returnPath: string } | null>(null)
+  // the world the "Play" button enters: set by the parcel/womp page you're viewing
+  visitUrl = signal<string | undefined>(undefined)
   private lastOnlineIntervalHandle: NodeJS.Timeout | null = null
 
   constructor() {
