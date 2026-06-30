@@ -3,14 +3,9 @@ import Feature from './features/feature'
 import Group from './features/group'
 import { signal } from '@preact/signals'
 import Grid from './grid'
-import { app } from '../web/src/state'
-import { PanelType } from '../web/src/components/panel'
-
 export type CheckedFeatures = Record<string, Feature>
 
 const TICK = 500
-
-const featuresAreRoot = (features: Feature[]) => features.every((f) => !f.groupId)
 
 setInterval(() => {
   const grid = window.grid as Grid
@@ -57,9 +52,6 @@ const actions = {
     const on = list.some((f) => f.uuid === feature.uuid)
     if (on) {
       list = list.filter((f) => f.uuid !== feature.uuid)
-    } else if (!featuresAreRoot([...list, feature])) {
-      app.showSnackbar('Multi-select currently works for ungrouped features only.', PanelType.Danger)
-      return
     } else {
       list = [...list, feature]
     }
@@ -88,23 +80,32 @@ const actions = {
 
     const groups = selection.filter((f) => f.type === 'group') as Group[]
     const rest = selection.filter((f) => f.type !== 'group')
-
-    if (groups.length === 1 && rest.length) {
-      const toAdd = rest.filter((f) => !f.groupId)
-      if (toAdd.length) {
-        groups[0].addChildren(toAdd)
-        actions.setCheckedFeatures([])
-        window.ui?.featureTool.unHighlight()
-        window.ui?.showEditBrowse()
-        return
-      }
+    const done = () => {
+      actions.setCheckedFeatures([])
+      window.ui?.featureTool.unHighlight()
     }
 
-    const roots = selection.filter((f) => f.type !== 'group' && !f.groupId)
-    if (roots.length < 2) return
+    if (groups.length === 0) {
+      if (selection.length < 2) return
+      window.ui?.featureTool.createGroup(selection as any)
+      done()
+      return
+    }
 
-    window.ui?.featureTool.createGroup(roots as any)
-    actions.setCheckedFeatures([])
+    if (groups.length === 1) {
+      const target = groups[0]
+      const toAdd = rest.filter((f) => f.groupId !== target.uuid)
+      if (!toAdd.length) return
+      target.addChildren(toAdd)
+      done()
+      window.ui?.showEditBrowse()
+      return
+    }
+
+    const groupIds = new Set(groups.map((g) => g.uuid))
+    const toWrap = [...groups, ...rest.filter((f) => !f.groupId || !groupIds.has(f.groupId))]
+    window.ui?.featureTool.createGroup(toWrap as any)
+    done()
   },
 }
 
