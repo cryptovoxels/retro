@@ -388,6 +388,13 @@ export default class Selector implements Tool {
       return
     }
 
+    // First person builds through the locked reticule; once you Escape to free the cursor
+    // there's no aim point, so don't leave a ghost block stuck under the mouse.
+    if (this.controls.firstPersonView && !hasPointerLock()) {
+      this.box.visibility = 0
+      return
+    }
+
     if (this.mousedown) {
       this.applyPointerMode()
     }
