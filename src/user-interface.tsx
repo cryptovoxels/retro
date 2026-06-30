@@ -25,7 +25,19 @@ import type { MinimapSettings } from './minimap'
 import Parcel from './parcel'
 import { isScratchpad } from './scene-config'
 import { onLoadPromise } from './utils/loading-done'
-import { selectCurrentOrNearestParcel, selectNearestEditableParcel, selectSelectedFeature, selectCheckedFeatures, setCheckedFeatures, setSelectedFeature, toggleCheckedFeature, uiAsideTick, uiPane } from './store'
+import {
+  selectCurrentOrNearestParcel,
+  selectNearestEditableParcel,
+  selectSelectedFeature,
+  selectCheckedFeatures,
+  selectedFeature,
+  setCheckedFeatures,
+  setSelectedFeature,
+  toggleCheckedFeature,
+  enterAuthoring,
+  uiAsideTick,
+  uiPane,
+} from './store'
 import FeatureTool from './tools/feature'
 import VoxelTool, { SelectionMode, SelectionModeOptions } from './tools/voxel'
 import ConnectionStatusUI from './ui/connection-status'
@@ -243,6 +255,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   openEditor(editor: FeatureEditor, feature: Feature) {
     setCheckedFeatures([])
     setSelectedFeature(feature)
+    enterAuthoring(feature.parcel.id)
     uiPane.value = 'edit'
     this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'edit', active: true })
     exitPointerLock()
@@ -254,6 +267,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     const seed = this.featureTool.selection?.feature as Feature | undefined
     toggleCheckedFeature(feature, seed)
 
+    enterAuthoring(feature.parcel.id)
     uiPane.value = 'edit'
     this.featureTool.setMode('edit')
     this.featureTool.highlightFeature(feature as any)
@@ -500,6 +514,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     if (this.state.pane === pane) {
       this.closeInteractOverlay()
       return
+    }
+
+    if (pane === 'edit' || pane === 'add' || pane === 'voxels') {
+      const p = selectNearestEditableParcel()
+      if (p && (p.canEdit || app.isAdmin())) enterAuthoring(p.id)
     }
 
     uiPane.value = pane

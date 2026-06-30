@@ -118,3 +118,16 @@ export const selectCheckedFeatures = (): CheckedFeatures => {
 
 export const uiPane = signal<string | undefined>(undefined)
 export const uiAsideTick = signal(0)
+
+export const authoring = signal<Set<number>>(new Set())
+
+export const enterAuthoring = (id: number) => {
+  const s = new Set(authoring.value)
+  s.add(id)
+  authoring.value = s
+}
+
+export const isAuthoring = (id?: number) => {
+  const pid = id ?? selectNearestEditableParcel()?.id
+  return pid != null && authoring.value.has(pid)
+}

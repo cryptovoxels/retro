@@ -1,10 +1,11 @@
+import type { ComponentChildren } from 'preact'
 import { h } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { useSignalEffect } from '@preact/signals'
 import Feature from '../../features/feature'
 import Group from '../../features/group'
 import type Parcel from '../../parcel'
-import { checkedFeatures, deleteCheckedFeatures, groupCheckedFeatures, nearestEditableParcel, selectCheckedFeatures, selectSelectedFeature } from '../../store'
+import { checkedFeatures, deleteCheckedFeatures, groupCheckedFeatures, nearestEditableParcel, selectCheckedFeatures, selectNearestEditableParcel, selectSelectedFeature } from '../../store'
 import { FeatureContext } from '../features/context'
 import { templateFromFeature } from '../../tools/feature'
 
@@ -49,6 +50,35 @@ function FeatureTreeRow({ feature, selected, checked }: RowProps) {
   )
 }
 
+function FeatureTreeNode({ feature, selected }: { feature: Feature; selected?: Feature }) {
+  const kids = feature.type === 'group' ? (feature as Group).children : []
+
+  return (
+    <li data-uuid={feature.uuid}>
+      <FeatureTreeRow feature={feature} selected={selected} />
+      {kids.length > 0 && (
+        <ul>
+          {kids.map((child) => (
+            <FeatureTreeNode key={child.uuid} feature={child} selected={selected} />
+          ))}
+        </ul>
+      )}
+    </li>
+  )
+}
+
+function FullFeatureTree({ roots, selected }: { roots: Feature[]; selected?: Feature }) {
+  if (!roots.length) return <p>Loading...</p>
+
+  return (
+    <ul>
+      {roots.map((f) => (
+        <FeatureTreeNode key={f.uuid} feature={f} selected={selected} />
+      ))}
+    </ul>
+  )
+}
+
 function AncestorBranch({ chain, depth, selected }: { chain: Group[]; depth: number; selected: Feature }) {
   const group = chain[depth]
   const hasMore = depth < chain.length - 1
@@ -63,13 +93,32 @@ function AncestorBranch({ chain, depth, selected }: { chain: Group[]; depth: num
   )
 }
 
-function SelectionTree({ selected }: { selected?: Feature }) {
+function ParcelRoot({ browse, onParcelClick, children }: { browse?: boolean; onParcelClick?: () => void; children?: ComponentChildren }) {
+  return (
+    <li class={'feature-tree-parcel' + (browse ? '' : ' -active')}>
+      <div class="feature-tree-row" onClick={browse ? undefined : onParcelClick}>
+        <span class="feature-tree-label">parcel</span>
+      </div>
+      {children}
+    </li>
+  )
+}
+
+function SelectionTree({ selected, browse, roots, onParcelClick }: { selected?: Feature; browse?: boolean; roots: Feature[]; onParcelClick: () => void }) {
+  if (browse) {
+    return (
+      <ul class="feature-tree">
+        <ParcelRoot browse>
+          <FullFeatureTree roots={roots} />
+        </ParcelRoot>
+      </ul>
+    )
+  }
+
   if (!selected) {
     return (
       <ul class="feature-tree">
-        <li class="feature-tree-parcel">
-          <span class="feature-tree-label">parcel</span>
-        </li>
+        <ParcelRoot browse onParcelClick={onParcelClick} />
       </ul>
     )
   }
@@ -78,25 +127,23 @@ function SelectionTree({ selected }: { selected?: Feature }) {
 
   return (
     <ul class="feature-tree">
-      <li class="feature-tree-parcel">
-        <span class="feature-tree-label">parcel</span>
+      <ParcelRoot onParcelClick={onParcelClick}>
         <ul>{chain.length ? <AncestorBranch chain={chain} depth={0} selected={selected} /> : <FeatureTreeRow feature={selected} selected={selected} />}</ul>
-      </li>
+      </ParcelRoot>
     </ul>
   )
 }
 
-function MultiSelectionTree({ features }: { features: Feature[] }) {
+function MultiSelectionTree({ features, onParcelClick }: { features: Feature[]; onParcelClick: () => void }) {
   return (
     <ul class="feature-tree">
-      <li class="feature-tree-parcel">
-        <span class="feature-tree-label">parcel</span>
+      <ParcelRoot onParcelClick={onParcelClick}>
         <ul>
           {features.map((f) => (
             <FeatureTreeRow key={f.uuid} feature={f} checked />
           ))}
         </ul>
-      </li>
+      </ParcelRoot>
     </ul>
   )
 }
@@ -119,10 +166,14 @@ export default function EditPane(props: EditPaneProps) {
   const checked = selectCheckedFeatures()
   const multi = Object.keys(checked).length > 0
   const checkedList = Object.values(checked)
-  const selected = props.feature || selectSelectedFeature()
+  const browse = !multi && !(props.editor && props.feature)
+  const selected = browse ? undefined : props.feature || selectSelectedFeature()
+  const roots = (selectNearestEditableParcel()?.featuresList || []).filter((f: Feature) => !!f && !f.groupId)
   const Component = props.editor as any
   const feature = props.feature
   const spawn = checkedList.some((f) => f.description.type === 'spawn-point')
+
+  const onParcelClick = () => window.ui?.showEditBrowse()
 
   return (
     <FeatureContext.Provider value={{ templateFromFeature }}>
@@ -137,7 +188,7 @@ export default function EditPane(props: EditPaneProps) {
           </div>
         )}
         <div class="edit-pane-tree">
-          {multi ? <MultiSelectionTree features={checkedList} /> : <SelectionTree selected={selected} />}
+          {multi ? <MultiSelectionTree features={checkedList} onParcelClick={onParcelClick} /> : <SelectionTree selected={selected} browse={browse} roots={roots} onParcelClick={onParcelClick} />}
           {multi && (
             <div class="edit-pane-multi-actions">
               <button disabled={spawn || !checkedList.length} onClick={() => groupCheckedFeatures()}>
