@@ -1,4 +1,6 @@
 import { GroupRecord } from '../../common/messages/feature'
+import { Position, Rotation, Behaviours, EditorProps } from '../../web/src/components/editor'
+import { FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { FeatureTemplate } from './_metadata'
 import Feature, { MeshExtended, NonMeshedFeature, transformVectors } from './feature'
 import { boundingBoxesOfFeatures, boundingBoxOfBoundingBoxes } from './utils/bounding-box'
@@ -21,6 +23,7 @@ const getTransformArrays = (
 }
 
 export default class Group extends NonMeshedFeature<GroupRecord> {
+  static Editor: typeof Editor
   static template: FeatureTemplate = {
     scale: [1, 1, 1],
     type: 'group',
@@ -139,3 +142,30 @@ export default class Group extends NonMeshedFeature<GroupRecord> {
     this.delete()
   }
 }
+
+class Editor extends FeatureEditor<Group> {
+  render() {
+    const f = this.props.feature
+    return (
+      <section>
+        <header>
+          <h2>Edit Group</h2>
+          <button onClick={this.onBackClick} class="close">
+            <span>&times;</span>
+          </button>
+        </header>
+        <div className="scrollContainer">
+          <Toolbar feature={f} scene={this.props.scene} />
+          <EditorProps>
+            <Position feature={f} key={f.position.toString()} />
+            <Rotation feature={f} key={f.rotation.toString()} />
+            <FeatureID feature={f} />
+            <Behaviours feature={f} />
+          </EditorProps>
+        </div>
+      </section>
+    )
+  }
+}
+
+Group.Editor = Editor

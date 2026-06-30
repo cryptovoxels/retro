@@ -38,7 +38,7 @@ import { cameraPosition, cameraRotation, setCameraRotation } from '../utils/came
 import { emote as emoteParticles } from '../utils/emote'
 import { AudioBus } from '../audio/audio-engine'
 import { SpatialAudio } from '../audio/spatial-audio'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
 
@@ -5285,7 +5285,6 @@ class Editor extends FeatureEditor<Showbox> {
             )}
             <Advanced>
               <FeatureID feature={this.props.feature} />
-              <SetParentDropdown feature={this.props.feature} />
               {!isMirror && (
                 <div className="f">
                   <label>Spatial Rolloff Factor</label>

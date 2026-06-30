@@ -3,7 +3,7 @@ import { ImageMode, ImageRecord, WrapMode } from '../../common/messages/feature'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { fetchSpinnerTexture, fetchTexture } from '../textures/textures'
 import { rebindGizmosBoundToFeature } from '../tools/gizmos'
-import { Advanced, Animation, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, SetParentDropdown, Toolbar, UrlSourceImages } from '../ui/features'
+import { Advanced, Animation, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, Toolbar, UrlSourceImages } from '../ui/features'
 import { tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D, MeshExtended, TransparencyMode } from './feature'
@@ -239,7 +239,6 @@ class Editor extends FeatureEditor<Image> {
               <Animation feature={this.props.feature} />
 
               <FeatureID feature={this.props.feature} />
-              <SetParentDropdown feature={this.props.feature} />
 
               <Hyperlink feature={this.props.feature} />
 

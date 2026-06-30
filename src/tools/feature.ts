@@ -20,7 +20,6 @@ import { distanceToAABB } from '../utils/boundaries'
 import { getTransformVectorsRelativeToNode } from '../utils/feature'
 import { bboxCompletelyWithin } from '../utils/helpers'
 import { cameraPosition } from '../utils/camera'
-import { generateName } from './name-generator'
 
 type AABB = {
   min: BABYLON.Vector3
@@ -90,6 +89,7 @@ export default class FeatureTool implements Tool {
 
   spawnPoint: BABYLON.Vector3 = BABYLON.Vector3.Zero()
   spawnRotation: BABYLON.Vector3 = BABYLON.Vector3.Zero()
+  lastPick: BABYLON.PickingInfo | null = null
   spawnFeatureLoadingMesh: BABYLON.Mesh | null = null
   overrideOnClick: (() => void) | undefined = undefined
   clickAction: any
@@ -311,11 +311,6 @@ export default class FeatureTool implements Tool {
 
     this.enabled.value = true
 
-    // Load the feature
-    if (this.selection.mode === 'add' && this.selection.featureTemplate) {
-      this.addPrematureFeature(this.selection.featureTemplate!)
-    }
-
     this.scene.onPointerObservable.add(this.onPointerObservable)
   }
 
@@ -335,6 +330,7 @@ export default class FeatureTool implements Tool {
       this.spawnFeatureLoadingMesh!.isVisible = false
       this.spawnFeatureLoadingMesh!.parent = null!
     }
+    this.lastPick = null
   }
 
   /**
@@ -380,7 +376,6 @@ export default class FeatureTool implements Tool {
 
     const group = (await this.addFeature(Group.template)) as Group
     group.addChildren(features)
-    group.set({ id: generateName() })
   }
   private _prematureFeature: Feature | null = null
   private async addPrematureFeature(featureTemplate: FeatureTemplate & { uuid?: string }, conserveUuid = false): Promise<void> {
@@ -391,7 +386,7 @@ export default class FeatureTool implements Tool {
 
     this.spawnFeatureLoadingMesh!.parent = this.parcel!.transform!
 
-    featureTemplate.position = featureTemplate.position || this.spawnPoint.asArray()
+    featureTemplate.position = this.spawnPoint.asArray()
     featureTemplate.rotation = spawnRotation
 
     const featureUuid = (conserveUuid && featureTemplate.uuid) || uuid()
@@ -414,6 +409,18 @@ export default class FeatureTool implements Tool {
         if (feature.mesh) {
           feature.isPickable = false
         }
+        if (this.lastPick && this.selection.mode === 'add') {
+          this.updateSelectorAndSpawnPoint(this.lastPick)
+          this.spawnFeatureLoadingMesh?.position.copyFrom(this.selector.position)
+          this.spawnFeatureLoadingMesh?.scaling.copyFrom(this.selector.scaling)
+          this.spawnFeatureLoadingMesh?.rotation.copyFrom(this.selector.rotation)
+          feature.update({
+            position: this.spawnPoint.asArray() as [number, number, number],
+            rotation: this.spawnRotation.asArray() as [number, number, number],
+          })
+        }
+        this.selector.computeWorldMatrix()
+        this.refreshBounds()
       })
       .catch((err) => {
         console.error('Error generating premature feature:', err)
@@ -440,7 +447,7 @@ export default class FeatureTool implements Tool {
     //Delete the rotate attribute after having set the rotation so we don't accidentally reset the rotation on replicate
     // delete featureTemplate.rotate
 
-    featureTemplate.position = featureTemplate.position || this.spawnPoint.asArray()
+    featureTemplate.position = this.spawnPoint.asArray()
     featureTemplate.rotation = spawnRotation
 
     // @see tools/feature.ts -> moveFeature()
@@ -456,7 +463,6 @@ export default class FeatureTool implements Tool {
     feature.sendToServer()
 
     if (feature instanceof Group && featureTemplate.children) {
-      !feature.description.id && feature.set({ id: generateName() })
       await Promise.all(
         featureTemplate.children.map((featureTemplate: any) => {
           featureTemplate.groupId = feature.uuid
@@ -571,15 +577,20 @@ export default class FeatureTool implements Tool {
       return
     }
 
-    this.updateSelectorAndSpawnPoint(pickResult)
+    this.lastPick = pickResult
 
-    // Update premature position
+    if (!this.updateSelectorAndSpawnPoint(pickResult)) {
+      return
+    }
+
     if (this.selection.mode === 'add') {
+      if (!this._prematureFeature && this.selection.featureTemplate) {
+        this.addPrematureFeature(this.selection.featureTemplate)
+      }
       if (this._prematureFeature) {
-        // Move the loading mesh to match the premature feature (show a preview of where the feature will be placed while it loads)
-        this.spawnFeatureLoadingMesh?.position.copyFrom(this.spawnPoint)
-        this.spawnFeatureLoadingMesh?.rotation.copyFrom(this.spawnRotation)
-        // Update premature feature position without spamming the DB about the change (because it hasn't been added yet)
+        this.spawnFeatureLoadingMesh?.position.copyFrom(this.selector.position)
+        this.spawnFeatureLoadingMesh?.scaling.copyFrom(this.selector.scaling)
+        this.spawnFeatureLoadingMesh?.rotation.copyFrom(this.selector.rotation)
         this._prematureFeature.update({
           position: this.spawnPoint.asArray() as [number, number, number],
           rotation: this.spawnRotation.asArray() as [number, number, number],
@@ -939,7 +950,8 @@ export default class FeatureTool implements Tool {
       const spawnPoint = pickedPointRounded.clone()
       // this.selection.feature is not null after COPY mode
       // Returns null or an array of the actual scale of the feature (boundingbox size * scale of the feature)
-      const accurateScale = getAccurateScaleGivenBoundingBox(this.selection.featureTemplate, this.selection.feature?.boundingBox || null)
+      const bb = this.selection.feature?.boundingBox || (this._prematureFeature as MeshedFeature | null)?.boundingBox || null
+      const accurateScale = getAccurateScaleGivenBoundingBox(this.selection.featureTemplate, bb)
       const featureTemplateScale = this.selection.featureTemplate.scale
       const featureScale = () => (accurateScale ? accurateScale : featureTemplateScale)
       const isFeatureTemplate3D = getAxes(this.selection.featureTemplate.type).length == 1
@@ -957,6 +969,9 @@ export default class FeatureTool implements Tool {
       spawnPoint.y += pivotToBottomOfBoundingBoxDefault(this.selection.featureTemplate.type, featureScale())
       spawnPoint.subtractInPlace(parcel.transform.position)
       selectorPoint.subtractInPlace(parcel.transform.position)
+      if (bb) {
+        spawnPoint.y -= bb.minimum.y * featureTemplateScale[1]
+      }
       // Tells us if feature is on wall (or not if false), and also which wall (x or z)
       const onWall = normalIsFromWall(pickedNormal)
       const onCeiling = pickedNormal.y === -1

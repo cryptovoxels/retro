@@ -5,7 +5,7 @@ import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/sr
 import Panel from '../../web/src/components/panel'
 import { AudioBus } from '../audio/audio-engine'
 import { SpatialAudio } from '../audio/spatial-audio'
-import { Advanced, Animation, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UrlSourceVideos } from '../ui/features'
+import { Advanced, Animation, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UrlSourceVideos } from '../ui/features'
 import { isURL, tidyFloat } from '../utils/helpers'
 import { opensea, readOpenseaUrl } from '../utils/proxy'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -610,7 +610,6 @@ class Editor extends FeatureEditor<Video> {
 
             <Advanced>
               <FeatureID feature={this.props.feature} />
-              <SetParentDropdown feature={this.props.feature} />
 
               <div className="f">
                 <label>

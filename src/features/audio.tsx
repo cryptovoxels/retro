@@ -3,7 +3,7 @@ import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { AudioRecord } from '../../common/messages/feature'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { AudioBus, SoundParams } from '../audio/audio-engine'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UrlSourceAudio } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UrlSourceAudio } from '../ui/features'
 import OpenLink from '../ui/open-link'
 import { opensea, readOpenseaUrl } from '../utils/proxy'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -632,7 +632,6 @@ class Editor extends FeatureEditor<Audio> {
 
             <Advanced>
               <FeatureID feature={this.props.feature} />
-              <SetParentDropdown feature={this.props.feature} />
 
               <div className="f">
                 <label>Sprite</label>

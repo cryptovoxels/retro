@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'preact/hooks'
 import { requestPointerLock } from '../../../common/helpers/ui-helpers'
 import Pagination from '../../../web/src/components/pagination'
+import { featureTemplates, PlaceableFeatureTypes } from '../../features/_metadata'
 import { LibraryAsset } from '../../library-asset'
 import { AssetCard } from './asset-card'
 
 interface AssetBrowserProps {
   loading: boolean
-  onClick: (asset: LibraryAsset) => void
   assets: LibraryAsset[]
   total: number
   /* for pagination */
@@ -27,7 +27,11 @@ export function AssetBrowser(props: AssetBrowserProps) {
     delete template.rotation
 
     if (!template.scale) {
-      template.scale = [4, 4, 4]
+      template.scale = [...featureTemplates[template.type as PlaceableFeatureTypes].scale]
+    }
+    // vox models uploaded without scale got [4,4,4] baked in server-side
+    if (template.type === 'vox-model' && template.scale.every((s: number) => s === 4)) {
+      template.scale = [...featureTemplates['vox-model'].scale]
     }
 
     if (asset.type !== 'script') {
@@ -44,26 +48,8 @@ export function AssetBrowser(props: AssetBrowserProps) {
   }
 
   const assets = props.assets.map((asset) => (
-    <div class="asset-card-container" key={asset.id} onClick={() => props.onClick(asset)}>
+    <div class="asset-card-container" key={asset.id} onClick={() => spawnOnClick(asset)}>
       <AssetCard asset={asset} />
-      <div class="asset-card-actions">
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            props.onClick(asset)
-          }}
-        >
-          Inspect
-        </button>
-        <button
-          onClick={(e) => {
-            e.stopPropagation()
-            spawnOnClick(asset)
-          }}
-        >
-          Spawn
-        </button>
-      </div>
     </div>
   ))
 

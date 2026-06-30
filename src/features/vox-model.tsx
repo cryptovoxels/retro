@@ -3,7 +3,7 @@ import { MegavoxRecord, VoxModelRecord } from '../../common/messages/feature'
 import { Options as VoxImportOptions, voxImporter } from '../../common/vox-import/vox-import'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import Panel from '../../web/src/components/panel'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, SetParentDropdown, Toolbar, UrlSourceVoxModels } from '../ui/features'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, Toolbar, UrlSourceVoxModels } from '../ui/features'
 import { isURL } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, FeatureEvent, MeshExtended, transformVectors } from './feature'
@@ -250,7 +250,6 @@ class Editor extends FeatureEditor<VoxModel> {
               <Animation feature={this.props.feature} />
 
               <FeatureID feature={this.props.feature} />
-              <SetParentDropdown feature={this.props.feature} />
 
               <Hyperlink feature={this.props.feature} />
 

@@ -261,10 +261,19 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     exitPointerLock()
   }
 
-  editShiftSelect(feature: Feature) {
-    if (!feature.parcel?.canEdit) return
+  clearAllExplore() {
+    setCheckedFeatures([])
+    selectedFeature.value = undefined
+    uiPane.value = undefined
+    this.featureTool.unHighlight()
+    this.deactivateTools()
+    this.setState({ pane: undefined, active: false, feature: undefined, editor: undefined })
+  }
 
-    const seed = this.featureTool.selection?.feature as Feature | undefined
+  editShiftSelect(feature: Feature) {
+    if (!feature.parcel?.canEdit || hasPointerLock()) return
+
+    const seed = selectSelectedFeature() ?? (this.featureTool.selection?.feature as Feature | undefined)
     toggleCheckedFeature(feature, seed)
 
     enterAuthoring(feature.parcel.id)
@@ -415,8 +424,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   onPointerLockChange = () => {
     if (document.pointerLockElement) {
       app.emit(AppEvent.CanvasEngaged)
-      uiPane.value = undefined
-      this.setState({ pane: undefined, active: false })
     }
   }
 

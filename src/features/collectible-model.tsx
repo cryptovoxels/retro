@@ -11,7 +11,6 @@ import {
   FeatureEditor,
   FeatureEditorProps,
   FeatureID,
-  SetParentDropdown,
   Toolbar,
   UrlSourceCollectibleModels,
 } from '../ui/features'
@@ -356,7 +355,6 @@ class Editor extends FeatureEditor<CollectibleModel> {
 
             <Advanced>
               <FeatureID feature={this.props.feature} />
-              <SetParentDropdown feature={this.props.feature} />
               {!window.config.isSpace && (
                 <div className="f">
                   <label>Interactivity Options</label>

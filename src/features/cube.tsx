@@ -1,7 +1,7 @@
 import { CubeRecord } from '../../common/messages/feature'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { fetchTexture } from '../textures/textures'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, SpecularColorSetting, Toolbar, UrlSourceImages } from '../ui/features'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SpecularColorSetting, Toolbar, UrlSourceImages } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, MeshExtended } from './feature'
 
@@ -150,7 +150,6 @@ class Editor extends FeatureEditor<Cube> {
             <Advanced>
               <FeatureID feature={this.props.feature} />
               <Animation feature={this.props.feature} />
-              <SetParentDropdown feature={this.props.feature} />
 
               <div className="f">
                 <form>

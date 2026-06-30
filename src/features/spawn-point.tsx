@@ -1,7 +1,7 @@
 import { SpawnPointRecord } from '../../common/messages/feature'
 import { voxImporter } from '../../common/vox-import/vox-import'
 import { Position, Rotation, Behaviours, EditorProps } from '../../web/src/components/editor'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D } from './feature'
 
@@ -204,7 +204,6 @@ class Editor extends FeatureEditor<SpawnPoint> {
             <div className="f">Only the owner and contributors can see it!</div>
             <Advanced>
               <FeatureID feature={this.props.feature} />
-              <SetParentDropdown feature={this.props.feature} />
 
               <Behaviours feature={this.props.feature} />
             </Advanced>

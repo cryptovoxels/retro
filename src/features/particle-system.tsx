@@ -1,6 +1,6 @@
 import { ParticlesRecord } from '../../common/messages/feature'
 import { Position, Rotation, Behaviours, EditorProps } from '../../web/src/components/editor'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar } from '../ui/features'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { tidyColor3, tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D } from './feature'
@@ -241,7 +241,6 @@ class Editor extends FeatureEditor<ParticleSystem> {
 
             <Advanced>
               <FeatureID feature={this.props.feature} />
-              <SetParentDropdown feature={this.props.feature} />
 
               <div className="f">
                 <label>Color 1</label>

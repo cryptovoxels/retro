@@ -14,7 +14,6 @@ import { AvatarAttachmentManager } from '../../attachment-manager'
 import type Avatar from '../../avatar'
 import CollectibleModel from '../../features/collectible-model'
 import Feature from '../../features/feature'
-import Group from '../../features/group'
 import type Parcel from '../../parcel'
 import { bindGizmosToFeature, unbindGizmosFromFeature } from '../../tools/gizmos'
 import { round, XYZ } from '../../utils/helpers'
@@ -40,64 +39,6 @@ export function FeatureID(props: { feature: Feature }) {
       <dt>Name</dt>
       <dd>
         <input value={props.feature.description.id} onInput={(e) => update(e.currentTarget.value)} type="text" />
-      </dd>
-    </>
-  )
-}
-
-export function SetParentDropdown(props: { feature: Feature }) {
-  const forbiddenGroups = new Set<Feature>(props.feature.type === 'group' ? (props.feature as Group).descendants() : [])
-  const groups = props.feature.parcel.featuresList.filter((group) => {
-    // a parent shouldn't become the child of one of its descendants
-    // that just plain wont work
-    if (props.feature.type === 'group' && forbiddenGroups.has(group)) {
-      return false
-    }
-
-    return group.type === 'group' && group.uuid !== props.feature.uuid
-  })
-
-  if (!groups.length) return null
-
-  const NO_PARENT_NAME = 'No group'
-  const getGroupName = (feature: Feature | undefined) => {
-    if (!feature) return NO_PARENT_NAME
-    const idType = feature.description.id ? 'id' : 'uuid'
-    return feature.description[idType]
-  }
-
-  const groupsWithName = new Map()
-  groups.forEach((group: Feature) => {
-    groupsWithName.set(getGroupName(group), group)
-  })
-
-  const groupNames = [NO_PARENT_NAME, ...Array.from(groupsWithName.keys())]
-
-  const options = groupNames.map((name: string) => {
-    return (
-      <option key={name} value={name}>
-        {name}
-      </option>
-    )
-  })
-
-  const setParent = (newGroupName: string) => {
-    const newGroup = groupsWithName.get(newGroupName)
-    const oldGroup = props.feature.group
-
-    if (oldGroup?.uuid === newGroup?.uuid) return // job done
-
-    oldGroup?.abandonChild(props.feature)
-    newGroup?.addChild(props.feature)
-  }
-
-  return (
-    <>
-      <dt>Add to Group</dt>
-      <dd>
-        <select value={getGroupName(props.feature.group)} onInput={(e) => setParent(e.currentTarget.value)}>
-          {options}
-        </select>
       </dd>
     </>
   )

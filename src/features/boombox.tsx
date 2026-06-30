@@ -4,7 +4,7 @@ import { Position, Rotation, Behaviours, EditorProps } from '../../web/src/compo
 import { AudioBus } from '../audio/audio-engine'
 import Avatar from '../avatar'
 import { BoomboxBroadcast, BroadcastStatus, openBoomboxBroadcastUI } from '../ui/boombox-broadcast'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D } from './feature'
 
@@ -394,7 +394,6 @@ class Editor extends FeatureEditor<Boombox> {
             </div>
             <Advanced>
               <FeatureID feature={this.props.feature} />
-              <SetParentDropdown feature={this.props.feature} />
               <Behaviours feature={this.props.feature} />
             </Advanced>
           </EditorProps>

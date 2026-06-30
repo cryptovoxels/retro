@@ -8,41 +8,19 @@ import { createFirstPersonCamera } from '../utils/fps-camera'
 import { decodeCoordsFromURL } from '../../utils/helpers'
 import { hasPointerLock } from '../../../common/helpers/ui-helpers'
 import { app, AppEvent } from '../../../web/src/state'
-import { uiPane } from '../../store'
 const POINTER_WHEEL_MULTIPLIER = 0.001
 export default class DesktopControls extends Controls {
   keyboardInput?: LocaleKeyboardMoveInput
-  origUpdatePointerPosition?: () => void
-  nerfingClickEvents = false
+  private lockListener?: () => void
 
   constructor(scene: BABYLON.Scene, canvas: HTMLCanvasElement) {
     super(scene, canvas)
 
-    // disable picking unless in pointer lock mode
-    scene.skipPointerUpPicking = true
-    scene.skipPointerDownPicking = true
-    scene.skipPointerMovePicking = true
+    scene.skipPointerUpPicking = false
+    scene.skipPointerDownPicking = false
+    scene.skipPointerMovePicking = false
 
-    // if we ever add multiple scenes, we'll need to deal with dispose etc
-    document.addEventListener(
-      'pointerlockchange',
-      () => {
-        if (document.pointerLockElement === scene.getEngine().getRenderingCanvas()) {
-          scene.preventDefaultOnPointerDown = true
-          scene.preventDefaultOnPointerUp = true
-          scene.skipPointerUpPicking = false
-          scene.skipPointerDownPicking = false
-          scene.skipPointerMovePicking = false
-        } else {
-          scene.preventDefaultOnPointerDown = false
-          scene.preventDefaultOnPointerUp = false
-          scene.skipPointerUpPicking = true
-          scene.skipPointerDownPicking = true
-          scene.skipPointerMovePicking = true
-        }
-      },
-      false,
-    )
+    this.onPointerLockChange()
   }
 
   createCamera() {
@@ -58,25 +36,19 @@ export default class DesktopControls extends Controls {
   }
 
   addControls(camera: OurCamera) {
-    // noPreventDefault: true to fix pointer lock while mouse down in firefox
     camera.attachControl(this.canvas, true)
-    this.addPointerLockHandler()
+    this.addLockListener()
 
     this.addKeyboardControls(camera)
     this.addGamepadControls(camera)
 
-    // Bind to easy adding/removing this from observable registries
-    // Note that using the runtime property style to create these won't work, as subclass property
-    // initialisers can't be referenced from the parent constructor
-    this.featureSelectorObservable = this.featureSelectorObservable.bind(this)
+    this.desktopClicks = this.desktopClicks.bind(this)
+    this.scene.onPointerObservable.add(this.desktopClicks, undefined, true)
 
-    this.addFeatureSelector()
-
+    this.canvas.addEventListener('contextmenu', (e) => e.preventDefault())
     this.startSpawnGroundCheck()
   }
 
-  // on spawn we want to drop out of fly mode if there's solid ground within 2m below the user.
-  // poll every 100ms; bail after 10s and assume the user is meant to be flying.
   private startSpawnGroundCheck() {
     const start = Date.now()
     const id = setInterval(() => {
@@ -95,63 +67,33 @@ export default class DesktopControls extends Controls {
     }, 100)
   }
 
-  /// POINTERLOCK
-
   dispose() {
-    document.removeEventListener('pointerlockchange', this.onPointerLockChange)
-
-    this.scene.onPointerObservable.removeCallback(this.featureSelectorObservable)
-
-    // TODO: dispose of all BABYLON-reigstered handlers
+    if (this.lockListener) document.removeEventListener('pointerlockchange', this.lockListener)
+    this.scene.onPointerObservable.removeCallback(this.desktopClicks)
   }
 
-  /**
-   * Disable the babylon picker so that pointer events won't interact with the world
-   */
-  babylonNormalMouse() {
-    // Restore _updatePointerPosition to normal behaviour
-    if (this.origUpdatePointerPosition !== undefined) {
-      ;(<any>this.scene._inputManager)._updatePointerPosition = this.origUpdatePointerPosition
-    }
-  }
-
-  /**
-   * Enable the babylon picker so that pointer events will interact with the world
-   */
-  babylonPointerLock() {
-    // Replace _updatePointerPosition with a pointerlock-based one
-    if (this.origUpdatePointerPosition === undefined) {
-      this.origUpdatePointerPosition = (<any>this.scene._inputManager)._updatePointerPosition
-    }
-
-    ;(<any>this.scene._inputManager)._updatePointerPosition = function () {
-      const canvasRect = this._scene.getEngine().getInputElementClientRect()
-      if (!canvasRect) {
-        return
-      }
-      this._pointerX = canvasRect.width / 2
-      this._pointerY = canvasRect.height / 2
-      this._unTranslatedPointerX = this._pointerX
-      this._unTranslatedPointerY = this._pointerY
-    }
-  }
-
-  /**
-   * Switch babylon pointer position logic based on pointerlock state
-   */
   onPointerLockChange() {
-    if (document.pointerLockElement === null) {
-      // lost pointer lock
-      // if (window.ui?.parcelTabs?.isOpen) {
-      //   window.ui?.deactivateTools()
-      // } else {
-      //   window.ui?.deactivateToolsAndUnHighlightSelection()
-      // }
-      this.resetControls()
-      this.babylonNormalMouse()
+    const cam = this.camera as OurCamera | undefined
+    if (!cam?.inputs) return
+
+    const canvas = this.scene.getEngine().getRenderingCanvas()
+    const locked = document.pointerLockElement === canvas
+
+    this.scene.preventDefaultOnPointerDown = locked
+    this.scene.preventDefaultOnPointerUp = locked
+
+    const mouse = cam.inputs.attached['mouse'] as BABYLON.FreeCameraMouseInput | undefined
+    if (locked) {
+      mouse?.attachControl(true)
     } else {
-      this.babylonPointerLock()
+      mouse?.detachControl()
+      this.resetControls()
     }
+  }
+
+  addLockListener() {
+    this.lockListener = () => this.onPointerLockChange()
+    document.addEventListener('pointerlockchange', this.lockListener)
   }
 
   resetControls() {
@@ -161,86 +103,49 @@ export default class DesktopControls extends Controls {
     this.keyboardInput?.reset()
   }
 
-  /**
-   * On the desktop, features can only be clicked in pointerlock mode
-   */
-  isFeatureClickingAllowed(): boolean {
-    return super.isFeatureClickingAllowed() && hasPointerLock()
-  }
-
-  /**
-   * PointerObservable handler for activating pointerlock
-   */
-  pointerLockHandler(eventData: any, eventState: BABYLON.EventState) {
-    // Nerf handlers - keep nerfing all mouse events until the next UP
-    if (this.nerfingClickEvents) {
-      if (eventData.type === BABYLON.PointerEventTypes.POINTERUP) {
-        this.nerfingClickEvents = false
-      }
-      eventState.skipNextObservers = true
-      return
-    }
-
-    // Left-mouse-down
-    if (eventData.event.button === 0 && eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && !hasPointerLock()) {
-      // Skip even if the pointerlock request fails
-      eventState.skipNextObservers = true
-      // Nerf all other mouse events (move, tap, pick, up) until the next up (which comes last in that list)
-      this.nerfingClickEvents = true
-
-      // Ignore the promise failure; it means that the browser didn't allow the transition to pointerlock but that's okay
-      this.requestPointerLock()?.catch(() => {
-        // Browser didn't allow pointer lock transition - this is expected behavior
-      })
-    }
-  }
-
-  addPointerLockHandler() {
-    // Pointerlock listener to only enable babylon picking behaviour while in pointerlock
-    this.onPointerLockChange = this.onPointerLockChange.bind(this)
-    document.addEventListener('pointerlockchange', this.onPointerLockChange)
-
-    this.scene.onPointerObservable.add(this.pointerLockHandler.bind(this), undefined, true)
-  }
-
-  /// FEATURE SELECTOR - right click to select features
-
-  addFeatureSelector() {
-    this.scene.onPointerObservable.add(this.featureSelectorObservable, undefined, true)
-  }
-
-  featureSelectorObservable(eventData: BABYLON.PointerInfo, eventState: BABYLON.EventState) {
-    // Transform picked point to world coordinates
-    // This occurs before other observers and modifies the event data handed to other observers
+  desktopClicks(eventData: BABYLON.PointerInfo, eventState: BABYLON.EventState) {
     if (eventData.pickInfo?.pickedPoint) {
       eventData.pickInfo.pickedPoint = eventData.pickInfo.pickedPoint.subtract(this.worldOffset.position)
     }
 
+    const btn = eventData.event.button
+
+    if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 0 && !hasPointerLock() && !eventData.event.shiftKey) {
+      window.ui?.clearAllExplore()
+      this.requestPointerLock()?.catch(() => {})
+      return
+    }
+
     switch (eventData.type) {
-      // Handle pointer wheel
       case BABYLON.PointerEventTypes.POINTERWHEEL:
         this.handlePointerWheel((<any>eventData.event).deltaY)
         break
 
       case BABYLON.PointerEventTypes.POINTERTAP:
-        // Middle-click = toggle perspective
-        if (eventData.event.button === 1) {
+        if (btn === 1) {
           this.togglePerspective()
+          break
         }
-        if (eventData.event.button === 0 && eventData.event.shiftKey && uiPane.value === 'edit') {
+        if (btn === 2) {
+          eventData.event.preventDefault()
+          this.handleContextClick(eventData.pickInfo)
+          eventState.skipNextObservers = true
+          break
+        }
+        if (btn === 0 && eventData.event.shiftKey && !hasPointerLock()) {
           const feature = featureFromPick(eventData.pickInfo)
           if (feature?.parcel?.canEdit) {
             window.ui?.editShiftSelect(feature)
             eventState.skipNextObservers = true
-            break
           }
+          break
         }
-        // Right-click only
-        if (eventData.event.button === 2) {
-          this.handleContextClick(eventData.pickInfo)
+        if (btn === 0 && hasPointerLock()) {
+          this.lockedLeftClick(eventData.pickInfo)
           eventState.skipNextObservers = true
         }
         break
+
       case BABYLON.PointerEventTypes.POINTERMOVE:
         const metadata = eventData.pickInfo?.pickedMesh?.metadata
         const distance = eventData.pickInfo?.distance || Infinity
@@ -254,7 +159,6 @@ export default class DesktopControls extends Controls {
     }
   }
 
-  // hover hint: aim at someone while you're in voice and we nudge that right-click silences them (just for you).
   private muteHintEl: HTMLDivElement | null = null
   private updateMuteHint(eventData: BABYLON.PointerInfo) {
     const avatar = eventData.pickInfo?.pickedMesh?.metadata?.avatar as { uuid: string } | undefined
@@ -292,8 +196,6 @@ export default class DesktopControls extends Controls {
 
   handlePointerWheel(delta: number) {
     if (this.firstPersonView) {
-      // if a user is in build mode, don't allow switching to third person via scroll wheel (UX)
-      // Also add a treshold of delta>=5 instead of 0 (Note: some mouses always report a delta= 10 by default)
       if (delta >= 5 && !window.ui?.activeTool) {
         this.enterThirdPerson(MIN_CAMERA_DISTANCE)
       }
@@ -306,10 +208,7 @@ export default class DesktopControls extends Controls {
     }
   }
 
-  /// KEYBOARD
-
   addKeyboardControls(camera: BABYLON.Camera) {
-    // Moving the camera
     this.keyboardInput = new LocaleKeyboardMoveInput({
       keysUp: ['ArrowUp', 'KeyW'],
       keysUpward: ['PageUp', 'Space'],
@@ -320,7 +219,6 @@ export default class DesktopControls extends Controls {
     })
     camera.inputs.add(this.keyboardInput)
 
-    // Extra handlers for the running and avatar facing direction
     this.canvas.addEventListener('keydown', (e: KeyboardEvent) => {
       if (e.repeat) return
 
@@ -335,17 +233,13 @@ export default class DesktopControls extends Controls {
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
         this.run()
       } else if (this.running && !this.shiftKey) {
-        // ensure shift key is down to continue running, otherwise revert to walking
         this.walk()
       }
 
-      // Check if key down is pressed
-      // only set facing forward=false if in 3rd person view
       if ((e.code === 'KeyS' || e.code === 'ArrowDown') && !this.firstPersonView) {
         this.facingForward = false
       }
 
-      // Check if key up is pressed
       if (e.code === 'KeyW' || e.code === 'ArrowUp') {
         this.facingForward = true
         if (hasPointerLock() && location.pathname === '/parcels' && new URLSearchParams(location.search).get('parcel')) {
@@ -354,7 +248,6 @@ export default class DesktopControls extends Controls {
       }
     })
 
-    // Key-up: end of running
     window.addEventListener('keyup', (e) => {
       this.shiftKey = e.shiftKey
       this.ctrlKey = e.ctrlKey || e.metaKey
@@ -364,7 +257,6 @@ export default class DesktopControls extends Controls {
       }
     })
 
-    // Spacebar for jump
     this.scene.actionManager.registerAction(
       new BABYLON.ExecuteCodeAction(
         {
@@ -384,8 +276,6 @@ export default class DesktopControls extends Controls {
       ),
     )
   }
-
-  /// GAME PAD
 
   addGamepadControls(camera: OurCamera) {
     camera.inputs.addGamepad()
@@ -430,7 +320,6 @@ export default class DesktopControls extends Controls {
     } else if (button === 'Circle' || button === 'B') {
       if (pressed) this.toggleFlying()
     } else if (button === 'R1' || button === 'RB') {
-      // Synthetic left-click at the reticule position
       const canvasRect = this.scene.getEngine().getInputElementClientRect()
       if (canvasRect) {
         this.syntheticMouseDown(canvasRect.width / 2, canvasRect.height / 2, 0)
@@ -465,17 +354,11 @@ export default class DesktopControls extends Controls {
   }
 
   requestPointerLock() {
-    // hack to close overlays when clicking canvas
     document.querySelectorAll('.pointer-lock-close').forEach((element) => {
       unmountComponentAtNode(element)
       element.remove()
     })
 
-    // Deactivate UI tools
-    window.ui?.hide()
-    window.ui?.deactivateToolsAndUnHighlightSelection()
-
-    // Chrome return as promise here
     this.canvas.focus()
 
     const maybePromise: unknown = this.canvas.requestPointerLock()
@@ -483,7 +366,6 @@ export default class DesktopControls extends Controls {
       return maybePromise
     }
 
-    // Firefox expects you to trap two document events; we convert them to a promise below
     return new Promise<Event>((resolve, reject) => {
       const removeEvents = () => {
         document.removeEventListener('pointerlockerror', pointerLockError)

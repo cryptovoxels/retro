@@ -4,7 +4,7 @@ import { YoutubeRecord } from '../../common/messages/feature'
 import { CSS3DObject, CSS3DRenderer } from '../../vendor/CSS3DRenderer'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { fetchNoImageTexture, fetchTexture } from '../textures/textures'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { isURL } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
@@ -510,7 +510,6 @@ class Editor extends FeatureEditor<Youtube> {
             </div>
             <Advanced>
               <FeatureID feature={this.props.feature} />
-              <SetParentDropdown feature={this.props.feature} />
 
               <div className="f">
                 <label>Video size ratio</label>
