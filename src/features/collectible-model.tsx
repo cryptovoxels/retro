@@ -1,19 +1,7 @@
 import { voxImporter } from '../../common/vox-import/vox-import'
 import type { FeatureTrigger } from './feature'
 import { Feature3D } from './feature'
-import {
-  Advanced,
-  Animation,
-  CollectibleTryBone,
-  CollectibleTryPosition,
-  CollectibleTryRotation,
-  CollectibleTryScale,
-  FeatureEditor,
-  FeatureEditorProps,
-  FeatureID,
-  Toolbar,
-  UrlSourceCollectibleModels,
-} from '../ui/features'
+import { Advanced, Animation, CollectibleTryBone, CollectibleTryPosition, CollectibleTryRotation, CollectibleTryScale, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UrlSourceCollectibleModels } from '../ui/features'
 import showCollectibleHTMLUi from '../ui/html-ui/collectible-ui'
 import { app } from '../../web/src/state'
 import { CollectibleInfoRecord, CollectibleModelRecord } from '../../common/messages/feature'

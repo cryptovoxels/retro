@@ -52,14 +52,6 @@ export default class Group extends NonMeshedFeature<GroupRecord> {
     return result
   }
 
-  afterSetCommon = () => {
-    this.children.forEach((child) => {
-      if (child.afterSetCommon) {
-        child.afterSetCommon()
-      }
-    })
-  }
-
   deleteIfNoChildren = () => {
     if (!this.children.length) {
       this.delete()

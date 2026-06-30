@@ -8,6 +8,9 @@ export const getTransformVectorsRelativeToNode = (forNode: BABYLON.TransformNode
 
   const rotation = forNode.rotation.clone()
 
+  forNode.computeWorldMatrix()
+  relativeTo.computeWorldMatrix()
+
   const invertedNodeMatrix = new BABYLON.Matrix()
   relativeTo.getWorldMatrix().invertToRef(invertedNodeMatrix)
 

@@ -371,7 +371,12 @@ export default class FeatureTool implements Tool {
   }
 
   createGroup = async (features: Array<MeshedFeature>) => {
-    this.spawnPoint = centreOfPositions(features.map((feature) => feature.tidyPosition))
+    this.spawnPoint = centreOfPositions(
+      features.map((feature) => {
+        const ap = feature.absolutePosition
+        return ap ? ap.subtract(feature.parcel.transform.absolutePosition).asArray() : feature.tidyPosition
+      }),
+    )
     this.spawnRotation = new BABYLON.Vector3(0, 0, 0)
 
     const group = (await this.addFeature(Group.template)) as Group

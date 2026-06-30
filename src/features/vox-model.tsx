@@ -16,6 +16,8 @@ const CUBESCALE_SCALE_FACTOR_RECIPROCAL = 1 / CUBESCALE_SCALE_FACTOR
 const CUBESCALE_SCALE_FACTOR_VECTOR = new BABYLON.Vector3(CUBESCALE_SCALE_FACTOR, CUBESCALE_SCALE_FACTOR, CUBESCALE_SCALE_FACTOR)
 const CUBESCALE_SCALE_FACTOR_RECIPROCAL_VECTOR = new BABYLON.Vector3(CUBESCALE_SCALE_FACTOR_RECIPROCAL, CUBESCALE_SCALE_FACTOR_RECIPROCAL, CUBESCALE_SCALE_FACTOR_RECIPROCAL)
 
+const cubescaleOffset = (scale: [number, number, number]) => new BABYLON.Vector3(CUBESCALE_MULTIPLIER_X * scale[0], 0, CUBESCALE_MULTIPLIER_Y * scale[2])
+
 export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord = VoxModelRecord> extends Feature3D<Description> {
   static Editor: typeof Editor
   static metadata: FeatureMetadata = {
@@ -66,24 +68,20 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     this.afterGenerate()
   }
 
-  public override getTransformVectorsRelativeToNode = (node: BABYLON.AbstractMesh): transformVectors => {
-    const transformVectors = super.getTransformVectorsRelativeToNode(node)
+  protected override applyMeshTransformAdjustments() {
+    if (!this.cubescale || !this.mesh) return
+    this.mesh.scaling.multiplyInPlace(CUBESCALE_SCALE_FACTOR_VECTOR)
+    this.mesh.position.addInPlace(cubescaleOffset(this.tidyScale))
+  }
 
-    if (this.cubescale) {
-      // apply reciprocal magic number scaling
-      transformVectors.scaling.multiplyInPlace(CUBESCALE_SCALE_FACTOR_RECIPROCAL_VECTOR)
-    }
-
-    return transformVectors
+  protected override stripMeshAdjustments(tv: transformVectors): transformVectors {
+    if (!this.cubescale) return tv
+    tv.scaling.multiplyInPlace(CUBESCALE_SCALE_FACTOR_RECIPROCAL_VECTOR)
+    tv.position.subtractInPlace(cubescaleOffset([tv.scaling.x, tv.scaling.y, tv.scaling.z]))
+    return tv
   }
 
   public override afterSetCommon = () => {
-    if (this.cubescale && this.mesh) {
-      // apply magic number scaling to mesh if "Scale To Grid" is enabled
-      this.mesh.scaling.multiplyInPlace(CUBESCALE_SCALE_FACTOR_VECTOR)
-      this.mesh.position.addInPlace(new BABYLON.Vector3(CUBESCALE_MULTIPLIER_X * this.tidyScale[0], 0, CUBESCALE_MULTIPLIER_Y * this.tidyScale[2]))
-    }
-
     this.refreshCollidable()
   }
 

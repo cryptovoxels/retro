@@ -100,7 +100,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   _triggers: Set<FeatureTrigger> = new Set()
   gizmos: BABYLON.Gizmo[] = []
   private _isPickable: boolean = true
-  public afterSetCommon?: () => void // Must be public for Group's afterSetCommon(), which calls its children
+  public afterSetCommon?: () => void
   protected abortController = new AbortController()
   private animationInstance: BABYLON.Animatable | undefined = undefined
 
@@ -967,7 +967,13 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       return { rotation, position, scaling }
     }
 
-    return getTransformVectorsRelativeToNode(this.mesh, node)
+    return this.stripMeshAdjustments(getTransformVectorsRelativeToNode(this.mesh, node))
+  }
+
+  protected applyMeshTransformAdjustments() {}
+
+  protected stripMeshAdjustments(tv: transformVectors): transformVectors {
+    return tv
   }
 
   deprecatedSince(releaseVersion: any) {
@@ -1036,6 +1042,8 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
           this.mesh.scaling.addInPlaceFromFloats(nudgeGrowth, nudgeGrowth, 0)
         }
       }
+
+      this.applyMeshTransformAdjustments()
 
       // TODO FIX THIS SHIT
       const clickableMesh = this.mesh as AbstractMeshExtended
