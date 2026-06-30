@@ -48,6 +48,7 @@ import Baking from './ui/overlay/baking'
 import { BuildTab } from './ui/overlay/build-tab/build-tab'
 import DebugTools from './ui/overlay/debug-tools'
 import EditPane from './ui/overlay/edit-pane'
+import CustomizeVoxels from './ui/overlay/customize-voxels'
 import ParcelInfoTab from './ui/overlay/parcel-info'
 import ToolBelt from './ui/overlay/tool-belt'
 import ParcelSnapshots from './ui/parcel-snapshots'
@@ -81,7 +82,7 @@ export enum Mode {
   Avatar,
 }
 
-export type UIPanes = 'add' | 'edit' | 'info' | 'debugTool' | 'nfts' | 'chat' | 'emote' | 'settings' | 'womp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake'
+export type UIPanes = 'add' | 'edit' | 'voxels' | 'info' | 'debugTool' | 'nfts' | 'chat' | 'emote' | 'settings' | 'womp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake'
 
 export interface Tool {
   activate: () => void
@@ -714,6 +715,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return <BuildTab parcel={nearestEditableParcel || undefined} scene={this.props.scene} />
       case 'edit':
         return <EditPane parcel={nearestEditableParcel} scene={this.props.scene} feature={this.state.feature} editor={this.state.editor} />
+      case 'voxels':
+        return nearestEditableParcel ? <CustomizeVoxels parcel={nearestEditableParcel} scene={this.props.scene} /> : null
       case 'parcelSnapshots':
         return <ParcelSnapshots parcel={nearestEditableParcel || undefined} scene={this.props.scene} />
       case 'login':
@@ -852,6 +855,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
               <li class={active('edit', !canEdit)}>
                 <a href="#edit" onMouseOver={onHover('edit')} onClick={onClick('edit')}>
                   Edit
+                </a>
+              </li>
+              <li class={active('voxels', !canEdit)}>
+                <a href="#voxels" onMouseOver={onHover('voxels')} onClick={onClick('voxels')}>
+                  Voxels
                 </a>
               </li>
 
