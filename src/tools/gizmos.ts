@@ -414,6 +414,23 @@ const HANDLE_CORNERS = [
   { sx: 1, sy: -1 },
 ]
 
+// diagonal resize cursor that matches the handle corner in screen space (screens rotate on walls)
+const resizeCursorForCorner = (corner: { sx: number; sy: number }, mesh: BABYLON.Mesh, scene: BABYLON.Scene) => {
+  const cam = scene.activeCamera
+  if (!cam) return 'nwse-resize'
+  const W = mesh.computeWorldMatrix(true)
+  const cWorld = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(corner.sx * 0.5, corner.sy * 0.5, 0), W)
+  const aWorld = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-corner.sx * 0.5, -corner.sy * 0.5, 0), W)
+  const engine = scene.getEngine()
+  const viewport = cam.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight())
+  const transform = scene.getTransformMatrix()
+  const cScr = BABYLON.Vector3.Project(cWorld, BABYLON.Matrix.Identity(), transform, viewport)
+  const aScr = BABYLON.Vector3.Project(aWorld, BABYLON.Matrix.Identity(), transform, viewport)
+  const dx = cScr.x - aScr.x
+  const dy = cScr.y - aScr.y
+  return dx * dy > 0 ? 'nwse-resize' : 'nesw-resize'
+}
+
 const showResizeHandles = (feature: Feature) => {
   hideResizeHandles()
   if (!utilLayer || !feature.mesh) return
@@ -430,6 +447,8 @@ const hideResizeHandles = (feature?: Feature) => {
 class ResizeHandleSet {
   feature: Feature
   private scene: BABYLON.Scene
+  private uScene: BABYLON.Scene
+  private canvas: HTMLCanvasElement | null
   private handles: BABYLON.Mesh[] = []
   private normals: BABYLON.Vector3[] = [] // per-handle live drag-plane normal (updated each frame)
   private observer: BABYLON.Observer<BABYLON.Scene> | null = null
@@ -438,19 +457,22 @@ class ResizeHandleSet {
   constructor(feature: Feature, layer: BABYLON.UtilityLayerRenderer) {
     this.feature = feature
     this.scene = layer.originalScene
-    const uScene = layer.utilityLayerScene
+    this.uScene = layer.utilityLayerScene
+    this.canvas = this.scene.getEngine().getRenderingCanvas()
 
-    this.material = new BABYLON.StandardMaterial('feature/showbox/resize-handle/mat', uScene)
+    this.material = new BABYLON.StandardMaterial('feature/showbox/resize-handle/mat', this.uScene)
     this.material.emissiveColor = BABYLON.Color3.FromHexString('#e6635a')
     this.material.disableLighting = true
 
     HANDLE_CORNERS.forEach((corner, i) => {
-      const handle = BABYLON.MeshBuilder.CreateBox(`feature/showbox/resize-handle/${i}`, { size: 1 }, uScene)
+      const handle = BABYLON.MeshBuilder.CreateBox(`feature/showbox/resize-handle/${i}`, { size: 1 }, this.uScene)
       handle.material = this.material
       handle.isPickable = true
+      handle.enablePointerMoveEvents = true
       handle.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL // easy to grab from any angle
       this.normals.push(BABYLON.Axis.Z.clone())
       this.handles.push(handle)
+      this.attachHoverCursor(handle, corner)
       this.attachDrag(handle, corner, i)
     })
 
@@ -476,6 +498,22 @@ class ResizeHandleSet {
     })
   }
 
+  private attachHoverCursor(handle: BABYLON.Mesh, corner: { sx: number; sy: number }) {
+    handle.actionManager = new BABYLON.ActionManager(this.uScene)
+    handle.actionManager.registerAction(
+      new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, () => {
+        const mesh = this.feature.mesh
+        if (!this.canvas || !mesh) return
+        this.canvas.style.cursor = resizeCursorForCorner(corner, mesh as BABYLON.Mesh, this.scene)
+      }),
+    )
+    handle.actionManager.registerAction(
+      new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, () => {
+        if (this.canvas) this.canvas.style.cursor = ''
+      }),
+    )
+  }
+
   private attachDrag(handle: BABYLON.Mesh, corner: { sx: number; sy: number }, index: number) {
     const behavior = new BABYLON.PointerDragBehavior()
     behavior.moveAttached = false // we own handle placement via sync()
@@ -491,6 +529,7 @@ class ResizeHandleSet {
     behavior.onDragStartObservable.add(() => {
       const mesh = this.feature.mesh
       if (!mesh) return
+      if (this.canvas) this.canvas.style.cursor = resizeCursorForCorner(corner, mesh as BABYLON.Mesh, this.scene)
       window.ui?.setDragging(true)
       if (this.feature.isAnimated) this.feature.pauseAnimation()
       mesh.unfreezeWorldMatrix() // we mutate scaling/position during the drag
@@ -548,6 +587,7 @@ class ResizeHandleSet {
 
     behavior.onDragEndObservable.add(() => {
       window.ui?.setDragging(false)
+      if (this.canvas) this.canvas.style.cursor = ''
       const feature = this.feature
       if (!feature.mesh) return
       setScale(feature) // persists clamped/rounded scale (existing helper)
@@ -565,6 +605,7 @@ class ResizeHandleSet {
       this.scene.onBeforeRenderObservable.remove(this.observer)
       this.observer = null
     }
+    if (this.canvas) this.canvas.style.cursor = ''
     this.handles.forEach((h) => h.dispose())
     this.handles = []
     this.material.dispose()
