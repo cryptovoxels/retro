@@ -20,6 +20,7 @@ import DesktopControls from './controls/desktop/controls'
 import { Environment } from './enviroments/environment'
 import { createFeature } from './features/create'
 import Feature from './features/feature'
+import type { FeatureTemplate } from './features/_metadata'
 import type Grid from './grid'
 import type { MinimapSettings } from './minimap'
 import Parcel from './parcel'
@@ -134,6 +135,7 @@ type UserInterfaceState = {
   canEdit?: boolean
   editor?: FeatureEditor
   feature?: Feature
+  publishAsset?: FeatureTemplate | string
   active: boolean
   /** Shown next to minimap expand; same source as Explore radar */
   onlineCount: number
@@ -257,8 +259,20 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     setSelectedFeature(feature)
     enterAuthoring(feature.parcel.id)
     uiPane.value = 'edit'
-    this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'edit', active: true })
+    this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'edit', active: true, publishAsset: undefined })
     exitPointerLock()
+  }
+
+  openPublishAsset(asset: FeatureTemplate | string) {
+    uiPane.value = 'edit'
+    this.setState({ publishAsset: asset, pane: 'edit', active: true })
+    uiAsideTick.value++
+    exitPointerLock()
+  }
+
+  closePublishAsset = () => {
+    this.setState({ publishAsset: undefined })
+    uiAsideTick.value++
   }
 
   clearAllExplore() {
@@ -785,7 +799,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       case 'add':
         return <BuildTab parcel={nearestEditableParcel || undefined} scene={this.props.scene} />
       case 'edit':
-        return <EditPane parcel={nearestEditableParcel} scene={this.props.scene} feature={this.state.feature} editor={this.state.editor} />
+        return <EditPane parcel={nearestEditableParcel} scene={this.props.scene} feature={this.state.feature} editor={this.state.editor} publishAsset={this.state.publishAsset} onClosePublish={this.closePublishAsset} />
       case 'voxels':
         return nearestEditableParcel ? <CustomizeVoxels parcel={nearestEditableParcel} scene={this.props.scene} /> : null
       case 'parcelSnapshots':

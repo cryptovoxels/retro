@@ -8,6 +8,8 @@ import type Parcel from '../../parcel'
 import { checkedFeatures, deleteCheckedFeatures, groupCheckedFeatures, nearestEditableParcel, selectCheckedFeatures, selectNearestEditableParcel, selectSelectedFeature } from '../../store'
 import { FeatureContext } from '../features/context'
 import { templateFromFeature } from '../../tools/feature'
+import type { FeatureTemplate } from '../../features/_metadata'
+import ShareAsset from '../share-asset'
 
 function featureLabel(feature: Feature) {
   const id = feature.description?.id
@@ -153,6 +155,8 @@ type EditPaneProps = {
   scene: BABYLON.Scene
   feature?: Feature
   editor?: any
+  publishAsset?: FeatureTemplate | string
+  onClosePublish?: () => void
 }
 
 export default function EditPane(props: EditPaneProps) {
@@ -178,7 +182,12 @@ export default function EditPane(props: EditPaneProps) {
   return (
     <FeatureContext.Provider value={{ templateFromFeature }}>
       <section class={'edit-pane' + (multi ? ' edit-pane-multi' : '')}>
-        {!multi && Component && feature && (
+        {!multi && props.publishAsset && props.onClosePublish && (
+          <div class="edit-pane-inspector editor">
+            <ShareAsset asset={props.publishAsset} onClose={props.onClosePublish} />
+          </div>
+        )}
+        {!multi && !props.publishAsset && Component && feature && (
           <div class="edit-pane-inspector editor" key={feature.uuid}>
             {h(Component, {
               feature,

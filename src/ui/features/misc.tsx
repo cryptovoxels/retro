@@ -17,7 +17,6 @@ import Feature from '../../features/feature'
 import type Parcel from '../../parcel'
 import { bindGizmosToFeature, unbindGizmosFromFeature } from '../../tools/gizmos'
 import { round, XYZ } from '../../utils/helpers'
-import CreateFeatureAsLibraryAsset from '../create-asset-for-library'
 import { degToRad, floatArray, RADIAN_DP, radToDeg, truncate } from './common'
 import { useFeatureContext } from './context'
 
@@ -227,15 +226,8 @@ export function Toolbar(props: { feature: Feature; scene: BABYLON.Scene }) {
     }
   }
 
-  const createLibraryAsset = async () => {
-    if (window.ui) {
-      unbindGizmosFromFeature(props.feature)
-      const engine = props.scene.getEngine()
-      window.ui.featureTool?.unHighlight()
-      await CreateFeatureAsLibraryAsset.Capture(engine, props.feature.scene, templateFromFeature)
-      window.ui.featureTool?.highlight()
-      bindGizmosToFeature(props.feature)
-    }
+  const onShare = () => {
+    ui?.openPublishAsset(templateFromFeature()(props.feature))
   }
 
   return (
@@ -259,7 +251,7 @@ export function Toolbar(props: { feature: Feature; scene: BABYLON.Scene }) {
         </li>
         {app.signedIn && showShareToLibrary() && (
           <li>
-            <button onClick={createLibraryAsset}>Library</button>
+            <button onClick={onShare}>Share</button>
           </li>
         )}
       </ul>
