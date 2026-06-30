@@ -236,15 +236,41 @@ export default abstract class Controls implements IControls {
     }
   }
 
+  // Ben's reticule pick (1c4cec3) used scene.pick() without pointerMovePredicate, so build-mode
+  // picks hit avatar/features instead of voxel colliders. Tools pass useMovePredicate=true;
+  // context menu / locked click use unpredicated center ray when no tool is active.
+  pickAtView(x?: number, y?: number, useMovePredicate = false): BABYLON.PickingInfo | null {
+    const cam = this.camera
+    if (!cam) return null
+
+    const saved = cam.position.clone()
+    try {
+      if (!window.config.isOrbit && !this.firstPersonView && this.persona) {
+        const q = BABYLON.Quaternion.RotationYawPitchRoll(cam.rotation.y, cam.rotation.x, cam.rotation.z)
+        const back = new BABYLON.Vector3(0, 0, -1).rotateByQuaternionToRef(q, new BABYLON.Vector3())
+        cam.position.copyFrom(this.persona.position.add(back.scale(this.cameraDistance)))
+      }
+
+      const predicate = useMovePredicate ? this.scene.pointerMovePredicate : undefined
+      const pick = x != null && y != null ? this.scene.pick(x, y, predicate) : this.scene.pickWithRay(cam.getForwardRay(this.MAX_PICK_DISTANCE), predicate)
+
+      if (pick?.pickedPoint) pick.pickedPoint = pick.pickedPoint.subtract(this.worldOffset.position)
+      return pick ?? null
+    } finally {
+      cam.position.copyFrom(saved)
+    }
+  }
+
   pickAtReticule() {
-    const engine = this.scene.getEngine()
-    const pick = this.scene.pick(engine.getRenderWidth() / 2, engine.getRenderHeight() / 2)
-    if (pick?.pickedPoint) pick.pickedPoint = pick.pickedPoint.subtract(this.worldOffset.position)
-    return pick
+    return this.pickAtView(undefined, undefined, !!window.ui?.activeTool)
   }
 
   pickForPointer(pickInfo?: BABYLON.PickingInfo | null) {
-    return hasPointerLock() ? this.pickAtReticule() : pickInfo
+    if (hasPointerLock()) return this.pickAtView(undefined, undefined, true)
+    if (!window.config.isOrbit && !this.firstPersonView) {
+      return this.pickAtView(this.scene.pointerX, this.scene.pointerY, true) ?? pickInfo ?? null
+    }
+    return pickInfo ?? null
   }
 
   lockedLeftClick(pickInfo?: BABYLON.PickingInfo | null) {
