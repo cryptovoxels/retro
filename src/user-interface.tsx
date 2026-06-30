@@ -55,6 +55,8 @@ import { EmoteOverlay } from './ui/interact/emote'
 import { HelpOverlay } from './ui/interact/help'
 import { ScratchpadGuide, ScratchpadGuideMini } from './ui/scratchpad-guide'
 import { FirstTimeInstructions } from '../web/src/components/first-time-instructions'
+import { BroadcastSidebarTab } from '../web/src/broadcast-sidebar-tab'
+import { ShowboxBroadcastPane } from '../web/src/showbox-broadcast-pane'
 import { WompOverlay } from './ui/interact/womps'
 import MobileButtons from './ui/mobile/buttons'
 import OpenLink from './ui/open-link'
@@ -96,7 +98,7 @@ export enum Mode {
   Avatar,
 }
 
-export type UIPanes = 'add' | 'edit' | 'voxels' | 'info' | 'debugTool' | 'nfts' | 'chat' | 'emote' | 'settings' | 'womp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake'
+export type UIPanes = 'add' | 'edit' | 'voxels' | 'info' | 'debugTool' | 'nfts' | 'chat' | 'emote' | 'settings' | 'womp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake' | 'broadcast'
 
 export interface Tool {
   activate: () => void
@@ -824,6 +826,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return <ExplorerUI scene={this.props.scene} initialTab={this.explorerPaneInitialTab.current!} />
       case 'bake':
         return <Baking parcel={nearestEditableParcel!} />
+      case 'broadcast':
+        return <ShowboxBroadcastPane />
       default:
         return null
     }
@@ -990,6 +994,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           )}
 
           {nearestEditableParcel && <ToolBelt parcel={nearestEditableParcel} scene={this.props.scene} />}
+
+          <BroadcastSidebarTab fullscreen={this.state.fullscreen} />
 
           <ConnectionStatusUI connector={this.connector} grid={this.grid} scene={this.props.scene} />
           <OnlyMobile>
