@@ -253,8 +253,11 @@ export default abstract class Controls implements IControls {
 
       const predicate = useMovePredicate ? this.scene.pointerMovePredicate : undefined
       const engine = this.scene.getEngine()
-      const px = x ?? engine.getRenderWidth() / 2
-      const py = y ?? engine.getRenderHeight() / 2
+      // scene.pick wants CSS pixels; getRenderWidth is device pixels. Convert via the hardware
+      // scaling level (set to 1/dpr) or the reticule center is off by dpr on hi-dpi screens.
+      const scaling = engine.getHardwareScalingLevel()
+      const px = x ?? (engine.getRenderWidth() * scaling) / 2
+      const py = y ?? (engine.getRenderHeight() * scaling) / 2
       const pick = this.scene.pick(px, py, predicate, false, cam)
 
       if (pick?.pickedPoint) pick.pickedPoint = pick.pickedPoint.subtract(this.worldOffset.position)
@@ -270,8 +273,7 @@ export default abstract class Controls implements IControls {
 
   pickForPointer(pickInfo?: BABYLON.PickingInfo | null) {
     if (hasPointerLock()) {
-      const engine = this.scene.getEngine()
-      return this.pickAtView(engine.getRenderWidth() / 2, engine.getRenderHeight() / 2, true)
+      return this.pickAtView(undefined, undefined, true)
     }
     if (!window.config.isOrbit && !this.firstPersonView) {
       return this.pickAtView(this.scene.pointerX, this.scene.pointerY, true) ?? pickInfo ?? null
