@@ -2257,6 +2257,13 @@ menu.context,
     border-bottom: var(--softborder);
     color: inherit;
 
+    &.selected {
+      background: var(--tinge);
+      margin: 0 -1rem;
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+
     .addr {
       font-weight: bold;
     }
@@ -2268,6 +2275,14 @@ menu.context,
     .price {
       margin-top: 0.5rem;
     }
+  }
+
+  .for-sale-buy {
+    display: inline-block;
+    margin-top: 0.5rem;
+    padding: 0.5rem 1rem;
+    background: var(--red);
+    color: #fff;
   }
 }
 
