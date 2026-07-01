@@ -18,20 +18,29 @@ import { PanelType } from '../../../web/src/components/panel'
 
 // recent womps for this parcel, compact thumbnails above the details. clicking one keeps
 // you in-world: clear the info pane and route (with coords) so it opens in the sidebar.
+// "show more" just bumps the limit and refetches (the endpoint only takes a limit).
+const WOMP_PAGE = 6
+
 function RecentWomps({ parcelId }: { parcelId: number }) {
   const [womps, setWomps] = useState<Womp[]>([])
+  const [limit, setLimit] = useState(WOMP_PAGE)
+
+  useEffect(() => setLimit(WOMP_PAGE), [parcelId])
+
   useEffect(() => {
     let live = true
-    cachedFetch(`/api/womps/at/parcel/${parcelId}.json?limit=6`, fetchOptions(), 60)
+    cachedFetch(`/api/womps/at/parcel/${parcelId}.json?limit=${limit}`, fetchOptions(), 60)
       .then((r) => r.json())
       .then((r) => live && r.success && setWomps(r.womps))
       .catch(() => {})
     return () => {
       live = false
     }
-  }, [parcelId])
+  }, [parcelId, limit])
 
   if (!womps.length) return null
+  // a full page back means there are probably more to load
+  const hasMore = womps.length >= limit
   return (
     <div className="overlay-parcel-info-content">
       <h4>Recent womps</h4>
@@ -47,6 +56,11 @@ function RecentWomps({ parcelId }: { parcelId: number }) {
           />
         ))}
       </div>
+      {hasMore && (
+        <button type="button" class="womps-show-more" onClick={() => setLimit((n) => n + WOMP_PAGE)}>
+          show more
+        </button>
+      )}
     </div>
   )
 }
