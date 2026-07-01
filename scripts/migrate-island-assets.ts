@@ -3,7 +3,7 @@
  * converting images to ETC1S .ktx2 + .webp, baking far-LOD placeholders, and rewriting scene JSON.
  *
  * Usage:
- *   DATABASE_URL=postgres://... UGC_SECRET=... [DISCORD_BOT_TOKEN=...] \
+ *   DATABASE_URL=postgres://... UGC_ACCESS_KEY_ID=... UGC_SECRET=... [DISCORD_BOT_TOKEN=...] \
  *     tsx scripts/migrate-island-assets.ts --island="Little Ceres" [--dry-run] [--limit=N] [--parcel=123] [--concurrency=4]
  *
  * --dry-run crawls + writes a manifest but downloads/uploads nothing and never touches the DB.
@@ -27,6 +27,10 @@ if (!island && !parcel) {
   console.error('need --island="Name" (or --parcel=ID)')
   process.exit(1)
 }
+if (!dry && (!process.env.UGC_ACCESS_KEY_ID || !process.env.UGC_SECRET)) {
+  console.error('UGC_ACCESS_KEY_ID and UGC_SECRET required for live runs (use --dry-run to preview)')
+  process.exit(1)
+}
 
 const slug = (island || `parcel-${parcel}`).toLowerCase().replace(/[^a-z0-9]+/g, '-')
 const manifestPath = `./migrate-${slug}-${Date.now()}.jsonl`
@@ -48,6 +52,7 @@ async function main() {
   const total: ParcelStats = { img: 0, vox: 0, copy: 0, skip: 0, err: 0 }
   let done = 0
   let wrote = 0
+  let failed = 0
 
   const queue = new PQueue({ concurrency })
   for (const row of rows) {
@@ -63,6 +68,7 @@ async function main() {
         const s = res.stats
         if (s.img || s.vox || s.copy || s.err || s.skip) console.log(`parcel ${row.id}: img=${s.img} vox=${s.vox} copy=${s.copy} skip=${s.skip} err=${s.err}${res.changed ? '' : ' (no change)'}`)
       } catch (e: any) {
+        failed++
         console.error(`parcel ${row.id} failed:`, e?.message || e)
       } finally {
         done++
@@ -75,6 +81,7 @@ async function main() {
   console.log(`\nDone. parcels=${rows.length} written=${wrote}${dry ? ' (dry run, nothing written)' : ''}`)
   console.log(`assets: images=${total.img} vox=${total.vox} copies=${total.copy} skipped=${total.skip} errors=${total.err}`)
   console.log(`manifest: ${manifestPath}`)
+  if (total.err || failed) process.exitCode = 1
 }
 
 main()

@@ -24,10 +24,13 @@ export const configure = (c: Cfg) => (CFG = c)
 let _s3: S3Client | null = null
 const s3 = () => {
   if (!_s3) {
+    const id = process.env.UGC_ACCESS_KEY_ID
+    const secret = process.env.UGC_SECRET
+    if (!id || !secret) throw new Error('UGC_ACCESS_KEY_ID and UGC_SECRET required')
     _s3 = new S3Client({
       region: REGION,
       endpoint: ENDPOINT,
-      credentials: { accessKeyId: process.env.UGC_ACCESS_KEY_ID || 'DO801UZARQ8UZC3XFWTT', secretAccessKey: process.env.UGC_SECRET || '' },
+      credentials: { accessKeyId: id, secretAccessKey: secret },
       forcePathStyle: false,
     })
   }
@@ -98,7 +101,8 @@ async function download(url: string, cap = CAP): Promise<Dl | { error: string }>
   let u = url
   if (isDiscord(u)) {
     const r = await refreshDiscord(u)
-    if (r) u = r
+    if (!r) return { error: 'discord-expired' }
+    u = r
   }
   const ac = new AbortController()
   const t = setTimeout(() => ac.abort(), 120000)
@@ -252,6 +256,18 @@ async function migrateImage(src: string, parcelId: number): Promise<ImgResult> {
     record({ parcel: parcelId, src, dst: baseUrl, kind: 'image', status: 'planned' })
     return { base: baseUrl }
   }
+  if (await exists(`${base}.webp`)) {
+    record({ parcel: parcelId, src, dst: baseUrl, kind: 'image', status: 'exists' })
+    let thumb: string | undefined
+    try {
+      const r = await download(`${baseUrl}.webp`, 10 * 1024 * 1024)
+      if (!('error' in r)) {
+        const t = await sharp(r.buf).resize(8, 8, { fit: 'fill' }).jpeg({ quality: 40 }).toBuffer()
+        thumb = `data:image/jpeg;base64,${t.toString('base64')}`
+      }
+    } catch {}
+    return { base: baseUrl, thumb }
+  }
   const dl = await download(resolveSrc(src))
   if ('error' in dl) {
     record({ parcel: parcelId, src, kind: 'image', status: 'error', error: dl.error })
@@ -305,6 +321,10 @@ async function migrateVox(src: string, parcelId: number): Promise<VoxResult> {
     record({ parcel: parcelId, src, dst: url, kind: 'vox', status: 'planned' })
     return { url }
   }
+  if (await exists(key)) {
+    record({ parcel: parcelId, src, dst: url, kind: 'vox', status: 'exists' })
+    return { url }
+  }
   const dl = await download(resolveSrc(src))
   if ('error' in dl) {
     record({ parcel: parcelId, src, kind: 'vox', status: 'error', error: dl.error })
@@ -316,7 +336,7 @@ async function migrateVox(src: string, parcelId: number): Promise<VoxResult> {
   } catch {
     lod4 = undefined
   }
-  if (!(await exists(key))) await put(key, dl.buf, 'application/octet-stream')
+  await put(key, dl.buf, 'application/octet-stream')
   record({ parcel: parcelId, src, dst: url, kind: 'vox', status: 'uploaded', lod4: !!lod4, bytes: dl.buf.length })
   return { url, lod4 }
 }
@@ -454,6 +474,8 @@ export async function rewriteParcel(parcelId: number, content: any, lightmapUrl:
           break
         }
         case 'collectible-model': {
+          const cur = clean(f.url)
+          if (cur && migrated(cur)) break
           const hash = f.collectible?.hash
           if (!hash) break
           const src = `https://www.voxels.com/w/${hash}/vox`

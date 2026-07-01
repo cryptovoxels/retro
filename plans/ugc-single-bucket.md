@@ -72,7 +72,7 @@ if its url is a concrete static image; opensea.io permalinks are skipped.
 DATABASE_URL=postgres://... tsx scripts/migrate-island-assets.ts --island="Little Ceres" --dry-run
 
 # live (mutates the bucket + db)
-DATABASE_URL=postgres://... UGC_SECRET=... DISCORD_BOT_TOKEN=... \
+DATABASE_URL=postgres://... UGC_ACCESS_KEY_ID=... UGC_SECRET=... DISCORD_BOT_TOKEN=... \
   tsx scripts/migrate-island-assets.ts --island="Little Ceres" --concurrency=4
 ```
 
