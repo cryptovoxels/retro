@@ -2281,6 +2281,28 @@ form.PermissionsRadioSelector > div {
   .womp {
     width: 128px;
   }
+
+  // recent womps: tight 3-up thumbnails, no caption
+  .parcel-womps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+
+    .womp {
+      width: auto;
+    }
+
+    .womp img {
+      width: 100%;
+      aspect-ratio: 1/1;
+      object-fit: cover;
+      margin: 0;
+    }
+
+    .womp p {
+      display: none;
+    }
+  }
 }
 
 .debug-tools-overlay {
