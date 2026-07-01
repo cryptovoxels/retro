@@ -1,11 +1,5 @@
-import Classifieds from './components/classifieds'
-import Head from './components/head'
+import ForSale from './for-sale'
 
 export default function Shop(_props: { path?: string }) {
-  return (
-    <section>
-      <Head title="Shop" url="/shop" />
-      <Classifieds link={false} />
-    </section>
-  )
+  return <ForSale />
 }

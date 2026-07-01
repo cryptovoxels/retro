@@ -117,9 +117,7 @@ export default function Classifieds({ limit, link = true }: Props) {
             items.map((i) => (
               <tr key={i.id}>
                 <td>
-                  <a href={i.permalink} target="_blank" rel="noopener noreferrer">
-                    {name(i)}
-                  </a>
+                  <a href={`/parcels/${i.id}`}>{name(i)}</a>
                 </td>
                 <td>{i.address}</td>
                 <td>{fmt(i.price)}</td>
