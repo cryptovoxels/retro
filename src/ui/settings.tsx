@@ -2,6 +2,7 @@ import { Component, JSX } from 'preact'
 import { isMobile } from '../../common/helpers/detector'
 import { AudioSettings } from '../audio/audio-engine'
 import { setRadioVolume } from '../../web/src/radio/global'
+import Toggle from '../../web/src/components/toggle'
 import Connector from '../connector'
 import { FOV, NORMAL_FOV, WIDE_FOV } from '../graphic/field-of-view'
 import { type GraphicEngine, GraphicLevels, GraphicSettings } from '../graphic/graphic-engine'
@@ -135,8 +136,8 @@ export class SettingsUI extends Component<Props, State> {
     })
   }
 
-  onToggleVoice(inputElement: HTMLInputElement) {
-    voiceSettings.enabled = inputElement.checked
+  onToggleVoice(enabled: boolean) {
+    voiceSettings.enabled = enabled
     this.forceUpdate()
   }
 
@@ -399,7 +400,7 @@ export class SettingsUI extends Component<Props, State> {
           <dl class="props">
             <dt>Enable voice chat</dt>
             <dd>
-              <input type="checkbox" onChange={(e) => this.onToggleVoice(e.target as HTMLInputElement)} checked={this.state.voiceEnabled} />
+              <Toggle checked={this.state.voiceEnabled} onChange={(v) => this.onToggleVoice(v)} />
             </dd>
 
             {this.state.voiceEnabled && (

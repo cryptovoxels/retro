@@ -1,24 +1,21 @@
-import { Component } from 'preact'
-import { readFileSync } from 'fs'
-import { join } from 'path'
+import { useEffect, useState } from 'preact/hooks'
 import { micromark } from 'micromark'
 import Head from './components/head'
 
-let html = ''
-try {
-  const md = readFileSync(join(process.cwd(), 'BEHAVIOURS.md'), 'utf8')
-  html = micromark(md)
-} catch (err) {
-  html = '<p>Behaviours documentation is missing.</p>'
-}
+export default function BehavioursDoc(_props: { path?: string }) {
+  const [html, setHtml] = useState('')
 
-export default class BehavioursDoc extends Component<any, any> {
-  render() {
-    return (
-      <section>
-        <Head title={'Behaviours'} />
-        <div dangerouslySetInnerHTML={{ __html: html }} />
-      </section>
-    )
-  }
+  useEffect(() => {
+    fetch('/BEHAVIOURS.md')
+      .then((r) => r.text())
+      .then((md) => setHtml(micromark(md)))
+      .catch(() => setHtml('<p>Behaviours documentation is missing.</p>'))
+  }, [])
+
+  return (
+    <section>
+      <Head title="Behaviours" />
+      <div dangerouslySetInnerHTML={{ __html: html }} />
+    </section>
+  )
 }

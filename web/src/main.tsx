@@ -14,6 +14,7 @@ import NewSpace from '../account/new-space'
 import Asset from './asset'
 import Assets from './assets'
 import AssetsNew from './assets-new'
+import BehavioursDoc from './behaviours-doc'
 import EditAsset from './assets/edit'
 import { Login } from './auth/login'
 import Avatar from './avatar'
@@ -47,6 +48,7 @@ import Privacy from './privacy'
 import RenderAsset from './render/asset'
 import RenderCostume from './render/costume'
 import Search from './search'
+import Shop from './shop'
 import Space from './space'
 import SpaceEdit from './space-edit'
 import Spaces from './spaces'
@@ -173,6 +175,7 @@ const Main = () => {
             <Terms path="/terms" />
             <Privacy path="/privacy" />
             <Conduct path="/conduct" />
+            <BehavioursDoc path="/behaviours" />
             <Logout path="/logout" />
             <NotFound path="/not-found" />
 
@@ -226,6 +229,7 @@ const Main = () => {
             <EventsNew path="/events/new" />
             <EventsEdit path="/events/:id/edit" />
             <Events path="/events" />
+            <Shop path="/shop" />
             <WompsPage path="/womps" />
 
             <IslandsAdmin path="/propose/islands" />

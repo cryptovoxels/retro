@@ -20,6 +20,7 @@ import db from '../server/pg'
 import LoadingPage from './src/loading-page'
 
 import { Express } from 'express'
+import path from 'path'
 import { SUPPORTED_CHAINS_BY_ID } from '../common/helpers/chain-helpers'
 import NotFound from './src/not-found'
 
@@ -74,6 +75,10 @@ export default function loadRoutes(app: Express) {
   })
   app.get('/behaviours', cache(duration), (req, res) => {
     res.send(renderPage(<BehavioursDoc />))
+  })
+
+  app.get('/BEHAVIOURS.md', cache(duration), (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'BEHAVIOURS.md'))
   })
   app.get('/not-found', cache(duration), (req, res) => {
     res.send(renderPage(<NotFound path="/not-found" />))
@@ -211,6 +216,7 @@ export default function loadRoutes(app: Express) {
     { path: '/new', cache: '1 minute' },
     { path: '/events', cache: '1 minute' },
     { path: '/events/*', cache: '1 minute' },
+    { path: '/shop', cache: '1 minute' },
     { path: '/islands', cache: '1 minute' },
     { path: '/islands/:id', cache: '1 minute' },
     { path: '/parcels/:id', cache: '1 minute' },

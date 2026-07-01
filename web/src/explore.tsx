@@ -150,7 +150,7 @@ export default class Explore extends Component<any, Props> {
 
             <Radar />
 
-            <Classifieds />
+            <Classifieds limit={3} />
 
             <EventsList />
 
