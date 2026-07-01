@@ -29,6 +29,7 @@ import { isScratchpad } from './scene-config'
 import { onLoadPromise } from './utils/loading-done'
 import {
   selectCurrentOrNearestParcel,
+  selectCurrentParcel,
   selectNearestEditableParcel,
   selectSelectedFeature,
   selectCheckedFeatures,
@@ -69,6 +70,7 @@ import DebugTools from './ui/overlay/debug-tools'
 import EditPane from './ui/overlay/edit-pane'
 import CustomizeVoxels from './ui/overlay/customize-voxels'
 import ParcelInfoTab from './ui/overlay/parcel-info'
+import IslandInfoTab from './ui/overlay/island-info'
 import ToolBelt from './ui/overlay/tool-belt'
 import ParcelSnapshots from './ui/parcel-snapshots'
 import { SettingsUI } from './ui/settings'
@@ -821,7 +823,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       case 'login':
         return <Login />
       case 'info':
-        return <ParcelInfoTab parcel={currentOrNearestParcel} scene={this.props.scene} />
+        // standing on a parcel: its details. in the void: island context (map, nearby events + parcels).
+        return selectCurrentParcel() ? <ParcelInfoTab parcel={currentOrNearestParcel} scene={this.props.scene} /> : <IslandInfoTab scene={this.props.scene} />
       case 'debugTool':
         return <DebugTools parcel={currentOrNearestParcel} scene={this.props.scene} environment={this.props.environment} />
       case 'chat':

@@ -2317,6 +2317,57 @@ form.PermissionsRadioSelector > div {
       opacity: 1;
     }
   }
+
+  // island context view (shown when you're not on a parcel)
+  .island-minimap svg {
+    width: 100%;
+    aspect-ratio: 1/1;
+    background: var(--tinge);
+
+    rect {
+      fill: var(--bright);
+      opacity: 0.5;
+    }
+
+    circle.you {
+      fill: var(--red);
+    }
+  }
+
+  .island-parcels {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    a {
+      cursor: pointer;
+    }
+  }
+
+  .island-board {
+    textarea {
+      width: 100%;
+      min-height: 3rem;
+    }
+
+    .island-board-posts {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+
+      li {
+        margin-bottom: 1rem;
+      }
+
+      .who {
+        opacity: 0.7;
+
+        span {
+          margin-left: 0.5rem;
+        }
+      }
+    }
+  }
 }
 
 .debug-tools-overlay {

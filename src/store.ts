@@ -29,6 +29,10 @@ setInterval(() => {
   } else {
     currentOrNearestParcel.value = undefined
   }
+
+  // the parcel you're actually standing on (undefined in the void); drives the info pane's
+  // island-context view. separate from currentOrNearestParcel, which never goes empty.
+  currentParcel.value = grid.currentParcel() || undefined
 }, TICK)
 
 const actions = {
@@ -121,6 +125,12 @@ export const currentOrNearestParcel = signal<Parcel | undefined>(undefined)
 
 export const selectCurrentOrNearestParcel = () => {
   return currentOrNearestParcel.value
+}
+
+export const currentParcel = signal<Parcel | undefined>(undefined)
+
+export const selectCurrentParcel = () => {
+  return currentParcel.value
 }
 
 export const selectedFeature = signal<Feature | undefined>(undefined)
