@@ -63,6 +63,7 @@ import NotFound from './not-found'
 import { PlayPreview } from './play-preview'
 import { maybePlayPreview } from './play-preview-route'
 import { app, AppEvent } from './state'
+import { InWorldPane } from './in-world-pane'
 import { WorldSidebar } from './world-sidebar'
 
 class MainApp extends Component {
@@ -243,13 +244,9 @@ function RadioPopout(_props: { path?: string }) {
 }
 
 function Play(_props: { path?: string }) {
-  if (getCoords()) {
-    return (
-      <section class="sidebar-view">
-        <p>in the world</p>
-      </section>
-    )
-  }
+  // in the world the sidebar defaults to parcel info instead of a dead placeholder;
+  // this is also the fallback the sidebar shows whenever no other pane is open.
+  if (getCoords()) return <InWorldPane id="info" />
   return (
     <section>
       <p>add coords to play</p>
