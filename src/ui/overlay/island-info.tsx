@@ -5,6 +5,7 @@ import type { Event as EventMessage } from '../../../common/messages/event'
 import ParcelEvent from '../../../web/src/helpers/event'
 import { fetchOptions } from '../../../web/src/utils'
 import { EventRow } from '../../components/explorer/events'
+import { BigMap } from '../map-overlay'
 import { cameraPosition } from '../../utils/camera'
 import type Grid from '../../grid'
 import type Parcel from '../../parcel'
@@ -16,7 +17,7 @@ export default function IslandInfoTab(props: { scene: BABYLON.Scene }) {
   const [, tick] = useState(0)
   const [events, setEvents] = useState<EventMessage[]>([])
 
-  // you're moving through the void; refresh coords + the minimap while the pane is up
+  // you're moving through the void; refresh coords while the pane is up
   useEffect(() => {
     const t = setInterval(() => tick((n) => n + 1), 1500)
     return () => clearInterval(t)
@@ -63,7 +64,9 @@ export default function IslandInfoTab(props: { scene: BABYLON.Scene }) {
           </h2>
         </div>
 
-        <IslandMinimap parcels={onIsland} camera={cam} />
+        <div class="island-minimap">
+          <BigMap scene={props.scene} />
+        </div>
 
         {island && <IslandBoard island={island} />}
 
@@ -93,30 +96,6 @@ export default function IslandInfoTab(props: { scene: BABYLON.Scene }) {
   )
 }
 
-// tiny north-up snapshot of nearby parcels around a "you" marker; positions are world-space
-// offsets from the camera, scaled to fit.
-function IslandMinimap({ parcels, camera }: { parcels: Parcel[]; camera?: BABYLON.Vector3 }) {
-  if (!camera || !parcels.length) return null
-
-  const pts = parcels.map((p) => {
-    const c = p.exteriorBounds.center
-    return { dx: c.x - camera.x, dz: c.z - camera.z }
-  })
-  const max = Math.max(20, ...pts.map((q) => Math.hypot(q.dx, q.dz)))
-  const R = 44
-
-  return (
-    <div className="island-minimap">
-      <svg viewBox="0 0 100 100" role="img" aria-label="nearby parcels">
-        {pts.map((q, i) => (
-          <rect key={i} x={50 + (q.dx / max) * R - 2} y={50 - (q.dz / max) * R - 2} width="4" height="4" />
-        ))}
-        <circle class="you" cx="50" cy="50" r="3" />
-      </svg>
-    </div>
-  )
-}
-
 // same slug the server routes use: lowercase, spaces -> hyphens
 const slugify = (name: string) => name.trim().toLowerCase().replace(/\s+/g, '-')
 
@@ -127,12 +106,12 @@ interface BoardPost {
   created_at: string
 }
 
-// a shared notice board for the island's landowners. anyone can read; the composer only shows
-// if the server says you own a parcel here (can_post).
+// a shared notice board for the island. anyone can read; owners and collaborators get a post button.
 function IslandBoard({ island }: { island: string }) {
   const slug = slugify(island)
   const [posts, setPosts] = useState<BoardPost[]>([])
   const [canPost, setCanPost] = useState(false)
+  const [composing, setComposing] = useState(false)
   const [draft, setDraft] = useState('')
   const [busy, setBusy] = useState(false)
 
@@ -158,6 +137,7 @@ function IslandBoard({ island }: { island: string }) {
       const r = await fetch(`${process.env.API}/islands/${slug}/board`, fetchOptions(undefined, JSON.stringify({ content }))).then((x) => x.json())
       if (r.success) {
         setDraft('')
+        setComposing(false)
         load()
       }
     } finally {
@@ -168,8 +148,13 @@ function IslandBoard({ island }: { island: string }) {
   return (
     <div className="overlay-parcel-info-content island-board">
       <h4>bulletin board</h4>
-      {canPost && (
-        <div className="f">
+      {canPost && !composing && (
+        <button type="button" onClick={() => setComposing(true)}>
+          post
+        </button>
+      )}
+      {canPost && composing && (
+        <div class="f">
           <textarea value={draft} maxLength={500} placeholder="pin a note for landowners" onInput={(e) => setDraft((e.target as HTMLTextAreaElement).value)} />
           <button type="button" disabled={busy || !draft.trim()} onClick={submit}>
             post
