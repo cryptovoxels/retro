@@ -2,7 +2,6 @@ import { Component, createRef, Fragment } from 'preact'
 import { ParcelMetaCodec, type ParcelMeta } from '../../../common/types'
 import ndarray, { NdArray } from 'ndarray'
 import * as t from 'io-ts'
-import { ethers } from 'ethers'
 import { contours } from 'd3-contour'
 
 const L = window.L as typeof window.L
@@ -21,9 +20,9 @@ BABYLON.Effect.ShadersStore['aoMeshPixelShader'] = aoMeshPixelShader
 import mesher from '../../../common/voxels/mesher'
 import { defaultColors } from '../../../common/content/blocks'
 import { getVoxelsFromBuffer } from '../../../common/voxels/helpers'
-import PARCEL_CONTRACT_ABI from '../../../common/contracts/parcel.json'
 import { debounce } from 'lodash'
 import { app } from '../state'
+import { mintParcel } from '../helpers/mint-parcel'
 
 export const voxelShader = (scene: BABYLON.Scene, name: string) => {
   // need uniforms for brightness, ambient, lightDirection, fogDensity, fogColor
@@ -510,40 +509,29 @@ export default class IslandsAdmin extends Component<Props, State> {
     // this.map.addLayer(marker)
   }
 
-  async create(parcel: ProspectiveParcel) {
-    const id = parcel.id
-
+  // Convert a designer parcel (local voxel coords) into the geo-coord payload the db wants.
+  private parcelPayload(parcel: ProspectiveParcel) {
     const number = parcel.id - this.state.start
-    const address = `${number} ${this.state.name}`
-
     const scale = 0.01
-    const x1 = parcel.x1 * scale + this.state.center[0]
-    const y1 = parcel.y1
-    const z1 = parcel.z1 * scale + this.state.center[1]
-    const x2 = parcel.x2 * scale + this.state.center[0]
-    const y2 = parcel.y2
-    const z2 = parcel.z2 * scale + this.state.center[1]
+    return {
+      id: parcel.id,
+      address: `${number} ${this.state.name}`,
+      island: this.state.name,
+      owner: app.state.wallet || '0x2D891ED45C4C3EAB978513DF4B92a35Cf131d2e2',
+      x1: parcel.x1 * scale + this.state.center[0],
+      y1: parcel.y1,
+      z1: parcel.z1 * scale + this.state.center[1],
+      x2: parcel.x2 * scale + this.state.center[0],
+      y2: parcel.y2,
+      z2: parcel.z2 * scale + this.state.center[1],
+    }
+  }
 
-    const island = this.state.name
-    const owner = app.state.wallet || '0x2D891ED45C4C3EAB978513DF4B92a35Cf131d2e2'
-
-    const response = await fetch('/api/admin/parcels/create', {
+  async create(parcel: ProspectiveParcel) {
+    await fetch('/api/admin/parcels/create', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        id,
-        address,
-        island,
-        owner,
-        x1,
-        y1,
-        z1,
-        x2,
-        y2,
-        z2,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(this.parcelPayload(parcel)),
     })
   }
 
@@ -620,18 +608,7 @@ export default class IslandsAdmin extends Component<Props, State> {
     */
 
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum as any)
-      const signer = await provider.getSigner()
-
-      const contract = new ethers.Contract('0x79986aF15539de2db9A5086382daEdA917A9CF0C', PARCEL_CONTRACT_ABI.abi, signer)
-
-      const owner = '0x2D891ED45C4C3EAB978513DF4B92a35Cf131d2e2'
-      const tx = await contract.mint(owner, id, parcel.x1, parcel.y1, parcel.z1, parcel.x2, parcel.y2, parcel.z2, ethers.parseEther('0'))
-
-      console.log('Transaction submitted:', tx.hash)
-
-      await tx.wait()
-      console.log('Transaction confirmed')
+      await mintParcel({ id, x1: parcel.x1, y1: parcel.y1, z1: parcel.z1, x2: parcel.x2, y2: parcel.y2, z2: parcel.z2 })
     } catch (err) {
       console.error('On-chain minting failed:', err)
     }
@@ -656,14 +633,12 @@ export default class IslandsAdmin extends Component<Props, State> {
     // const geometry = `POLYGON((${x1} ${y1}, ${x2} ${y1}, ${x2} ${y2}, ${x1} ${y2}, ${x1} ${y1}))`
     const geometry = this.getIslandGeometry()
 
-    console.log(JSON.stringify(geometry, null, 2))
     await fetch('/api/admin/islands', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name, geometry, content }),
     })
+    app.showSnackbar('island saved')
   }
 
   private getIslandGeometry() {

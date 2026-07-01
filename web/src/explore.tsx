@@ -14,19 +14,10 @@ import { app, AppEvent } from './state'
 import WompsList from './womps-list'
 import Radar from './components/radar'
 import VoxelRadio from './components/voxel-radio'
+import Classifieds from './components/classifieds'
 
 type Props = {
   womps?: Womp[]
-}
-
-type RESummary = {
-  id: number
-  name: string
-  parcels: {
-    id: number
-    address: string
-    owner: string
-  }[]
 }
 
 type LiveParcel = { id: number; name?: string; address: string }
@@ -74,41 +65,6 @@ function LiveSection() {
   )
 }
 
-function FreshlyMinted() {
-  const [summary, setSummary] = useState<RESummary[]>([])
-
-  async function load() {
-    const res = await fetch('/api/real-estate/summary')
-    const data = await res.json()
-    // console.log(data)
-    setSummary(data.summary)
-  }
-
-  useEffect(() => {
-    load()
-  }, [])
-
-  return (
-    <div>
-      <h2>Freshly Minted</h2>
-      <ul class="real-estate">
-        {summary.map((s) => (
-          <li key={s.id}>
-            <a href={`/island/${s.id}`}>{s.name}</a>
-
-            <ul>
-              {s.parcels.map((p) => (
-                <li key={p.id} class={`owner-${(p.owner && typeof p.owner === 'object' ? (p.owner as any).owner : (p.owner ?? '')).toLowerCase()}`}>
-                  <a href={`/parcels/${p.id}`}>{p.address.slice(0, 2).trim()}</a>
-                </li>
-              ))}
-            </ul>
-          </li>
-        ))}
-      </ul>
-    </div>
-  )
-}
 function countdown(ms: number) {
   const s = Math.floor(ms / 1000)
   const d = Math.floor(s / 86400)
@@ -193,6 +149,8 @@ export default class Explore extends Component<any, Props> {
             <VoxelRadio />
 
             <Radar />
+
+            <Classifieds />
 
             <EventsList />
 

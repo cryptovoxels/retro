@@ -16,6 +16,7 @@ import { VoxelSize } from '../common/voxels/mesher'
 import { buildCleanMesh } from './clean-mesher'
 import type { LanternRecord } from '../common/messages/feature'
 import { app } from '../web/src/state'
+import { mintParcel } from '../web/src/helpers/mint-parcel'
 import Autobuilder from './autobuild'
 import { createFeature } from './features/create'
 import Feature from './features/feature'
@@ -31,8 +32,6 @@ import { tidyVec3 } from './utils/helpers'
 import { ParcelEventMap } from './utils/parcel-event-map'
 import { GLASS_MAX_VIEW_DISTANCE } from './voxel-field'
 import { Action } from '../common/messages'
-
-const PARCEL_CONTRACT_ABI = require('../common/contracts/parcel.json')
 
 const isTest = process.env.NODE_ENV === 'test'
 export const UNBAKED = '/textures/03-white-square.png'
@@ -270,18 +269,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
   async requestMint() {
     try {
-      const provider = new ethers.BrowserProvider(window.ethereum as any)
-      const signer = await provider.getSigner()
-
-      const contract = new ethers.Contract('0x79986aF15539de2db9A5086382daEdA917A9CF0C', PARCEL_CONTRACT_ABI.abi, signer)
-      const owner = '0x2D891ED45C4C3EAB978513DF4B92a35Cf131d2e2'
-      const tx = await contract.mint(owner, this.id, this.x1, this.y1, this.z1, this.x2, this.y2, this.z2, ethers.parseEther('0'))
-
-      // console.log('Transaction submitted:', tx.hash)
-
-      await tx.wait()
-
-      // console.log('Transaction confirmed')
+      await mintParcel(this)
     } catch (err) {
       console.error('On-chain minting failed:', err)
     }

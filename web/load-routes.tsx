@@ -184,6 +184,7 @@ export default function loadRoutes(app: Express) {
 
   const dynamicRoutes = [
     { path: '/propose/*', cache: '1 minute' },
+    { path: '/admin', cache: '1 minute' },
     { path: '/map', cache: '1 minute' },
     { path: '/mail', cache: '1 minute' },
     { path: '/home', cache: '1 minute' },

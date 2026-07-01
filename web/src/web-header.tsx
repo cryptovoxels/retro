@@ -26,17 +26,14 @@ const ROUTE_ICONS: Record<string, string> = {
 }
 
 function AdminMenu() {
+  return <li>{navLinkActive('Admin', '/admin')}</li>
+}
+
+function navLinkActive(label: string, href: string) {
   return (
-    <li>
-      Admin
-      <ul>
-        <li>
-          <Link activeClassName="active" href="/admin/islands">
-            Islands
-          </Link>
-        </li>
-      </ul>
-    </li>
+    <Link activeClassName="active" href={href}>
+      {label}
+    </Link>
   )
 }
 type Props = {
@@ -106,6 +103,7 @@ export default class WebHeader extends Component<Props, State> {
     }
 
     const path = ssrFriendlyWindow?.location.pathname
+    const admin = app.isAdmin()
     const signedIn = app.signedIn
     const coords = this.props.coords || getCoords()
     const href = (p: string) => (coords ? withCoords(p) : p)
@@ -189,6 +187,8 @@ export default class WebHeader extends Component<Props, State> {
               <li>{navLink('Scratchpad', '/scratchpad', 'scratchpad', isActive('scratchpad'))}</li>
               <li>{navLink('Help', '/conduct', 'scratchpad', isActive('conduct'))}</li>
               {signedIn && <li>{navLink('Log out', '/logout', 'account', isActive('logout'))}</li>}
+
+              {admin && <AdminMenu />}
 
               <li>
                 <form action="/search" onSubmit={this.onSubmit}>

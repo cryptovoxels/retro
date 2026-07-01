@@ -1,3 +1,4 @@
+import { NextFunction, Response } from 'express'
 import { SignJWT } from 'jose'
 import fetch from 'node-fetch'
 import log from '../lib/logger'
@@ -56,6 +57,15 @@ export const isAdmin = (req: Express.Request) => {
   }
 
   return cryptovoxelsTeam.has(wallet.toLowerCase())
+}
+
+// Use after passport.authenticate('jwt') to gate a route to the CV team.
+export const requireAdmin = (req: Express.Request, res: Response, next: NextFunction) => {
+  if (!isAdmin(req)) {
+    res.status(403).json({ success: false, message: 'Unauthorized' })
+    return
+  }
+  next()
 }
 
 export const isCommonParcel = (parcel: Parcel | ParcelRef) => {
