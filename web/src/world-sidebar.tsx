@@ -1,7 +1,7 @@
 import type { ComponentChildren } from 'preact'
 import { useSignalEffect } from '@preact/signals'
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { authoring, isAuthoring, nearestEditableParcel, selectNearestEditableParcel, sidebarClosed, uiAsideTick, uiPane } from '../../src/store'
+import { authoring, isAuthoring, isPersistentPane, nearestEditableParcel, selectNearestEditableParcel, sidebarClosed, uiAsideTick, uiPane } from '../../src/store'
 import { Authoring } from './authoring'
 import { InWorldPane } from './in-world-pane'
 
@@ -10,11 +10,6 @@ type Props = {
   path?: string
   children: ComponentChildren
 }
-
-// panes you open on purpose and leave up while walking around get a close X;
-// contextual build/edit panes dismiss when you click back into the world.
-// broadcast is excluded: it has its own show/hide tab and would get trapped here.
-const PERSISTENT = new Set(['info', 'explorer', 'settings', 'help'])
 
 export function WorldSidebar({ coords, path, children }: Props) {
   const [, bump] = useState(0)
@@ -70,7 +65,7 @@ export function WorldSidebar({ coords, path, children }: Props) {
   }
 
   const pane = uiPane.value
-  const showClose = !pane || PERSISTENT.has(pane)
+  const showClose = !pane || isPersistentPane(pane)
   return (
     <aside>
       {showClose && close}
