@@ -136,6 +136,12 @@ export const selectCheckedFeatures = (): CheckedFeatures => {
 }
 
 export const uiPane = signal<string | undefined>(undefined)
+
+// panes you open on purpose and leave up while walking around (they get a close X and survive
+// tapping back into the world); contextual build/edit panes dismiss on canvas re-engage.
+export const PERSISTENT_PANES = new Set(['info', 'explorer', 'settings', 'help'])
+export const isPersistentPane = (p?: string) => !!p && PERSISTENT_PANES.has(p)
+
 export const uiAsideTick = signal(0)
 export const sidebarClosed = signal(false)
 export const broadcastShowboxUuid = signal<string | undefined>(undefined)

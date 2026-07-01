@@ -36,6 +36,7 @@ import {
   setSelectedFeature,
   toggleCheckedFeature,
   enterAuthoring,
+  isPersistentPane,
   uiAsideTick,
   uiPane,
   sidebarClosed,
@@ -279,12 +280,15 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   clearAllExplore() {
+    // panes you opened on purpose (info/explorer/settings/help) stay up while you walk around;
+    // deactivateTools() clears uiPane too, so capture and restore it after.
+    const keep = isPersistentPane(uiPane.value) ? uiPane.value : undefined
     setCheckedFeatures([])
     selectedFeature.value = undefined
-    uiPane.value = undefined
     this.featureTool.unHighlight()
     this.deactivateTools()
-    this.setState({ pane: undefined, active: false, feature: undefined, editor: undefined })
+    uiPane.value = keep
+    this.setState({ pane: keep as UIPanes | undefined, active: !!keep, feature: undefined, editor: undefined })
   }
 
   editShiftSelect(feature: Feature) {
