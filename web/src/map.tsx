@@ -680,7 +680,7 @@ export default class WorldMap extends Component<Props, State> {
     return (
       <section class="worldmap">
         {this.props.path === '/map' && (
-          <a class="map-for-sale-cta" href="/shop">
+          <a class="map-for-sale-cta buttonish primary" href="/shop">
             land for sale
           </a>
         )}
