@@ -156,6 +156,20 @@ export const closeBroadcastSidebar = () => {
   uiAsideTick.value++
 }
 
+export type PendingWomp = {
+  coords: string
+  parcel: Parcel
+  image: string
+}
+
+export const pendingWomp = signal<PendingWomp | null>(null)
+
+export const closeTakeWomp = () => {
+  pendingWomp.value = null
+  if (uiPane.value === 'takeWomp') uiPane.value = undefined
+  uiAsideTick.value++
+}
+
 export const authoring = signal<Set<number>>(new Set())
 
 export const enterAuthoring = (id: number) => {

@@ -328,7 +328,6 @@ async function main() {
 
   // @ts-expect-error for debug
   window._lutFactor = lutFactor
-  // @ts-expect-error global for dev, makes it easy to adjust at runtime
   window._color = color
 
   graphic.postProcesses = new PostProcesses(scene, color, graphic)

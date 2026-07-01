@@ -1,14 +1,15 @@
-import { Component, JSX, render } from 'preact'
-import { unmountComponentAtNode } from 'preact/compat'
+import { Component } from 'preact'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { convertDataURItoJPGFile, uploadMedia } from '../../common/helpers/upload-media'
 import { PanelType } from '../../web/src/components/panel'
 import { app } from '../../web/src/state'
+import { wompFlash } from '../graphic/womp-flash'
 import { MinimapSettings } from '../minimap'
 import type Parcel from '../parcel'
+import { pendingWomp, sidebarClosed, uiAsideTick, uiPane } from '../store'
+
 interface Props {
   onClose?: () => void
-  onKeyDown?: (event: JSX.TargetedKeyboardEvent<HTMLElement>) => void
   coords: string
   parcel: Parcel
   image: string
@@ -35,10 +36,23 @@ interface State {
 
 const WompSize = { width: 1024, height: 1024 } as const
 
-export default class TakeWomp extends Component<Props, State> {
-  static currentElement: HTMLElement | null = null
-  wompSound: BABYLON.Sound | null = null
+let wompSound: BABYLON.Sound | null = null
 
+function playWompSound() {
+  const audio = window._audio
+  if (!audio) return
+  if (!wompSound) {
+    wompSound = audio.createSound({
+      name: 'womp',
+      url: `${process.env.SOUNDS_URL}/womp.mp3`,
+      options: { loop: false, autoplay: false },
+    })
+  }
+  wompSound.setVolume(0.2)
+  wompSound.play()
+}
+
+export default class TakeWomp extends Component<Props, State> {
   constructor(props: Props) {
     super(props)
 
@@ -47,23 +61,10 @@ export default class TakeWomp extends Component<Props, State> {
       uploading: false,
       kind: !window.config.isSpace ? WompType.Broadcast : WompType.ProfileOnly,
     }
-
-    if (!this.wompSound && this.audio) {
-      this.wompSound = this.audio.createSound({
-        name: 'womp',
-        url: `${process.env.SOUNDS_URL}/womp.mp3`,
-        options: { loop: false, autoplay: false },
-      })
-    }
   }
 
-  // fixme
-  get audio() {
-    return window._audio
-  }
-
-  get connector() {
-    return window.connector
+  componentDidMount() {
+    setTimeout(() => (document.querySelector('.take-womp textarea') as HTMLTextAreaElement | null)?.focus(), 0)
   }
 
   static async Capture(engine: BABYLON.Engine, scene: BABYLON.Scene, minimapSettings: MinimapSettings) {
@@ -84,6 +85,8 @@ export default class TakeWomp extends Component<Props, State> {
       return
     }
 
+    playWompSound()
+
     minimapSettings.hide = true
 
     const canvas = engine.getRenderingCanvas()
@@ -92,8 +95,6 @@ export default class TakeWomp extends Component<Props, State> {
       return
     }
 
-    // we temporarily resize the canvas to the target screenshot size
-    // so that the screenshot is the correct aspect ratio without black bars
     const currentCanvasSizeWidth = canvas.style.width + ''
     const currentCanvasSizeHeight = canvas.style.height + ''
 
@@ -106,15 +107,19 @@ export default class TakeWomp extends Component<Props, State> {
     try {
       image = await BABYLON.ScreenshotTools.CreateScreenshotAsync(engine, scene.activeCamera, WompSize, 'image/jpeg')
     } finally {
-      // always restore the canvas size and minimap, even if the screenshot throws,
-      // otherwise the minimap stays hidden/disposed while its controls remain visible
       canvas.style.width = currentCanvasSizeWidth
       canvas.style.height = currentCanvasSizeHeight
       engine.resize(true)
       minimapSettings.hide = false
     }
 
-    openPostWompUI(coords, parcel, image, scene)
+    wompFlash(scene)
+
+    pendingWomp.value = { coords, parcel, image }
+    uiPane.value = 'takeWomp'
+    sidebarClosed.value = false
+    uiAsideTick.value++
+    exitPointerLock()
   }
 
   close = () => {
@@ -122,9 +127,6 @@ export default class TakeWomp extends Component<Props, State> {
   }
 
   async post() {
-    this.wompSound?.setVolume(0.2)
-    this.wompSound?.play()
-
     this.setState({ uploading: true })
 
     const imageFile = convertDataURItoJPGFile(this.props.image, `${'womp_' + Date.now() + '.jpg'}`)
@@ -211,102 +213,59 @@ export default class TakeWomp extends Component<Props, State> {
 
   render() {
     return (
-      <div className="OverlayWindow -takeWomp" onKeyDown={this.props.onKeyDown}>
+      <section class="take-womp">
         <header>
-          <h3>New Womp</h3>
-
-          <button className="close" onClick={() => this.close()}>
-            &times;
-          </button>
+          <h2>new womp</h2>
         </header>
 
-        <section class="SplitPanel">
-          <div class="Panel">
-            <div class="Card -compact">
-              <img src={this.props.image} />
-              <header>
-                {this.props.parcel.spaceId ? <div class="space">{this.props.parcel.name || 'The Void'} (space)</div> : <div class="parcel">{this.props.parcel.name || this.props.parcel.address}</div>}
-                <div class="user">{app.state.name}</div>
-              </header>
-            </div>
-          </div>
-          <div class="Panel">
-            <div class="WompOptions">
-              <h4>{this.state.kind === WompType.BugReport ? 'Bug Report Details (required)' : 'Description (optional)'}</h4>
-              <textarea value={this.state.content} onInput={(e) => this.setState({ content: (e as any).target['value'] })} />
+        <img class="take-womp-preview" src={this.props.image} alt="" />
 
-              <h4>Womp Type</h4>
-              <form class="PermissionsRadioSelector">
-                <div>
-                  <label>
-                    <input checked={this.state.kind === WompType.Broadcast} onClick={() => this.setKind(WompType.Broadcast)} name="type" type="radio" disabled={window.config.isSpace} />
-                    <div>
-                      <strong>Public Broadcast</strong>
-                      <div class="info">Display on homepage, parcel pages and your profile and notify everyone in world</div>
-                      {window.config.isSpace && <small>Not available in Spaces</small>}
-                    </div>
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    <input checked={this.state.kind === WompType.ProfileOnly} onClick={() => this.setKind(WompType.ProfileOnly)} name="type" type="radio" />
-                    <div>
-                      <strong>Profile Only</strong>
-                      <div class="info">Displays on your profile and {!window.config.isSpace ? `parcel` : `space`} page or share a link directly</div>
-                    </div>
-                  </label>
-                </div>
-                <div>
-                  <label>
-                    <input checked={this.state.kind === WompType.BugReport} onClick={() => this.setKind(WompType.BugReport)} name="type" type="radio" />
-                    <div>
-                      <strong>Bug Report</strong>
-                      <div class="info">Found an issue? This will only be viewable by Voxels. Please include a description with steps to reproduce and expected behavior.</div>
-                    </div>
-                  </label>
-                </div>
+        <div class="WompOptions">
+          <h4>{this.state.kind === WompType.BugReport ? 'Bug Report Details (required)' : 'Description (optional)'}</h4>
+          <textarea value={this.state.content} onInput={(e) => this.setState({ content: (e as any).target['value'] })} />
 
-                <p>
-                  <b>Coordinates:</b>
-                  <br /> {this.props.coords}
-                </p>
-              </form>
+          <h4>Womp Type</h4>
+          <form class="PermissionsRadioSelector">
+            <div>
+              <label>
+                <input checked={this.state.kind === WompType.Broadcast} onClick={() => this.setKind(WompType.Broadcast)} name="type" type="radio" disabled={window.config.isSpace} />
+                <div>
+                  <strong>Public Broadcast</strong>
+                  <div class="info">Display on homepage, parcel pages and your profile and notify everyone in world</div>
+                  {window.config.isSpace && <small>Not available in Spaces</small>}
+                </div>
+              </label>
             </div>
-          </div>
-        </section>
+            <div>
+              <label>
+                <input checked={this.state.kind === WompType.ProfileOnly} onClick={() => this.setKind(WompType.ProfileOnly)} name="type" type="radio" />
+                <div>
+                  <strong>Profile Only</strong>
+                  <div class="info">Displays on your profile and {!window.config.isSpace ? `parcel` : `space`} page or share a link directly</div>
+                </div>
+              </label>
+            </div>
+            <div>
+              <label>
+                <input checked={this.state.kind === WompType.BugReport} onClick={() => this.setKind(WompType.BugReport)} name="type" type="radio" />
+                <div>
+                  <strong>Bug Report</strong>
+                  <div class="info">Found an issue? This will only be viewable by Voxels. Please include a description with steps to reproduce and expected behavior.</div>
+                </div>
+              </label>
+            </div>
+
+            <p>
+              <b>Coordinates:</b>
+              <br /> {this.props.coords}
+            </p>
+          </form>
+        </div>
 
         <button class="TakeWompButton" disabled={this.state.uploading} onClick={() => (this.state.kind === WompType.BugReport ? this.confirmReport() : this.post())}>
           {this.state.uploading ? <span>Posting, please wait...</span> : <span>Post</span>}
         </button>
-      </div>
+      </section>
     )
   }
-}
-
-function openPostWompUI(coords: string, parcel: Parcel, image: string, scene: BABYLON.Scene) {
-  if (!!TakeWomp.currentElement) {
-    unmountComponentAtNode(TakeWomp.currentElement)
-    TakeWomp.currentElement = null
-  }
-
-  const div = document.createElement('div')
-  div.className = 'pointer-lock-close'
-  document.body.appendChild(div)
-
-  const onClose = () => {
-    !!TakeWomp.currentElement && unmountComponentAtNode(TakeWomp.currentElement)
-    TakeWomp.currentElement = null
-    div?.remove()
-  }
-
-  const onKeyDown = (event: JSX.TargetedKeyboardEvent<HTMLElement>) => {
-    if (event.key === 'Escape') {
-      onClose()
-    }
-  }
-
-  render(<TakeWomp coords={coords} parcel={parcel} image={image} {...{ onClose, onKeyDown }} scene={scene} />, div)
-
-  setTimeout(() => (document as any).querySelector('.WompOptions textarea')['focus'](), 0)
-  exitPointerLock()
 }

@@ -2029,6 +2029,29 @@ button.TakeWompButton {
   margin: 5px 0 0 0;
 }
 
+.womp-button {
+  position: absolute;
+  bottom: calc(var(--chatbar) + 1rem);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 1px solid white;
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  z-index: 1000;
+}
+
+section.take-womp {
+  .take-womp-preview {
+    max-width: 100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
+    margin-bottom: 1rem;
+  }
+}
+
 form.PermissionsRadioSelector > div {
   margin: 10px 0;
 

@@ -41,6 +41,8 @@ import {
   uiAsideTick,
   uiPane,
   sidebarClosed,
+  pendingWomp,
+  closeTakeWomp,
 } from './store'
 import FeatureTool from './tools/feature'
 import VoxelTool, { SelectionMode, SelectionModeOptions } from './tools/voxel'
@@ -73,6 +75,7 @@ import ToolBelt from './ui/overlay/tool-belt'
 import ParcelSnapshots from './ui/parcel-snapshots'
 import { SettingsUI } from './ui/settings'
 import TakeWomp from './ui/take-womp'
+import WompButton from './ui/womp-button'
 
 const NUMBER_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const
 
@@ -101,7 +104,7 @@ export enum Mode {
   Avatar,
 }
 
-export type UIPanes = 'add' | 'edit' | 'voxels' | 'info' | 'debugTool' | 'nfts' | 'chat' | 'emote' | 'settings' | 'womp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake' | 'broadcast'
+export type UIPanes = 'add' | 'edit' | 'voxels' | 'info' | 'debugTool' | 'nfts' | 'chat' | 'emote' | 'settings' | 'womp' | 'takeWomp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake' | 'broadcast'
 
 export interface Tool {
   activate: () => void
@@ -832,6 +835,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return <SettingsUI scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
       case 'womp':
         return <WompOverlay scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
+      case 'takeWomp': {
+        const w = pendingWomp.value
+        if (!w) return null
+        return <TakeWomp coords={w.coords} parcel={w.parcel} image={w.image} scene={this.props.scene} onClose={closeTakeWomp} />
+      }
       case 'help':
         return <HelpOverlay scene={this.props.scene} onShowScratchpadGuide={isScratchpad() ? this.openScratchpadGuide : undefined} />
       case 'explorer':
@@ -1004,6 +1012,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           {nearestEditableParcel && <ToolBelt parcel={nearestEditableParcel} scene={this.props.scene} />}
 
           <BroadcastSidebarTab />
+
+          <WompButton onClick={() => this.takeWomp(this.props.scene)} />
 
           <ConnectionStatusUI connector={this.connector} grid={this.grid} scene={this.props.scene} />
           <OnlyMobile>
