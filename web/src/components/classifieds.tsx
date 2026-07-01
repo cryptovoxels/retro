@@ -12,9 +12,9 @@ const URL = process.env.NODE_ENV === 'production' ? '/api/classifieds.json' : 'h
 const eth = (n: number) => parseFloat(n.toFixed(3))
 const name = (i: Item) => i.name || i.address || `#${i.id}`
 
-type Props = { limit?: number; link?: boolean }
+type Props = { limit?: number }
 
-export default function Classifieds({ limit, link = true }: Props) {
+export default function Classifieds({ limit }: Props) {
   const [data, setData] = useState<Data | null>(null)
   const [tab, setTab] = useState<Tab>('secondary')
   const [sort, setSort] = useState<Sort>('price')
@@ -84,7 +84,7 @@ export default function Classifieds({ limit, link = true }: Props) {
   return (
     <div class="classifieds">
       <div class="classifieds-head">
-        <h3>{link ? <a href="/shop">shop</a> : 'shop'}</h3>
+        <h3>shop</h3>
         {!limit && (
           <div class="classifieds-currency">
             <span class={!usd ? 'active' : ''}>eth</span>
