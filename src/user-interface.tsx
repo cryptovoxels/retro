@@ -10,6 +10,7 @@ import { shorterWallet } from '../common/helpers/utils'
 import { Login } from '../web/src/auth/login'
 import { PanelType } from '../web/src/components/panel'
 import Snackbar from '../web/src/components/snackbar'
+import Toggle from '../web/src/components/toggle'
 import { app, AppEvent } from '../web/src/state'
 import { KeyboardHandler } from './components/keyboard-handler'
 import { OnlyMobile } from './components/utils'
@@ -240,22 +241,24 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   setDragging = (v: boolean) => this.setState({ dragging: v })
 
-  // off -> first click prompts for the mic and joins a cluster; then click toggles mute (mic stays acquired)
+  // enable microphone: off/muted = toggle left, live = toggle right
   toggleVoice = () => {
     if (!voiceSettings.enabled) return
     const vc = this.connector.persona?.voiceChat
     if (!vc) return
-    const v = this.state.voice
-    if (!v || v === 'off') {
-      vc.enable()
-      this.setState({ voice: 'live' })
-    } else if (v === 'live') {
+    if (this.state.voice === 'live') {
       vc.setMuted(true)
       this.setState({ voice: 'muted' })
-    } else {
-      vc.setMuted(false)
-      this.setState({ voice: 'live' })
+      return
     }
+    if (!vc.on) {
+      void vc.enable().then(() => {
+        if (vc.on) this.setState({ voice: 'live' })
+      })
+      return
+    }
+    vc.setMuted(false)
+    this.setState({ voice: 'live' })
   }
 
   openEditor(editor: FeatureEditor, feature: Feature) {
@@ -892,16 +895,12 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           <aside data-active={this.state.active}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
               {this.state.voiceEnabled && (
-                <li title="Voice chat" class={this.state.voice === 'live' ? 'active' : ''}>
-                  <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      this.toggleVoice()
-                    }}
-                  >
-                    {this.state.voice === 'live' ? 'Voice on' : this.state.voice === 'muted' ? 'Voice muted' : 'Voice off'}
-                  </a>
+                <li title="Microphone">
+                  <div class="voice-toggle">
+                    <span class={this.state.voice !== 'live' ? 'active' : ''}>off</span>
+                    <Toggle checked={this.state.voice === 'live'} onChange={() => this.toggleVoice()} />
+                    <span class={this.state.voice === 'live' ? 'active' : ''}>on</span>
+                  </div>
                 </li>
               )}
               {!isMobileMedia() && (
