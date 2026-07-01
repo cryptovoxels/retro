@@ -2235,6 +2235,23 @@ menu.context,
     }
   }
 
+  .for-sale-back {
+    background: none;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .for-sale-detail {
+    flex: 1;
+    overflow-y: auto;
+    padding: 0 1rem 1rem;
+  }
+
+  .for-sale-detail-price {
+    margin: 0 0 1rem;
+  }
+
   .for-sale-currency {
     display: flex;
     align-items: center;
@@ -2256,13 +2273,6 @@ menu.context,
     padding: 1rem 0;
     border-bottom: var(--softborder);
     color: inherit;
-
-    &.selected {
-      background: var(--tinge);
-      margin: 0 -1rem;
-      padding-left: 1rem;
-      padding-right: 1rem;
-    }
 
     .addr {
       font-weight: bold;
