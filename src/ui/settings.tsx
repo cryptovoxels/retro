@@ -1,6 +1,7 @@
 import { Component, JSX } from 'preact'
 import { isMobile } from '../../common/helpers/detector'
 import { AudioSettings } from '../audio/audio-engine'
+import { setRadioVolume } from '../../web/src/radio/global'
 import Connector from '../connector'
 import { FOV, NORMAL_FOV, WIDE_FOV } from '../graphic/field-of-view'
 import { type GraphicEngine, GraphicLevels, GraphicSettings } from '../graphic/graphic-engine'
@@ -17,7 +18,22 @@ function fromReversedPercentage(percentage: number, min: number, max: number): n
   return max - (percentage / 100) * (max - min)
 }
 
-type AudioChannel = keyof AudioSettings
+type PersistedAudio = AudioSettings & { musicVolume: number }
+type AudioChannel = keyof PersistedAudio
+
+function loadPersistedAudio(): PersistedAudio | undefined {
+  let musicVolume = 1
+  try {
+    const stored = localStorage.getItem('audioSettings')
+    if (stored) {
+      const s = JSON.parse(stored)
+      if (typeof s.musicVolume === 'number') musicVolume = s.musicVolume
+    }
+  } catch {}
+  const engine = window._audio?.getSettings()
+  if (engine) return { ...engine, musicVolume }
+  return { parcelAudioVolume: 1, soundEffectsVolume: 1, musicVolume }
+}
 
 type Props = {
   scene: BABYLON.Scene
@@ -27,7 +43,7 @@ type Props = {
 type InputDevice = { label: string; deviceId: string }
 
 interface State {
-  audio: AudioSettings | undefined
+  audio: PersistedAudio | undefined
   graphic: GraphicSettings
   fov: number
   minimap: MinimapSettings
@@ -45,7 +61,7 @@ export class SettingsUI extends Component<Props, State> {
   constructor(props: Props) {
     super(props)
     this.state = {
-      audio: this.audioEngine?.getSettings(),
+      audio: loadPersistedAudio(),
       graphic: this.graphicsEngine.getSettings(),
       fov: this.fov.value,
       minimap: this.minimap,
@@ -83,6 +99,9 @@ export class SettingsUI extends Component<Props, State> {
   }
 
   componentDidMount() {
+    if (typeof this.state.audio?.musicVolume === 'number') {
+      setRadioVolume(this.state.audio.musicVolume)
+    }
     this.refreshVoiceDevices()
     navigator.mediaDevices?.addEventListener('devicechange', this.refreshVoiceDevices)
     voiceSettings.addEventListener('changed', this.onVoiceSettingsChange)
@@ -178,9 +197,11 @@ export class SettingsUI extends Component<Props, State> {
   }
 
   sendAudioSettings() {
-    if (this.audioEngine && this.state.audio) {
-      this.audioEngine.setSettings(this.state.audio)
-    }
+    if (!this.state.audio) return
+    const { musicVolume, ...engineSettings } = this.state.audio
+    setRadioVolume(musicVolume)
+    window.localStorage.setItem('audioSettings', JSON.stringify(this.state.audio))
+    this.audioEngine?.setSettings(engineSettings)
   }
 
   onGraphicLevelChange(e: InputEvent) {
@@ -369,7 +390,7 @@ export class SettingsUI extends Component<Props, State> {
           <dl class="props">
             <VolumeControl settingsUI={this} channel="parcelAudioVolume" label="Parcel audio" />
             <VolumeControl settingsUI={this} channel="soundEffectsVolume" label="Sound effects" />
-            <VolumeControl settingsUI={this} channel="musicVolume" label="Ambience" />
+            <VolumeControl settingsUI={this} channel="musicVolume" label="Radio" />
           </dl>
         </section>
 

@@ -1,6 +1,7 @@
 import { Component, createRef } from 'preact'
 import { trackTitle } from '../../../common/soundtracks'
 import { DAY, PedalId, Spot, VoxelRadioEngine } from '../radio/engine'
+import { ensureRadio, getRadio, onRadioChange } from '../radio/global'
 
 type Props = { popped?: boolean }
 type PanelMode = 'closed' | 'open'
@@ -212,6 +213,7 @@ class Knob extends Component<KnobProps> {
 export default class VoxelRadio extends Component<Props, State> {
   radio: VoxelRadioEngine | null = null
   tick: ReturnType<typeof setInterval> | null = null
+  off: (() => void) | null = null
 
   constructor(props: Props) {
     super(props)
@@ -221,15 +223,15 @@ export default class VoxelRadio extends Component<Props, State> {
   }
 
   componentDidMount() {
-    this.radio = new VoxelRadioEngine()
-    this.radio.onChange = () => this.forceUpdate()
-    this.radio.start()
+    this.radio = getRadio() ?? ensureRadio()
+    this.off = onRadioChange(() => this.forceUpdate())
     this.tick = setInterval(() => this.forceUpdate(), 1000)
   }
 
   componentWillUnmount() {
     if (this.tick) clearInterval(this.tick)
-    this.radio?.stop()
+    this.off?.()
+    this.off = null
     this.radio = null
   }
 

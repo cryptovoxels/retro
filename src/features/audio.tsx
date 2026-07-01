@@ -1,3 +1,4 @@
+import { duckRadio, unduckRadio } from '../../web/src/radio/global'
 import { isBatterySaver } from '../../common/helpers/detector'
 import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { AudioRecord } from '../../common/messages/feature'
@@ -211,7 +212,7 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
   }
 
   onPlaying(offset: number) {
-    this.audio && this.audio.addUserAudioReference(this)
+    duckRadio(this)
 
     if (this.interval) {
       clearInterval(this.interval)
@@ -254,7 +255,7 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
 
     if (this.sound) {
       // pause the soundtrack while audio is active
-      this.audio && this.audio.addUserAudioReference(this)
+      duckRadio(this)
       this.playFrom(this.targetPlayOffset || 0, this.autoplay)
     } else {
       this.updatePlayStatus('Loading...')
@@ -288,7 +289,7 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
     console.log('stopping', this.uuid)
     if (this.sound) {
       this.sound.stop()
-      this.audio && this.audio.removeUserAudioReference(this)
+      unduckRadio(this)
     }
 
     if (this.interval) {
@@ -551,7 +552,7 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
       this.sound.dispose()
     }
 
-    this.audio && this.audio.removeUserAudioReference(this)
+    unduckRadio(this)
 
     // needed for feature.regenerate
     this.sound = null

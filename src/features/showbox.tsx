@@ -22,6 +22,7 @@ import { VideoFxProcessor, FX_PALETTES, FX_DEFAULT_PALETTE, VIDEO_FX, type FxAud
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { isSplit } from '../../web/src/helpers/coords-nav'
+import { duckRadio, setRadioBroadcasting, unduckRadio } from '../../web/src/radio/global'
 import { broadcastLiveStartedAt, broadcastShowboxUuid, closeBroadcastSidebar, uiAsideTick, uiPane } from '../store'
 import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
 import { cohostPaneRects, MAX_COHOST_PANES } from '../../common/helpers/cohost-panes'
@@ -1301,7 +1302,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         el.style.display = 'none'
         document.body.appendChild(el)
         this.trackStreamAudio(el, p.identity)
-        this.audio?.addUserAudioReference(this)
+        duckRadio(this)
       }
     }
     this.startBroadcastAudio()
@@ -1558,7 +1559,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   wireBroadcastRoom(room: Room) {
     // going live on a screen: your voice goes out the showbox, so step off the avatar voice mic
     window.persona?.voiceChat?.setBroadcasting(true)
-    // and mute the in-world soundtrack so it doesn't bleed into your stream
+    setRadioBroadcasting(true)
     window._audio?.setBroadcasting(true)
     const bumpViewerCount = () => {
       const total = this.broadcastRoomParticipantCount()
@@ -2448,7 +2449,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.livekitRoom = null
       this.hasActiveVideo = false
       this.stopStreamVolumePoll()
-      this.audio?.removeUserAudioReference(this)
+      unduckRadio(this)
     }
   }
 
@@ -2546,7 +2547,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.dismissBroadcastPanel()
     this.clearBroadcastDockUi()
     this.hostJoinLoginPending = false
-    this.audio?.removeUserAudioReference(this)
+    unduckRadio(this)
   }
 
   // a plain mirror shows whatever the primary showbox is showing, so it reflects the primary's
@@ -2938,7 +2939,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         el.style.display = 'none'
         document.body.appendChild(el)
         this.trackStreamAudio(el, identity)
-        this.audio?.addUserAudioReference(this)
+        duckRadio(this)
         this.startBroadcastAudio()
         return
       }
@@ -2991,7 +2992,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             this.streamVolumeInterval = null
           }
         }
-        this.audio?.removeUserAudioReference(this)
+        unduckRadio(this)
       }
       if (track.kind === Track.Kind.Video) {
         if (this.isCohostMode()) {
@@ -3014,7 +3015,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     room.on(RoomEvent.AudioPlaybackStatusChanged, (playing) => {
       if (playing) {
-        this.audio?.addUserAudioReference(this)
+        duckRadio(this)
       } else {
         this.armGestureUnblock()
       }
@@ -3085,7 +3086,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   startBroadcastAudio() {
     if (!this.livekitRoom || !wantsAudio()) return
     this.livekitRoom.startAudio().catch(() => {})
-    this.audio?.addUserAudioReference(this)
+    duckRadio(this)
   }
 
   unblockAudiencePlayback() {
@@ -3280,6 +3281,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   stopBroadcast(silent = false) {
     // done broadcasting: hand the voice mic back to the avatar and bring the soundtrack back
     window.persona?.voiceChat?.setBroadcasting(false)
+    setRadioBroadcasting(false)
     window._audio?.setBroadcasting(false)
     this.liveChatAnnounced = false
     this.walkAwayWarned = false
@@ -3332,7 +3334,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.hasActiveVideo = false
     this.cohostCompositeAttached = false
     this.syncCohostPreview = null
-    this.audio?.removeUserAudioReference(this)
+    unduckRadio(this)
     if (this.liveTimerInterval) {
       clearInterval(this.liveTimerInterval)
       this.liveTimerInterval = null
@@ -4938,7 +4940,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           }
         }
 
-        this.audio?.addUserAudioReference(this)
+        duckRadio(this)
 
         goBtn.textContent = 'stop streaming'
         goBtn.style.background = '#444'

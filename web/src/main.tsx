@@ -63,6 +63,7 @@ import Admin from './admin/admin'
 import NotFound from './not-found'
 import { PlayPreview } from './play-preview'
 import { maybePlayPreview } from './play-preview-route'
+import { ensureRadio } from './radio/global'
 import { app, AppEvent } from './state'
 import { InWorldPane } from './in-world-pane'
 import { WorldSidebar } from './world-sidebar'
@@ -123,6 +124,10 @@ const Main = () => {
   const prevUrl = useRef(location.pathname + location.search)
   const lightBroadcast = currentPath.startsWith('/golive/broadcast')
   const coords = new URLSearchParams(urlSearch).get('coords') || ''
+
+  useEffect(() => {
+    ensureRadio()
+  }, [])
 
   useEffect(() => {
     const sync = () => setUrlSearch(location.search)

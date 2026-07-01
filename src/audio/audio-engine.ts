@@ -1,6 +1,5 @@
 import { wantsAudio } from '../../common/helpers/detector'
 import type Persona from '../persona'
-import { VoxelRadioEngine } from '../../web/src/radio/engine'
 import { FootstepSounds } from './footstep-sounds'
 import { FlySound } from './fly-sound'
 import { soundFx, SoundName } from './soundfx'
@@ -8,7 +7,6 @@ import { SpatialAudio } from './spatial-audio'
 
 export interface AudioSettings {
   parcelAudioVolume: number
-  musicVolume: number
   soundEffectsVolume: number
 }
 
@@ -79,16 +77,11 @@ export class AudioEngine {
   scene: BABYLON.Scene
   audioContext: AudioContext
 
-  userAudioReferences: Set<object> = new Set()
-  radio: VoxelRadioEngine | null = null
-
   footstepSounds: FootstepSounds
   flySound: FlySound
   soundFx: Record<SoundName, BABYLON.Sound>
 
-  trackOut: GainNode
   avatarOut: GainNode
-  trackLimiter: DynamicsCompressorNode
 
   // used by both web audio and audio tags (for echo cancellation)
   parcelAudioBus: BABYLON.SoundTrack
@@ -96,9 +89,9 @@ export class AudioEngine {
 
   soundLastPlayedAt = 0 // unix timestamp
 
-  // while you're live on a showbox we kill the in-world soundtrack so it doesn't bleed into your stream
+  // going live mutes parcel audio so it stays out of your broadcast
   broadcasting = false
-  private preBroadcastVolumes: { music: number; parcel: number } | null = null
+  private preBroadcastVolumes: { parcel: number } | null = null
 
   constructor(scene: BABYLON.Scene) {
     if (!wantsAudio()) {
@@ -121,17 +114,8 @@ export class AudioEngine {
     this.footstepSounds = new FootstepSounds(this.avatarOut, this.scene, this.soundEffectsOut)
     this.flySound = new FlySound(this.avatarOut)
 
-    // soundtrack mixer (the radio plugs into trackOut)
-    this.trackOut = this.audioContext.createGain()
-    this.trackOut.gain.value = 1
-
-    // let's put the track through a soft limiter to try and avoid clipping when the user pumps up the jam
-    this.trackLimiter = createLimiter(this.audioContext)
-
     // connect it up
-    this.trackOut.connect(this.trackLimiter)
     this.avatarOut.connect(this.soundEffectsOut)
-    this.trackLimiter.connect(this.masterOut)
 
     // load settings
     this.loadSettingsFromLocalStorage()
@@ -239,54 +223,29 @@ export class AudioEngine {
   }
 
   setSettings(settings: AudioSettings) {
-    const musicVolume: number = defaultValueOfType('number', settings.musicVolume, 1)
-    this.trackOut.gain.value = musicVolume
     this.parcelAudioBus.setVolume(defaultValueOfType('number', settings.parcelAudioVolume, 1))
     this.soundEffectsBus.setVolume(defaultValueOfType('number', settings.soundEffectsVolume, 1))
-    window.localStorage.setItem('audioSettings', JSON.stringify(settings))
+    const stored = window.localStorage.getItem('audioSettings')
+    const prev = stored ? tryParseJson(stored) : {}
+    window.localStorage.setItem('audioSettings', JSON.stringify({ ...prev, ...settings }))
   }
 
   getSettings(): AudioSettings {
     return {
-      musicVolume: this.trackOut.gain.value,
       parcelAudioVolume: this.parcelOut.gain.value,
       soundEffectsVolume: this.soundEffectsOut.gain.value,
     }
   }
 
-  // going live mutes the in-world music + parcel audio (radio, boomboxes, ambient voices) so it stays
-  // out of your broadcast; stopping restores whatever volumes you had.
   setBroadcasting(b: boolean) {
     if (this.broadcasting === b) return
     this.broadcasting = b
     if (b) {
-      this.preBroadcastVolumes = { music: this.trackOut.gain.value, parcel: this.parcelOut.gain.value }
-      this.trackOut.gain.value = 0
+      this.preBroadcastVolumes = { parcel: this.parcelOut.gain.value }
       this.parcelAudioBus.setVolume(0)
     } else if (this.preBroadcastVolumes) {
-      this.trackOut.gain.value = this.preBroadcastVolumes.music
       this.parcelAudioBus.setVolume(this.preBroadcastVolumes.parcel)
       this.preBroadcastVolumes = null
-    }
-  }
-
-  // boombox/video/youtube etc register here while they play their own audio.
-  // duck the radio under them, restore it when they stop.
-  addUserAudioReference(userAudio: object) {
-    this.userAudioReferences.add(userAudio)
-    this.updateDucking()
-  }
-
-  removeUserAudioReference(userAudio: object) {
-    if (!this.userAudioReferences.delete(userAudio)) return
-    this.updateDucking()
-  }
-
-  private updateDucking() {
-    if (this.userAudioReferences.size > 0) {
-      this.radio?.duck()
-    } else {
-      this.radio?.unduck()
     }
   }
 
@@ -294,11 +253,6 @@ export class AudioEngine {
     await requestAudio(this.audioContext, signal)
     // make the spatial audio smooth and silky (JANK BE GONE!)
     this.scene.audioPositioningRefreshRate = 50
-
-    // the one global station, plugged into the music bus
-    this.radio = new VoxelRadioEngine(this.trackOut)
-    this.radio.start()
-    signal.addEventListener('abort', () => this.radio?.stop(), { once: true, passive: true })
   }
 }
 
@@ -308,16 +262,6 @@ function tryParseJson(json: string) {
   } catch (ex) {
     return null
   }
-}
-
-function createLimiter(audioContext: AudioContext) {
-  const limiter = audioContext.createDynamicsCompressor()
-  limiter.threshold.value = 0
-  limiter.knee.value = 0
-  limiter.ratio.value = 20
-  limiter.attack.value = 0.005
-  limiter.release.value = 0.05
-  return limiter
 }
 
 function cloneWithSoundTrack(this: BABYLON.Sound): BABYLON.Nullable<BABYLON.Sound> {

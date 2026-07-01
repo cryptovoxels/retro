@@ -72,9 +72,7 @@ function saveChain(chain: PedalId[]) {
 /*
  * The one global station. Deterministic per UTC day, so everyone tuning in
  * hears the same track at the same second. The schedule + generated spots
- * stream in over SSE (/api/radio/live); the server owns generation. Plays on
- * its own AudioContext on the homepage, or plugs into the in-world music bus
- * when handed a destination.
+ * stream in over SSE (/api/radio/live); the server owns generation.
  */
 export class VoxelRadioEngine {
   ctx: AudioContext

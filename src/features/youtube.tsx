@@ -1,3 +1,4 @@
+import { duckRadio, unduckRadio } from '../../web/src/radio/global'
 import { h } from 'preact'
 import { isBatterySaver, isMobile } from '../../common/helpers/detector'
 import { YoutubeRecord } from '../../common/messages/feature'
@@ -195,7 +196,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
     this.autoStopTimeout && clearTimeout(this.autoStopTimeout)
 
     if (this.playing) {
-      this.hasAudio && this.audio?.addUserAudioReference(this)
+      this.hasAudio && duckRadio(this)
 
       // fade it back in!
       this.fadeIn(AUTOPLAY_FADE_TIME)
@@ -212,7 +213,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
     // start fading out sound when leaving parcel, only remove once zero, fade back in on reentry (if not too late)
     this.fadeOut(fadeoutTime)
 
-    this.audio?.removeUserAudioReference(this)
+    unduckRadio(this)
 
     // give them 10 seconds to come back before restarting audio
     this.autoStopTimeout = setTimeout(
@@ -341,7 +342,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
     if (this.player) {
       this.player.pause()
       this.paused = true
-      this.audio?.removeUserAudioReference(this)
+      unduckRadio(this)
     }
   }
 
@@ -349,7 +350,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
     if (this.player) {
       this.player.unpause()
       this.paused = false
-      this.hasAudio && this.audio?.addUserAudioReference(this)
+      this.hasAudio && duckRadio(this)
     }
   }
 
@@ -359,7 +360,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
     this.playing = false
 
     // allow soundtrack to play again
-    this.audio?.removeUserAudioReference(this)
+    unduckRadio(this)
 
     if (this.player) {
       this.player.dispose()
@@ -375,7 +376,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
       this.player.dispose()
       this.player = null
     }
-    this.audio?.removeUserAudioReference(this)
+    unduckRadio(this)
   }
 
   play() {
@@ -419,7 +420,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
     }
 
     // prevent soundtrack from playing
-    this.hasAudio && this.audio?.addUserAudioReference(this)
+    this.hasAudio && duckRadio(this)
   }
 }
 

@@ -1,3 +1,5 @@
+import { duckRadio, unduckRadio } from '../../../web/src/radio/global'
+
 export const AUTOPLAY_FADE_TIME = 3
 
 export interface AudioFeature {
@@ -19,7 +21,7 @@ export const audioFadeOutAndStop = (feature: AudioFeature) => {
   // start fading out sound when leaving parcel, only remove once zero, fade back in on reentry (if not too late)
   feature.fadeOut(fadeoutTime)
 
-  window._audio?.removeUserAudioReference(feature)
+  unduckRadio(feature)
 
   // give them 10 seconds to come back before restarting audio
   feature.autoStopTimeout = setTimeout(() => {
@@ -31,7 +33,7 @@ export const audioFadeInAndPlay = (feature: AudioFeature) => {
   feature.autoStopTimeout && clearTimeout(feature.autoStopTimeout)
 
   if (feature.playing) {
-    feature.volume > 0 && window._audio?.addUserAudioReference(feature)
+    feature.volume > 0 && duckRadio(feature)
     // fade it back in!
     feature.fadeIn(AUTOPLAY_FADE_TIME)
   } else {

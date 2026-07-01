@@ -1,3 +1,4 @@
+import { duckRadio, unduckRadio } from '../../web/src/radio/global'
 import { isBatterySaver, isChrome } from '../../common/helpers/detector'
 import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { VideoRecord } from '../../common/messages/feature'
@@ -324,7 +325,7 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
     if (this.videoTexture) {
       this.videoTexture.video.pause()
       this.playing = false
-      this.audio?.removeUserAudioReference(this)
+      unduckRadio(this)
       if (!this.loop) this.displayPreview().catch(console.error)
     }
     this.setCurrentVideoTime(this.startAt)
@@ -334,7 +335,7 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
     if (this.videoTexture) {
       this.videoTexture.video.pause()
       this.playing = false
-      this.audio?.removeUserAudioReference(this)
+      unduckRadio(this)
     }
   }
 
@@ -359,7 +360,7 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
         this.fadeIn(AUTOPLAY_FADE_TIME)
       }
       this.playing = true
-      this.hasAudio && this.audio && this.audio.addUserAudioReference(this)
+      this.hasAudio && duckRadio(this)
       return
     }
 
@@ -472,7 +473,7 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
       { signal: this.abortController.signal },
     )
     // pause soundtrack
-    this.hasAudio && this.audio && this.audio.addUserAudioReference(this)
+    this.hasAudio && duckRadio(this)
   }
 
   fadeIn(timeConstant: number, fromZero = false) {
@@ -527,7 +528,7 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
   }
 
   dispose() {
-    this.audio?.removeUserAudioReference(this)
+    unduckRadio(this)
 
     this._dispose()
 

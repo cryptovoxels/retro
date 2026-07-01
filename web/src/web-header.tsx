@@ -8,6 +8,7 @@ import { login } from './auth/state-login'
 import { PanelType } from './components/panel'
 import { app, AppEvent } from './state'
 import Icon, { CubeIcon } from './components/icons/icons'
+import RadioMini from './components/radio-mini'
 import { getCoords, withCoords } from './helpers/coords-nav'
 import { sidebarClosed } from '../../src/store'
 
@@ -191,9 +192,12 @@ export default class WebHeader extends Component<Props, State> {
               {admin && <AdminMenu />}
 
               <li>
-                <form action="/search" onSubmit={this.onSubmit}>
-                  <input name="q" value={this.state.query} type="search" onInput={this.onInput} placeholder="Search" />
-                </form>
+                <div class="header-end">
+                  <RadioMini path={path ?? '/'} />
+                  <form action="/search" onSubmit={this.onSubmit}>
+                    <input name="q" value={this.state.query} type="search" onInput={this.onInput} placeholder="Search" />
+                  </form>
+                </div>
               </li>
             </ul>
           </nav>

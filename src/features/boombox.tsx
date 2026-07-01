@@ -1,3 +1,4 @@
+import { duckRadio, unduckRadio } from '../../web/src/radio/global'
 import { BoomboxRecord } from '../../common/messages/feature'
 import { voxImporter } from '../../common/vox-import/vox-import'
 import { Position, Rotation, Behaviours, EditorProps } from '../../web/src/components/editor'
@@ -138,7 +139,7 @@ export default class Boombox extends Feature3D<BoomboxRecord> {
       this.sound = null
     }
 
-    this.audio && this.audio.removeUserAudioReference(this)
+    unduckRadio(this)
   }
 
   receiveState(state: BoomBoxSharedState) {
@@ -164,13 +165,13 @@ export default class Boombox extends Feature3D<BoomboxRecord> {
   }
 
   refreshSoundtrackState() {
-    // pause the soundtrack if we are playing from boombox or have broadcast dialog open
+    // duck the radio while boombox audio is playing in parcel
     const playerInParcel = this.parcel === this.parcel.grid.currentOrNearestParcel()
 
     if ((this.sound && playerInParcel) || this.getBroadcasterOpen()) {
-      this.audio && this.audio.addUserAudioReference(this)
+      duckRadio(this)
     } else {
-      this.audio && this.audio.removeUserAudioReference(this)
+      unduckRadio(this)
     }
   }
 
