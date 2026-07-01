@@ -26,6 +26,8 @@ interface Props {
   path?: string
   id?: number
   forSale?: { id: number; price: number }[]
+  selectedForSale?: number | null
+  onForSaleSelect?: (id: number) => void
 }
 
 const priceLabel = (n: number) => `${parseFloat(n.toFixed(2))}Ξ`
@@ -175,6 +177,7 @@ export default class WorldMap extends Component<Props, State> {
   componentDidUpdate(prev: Props) {
     // listings arrive async in the for-sale page; (re)draw pins when they change
     if (prev.forSale !== this.props.forSale) this.addForSaleMarkers()
+    if (prev.selectedForSale !== this.props.selectedForSale && this.props.selectedForSale) this.focusParcel(this.props.selectedForSale)
   }
 
   // price pins for listed parcels so the map reads like a zillow board next to the list
@@ -202,7 +205,10 @@ export default class WorldMap extends Component<Props, State> {
       const latLng = new ParcelHelper(parcel).latLng
       const icon = L.divIcon({ className: 'for-sale-pin', html: `<span>${priceLabel(item.price)}</span>` })
       const marker = L.marker(latLng, { renderer: this.mapRenderer, icon } as L.MarkerOptions)
-      marker.on('click', () => window.location.assign(`/parcels/${item.id}`))
+      marker.on('click', () => {
+        if (this.props.onForSaleSelect) this.props.onForSaleSelect(item.id)
+        else window.location.assign(`/parcels/${item.id}`)
+      })
       marker.addTo(layer)
       this.forSaleMarkers[item.id] = marker
       latlngs.push(latLng)
@@ -211,7 +217,17 @@ export default class WorldMap extends Component<Props, State> {
     layer.addTo(this.map)
     this.forSaleLayer = layer
 
-    if (latlngs.length) this.map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 14 })
+    const selected = this.props.selectedForSale
+    if (selected && this.forSaleMarkers[selected]) this.focusParcel(selected)
+    else if (latlngs.length) this.map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 14 })
+  }
+
+  focusParcel = (id: number | null) => {
+    if (!this.map || !id) return
+    const marker = this.forSaleMarkers[id]
+    if (!marker) return
+    this.map.setView(marker.getLatLng(), 14)
+    this.highlightParcel(id)
   }
 
   // called from the listing cards on hover to connect list <-> map

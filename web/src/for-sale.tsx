@@ -4,19 +4,28 @@ import Head from './components/head'
 import cachedFetch from './helpers/cached-fetch'
 import WorldMap from './map'
 
-type Item = { id: number; name: string | null; address: string; price: number }
+type Item = { id: number; name: string | null; address: string; price: number; permalink: string }
 type Data = { floor: number; fresh: Item[]; secondary: Item[]; deals: Item[] }
 
 const URL = process.env.NODE_ENV === 'production' ? '/api/classifieds.json' : 'https://www.voxels.com/api/classifieds.json'
 const eth = (n: number) => parseFloat(n.toFixed(3))
 
+const selectedFromUrl = () => {
+  if (typeof location === 'undefined') return null
+  const p = new URLSearchParams(location.search).get('parcel')
+  if (!p) return null
+  const id = parseInt(p, 10)
+  return Number.isFinite(id) ? id : null
+}
+
 // zillow-style browse for land that's actually listed: map on the left, listings on the right.
-// data is the same opensea-backed feed as the shop widget, but here every card opens the parcel
-// page on voxels instead of bouncing you out to opensea.
+// pick a row (or land from the homepage shop widget with ?parcel=) and the map zooms there;
+// buy only shows on the selected row and links out to opensea.
 export default function ForSale(_props: { path?: string }) {
   const [data, setData] = useState<Data | null>(null)
   const [usd, setUsd] = useState(false)
   const [rate, setRate] = useState(0)
+  const [selectedId, setSelectedId] = useState<number | null>(selectedFromUrl)
   const mapRef = useRef<WorldMap | null>(null)
 
   useEffect(() => {
@@ -50,11 +59,28 @@ export default function ForSale(_props: { path?: string }) {
 
   const forSale = useMemo(() => items.map((i) => ({ id: i.id, price: i.price })), [items])
 
+  const select = (id: number) => {
+    setSelectedId(id)
+    if (typeof location !== 'undefined') {
+      const u = new URL(location.href)
+      u.searchParams.set('parcel', String(id))
+      history.replaceState(null, '', u.pathname + u.search)
+    }
+    mapRef.current?.focusParcel(id)
+  }
+
+  // homepage shop links land here with ?parcel=; zoom once listings + map pins exist
+  useEffect(() => {
+    if (!selectedId || !items.length) return
+    mapRef.current?.focusParcel(selectedId)
+    document.querySelector('.for-sale-card.selected')?.scrollIntoView({ block: 'nearest' })
+  }, [selectedId, items.length])
+
   return (
     <section class="for-sale">
       <Head title="Land for sale" url="/shop" />
       <div class="for-sale-map">
-        <WorldMap ref={mapRef} forSale={forSale} />
+        <WorldMap ref={mapRef} forSale={forSale} selectedForSale={selectedId} onForSaleSelect={select} />
       </div>
       <aside class="for-sale-list">
         <header class="for-sale-head">
@@ -73,11 +99,26 @@ export default function ForSale(_props: { path?: string }) {
         </header>
         <div class="for-sale-cards">
           {items.map((i) => (
-            <a class="for-sale-card" key={i.id} href={`/parcels/${i.id}`} onMouseEnter={() => mapRef.current?.highlightParcel(i.id)} onMouseLeave={() => mapRef.current?.highlightParcel(null)}>
-              <div class="addr">{i.name || i.address || `#${i.id}`}</div>
-              {i.name && i.address ? <div class="sub">{i.address}</div> : null}
-              <div class="price">{fmt(i.price)}</div>
-            </a>
+            <div class={`for-sale-card${selectedId === i.id ? ' selected' : ''}`} key={i.id}>
+              <a
+                href={`/shop?parcel=${i.id}`}
+                onClick={(e) => {
+                  e.preventDefault()
+                  select(i.id)
+                }}
+                onMouseEnter={() => mapRef.current?.highlightParcel(i.id)}
+                onMouseLeave={() => mapRef.current?.highlightParcel(selectedId)}
+              >
+                <div class="addr">{i.name || i.address || `#${i.id}`}</div>
+                {i.name && i.address ? <div class="sub">{i.address}</div> : null}
+                <div class="price">{fmt(i.price)}</div>
+              </a>
+              {selectedId === i.id && i.permalink ? (
+                <a class="for-sale-buy" href={i.permalink} target="_blank" rel="noopener noreferrer">
+                  buy
+                </a>
+              ) : null}
+            </div>
           ))}
         </div>
       </aside>
