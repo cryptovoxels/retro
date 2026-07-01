@@ -93,28 +93,69 @@ export class ChatOverlay extends Component<Props, State> {
   render() {
     const isGuest = !!app.state.wallet?.startsWith('guest:')
     const chatCap = isGuest ? 25 : 10
-    const name = (m: ChatMessageRecord) => {
-      if (m.avatarRef) return avatarName(m.avatarRef)
-      const avatar = m.avatar ? window.connector.findAvatar(m.avatar) : null
-      return avatar?.name || 'anon'
-    }
+    return <ChatPanel cap={chatCap} variant="overlay" style={isGuest ? 'font-size: 14px' : undefined} />
+  }
+}
 
+function chatName(m: ChatMessageRecord) {
+  if (m.avatarRef) return avatarName(m.avatarRef)
+  const avatar = m.avatar ? window.connector?.findAvatar(m.avatar) : null
+  return avatar?.name || 'anon'
+}
+
+export function ChatPanel({ cap, variant = 'page', class: className, style }: { cap: number; variant?: 'overlay' | 'page'; class?: string; style?: string }) {
+  const [, bump] = useState(0)
+  const box = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    return effect(() => {
+      messageList.value
+      bump((n) => n + 1)
+    })
+  }, [])
+
+  useEffect(() => {
+    if (variant !== 'page') return
+    const el = box.current
+    if (!el) return
+    el.scrollTop = el.scrollHeight
+  })
+
+  const msgs = messageList.value.slice(-cap)
+  const atCap = messageList.value.length >= cap
+
+  if (variant === 'overlay') {
     return (
-      <div class="chat" style={isGuest ? 'font-size: 14px' : undefined}>
-        <div class={'chat-messages' + (messageList.value.length >= chatCap ? ' at-cap' : '')}>
-          {messageList.value.slice(-chatCap).map((m: ChatMessageRecord) => (
-            <p>
+      <div class={'chat' + (className ? ' ' + className : '')} style={style}>
+        <div class={'chat-messages' + (atCap ? ' at-cap' : '')}>
+          {msgs.map((m, i) => (
+            <p key={i}>
               <span>
-                {name(m)}: <ChatText text={m.text} />
+                {chatName(m)}: <ChatText text={m.text} />
               </span>
             </p>
           ))}
         </div>
-
         <ChatInput />
       </div>
     )
   }
+
+  return (
+    <div class={'chat-panel' + (className ? ' ' + className : '')} style={style}>
+      <div ref={box} class={'chat-messages' + (atCap ? ' at-cap' : '')}>
+        {msgs.map((m, i) => (
+          <div class="chat-line" key={i}>
+            <span class="chat-who">{chatName(m)}</span>
+            <span class="chat-text">
+              <ChatText text={m.text} />
+            </span>
+          </div>
+        ))}
+      </div>
+      <ChatInput keepFocus />
+    </div>
+  )
 }
 
 const CONGA_CMD_PATTERN = /\/conga\b/
@@ -223,9 +264,22 @@ const CongaText = ({ text }: { text: string }) => {
   return <SlashCongaLinks text={text} />
 }
 
-const ChatInput = () => {
+const ChatInput = ({ keepFocus }: { keepFocus?: boolean }) => {
   const [currentMessage, setMessage] = useState<string>('')
   const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!keepFocus) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Enter' || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return
+      const t = e.target as HTMLElement
+      if (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable) return
+      e.preventDefault()
+      inputRef.current?.focus()
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [keepFocus])
 
   // Mobile guests chat from the broadcast dock when live (panel covers this UI). Desktop guests use normal chat here.
   if (app.state.wallet?.startsWith('guest:') && isMobile()) {
@@ -236,11 +290,15 @@ const ChatInput = () => {
     const msg = currentMessage
     setMessage('')
 
-    if (msg) {
+    if (msg && window.connector) {
       window.connector.sendMessage(msg)
     }
 
-    blur()
+    if (keepFocus) {
+      inputRef.current?.focus()
+    } else {
+      blur()
+    }
     e.preventDefault()
   }
 

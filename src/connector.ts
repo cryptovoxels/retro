@@ -946,8 +946,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       timestamp: Date.now(),
     })
 
-    // only keep the last 100 messages in memory
-    while (list.length > 100) {
+    while (list.length > 1000) {
       list.shift()
     }
 

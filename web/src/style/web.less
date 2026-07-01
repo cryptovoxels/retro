@@ -599,6 +599,107 @@ main > article .UserInterface {
   padding: 0;
 }
 
+// /chat page -- discord-ish layout
+.chat-page {
+  display: flex;
+  flex-direction: column;
+  height: calc(100dvh - 3rem);
+  min-height: 0;
+  padding: 1rem;
+  box-sizing: border-box;
+
+  h1 {
+    margin: 0 0 1rem 0;
+    text-transform: lowercase;
+  }
+
+  .chat-panel {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    gap: 0.5rem;
+  }
+
+  .chat-messages {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    background: #1a1a1a;
+    border: 1px solid #333;
+  }
+
+  .chat-line {
+    display: flex;
+    gap: 0.5rem;
+    line-height: 1.4;
+    padding: 0.15rem 0;
+  }
+
+  .chat-who {
+    font-weight: bold;
+    color: var(--red);
+    flex-shrink: 0;
+  }
+
+  .chat-text {
+    word-break: break-word;
+  }
+
+  s.profanity {
+    filter: blur(4px);
+    text-decoration: none;
+    cursor: pointer;
+
+    &:hover {
+      filter: none;
+    }
+  }
+
+  form {
+    display: flex;
+    flex-direction: row;
+    gap: 0.5rem;
+    flex-shrink: 0;
+    padding-top: 0.5rem;
+    border-top: 1px solid #333;
+
+    input {
+      flex: 1;
+      background: #1a1a1a;
+      color: inherit;
+      border: 1px solid #333;
+      padding: 0.5rem;
+    }
+
+    button {
+      padding: 0.5rem 1rem;
+    }
+  }
+}
+
+body.in-world.chat-route main {
+  grid-template-columns: 1fr clamp(24rem, 40%, 40rem);
+}
+
+body.in-world.chat-route main > aside .chat-page {
+  height: 100%;
+  padding: 0;
+}
+
+body.in-world.chat-route main > aside .chat-page h1 {
+  position: sticky;
+  top: 0;
+  background: #222;
+  padding: 0.5rem 0;
+  margin: 0 0 0.5rem 0;
+  z-index: 1;
+}
+
 .client-placeholder {
   position: relative;
   width: 100%;

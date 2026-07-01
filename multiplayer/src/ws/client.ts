@@ -24,6 +24,7 @@ export type ClientConnectionInformation = {
 }
 
 const MAX_CHAT_MESSAGE_LENGTH = 1024
+const MAX_RECENT_CHAT = 1000
 
 export class Client {
   private _disposeAbortController = new AbortController()
@@ -203,7 +204,7 @@ export class Client {
     const stamped: messages.ChatMessage = { ...msg, id: uuidv7(), avatar: this.avatar ?? undefined }
     const data = toBuffer(messages.ChatEncoder(stamped))
     this.shard.recentChat.push(stamped)
-    if (this.shard.recentChat.length > 20) this.shard.recentChat.shift()
+    if (this.shard.recentChat.length > MAX_RECENT_CHAT) this.shard.recentChat.shift()
     this.shard.broadcastFromClient(stamped, data, this.clientUUID)
   }
 

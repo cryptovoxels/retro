@@ -69,6 +69,7 @@ import { ensureRadio } from './radio/global'
 import { app, AppEvent } from './state'
 import { InWorldPane } from './in-world-pane'
 import { WorldSidebar } from './world-sidebar'
+import { ChatPage } from './chat-page'
 
 class MainApp extends Component {
   componentDidMount() {
@@ -167,6 +168,7 @@ const Main = () => {
         <WorldSidebar coords={coords} path={currentPath}>
           <Router onChange={handleRoute}>
             <Explore path="/" />
+            <ChatPage path="/chat" />
             <RadioPopout path="/radio" />
             <Play path="/play" />
             <Play path="/scratchpad" />

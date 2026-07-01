@@ -20,6 +20,7 @@ const ROUTE_ICONS: Record<string, string> = {
   events: 'events',
   islands: 'islands',
   map: 'map',
+  chat: 'chat',
   parcels: 'parcels',
   spaces: 'spaces',
   womps: 'womps',
@@ -183,6 +184,7 @@ export default class WebHeader extends Component<Props, State> {
               <li>{navLink('Islands', '/islands', 'islands', isActive('islands'))}</li>
               <li>{navLink('Map', '/map', 'map', isActive('map'))}</li>
               <li>{navLink('Parcels', '/parcels', 'parcels', isActive('parcels'))}</li>
+              <li>{navLink('Chat', '/chat', 'chat', path?.startsWith('/chat') ?? false)}</li>
               <li>{navLink('Spaces', '/spaces', 'spaces', isActive('spaces'))}</li>
               <li>{navLink('Womps', '/womps', 'womps', isActive('womps'))}</li>
               <li>{navLink('Scratchpad', '/scratchpad', 'scratchpad', isActive('scratchpad'))}</li>

@@ -988,7 +988,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
               )}
             </ul>
 
-            {this.state.chatEnabled && <ChatOverlay scene={this.props.scene} />}
+            {this.state.chatEnabled && !location.pathname.startsWith('/chat') && <ChatOverlay scene={this.props.scene} />}
           </aside>
 
           {this.state.scratchpadGuideOpen && !this.state.scratchpadGuideMini && <ScratchpadGuide key={this.state.scratchpadGuideKey || 0} voxelTool={this.voxelTool} onComplete={this.celebrateScratchpadGuideComplete} />}

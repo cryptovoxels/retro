@@ -18,6 +18,7 @@ export function WorldSidebar({ coords, path, children }: Props) {
   // landing on (or navigating to) a womp should reveal the sidebar so you can read it
   useEffect(() => {
     if (path?.startsWith('/womps/')) sidebarClosed.value = false
+    if (path?.startsWith('/chat')) sidebarClosed.value = false
   }, [path])
 
   useSignalEffect(() => {
