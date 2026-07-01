@@ -33,6 +33,17 @@ setInterval(() => {
   // the parcel you're actually standing on (undefined in the void); drives the info pane's
   // island-context view. separate from currentOrNearestParcel, which never goes empty.
   currentParcel.value = grid.currentParcel() || undefined
+
+  // tapping a recent womp swaps the sidebar to its preview; once you start walking again,
+  // snap back to the info pane so hopping between world, old womps, and info stays fluid.
+  if (restoreInfoOnMove.value) {
+    if (uiPane.value) {
+      restoreInfoOnMove.value = false // you opened another pane; drop the pending snap-back
+    } else if (window.persona?.isMoving()) {
+      restoreInfoOnMove.value = false
+      uiPane.value = 'info'
+    }
+  }
 }, TICK)
 
 const actions = {
@@ -146,6 +157,10 @@ export const selectCheckedFeatures = (): CheckedFeatures => {
 }
 
 export const uiPane = signal<string | undefined>(undefined)
+
+// one-shot: armed when you open a womp preview from the info pane, consumed by the tick above
+// to restore the info pane the moment you move again.
+export const restoreInfoOnMove = signal(false)
 
 // panes you open on purpose and leave up while walking around (they get a close X and survive
 // tapping back into the world); contextual build/edit panes dismiss on canvas re-engage.

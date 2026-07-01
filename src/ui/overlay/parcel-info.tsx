@@ -11,7 +11,7 @@ import { Womp, WompCard } from '../../../web/src/components/womp-card'
 import cachedFetch from '../../../web/src/helpers/cached-fetch'
 import { routeWithCoords } from '../../../web/src/helpers/coords-nav'
 import { fetchOptions } from '../../../web/src/utils'
-import { uiPane } from '../../store'
+import { restoreInfoOnMove, uiPane } from '../../store'
 import type Parcel from '../../parcel'
 import { copyTextToClipboard } from '../../../common/helpers/utils'
 import { PanelType } from '../../../web/src/components/panel'
@@ -51,6 +51,7 @@ function RecentWomps({ parcelId }: { parcelId: number }) {
             womp={w}
             onClick={(womp) => {
               uiPane.value = undefined
+              restoreInfoOnMove.value = true // walk away and the info pane comes back
               routeWithCoords(`/womps/${womp.id}`)
             }}
           />
