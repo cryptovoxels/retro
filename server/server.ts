@@ -470,35 +470,6 @@ app.get('/grid/parcels/:id', cache('10 seconds'), async (req, res) => {
   res.json({ success: true, parcel: parcel.summary })
 })
 
-app.get('/grid/parcels/:id/at/:hash', async (req, res) => {
-  const MAX_AGE = 60 * 60 * 24 * 365
-
-  const id = parseInt(req.params.id, 10)
-
-  if (isNaN(id)) {
-    res.status(404)
-    return
-  }
-
-  const parcel = await Parcel.load(id)
-
-  if (!parcel) {
-    noCache(res)
-    res.status(404).json({ success: false, message: `No parcel found with id ${id}` })
-    return
-  }
-
-  if (parcel.hash !== req.params.hash) {
-    noCache(res)
-    res.status(404).json({ success: false, message: `Incorrect hash expected ${parcel.hash}` })
-  } else {
-    const summary = parcel.summary
-
-    res.setHeader('Cache-Control', `public,max-age=${MAX_AGE},immutable`)
-    res.json({ success: true, parcel: summary })
-  }
-})
-
 // Islands baby!
 app.get('/api/islands.json', cache('30 minutes', true), createRequestHandlerForQuery(db, 'get-islands', 'islands'))
 app.get('/api/islands-metadata.json', cache('1 hour', true), createRequestHandlerForQuery(db, 'get-islands-metadata', 'islands'))

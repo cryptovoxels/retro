@@ -68,18 +68,20 @@ export class UrlSourceNftImages extends UrlSourceComponent<UrlSourceNftImagesPro
 
   render() {
     return (
-      <div className="f">
-        <div class="button-tabs">
-          <button className={this.isActiveTab('url') ? 'active' : ''} onClick={() => this.setActiveTab('url')}>
-            URL
-          </button>
-          <button className={this.isActiveTab('vault') ? 'active' : ''} onClick={() => this.initVault()}>
-            Your NFTs
-          </button>
-          <button className={this.isActiveTab('re-use') ? 'active' : ''} onClick={() => this.setActiveTab('re-use')}>
-            Recent
-          </button>
-        </div>
+      <>
+        <dd class="full">
+          <div class="button-tabs">
+            <button className={this.isActiveTab('url') ? 'active' : ''} onClick={() => this.setActiveTab('url')}>
+              URL
+            </button>
+            <button className={this.isActiveTab('vault') ? 'active' : ''} onClick={() => this.initVault()}>
+              Your NFTs
+            </button>
+            <button className={this.isActiveTab('re-use') ? 'active' : ''} onClick={() => this.setActiveTab('re-use')}>
+              Recent
+            </button>
+          </div>
+        </dd>
         <URLTab urlTab={this.state.urlTab} url={this.state.url} setURL={this.updateUrl.bind(this)}>
           <div>
             <small>Copy the Asset URL from OpenSea.</small>
@@ -92,7 +94,7 @@ export class UrlSourceNftImages extends UrlSourceComponent<UrlSourceNftImagesPro
         </URLTab>
         <CollectionsTab urlTab={this.state.urlTab} setURL={this.setUrl.bind(this)} collection={this.state.collections} loading={this.state.loading} refreshVault={this.updateCollections.bind(this)} />
         <ReuseTab urlTab={this.state.urlTab} setURL={this.setUrl.bind(this)} userResources={this.userResources} type={this.props.feature.type} />
-      </div>
+      </>
     )
   }
 }
@@ -111,10 +113,12 @@ function CollectionsTab(props: CollectionsTabProps) {
   const vault = props.collection.map((c: any) => <NftCollectionsComponent collection={c} callback={props.setURL} />)
 
   return (
-    <div>
-      <label style="margin-top:3px">Your NFTs</label>
-      <div className="voxel-library">{props.loading ? LOADING : vault.length > 0 ? vault : 'You have no NFTs'}</div>
-      <button onClick={props.refreshVault}>Refresh</button>
-    </div>
+    <>
+      <dt>Your NFTs</dt>
+      <dd class="full">
+        <div className="voxel-library">{props.loading ? LOADING : vault.length > 0 ? vault : 'You have no NFTs'}</div>
+        <button onClick={props.refreshVault}>Refresh</button>
+      </dd>
+    </>
   )
 }

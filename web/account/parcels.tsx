@@ -98,12 +98,15 @@ export class Parcels extends Component<Props, State> {
       .slice(0, this.state.showAll ? this.state.parcels.length : showTheseMany)
       .map((p: any) => <PropertyItem key={p.id} record={p} helper={new ParcelHelper(p)} />)
 
-    return parcels.length > 0 ? (
-      <table class="parcels">
-        <tbody>{parcels}</tbody>
-      </table>
-    ) : (
-      <p class="empty">None</p>
+    if (parcels.length === 0) return null
+
+    return (
+      <>
+        <h2>Parcels</h2>
+        <table class="parcels">
+          <tbody>{parcels}</tbody>
+        </table>
+      </>
     )
   }
 }

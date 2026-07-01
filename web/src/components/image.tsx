@@ -78,7 +78,7 @@ export default function Image({ type, src, altsrc, alt = '', class: className }:
   if (fallback) {
     return (
       <div class="loading-image">
-        <img src="/images/ajax-loader.gif" class="image-spinner" />
+        <Spinner size={16} />
         <img onError={() => setFailed(true)} onLoad={() => setLoaded(true)} src={altsrc} alt={alt} class={className} />
       </div>
     )

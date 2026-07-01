@@ -4,9 +4,9 @@ import { AudioSettings } from '../audio/audio-engine'
 import Connector from '../connector'
 import { FOV, NORMAL_FOV, WIDE_FOV } from '../graphic/field-of-view'
 import { type GraphicEngine, GraphicLevels, GraphicSettings } from '../graphic/graphic-engine'
-import ParcelScript from '../parcel-script'
 import type { MinimapSettings } from '../minimap'
 import { chatSettings } from './interact/chat'
+import { voiceSettings } from '../voice-settings'
 import { DEFAULT_SENSITIVITY, MAX_SENSITIVITY, MIN_SENSITIVITY } from '../controls/user-control-settings'
 
 function toReversedPercentage(value: number, min: number, max: number): number {
@@ -24,7 +24,7 @@ type Props = {
   minimapSettings: MinimapSettings
 }
 
-type SettingsCategory = 'general' | 'audio' | 'graphics'
+type InputDevice = { label: string; deviceId: string }
 
 interface State {
   audio: AudioSettings | undefined
@@ -33,8 +33,12 @@ interface State {
   minimap: MinimapSettings
   showMinimapSettings: boolean
   mouseSensitivityPercentage: number
-  activeCategory: SettingsCategory
   realisticLighting: boolean
+  voiceEnabled: boolean
+  voiceDeviceId: string
+  voicePitch: number
+  voiceMonitor: boolean
+  voiceInputDevices: InputDevice[]
 }
 
 export class SettingsUI extends Component<Props, State> {
@@ -48,8 +52,12 @@ export class SettingsUI extends Component<Props, State> {
       showMinimapSettings: !window.config.isSpace,
       // we reverse the value as higher values are lower sensitivities
       mouseSensitivityPercentage: toReversedPercentage(this.cameraSettings.angularSensitivity, MIN_SENSITIVITY, MAX_SENSITIVITY),
-      activeCategory: 'general',
       realisticLighting: this.graphicsEngine.getSettings().realisticLighting ?? false,
+      voiceEnabled: voiceSettings.enabled,
+      voiceDeviceId: voiceSettings.deviceId,
+      voicePitch: voiceSettings.pitch,
+      voiceMonitor: voiceSettings.monitor,
+      voiceInputDevices: [{ label: 'Default', deviceId: 'default' }],
     }
 
     this.fov.addEventListener(
@@ -72,6 +80,62 @@ export class SettingsUI extends Component<Props, State> {
       },
       { passive: true },
     )
+  }
+
+  componentDidMount() {
+    this.refreshVoiceDevices()
+    navigator.mediaDevices?.addEventListener('devicechange', this.refreshVoiceDevices)
+    voiceSettings.addEventListener('changed', this.onVoiceSettingsChange)
+  }
+
+  componentWillUnmount() {
+    navigator.mediaDevices?.removeEventListener('devicechange', this.refreshVoiceDevices)
+    voiceSettings.removeEventListener('changed', this.onVoiceSettingsChange)
+  }
+
+  refreshVoiceDevices = () => {
+    if (!navigator.mediaDevices?.enumerateDevices) return
+    navigator.mediaDevices.enumerateDevices().then((devices) => {
+      const inputs = devices.filter((d) => d.kind === 'audioinput')
+      if (!inputs.length || !inputs.some((d) => d.label)) {
+        this.setState({ voiceInputDevices: [{ label: 'Default', deviceId: 'default' }] })
+        return
+      }
+      this.setState({
+        voiceInputDevices: [{ label: 'Default', deviceId: 'default' }, ...inputs.map((d) => ({ label: d.label || 'Microphone', deviceId: d.deviceId }))],
+      })
+    })
+  }
+
+  onVoiceSettingsChange = () => {
+    this.setState({
+      voiceEnabled: voiceSettings.enabled,
+      voiceDeviceId: voiceSettings.deviceId,
+      voicePitch: voiceSettings.pitch,
+      voiceMonitor: voiceSettings.monitor,
+    })
+  }
+
+  onToggleVoice(inputElement: HTMLInputElement) {
+    voiceSettings.enabled = inputElement.checked
+    this.forceUpdate()
+  }
+
+  onVoiceDeviceChange(e: InputEvent) {
+    const el = e.currentTarget as HTMLSelectElement
+    voiceSettings.deviceId = el.value
+    this.forceUpdate()
+  }
+
+  onVoicePitchChange(e: InputEvent) {
+    const el = e.currentTarget as HTMLInputElement
+    voiceSettings.pitch = parseFloat(el.value)
+    this.forceUpdate()
+  }
+
+  onToggleVoiceMonitor(inputElement: HTMLInputElement) {
+    voiceSettings.monitor = inputElement.checked
+    this.forceUpdate()
   }
 
   get audioEngine() {
@@ -232,12 +296,7 @@ export class SettingsUI extends Component<Props, State> {
     this.sendGraphicsSettings()
   }
 
-  onCategoryChange(category: SettingsCategory) {
-    this.setState({ activeCategory: category })
-  }
-
   render() {
-    const { activeCategory } = this.state
     const isCustomGraphics = this.state.graphic.level === GraphicLevels.Custom
 
     return (
@@ -246,157 +305,184 @@ export class SettingsUI extends Component<Props, State> {
           <h2>Settings</h2>
         </header>
 
-        <ul class="inline-tabs">
-          <li className={`settings-tab ${activeCategory === 'general' ? '-active' : ''}`} onClick={() => this.onCategoryChange('general')}>
-            General
-          </li>
-          <li className={`settings-tab ${activeCategory === 'audio' ? '-active' : ''}`} onClick={() => this.onCategoryChange('audio')}>
-            Audio
-          </li>
-          <li className={`settings-tab ${activeCategory === 'graphics' ? '-active' : ''}`} onClick={() => this.onCategoryChange('graphics')}>
-            Graphics
-          </li>
-        </ul>
+        <section>
+          <h3>general</h3>
+          <dl class="props">
+            <dt>Field of view</dt>
+            <dd>
+              <label>
+                <input type="radio" name="fov" value={NORMAL_FOV} checked={this.state.fov === NORMAL_FOV} onChange={this.onFOVChange.bind(this) as any} />
+                Normal
+              </label>
+              <label>
+                <input type="radio" name="fov" value={WIDE_FOV} checked={this.state.fov === WIDE_FOV} onChange={this.onFOVChange.bind(this) as any} />
+                Wide
+              </label>
+            </dd>
 
-        <div className="settings-content">
-          {activeCategory === 'general' && (
-            <div className="settings-panel">
-              <div className="fs">
-                <label>Field of view</label>
-                <div>
-                  <label>
-                    <input type="radio" name="fov" value={NORMAL_FOV} checked={this.state.fov === NORMAL_FOV} onChange={this.onFOVChange.bind(this) as any} />
-                    Normal FOV
-                  </label>
-                  <label>
-                    <input type="radio" name="fov" value={WIDE_FOV} checked={this.state.fov === WIDE_FOV} onChange={this.onFOVChange.bind(this) as any} />
-                    Wide FOV
-                  </label>
-                </div>
-              </div>
-              {!isMobile() && (
-                <div className="fs">
-                  <label>Mouse sensitivity: {Math.round(this.state.mouseSensitivityPercentage)}</label>
+            {!isMobile() && (
+              <>
+                <dt>Mouse sensitivity: {Math.round(this.state.mouseSensitivityPercentage)}</dt>
+                <dd>
                   <input list="sensitivity-markers" type="range" step={1} max={100} min={1} value={this.state.mouseSensitivityPercentage} onInput={this.onSensitivityChange.bind(this) as any} />
                   <datalist id="sensitivity-markers">
                     <option value={Math.round(toReversedPercentage(DEFAULT_SENSITIVITY, MIN_SENSITIVITY, MAX_SENSITIVITY))}>default</option>
                   </datalist>
-                </div>
-              )}
-              {this.state.showMinimapSettings && (
-                <div className="fs checkbox">
-                  <label>
-                    <input type="checkbox" onChange={(e) => this.onToggleMinimap(e.target as HTMLInputElement)} checked={!!this.state.minimap?.enabled} />
-                    Enable mini map
-                  </label>
-                </div>
-              )}
-              {this.state.showMinimapSettings && !!this.state.minimap?.enabled && (
-                <div className="fs checkbox">
-                  <label>
-                    <input type="checkbox" onChange={(e) => this.onToggleMinimapZoom(e.target as HTMLInputElement)} checked={!!this.state.minimap?.zoomed} />
-                    Zoom out mini map
-                  </label>
-                </div>
-              )}
-              {this.state.showMinimapSettings && !!this.state.minimap?.enabled && (
-                <div className="fs checkbox">
-                  <label>
-                    <input type="checkbox" onChange={(e) => this.onToggleMinimapRotate(e.target as HTMLInputElement)} checked={!!this.state.minimap?.rotate} />
-                    Rotate mini map
-                  </label>
-                </div>
-              )}
-              <div className="fs checkbox">
-                <label>
-                  <input type="checkbox" onChange={(e) => this.onToggleChat(e.target as HTMLInputElement)} checked={chatSettings.enabled} />
-                  Show chat
-                </label>
-              </div>
-            </div>
-          )}
+                </dd>
+              </>
+            )}
 
-          {activeCategory === 'audio' && (
-            <div className="settings-panel">
-              <div className="fs">
-                <VolumeControl settingsUI={this} channel="parcelAudioVolume" label="Parcel Audio" />
-              </div>
-              <div className="fs">
-                <VolumeControl settingsUI={this} channel="soundEffectsVolume" label="Sound Effects" />
-              </div>
-              <div className="fs">
-                <VolumeControl settingsUI={this} channel="musicVolume" label="Ambience" />
-              </div>
-            </div>
-          )}
+            {this.state.showMinimapSettings && (
+              <>
+                <dt>Enable mini map</dt>
+                <dd>
+                  <input type="checkbox" onChange={(e) => this.onToggleMinimap(e.target as HTMLInputElement)} checked={!!this.state.minimap?.enabled} />
+                </dd>
+              </>
+            )}
+            {this.state.showMinimapSettings && !!this.state.minimap?.enabled && (
+              <>
+                <dt>Zoom out mini map</dt>
+                <dd>
+                  <input type="checkbox" onChange={(e) => this.onToggleMinimapZoom(e.target as HTMLInputElement)} checked={!!this.state.minimap?.zoomed} />
+                </dd>
+              </>
+            )}
+            {this.state.showMinimapSettings && !!this.state.minimap?.enabled && (
+              <>
+                <dt>Rotate mini map</dt>
+                <dd>
+                  <input type="checkbox" onChange={(e) => this.onToggleMinimapRotate(e.target as HTMLInputElement)} checked={!!this.state.minimap?.rotate} />
+                </dd>
+              </>
+            )}
 
-          {activeCategory === 'graphics' && (
-            <div className="settings-panel">
-              {!isMobile() && (
-                <div className="fs dropdown">
+            <dt>Show chat</dt>
+            <dd>
+              <input type="checkbox" onChange={(e) => this.onToggleChat(e.target as HTMLInputElement)} checked={chatSettings.enabled} />
+            </dd>
+          </dl>
+        </section>
+
+        <section>
+          <h3>audio</h3>
+          <dl class="props">
+            <VolumeControl settingsUI={this} channel="parcelAudioVolume" label="Parcel audio" />
+            <VolumeControl settingsUI={this} channel="soundEffectsVolume" label="Sound effects" />
+            <VolumeControl settingsUI={this} channel="musicVolume" label="Ambience" />
+          </dl>
+        </section>
+
+        <section>
+          <h3>voice chat</h3>
+          <dl class="props">
+            <dt>Enable voice chat</dt>
+            <dd>
+              <input type="checkbox" onChange={(e) => this.onToggleVoice(e.target as HTMLInputElement)} checked={this.state.voiceEnabled} />
+            </dd>
+
+            {this.state.voiceEnabled && (
+              <>
+                <dt>Microphone</dt>
+                <dd>
+                  <select value={this.state.voiceDeviceId} onChange={this.onVoiceDeviceChange.bind(this) as any}>
+                    {this.state.voiceInputDevices.map((d) => (
+                      <option value={d.deviceId}>{d.label}</option>
+                    ))}
+                  </select>
+                </dd>
+
+                <dt>
+                  Pitch: {this.state.voicePitch > 0 ? '+' : ''}
+                  {Math.round(this.state.voicePitch)}
+                </dt>
+                <dd>
+                  <input type="range" min={-12} max={12} step={1} value={this.state.voicePitch} onInput={this.onVoicePitchChange.bind(this) as any} />
+                </dd>
+                <dd class="full">
+                  <small>Slide down for a deeper voice, up for higher.</small>
+                </dd>
+
+                <dt>Monitor yourself</dt>
+                <dd>
+                  <input type="checkbox" onChange={(e) => this.onToggleVoiceMonitor(e.target as HTMLInputElement)} checked={this.state.voiceMonitor} />
+                </dd>
+              </>
+            )}
+          </dl>
+        </section>
+
+        <section>
+          <h3>gfx</h3>
+          <dl class="props">
+            {!isMobile() && (
+              <>
+                <dt>Quality</dt>
+                <dd>
+                  <select value={this.state.graphic.level} onChange={this.onGraphicLevelChange.bind(this) as any}>
+                    <option value={GraphicLevels.Low}>Low</option>
+                    <option value={GraphicLevels.Medium}>Medium</option>
+                    <option value={GraphicLevels.High}>High</option>
+                    <option value={GraphicLevels.Ultra}>Ultra</option>
+                    <option value={GraphicLevels.Custom}>Custom</option>
+                  </select>
+                </dd>
+              </>
+            )}
+
+            <dt>Realistic lighting</dt>
+            <dd>
+              <input type="checkbox" checked={this.state.realisticLighting} onChange={(e) => this.onRealisticLightingChange(e.target as HTMLInputElement)} />
+            </dd>
+
+            {isCustomGraphics && !isMobile() && (
+              <>
+                <dt>Draw distance: {this.state.graphic.customDrawDistance || 128}</dt>
+                <dd>
+                  <input type="range" min={32} max={512} step={16} value={this.state.graphic.customDrawDistance || 128} onInput={this.onCustomDrawDistanceChange.bind(this) as any} />
+                </dd>
+                <dd class="full">
+                  <small>Controls both view distance and parcel loading distance.</small>
+                </dd>
+
+                <dt>Max active parcels: {this.state.graphic.customMaxActiveParcels || 11}</dt>
+                <dd>
+                  <input type="range" min={3} max={50} step={1} value={this.state.graphic.customMaxActiveParcels || 11} onInput={this.onCustomMaxActiveParcelsChange.bind(this) as any} />
+                </dd>
+                <dd class="full">
+                  <small>Maximum number of parcels that can be active at once. Lower values improve FPS.</small>
+                </dd>
+
+                <dt>Water quality</dt>
+                <dd>
                   <label>
-                    <select value={this.state.graphic.level} onChange={this.onGraphicLevelChange.bind(this) as any}>
-                      <option value={GraphicLevels.Low}>Low graphics</option>
-                      <option value={GraphicLevels.Medium}>Medium graphics</option>
-                      <option value={GraphicLevels.High}>High graphics</option>
-                      <option value={GraphicLevels.Ultra}>Ultra graphics</option>
-                      <option value={GraphicLevels.Custom}>Custom</option>
-                    </select>
+                    <input type="radio" name="water-quality" value="simple" checked={this.state.graphic.customWaterQuality === 'simple'} onChange={this.onCustomWaterQualityChange.bind(this) as any} />
+                    Low
                   </label>
-                </div>
-              )}
-              <div className="fs checkbox">
-                <label>
-                  <input type="checkbox" checked={this.state.realisticLighting} onChange={(e) => this.onRealisticLightingChange(e.target as HTMLInputElement)} />
-                  Realistic lighting
-                </label>
-              </div>
-              {isCustomGraphics && !isMobile() && (
-                <>
-                  <div className="fs">
-                    <label>Draw distance: {this.state.graphic.customDrawDistance || 128}</label>
-                    <input type="range" min={32} max={512} step={16} value={this.state.graphic.customDrawDistance || 128} onInput={this.onCustomDrawDistanceChange.bind(this) as any} />
-                    <small style="opacity: 0.7; display: block; margin-top: 4px;">Controls both view distance and parcel loading distance.</small>
-                  </div>
-                  <div className="fs">
-                    <label>Max active parcels: {this.state.graphic.customMaxActiveParcels || 11}</label>
-                    <input type="range" min={3} max={50} step={1} value={this.state.graphic.customMaxActiveParcels || 11} onInput={this.onCustomMaxActiveParcelsChange.bind(this) as any} />
-                    <small style="opacity: 0.7; display: block; margin-top: 4px;">Maximum number of parcels that can be active at once. Lower values improve FPS.</small>
-                  </div>
-                  <div className="fs">
-                    <label>Water quality</label>
-                    <div>
-                      <label>
-                        <input type="radio" name="water-quality" value="simple" checked={this.state.graphic.customWaterQuality === 'simple'} onChange={this.onCustomWaterQualityChange.bind(this) as any} />
-                        Low
-                      </label>
-                      <label>
-                        <input type="radio" name="water-quality" value="reflection" checked={this.state.graphic.customWaterQuality === 'reflection'} onChange={this.onCustomWaterQualityChange.bind(this) as any} />
-                        High
-                      </label>
-                    </div>
-                  </div>
-                  <div className="fs checkbox">
-                    <label>
-                      <input type="checkbox" checked={this.state.graphic.customGlowEffects !== false} onChange={(e) => this.onCustomGlowEffectsChange(e.target as HTMLInputElement)} />
-                      Glow effects
-                    </label>
-                  </div>
-                  <div className="fs checkbox">
-                    <label>
-                      <input type="checkbox" checked={this.state.graphic.customFog !== false} onChange={(e) => this.onCustomFogChange(e.target as HTMLInputElement)} />
-                      Fog
-                    </label>
-                  </div>
-                  <div className="fs">
-                    <label>Anti-aliasing samples: {this.state.graphic.customAntiAliasing ?? 2}</label>
-                    <input type="range" min={0} max={8} step={2} value={this.state.graphic.customAntiAliasing ?? 2} onInput={this.onCustomAntiAliasingChange.bind(this) as any} />
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-        </div>
+                  <label>
+                    <input type="radio" name="water-quality" value="reflection" checked={this.state.graphic.customWaterQuality === 'reflection'} onChange={this.onCustomWaterQualityChange.bind(this) as any} />
+                    High
+                  </label>
+                </dd>
+
+                <dt>Glow effects</dt>
+                <dd>
+                  <input type="checkbox" checked={this.state.graphic.customGlowEffects !== false} onChange={(e) => this.onCustomGlowEffectsChange(e.target as HTMLInputElement)} />
+                </dd>
+
+                <dt>Fog</dt>
+                <dd>
+                  <input type="checkbox" checked={this.state.graphic.customFog !== false} onChange={(e) => this.onCustomFogChange(e.target as HTMLInputElement)} />
+                </dd>
+
+                <dt>Anti-aliasing: {this.state.graphic.customAntiAliasing ?? 2}</dt>
+                <dd>
+                  <input type="range" min={0} max={8} step={2} value={this.state.graphic.customAntiAliasing ?? 2} onInput={this.onCustomAntiAliasingChange.bind(this) as any} />
+                </dd>
+              </>
+            )}
+          </dl>
+        </section>
       </section>
     )
   }
@@ -427,12 +513,14 @@ function VolumeControl({ channel, settingsUI, label, minVolume, maxVolume }: { c
   }
 
   const percentage = value <= min ? 0 : Math.round(((value - min) / (max - min)) * 100)
-  const displayValue = value <= min ? `${label}: Muted` : `${label}: ${percentage}%`
+  const display = value <= min ? `${label} (muted)` : `${label}: ${percentage}%`
 
   return (
     <>
-      <label>{displayValue}</label>
-      <input type="range" step={0.25} {...{ onInput, onDoubleClick, min, max, value }} />
+      <dt>{display}</dt>
+      <dd>
+        <input type="range" step={0.25} {...{ onInput, onDoubleClick, min, max, value }} />
+      </dd>
     </>
   )
 }

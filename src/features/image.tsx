@@ -1,9 +1,9 @@
 import { throttle } from 'lodash'
 import { ImageMode, ImageRecord, WrapMode } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { fetchSpinnerTexture, fetchTexture } from '../textures/textures'
 import { rebindGizmosBoundToFeature } from '../tools/gizmos'
-import { Advanced, Animation, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, SetParentDropdown, Toolbar, TriggerEditor, UrlSourceImages, UuidReadOnly } from '../ui/features'
+import { Advanced, Animation, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, Toolbar, UrlSourceImages } from '../ui/features'
 import { tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D, MeshExtended, TransparencyMode } from './feature'
@@ -151,8 +151,8 @@ export default class Image extends Feature2D<ImageRecord> {
   }
 
   onClick() {
-    if (this.parcelScript) {
-      this.parcelScript.dispatch('click', this, {})
+    if (this.behaviours) {
+      this.behaviours.dispatch(this.uuid, 'click')
     }
 
     if (this.isLink && this.description.link) {
@@ -227,70 +227,69 @@ class Editor extends FeatureEditor<Image> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+          <EditorProps>
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <UrlSourceImages feature={this.props.feature} />
+            <UrlSourceImages feature={this.props.feature} />
 
-          <Advanced>
-            <Animation feature={this.props.feature} />
+            <Advanced>
+              <Animation feature={this.props.feature} />
 
-            <FeatureID feature={this.props.feature} />
-            <SetParentDropdown feature={this.props.feature} />
+              <FeatureID feature={this.props.feature} />
 
-            <Hyperlink feature={this.props.feature} />
+              <Hyperlink feature={this.props.feature} />
 
-            <BlendMode feature={this.props.feature} handleStateChange={this.onBlendModeChange} />
+              <BlendMode feature={this.props.feature} handleStateChange={this.onBlendModeChange} />
 
-            <div className="f">
-              <label>Transparency</label>
-              <select onInput={(e) => this.setState({ transparencyMode: e.currentTarget.value })} value={this.state.transparencyMode}>
-                <option value={TransparencyMode.Ignore}>Ignore Alpha</option>
-                <option value={TransparencyMode.AlphaBlend}>Alpha Blended</option>
-                <option value={TransparencyMode.AlphaTest}>Alpha Tested</option>
-                <option value={TransparencyMode.Background}>Blended Background</option>
-              </select>
-            </div>
+              <div className="f">
+                <label>Transparency</label>
+                <select onInput={(e) => this.setState({ transparencyMode: e.currentTarget.value })} value={this.state.transparencyMode}>
+                  <option value={TransparencyMode.Ignore}>Ignore Alpha</option>
+                  <option value={TransparencyMode.AlphaBlend}>Alpha Blended</option>
+                  <option value={TransparencyMode.AlphaTest}>Alpha Tested</option>
+                  <option value={TransparencyMode.Background}>Blended Background</option>
+                </select>
+              </div>
 
-            <div className="f">
-              <label>Opacity</label>
-              <input disabled={this.state.blendMode !== 'Combine'} type="range" min={0.01} max={1} value={this.state.opacity} step={0.01} onChange={(e) => this.update({ opacity: e.currentTarget.value })}></input>
-            </div>
+              <div className="f">
+                <label>Opacity</label>
+                <input disabled={this.state.blendMode !== 'Combine'} type="range" min={0.01} max={1} value={this.state.opacity} step={0.01} onChange={(e) => this.update({ opacity: e.currentTarget.value })}></input>
+              </div>
 
-            <div className="f">
-              <label>Display</label>
-              <label>
-                <input type="checkbox" checked={this.state.stretch} onChange={(e) => this.setState({ stretch: e.currentTarget.checked })} />
-                Stretch
-              </label>
-              <label>
-                <input type="checkbox" checked={this.state.pixelated} onChange={(e) => this.setState({ pixelated: e.currentTarget.checked })} />
-                Pixelate
-              </label>
-              <br />
-            </div>
+              <div className="f">
+                <label>Display</label>
+                <label>
+                  <input type="checkbox" checked={this.state.stretch} onChange={(e) => this.setState({ stretch: e.currentTarget.checked })} />
+                  Stretch
+                </label>
+                <label>
+                  <input type="checkbox" checked={this.state.pixelated} onChange={(e) => this.setState({ pixelated: e.currentTarget.checked })} />
+                  Pixelate
+                </label>
+                <br />
+              </div>
 
-            <div className="f uv">
-              <label>UVScale</label>
-              <input type="number" min={1} max={64} value={this.state.uScale} onInput={(e) => this.setScale('u', parseFloat(e.currentTarget.value))} />
-              <input type="number" min={1} max={64} value={this.state.vScale} onInput={(e) => this.setScale('v', parseFloat(e.currentTarget.value))} />
-            </div>
+              <div className="f uv">
+                <label>UVScale</label>
+                <input type="number" min={1} max={64} value={this.state.uScale} onInput={(e) => this.setScale('u', parseFloat(e.currentTarget.value))} />
+                <input type="number" min={1} max={64} value={this.state.vScale} onInput={(e) => this.setScale('v', parseFloat(e.currentTarget.value))} />
+              </div>
 
-            <div className="f wrap">
-              <label>Wrap mode</label>
-              <select onInput={(e) => this.setState({ wrapMode: e.currentTarget.value })} value={this.state.wrapMode}>
-                <option value="Repeat">Repeat</option>
-                <option value="Clamp">Clamp</option>
-                <option value="Mirror">Mirror</option>
-              </select>
-            </div>
+              <div className="f wrap">
+                <label>Wrap mode</label>
+                <select onInput={(e) => this.setState({ wrapMode: e.currentTarget.value })} value={this.state.wrapMode}>
+                  <option value="Repeat">Repeat</option>
+                  <option value="Clamp">Clamp</option>
+                  <option value="Mirror">Mirror</option>
+                </select>
+              </div>
 
-            <TriggerEditor feature={this.props.feature} />
-            <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
-          </Advanced>
+              <Behaviours feature={this.props.feature} />
+            </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

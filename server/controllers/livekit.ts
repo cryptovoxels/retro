@@ -76,6 +76,41 @@ export default async function LivekitController(db: Db, passport: PassportStatic
 
   // SSE clients connected to this process
   const sseClients = new Set<any>()
+  // separate stream for voice cluster discovery - never mixed with the who's-live strip above
+  const clusterSseClients = new Set<any>()
+
+  function buildClusterLine(list: Awaited<ReturnType<typeof svc.listRooms>>): string {
+    const clusters = list
+      .filter((r) => /^cluster-\d+$/.test(r.name) && (r.numParticipants ?? 0) > 0)
+      .map((r) => {
+        let center: number[] | null = null
+        try {
+          const meta = r.metadata ? JSON.parse(r.metadata) : null
+          const parts = String(meta?.center ?? '')
+            .split(',')
+            .map(Number)
+          if (parts.length === 3 && parts.every((n) => Number.isFinite(n))) center = parts
+        } catch {}
+        return { room: r.name, center, count: r.numParticipants ?? 0 }
+      })
+      .filter((c) => c.center)
+    return `data: ${JSON.stringify({ type: 'snapshot', clusters })}\n\n`
+  }
+
+  // poll livekit into a LOCAL list (never clobbers the shared `rooms`) and push to cluster clients only
+  setInterval(async () => {
+    if (clusterSseClients.size === 0) return
+    let list: Awaited<ReturnType<typeof svc.listRooms>> = []
+    try {
+      list = await svc.listRooms()
+    } catch {}
+    const line = buildClusterLine(list)
+    clusterSseClients.forEach((r) => {
+      try {
+        r.write(line)
+      } catch {}
+    })
+  }, 4000)
 
   // Redis is optional - thumbnail/SSE features degrade gracefully if unavailable
   let pub: ReturnType<typeof createClient> | null = null
@@ -171,9 +206,19 @@ export default async function LivekitController(db: Db, passport: PassportStatic
       }
     }
 
+    // voice cluster rooms (cluster-{parcelId}) are separate from showbox parcel rooms: anyone may
+    // speak (audio only) and we stamp the origin parcel coords as the room center, once, at creation.
+    const isCluster = /^cluster-\d+$/.test(name)
+    let clusterMeta: string | undefined
+    if (isCluster) {
+      canPublish = true
+      const center = String(req.query.center ?? '').trim()
+      if (/^-?[\d.]+,-?[\d.]+,-?[\d.]+$/.test(center)) clusterMeta = JSON.stringify({ center })
+    }
+
     let room = rooms.find((r) => r.name === name)
     if (!room) {
-      room = await svc.createRoom({ name, emptyTimeout, maxParticipants })
+      room = await svc.createRoom({ name, emptyTimeout, maxParticipants, metadata: clusterMeta })
       refresh()
     }
 
@@ -200,6 +245,9 @@ export default async function LivekitController(db: Db, passport: PassportStatic
     } else {
       identity = `${identityPrefix}-${Math.random().toString(36).slice(2, 10)}`
     }
+
+    // in a cluster the identity is the bare avatar uuid so clients can map an audio track to an avatar
+    if (isCluster && /^[a-zA-Z0-9-]{1,40}$/.test(reuseIdentity)) identity = reuseIdentity
 
     // guest-pass tokens expire fast so revoke actually revokes: livekit has no token blocklist,
     // and the sdk default 6h ttl let a kicked guest rejoin with a cached token. reconnect paths
@@ -247,5 +295,21 @@ export default async function LivekitController(db: Db, passport: PassportStatic
 
     sseClients.add(res)
     req.on('close', () => sseClients.delete(res))
+  })
+
+  app.get('/api/clusters', async (req, res) => {
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.flushHeaders()
+
+    try {
+      res.write(buildClusterLine(await svc.listRooms()))
+    } catch {
+      res.write(`data: ${JSON.stringify({ type: 'snapshot', clusters: [] })}\n\n`)
+    }
+
+    clusterSseClients.add(res)
+    req.on('close', () => clusterSseClients.delete(res))
   })
 }

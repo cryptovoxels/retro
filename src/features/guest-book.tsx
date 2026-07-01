@@ -3,10 +3,10 @@ import Config from '../../common/config'
 import { GuestBookRecord } from '../../common/messages/feature'
 import { voxImporter } from '../../common/vox-import/vox-import'
 import { provider } from '../../web/src/auth/state-login'
-import { Position, Rotation, Scale } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, EditorProps } from '../../web/src/components/editor'
 import Panel from '../../web/src/components/panel'
 import { app } from '../../web/src/state'
-import { Advanced, FeatureEditor, FeatureEditorProps, Toolbar, UuidReadOnly } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, Toolbar } from '../ui/features'
 import { toggleGuestBookUi } from '../ui/guest-book-ui'
 import ActionGui from '../ui/gui/action-button-gui'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -263,32 +263,32 @@ class Editor extends FeatureEditor<GuestBook> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
-          {this.state.error && <Panel type="warning">{this.state.error}</Panel>}
-          <div className="f">
-            <label>Sign Message</label>
-            <textarea style={{ width: '100%', height: '50px' }} onInput={(e) => this.setState({ signature_text: e.currentTarget.value })} value={this.state.signature_text} />
-            <p style="color: #CCC;font-size: 85%;">
-              This message will appear when a signature is requested. Please be aware that changing this message will <strong>invalidate</strong> any previously recorded signatures.
-            </p>
-            <button onClick={() => this.updateSignatureMessage()}>Save signature message</button>
-          </div>
-          <Advanced>
+          <EditorProps>
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+            {this.state.error && <Panel type="warning">{this.state.error}</Panel>}
             <div className="f">
-              <label>Feature ID</label>
-              <input value={this.state.id} onInput={(e) => this.setState({ id: e.currentTarget.value })} type="text" />
+              <label>Sign Message</label>
+              <textarea style={{ width: '100%', height: '50px' }} onInput={(e) => this.setState({ signature_text: e.currentTarget.value })} value={this.state.signature_text} />
+              <p style="color: #CCC;font-size: 85%;">
+                This message will appear when a signature is requested. Please be aware that changing this message will <strong>invalidate</strong> any previously recorded signatures.
+              </p>
+              <button onClick={() => this.updateSignatureMessage()}>Save signature message</button>
             </div>
+            <Advanced>
+              <div className="f">
+                <label>Feature ID</label>
+                <input value={this.state.id} onInput={(e) => this.setState({ id: e.currentTarget.value })} type="text" />
+              </div>
 
-            <label>
-              <input type="checkbox" checked={!!this.state.allowSignChatCommand} onChange={(e) => this.setState({ allowSignChatCommand: e.currentTarget.checked })} />
-              Users can sign using the '/sign' chat command
-            </label>
-
-            <UuidReadOnly feature={this.props.feature} />
-          </Advanced>
+              <label>
+                <input type="checkbox" checked={!!this.state.allowSignChatCommand} onChange={(e) => this.setState({ allowSignChatCommand: e.currentTarget.checked })} />
+                Users can sign using the '/sign' chat command
+              </label>
+            </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

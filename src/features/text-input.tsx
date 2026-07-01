@@ -1,6 +1,6 @@
 import { TextInputRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SpecularColorSetting, Toolbar, UuidReadOnly } from '../ui/features'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SpecularColorSetting, Toolbar } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
 
@@ -65,8 +65,8 @@ export default class TextInput extends Feature2D<TextInputRecord> {
   }
 
   onChanged() {
-    if (this.parcelScript) {
-      this.parcelScript.dispatch('changed', this, { text: this.input?.text || '' })
+    if (this.behaviours) {
+      this.behaviours.dispatch(this.uuid, 'changed', { text: this.input?.text || '' })
     }
   }
 }
@@ -98,23 +98,24 @@ class Editor extends FeatureEditor<TextInput> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+          <EditorProps>
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <FeatureID feature={this.props.feature} />
+            <FeatureID feature={this.props.feature} />
 
-          <div className="f">
-            <label>Placeholder</label>
-            <input value={this.state.placeholder} onInput={(e) => this.setState({ placeholder: e.currentTarget.value })} type="text" />
-          </div>
-          <Advanced>
-            <SpecularColorSetting feature={this.props.feature} />
+            <div className="f">
+              <label>Placeholder</label>
+              <input value={this.state.placeholder} onInput={(e) => this.setState({ placeholder: e.currentTarget.value })} type="text" />
+            </div>
+            <Advanced>
+              <SpecularColorSetting feature={this.props.feature} />
 
-            <Script feature={this.props.feature} />
-            <UuidReadOnly feature={this.props.feature} />
-          </Advanced>
+              <Behaviours feature={this.props.feature} />
+            </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

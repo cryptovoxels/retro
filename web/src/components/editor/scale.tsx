@@ -19,7 +19,8 @@ export function Scale(props: ScaleProps) {
   const [z, setZ] = useState<number>(truncate(props.feature.scale.z || 0))
 
   const equal = x == y && y == z
-  const [aspectRatioLocked, setAspectRatioLocked] = useState<boolean>(props.alwaysLocked ?? equal)
+  // honor the feature's lock preference (e.g. showboxes default it on) so the checkbox and the in-world corner-resize agree
+  const [aspectRatioLocked, setAspectRatioLocked] = useState<boolean>(props.alwaysLocked ?? props.feature.scaleAspectLocked ?? equal)
   const [error, setError] = useState<string | undefined>('')
 
   const previousValues = useRef<axisValues>({
@@ -62,24 +63,30 @@ export function Scale(props: ScaleProps) {
   }
 
   const toggleAspectRatioLocked = () => {
-    setAspectRatioLocked(!aspectRatioLocked)
+    const next = !aspectRatioLocked
+    setAspectRatioLocked(next)
+    props.feature.scaleAspectLocked = next // mirror to the feature so the corner-resize handles follow the same lock
   }
 
-  const displayError = (err: string | undefined) => (err ? <div>{err}</div> : null)
+  const displayError = (err: string | undefined) =>
+    err ? (
+      <dd class="full">
+        <small>{err}</small>
+      </dd>
+    ) : null
 
   const axes = aspectRatioLocked ? ['x' as XYZ] : props.feature.scaleAxes()
 
   return (
-    <div class="vectors">
-      <label>Scale</label>
-      <div>
+    <>
+      <dt>Scale</dt>
+      <dd class="vec3">
         {axes.map((axis: XYZ) => (
           <VectorField key={axis} title={axis} value={scaleValues[axis]} setter={setScale(axis)} errorMessage={setError} step={0.1} />
         ))}
-
-        {props.alwaysLocked ? <b /> : <input type="checkbox" checked={aspectRatioLocked} onChange={toggleAspectRatioLocked} />}
-      </div>
+        {props.alwaysLocked ? null : <input type="checkbox" checked={aspectRatioLocked} onChange={toggleAspectRatioLocked} title="Lock aspect ratio" />}
+      </dd>
       {displayError(error)}
-    </div>
+    </>
   )
 }

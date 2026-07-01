@@ -4,24 +4,19 @@ import { createLightmapMaterial } from './shaders/lightmap'
 import { createGlassMaterial } from './materials'
 import { getFieldShape } from '../common/voxels/helpers'
 import type Parcel from './parcel'
-import { createComlinkWorker } from '../common/helpers/comlink-worker'
-import type { BakedVoxelizedMesh, BakedVoxelizerJobType, BakedVoxelizerWorkerAPI, ParcelVoxels } from './baked-voxelizer-worker'
+import type { BakedVoxelizedMesh, BakedVoxelizerJobType, ParcelVoxels } from './mono'
 import type { ParcelMesher } from './parcel-mesher'
+import { runCompute } from './mono-pool'
 
 export class BakedVoxelField {
   private readonly scene: BABYLON.Scene
   private readonly whiteTexture: BABYLON.Texture
-  private workerAPI: BakedVoxelizerWorkerAPI | null = null
-  private workerCleanup: (() => void) | null = null
-  private workerPromise: Promise<BakedVoxelizerWorkerAPI> | null = null
   private jobId = 0
   private mesher: ParcelMesher
 
   constructor(scene: BABYLON.Scene, mesher: ParcelMesher) {
     this.scene = scene
     this.mesher = mesher
-
-    this.loadWorker()
     this.whiteTexture = createWhiteTexture(this.scene)
   }
 
@@ -128,32 +123,15 @@ export class BakedVoxelField {
   }
 
   private async run<t extends BakedVoxelizerJobType>(type: t, parcel: Parcel): Promise<{ job: number } & { [k in t]: BakedVoxelizedMesh }> {
-    let worker: BakedVoxelizerWorkerAPI
-
-    if (this.workerAPI) {
-      worker = this.workerAPI
-    } else if (this.workerPromise) {
-      worker = await this.workerPromise
-    } else {
-      throw new Error('No baked voxelizer worker or worker promise available')
-    }
-
     const job = this.jobId++
 
-    // only partial clone
     const clonedParcel: ParcelVoxels = {
       fieldShape: getFieldShape(parcel),
-      /* hotfix - disable sending field as this breaks things see https://github.com/cryptovoxels/cryptovoxels/issues/709
-                 this is only sent when you can edit the parcel, for all others it is generated in worker anyway
-                 We update parcel.voxels each time a change is made so this should work fine
-                 not sure why this is necessary, but it fixes things SO THERE! */
-
-      // field: parcel.field,
       voxels: parcel.voxels,
       island: parcel.island,
     }
 
-    const result = await worker.processJob(job, type, clonedParcel)
+    const result = await runCompute((worker) => worker.processJob(job, type, clonedParcel))
 
     if ('error' in result) {
       throw new Error(result.error)
@@ -164,25 +142,6 @@ export class BakedVoxelField {
     }
 
     return result as Record<BakedVoxelizerJobType, BakedVoxelizedMesh> & { job: number }
-  }
-
-  private loadWorker(): void {
-    this.workerPromise = createComlinkWorker<BakedVoxelizerWorkerAPI>(
-      // Webpack 5 recognizes this exact pattern and automatically compiles TypeScript workers to separate bundles
-      () => new Worker(new URL('./baked-voxelizer-worker.ts', import.meta.url)),
-      () => import('./baked-voxelizer-worker').then(({ bakedVoxelizerWorker }) => bakedVoxelizerWorker),
-      { debug: true, workerName: 'baked-voxelizer-worker' },
-    )
-      .then(({ worker, cleanup }) => {
-        this.workerAPI = worker
-        this.workerCleanup = cleanup
-        return worker
-      })
-      .catch((error) => {
-        console.error('Failed to load baked voxelizer worker:', error)
-        this.workerAPI = null
-        throw error
-      })
   }
 }
 

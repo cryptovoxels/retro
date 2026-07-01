@@ -1,9 +1,9 @@
 import Config from '../../common/config'
 import { MegavoxRecord, VoxModelRecord } from '../../common/messages/feature'
 import { Options as VoxImportOptions, voxImporter } from '../../common/vox-import/vox-import'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import Panel from '../../web/src/components/panel'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, SetParentDropdown, Toolbar, TriggerEditor, UrlSourceVoxModels, UuidReadOnly } from '../ui/features'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, Toolbar, UrlSourceVoxModels } from '../ui/features'
 import { isURL } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, FeatureEvent, MeshExtended, transformVectors } from './feature'
@@ -15,6 +15,8 @@ const CUBESCALE_SCALE_FACTOR = 1 / (0.02 * 32) / 2
 const CUBESCALE_SCALE_FACTOR_RECIPROCAL = 1 / CUBESCALE_SCALE_FACTOR
 const CUBESCALE_SCALE_FACTOR_VECTOR = new BABYLON.Vector3(CUBESCALE_SCALE_FACTOR, CUBESCALE_SCALE_FACTOR, CUBESCALE_SCALE_FACTOR)
 const CUBESCALE_SCALE_FACTOR_RECIPROCAL_VECTOR = new BABYLON.Vector3(CUBESCALE_SCALE_FACTOR_RECIPROCAL, CUBESCALE_SCALE_FACTOR_RECIPROCAL, CUBESCALE_SCALE_FACTOR_RECIPROCAL)
+
+const cubescaleOffset = (scale: [number, number, number]) => new BABYLON.Vector3(CUBESCALE_MULTIPLIER_X * scale[0], 0, CUBESCALE_MULTIPLIER_Y * scale[2])
 
 export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord = VoxModelRecord> extends Feature3D<Description> {
   static Editor: typeof Editor
@@ -66,24 +68,20 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     this.afterGenerate()
   }
 
-  public override getTransformVectorsRelativeToNode = (node: BABYLON.AbstractMesh): transformVectors => {
-    const transformVectors = super.getTransformVectorsRelativeToNode(node)
+  protected override applyMeshTransformAdjustments() {
+    if (!this.cubescale || !this.mesh) return
+    this.mesh.scaling.multiplyInPlace(CUBESCALE_SCALE_FACTOR_VECTOR)
+    this.mesh.position.addInPlace(cubescaleOffset(this.tidyScale))
+  }
 
-    if (this.cubescale) {
-      // apply reciprocal magic number scaling
-      transformVectors.scaling.multiplyInPlace(CUBESCALE_SCALE_FACTOR_RECIPROCAL_VECTOR)
-    }
-
-    return transformVectors
+  protected override stripMeshAdjustments(tv: transformVectors): transformVectors {
+    if (!this.cubescale) return tv
+    tv.scaling.multiplyInPlace(CUBESCALE_SCALE_FACTOR_RECIPROCAL_VECTOR)
+    tv.position.subtractInPlace(cubescaleOffset([tv.scaling.x, tv.scaling.y, tv.scaling.z]))
+    return tv
   }
 
   public override afterSetCommon = () => {
-    if (this.cubescale && this.mesh) {
-      // apply magic number scaling to mesh if "Scale To Grid" is enabled
-      this.mesh.scaling.multiplyInPlace(CUBESCALE_SCALE_FACTOR_VECTOR)
-      this.mesh.position.addInPlace(new BABYLON.Vector3(CUBESCALE_MULTIPLIER_X * this.tidyScale[0], 0, CUBESCALE_MULTIPLIER_Y * this.tidyScale[2]))
-    }
-
     this.refreshCollidable()
   }
 
@@ -136,13 +134,10 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   // }
 
   public override onClick(e: FeatureEvent) {
-    if (this.parcelScript) {
-      this.parcelScript.dispatch('click', this, e)
-    }
-
-    // second check is redundant (isLink checks this), but typescript doesnt trust it
-    if (this.isLink && this.description.link) {
-      this.onClickLink(this.description.link)
+    // console.log('onClick', e)
+    // console.log('behaviours', this.behaviours)
+    if (this.behaviours) {
+      this.behaviours.dispatch(this.uuid, 'click', e)
     }
   }
 
@@ -237,46 +232,44 @@ class Editor extends FeatureEditor<VoxModel> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
-          {!!this.importError && <Panel type="danger">{this.importError}</Panel>}
-          <UrlSourceVoxModels feature={this.props.feature} scene={this.props.scene} />
-
-          <Advanced>
-            <Animation feature={this.props.feature} />
-
-            <FeatureID feature={this.props.feature} />
-            <SetParentDropdown feature={this.props.feature} />
-
-            <Hyperlink feature={this.props.feature} />
-
-            {this.state.type === 'vox-model' && (
-              <div className="f">
-                <form>
-                  <label>
-                    <input type="checkbox" name="cubescale" onChange={(e) => this.setState({ cubescale: e.currentTarget.checked })} checked={this.state.cubescale}></input>
-                    Scale to fit into the grid
-                  </label>
-                </form>
-              </div>
+          <EditorProps>
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+            {!!this.importError && (
+              <dd class="full">
+                <Panel type="danger">{this.importError}</Panel>
+              </dd>
             )}
+            <UrlSourceVoxModels feature={this.props.feature} scene={this.props.scene} />
 
-            <div className="f">
-              <form>
-                <label>
-                  <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable}></input>
-                  Enable Collision
-                </label>
-                <small>Model must be within the parcel bounds</small>
-              </form>
-            </div>
+            <Advanced>
+              <Animation feature={this.props.feature} />
 
-            <TriggerEditor feature={this.props.feature} />
-            <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
-          </Advanced>
+              <FeatureID feature={this.props.feature} />
+
+              <Hyperlink feature={this.props.feature} />
+
+              {this.state.type === 'vox-model' && (
+                <>
+                  <dt>scale to grid</dt>
+                  <dd>
+                    <input type="checkbox" name="cubescale" onChange={(e) => this.setState({ cubescale: e.currentTarget.checked })} checked={this.state.cubescale} />
+                  </dd>
+                </>
+              )}
+
+              <>
+                <dt>Enable Collision</dt>
+                <dd>
+                  <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable} />
+                </dd>
+              </>
+
+              <Behaviours feature={this.props.feature} />
+            </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

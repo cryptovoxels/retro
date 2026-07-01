@@ -43,18 +43,22 @@ export function Position(props: PositionalProps) {
   const step = 0.05
 
   const displayError = (err: string | undefined) => {
-    return err ? <div>{err}</div> : null
+    return err ? (
+      <dd class="full">
+        <small>{err}</small>
+      </dd>
+    ) : null
   }
 
   return (
-    <div class="vectors">
-      <label>Position</label>
-      <div>
+    <>
+      <dt>Position</dt>
+      <dd class="vec3">
         <VectorField title="X" step={step} errorMessage={setError} value={x} setter={setX} limiter={hardBoundaryLimiter('x')} />
         <VectorField title="Y" step={step} errorMessage={setError} value={y} setter={setY} limiter={hardBoundaryLimiter('y')} />
         <VectorField title="Z" step={step} errorMessage={setError} value={z} setter={setZ} limiter={hardBoundaryLimiter('z')} />
-      </div>
+      </dd>
       {displayError(error)}
-    </div>
+    </>
   )
 }

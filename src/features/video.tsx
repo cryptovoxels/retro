@@ -1,11 +1,11 @@
 import { isBatterySaver, isChrome } from '../../common/helpers/detector'
 import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { VideoRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import Panel from '../../web/src/components/panel'
 import { AudioBus } from '../audio/audio-engine'
 import { SpatialAudio } from '../audio/spatial-audio'
-import { Advanced, Animation, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UrlSourceVideos, UuidReadOnly } from '../ui/features'
+import { Advanced, Animation, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UrlSourceVideos } from '../ui/features'
 import { isURL, tidyFloat } from '../utils/helpers'
 import { opensea, readOpenseaUrl } from '../utils/proxy'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -594,72 +594,72 @@ class Editor extends FeatureEditor<Video> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+          <EditorProps>
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <UrlSourceVideos feature={this.props.feature} />
-
-          <div className="f">
-            <label>Preview Image URL (optional)</label>
-            <input type="text" value={this.state.previewUrl} onInput={(e) => this.setState({ previewUrl: e.currentTarget.value })} />
-            <small>This image will show before the user plays the video.</small>
-          </div>
-
-          <Advanced>
-            <FeatureID feature={this.props.feature} />
-            <SetParentDropdown feature={this.props.feature} />
+            <UrlSourceVideos feature={this.props.feature} />
 
             <div className="f">
-              <label>
-                <input checked={this.state.autoplay} onInput={(e) => this.setState({ autoplay: e.currentTarget.checked })} type="checkbox" />
-                Autoplay
-              </label>
-              <small>Play when someone enters the parcel</small>
+              <label>Preview Image URL (optional)</label>
+              <input type="text" value={this.state.previewUrl} onInput={(e) => this.setState({ previewUrl: e.currentTarget.value })} />
+              <small>This image will show before the user plays the video.</small>
             </div>
 
-            <div className="f">
-              <label>
-                <input checked={this.state.loop} onInput={(e) => this.setState({ loop: e.currentTarget.checked })} type="checkbox" />
-                Loop (repeat forever)
-              </label>
-              <small>Loop playback until the player leaves your parcel</small>
-            </div>
+            <Advanced>
+              <FeatureID feature={this.props.feature} />
 
-            <div class="f">
-              <p>{this.state.duration ? 'The current video is ' + this.state.duration + 's long' : ''}</p>
-              <div style="display: flex;">
-                <div style="margin-right: 4px;">
-                  <label>Start At (optional)</label>
-                  <input type="number" step="0.1" min="0" value={this.state.startAt} onChange={(e) => this.setState({ startAt: parseFloat(e.currentTarget.value) })} />
-                </div>
-                <div>
-                  <label>End At (optional)</label>
-                  <input type="number" step="0.1" min="0" value={this.state.endAt} onChange={(e) => this.setState({ endAt: parseFloat(e.currentTarget.value) })} />
-                </div>
+              <div className="f">
+                <label>
+                  <input checked={this.state.autoplay} onInput={(e) => this.setState({ autoplay: e.currentTarget.checked })} type="checkbox" />
+                  Autoplay
+                </label>
+                <small>Play when someone enters the parcel</small>
               </div>
-              <small>Start and Stop the playback at a specific points (in seconds).</small>
-              {this.state.startAt > this.state.endAt && <Panel type="warning">StartAt is lower than EndAt</Panel>}
-            </div>
 
-            <div className="f">
-              <label>Spatial Rolloff Factor</label>
-              <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onChange={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
-              <small>Choose how quickly the sound fades away as the player moves away from the emitter (higher values fade away faster)</small>
-            </div>
+              <div className="f">
+                <label>
+                  <input checked={this.state.loop} onInput={(e) => this.setState({ loop: e.currentTarget.checked })} type="checkbox" />
+                  Loop (repeat forever)
+                </label>
+                <small>Loop playback until the player leaves your parcel</small>
+              </div>
 
-            <div className="f">
-              <label>Volume</label>
-              <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
-            </div>
+              <div class="f">
+                <p>{this.state.duration ? 'The current video is ' + this.state.duration + 's long' : ''}</p>
+                <div style="display: flex;">
+                  <div style="margin-right: 4px;">
+                    <label>Start At (optional)</label>
+                    <input type="number" step="0.1" min="0" value={this.state.startAt} onChange={(e) => this.setState({ startAt: parseFloat(e.currentTarget.value) })} />
+                  </div>
+                  <div>
+                    <label>End At (optional)</label>
+                    <input type="number" step="0.1" min="0" value={this.state.endAt} onChange={(e) => this.setState({ endAt: parseFloat(e.currentTarget.value) })} />
+                  </div>
+                </div>
+                <small>Start and Stop the playback at a specific points (in seconds).</small>
+                {this.state.startAt > this.state.endAt && <Panel type="warning">StartAt is lower than EndAt</Panel>}
+              </div>
 
-            <Animation feature={this.props.feature} />
-            <BlendMode feature={this.props.feature} handleStateChange={this.onBlendModeChange} />
+              <div className="f">
+                <label>Spatial Rolloff Factor</label>
+                <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onChange={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
+                <small>Choose how quickly the sound fades away as the player moves away from the emitter (higher values fade away faster)</small>
+              </div>
 
-            <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
-          </Advanced>
+              <div className="f">
+                <label>Volume</label>
+                <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
+              </div>
+
+              <Animation feature={this.props.feature} />
+              <BlendMode feature={this.props.feature} handleStateChange={this.onBlendModeChange} />
+
+              <Behaviours feature={this.props.feature} />
+            </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

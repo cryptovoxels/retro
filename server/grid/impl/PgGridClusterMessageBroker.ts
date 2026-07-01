@@ -10,13 +10,6 @@ type PatchChannelPayload = {
   spaceId?: string
 }
 
-const HASH_UPDATE_CHANNEL = 'broadcasthash'
-type HashUpdateChannelPayload = {
-  id: number // Of parcel
-  hash: string
-  spaceId?: string
-}
-
 const META_UPDATE_CHANNEL = 'broadcastmeta'
 type MetaUpdateChannelPayload = {
   id: number // Of parcel
@@ -29,7 +22,7 @@ type BroadcastScriptChannelPayload = {
   spaceId?: string
 }
 
-const CHANNEL_NAMES = [PATCH_CHANNEL, HASH_UPDATE_CHANNEL, META_UPDATE_CHANNEL, BROADCAST_SCRIPT_CHANNEL] as const
+const CHANNEL_NAMES = [PATCH_CHANNEL, META_UPDATE_CHANNEL, BROADCAST_SCRIPT_CHANNEL] as const
 
 type ChannelName = (typeof CHANNEL_NAMES)[number]
 
@@ -87,11 +80,10 @@ export default class PgGridClusterMessageBroker implements GridClusterMessageBro
   }
 }
 
-type ChannelPayload = PatchChannelPayload | HashUpdateChannelPayload | MetaUpdateChannelPayload | BroadcastScriptChannelPayload
+type ChannelPayload = PatchChannelPayload | MetaUpdateChannelPayload | BroadcastScriptChannelPayload
 
 const createPatchNotificationArgs = (payload: PatchChannelPayload): [channelName: ChannelName, payload: ChannelPayload] => ['patch', payload]
 const createMetaUpdateNotificationArgs = (payload: MetaUpdateChannelPayload): [channelName: ChannelName, payload: ChannelPayload] => ['broadcastmeta', payload]
-const createHashUpdateNotificationArgs = (payload: HashUpdateChannelPayload): [channelName: ChannelName, payload: ChannelPayload] => ['broadcasthash', payload]
 const createScriptUpdateNotificationArgs = (payload: BroadcastScriptChannelPayload): [channelName: ChannelName, payload: ChannelPayload] => ['broadcastscript', payload]
 
 export function mapToPgNotificationArgs(message: GridClusterMessage): [channelName: ChannelName, payload: ChannelPayload] {
@@ -134,18 +126,12 @@ function mapToPgNotificationArgsWithoutSpaceId(message: GridClusterMessage): [ch
         msg: {
           type: 'lightmap-status',
           parcelId: message.payload.parcelId,
-          hash: message.payload.hash,
           lightmap_url: message.payload.lightmap_url,
         },
       })
     case 'metaUpdate':
       return createMetaUpdateNotificationArgs({
         id: message.payload.parcelId,
-      })
-    case 'hashUpdate':
-      return createHashUpdateNotificationArgs({
-        id: message.payload.parcelId,
-        hash: message.payload.hash,
       })
     case 'scriptUpdate':
       return createScriptUpdateNotificationArgs({
@@ -195,19 +181,8 @@ function mapFromPgNotificationArgsWithoutSpaceId(channel: ChannelName, payload: 
             payload: {
               parcelId: p.msg.parcelId,
               lightmap_url: p.msg.lightmap_url,
-              hash: p.msg.hash,
             },
           }
-      }
-    }
-    case HASH_UPDATE_CHANNEL: {
-      const p = payload as HashUpdateChannelPayload
-      return {
-        type: 'hashUpdate',
-        payload: {
-          parcelId: p.id,
-          hash: p.hash,
-        },
       }
     }
     case META_UPDATE_CHANNEL: {

@@ -5,7 +5,7 @@ if (process.env.NODE_ENV === 'development') {
   require('preact/debug')
 }
 import { Component, render } from 'preact'
-import { Route, Router, type RouterOnChangeArgs } from 'preact-router'
+import { Route, Router, route, type RouterOnChangeArgs } from 'preact-router'
 
 import EditAccount from '../account/edit'
 import GoLive from '../account/go-live'
@@ -40,6 +40,7 @@ import Mail from './mail'
 import WorldMap from './map'
 import Parcel from './parcel'
 import { Client } from './client'
+import { getCoords, getParcelId, notifyUrlChange, syncParcelUrl } from './helpers/coords-nav'
 import ParcelEdit from './parcel-edit'
 import Parcels from './parcels'
 import Privacy from './privacy'
@@ -63,6 +64,7 @@ import NotFound from './not-found'
 import { PlayPreview } from './play-preview'
 import { maybePlayPreview } from './play-preview-route'
 import { app, AppEvent } from './state'
+import { WorldSidebar } from './world-sidebar'
 
 class MainApp extends Component {
   componentDidMount() {
@@ -91,6 +93,8 @@ history.pushState = function () {
 
   ;(history as any)['oldPushState'].apply(this, arguments as any)
 
+  notifyUrlChange()
+
   // Only scroll to top if base URL changes, not query string
   if (path !== previousPath) {
     scrollTo(0, 0)
@@ -108,90 +112,121 @@ const Main = () => {
     prevUrl.current = location.pathname + location.search
 
     setCurrentPath(e.url)
+    setUrlSearch(location.search)
 
     app.send({ type: 'navigate', data: e.url })
   }
 
   const [currentPath, setCurrentPath] = useState(window.location.pathname)
+  const [urlSearch, setUrlSearch] = useState(location.search)
   const prevUrl = useRef(location.pathname + location.search)
   const lightBroadcast = currentPath.startsWith('/golive/broadcast')
-  // fullscreen world view: no web header/footer chrome
-  const fullWorld = currentPath.startsWith('/play') || currentPath.startsWith('/scratchpad') || currentPath.endsWith('/play') || currentPath.startsWith('/radio')
+  const coords = new URLSearchParams(urlSearch).get('coords') || ''
+
+  useEffect(() => {
+    const sync = () => setUrlSearch(location.search)
+    window.addEventListener('popstate', sync)
+    window.addEventListener('urlchange', sync)
+    return () => {
+      window.removeEventListener('popstate', sync)
+      window.removeEventListener('urlchange', sync)
+    }
+  }, [])
+
+  useEffect(() => {
+    const onExploring = () => {
+      if (location.pathname !== '/parcels') return
+      const id = getParcelId()
+      const c = getCoords()
+      if (!id || !c) return
+      syncParcelUrl(id)
+    }
+    app.on(AppEvent.Exploring, onExploring)
+    return () => app.removeListener(AppEvent.Exploring, onExploring)
+  }, [])
 
   return (
     <MainApp>
       <main class={lightBroadcast ? 'showbox-light-shell' : ''}>
-        {!lightBroadcast && !fullWorld && <WebHeader path={currentPath} />}
+        {!lightBroadcast && <WebHeader path={currentPath} coords={coords} />}
 
-        <Router onChange={handleRoute}>
-          <Explore path="/" />
-          <RadioPopout path="/radio" />
-          <Play path="/play" />
-          <Play path="/scratchpad" />
-          <Play path="/spaces/:id/play" />
-          <Play path="/assets/:id/play" />
-          <Terms path="/terms" />
-          <Privacy path="/privacy" />
-          <Conduct path="/conduct" />
-          <Logout path="/logout" />
-          <NotFound path="/not-found" />
+        {coords && (
+          <article>
+            <Client coords={coords} />
+          </article>
+        )}
 
-          <Mail path="/mail" />
-          <Search path="/search" />
+        <WorldSidebar coords={coords} path={currentPath}>
+          <Router onChange={handleRoute}>
+            <Explore path="/" />
+            <RadioPopout path="/radio" />
+            <Play path="/play" />
+            <Play path="/scratchpad" />
+            <Play path="/spaces/:id/play" />
+            <Play path="/assets/:id/play" />
+            <Terms path="/terms" />
+            <Privacy path="/privacy" />
+            <Conduct path="/conduct" />
+            <Logout path="/logout" />
+            <NotFound path="/not-found" />
 
-          <Assets path="/assets" />
-          <AssetsNew path="/assets/new" />
-          <Asset path="/assets/:id" />
-          <EditAsset path="/assets/:id/edit" />
-          <RenderAsset path="/assets/:id/render" />
-          <Assets path="/u/:wallet/assets" />
+            <Mail path="/mail" />
+            <Search path="/search" />
 
-          <Parcels path="/parcels" />
-          <Parcel path="/parcels/:id" />
-          <Parcel path="/parcels/:id/:section" />
-          <ParcelEdit path="/parcels/:id/edit" />
+            <Assets path="/assets" />
+            <AssetsNew path="/assets/new" />
+            <Asset path="/assets/:id" />
+            <EditAsset path="/assets/:id/edit" />
+            <RenderAsset path="/assets/:id/render" />
+            <Assets path="/u/:wallet/assets" />
 
-          <Spaces path="/spaces" />
-          <NewSpace path="/spaces/new" />
-          <Space path="/spaces/:id" />
-          <SpaceEdit path="/spaces/:id/edit" />
+            <Parcels path="/parcels" />
+            <Parcel path="/parcels/:id" />
+            <Parcel path="/parcels/:id/:section" />
+            <ParcelEdit path="/parcels/:id/edit" />
 
-          <Islands path="/islands" />
-          <Island path="/islands/:slug" />
-          <WorldMap path="/map" />
+            <Spaces path="/spaces" />
+            <NewSpace path="/spaces/new" />
+            <Space path="/spaces/:id" />
+            <SpaceEdit path="/spaces/:id/edit" />
 
-          <Route path="/golive/broadcast" component={GoLiveBroadcast} />
-          <Route path="/golive" component={GoLive} />
+            <Islands path="/islands" />
+            <Island path="/islands/:slug" />
+            <WorldMap path="/map" />
 
-          <AccountRoutes path="/account/:path*" />
+            <Route path="/golive/broadcast" component={GoLiveBroadcast} />
+            <Route path="/golive" component={GoLive} />
 
-          <RenderCostume path="/costumes/:id/render" />
-          <Avatar path="/avatar/:walletOrName" />
-          <Avatar path="/avatar/:walletOrName/:tab?" />
-          <Avatar path="/u/:walletOrName" />
-          <Avatar path="/u/:walletOrName/:tab?" />
+            <AccountRoutes path="/account/:path*" />
 
-          <Costumer path="/costumer" />
-          <Costumer path="/costumer/:costumeId" />
+            <RenderCostume path="/costumes/:id/render" />
+            <Avatar path="/avatar/:walletOrName" />
+            <Avatar path="/avatar/:walletOrName/:tab?" />
+            <Avatar path="/u/:walletOrName" />
+            <Avatar path="/u/:walletOrName/:tab?" />
 
-          <Collections path="/collections" />
-          <CollectionsNew path="/collections/new" />
-          <PublishCollection path="/collections/:mint/publish" />
-          <CollectionEditPage path="/collections/:id/edit" />
-          <CollectionPage path="/collections/:id" />
-          <Wearable path="/collections/:cid/:address/:tid" />
+            <Costumer path="/costumer" />
+            <Costumer path="/costumer/:costumeId" />
 
-          <Womp path="/womps/:id" />
-          <EventPage path="/events/:id" />
-          <EventsNew path="/events/new" />
-          <EventsEdit path="/events/:id/edit" />
-          <Events path="/events" />
-          <WompsPage path="/womps" />
+            <Collections path="/collections" />
+            <CollectionsNew path="/collections/new" />
+            <PublishCollection path="/collections/:mint/publish" />
+            <CollectionEditPage path="/collections/:id/edit" />
+            <CollectionPage path="/collections/:id" />
+            <Wearable path="/collections/:cid/:address/:tid" />
 
-          <IslandsAdmin path="/propose/islands" />
-          <Admin path="/admin" />
-        </Router>
-        {!lightBroadcast && !fullWorld && <Footer />}
+            <Womp path="/womps/:id" />
+            <EventPage path="/events/:id" />
+            <EventsNew path="/events/new" />
+            <EventsEdit path="/events/:id/edit" />
+            <Events path="/events" />
+            <WompsPage path="/womps" />
+
+            <IslandsAdmin path="/propose/islands" />
+            <Admin path="/admin" />
+          </Router>
+        </WorldSidebar>
+        {!lightBroadcast && !coords && <Footer />}
       </main>
 
       <Snackbar />
@@ -209,18 +244,30 @@ function RadioPopout(_props: { path?: string }) {
   )
 }
 
-// Fullscreen world. Mounts the persistent canvas layer over a fullscreen placeholder.
 function Play(_props: { path?: string }) {
-  const coords = new URLSearchParams(window.location.search).get('coords') || ''
+  if (getCoords()) {
+    return (
+      <section class="sidebar-view">
+        <p>in the world</p>
+      </section>
+    )
+  }
   return (
-    <div class="world-fullscreen">
-      <Client full coords={coords} parcelId={0} />
-    </div>
+    <section>
+      <p>add coords to play</p>
+    </section>
   )
 }
 
 function hydrate(vnode: JSXInternal.Element, parent: HTMLElement) {
-  return render(vnode, parent, parent.firstElementChild ?? undefined)
+  let replace = parent.firstElementChild ?? undefined
+  // SSR renders route content only (section/article). Main adds <main> + chrome.
+  // Reusing the SSR root as replaceNode leaves that markup alongside Main.
+  if (replace && replace.tagName !== 'MAIN') {
+    replace.remove()
+    replace = undefined
+  }
+  return render(vnode, parent, replace)
 }
 
 hydrate(<Main />, document.body)

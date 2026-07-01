@@ -1,6 +1,6 @@
 import { Feature3D, MeshExtended } from './feature'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, SpecularColorSetting, Toolbar, UrlSourceImages, UuidReadOnly } from '../ui/features'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SpecularColorSetting, Toolbar, UrlSourceImages } from '../ui/features'
+import { Position, Rotation, Scale, EditorProps } from '../../web/src/components/editor'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import type { AssetRecord } from '../../common/messages/feature'
 
@@ -51,9 +51,11 @@ class Editor extends FeatureEditor<Asset> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+          <EditorProps>
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+          </EditorProps>
         </div>
       </section>
     )

@@ -1,8 +1,8 @@
 import type Parcel from './parcel'
 import Feature from './features/feature'
+import Group from './features/group'
 import { signal } from '@preact/signals'
 import Grid from './grid'
-
 export type CheckedFeatures = Record<string, Feature>
 
 const TICK = 500
@@ -35,28 +35,6 @@ const actions = {
   setSelectedFeature: (feature: Feature) => {
     selectedFeature.value = feature
   },
-  toggleCheckFeature: (feature: Feature) => {
-    if (!feature) return
-
-    const features = { ...checkedFeatures.value }
-    if (features[feature.uuid]) {
-      delete features[feature.uuid]
-    } else {
-      features[feature.uuid] = feature
-    }
-
-    checkedFeatures.value = features
-    window.ui?.featureTool.setSecondarySelection(Object.values(features))
-  },
-  uncheckFeature: (feature: Feature) => {
-    if (!feature) return
-
-    const features = { ...checkedFeatures.value }
-    delete features[feature.uuid]
-
-    checkedFeatures.value = features
-    window.ui?.featureTool.setSecondarySelection(Object.values(features))
-  },
   setCheckedFeatures: (features: Array<Feature>) => {
     const checked: CheckedFeatures = {}
     features.forEach((feature: any) => {
@@ -65,9 +43,73 @@ const actions = {
     checkedFeatures.value = checked
     window.ui?.featureTool.setSecondarySelection(Object.values(checked))
   },
+  toggleCheckedFeature: (feature: Feature, seed?: Feature) => {
+    if (!feature) return
+
+    let list = Object.values(checkedFeatures.value)
+    if (!list.length && seed && seed.uuid !== feature.uuid) list = [seed]
+
+    const on = list.some((f) => f.uuid === feature.uuid)
+    if (on) {
+      list = list.filter((f) => f.uuid !== feature.uuid)
+    } else {
+      list = [...list, feature]
+    }
+
+    actions.setCheckedFeatures(list)
+  },
+  deleteCheckedFeatures: () => {
+    const checked = Object.values(checkedFeatures.value)
+    if (!checked.length) return
+
+    const amount = checked.reduce((n, f) => {
+      n++
+      if (f.type == 'group') n += (f as Group).children.length
+      return n
+    }, 0)
+    if (amount >= 2 && !window.confirm(`Delete ${amount} features?`)) return
+
+    checked.forEach((f) => f.delete())
+    actions.setCheckedFeatures([])
+    window.ui?.featureTool.unHighlight()
+  },
+  groupCheckedFeatures: () => {
+    const selection = Object.values(checkedFeatures.value)
+    if (!selection.length) return
+    if (selection.some((f) => f.description.type === 'spawn-point')) return
+
+    const groups = selection.filter((f) => f.type === 'group') as Group[]
+    const rest = selection.filter((f) => f.type !== 'group')
+    const done = () => {
+      actions.setCheckedFeatures([])
+      window.ui?.featureTool.unHighlight()
+    }
+
+    if (groups.length === 0) {
+      if (selection.length < 2) return
+      window.ui?.featureTool.createGroup(selection as any)
+      done()
+      return
+    }
+
+    if (groups.length === 1) {
+      const target = groups[0]
+      const toAdd = rest.filter((f) => f.groupId !== target.uuid)
+      if (!toAdd.length) return
+      target.addChildren(toAdd)
+      done()
+      window.ui?.showEditBrowse()
+      return
+    }
+
+    const groupIds = new Set(groups.map((g) => g.uuid))
+    const toWrap = [...groups, ...rest.filter((f) => !f.groupId || !groupIds.has(f.groupId))]
+    window.ui?.featureTool.createGroup(toWrap as any)
+    done()
+  },
 }
 
-export const { setSelectedFeature, toggleCheckFeature, uncheckFeature, setCheckedFeatures } = actions
+export const { setSelectedFeature, setCheckedFeatures, toggleCheckedFeature, deleteCheckedFeatures, groupCheckedFeatures } = actions
 
 export const nearestEditableParcel = signal<Parcel | undefined>(undefined)
 
@@ -91,4 +133,32 @@ export const checkedFeatures = signal<CheckedFeatures>({})
 
 export const selectCheckedFeatures = (): CheckedFeatures => {
   return checkedFeatures.value
+}
+
+export const uiPane = signal<string | undefined>(undefined)
+export const uiAsideTick = signal(0)
+export const sidebarClosed = signal(false)
+export const broadcastShowboxUuid = signal<string | undefined>(undefined)
+// when the local broadcast went live; the closed-sidebar "live" tab reads this for its timer
+export const broadcastLiveStartedAt = signal<number | undefined>(undefined)
+
+export const closeBroadcastSidebar = () => {
+  broadcastShowboxUuid.value = undefined
+  if (uiPane.value === 'broadcast') uiPane.value = undefined
+  // the live reopen tab is gone once the uuid clears, so don't leave the sidebar stuck collapsed
+  sidebarClosed.value = false
+  uiAsideTick.value++
+}
+
+export const authoring = signal<Set<number>>(new Set())
+
+export const enterAuthoring = (id: number) => {
+  const s = new Set(authoring.value)
+  s.add(id)
+  authoring.value = s
+}
+
+export const isAuthoring = (id?: number) => {
+  const pid = id ?? selectNearestEditableParcel()?.id
+  return pid != null && authoring.value.has(pid)
 }

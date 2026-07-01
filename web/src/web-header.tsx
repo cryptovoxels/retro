@@ -1,13 +1,15 @@
 import { Component, JSX } from 'preact'
 import { route } from 'preact-router'
 import { Link } from 'preact-router/match'
-import { isMobile, supportsXR } from '../../common/helpers/detector'
+import { isMobile } from '../../common/helpers/detector'
 import { ssrFriendlyDocument, ssrFriendlyWindow } from '../../common/helpers/utils'
 import { hasMetamask } from './auth/login-helper'
 import { login } from './auth/state-login'
 import { PanelType } from './components/panel'
 import { app, AppEvent } from './state'
 import Icon, { CubeIcon } from './components/icons/icons'
+import { getCoords, withCoords } from './helpers/coords-nav'
+import { sidebarClosed } from '../../src/store'
 
 const ROUTE_ICONS: Record<string, string> = {
   account: 'account',
@@ -36,6 +38,7 @@ function navLinkActive(label: string, href: string) {
 }
 type Props = {
   path: string
+  coords?: string
 }
 
 type State = {
@@ -46,18 +49,6 @@ type State = {
 }
 
 const getQueryParams = () => (ssrFriendlyDocument ? new URLSearchParams(document.location.search.substring(1)) : null)
-
-const questUrl = (linkUrl: string) => {
-  try {
-    const sendToQuestUrl = new URL('https://oculus.com/open_url/')
-    sendToQuestUrl.searchParams.set('url', new URL(linkUrl, document.baseURI).href)
-
-    return sendToQuestUrl.toString()
-  } catch (e) {
-    // serverside - no document
-    return linkUrl
-  }
-}
 
 export default class WebHeader extends Component<Props, State> {
   state: State = {
@@ -73,7 +64,6 @@ export default class WebHeader extends Component<Props, State> {
   }
 
   componentWillUnmount() {
-    // Removes listeners to avoid leaks.
     app.removeListener(AppEvent.Change, this.onAppChange)
     app.removeListener(AppEvent.ProviderMessage, this.onProviderMessage)
   }
@@ -112,24 +102,18 @@ export default class WebHeader extends Component<Props, State> {
       this.setState({ expanded: !this.state.expanded })
     }
 
-    const visitUrl = ((app.visitUrl && app.visitUrl.value) || '/play') as string
-    let xrUrl = null
-
-    if (visitUrl !== '/play') {
-      xrUrl = [visitUrl, visitUrl.match(/\?/) ? '&' : '?', 'xr=true'].join('')
-
-      if (!supportsXR()) {
-        xrUrl = questUrl(visitUrl)
-      }
-    }
-
     const path = ssrFriendlyWindow?.location.pathname
     const admin = app.isAdmin()
     const signedIn = app.signedIn
+    const coords = this.props.coords || getCoords()
+    const href = (p: string) => (coords ? withCoords(p) : p)
 
     const onPlay = (e: any) => {
       e.preventDefault()
-      route(app.visitUrl?.value || '/play')
+      if (coords) sidebarClosed.value = false
+      // the parcel/womp page you're on sets visitUrl so Play enters that world; with no
+      // context (e.g. homepage) drop in at the origin instead of an empty /play.
+      route(app.visitUrl.value || (coords ? href('/play') : '/play?coords=0E,0N'))
     }
 
     const isActive = (label?: string) => {
@@ -149,16 +133,23 @@ export default class WebHeader extends Component<Props, State> {
       }
     }
 
-    const navLink = (label: string, href: string, icon: any, active: boolean, extra?: any) =>
-      active ? (
-        <Link class="active" aria-selected={true} href={href} onClick={extra}>
+    // in split view a collapsed sidebar should pop back open when you click a nav item,
+    // even if it's the route you're already on (re-clicking "Go live" etc).
+    const navLink = (label: string, link: string, icon: any, active: boolean, extra?: any) => {
+      const onNav = (e: any) => {
+        if (coords) sidebarClosed.value = false
+        extra?.(e)
+      }
+      return active ? (
+        <Link class="active" aria-selected={true} href={href(link)} onClick={onNav}>
           {label}
         </Link>
       ) : (
-        <Link activeClassName="active" href={href} onClick={extra}>
+        <Link activeClassName="active" href={href(link)} onClick={onNav}>
           {label}
         </Link>
       )
+    }
 
     return (
       <>
@@ -183,8 +174,6 @@ export default class WebHeader extends Component<Props, State> {
 
               <li>{navLink(signedIn ? 'Account' : 'Login', '/account', 'account', isActive('account'))}</li>
 
-              {signedIn && <li>{navLink('Log out', '/logout', 'account', isActive('logout'))}</li>}
-
               {signedIn && <li>{navLink('Costume', '/costumer', 'costume', isActive('costumer'))}</li>}
 
               <li>{navLink('Assets', '/assets', 'assets', isActive('assets'))}</li>
@@ -196,6 +185,8 @@ export default class WebHeader extends Component<Props, State> {
               <li>{navLink('Spaces', '/spaces', 'spaces', isActive('spaces'))}</li>
               <li>{navLink('Womps', '/womps', 'womps', isActive('womps'))}</li>
               <li>{navLink('Scratchpad', '/scratchpad', 'scratchpad', isActive('scratchpad'))}</li>
+              <li>{navLink('Help', '/conduct', 'scratchpad', isActive('conduct'))}</li>
+              {signedIn && <li>{navLink('Log out', '/logout', 'account', isActive('logout'))}</li>}
 
               {admin && <AdminMenu />}
 

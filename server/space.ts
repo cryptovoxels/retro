@@ -154,7 +154,6 @@ export default class Space extends AbstractParcel {
           slug = $5,
           settings = $6::json,
           unlisted = $7,
-          memoized_hash = encode(digest(coalesce(owner::text, 'owner') || id || coalesce($2::text, 'content') || coalesce($6::text, 'settings'), 'sha1'), 'hex'),
           lightmap_url = $8,
           updated_at = NOW()
         WHERE

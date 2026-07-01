@@ -4,7 +4,6 @@ import { app, AppEvent } from '../../../web/src/state'
 import { FeatureAssetCategory, FeatureAssetType, LibraryAsset, ScriptAssetCategory } from '../../library-asset'
 import { AssetLibrarySearchBar } from '../search-bar'
 import { AssetBrowser, NUMBER_PER_PAGE } from './asset-browser'
-import { AssetBrowserInspector } from './asset-browser-inspector'
 import { BrowserSortingOptions } from './browser-sorting-options'
 
 enum Tab {
@@ -25,7 +24,6 @@ type State = {
   tab: Tab
   signedIn: boolean
   assets: LibraryAsset[]
-  asset: LibraryAsset | null
   privateOnly: boolean
   ascending: boolean
   sort: string
@@ -60,7 +58,6 @@ export class AssetLibraryBrowser extends Component<Props, State> {
       signedIn: app.signedIn,
       loading: true,
       assets: [], // list of all assets found (search result too)
-      asset: null, // selected asset
       privateOnly: false, // state for a privateOnly flag when in the `My own` tab only
       ascending: !!AssetLibraryBrowser.searchResult.ascending, // sort ascending or descending
       page: AssetLibraryBrowser.searchResult.page, // Page of the browser
@@ -163,32 +160,6 @@ export class AssetLibraryBrowser extends Component<Props, State> {
 
   close = () => {
     this.props.onClose?.()
-  }
-
-  onSelect = (asset: LibraryAsset | null) => {
-    this.setState({ asset })
-  }
-
-  onRemove = (asset: LibraryAsset) => {
-    const index = this.state.assets.indexOf(asset)
-    if (index) {
-      let assets = Array.from(this.state.assets)
-      assets = assets.splice(index, 1)
-      this.setState({ assets })
-    }
-  }
-
-  onUpdate = (asset: LibraryAsset) => {
-    const assets = Array.from(this.state.assets).map((a) => {
-      if (a.id === asset.id) {
-        // A component sent us an update for that specific asset,
-        // replace the component with the u7pdated version
-        return asset
-      }
-      return a
-    })
-    this.setState({ assets, asset })
-    AssetLibraryBrowser.searchResult.assets = assets
   }
 
   toggleSort = (field: string) => {
@@ -320,16 +291,10 @@ export class AssetLibraryBrowser extends Component<Props, State> {
             </a>
           )}
         </div>
-        <div class={`inspector ${this.currentTab}`}>
-          <AssetBrowserInspector asset={this.state.asset} onCloseInspector={this.onSelect} onRemove={this.onRemove} onUpdate={this.onUpdate} />
+        <div class={`assets ${this.currentTab}`}>
+          {this.state.loading && <Spinner size={48} class="spinny" />}
+          <AssetBrowser total={AssetLibraryBrowser.searchResult.total} {...this.state} page={this.state.page} paginationSetPage={this.setPage} />
         </div>
-
-        {!!this.state.asset || (
-          <div class={`assets ${this.currentTab}`}>
-            {this.state.loading && <Spinner size={48} class="spinny" />}
-            <AssetBrowser total={AssetLibraryBrowser.searchResult.total} {...this.state} page={this.state.page} onClick={this.onSelect} paginationSetPage={this.setPage} />
-          </div>
-        )}
       </section>
     )
   }

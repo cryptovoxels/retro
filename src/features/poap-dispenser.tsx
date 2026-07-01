@@ -1,10 +1,10 @@
 import { voxImporter } from '../../common/vox-import/vox-import'
 import { Feature3D } from './feature'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, Toolbar, UuidReadOnly } from '../ui/features'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, Toolbar } from '../ui/features'
 import Panel from '../../web/src/components/panel'
 import { PoapDispenserRecord } from '../../common/messages/feature'
 import { FeatureTemplate } from './_metadata'
-import { Position, Rotation, Scale } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, EditorProps } from '../../web/src/components/editor'
 
 const params = {
   headers: {
@@ -116,35 +116,36 @@ class Editor extends FeatureEditor<PoapDispenser> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
-          {this.state.error && <Panel type="warning">{this.state.error}</Panel>}
-          <Advanced>
-            <div className="f">
-              <label>Event ID</label>
-              <input value={this.state.event_id} onInput={(e) => this.setState({ event_id: e.currentTarget.value })} type="text" />
-              <small>As seen on the POAP's event page.</small>
-            </div>
+          <EditorProps>
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+            {this.state.error && <Panel type="warning">{this.state.error}</Panel>}
+            <Advanced>
+              <div className="f">
+                <label>Event ID</label>
+                <input value={this.state.event_id} onInput={(e) => this.setState({ event_id: e.currentTarget.value })} type="text" />
+                <small>As seen on the POAP's event page.</small>
+              </div>
 
-            <div className="f">
-              <label>POAP Edit Code</label>
-              <input value={this.state.code} disabled={this.state.loading || !!this.state.edit_code} onChange={(e) => this.setState({ code: e.currentTarget.value })} type="text" />
-              <small>Secret code provided to the creator of the poap.</small>
-              {!this.state.edit_code ? (
-                <button onClick={this.onSetPoapCode} disabled={this.state.loading}>
-                  Save and encrypt
-                </button>
-              ) : (
-                <button onClick={() => this.setState({ code: '', edit_code: null })} disabled={this.state.loading}>
-                  Reset
-                </button>
-              )}
-            </div>
-            <Animation feature={this.props.feature} />
-            <UuidReadOnly feature={this.props.feature} />
-          </Advanced>
+              <div className="f">
+                <label>POAP Edit Code</label>
+                <input value={this.state.code} disabled={this.state.loading || !!this.state.edit_code} onChange={(e) => this.setState({ code: e.currentTarget.value })} type="text" />
+                <small>Secret code provided to the creator of the poap.</small>
+                {!this.state.edit_code ? (
+                  <button onClick={this.onSetPoapCode} disabled={this.state.loading}>
+                    Save and encrypt
+                  </button>
+                ) : (
+                  <button onClick={() => this.setState({ code: '', edit_code: null })} disabled={this.state.loading}>
+                    Reset
+                  </button>
+                )}
+              </div>
+              <Animation feature={this.props.feature} />
+            </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

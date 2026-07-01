@@ -43,6 +43,9 @@ importers:
       '@turf/turf':
         specifier: 6.5.0
         version: 6.5.0
+      '@types/luaparse':
+        specifier: ^0.2.13
+        version: 0.2.13
       '@types/prismjs':
         specifier: ^1.26.5
         version: 1.26.6
@@ -247,6 +250,9 @@ importers:
       logdna-winston:
         specifier: ^4.0.1
         version: 4.0.1
+      luaparse:
+        specifier: ^0.3.1
+        version: 0.3.1
       martinez-polygon-clipping:
         specifier: ^0.7.4
         version: 0.7.4
@@ -331,9 +337,6 @@ importers:
       quick-lru:
         specifier: ^7.3.0
         version: 7.3.0
-      quickjs-emscripten:
-        specifier: ^0.31.0
-        version: 0.31.0
       rate-limiter-flexible:
         specifier: ^2.4.2
         version: 2.4.2
@@ -415,6 +418,9 @@ importers:
       uuid:
         specifier: ^13.0.0
         version: 13.0.0
+      wasmoon:
+        specifier: ^1.16.0
+        version: 1.16.0
       winston:
         specifier: ^3.9.0
         version: 3.19.0
@@ -1204,21 +1210,6 @@ packages:
   '@jest/types@29.6.3':
     resolution: { integrity: sha512-u3UPsIilWKOM3F9CXtrG8LEJmNxwoCQC/XVj4IKYXvvpx7QIi/Kg1LI5uDmDpKlac62NUtX7eLjRh+jVZcLOzw== }
     engines: { node: ^14.15.0 || ^16.10.0 || >=18.0.0 }
-
-  '@jitl/quickjs-ffi-types@0.31.0':
-    resolution: { integrity: sha512-1yrgvXlmXH2oNj3eFTrkwacGJbmM0crwipA3ohCrjv52gBeDaD7PsTvFYinlAnqU8iPME3LGP437yk05a2oejw== }
-
-  '@jitl/quickjs-wasmfile-debug-asyncify@0.31.0':
-    resolution: { integrity: sha512-YkdzQdr1uaftFhgEnTRjTTZHk2SFZdpWO7XhOmRVbi6CEVsH9g5oNF8Ta1q3OuSJHRwwT8YsuR1YzEiEIJEk6w== }
-
-  '@jitl/quickjs-wasmfile-debug-sync@0.31.0':
-    resolution: { integrity: sha512-8XvloaaWBONqcHXYs5tWOjdhQVxzULilIfB2hvZfS6S+fI4m2+lFiwQy7xeP8ExHmiZ7D8gZGChNkdLgjGfknw== }
-
-  '@jitl/quickjs-wasmfile-release-asyncify@0.31.0':
-    resolution: { integrity: sha512-uz0BbQYTxNsFkvkurd7vk2dOg57ElTBLCuvNtRl4rgrtbC++NIndD5qv2+AXb6yXDD3Uy1O2PCwmoaH0eXgEOg== }
-
-  '@jitl/quickjs-wasmfile-release-sync@0.31.0':
-    resolution: { integrity: sha512-hYduecOByj9AsAfsJhZh5nA6exokmuFC8cls39+lYmTCGY51bgjJJJwReEu7Ff7vBWaQCL6TeDdVlnp2WYz0jw== }
 
   '@jridgewell/gen-mapping@0.3.13':
     resolution: { integrity: sha512-2kkt/7niJ6MgEPxF0bYdQ6etZaA+fQvDcLKckhy1yIQOzaoKjBBjSj63/aLVjYE3qhRt5dvM+uUyfCg6UKCBbA== }
@@ -2292,6 +2283,9 @@ packages:
   '@types/earcut@3.0.0':
     resolution: { integrity: sha512-k/9fOUGO39yd2sCjrbAJvGDEQvRwRnQIZlBz43roGwUZo5SHAmyVvSFyaVVZkicRVCaDXPKlbxrUcBuJoSWunQ== }
 
+  '@types/emscripten@1.39.10':
+    resolution: { integrity: sha512-TB/6hBkYQJxsZHSqyeuO1Jt0AB/bW6G7rHt9g7lML7SOF6lbgcHvw/Lr+69iqN0qxgXLhWKScAon73JNnptuDw== }
+
   '@types/eslint-scope@3.7.7':
     resolution: { integrity: sha512-MzMFlSLBqNF2gcHWO0G1vP/YQyfvrxZ0bF+u7mzUdZ1/xK4A4sru+nraZz5i3iEIk1l1uyicaDVTB4QbbEkAYg== }
 
@@ -2357,6 +2351,9 @@ packages:
 
   '@types/lodash@4.14.195':
     resolution: { integrity: sha512-Hwx9EUgdwf2GLarOjQp5ZH8ZmblzcbTBC2wtQWNKARBSxM9ezRIAUpeDTgoQRAFB0+8CNWXVA9+MaSOzOF3nPg== }
+
+  '@types/luaparse@0.2.13':
+    resolution: { integrity: sha512-nWs2m9b/zrMcAA2Rs+wTxdIsBkSYMo0+6ko8mpeqS5dhchU3hQN9kZGcSw96n497Vc7kGpDLtSicjdpaUrRAkw== }
 
   '@types/mime@1.3.5':
     resolution: { integrity: sha512-/pyBZWSLD2n0dcHE3hq8s8ZvcETHtEuF+3E7XVt0Ig2nvsVQXdghHVcEkIWjy9A0wKfTn97a/PSDYohKIlnP/w== }
@@ -4458,6 +4455,10 @@ packages:
   lru-cache@10.4.3:
     resolution: { integrity: sha512-JNAzZcXrCt42VGLuYz0zfAzDfAvJWW6AfYlDBQyDV5DClI2m5sAmK+OIO7s59XfsRsWHp02jAJrRadPRGTt6SQ== }
 
+  luaparse@0.3.1:
+    resolution: { integrity: sha512-b21h2bFEbtGXmVqguHogbyrMAA0wOHyp9u/rx+w6Yc9pW1t9YjhGUsp87lYcp7pFRqSWN/PhFkrdIqKEUzRjjQ== }
+    hasBin: true
+
   luxon@3.7.2:
     resolution: { integrity: sha512-vtEhXh/gNjI9Yg1u4jX/0YVPMvxzHuGgCm6tC5kZyb08yjGWGnqAjGJvcXbqQR2P3MyMEFnRbpcdFS6PBcLqew== }
     engines: { node: '>=12' }
@@ -5196,13 +5197,6 @@ packages:
   quick-lru@7.3.0:
     resolution: { integrity: sha512-k9lSsjl36EJdK7I06v7APZCbyGT2vMTsYSRX1Q2nbYmnkBqgUhRkAuzH08Ciotteu/PLJmIF2+tti7o3C/ts2g== }
     engines: { node: '>=18' }
-
-  quickjs-emscripten-core@0.31.0:
-    resolution: { integrity: sha512-oQz8p0SiKDBc1TC7ZBK2fr0GoSHZKA0jZIeXxsnCyCs4y32FStzCW4d1h6E1sE0uHDMbGITbk2zhNaytaoJwXQ== }
-
-  quickjs-emscripten@0.31.0:
-    resolution: { integrity: sha512-K7Yt78aRPLjPcqv3fIuLW1jW3pvwO21B9pmFOolsjM/57ZhdVXBr51GqJpalgBlkPu9foAvhEAuuQPnvIGvLvQ== }
-    engines: { node: '>=16.0.0' }
 
   quickselect@1.1.1:
     resolution: { integrity: sha512-qN0Gqdw4c4KGPsBOQafj6yj/PA6c/L63f6CaZ/DCF/xF4Esu3jVmKLUDYxghFx8Kb/O7y9tI7x2RjTSXwdK1iQ== }
@@ -6188,6 +6182,10 @@ packages:
   w3c-xmlserializer@5.0.0:
     resolution: { integrity: sha512-o8qghlI8NZHU1lLPrpi2+Uq7abh4GGPpYANlalzWxyWteJOCsr/P+oPBA49TOLu5FTZO4d3F9MnWJfiMo4BkmA== }
     engines: { node: '>=18' }
+
+  wasmoon@1.16.0:
+    resolution: { integrity: sha512-FlRLb15WwAOz1A9OQDbf6oOKKSiefi5VK0ZRF2wgH9xk3o5SnU11tNPaOnQuAh1Ucr66cwwvVXaeVRaFdRBt5g== }
+    hasBin: true
 
   watchpack@2.5.1:
     resolution: { integrity: sha512-Zn5uXdcFNIA1+1Ei5McRd+iRzfhENPCe7LeABkJtNulSxjma+l7ltNx55BWZkRlwRnpOgHqxnjyaDgJnNXnqzg== }
@@ -7201,24 +7199,6 @@ snapshots:
       '@types/node': 22.19.15
       '@types/yargs': 17.0.35
       chalk: 4.1.2
-
-  '@jitl/quickjs-ffi-types@0.31.0': {}
-
-  '@jitl/quickjs-wasmfile-debug-asyncify@0.31.0':
-    dependencies:
-      '@jitl/quickjs-ffi-types': 0.31.0
-
-  '@jitl/quickjs-wasmfile-debug-sync@0.31.0':
-    dependencies:
-      '@jitl/quickjs-ffi-types': 0.31.0
-
-  '@jitl/quickjs-wasmfile-release-asyncify@0.31.0':
-    dependencies:
-      '@jitl/quickjs-ffi-types': 0.31.0
-
-  '@jitl/quickjs-wasmfile-release-sync@0.31.0':
-    dependencies:
-      '@jitl/quickjs-ffi-types': 0.31.0
 
   '@jridgewell/gen-mapping@0.3.13':
     dependencies:
@@ -8930,6 +8910,8 @@ snapshots:
 
   '@types/earcut@3.0.0': {}
 
+  '@types/emscripten@1.39.10': {}
+
   '@types/eslint-scope@3.7.7':
     dependencies:
       '@types/eslint': 9.6.1
@@ -9011,6 +8993,8 @@ snapshots:
       '@types/lodash': 4.14.195
 
   '@types/lodash@4.14.195': {}
+
+  '@types/luaparse@0.2.13': {}
 
   '@types/mime@1.3.5': {}
 
@@ -11377,6 +11361,8 @@ snapshots:
 
   lru-cache@10.4.3: {}
 
+  luaparse@0.3.1: {}
+
   luxon@3.7.2: {}
 
   magic-string@0.23.2:
@@ -12164,18 +12150,6 @@ snapshots:
   quick-lru@5.1.1: {}
 
   quick-lru@7.3.0: {}
-
-  quickjs-emscripten-core@0.31.0:
-    dependencies:
-      '@jitl/quickjs-ffi-types': 0.31.0
-
-  quickjs-emscripten@0.31.0:
-    dependencies:
-      '@jitl/quickjs-wasmfile-debug-asyncify': 0.31.0
-      '@jitl/quickjs-wasmfile-debug-sync': 0.31.0
-      '@jitl/quickjs-wasmfile-release-asyncify': 0.31.0
-      '@jitl/quickjs-wasmfile-release-sync': 0.31.0
-      quickjs-emscripten-core: 0.31.0
 
   quickselect@1.1.1: {}
 
@@ -13289,6 +13263,10 @@ snapshots:
   w3c-xmlserializer@5.0.0:
     dependencies:
       xml-name-validator: 5.0.0
+
+  wasmoon@1.16.0:
+    dependencies:
+      '@types/emscripten': 1.39.10
 
   watchpack@2.5.1:
     dependencies:

@@ -1,7 +1,7 @@
 import { CubeRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { fetchTexture } from '../textures/textures'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, SpecularColorSetting, Toolbar, UrlSourceImages, UuidReadOnly } from '../ui/features'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SpecularColorSetting, Toolbar, UrlSourceImages } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, MeshExtended } from './feature'
 
@@ -139,40 +139,39 @@ class Editor extends FeatureEditor<Cube> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+          <EditorProps>
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <UrlSourceImages feature={this.props.feature} />
+            <UrlSourceImages feature={this.props.feature} />
 
-          <Advanced>
-            <FeatureID feature={this.props.feature} />
-            <Animation feature={this.props.feature} />
-            <SetParentDropdown feature={this.props.feature} />
+            <Advanced>
+              <FeatureID feature={this.props.feature} />
+              <Animation feature={this.props.feature} />
 
-            <div className="f">
-              <form>
-                <label>
-                  <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable}></input>
-                  Enable Collision
-                </label>
-                <small>Model must be within the parcel bounds</small>
-              </form>
-            </div>
-
-            <div style={{ display: 'flex', justify: 'flex-start' }}>
               <div className="f">
-                <label>Tint</label>
-                <span>
-                  <input type="color" value={this.state.color} onInput={(e) => this.setState({ color: e.currentTarget.value })} />
-                </span>
+                <form>
+                  <label>
+                    <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable}></input>
+                    Enable Collision
+                  </label>
+                </form>
               </div>
-              <SpecularColorSetting feature={this.props.feature} />
-            </div>
-            <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
-          </Advanced>
+
+              <div style={{ display: 'flex', justify: 'flex-start' }}>
+                <div className="f">
+                  <label>Tint</label>
+                  <span>
+                    <input type="color" value={this.state.color} onInput={(e) => this.setState({ color: e.currentTarget.value })} />
+                  </span>
+                </div>
+                <SpecularColorSetting feature={this.props.feature} />
+              </div>
+              <Behaviours feature={this.props.feature} />
+            </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

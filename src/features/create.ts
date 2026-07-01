@@ -26,7 +26,6 @@ import GuestBook from './guest-book'
 import PoseBall from './pose-ball'
 import { FeatureRecord, FeatureType, YoutubeRecord } from '../../common/messages/feature'
 import PoapDispenser from './poap-dispenser'
-import PolytextV2 from './polytext-v2'
 import Parcel from '../parcel'
 import { Unhandled } from './unhandled'
 import { featureTemplates } from './_metadata'
@@ -62,9 +61,8 @@ export const createFeature = (scene: BABYLON.Scene, parcel: Parcel, uuid: string
     case 'audio':
       return new Audio(scene, parcel, uuid, description)
     case 'polytext':
-      return new Polytext(scene, parcel, uuid, description)
     case 'polytext-v2':
-      return new PolytextV2(scene, parcel, uuid, description)
+      return new Polytext(scene, parcel, uuid, description)
     case 'button':
       return new Button(scene, parcel, uuid, description)
     case 'vox-model':

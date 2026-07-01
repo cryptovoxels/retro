@@ -1,4 +1,5 @@
 import Avatar from './src/avatar'
+import BehavioursDoc from './src/behaviours-doc'
 import Conduct from './src/conduct'
 import EventPage from './src/event-page'
 import Explore from './src/explore'
@@ -7,7 +8,6 @@ import Parcels from './src/parcels'
 import Privacy from './src/privacy'
 import Space from './src/space'
 import Terms from './src/terms'
-import WebHeader from './src/web-header'
 import Womp from './src/womp'
 
 import * as passport from 'passport'
@@ -23,14 +23,7 @@ import { Express } from 'express'
 import { SUPPORTED_CHAINS_BY_ID } from '../common/helpers/chain-helpers'
 import NotFound from './src/not-found'
 
-const renderPage = (content: any) => {
-  return renderComponent(
-    <div>
-      <WebHeader path="/" />
-      {content}
-    </div>,
-  )
-}
+const renderPage = (content: any) => renderComponent(content)
 
 export default function loadRoutes(app: Express) {
   const duration = '10 minutes'
@@ -78,6 +71,9 @@ export default function loadRoutes(app: Express) {
 
   app.get('/conduct', cache(duration), (req, res) => {
     res.send(renderPage(<Conduct />))
+  })
+  app.get('/behaviours', cache(duration), (req, res) => {
+    res.send(renderPage(<BehavioursDoc />))
   })
   app.get('/not-found', cache(duration), (req, res) => {
     res.send(renderPage(<NotFound path="/not-found" />))

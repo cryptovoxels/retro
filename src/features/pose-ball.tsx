@@ -1,6 +1,6 @@
 import { setCameraPosition, setCameraRotation } from '../utils/camera'
 import { Feature3D } from './feature'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { Position, Scale, Rotation } from '../../web/src/components/editor'
 import { PoseBallRecord } from '../../common/messages/feature'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -174,9 +174,6 @@ class Editor extends FeatureEditor<PoseBall> {
 
         <Advanced>
           <FeatureID feature={this.props.feature} />
-          <SetParentDropdown feature={this.props.feature} />
-
-          <UuidReadOnly feature={this.props.feature} />
         </Advanced>
       </section>
     )

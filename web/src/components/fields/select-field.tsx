@@ -27,7 +27,6 @@ export function SelectField(props: Props) {
       <select value={props.value} onChange={props.onChange} disabled={props.disabled} id={id}>
         {opts}
       </select>
-      {/*<input type="text" name={props.name} value={props.value} onChange={props.onChange} disabled={props.disabled} id={id} placeholder={props.placeholder} size={props.size} maxLength={props.maxLength} />*/}
       {props.children && <span>{props.children}</span>}
     </div>
   )

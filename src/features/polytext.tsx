@@ -1,33 +1,44 @@
-import { createComlinkWorker } from '../../common/helpers/comlink-worker'
 import { isBatterySaver } from '../../common/helpers/detector'
-import { PolytextRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, SpecularColorSetting, Toolbar, UuidReadOnly } from '../ui/features'
+import { PolytextRecord, PolytextV2Record } from '../../common/messages/feature'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
+import { TimeOfDay } from '../utils/time-of-day'
+import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { MeshExtended, NonMeshedFeature } from './feature'
-import type { FontData } from './polytext-v2-worker'
-import type { PolytextWorkerAPI } from './polytext-worker'
+import { getMonoWorker, type FontData } from '../mono'
+import type { Mono } from '../mono'
 
-let workerAPI: PolytextWorkerAPI | null = null
-let workerPromise: Promise<PolytextWorkerAPI> | null = null
+type PolytextDescription = PolytextRecord | PolytextV2Record
+
+let workerAPI: Mono | null = null
+let workerPromise: Promise<Mono> | null = null
 let pendingFontData: FontData | null = null
 let renderJob = 0
 
-export default class Polytext extends NonMeshedFeature<PolytextRecord> {
+export default class Polytext extends NonMeshedFeature<PolytextDescription> {
+  static metadata: FeatureMetadata = {
+    title: 'Polytext',
+    subtitle: '3d text',
+    type: 'polytext',
+    image: '/icons/polytext.png',
+  }
+  static template: FeatureTemplate = {
+    type: 'polytext',
+    scale: [0.2, 0.2, 0.2],
+    rotate: [0, Math.PI / 2, 0],
+    text: 'Text',
+  }
+
   private light?: BABYLON.DirectionalLight
 
   static Load() {
     if (isBatterySaver()) {
-      console.log('Battery saver mode, skipping polytext-v2 worker load')
+      console.log('Battery saver mode, skipping polytext worker load')
       return
     }
 
-    workerPromise = createComlinkWorker<PolytextWorkerAPI>(
-      // Webpack 5 recognizes this exact pattern and automatically compiles TypeScript workers to separate bundles
-      () => new Worker(new URL('./polytext-worker.ts', import.meta.url)),
-      () => import('./polytext-worker').then(({ polytextWorker }) => polytextWorker),
-      { debug: true, workerName: 'polytext-worker' },
-    )
-      .then(({ worker }) => {
+    workerPromise = getMonoWorker()
+      .then((worker) => {
         workerAPI = worker
         if (pendingFontData) {
           worker.setFontData(pendingFontData)
@@ -35,7 +46,7 @@ export default class Polytext extends NonMeshedFeature<PolytextRecord> {
         return worker
       })
       .catch((error) => {
-        console.error('[Polytext] Failed to load polytext worker:', error)
+        console.error('[Polytext] Failed to load worker:', error)
         workerAPI = null
         throw error
       })
@@ -66,25 +77,43 @@ export default class Polytext extends NonMeshedFeature<PolytextRecord> {
     return <label>Show customized 3d text! </label>
   }
 
+  refreshCollidable() {
+    if (this.mesh && this.mesh.getChildMeshes()[0]) {
+      this.mesh.getChildMeshes()[0].checkCollisions = this.withinBounds && !!(this.description as PolytextV2Record).collidable
+    }
+  }
+
   generate() {
     const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
-    material.diffuseColor.set(0, 0, 0)
-    material.emissiveColor.set(0.8, 0.8, 0.8)
+    material.diffuseColor.set(1, 1, 1)
 
     if (this.description.color) {
-      material.emissiveColor = BABYLON.Color3.FromHexString(this.description.color)
+      material.diffuseColor = BABYLON.Color3.FromHexString(this.description.color)
     }
 
-    material.specularColor.fromArray(this.description.specularColor || [1, 1, 1])
+    const desc = this.description as PolytextV2Record
+    if (desc.emissiveColor) {
+      material.emissiveColor = BABYLON.Color3.FromHexString(desc.emissiveColor)
+    }
 
+    if (typeof this.description.specularColor == 'string') {
+      material.specularColor = BABYLON.Color3.FromHexString(this.description.specularColor)
+    } else {
+      material.specularColor.fromArray(this.description.specularColor || [1, 1, 1])
+    }
     material.blockDirtyMechanism = true
+
     const text = this.description.text?.slice(0, 24)
 
+    const parent = new BABYLON.TransformNode(this.uniqueEntityName('parent'), this.scene)
+
+    const mesh = new BABYLON.Mesh(this.uniqueEntityName('mesh'), this.scene) as MeshExtended
+    mesh.setParent(parent)
+
     if (text?.length) {
-      // don't request a mesh job if there is no text.
       renderJob++
 
-      const processText = (worker: PolytextWorkerAPI) => {
+      const processText = (worker: Mono) => {
         return worker
           .meshText(text, renderJob)
           .then((data) => {
@@ -98,7 +127,6 @@ export default class Polytext extends NonMeshedFeature<PolytextRecord> {
             const vertexData = new BABYLON.VertexData()
             BABYLON.VertexData.ComputeNormals(positions, indices, normals)
 
-            // Assign positions, indices and normals to vertexData
             vertexData.positions = positions
             vertexData.indices = indices
             vertexData.normals = normals
@@ -106,7 +134,7 @@ export default class Polytext extends NonMeshedFeature<PolytextRecord> {
             vertexData.applyToMesh(mesh)
 
             mesh.isPickable = true
-            mesh.checkCollisions = true
+            mesh.checkCollisions = this.withinBounds && !!desc.collidable
             mesh.material = material
 
             if (this.description.edges) {
@@ -114,12 +142,9 @@ export default class Polytext extends NonMeshedFeature<PolytextRecord> {
               mesh.edgesColor = material.diffuseColor
                 .clone()
                 .multiply(new BABYLON.Color3(0.3, 0.3, 0.3))
-                .toColor4(0.5) // new BABYLON.Color4(0.1, 0.1, 0.1, 1)
+                .toColor4(0.5)
               mesh.edgesWidth = 0.6
             }
-
-            const bounds = mesh.getBoundingInfo()
-            mesh.position.z = bounds.maximum.x / -2
           })
           .catch((error) => {
             console.error('[Polytext] Polytext generation failed:', error)
@@ -139,29 +164,27 @@ export default class Polytext extends NonMeshedFeature<PolytextRecord> {
       } else {
         console.warn('[Polytext] No worker or worker promise available for text:', text)
       }
+
+      let lightValue = 0.95
+      if (window.environment?.timeOfDay == TimeOfDay.Night) {
+        lightValue = 0.01
+      }
+
+      const lightDirection = new BABYLON.Vector3(-1, -8, 1)
+      this.light = new BABYLON.DirectionalLight(this.uniqueEntityName('light'), lightDirection, this.scene)
+      this.light.diffuse = new BABYLON.Color3(lightValue, lightValue, lightValue)
+      this.light.specular = new BABYLON.Color3(lightValue, lightValue, lightValue)
+      this.light.parent = parent
+      this.light.includedOnlyMeshes = [mesh]
     }
-
-    const parent = new BABYLON.TransformNode(this.uniqueEntityName('parent'), this.scene)
-
-    const mesh = new BABYLON.Mesh(this.uniqueEntityName('mesh'), this.scene) as MeshExtended
-    mesh.setParent(parent)
-    mesh.rotate(BABYLON.Axis.Z, -Math.PI / 2)
-    mesh.rotate(BABYLON.Axis.Y, -Math.PI / 2)
-
-    // create a light that shines on the front of the mesh (and just this mesh)
-    const lightDirection = new BABYLON.Vector3(-1, 0, 0)
-    this.light = new BABYLON.DirectionalLight(this.uniqueEntityName('light'), lightDirection, this.scene)
-    this.light.parent = parent
-    this.light.specular = new BABYLON.Color3(1, 1, 1)
-    this.light.includedOnlyMeshes.push(mesh)
-
     mesh.isPickable = true
     mesh.feature = this
 
-    //@Todo: fix casting here
     this.mesh = parent as MeshExtended
+
     this.setCommon()
     this.addAnimation()
+    this.refreshCollidable()
 
     return Promise.resolve()
   }
@@ -173,17 +196,25 @@ export default class Polytext extends NonMeshedFeature<PolytextRecord> {
     }
     super._dispose()
   }
+
+  afterSetCommon = () => {
+    this.refreshCollidable()
+  }
 }
 
 class Editor extends FeatureEditor<Polytext> {
   constructor(props: FeatureEditorProps<Polytext>) {
     super(props)
 
+    const desc = props.feature.description as PolytextV2Record
     this.state = {
       id: props.feature.description.id,
       text: props.feature.description.text,
       color: props.feature.description.color,
+      emissiveColor: desc.emissiveColor,
+      specularColor: props.feature.description.specularColor,
       edges: props.feature.description.edges,
+      collidable: desc.collidable,
     }
   }
 
@@ -191,7 +222,10 @@ class Editor extends FeatureEditor<Polytext> {
     this.merge({
       text: this.state.text,
       color: this.state.color,
+      emissiveColor: this.state.emissiveColor,
+      specularColor: this.state.specularColor,
       edges: this.state.edges,
+      collidable: this.state.collidable,
     })
   }
 
@@ -206,37 +240,67 @@ class Editor extends FeatureEditor<Polytext> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
-          <Animation feature={this.props.feature} />
-
-          <div className="f">
-            <label>Text</label>
-            <input type="text" value={this.state.text} onInput={(e) => this.setState({ text: e.currentTarget.value })} />
-            <small>(Only up to 12 characters supported)</small>
-          </div>
-          <div className="f">
-            <label>Color</label>
-            <input type="color" value={this.state.color} onInput={(e) => this.setState({ color: e.currentTarget.value })} />
-          </div>
-
-          <Advanced>
-            <FeatureID feature={this.props.feature} />
-            <SetParentDropdown feature={this.props.feature} />
+          <EditorProps>
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+            <Animation feature={this.props.feature} />
 
             <div className="f">
-              <label>
-                <input type="checkbox" checked={this.state.edges} onInput={(e) => this.setState({ edges: e.currentTarget.checked })} />
-                Edges
-              </label>
+              <label>Text</label>
+              <input type="text" value={this.state.text} onInput={(e) => this.setState({ text: e.currentTarget.value })} />
+              <small>(Only up to 12 characters supported)</small>
             </div>
-            <SpecularColorSetting feature={this.props.feature} />
-            <UuidReadOnly feature={this.props.feature} />
+            <div className="f color-selectors">
+              <div>
+                <label>Diffuse Color</label>
+                <input type="color" value={this.state.color} onInput={(e) => this.setState({ color: e.currentTarget.value })} />
+                <small>
+                  <button title="Reset" onClick={() => this.setState({ color: '#FFFFFF' })}>
+                    Reset
+                  </button>
+                </small>
+              </div>
+              <div>
+                <label>Specular Color</label>
+                <input type="color" value={this.state.specularColor} onInput={(e) => this.setState({ specularColor: e.currentTarget.value })} />
+                <small>
+                  <button title="Reset" onClick={() => this.setState({ specularColor: '#FFFFFF' })}>
+                    Reset
+                  </button>
+                </small>
+              </div>
+              <div>
+                <label>Emissive Color</label>
+                <input type="color" value={this.state.emissiveColor} onInput={(e) => this.setState({ emissiveColor: e.currentTarget.value })} />
+                <small>
+                  <button title="Reset" onClick={() => this.setState({ emissiveColor: '#000000' })}>
+                    Reset
+                  </button>
+                </small>
+              </div>
+            </div>
 
-            <Script feature={this.props.feature} />
-          </Advanced>
+            <Advanced>
+              <FeatureID feature={this.props.feature} />
+
+              <div className="f">
+                <label>
+                  <input type="checkbox" checked={this.state.edges} onInput={(e) => this.setState({ edges: (e as any).target['checked'] })} />
+                  Edges
+                </label>
+              </div>
+
+              <div className="f">
+                <form>
+                  <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable}></input>
+                  <label for="collidable">Enable Collision</label>
+                </form>
+              </div>
+
+              <Behaviours feature={this.props.feature} />
+            </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

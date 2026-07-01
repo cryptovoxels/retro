@@ -10,6 +10,7 @@ import cachedFetch from './helpers/cached-fetch'
 import parse from './helpers/parse'
 import { Spinner } from './spinner'
 import { app } from './state'
+import { getParcelId, isSplit, naviportHere } from './helpers/coords-nav'
 import { parcelCache } from './store/index'
 import { fetchOptions } from './utils'
 
@@ -18,30 +19,44 @@ const limit = 50 // limit on server is 50 so can't go any higher than that..
 type TableRowProps = {
   record: SimpleParcelRecord
   helper: ParcelHelper
+  teleport?: boolean
+  selected?: boolean
 }
 
 const TableRow = (props: TableRowProps) => {
+  const href = '/parcels/' + props.record.id
+
+  const onClick = (e: MouseEvent) => {
+    if (!props.teleport || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
+    e.preventDefault()
+    e.stopPropagation()
+    props.helper.spawnUrl().then((url) => naviportHere(url, props.record.id))
+  }
+
+  const link = (text: string) =>
+    props.teleport ? (
+      <a href="#" onClick={onClick}>
+        {text}
+      </a>
+    ) : (
+      <Link activeClassName="active" href={href}>
+        {text}
+      </Link>
+    )
+
   return (
-    <tr>
+    <tr class={props.selected ? '-selected' : ''}>
       <td>{props.record.id}</td>
       <td>
         {props.record.name ? (
           <p>
-            <b>
-              <Link activeClassName="active" href={'/parcels/' + props.record.id}>
-                {props.record.name}
-              </Link>
-            </b>
+            <b>{link(props.record.name)}</b>
             <br />
             <small>{props.helper.address}</small>
           </p>
         ) : (
           <p>
-            <b>
-              <Link activeClassName="active" href={'/parcels/' + props.record.id}>
-                {props.record.address}
-              </Link>
-            </b>
+            <b>{link(props.record.address ?? '')}</b>
             <br />
             <small>{props.record.island}</small>
           </p>
@@ -105,11 +120,15 @@ export default class Parcels extends Component<Props, State> {
     return this.queryParams && parse.ethaddress(this.queryParams.get('owner'))
   }
 
+  onUrl = () => this.forceUpdate()
+
   componentDidMount() {
     this.fetch()
+    window.addEventListener('urlchange', this.onUrl)
   }
 
   componentWillUnmount() {
+    window.removeEventListener('urlchange', this.onUrl)
     if (this.controller) {
       this.controller.abort('ABORT: quitting component')
     }
@@ -178,7 +197,9 @@ export default class Parcels extends Component<Props, State> {
     if (!this.state.loading && !this.state.parcels) {
       view = <div>No parcels found</div>
     } else {
-      const parcels = this.state.parcels.map((p: any) => <TableRow record={p} helper={new ParcelHelper(p)} />)
+      const selected = getParcelId()
+      const split = isSplit()
+      const parcels = this.state.parcels.map((p: any) => <TableRow key={p.id} record={p} helper={new ParcelHelper(p)} teleport={split} selected={split && selected === p.id} />)
 
       view = (
         <table class="parcels-table">
@@ -196,6 +217,10 @@ export default class Parcels extends Component<Props, State> {
     }
 
     const description = this.owner ? `owned by ${this.owner}` : null
+
+    if (isSplit()) {
+      return <section class="sidebar-view">{this.state.loading ? <Spinner size={18} /> : view}</section>
+    }
 
     return (
       <section>

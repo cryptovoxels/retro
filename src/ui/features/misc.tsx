@@ -3,9 +3,10 @@ import { Component } from 'preact'
 import { Dispatch, StateUpdater, useEffect, useState } from 'preact/hooks'
 import { JSXInternal } from 'preact/src/jsx'
 import { CostumeAttachment } from '../../../common/messages/costumes'
-import type { AnimationDestination, ButtonRecord, EasingDescription, FeatureCommon, ImageMode, KeyFrame } from '../../../common/messages/feature'
+import type { AnimationDestination, ButtonRecord, EasingDescription, ImageMode, KeyFrame } from '../../../common/messages/feature'
 import { ColorInput } from '../../../web/src/components/ColorInput'
 import { axisValues, ScaleInput, ScaleKeyframe } from '../../../web/src/components/editor'
+import { VectorField } from '../../../web/src/components/editor/fields/vector-field'
 import { Keyframe } from '../../../web/src/components/editor/keyframe'
 
 import { app } from '../../../web/src/state'
@@ -13,12 +14,10 @@ import { AvatarAttachmentManager } from '../../attachment-manager'
 import type Avatar from '../../avatar'
 import CollectibleModel from '../../features/collectible-model'
 import Feature from '../../features/feature'
-import Group from '../../features/group'
 import type Parcel from '../../parcel'
 import { bindGizmosToFeature, unbindGizmosFromFeature } from '../../tools/gizmos'
 import { round, XYZ } from '../../utils/helpers'
-import CreateFeatureAsLibraryAsset from '../create-asset-for-library'
-import { degToRad, floatArray, RADIAN_DP, radToDeg, truncate, updateHighlight, xyzFields } from './common'
+import { degToRad, floatArray, RADIAN_DP, radToDeg, truncate } from './common'
 import { useFeatureContext } from './context'
 
 export const LOADING = 'Loading...'
@@ -35,66 +34,12 @@ export function FeatureID(props: { feature: Feature }) {
   )
 
   return (
-    <div className="f">
-      <label>Name</label>
-      <input value={props.feature.description.id} onInput={(e) => update(e.currentTarget.value)} type="text" />
-    </div>
-  )
-}
-
-export function SetParentDropdown(props: { feature: Feature }) {
-  const forbiddenGroups = new Set<Feature>(props.feature.type === 'group' ? (props.feature as Group).descendants() : [])
-  const groups = props.feature.parcel.featuresList.filter((group) => {
-    // a parent shouldn't become the child of one of its descendants
-    // that just plain wont work
-    if (props.feature.type === 'group' && forbiddenGroups.has(group)) {
-      return false
-    }
-
-    return group.type === 'group' && group.uuid !== props.feature.uuid
-  })
-
-  if (!groups.length) return null
-
-  const NO_PARENT_NAME = 'No group'
-  const getGroupName = (feature: Feature | undefined) => {
-    if (!feature) return NO_PARENT_NAME
-    const idType = feature.description.id ? 'id' : 'uuid'
-    return feature.description[idType]
-  }
-
-  const groupsWithName = new Map()
-  groups.forEach((group: Feature) => {
-    groupsWithName.set(getGroupName(group), group)
-  })
-
-  const groupNames = [NO_PARENT_NAME, ...Array.from(groupsWithName.keys())]
-
-  const options = groupNames.map((name: string) => {
-    return (
-      <option key={name} value={name}>
-        {name}
-      </option>
-    )
-  })
-
-  const setParent = (newGroupName: string) => {
-    const newGroup = groupsWithName.get(newGroupName)
-    const oldGroup = props.feature.group
-
-    if (oldGroup?.uuid === newGroup?.uuid) return // job done
-
-    oldGroup?.abandonChild(props.feature)
-    newGroup?.addChild(props.feature)
-  }
-
-  return (
-    <div className="f">
-      <label>{`Add to Group`}</label>
-      <select value={getGroupName(props.feature.group)} onInput={(e) => setParent(e.currentTarget.value)}>
-        {options}
-      </select>
-    </div>
+    <>
+      <dt>Name</dt>
+      <dd>
+        <input value={props.feature.description.id} onInput={(e) => update(e.currentTarget.value)} type="text" />
+      </dd>
+    </>
   )
 }
 
@@ -110,23 +55,16 @@ export function BlendMode(props: { handleStateChange?: (blendMode: string) => vo
   }
 
   return (
-    <div className="f">
-      <label>Blend</label>
-      <select onInput={(e) => update(e.currentTarget.value)} value={props.feature.description.blendMode}>
-        <option value="Multiply">Multiply</option>
-        <option value="Combine">Combine</option>
-        <option value="Screen">Screen</option>
-      </select>
-    </div>
-  )
-}
-
-export function UuidReadOnly(props: { feature: Feature }) {
-  return (
-    <div className="f">
-      <label>UUID</label>
-      <input readOnly={true} onClick={(e) => e.currentTarget.select()} type="text" title="The unique id of this feature" value={props.feature.description.uuid} style="background:none;font-size: smaller;" />
-    </div>
+    <>
+      <dt>Blend</dt>
+      <dd>
+        <select onInput={(e) => update(e.currentTarget.value)} value={props.feature.description.blendMode}>
+          <option value="Multiply">Multiply</option>
+          <option value="Combine">Combine</option>
+          <option value="Screen">Screen</option>
+        </select>
+      </dd>
+    </>
   )
 }
 
@@ -147,12 +85,14 @@ export function Sound(props: { feature: Feature<ButtonRecord> }) {
   }
 
   return (
-    <div className="f">
-      <label>Sound</label>
-      <select value={soundId} onInput={(e) => update(e.currentTarget.value)}>
-        {options}
-      </select>
-    </div>
+    <>
+      <dt>Sound</dt>
+      <dd>
+        <select value={soundId} onInput={(e) => update(e.currentTarget.value)}>
+          {options}
+        </select>
+      </dd>
+    </>
   )
 }
 
@@ -286,15 +226,8 @@ export function Toolbar(props: { feature: Feature; scene: BABYLON.Scene }) {
     }
   }
 
-  const createLibraryAsset = async () => {
-    if (window.ui) {
-      unbindGizmosFromFeature(props.feature)
-      const engine = props.scene.getEngine()
-      window.ui.featureTool?.unHighlight()
-      await CreateFeatureAsLibraryAsset.Capture(engine, props.feature.scene, templateFromFeature)
-      window.ui.featureTool?.highlight()
-      bindGizmosToFeature(props.feature)
-    }
+  const onShare = () => {
+    ui?.openPublishAsset(templateFromFeature()(props.feature))
   }
 
   return (
@@ -318,7 +251,7 @@ export function Toolbar(props: { feature: Feature; scene: BABYLON.Scene }) {
         </li>
         {app.signedIn && showShareToLibrary() && (
           <li>
-            <button onClick={createLibraryAsset}>Library</button>
+            <button onClick={onShare}>Share</button>
           </li>
         )}
       </ul>
@@ -421,33 +354,41 @@ export const Animation = (props: AnimationProps) => {
   }
 
   return (
-    <div className="f">
-      <label>Animation</label>
-
-      <select value={destination as string} onInput={(e) => setDestination(e.currentTarget.value as AnimationDestination)}>
-        {destinations}
-      </select>
+    <>
+      <dt>Animation</dt>
+      <dd>
+        <select value={destination as string} onInput={(e) => setDestination(e.currentTarget.value as AnimationDestination)}>
+          {destinations}
+        </select>
+      </dd>
       {destination && (
         <>
           {easingDropdown(easing, setEasing)}
 
-          {destination === 'scaling' && !!keys.length && renderLockScaleAspectRatio()}
+          {destination === 'scaling' && !!keys.length && (
+            <>
+              <dt>Aspect ratio</dt>
+              <dd>{renderLockScaleAspectRatio()}</dd>
+            </>
+          )}
 
-          <div className="keyframes">
-            <strong>Frame</strong>
-            <strong></strong>
-            <div style={{ justifySelf: 'center' }}>X</div>
-            <div style={{ justifySelf: 'center' }}>Y</div>
-            <div style={{ justifySelf: 'center' }}>Z</div>
-            <div style={{ justifySelf: 'center' }}>action</div>
-            {keys}
-          </div>
-          <button disabled={!(keyframes.length < 20 && destination)} onClick={() => addKeyframe()}>
-            + Add Keyframe
-          </button>
+          <dd class="full">
+            <div className="keyframes">
+              <strong>Frame</strong>
+              <strong></strong>
+              <div style={{ justifySelf: 'center' }}>X</div>
+              <div style={{ justifySelf: 'center' }}>Y</div>
+              <div style={{ justifySelf: 'center' }}>Z</div>
+              <div style={{ justifySelf: 'center' }}>action</div>
+              {keys}
+            </div>
+            <button disabled={!(keyframes.length < 20 && destination)} onClick={() => addKeyframe()}>
+              + Add Keyframe
+            </button>
+          </dd>
         </>
       )}
-    </div>
+    </>
   )
 }
 
@@ -555,81 +496,20 @@ export function easingDropdown(easing: EasingDescription, setEasing: Dispatch<St
   const easingMode = easing && 'mode' in easing ? easing.mode : ''
 
   return (
-    <div className="f easingContainer">
-      <div className="easingElement">
-        <label>{`Easing Function`}</label>
+    <>
+      <dt>Easing function</dt>
+      <dd>
         <select value={easingFunc} onChange={(e) => set('function')(e.currentTarget.value)}>
           {functionOptions}
         </select>
-      </div>
-      <div className="easingElement">
-        <label>{`Mode`}</label>
+      </dd>
+      <dt>Mode</dt>
+      <dd>
         <select value={easingMode} onChange={(e) => set('mode')(e.currentTarget.value)}>
           {modeOptions}
         </select>
-      </div>
-    </div>
-  )
-}
-
-export function TriggerEditor(props: { feature: Feature }) {
-  const [isTrigger, setIsTrigger] = useState<boolean>(!!props.feature.description.isTrigger)
-
-  const proximityToTrigger = props.feature.description.proximityToTrigger
-  const triggerIsAudible = !!props.feature.description.triggerIsAudible
-
-  const throttledSet = throttle(
-    (dict: any) => {
-      props.feature.set(dict)
-      updateHighlight()
-    },
-    100,
-    { leading: false, trailing: true },
-  )
-
-  const update = (dict: Partial<FeatureCommon>) => {
-    const key = Object.keys(dict)[0] as keyof Partial<FeatureCommon>
-    if (props.feature.description[key] == dict[key]) return
-    throttledSet(dict)
-  }
-
-  useEffect(() => {
-    if (isTrigger === !!props.feature.description.isTrigger) return
-    update({ isTrigger })
-  }, [isTrigger])
-
-  const throttledUpdate = throttle(update, 150, { leading: false, trailing: true })
-
-  return (
-    <div>
-      <div className="f">
-        <label>Trigger</label>
-        <label>
-          <input type="checkbox" checked={isTrigger} onChange={(e) => setIsTrigger((e as any).target['checked'])} />
-          Trigger
-        </label>
-        {isTrigger && (
-          <div className="sub-f">
-            <h4>Advanced</h4>
-            <div className="f">
-              <label>Proximity</label>
-              <input type="range" step="0.1" min="1.76" max="5" value={proximityToTrigger} onInput={(e) => throttledUpdate({ proximityToTrigger: parseFloat(e.currentTarget.value) })} />
-              <small>
-                Choose how close the player has to be for the feature to trigger. (default 1.77, current:
-                {proximityToTrigger})
-              </small>
-            </div>
-
-            <div className="f">
-              <label>
-                <input type="checkbox" checked={triggerIsAudible} onChange={(e) => update({ triggerIsAudible: (e as any).target['checked'] })} />
-                Make sound on trigger
-              </label>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+      </dd>
+    </>
   )
 }
 
@@ -646,10 +526,12 @@ export function Hyperlink(props: { feature: Feature }) {
   )
 
   return (
-    <div className="f">
-      <label>Hyperlink</label>
-      <input type="text" value={link || ''} onInput={(e) => update(e.currentTarget.value)} />
-    </div>
+    <>
+      <dt>Hyperlink</dt>
+      <dd>
+        <input type="text" value={link || ''} onInput={(e) => update(e.currentTarget.value)} />
+      </dd>
+    </>
   )
 }
 
@@ -679,12 +561,17 @@ export function CollectibleTryPosition(props: { feature: CollectibleModel }) {
   }, [x, y, z])
 
   const step = 0.05
+  const [error, setError] = useState<string | undefined>('')
 
   return (
-    <div className="f fs">
-      <label>Position</label>
-      {xyzFields(x, y, z, setX, setY, setZ, step)}
-    </div>
+    <>
+      <dt>Try position</dt>
+      <dd class="vec3">
+        <VectorField title="X" step={step} errorMessage={setError} value={x} setter={setX} />
+        <VectorField title="Y" step={step} errorMessage={setError} value={y} setter={setY} />
+        <VectorField title="Z" step={step} errorMessage={setError} value={z} setter={setZ} />
+      </dd>
+    </>
   )
 }
 
@@ -714,11 +601,16 @@ export function CollectibleTryRotation(props: { feature: CollectibleModel }) {
   }, [x, y, z])
 
   const step = 10
+  const [error, setError] = useState<string | undefined>('')
   return (
-    <div className="f fs">
-      <label>Rotation</label>
-      {xyzFields(x, y, z, setX, setY, setZ, step, radToDeg, degToRad)}
-    </div>
+    <>
+      <dt>Try rotation</dt>
+      <dd class="vec3">
+        <VectorField title="X" step={step} errorMessage={setError} value={x} setter={setX} convert={radToDeg} unconvert={degToRad} />
+        <VectorField title="Y" step={step} errorMessage={setError} value={y} setter={setY} convert={radToDeg} unconvert={degToRad} />
+        <VectorField title="Z" step={step} errorMessage={setError} value={z} setter={setZ} convert={radToDeg} unconvert={degToRad} />
+      </dd>
+    </>
   )
 }
 
@@ -781,25 +673,27 @@ export function CollectibleTryScale(props: { feature: CollectibleModel }) {
   }
 
   return (
-    <div className="f fs">
-      <label>Scale</label>
-      {props.feature.scaleAxes().map((axis: XYZ) => (
-        <ScaleInput value={(scaleValues as axisValues)[axis]} axis={axis} setScale={setScale} />
-      ))}
-      <button className={`lock-aspect-ratio`} onClick={toggleAspectRatioLocked} title={`${aspectRatioLocked ? 'Locked' : 'Unlocked'}`}>
-        <i className={aspectRatioLocked ? `fi-lock` : 'fi-unlock'}></i>
-      </button>
-    </div>
+    <>
+      <dt>Try scale</dt>
+      <dd class="vec3">
+        {props.feature.scaleAxes().map((axis: XYZ) => (
+          <ScaleInput value={(scaleValues as axisValues)[axis]} axis={axis} setScale={setScale} />
+        ))}
+        <button className={`lock-aspect-ratio`} onClick={toggleAspectRatioLocked} title={`${aspectRatioLocked ? 'Locked' : 'Unlocked'}`}>
+          <i className={aspectRatioLocked ? `fi-lock` : 'fi-unlock'}></i>
+        </button>
+      </dd>
+    </>
   )
 }
 
 export function CollectibleTryBone(props: { feature: CollectibleModel; scene: BABYLON.Scene }) {
   if (!window.connector.persona.avatar) {
-    return <div className="f"></div>
+    return null
   }
 
   if (!window.connector?.persona.avatar?.skeleton) {
-    return <div className="f"></div>
+    return null
   }
 
   const [skeleton, setSkeleton] = useState<BABYLON.Skeleton>(window.connector?.persona.avatar?.skeleton)
@@ -818,15 +712,16 @@ export function CollectibleTryBone(props: { feature: CollectibleModel; scene: BA
   }
 
   return (
-    <div className="f">
-      <label>Bone </label>
-
-      <select value={props.feature.description.tryBone} onChange={(e) => update(e.currentTarget['value'])}>
-        {skeleton?.bones.map((b) => (
-          <option value={boneName(b)}>{boneName(b)}</option>
-        ))}
-      </select>
-    </div>
+    <>
+      <dt>Bone</dt>
+      <dd>
+        <select value={props.feature.description.tryBone} onChange={(e) => update(e.currentTarget['value'])}>
+          {skeleton?.bones.map((b) => (
+            <option value={boneName(b)}>{boneName(b)}</option>
+          ))}
+        </select>
+      </dd>
+    </>
   )
 }
 
@@ -862,8 +757,7 @@ function refreshFromFeature(feature: CollectibleModel, avatar: Avatar) {
 }
 
 export function Advanced(props: any) {
-  const [visible, setVisible] = useState(false)
-  return <span class="advanced-block">{props.children}</span>
+  return <>{props.children}</>
 }
 
 export function SpecularColorSetting(props: { feature: Feature & { description: { specularColor?: [number, number, number] } } }) {
@@ -882,9 +776,11 @@ export function SpecularColorSetting(props: { feature: Feature & { description: 
   const color: string = BABYLON.Color3.FromArray(props.feature.description.specularColor || defaultSpecularColor).toHexString()
 
   return (
-    <div className="f">
-      <label>Specular color</label>
-      <ColorInput onColorSelect={update} color={color} />
-    </div>
+    <>
+      <dt>Specular color</dt>
+      <dd>
+        <ColorInput onColorSelect={update} color={color} />
+      </dd>
+    </>
   )
 }

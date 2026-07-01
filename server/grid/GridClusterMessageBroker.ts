@@ -18,8 +18,6 @@ export namespace GridClusterMessage {
 
   export type PatchStateCreate = Extract<GridClusterMessage, { type: 'patchStateCreate' }>
 
-  export type HashUpdate = Extract<GridClusterMessage, { type: 'hashUpdate' }>
-
   export type MetaUpdate = Extract<GridClusterMessage, { type: 'metaUpdate' }>
 
   export type ScriptUpdate = Extract<GridClusterMessage, { type: 'scriptUpdate' }>

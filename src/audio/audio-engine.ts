@@ -2,6 +2,7 @@ import { wantsAudio } from '../../common/helpers/detector'
 import type Persona from '../persona'
 import { VoxelRadioEngine } from '../../web/src/radio/engine'
 import { FootstepSounds } from './footstep-sounds'
+import { FlySound } from './fly-sound'
 import { soundFx, SoundName } from './soundfx'
 import { SpatialAudio } from './spatial-audio'
 
@@ -82,6 +83,7 @@ export class AudioEngine {
   radio: VoxelRadioEngine | null = null
 
   footstepSounds: FootstepSounds
+  flySound: FlySound
   soundFx: Record<SoundName, BABYLON.Sound>
 
   trackOut: GainNode
@@ -93,6 +95,10 @@ export class AudioEngine {
   soundEffectsBus: BABYLON.SoundTrack
 
   soundLastPlayedAt = 0 // unix timestamp
+
+  // while you're live on a showbox we kill the in-world soundtrack so it doesn't bleed into your stream
+  broadcasting = false
+  private preBroadcastVolumes: { music: number; parcel: number } | null = null
 
   constructor(scene: BABYLON.Scene) {
     if (!wantsAudio()) {
@@ -112,7 +118,8 @@ export class AudioEngine {
     // avatar audio
     this.avatarOut = this.audioContext.createGain()
     this.avatarOut.gain.value = 1
-    this.footstepSounds = new FootstepSounds(this.avatarOut)
+    this.footstepSounds = new FootstepSounds(this.avatarOut, this.scene, this.soundEffectsOut)
+    this.flySound = new FlySound(this.avatarOut)
 
     // soundtrack mixer (the radio plugs into trackOut)
     this.trackOut = this.audioContext.createGain()
@@ -244,6 +251,22 @@ export class AudioEngine {
       musicVolume: this.trackOut.gain.value,
       parcelAudioVolume: this.parcelOut.gain.value,
       soundEffectsVolume: this.soundEffectsOut.gain.value,
+    }
+  }
+
+  // going live mutes the in-world music + parcel audio (radio, boomboxes, ambient voices) so it stays
+  // out of your broadcast; stopping restores whatever volumes you had.
+  setBroadcasting(b: boolean) {
+    if (this.broadcasting === b) return
+    this.broadcasting = b
+    if (b) {
+      this.preBroadcastVolumes = { music: this.trackOut.gain.value, parcel: this.parcelOut.gain.value }
+      this.trackOut.gain.value = 0
+      this.parcelAudioBus.setVolume(0)
+    } else if (this.preBroadcastVolumes) {
+      this.trackOut.gain.value = this.preBroadcastVolumes.music
+      this.parcelAudioBus.setVolume(this.preBroadcastVolumes.parcel)
+      this.preBroadcastVolumes = null
     }
   }
 

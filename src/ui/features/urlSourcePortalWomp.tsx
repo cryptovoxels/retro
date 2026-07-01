@@ -57,13 +57,15 @@ export class UrlSourcePortalWomp extends UrlSourceComponent<UrlSourcePortalWompP
 
   render() {
     return (
-      <div className="f">
-        <div class="button-tabs">
-          <button class="active">Womps</button>
-        </div>
+      <>
+        <dd class="full">
+          <div class="button-tabs">
+            <button class="active">Womps</button>
+          </div>
+        </dd>
 
         <WompsTab urlTab={'womps'} returnWomp={this.returnWomp.bind(this)} onRefresh={this.fetchWomps.bind(this)} loading={this.state.loading} womps={this.state.womps} />
-      </div>
+      </>
     )
   }
 }

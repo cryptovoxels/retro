@@ -56,11 +56,9 @@ const loadQuery = () => {
 }
 
 export interface ParcelEventEmitter {
-  on(event: 'hashUpdate', listener: (parcelId: number, hash: string) => void): this
   on(event: 'metaUpdate', listener: (parcelId: number) => void): this
   on(event: 'scriptUpdate', listener: (parcelId: number) => void): this
 
-  emit(event: 'hashUpdate', parcelId: number, hash: string): boolean
   emit(event: 'metaUpdate', parcelId: number): boolean
   emit(event: 'scriptUpdate', parcelId: number): boolean
 }
@@ -344,10 +342,6 @@ export abstract class AbstractParcel implements ParcelRef {
 
   public abstract save(): Promise<boolean>
 
-  private broadcastHash() {
-    PARCEL_EVENT_EMITTER.emit('hashUpdate', this.id, this.hash)
-  }
-
   broadcastMeta() {
     PARCEL_EVENT_EMITTER.emit('metaUpdate', this.id)
   }
@@ -369,7 +363,7 @@ export abstract class AbstractParcel implements ParcelRef {
 
     await this.save()
 
-    this.broadcastHash()
+    this.broadcastMeta()
   }
 
   /**
@@ -527,11 +521,10 @@ export default class Parcel extends AbstractParcel {
 
     const client = await db.connect()
 
-    let result = null
     try {
       await client.query('BEGIN')
 
-      result = await client.query(
+      await client.query(
         `
       UPDATE
         properties p
@@ -547,17 +540,9 @@ export default class Parcel extends AbstractParcel {
         updated_at = NOW()
       WHERE
         id = $9
-      RETURNING
-        encode(digest(coalesce(p.owner::text, 'owner') || p.id::text || coalesce(p.lightmap_url,'none') || coalesce(p.content::text, 'content')|| coalesce(p.settings::text, 'settings'), 'sha1'), 'hex') as hash
       `,
         [JSON.stringify(this.content), this.owner, this.minted, this.visible || this._justGotMinted, this.name, JSON.stringify(this.settings), this.lightmap_url, this.description, this.id],
       )
-
-      // update to latest hash
-      if (result.rows.length) {
-        this.hash = result.rows[0].hash
-        await client.query(`update properties set memoized_hash=$1 where id=$2`, [this.hash, this.id])
-      }
 
       await client.query('COMMIT')
 

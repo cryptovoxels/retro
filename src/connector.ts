@@ -701,6 +701,12 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       case messages.MessageType.avatarChanged:
         this.onAvatarChanged(msg)
         break
+      case messages.MessageType.behaviourState:
+        this.onBehaviourState(msg)
+        break
+      case messages.MessageType.behaviourSignal:
+        this.onBehaviourSignal(msg)
+        break
       case messages.MessageType.loginComplete:
       case messages.MessageType.point:
         break
@@ -731,6 +737,18 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       }
     }
     return null
+  }
+
+  private parcelById(parcelId: number) {
+    return this.grid.getByID(parcelId) ?? null
+  }
+
+  onBehaviourState(message: messages.BehaviourStateMessage) {
+    this.parcelById(message.parcelId)?.behaviours?.onStateUpdate(message.featureId, message.behaviourIdx, message.state, message.seq)
+  }
+
+  onBehaviourSignal(message: messages.BehaviourSignalMessage) {
+    this.parcelById(message.parcelId)?.behaviours?.onSignal(message.featureId, message.signal, message.data)
   }
 
   onChat(message: messages.ChatMessage) {
@@ -795,12 +813,6 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       chatRef = { ...chatRef, name: app.state.name }
     }
     this.addChat(text, this.persona.avatar, chatRef)
-
-    // For scripting purposes:
-    // const parcel = this.currentParcel()
-    // if (parcel && parcel.parcelScript && this.persona.avatar) {
-    //   parcel.parcelScript.dispatch('chat', this.persona.avatar, { text })
-    // }
 
     const message: messages.ChatMessage = {
       type: messages.MessageType.chat,

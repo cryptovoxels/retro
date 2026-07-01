@@ -1,8 +1,8 @@
 import { PortalRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, EditorProps } from '../../web/src/components/editor'
 import { AudioBus } from '../audio/audio-engine'
 import { fetchTexture } from '../textures/textures'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UrlSourcePortalWomp, UuidReadOnly } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UrlSourcePortalWomp } from '../ui/features'
 import PortalTeleportGUI from '../ui/gui/portal-gui'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, FeatureTrigger } from './feature'
@@ -255,43 +255,43 @@ class Editor extends FeatureEditor<Portal> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+          <EditorProps>
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <div className="f">
-            <label>To a functional portal, select a womp.</label>
-          </div>
-
-          <UrlSourcePortalWomp feature={this.props.feature} />
-
-          <div className="f">
-            <label>Portal sound</label>
-            <label>
-              <input type="checkbox" checked={this.state.playSound} onChange={(e) => this.setState({ playSound: e.currentTarget.checked })} />
-              Make sound
-            </label>
-          </div>
-
-          {this.selectedWomp && (
             <div className="f">
-              <label>Selected location:</label>
-              <img src={this.state.url} width={50} height={50} title={this.selectedWomp.coords} />
-              <dt>Parcel id</dt>
-              <dd>{this.selectedWomp.parcel_id}</dd>
-              <dt>Coordinates</dt>
-              <dd>/play?coords={this.selectedWomp.coords}</dd>
-              <dt>Created at</dt>
-              <dd>{this.selectedWomp.created_at}</dd>
+              <label>To a functional portal, select a womp.</label>
             </div>
-          )}
 
-          <Advanced>
-            <FeatureID feature={this.props.feature} />
-            <SetParentDropdown feature={this.props.feature} />
-            <UuidReadOnly feature={this.props.feature} />
-          </Advanced>
+            <UrlSourcePortalWomp feature={this.props.feature} />
+
+            <div className="f">
+              <label>Portal sound</label>
+              <label>
+                <input type="checkbox" checked={this.state.playSound} onChange={(e) => this.setState({ playSound: e.currentTarget.checked })} />
+                Make sound
+              </label>
+            </div>
+
+            {this.selectedWomp && (
+              <div className="f">
+                <label>Selected location:</label>
+                <img src={this.state.url} width={50} height={50} title={this.selectedWomp.coords} />
+                <dt>Parcel id</dt>
+                <dd>{this.selectedWomp.parcel_id}</dd>
+                <dt>Coordinates</dt>
+                <dd>/play?coords={this.selectedWomp.coords}</dd>
+                <dt>Created at</dt>
+                <dd>{this.selectedWomp.created_at}</dd>
+              </div>
+            )}
+
+            <Advanced>
+              <FeatureID feature={this.props.feature} />
+            </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

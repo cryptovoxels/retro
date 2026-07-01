@@ -183,7 +183,6 @@ p {
   color: #f5f5f0;
   font: inherit;
   font-size: smaller;
-  border-radius: 0;
   border: 1px solid #555;
   cursor: pointer;
 
@@ -338,7 +337,6 @@ div.leaflet-marker-icon.MarkersClusters {
   height: 40px !important;
   z-index: 298;
   background-clip: padding-box;
-  border-radius: 20px;
 
   br {
     height: 8px;
@@ -350,7 +348,6 @@ div.leaflet-marker-icon.MarkersClusters {
     margin-left: 5px;
     margin-top: 5px;
     text-align: center;
-    border-radius: 15px;
     font:
       12px 'Helvetica Neue',
       Arial,
@@ -521,7 +518,6 @@ button.play-now,
 a.play-now,
 a.xr-now {
   cursor: pointer;
-  border-radius: 0;
   border: 1px solid var(--red);
   background: var(--red);
   color: #fff;
@@ -598,7 +594,6 @@ a.xr-now {
     border: none;
     display: inline-block;
     font: inherit;
-    border-radius: 2px;
     height: 32px;
     line-height: 32px;
     padding: 0 16px;
@@ -627,18 +622,24 @@ a.xr-now {
   }
 }
 
-/* Loading gif */
+/* Loading spinner */
 .loading {
-  width: 32px;
-  height: 32px;
-  position: relative;
-  top: 12px;
-  margin-right: 0;
   display: inline-block;
-  background: no-repeat center;
+  box-sizing: border-box;
+  flex-shrink: 0;
+  vertical-align: middle;
+  border: 2px solid currentColor;
+  border-top-color: var(--red);
+  border-right-color: transparent;
+  opacity: 0.9;
+  animation: loading-icon-spin 0.75s linear infinite;
+  background: none;
+  position: relative;
+  top: 0;
+  margin: 0;
 
-  @media @dark {
-    filter: invert();
+  &.on-light {
+    color: #333;
   }
 }
 
@@ -685,7 +686,6 @@ a.xr-now {
 
 // Panel helpers
 .panel {
-  border-radius: 2px;
   padding: 5px;
   text-align: center;
 }
@@ -738,7 +738,6 @@ a.xr-now {
 .dot {
   height: 2px;
   width: 2px;
-  border-radius: 50%;
   margin-left: 0;
   padding: 0.2em;
 }
@@ -750,7 +749,6 @@ a.xr-now {
 /* has borders helper*/
 .has-borders {
   border: 1px solid #aaa;
-  border-radius: 5px;
   padding: 4px;
   border-bottom: 2px solid;
 }
@@ -901,7 +899,6 @@ dl.deets {
       > div > a {
         padding: 5px;
         background: #ebebeb;
-        border-radius: 4px;
         color: black;
         cursor: pointer;
 
@@ -922,7 +919,6 @@ dl.deets {
   min-width: 180px;
   background: #fff;
   margin-top: 15px;
-  border-radius: 5px;
   padding: 24px;
   text-align: center;
   color: #000;
@@ -936,7 +932,6 @@ dl.deets {
     background: none;
     display: inline-block;
     border: 1px solid #ccc;
-    border-radius: 50%;
     width: 24px;
     height: 24px;
     text-align: center;
@@ -1039,7 +1034,6 @@ div.SimpleNameMintInput {
     input[type='text'] {
       width: 60%;
       line-height: 20px;
-      border-radius: 5px;
       border: none;
       border-bottom: 2px solid black;
       margin: 2px 4px;

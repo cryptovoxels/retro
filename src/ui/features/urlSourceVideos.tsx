@@ -79,22 +79,26 @@ export class UrlSourceVideos extends UrlSourceComponent<UrlSourceVideosProps, Ur
 
   render() {
     return (
-      <div className="f">
-        <div>
-          <label style="margin-top:3px">Video URL</label>
+      <>
+        <dt>Video URL</dt>
+        <dd>
           <input type="text" value={this.state.url} onInput={(e) => this.setUrl(e.currentTarget.value)} />
-          {this.state.assetUrl && (
-            <div className="sub-f" style="padding: 3px 5px 0 15px;">
-              <label>Original link:</label>
+        </dd>
+        {this.state.assetUrl && (
+          <>
+            <dt>Original link</dt>
+            <dd>
               <input type="text" value={this.state.assetUrl} readOnly={true} onClick={(e) => (e as any).target['select']()} />
-            </div>
-          )}
+            </dd>
+          </>
+        )}
+        <dd class="full">
           <small>
             The video needs to be hosted somewhere that supports <strong>Anonymous CORS</strong>. We recommend using dropbox share links.
           </small>
           <small>Supports opensea link for .mp4 NFTs.</small>
-        </div>
-      </div>
+        </dd>
+      </>
     )
   }
 }

@@ -18,7 +18,6 @@ export type CachedParcelsMessage = t.TypeOf<typeof CachedParcelsMessage>
 
 /**
  * /grid/parcels/:id
- * /grid/parcels/:id/at/:hash
  */
 export const ApiParcelMessage = t.type(
   {

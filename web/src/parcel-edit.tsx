@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { route } from 'preact-router'
 import * as strftime from 'strftime'
 import { blocks } from '../../common/content/blocks'
 import { Login } from './auth/login'
 import SelectUser from './components/select-user'
 import cachedFetch, { invalidateUrl } from './helpers/cached-fetch'
+import { isSplit, routeWithCoords, withCoords } from './helpers/coords-nav'
 import { app } from './state'
 
 type ParcelUser = { wallet: string; role: string }
@@ -73,7 +73,12 @@ export default function ParcelEdit(props: Props) {
     })
     setSaving(false)
     await invalidateUrl(`/api/parcels/${props.id}.json`, true)
-    route(`/parcels/${props.id}`)
+    routeWithCoords(`/parcels/${props.id}`)
+  }
+
+  function back(e?: Event) {
+    e?.preventDefault()
+    routeWithCoords(`/parcels/${props.id}`)
   }
 
   async function build(fn: string) {
@@ -166,145 +171,182 @@ export default function ParcelEdit(props: Props) {
   const isCollaborator = !!wallet && (parcel.parcel_users ?? []).some((u: ParcelUser) => u.wallet.toLowerCase() === wallet)
   const canEdit = isOwner || isCollaborator
 
+  const title = (
+    <hgroup>
+      <h1>
+        <a href={withCoords(`/parcels/${props.id}`)} onClick={back}>
+          {parcel.name || parcel.address}
+        </a>{' '}
+        / edit
+      </h1>
+    </hgroup>
+  )
+
+  const form = (
+    <form onSubmit={submit}>
+      <h3>basics</h3>
+      <div class="f">
+        <label>Name</label>
+        <input type="text" value={parcel.name || ''} onInput={(e: any) => set('name', e.target.value)} />
+      </div>
+      <div class="f">
+        <label>Description</label>
+        <textarea rows={5} value={parcel.description || ''} onInput={(e: any) => set('description', e.target.value)} />
+      </div>
+
+      <h3>settings</h3>
+      <div class="f">
+        <label>
+          <input type="checkbox" checked={!!parcel.settings?.sandbox} onChange={(e: any) => setSettings('sandbox', e.target.checked)} /> Sandbox (publicly editable)
+        </label>
+      </div>
+
+      {isOwner && (
+        <>
+          <h3>collaborators</h3>
+          <SelectUser onSelect={addCollaborator} />
+          {(parcel.parcel_users ?? []).length > 0 && (
+            <ul>
+              {(parcel.parcel_users as ParcelUser[]).map((u) => (
+                <li key={u.wallet}>
+                  <a href={`/u/${u.wallet}`}>{u.wallet.substring(0, 10)}...</a>{' '}
+                  <button type="button" onClick={() => toggleRole(u.wallet)}>
+                    {u.role}
+                  </button>{' '}
+                  <button type="button" onClick={() => removeCollaborator(u.wallet)}>
+                    remove
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+
+      <button type="submit" disabled={saving}>
+        {saving ? 'Saving...' : 'Save'}
+      </button>
+    </form>
+  )
+
+  const history = (
+    <>
+      <h3>edit history</h3>
+      <div class="f">
+        <button type="button" onClick={takeSnapshot}>
+          Take snapshot
+        </button>
+        <input ref={fileRef} type="file" accept=".json" onChange={importJson} />
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th style={{ width: '10%' }} scope="col">
+              Type
+            </th>
+            <th>Creation date</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {versions.map((v) => (
+            <tr key={v.id}>
+              <td>{v.is_snapshot && <small>snapshot</small>}</td>
+              <td>
+                <a
+                  href="#"
+                  onClick={(e: Event) => {
+                    e.preventDefault()
+                    revert(v)
+                  }}
+                >
+                  {strftime('%B %-d, %Y at %-I%P', new Date(v.updated_at))}
+                </a>
+              </td>
+              <td>
+                <a
+                  href="#"
+                  onClick={(e: Event) => {
+                    e.preventDefault()
+                    download(v)
+                  }}
+                >
+                  download
+                </a>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  )
+
+  const quickBuild = (
+    <>
+      <h3>quick build</h3>
+      <p>Replaces all content on the parcel.</p>
+      <div class="f">
+        <label>Material</label>
+        <select onChange={(e: any) => setBuildMaterial(e.target.value)}>
+          {blocks.map((b) => (
+            <option key={b.value} value={b.value}>
+              {b.name.replace(/.png/, '')}
+            </option>
+          ))}
+        </select>
+      </div>
+      <ul>
+        {['Empty', 'Park', 'Outline', 'ThreeTowers', 'House', 'Pyramid', 'Scaffold'].map((fn) => (
+          <li key={fn}>
+            <button type="button" disabled={building} onClick={() => build(fn)}>
+              {fn}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </>
+  )
+
   if (!canEdit) {
+    if (isSplit()) {
+      return (
+        <>
+          {title}
+          <p>You don't have permission to edit this parcel.</p>
+        </>
+      )
+    }
+
     return (
       <section class="columns">
         <article>
-          <hgroup>
-            <h1>
-              <a href={`/parcels/${props.id}`}>{parcel.name || parcel.address}</a>
-            </h1>
-          </hgroup>
+          {title}
           <p>You don't have permission to edit this parcel.</p>
         </article>
       </section>
     )
   }
 
+  if (isSplit()) {
+    return (
+      <>
+        {title}
+        {form}
+        {quickBuild}
+        {history}
+      </>
+    )
+  }
+
   return (
     <section class="columns">
       <article>
-        <hgroup>
-          <h1>Edit Parcel</h1>
-        </hgroup>
-        <form onSubmit={submit}>
-          <h3>basics</h3>
-          <div class="f">
-            <label>Name</label>
-            <input type="text" value={parcel.name || ''} onInput={(e: any) => set('name', e.target.value)} />
-          </div>
-          <div class="f">
-            <label>Description</label>
-            <textarea rows={5} value={parcel.description || ''} onInput={(e: any) => set('description', e.target.value)} />
-          </div>
-
-          <h3>settings</h3>
-          <div class="f">
-            <label>
-              <input type="checkbox" checked={!!parcel.settings?.sandbox} onChange={(e: any) => setSettings('sandbox', e.target.checked)} /> Sandbox (publicly editable)
-            </label>
-          </div>
-
-          {isOwner && (
-            <>
-              <h3>collaborators</h3>
-              <SelectUser onSelect={addCollaborator} />
-              {(parcel.parcel_users ?? []).length > 0 && (
-                <ul>
-                  {(parcel.parcel_users as ParcelUser[]).map((u) => (
-                    <li key={u.wallet}>
-                      <a href={`/u/${u.wallet}`}>{u.wallet.substring(0, 10)}...</a>{' '}
-                      <button type="button" onClick={() => toggleRole(u.wallet)}>
-                        {u.role}
-                      </button>{' '}
-                      <button type="button" onClick={() => removeCollaborator(u.wallet)}>
-                        remove
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
-
-          <button type="submit" disabled={saving}>
-            {saving ? 'Saving...' : 'Save'}
-          </button>
-        </form>
-
-        <h3>edit history</h3>
-        <div class="f">
-          <button type="button" onClick={takeSnapshot}>
-            Take snapshot
-          </button>
-          <input ref={fileRef} type="file" accept=".json" onChange={importJson} />
-        </div>
-
-        <table>
-          <thead>
-            <tr>
-              <th style={{ width: '10%' }} scope="col">
-                Type
-              </th>
-              <th>Creation date</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {versions.map((v) => (
-              <tr key={v.id}>
-                <td>{v.is_snapshot && <small>snapshot</small>}</td>
-                <td>
-                  <a
-                    href="#"
-                    onClick={(e: Event) => {
-                      e.preventDefault()
-                      revert(v)
-                    }}
-                  >
-                    {strftime('%B %-d, %Y at %-I%P', new Date(v.updated_at))}
-                  </a>
-                </td>
-                <td>
-                  <a
-                    href="#"
-                    onClick={(e: Event) => {
-                      e.preventDefault()
-                      download(v)
-                    }}
-                  >
-                    download
-                  </a>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {title}
+        {form}
+        {history}
       </article>
-
-      <aside>
-        <h3>quick build</h3>
-        <p>Replaces all content on the parcel.</p>
-        <div class="f">
-          <label>Material</label>
-          <select onChange={(e: any) => setBuildMaterial(e.target.value)}>
-            {blocks.map((b) => (
-              <option key={b.value} value={b.value}>
-                {b.name.replace(/.png/, '')}
-              </option>
-            ))}
-          </select>
-        </div>
-        <ul>
-          {['Empty', 'Park', 'Outline', 'ThreeTowers', 'House', 'Pyramid', 'Scaffold'].map((fn) => (
-            <li key={fn}>
-              <button type="button" disabled={building} onClick={() => build(fn)}>
-                {fn}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </aside>
+      <aside>{quickBuild}</aside>
     </section>
   )
 }

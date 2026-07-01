@@ -25,7 +25,7 @@ import { isShared } from './materials'
 import ParcelBouncer from './parcel-bouncer'
 import ParcelBudget from './parcel-budget'
 import { ParcelMesher } from './parcel-mesher'
-import ParcelScript from './parcel-script'
+import LuaBehaviours from './lua/behaviours'
 import { FeaturePump } from './pump/feature-pump'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
 import { tidyVec3 } from './utils/helpers'
@@ -93,7 +93,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     return Math.abs((this.x2 - this.x1) * (this.z2 - this.z1))
   }
   hash: string | undefined
-  parcelScript: ParcelScript | null = null
+  behaviours: LuaBehaviours | null = null
   loaded = false
   loading = false
   readonly featureBounds: BABYLON.BoundingBox
@@ -106,7 +106,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   private activated = false
   private activationState = ParcelActivationState.Inactive
   private fieldUpdateTimeout: NodeJS.Timeout | null = null
-  private readonly afterGenerateCallbacks: (() => void)[] = []
   private voxelFieldGen = 0
   private readonly refreshVoxels: () => void
   readonly relight: () => void
@@ -490,7 +489,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
   sendPatch(patch: ParcelPatch) {
     if (this.sandbox) return
-    this.invalidateHash()
     this.grid.patchParcel(this.id, patch)
   }
 
@@ -667,9 +665,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   receivePatch(patch: ParcelPatch) {
-    // Invalidate hash on receive patch as the hash will no longer be current.
-    // An out of date hash can cause snapshot switching to fail. Better just to have no hash at this point.
-    this.invalidateHash()
     if (patch.features) {
       let showboxRemoved = false
       for (const uuid in patch.features) {
@@ -1002,38 +997,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     })
   }
 
-  /**
-   *   Scripting only: This is to catch users near the parcel and start the parcel script along with a 'playernearby' event.
-   */
-  onEnterNearby() {
-    if (isBatterySaver()) {
-      console.log('Battery saver mode, skipping onEnterNearby')
-      return
-    }
-    // console.log('Parcel#onEnterNearby')
-
-    if (!this.parcelScript) {
-      // console.log('Parcel#onEnterNearby: creating new ParcelScript')
-      this.parcelScript = new ParcelScript(this.scene, this)
-      this.parcelScript.connect()
-    }
-
-    // if (this.parcelScript && !this.parcelScript.connected && this.featuresLoaded) {
-    //   console.log('Parcel#onEnterNearby: connecting ParcelScript')
-    // }
-  }
-
-  onExitNearby() {
-    this.disconnect()
-    // We re-call onExit on features on exit nearby since it is possible for features (eg:videos) to still be running
-    // (eg: script is ran because the player is nearby -never entered the parcel- and he/she's now leaving the area)
-    this.featuresList?.forEach((f) => {
-      if (f.onExit) {
-        f.onExit()
-      }
-    })
-  }
-
   unload() {
     this.loaded = false
     this.loading = false
@@ -1098,7 +1061,18 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
 
     this.activated = true
+
+    // Create features
     await this.generateFeatures()
+
+    // Create scripts
+    if (!this.behaviours) {
+      this.behaviours = new LuaBehaviours(this)
+    }
+    // The pump loads features async, so featuresList is empty here. Initing now
+    // builds an empty registry and flips connected=true, so onFeaturesLoaded never
+    // re-inits. Defer to onFeaturesLoaded; only init now when there's no pump (tests).
+    if (!window.main) await this.behaviours.init()
     // On fastBoot we initiate the parcelBouncer and handle the user.
     // handleUser() generates the box around the parcel if not allowed
 
@@ -1176,15 +1150,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }, 5)
   }
 
-  async reload(hash?: string, cb: any = null) {
-    // use the hash provided otherwise the last known hash
-    if (!hash) {
-      hash = this.hash
-    }
-
+  async reload(cb: any = null) {
     this.disconnect()
 
-    let url = hash ? `/grid/parcels/${this.id}/at/${hash}` : `/grid/parcels/${this.id}/`
+    let url = `/grid/parcels/${this.id}/`
 
     if (process.env.NODE_ENV !== 'production') {
       url = process.env.ASSET_PATH + url
@@ -1194,6 +1163,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
     const res = await fetch(url, {
       method: 'get',
+      cache: 'no-store',
     })
     if (!res.ok) throw res
     const r = (await res.json()) as ApiParcelMessage
@@ -1202,9 +1172,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
 
     Object.assign(this, r.parcel)
-
-    // the fetch does not include the hash, so we update it here
-    this.hash = hash
 
     this.loaded = true
     this.loading = false
@@ -1369,13 +1336,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     })
   }
 
-  private invalidateHash() {
-    // whenever we apply a patch to this parcel, we need to invalidate the hash to make sure that parcel rollback hash validation works correctly
-    // in a perfect world, the parcel would always have a valid hash that reflected its true state, however since the hash is calculated in psql, and
-    // we are sending diffs between client and server, this is not possible.
-    this.hash = undefined
-  }
-
   private featureToCamera(description: FeatureRecord): BABYLON.Vector3 {
     if (description.position) {
       return this.toCamera().subtract(BABYLON.Vector3.FromArray(tidyVec3(description.position)))
@@ -1469,7 +1429,9 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
   }
 
-  private onFeaturesLoaded() {
+  // Arrow so `this` stays the parcel: the pump calls it as tracking.onDone(parcel),
+  // which would otherwise bind `this` to the pump's tracking object and bail instantly.
+  private onFeaturesLoaded = () => {
     // bail if the parcel gets deactivated before we finish the load
     if (!this.activated) return
 
@@ -1481,17 +1443,16 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       this.scene.cleanCachedTextureBuffer()
     }
 
-    // Start the scripting engine on enter or if the player is in the area
-    // Given we've loaded the features, we should be near the parcel already
-    if ((this.entered || this.activated) && this.parcelScript) {
-      this.parcelScript.connect().then()
+    // Boot the behaviour runtime once features are in scene.
+    if ((this.entered || this.activated) && this.behaviours && !this.behaviours.connected) {
+      this.behaviours.init().catch((err) => console.error('[behaviours] init', err))
     }
   }
 
   private disconnect() {
-    if (this.parcelScript) {
-      this.parcelScript.disconnect()
-      this.parcelScript = null
+    if (this.behaviours) {
+      this.behaviours.dispose()
+      this.behaviours = null
     }
   }
 
@@ -1609,15 +1570,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
   }
 
-  private flushOnGenerateCallbacks = () => {
-    while (this.afterGenerateCallbacks.length) {
-      const f = this.afterGenerateCallbacks.shift()
-      if (f) {
-        f()
-      }
-    }
-  }
-
   private configureUnbakedVoxelFieldMeshes(opaque: BABYLON.Mesh, glass: BABYLON.Mesh, collider: BABYLON.Mesh) {
     this.setVoxelMesh(opaque, { collidable: false, pickable: false })
     this.setGlassMesh(glass, { collidable: false, pickable: false })
@@ -1627,8 +1579,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
     if (this.voxelMesh) this.dispatchEvent(createEvent('MeshLoaded', this.voxelMesh))
     if (this.glassMesh) this.dispatchEvent(createEvent('MeshLoaded', this.glassMesh))
-
-    this.scene.getEngine().onEndFrameObservable.addOnce(this.flushOnGenerateCallbacks)
   }
 
   private async configureBakedVoxelFieldMeshes(opaque: BABYLON.Mesh, glass: BABYLON.Mesh) {

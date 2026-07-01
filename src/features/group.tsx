@@ -1,7 +1,6 @@
 import { GroupRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
-import { Advanced, Animation, FeatureEditor, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
-import InspectorTab from '../ui/overlay/inspector'
+import { Position, Rotation, Behaviours, EditorProps } from '../../web/src/components/editor'
+import { FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { FeatureTemplate } from './_metadata'
 import Feature, { MeshExtended, NonMeshedFeature, transformVectors } from './feature'
 import { boundingBoxesOfFeatures, boundingBoxOfBoundingBoxes } from './utils/bounding-box'
@@ -24,6 +23,7 @@ const getTransformArrays = (
 }
 
 export default class Group extends NonMeshedFeature<GroupRecord> {
+  static Editor: typeof Editor
   static template: FeatureTemplate = {
     scale: [1, 1, 1],
     type: 'group',
@@ -50,14 +50,6 @@ export default class Group extends NonMeshedFeature<GroupRecord> {
     const result = this.children.flatMap((child) => (child instanceof Group ? child.descendants() : [child]))
     result.push(this)
     return result
-  }
-
-  afterSetCommon = () => {
-    this.children.forEach((child) => {
-      if (child.afterSetCommon) {
-        child.afterSetCommon()
-      }
-    })
   }
 
   deleteIfNoChildren = () => {
@@ -144,28 +136,31 @@ export default class Group extends NonMeshedFeature<GroupRecord> {
 }
 
 class Editor extends FeatureEditor<Group> {
+  onUngroup = () => {
+    this.props.feature.dissolve()
+    window.ui?.featureTool.unHighlight()
+    window.ui?.showEditBrowse()
+  }
+
   render() {
+    const f = this.props.feature
     return (
       <section>
         <header>
           <h2>Edit Group</h2>
           <button onClick={this.onBackClick} class="close">
-            {this.isAddMode ? <span>&times;</span> : <span>&crarr;</span>}
+            <span>&times;</span>
           </button>
         </header>
         <div className="scrollContainer">
-          {this.props.feature.children.length && <InspectorTab group={this.props.feature} key={`InspectorTab-${this.props.feature.uuid}`} />}
-          <Toolbar feature={this.props.feature} key={`Toolbar-${this.props.feature.uuid}`} scene={this.props.scene} />
-          <Position feature={this.props.feature} key={`Position-${this.props.feature.uuid}-${this.props.feature.position.toString()}`} />
-          <Scale feature={this.props.feature} alwaysLocked key={`Scale-${this.props.feature.uuid}-${this.props.feature.scale.toString()}`} />
-          <Rotation feature={this.props.feature} key={`Rotation-${this.props.feature.uuid}-${this.props.feature.rotation.toString()}`} />
-          <Advanced>
-            <FeatureID feature={this.props.feature} key={`FeatureID-${this.props.feature.uuid}`} />
-            <UuidReadOnly feature={this.props.feature} key={`UuidReadOnly-${this.props.feature.uuid}`} />
-            <Animation feature={this.props.feature} scaleAspectRatioAlwaysLocked key={`Animation-${this.props.feature.uuid}`} />
-            <SetParentDropdown feature={this.props.feature} key={`SetParentDropdown-${this.props.feature.uuid}`} />
-            <Script feature={this.props.feature} key={`Script-${this.props.feature.uuid}`} />
-          </Advanced>
+          <Toolbar feature={f} scene={this.props.scene} />
+          <EditorProps>
+            <button onClick={this.onUngroup}>Dissolve</button>
+            <Position feature={f} key={f.position.toString()} />
+            <Rotation feature={f} key={f.rotation.toString()} />
+            <FeatureID feature={f} />
+            <Behaviours feature={f} />
+          </EditorProps>
         </div>
       </section>
     )

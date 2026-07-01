@@ -254,17 +254,7 @@ SELECT apply_migration('guest-passes', $$
   CREATE INDEX IF NOT EXISTS guest_passes_parcel_id_idx ON guest_passes (parcel_id);
 $$);
 
-SELECT apply_migration('island-proposals', $$
-  CREATE TABLE IF NOT EXISTS island_proposals (
-    id            serial PRIMARY KEY,
-    proposer      text NOT NULL,
-    name          text NOT NULL,
-    geometry_json jsonb,
-    content       jsonb,
-    parcels       jsonb,
-    status        text NOT NULL DEFAULT 'pending',
-    created_at    timestamptz NOT NULL DEFAULT now()
-  );
-  CREATE INDEX IF NOT EXISTS island_proposals_status_idx ON island_proposals (status);
+SELECT apply_migration('asset-library-id-default', $$
+  ALTER TABLE asset_library ALTER COLUMN id SET DEFAULT gen_random_uuid();
 $$);
 

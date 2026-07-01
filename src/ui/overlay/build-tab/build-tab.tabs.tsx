@@ -1,4 +1,4 @@
-export type BuildTabNavTabs = 'add' | 'assets' | 'edit'
+export type BuildTabNavTabs = 'add' | 'assets'
 
 export const MainTabs = ({ currentTab, setCurrentTab }: { currentTab: BuildTabNavTabs; setCurrentTab: (tab: BuildTabNavTabs) => void }) => {
   return (
@@ -9,10 +9,6 @@ export const MainTabs = ({ currentTab, setCurrentTab }: { currentTab: BuildTabNa
       <div class="separator" />
       <button data-active={currentTab === 'assets'} onClick={() => setCurrentTab('assets')}>
         Assets
-      </button>
-      <div class="separator" />
-      <button data-active={currentTab === 'edit'} onClick={() => setCurrentTab('edit')}>
-        Edit
       </button>
     </nav>
   )

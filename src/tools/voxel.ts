@@ -10,6 +10,7 @@ import { signal } from '@preact/signals'
 import VertexShader from '../shaders/ao-mesh.vsh'
 import FragmentShader from '../shaders/ao-mesh.fsh'
 import { createGlassMaterial } from '../materials/glass'
+import { hasPointerLock } from '../../common/helpers/ui-helpers'
 
 /*
  * Fixme - this needs some refactoring around selection mode and selection
@@ -252,6 +253,8 @@ export default class Selector implements Tool {
     this.enabled.value = true
 
     this.scene.onPointerObservable.add(this.onPointerObservable)
+    document.addEventListener('pointerlockchange', this.lockListener)
+    this.lockListener()
 
     if (this.selection.mode == SelectionMode.Add) {
       // notify that build tool just got activated
@@ -280,6 +283,7 @@ export default class Selector implements Tool {
     this.mousedown = false
     this.box.visibility = 0
     this.box.scaling.set(1, 1, 1)
+    document.removeEventListener('pointerlockchange', this.lockListener)
     this.scene.onPointerObservable.removeCallback(this.onPointerObservable)
   }
 
@@ -299,7 +303,7 @@ export default class Selector implements Tool {
   }
 
   onPointerObservable(eventData: BABYLON.PointerInfo) {
-    const pickInfo = eventData.pickInfo
+    const pickInfo = this.controls.pickForPointer(eventData.pickInfo)
     if (!pickInfo) return
     switch (eventData.type) {
       case BABYLON.PointerEventTypes.POINTERDOWN:
@@ -323,12 +327,23 @@ export default class Selector implements Tool {
     }
   }
 
+  private lockListener = () => {
+    if (!hasPointerLock()) {
+      // Escaped out of the reticule: drop the ghost now instead of waiting for a mouse move.
+      if (this.controls.firstPersonView) this.box.visibility = 0
+      return
+    }
+    const pick = this.controls.pickForPointer(null)
+    if (pick) this.onMove(pick)
+  }
+
   async onLeftPointerDown(e: BABYLON.IMouseEvent, pickResult: BABYLON.PickingInfo) {
     this.audio?.playSound('build.extend')
 
     this.selection.start = undefined
     this.selection.end = undefined
     this.selection.count = 1
+    this.applyPointerMode(e)
     this.onMove(pickResult)
 
     this.mousedown = true
@@ -377,20 +392,17 @@ export default class Selector implements Tool {
       return
     }
 
-    // todo - repick on keypress but no mousemove
+    // First person builds through the locked reticule; once you Escape to free the cursor
+    // there's no aim point, so don't leave a ghost block stuck under the mouse.
+    if (this.controls.firstPersonView && !hasPointerLock()) {
+      this.box.visibility = 0
+      return
+    }
 
-    // When we activate remove mode from the "Activate Erase Tool" we don't want to update the tool
-    // using keyboard controls
-    if (!this.selection.fixedMode) {
-      // TODO: rewrite this to use a much better method of switching modes on keypress instead of on mouse move
-
-      if (this.controls.shiftKey) {
-        this.selection.mode = SelectionMode.Remove
-      } else if (this.controls.ctrlKey) {
-        this.selection.mode = SelectionMode.Paint
-      } else {
-        this.selection.mode = SelectionMode.Add
-      }
+    // Preview the mode on hover (shift = remove, ctrl = paint) so the ghost reflects what a
+    // click will do. During a drag the mode is frozen to whatever you started the drag with.
+    if (!this.mousedown) {
+      this.applyPointerMode()
     }
 
     const voxelCenter = this.getVoxelCenter(pickResult, this.selection.mode)
@@ -430,6 +442,9 @@ export default class Selector implements Tool {
       return
     }
 
+    // Remove mode shows the target block fainter so you can see it's going to be deleted.
+    this.voxelMaterial.setFloat('alpha', this.selection.mode === SelectionMode.Remove ? 0.3 : 0.85)
+
     const a = this.voxelToWorldSpace(this.selection.start, this.selection.parcel)
     if (a) {
       this.box.position.copyFrom(a)
@@ -464,6 +479,19 @@ export default class Selector implements Tool {
     const z2 = Math.max(a.z, b.z)
 
     return new BABYLON.BoundingBox(new BABYLON.Vector3(x1, y1, z1), new BABYLON.Vector3(x2, y2, z2))
+  }
+
+  private applyPointerMode(e?: BABYLON.IMouseEvent) {
+    if (this.selection.fixedMode) return
+    const shift = e?.shiftKey ?? this.controls.shiftKey
+    const ctrl = e?.ctrlKey ?? e?.metaKey ?? this.controls.ctrlKey
+    if (shift) {
+      this.selection.mode = SelectionMode.Remove
+    } else if (ctrl) {
+      this.selection.mode = SelectionMode.Paint
+    } else {
+      this.selection.mode = SelectionMode.Add
+    }
   }
 
   getVoxelCenter(pickResult: BABYLON.PickingInfo, mode: SelectionMode): BABYLON.Vector3 | null {

@@ -11,7 +11,7 @@ import VoxModel, { Megavox } from './vox-model'
 import NftImage from './nft-image'
 import CollectibleModel from './collectible-model'
 import ParticleSystem from './particle-system'
-import PolytextV2 from './polytext-v2'
+import Polytext from './polytext'
 import Portal from './portal'
 import Richtext from './richtext'
 import Sign from './sign'
@@ -39,7 +39,7 @@ export const featuresInfo: FeatureMetadata[] = [
   NftImage.metadata,
   CollectibleModel.metadata,
   ParticleSystem.metadata,
-  PolytextV2.metadata,
+  Polytext.metadata,
   PoseBall.metadata,
   Portal.metadata,
   Richtext.metadata,
@@ -70,7 +70,7 @@ export const featureTemplates: Record<PlaceableFeatureTypes, FeatureTemplate> = 
   'spawn-point': SpawnPoint.template,
   'text-input': TextInput.template,
   'slider-input': SliderInput.template,
-  'polytext-v2': PolytextV2.template,
+  polytext: Polytext.template,
   'pose-ball': PoseBall.template,
   portal: Portal.template,
   richtext: Richtext.template,
@@ -82,7 +82,7 @@ export const featureTemplates: Record<PlaceableFeatureTypes, FeatureTemplate> = 
 }
 
 // these are the features that can be placed by the user
-export type PlaceableFeatureTypes = Exclude<FeatureType, 'animation-platform' | 'script' | 'polytext' | 'vox' | 'screen'>
+export type PlaceableFeatureTypes = Exclude<FeatureType, 'animation-platform' | 'script' | 'polytext-v2' | 'vox' | 'screen'>
 
 // Used to display info about the Feature in the add tab
 export type FeatureMetadata = {

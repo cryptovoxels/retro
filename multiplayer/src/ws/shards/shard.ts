@@ -5,6 +5,7 @@ import { WSCloseCodes } from '../../constants/socketCloseCodes'
 import type { WsLike } from '../../createServer'
 import { AbortError } from '../../utility/abortError'
 import { toBuffer } from '../../utility/toBuffer'
+import { BehaviourRelay } from '../behaviour-relay'
 import { Client, ClientConnectionInformation } from '../client'
 
 export type AddClientResult =
@@ -28,6 +29,7 @@ export class Shard {
   readonly disposeAbortController = new AbortController()
   updateTimeout: NodeJS.Timeout
   readonly recentChat: messages.ChatMessage[] = []
+  readonly behaviourRelay: BehaviourRelay = new BehaviourRelay(this)
 
   constructor(
     public readonly id: string,
@@ -189,6 +191,7 @@ export class Shard {
         this.dropInactiveClient(connectedClient)
       }
     }
+    this.behaviourRelay.evict()
   }
 
   getClientList() {

@@ -633,24 +633,12 @@ export default class IslandsAdmin extends Component<Props, State> {
     // const geometry = `POLYGON((${x1} ${y1}, ${x2} ${y1}, ${x2} ${y2}, ${x1} ${y2}, ${x1} ${y1}))`
     const geometry = this.getIslandGeometry()
 
-    // admins write straight to the islands table; everyone else proposes for review.
-    if (app.isAdmin()) {
-      await fetch('/api/admin/islands', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, geometry, content }),
-      })
-      app.showSnackbar('island saved')
-      return
-    }
-
-    const payload = parcels.map((p) => this.parcelPayload(p))
-    const r = await fetch('/api/islands/propose', {
+    await fetch('/api/admin/islands', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, geometry, content, parcels: payload }),
+      body: JSON.stringify({ name, geometry, content }),
     })
-    app.showSnackbar(r.ok ? 'proposal submitted for review' : 'could not submit proposal')
+    app.showSnackbar('island saved')
   }
 
   private getIslandGeometry() {

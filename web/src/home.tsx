@@ -45,16 +45,6 @@ export default class Home extends Component<Props, State> {
       return <Spinner size={24} />
     }
 
-    const avatar = this.state.avatar
-    const title = avatar?.name || avatar?.owner
-
-    return (
-      <>
-        <nav class="account-quick-links">
-          <a href="/events/new">New event</a>
-        </nav>
-        <Profile walletOrUUId={this.wallet} isOwner={true} tab={this.props.tab} />
-      </>
-    )
+    return <Profile walletOrUUId={this.wallet} isOwner={true} tab={this.props.tab} />
   }
 }

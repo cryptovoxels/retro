@@ -1,7 +1,7 @@
 import { SpawnPointRecord } from '../../common/messages/feature'
 import { voxImporter } from '../../common/vox-import/vox-import'
-import { Position, Rotation, Script } from '../../web/src/components/editor'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
+import { Position, Rotation, Behaviours, EditorProps } from '../../web/src/components/editor'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D } from './feature'
 
@@ -196,18 +196,18 @@ class Editor extends FeatureEditor<SpawnPoint> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+          <EditorProps>
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <div className="f">Only the owner and contributors can see it!</div>
-          <Advanced>
-            <FeatureID feature={this.props.feature} />
-            <SetParentDropdown feature={this.props.feature} />
+            <div className="f">Only the owner and contributors can see it!</div>
+            <Advanced>
+              <FeatureID feature={this.props.feature} />
 
-            <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
-          </Advanced>
+              <Behaviours feature={this.props.feature} />
+            </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

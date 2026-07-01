@@ -104,13 +104,6 @@ const gridClusterMessageArbs: GridClusterMessageArbitraries = {
       sender: senderArb,
     }),
   }),
-  hashUpdate: fc.record<GridClusterMessage.HashUpdate>({
-    type: fc.constant('hashUpdate'),
-    payload: fc.record({
-      parcelId: parcelIdArb,
-      hash: fc.string(),
-    }),
-  }),
   metaUpdate: fc.record<GridClusterMessage.MetaUpdate>({
     type: fc.constant('metaUpdate'),
     payload: fc.record({
@@ -127,7 +120,6 @@ const gridClusterMessageArbs: GridClusterMessageArbitraries = {
     type: fc.constant('lightmapUpdate'),
     payload: fc.record({
       parcelId: parcelIdArb,
-      hash: fc.string(),
       lightmap_url: fc.string(),
     }),
   }),

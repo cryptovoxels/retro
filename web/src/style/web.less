@@ -16,6 +16,9 @@
 
 :root {
   --red: #dc1e1e;
+  --axis-x: var(--red);
+  --axis-y: #6bbf59;
+  --axis-z: #6b9fd4;
   --border: 1px solid #aaa;
   --softborder: 1px solid #aaa;
   --soft: #888;
@@ -131,7 +134,6 @@ a.buttonish {
 header {
   position: sticky;
   top: 0;
-  background: white;
   z-index: 100;
 }
 
@@ -147,7 +149,6 @@ header nav {
     padding: 0;
     border-top: var(--border);
     border-bottom: var(--border);
-    background: white;
   }
 
   li {
@@ -465,52 +466,135 @@ div.map {
   height: 60vh;
 }
 
-// Fullscreen world view (the /play route). The persistent canvas gets reparented
-// into the .client-placeholder box, which fills this fixed fullscreen container.
-.world-fullscreen {
-  position: fixed;
-  inset: 0;
-  width: 100vw;
+// ?coords= in URL: canvas in main > article, web/panes in main > aside
+body.in-world main {
+  display: grid;
+  grid-template-columns: 1fr clamp(18rem, 30%, 32rem);
+  grid-template-rows: auto 1fr;
+  grid-template-areas:
+    'header header'
+    'canvas sidebar';
   height: 100vh;
-  z-index: 1;
   overflow: hidden;
+  max-width: none;
 
-  .world-client {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
+  > header {
+    grid-area: header;
   }
 
-  .client-placeholder {
+  > article {
+    grid-area: canvas;
     position: relative;
-    width: 100%;
-    height: 100%;
+    min-height: 0;
+    min-width: 0;
+  }
 
-    @media @mobile {
-      height: calc(100dvh - var(--chatbar));
+  > aside {
+    grid-area: sidebar;
+    overflow-y: auto;
+    min-height: 0;
+    min-width: 0;
+    padding: 1rem;
+    position: relative;
+
+    .sidebar-close {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      z-index: 3;
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: inherit;
+    }
+
+    & > div {
+      background: #222;
+    }
+
+    a {
+      color: var(--red);
+      text-decoration: underline;
+    }
+
+    dl {
+      dt {
+        font-weight: bold;
+        margin-top: 0.5rem;
+      }
+
+      dd {
+        margin: 0 0 0.5rem 0;
+      }
+    }
+
+    img.womp {
+      max-width: 100%;
+      margin: 1rem 0;
+    }
+
+    .sidebar-tabs {
+      display: flex;
+      gap: 1rem;
+      margin: 0 0 1rem 0;
+      padding: 0;
+      list-style: none;
+
+      li {
+        cursor: pointer;
+        text-transform: lowercase;
+
+        &.-active {
+          font-weight: bold;
+          color: var(--red);
+        }
+      }
+    }
+
+    .parcel-sidebar-map {
+      height: 14rem;
+      width: 100%;
+    }
+
+    .parcels-table tr.-selected {
+      font-weight: bold;
+      color: var(--red);
     }
   }
 }
 
-.world-client {
-  position: relative;
-  width: 100%;
+// sidebar closed: world fills the whole viewport (aside stays mounted, just hidden,
+// so the children Router and any open pane keep their state)
+body.in-world.sidebar-closed main {
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    'header'
+    'canvas';
 
-  > .UserInterface {
-    position: absolute;
-    inset: 0;
-    z-index: 2;
-    pointer-events: none;
-
-    > * {
-      pointer-events: auto;
-    }
+  > aside {
+    display: none;
   }
+}
+
+main > article .UserInterface {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+
+  > * {
+    pointer-events: auto;
+  }
+}
+
+.sidebar-view {
+  padding: 0;
 }
 
 .client-placeholder {
   position: relative;
+  width: 100%;
+  height: 100%;
 }
 
 // We fullscreen <body> (not the canvas) so the in-world UI overlay stays visible.
@@ -524,6 +608,80 @@ body:-webkit-full-screen .client-placeholder {
   width: 100vw;
   height: 100vh;
   z-index: 1;
+}
+
+// Fullscreen: broadcast controls slide in from the right; canvas stays full viewport.
+body:fullscreen.in-world main > aside.-broadcast-open,
+body:-webkit-full-screen.in-world main > aside.-broadcast-open {
+  display: block;
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: min(360px, 36vw);
+  z-index: 4;
+  overflow-y: auto;
+  padding: 1rem;
+  background: #0d0d0d;
+}
+
+// closing collapses the dock even in fullscreen; the live tab brings it back
+body:fullscreen.in-world.sidebar-closed main > aside.-broadcast-open,
+body:-webkit-full-screen.in-world.sidebar-closed main > aside.-broadcast-open {
+  display: none;
+}
+
+.showbox-broadcast-mount {
+  width: 100%;
+  min-height: 0;
+}
+
+// closing the sidebar while live drops to this: the minimized "live" pill, vertical on the edge.
+.broadcast-sidebar-tab {
+  position: fixed;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.4rem;
+  background: #0d0d0d;
+  color: var(--red);
+  border: 0;
+  border-left: 2px solid var(--red);
+  font-family: 'source code pro', monospace;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+
+  span {
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+  }
+
+  .broadcast-sidebar-tab-dot {
+    writing-mode: horizontal-tb;
+    font-size: 10px;
+    animation: showbox-live-pulse 1.2s ease-in-out infinite;
+  }
+
+  .broadcast-sidebar-tab-time {
+    color: #f5f5f0;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@keyframes showbox-live-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
 }
 
 dialog.first-time {
@@ -726,40 +884,44 @@ small {
   gap: 0.1rem;
 
   span {
-    color: rgba(255, 255, 255, 0.5);
     width: 0.9rem;
     height: 0.9rem;
     text-align: center;
     line-height: 0.9rem;
-    background: #999;
-    border-radius: 2px;
+    background: var(--dark);
+    color: var(--bright);
   }
 
   .m-e {
-    background: #8a8;
+    background: var(--red);
+    color: var(--bright);
   }
 
   .m-x {
-    background: #c99;
+    background: var(--bright);
+    color: var(--red);
   }
 
   .m-i {
-    background: #c8c;
+    background: var(--red);
+    color: var(--dark);
   }
 
   .m-c {
-    background: #abc;
+    background: var(--dark);
+    color: var(--red);
   }
 
   .m-d {
-    background: #fa0;
+    background: var(--bright);
+    color: var(--dark);
   }
 
   time {
-    border-radius: 2px;
     line-height: 0.9rem;
-    background: #eee;
-    color: #999;
+    background: var(--dark);
+    color: var(--bright);
+    box-shadow: inset 0 0 0 1px #333;
     font-size: x-small;
     text-transform: uppercase;
     width: 2.9rem;
@@ -875,7 +1037,6 @@ section.login {
     margin-top: 0.2rem;
     padding: 0.4rem 0.5rem;
     border: 1px solid #999;
-    background: #fff;
     font-family: inherit;
     font-size: 0.9rem;
   }
@@ -964,6 +1125,72 @@ section.profile {
     margin: 0 0 0.5rem;
   }
 
+  .name-wizard {
+    margin: 0.5rem 0 1rem;
+    max-width: 28rem;
+
+    p {
+      margin: 0 0 0.75rem;
+    }
+
+    .name-box {
+      display: flex;
+      align-items: stretch;
+      border: 1px solid var(--red);
+
+      .chev {
+        display: flex;
+        align-items: center;
+        padding: 0 0.65rem;
+        color: var(--red);
+        user-select: none;
+        letter-spacing: -0.15em;
+      }
+
+      input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        font-family: 'source code pro', monospace;
+        font-size: 1.35rem;
+        padding: 0.85rem 0.25rem;
+        outline: none;
+        min-width: 0;
+        width: 100%;
+      }
+    }
+
+    small {
+      display: block;
+      margin-top: 0.35rem;
+      opacity: 0.65;
+    }
+
+    .name-picked {
+      margin: 0 0 0.75rem;
+
+      small {
+        opacity: 0.65;
+      }
+    }
+
+    .name-status {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin: 0.65rem 0 0.5rem;
+      min-height: 1.25rem;
+
+      &.ok {
+        color: var(--red);
+      }
+
+      &.bad {
+        color: var(--red);
+      }
+    }
+  }
+
   .account-welcome-msg {
     font-size: 0.88rem;
     line-height: 1.45;
@@ -1024,6 +1251,13 @@ section.profile {
   background: #eee;
   position: relative;
 
+  .loading {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    margin: -8px 0 0 -8px;
+  }
+
   img {
     position: absolute;
     left: 50%;
@@ -1082,7 +1316,6 @@ p.empty {
     width: 25rem;
     font-family: 'source code pro', monospace;
     font-size: small;
-    background: white;
     border: 1px solid #555;
     list-style: none;
     z-index: 100;
@@ -1141,7 +1374,6 @@ p.empty {
 
 menu.context {
   border: --border;
-  background: white;
   box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.2);
   margin: 0;
   padding: 0;
@@ -1154,7 +1386,6 @@ menu.context {
   }
 
   li:hover {
-    background: #ccc;
   }
 }
 
@@ -1756,27 +1987,12 @@ header nav a.active {
   color: var(--red);
 }
 
-header,
-footer nav ul {
-  background: #0d0d0d;
-}
-
-header nav ul {
-  background: #0d0d0d;
-}
-
-main,
-article {
-  background: #0d0d0d;
-}
-
 // flat, higher-contrast buttons: kill the bevel, brighter face + border
 button,
 a.buttonish {
   background: #222;
   color: #f5f5f0;
   border: 1px solid #555;
-  border-radius: 0;
   box-shadow: none;
 
   &:hover {

@@ -66,13 +66,11 @@ body.in-world {
 
   ::-webkit-scrollbar-thumb {
     background: #999;
-    border-radius: 6px;
   }
 
   ::-webkit-scrollbar-track {
     background: #444;
     margin: 1rem 0;
-    border-radius: 6px;
   }
 
   p,
@@ -122,7 +120,6 @@ button.iconish {
     right: 4px;
     width: 6px;
     height: 6px;
-    border-radius: 50%;
     background: #e74c3c;
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.5);
     pointer-events: none;
@@ -137,9 +134,30 @@ button.iconish {
   }
 }
 
+.UserInterface aside:not(.ui-toggle-mobile) {
+  @media screen and (max-width: 799px), screen and (max-height: 449px) {
+    &[data-active='false'] {
+      & > ul.ui-sidebar {
+        transform: translateX(-100%);
+        visibility: hidden;
+        pointer-events: none;
+      }
+
+      div.chat {
+        visibility: hidden;
+        pointer-events: none;
+      }
+    }
+  }
+}
+
 .UserInterface aside {
   @width: 8rem;
-  position: relative;
+  width: @width;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
 
   & > ul {
     height: 100vh;
@@ -192,53 +210,14 @@ button.iconish {
       color: var(--red);
     }
   }
+}
 
-  dialog {
-    top: 1rem;
-    left: 8rem;
-    bottom: 0;
-    display: block;
-    margin: 0;
-    width: 25rem;
-    border: none;
-    background: transparent;
-
-    header {
-      position: relative;
-    }
-
-    header h1,
-    header h2 {
-      font-size: 1.22rem;
-      font-weight: bold;
-      margin: 0 0 1rem 0;
-      text-shadow: 2px 2px 2px black;
-    }
-
-    header button.close {
-      position: absolute;
-      top: 0;
-      right: 0;
-      color: white;
-      padding: 0.4rem 0.6rem;
-      font-size: 1rem;
-      background: #3335;
-      border: none;
-      cursor: pointer;
-
-      &:hover {
-        font-weight: bold;
-      }
-    }
-
-    & > section {
-      max-height: ~'calc(100vh - 12rem)';
-      overflow-y: auto;
-      border-radius: 1rem;
-      padding: 0.5rem;
-      background: #333;
-    }
-  }
+// the aside is the single scroll container in split view; inner pane sections
+// must not make a second one (that was the double-scrollbar). pin headers with
+// position: sticky instead of a nested scroller.
+body.in-world main > aside section {
+  overflow: visible;
+  padding: 0.5rem;
 }
 
 .UserInterface dialog .baking textarea {
@@ -250,13 +229,21 @@ button.iconish {
 
 /* Chat */
 .UserInterface div.chat {
-  position: absolute;
+  position: fixed;
   bottom: 0;
   left: 0;
+  z-index: 100;
+  color: #f5f5f0;
   margin: 0 0 4px 0;
   padding: 4px;
   display: flex;
   flex-direction: column;
+  pointer-events: none;
+
+  form,
+  .chat-messages {
+    pointer-events: auto;
+  }
 
   .chat-messages {
     display: flex;
@@ -289,7 +276,6 @@ button.iconish {
       padding: 2px 0.4rem;
       text-shadow: 1px 1px 1px black;
       background: #0005;
-      border-radius: 2px;
     }
   }
 
@@ -349,7 +335,6 @@ button.iconish {
 .AnimateList {
   margin: 5px 0;
   background: var(--tinge);
-  border-radius: 5px;
 
   ul {
     margin: 0;
@@ -363,7 +348,6 @@ button.iconish {
       padding: 10px 0;
       cursor: pointer;
       text-align: center;
-      border-radius: 5px;
       width: 100%;
 
       > i {
@@ -416,9 +400,7 @@ button.iconish {
   }
 
   li:hover {
-    background: white;
     color: black;
-    border-radius: 1rem;
     filter: unset;
   }
 }
@@ -429,15 +411,50 @@ button.iconish {
   gap: 0.5rem;
 
   li:hover {
-    background: white;
     color: black;
-    border-radius: 1rem;
   }
 }
 
 /* Feature editor */
+body.in-world main > aside .editor,
+body.in-world main > aside .edit-pane-inspector,
+body.in-world main > aside section.settings,
 .UserInterface dialog.editor {
   font-size: 1em;
+  overflow-x: hidden;
+
+  header {
+    position: relative;
+    margin-bottom: 0.5rem;
+
+    h2 {
+      font-size: 1.22rem;
+      font-weight: bold;
+      margin: 0;
+      text-shadow: 2px 2px 2px black;
+    }
+
+    button.close {
+      display: none;
+    }
+  }
+
+  .editor-toolbar {
+    margin-bottom: 0.5rem;
+
+    ul.toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      gap: 2px;
+    }
+  }
+
+  .scrollContainer {
+    overflow-x: hidden;
+  }
 
   textarea,
   input {
@@ -470,9 +487,7 @@ button.iconish {
       margin: 0 2px 0 0;
       padding: 4px 10px;
       list-style: none;
-      background: #222;
       color: #ccc;
-      border-radius: 4px 4px 0 0;
       border-bottom: 1px solid #111;
       max-width: 60px;
       white-space: nowrap;
@@ -489,7 +504,6 @@ button.iconish {
 
     li.active {
       border-bottom: none;
-      background: #444;
       color: #eee;
     }
 
@@ -498,7 +512,6 @@ button.iconish {
       right: -2px;
       margin-top: 1px;
       padding-bottom: 10px !important;
-      background: #444;
     }
   }
 
@@ -509,7 +522,6 @@ button.iconish {
       color: rgb(212, 212, 212);
       background: initial;
       padding: 0.4rem;
-      border-radius: 0.4rem 0.4rem 0 0;
       margin: 0 0.4rem 0 0;
 
       &.active {
@@ -547,7 +559,190 @@ button.iconish {
     }
   }
 
-  // numeric vector inputs
+  // inspector property list
+  dl.props {
+    display: grid;
+    grid-template-columns: 38% 1fr;
+    margin: 0;
+    padding: 0;
+
+    dt,
+    dd {
+      margin: 0;
+      padding: 4px 6px;
+      border-bottom: 1px solid #222;
+      align-self: center;
+    }
+
+    dt {
+      color: #aaa;
+      font-size: 0.85em;
+
+      &:empty {
+        padding: 0;
+        border-bottom: none;
+      }
+    }
+
+    dd {
+      padding: 0;
+
+      &.full {
+        grid-column: 1 / -1;
+        padding: 4px 6px;
+      }
+
+      input[type='text'],
+      input[type='number'],
+      select,
+      textarea {
+        font: inherit;
+        width: 100%;
+        border: none;
+        padding: 4px;
+        background: transparent;
+        color: #aaa;
+      }
+
+      input[type='checkbox'] {
+        margin: 4px;
+      }
+    }
+
+    dd.vec3 {
+      display: flex;
+      gap: 0;
+      padding: 0;
+      min-width: 0;
+      overflow: hidden;
+
+      > input[type='checkbox'] {
+        flex: 0 0 auto;
+        margin: 0 4px;
+        align-self: center;
+      }
+
+      label.axis {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        border-left: 1px solid #222;
+        margin: 0;
+
+        &:first-child {
+          border-left: none;
+        }
+
+        span {
+          padding: 0 4px;
+          font-size: 0.85em;
+          text-transform: lowercase;
+        }
+
+        &.x span {
+          color: var(--axis-x);
+        }
+
+        &.y span {
+          color: var(--axis-y);
+        }
+
+        &.z span {
+          color: var(--axis-z);
+        }
+
+        input {
+          flex: 1;
+          min-width: 0;
+          border: none;
+          background: transparent;
+          color: #eee;
+          padding: 4px 2px;
+        }
+      }
+    }
+
+    .f {
+      display: grid;
+      grid-column: 1 / -1;
+      grid-template-columns: 38% 1fr;
+      padding: 0;
+      border-bottom: 1px solid #222;
+
+      form {
+        display: contents;
+      }
+
+      > label,
+      label:first-child {
+        color: #aaa;
+        font-size: 0.85em;
+        padding: 4px 6px;
+        display: block;
+        padding-bottom: 0;
+        grid-column: 1;
+        align-self: center;
+      }
+
+      > input,
+      > select,
+      > textarea,
+      > button {
+        grid-column: 2;
+        padding: 4px 6px;
+        align-self: center;
+        width: 100%;
+        box-sizing: border-box;
+        background: transparent;
+      }
+
+      > div:not(.sub-f),
+      > .button-tabs,
+      form label {
+        grid-column: 1 / -1;
+      }
+
+      > select ~ * {
+        grid-column: 1 / -1;
+      }
+
+      small {
+        grid-column: 2;
+        margin: 0;
+        padding: 0 6px 4px;
+        display: block;
+      }
+    }
+
+    .behaviours {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: 38% 1fr;
+      border-bottom: 1px solid #222;
+
+      > label {
+        color: #aaa;
+        font-size: 0.85em;
+        padding: 4px 6px;
+        margin: 0;
+        align-self: center;
+      }
+
+      > small {
+        margin: 0;
+        padding: 4px 6px;
+        align-self: center;
+      }
+
+      .behaviour-row,
+      .behaviour-add,
+      > .f {
+        grid-column: 1 / -1;
+      }
+    }
+  }
+
+  // legacy numeric vector inputs
   .vectors {
     @c: #111;
     box-sizing: border-box;
@@ -569,17 +764,14 @@ button.iconish {
       color: white;
 
       &:hover {
-        background: white;
         color: @c;
       }
     }
 
     span:has(+ input) {
-      border-radius: 0.4rem 0 0 0.4rem;
     }
 
     input + span {
-      border-radius: 0 0.4rem 0.4rem 0;
       margin-right: 0.5rem;
     }
 
@@ -630,9 +822,8 @@ button.iconish {
       width: 100%;
       border: none;
       padding: 4px;
-      background: #222;
+      background: transparent;
       color: #aaa;
-      border-radius: 4px;
     }
 
     &.uv input[type='number'],
@@ -664,10 +855,8 @@ button.iconish {
     }
 
     .sub-f {
-      background-color: #272727;
       padding: 3px 5px 0 5px;
       margin: 5px 0;
-      border-radius: 2px;
     }
 
     select + div {
@@ -708,7 +897,6 @@ button.iconish {
         padding: 3px 0;
         text-align: center;
         background: #222;
-        border-radius: 0;
 
         &:focus {
           outline: none;
@@ -771,8 +959,90 @@ button.iconish {
       width: 800px;
     }
   }
+
+  dl.props {
+    dt {
+      font-weight: normal;
+      margin-top: 0;
+    }
+
+    dd {
+      margin: 0;
+    }
+
+    .f {
+      padding: 0;
+
+      label:first-child {
+        padding-bottom: 0;
+      }
+
+      label:has(input[type='checkbox']) {
+        grid-column: 1 / -1;
+      }
+
+      form small {
+        grid-column: 1 / -1;
+      }
+
+      small {
+        margin-top: 0;
+      }
+
+      input[type='text'],
+      input[type='number'],
+      input[type='range'],
+      textarea {
+      }
+    }
+  }
 }
 
+body.in-world main > aside section.settings {
+  > section + section {
+    margin-top: 0;
+  }
+
+  header {
+    margin-bottom: 0.5rem;
+  }
+
+  h3 {
+    font-size: 0.85em;
+    margin: 0;
+    padding: 4px 0;
+    border: var(--border);
+    color: #aaa;
+    font-weight: normal;
+  }
+
+  dl.props {
+    margin: 0;
+    padding: 0;
+
+    dt,
+    dd {
+      padding: 4px 0;
+    }
+
+    dd.full {
+      padding: 4px 0;
+    }
+
+    dd input[type='checkbox'] {
+      margin: 4px 4px 4px 0;
+    }
+
+    dd input[type='text'],
+    dd input[type='number'],
+    dd select,
+    dd textarea {
+      padding-left: 0;
+    }
+  }
+}
+
+body.in-world main > aside .editor ul.toolbar,
 .UserInterface dialog ul.toolbar {
   margin-bottom: 10px;
   padding-left: 0;
@@ -850,7 +1120,6 @@ section.build-tab nav.build-main-tabs {
 
       &:hover {
         background: #555;
-        border-radius: 0.4rem;
       }
 
       .meta {
@@ -921,9 +1190,7 @@ section.build-tab nav.build-main-tabs {
 
 .UserInterface aside .login a.button {
   position: relative;
-  background: white;
   color: black;
-  border-radius: 2rem;
   padding: 0.5rem 1rem;
   line-height: 2rem;
   display: inline-block;
@@ -963,7 +1230,6 @@ section.build-tab nav.build-main-tabs {
     height: 44px;
     padding: 0;
     border: none;
-    border-radius: 3px 0 0 3px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -1003,7 +1269,6 @@ section.build-tab nav.build-main-tabs {
     position: relative;
     top: 100px;
     transition: top 0.2s ease-out;
-    border-radius: 5px;
     background: rgb(211, 211, 211, 0.3);
 
     div.toolbelt-pagination {
@@ -1018,7 +1283,6 @@ section.build-tab nav.build-main-tabs {
         background-color: rgba(129, 129, 129, 0.4);
         color: #000;
         text-align: center;
-        border-radius: 3px;
         width: 1rem;
         aspect-ratio: 1 / 1;
 
@@ -1041,7 +1305,6 @@ section.build-tab nav.build-main-tabs {
 
     button.tint {
       outline: none;
-      border-radius: 4px;
       border: none;
       height: 38px;
       margin-right: 0;
@@ -1080,7 +1343,6 @@ section.build-tab nav.build-main-tabs {
       top: -50px;
       width: 90px;
       display: flex;
-      border-radius: 4px;
       flex-wrap: wrap;
       list-style: none;
       padding: 3px;
@@ -1106,7 +1368,6 @@ section.build-tab nav.build-main-tabs {
         padding: 2px 4px;
         font-size: 0.65rem;
         cursor: pointer;
-        border-radius: 2px;
         border: 1px solid rgba(0, 0, 0, 0.25);
         background: rgba(255, 255, 255, 0.6);
         color: #000;
@@ -1139,7 +1400,6 @@ section.build-tab nav.build-main-tabs {
         color: white;
         font-size: 0.7rem;
         padding: 0 3px;
-        border-radius: 3px;
       }
     }
 
@@ -1150,7 +1410,6 @@ section.build-tab nav.build-main-tabs {
       background-repeat: repeat;
       background-blend-mode: multiply;
       background-color: black;
-      border-radius: 2px;
       width: 40px;
       height: 40px;
 
@@ -1205,7 +1464,6 @@ section.build-tab nav.build-main-tabs {
   max-height: calc(100vh - 48px);
   overflow: hidden auto;
   padding: 16px 18px 14px;
-  border-radius: 8px;
   background: @overlayWindowBackground;
   border: 1px solid @overlayWindowBorderColor;
   color: @overlayWindowTextColor;
@@ -1237,7 +1495,6 @@ section.build-tab nav.build-main-tabs {
       &:hover,
       &.-dragOver {
         background-color: #000;
-        border-radius: 5px;
         position: relative;
 
         img,
@@ -1252,7 +1509,6 @@ section.build-tab nav.build-main-tabs {
         margin: 7px;
         background-size: 384px 384px;
         background-repeat: repeat;
-        border-radius: 2px;
         width: 48px;
         height: 48px;
       }
@@ -1279,7 +1535,6 @@ section.build-tab nav.build-main-tabs {
   div.OtherTextures {
     border-top: 2px solid #3c2744;
     padding: 2px 0;
-    border-radius: 5px;
 
     img.other-parcel-texture {
       margin: 4px;
@@ -1532,7 +1787,6 @@ section.build-tab nav.build-main-tabs {
     top: 5px;
     right: 5px;
     padding: 5px;
-    border-radius: 5px;
     background: #3d2f5fbf;
     color: #ececec;
   }
@@ -1551,25 +1805,10 @@ section.build-tab nav.build-main-tabs {
     margin: 10px;
 
     img {
-      border-radius: 2px;
     }
 
     div.asset-card-container {
       position: relative;
-
-      div.asset-card-actions {
-        display: none;
-        position: absolute;
-        bottom: 5px;
-        left: 0;
-        width: 100%;
-      }
-
-      &:hover div.asset-card-actions {
-        display: flex;
-        gap: 5px;
-        justify-content: center;
-      }
     }
   }
 }
@@ -1586,148 +1825,121 @@ section.build-tab nav.build-main-tabs {
   &.scripts img {
     display: none;
   }
+}
 
-  .asset-browser-inspector {
+.edit-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.edit-pane-tree {
+  flex: 0 0 15rem;
+  max-height: 15rem;
+  min-height: 0;
+  margin-top: auto;
+  overflow: auto;
+  overflow-x: hidden;
+  border-top: 1px solid #333;
+
+  .feature-tree {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+
+    ul {
+      margin: 0;
+      padding-left: 1rem;
+      list-style: none;
+    }
+
+    li {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+
+      &.-selected > .feature-tree-row {
+        color: var(--red);
+      }
+    }
+  }
+
+  .feature-tree-parcel > .feature-tree-label {
+    display: block;
+    padding: 4px 6px;
+    font-size: 0.85em;
+  }
+
+  .feature-tree-parcel .feature-tree-row {
+    cursor: pointer;
+  }
+
+  .feature-tree-row {
     display: flex;
-    flex-direction: column;
-    margin: 10px;
-    max-height: ~'calc(100vh - 200px)';
-    overflow: auto;
+    align-items: center;
+    padding: 4px 6px;
+    cursor: pointer;
 
-    button {
-      .roundedButton();
-    }
-
-    dt {
-      color: #fff7;
-      font-size: x-small;
-    }
-
-    dd {
-      margin: 0 0 1rem 0;
-    }
-
-    header {
-      position: relative;
-
-      button {
-        position: absolute;
-        top: 0;
-        right: 0;
-        cursor: pointer;
-        margin: 0;
-      }
-    }
-
-    div.MainActionsButtons {
-      margin: 0 0 20px 0;
-      display: flex;
-      justify-content: space-evenly;
-
-      button {
-        margin-right: unset;
-        height: 32px;
-      }
-    }
-
-    textarea {
-      width: 100%;
-    }
-
-    dd.user-actions button.-red {
-      background-color: #a93f3f;
+    .feature-tree-label {
+      flex: 1;
+      min-width: 0;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-size: 0.85em;
     }
   }
 }
 
-/* Inspector tree tab */
-.ParcelInspectorTab {
-  .InspectorTabTools {
-    padding: 4px 6px;
+.edit-pane-multi .edit-pane-tree {
+  flex: 1;
+  max-height: none;
+}
+
+.edit-pane-multi-actions {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 6px;
+  border-top: 1px solid #333;
+}
+
+.edit-pane-inspector {
+  flex: 1;
+  min-height: 0;
+  overflow: visible;
+
+  > section {
     display: flex;
-    justify-content: space-between;
-    flex-wrap: wrap;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
   }
 
-  h3,
-  h4 {
-    color: #eee;
-    margin-top: 10px;
+  .scrollContainer {
+    flex: 1;
+    min-height: 0;
+    overflow: visible;
   }
+}
 
-  ul {
-    margin: 4px 0 0 0;
-    padding: 0;
+body.in-world main > aside .edit-pane-inspector {
+  overflow: visible;
+
+  .scrollContainer {
+    overflow: visible;
+    flex: none;
   }
+}
 
-  li {
-    position: relative;
-    font-size: smaller;
-    background-color: var(--tinge);
-    border-radius: 5px;
-    list-style: none;
-    padding: 8px 4px 4px 34px;
-    border: none;
-    border-bottom: 1px solid #333;
-    margin: 0 0 2px;
+// these panes set overflow-x: hidden, which per spec forces overflow-y to auto and
+// makes a second scrollbar; the aside is the only scroller in split view
+body.in-world main > aside .editor,
+body.in-world main > aside section.settings {
+  overflow: visible;
 
-    &:hover {
-      color: #ddd;
-      cursor: pointer;
-    }
-
-    p {
-      display: block;
-      overflow: hidden;
-      white-space: nowrap;
-      text-overflow: ellipsis;
-    }
-
-    img {
-      width: 24px;
-      position: absolute;
-      left: 4px;
-    }
-
-    small {
-      color: #888 !important;
-    }
-  }
-
-  .feature-container {
-    display: flex;
-  }
-
-  .feature-copy-container,
-  .feature-copy-container-group {
-    width: 210px;
-  }
-
-  .feature-checkbox {
-    margin-top: 12px;
-  }
-
-  .checkbox {
-    cursor: pointer;
-    height: 15px;
-    width: 15px;
-  }
-
-  .inspector-bottom-bar {
-    display: flex;
-    padding: 9px 4px 9px 9px;
-  }
-
-  .inspector-bottom-bar-buttons {
-    width: 184px;
-  }
-
-  .inspector-bottom-bar-buttons-group {
-    width: 188px;
-  }
-
-  .inspector-bottom-bar-checkbox-container {
-    white-space: nowrap;
+  .scrollContainer {
+    overflow: visible;
   }
 }
 
@@ -1844,7 +2056,6 @@ form.PermissionsRadioSelector > div {
   max-width: 14rem;
   padding: 0.75rem 1rem;
   background: rgba(0, 0, 0, 0.55);
-  border-radius: 0.5rem;
   color: white;
   text-shadow: 1px 1px 1px black;
 
@@ -1918,7 +2129,6 @@ form.PermissionsRadioSelector > div {
   z-index: 600;
   padding: 0.5rem 0.75rem;
   background: rgba(0, 0, 0, 0.55);
-  border-radius: 0.5rem;
   color: white;
   text-shadow: 1px 1px 1px black;
   border: none;
@@ -1967,7 +2177,6 @@ form.PermissionsRadioSelector > div {
       line-height: 28px;
       background: linear-gradient(#444, #666);
       border: 2px solid black;
-      border-radius: 4px;
       box-shadow: inset -4px -4px 0 #333;
     }
 
@@ -2016,7 +2225,6 @@ form.PermissionsRadioSelector > div {
 
   .parcels-details {
     padding: 5px;
-    border-radius: 4px;
     border: none;
     background-color: var(--tinge);
   }
@@ -2045,7 +2253,6 @@ form.PermissionsRadioSelector > div {
     display: flex;
     flex-direction: column;
     background-color: var(--tinge);
-    border-radius: 4px;
     padding: 8px;
     margin: 2px 2px 10px;
 
@@ -2109,7 +2316,6 @@ form.PermissionsRadioSelector > div {
 
   .overlay-header {
     background: var(--tinge);
-    border-radius: 4px;
     padding: 8px;
     margin-bottom: 10px;
   }
@@ -2117,7 +2323,6 @@ form.PermissionsRadioSelector > div {
 
 .overlay.inspect-feature {
   background: #0d0d0d;
-  border-radius: 5px;
   padding: 10px;
   width: 25vw;
 
@@ -2210,7 +2415,6 @@ form.PermissionsRadioSelector > div {
 
 div.NearbyPlayers {
   background: #222;
-  border-radius: 5px;
   margin: 2px 0;
 
   header {
@@ -2241,7 +2445,6 @@ div.NearbyPlayers {
       }
 
       span.player-name {
-        border-radius: 7px;
         padding: 0 6px;
         display: inline-block;
       }
@@ -2271,7 +2474,6 @@ div.NearbyPlayers {
     left: 0;
     right: 0;
     border: 1px solid #424242;
-    border-radius: 3px;
   }
 
   li {
@@ -2306,7 +2508,6 @@ div.NearbyPlayers {
     width: 100%;
     border: 2px solid #333333a6;
     background: #333a;
-    border-radius: 4px;
 
     > button {
       position: absolute;
@@ -2316,7 +2517,6 @@ div.NearbyPlayers {
       right: 5px;
       cursor: pointer;
       border: #6d6d6d 2px solid;
-      border-radius: 4px;
 
       &:hover {
         background-color: #505050;
@@ -2327,7 +2527,6 @@ div.NearbyPlayers {
     .map-teleport-popup button {
       cursor: pointer;
       border: #b6b6b6 2px solid;
-      border-radius: 4px;
       color: black;
       margin: 2px;
       padding: 4px;
@@ -2402,7 +2601,6 @@ div.NearbyPlayers {
   left: 10px;
   z-index: 1000000;
   width: 220px;
-  border-radius: 10px;
   padding: 15px 50px 15px 20px;
   color: #cacaca;
   box-sizing: border-box;
@@ -2427,6 +2625,7 @@ div.NearbyPlayers {
 
 /* Minimap corner controls */
 .minimap-corner-controls {
+  position: fixed;
   bottom: calc(15vw - 26px);
   right: 4px;
   z-index: 10;
@@ -2457,7 +2656,6 @@ div.NearbyPlayers {
   color: rgba(255, 255, 255, 0.75);
   padding: 0 5px;
   cursor: pointer;
-  border-radius: 3px;
   line-height: @minimap-h;
   display: inline-flex;
   align-items: center;
@@ -2493,7 +2691,6 @@ div.NearbyPlayers {
   transform: translateX(-50%);
   background: rgba(170, 170, 170, 0.582);
   color: white;
-  border-radius: 0.5rem;
   z-index: 1000;
   pointer-events: none;
   white-space: nowrap;
@@ -2604,7 +2801,6 @@ div.mobile-buttons {
   background: @overlayWindowBackground;
   color: @overlayWindowTextColor;
   border: none;
-  border-radius: 1rem;
   position: absolute;
   left: 50%;
   top: 50%;
@@ -2671,7 +2867,6 @@ div.mobile-buttons {
   }
 
   iframe {
-    border-radius: 1rem;
     background: #eee;
   }
 }
@@ -2701,7 +2896,6 @@ div.mobile-buttons {
   img,
   video {
     display: block;
-    border-radius: 1rem;
     height: ~'calc(100vh - 20rem)';
     object-fit: contain;
   }
@@ -2755,7 +2949,6 @@ div.mobile-buttons {
 
 /* Scripting */
 .scripting-container-overlay {
-  border-radius: 3px;
   padding: 5px;
   width: 60vw;
   background: #0d0d0d;
@@ -2822,7 +3015,6 @@ div.mobile-buttons {
     line-height: 16px;
     background: #222;
     color: #fff;
-    border-radius: 4px;
     border: none;
     resize: vertical;
     overflow: auto;
@@ -2912,7 +3104,6 @@ div.mobile-buttons {
 
     a {
       background-color: #333;
-      border-radius: 0.5rem;
       text-decoration: underline;
     }
   }
@@ -3024,7 +3215,6 @@ button[accesskey] {
 div.css-icon {
   div.party,
   div.exhibition {
-    border-radius: 50%;
     height: 18px;
     width: 18px;
     animation: pulsate 1s ease-out infinite;
@@ -3040,7 +3230,6 @@ div.css-icon {
     width: 25px;
     text-align: center;
     line-height: 25px;
-    border-radius: 50%;
     display: inline-block;
   }
 }

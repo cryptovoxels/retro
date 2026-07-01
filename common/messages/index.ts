@@ -42,6 +42,10 @@ export enum MessageType {
   typing = 63,
   voiceStateAvatar = 64,
   point = 66,
+
+  // Lua behaviour state sync (parallel to grid; ephemeral, parcel-scoped)
+  behaviourState = 70,
+  behaviourSignal = 71,
 }
 
 // unsure if we should pack the data, in most cases the payload is so small that compressing just
@@ -406,6 +410,27 @@ extensionCodec.register({
   },
 })
 
+// Behaviour state - per (featureId, behaviourIdx) blob, ephemeral, last-write-wins via seq.
+export type BehaviourStateMessage = {
+  type: MessageType.behaviourState
+  parcelId: number
+  featureId: string
+  behaviourIdx: number
+  state: Record<string, unknown>
+  seq: number
+}
+export const BehaviourStateEncoder = encoderCreator<BehaviourStateMessage>()
+
+// Behaviour signal - cross-feature emit, routed via MP relay (same parcel only).
+export type BehaviourSignalMessage = {
+  type: MessageType.behaviourSignal
+  parcelId: number
+  featureId: string
+  signal: string
+  data?: unknown
+}
+export const BehaviourSignalEncoder = encoderCreator<BehaviourSignalMessage>()
+
 export type DestroyAvatarMessage = {
   type: MessageType.destroyAvatar
   uuid: string
@@ -514,7 +539,7 @@ export namespace Message {
   /**
    * A type of message that is used for maintaining state by the client and the server.
    */
-  type StateRelayMessage = NewCostumeMessage | TypingMessage | ChatMessage | VoiceStateMessage | AvatarEmoteMessage | PointMessage
+  type StateRelayMessage = NewCostumeMessage | TypingMessage | ChatMessage | VoiceStateMessage | AvatarEmoteMessage | PointMessage | BehaviourStateMessage | BehaviourSignalMessage
 
   /**
    * A type of message that is sent by a client to update the avatar's state in-world.
@@ -530,6 +555,8 @@ export namespace Message {
     [MessageType.updateAvatar]: null,
     [MessageType.metric]: null,
     [MessageType.point]: null,
+    [MessageType.behaviourState]: null,
+    [MessageType.behaviourSignal]: null,
   })
 
   /**
@@ -550,6 +577,8 @@ export namespace Message {
     [MessageType.avatarChanged]: null,
     [MessageType.worldState]: null,
     [MessageType.point]: null,
+    [MessageType.behaviourState]: null,
+    [MessageType.behaviourSignal]: null,
   })
 
   /**

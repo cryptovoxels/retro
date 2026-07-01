@@ -1,7 +1,7 @@
 import { LanternRecord } from '../../common/messages/feature'
-import { Position, Scale } from '../../web/src/components/editor'
+import { Position, Scale, EditorProps } from '../../web/src/components/editor'
 import { createLanternMaterial } from '../materials'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D } from './feature'
@@ -99,26 +99,25 @@ class Editor extends FeatureEditor<Lantern> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+          <EditorProps>
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
 
-          <div className="f">
-            <label>Color</label>
-            <input type="color" value={this.state.color} onInput={(e) => this.setState({ color: e.currentTarget.value })} />
-          </div>
+            <div className="f">
+              <label>Color</label>
+              <input type="color" value={this.state.color} onInput={(e) => this.setState({ color: e.currentTarget.value })} />
+            </div>
 
-          <div className="f">
-            <label>Strength: {this.state.strength}</label>
-            <input type="range" min={1} max={100} value={this.state.strength} onInput={(e) => this.updateStrength(parseFloat(e.currentTarget.value))} />
-          </div>
+            <div className="f">
+              <label>Strength: {this.state.strength}</label>
+              <input type="range" min={1} max={100} value={this.state.strength} onInput={(e) => this.updateStrength(parseFloat(e.currentTarget.value))} />
+            </div>
 
-          <Advanced>
-            <FeatureID feature={this.props.feature} />
-            <SetParentDropdown feature={this.props.feature} />
-
-            <UuidReadOnly feature={this.props.feature} />
-          </Advanced>
+            <Advanced>
+              <FeatureID feature={this.props.feature} />
+            </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

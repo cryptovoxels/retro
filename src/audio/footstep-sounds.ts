@@ -1,12 +1,15 @@
 import { isBatterySaver } from '../../common/helpers/detector'
 import { VoxelSize } from '../../common/voxels/mesher'
 import { loadSample } from '../utils/helpers'
+import { SpatialAudio } from './spatial-audio'
 
 const WALK_DELAY = 490
 const RUN_DELAY = 300
 
 export class FootstepSounds {
   destination: AudioNode
+  scene: BABYLON.Scene | null
+  effectsOut: GainNode | null
   footStepsSupported: boolean
   lastStepAt: number = Date.now()
   audioContext: AudioContext
@@ -14,8 +17,10 @@ export class FootstepSounds {
   footstepsSprite: AudioBuffer
   _stepLoop: () => void
 
-  constructor(destination: AudioNode) {
+  constructor(destination: AudioNode, scene?: BABYLON.Scene, effectsOut?: GainNode) {
     this.destination = destination
+    this.scene = scene ?? null
+    this.effectsOut = effectsOut ?? null
     this.audioContext = this.destination.context as AudioContext
 
     this.footstepsSprite = null!
@@ -46,6 +51,11 @@ export class FootstepSounds {
 
   noStep() {
     clearTimeout(this.stepTimeout)
+  }
+
+  playSpatialStep(absolutePosition: BABYLON.Vector3, isRunning: boolean) {
+    if (!this.footStepsSupported || !this.footstepsSprite || !this.scene || !this.effectsOut) return
+    this.playStep(isRunning, absolutePosition)
   }
 
   hitGround(fallenHeight: any) {
@@ -90,19 +100,21 @@ export class FootstepSounds {
   private setStepLoop(isRunning: boolean) {
     clearTimeout(this.stepTimeout)
     this._stepLoop = () => {
-      this.footStep(isRunning)
+      this.playStep(isRunning)
       clearTimeout(this.stepTimeout)
       this.stepTimeout = setTimeout(this._stepLoop, isRunning ? RUN_DELAY : WALK_DELAY)
     }
     this._stepLoop()
   }
 
-  private footStep(isRunning: boolean) {
+  private playStep(isRunning: boolean, absolutePosition?: BABYLON.Vector3) {
     if (!this.footStepsSupported || !this.footstepsSprite) return
 
-    // debounce footsteps
-    if (Date.now() - this.lastStepAt < RUN_DELAY) return
-    this.lastStepAt = Date.now()
+    // debounce local footsteps only
+    if (!absolutePosition) {
+      if (Date.now() - this.lastStepAt < RUN_DELAY) return
+      this.lastStepAt = Date.now()
+    }
 
     const offset1 = Math.floor(Math.random() * 4)
     const offset2 = Math.floor(Math.random() * 4)
@@ -139,6 +151,14 @@ export class FootstepSounds {
       step3.connect(level)
     }
 
-    level.connect(filter).connect(this.destination)
+    if (absolutePosition && this.scene && this.effectsOut) {
+      level.connect(filter)
+      const spatial = new SpatialAudio('avatar/footstep', this.scene, level, absolutePosition.clone())
+      spatial.rolloffFactor = 2
+      spatial.output.connect(this.effectsOut)
+      setTimeout(() => spatial.dispose(), 600)
+    } else {
+      level.connect(filter).connect(this.destination)
+    }
   }
 }

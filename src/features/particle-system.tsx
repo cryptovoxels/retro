@@ -1,6 +1,6 @@
 import { ParticlesRecord } from '../../common/messages/feature'
-import { Position, Rotation, Script } from '../../web/src/components/editor'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, TriggerEditor, UuidReadOnly } from '../ui/features'
+import { Position, Rotation, Behaviours, EditorProps } from '../../web/src/components/editor'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { tidyColor3, tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D } from './feature'
@@ -213,64 +213,63 @@ class Editor extends FeatureEditor<ParticleSystem> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
-          <Animation feature={this.props.feature} />
-
-          <div className="f">
-            <label>URL</label>
-            <input type="text" value={this.state.url} onInput={(e) => this.setState({ url: e.currentTarget.value })} />
-          </div>
-
-          <div className="f">
-            <label>Emit Rate</label>
-            <input type="range" min={1} max={150} step={5} value={this.state.emitRate} onInput={(e) => this.setState({ emitRate: parseFloat(e.currentTarget.value) })} />
-          </div>
-
-          <div className="f">
-            <label>Minimum Size</label>
-            <input type="range" min={0.1} max={1} step={0.04} value={this.state.minSize} onInput={(e) => this.setState({ minSize: parseFloat(e.currentTarget.value) })} />
-          </div>
-
-          <div className="f">
-            <label>Maximum Size</label>
-            <input type="range" min={0.1} max={1} step={0.04} value={this.state.maxSize} onInput={(e) => this.setState({ maxSize: parseFloat(e.currentTarget.value) })} />
-          </div>
-
-          <Advanced>
-            <FeatureID feature={this.props.feature} />
-            <SetParentDropdown feature={this.props.feature} />
+          <EditorProps>
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+            <Animation feature={this.props.feature} />
 
             <div className="f">
-              <label>Color 1</label>
-              <input type="color" value={this.state.color1} onInput={(e) => this.setState({ color1: e.currentTarget.value })} />
+              <label>URL</label>
+              <input type="text" value={this.state.url} onInput={(e) => this.setState({ url: e.currentTarget.value })} />
             </div>
 
             <div className="f">
-              <label>Color 2</label>
-              <input type="color" value={this.state.color2} onInput={(e) => this.setState({ color2: e.currentTarget.value })} />
+              <label>Emit Rate</label>
+              <input type="range" min={1} max={150} step={5} value={this.state.emitRate} onInput={(e) => this.setState({ emitRate: parseFloat(e.currentTarget.value) })} />
             </div>
 
             <div className="f">
-              <label>Final color</label>
-              <input type="color" value={this.state.colorDead} onInput={(e) => this.setState({ colorDead: e.currentTarget.value })} />
+              <label>Minimum Size</label>
+              <input type="range" min={0.1} max={1} step={0.04} value={this.state.minSize} onInput={(e) => this.setState({ minSize: parseFloat(e.currentTarget.value) })} />
             </div>
 
             <div className="f">
-              <label>Final opacity: {this.state.opacityDead}</label>
-              <input type="range" value={this.state.opacityDead} min="0.0" max="1.0" step="0.1" onInput={(e) => this.setState({ opacityDead: parseFloat(e.currentTarget.value) })} />
+              <label>Maximum Size</label>
+              <input type="range" min={0.1} max={1} step={0.04} value={this.state.maxSize} onInput={(e) => this.setState({ maxSize: parseFloat(e.currentTarget.value) })} />
             </div>
 
-            <div className="f">
-              <label>Gravity: {this.state.gravity}</label>
-              <input type="range" value={this.state.gravity} min="0.0" max="30" onInput={(e) => this.setState({ gravity: parseFloat(e.currentTarget.value) })} />
-            </div>
+            <Advanced>
+              <FeatureID feature={this.props.feature} />
 
-            <TriggerEditor feature={this.props.feature} />
-            <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
-          </Advanced>
+              <div className="f">
+                <label>Color 1</label>
+                <input type="color" value={this.state.color1} onInput={(e) => this.setState({ color1: e.currentTarget.value })} />
+              </div>
+
+              <div className="f">
+                <label>Color 2</label>
+                <input type="color" value={this.state.color2} onInput={(e) => this.setState({ color2: e.currentTarget.value })} />
+              </div>
+
+              <div className="f">
+                <label>Final color</label>
+                <input type="color" value={this.state.colorDead} onInput={(e) => this.setState({ colorDead: e.currentTarget.value })} />
+              </div>
+
+              <div className="f">
+                <label>Final opacity: {this.state.opacityDead}</label>
+                <input type="range" value={this.state.opacityDead} min="0.0" max="1.0" step="0.1" onInput={(e) => this.setState({ opacityDead: parseFloat(e.currentTarget.value) })} />
+              </div>
+
+              <div className="f">
+                <label>Gravity: {this.state.gravity}</label>
+                <input type="range" value={this.state.gravity} min="0.0" max="30" onInput={(e) => this.setState({ gravity: parseFloat(e.currentTarget.value) })} />
+              </div>
+
+              <Behaviours feature={this.props.feature} />
+            </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

@@ -1,6 +1,6 @@
 import { Component } from 'preact'
 import ParcelHelper from '../../../common/helpers/parcel-helper'
-import type { AvatarRef } from '../../../common/messages/avatar-ref'
+import { avatarName, type AvatarRef } from '../../../common/messages/avatar-ref'
 import { AvatarLink } from './avatar-link'
 import { getParcel, summaryReady } from '../store/index'
 
@@ -47,6 +47,19 @@ export default class Radar extends Component<Props, { users: Map<string, User> }
     new ParcelHelper(info ?? { id: parcelId }).spawnUrl().then((url) => this.props.teleportTo?.(url))
   }
 
+  onUserClick = (e: MouseEvent, uuid: string, parcelId: number | null) => {
+    if (!this.props.teleportTo) return
+    e.preventDefault()
+    const local = window.connector?.findAvatar(uuid)
+    if (local?.coords) {
+      this.props.teleportTo(`/play?coords=${local.coords}`)
+      return
+    }
+    if (parcelId == null) return
+    const info = getParcel(parcelId).value
+    new ParcelHelper(info ?? { id: parcelId }).spawnUrl().then((url) => this.props.teleportTo?.(url))
+  }
+
   render() {
     const byParcel = new Map<number | null, { uuid: string; avatar: AvatarRef | null }[]>()
     for (const [uuid, u] of this.state.users) {
@@ -75,7 +88,17 @@ export default class Radar extends Component<Props, { users: Map<string, User> }
                 )}
                 <ul>
                   {users.map(({ uuid, avatar }) => (
-                    <li key={uuid}>{avatar ? <AvatarLink avatar={avatar} /> : <span>anon</span>}</li>
+                    <li key={uuid}>
+                      {this.props.teleportTo ? (
+                        <a href="#" onClick={(e) => this.onUserClick(e, uuid, parcelId)}>
+                          {avatar ? avatarName(avatar) : 'anon'}
+                        </a>
+                      ) : avatar ? (
+                        <AvatarLink avatar={avatar} />
+                      ) : (
+                        <span>anon</span>
+                      )}
+                    </li>
                   ))}
                 </ul>
               </li>

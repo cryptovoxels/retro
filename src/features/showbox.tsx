@@ -18,8 +18,11 @@ import {
   showboxTokenUrlWithIdentity,
 } from '../../common/helpers/showbox-broadcast-health'
 import { showboxAudioConstraints, showboxRoomHint, SHOWBOX_ROOM_OPTIONS, type ShowboxAudioMode } from '../../common/helpers/showbox-audio-constraints'
+import { VideoFxProcessor, FX_PALETTES, FX_DEFAULT_PALETTE, VIDEO_FX, type FxAudio } from '../../common/helpers/showbox-video-fx'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
+import { isSplit } from '../../web/src/helpers/coords-nav'
+import { broadcastLiveStartedAt, broadcastShowboxUuid, closeBroadcastSidebar, uiAsideTick, uiPane } from '../store'
 import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
 import { cohostPaneRects, MAX_COHOST_PANES } from '../../common/helpers/cohost-panes'
 import { encodeCoords } from '../../common/helpers/utils'
@@ -30,14 +33,14 @@ import { avatarName } from '../../common/messages/avatar-ref'
 import { app, AppEvent } from '../../web/src/state'
 import { PanelType } from '../../web/src/components/panel'
 import { messageList, type ChatMessageRecord } from '../connector'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { Animations } from '../avatar-animations'
 import { EmoteAnimation, Idle } from '../states'
 import { cameraPosition, cameraRotation, setCameraRotation } from '../utils/camera'
 import { emote as emoteParticles } from '../utils/emote'
 import { AudioBus } from '../audio/audio-engine'
 import { SpatialAudio } from '../audio/spatial-audio'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SetParentDropdown, Toolbar, UuidReadOnly } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
 
@@ -361,7 +364,8 @@ function cohostVideoTrackLive(el: HTMLVideoElement | null) {
   return !!mst && mst.readyState !== 'ended'
 }
 
-type ShowboxCelebrateState = { celebrate?: number; at?: number }
+type ShowboxIntermission = { label: string; until: number | null; at: number }
+type ShowboxCelebrateState = { celebrate?: number; at?: number; intermission?: ShowboxIntermission | null }
 
 export default class Showbox extends Feature2D<ShowboxRecord> {
   static metadata: FeatureMetadata = {
@@ -378,7 +382,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   livekitRoom: Room | null = null
   broadcastRoom: Room | null = null
+  scaleAspectLocked = true // screens keep their aspect ratio by default (editor lock + corner-resize honor this)
   broadcastPanel: HTMLDivElement | null = null
+  broadcastPanelSidebar = false
   broadcastChatDispose: (() => void) | null = null
   thumbCanvas: HTMLCanvasElement | null = null
   thumbInterval: ReturnType<typeof setInterval> | null = null
@@ -453,6 +459,19 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   hostDockAutoOpenedAt = 0
   meshLetterboxRaf: number | null = null
   meshLetterboxCanvas: HTMLCanvasElement | null = null
+  // intermission ("starting soon" / "be right back"): a raise-able animated standby card.
+  // null when the show is running normally; set locally on the broadcaster and mirrored to
+  // viewers over the existing ephemeral parcel-state channel (no backend).
+  intermission: ShowboxIntermission | null = null
+  intermissionRaf: number | null = null
+  intermissionCanvas: HTMLCanvasElement | null = null
+  intermissionPrevMic = false
+  intermissionStatusInterval: ReturnType<typeof setInterval> | null = null
+  // video FX (prototype): live audio analysis (level + bass/mid/treble + beat-punch envelope) tapped
+  // from the dock meter, read by the fx processor so the visuals dance to the music; the active processor.
+  fxAudio: FxAudio = { level: 0, bass: 0, mid: 0, treble: 0, punch: 0 }
+  broadcastFxProcessor: VideoFxProcessor | null = null
+  fxAutoTimer: ReturnType<typeof setTimeout> | null = null
 
   roomName() {
     return `parcel-${this.parcel.id}`
@@ -500,7 +519,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   // a mirror set to "second camera" shows a dedicated video-only track named with its own uuid,
   // not the primary's stream. any broadcaster can publish one.
   isAngleMirror() {
-    return this.isMirror() && !!this.description.angleMode
+    // second screen is the default for a mirror now - only an explicit angleMode === false makes it a plain mirror.
+    return this.isMirror() && this.description.angleMode !== false
   }
 
   hasAngleFeed() {
@@ -606,30 +626,48 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   // walk up to an angle mirror and push your camera straight to it (video only, no audio, no __showbox_live).
   // published on the viewer room - its token already grants canPublish for authorized users.
-  async startAngleBroadcast(deviceId?: string): Promise<boolean> {
-    if (this.angleVideoTrack) return true
-    if (!this.livekitRoom) await this.connectViewer()
-    const lp = (this.livekitRoom as any)?.localParticipant
-    if (!lp) return false
+  async startAngleBroadcast(deviceId?: string, useScreen = false): Promise<boolean> {
+    // capture first, in the click gesture - getDisplayMedia only opens the OS picker when called synchronously inside it.
     let track: any
     try {
-      // exact: a plain string deviceId is only a preference, so the browser hands back the already-running primary camera. Force the pick.
-      track = await createLocalVideoTrack(deviceId ? { deviceId: { exact: deviceId } } : undefined)
+      if (useScreen) {
+        // share a window/screen, video only - a side-feed never carries audio. the browser picker chooses what.
+        ;[track] = await createLocalScreenTracks({ audio: false })
+      } else {
+        // exact: a plain string deviceId is only a preference, so the browser hands back the already-running primary camera. Force the pick.
+        track = await createLocalVideoTrack(deviceId ? { deviceId: { exact: deviceId } } : undefined)
+      }
     } catch (e) {
-      console.error('showbox: angle camera failed to capture', e)
+      console.error('showbox: angle capture failed', e)
       return false
     }
+    if (!track) return false // screenshare picker can resolve empty - never publish undefined
+    return this.publishAngleTrack(track)
+  }
+
+  // publish an already-captured track to this mirror. split out so the capture can happen in-gesture (see shareScreenToSecondScreen).
+  async publishAngleTrack(track: any): Promise<boolean> {
+    if (this.angleVideoTrack) {
+      try {
+        track.stop()
+      } catch {}
+      return true
+    }
+    if (!this.livekitRoom) await this.connectViewer()
+    const lp = (this.livekitRoom as any)?.localParticipant
     this.angleVideoTrack = track
     try {
       await lp.publishTrack(track, { name: this.uuid })
     } catch (e) {
-      console.error('showbox: angle camera failed to publish', e)
+      console.error('showbox: angle capture failed to publish', e)
       try {
         track.stop()
       } catch {}
       this.angleVideoTrack = null
       return false
     }
+    // browser "stop sharing" bar (or a yanked camera) ends the track - drop back to idle so the screen isn't frozen.
+    track.mediaStreamTrack?.addEventListener('ended', () => this.stopAngleBroadcast())
     this.attachVideoToMesh(track.attach() as HTMLVideoElement, true)
     this.mirrorVideoIdentity = this.uuid
     this.stopStreamAttachRetry()
@@ -642,7 +680,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   // a small dialog on the angle mirror itself: pick a camera, broadcast it to just this screen.
-  openAnglePanel() {
+  openAnglePanel(cameraOnly = false) {
     if (this.anglePanel) {
       this.closeAnglePanel()
       return
@@ -669,12 +707,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     })
 
     const title = document.createElement('div')
-    title.textContent = 'second camera'
+    title.textContent = cameraOnly ? 'add camera' : 'second screen'
     title.style.fontWeight = 'bold'
     title.style.fontSize = mobile ? '16px' : '14px'
 
     const hint = document.createElement('small')
-    hint.textContent = 'pick a camera to broadcast to this screen. video only, no audio.'
+    hint.textContent = cameraOnly ? 'pick a camera. video only, no audio.' : 'share a screen or add a camera. video only, no audio.'
     hint.style.color = '#888'
 
     const sel = document.createElement('select')
@@ -684,26 +722,43 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const status = document.createElement('div')
     Object.assign(status.style, { color: '#888', fontSize: '12px', minHeight: '14px' })
 
-    const go = document.createElement('button')
-    go.type = 'button'
-    go.textContent = this.angleVideoTrack ? 'stop broadcasting' : 'broadcast to this screen'
-    Object.assign(go.style, { background: 'var(--red)', color: '#fff', border: '0', padding: mobile ? '12px' : '8px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' })
-    go.onclick = async () => {
-      if (this.angleVideoTrack) {
-        this.stopAngleBroadcast()
-        this.closeAnglePanel()
-        return
-      }
-      go.disabled = true
-      status.textContent = 'starting camera...'
-      const ok = await this.startAngleBroadcast(sel.value || undefined)
+    const btnStyle = { background: 'var(--red)', color: '#fff', border: '0', padding: mobile ? '12px' : '8px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' }
+
+    const shareScreenBtn = document.createElement('button')
+    shareScreenBtn.type = 'button'
+    shareScreenBtn.textContent = 'share screen'
+    Object.assign(shareScreenBtn.style, btnStyle, { flex: '1' }) // shares the idle button row
+    if (mobile || cameraOnly) shareScreenBtn.style.display = 'none' // phone screenshare is unreliable; cameraOnly hides it entirely
+
+    const addCameraBtn = document.createElement('button')
+    addCameraBtn.type = 'button'
+    addCameraBtn.textContent = 'add camera'
+    Object.assign(addCameraBtn.style, btnStyle, { flex: '1' })
+
+    const stopBtn = document.createElement('button')
+    stopBtn.type = 'button'
+    stopBtn.textContent = 'stop'
+    Object.assign(stopBtn.style, btnStyle) // stands alone - no flex stretch in the column
+    stopBtn.onclick = () => {
+      this.stopAngleBroadcast()
+      this.closeAnglePanel()
+    }
+
+    const start = async (useScreen: boolean) => {
+      shareScreenBtn.disabled = true
+      addCameraBtn.disabled = true
+      status.textContent = useScreen ? 'pick a screen...' : 'starting camera...'
+      const ok = await this.startAngleBroadcast(useScreen ? undefined : sel.value || undefined, useScreen)
       if (ok) {
         this.closeAnglePanel()
       } else {
-        go.disabled = false
-        status.textContent = 'could not start that camera - try another'
+        shareScreenBtn.disabled = false
+        addCameraBtn.disabled = false
+        status.textContent = useScreen ? 'could not share that screen - try again' : 'could not start that camera - try another'
       }
     }
+    shareScreenBtn.onclick = () => start(true)
+    addCameraBtn.onclick = () => start(false)
 
     const cancel = document.createElement('button')
     cancel.type = 'button'
@@ -712,9 +767,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     cancel.onclick = () => this.closeAnglePanel()
 
     if (this.angleVideoTrack) {
-      panel.append(title, go, cancel)
+      panel.append(title, stopBtn, cancel)
     } else {
-      panel.append(title, hint, sel, go, status, cancel)
+      const btnRow = document.createElement('div')
+      Object.assign(btnRow.style, { display: 'flex', gap: '0.5rem' })
+      btnRow.append(shareScreenBtn, addCameraBtn)
+      panel.append(title, hint, sel, btnRow, status, cancel)
       navigator.mediaDevices.enumerateDevices().then((devices) => {
         devices
           .filter((d) => d.kind === 'videoinput')
@@ -748,9 +806,126 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (!this.hasActiveVideo) this.setPreview()
   }
 
+  // host quick-share from the dock: pick an idle second screen or drop a fresh one, then push your screen to it.
+  // reusable - a "new" screen persists as a real feature, so next time it shows up as "existing".
+  openShareScreenChooser() {
+    const mirrors = (this.parcel.getFeaturesByType('showbox') as Showbox[]).filter((f) => f.isAngleMirror() && !f.angleVideoTrack)
+    if (!mirrors.length) {
+      if (!this.parcel.canEdit) return void app.showSnackbar("you can't add a screen on this parcel", PanelType.Warning)
+      return void this.shareScreenToSecondScreen('new') // nothing to reuse - go straight to a new one
+    }
+
+    exitPointerLock()
+    const panel = document.createElement('div')
+    Object.assign(panel.style, {
+      position: 'fixed',
+      zIndex: '999999',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: '280px',
+      background: '#0d0d0d',
+      color: '#f5f5f0',
+      padding: '1rem',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.5rem',
+      fontFamily: '"Source Code Pro", monospace',
+      fontSize: '13px',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
+    })
+    const title = document.createElement('div')
+    title.textContent = 'share a screen'
+    title.style.fontWeight = 'bold'
+    const close = () => panel.remove()
+    const mkBtn = (label: string, onClick: () => void) => {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.textContent = label
+      Object.assign(b.style, { background: 'var(--red)', color: '#fff', border: '0', padding: '8px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' })
+      b.onclick = () => {
+        close()
+        onClick()
+      }
+      return b
+    }
+    panel.append(title)
+    if (this.parcel.canEdit) panel.append(mkBtn('new screen', () => void this.shareScreenToSecondScreen('new')))
+    mirrors.forEach((m, i) => panel.append(mkBtn(`existing screen ${i + 1}`, () => void this.shareScreenToSecondScreen(m))))
+    const cancel = document.createElement('button')
+    cancel.type = 'button'
+    cancel.textContent = 'cancel'
+    Object.assign(cancel.style, { background: 'transparent', color: '#888', border: '0', padding: '4px 0', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' })
+    cancel.onclick = close
+    panel.append(cancel)
+    document.body.appendChild(panel)
+  }
+
+  private sharingScreenPending = false
+
+  // new -> drop a second screen beside your stage screen, already showing your share; slide/resize it with the handles. existing -> reuse one.
+  async shareScreenToSecondScreen(target: Showbox | 'new') {
+    if (target === 'new' && !this.parcel.canEdit) {
+      app.showSnackbar("you can't add a screen on this parcel", PanelType.Warning)
+      return
+    }
+    if (this.sharingScreenPending) return // ignore a second click while a share is mid-flight
+    this.sharingScreenPending = true
+    try {
+      // capture the screen first, synchronously in the click gesture - else the OS picker silently no-ops and we leave a stray empty screen.
+      let track: any
+      try {
+        ;[track] = await createLocalScreenTracks({ audio: false })
+      } catch {
+        return // cancelled/blocked picker - spawn nothing
+      }
+      if (!track) return
+
+      let mirror: Showbox | null = target === 'new' ? null : target
+      if (target === 'new') {
+        const tool = window.ui?.featureTool
+        const engine = this.scene.getEngine()
+        const pick = this.scene.pick(engine.getRenderWidth() / 2, engine.getRenderHeight() / 2)
+        if (!tool || !pick?.pickedPoint) {
+          try {
+            track.stop()
+          } catch {}
+          app.showSnackbar('look toward your stage, then try again', PanelType.Warning)
+          return
+        }
+        const feature = (await tool.spawn(pick, { ...Showbox.template, angleMode: true })) as Showbox | null
+        if (feature) {
+          // land it right beside the primary stage screen, facing the same way, so it's in view and oriented - then drag/resize.
+          const right = this.mesh ? this.mesh.getDirection(new BABYLON.Vector3(1, 0, 0)).normalize() : new BABYLON.Vector3(1, 0, 0)
+          const offset = (this.scale?.x ?? 2) / 2 + 1.3
+          feature.set({ position: this.position.add(right.scale(offset)).asArray() as [number, number, number], rotation: this.rotation.asArray() as [number, number, number] })
+        }
+        mirror = feature
+      }
+
+      if (!mirror) {
+        try {
+          track.stop()
+        } catch {}
+        app.showSnackbar('could not start the screen share', PanelType.Warning)
+        return
+      }
+      // publishAngleTrack owns the track from here (it stops it on its own failure paths) - don't double-stop.
+      const ok = await mirror.publishAngleTrack(track)
+      if (!ok) app.showSnackbar('could not start the screen share', PanelType.Warning)
+    } finally {
+      this.sharingScreenPending = false
+    }
+  }
+
   // mirrors show the chosen source muted (default: whoever is live, host preferred), so every mirror is consistent
   refreshMirrorVideo() {
     if (!this.isMirror() || this.broadcastRoom) return
+    // primary on a standby card -> the mirror shows the same card, not a frozen last frame
+    if (this.isIntermissionActive()) {
+      this.drawIntermissionCard()
+      return
+    }
     if (this.isAngleMirror()) {
       if (!this.livekitRoom) return
       return this.refreshAngleVideo()
@@ -801,6 +976,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   receiveState(state: ShowboxCelebrateState) {
+    if (state && 'intermission' in state) this.applyIntermissionState(state.intermission ?? null)
     const n = state?.celebrate
     const at = state?.at ?? 0
     if (!n || n < 10 || !at || !this.isInCurrentParcel || !this.isShowLive()) return
@@ -808,6 +984,28 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.lastCelebrateAt = at
     this.lastCelebrateN = n
     this.runCelebrate(n)
+  }
+
+  // viewer side: the broadcaster's raise/drop arrives on this showbox's state slice. the host drives
+  // its own card locally (and would only echo its own patch), so it ignores this.
+  applyIntermissionState(next: ShowboxIntermission | null) {
+    if (this.broadcastRoom) return
+    const cur = this.intermission
+    const changed = !!cur !== !!next || (!!cur && !!next && cur.at !== next.at)
+    if (!changed) return
+    this.intermission = next
+    if (this.intermission) {
+      this.drawIntermissionCard()
+    } else {
+      this.stopIntermissionCard()
+      this.hasActiveVideo = false
+      // the card replaced the mesh material but left cohostCompositeAttached=true, so updateCohostComposite
+      // would skip re-pinning the composite and the viewer stays stuck on the card. force a re-attach.
+      this.cohostCompositeAttached = false
+      this.reconcileActiveStream()
+    }
+    // plain mirrors read the primary's flag - nudge them to repaint too
+    this.refreshParcelMirrors()
   }
 
   playCelebrateMoves(anims: Animations[], gapMs: number) {
@@ -1277,6 +1475,55 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.mobileBroadcastHooksClear = null
   }
 
+  sidebarDock() {
+    return isSplit() && !mobile
+  }
+
+  dismissBroadcastPanel() {
+    this.broadcastPanel?.remove()
+    this.broadcastPanel = null
+    this.broadcastPanelSidebar = false
+    if (this.sidebarDock()) closeBroadcastSidebar()
+  }
+
+  applySidebarDockStyles(panel: HTMLDivElement) {
+    Object.assign(panel.style, {
+      position: 'relative',
+      zIndex: 'auto',
+      inset: 'auto',
+      top: 'auto',
+      right: 'auto',
+      left: 'auto',
+      bottom: 'auto',
+      transform: 'none',
+      width: '100%',
+      maxWidth: 'none',
+      maxHeight: 'none',
+      boxShadow: 'none',
+    })
+  }
+
+  attachBroadcastPanel(panel: HTMLDivElement) {
+    if (!this.sidebarDock()) {
+      document.body.appendChild(panel)
+      return
+    }
+    this.broadcastPanelSidebar = true
+    broadcastShowboxUuid.value = this.uuid
+    uiPane.value = 'broadcast'
+    uiAsideTick.value++
+    this.applySidebarDockStyles(panel)
+    const attach = () => {
+      const mount = document.getElementById('showbox-broadcast-mount')
+      if (!mount) {
+        requestAnimationFrame(attach)
+        return
+      }
+      mount.appendChild(panel)
+    }
+    attach()
+  }
+
   restoreLiveDockUi() {
     if (!this.broadcastDockLiveLabel) return
     this.broadcastDockLiveLabel.textContent = 'live'
@@ -1309,6 +1556,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   wireBroadcastRoom(room: Room) {
+    // going live on a screen: your voice goes out the showbox, so step off the avatar voice mic
+    window.persona?.voiceChat?.setBroadcasting(true)
+    // and mute the in-world soundtrack so it doesn't bleed into your stream
+    window._audio?.setBroadcasting(true)
     const bumpViewerCount = () => {
       const total = this.broadcastRoomParticipantCount()
       if (total > 0) this.onViewerCountTick?.(total)
@@ -1690,8 +1941,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.broadcastStopping = true
     this.cameraResumeGen++
     this.stopBroadcast(true)
-    this.broadcastPanel?.remove()
-    this.broadcastPanel = null
+    this.dismissBroadcastPanel()
     this.clearBroadcastDockUi()
     this.setPreview()
   }
@@ -1948,7 +2198,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.cohostCompositeEl.play().catch(() => {})
     }
 
-    if (!this.cohostCompositeAttached) {
+    // don't claim the composite is on the mesh while a standby card is suppressing the attach - the
+    // flags would lie and a viewer who joined during the card (cold-open) would never re-pin the
+    // composite when the card clears. stays false now; reconcile re-runs this once intermission ends.
+    if (!this.cohostCompositeAttached && !this.isIntermissionActive()) {
       this.attachVideoToMesh(this.cohostCompositeEl, true)
       this.cohostCompositeAttached = true
       this.hasActiveVideo = true
@@ -2276,6 +2529,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.stopStreamAttachRetry()
     this.viewerRoomFull = false
     this.closeAnglePanel()
+    this.stopIntermissionCard()
+    if (this.intermissionStatusInterval) {
+      clearInterval(this.intermissionStatusInterval)
+      this.intermissionStatusInterval = null
+    }
     this.stopMeshLetterbox()
     this.screenMaterial?.dispose(true, true)
     this.screenMaterial = null
@@ -2285,15 +2543,245 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.stopStreamVolumePoll()
     this.stopCohostComposite()
     this.stopBroadcast(true)
-    this.broadcastPanel?.remove()
-    this.broadcastPanel = null
+    this.dismissBroadcastPanel()
     this.clearBroadcastDockUi()
     this.hostJoinLoginPending = false
     this.audio?.removeUserAudioReference(this)
   }
 
+  // a plain mirror shows whatever the primary showbox is showing, so it reflects the primary's
+  // intermission. the primary (and angle mirrors) use their own flag.
+  effectiveIntermission(): ShowboxIntermission | null {
+    if (this.isMirror() && !this.isAngleMirror()) {
+      return (this.parcel.primaryShowbox() as Showbox | undefined)?.intermission ?? null
+    }
+    return this.intermission
+  }
+
+  isIntermissionActive() {
+    return !!this.effectiveIntermission()
+  }
+
+  // mm:ss until `until`, or '' when there's no countdown. holds at "starting now" past zero - the
+  // host flips back manually, we never auto-reveal onto an empty chair.
+  intermissionCountdownLabel(until: number | null) {
+    if (!until) return ''
+    const ms = until - Date.now()
+    if (ms <= 0) return 'starting now'
+    const total = Math.ceil(ms / 1000)
+    const m = Math.floor(total / 60)
+    const s = total % 60
+    return `${m}:${s.toString().padStart(2, '0')}`
+  }
+
+  // broadcaster raises the screen: mute the mic, broadcast the flag, draw the card. the camera keeps
+  // running underneath (the card material just covers it) - muting the livekit camera track ends the
+  // MediaStreamTrack and trips the "camera lost" health teardown, so we don't.
+  raiseIntermission(label: string, untilMs: number | null) {
+    if (!this.broadcastRoom) return
+    const at = Date.now()
+    this.intermission = { label, until: untilMs, at }
+    try {
+      this.intermissionPrevMic = !!this.broadcastRoom.localParticipant.isMicrophoneEnabled
+    } catch {
+      this.intermissionPrevMic = false
+    }
+    try {
+      void this.broadcastRoom.localParticipant.setMicrophoneEnabled(false)
+    } catch {}
+    try {
+      this.parcel.sendStatePatch({ [this.uuid]: { intermission: { label, until: untilMs, at } } })
+    } catch {}
+    this.drawIntermissionCard()
+    this.refreshParcelMirrors()
+  }
+
+  // broadcaster drops the screen: clear the flag, restore the mic to whatever it was, let the normal
+  // reconcile repaint the live feed (the camera never stopped, so it comes back instantly).
+  dropIntermission() {
+    if (!this.intermission) return
+    this.intermission = null
+    this.stopIntermissionCard()
+    if (this.intermissionStatusInterval) {
+      clearInterval(this.intermissionStatusInterval)
+      this.intermissionStatusInterval = null
+    }
+    try {
+      void this.broadcastRoom?.localParticipant.setMicrophoneEnabled(this.intermissionPrevMic)
+    } catch {}
+    try {
+      this.parcel.sendStatePatch({ [this.uuid]: { intermission: null } })
+    } catch {}
+    this.hasActiveVideo = false
+    if (this.broadcastRoom && this.isCohostMode()) {
+      // cohost shows (the default) render a composite, not a single element - force it back onto the mesh
+      this.cohostCompositeAttached = false
+      this.updateCohostComposite()
+    } else if (this.broadcastRoom && this.localBroadcastVideoEl) {
+      this.attachVideoToMesh(this.localBroadcastVideoEl, true)
+    } else {
+      this.setPreview()
+    }
+    this.refreshParcelMirrors()
+  }
+
+  stopIntermissionCard() {
+    if (this.intermissionRaf) {
+      cancelAnimationFrame(this.intermissionRaf)
+      this.intermissionRaf = null
+    }
+    this.intermissionCanvas = null
+  }
+
+  // the animated standby card. the motion (sweep bar + pulsing dots) is the whole point: it proves the
+  // stream is alive even though the camera is hidden. one raf reads the live flag/clock each frame, so
+  // repeated calls are a no-op rather than a rebuild/flicker.
+  drawIntermissionCard() {
+    if (this.disposed || !this.mesh) return
+    if (!this.effectiveIntermission()) return
+    if (this.intermissionRaf) return
+    this.stopMeshLetterbox()
+    this.hasActiveVideo = false
+    const { w, h } = this.meshVideoSize()
+    if (!this.intermissionCanvas) this.intermissionCanvas = document.createElement('canvas')
+    const canvas = this.intermissionCanvas
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const tex = new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), canvas, this.scene, false)
+    tex.hasAlpha = false
+    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    material.diffuseTexture = tex
+    material.backFaceCulling = false
+    material.zOffset = -4
+    material.specularColor.set(0, 0, 0)
+    material.emissiveColor.set(1, 1, 1)
+    material.blockDirtyMechanism = true
+    this.swapScreenMaterial(material)
+    let frame = 0
+    const tick = () => {
+      if (this.disposed || !this.mesh) {
+        this.stopIntermissionCard()
+        return
+      }
+      const cur = this.effectiveIntermission()
+      if (!cur) {
+        this.stopIntermissionCard()
+        return
+      }
+      frame++
+      ctx.fillStyle = '#0d0d0d'
+      ctx.fillRect(0, 0, w, h)
+      // sweep bar travelling left-to-right under the title
+      const barW = w * 0.5
+      const x = ((frame * 2) % (w + barW)) - barW
+      const grad = ctx.createLinearGradient(x, 0, x + barW, 0)
+      grad.addColorStop(0, 'rgba(220,30,30,0)')
+      grad.addColorStop(0.5, 'rgba(220,30,30,0.55)')
+      grad.addColorStop(1, 'rgba(220,30,30,0)')
+      ctx.fillStyle = grad
+      ctx.fillRect(0, h * 0.5 + 30, w, 4)
+      // three pulsing dots
+      for (let i = 0; i < 3; i++) {
+        const a = 0.3 + 0.7 * (0.5 + 0.5 * Math.sin(frame * 0.08 - i * 0.7))
+        ctx.fillStyle = `rgba(245,245,240,${a})`
+        ctx.beginPath()
+        ctx.arc(w / 2 - 16 + i * 16, h * 0.5 + 56, 4, 0, Math.PI * 2)
+        ctx.fill()
+      }
+      ctx.textAlign = 'center'
+      ctx.textBaseline = 'middle'
+      ctx.fillStyle = '#f5f5f0'
+      ctx.font = 'bold 28px "Source Code Pro", monospace'
+      ctx.fillText(cur.label || 'starting soon', w / 2, h * 0.5 - 16)
+      const countdown = this.intermissionCountdownLabel(cur.until)
+      if (countdown) {
+        ctx.font = '20px "Source Code Pro", monospace'
+        ctx.fillStyle = '#f5b942'
+        ctx.fillText(countdown, w / 2, h * 0.5 + 10)
+      }
+      tex.update()
+      this.intermissionRaf = requestAnimationFrame(tick)
+    }
+    tick()
+  }
+
+  // small setup dialog (modelled on the second-camera panel): pick a message + optional countdown,
+  // then raise. coming back is a single tap on the dock button - no dialog.
+  openIntermissionPanel(onConfirm: (label: string, untilMs: number | null) => void) {
+    exitPointerLock()
+    const panel = document.createElement('div')
+    Object.assign(panel.style, {
+      position: 'fixed',
+      zIndex: '999999',
+      top: '50%',
+      left: '50%',
+      transform: 'translate(-50%, -50%)',
+      width: mobile ? 'calc(100vw - 2rem)' : '320px',
+      background: '#0d0d0d',
+      color: '#f5f5f0',
+      padding: '1rem',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.75rem',
+      fontFamily: '"Source Code Pro", monospace',
+      fontSize: mobile ? '15px' : '13px',
+      boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
+    })
+
+    const title = document.createElement('div')
+    title.textContent = 'take a break'
+    title.style.fontWeight = 'bold'
+    title.style.fontSize = mobile ? '16px' : '14px'
+
+    const inputStyle: Record<string, string> = { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: mobile ? '10px' : '6px' }
+    if (mobile) Object.assign(inputStyle, { fontSize: '16px', minHeight: '44px' })
+
+    // pre-filled with the common case; type over it for "starting soon" or anything else.
+    const msgInput = document.createElement('input')
+    msgInput.type = 'text'
+    msgInput.value = 'be right back'
+    msgInput.maxLength = 40
+    Object.assign(msgInput.style, inputStyle)
+
+    const minInput = document.createElement('input')
+    minInput.type = 'number'
+    minInput.min = '1'
+    minInput.placeholder = 'minutes until start (optional)'
+    Object.assign(minInput.style, inputStyle)
+
+    const go = document.createElement('button')
+    go.type = 'button'
+    go.textContent = 'raise'
+    Object.assign(go.style, { background: 'var(--red)', color: '#fff', border: '0', padding: mobile ? '12px' : '8px', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 'bold' })
+    go.onclick = () => {
+      const mins = parseFloat(minInput.value)
+      const untilMs = !isNaN(mins) && mins > 0 ? Date.now() + mins * 60_000 : null
+      panel.remove()
+      if (mobile) refreshMobileCanvasAfterReturn()
+      onConfirm(msgInput.value.trim() || 'be right back', untilMs)
+    }
+
+    const cancel = document.createElement('button')
+    cancel.type = 'button'
+    cancel.textContent = 'cancel'
+    Object.assign(cancel.style, { background: 'transparent', color: '#888', border: '0', padding: '4px 0', cursor: 'pointer', fontFamily: 'inherit', textDecoration: 'underline' })
+    cancel.onclick = () => {
+      panel.remove()
+      if (mobile) refreshMobileCanvasAfterReturn()
+    }
+
+    panel.append(title, msgInput, minInput, go, cancel)
+    document.body.appendChild(panel)
+  }
+
   setPreview() {
     if (this.disposed) return
+    if (this.isIntermissionActive()) {
+      this.drawIntermissionCard()
+      return
+    }
     if (this.broadcastRoom && this.localBroadcastVideoEl) {
       this.attachVideoToMesh(this.localBroadcastVideoEl, true)
       return
@@ -2341,8 +2829,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       ctx.fillStyle = '#888'
       ctx.fillText('connecting to stream...', w / 2, h / 2)
     } else if (this.canBroadcastAngle()) {
-      ctx.fillText('second camera', w / 2, h / 2 - 20)
-      const cta = '\u25CF broadcast camera to this mirror'
+      ctx.fillText('second screen', w / 2, h / 2 - 20)
+      const cta = '\u25CF broadcast to this mirror'
       const tw = ctx.measureText(cta).width
       const padX = 14
       const padY = 10
@@ -2354,10 +2842,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       ctx.fillText(cta, w / 2, h / 2 + 10 + bh / 2)
     } else if (this.isAngleMirror()) {
       ctx.fillStyle = '#888'
-      ctx.fillText('second camera', w / 2, h / 2)
+      ctx.fillText('second screen', w / 2, h / 2)
     } else if (this.isMirror()) {
       ctx.fillStyle = '#888'
-      ctx.fillText('showbox mirror', w / 2, h / 2)
+      ctx.fillText('showbox screen mirror', w / 2, h / 2)
     } else {
       ctx.fillStyle = '#888'
       ctx.fillText('no stream active', w / 2, h / 2)
@@ -2651,6 +3139,11 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (retries < 30) requestAnimationFrame(() => this.attachVideoToMesh(el, muted, retries + 1))
       return
     }
+    // standby card outranks any live feed on the mesh - every video repaint funnels through here.
+    if (this.isIntermissionActive()) {
+      this.drawIntermissionCard()
+      return
+    }
     el.muted = muted
     el.autoplay = true
     el.play().catch(() => {})
@@ -2724,7 +3217,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const parcel = { id, name: this.parcel.name, address: this.parcel.address }
     this.thumbInterval = setInterval(() => {
       try {
-        if (this.isCohostMode()) {
+        if (this.isIntermissionActive()) {
+          // on a break the homepage should show the standby card, not the hidden camera
+          ctx.fillStyle = '#0d0d0d'
+          ctx.fillRect(0, 0, THUMB_W, THUMB_H)
+          if (this.intermissionCanvas) drawVideoCover(ctx, this.intermissionCanvas, 0, 0, THUMB_W, THUMB_H)
+        } else if (this.isCohostMode()) {
           if (!this.cohostCanvas) {
             this.cohostCanvas = document.createElement('canvas')
             const { w: cw, h: ch } = this.meshVideoSize()
@@ -2780,12 +3278,29 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   stopBroadcast(silent = false) {
+    // done broadcasting: hand the voice mic back to the avatar and bring the soundtrack back
+    window.persona?.voiceChat?.setBroadcasting(false)
+    window._audio?.setBroadcasting(false)
     this.liveChatAnnounced = false
     this.walkAwayWarned = false
     this.stopMilestonePoll()
     const othersLive = this.hasOtherLivePublishers()
+    if (this.fxAutoTimer) {
+      clearTimeout(this.fxAutoTimer)
+      this.fxAutoTimer = null
+    }
+    if (this.broadcastFxProcessor) {
+      void this.broadcastFxProcessor.destroy?.()
+      this.broadcastFxProcessor = null
+    }
+    if (this.intermission) this.intermission = null
+    this.stopIntermissionCard()
+    if (this.intermissionStatusInterval) {
+      clearInterval(this.intermissionStatusInterval)
+      this.intermissionStatusInterval = null
+    }
     try {
-      const patch: Record<string, any> = { [this.uuid]: {} }
+      const patch: Record<string, any> = { [this.uuid]: { intermission: null } }
       // only a real broadcaster clears the live flag; audience teardown must not nuke it for everyone
       if (this.broadcastRoom && this.activeLiveShowboxUuid() === this.uuid && !othersLive) patch.__showbox_live = null
       this.parcel.sendStatePatch(patch)
@@ -2823,6 +3338,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       this.liveTimerInterval = null
     }
     this.liveStartedAt = null
+    broadcastLiveStartedAt.value = undefined
     if (this.audioMeterRaf) {
       cancelAnimationFrame(this.audioMeterRaf)
       this.audioMeterRaf = null
@@ -2847,8 +3363,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.isMirror()) return
     if (this.broadcastPanel) {
       if (openOnly) return
-      this.broadcastPanel.remove()
-      this.broadcastPanel = null
+      this.dismissBroadcastPanel()
       this.stopBroadcast()
       this.clearBroadcastDockUi()
       return
@@ -2928,6 +3443,15 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     const setDesktopDockLayout = (live: boolean) => {
       if (mobile) return
+      if (this.broadcastPanelSidebar) {
+        panel.style.width = '100%'
+        panel.style.maxHeight = 'none'
+        panel.style.top = 'auto'
+        panel.style.right = 'auto'
+        panel.style.left = 'auto'
+        panel.style.transform = 'none'
+        return
+      }
       panel.style.top = live ? '12px' : '50%'
       panel.style.right = live ? '12px' : 'auto'
       panel.style.left = live ? 'auto' : '50%'
@@ -3069,6 +3593,32 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       deviceRow.style.display = screenChk.checked ? 'none' : 'flex'
     }
     if (mobile) screenOpt.style.display = 'none' // screenshare from a phone is unreliable; stick to the camera
+
+    // "open with a 'starting soon' screen": go live straight into the standby card so the audience
+    // gathers behind it before the show starts. Checking it reveals the message + countdown fields.
+    const standbyFieldStyle: Record<string, string> = { width: '100%', background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: mobile ? '10px' : '6px' }
+    if (mobile) Object.assign(standbyFieldStyle, { fontSize: '16px', minHeight: '44px' })
+    const standbyOpt = document.createElement('label')
+    Object.assign(standbyOpt.style, { display: 'flex', alignItems: 'center', gap: '6px' })
+    const standbyChk = document.createElement('input')
+    standbyChk.type = 'checkbox'
+    standbyOpt.append(standbyChk, " open with a 'starting soon' screen")
+    const standbyConfig = document.createElement('div')
+    Object.assign(standbyConfig.style, { display: 'none', flexDirection: 'column', gap: '4px', paddingLeft: mobile ? '0' : '22px' })
+    const standbyMsgInput = document.createElement('input')
+    standbyMsgInput.type = 'text'
+    standbyMsgInput.value = 'starting soon'
+    standbyMsgInput.maxLength = 40
+    Object.assign(standbyMsgInput.style, standbyFieldStyle)
+    const standbyMinInput = document.createElement('input')
+    standbyMinInput.type = 'number'
+    standbyMinInput.min = '1'
+    standbyMinInput.placeholder = 'minutes until start (optional)'
+    Object.assign(standbyMinInput.style, standbyFieldStyle)
+    standbyConfig.append(standbyMsgInput, standbyMinInput)
+    standbyChk.onchange = () => {
+      standbyConfig.style.display = standbyChk.checked ? 'flex' : 'none'
+    }
 
     const deviceRow = document.createElement('div')
     Object.assign(deviceRow.style, { display: 'flex', flexDirection: 'column', gap: '4px' })
@@ -3467,7 +4017,295 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       b.onclick = () => window.connector?.emote(e)
       emojiRow.appendChild(b)
     })
-    moveRow.append(danceRow, emojiRow)
+    // "visual board": tab between the emote reactions and live video FX on the broadcast (desktop only).
+    const reactRow = document.createElement('div')
+    Object.assign(reactRow.style, { display: 'flex', flexDirection: 'column', gap: '4px' })
+    reactRow.append(danceRow, emojiRow)
+
+    let fxTabs: HTMLDivElement | null = null
+    let fxRow: HTMLDivElement | null = null
+    // solo-mode desktop preview is its own <video> bound to the raw track; captured here so the fx
+    // toggle can re-point it to the processed track too (cohost mode's preview is the composite, which
+    // already follows). assigned when the desktop preview is built.
+    let fxSoloPreviewEl: HTMLVideoElement | null = null
+    if (!mobile) {
+      const tabStyle = (active: boolean): Record<string, string> => ({
+        background: active ? '#333' : '#1a1a1a',
+        color: active ? '#f5f5f0' : '#888',
+        border: '1px solid #333',
+        padding: '6px 10px',
+        cursor: 'pointer',
+        fontFamily: 'inherit',
+        flex: '1',
+        minHeight: '32px',
+      })
+      const emotesTab = document.createElement('button')
+      emotesTab.type = 'button'
+      emotesTab.textContent = 'emotes'
+      Object.assign(emotesTab.style, tabStyle(true))
+      const fxTab = document.createElement('button')
+      fxTab.type = 'button'
+      fxTab.textContent = 'fx'
+      Object.assign(fxTab.style, tabStyle(false))
+      fxTabs = document.createElement('div')
+      Object.assign(fxTabs.style, { display: 'flex', gap: '4px' })
+      fxTabs.append(emotesTab, fxTab)
+
+      fxRow = document.createElement('div')
+      Object.assign(fxRow.style, { display: 'none', flexDirection: 'column', gap: '6px' })
+      const fxHint = document.createElement('small')
+      fxHint.textContent = 'live effect on your broadcast - reacts to your audio.'
+      fxHint.style.color = '#888'
+      // active effect (null = off), palette, per-effect remembered slider positions, and auto-mode state
+      let fxActiveKey: string | null = null
+      let fxPalette = FX_DEFAULT_PALETTE
+      const fxSliderByKey: Record<string, number> = {}
+      VIDEO_FX.forEach((f) => (fxSliderByKey[f.key] = f.defaultSlider))
+      const MANUAL_FADE_MS = 500
+      // auto mode: crossfade through a chosen subset of effects on a hold + fade timer
+      let autoOn = false
+      const autoSet = new Set<string>()
+      let holdMs = 8000
+      let fadeMs = 4000
+
+      // palette picker (Voxelator colors) - applies to whichever effect is active
+      const paletteSel = document.createElement('select')
+      Object.assign(paletteSel.style, { background: '#1a1a1a', color: '#f5f5f0', border: '1px solid #333', padding: '6px', fontFamily: 'inherit' })
+      FX_PALETTES.forEach((p, i) => {
+        const o = document.createElement('option')
+        o.value = String(i)
+        o.textContent = p.label
+        paletteSel.appendChild(o)
+      })
+      paletteSel.onchange = () => {
+        fxPalette = FX_PALETTES[parseInt(paletteSel.value, 10) || 0].lut
+        this.broadcastFxProcessor?.setPalette(fxPalette)
+      }
+
+      // one slider for the active effect's parameter (right = stronger/faster for every effect)
+      const slider = document.createElement('input')
+      slider.type = 'range'
+      slider.min = '0'
+      slider.max = '100'
+      slider.step = '1'
+      slider.value = '50'
+      slider.style.width = '100%'
+      slider.oninput = () => {
+        const v = (parseInt(slider.value, 10) || 50) / 100
+        if (fxActiveKey) fxSliderByKey[fxActiveKey] = v // remember it for this effect
+        this.broadcastFxProcessor?.setSlider(v)
+      }
+
+      const fxGrid = document.createElement('div')
+      Object.assign(fxGrid.style, { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px' })
+      const fxButtons: Record<string, HTMLButtonElement> = {}
+      // tile look: the effect on screen is red; in auto mode, effects in the rotation are amber, others dim.
+      const refreshTiles = () => {
+        Object.entries(fxButtons).forEach(([k, b]) => {
+          const showing = k === fxActiveKey
+          const inSet = autoSet.has(k)
+          b.style.background = showing ? 'var(--red)' : '#1a1a1a'
+          if (showing) {
+            b.style.color = '#fff'
+            b.style.border = '1px solid var(--red)'
+          } else if (autoOn) {
+            b.style.color = inSet ? '#f5b942' : '#888'
+            b.style.border = inSet ? '1px solid #5a4718' : '1px solid #333'
+          } else {
+            b.style.color = '#f5f5f0'
+            b.style.border = '1px solid #333'
+          }
+        })
+      }
+
+      // manual: turn fx on / crossfade between effects / turn off (tap the active one)
+      const selectFx = async (key: string) => {
+        if (!this.broadcastRoom || !liveVideoTrack) {
+          app.showSnackbar('go live first to use fx', PanelType.Warning)
+          return
+        }
+        const turningOff = fxActiveKey === key
+        Object.values(fxButtons).forEach((b) => (b.disabled = true))
+        try {
+          if (turningOff) {
+            await liveVideoTrack.stopProcessor()
+            this.broadcastFxProcessor = null
+            fxActiveKey = null
+          } else if (!this.broadcastFxProcessor) {
+            this.broadcastFxProcessor = new VideoFxProcessor(() => this.fxAudio)
+            this.broadcastFxProcessor.setPalette(fxPalette)
+            this.broadcastFxProcessor.setEffect(key)
+            this.broadcastFxProcessor.setSlider(fxSliderByKey[key] ?? 0.5)
+            await liveVideoTrack.setProcessor(this.broadcastFxProcessor)
+            fxActiveKey = key
+          } else {
+            // crossfade to the new effect on the running processor; restore its remembered slider
+            this.broadcastFxProcessor.setEffect(key, MANUAL_FADE_MS)
+            this.broadcastFxProcessor.setSlider(fxSliderByKey[key] ?? 0.5)
+            fxActiveKey = key
+          }
+        } catch (e) {
+          console.error('showbox: fx toggle failed', e)
+          if (this.broadcastFxProcessor) {
+            void this.broadcastFxProcessor.destroy?.()
+            this.broadcastFxProcessor = null
+          }
+          fxActiveKey = null
+          app.showSnackbar('could not apply effect', PanelType.Warning)
+        }
+        // turning fx on/off swaps liveVideoTrack.mediaStreamTrack (processed <-> raw); re-point the host's
+        // own view so they see what the audience sees (switching effects keeps the same processed track).
+        this.syncBroadcastVideoFromTrack(liveVideoTrack)
+        requestAnimationFrame(() => this.syncBroadcastVideoFromTrack(liveVideoTrack))
+        if (fxSoloPreviewEl) syncVideoElFromTrack(fxSoloPreviewEl, liveVideoTrack)
+        Object.values(fxButtons).forEach((b) => (b.disabled = false))
+        refreshTiles()
+        slider.value = String(Math.round((fxActiveKey ? fxSliderByKey[fxActiveKey] : 0.5) * 100))
+      }
+
+      // auto-mode driver: step to the next effect in the rotation, crossfading over `fadeMs`
+      const stopAuto = () => {
+        if (this.fxAutoTimer) {
+          clearTimeout(this.fxAutoTimer)
+          this.fxAutoTimer = null
+        }
+      }
+      const autoStep = () => {
+        // self-terminate if fx ended or the dock was closed (closure autoOn can't be reached from teardown)
+        if (!autoOn || !this.broadcastFxProcessor || !this.broadcastPanel) {
+          stopAuto()
+          return
+        }
+        const members = VIDEO_FX.map((f) => f.key).filter((k) => autoSet.has(k))
+        if (members.length < 2) {
+          this.fxAutoTimer = setTimeout(autoStep, holdMs) // nothing to cross to - just wait
+          return
+        }
+        const curIdx = members.indexOf(fxActiveKey ?? members[0])
+        const next = members[(curIdx + 1) % members.length]
+        this.broadcastFxProcessor.setEffect(next, fadeMs)
+        this.broadcastFxProcessor.setSlider(fxSliderByKey[next] ?? 0.5)
+        fxActiveKey = next
+        slider.value = String(Math.round((fxSliderByKey[next] ?? 0.5) * 100))
+        refreshTiles()
+        this.fxAutoTimer = setTimeout(autoStep, holdMs + fadeMs)
+      }
+      const startAuto = async () => {
+        const members = VIDEO_FX.map((f) => f.key).filter((k) => autoSet.has(k))
+        if (!this.broadcastFxProcessor && members.length) await selectFx(members[0])
+        stopAuto()
+        this.fxAutoTimer = setTimeout(autoStep, holdMs)
+      }
+
+      // hold + fade sliders (shown only in auto mode)
+      const labeledSlider = (label: string, min: number, max: number, val: number, onChange: (s: number) => void) => {
+        const wrap = document.createElement('label')
+        Object.assign(wrap.style, { display: 'none', alignItems: 'center', gap: '8px', color: '#888', fontSize: '12px' })
+        const span = document.createElement('span')
+        span.textContent = label
+        span.style.minWidth = '32px'
+        const r = document.createElement('input')
+        r.type = 'range'
+        r.min = String(min)
+        r.max = String(max)
+        r.step = '0.5'
+        r.value = String(val)
+        r.style.flex = '1'
+        const out = document.createElement('span')
+        out.style.minWidth = '34px'
+        const sync = () => (out.textContent = r.value + 's')
+        r.oninput = () => {
+          sync()
+          onChange(parseFloat(r.value) || val)
+        }
+        sync()
+        wrap.append(span, r, out)
+        return wrap
+      }
+      const holdRow = labeledSlider('hold', 1, 60, 8, (s) => (holdMs = s * 1000))
+      const fadeRow = labeledSlider('fade', 0.5, 30, 4, (s) => (fadeMs = s * 1000))
+
+      // auto on/off toggle
+      const autoBtn = document.createElement('button')
+      autoBtn.type = 'button'
+      Object.assign(autoBtn.style, { padding: '8px', cursor: 'pointer', fontFamily: 'inherit', minHeight: '36px', fontWeight: 'bold', border: '1px solid #333' })
+      const syncAutoBtn = () => {
+        autoBtn.textContent = autoOn ? 'auto: on' : 'auto: off'
+        autoBtn.style.background = autoOn ? 'var(--red)' : '#1a1a1a'
+        autoBtn.style.color = autoOn ? '#fff' : '#888'
+      }
+      syncAutoBtn()
+      autoBtn.onclick = () => {
+        if (!this.broadcastRoom || !liveVideoTrack) {
+          app.showSnackbar('go live first to use fx', PanelType.Warning)
+          return
+        }
+        autoOn = !autoOn
+        if (autoOn) {
+          if (autoSet.size === 0) VIDEO_FX.forEach((f) => autoSet.add(f.key)) // default: cycle all of them
+          holdRow.style.display = 'flex'
+          fadeRow.style.display = 'flex'
+          fxHint.textContent = 'auto: cross-fading the highlighted effects. tap tiles to add/remove.'
+          void startAuto()
+        } else {
+          stopAuto()
+          holdRow.style.display = 'none'
+          fadeRow.style.display = 'none'
+          fxHint.textContent = 'live effect on your broadcast - reacts to your audio.'
+        }
+        syncAutoBtn()
+        refreshTiles()
+      }
+
+      VIDEO_FX.forEach((fx) => {
+        const b = document.createElement('button')
+        b.type = 'button'
+        b.textContent = fx.label
+        Object.assign(b.style, { padding: '10px', cursor: 'pointer', fontFamily: 'inherit', minHeight: '44px', fontWeight: 'bold' })
+        b.onclick = () => {
+          if (autoOn) {
+            // curate the rotation: add/remove this effect
+            if (autoSet.has(fx.key)) {
+              if (autoSet.size <= 1) return // keep at least one effect in the rotation
+              autoSet.delete(fx.key)
+              // if we removed the effect currently on screen, cross to a remaining one now so the
+              // highlight isn't stuck on a non-member
+              if (fxActiveKey === fx.key && this.broadcastFxProcessor) {
+                const next = VIDEO_FX.map((f) => f.key).filter((k) => autoSet.has(k))[0]
+                if (next) {
+                  this.broadcastFxProcessor.setEffect(next, MANUAL_FADE_MS)
+                  this.broadcastFxProcessor.setSlider(fxSliderByKey[next] ?? 0.5)
+                  fxActiveKey = next
+                  slider.value = String(Math.round((fxSliderByKey[next] ?? 0.5) * 100))
+                }
+              }
+            } else {
+              autoSet.add(fx.key)
+            }
+            refreshTiles()
+          } else {
+            void selectFx(fx.key)
+          }
+        }
+        fxButtons[fx.key] = b
+        fxGrid.appendChild(b)
+      })
+      refreshTiles()
+
+      fxRow.append(fxHint, autoBtn, fxGrid, slider, paletteSel, holdRow, fadeRow)
+
+      const selectTab = (fx: boolean) => {
+        reactRow.style.display = fx ? 'none' : 'flex'
+        fxRow!.style.display = fx ? 'flex' : 'none'
+        Object.assign(emotesTab.style, tabStyle(!fx))
+        Object.assign(fxTab.style, tabStyle(fx))
+      }
+      emotesTab.onclick = () => selectTab(false)
+      fxTab.onclick = () => selectTab(true)
+    }
+
+    if (fxTabs && fxRow) moveRow.append(fxTabs, reactRow, fxRow)
+    else moveRow.append(reactRow)
 
     const status = document.createElement('div')
     status.style.color = '#888'
@@ -3477,10 +4315,108 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     goBtn.textContent = 'go live'
     Object.assign(goBtn.style, { background: 'var(--red)', color: '#f5f5f0', border: '0', padding: '12px 16px', cursor: 'pointer', fontFamily: 'inherit', flex: '2', minHeight: '44px', fontWeight: 'bold' })
 
+    // Intermission control. A small secondary button left of "stop streaming" (in both the desktop and
+    // mobile docks, since both append `row`), hidden until live. Raise opens the setup dialog; return is
+    // one tap. The dock preview stays a live mirror of your camera during standby (so you can check your
+    // look) - we just relabel it. The label ref is assigned when the preview is built.
+    let intermissionPreviewLabel: HTMLElement | null = null
+    // cold-open "starting soon" via the go-live checkbox sets these: standbyStartLabel makes the
+    // return button read "start show" instead of "back to live"; pendingStandby is raised once live.
+    let standbyStartLabel = false
+    let pendingStandby: { label: string; mins: number | null } | null = null
+    const intermissionBtn = document.createElement('button')
+    intermissionBtn.type = 'button'
+    intermissionBtn.textContent = 'take a break'
+    Object.assign(intermissionBtn.style, {
+      display: 'none',
+      background: 'transparent',
+      color: '#f5b942',
+      border: '1px solid #5a4718',
+      padding: mobile ? '10px 12px' : '6px 10px',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      flex: '0 0 auto',
+      fontSize: mobile ? '14px' : '12px',
+      minHeight: mobile ? '44px' : 'auto',
+      whiteSpace: 'nowrap',
+    })
+    const syncIntermissionUi = () => {
+      const on = !!this.intermission
+      intermissionBtn.textContent = on ? (standbyStartLabel ? 'start show' : 'back to live') : 'take a break'
+      // on break the return button fills in (the action to get back on); idle it's a quiet amber outline
+      intermissionBtn.style.background = on ? 'var(--red)' : 'transparent'
+      intermissionBtn.style.color = on ? '#f5f5f0' : '#f5b942'
+      intermissionBtn.style.borderColor = on ? 'var(--red)' : '#5a4718'
+      // keep showing your camera as a mirror; just say what's actually going out
+      if (intermissionPreviewLabel) intermissionPreviewLabel.textContent = on ? 'your camera · audience sees the standby screen' : 'what your audience sees'
+    }
+    const stopIntermissionStatus = () => {
+      if (this.intermissionStatusInterval) {
+        clearInterval(this.intermissionStatusInterval)
+        this.intermissionStatusInterval = null
+      }
+    }
+    const clearIntermissionStatusLine = () => {
+      stopIntermissionStatus()
+      status.style.display = 'none'
+      status.textContent = ''
+      status.style.color = ''
+    }
+    const runIntermissionStatus = () => {
+      stopIntermissionStatus()
+      const render = () => {
+        if (!this.intermission) {
+          clearIntermissionStatusLine()
+          return
+        }
+        const cd = this.intermissionCountdownLabel(this.intermission.until)
+        status.style.display = 'block'
+        status.style.color = '#f5b942'
+        status.textContent = cd ? `${this.intermission.label} - ${cd}` : this.intermission.label
+      }
+      render()
+      this.intermissionStatusInterval = setInterval(render, 1000)
+    }
+    intermissionBtn.onclick = () => {
+      if (this.intermission) {
+        this.dropIntermission()
+        standbyStartLabel = false
+        clearIntermissionStatusLine()
+        syncIntermissionUi()
+        return
+      }
+      // a mid-show break is always "be right back" -> "back to live", not a cold-open start
+      standbyStartLabel = false
+      this.openIntermissionPanel((label, untilMs) => {
+        this.raiseIntermission(label, untilMs)
+        syncIntermissionUi()
+        runIntermissionStatus()
+      })
+    }
+
+    // host quick-share: drop a screenshare onto a second screen for the room without walking to a mirror.
+    // desktop only (screenshare is unreliable on phones), revealed once live alongside the intermission control.
+    const shareScreenDockBtn = document.createElement('button')
+    shareScreenDockBtn.type = 'button'
+    shareScreenDockBtn.textContent = 'share a screen'
+    Object.assign(shareScreenDockBtn.style, {
+      display: 'none',
+      background: 'transparent',
+      color: '#f5b942',
+      border: '1px solid #5a4718',
+      padding: '6px 10px',
+      cursor: 'pointer',
+      fontFamily: 'inherit',
+      flex: '0 0 auto',
+      fontSize: '12px',
+      whiteSpace: 'nowrap',
+    })
+    shareScreenDockBtn.onclick = () => this.openShareScreenChooser()
+
     const row = document.createElement('div')
     row.style.display = 'flex'
     row.style.gap = '0.5rem'
-    row.append(goBtn)
+    row.append(intermissionBtn, shareScreenDockBtn, goBtn)
 
     // setup-only escape hatch: close the dialog without going live. hidden once streaming.
     const cancelBtn = document.createElement('button')
@@ -3492,8 +4428,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.broadcastChatDispose()
         this.broadcastChatDispose = null
       }
-      this.broadcastPanel?.remove()
-      this.broadcastPanel = null
+      this.dismissBroadcastPanel()
     }
 
     // Mobile chat lives in the dock when live - bottom sheet covers world chat. Desktop uses normal chat.
@@ -3682,17 +4617,17 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       const mobileKids: Node[] = [title]
       if (identityRow) mobileKids.push(identityRow)
       // mobile live uses flip camera link instead of "change camera or mic" (pick cam/mic before go-live in deviceRow)
-      mobileKids.push(deviceRow, screenOpt, screenHint, flipBtn, micToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status, cancelBtn)
+      mobileKids.push(deviceRow, screenOpt, screenHint, standbyOpt, standbyConfig, flipBtn, micToggle, chatRow, dockFooter!, mobileExtrasBtn!, moveRow, status, cancelBtn)
       panel.append(...mobileKids)
     } else {
       const desktopKids: Node[] = [title]
       if (identityRow) desktopKids.push(identityRow)
-      desktopKids.push(deviceRow, screenOpt, screenHint, deviceToggle, micToggle)
+      desktopKids.push(deviceRow, screenOpt, screenHint, standbyOpt, standbyConfig, deviceToggle, micToggle)
       if (shareRow) desktopKids.push(shareRow)
       desktopKids.push(moveRow, status, row, cancelBtn)
       panel.append(...desktopKids)
     }
-    document.body.appendChild(panel)
+    this.attachBroadcastPanel(panel)
 
     navigator.mediaDevices.enumerateDevices().then((devices) => {
       const cams = devices.filter((d) => d.kind === 'videoinput')
@@ -3731,18 +4666,45 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.audioMeterCtx = ctx
         const source = ctx.createMediaStreamSource(new MediaStream([mst]))
         const analyser = ctx.createAnalyser()
-        analyser.fftSize = 512
+        analyser.fftSize = 1024 // finer bass resolution (~43Hz/bin) to catch the kick
+        analyser.smoothingTimeConstant = 0.4 // less spectral smoothing so transients stay sharp
         source.connect(analyser)
         const data = new Uint8Array(analyser.frequencyBinCount)
+        const freq = new Uint8Array(analyser.frequencyBinCount)
+        const avgBins = (arr: Uint8Array, lo: number, hi: number) => {
+          let s = 0
+          for (let i = lo; i < hi; i++) s += arr[i]
+          return hi > lo ? s / (hi - lo) / 255 : 0
+        }
+        let bassAvg = 0
+        let punchEnv = 0
+        let lastTs = performance.now()
         const tick = () => {
           if (!meterFillEl) return
+          // overall loudness (RMS of the waveform) - drives the meter bar
           analyser.getByteTimeDomainData(data)
           let sum = 0
           for (let i = 0; i < data.length; i++) {
             const v = (data[i] - 128) / 128
             sum += v * v
           }
-          const pct = Math.min(100, Math.sqrt(sum / data.length) * 200)
+          const level = Math.min(1, Math.sqrt(sum / data.length) * 2)
+          // frequency bands for the video FX (so the visuals dance, not just pulse)
+          analyser.getByteFrequencyData(freq)
+          const n = freq.length
+          const bass = Math.min(1, avgBins(freq, 1, Math.max(2, (n * 0.02) | 0)) * 1.3)
+          const mid = Math.min(1, avgBins(freq, Math.max(2, (n * 0.02) | 0), (n * 0.25) | 0) * 1.3)
+          const treble = Math.min(1, avgBins(freq, (n * 0.25) | 0, (n * 0.6) | 0) * 1.6)
+          // beat-punch = the bass TRANSIENT (how far bass jumps above its own slow average), auto-gained
+          // so it snaps on kicks across loud AND quiet music instead of pinning to 1. time-based decay.
+          const now = performance.now()
+          const dt = Math.min(0.1, (now - lastTs) / 1000 || 0.016)
+          lastTs = now
+          bassAvg += (bass - bassAvg) * 0.06
+          const transient = Math.min(1, Math.max(0, (bass - bassAvg) * 6))
+          punchEnv = Math.max(transient, punchEnv * Math.exp(-dt / 0.12))
+          this.fxAudio = { level, bass, mid, treble, punch: punchEnv }
+          const pct = Math.min(100, level * 100)
           meterFillEl.style.width = pct + '%'
           meterFillEl.style.background = pct > 85 ? 'var(--red)' : pct > 60 ? '#f5b942' : '#22c55e'
           this.audioMeterRaf = requestAnimationFrame(tick)
@@ -3777,8 +4739,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.mobileBroadcastHooksClear?.()
         // stopping ends the show - close the dock entirely instead of bouncing back to the go-live form
         this.stopBroadcast()
-        this.broadcastPanel?.remove()
-        this.broadcastPanel = null
+        this.dismissBroadcastPanel()
         this.clearBroadcastDockUi()
         this.setPreview()
         return
@@ -3786,8 +4747,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
       // stream already ended but the dock is still open - dismiss, don't start a second go-live
       if (this.broadcastLost) {
-        this.broadcastPanel?.remove()
-        this.broadcastPanel = null
+        this.dismissBroadcastPanel()
         this.clearBroadcastDockUi()
         this.setPreview()
         return
@@ -3799,6 +4759,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (!this.withinBounds) {
         app.showSnackbar('move the showbox inside your parcel to go live', PanelType.Warning)
         return
+      }
+
+      // "open with a starting soon screen" - remember it so the live transition raises the card at once
+      if (standbyChk.checked) {
+        const mins = parseFloat(standbyMinInput.value)
+        pendingStandby = { label: standbyMsgInput.value.trim() || 'starting soon', mins: !isNaN(mins) && mins > 0 ? mins : null }
+      } else {
+        pendingStandby = null
       }
 
       if (syntheticGuest) {
@@ -3911,6 +4879,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           await room.localParticipant.publishTrack(t)
         }
         this.liveStartedAt = Date.now()
+        broadcastLiveStartedAt.value = this.liveStartedAt
 
         // mirror showboxes can't subscribe to our own feed (same client) - have them read it locally now
         this.parcel.getFeaturesByType('showbox').forEach((f) => (f as any).refreshMirrorVideo?.())
@@ -3975,7 +4944,20 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         goBtn.style.background = '#444'
         goBtn.disabled = false
         status.textContent = ''
-        ;[title, screenOpt, status, cancelBtn].forEach((el) => ((el as HTMLElement).style.display = 'none'))
+        ;[title, screenOpt, standbyOpt, standbyConfig, status, cancelBtn].forEach((el) => ((el as HTMLElement).style.display = 'none'))
+        // intermission control only makes sense once you're live
+        intermissionBtn.style.display = 'block'
+        // quick screen-share to a second screen - desktop only, and only while you're the one broadcasting
+        if (!mobile) shareScreenDockBtn.style.display = 'block'
+        if (pendingStandby) {
+          // "open with a starting soon screen" - raise the card immediately so the raw camera never airs
+          const { label, mins } = pendingStandby
+          pendingStandby = null
+          standbyStartLabel = true
+          this.raiseIntermission(label, mins && mins > 0 ? Date.now() + mins * 60_000 : null)
+        }
+        syncIntermissionUi()
+        if (this.intermission) runIntermissionStatus()
         if (identityRow) identityRow.style.display = 'none'
         deviceRow.style.display = 'none'
         // screensharing has no camera and the mic is handled by the mic toggle below - hide the device picker
@@ -4023,6 +5005,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         } else {
           if (shareRow) shareRow.style.display = 'flex'
           moveRow.style.display = 'flex'
+          // fx mangles a screenshare and makes no sense there - drop the tab bar so only emote reactions show.
+          if (fxTabs) fxTabs.style.display = screenChk.checked ? 'none' : 'flex'
           if (!screenChk.checked && liveAudioTrack) {
             micOn = true
             micToggle.style.display = 'block'
@@ -4069,50 +5053,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.broadcastDockStatusEl = status
         this.broadcastLost = false
 
-        // Desktop minimize: collapse the dock to a live pill so broadcasters can read chat without killing the stream.
-        // Mobile already has "see world" for this, so desktop only.
-        if (!mobile) {
-          let minimized = false
-          const minBtn = document.createElement('button')
-          minBtn.type = 'button'
-          minBtn.textContent = '-'
-          minBtn.title = 'minimize'
-          Object.assign(minBtn.style, { background: 'transparent', color: '#f5f5f0', border: '0', padding: '0 4px', cursor: 'pointer', fontFamily: 'inherit', fontSize: '18px', lineHeight: '1', flexShrink: '0' })
-          minBtn.onclick = (e) => {
-            e.stopPropagation()
-            minimized = !minimized
-            for (const child of Array.from(panel.children)) {
-              if (child === liveHeader) continue
-              const el = child as HTMLElement
-              if (minimized) {
-                el.dataset.prevDisplay = el.style.display
-                el.style.display = 'none'
-              } else {
-                el.style.display = el.dataset.prevDisplay ?? ''
-              }
-            }
-            if (minimized) {
-              panel.style.width = 'auto'
-              panel.style.maxHeight = 'none'
-              panel.style.boxShadow = 'none'
-              panel.style.padding = '6px 10px'
-            } else {
-              panel.style.padding = '1rem'
-              panel.style.boxShadow = '0 4px 24px rgba(0,0,0,0.6)'
-              setDesktopDockLayout(true)
-            }
-            minBtn.textContent = minimized ? '+' : '-'
-            minBtn.title = minimized ? 'expand' : 'minimize'
-          }
-          liveHeader.append(minBtn)
-        }
-
-        if (!document.getElementById('showbox-live-pulse-style')) {
-          const styleEl = document.createElement('style')
-          styleEl.id = 'showbox-live-pulse-style'
-          styleEl.textContent = '@keyframes showbox-live-pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.3 } }'
-          document.head.appendChild(styleEl)
-        }
+        // minimize is the close-X now: closing the sidebar while live drops to the pulsing
+        // "live" edge tab (BroadcastSidebarTab) and clicking it brings the dock back.
 
         this.liveTimerInterval = setInterval(() => {
           if (!this.liveStartedAt) return
@@ -4150,10 +5092,12 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             if (!this.isCohostMode()) {
               previewVideo.volume = 0
               Object.assign(previewVideo.style, { width: '100%', height: '100%', objectFit: 'cover', display: 'block' })
+              fxSoloPreviewEl = previewVideo
             }
             const previewLabel = document.createElement('div')
-            previewLabel.textContent = 'what your audience sees'
+            previewLabel.textContent = this.intermission ? 'your camera · audience sees the standby screen' : 'what your audience sees'
             Object.assign(previewLabel.style, { position: 'absolute', top: '4px', left: '6px', color: '#f5f5f0', fontSize: '11px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px' })
+            intermissionPreviewLabel = previewLabel
             Object.assign(meterTrack.style, { position: 'absolute', bottom: '0', left: '0', right: '0' })
             previewWrap.append(previewVideo, previewLabel, meterTrack)
             panel.insertBefore(previewWrap, chatRow ?? moveRow)
@@ -4179,8 +5123,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
             syncMobilePreview = wireMobilePreviewVideo(mobilePreviewWrap, mobilePreviewVideo)
             this.syncMobilePreviewDock = syncMobilePreview
             const previewLabel = document.createElement('div')
-            previewLabel.textContent = 'what your audience sees'
+            previewLabel.textContent = this.intermission ? 'your camera · audience sees the standby screen' : 'what your audience sees'
             Object.assign(previewLabel.style, { position: 'absolute', top: '4px', left: '6px', color: '#f5f5f0', fontSize: '11px', background: 'rgba(0,0,0,0.6)', padding: '2px 6px' })
+            intermissionPreviewLabel = previewLabel
             Object.assign(meterTrack.style, { position: 'absolute', bottom: '0', left: '0', right: '0' })
             mobilePreviewWrap.append(mobilePreviewVideo, previewLabel, meterTrack)
             panel.insertBefore(mobilePreviewWrap, chatRow ?? moveRow)
@@ -4256,7 +5201,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         this.unblockAudiencePlayback()
       }
     }
-    this.parcelScript?.dispatch('click', this, {})
+    this.behaviours?.dispatch(this.uuid, 'click')
   }
 }
 
@@ -4269,7 +5214,7 @@ class Editor extends FeatureEditor<Showbox> {
       volume: props.feature.volume,
       guestMode: props.feature.guestMode === 'solo' ? 'solo' : 'cohost',
       mirrorSource: props.feature.mirrorSource,
-      angleMode: !!props.feature.description.angleMode,
+      angleMode: props.feature.description.angleMode !== false, // default a mirror to second-screen mode
       screenShape: props.feature.screenShape === 'portrait' ? 'portrait' : 'landscape',
     }
   }
@@ -4302,65 +5247,78 @@ class Editor extends FeatureEditor<Showbox> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
-          {isMirror ? (
-            <div className="f">
-              <label>
-                <input type="checkbox" checked={this.state.angleMode} onChange={(e) => this.setState({ angleMode: e.currentTarget.checked })} /> second camera angle
-              </label>
-              <small>A dedicated screen for a second camera, no audio. Walk up to it in-world and click to broadcast your camera straight to this screen.</small>
-              {!this.state.angleMode && (
+          <EditorProps>
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+            {isMirror ? (
+              <div className="f">
+                <label>Mode</label>
+                <select value={this.state.angleMode ? 'second' : 'mirror'} onChange={(e) => this.setState({ angleMode: e.currentTarget.value === 'second' })}>
+                  <option value="second">Second screen</option>
+                  <option value="mirror">Mirror showbox</option>
+                </select>
+                {this.state.angleMode ? (
+                  <div className="f">
+                    <small>A dedicated screen for an extra feed, no audio. Share a screen or add a camera, then drag and resize it in-world.</small>
+                    <div>
+                      <button type="button" onClick={() => void this.props.feature.startAngleBroadcast(undefined, true)}>
+                        Share screen
+                      </button>{' '}
+                      <button type="button" onClick={() => this.props.feature.openAnglePanel(true)}>
+                        Add camera
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="f">
+                    <label>Source</label>
+                    <select value={this.state.mirrorSource} onChange={(e) => this.setState({ mirrorSource: e.currentTarget.value as MirrorSource })}>
+                      <option value="auto">whoever is live</option>
+                      <option value="host">host (parcel owner)</option>
+                      <option value="collaborator">collaborator</option>
+                      <option value="guest">guest</option>
+                    </select>
+                    <small>Mirrors the first showbox video with no audio. Falls back to whoever is live if your pick isn't streaming. Manage the stream and guest links on the first showbox.</small>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <GuestPasses feature={this.props.feature} guestMode={this.state.guestMode} onGuestModeChange={(guestMode) => this.setState({ guestMode })} />
+            )}
+            {!isMirror && (
+              <div className="f">
+                <label>Screen shape</label>
+                <div>
+                  <label>
+                    <input type="radio" name="screenShape" checked={this.state.screenShape === 'landscape'} onChange={() => this.setState({ screenShape: 'landscape' })} />
+                    landscape
+                  </label>
+                  <label>
+                    <input type="radio" name="screenShape" checked={this.state.screenShape === 'portrait'} onChange={() => this.setState({ screenShape: 'portrait' })} />
+                    portrait
+                  </label>
+                </div>
+              </div>
+            )}
+            <Advanced>
+              <FeatureID feature={this.props.feature} />
+              {!isMirror && (
                 <div className="f">
-                  <label>Mirror source</label>
-                  <select value={this.state.mirrorSource} onChange={(e) => this.setState({ mirrorSource: e.currentTarget.value as MirrorSource })}>
-                    <option value="auto">whoever is live</option>
-                    <option value="host">host (parcel owner)</option>
-                    <option value="collaborator">collaborator</option>
-                    <option value="guest">guest</option>
-                  </select>
-                  <small>Mirrors the first showbox video with no audio. Falls back to whoever is live if your pick isn't streaming. Manage the stream and guest links on the first showbox.</small>
+                  <label>Spatial Rolloff Factor</label>
+                  <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onChange={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
+                  <small>0 = heard everywhere in the parcel. Higher = fades as you walk away from the screen.</small>
                 </div>
               )}
-            </div>
-          ) : (
-            <GuestPasses feature={this.props.feature} guestMode={this.state.guestMode} onGuestModeChange={(guestMode) => this.setState({ guestMode })} />
-          )}
-          {!isMirror && (
-            <div className="f">
-              <label>Screen shape</label>
-              <div>
-                <label>
-                  <input type="radio" name="screenShape" checked={this.state.screenShape === 'landscape'} onChange={() => this.setState({ screenShape: 'landscape' })} />
-                  landscape
-                </label>
-                <label>
-                  <input type="radio" name="screenShape" checked={this.state.screenShape === 'portrait'} onChange={() => this.setState({ screenShape: 'portrait' })} />
-                  portrait
-                </label>
-              </div>
-            </div>
-          )}
-          <Advanced>
-            <FeatureID feature={this.props.feature} />
-            <SetParentDropdown feature={this.props.feature} />
-            {!isMirror && (
-              <div className="f">
-                <label>Spatial Rolloff Factor</label>
-                <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onChange={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
-                <small>0 = heard everywhere in the parcel. Higher = fades as you walk away from the screen.</small>
-              </div>
-            )}
-            {!isMirror && (
-              <div className="f">
-                <label>Volume</label>
-                <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
-              </div>
-            )}
-            <UuidReadOnly feature={this.props.feature} />
-            <Script feature={this.props.feature} />
-          </Advanced>
+              {!isMirror && (
+                <div className="f">
+                  <label>Volume</label>
+                  <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
+                </div>
+              )}
+              <Behaviours feature={this.props.feature} />
+            </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

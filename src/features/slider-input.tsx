@@ -1,7 +1,7 @@
 import { throttle } from 'lodash'
 import { SliderInputRecord } from '../../common/messages/feature'
-import { Position, Rotation, Scale, Script } from '../../web/src/components/editor'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SpecularColorSetting, Toolbar, UuidReadOnly } from '../ui/features'
+import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, SpecularColorSetting, Toolbar } from '../ui/features'
 import { tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
@@ -104,8 +104,8 @@ export default class SliderInput extends Feature2D<SliderInputRecord> {
   }
 
   onChanged() {
-    if (this.parcelScript) {
-      this.parcelScript.dispatch('changed', this, { value: this.input?.value || 0 })
+    if (this.behaviours) {
+      this.behaviours.dispatch(this.uuid, 'changed', { value: this.input?.value || 0 })
     }
   }
 }
@@ -158,34 +158,35 @@ class Editor extends FeatureEditor<SliderInput> {
         </header>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+          <EditorProps>
+            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <FeatureID feature={this.props.feature} />
+            <FeatureID feature={this.props.feature} />
 
-          <div className="f">
-            <label>Text</label>
-            <input value={this.state.text} onInput={(e) => this.update({ text: e.currentTarget.value })} type="text" />
-          </div>
-          <div className="f">
-            <label>Minimum</label>
-            <input value={this.state.minimum} onInput={(e) => this.update({ minimum: e.currentTarget.value })} type="number" maxLength={10} />
-          </div>
-          <div className="f">
-            <label>Maximum</label>
-            <input value={this.state.maximum} onInput={(e) => this.update({ maximum: e.currentTarget.value })} type="number" maxLength={10} />
-          </div>
-          <div className="f">
-            <label>Default</label>
-            <input value={this.state.default} onInput={(e) => this.update({ default: e.currentTarget.value })} type="number" maxLength={10} />
-          </div>
-          <Advanced>
-            <SpecularColorSetting feature={this.props.feature} />
-            <Script feature={this.props.feature} />
-            <UuidReadOnly feature={this.props.feature} />
-          </Advanced>
+            <div className="f">
+              <label>Text</label>
+              <input value={this.state.text} onInput={(e) => this.update({ text: e.currentTarget.value })} type="text" />
+            </div>
+            <div className="f">
+              <label>Minimum</label>
+              <input value={this.state.minimum} onInput={(e) => this.update({ minimum: e.currentTarget.value })} type="number" maxLength={10} />
+            </div>
+            <div className="f">
+              <label>Maximum</label>
+              <input value={this.state.maximum} onInput={(e) => this.update({ maximum: e.currentTarget.value })} type="number" maxLength={10} />
+            </div>
+            <div className="f">
+              <label>Default</label>
+              <input value={this.state.default} onInput={(e) => this.update({ default: e.currentTarget.value })} type="number" maxLength={10} />
+            </div>
+            <Advanced>
+              <SpecularColorSetting feature={this.props.feature} />
+              <Behaviours feature={this.props.feature} />
+            </Advanced>
+          </EditorProps>
         </div>
       </section>
     )

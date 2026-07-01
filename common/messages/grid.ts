@@ -4,7 +4,7 @@
 // Descriptions used in message types
 
 import * as t from 'io-ts'
-import { FeatureRecord, NullableStr } from './feature'
+import { FeatureRecord } from './feature'
 import { LightmapStatus, ParcelAuthResult, ParcelRecord, ParcelRef, SimpleParcelRecord } from './parcel'
 
 /**
@@ -31,7 +31,6 @@ export const PatchErrorMessage = t.type(
     type: t.literal('patch-error'),
     parcelId: t.number,
     patch: Patch,
-    rollbackHash: t.union([t.string, t.undefined]),
     error: t.string,
   },
   'PatchErrorMessage',
@@ -47,21 +46,6 @@ export const PatchStateMessage = t.type(
   'PatchStateMessage',
 )
 export type PatchStateMessage = t.TypeOf<typeof PatchStateMessage>
-
-export const ParcelHashMessage = t.intersection(
-  [
-    t.type({
-      type: t.literal('parcel-hash'),
-      parcelId: t.number,
-      hash: NullableStr,
-    }),
-    t.partial({
-      lightmap_url: t.union([t.string, t.null]),
-    }),
-  ],
-  'ParcelHashMessage',
-)
-export type ParcelHashMessage = t.TypeOf<typeof ParcelHashMessage>
 
 export const ParcelAuthMessage = t.type(
   {
@@ -79,7 +63,6 @@ export const LightMapUpdateMessage = t.type(
   {
     type: t.literal('lightmap-status'),
     parcelId: t.number,
-    hash: t.string,
     lightmap_url: t.union([t.string, t.null]),
   },
   'LightMapUpdateMessage',
@@ -168,7 +151,7 @@ export const LightmapActionMessage = t.intersection(
 export type LightmapActionMessage = t.TypeOf<typeof LightmapActionMessage>
 
 // Grid Messages sent server->client
-export const GridMessage = t.union([PatchMessage, PatchErrorMessage, ParcelAuthMessage, PatchStateMessage, ParcelHashMessage, LightMapUpdateMessage, SuspendedMessage, ParcelMetaMessage, ParcelScriptMessage, PongMessage])
+export const GridMessage = t.union([PatchMessage, PatchErrorMessage, ParcelAuthMessage, PatchStateMessage, LightMapUpdateMessage, SuspendedMessage, ParcelMetaMessage, ParcelScriptMessage, PongMessage])
 export type GridMessage = t.TypeOf<typeof GridMessage>
 
 // Grid Messages sent client->server

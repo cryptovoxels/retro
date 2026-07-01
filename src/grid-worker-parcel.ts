@@ -5,7 +5,8 @@ import { GridWorkerParcelRecord } from '../common/messages/grid'
 import { isCompleteParcelRecord } from '../common/messages/parcel'
 import { getBufferFromVoxels, getFieldShape } from '../common/voxels/helpers'
 import type { FetchOptions } from '../web/src/utils'
-import type { GridWorkerOutput } from './grid-worker'
+import type { GridWorkerOutput } from './monoworker/grid'
+import { aabbDistance, vec3, type Vec3 } from './monoworker/math'
 // Removed meshing imports - meshing now handled on main thread
 
 // Create a retry policy that'll try whatever function with a randomized exponential backoff.
@@ -29,7 +30,6 @@ export class GridWorkerParcel {
   description: GridWorkerParcelRecord
   loadState = LoadState.None
   loadAbortController: AbortController | undefined
-  private tmpPointVector = BABYLON.Vector3.Zero()
 
   constructor(
     private grid: GridWorkerInterface,
@@ -46,16 +46,12 @@ export class GridWorkerParcel {
     return this.description.hash
   }
 
-  public get boundingBox() {
-    return new BABYLON.BoundingBox(this.min, this.max)
-  }
-
   public get min() {
-    return new BABYLON.Vector3(this.description.x1, this.description.y1, this.description.z1)
+    return vec3(this.description.x1, this.description.y1, this.description.z1)
   }
 
   public get max() {
-    return new BABYLON.Vector3(this.description.x2, this.description.y2, this.description.z2)
+    return vec3(this.description.x2, this.description.y2, this.description.z2)
   }
 
   public async load(): Promise<void> {
@@ -115,41 +111,31 @@ export class GridWorkerParcel {
     }
   }
 
-  public getDistance(p: BABYLON.Vector3) {
-    this.closestPointToOBBToRef(p, this.tmpPointVector)
-    return this.tmpPointVector.subtract(p).length()
+  public getDistance(p: Vec3) {
+    return aabbDistance(p, this.min, this.max)
   }
 
   private async fetchParcelData(): Promise<boolean> {
-    const fallbackUrl = `/grid/parcels/${this.id}`
-    const versionUrl = this.hash ? `/grid/parcels/${this.id}/at/${this.hash}` : fallbackUrl
+    const url = `/grid/parcels/${this.id}`
 
     const abortController = new AbortController()
     this.loadAbortController = abortController
 
-    // Try primary URL first
-    let primaryResult: boolean | null = null
     try {
-      const res = await this.fetchJson(versionUrl, abortController.signal)
+      const res = await this.fetchJson(url, abortController.signal)
       const response = (await res.json()) as ApiParcelMessage
-      primaryResult = this.handleFetchSuccess(response)
+      return this.handleFetchSuccess(response)
     } catch {
-      primaryResult = null
+      if (abortController.signal.aborted) return false
+      const fallbackResult = await retryPolicy
+        .execute(async () => {
+          const res = await this.fetchJson(url, abortController.signal)
+          const response = (await res.json()) as ApiParcelMessage
+          return this.handleFetchSuccess(response)
+        }, abortController.signal)
+        .catch(() => null)
+      return fallbackResult !== null ? fallbackResult : false
     }
-    if (primaryResult !== null) return primaryResult
-
-    // Try fallback URL if primary failed
-    if (abortController.signal.aborted) return false
-    console.info(`[grid-worker] cached parcel ${this.id} out of date, getting latest`)
-
-    const fallbackResult = await retryPolicy
-      .execute(async () => {
-        const res = await this.fetchJson(fallbackUrl, abortController.signal)
-        const response = (await res.json()) as ApiParcelMessage
-        return this.handleFetchSuccess(response)
-      }, abortController.signal)
-      .catch(() => null)
-    return fallbackResult !== null ? fallbackResult : false
   }
 
   private handleFetchSuccess(response: ApiParcelMessage): boolean {
@@ -162,7 +148,7 @@ export class GridWorkerParcel {
   }
 
   private async fetchJson(url: string, signal?: AbortSignal) {
-    const opts: FetchOptions = { method: 'get', signal, priority: 'high' }
+    const opts: FetchOptions = { method: 'get', signal, priority: 'high', cache: 'no-store' }
     const req = await fetch(url, opts)
     if (!req.ok) throw new Error(req.statusText)
     return req
@@ -170,19 +156,5 @@ export class GridWorkerParcel {
 
   private postWorkerMessage(message: GridWorkerOutput, transfer: Transferable[] = []) {
     this.grid.self.postMessage(message, transfer)
-  }
-
-  // Removed onUnloaded() - logic inlined into unload() method
-
-  private closestPointToOBBToRef(point: BABYLON.Vector3, result: BABYLON.Vector3) {
-    const box = this.boundingBox
-    const halfWidths = box.extendSize.asArray()
-    const d = point.subtract(box.centerWorld)
-    result.copyFrom(box.centerWorld)
-
-    for (let i = 0; i < 3; i++) {
-      const dist = Math.max(-halfWidths[i], Math.min(halfWidths[i], BABYLON.Vector3.Dot(d, box.directions[i])))
-      result.addInPlace(box.directions[i].scale(dist))
-    }
   }
 }

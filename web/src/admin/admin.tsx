@@ -1,10 +1,9 @@
 import { useState } from 'preact/hooks'
 import { app } from '../state'
 import Owned from './owned'
-import Proposals from './proposals'
 import Unminted from './unminted'
 
-type Tab = 'mint' | 'list' | 'proposals'
+type Tab = 'mint' | 'list'
 
 export default function Admin(_props: { path?: string }) {
   const [tab, setTab] = useState<Tab>('mint')
@@ -28,14 +27,10 @@ export default function Admin(_props: { path?: string }) {
         <button class={tab === 'list' ? 'active' : ''} onClick={() => setTab('list')}>
           list
         </button>
-        <button class={tab === 'proposals' ? 'active' : ''} onClick={() => setTab('proposals')}>
-          proposals
-        </button>
       </nav>
 
       {tab === 'mint' && <Unminted />}
       {tab === 'list' && <Owned />}
-      {tab === 'proposals' && <Proposals />}
     </section>
   )
 }

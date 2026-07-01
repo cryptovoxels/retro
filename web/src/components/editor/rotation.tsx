@@ -38,18 +38,23 @@ export function Rotation(props: RotationProps) {
     if (props.handleStateChange) props.handleStateChange(x, y, z)
   }, [x, y, z])
 
-  const displayError = (err: string | undefined) => (err ? <div>{err}</div> : null)
+  const displayError = (err: string | undefined) =>
+    err ? (
+      <dd class="full">
+        <small>{err}</small>
+      </dd>
+    ) : null
 
   const step = 10
   return (
-    <div class="vectors">
-      <label>Rotation</label>
-      <div>
+    <>
+      <dt>Rotation</dt>
+      <dd class="vec3">
         <VectorField title="X" step={step} errorMessage={setError} value={x} setter={setX} convert={radToDeg} unconvert={degToRad} />
         <VectorField title="Y" step={step} errorMessage={setError} value={y} setter={setY} convert={radToDeg} unconvert={degToRad} />
         <VectorField title="Z" step={step} errorMessage={setError} value={z} setter={setZ} convert={radToDeg} unconvert={degToRad} />
-      </div>
+      </dd>
       {displayError(error)}
-    </div>
+    </>
   )
 }
