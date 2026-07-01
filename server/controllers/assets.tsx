@@ -38,7 +38,7 @@ export default function AssetLibraryController(db: Db, passport: PassportStatic,
   const ASSETS_BUCKET = 'voxels-ugc'
   const AWS_REGION = 'syd1'
   const AWS_ENDPOINT = 'https://syd1.digitaloceanspaces.com'
-  const AWS_ACCESS_KEY_ID = 'DO801UZARQ8UZC3XFWTT'
+  const AWS_ACCESS_KEY_ID = process.env.UGC_ACCESS || ''
   const AWS_SECRET_ACCESS_KEY = process.env.UGC_SECRET || ''
 
   app.post('/api/assets/upload', passport.authenticate('jwt', { session: false }), upload.single('file'), async (req: VoxelsUserRequest, res, next) => {

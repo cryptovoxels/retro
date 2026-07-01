@@ -11,7 +11,7 @@ const MAX_GAP = 540 // avg 360s -> ~10 spots/hour
 const BUCKET = 'voxels-ugc'
 const REGION = 'syd1'
 const ENDPOINT = 'https://syd1.digitaloceanspaces.com'
-const ACCESS_KEY_ID = 'DO801UZARQ8UZC3XFWTT'
+const ACCESS_KEY_ID = process.env.UGC_ACCESS || ''
 const CDN = 'https://ugc.crvox.com'
 
 export type SpotKind = 'en' | 'ar'
