@@ -65,7 +65,12 @@ export default function (db: Db, passport: any, app: any) {
   app.get(
     '/api/collections/:collection_id/collectibles/:token_id',
     cache('60 seconds'),
-    createRequestHandlerForQuery(db, 'collectibles/get-collectible', 'collectible', (req) => [parseInt(req.params.collection_id, 10), req.params.token_id]),
+    createRequestHandlerForQuery(db, 'collectibles/get-collectible', 'collectible', (req) => {
+      const collection_id = parseInt(req.params.collection_id, 10)
+      const token_id = parseInt(req.params.token_id, 10)
+      if (isNaN(collection_id) || isNaN(token_id)) return null
+      return [collection_id, token_id]
+    }),
   )
 
   //get a specific collectible given collection address

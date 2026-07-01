@@ -487,7 +487,11 @@ app.get(
   '/api/parcels/:id.json',
   cache('15 seconds'),
   passport.authenticate(['jwt', 'anonymous'], { session: false }),
-  createRequestHandlerForQuery(db, 'get-parcel', 'parcel', (req) => [parseInt(req.params.id, 10), isOwner(req)]),
+  createRequestHandlerForQuery(db, 'get-parcel', 'parcel', (req) => {
+    const id = parseInt(req.params.id, 10)
+    if (isNaN(id)) return null
+    return [id, isOwner(req)]
+  }),
 )
 
 app.get(
