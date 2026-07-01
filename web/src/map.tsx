@@ -25,7 +25,7 @@ interface Props {
   parcel?: MapParcelRecord
   path?: string
   id?: number
-  forSale?: { id: number; price: number }[]
+  forSale?: { id: number; price: number; label?: string }[]
   selectedForSale?: number | null
   onForSaleSelect?: (id: number) => void
   onForSaleViewportChange?: (ids: number[]) => void
@@ -208,7 +208,7 @@ export default class WorldMap extends Component<Props, State> {
       const parcel = byId[item.id]
       if (!parcel) continue
       const latLng = new ParcelHelper(parcel).latLng
-      const icon = L.divIcon({ className: 'for-sale-pin', html: `<span>${priceLabel(item.price)}</span>` })
+      const icon = L.divIcon({ className: 'for-sale-pin', html: `<span>${item.label ?? priceLabel(item.price)}</span>` })
       const marker = L.marker(latLng, { renderer: this.mapRenderer, icon } as L.MarkerOptions)
       marker.on('click', () => {
         if (this.props.onForSaleSelect) this.props.onForSaleSelect(item.id)

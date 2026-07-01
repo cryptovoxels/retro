@@ -71,7 +71,7 @@ export default function ForSale(_props: { path?: string }) {
     return allItems.filter((i) => inView.has(i.id) || i.id === selectedId)
   }, [allItems, visibleIds, selectedId])
 
-  const forSale = useMemo(() => allItems.map((i) => ({ id: i.id, price: i.price })), [allItems])
+  const forSale = useMemo(() => allItems.map((i) => ({ id: i.id, price: i.price, label: fmt(i.price) })), [allItems, usd, rate])
   const selectedItem = selectedId ? allItems.find((i) => i.id === selectedId) : undefined
 
   useEffect(() => {
