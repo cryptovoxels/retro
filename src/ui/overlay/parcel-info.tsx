@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'preact/hooks'
 import ParcelHelper from '../../../common/helpers/parcel-helper'
 import ParcelEventItem from '../../../web/src/components/parcel-event'
 import { app } from '../../../web/src/state'
@@ -6,9 +7,64 @@ import { isMobile } from '../../../common/helpers/detector'
 import { toggleParcelAdminOverlay } from '../parcel-admin'
 import { ParcelDetails } from '../../../web/src/components/parcels/parcel-details'
 import LoadingIcon from '../../../web/src/components/loading-icon'
+import { Womp, WompCard } from '../../../web/src/components/womp-card'
+import cachedFetch from '../../../web/src/helpers/cached-fetch'
+import { routeWithCoords } from '../../../web/src/helpers/coords-nav'
+import { fetchOptions } from '../../../web/src/utils'
+import { restoreInfoOnMove, uiPane } from '../../store'
 import type Parcel from '../../parcel'
 import { copyTextToClipboard } from '../../../common/helpers/utils'
 import { PanelType } from '../../../web/src/components/panel'
+
+// recent womps for this parcel, compact thumbnails above the details. clicking one keeps
+// you in-world: clear the info pane and route (with coords) so it opens in the sidebar.
+// "show more" just bumps the limit and refetches (the endpoint only takes a limit).
+const WOMP_PAGE = 6
+
+function RecentWomps({ parcelId }: { parcelId: number }) {
+  const [womps, setWomps] = useState<Womp[]>([])
+  const [limit, setLimit] = useState(WOMP_PAGE)
+
+  useEffect(() => setLimit(WOMP_PAGE), [parcelId])
+
+  useEffect(() => {
+    let live = true
+    cachedFetch(`/api/womps/at/parcel/${parcelId}.json?limit=${limit}`, fetchOptions(), 60)
+      .then((r) => r.json())
+      .then((r) => live && r.success && setWomps(r.womps))
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [parcelId, limit])
+
+  if (!womps.length) return null
+  // a full page back means there are probably more to load
+  const hasMore = womps.length >= limit
+  return (
+    <div className="overlay-parcel-info-content">
+      <h4>Recent womps</h4>
+      <div className="parcel-womps-grid">
+        {womps.map((w) => (
+          <WompCard
+            key={w.id}
+            womp={w}
+            onClick={(womp) => {
+              uiPane.value = undefined
+              restoreInfoOnMove.value = true // walk away and the info pane comes back
+              routeWithCoords(`/womps/${womp.id}`)
+            }}
+          />
+        ))}
+      </div>
+      {hasMore && (
+        <button type="button" class="womps-show-more" onClick={() => setLimit((n) => n + WOMP_PAGE)}>
+          show more
+        </button>
+      )}
+    </div>
+  )
+}
 
 interface Props {
   parcel: Parcel | null
@@ -176,6 +232,7 @@ export default function ParcelInfoTab(props: Props) {
           <h4>Event</h4>
           <ParcelEventItem parcel={parcel} noevent={true} showEventManager={true} />
         </div>
+        <RecentWomps parcelId={parcel.id} />
         <div className="overlay-parcel-info-content">
           <ParcelDetails parcel={parcel.summary} />
         </div>

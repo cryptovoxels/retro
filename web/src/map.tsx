@@ -25,7 +25,13 @@ interface Props {
   parcel?: MapParcelRecord
   path?: string
   id?: number
+  forSale?: { id: number; price: number; label?: string }[]
+  selectedForSale?: number | null
+  onForSaleSelect?: (id: number) => void
+  onForSaleViewportChange?: (ids: number[]) => void
 }
+
+const priceLabel = (n: number) => `${parseFloat(n.toFixed(2))}Ξ`
 
 interface State {
   parcels: MapParcelRecord[]
@@ -93,6 +99,8 @@ export default class WorldMap extends Component<Props, State> {
     parcel: MapParcelRecord
   }>[] = []
   abortController: AbortController | null = null
+  forSaleLayer: L.LayerGroup | undefined
+  forSaleMarkers: Record<number, L.Marker> = {}
 
   constructor() {
     super()
@@ -161,6 +169,97 @@ export default class WorldMap extends Component<Props, State> {
     this.addIcons()
 
     this.addParcelFeatures()
+
+    // the split for-sale view sizes the map via CSS after mount; nudge leaflet to recompute
+    setTimeout(() => this.map?.invalidateSize(), 0)
+    this.addForSaleMarkers()
+    if (this.props.onForSaleSelect) {
+      this.map?.on('moveend', this.notifyForSaleViewport)
+      this.map?.on('zoomend', this.notifyForSaleViewport)
+    }
+  }
+
+  componentDidUpdate(prev: Props) {
+    // listings arrive async in the for-sale page; (re)draw pins when they change
+    if (prev.forSale !== this.props.forSale) this.addForSaleMarkers()
+    if (prev.selectedForSale !== this.props.selectedForSale && this.props.selectedForSale) this.focusParcel(this.props.selectedForSale)
+  }
+
+  // price pins for listed parcels so the map reads like a zillow board next to the list
+  addForSaleMarkers = () => {
+    if (!this.map) return
+
+    if (this.forSaleLayer) {
+      this.forSaleLayer.remove()
+      this.forSaleLayer = undefined
+    }
+    this.forSaleMarkers = {}
+
+    const forSale = this.props.forSale
+    if (!forSale?.length || !this.state.parcels?.length) return
+
+    const byId: Record<number, MapParcelRecord> = {}
+    for (const p of this.state.parcels) byId[p.id] = p
+
+    const layer = L.layerGroup()
+    const latlngs: L.LatLngExpression[] = []
+
+    for (const item of forSale) {
+      const parcel = byId[item.id]
+      if (!parcel) continue
+      const latLng = new ParcelHelper(parcel).latLng
+      const icon = L.divIcon({ className: 'for-sale-pin', html: `<span>${item.label ?? priceLabel(item.price)}</span>` })
+      const marker = L.marker(latLng, { renderer: this.mapRenderer, icon } as L.MarkerOptions)
+      marker.on('click', () => {
+        if (this.props.onForSaleSelect) this.props.onForSaleSelect(item.id)
+        else window.location.assign(`/parcels/${item.id}`)
+      })
+      marker.addTo(layer)
+      this.forSaleMarkers[item.id] = marker
+      latlngs.push(latLng)
+    }
+
+    layer.addTo(this.map)
+    this.forSaleLayer = layer
+
+    const selected = this.props.selectedForSale
+    if (selected && this.forSaleMarkers[selected]) this.focusParcel(selected)
+    else if (this.props.onForSaleSelect) this.map.setView([0, 0], 12)
+    else if (latlngs.length) this.map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 14 })
+
+    this.notifyForSaleViewport()
+  }
+
+  getVisibleForSaleIds = (): number[] => {
+    if (!this.map) return []
+    const bounds = this.map.getBounds()
+    const ids: number[] = []
+    for (const key of Object.keys(this.forSaleMarkers)) {
+      const marker = this.forSaleMarkers[+key]
+      if (marker && bounds.contains(marker.getLatLng())) ids.push(+key)
+    }
+    return ids
+  }
+
+  notifyForSaleViewport = () => {
+    if (!this.props.onForSaleViewportChange) return
+    this.props.onForSaleViewportChange(this.getVisibleForSaleIds())
+  }
+
+  focusParcel = (id: number | null) => {
+    if (!this.map || !id) return
+    const marker = this.forSaleMarkers[id]
+    if (!marker) return
+    this.map.setView(marker.getLatLng(), 14)
+    this.highlightParcel(id)
+  }
+
+  // called from the listing cards on hover to connect list <-> map
+  highlightParcel = (id: number | null) => {
+    for (const key of Object.keys(this.forSaleMarkers)) {
+      const el = (this.forSaleMarkers[+key] as any)?._icon as HTMLElement | undefined
+      if (el) el.classList.toggle('active', +key === id)
+    }
   }
 
   async loadMarkerClusterScript(): Promise<void> {
@@ -198,6 +297,8 @@ export default class WorldMap extends Component<Props, State> {
 
   componentWillUnmount() {
     removeEventListener('resize', this.resizeHandler)
+    this.map?.off('moveend', this.notifyForSaleViewport)
+    this.map?.off('zoomend', this.notifyForSaleViewport)
     if (this.map) {
       this.map.remove()
     }
@@ -328,6 +429,8 @@ export default class WorldMap extends Component<Props, State> {
 
     if (this.coords) {
       this.map.setView(this.coords, 11)
+    } else if (this.props.onForSaleSelect) {
+      this.map.setView([0, 0], 12)
     } else {
       this.map.setView([0, 0], 7)
     }
@@ -576,6 +679,11 @@ export default class WorldMap extends Component<Props, State> {
 
     return (
       <section class="worldmap">
+        {this.props.path === '/map' && (
+          <a class="map-for-sale-cta buttonish primary" href="/shop">
+            land for sale
+          </a>
+        )}
         <div class="map map-web" />
       </section>
     )
