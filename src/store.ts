@@ -7,6 +7,15 @@ export type CheckedFeatures = Record<string, Feature>
 
 const TICK = 500
 
+// where you were standing when the womp sidebar opened; walking away from that spot restores info
+let wompAnchor: { x: number; z: number } | undefined
+let wompAnchorPath = ''
+
+const wompSidebarOpen = () =>
+  typeof location !== 'undefined' &&
+  !!new URLSearchParams(location.search).get('coords') &&
+  location.pathname.startsWith('/womps/')
+
 setInterval(() => {
   const grid = window.grid as Grid
 
@@ -34,14 +43,40 @@ setInterval(() => {
   // island-context view. separate from currentOrNearestParcel, which never goes empty.
   currentParcel.value = grid.currentParcel() || undefined
 
-  // tapping a recent womp swaps the sidebar to its preview; once you start walking again,
-  // snap back to the info pane so hopping between world, old womps, and info stays fluid.
-  if (restoreInfoOnMove.value) {
-    if (uiPane.value) {
-      restoreInfoOnMove.value = false // you opened another pane; drop the pending snap-back
-    } else if (window.persona?.isMoving()) {
+  // womp sidebar (homepage, recent womps in info, etc): once you walk again, snap back to info
+  // so you can hop between looking at womps and the parcel/island info + its recent womps list.
+  const wompSidebar = wompSidebarOpen()
+  const pane = uiPane.value
+
+  if (!wompSidebar && pane !== 'info') wompAnchor = undefined
+
+  if (!sidebarClosed.value && (restoreInfoOnMove.value || wompSidebar)) {
+    if (pane && pane !== 'info') {
       restoreInfoOnMove.value = false
+      wompAnchor = undefined
+    } else if (wompSidebar && !pane) {
+      const path = location.pathname
+      if (path !== wompAnchorPath) {
+        wompAnchorPath = path
+        wompAnchor = undefined
+      }
+      const pos = window.persona?.position
+      if (!wompAnchor && pos) wompAnchor = { x: pos.x, z: pos.z }
+      const walked =
+        !!wompAnchor &&
+        !!pos &&
+        (Math.abs(pos.x - wompAnchor.x) > 0.08 || Math.abs(pos.z - wompAnchor.z) > 0.08)
+      if (walked) {
+        restoreInfoOnMove.value = false
+        wompAnchor = undefined
+        uiPane.value = 'info'
+        uiAsideTick.value++
+      }
+    } else if (restoreInfoOnMove.value && window.persona?.isMoving()) {
+      restoreInfoOnMove.value = false
+      wompAnchor = undefined
       uiPane.value = 'info'
+      uiAsideTick.value++
     }
   }
 }, TICK)
@@ -158,8 +193,7 @@ export const selectCheckedFeatures = (): CheckedFeatures => {
 
 export const uiPane = signal<string | undefined>(undefined)
 
-// one-shot: armed when you open a womp preview from the info pane, consumed by the tick above
-// to restore the info pane the moment you move again.
+// one-shot: armed when you open a womp preview from the info pane (path-based detection covers the rest)
 export const restoreInfoOnMove = signal(false)
 
 // panes you open on purpose and leave up while walking around (they get a close X and survive
