@@ -1,8 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import Toggle from './components/toggle'
 import Head from './components/head'
+import { ParcelDetails } from './components/parcels/parcel-details'
 import cachedFetch from './helpers/cached-fetch'
+import { fetchOptions } from './utils'
 import WorldMap from './map'
+import type { ParcelRecord } from '../../common/messages/parcel'
 
 type Item = { id: number; name: string | null; address: string; price: number; permalink: string }
 type Data = { floor: number; fresh: Item[]; secondary: Item[]; deals: Item[] }
@@ -19,13 +22,16 @@ const selectedFromUrl = () => {
 }
 
 // zillow-style browse for land that's actually listed: map on the left, listings on the right.
-// pick a row (or land from the homepage shop widget with ?parcel=) and the map zooms there;
-// buy only shows on the selected row and links out to opensea.
+// pick a row (or land from the homepage shop widget with ?parcel=) and the sidebar
+// swaps to parcel info; back returns to the listings.
 export default function ForSale(_props: { path?: string }) {
+  const initialId = selectedFromUrl()
   const [data, setData] = useState<Data | null>(null)
   const [usd, setUsd] = useState(false)
   const [rate, setRate] = useState(0)
-  const [selectedId, setSelectedId] = useState<number | null>(selectedFromUrl)
+  const [selectedId, setSelectedId] = useState<number | null>(initialId)
+  const [view, setView] = useState<'list' | 'detail'>(initialId ? 'detail' : 'list')
+  const [parcel, setParcel] = useState<ParcelRecord | undefined>()
   const [visibleIds, setVisibleIds] = useState<number[] | null>(null)
   const mapRef = useRef<WorldMap | null>(null)
 
@@ -66,9 +72,26 @@ export default function ForSale(_props: { path?: string }) {
   }, [allItems, visibleIds, selectedId])
 
   const forSale = useMemo(() => allItems.map((i) => ({ id: i.id, price: i.price })), [allItems])
+  const selectedItem = selectedId ? allItems.find((i) => i.id === selectedId) : undefined
+
+  useEffect(() => {
+    if (view !== 'detail' || !selectedId) {
+      setParcel(undefined)
+      return
+    }
+    let live = true
+    cachedFetch(`/api/parcels/${selectedId}.json`, fetchOptions())
+      .then((r) => r.json())
+      .then((r) => live && r.parcel && setParcel(r.parcel))
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [view, selectedId])
 
   const select = (id: number) => {
     setSelectedId(id)
+    setView('detail')
     if (typeof location !== 'undefined') {
       const u = new URL(location.href)
       u.searchParams.set('parcel', String(id))
@@ -77,12 +100,23 @@ export default function ForSale(_props: { path?: string }) {
     mapRef.current?.focusParcel(id)
   }
 
+  const back = () => {
+    setView('list')
+    setSelectedId(null)
+    setParcel(undefined)
+    if (typeof location !== 'undefined') {
+      const u = new URL(location.href)
+      u.searchParams.delete('parcel')
+      history.replaceState(null, '', u.pathname + u.search)
+    }
+    mapRef.current?.highlightParcel(null)
+  }
+
   // homepage shop links land here with ?parcel=; zoom once listings + map pins exist
   useEffect(() => {
-    if (!selectedId || !items.length) return
+    if (view !== 'detail' || !selectedId) return
     mapRef.current?.focusParcel(selectedId)
-    document.querySelector('.for-sale-card.selected')?.scrollIntoView({ block: 'nearest' })
-  }, [selectedId, items.length])
+  }, [view, selectedId, items.length])
 
   return (
     <section class="for-sale">
@@ -91,44 +125,67 @@ export default function ForSale(_props: { path?: string }) {
         <WorldMap ref={mapRef} forSale={forSale} selectedForSale={selectedId} onForSaleSelect={select} onForSaleViewportChange={setVisibleIds} />
       </div>
       <aside class="for-sale-list">
-        <header class="for-sale-head">
-          <div>
-            <h2>land for sale</h2>
-            <p>
-              {items.length ? `${items.length} listings` : 'loading listings...'}
-              {data && data.floor ? ` - floor ${fmt(data.floor)}` : ''}
-            </p>
-          </div>
-          <div class="for-sale-currency">
-            <span class={!usd ? 'active' : ''}>eth</span>
-            <Toggle checked={usd} onChange={setUsd} />
-            <span class={usd ? 'active' : ''}>usd</span>
-          </div>
-        </header>
-        <div class="for-sale-cards">
-          {items.map((i) => (
-            <div class={`for-sale-card${selectedId === i.id ? ' selected' : ''}`} key={i.id}>
-              <a
-                href={`/shop?parcel=${i.id}`}
-                onClick={(e) => {
-                  e.preventDefault()
-                  select(i.id)
-                }}
-                onMouseEnter={() => mapRef.current?.highlightParcel(i.id)}
-                onMouseLeave={() => mapRef.current?.highlightParcel(selectedId)}
-              >
-                <div class="addr">{i.name || i.address || `#${i.id}`}</div>
-                {i.name && i.address ? <div class="sub">{i.address}</div> : null}
-                <div class="price">{fmt(i.price)}</div>
-              </a>
-              {selectedId === i.id && i.permalink ? (
-                <a class="for-sale-buy" href={i.permalink} target="_blank" rel="noopener noreferrer">
-                  buy
-                </a>
-              ) : null}
+        {view === 'detail' ? (
+          <>
+            <header class="for-sale-head">
+              <button type="button" class="for-sale-back" onClick={back}>
+                back
+              </button>
+            </header>
+            <div class="for-sale-detail">
+              {parcel ? (
+                <>
+                  <h2>{parcel.name || parcel.address || `#${selectedId}`}</h2>
+                  {selectedItem ? <p class="for-sale-detail-price">{fmt(selectedItem.price)}</p> : null}
+                  <ParcelDetails parcel={parcel} />
+                  {selectedItem?.permalink ? (
+                    <a class="for-sale-buy" href={selectedItem.permalink} target="_blank" rel="noopener noreferrer">
+                      buy
+                    </a>
+                  ) : null}
+                </>
+              ) : (
+                <p>loading...</p>
+              )}
             </div>
-          ))}
-        </div>
+          </>
+        ) : (
+          <>
+            <header class="for-sale-head">
+              <div>
+                <h2>land for sale</h2>
+                <p>
+                  {items.length ? `${items.length} listings` : 'loading listings...'}
+                  {data && data.floor ? ` - floor ${fmt(data.floor)}` : ''}
+                </p>
+              </div>
+              <div class="for-sale-currency">
+                <span class={!usd ? 'active' : ''}>eth</span>
+                <Toggle checked={usd} onChange={setUsd} />
+                <span class={usd ? 'active' : ''}>usd</span>
+              </div>
+            </header>
+            <div class="for-sale-cards">
+              {items.map((i) => (
+                <a
+                  class="for-sale-card"
+                  key={i.id}
+                  href={`/shop?parcel=${i.id}`}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    select(i.id)
+                  }}
+                  onMouseEnter={() => mapRef.current?.highlightParcel(i.id)}
+                  onMouseLeave={() => mapRef.current?.highlightParcel(null)}
+                >
+                  <div class="addr">{i.name || i.address || `#${i.id}`}</div>
+                  {i.name && i.address ? <div class="sub">{i.address}</div> : null}
+                  <div class="price">{fmt(i.price)}</div>
+                </a>
+              ))}
+            </div>
+          </>
+        )}
       </aside>
     </section>
   )
