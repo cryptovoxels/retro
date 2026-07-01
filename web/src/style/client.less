@@ -2319,18 +2319,13 @@ form.PermissionsRadioSelector > div {
   }
 
   // island context view (shown when you're not on a parcel)
-  .island-minimap svg {
-    width: 100%;
-    aspect-ratio: 1/1;
-    background: var(--tinge);
-
-    rect {
-      fill: var(--bright);
-      opacity: 0.5;
-    }
-
-    circle.you {
-      fill: var(--red);
+  .island-minimap {
+    .map.map-overlay {
+      width: 100%;
+      height: 14rem;
+      min-width: unset;
+      max-height: 14rem;
+      margin-bottom: 1rem;
     }
   }
 

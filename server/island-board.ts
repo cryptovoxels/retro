@@ -1,17 +1,25 @@
 import db from './pg'
 
 // same normalization the island slug routes use (get-island.sql): lowercase, trim, spaces -> hyphens.
-const ISLAND_SLUG = `regexp_replace(lower(trim(coalesce(island, ''))), '\\s+', '-', 'g')`
+const islandSlug = (col: string) => `regexp_replace(lower(trim(coalesce(${col}, ''))), '\\s+', '-', 'g')`
 
-// only landowners on the island (a minted, non-common parcel they own) may post to its board.
+// owners and collaborators on a minted, non-common parcel on this island may post to its board.
 export async function ownsParcelOnIsland(wallet: string, slug: string): Promise<boolean> {
   const res = await db.query(
     'embedded/owns-parcel-on-island',
-    `select 1 from properties
-     where lower(owner) = lower($1)
-       and minted = true
-       and is_common <> true
-       and ${ISLAND_SLUG} = $2::text
+    `select 1 from properties p
+     where p.minted = true
+       and p.is_common <> true
+       and ${islandSlug('p.island')} = $2::text
+       and (
+         lower(p.owner) = lower($1)
+         or exists (
+           select 1 from parcel_users pu
+           where pu.parcel_id = p.id
+             and lower(pu.wallet) = lower($1)
+             and pu.role <> 'excluded'
+         )
+       )
      limit 1`,
     [wallet, slug],
   )

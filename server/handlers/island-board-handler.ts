@@ -27,7 +27,7 @@ export async function createIslandPost(req: VoxelsUserRequest, res: Response) {
   }
 
   if (!(await ownsParcelOnIsland(author, slug))) {
-    res.status(403).send({ success: false, message: 'Only island landowners can post here' })
+    res.status(403).send({ success: false, message: 'Only island owners and collaborators can post here' })
     return
   }
 
