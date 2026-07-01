@@ -26,6 +26,7 @@ export default function ForSale(_props: { path?: string }) {
   const [usd, setUsd] = useState(false)
   const [rate, setRate] = useState(0)
   const [selectedId, setSelectedId] = useState<number | null>(selectedFromUrl)
+  const [visibleIds, setVisibleIds] = useState<number[] | null>(null)
   const mapRef = useRef<WorldMap | null>(null)
 
   useEffect(() => {
@@ -44,8 +45,8 @@ export default function ForSale(_props: { path?: string }) {
 
   const fmt = (price: number) => (!usd || !rate ? `${eth(price)}Ξ` : `$${parseFloat((price * rate).toFixed(2))}`)
 
-  // every current listing, cheapest first, deduped. memoized so the usd toggle doesn't churn map pins
-  const items = useMemo(() => {
+  // every current listing, cheapest first, deduped
+  const allItems = useMemo(() => {
     if (!data) return []
     const seen = new Set<number>()
     return [...data.fresh, ...data.secondary]
@@ -57,7 +58,14 @@ export default function ForSale(_props: { path?: string }) {
       .sort((a, b) => a.price - b.price)
   }, [data])
 
-  const forSale = useMemo(() => items.map((i) => ({ id: i.id, price: i.price })), [items])
+  // sidebar list: only what's in the current map viewport, still cheapest first
+  const items = useMemo(() => {
+    if (visibleIds === null) return allItems
+    const inView = new Set(visibleIds)
+    return allItems.filter((i) => inView.has(i.id) || i.id === selectedId)
+  }, [allItems, visibleIds, selectedId])
+
+  const forSale = useMemo(() => allItems.map((i) => ({ id: i.id, price: i.price })), [allItems])
 
   const select = (id: number) => {
     setSelectedId(id)
@@ -80,7 +88,7 @@ export default function ForSale(_props: { path?: string }) {
     <section class="for-sale">
       <Head title="Land for sale" url="/shop" />
       <div class="for-sale-map">
-        <WorldMap ref={mapRef} forSale={forSale} selectedForSale={selectedId} onForSaleSelect={select} />
+        <WorldMap ref={mapRef} forSale={forSale} selectedForSale={selectedId} onForSaleSelect={select} onForSaleViewportChange={setVisibleIds} />
       </div>
       <aside class="for-sale-list">
         <header class="for-sale-head">

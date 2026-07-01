@@ -28,6 +28,7 @@ interface Props {
   forSale?: { id: number; price: number }[]
   selectedForSale?: number | null
   onForSaleSelect?: (id: number) => void
+  onForSaleViewportChange?: (ids: number[]) => void
 }
 
 const priceLabel = (n: number) => `${parseFloat(n.toFixed(2))}Ξ`
@@ -172,6 +173,10 @@ export default class WorldMap extends Component<Props, State> {
     // the split for-sale view sizes the map via CSS after mount; nudge leaflet to recompute
     setTimeout(() => this.map?.invalidateSize(), 0)
     this.addForSaleMarkers()
+    if (this.props.onForSaleSelect) {
+      this.map?.on('moveend', this.notifyForSaleViewport)
+      this.map?.on('zoomend', this.notifyForSaleViewport)
+    }
   }
 
   componentDidUpdate(prev: Props) {
@@ -219,7 +224,26 @@ export default class WorldMap extends Component<Props, State> {
 
     const selected = this.props.selectedForSale
     if (selected && this.forSaleMarkers[selected]) this.focusParcel(selected)
+    else if (this.props.onForSaleSelect) this.map.setView([0, 0], 12)
     else if (latlngs.length) this.map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 14 })
+
+    this.notifyForSaleViewport()
+  }
+
+  getVisibleForSaleIds = (): number[] => {
+    if (!this.map) return []
+    const bounds = this.map.getBounds()
+    const ids: number[] = []
+    for (const key of Object.keys(this.forSaleMarkers)) {
+      const marker = this.forSaleMarkers[+key]
+      if (marker && bounds.contains(marker.getLatLng())) ids.push(+key)
+    }
+    return ids
+  }
+
+  notifyForSaleViewport = () => {
+    if (!this.props.onForSaleViewportChange) return
+    this.props.onForSaleViewportChange(this.getVisibleForSaleIds())
   }
 
   focusParcel = (id: number | null) => {
@@ -273,6 +297,8 @@ export default class WorldMap extends Component<Props, State> {
 
   componentWillUnmount() {
     removeEventListener('resize', this.resizeHandler)
+    this.map?.off('moveend', this.notifyForSaleViewport)
+    this.map?.off('zoomend', this.notifyForSaleViewport)
     if (this.map) {
       this.map.remove()
     }
@@ -403,6 +429,8 @@ export default class WorldMap extends Component<Props, State> {
 
     if (this.coords) {
       this.map.setView(this.coords, 11)
+    } else if (this.props.onForSaleSelect) {
+      this.map.setView([0, 0], 12)
     } else {
       this.map.setView([0, 0], 7)
     }
