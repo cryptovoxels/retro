@@ -12,6 +12,7 @@ import { fetchOptions } from './utils'
 import { AvatarLink } from './components/avatar-link'
 import { ParcelMetrics as Metrics } from './components/metrics'
 import { Client } from './client'
+import { ParcelShop } from './components/parcel-shop'
 import { isSplit, getParcelIdFromPath, routeWithCoords, withCoords } from './helpers/coords-nav'
 
 export interface Props {
@@ -324,6 +325,8 @@ export default class Parcel extends Component<Props, State> {
             )}
           </p>
         ) : null}
+
+        {this.state.parcel ? <ParcelShop parcel={this.state.parcel} isOwner={this.isOwner} /> : null}
 
         {this.state.parcel?.parcel_users && this.state.parcel.parcel_users.length > 0 && (
           <div>
