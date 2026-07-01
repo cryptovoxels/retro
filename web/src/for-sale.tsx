@@ -10,7 +10,7 @@ import type { ParcelRecord } from '../../common/messages/parcel'
 type Item = { id: number; name: string | null; address: string; price: number; permalink: string }
 type Data = { floor: number; fresh: Item[]; secondary: Item[]; deals: Item[] }
 
-const URL = process.env.NODE_ENV === 'production' ? '/api/classifieds.json' : 'https://www.voxels.com/api/classifieds.json'
+const CLASSIFIEDS_URL = process.env.NODE_ENV === 'production' ? '/api/classifieds.json' : 'https://www.voxels.com/api/classifieds.json'
 const eth = (n: number) => parseFloat(n.toFixed(3))
 
 const selectedFromUrl = () => {
@@ -36,7 +36,7 @@ export default function ForSale(_props: { path?: string }) {
   const mapRef = useRef<WorldMap | null>(null)
 
   useEffect(() => {
-    cachedFetch(URL)
+    cachedFetch(CLASSIFIEDS_URL)
       .then((r) => r.json())
       .then((d) => d.success && setData(d))
       .catch(() => {})
