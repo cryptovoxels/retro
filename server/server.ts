@@ -53,6 +53,7 @@ import ExternalsController from './controllers/externals'
 import MailsController from './controllers/mails'
 import ModerationReportsController from './controllers/reports'
 import WompsController from './controllers/womps'
+import IslandBoardController from './controllers/island-board'
 import createGridSocket from './grid/createGridSocket'
 import { searchAndReturn } from './handlers/search'
 import { EthereumListener } from './jobs/ethereum-listener'
@@ -364,6 +365,8 @@ AvatarsController(db, passport, app)
 CostumesController(db, passport, app)
 // Womps
 WompsController(db, passport, app)
+
+IslandBoardController(db, passport, app)
 // Spaces
 SpacesController(db, passport, app)
 // collections

@@ -258,3 +258,14 @@ SELECT apply_migration('asset-library-id-default', $$
   ALTER TABLE asset_library ALTER COLUMN id SET DEFAULT gen_random_uuid();
 $$);
 
+SELECT apply_migration('island-board', $$
+  CREATE TABLE IF NOT EXISTS island_posts (
+    id          serial PRIMARY KEY,
+    island      text NOT NULL,
+    author      text NOT NULL,
+    content     text NOT NULL,
+    created_at  timestamptz NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS island_posts_island_idx ON island_posts (island);
+$$);
+
