@@ -73,6 +73,7 @@ export default function loadRoutes(app: Express) {
   app.get('/conduct', cache(duration), (req, res) => {
     res.send(renderPage(<Conduct />))
   })
+
   app.get('/behaviours', cache(duration), (req, res) => {
     res.send(renderPage(<BehavioursDoc />))
   })
@@ -193,6 +194,7 @@ export default function loadRoutes(app: Express) {
     { path: '/map', cache: '1 minute' },
     { path: '/mail', cache: '1 minute' },
     { path: '/home', cache: '1 minute' },
+    { path: '/chat', cache: '1 minute' },
     { path: '/account', cache: '1 minute' },
     { path: '/account/edit', cache: '1 minute' },
     { path: '/golive', cache: '1 minute' },
