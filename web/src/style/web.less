@@ -2261,7 +2261,53 @@ menu.context,
   }
 
   .for-sale-detail-price {
+    margin: 0 0 0.5rem;
+  }
+
+  .for-sale-buy {
+    display: inline-block;
     margin: 0 0 1rem;
+    padding: 0.5rem 1rem;
+    background: var(--red);
+    color: #fff;
+  }
+
+  .for-sale-womps {
+    margin-bottom: 1rem;
+
+    h4 {
+      margin: 0 0 0.5rem;
+    }
+  }
+
+  .parcel-womps-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+
+    .womp {
+      width: auto;
+    }
+
+    .womp img {
+      width: 100%;
+      aspect-ratio: 1/1;
+      object-fit: cover;
+      margin: 0;
+    }
+
+    .womp p {
+      display: none;
+    }
+  }
+
+  .womps-show-more {
+    width: 100%;
+    margin-top: 0.5rem;
+    background: none;
+    border: 0;
+    cursor: pointer;
+    opacity: 0.7;
   }
 
   .for-sale-currency {
@@ -2297,14 +2343,6 @@ menu.context,
     .price {
       margin-top: 0.5rem;
     }
-  }
-
-  .for-sale-buy {
-    display: inline-block;
-    margin-top: 0.5rem;
-    padding: 0.5rem 1rem;
-    background: var(--red);
-    color: #fff;
   }
 }
 
