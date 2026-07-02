@@ -246,11 +246,11 @@ export default class WorldMap extends Component<Props, State> {
     this.props.onForSaleViewportChange(this.getVisibleForSaleIds())
   }
 
-  focusParcel = (id: number | null) => {
+  focusParcel = (id: number | null, zoom = 14) => {
     if (!this.map || !id) return
     const marker = this.forSaleMarkers[id]
     if (!marker) return
-    this.map.setView(marker.getLatLng(), 14)
+    this.map.setView(marker.getLatLng(), zoom)
     this.highlightParcel(id)
   }
 

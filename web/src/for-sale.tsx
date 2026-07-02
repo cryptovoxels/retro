@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import Toggle from './components/toggle'
 import Head from './components/head'
 import { ParcelDetails } from './components/parcels/parcel-details'
+import { Womp, WompCard } from './components/womp-card'
 import cachedFetch from './helpers/cached-fetch'
 import { fetchOptions } from './utils'
 import WorldMap from './map'
@@ -12,6 +13,8 @@ type Data = { floor: number; fresh: Item[]; secondary: Item[]; deals: Item[] }
 
 const CLASSIFIEDS_URL = '/api/classifieds.json'
 const eth = (n: number) => parseFloat(n.toFixed(3))
+const DETAIL_MAP_ZOOM = 17
+const WOMP_PAGE = 6
 
 const selectedFromUrl = () => {
   if (typeof location === 'undefined') return null
@@ -19,6 +22,42 @@ const selectedFromUrl = () => {
   if (!p) return null
   const id = parseInt(p, 10)
   return Number.isFinite(id) ? id : null
+}
+
+function RecentWomps({ parcelId }: { parcelId: number }) {
+  const [womps, setWomps] = useState<Womp[]>([])
+  const [limit, setLimit] = useState(WOMP_PAGE)
+
+  useEffect(() => setLimit(WOMP_PAGE), [parcelId])
+
+  useEffect(() => {
+    let live = true
+    cachedFetch(`/api/womps/at/parcel/${parcelId}.json?limit=${limit}`, fetchOptions(), 60)
+      .then((r) => r.json())
+      .then((r) => live && r.success && setWomps(r.womps))
+      .catch(() => {})
+    return () => {
+      live = false
+    }
+  }, [parcelId, limit])
+
+  if (!womps.length) return null
+  const hasMore = womps.length >= limit
+  return (
+    <div class="for-sale-womps">
+      <h4>recent womps</h4>
+      <div class="parcel-womps-grid">
+        {womps.map((w) => (
+          <WompCard key={w.id} womp={w} />
+        ))}
+      </div>
+      {hasMore ? (
+        <button type="button" class="womps-show-more" onClick={() => setLimit((n) => n + WOMP_PAGE)}>
+          show more
+        </button>
+      ) : null}
+    </div>
+  )
 }
 
 export default function ForSale(_props: { path?: string }) {
@@ -92,7 +131,7 @@ export default function ForSale(_props: { path?: string }) {
       u.searchParams.set('parcel', String(id))
       history.replaceState(null, '', u.pathname + u.search)
     }
-    mapRef.current?.focusParcel(id)
+    mapRef.current?.focusParcel(id, DETAIL_MAP_ZOOM)
   }
 
   const back = () => {
@@ -109,7 +148,7 @@ export default function ForSale(_props: { path?: string }) {
 
   useEffect(() => {
     if (view !== 'detail' || !selectedId) return
-    mapRef.current?.focusParcel(selectedId)
+    mapRef.current?.focusParcel(selectedId, DETAIL_MAP_ZOOM)
   }, [view, selectedId, items.length])
 
   return (
@@ -137,12 +176,13 @@ export default function ForSale(_props: { path?: string }) {
                 <>
                   <h2>{parcel.name || parcel.address || `#${selectedId}`}</h2>
                   {selectedItem ? <p class="for-sale-detail-price">{fmt(selectedItem.price)}</p> : null}
-                  <ParcelDetails parcel={parcel} />
                   {selectedItem?.permalink ? (
                     <a class="for-sale-buy" href={selectedItem.permalink} target="_blank" rel="noopener noreferrer">
                       buy
                     </a>
                   ) : null}
+                  <RecentWomps parcelId={parcel.id} />
+                  <ParcelDetails parcel={parcel} />
                 </>
               ) : (
                 <p>loading...</p>
