@@ -2199,11 +2199,19 @@ menu.context,
   padding: 0.1rem 0.4rem;
   white-space: nowrap;
   font-weight: bold;
+  cursor: pointer;
 
   &.active {
     outline: 2px solid #000;
     z-index: 1000 !important;
   }
+}
+
+// voxels-map on /shop
+.voxels-map {
+  height: 100%;
+  width: 100%;
+  display: block;
 }
 
 // land for sale: map left, listings right (zillow-ish)
@@ -2214,7 +2222,8 @@ menu.context,
 
   .for-sale-map,
   .for-sale-map .worldmap,
-  .for-sale-map .map {
+  .for-sale-map .map,
+  .for-sale-map .voxels-map {
     height: 100%;
     width: 100%;
   }

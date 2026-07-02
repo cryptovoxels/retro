@@ -1,16 +1,16 @@
-import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
+import { useEffect, useMemo, useState } from 'preact/hooks'
 import Toggle from './components/toggle'
 import Head from './components/head'
 import { ParcelDetails } from './components/parcels/parcel-details'
 import cachedFetch from './helpers/cached-fetch'
 import { fetchOptions } from './utils'
-import WorldMap from './map'
+import VoxelsMapView from './voxels-map'
 import type { ParcelRecord } from '../../common/messages/parcel'
 
 type Item = { id: number; name: string | null; address: string; price: number; permalink: string }
 type Data = { floor: number; fresh: Item[]; secondary: Item[]; deals: Item[] }
 
-const CLASSIFIEDS_URL = process.env.NODE_ENV === 'production' ? '/api/classifieds.json' : 'https://www.voxels.com/api/classifieds.json'
+const CLASSIFIEDS_URL = '/api/classifieds.json'
 const eth = (n: number) => parseFloat(n.toFixed(3))
 
 const selectedFromUrl = () => {
@@ -21,9 +21,6 @@ const selectedFromUrl = () => {
   return Number.isFinite(id) ? id : null
 }
 
-// zillow-style browse for land that's actually listed: map on the left, listings on the right.
-// pick a row (or land from the homepage shop widget with ?parcel=) and the sidebar
-// swaps to parcel info; back returns to the listings.
 export default function ForSale(_props: { path?: string }) {
   const initialId = selectedFromUrl()
   const [data, setData] = useState<Data | null>(null)
@@ -32,8 +29,6 @@ export default function ForSale(_props: { path?: string }) {
   const [selectedId, setSelectedId] = useState<number | null>(initialId)
   const [view, setView] = useState<'list' | 'detail'>(initialId ? 'detail' : 'list')
   const [parcel, setParcel] = useState<ParcelRecord | undefined>()
-  const [visibleIds, setVisibleIds] = useState<number[] | null>(null)
-  const mapRef = useRef<WorldMap | null>(null)
 
   useEffect(() => {
     cachedFetch(CLASSIFIEDS_URL)
@@ -51,8 +46,7 @@ export default function ForSale(_props: { path?: string }) {
 
   const fmt = (price: number) => (!usd || !rate ? `${eth(price)}Ξ` : `$${parseFloat((price * rate).toFixed(2))}`)
 
-  // every current listing, cheapest first, deduped
-  const allItems = useMemo(() => {
+  const items = useMemo(() => {
     if (!data) return []
     const seen = new Set<number>()
     return [...data.fresh, ...data.secondary]
@@ -64,15 +58,7 @@ export default function ForSale(_props: { path?: string }) {
       .sort((a, b) => a.price - b.price)
   }, [data])
 
-  // sidebar list: only what's in the current map viewport, still cheapest first
-  const items = useMemo(() => {
-    if (visibleIds === null) return allItems
-    const inView = new Set(visibleIds)
-    return allItems.filter((i) => inView.has(i.id) || i.id === selectedId)
-  }, [allItems, visibleIds, selectedId])
-
-  const forSale = useMemo(() => allItems.map((i) => ({ id: i.id, price: i.price, label: fmt(i.price) })), [allItems, usd, rate])
-  const selectedItem = selectedId ? allItems.find((i) => i.id === selectedId) : undefined
+  const selectedItem = selectedId ? items.find((i) => i.id === selectedId) : undefined
 
   useEffect(() => {
     if (view !== 'detail' || !selectedId) {
@@ -97,7 +83,6 @@ export default function ForSale(_props: { path?: string }) {
       u.searchParams.set('parcel', String(id))
       history.replaceState(null, '', u.pathname + u.search)
     }
-    mapRef.current?.focusParcel(id)
   }
 
   const back = () => {
@@ -109,20 +94,13 @@ export default function ForSale(_props: { path?: string }) {
       u.searchParams.delete('parcel')
       history.replaceState(null, '', u.pathname + u.search)
     }
-    mapRef.current?.highlightParcel(null)
   }
-
-  // homepage shop links land here with ?parcel=; zoom once listings + map pins exist
-  useEffect(() => {
-    if (view !== 'detail' || !selectedId) return
-    mapRef.current?.focusParcel(selectedId)
-  }, [view, selectedId, items.length])
 
   return (
     <section class="for-sale">
       <Head title="Land for sale" url="/shop" />
       <div class="for-sale-map">
-        <WorldMap ref={mapRef} forSale={forSale} selectedForSale={selectedId} onForSaleSelect={select} onForSaleViewportChange={setVisibleIds} />
+        <VoxelsMapView />
       </div>
       <aside class="for-sale-list">
         {view === 'detail' ? (
@@ -175,8 +153,6 @@ export default function ForSale(_props: { path?: string }) {
                     e.preventDefault()
                     select(i.id)
                   }}
-                  onMouseEnter={() => mapRef.current?.highlightParcel(i.id)}
-                  onMouseLeave={() => mapRef.current?.highlightParcel(null)}
                 >
                   <div class="addr">{i.name || i.address || `#${i.id}`}</div>
                   {i.name && i.address ? <div class="sub">{i.address}</div> : null}

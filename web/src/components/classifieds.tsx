@@ -8,7 +8,7 @@ type Tab = 'fresh' | 'secondary' | 'deals'
 type Sort = 'name' | 'address' | 'price'
 
 const LABELS: Record<Tab, string> = { fresh: 'freshly minted', secondary: 'secondary', deals: 'deals' }
-const URL = process.env.NODE_ENV === 'production' ? '/api/classifieds.json' : 'https://www.voxels.com/api/classifieds.json'
+const URL = '/api/classifieds.json'
 const eth = (n: number) => parseFloat(n.toFixed(3))
 const name = (i: Item) => i.name || i.address || `#${i.id}`
 

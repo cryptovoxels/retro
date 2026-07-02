@@ -1,6 +1,8 @@
 import { createRequestHandlerForQuery, queryAndCallback } from '../lib/query-helpers'
 
 import cache from '../cache'
+import config from '../../common/config'
+import proxy from 'express-http-proxy'
 import Parcel, { ParcelRef } from '../parcel'
 import { revertParcel } from '../handlers/update-parcel'
 import voxExport from '../handlers/vox-export'
@@ -328,7 +330,11 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
     createRequestHandlerForQuery(db, 'get-parcel-snapshots', 'snapshots', (req) => [req.params.id, req.query.autosave === 'include']),
   )
 
-  app.get('/api/parcels/map.json', cache('1 day'), createRequestHandlerForQuery(db, 'get-parcels-map', 'parcels'))
+  if (config.isDevelopment) {
+    app.use('/api/parcels/map.json', cache(false), proxy('https://www.voxels.com', { proxyReqPathResolver: (req) => req.originalUrl }))
+  } else {
+    app.get('/api/parcels/map.json', cache('1 day'), createRequestHandlerForQuery(db, 'get-parcels-map', 'parcels'))
+  }
 
   // Route to Obtain the content of every parcels the user owns.
   app.get(
