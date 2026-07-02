@@ -149,7 +149,7 @@ export default function ForSale(_props: { path?: string }) {
   useEffect(() => {
     if (view !== 'detail' || !selectedId) return
     mapRef.current?.focusParcel(selectedId, DETAIL_MAP_ZOOM)
-  }, [view, selectedId, items.length])
+  }, [view, selectedId, allItems.length])
 
   return (
     <section class="for-sale">

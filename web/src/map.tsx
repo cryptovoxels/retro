@@ -33,6 +33,7 @@ interface Props {
 }
 
 const priceLabel = (n: number) => `${parseFloat(n.toFixed(2))}Ξ`
+const SHOP_LIST_ZOOM = 7
 
 interface State {
   parcels: MapParcelRecord[]
@@ -102,6 +103,7 @@ export default class WorldMap extends Component<Props, State> {
   abortController: AbortController | null = null
   forSaleLayer: L.LayerGroup | undefined
   forSaleMarkers: Record<number, L.Marker> = {}
+  forSaleViewInitialized = false
 
   constructor() {
     super()
@@ -233,7 +235,10 @@ export default class WorldMap extends Component<Props, State> {
       else this.focusParcel(selected)
     } else if (this.props.onForSaleSelect) {
       if (keepView && center) this.map.setView(center, zoom!)
-      else this.map.setView([0, 0], 11)
+      else if (!this.forSaleViewInitialized) {
+        this.map.setView([0, 0], SHOP_LIST_ZOOM)
+        this.forSaleViewInitialized = true
+      }
     } else if (latlngs.length) this.map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 14 })
 
     this.notifyForSaleViewport()
@@ -434,12 +439,13 @@ export default class WorldMap extends Component<Props, State> {
       id: 'Voxels',
     })
 
-    this.map = L.map(bm, { layers: [worldMap], preferCanvas: true }) as L.Map
+    this.map = L.map(bm, { layers: [worldMap], preferCanvas: true, scrollWheelZoom: true, minZoom: 3, maxZoom: 20 }) as L.Map
 
     if (this.coords) {
       this.map.setView(this.coords, 11)
     } else if (this.props.onForSaleSelect) {
-      this.map.setView([0, 0], 11)
+      this.map.setView([0, 0], SHOP_LIST_ZOOM)
+      this.forSaleViewInitialized = true
     } else {
       this.map.setView([0, 0], 7)
     }
