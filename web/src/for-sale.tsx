@@ -168,7 +168,7 @@ export default function ForSale(_props: { path?: string }) {
           <>
             <header class="for-sale-head">
               <button type="button" class="for-sale-back" onClick={back}>
-                back
+                Back to listings
               </button>
             </header>
             <div class="for-sale-detail">
