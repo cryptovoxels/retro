@@ -102,6 +102,10 @@ export default function loadRoutes(app: Express) {
   // so if out of date, will update shortly after page load
   app.get('/parcels/:id', cache('10 seconds'), passport.authenticate(['jwt', 'anonymous'], { session: false }), (req, res) => {
     const id = parseInt(req.params.id, 10)
+    if (isNaN(id)) {
+      res.status(404).json({ success: false, message: 'not found' })
+      return
+    }
 
     queryAndCallback(db, 'get-parcel', 'parcel', [id, isOwner(req)], (response) => {
       if (!response.success) {

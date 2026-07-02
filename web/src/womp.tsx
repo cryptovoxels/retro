@@ -8,7 +8,7 @@ import { wompCache } from './store/index'
 import { AvatarLink } from './components/avatar-link'
 import { avatarName } from '../../common/messages/avatar-ref'
 import { Client } from './client'
-import { restoreInfoOnMove } from '../../src/store'
+import { restoreInfoOnMove } from '../../common/ui-signals'
 import { isSplit } from './helpers/coords-nav'
 import { app } from './state'
 
