@@ -161,6 +161,7 @@ export default function ForSale(_props: { path?: string }) {
           selectedForSale={selectedId}
           onForSaleSelect={select}
           onForSaleViewportChange={setVisibleIds}
+          priceFmt={`${usd}-${rate}`}
         />
       </div>
       <aside class="for-sale-list">
@@ -170,6 +171,11 @@ export default function ForSale(_props: { path?: string }) {
               <button type="button" class="for-sale-back" onClick={back}>
                 Back to listings
               </button>
+              <div class="for-sale-currency">
+                <span class={!usd ? 'active' : ''}>eth</span>
+                <Toggle checked={usd} onChange={setUsd} />
+                <span class={usd ? 'active' : ''}>usd</span>
+              </div>
             </header>
             <div class="for-sale-detail">
               {parcel ? (

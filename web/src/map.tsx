@@ -29,6 +29,7 @@ interface Props {
   selectedForSale?: number | null
   onForSaleSelect?: (id: number) => void
   onForSaleViewportChange?: (ids: number[]) => void
+  priceFmt?: string
 }
 
 const priceLabel = (n: number) => `${parseFloat(n.toFixed(2))}Ξ`
@@ -181,13 +182,17 @@ export default class WorldMap extends Component<Props, State> {
 
   componentDidUpdate(prev: Props) {
     // listings arrive async in the for-sale page; (re)draw pins when they change
-    if (prev.forSale !== this.props.forSale) this.addForSaleMarkers()
+    if (prev.forSale !== this.props.forSale || prev.priceFmt !== this.props.priceFmt) this.addForSaleMarkers()
     if (prev.selectedForSale !== this.props.selectedForSale && this.props.selectedForSale) this.focusParcel(this.props.selectedForSale)
   }
 
   // price pins for listed parcels so the map reads like a zillow board next to the list
   addForSaleMarkers = () => {
     if (!this.map) return
+
+    const keepView = !!this.forSaleLayer
+    const center = keepView ? this.map.getCenter() : null
+    const zoom = keepView ? this.map.getZoom() : null
 
     if (this.forSaleLayer) {
       this.forSaleLayer.remove()
@@ -223,9 +228,13 @@ export default class WorldMap extends Component<Props, State> {
     this.forSaleLayer = layer
 
     const selected = this.props.selectedForSale
-    if (selected && this.forSaleMarkers[selected]) this.focusParcel(selected)
-    else if (this.props.onForSaleSelect) this.map.setView([0, 0], 12)
-    else if (latlngs.length) this.map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 14 })
+    if (selected && this.forSaleMarkers[selected]) {
+      if (keepView) this.highlightParcel(selected)
+      else this.focusParcel(selected)
+    } else if (this.props.onForSaleSelect) {
+      if (keepView && center) this.map.setView(center, zoom!)
+      else this.map.setView([0, 0], 12)
+    } else if (latlngs.length) this.map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 14 })
 
     this.notifyForSaleViewport()
   }
