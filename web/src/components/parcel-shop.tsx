@@ -7,7 +7,7 @@ import { Fee, listOnOpensea } from '../helpers/list-opensea'
 import { app } from '../state'
 
 const TEAM = '0x2D891ED45C4C3EAB978513DF4B92a35Cf131d2e2'
-const CLASSIFIEDS_URL = process.env.NODE_ENV === 'production' ? '/api/classifieds.json' : 'https://www.voxels.com/api/classifieds.json'
+const CLASSIFIEDS_URL = '/api/classifieds.json'
 
 type Listing = { id: number; price: number; permalink: string }
 type Config = { floor: number; volume30d: number; suggested: number; fees: Fee[] }
@@ -55,11 +55,7 @@ export function ParcelShop({ parcel, isOwner }: Props) {
   }, [admin, minted, teamOwned])
 
   const suggested = config?.suggested || 0
-  const show =
-    listing ||
-    (admin && !minted) ||
-    (admin && minted && teamOwned) ||
-    (isOwner && minted && !listing && !(admin && teamOwned))
+  const show = listing || (admin && !minted) || (admin && minted && teamOwned) || (isOwner && minted && !listing && !(admin && teamOwned))
 
   if (!show) return null
 

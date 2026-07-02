@@ -1,9 +1,11 @@
 import { ethers } from 'ethers'
 import { Express, Request, Response } from 'express'
+import proxy from 'express-http-proxy'
 import { chunk } from 'lodash'
 import { PassportStatic } from 'passport'
 import querystring from 'querystring'
 import { fetchJSON, OpenseaListingsV2Configs } from '../../common/helpers/apis'
+import config from '../../common/config'
 import { isStringHex } from '../../common/helpers/utils'
 import { AlchemyNFTAPIWithMetadata, AlchemyNFTWithMetadata } from '../../common/messages/api-alchemy'
 import { OpenseaListingsResponseV2, OpenSeaNftModelV2, OpenSeaNFTV2Extended, OrderRecordV2 } from '../../common/messages/api-opensea'
@@ -210,15 +212,19 @@ export default function ExternalsController(db: Db, passport: PassportStatic, ap
   })
 
   // Homepage marketplace feed: active parcel listings bucketed into fresh / secondary / deals.
-  app.get('/api/classifieds.json', cache('60 seconds'), async (_req, res) => {
-    try {
-      const data = await classifieds(db)
-      res.json({ success: true, ...data })
-    } catch (e) {
-      log.error('classifieds failed', { e: String(e) })
-      res.json({ success: false, floor: 0, fresh: [], secondary: [], deals: [] })
-    }
-  })
+  if (config.isDevelopment) {
+    app.use('/api/classifieds.json', cache(false), proxy('https://www.voxels.com', { proxyReqPathResolver: (req) => req.originalUrl }))
+  } else {
+    app.get('/api/classifieds.json', cache('60 seconds'), async (_req, res) => {
+      try {
+        const data = await classifieds(db)
+        res.json({ success: true, ...data })
+      } catch (e) {
+        log.error('classifieds failed', { e: String(e) })
+        res.json({ success: false, floor: 0, fresh: [], secondary: [], deals: [] })
+      }
+    })
+  }
 
   app.post('/api/externals/opensea/listings', cache('30 seconds'), async (req: Request, res: Response) => {
     const config = req.body as OpenseaListingsV2Configs
