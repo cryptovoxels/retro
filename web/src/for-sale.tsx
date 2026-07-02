@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'preact/hooks'
+import { useEffect, useMemo, useRef, useState } from 'preact/hooks'
 import Toggle from './components/toggle'
 import Head from './components/head'
 import { ParcelDetails } from './components/parcels/parcel-details'
 import cachedFetch from './helpers/cached-fetch'
 import { fetchOptions } from './utils'
-import VoxelsMapView from './voxels-map'
+import WorldMap from './map'
 import type { ParcelRecord } from '../../common/messages/parcel'
 
 type Item = { id: number; name: string | null; address: string; price: number; permalink: string }
@@ -29,6 +29,8 @@ export default function ForSale(_props: { path?: string }) {
   const [selectedId, setSelectedId] = useState<number | null>(initialId)
   const [view, setView] = useState<'list' | 'detail'>(initialId ? 'detail' : 'list')
   const [parcel, setParcel] = useState<ParcelRecord | undefined>()
+  const [visibleIds, setVisibleIds] = useState<number[] | null>(null)
+  const mapRef = useRef<WorldMap | null>(null)
 
   useEffect(() => {
     cachedFetch(CLASSIFIEDS_URL)
@@ -46,7 +48,7 @@ export default function ForSale(_props: { path?: string }) {
 
   const fmt = (price: number) => (!usd || !rate ? `${eth(price)}Ξ` : `$${parseFloat((price * rate).toFixed(2))}`)
 
-  const items = useMemo(() => {
+  const allItems = useMemo(() => {
     if (!data) return []
     const seen = new Set<number>()
     return [...data.fresh, ...data.secondary]
@@ -58,7 +60,14 @@ export default function ForSale(_props: { path?: string }) {
       .sort((a, b) => a.price - b.price)
   }, [data])
 
-  const selectedItem = selectedId ? items.find((i) => i.id === selectedId) : undefined
+  const items = useMemo(() => {
+    if (visibleIds === null) return allItems
+    const inView = new Set(visibleIds)
+    return allItems.filter((i) => inView.has(i.id) || i.id === selectedId)
+  }, [allItems, visibleIds, selectedId])
+
+  const forSale = useMemo(() => allItems.map((i) => ({ id: i.id, price: i.price, label: fmt(i.price) })), [allItems, usd, rate])
+  const selectedItem = selectedId ? allItems.find((i) => i.id === selectedId) : undefined
 
   useEffect(() => {
     if (view !== 'detail' || !selectedId) {
@@ -83,6 +92,7 @@ export default function ForSale(_props: { path?: string }) {
       u.searchParams.set('parcel', String(id))
       history.replaceState(null, '', u.pathname + u.search)
     }
+    mapRef.current?.focusParcel(id)
   }
 
   const back = () => {
@@ -94,13 +104,25 @@ export default function ForSale(_props: { path?: string }) {
       u.searchParams.delete('parcel')
       history.replaceState(null, '', u.pathname + u.search)
     }
+    mapRef.current?.highlightParcel(null)
   }
+
+  useEffect(() => {
+    if (view !== 'detail' || !selectedId) return
+    mapRef.current?.focusParcel(selectedId)
+  }, [view, selectedId, items.length])
 
   return (
     <section class="for-sale">
       <Head title="Land for sale" url="/shop" />
       <div class="for-sale-map">
-        <VoxelsMapView />
+        <WorldMap
+          ref={mapRef}
+          forSale={forSale}
+          selectedForSale={selectedId}
+          onForSaleSelect={select}
+          onForSaleViewportChange={setVisibleIds}
+        />
       </div>
       <aside class="for-sale-list">
         {view === 'detail' ? (
@@ -153,6 +175,8 @@ export default function ForSale(_props: { path?: string }) {
                     e.preventDefault()
                     select(i.id)
                   }}
+                  onMouseEnter={() => mapRef.current?.highlightParcel(i.id)}
+                  onMouseLeave={() => mapRef.current?.highlightParcel(null)}
                 >
                   <div class="addr">{i.name || i.address || `#${i.id}`}</div>
                   {i.name && i.address ? <div class="sub">{i.address}</div> : null}
