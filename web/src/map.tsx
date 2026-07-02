@@ -233,7 +233,7 @@ export default class WorldMap extends Component<Props, State> {
       else this.focusParcel(selected)
     } else if (this.props.onForSaleSelect) {
       if (keepView && center) this.map.setView(center, zoom!)
-      else this.map.setView([0, 0], 12)
+      else this.map.setView([0, 0], 11)
     } else if (latlngs.length) this.map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 14 })
 
     this.notifyForSaleViewport()
@@ -255,7 +255,7 @@ export default class WorldMap extends Component<Props, State> {
     this.props.onForSaleViewportChange(this.getVisibleForSaleIds())
   }
 
-  focusParcel = (id: number | null, zoom = 14) => {
+  focusParcel = (id: number | null, zoom = 13) => {
     if (!this.map || !id) return
     const marker = this.forSaleMarkers[id]
     if (!marker) return
@@ -439,7 +439,7 @@ export default class WorldMap extends Component<Props, State> {
     if (this.coords) {
       this.map.setView(this.coords, 11)
     } else if (this.props.onForSaleSelect) {
-      this.map.setView([0, 0], 12)
+      this.map.setView([0, 0], 11)
     } else {
       this.map.setView([0, 0], 7)
     }

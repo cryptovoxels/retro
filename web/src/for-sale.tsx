@@ -13,7 +13,7 @@ type Data = { floor: number; fresh: Item[]; secondary: Item[]; deals: Item[] }
 
 const CLASSIFIEDS_URL = '/api/classifieds.json'
 const eth = (n: number) => parseFloat(n.toFixed(3))
-const DETAIL_MAP_ZOOM = 17
+const DETAIL_MAP_ZOOM = 13
 const WOMP_PAGE = 6
 
 const selectedFromUrl = () => {
