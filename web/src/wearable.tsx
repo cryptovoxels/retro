@@ -7,6 +7,7 @@ import { AvatarLink } from './components/avatar-link'
 export interface Props {
   path?: string
   cid?: string
+  address?: string
   tid?: string
 }
 
@@ -29,7 +30,7 @@ export default class Wearable extends Component<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props) {
-    if (this.props.cid !== prevProps.cid) {
+    if (this.props.cid !== prevProps.cid || this.props.address !== prevProps.address) {
       this.fetch()
     } else if (this.props.tid !== prevProps.tid) {
       this.fetch()
@@ -37,7 +38,7 @@ export default class Wearable extends Component<Props, State> {
   }
 
   fetch = async () => {
-    let url = `/api/collections/${this.props.cid}/collectibles/${this.props.tid}`
+    const url = `/api/collections/${this.props.cid}/${this.props.address}/c/${this.props.tid}.json`
 
     const f = await fetch(url)
     const { collectible } = await f.json()
@@ -65,14 +66,14 @@ export default class Wearable extends Component<Props, State> {
 
   get previousUrl() {
     if (this.tid > 1) {
-      return `/collections/${this.props.cid}/collectibles/${this.tid - 1}`
+      return `/collections/${this.props.cid}/${this.props.address}/${this.tid - 1}`
     } else {
       return null
     }
   }
 
   get nextUrl() {
-    return `/collections/${this.props.cid}/collectibles/${this.tid + 1}`
+    return `/collections/${this.props.cid}/${this.props.address}/${this.tid + 1}`
   }
 
   render() {
@@ -89,7 +90,7 @@ export default class Wearable extends Component<Props, State> {
             <h1>{this.wearable.name}</h1>
 
             <p>
-              <a href={`/collections/${this.props.cid}`}>Back to collection</a>
+              <a href={`/collections/${this.props.cid}/${this.props.address}`}>Back to collection</a>
             </p>
           </hgroup>
           <figcaption>
@@ -117,7 +118,7 @@ export default class Wearable extends Component<Props, State> {
             </dd>
             <dt>Collection</dt>
             <dd>
-              <a href={`/collections/${this.props.cid}`}>{this.wearable.collection_name}</a>
+              <a href={`/collections/${this.props.cid}/${this.props.address}`}>{this.wearable.collection_name}</a>
             </dd>
             <dt>System ID</dt>
             <dd>{this.wearable.id}</dd>

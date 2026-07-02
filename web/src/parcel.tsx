@@ -326,7 +326,7 @@ export default class Parcel extends Component<Props, State> {
           </p>
         ) : null}
 
-        {this.state.parcel ? <ParcelShop parcel={this.state.parcel} isOwner={this.isOwner} /> : null}
+        {this.state.parcel ? <ParcelShop parcel={this.state.parcel} isOwner={!!this.isOwner} /> : null}
 
         {this.state.parcel?.parcel_users && this.state.parcel.parcel_users.length > 0 && (
           <div>

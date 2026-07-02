@@ -1,6 +1,7 @@
 import type Parcel from './parcel'
 import Feature from './features/feature'
 import Group from './features/group'
+import { restoreInfoOnMove } from '../common/ui-signals'
 import { signal } from '@preact/signals'
 import Grid from './grid'
 export type CheckedFeatures = Record<string, Feature>
@@ -192,9 +193,6 @@ export const selectCheckedFeatures = (): CheckedFeatures => {
 }
 
 export const uiPane = signal<string | undefined>(undefined)
-
-// one-shot: armed when you open a womp preview from the info pane (path-based detection covers the rest)
-export const restoreInfoOnMove = signal(false)
 
 // panes you open on purpose and leave up while walking around (they get a close X and survive
 // tapping back into the world); contextual build/edit panes dismiss on canvas re-engage.
