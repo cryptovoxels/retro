@@ -143,7 +143,7 @@ export default function ForSale(_props: { path?: string }) {
       u.searchParams.delete('parcel')
       history.replaceState(null, '', u.pathname + u.search)
     }
-    mapRef.current?.highlightParcel(null)
+    mapRef.current?.resetShopListView()
   }
 
   useEffect(() => {

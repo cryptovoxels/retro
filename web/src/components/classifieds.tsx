@@ -126,6 +126,11 @@ export default function Classifieds({ limit }: Props) {
           )}
         </tbody>
       </table>
+      {limit ? (
+        <p>
+          <a href="/shop">view all listings</a>
+        </p>
+      ) : null}
     </div>
   )
 }

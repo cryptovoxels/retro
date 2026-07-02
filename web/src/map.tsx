@@ -287,6 +287,13 @@ export default class WorldMap extends Component<Props, State> {
     this.highlightParcel(id)
   }
 
+  resetShopListView = () => {
+    if (!this.map || !this.props.onForSaleSelect) return
+    this.highlightParcel(null)
+    this.map.setView([0, 0], SHOP_LIST_ZOOM)
+    this.notifyForSaleViewport()
+  }
+
   // called from the listing cards on hover to connect list <-> map
   highlightParcel = (id: number | null) => {
     for (const key of Object.keys(this.forSaleMarkers)) {
