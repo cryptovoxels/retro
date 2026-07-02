@@ -1,6 +1,5 @@
 import { isEqual } from 'lodash'
 import { isMod } from './lib/helpers'
-import { isCollectionIDAlreadyOnChain } from './lib/ethereum-helpers'
 import db from './pg'
 
 export default class Collection {
@@ -300,14 +299,4 @@ export default class Collection {
 
 function escapeHtml(unsafe: string) {
   return unsafe.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;')
-}
-
-async function nextCollectionId(index = 0): Promise<number> {
-  const res = await db.query('embedded/get-next-collection-id', `select currval('collections_id_seq'::regclass)::integer+$1::integer as new_id;`, [index])
-  const id = res.rows[0]?.new_id
-  if (!id) {
-    throw new Error('No Id')
-  }
-
-  return id
 }

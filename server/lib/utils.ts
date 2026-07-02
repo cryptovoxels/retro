@@ -15,7 +15,6 @@ export const tokenContractABI = require('../../common/contracts/external/erc20.j
 
 export const erc721ABI = require('../../common/contracts/external/erc721.json')
 export const erc1155ABI = require('../../common/contracts/external/erc1155.json')
-export const collectibleContractABI = require('../../common/contracts/collectibles-v2.json')
 export const parcelInterface = new Interface(ParcelContractABI.abi)
 
 // We have it here for CI to not fail
@@ -74,15 +73,6 @@ export const erc1155Contract = async (address: string, chain = 1): Promise<ether
   }
   const provider = await getProviderGivenChain(chain)
   return new ethers.Contract(address, erc1155ABI.abi, provider)
-}
-
-export const collectibleContract = async (address: string, chain = 1): Promise<ethers.Contract | null> => {
-  if (!ethers.isAddress(address)) {
-    return null
-  }
-  const provider = await getProviderGivenChain(chain)
-
-  return new ethers.Contract(address, collectibleContractABI.abi, provider)
 }
 
 //or https://rpc-mainnet.maticvigil.com

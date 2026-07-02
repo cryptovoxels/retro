@@ -1,4 +1,3 @@
-import { ethers } from 'ethers'
 import { Express, NextFunction, Request, RequestHandler, Response } from 'express'
 import { PassportStatic } from 'passport'
 import { ChainIdentifier, getChainIdByName, SUPPORTED_CHAINS_KEYS } from '../../common/helpers/chain-helpers'
@@ -115,21 +114,5 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
     }
     const id = row.id as number
     res.json({ success: true, collection_id: id })
-  })
-
-  app.put('/api/collections/:id/address', passport.authenticate('jwt', { session: false }), async (req: VoxelsUserRequest, res) => {
-    const wallet = req.user?.wallet
-    const id = parseInt(req.params.id, 10)
-    const address = req.body?.address
-    if (!wallet || isNaN(id) || !address || !ethers.isAddress(address)) {
-      res.status(400).json({ success: false, message: 'Invalid params' })
-      return
-    }
-    try {
-      const r = await pgp.oneOrNone(`update collections set address = $1 where id = $2 and owner = $3 and address is null returning id`, [address, id, wallet])
-      res.json({ success: !!r })
-    } catch {
-      res.status(500).json({ success: false })
-    }
   })
 }

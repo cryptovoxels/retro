@@ -1,8 +1,6 @@
 import { ethers } from 'ethers'
-import Wearable from '../wearable'
-import Collection from '../collection'
 import log from './logger'
-import { collectibleContract, countOwnedTokens_ERC721Contract, erc20Contract, ethAlchemy, getBalanceOfToken_ERC1155Contract, getOwnerOfToken_ERC721Contract, getTypeOfContract, getContract, polygonAlchemy, TokenAddress } from './utils'
+import { countOwnedTokens_ERC721Contract, erc20Contract, ethAlchemy, getBalanceOfToken_ERC1155Contract, getOwnerOfToken_ERC721Contract, getTypeOfContract, getContract, polygonAlchemy, TokenAddress } from './utils'
 import { tokensToEnter } from '../../common/messages/parcel'
 import { SUPPORTED_CHAINS } from '../../common/helpers/chain-helpers'
 
@@ -84,111 +82,6 @@ export async function getParcelsCount(wallet: string) {
 
   return { parcels: balance.toNumber() }
 }
-
-/**
- * Get count of a specific wearable a user has.
- * @param wallet the wallet to get the balance of
- * @param collectible_uuid the uuid of the collectible.
- * @returns
- */
-export async function getCollectibleAmountForWallet(
-  chain: number,
-  address: string,
-  tokenId: number,
-  wallet: string,
-): Promise<{
-  balance: number
-}> {
-  //off-chain handle
-  if (chain == 0) {
-    // Off-chain collectibles are "common" so 1000
-    return { balance: 1000 }
-  }
-  const collectible = await Wearable.loadFromChainInfo(chain, address, tokenId)
-  if (!collectible) {
-    console.warn(`Could not find collectible for ${chain} ${address} ${tokenId}`)
-    return { balance: 0 }
-  }
-
-  const contract = await collectibleContract(address, chain)
-  let balance
-  try {
-    balance = await contract?.balanceOf(wallet, collectible.token_id)
-  } catch (e: any) {
-    log.error(e.toString ? e.toString() : e)
-  }
-  if (!balance) {
-    return { balance: 0 }
-  }
-  return { balance: balance.toNumber() }
-}
-
-/**
- * Check whether the potential collection ID is already registered on chain
- * @param tokenId Potential collection id
- * @param chainId chain id 1,137,80001
- */
-export async function isCollectionIDAlreadyOnChain(tokenId: number, chainId = 1): Promise<boolean> {
-  const factoryContactAddress = chainId == 137 ? process.env.COLLECTION_FACTORY_CONTRACT_MATIC : process.env.COLLECTION_FACTORY_CONTRACT_ETH
-  if (!factoryContactAddress || !ethers.isAddress(factoryContactAddress)) {
-    return false
-  }
-
-  const alchemy = chainId == 1 ? ethAlchemy : polygonAlchemy
-
-  const contract = new ethers.Contract(factoryContactAddress, quickFactoryABI, alchemy)
-
-  let p
-  try {
-    p = await contract.getCollectionFromId(tokenId)
-  } catch (e) {
-    return true // safe
-  }
-
-  return p !== `0x0000000000000000000000000000000000000000`
-}
-
-const quickFactoryABI = [
-  {
-    inputs: [{ internalType: 'uint256', name: '_id', type: 'uint256' }],
-    name: 'getCollectionFromId',
-    outputs: [{ internalType: 'address', name: 'collection', type: 'address' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-]
-
-/**
- * Checks whether the address is a valid collection address.
- * @param collection a collection object
- */
-export async function collectionHasValidURI(collection: Collection): Promise<boolean> {
-  if (!collection.address || !ethers.isAddress(collection.address)) {
-    return true
-  }
-  const alchemy = collection.chainId == 1 ? ethAlchemy : polygonAlchemy
-  const contract = new ethers.Contract(collection.address, quickcvCollectibleABI, alchemy)
-
-  let p
-  try {
-    p = await contract.uri(1)
-  } catch (e) {
-    return true // safe
-  }
-
-  // THis is validating the legacy URI on purpose since we can't change it unless you modify the collections-factory
-  return p === `https://www.cryptovoxels.com/c/${collection.id}/{id}`
-}
-
-const quickcvCollectibleABI = [
-  {
-    inputs: [{ internalType: 'uint256', name: '', type: 'uint256' }],
-    name: 'uri',
-    outputs: [{ internalType: 'string', name: '', type: 'string' }],
-    stateMutability: 'view',
-    type: 'function',
-  },
-]
 
 /**
  *  Get a transaction Receipt from a TX

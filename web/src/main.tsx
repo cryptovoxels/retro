@@ -21,7 +21,6 @@ import Avatar from './avatar'
 import Costumer from './costumer'
 import CollectionEditPage from './collection-edit'
 import CollectionPage from './collection'
-import PublishCollection from './collection-publish'
 import Collections from './collections'
 import CollectionsNew from './collections-new'
 import Snackbar from './components/snackbar'
@@ -221,7 +220,6 @@ const Main = () => {
 
             <Collections path="/collections" />
             <CollectionsNew path="/collections/new" />
-            <PublishCollection path="/collections/:mint/publish" />
             <CollectionEditPage path="/collections/:id/edit" />
             <CollectionPage path="/collections/:id" />
             <Wearable path="/collections/:cid/:address/:tid" />
