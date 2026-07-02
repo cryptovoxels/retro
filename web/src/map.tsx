@@ -33,7 +33,7 @@ interface Props {
 }
 
 const priceLabel = (n: number) => `${parseFloat(n.toFixed(2))}Ξ`
-const SHOP_LIST_ZOOM = 7
+const SHOP_LIST_ZOOM = 6
 
 interface State {
   parcels: MapParcelRecord[]
@@ -279,7 +279,7 @@ export default class WorldMap extends Component<Props, State> {
     this.props.onForSaleViewportChange(this.getVisibleForSaleIds())
   }
 
-  focusParcel = (id: number | null, zoom = 13) => {
+  focusParcel = (id: number | null, zoom = 10) => {
     if (!this.map || !id) return
     const marker = this.forSaleMarkers[id]
     if (!marker) return

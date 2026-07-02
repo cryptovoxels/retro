@@ -13,7 +13,7 @@ type Data = { floor: number; fresh: Item[]; secondary: Item[]; deals: Item[] }
 
 const CLASSIFIEDS_URL = '/api/classifieds.json'
 const eth = (n: number) => parseFloat(n.toFixed(3))
-const DETAIL_MAP_ZOOM = 13
+const DETAIL_MAP_ZOOM = 10
 const WOMP_PAGE = 6
 
 const selectedFromUrl = () => {
@@ -167,7 +167,7 @@ export default function ForSale(_props: { path?: string }) {
       <aside class="for-sale-list">
         {view === 'detail' ? (
           <>
-            <header class="for-sale-head">
+            <header class="for-sale-head for-sale-head-detail">
               <button type="button" class="for-sale-back" onClick={back}>
                 Back to listings
               </button>
