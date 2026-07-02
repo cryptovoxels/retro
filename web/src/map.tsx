@@ -183,9 +183,31 @@ export default class WorldMap extends Component<Props, State> {
   }
 
   componentDidUpdate(prev: Props) {
-    // listings arrive async in the for-sale page; (re)draw pins when they change
-    if (prev.forSale !== this.props.forSale || prev.priceFmt !== this.props.priceFmt) this.addForSaleMarkers()
+    const forSaleIdsSame =
+      prev.forSale?.length === this.props.forSale?.length &&
+      !!prev.forSale?.every((item, i) => item.id === this.props.forSale?.[i]?.id)
+
+    // eth/usd toggle: patch pin text only, leave pan/zoom alone
+    if (prev.priceFmt !== this.props.priceFmt && forSaleIdsSame && this.updateForSalePinLabels()) {
+      // done
+    } else if (prev.forSale !== this.props.forSale || prev.priceFmt !== this.props.priceFmt) {
+      this.addForSaleMarkers()
+    }
     if (prev.selectedForSale !== this.props.selectedForSale && this.props.selectedForSale) this.focusParcel(this.props.selectedForSale)
+  }
+
+  updateForSalePinLabels = () => {
+    const forSale = this.props.forSale
+    if (!forSale?.length) return false
+
+    for (const item of forSale) {
+      const marker = this.forSaleMarkers[item.id]
+      const el = (marker as any)?._icon as HTMLElement | undefined
+      const span = el?.querySelector('span')
+      if (!span) return false
+      span.textContent = item.label ?? priceLabel(item.price)
+    }
+    return true
   }
 
   // price pins for listed parcels so the map reads like a zillow board next to the list
@@ -193,8 +215,6 @@ export default class WorldMap extends Component<Props, State> {
     if (!this.map) return
 
     const keepView = !!this.forSaleLayer
-    const center = keepView ? this.map.getCenter() : null
-    const zoom = keepView ? this.map.getZoom() : null
 
     if (this.forSaleLayer) {
       this.forSaleLayer.remove()
@@ -234,8 +254,7 @@ export default class WorldMap extends Component<Props, State> {
       if (keepView) this.highlightParcel(selected)
       else this.focusParcel(selected)
     } else if (this.props.onForSaleSelect) {
-      if (keepView && center) this.map.setView(center, zoom!)
-      else if (!this.forSaleViewInitialized) {
+      if (!keepView && !this.forSaleViewInitialized) {
         this.map.setView([0, 0], SHOP_LIST_ZOOM)
         this.forSaleViewInitialized = true
       }
