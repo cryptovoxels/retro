@@ -24,12 +24,22 @@ async function teleportToParcelSpawn(parcelId: number): Promise<boolean> {
   return false
 }
 
+// a live showbox stream on the island, from the same redis entries that feed the homepage strip
+type LiveShow = {
+  room: string
+  coord?: string
+  viewers?: number
+  thumbnail?: string
+  parcel?: { id?: number; name?: string; address?: string }
+}
+
 // shown in the info pane when you're not standing on a parcel (in the void / between parcels):
 // where you are on the island, what's live nearby, and parcels you can jump to.
 export default function IslandInfoTab(props: { scene: BABYLON.Scene }) {
   const grid = window.grid as Grid | undefined
   const [, tick] = useState(0)
   const [events, setEvents] = useState<EventMessage[]>([])
+  const [liveShows, setLiveShows] = useState<LiveShow[]>([])
 
   // you're moving through the void; refresh coords while the pane is up
   useEffect(() => {
@@ -51,6 +61,27 @@ export default function IslandInfoTab(props: { scene: BABYLON.Scene }) {
     }
   }, [island])
 
+  // live showbox streams anywhere on this island (island-wide, unlike the loaded-parcel events)
+  useEffect(() => {
+    if (!island) {
+      setLiveShows([])
+      return
+    }
+    let dead = false
+    const load = () => {
+      fetch(`${process.env.API}/islands/${slugify(island)}/live.json`, fetchOptions())
+        .then((r) => r.json())
+        .then((r) => !dead && r.success && setLiveShows(r.entries ?? []))
+        .catch(() => {})
+    }
+    load()
+    const t = setInterval(load, 15000)
+    return () => {
+      dead = true
+      clearInterval(t)
+    }
+  }, [island])
+
   if (!grid) return null
 
   const cam = cameraPosition(props.scene)
@@ -59,6 +90,9 @@ export default function IslandInfoTab(props: { scene: BABYLON.Scene }) {
   const onIsland = island ? nearby.filter((p) => p.island === island) : nearby
   const nearbyIds = new Set(nearby.map((p) => p.id))
   const nearbyEvents = events.filter((e) => nearbyIds.has(e.parcel_id))
+  // a parcel that's streaming shows as a stream row, not twice - events fill in the rest
+  const liveParcelIds = new Set(liveShows.map((s) => s.parcel?.id).filter(Boolean))
+  const liveEvents = nearbyEvents.filter((e) => !liveParcelIds.has(e.parcel_id))
 
   // teleport(p.address) silently no-oped: an address is not a coords string, so
   // decodeCoordsFromURL rejected it and the click did nothing. use the spawn lookup instead.
@@ -91,8 +125,19 @@ export default function IslandInfoTab(props: { scene: BABYLON.Scene }) {
         {island && <IslandBoard island={island} />}
 
         <div className="overlay-parcel-info-content">
-          <h4>happening now nearby</h4>
-          {nearbyEvents.length ? nearbyEvents.map((e) => <EventRow key={e.id} event={e} onClick={teleportToEvent} />) : <p>nothing live nearby</p>}
+          <h4>live now</h4>
+          {liveShows.map((s) => (
+            <a key={s.room} class="island-live-row" title="join the audience" onClick={() => s.coord && window.persona?.teleport(`/play?coords=${encodeURIComponent(s.coord)}`)}>
+              {s.thumbnail && <img src={s.thumbnail} alt="" />}
+              <span class="island-live-dot">&#9679;</span>
+              <span class="island-live-name">{s.parcel?.name || s.parcel?.address || 'live show'}</span>
+              <span class="island-live-viewers">{(s.viewers ?? 0) === 1 ? '1 viewer' : `${s.viewers ?? 0} viewers`}</span>
+            </a>
+          ))}
+          {liveEvents.map((e) => (
+            <EventRow key={e.id} event={e} onClick={teleportToEvent} />
+          ))}
+          {!liveShows.length && !liveEvents.length && <p>nothing live on this island</p>}
         </div>
 
         <div className="overlay-parcel-info-content">
