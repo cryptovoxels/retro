@@ -47,4 +47,11 @@ if (process.env.BUGSNAG_API_KEY) {
   })
 }
 
-require('./server')
+const { runMigrations } = require('./migration/migrate')
+
+void runMigrations()
+  .then(() => require('./server'))
+  .catch((err) => {
+    console.error('Migrations failed:', err)
+    process.exit(1)
+  })
