@@ -5,6 +5,7 @@ import { PassportStatic } from 'passport'
 import { Express } from 'express'
 import { AccessToken, WebhookReceiver, RoomServiceClient } from 'livekit-server-sdk'
 import authParcel from '../auth-parcel'
+import { islandSlug } from '../island-board'
 import Parcel from '../parcel'
 import { loadGuestPass } from './guest-passes'
 import { VoxelsUser } from '../user'
@@ -278,6 +279,29 @@ export default async function LivekitController(db: Db, passport: PassportStatic
     }
 
     res.json({ success })
+  })
+
+  // live shows on one island, for the island pane's "live now" section: the live-strip entries
+  // whose parcel sits on this island, sorted by viewers (no random discovery slots here)
+  app.get('/api/islands/:slug/live.json', cache(false), async (req, res) => {
+    const slug = req.params.slug.toString()
+    if (!slug.match(/^[a-z0-9-]{1,64}$/)) {
+      res.status(400).json({ success: false, entries: [] })
+      return
+    }
+    const all = await loadOrderedLiveEntries()
+    const ids = [...new Set(all.map((e: any) => Number(e?.parcel?.id)).filter((n: number) => Number.isInteger(n) && n > 0))]
+    if (!ids.length) {
+      res.json({ success, entries: [] })
+      return
+    }
+    let onIsland = new Set<number>()
+    try {
+      const r = await db.query('embedded/parcel-ids-on-island', `select id from properties where id = any($1::int[]) and ${islandSlug('island')} = $2::text`, [ids, slug])
+      onIsland = new Set((r.rows ?? []).map((x: any) => x.id))
+    } catch {}
+    const entries = all.filter((e: any) => onIsland.has(Number(e?.parcel?.id))).sort((a: any, b: any) => (b.viewers ?? 0) - (a.viewers ?? 0))
+    res.json({ success, entries })
   })
 
   app.get('/api/live', async (req, res) => {

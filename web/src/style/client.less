@@ -2362,6 +2362,41 @@ form.PermissionsRadioSelector > div {
     }
   }
 
+  // "live now": showbox streams on the island, one tap into the audience
+  .island-live-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    cursor: pointer;
+    margin-bottom: 0.5rem;
+
+    img {
+      width: 96px;
+      aspect-ratio: 16 / 9;
+      object-fit: cover;
+      display: block;
+      flex-shrink: 0;
+      background: #000;
+    }
+
+    .island-live-dot {
+      color: var(--red);
+      animation: showbox-live-pulse 1.2s ease-in-out infinite;
+    }
+
+    .island-live-name {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .island-live-viewers {
+      opacity: 0.7;
+      white-space: nowrap;
+    }
+  }
+
   .island-board {
     textarea {
       width: 100%;

@@ -1,7 +1,7 @@
 import db from './pg'
 
 // same normalization the island slug routes use (get-island.sql): lowercase, trim, spaces -> hyphens.
-const islandSlug = (col: string) => `regexp_replace(lower(trim(coalesce(${col}, ''))), '\\s+', '-', 'g')`
+export const islandSlug = (col: string) => `regexp_replace(lower(trim(coalesce(${col}, ''))), '\\s+', '-', 'g')`
 
 export type IslandParcel = { id: number; name: string | null; address: string }
 
