@@ -2,7 +2,7 @@ import type Parcel from './parcel'
 import Feature from './features/feature'
 import Group from './features/group'
 import { restoreInfoOnMove } from '../common/ui-signals'
-import { signal } from '@preact/signals'
+import { effect, signal } from '@preact/signals'
 import Grid from './grid'
 export type CheckedFeatures = Record<string, Feature>
 
@@ -196,7 +196,8 @@ export const uiPane = signal<string | undefined>(undefined)
 
 // panes you open on purpose and leave up while walking around (they get a close X and survive
 // tapping back into the world); contextual build/edit panes dismiss on canvas re-engage.
-export const PERSISTENT_PANES = new Set(['info', 'explorer', 'settings', 'help'])
+// broadcast: the host's dock must stay up for the whole show - only its own close/stop ends it.
+export const PERSISTENT_PANES = new Set(['info', 'explorer', 'settings', 'help', 'broadcast'])
 export const isPersistentPane = (p?: string) => !!p && PERSISTENT_PANES.has(p)
 
 export const uiAsideTick = signal(0)
@@ -204,6 +205,10 @@ export const sidebarClosed = signal(false)
 export const broadcastShowboxUuid = signal<string | undefined>(undefined)
 // when the local broadcast went live; the closed-sidebar "live" tab reads this for its timer
 export const broadcastLiveStartedAt = signal<number | undefined>(undefined)
+// the imperative broadcast dock element. preact tears the sidebar mount down whenever uiPane
+// leaves 'broadcast', which orphans the dock DOM - the mount re-adopts it from here on remount
+// so reopening via the live tab doesn't show an empty pane mid-broadcast.
+export const broadcastDockEl: { el: HTMLDivElement | null } = { el: null }
 
 export const closeBroadcastSidebar = () => {
   broadcastShowboxUuid.value = undefined
@@ -212,6 +217,13 @@ export const closeBroadcastSidebar = () => {
   sidebarClosed.value = false
   uiAsideTick.value++
 }
+
+// while the broadcast dock is open it is the sidebar's home: hopping into edit/settings/a tool
+// swaps the pane (the pulsing live tab appears), and when that pane closes we snap back to the
+// dock instead of the default info view. stop/close clears the uuid first, which ends this.
+effect(() => {
+  if (!uiPane.value && broadcastShowboxUuid.value) uiPane.value = 'broadcast'
+})
 
 export type PendingWomp = {
   coords: string
