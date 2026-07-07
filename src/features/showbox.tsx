@@ -23,7 +23,7 @@ import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQ
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { isSplit } from '../../web/src/helpers/coords-nav'
 import { duckRadio, setRadioBroadcasting, unduckRadio } from '../../web/src/radio/global'
-import { broadcastLiveStartedAt, broadcastShowboxUuid, closeBroadcastSidebar, uiAsideTick, uiPane } from '../store'
+import { broadcastDockEl, broadcastLiveStartedAt, broadcastShowboxUuid, closeBroadcastSidebar, uiAsideTick, uiPane } from '../store'
 import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
 import { cohostPaneRects, MAX_COHOST_PANES } from '../../common/helpers/cohost-panes'
 import { encodeCoords } from '../../common/helpers/utils'
@@ -415,6 +415,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   lastCelebrateN = 0
   viewerRoomFull = false
   viewerConnecting = false
+  // the in-flight connectViewer, so a caller arriving mid-connect can await it instead of no-oping
+  viewerConnectPromise: Promise<void> | null = null
   liveChatAnnounced = false
   walkAwayWarned = false
   broadcastLost = false
@@ -656,6 +658,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     if (!this.livekitRoom) await this.connectViewer()
     const lp = (this.livekitRoom as any)?.localParticipant
+    if (!lp) {
+      // viewer room never came up (token/connect failed) - don't leave the capture running
+      console.error('showbox: angle publish skipped, no viewer room')
+      try {
+        track.stop()
+      } catch {}
+      return false
+    }
     this.angleVideoTrack = track
     try {
       await lp.publishTrack(track, { name: this.uuid })
@@ -1481,6 +1491,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   dismissBroadcastPanel() {
+    if (this.broadcastPanel && broadcastDockEl.el === this.broadcastPanel) broadcastDockEl.el = null
     this.broadcastPanel?.remove()
     this.broadcastPanel = null
     this.broadcastPanelSidebar = false
@@ -1514,6 +1525,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     uiPane.value = 'broadcast'
     uiAsideTick.value++
     this.applySidebarDockStyles(panel)
+    broadcastDockEl.el = panel
     const attach = () => {
       const mount = document.getElementById('showbox-broadcast-mount')
       if (!mount) {
@@ -2896,7 +2908,19 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.swapScreenMaterial(material)
   }
 
-  async connectViewer() {
+  connectViewer(): Promise<void> {
+    // a freshly spawned mirror starts this connect in its own init, so publishAngleTrack's await
+    // right after spawn used to no-op on viewerConnecting and publish into a null room - join the
+    // in-flight connect instead
+    if (this.viewerConnectPromise) return this.viewerConnectPromise
+    const run = this.connectViewerRun().finally(() => {
+      if (this.viewerConnectPromise === run) this.viewerConnectPromise = null
+    })
+    this.viewerConnectPromise = run
+    return run
+  }
+
+  private async connectViewerRun() {
     if (this.livekitRoom || this.viewerConnecting) return
     const gen = ++this.viewerConnectGen
     this.viewerConnecting = true
