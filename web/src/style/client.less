@@ -2368,6 +2368,20 @@ form.PermissionsRadioSelector > div {
       min-height: 3rem;
     }
 
+    .island-board-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .island-board-cancel {
+      background: none;
+      border: 0;
+      color: var(--bright);
+      opacity: 0.7;
+      cursor: pointer;
+      text-decoration: underline;
+    }
+
     .island-board-posts {
       list-style: none;
       padding: 0;
@@ -2382,6 +2396,35 @@ form.PermissionsRadioSelector > div {
 
         span {
           margin-left: 0.5rem;
+        }
+      }
+
+      .island-board-meta {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+
+        a {
+          cursor: pointer;
+        }
+
+        .island-board-heart {
+          background: none;
+          border: 0;
+          padding: 0;
+          color: var(--bright);
+          opacity: 0.6;
+          cursor: pointer;
+
+          &.hearted {
+            color: var(--red);
+            opacity: 1;
+          }
+
+          &:disabled {
+            cursor: default;
+            opacity: 0.35;
+          }
         }
       }
     }
@@ -3314,6 +3357,13 @@ button[accesskey] {
   &:hover kbd {
     text-decoration: underline;
   }
+}
+
+/* "you are here" heading triangle on the leaflet maps; rotated via the marker's rotationAngle */
+.map-you-arrow {
+  background: #fb6728;
+  // compass-style arrow: apex up = heading north, notch at the tail
+  clip-path: polygon(50% 0%, 95% 100%, 50% 76%, 5% 100%);
 }
 
 /* Map marker css icons */

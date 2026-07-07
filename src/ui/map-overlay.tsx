@@ -45,13 +45,6 @@ class CustomControl extends window.L.Control.Layers {
  */
 type ParcelFeature = any
 
-const avatarIcon = window.L.icon({
-  iconUrl: '/images/marker.png',
-  iconSize: [12, 14],
-  iconAnchor: [6, 7],
-  popupAnchor: [6, 6],
-})
-
 const partyIcon = window.L.divIcon({
   // Specify a class name we can refer to in CSS.
   className: 'css-icon',
@@ -79,6 +72,8 @@ export default class MapOverlayUI {
   abort: AbortController | null = null
   avatarLayer: L.LayerGroup | null = null
   updateAvatarTimer: NodeJS.Timeout | null = null
+  locationMarker: L.Marker | null = null
+  locationTimer: NodeJS.Timeout | null = null
 
   constructor(
     private scene: BABYLON.Scene,
@@ -258,6 +253,11 @@ export default class MapOverlayUI {
       clearInterval(this.updateAvatarTimer)
       this.updateAvatarTimer = null
     }
+    if (this.locationTimer) {
+      clearInterval(this.locationTimer)
+      this.locationTimer = null
+    }
+    this.locationMarker = null
     this.editableParcels.length = 0
 
     this.overlayMaps = {}
@@ -464,18 +464,26 @@ export default class MapOverlayUI {
       console.warn('No map found')
       return
     }
-    const markers: L.Marker[] = []
+    const markers: L.CircleMarker[] = []
     const avatarLayer = window.L.layerGroup()
     this.avatarLayer = avatarLayer
 
     const loadAvatarMarkers = (layer: L.LayerGroup) => {
       for (const avatar of window.connector.avatarsByUuid.values()) {
         if (!avatar.hasPosition || avatar.isUser) continue
-        const marker = window.L.marker({ lat: avatar.position.z / 100, lng: avatar.position.x / 100 }, {
-          icon: avatarIcon,
-          renderer: this.mapRenderer ?? undefined,
-          title: avatar.name,
-        } as L.MarkerOptions)
+        // small blue dot per person; canvas-rendered so hundreds stay cheap
+        const marker = window.L.circleMarker(
+          { lat: avatar.position.z / 100, lng: avatar.position.x / 100 },
+          {
+            renderer: this.mapRenderer ?? undefined,
+            radius: 4,
+            weight: 1,
+            color: '#ffffff',
+            fillColor: '#2b8cf0',
+            fillOpacity: 0.9,
+          },
+        )
+        if (avatar.name) marker.bindTooltip(avatar.name)
         markers.push(marker)
         layer.addLayer(marker)
       }
@@ -534,44 +542,31 @@ export default class MapOverlayUI {
     eventsLayer.addTo(this.map)
   }
 
+  // "you are here": a heading triangle that tracks the player live, like the minimap's arrow
   private addCurrentLocationMarker() {
-    if (!this.scene.activeCamera) {
-      console.warn('No camera found')
-      return
-    }
-
-    if (!this.map) {
-      console.warn('No map found')
+    const camera = this.scene.activeCamera
+    if (!camera || !this.map) {
+      console.warn('No camera or map found')
       return
     }
     this.map.createPane('locationMarker')
-    // this.map.getPane('locationMarker')!.style.zIndex = '999'
 
-    const personaIcon = window.L.icon({
-      iconUrl: '/images/marker-pointy.png',
-      iconSize: [24, 38],
-      iconAnchor: [12, 26],
-      popupAnchor: [12, 26],
-    })
+    const icon = window.L.divIcon({ className: 'map-you-arrow', iconSize: [14, 14], iconAnchor: [7, 7] })
+    this.locationMarker = window.L.marker(playerLatLng(camera), {
+      icon,
+      rotationOrigin: '7px 7px',
+      rotationAngle: playerHeadingDeg(camera),
+      pane: 'locationMarker',
+      title: 'You are here!',
+      interactive: false,
+    } as L.MarkerOptions & { rotationOrigin: string; rotationAngle: number }).addTo(this.map)
 
-    try {
-      this.map.addLayer(
-        window.L.marker({ lat: this.scene.activeCamera.position.z / 100, lng: this.scene.activeCamera.position.x / 100 }, {
-          icon: personaIcon,
-          rotationOrigin: '12px 25px',
-          /**
-           * babylon rotation -> 0 is facing north, 1 is south, -1 is north;
-           * leaflet rotation -> 0 is facing north, 180 is south, 360 is back to north
-           */
-          rotationAngle: ((this.scene.activeCamera.absoluteRotation.y + 1) % 2) * 180 - 180,
-          pane: 'locationMarker',
-          title: 'You are here!',
-          renderer: this.mapRenderer ?? undefined,
-        } as L.MarkerOptions & { rotationOrigin: string; rotationAngle: number }),
-      )
-    } catch (e) {
-      console.error(e)
-    }
+    this.locationTimer = setInterval(() => {
+      const cam = this.scene.activeCamera
+      if (!cam || !this.map || !this.locationMarker) return
+      this.locationMarker.setLatLng(playerLatLng(cam))
+      ;(this.locationMarker as any).setRotationAngle(playerHeadingDeg(cam))
+    }, 500)
   }
 }
 
@@ -631,6 +626,11 @@ function ensureMapPatched() {
     },
   })
 }
+
+const playerLatLng = (camera: BABYLON.Camera) => ({ lat: camera.position.z / 100, lng: camera.position.x / 100 })
+
+// babylon yaw 0 faces +z, which is map north; leaflet's rotateZ turns the icon clockwise in degrees
+const playerHeadingDeg = (camera: BABYLON.Camera) => (camera instanceof BABYLON.TargetCamera ? (camera.rotation.y * 180) / Math.PI : 0)
 
 export const calculateLatLng = (parcel: MapParcelRecord) => {
   const centroid = () => {

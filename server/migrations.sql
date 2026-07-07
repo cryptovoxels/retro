@@ -269,3 +269,18 @@ SELECT apply_migration('island-board', $$
   CREATE INDEX IF NOT EXISTS island_posts_island_idx ON island_posts (island);
 $$);
 
+
+SELECT apply_migration('island-board-slots', $$
+  -- one note per wallet per island (re-posting replaces it), optional parcel signature, hearts.
+  -- keep only each author's newest post before the unique slot index lands.
+  DELETE FROM island_posts p USING island_posts q
+    WHERE p.island = q.island AND lower(p.author) = lower(q.author) AND p.id < q.id;
+  ALTER TABLE island_posts ADD COLUMN IF NOT EXISTS parcel_id integer;
+  CREATE UNIQUE INDEX IF NOT EXISTS island_posts_slot_idx ON island_posts (island, lower(author));
+  CREATE TABLE IF NOT EXISTS island_post_hearts (
+    post_id    integer NOT NULL REFERENCES island_posts (id) ON DELETE CASCADE,
+    wallet     text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (post_id, wallet)
+  );
+$$);
