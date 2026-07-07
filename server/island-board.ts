@@ -3,11 +3,14 @@ import db from './pg'
 // same normalization the island slug routes use (get-island.sql): lowercase, trim, spaces -> hyphens.
 const islandSlug = (col: string) => `regexp_replace(lower(trim(coalesce(${col}, ''))), '\\s+', '-', 'g')`
 
-// owners and collaborators on a minted, non-common parcel on this island may post to its board.
-export async function ownsParcelOnIsland(wallet: string, slug: string): Promise<boolean> {
+export type IslandParcel = { id: number; name: string | null; address: string }
+
+// minted, non-common parcels on this island the wallet owns or collaborates on. posting rights
+// and the optional "signed by parcel" picker both come from this list.
+export async function ownedParcelsOnIsland(wallet: string, slug: string): Promise<IslandParcel[]> {
   const res = await db.query(
-    'embedded/owns-parcel-on-island',
-    `select 1 from properties p
+    'embedded/owned-parcels-on-island',
+    `select p.id, p.name, p.address from properties p
      where p.minted = true
        and p.is_common <> true
        and ${islandSlug('p.island')} = $2::text
@@ -20,10 +23,15 @@ export async function ownsParcelOnIsland(wallet: string, slug: string): Promise<
              and pu.role <> 'excluded'
          )
        )
-     limit 1`,
+     order by p.id`,
     [wallet, slug],
   )
-  return (res.rows?.length ?? 0) > 0
+  return (res.rows ?? []) as IslandParcel[]
+}
+
+// owners and collaborators on a minted, non-common parcel on this island may post to its board.
+export async function ownsParcelOnIsland(wallet: string, slug: string): Promise<boolean> {
+  return (await ownedParcelsOnIsland(wallet, slug)).length > 0
 }
 
 export default class IslandPost {
@@ -31,31 +39,36 @@ export default class IslandPost {
   island: string = undefined!
   author: string = undefined!
   content: string = undefined!
+  parcelId: number | null = null
 
   constructor(params?: any) {
     if (params) Object.assign(this, params)
   }
 
+  // every wallet has one slot per island: posting again replaces the note (same row, bumped
+  // created_at) and resets its hearts - a bump costs the acknowledgment the old note earned.
   async create() {
-    const recent = await db.query(
-      'embedded/island-post-ratelimit',
-      `select id from island_posts
-       where lower(author) = lower($1) and island = $2 and created_at > (NOW() - INTERVAL '5 minutes')`,
-      [this.author, this.island],
-    )
+    const existing = await db.query('embedded/island-post-slot', `select id, created_at from island_posts where island = $1 and lower(author) = lower($2)`, [this.island, this.author])
 
-    if ((recent.rows?.length ?? 0) > 5) {
-      return { success: false, message: "You're doing this too much", closeUi: true }
+    const slot = existing.rows?.[0]
+    if (slot && Date.now() - new Date(slot.created_at).getTime() < 60_000) {
+      return { success: false, message: 'you just posted - give it a minute' }
     }
 
-    const inserted = await db.query(
-      'embedded/insert-island-post',
-      `insert into island_posts (island, author, content, created_at)
-       values ($1, $2, $3, NOW()) returning id`,
-      [this.island, this.author, this.content],
+    const upserted = await db.query(
+      'embedded/upsert-island-post',
+      `insert into island_posts (island, author, content, parcel_id, created_at)
+       values ($1, $2, $3, $4, NOW())
+       on conflict (island, (lower(author)))
+       do update set content = excluded.content, parcel_id = excluded.parcel_id, author = excluded.author, created_at = NOW()
+       returning id`,
+      [this.island, this.author, this.content, this.parcelId],
     )
 
-    this.id = inserted.rows[0].id
+    this.id = upserted.rows[0].id
+    if (slot) {
+      await db.query('embedded/reset-island-post-hearts', `delete from island_post_hearts where post_id = $1`, [this.id])
+    }
     return { success: true }
   }
 }

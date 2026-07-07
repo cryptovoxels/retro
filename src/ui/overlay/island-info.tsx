@@ -7,8 +7,22 @@ import { fetchOptions } from '../../../web/src/utils'
 import { EventRow } from '../../components/explorer/events'
 import { BigMap } from '../map-overlay'
 import { cameraPosition } from '../../utils/camera'
+import { app } from '../../../web/src/state'
 import type Grid from '../../grid'
 import type Parcel from '../../parcel'
+
+// the server resolves a parcel's spawn point: /visit redirects to a /play?coords= url -
+// the same lookup the big-map popups use
+async function teleportToParcelSpawn(parcelId: number): Promise<boolean> {
+  try {
+    const r = await fetch(`/parcels/${parcelId}/visit`, { method: 'HEAD' })
+    if (r.redirected) {
+      window.persona?.teleport(r.url)
+      return true
+    }
+  } catch {}
+  return false
+}
 
 // shown in the info pane when you're not standing on a parcel (in the void / between parcels):
 // where you are on the island, what's live nearby, and parcels you can jump to.
@@ -46,7 +60,13 @@ export default function IslandInfoTab(props: { scene: BABYLON.Scene }) {
   const nearbyIds = new Set(nearby.map((p) => p.id))
   const nearbyEvents = events.filter((e) => nearbyIds.has(e.parcel_id))
 
-  const teleportToParcel = (p: Parcel) => window.persona?.teleport(p.address)
+  // teleport(p.address) silently no-oped: an address is not a coords string, so
+  // decodeCoordsFromURL rejected it and the click did nothing. use the spawn lookup instead.
+  const teleportToParcel = async (p: Parcel) => {
+    if (await teleportToParcelSpawn(p.id)) return
+    // fallback: drop into the middle of the parcel
+    window.persona?.teleport({ position: new BABYLON.Vector3((p.x1 + p.x2) / 2, p.y1 + 2, (p.z1 + p.z2) / 2) })
+  }
   const teleportToEvent = async (helper: ParcelEvent) => {
     const t = await helper.getTeleportString()
     if (t) window.persona?.teleport(t)
@@ -104,16 +124,35 @@ interface BoardPost {
   author: { name?: string; owner?: string } | string
   content: string
   created_at: string
+  parcel_id?: number | null
+  parcel_name?: string | null
+  hearts?: number
+  hearted?: boolean
 }
 
-// a shared notice board for the island. anyone can read; owners and collaborators get a post button.
+const MAX_NOTE_LENGTH = 240
+
+function authorWallet(author: BoardPost['author']) {
+  if (author && typeof author === 'object') return (author.owner ?? '').toLowerCase()
+  return String(author ?? '').toLowerCase()
+}
+
+// a shared notice board for the island. anyone can read, signed-in visitors can heart, and every
+// landowner gets exactly one note: posting again replaces it (and resets its hearts), notes
+// expire after 30 days, so the board only ever shows what's current.
 function IslandBoard({ island }: { island: string }) {
   const slug = slugify(island)
   const [posts, setPosts] = useState<BoardPost[]>([])
   const [canPost, setCanPost] = useState(false)
+  const [myParcels, setMyParcels] = useState<{ id: number; name: string | null; address: string }[]>([])
   const [composing, setComposing] = useState(false)
   const [draft, setDraft] = useState('')
+  const [signParcel, setSignParcel] = useState('')
+  const [status, setStatus] = useState('')
   const [busy, setBusy] = useState(false)
+
+  const myWallet = (app.state.wallet ?? '').toLowerCase()
+  const myPost = myWallet ? posts.find((p) => authorWallet(p.author) === myWallet) : undefined
 
   const load = () => {
     fetch(`${process.env.API}/islands/${slug}/board.json`, fetchOptions())
@@ -122,6 +161,7 @@ function IslandBoard({ island }: { island: string }) {
         if (r.success) {
           setPosts(r.posts)
           setCanPost(r.can_post)
+          setMyParcels(r.my_parcels ?? [])
         }
       })
       .catch(() => {})
@@ -129,19 +169,54 @@ function IslandBoard({ island }: { island: string }) {
 
   useEffect(load, [slug])
 
+  const openComposer = () => {
+    setDraft(myPost?.content ?? '')
+    setSignParcel(myPost?.parcel_id ? String(myPost.parcel_id) : '')
+    setStatus('')
+    setComposing(true)
+  }
+
   const submit = async () => {
     const content = draft.trim()
     if (!content || busy) return
     setBusy(true)
+    setStatus('')
     try {
-      const r = await fetch(`${process.env.API}/islands/${slug}/board`, fetchOptions(undefined, JSON.stringify({ content }))).then((x) => x.json())
+      const body = JSON.stringify({ content, parcel_id: signParcel ? parseInt(signParcel, 10) : null })
+      const r = await fetch(`${process.env.API}/islands/${slug}/board`, fetchOptions(undefined, body)).then((x) => x.json())
       if (r.success) {
         setDraft('')
         setComposing(false)
         load()
+      } else {
+        setStatus(r.message || 'could not post')
       }
     } finally {
       setBusy(false)
+    }
+  }
+
+  const clearMyNote = async () => {
+    if (!myPost || busy) return
+    setBusy(true)
+    try {
+      await fetch(`${process.env.API}/islands/${slug}/board/${myPost.id}/remove`, fetchOptions(undefined, '{}')).then((x) => x.json())
+      load()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const toggleHeart = async (post: BoardPost) => {
+    if (!app.signedIn) return
+    // optimistic flip; reconcile with the server's count
+    setPosts((list) => list.map((p) => (p.id === post.id ? { ...p, hearted: !p.hearted, hearts: (p.hearts ?? 0) + (p.hearted ? -1 : 1) } : p)))
+    try {
+      const r = await fetch(`${process.env.API}/islands/${slug}/board/${post.id}/heart`, fetchOptions(undefined, '{}')).then((x) => x.json())
+      if (r.success) setPosts((list) => list.map((p) => (p.id === post.id ? { ...p, hearted: r.hearted, hearts: r.hearts } : p)))
+      else load()
+    } catch {
+      load()
     }
   }
 
@@ -149,18 +224,40 @@ function IslandBoard({ island }: { island: string }) {
     <div className="overlay-parcel-info-content island-board">
       <h4>bulletin board</h4>
       {canPost && !composing && (
-        <button type="button" onClick={() => setComposing(true)}>
-          post
-        </button>
+        <div class="island-board-actions">
+          <button type="button" onClick={openComposer}>
+            {myPost ? 'edit your note' : 'post'}
+          </button>
+          {myPost && (
+            <button type="button" disabled={busy} onClick={() => void clearMyNote()}>
+              clear
+            </button>
+          )}
+        </div>
       )}
       {canPost && composing && (
         <div class="f">
-          <textarea value={draft} maxLength={500} placeholder="pin a note for landowners" onInput={(e) => setDraft((e.target as HTMLTextAreaElement).value)} />
+          <textarea value={draft} maxLength={MAX_NOTE_LENGTH} placeholder="pin a note for the island - one per owner" onInput={(e) => setDraft((e.target as HTMLTextAreaElement).value)} />
+          {myParcels.length > 0 && (
+            <select value={signParcel} onChange={(e) => setSignParcel((e.target as HTMLSelectElement).value)}>
+              <option value="">no parcel signature</option>
+              {myParcels.map((mp) => (
+                <option key={mp.id} value={String(mp.id)}>
+                  {mp.name?.trim() || mp.address}
+                </option>
+              ))}
+            </select>
+          )}
+          {myPost && <small>updating replaces your current note and resets its hearts</small>}
           <button type="button" disabled={busy || !draft.trim()} onClick={submit}>
-            post
+            {myPost ? 'update' : 'post'}
+          </button>
+          <button type="button" class="island-board-cancel" onClick={() => setComposing(false)}>
+            cancel
           </button>
         </div>
       )}
+      {status && <p>{status}</p>}
       {posts.length ? (
         <ul className="island-board-posts">
           {posts.map((p) => (
@@ -169,6 +266,16 @@ function IslandBoard({ island }: { island: string }) {
                 {authorName(p.author)} <span>{format(p.created_at)}</span>
               </div>
               <div className="what">{p.content}</div>
+              <div className="island-board-meta">
+                {p.parcel_id && p.parcel_name && (
+                  <a onClick={() => void teleportToParcelSpawn(p.parcel_id!)} title="teleport to this parcel">
+                    @ {p.parcel_name}
+                  </a>
+                )}
+                <button type="button" class={`island-board-heart${p.hearted ? ' hearted' : ''}`} title={app.signedIn ? (p.hearted ? 'remove heart' : 'heart this note') : 'sign in to heart'} disabled={!app.signedIn} onClick={() => void toggleHeart(p)}>
+                  &#9829; {p.hearts ?? 0}
+                </button>
+              </div>
             </li>
           ))}
         </ul>
