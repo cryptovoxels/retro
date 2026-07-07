@@ -404,6 +404,19 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     return this._boundingBox
   }
 
+  // the standalone bounding boxes cache their world vectors from the parent matrix at
+  // construction, and a teleport moves the parcels' parent (resetWorldOffset) without them -
+  // every world-space bounds check was then shifted by the teleport distance. call this before
+  // comparing any of the boxes in world space; it no-ops until the offset actually changes.
+  private boundsWorldOffset: BABYLON.Vector3 | null = null
+  syncWorldBounds() {
+    if (this.boundsWorldOffset?.equalsWithEpsilon(this.parentNode.position, 0.001)) return
+    this.boundsWorldOffset = this.parentNode.position.clone()
+    for (const box of [this.boundingBox, this.featureBounds, this.hardFeatureBounds, this.exteriorBounds]) {
+      box.reConstruct(box.minimum, box.maximum, this.parentNode._worldMatrix)
+    }
+  }
+
   get width() {
     return (this.x2 - this.x1) / VoxelSize
   }
@@ -1210,6 +1223,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   isExternalFeatureInParcel(feature: Feature) {
+    this.syncWorldBounds()
     const featureInsideParentParcel = feature.parcel.contains(feature.positionInGrid)
     const featureInsideOurParcel = this.featureBounds.intersectsPoint(feature.absolutePosition)
     return featureInsideOurParcel && !featureInsideParentParcel
@@ -1245,11 +1259,13 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   /**
-   * Tests that a point is in this strict parcel bounds (in grid coordinates)
+   * Tests that a point is in this strict parcel bounds (in grid coordinates).
+   * Compared in grid space on purpose: the cached BoundingBox's world vectors are computed once,
+   * so every teleport (resetWorldOffset moves the parcels' parent) left them stale and shifted
+   * containment by the teleport distance - current-parcel detection went wrong until reload.
    */
   contains(pointInGrid: BABYLON.Vector3): boolean {
-    pointInGrid.addToRef(this.parentNode.position, BABYLON.TmpVectors.Vector3[0])
-    return this.boundingBox.intersectsPoint(BABYLON.TmpVectors.Vector3[0])
+    return pointInGrid.x >= this.x1 && pointInGrid.x <= this.x2 && pointInGrid.y >= this.y1 && pointInGrid.y <= this.y2 && pointInGrid.z >= this.z1 && pointInGrid.z <= this.z2
   }
 
   nerfTriggers() {

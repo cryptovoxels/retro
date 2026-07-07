@@ -427,6 +427,8 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   inside(checkBoundingBox: BABYLON.BoundingBox): boolean {
+    // the parcel's cached boxes go stale when a teleport moves the world offset - resync first
+    this.parcel.syncWorldBounds()
     return !this.boundingBox || bboxCompletelyWithin(checkBoundingBox, this.boundingBox)
   }
 
