@@ -825,9 +825,13 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return <ParcelSnapshots parcel={nearestEditableParcel || undefined} scene={this.props.scene} />
       case 'login':
         return <Login />
-      case 'info':
-        // standing on a parcel: its details. in the void: island context (map, nearby events + parcels).
-        return selectCurrentParcel() ? <ParcelInfoTab parcel={currentOrNearestParcel} scene={this.props.scene} /> : <IslandInfoTab scene={this.props.scene} />
+      case 'info': {
+        // standing on a parcel: THAT parcel's details. in the void: island context (map, events, parcels).
+        // display the same parcel the gate tested - currentOrNearestParcel swaps an uneditable shell
+        // for the nearest inner parcel, which drifted the pane to a neighbor's info while walking.
+        const standingIn = selectCurrentParcel()
+        return standingIn ? <ParcelInfoTab parcel={standingIn} scene={this.props.scene} /> : <IslandInfoTab scene={this.props.scene} />
+      }
       case 'debugTool':
         return <DebugTools parcel={currentOrNearestParcel} scene={this.props.scene} environment={this.props.environment} />
       case 'chat':
