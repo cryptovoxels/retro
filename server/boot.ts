@@ -51,7 +51,7 @@ const { runMigrations } = require('./migration/migrate')
 
 void runMigrations()
   .then(() => require('./server'))
-  .catch((err) => {
+  .catch((err: unknown) => {
     console.error('Migrations failed:', err)
     process.exit(1)
   })

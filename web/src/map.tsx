@@ -183,9 +183,7 @@ export default class WorldMap extends Component<Props, State> {
   }
 
   componentDidUpdate(prev: Props) {
-    const forSaleIdsSame =
-      prev.forSale?.length === this.props.forSale?.length &&
-      !!prev.forSale?.every((item, i) => item.id === this.props.forSale?.[i]?.id)
+    const forSaleIdsSame = prev.forSale?.length === this.props.forSale?.length && !!prev.forSale?.every((item, i) => item.id === this.props.forSale?.[i]?.id)
 
     // eth/usd toggle: patch pin text only, leave pan/zoom alone
     if (prev.priceFmt !== this.props.priceFmt && forSaleIdsSame && this.updateForSalePinLabels()) {

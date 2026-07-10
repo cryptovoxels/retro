@@ -12,12 +12,7 @@ export default function MobileButtons({ connector, scene, minimapSettings }: { c
         <button className="fly-button hex-button" onClick={() => connector.controls.toggleFlying()}>
           Fly
         </button>
-        <button
-          type="button"
-          className="drive-button hex-button"
-          style={{ display: 'none' }}
-          onClick={() => (connector.controls as any).tryEnterVehicle?.()}
-        >
+        <button type="button" className="drive-button hex-button" style={{ display: 'none' }} onClick={() => (connector.controls as any).tryEnterVehicle?.()}>
           Drive
         </button>
       </div>

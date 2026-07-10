@@ -55,7 +55,7 @@ export default class Avatar extends Entity {
   /** Remote: uuid of the avatar they follow in conga (from multiplayer). Local unused. */
   private _congaFollowsUuid: string | null = null
   /** Remote drive visual: temporary megavox mesh under this avatar while they drive. */
-  private _vehicle: import('../../common/messages').AvatarVehiclePayload | null = null
+  private _vehicle: import('../common/messages').AvatarVehiclePayload | null = null
   private _vehicleMesh: BABYLON.AbstractMesh | null = null
   private _vehicleLoadKey: string | null = null
   private _vehicleLoadGen = 0
@@ -198,11 +198,11 @@ export default class Avatar extends Entity {
     this._congaFollowsUuid = value ?? null
   }
 
-  get vehicle(): import('../../common/messages').AvatarVehiclePayload | null {
+  get vehicle(): import('../common/messages').AvatarVehiclePayload | null {
     return this._vehicle
   }
 
-  set vehicle(value: import('../../common/messages').AvatarVehiclePayload | null | undefined) {
+  set vehicle(value: import('../common/messages').AvatarVehiclePayload | null | undefined) {
     const next = value ?? null
     const prev = this._vehicle
     const prevKey = this._vehicleLoadKey
@@ -217,7 +217,7 @@ export default class Avatar extends Entity {
     this.syncVehicleMeshPose()
   }
 
-  private restoreHomeParkedCar(payload: import('../../common/messages').AvatarVehiclePayload) {
+  private restoreHomeParkedCar(payload: import('../common/messages').AvatarVehiclePayload) {
     try {
       const parcel = window.grid?.parcels?.get?.(payload.homeParcelId) || [...(window.grid?.parcels?.values?.() || [])].find((p: any) => p.id === payload.homeParcelId)
       const f = parcel?.featuresList?.find((x: any) => x?.uuid === payload.featureUuid)
@@ -232,14 +232,18 @@ export default class Avatar extends Entity {
     this._vehicleMesh = null
   }
 
-  private async ensureVehicleMesh(payload: import('../../common/messages').AvatarVehiclePayload, key: string) {
+  private async ensureVehicleMesh(payload: import('../common/messages').AvatarVehiclePayload, key: string) {
     const gen = ++this._vehicleLoadGen
     this._vehicleLoadKey = key
     try {
-      const { voxImporter } = await import('../../common/vox-import/vox-import')
-      const Config = (await import('../../common/config')).default
+      const { voxImporter } = await import('../common/vox-import/vox-import')
+      const Config = (await import('../common/config')).default
       const url = payload.voxUrl ? Config.voxModelURL(payload.voxUrl, undefined, 'megavox') : `${process.env.ASSET_PATH}/models/vox-five.vox`
-      const mesh = await voxImporter().import(url, { megavox: true, sizeHint: payload.scale, wantCollider: false })
+      const mesh = await voxImporter().import(url, {
+        megavox: true,
+        sizeHint: new BABYLON.Vector3(payload.scale[0], payload.scale[1], payload.scale[2]),
+        wantCollider: false,
+      } as any)
       if (gen !== this._vehicleLoadGen) {
         mesh.dispose()
         return
@@ -257,7 +261,7 @@ export default class Avatar extends Entity {
     }
   }
 
-  private hideHomeParkedCar(payload: import('../../common/messages').AvatarVehiclePayload) {
+  private hideHomeParkedCar(payload: import('../common/messages').AvatarVehiclePayload) {
     try {
       const parcel = window.grid?.parcels?.get?.(payload.homeParcelId) || [...(window.grid?.parcels?.values?.() || [])].find((p: any) => p.id === payload.homeParcelId)
       const f = parcel?.featuresList?.find((x: any) => x?.uuid === payload.featureUuid)

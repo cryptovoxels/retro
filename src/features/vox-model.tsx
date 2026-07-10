@@ -414,11 +414,11 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     }
     if (state.recall || (state.position && !this.driverUuid)) {
       if (Array.isArray(state.position) && Array.isArray(state.rotation)) {
-        this.applyDrivePose(state.position, state.rotation)
+        this.applyDrivePose(state.position as [number, number, number], state.rotation as [number, number, number])
       }
     } else if (this.driverUuid && this.driverUuid !== window.connector?.persona?.uuid && Array.isArray(state.position) && Array.isArray(state.rotation)) {
       // remote driver with home parcel loaded: keep lot feature pose in sync (usually hidden)
-      this.applyDrivePose(state.position, state.rotation)
+      this.applyDrivePose(state.position as [number, number, number], state.rotation as [number, number, number])
     }
   }
 
@@ -433,7 +433,7 @@ Megavox.Editor = class MegavoxEditor extends Editor {
     super(props)
     this.state = {
       ...this.state,
-      driveable: !!(props.feature.description as MegavoxRecord).driveable,
+      driveable: !!(props.feature.description as any).driveable,
     }
   }
 
@@ -507,7 +507,7 @@ Megavox.Editor = class MegavoxEditor extends Editor {
                       <button
                         type="button"
                         onClick={() => {
-                          ;(this.props.feature as Megavox).recallToPark()
+                          ;(this.props.feature as any).recallToPark?.()
                         }}
                       >
                         bring back

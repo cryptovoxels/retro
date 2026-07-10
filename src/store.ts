@@ -12,10 +12,7 @@ const TICK = 500
 let wompAnchor: { x: number; z: number } | undefined
 let wompAnchorPath = ''
 
-const wompSidebarOpen = () =>
-  typeof location !== 'undefined' &&
-  !!new URLSearchParams(location.search).get('coords') &&
-  location.pathname.startsWith('/womps/')
+const wompSidebarOpen = () => typeof location !== 'undefined' && !!new URLSearchParams(location.search).get('coords') && location.pathname.startsWith('/womps/')
 
 setInterval(() => {
   const grid = window.grid as Grid
@@ -63,10 +60,7 @@ setInterval(() => {
       }
       const pos = window.persona?.position
       if (!wompAnchor && pos) wompAnchor = { x: pos.x, z: pos.z }
-      const walked =
-        !!wompAnchor &&
-        !!pos &&
-        (Math.abs(pos.x - wompAnchor.x) > 0.08 || Math.abs(pos.z - wompAnchor.z) > 0.08)
+      const walked = !!wompAnchor && !!pos && (Math.abs(pos.x - wompAnchor.x) > 0.08 || Math.abs(pos.z - wompAnchor.z) > 0.08)
       if (walked) {
         restoreInfoOnMove.value = false
         wompAnchor = undefined

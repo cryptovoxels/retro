@@ -13,7 +13,6 @@ import { getClientPath } from './helpers/client-helpers'
 import { app, AppEvent } from './state'
 import WompsList from './womps-list'
 import Radar from './components/radar'
-import VoxelRadio from './components/voxel-radio'
 import Classifieds from './components/classifieds'
 
 type Props = {
@@ -146,16 +145,13 @@ export default class Explore extends Component<any, Props> {
 
         <section class="columns">
           <aside>
-            <VoxelRadio />
-
             <Radar />
-
-            <Classifieds limit={3} />
-
             <EventsList />
 
             <h3>Popular</h3>
             <PopularParcels />
+
+            <Classifieds limit={3} />
           </aside>
 
           <article>

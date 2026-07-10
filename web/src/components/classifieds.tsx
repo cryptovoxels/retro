@@ -83,8 +83,12 @@ export default function Classifieds({ limit }: Props) {
 
   return (
     <div class="classifieds">
+      <br />
+      <br />
       <div class="classifieds-head">
-        <h3>shop</h3>
+        <h3>
+          <a href="/shop">Shop</a>
+        </h3>
         {!limit && (
           <div class="classifieds-currency">
             <span class={!usd ? 'active' : ''}>eth</span>
@@ -126,11 +130,6 @@ export default function Classifieds({ limit }: Props) {
           )}
         </tbody>
       </table>
-      {limit ? (
-        <p>
-          <a href="/shop">view all listings</a>
-        </p>
-      ) : null}
     </div>
   )
 }

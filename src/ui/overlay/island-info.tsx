@@ -317,7 +317,13 @@ function IslandBoard({ island }: { island: string }) {
                     @ {p.parcel_name}
                   </a>
                 )}
-                <button type="button" class={`island-board-heart${p.hearted ? ' hearted' : ''}`} title={app.signedIn ? (p.hearted ? 'remove heart' : 'heart this note') : 'sign in to heart'} disabled={!app.signedIn} onClick={() => void toggleHeart(p)}>
+                <button
+                  type="button"
+                  class={`island-board-heart${p.hearted ? ' hearted' : ''}`}
+                  title={app.signedIn ? (p.hearted ? 'remove heart' : 'heart this note') : 'sign in to heart'}
+                  disabled={!app.signedIn}
+                  onClick={() => void toggleHeart(p)}
+                >
                   &#9829; {p.hearts ?? 0}
                 </button>
               </div>

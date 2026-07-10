@@ -354,18 +354,8 @@ extensionCodec.register({
     if (input.type != MessageType.updateAvatar) {
       return null
     }
-    const vehicle = input.vehicle
-      ? [input.vehicle.featureUuid, input.vehicle.homeParcelId, input.vehicle.voxUrl || '', Float32Array.from(input.vehicle.scale), input.vehicle.yaw]
-      : null
-    return encodeAlias([
-      encodeUUID(input.uuid),
-      Float32Array.from(input.position),
-      compressQuaternion(input.orientation),
-      input.animation,
-      input.inConga ? 1 : 0,
-      input.congaFollowsUuid ? encodeUUID(input.congaFollowsUuid) : null,
-      vehicle,
-    ])
+    const vehicle = input.vehicle ? [input.vehicle.featureUuid, input.vehicle.homeParcelId, input.vehicle.voxUrl || '', Float32Array.from(input.vehicle.scale), input.vehicle.yaw] : null
+    return encodeAlias([encodeUUID(input.uuid), Float32Array.from(input.position), compressQuaternion(input.orientation), input.animation, input.inConga ? 1 : 0, input.congaFollowsUuid ? encodeUUID(input.congaFollowsUuid) : null, vehicle])
   },
   decode: (data): UpdateAvatarMessage => {
     const res = decodeAlias(data) as any[]

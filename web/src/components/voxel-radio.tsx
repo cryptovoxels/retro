@@ -1,6 +1,6 @@
-import { Component, createRef } from 'preact'
+import { Component } from 'preact'
 import { trackTitle } from '../../../common/soundtracks'
-import { DAY, PedalId, Spot, VoxelRadioEngine } from '../radio/engine'
+import { DAY, Spot, VoxelRadioEngine } from '../radio/engine'
 import { ensureRadio, getRadio, onRadioChange } from '../radio/global'
 
 type Props = { popped?: boolean }
@@ -48,126 +48,6 @@ const arc = (to: number) => {
 const FULL = arc(A0 + SPAN)
 
 type KnobProps = { label: string; min: number; max: number; step: number; value: number; compact?: boolean; onWake?: () => void; onChange: (v: number) => void }
-
-type KaossProps = {
-  label: string
-  x: number
-  y: number
-  level?: () => number
-  onWake?: () => void
-  onChange: (x: number, y: number) => void
-}
-
-const KCOLS = 7
-const KROWS = 7
-const KDOTS = KCOLS * KROWS
-
-class KaossPad extends Component<KaossProps> {
-  pad = createRef<HTMLDivElement>()
-  dots: HTMLSpanElement[] = []
-  held = false
-  over = false
-  idleT = 0
-  raf = 0
-
-  componentDidMount() {
-    this.loop()
-  }
-
-  componentWillUnmount() {
-    if (this.raf) cancelAnimationFrame(this.raf)
-  }
-
-  loop = () => {
-    this.raf = requestAnimationFrame(this.loop)
-    if (this.over || this.held) return
-    this.idleT += 0.016
-    const lvl = this.props.level?.() ?? 0
-    const orbit = 0.12 + lvl * 0.38
-    const x = Math.sin(this.idleT * 1.15) * orbit
-    const y = Math.cos(this.idleT * 0.92) * orbit
-    this.light(x, y, 0.1 + lvl * 0.4)
-  }
-
-  enter = () => {
-    this.over = true
-    this.props.onWake?.()
-  }
-
-  down = (e: PointerEvent) => {
-    e.preventDefault()
-    this.held = true
-    this.props.onWake?.()
-    try {
-      this.pad.current?.setPointerCapture(e.pointerId)
-    } catch {}
-    this.move(e)
-  }
-
-  move = (e: PointerEvent) => {
-    const el = this.pad.current
-    if (!el) return
-    const r = el.getBoundingClientRect()
-    const x = Math.max(-1, Math.min(1, ((e.clientX - r.left) / r.width) * 2 - 1))
-    const y = Math.max(-1, Math.min(1, (1 - (e.clientY - r.top) / r.height) * 2 - 1))
-    this.light(x, y)
-    this.props.onChange(x, y)
-  }
-
-  up = (e: PointerEvent) => {
-    this.held = false
-    try {
-      this.pad.current?.releasePointerCapture(e.pointerId)
-    } catch {}
-    this.reset()
-  }
-
-  leave = () => {
-    this.over = false
-    if (this.held) return
-    this.reset()
-  }
-
-  reset = () => {
-    this.props.onChange(0, 0)
-  }
-
-  light(x: number, y: number, boost = 0) {
-    const amt = Math.min(1, Math.max(Math.hypot(x, y), boost))
-    for (let i = 0; i < this.dots.length; i++) {
-      const dot = this.dots[i]
-      if (!dot) continue
-      const col = i % KCOLS
-      const row = Math.floor(i / KCOLS)
-      const dx = x - ((col / (KCOLS - 1)) * 2 - 1) * 0.55
-      const dy = y - ((1 - row / (KROWS - 1)) * 2 - 1) * 0.55
-      const d = Math.hypot(dx, dy)
-      const on = Math.max(0, 1 - d * 1.45) * (0.1 + amt * 0.9)
-      dot.style.opacity = String(Math.min(1, on))
-    }
-  }
-
-  render() {
-    const { label } = this.props
-    return (
-      <>
-        <div class="vr-kaoss-grid" ref={this.pad} onPointerEnter={this.enter} onPointerMove={this.move} onPointerLeave={this.leave} onPointerDown={this.down} onPointerUp={this.up} title={label}>
-          {Array.from({ length: KDOTS }, (_, i) => (
-            <span
-              key={i}
-              ref={(el) => {
-                if (el) this.dots[i] = el
-              }}
-            />
-          ))}
-        </div>
-        <div class="vr-dial-foot">
-          <span class="vr-dial-label">{label}</span>
-        </div>
-      </>
-    )
-  }
-}
 
 class Knob extends Component<KnobProps> {
   y = 0
@@ -304,51 +184,22 @@ export default class VoxelRadio extends Component<Props, State> {
   }
 
   dialGrid(r: VoxelRadioEngine) {
-    const dials: { id: 'vol' | PedalId; label: string; min: number; max: number }[] = [
-      { id: 'vol', label: 'vol', min: 0, max: 1 },
-      { id: 'eq', label: 'eq', min: -1, max: 1 },
-      { id: 'dly', label: 'tape', min: -1, max: 1 },
-      { id: 'chp', label: 'gate', min: -1, max: 1 },
-    ]
     return (
-      <>
-        {dials.map(({ id, label, min, max }) => (
-          <div class="vr-dial" key={id}>
-            <div class="vr-dial-body">
-              <Knob
-                compact
-                label={label}
-                min={min}
-                max={max}
-                step={0.03}
-                value={id === 'vol' ? r.trackVolume : r.pedalAmount(id)}
-                onWake={() => r.wake()}
-                onChange={(v) => {
-                  if (id === 'vol') r.setTrackVolume(v)
-                  else r.setPedal(id, v)
-                  this.forceUpdate()
-                }}
-              />
-            </div>
-            <div class="vr-dial-foot">
-              <span class="vr-dial-label">{label}</span>
-            </div>
-          </div>
-        ))}
-        <div class="vr-dial vr-dial-pad" key="wob">
-          <KaossPad
-            label="wob"
-            x={r.wobX}
-            y={r.wobY}
-            level={() => r.readLevel()}
-            onWake={() => r.wake()}
-            onChange={(x, y) => {
-              r.setWobPad(x, y)
-              this.forceUpdate()
-            }}
-          />
-        </div>
-      </>
+      <div class="vr-vol">
+        <Knob
+          compact
+          label="vol"
+          min={0}
+          max={1}
+          step={0.03}
+          value={r.trackVolume}
+          onWake={() => r.wake()}
+          onChange={(v) => {
+            r.setTrackVolume(v)
+            this.forceUpdate()
+          }}
+        />
+      </div>
     )
   }
 
@@ -416,11 +267,8 @@ export default class VoxelRadio extends Component<Props, State> {
                 <>
                   <div class="vr-calc-head">
                     <div class="vr-key-row">
-                      <button type="button" class="vr-key fn" onClick={this.transport} title={showPlay ? 'play' : 'stop'}>
-                        {showPlay ? '>' : '||'}
-                      </button>
-                      <button type="button" class={`vr-key fn${pl !== 'closed' ? ' on' : ''}`} onClick={this.togglePanel} title="playlist">
-                        PL
+                      <button type="button" class="vr-key fn" onClick={this.transport} title={showPlay ? 'play' : 'pause'}>
+                        {showPlay ? '\u25B6' : '\u23F8'}
                       </button>
                       <button type="button" class="vr-key fn" onClick={this.popout} title="pop out">
                         ^
@@ -432,8 +280,8 @@ export default class VoxelRadio extends Component<Props, State> {
                         <span>{text}</span>
                       </span>
                     </div>
+                    {r && this.dialGrid(r)}
                   </div>
-                  {r && <div class="vr-dial-grid">{this.dialGrid(r)}</div>}
                 </>
               ) : (
                 <>
@@ -460,7 +308,7 @@ export default class VoxelRadio extends Component<Props, State> {
               )}
             </div>
 
-            {this.panel('playlist', this.playlistBody(r, pct))}
+            {!compact && this.panel('playlist', this.playlistBody(r, pct))}
           </div>
         </div>
       </div>

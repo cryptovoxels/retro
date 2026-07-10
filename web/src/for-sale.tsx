@@ -155,14 +155,7 @@ export default function ForSale(_props: { path?: string }) {
     <section class="for-sale">
       <Head title="Land for sale" url="/shop" />
       <div class="for-sale-map">
-        <WorldMap
-          ref={mapRef}
-          forSale={forSale}
-          selectedForSale={selectedId}
-          onForSaleSelect={select}
-          onForSaleViewportChange={setVisibleIds}
-          priceFmt={`${usd}-${rate}`}
-        />
+        <WorldMap ref={mapRef} forSale={forSale} selectedForSale={selectedId} onForSaleSelect={select} onForSaleViewportChange={setVisibleIds} priceFmt={`${usd}-${rate}`} />
       </div>
       <aside class="for-sale-list">
         {view === 'detail' ? (
