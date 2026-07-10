@@ -6,10 +6,10 @@ import { getCoordsFromURL } from '../../utils/helpers'
 import { createFirstPersonCamera } from '../utils/fps-camera'
 export default class MobileControls extends Controls {
   shiftKey = false
-  direction: BABYLON.Vector3 = new BABYLON.Vector3()
   dpad: DpadControls | null = null
   btnCameraView: HTMLElement | null = null
   btnToggleFly: HTMLElement | null = null
+  btnDrive: HTMLButtonElement | null = null
 
   constructor(scene: BABYLON.Scene, canvas: HTMLCanvasElement) {
     super(scene, canvas)
@@ -50,7 +50,22 @@ export default class MobileControls extends Controls {
     this.scene.onAfterRenderObservable.addOnce(() => {
       this.btnCameraView = document.querySelector('.mobile-controls-container > .camera-view-button')
       this.btnToggleFly = document.querySelector('.mobile-controls-container > .fly-button')
+      this.btnDrive = document.querySelector('.mobile-controls-container > .drive-button')
+      this.refreshMobileDriveChrome()
     })
+  }
+
+  override refreshMobileDriveChrome() {
+    if (!this.btnDrive) return
+    if (this.vehicleFeature) {
+      this.btnDrive.style.display = ''
+      this.btnDrive.textContent = 'Exit'
+    } else if (this.vehicleNearby && !this.vehicleNearby.driverUuid) {
+      this.btnDrive.style.display = ''
+      this.btnDrive.textContent = 'Drive'
+    } else {
+      this.btnDrive.style.display = 'none'
+    }
   }
 
   override setFlying(value: boolean) {
@@ -77,6 +92,9 @@ export default class MobileControls extends Controls {
   }
 
   walking() {
+    // while driving, dpad feeds updateVehicle via this.direction - do not also walk the camera
+    if (this.vehicleFeature) return
+
     const camera = this.camera as OurCamera & {
       _localDirection: BABYLON.Vector3
       _transformedDirection: BABYLON.Vector3

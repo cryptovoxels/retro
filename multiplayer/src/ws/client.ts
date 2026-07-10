@@ -41,6 +41,7 @@ export class Client {
   lastMoved = 0
   inConga = false
   congaFollowsUuid: string | null = null
+  vehicle: messages.AvatarVehiclePayload | null = null
 
   lastSeenParcel: number | null = null
   private _lastChatMsg: string | null = null
@@ -97,6 +98,7 @@ export class Client {
       position: this.position,
       inConga: this.inConga,
       congaFollowsUuid: this.congaFollowsUuid,
+      vehicle: this.vehicle,
     }
   }
 
@@ -220,6 +222,7 @@ export class Client {
     this.lastMoved = Date.now()
     this.inConga = !!msg.inConga
     this.congaFollowsUuid = msg.congaFollowsUuid ?? null
+    this.vehicle = msg.vehicle ?? null
   }
 
   private async handleLogin(message: messages.LoginMessage): Promise<void> {

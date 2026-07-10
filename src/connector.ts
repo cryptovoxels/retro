@@ -188,6 +188,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       orientation: this.persona.orientation,
       inConga: this.inConga,
       congaFollowsUuid: this.controls.congaTarget?.uuid ?? null,
+      vehicle: this.controls.getVehicleAvatarPayload?.() ?? null,
     })
   }
 
@@ -360,6 +361,9 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   }
 
   disconnect() {
+    try {
+      this.controls?.stopVehicle?.()
+    } catch {}
     this.multiplayerClient.close()
   }
 
@@ -554,6 +558,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
 
     avatar.inConga = !!message.inConga
     avatar.congaFollowsUuid = message.congaFollowsUuid ?? null
+    avatar.vehicle = message.vehicle ?? null
     avatar.recordSeen()
   }
 

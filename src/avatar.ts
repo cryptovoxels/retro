@@ -54,6 +54,11 @@ export default class Avatar extends Entity {
   private _inConga = false
   /** Remote: uuid of the avatar they follow in conga (from multiplayer). Local unused. */
   private _congaFollowsUuid: string | null = null
+  /** Remote drive visual: temporary megavox mesh under this avatar while they drive. */
+  private _vehicle: import('../../common/messages').AvatarVehiclePayload | null = null
+  private _vehicleMesh: BABYLON.AbstractMesh | null = null
+  private _vehicleLoadKey: string | null = null
+  private _vehicleLoadGen = 0
   private remoteFly?: RemoteFlySound
   private remoteStepAt = 0
 
@@ -191,6 +196,83 @@ export default class Avatar extends Entity {
 
   set congaFollowsUuid(value: string | null | undefined) {
     this._congaFollowsUuid = value ?? null
+  }
+
+  get vehicle(): import('../../common/messages').AvatarVehiclePayload | null {
+    return this._vehicle
+  }
+
+  set vehicle(value: import('../../common/messages').AvatarVehiclePayload | null | undefined) {
+    const next = value ?? null
+    const prev = this._vehicle
+    const prevKey = this._vehicleLoadKey
+    this._vehicle = next
+    if (!next) {
+      if (prev) this.restoreHomeParkedCar(prev)
+      this.clearVehicleMesh()
+      return
+    }
+    const key = `${next.voxUrl}|${next.scale.join(',')}`
+    if (key !== prevKey) void this.ensureVehicleMesh(next, key)
+    this.syncVehicleMeshPose()
+  }
+
+  private restoreHomeParkedCar(payload: import('../../common/messages').AvatarVehiclePayload) {
+    try {
+      const parcel = window.grid?.parcels?.get?.(payload.homeParcelId) || [...(window.grid?.parcels?.values?.() || [])].find((p: any) => p.id === payload.homeParcelId)
+      const f = parcel?.featuresList?.find((x: any) => x?.uuid === payload.featureUuid)
+      if (f?.type === 'megavox' && !(f as any).driverUuid) (f as any).setParkedVisible?.(true)
+    } catch {}
+  }
+
+  private clearVehicleMesh() {
+    this._vehicleLoadGen++
+    this._vehicleLoadKey = null
+    this._vehicleMesh?.dispose()
+    this._vehicleMesh = null
+  }
+
+  private async ensureVehicleMesh(payload: import('../../common/messages').AvatarVehiclePayload, key: string) {
+    const gen = ++this._vehicleLoadGen
+    this._vehicleLoadKey = key
+    try {
+      const { voxImporter } = await import('../../common/vox-import/vox-import')
+      const Config = (await import('../../common/config')).default
+      const url = payload.voxUrl ? Config.voxModelURL(payload.voxUrl, undefined, 'megavox') : `${process.env.ASSET_PATH}/models/vox-five.vox`
+      const mesh = await voxImporter().import(url, { megavox: true, sizeHint: payload.scale, wantCollider: false })
+      if (gen !== this._vehicleLoadGen) {
+        mesh.dispose()
+        return
+      }
+      this._vehicleMesh?.dispose()
+      this._vehicleMesh = mesh
+      mesh.isPickable = false
+      mesh.checkCollisions = false
+      // world-space under same parent as avatar node
+      mesh.parent = this.node.parent
+      this.syncVehicleMeshPose()
+      this.hideHomeParkedCar(payload)
+    } catch (e) {
+      console.warn('vehicle ghost load failed', e)
+    }
+  }
+
+  private hideHomeParkedCar(payload: import('../../common/messages').AvatarVehiclePayload) {
+    try {
+      const parcel = window.grid?.parcels?.get?.(payload.homeParcelId) || [...(window.grid?.parcels?.values?.() || [])].find((p: any) => p.id === payload.homeParcelId)
+      const f = parcel?.featuresList?.find((x: any) => x?.uuid === payload.featureUuid)
+      if (f?.type === 'megavox') (f as any).setParkedVisible?.(false)
+    } catch {}
+  }
+
+  private syncVehicleMeshPose() {
+    const mesh = this._vehicleMesh
+    const v = this._vehicle
+    if (!mesh || !v || !this.hasPosition) return
+    mesh.position.copyFrom(this.position)
+    mesh.position.y -= 0.2
+    mesh.rotation.y = v.yaw
+    if (v.scale) mesh.scaling.fromArray(v.scale)
   }
 
   get main() {
@@ -529,6 +611,8 @@ export default class Avatar extends Entity {
 
     this.remoteFly?.dispose()
     this.remoteFly = undefined
+
+    this.clearVehicleMesh()
 
     super.dispose()
   }

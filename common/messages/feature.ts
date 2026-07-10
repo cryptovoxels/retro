@@ -504,6 +504,13 @@ export const MegavoxRecord = t.intersection(
     t.type({
       type: t.literal('megavox'),
     }),
+    t.partial(
+      {
+        // hop in with E / Drive and cruise; auto-enables collidable in the editor
+        driveable: t.boolean,
+      },
+      'megavoxfields',
+    ),
   ],
   'MegavoxRecord',
 )

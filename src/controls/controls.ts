@@ -101,6 +101,8 @@ export default abstract class Controls implements IControls {
   ctrlKey = false
   firstPersonView = true
   walkRunAnimation: BABYLON.Animatable | null = null
+  /** mobile dpad sets this; also used as drive steer while in a vehicle */
+  direction: BABYLON.Vector3 = new BABYLON.Vector3()
 
   // Transformation of world coordinates to a smaller absolute coordinates near the player, to avoid floating-point precision issues when visiting far-off island
   // Only setting position is supported, not rotation or scale.
@@ -117,6 +119,19 @@ export default abstract class Controls implements IControls {
   private congaGroupBlend = 0
   /** Flying mode before joining conga; restored in stopConga. */
   private congaFlyingRestore: boolean | null = null
+
+  // --- driveable megavox ---
+  vehicleFeature: import('../features/vox-model').Megavox | null = null
+  private vehicleHoverY = 0
+  private vehicleLastDryPos: BABYLON.Vector3 | null = null
+  private vehicleLastDryRot: BABYLON.Vector3 | null = null
+  private vehicleWasFirstPerson = true
+  private vehicleFlyingRestore: boolean | null = null
+  private vehicleLastStateAt = 0
+  private vehicleHintEl: HTMLDivElement | null = null
+  vehicleNearby: import('../features/vox-model').Megavox | null = null
+  /** mobile / shared: -1..1 forward and turn while driving */
+  vehicleSteer = { forward: 0, turn: 0 }
 
   MAX_PICK_DISTANCE = 20
   gravityDisabledOverride: boolean | null = null
@@ -170,6 +185,7 @@ export default abstract class Controls implements IControls {
           console.warn('this.initialCameraPos already set in onBeforeRenderObservable(). suspected logic error')
         }
         this.updateConga()
+        this.updateVehicle()
         // let persona update its position from the camera, since we are steering the camera
         this.persona.update(cameraPosition(this.scene), cameraRotation(this.scene), this)
         this.swimming = this.persona.isSwimming(SWIM_LEVEL) ?? this.swimming
@@ -710,6 +726,223 @@ export default abstract class Controls implements IControls {
 
   protected _handleGroundLoaded() {
     this.grounded = true
+  }
+
+  // --- driveable megavox ---
+
+  findNearbyDriveable(): import('../features/vox-model').Megavox | null {
+    const grid = this.grid
+    if (!grid) return null
+    const me = this.persona.position
+    let best: import('../features/vox-model').Megavox | null = null
+    let bestD = 4 * 4
+    const parcels = this.grid.parcels
+    if (!parcels) return null
+    for (const parcel of parcels.values()) {
+      for (const f of parcel.featuresList || []) {
+        if (f?.type !== 'megavox') continue
+        const m = f as import('../features/vox-model').Megavox
+        if (!m.isDriveable || !m.mesh) continue
+        const p = m.absolutePosition
+        if (!p) continue
+        const d = BABYLON.Vector3.DistanceSquared(me, p)
+        if (d < bestD) {
+          bestD = d
+          best = m
+        }
+      }
+    }
+    return best
+  }
+
+  tryEnterVehicle() {
+    if (this.vehicleFeature) {
+      this.stopVehicle()
+      return
+    }
+    if (this.congaTarget) this.stopConga()
+    const car = this.findNearbyDriveable()
+    if (!car) return
+    if (car.driverUuid && car.driverUuid !== this.persona.uuid) return
+    if (!car.claimDriver(this.persona.uuid)) return
+    this.vehicleFeature = car
+    this.vehicleHoverY = car.mesh?.position.y ?? 0
+    this.vehicleLastDryPos = car.mesh?.position.clone() ?? null
+    this.vehicleLastDryRot = car.mesh?.rotation.clone() ?? null
+    this.vehicleWasFirstPerson = this.firstPersonView
+    this.vehicleFlyingRestore = this.flying
+    this.disableGravity()
+    if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
+      ;(this.scene.activeCamera as any).checkCollisions = false
+    }
+    this.disableMovement()
+    if (this.firstPersonView) this.enterThirdPerson(3)
+    this.setVehicleHint(null)
+    this.refreshMobileDriveChrome?.()
+  }
+
+  stopVehicle() {
+    const car = this.vehicleFeature
+    this.vehicleFeature = null
+    this.vehicleSteer.forward = 0
+    this.vehicleSteer.turn = 0
+    if (car) {
+      try {
+        car.releaseDriver(this.persona.uuid)
+      } catch {}
+    }
+    this.enableGravity()
+    if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
+      ;(this.scene.activeCamera as any).checkCollisions = true
+    }
+    this.enableMovement()
+    if (this.vehicleFlyingRestore !== null) {
+      this.setFlying(this.vehicleFlyingRestore)
+      this.vehicleFlyingRestore = null
+    }
+    if (this.vehicleWasFirstPerson) this.enterFirstPerson()
+    this.refreshMobileDriveChrome?.()
+  }
+
+  /** optional hook for mobile Drive/Exit button labels */
+  refreshMobileDriveChrome?(): void
+
+  getVehicleAvatarPayload(): {
+    featureUuid: string
+    homeParcelId: number
+    voxUrl: string
+    scale: [number, number, number]
+    yaw: number
+  } | null {
+    const car = this.vehicleFeature
+    if (!car?.mesh) return null
+    const scale = car.description.scale as [number, number, number] | undefined
+    return {
+      featureUuid: car.uuid,
+      homeParcelId: car.parcel.id,
+      voxUrl: String(car.description.url || ''),
+      scale: scale ? [scale[0], scale[1], scale[2]] : [1, 1, 1],
+      yaw: car.mesh.rotation.y,
+    }
+  }
+
+  private setVehicleHint(text: string | null) {
+    if (!text) {
+      this.vehicleHintEl?.remove()
+      this.vehicleHintEl = null
+      return
+    }
+    if (!this.vehicleHintEl) {
+      const el = document.createElement('div')
+      el.className = 'vehicle-drive-hint'
+      el.style.cssText = 'position:fixed;left:50%;bottom:5rem;transform:translateX(-50%);z-index:40;pointer-events:none;opacity:0.85;'
+      document.body.appendChild(el)
+      this.vehicleHintEl = el
+    }
+    this.vehicleHintEl.textContent = text
+  }
+
+  private readDriveInput(): { forward: number; turn: number } {
+    let forward = this.vehicleSteer.forward
+    let turn = this.vehicleSteer.turn
+    const kb = (this as any).keyboardInput as { pressedCodes?: () => string[] } | undefined
+    const codes = kb?.pressedCodes?.() || []
+    if (codes.includes('KeyW') || codes.includes('ArrowUp')) forward = 1
+    if (codes.includes('KeyS') || codes.includes('ArrowDown')) forward = -1
+    if (codes.includes('KeyA') || codes.includes('ArrowLeft')) turn = -1
+    if (codes.includes('KeyD') || codes.includes('ArrowRight')) turn = 1
+    // mobile dpad: controls.direction is set by dpad (x = strafe, z = forward in camera space) - while driving use as steer
+    if (this.direction && (Math.abs(this.direction.x) > 0.05 || Math.abs(this.direction.z) > 0.05)) {
+      forward = this.direction.z
+      turn = this.direction.x
+    }
+    return { forward, turn }
+  }
+
+  private updateVehicle() {
+    // proximity hint when not driving
+    if (!this.vehicleFeature) {
+      const near = this.findNearbyDriveable()
+      this.vehicleNearby = near
+      if (near && !near.driverUuid) {
+        this.setVehicleHint(isMobile() ? null : 'E drive')
+      } else {
+        this.setVehicleHint(null)
+      }
+      this.refreshMobileDriveChrome?.()
+      return
+    }
+
+    const car = this.vehicleFeature
+    // driver dropped / parcel unloaded
+    if (!car.mesh || car.disposed) {
+      this.stopVehicle()
+      return
+    }
+    // stale lock: if we think we drive but state says otherwise
+    if (car.driverUuid && car.driverUuid !== this.persona.uuid) {
+      this.vehicleFeature = null
+      this.enableGravity()
+      this.enableMovement()
+      if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
+        ;(this.scene.activeCamera as any).checkCollisions = true
+      }
+      this.refreshMobileDriveChrome?.()
+      return
+    }
+    // claim may have been lost - reassert periodically via broadcast
+    if (!car.driverUuid) car.claimDriver(this.persona.uuid)
+
+    const dt = Math.min(0.05, this.scene.getEngine().getDeltaTime() / 1000)
+    const { forward, turn } = this.readDriveInput()
+    const speed = this.running ? 8 : 4
+    const turnSpeed = 1.6
+
+    if (Math.abs(turn) > 0.01) car.mesh.rotation.y += turn * turnSpeed * dt
+    if (Math.abs(forward) > 0.01) {
+      const yaw = car.mesh.rotation.y
+      // local +Z forward
+      car.mesh.position.x += Math.sin(yaw) * forward * speed * dt
+      car.mesh.position.z += Math.cos(yaw) * forward * speed * dt
+    }
+    car.mesh.position.y = this.vehicleHoverY
+    car.mesh.computeWorldMatrix(true)
+
+    // water rescue: swim level
+    const worldY = car.absolutePosition?.y ?? car.mesh.position.y
+    if (worldY < SWIM_LEVEL) {
+      if (this.vehicleLastDryPos && this.vehicleLastDryRot) {
+        car.mesh.position.copyFrom(this.vehicleLastDryPos)
+        car.mesh.rotation.copyFrom(this.vehicleLastDryRot)
+        this.vehicleHoverY = this.vehicleLastDryPos.y
+        car.mesh.computeWorldMatrix(true)
+        car.broadcastDriveState()
+      } else {
+        car.recallToPark()
+        this.stopVehicle()
+        return
+      }
+    } else {
+      this.vehicleLastDryPos = car.mesh.position.clone()
+      this.vehicleLastDryRot = car.mesh.rotation.clone()
+    }
+
+    // seat: put camera (persona) on the car so sendAvatar carries us with it; chase offset applied in firstOrThirdPersonAdjustment via cameraDistance
+    const abs = car.absolutePosition
+    if (abs) {
+      const yaw = car.mesh.rotation.y
+      this.camera.position.copyFrom(abs.subtract(this.worldOffset.position))
+      this.camera.position.y += 1.2
+      this.camera.rotation.y = yaw
+      if (this.firstPersonView) this.enterThirdPerson(3.5)
+      this.targetCameraDistance = 3.5
+    }
+
+    const now = Date.now()
+    if (now - this.vehicleLastStateAt > 120) {
+      this.vehicleLastStateAt = now
+      car.broadcastDriveState()
+    }
   }
 }
 
