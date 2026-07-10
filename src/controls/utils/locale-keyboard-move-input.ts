@@ -51,6 +51,11 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
     this._keys = []
   }
 
+  /** codes currently held (for vehicle mode / hijacks that need WASD without moving the camera) */
+  public pressedCodes(): string[] {
+    return this._keys.slice()
+  }
+
   /**
    * Attach the input controls to a specific dom element to get the input from.
    * @param noPreventDefault Defines whether event caught by the controls should call preventdefault() (https://developer.mozilla.org/en-US/docs/Web/API/Event/preventDefault)

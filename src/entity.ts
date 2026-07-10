@@ -156,6 +156,7 @@ export abstract class Entity {
     }
 
     this.lastMovedAt = Date.now()
+    ;(this as any).syncVehicleMeshPose?.()
   }
 
   protected load() {

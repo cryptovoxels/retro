@@ -326,6 +326,15 @@ extensionCodec.register({
   },
 })
 
+/** Optional payload so nearby clients can draw the car under a driving avatar (island free roam). */
+export type AvatarVehiclePayload = {
+  featureUuid: string
+  homeParcelId: number
+  voxUrl: string
+  scale: [number, number, number]
+  yaw: number
+}
+
 export type UpdateAvatarMessage = {
   type: MessageType.updateAvatar
   uuid: string
@@ -335,6 +344,7 @@ export type UpdateAvatarMessage = {
   inConga?: boolean
   /** Person in front of this avatar in the conga chain; leader omits. Used to sync whole line (e.g. fly) to head. */
   congaFollowsUuid?: string | null
+  vehicle?: AvatarVehiclePayload | null
 }
 
 export const UpdateAvatarEncoder = encoderCreator<UpdateAvatarMessage>()
@@ -344,7 +354,18 @@ extensionCodec.register({
     if (input.type != MessageType.updateAvatar) {
       return null
     }
-    return encodeAlias([encodeUUID(input.uuid), Float32Array.from(input.position), compressQuaternion(input.orientation), input.animation, input.inConga ? 1 : 0, input.congaFollowsUuid ? encodeUUID(input.congaFollowsUuid) : null])
+    const vehicle = input.vehicle
+      ? [input.vehicle.featureUuid, input.vehicle.homeParcelId, input.vehicle.voxUrl || '', Float32Array.from(input.vehicle.scale), input.vehicle.yaw]
+      : null
+    return encodeAlias([
+      encodeUUID(input.uuid),
+      Float32Array.from(input.position),
+      compressQuaternion(input.orientation),
+      input.animation,
+      input.inConga ? 1 : 0,
+      input.congaFollowsUuid ? encodeUUID(input.congaFollowsUuid) : null,
+      vehicle,
+    ])
   },
   decode: (data): UpdateAvatarMessage => {
     const res = decodeAlias(data) as any[]
@@ -358,6 +379,17 @@ extensionCodec.register({
     }
     if (res.length > 5 && res[5] != null) {
       m.congaFollowsUuid = decodeUUID(res[5])
+    }
+    if (res.length > 6 && res[6] != null && Array.isArray(res[6])) {
+      const v = res[6]
+      const scale = v[3] instanceof Float32Array ? Array.from(v[3]) : v[3]
+      m.vehicle = {
+        featureUuid: String(v[0]),
+        homeParcelId: Number(v[1]) || 0,
+        voxUrl: String(v[2] || ''),
+        scale: [Number(scale?.[0]) || 1, Number(scale?.[1]) || 1, Number(scale?.[2]) || 1],
+        yaw: Number(v[4]) || 0,
+      }
     }
     return m
   },

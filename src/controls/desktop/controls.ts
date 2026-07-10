@@ -231,6 +231,13 @@ export default class DesktopControls extends Controls {
         this.stopConga()
       }
 
+      if (e.code === 'KeyE') {
+        this.tryEnterVehicle()
+      }
+      if (e.code === 'Escape' && this.vehicleFeature) {
+        this.stopVehicle()
+      }
+
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
         this.run()
       } else if (this.running && !this.shiftKey) {
