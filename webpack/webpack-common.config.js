@@ -86,11 +86,6 @@ module.exports = (env, argv) => {
         fs: false,
         crypto: false,
         module: false,
-        stream: require.resolve('stream-browserify'),
-        http: require.resolve('stream-http'),
-        https: require.resolve('https-browserify'),
-        os: require.resolve('os-browserify/browser'),
-        path: require.resolve('path-browserify'),
       },
     },
   }

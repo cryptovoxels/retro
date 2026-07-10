@@ -5,7 +5,6 @@ import { getImageInfo, getURlImageInfo, getVoxInfo } from '../../web/src/utils'
 import { uploadMedia, UploadMediaResult } from '../../common/helpers/upload-media'
 import { uploadVoxModelMedia } from '../utils/upload-vox-media'
 import { PanelType } from '../../web/src/components/panel'
-import { extname } from 'path'
 
 const MB = 1024 * 1024
 
@@ -133,7 +132,8 @@ export class DragDrop {
       return
     }
 
-    const ext = extname(file.name).toLowerCase()
+    const i = file.name.lastIndexOf('.')
+    const ext = (i >= 0 ? file.name.slice(i) : '').toLowerCase()
 
     if (file.size > 50 * MB) {
       alert('File must be less than 50 MB. Please resize and then try again.')

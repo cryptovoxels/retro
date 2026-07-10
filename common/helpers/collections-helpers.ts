@@ -1,4 +1,3 @@
-import * as querystring from 'querystring'
 import config from '../config'
 import { CollectibleBatchRecord, CollectibleInfoRecord } from '../messages/collectibles'
 import { ChainIdentifier, getChainIdByName, SUPPORTED_CHAINS_BY_ID } from './chain-helpers'
@@ -262,13 +261,10 @@ export class CollectionHelper {
   async fetchCollectibles(page?: number, query?: string, sort?: string, asc?: boolean) {
     const u = `/api/collections/${this.id}/collectibles`
     const url = new URL(u, location.toString())
-    const searchParams = {
-      page,
-      q: query,
-      sort,
-      asc,
-    }
-    url.search = querystring.stringify(searchParams)
+    if (page != null) url.searchParams.set('page', String(page))
+    if (query != null) url.searchParams.set('q', query)
+    if (sort != null) url.searchParams.set('sort', sort)
+    if (asc != null) url.searchParams.set('asc', String(asc))
 
     try {
       const p = await fetch(url.toString())

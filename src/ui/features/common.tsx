@@ -62,7 +62,7 @@ export const floatArray = (x: number, y: number, z: number, length = DEFAULT_DP)
 }
 
 export const updateHighlight = () => {
-  process.nextTick(() => {
+  queueMicrotask(() => {
     window.ui?.featureTool?.updateHighlight()
   })
 }

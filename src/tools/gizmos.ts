@@ -23,7 +23,7 @@ let activeHandles: ResizeHandleSet | null = null
 type AxisLabel = 'X' | 'Y' | 'Z'
 
 const updateHighlight = () => {
-  process.nextTick(() => {
+  queueMicrotask(() => {
     window.ui?.featureTool?.updateHighlight()
   })
 }

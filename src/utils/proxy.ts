@@ -1,6 +1,5 @@
 import { simpleHash } from '../../common/helpers/utils'
 import config from '../../common/config'
-import * as querystring from 'querystring'
 import { OpenSeaNftModelDetailedV2, OpenSeaNftModelDetailedV2Extended, TraitRecord } from '../../common/messages/api-opensea'
 import { isAddress } from 'ethers'
 import { isValidUrl } from '../../common/helpers/utils'
@@ -56,7 +55,9 @@ export const getNFTData = async (contract: string, token: string, chain_id = 1, 
   }
 
   // Fallback to direct API call
-  return fetch(`${config.proxy_base_url}/v2/opensea?${querystring.stringify(parameters)}`).then(async (response) => {
+  const q = new URLSearchParams()
+  for (const [k, v] of Object.entries(parameters)) q.set(k, String(v))
+  return fetch(`${config.proxy_base_url}/v2/opensea?${q}`).then(async (response) => {
     if (!response.ok) {
       throw new Error(`Failed to fetch NFT data: ${response.status} ${response.statusText}`)
     }

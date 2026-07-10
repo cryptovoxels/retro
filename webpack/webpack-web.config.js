@@ -73,21 +73,9 @@ module.exports = (env, argv) => {
     },
     resolve: {
       fallback: {
-        stream: require.resolve('stream-browserify'),
-        https: require.resolve('https-browserify'),
-        http: require.resolve('stream-http'),
-        os: require.resolve('os-browserify'),
-        process: 'process/browser',
-        querystring: require.resolve('querystring-es3'),
-        path: require.resolve('path-browserify'),
         crypto: false,
         vm: false,
       },
-      alias: {
-        // Ensure ESM fully specified imports like 'process/browser' resolve with an explicit file
-        'process/browser': require.resolve('process/browser'),
-      },
-      // Improve ESM module resolution
       fullySpecified: false,
     },
     output: {
@@ -96,7 +84,6 @@ module.exports = (env, argv) => {
     },
     plugins: [
       new webpack.ProvidePlugin({
-        process: require.resolve('process/browser'),
         Buffer: ['buffer', 'Buffer'],
       }),
       isProduction &&

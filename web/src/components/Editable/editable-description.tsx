@@ -4,10 +4,6 @@ import { saveAsset } from '../../helpers/save-helper'
 import { AssetType, EditableIcons, Props } from './editable'
 import { useEditableLifecycle } from './useEditableLifecycle'
 
-const isNode = () => {
-  return typeof process !== 'undefined' && process.release && process.release.name === 'node'
-}
-
 export default function EditableDescription({ value: originalValue, type, className, data, isowner, onSave, onFail, validationRule }: Props) {
   const noop = () => {
     /** NOOP */

@@ -15,16 +15,14 @@ import { PanelType } from '../../src/components/panel'
 import { route } from 'preact-router'
 import { pending, registerCostumerVoidBackground, setupGizmos, setupScene } from './utils'
 import { Wearable } from './wearable'
-import { createHash } from 'crypto'
 import Redirect from '../../src/components/redirect'
 import WearableSelector from './wearable-selector'
+import { md5 } from '../../../common/helpers/utils'
 
 if (process.env.NODE_ENV === 'development') {
   // Must use require here as import statements are only allowed to exist at top-level.
   require('preact/debug')
 }
-
-const md5 = (data: string) => createHash('md5').update(data).digest('hex').toString()
 
 const ContentType = 'application/json'
 
