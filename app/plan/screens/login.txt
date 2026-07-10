@@ -1,0 +1,44 @@
+login
+screen id: login
+
+purpose
+  email otp + passkeys. same account as web. no wallet.
+
+layout (phone)
+  +----------------------------------+
+  | [x]  Sign in                     |
+  |----------------------------------|
+  |                                  |
+  |  Email                           |
+  |  [ ________________________ ]    |
+  |                                  |
+  |  [ Send code ]                   |
+  |                                  |
+  |  Code                            |
+  |  [ ______ ]                      |
+  |                                  |
+  |  [ Continue ]                    |
+  |                                  |
+  |  -------- or --------            |
+  |                                  |
+  |  [ Sign in with passkey ]        |
+  |                                  |
+  |  (Apple Sign In routes email)    |
+  |  [ Continue with Apple ]         |
+  |                                  |
+  +----------------------------------+
+
+behavior
+  - Send code -> command loginEmail { email }
+  - Continue with code -> command loginEmail { email, code }
+  - passkey -> command loginPasskey
+  - Apple -> platform Apple Sign In, then attach/route to email account path (no separate identity silo)
+  - on success: dismiss to home; mirror guest=false, userName set
+  - errors: system alert / inline text from state.error; fail soft
+  - dismiss (x) returns to home as guest
+
+components
+  system text fields, system buttons, system secure/otp field if available
+
+out
+  no metamask, no walletconnect, no seed phrases, no crypto copy

@@ -1,0 +1,46 @@
+world
+screen id: world
+
+purpose
+  play. webview canvas full bleed. all chrome native. no dom overlays.
+
+layout (phone portrait)
+  +----------------------------------+
+  | [parcelChip ................] [i]|
+  |                                  |
+  |                                  |
+  |         (webview canvas)         |
+  |                                  |
+  |                                  |
+  |  [joystick]              [womp]  |
+  |  [chatBar ..............]  [mic] |
+  +----------------------------------+
+
+layout (landscape)
+  joystick bottom-leading; womp + mic bottom-trailing; parcelChip top-leading; chatBar bottom center/leading.
+
+layout (tablet split)
+  trailing (or full): same as phone world
+  leading: optional chat transcript or home hub — keep structure consistent with vocab (chat can be sheet on phone, leading pane on tablet)
+
+hud pieces (see vocab)
+  - parcelChip: shows state.parcelName; tap -> parcel-info
+  - chatBar: shows state.chatPreview placeholder; tap/focus -> chat (or inline send on phone if short)
+  - joystick: native; streams command joystick { x, y, active }
+  - wompButton: command takeWomp
+  - voiceToggle (mic): command setVoiceMuted
+
+behavior
+  - on appear: webview visible; command enterWorld
+  - on leave: hide webview (keep warm); command leaveWorld
+  - back / leave control returns to home
+  - no tool belt, no build ui
+  - follow system safe areas; hud floats over webview with hit-testing only on controls
+  - 60fps prefer; joystick path must stay low latency
+
+webview
+  visible only on this screen
+  canvas only (nativeShell flag)
+
+out
+  toolBelt, editPane, wallet, nft, preact overlays

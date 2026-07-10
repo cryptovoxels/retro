@@ -1,0 +1,36 @@
+settings
+screen id: settings
+
+purpose
+  account, voice, about, sign out. no analytics toggles in v1 shell.
+
+layout
+  +----------------------------------+
+  | [v]  Settings                    |
+  |----------------------------------|
+  |  Account                         |
+  |    Name              [ user    ] |
+  |    Sign in / Sign out            |
+  |----------------------------------|
+  |  Voice                           |
+  |    Mute              [ switch ]  |
+  |----------------------------------|
+  |  About                           |
+  |    Version           x.y.z       |
+  |----------------------------------|
+  |  (team only, later)              |
+  |    Memory            N MB        |
+  +----------------------------------+
+
+behavior
+  - Mute switch <-> state.voiceMuted / command setVoiceMuted
+  - Sign in -> login; Sign out -> command logout
+  - Name row -> user-info when signed in
+  - follow system appearance (no in-app theme override)
+  - Memory row: only when logged in as team; not required for v1 ship, leave placeholder comment in code
+
+components
+  system grouped list, system switch, system navigation link
+
+out
+  no crypto settings, no push, no bugsnag/analytics opt-in in shell, no build tools

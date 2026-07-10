@@ -1,0 +1,35 @@
+splash
+screen id: splash
+
+purpose
+  cold start. warm the webview in the background. move to home when ready enough.
+
+layout (phone portrait)
+  +----------------------------------+
+  |           [safe top]             |
+  |                                  |
+  |                                  |
+  |            Voxels                |
+  |         (system title)           |
+  |                                  |
+  |         [ activity ]             |
+  |                                  |
+  |                                  |
+  |           [safe bot]             |
+  +----------------------------------+
+
+layout (landscape / tablet)
+  same centered mark + spinner; no split yet.
+
+behavior
+  - create webview (hidden), load retro with nativeShell flag
+  - wait for bridge state.ready == true OR a short timeout then continue as guest
+  - auto navigate to home (replace splash; no back to splash)
+  - follow system light/dark
+  - no login gate
+
+native only
+  no webview visible on this screen.
+
+out
+  no wallet, no marketing carousel, no permissions spam

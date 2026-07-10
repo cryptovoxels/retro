@@ -1,0 +1,42 @@
+home
+screen id: home
+
+purpose
+  hub after splash. guest or signed-in. enter world, peek events, reach login/settings.
+
+layout (phone)
+  +----------------------------------+
+  | Voxels                    [gear] |
+  |----------------------------------|
+  |                                  |
+  |  [ Enter world ]                 |
+  |                                  |
+  |  You are guest | signed in as X  |
+  |  [ Sign in ]   | [ You ]         |
+  |                                  |
+  |  Events                          |
+  |  - event title          time     |
+  |  - event title          time     |
+  |  - ...                           |
+  |                                  |
+  +----------------------------------+
+
+layout (tablet split)
+  leading: same hub list
+  trailing: empty placeholder or last world thumbnail / "enter world" prompt
+  entering world puts world on trailing (or full) per split rules
+
+behavior
+  - Enter world -> world screen; show warm webview; command enterWorld
+  - Sign in -> login
+  - gear -> settings
+  - You -> user-info (self); guest sees Sign in instead
+  - Events list from web/api via bridge or native fetch to same origin — prefer bridge state/events later; v1 can open enterWorld at event parcel if id known
+  - online only; if offline, show system empty/error and disable Enter world
+  - guest can enter world
+
+components
+  system nav title, system buttons, system list for events
+
+out
+  no wallet, no nft shelf, no tool belt, no feed of womps required in v1

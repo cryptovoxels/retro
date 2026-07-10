@@ -1,0 +1,33 @@
+parcel-info
+screen id: parcel-info
+
+purpose
+  current or selected parcel. opened from world parcelChip.
+
+layout
+  +----------------------------------+
+  | [v]  Parcel                      |
+  |----------------------------------|
+  |                                  |
+  |  name                            |
+  |  owner                           |
+  |  id                              |
+  |                                  |
+  |  [ Visit / Stay ]                |
+  |                                  |
+  |  description (if any)            |
+  |                                  |
+  +----------------------------------+
+
+behavior
+  - default: state.parcelId / parcelName
+  - optional payload parcelId from event openParcelInfo
+  - Visit: command enterWorld { parcelId } if different
+  - no buy/sell, no crypto, no nft gallery
+  - events tied to parcel can list as system text rows if data available; else skip
+
+components
+  system nav, labels, one primary button
+
+out
+  marketplace, wallet connect, build/edit entry points, tool belt

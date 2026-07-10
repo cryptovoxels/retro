@@ -1,0 +1,35 @@
+chat
+screen id: chat
+
+purpose
+  full nearby chat. send messages. opened from world chatBar (or tablet leading pane).
+
+layout (phone)
+  +----------------------------------+
+  | [v]  Chat                        |
+  |----------------------------------|
+  |  alice: hey                      |
+  |  bob: yo                         |
+  |  you: hello                      |
+  |  ...                             |
+  |                                  |
+  |----------------------------------|
+  | [ message ................ ] [>] |
+  +----------------------------------+
+
+layout (tablet)
+  can sit in split leading while world stays visible trailing.
+  same list + composer.
+
+behavior
+  - transcript: v1 may use bridge events or a chatLines key added later; until then, minimal: composer sends command sendChat and relies on chatPreview / future messages list
+  - send -> command sendChat { text }; clear field
+  - empty send: do nothing
+  - moderation: web; if message blocked, show soft error from state.error
+  - guest: allow chat if web allows guests; else prompt login (event needLogin)
+
+components
+  system list / scroll, system text field, system send button
+
+out
+  no rich markdown editor, no nft stickers, no wallet tips

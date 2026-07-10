@@ -1,0 +1,33 @@
+user-info
+screen id: user-info
+
+purpose
+  show self or another player. opened from home (self) or world/chat (other).
+
+layout
+  +----------------------------------+
+  | [v]  User                        |
+  |----------------------------------|
+  |                                  |
+  |         [ avatar / initial ]     |
+  |              name                |
+  |                                  |
+  |  id / handle                     |
+  |                                  |
+  |  (optional) message / ignore     |
+  |  — only if web supports; else omit|
+  |                                  |
+  +----------------------------------+
+
+behavior
+  - read userId/userName from navigation payload or state (self)
+  - guest viewing self: prompt sign in
+  - no wallet address display
+  - no nft / collectible grid in app (web only)
+  - report/block: if needed, deep-link or bridge to web mod tools; keep minimal
+
+components
+  system nav, system text, system optional buttons
+
+out
+  crypto, opensea, inventory grids, tip jar
