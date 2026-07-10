@@ -2,29 +2,14 @@ import { Component, JSX } from 'preact'
 import { route } from 'preact-router'
 import { Link } from 'preact-router/match'
 import { isMobile } from '../../common/helpers/detector'
-import { ssrFriendlyDocument, ssrFriendlyWindow } from '../../common/helpers/utils'
+import { ssrFriendlyDocument } from '../../common/helpers/utils'
 import { hasMetamask } from './auth/login-helper'
 import { login } from './auth/state-login'
 import { PanelType } from './components/panel'
 import { app, AppEvent } from './state'
-import Icon, { CubeIcon } from './components/icons/icons'
+import { CubeIcon } from './components/icons/icons'
 import VoxelRadio from './components/voxel-radio'
 import { getCoords, withCoords } from './helpers/coords-nav'
-
-const ROUTE_ICONS: Record<string, string> = {
-  account: 'account',
-  costumer: 'costume',
-  assets: 'assets',
-  collections: 'collections',
-  events: 'events',
-  islands: 'islands',
-  map: 'map',
-  chat: 'chat',
-  parcels: 'parcels',
-  spaces: 'spaces',
-  womps: 'womps',
-  scratchpad: 'scratchpad',
-}
 
 type Props = {
   path: string
@@ -92,12 +77,9 @@ export default class WebHeader extends Component<Props, State> {
       this.setState({ expanded: !this.state.expanded })
     }
 
-    const path = ssrFriendlyWindow?.location.pathname
     const signedIn = app.signedIn
     const coords = this.props.coords || getCoords()
     const href = (p: string) => (coords ? withCoords(p) : p)
-
-    const activeIcon = (Object.entries(ROUTE_ICONS).find(([r]) => path?.includes(`/${r}`))?.[1] ?? 'v') as any
 
     const canInstallMetamask = !isMobile() && !hasMetamask()
     const onClick = (e: Event) => {
@@ -121,7 +103,7 @@ export default class WebHeader extends Component<Props, State> {
             <ul>
               <li class="logo">
                 <a href="/">
-                  <CubeIcon name={activeIcon} />
+                  <CubeIcon name="v" />
                 </a>
               </li>
               <li>{navLink(signedIn ? 'Profile' : 'Login', '/account')}</li>
