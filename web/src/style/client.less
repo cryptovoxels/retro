@@ -8,26 +8,6 @@
 @import 'cube-logo';
 @import (inline) '../../../dist/leaflet.css';
 
-@font-face {
-  font-family: 'source code pro';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src:
-    local('Source Code Pro'),
-    url(/fonts/sourcecodepro-regular.woff) format('woff');
-}
-
-@font-face {
-  font-family: 'Press Start 2P';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src:
-    local('Press Start 2P'),
-    url(/fonts/pressstart2p-400.woff2) format('woff2');
-}
-
 // vars
 @hexsize: 3.2rem;
 @moderator: #7684ff;
@@ -49,12 +29,6 @@
 // so client.less's global resets stop bleeding onto web pages.
 body.in-world {
   color-scheme: dark;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
-  user-select: none;
-  touch-action: none;
-  font-family: 'source code pro', monospace;
-  font-size: 15px;
 
   #babylonUnmuteIconBtn {
     left: 60px !important;
@@ -135,9 +109,11 @@ button.iconish {
 }
 
 .UserInterface aside:not(.ui-toggle-mobile) {
-  @media screen and (max-width: 799px), screen and (max-height: 449px) {
+
+  @media screen and (max-width: 799px),
+  screen and (max-height: 449px) {
     &[data-active='false'] {
-      & > ul.ui-sidebar {
+      &>ul.ui-sidebar {
         transform: translateX(-100%);
         visibility: hidden;
         pointer-events: none;
@@ -159,7 +135,7 @@ button.iconish {
   left: 0;
   bottom: 0;
 
-  & > ul {
+  &>ul {
     height: 100vh;
     display: flex;
     flex-direction: column;
@@ -215,7 +191,7 @@ button.iconish {
 // the aside is the single scroll container in split view; inner pane sections
 // must not make a second one (that was the double-scrollbar). pin headers with
 // position: sticky instead of a nested scroller.
-body.in-world main > aside section {
+body.in-world main>aside section {
   overflow: visible;
   padding: 0.5rem;
 }
@@ -350,7 +326,7 @@ body.in-world main > aside section {
       text-align: center;
       width: 100%;
 
-      > i {
+      >i {
         margin-right: 5px;
       }
 
@@ -416,9 +392,9 @@ body.in-world main > aside section {
 }
 
 /* Feature editor */
-body.in-world main > aside .editor,
-body.in-world main > aside .edit-pane-inspector,
-body.in-world main > aside section.settings,
+body.in-world main>aside .editor,
+body.in-world main>aside .edit-pane-inspector,
+body.in-world main>aside section.settings,
 .UserInterface dialog.editor {
   font-size: 1em;
   overflow-x: hidden;
@@ -550,7 +526,7 @@ body.in-world main > aside section.settings,
     text-shadow: 1px 1px 1px black;
   }
 
-  .textures + p {
+  .textures+p {
     margin: 16px 0 0 12px;
 
     small {
@@ -616,7 +592,7 @@ body.in-world main > aside section.settings,
       min-width: 0;
       overflow: hidden;
 
-      > input[type='checkbox'] {
+      >input[type='checkbox'] {
         flex: 0 0 auto;
         margin: 0 4px;
         align-self: center;
@@ -673,7 +649,7 @@ body.in-world main > aside section.settings,
         display: contents;
       }
 
-      > label,
+      >label,
       label:first-child {
         color: #aaa;
         font-size: 0.85em;
@@ -684,10 +660,10 @@ body.in-world main > aside section.settings,
         align-self: center;
       }
 
-      > input,
-      > select,
-      > textarea,
-      > button {
+      >input,
+      >select,
+      >textarea,
+      >button {
         grid-column: 2;
         padding: 4px 6px;
         align-self: center;
@@ -696,13 +672,13 @@ body.in-world main > aside section.settings,
         background: transparent;
       }
 
-      > div:not(.sub-f),
-      > .button-tabs,
+      >div:not(.sub-f),
+      >.button-tabs,
       form label {
         grid-column: 1 / -1;
       }
 
-      > select ~ * {
+      >select~* {
         grid-column: 1 / -1;
       }
 
@@ -720,7 +696,7 @@ body.in-world main > aside section.settings,
       grid-template-columns: 38% 1fr;
       border-bottom: 1px solid #222;
 
-      > label {
+      >label {
         color: #aaa;
         font-size: 0.85em;
         padding: 4px 6px;
@@ -728,7 +704,7 @@ body.in-world main > aside section.settings,
         align-self: center;
       }
 
-      > small {
+      >small {
         margin: 0;
         padding: 4px 6px;
         align-self: center;
@@ -736,7 +712,7 @@ body.in-world main > aside section.settings,
 
       .behaviour-row,
       .behaviour-add,
-      > .f {
+      >.f {
         grid-column: 1 / -1;
       }
     }
@@ -747,13 +723,13 @@ body.in-world main > aside section.settings,
     @c: #111;
     box-sizing: border-box;
 
-    > div {
+    >div {
       display: flex;
       gap: 2px;
     }
 
     span:has(+ input),
-    input + span {
+    input+span {
       width: 1rem;
       padding: 0.25rem;
       display: inline-block;
@@ -768,10 +744,9 @@ body.in-world main > aside section.settings,
       }
     }
 
-    span:has(+ input) {
-    }
+    span:has(+ input) {}
 
-    input + span {
+    input+span {
       margin-right: 0.5rem;
     }
 
@@ -850,7 +825,7 @@ body.in-world main > aside section.settings,
       margin-top: 10px;
     }
 
-    input[type='checkbox'] + small {
+    input[type='checkbox']+small {
       display: inline;
     }
 
@@ -859,12 +834,13 @@ body.in-world main > aside section.settings,
       margin: 5px 0;
     }
 
-    select + div {
+    select+div {
       margin-top: 4px;
     }
   }
 
   .f.fs {
+
     input[type='number'],
     input.number {
       width: 83px;
@@ -949,7 +925,7 @@ body.in-world main > aside section.settings,
     justify-content: space-around;
     text-align: center;
 
-    div > small > button {
+    div>small>button {
       margin-right: 0;
     }
   }
@@ -992,14 +968,13 @@ body.in-world main > aside section.settings,
       input[type='text'],
       input[type='number'],
       input[type='range'],
-      textarea {
-      }
+      textarea {}
     }
   }
 }
 
-body.in-world main > aside section.settings {
-  > section + section {
+body.in-world main>aside section.settings {
+  >section+section {
     margin-top: 0;
   }
 
@@ -1042,7 +1017,7 @@ body.in-world main > aside section.settings {
   }
 }
 
-body.in-world main > aside .editor ul.toolbar,
+body.in-world main>aside .editor ul.toolbar,
 .UserInterface dialog ul.toolbar {
   margin-bottom: 10px;
   padding-left: 0;
@@ -1094,7 +1069,7 @@ section.build-tab nav.build-main-tabs {
 }
 
 .FeatureSpawnList {
-  > header {
+  >header {
     display: flex;
     align-items: center;
     margin-bottom: 5px;
@@ -1158,7 +1133,7 @@ section.build-tab nav.build-main-tabs {
 }
 
 .NewAssetOptions {
-  > * + h4 {
+  >*+h4 {
     margin-top: 10px;
   }
 
@@ -1246,6 +1221,7 @@ section.build-tab nav.build-main-tabs {
   }
 
   @media @desktop {
+
     &.active .wrapper,
     &:hover .wrapper {
       top: 0;
@@ -1276,7 +1252,7 @@ section.build-tab nav.build-main-tabs {
       flex-direction: column;
       gap: 2px;
 
-      > span {
+      >span {
         padding: 2px;
         font-size: 0.7rem;
         cursor: pointer;
@@ -1348,7 +1324,7 @@ section.build-tab nav.build-main-tabs {
       padding: 3px;
       background: rgba(211, 211, 211, 0.85);
 
-      > button:not(.tint-chooser-edit) {
+      >button:not(.tint-chooser-edit) {
         box-sizing: border-box;
         width: 20px;
         height: 20px;
@@ -1386,7 +1362,7 @@ section.build-tab nav.build-main-tabs {
     gap: 5px;
     padding: 2px;
 
-    > div {
+    >div {
       margin: 2px 0;
       position: relative;
 
@@ -1439,9 +1415,9 @@ section.build-tab nav.build-main-tabs {
       top: unset;
       transition: none;
 
-      div.textures > div,
-      div.toolbelt-pagination > span,
-      div.tool-modes > button {
+      div.textures>div,
+      div.toolbelt-pagination>span,
+      div.tool-modes>button {
         rotate: 90deg;
       }
     }
@@ -1488,7 +1464,7 @@ section.build-tab nav.build-main-tabs {
     flex-wrap: wrap;
     margin-top: 5px;
 
-    > div {
+    >div {
       margin: 3px;
       cursor: pointer;
 
@@ -1632,8 +1608,8 @@ section.build-tab nav.build-main-tabs {
 .SortingOptions {
   margin: 5px 4px;
 
-  > a,
-  > button {
+  >a,
+  >button {
     padding: 4px 8px;
     text-decoration: none;
     background: #222;
@@ -1662,8 +1638,8 @@ section.build-tab nav.build-main-tabs {
     }
   }
 
-  > a.categories,
-  > a.types {
+  >a.categories,
+  >a.types {
     padding: 4px 0;
 
     select {
@@ -1685,17 +1661,17 @@ section.build-tab nav.build-main-tabs {
   &.-small {
     height: 100%;
 
-    > *:nth-child(2) {
+    >*:nth-child(2) {
       flex-grow: 1;
     }
 
-    > img {
+    >img {
       width: 140px;
       height: 140px;
     }
   }
 
-  &.-large > img {
+  &.-large>img {
     width: 180px;
     height: 180px;
   }
@@ -1705,7 +1681,7 @@ section.build-tab nav.build-main-tabs {
     margin: 0 5px 0 0;
   }
 
-  > img {
+  >img {
     width: 180px;
     height: 180px;
     background-color: #333;
@@ -1713,17 +1689,17 @@ section.build-tab nav.build-main-tabs {
     margin-bottom: 5px;
   }
 
-  > div.loading-image,
-  > div.broken-image {
+  >div.loading-image,
+  >div.broken-image {
     width: 100%;
 
-    > img {
+    >img {
       display: block;
       margin: auto;
     }
   }
 
-  > div.broken-image {
+  >div.broken-image {
     height: 100%;
     filter: grayscale();
   }
@@ -1777,7 +1753,7 @@ section.build-tab nav.build-main-tabs {
       flex: 1;
     }
 
-    div + div {
+    div+div {
       margin-left: 4px;
     }
   }
@@ -1804,8 +1780,7 @@ section.build-tab nav.build-main-tabs {
     gap: 10px;
     margin: 10px;
 
-    img {
-    }
+    img {}
 
     div.asset-card-container {
       position: relative;
@@ -1859,13 +1834,13 @@ section.build-tab nav.build-main-tabs {
       margin: 0;
       padding: 0;
 
-      &.-selected > .feature-tree-row {
+      &.-selected>.feature-tree-row {
         color: var(--red);
       }
     }
   }
 
-  .feature-tree-parcel > .feature-tree-label {
+  .feature-tree-parcel>.feature-tree-label {
     display: block;
     padding: 4px 6px;
     font-size: 0.85em;
@@ -1909,7 +1884,7 @@ section.build-tab nav.build-main-tabs {
   min-height: 0;
   overflow: visible;
 
-  > section {
+  >section {
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -1923,7 +1898,7 @@ section.build-tab nav.build-main-tabs {
   }
 }
 
-body.in-world main > aside .edit-pane-inspector {
+body.in-world main>aside .edit-pane-inspector {
   overflow: visible;
 
   .scrollContainer {
@@ -1934,8 +1909,8 @@ body.in-world main > aside .edit-pane-inspector {
 
 // these panes set overflow-x: hidden, which per spec forces overflow-y to auto and
 // makes a second scrollbar; the aside is the only scroller in split view
-body.in-world main > aside .editor,
-body.in-world main > aside section.settings {
+body.in-world main>aside .editor,
+body.in-world main>aside section.settings {
   overflow: visible;
 
   .scrollContainer {
@@ -1968,7 +1943,7 @@ body.in-world main > aside section.settings {
 
 /* Snapshots */
 .SnapshotItem {
-  > header {
+  >header {
     display: flex;
 
     div:first-child {
@@ -1980,7 +1955,7 @@ body.in-world main > aside section.settings {
     }
   }
 
-  li small > a {
+  li small>a {
     color: var(--red);
   }
 }
@@ -2052,14 +2027,14 @@ section.take-womp {
   }
 }
 
-form.PermissionsRadioSelector > div {
+form.PermissionsRadioSelector>div {
   margin: 10px 0;
 
-  > label {
+  >label {
     cursor: pointer;
     display: flex;
 
-    > div {
+    >div {
       margin-left: 5px;
       flex: 1;
 
@@ -2167,11 +2142,11 @@ form.PermissionsRadioSelector > div {
   .colos {
     display: flex;
 
-    & > ul {
+    &>ul {
       flex: 1;
     }
 
-    & > ul:last-child {
+    &>ul:last-child {
       padding-left: 8px;
     }
   }
@@ -2209,7 +2184,7 @@ form.PermissionsRadioSelector > div {
       margin-top: 1rem;
     }
 
-    u + p {
+    u+p {
       color: #aaa;
       display: inline-block;
       margin: 0;
@@ -2231,6 +2206,7 @@ form.PermissionsRadioSelector > div {
 
 /* Parcel info + debug tools */
 .parcel-information-overlay {
+
   h2,
   h3,
   h4,
@@ -2256,7 +2232,7 @@ form.PermissionsRadioSelector > div {
     margin: 5px 0 5px 7px;
   }
 
-  .actions > li {
+  .actions>li {
     margin: 5px 0 2px 2px;
 
     a {
@@ -2279,7 +2255,7 @@ form.PermissionsRadioSelector > div {
     padding: 8px;
     margin: 2px 2px 10px;
 
-    > * {
+    >* {
       margin-bottom: 8px;
     }
 
@@ -2526,6 +2502,7 @@ form.PermissionsRadioSelector > div {
     user-select: text;
 
     table {
+
       tr.-moderatorOnly th,
       tr.-moderatorOnly td,
       tr.-moderatorOnly td a {
@@ -2576,11 +2553,11 @@ form.PermissionsRadioSelector > div {
       background-color: #272727aa;
     }
 
-    > div:first-of-type {
+    >div:first-of-type {
       flex: 2;
     }
 
-    > div:last-of-type {
+    >div:last-of-type {
       flex: 1;
       text-align: right;
       align-self: center;
@@ -2692,7 +2669,7 @@ div.NearbyPlayers {
     border: 2px solid #333333a6;
     background: #333a;
 
-    > button {
+    >button {
       position: absolute;
       z-index: inherit;
       padding: 2px 0;
@@ -2818,7 +2795,7 @@ div.NearbyPlayers {
   gap: 4px;
   pointer-events: none;
 
-  > button {
+  >button {
     pointer-events: auto;
   }
 
@@ -2940,7 +2917,7 @@ div.mobile-buttons {
     height: @size;
     margin: 1rem;
 
-    & > button.hex-button {
+    &>button.hex-button {
       position: relative;
       padding: 0;
       margin: 0 0.5rem 0 0;
@@ -3046,8 +3023,7 @@ div.mobile-buttons {
     }
   }
 
-  &.-fixed {
-  }
+  &.-fixed {}
 
   iframe {
     background: #eee;
@@ -3104,7 +3080,7 @@ div.mobile-buttons {
     }
   }
 
-  li + li {
+  li+li {
     margin-top: 3px;
   }
 
@@ -3258,7 +3234,7 @@ div.mobile-buttons {
     top: 0;
   }
 
-  & > a:hover {
+  &>a:hover {
     background: none !important;
   }
 }
@@ -3403,6 +3379,7 @@ button[accesskey] {
 
 /* Map marker css icons */
 div.css-icon {
+
   div.party,
   div.exhibition {
     height: 18px;

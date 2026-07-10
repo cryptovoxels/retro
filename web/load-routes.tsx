@@ -18,6 +18,7 @@ import { isOwner, isValidUUID } from '../server/lib/helpers'
 import { queryAndCallback } from '../server/lib/query-helpers'
 import db from '../server/pg'
 import LoadingPage from './src/loading-page'
+import { shellRoutes } from './src/routes'
 
 import { Express } from 'express'
 import path from 'path'
@@ -192,51 +193,8 @@ export default function loadRoutes(app: Express) {
     res.redirect(301, `/golive${q}`)
   })
 
-  const dynamicRoutes = [
-    { path: '/propose/*', cache: '1 minute' },
-    { path: '/admin', cache: '1 minute' },
-    { path: '/map', cache: '1 minute' },
-    { path: '/mail', cache: '1 minute' },
-    { path: '/home', cache: '1 minute' },
-    { path: '/chat', cache: '1 minute' },
-    { path: '/account', cache: '1 minute' },
-    { path: '/account/edit', cache: '1 minute' },
-    { path: '/golive', cache: '1 minute' },
-    { path: '/golive/broadcast', cache: '1 minute' },
-    { path: '/login', cache: '1 minute' },
-    { path: '/logout', cache: false },
-    { path: '/account/:section', cache: '30 seconds' },
-    { path: '/costumes/', cache: '30 seconds' },
-    { path: '/assets', cache: '1 minute' },
-    { path: '/assets/:id', cache: '1 minute' },
-    { path: '/assets/:id/edit', cache: '1 minute' },
-    { path: '/assets/:id/render', cache: '1 minute' },
-    { path: '/costumer/', cache: '30 seconds' },
-    { path: '/costumer/:id', cache: '30 seconds' },
-    { path: '/costumes/:id/render', cache: '30 seconds' },
-    { path: '/collections', cache: '30 seconds' },
-    { path: '/collections/*', cache: '30 seconds' },
-    { path: '/community', cache: '1 minute' },
-    { path: '/spaces/new', cache: '1 minute' },
-    { path: '/spaces/:id/edit', cache: '1 minute' },
-    { path: '/new', cache: '1 minute' },
-    { path: '/events', cache: '1 minute' },
-    { path: '/events/*', cache: '1 minute' },
-    { path: '/shop', cache: '1 minute' },
-    { path: '/islands', cache: '1 minute' },
-    { path: '/islands/:id', cache: '1 minute' },
-    { path: '/parcels/:id', cache: '1 minute' },
-    { path: '/parcels/:id/edit', cache: '1 minute' },
-    { path: '/avatar', cache: '1 minute' },
-    { path: '/search', cache: '1 minute' },
-    { path: '/womps', cache: '1 minute' },
-    { path: '/metrics', cache: false },
-    { path: '/radio', cache: '1 minute' },
-    { path: '/spaces', cache: duration },
-  ] as const
-
-  dynamicRoutes.forEach((r) => {
-    app.get(r.path, cache(r.cache), (req, res) => {
+  shellRoutes.forEach((r) => {
+    app.get(r.path, cache(r.cache as any), (req, res) => {
       res.send(renderPage(<LoadingPage />))
     })
   })

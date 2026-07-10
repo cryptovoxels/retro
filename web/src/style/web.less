@@ -4,7 +4,6 @@
 // Import leaflet css
 @import (inline) '../../../dist/leaflet.css';
 
-@import './base.less';
 @import './costumer.less';
 @import './cube-logo.less';
 @import './voxel-radio.less';
@@ -31,12 +30,27 @@
   font-size: unset;
 }
 
+body,
+html {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-size: 1rem;
+  font-family: 'Source Code Pro', monospace;
+  line-height: 1.5;
+  margin-bottom: 20rem;
+}
+
+
 h1,
 h2,
 h3,
 h4,
 h5 {
   font-weight: bold;
+  font-family: 'Signika', sans-serif;
   margin-bottom: 0;
 }
 
@@ -65,14 +79,14 @@ h4 {
 
 .wrap-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: 2rem;
 
   img {
     max-width: 100%;
   }
 
-  img + p {
+  img+p {
     margin: 0;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -210,6 +224,24 @@ footer {
   }
 }
 
+.menu {
+  padding: 1rem;
+}
+
+.menu-section {
+  margin-bottom: 2rem;
+}
+
+.menu-section h3 {
+  margin-bottom: 1rem;
+}
+
+.menu-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
+  gap: 2rem;
+}
+
 header nav img.logo {
   width: 28px;
   height: 32px;
@@ -244,7 +276,7 @@ li.home-mobile {
       z-index: 1;
     }
 
-    > ul {
+    >ul {
       width: 100%;
       overflow-x: auto;
       flex-wrap: nowrap;
@@ -256,7 +288,7 @@ li.home-mobile {
       }
     }
 
-    > ul > li {
+    >ul>li {
       flex: 0 0 auto;
       white-space: nowrap;
     }
@@ -329,22 +361,22 @@ button.hamburger {
   align-items: start;
   gap: 0.5rem 1rem;
 
-  & > nav {
+  &>nav {
     margin-top: 4rem;
     overflow: hidden;
     max-width: 10rem;
     transition: max-width 200ms ease-in-out;
   }
 
-  &.nav-collapsed > nav {
+  &.nav-collapsed>nav {
     max-width: 0;
   }
 
-  & > article {
+  &>article {
     flex: 1;
   }
 
-  & > aside {
+  &>aside {
     width: 25vw;
 
     a {
@@ -369,8 +401,8 @@ button.hamburger {
   .columns {
     flex-direction: column;
 
-    & > article,
-    & > aside {
+    &>article,
+    &>aside {
       width: 100%;
     }
   }
@@ -486,18 +518,18 @@ body.in-world main {
   overflow: hidden;
   max-width: none;
 
-  > header {
+  >header {
     grid-area: header;
   }
 
-  > article {
+  >article {
     grid-area: canvas;
     position: relative;
     min-height: 0;
     min-width: 0;
   }
 
-  > aside {
+  >aside {
     grid-area: sidebar;
     overflow-y: auto;
     min-height: 0;
@@ -516,7 +548,7 @@ body.in-world main {
       color: inherit;
     }
 
-    & > div {
+    &>div {
       background: #222;
     }
 
@@ -579,18 +611,18 @@ body.in-world.sidebar-closed main {
     'header'
     'canvas';
 
-  > aside {
+  >aside {
     display: none;
   }
 }
 
-main > article .UserInterface {
+main>article .UserInterface {
   position: absolute;
   inset: 0;
   z-index: 2;
   pointer-events: none;
 
-  > * {
+  >* {
     pointer-events: auto;
   }
 }
@@ -686,12 +718,12 @@ body.in-world.chat-route main {
   grid-template-columns: 1fr clamp(24rem, 40%, 40rem);
 }
 
-body.in-world.chat-route main > aside .chat-page {
+body.in-world.chat-route main>aside .chat-page {
   height: 100%;
   padding: 0;
 }
 
-body.in-world.chat-route main > aside .chat-page h1 {
+body.in-world.chat-route main>aside .chat-page h1 {
   position: sticky;
   top: 0;
   background: #222;
@@ -720,8 +752,8 @@ body:-webkit-full-screen .client-placeholder {
 }
 
 // Fullscreen: broadcast controls slide in from the right; canvas stays full viewport.
-body:fullscreen.in-world main > aside.-broadcast-open,
-body:-webkit-full-screen.in-world main > aside.-broadcast-open {
+body:fullscreen.in-world main>aside.-broadcast-open,
+body:-webkit-full-screen.in-world main>aside.-broadcast-open {
   display: block;
   position: fixed;
   top: 0;
@@ -735,8 +767,8 @@ body:-webkit-full-screen.in-world main > aside.-broadcast-open {
 }
 
 // closing collapses the dock even in fullscreen; the live tab brings it back
-body:fullscreen.in-world.sidebar-closed main > aside.-broadcast-open,
-body:-webkit-full-screen.in-world.sidebar-closed main > aside.-broadcast-open {
+body:fullscreen.in-world.sidebar-closed main>aside.-broadcast-open,
+body:-webkit-full-screen.in-world.sidebar-closed main>aside.-broadcast-open {
   display: none;
 }
 
@@ -761,9 +793,6 @@ body:-webkit-full-screen.in-world.sidebar-closed main > aside.-broadcast-open {
   color: var(--red);
   border: 0;
   border-left: 2px solid var(--red);
-  font-family: 'source code pro', monospace;
-  font-size: 12px;
-  font-weight: bold;
   cursor: pointer;
 
   span {
@@ -784,10 +813,12 @@ body:-webkit-full-screen.in-world.sidebar-closed main > aside.-broadcast-open {
 }
 
 @keyframes showbox-live-pulse {
+
   0%,
   100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0.3;
   }
@@ -882,7 +913,7 @@ body.done-loading {
 
 // Figcaption
 
-figcaption + figure {
+figcaption+figure {
   margin-top: -2rem;
 }
 
@@ -1110,6 +1141,7 @@ div.f {
 }
 
 .island-admin {
+
   article,
   aside {
     width: 40vw;
@@ -1383,7 +1415,7 @@ hgroup {
     margin: 1rem 0 0 0;
   }
 
-  h1 + p {
+  h1+p {
     margin-top: -0.5rem;
   }
 }
@@ -1423,8 +1455,6 @@ p.empty {
     margin: 0;
     padding: 0;
     width: 25rem;
-    font-family: 'source code pro', monospace;
-    font-size: small;
     border: 1px solid #555;
     list-style: none;
     z-index: 100;
@@ -1459,7 +1489,7 @@ p.empty {
       margin: 0;
       padding: 0;
 
-      & > a {
+      &>a {
         display: block;
 
         // truncate
@@ -1494,8 +1524,7 @@ menu.context {
     cursor: pointer;
   }
 
-  li:hover {
-  }
+  li:hover {}
 }
 
 // Parcels / spaces table
@@ -1522,6 +1551,7 @@ table.spaces {
 // Radar
 
 .radar {
+
   &,
   ul,
   li {
@@ -1535,7 +1565,7 @@ table.spaces {
     list-style-type: '>';
   }
 
-  & > li {
+  &>li {
     margin-bottom: 1rem;
     list-style: none;
   }
@@ -1557,7 +1587,6 @@ table.spaces {
   color: #f5f5f0;
   display: flex;
   flex-direction: column;
-  font-family: 'Source Code Pro', monospace;
   box-sizing: border-box;
 
   * {
@@ -1622,6 +1651,7 @@ table.spaces {
   }
 
   &.showbox-dock-live.showbox-dock-chat-focus {
+
     .showbox-dock-live-tools,
     .showbox-dock-link-btn,
     .showbox-dock-footer,
@@ -1726,6 +1756,7 @@ table.spaces {
 }
 
 @keyframes showbox-live-pulse {
+
   0%,
   100% {
     opacity: 1;
@@ -1997,8 +2028,10 @@ table.spaces {
 
 // global web button:hover sticks on mobile after tap
 .showbox-dock {
+
   .showbox-dock-link-btn,
   .showbox-dock-cancel {
+
     &:hover,
     &:focus,
     &:active {
@@ -2009,6 +2042,7 @@ table.spaces {
   }
 
   .showbox-dock-viewer-count {
+
     &:hover,
     &:focus,
     &:active {
@@ -2022,6 +2056,7 @@ table.spaces {
   .showbox-dock-share-main,
   .showbox-dock-share-pick,
   .showbox-dock-go:not(.stop) {
+
     &:hover,
     &:focus,
     &:active {
@@ -2032,6 +2067,7 @@ table.spaces {
   }
 
   .showbox-dock-go.stop {
+
     &:hover,
     &:focus,
     &:active {
@@ -2043,6 +2079,7 @@ table.spaces {
 
   .showbox-dock-chat-reply button,
   .showbox-dock-share-row button {
+
     &:hover,
     &:focus,
     &:active {
@@ -2053,317 +2090,13 @@ table.spaces {
   }
 
   .showbox-dock-share-menu button {
+
     &:hover,
     &:focus,
     &:active {
       background: #1a1a1a;
       color: #f5f5f0;
       outline: none;
-    }
-  }
-}
-
-// ============================================================
-// QUICK HACK: skin the whole site like the showbox dock.
-// Just the primitives (bg / colors / fonts / gaps / borders).
-// Not production ready. Delete this block to revert.
-// ============================================================
-
-:root {
-  --border: 1px solid #333;
-  --softborder: 1px solid #333;
-  --soft: #888;
-}
-
-body {
-  background: #0d0d0d;
-  color: #f5f5f0;
-  font-family: 'Source Code Pro', monospace;
-}
-
-a:hover {
-  color: var(--red);
-}
-
-a.buttonish {
-  color: #f5f5f0;
-}
-
-// red splash: active nav + selected sidebar items
-a.active,
-.columns.nav li[aria-selected='true'] a,
-header nav a.active {
-  color: var(--red);
-}
-
-// flat, higher-contrast buttons: kill the bevel, brighter face + border
-button,
-a.buttonish {
-  background: #222;
-  color: #f5f5f0;
-  border: 1px solid #555;
-  box-shadow: none;
-
-  &:hover {
-    background: var(--red);
-    border-color: var(--red);
-    color: #fff;
-  }
-
-  &[disabled] {
-    color: #f5f5f066;
-  }
-}
-
-// primary action: solid red, flat
-button[type='submit'],
-button.primary,
-button.big-play,
-a.buttonish.primary {
-  background: var(--red);
-  border-color: var(--red);
-  color: #fff;
-
-  &:hover {
-    background: #fff;
-    border-color: #fff;
-    color: #0d0d0d;
-  }
-}
-
-input[type='text'],
-input[type='number'],
-input[type='email'],
-textarea,
-select {
-  background: #1a1a1a;
-  color: #f5f5f0;
-  border: 1px solid #333;
-}
-
-table th,
-table td {
-  border-bottom: 1px solid #333;
-}
-
-footer p,
-small,
-.login-hint,
-.account-welcome-msg {
-  color: #888;
-}
-
-.upload-button {
-  background: #1a1a1a;
-}
-
-// active view toggle (figcaption) gets the red, not white
-figcaption button[data-active='true'] {
-  background: var(--red);
-  border-color: var(--red);
-  color: #fff;
-}
-
-menu.context,
-.parcel-field ul {
-  background: #1a1a1a;
-  color: #f5f5f0;
-  border-color: #333;
-}
-
-.worldmap {
-  position: relative;
-}
-
-// floating shortcut from the map page into the for-sale browse
-.map-for-sale-cta {
-  position: absolute;
-  z-index: 1000;
-  top: 1rem;
-  right: 1rem;
-  padding: 0.5rem 1rem;
-  text-decoration: none;
-
-  &:hover {
-    color: #0d0d0d;
-  }
-}
-
-// for-sale price pins on the map
-.for-sale-pin {
-  width: auto !important;
-  height: auto !important;
-  border: 0;
-  background: var(--red);
-  color: #fff;
-  padding: 0.1rem 0.4rem;
-  white-space: nowrap;
-  font-weight: bold;
-  cursor: pointer;
-
-  &.active {
-    outline: 2px solid #000;
-    z-index: 1000 !important;
-  }
-}
-
-// voxels-map on /shop
-.voxels-map {
-  height: 100%;
-  width: 100%;
-  display: block;
-}
-
-// land for sale: map left, listings right (zillow-ish)
-.for-sale {
-  display: grid;
-  grid-template-columns: 1fr 22rem;
-  height: 88vh;
-
-  .for-sale-map,
-  .for-sale-map .worldmap,
-  .for-sale-map .map,
-  .for-sale-map .voxels-map {
-    height: 100%;
-    width: 100%;
-  }
-
-  .for-sale-map .leaflet-container {
-    height: 100%;
-    touch-action: none;
-  }
-
-  .for-sale-list {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    border-left: var(--softborder);
-  }
-
-  .for-sale-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 1rem;
-
-    p {
-      color: var(--soft);
-      margin: 0;
-    }
-  }
-
-  .for-sale-head-detail {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .for-sale-back {
-    background: none;
-    border: 0;
-    padding: 0;
-    cursor: pointer;
-  }
-
-  .for-sale-detail {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0 1rem 1rem;
-  }
-
-  .for-sale-detail-price {
-    margin: 0 0 0.5rem;
-  }
-
-  .for-sale-buy {
-    display: inline-block;
-    margin: 0 0 1rem;
-    padding: 0.5rem 1rem;
-    background: var(--red);
-    color: #fff;
-  }
-
-  .for-sale-womps {
-    margin-bottom: 1rem;
-
-    h4 {
-      margin: 0 0 0.5rem;
-    }
-  }
-
-  .parcel-womps-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
-
-    .womp {
-      width: auto;
-    }
-
-    .womp img {
-      width: 100%;
-      aspect-ratio: 1/1;
-      object-fit: cover;
-      margin: 0;
-    }
-
-    .womp p {
-      display: none;
-    }
-  }
-
-  .womps-show-more {
-    width: 100%;
-    margin-top: 0.5rem;
-    background: none;
-    border: 0;
-    cursor: pointer;
-    opacity: 0.7;
-  }
-
-  .for-sale-currency {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-
-    .active {
-      color: var(--red);
-    }
-  }
-
-  .for-sale-cards {
-    flex: 1;
-    overflow-y: auto;
-    padding: 0 1rem 1rem;
-  }
-
-  .for-sale-card {
-    display: block;
-    padding: 1rem 0;
-    border-bottom: var(--softborder);
-    color: inherit;
-
-    .addr {
-      font-weight: bold;
-    }
-
-    .sub {
-      color: var(--soft);
-    }
-
-    .price {
-      margin-top: 0.5rem;
-    }
-  }
-}
-
-@media @mobile {
-  .for-sale {
-    grid-template-columns: 1fr;
-    height: auto;
-
-    .for-sale-map {
-      height: 50vh;
     }
   }
 }

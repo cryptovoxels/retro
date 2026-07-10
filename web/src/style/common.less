@@ -14,7 +14,71 @@
 @import 'events.less';
 @import 'fields/fields.less';
 
+@font-face {
+  font-family: 'Signika';
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+  src: url('/fonts/signika/Signika-300.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Signika';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/signika/Signika-400.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Signika';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/signika/Signika-500.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Signika';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: url('/fonts/signika/Signika-600.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Signika';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url('/fonts/signika/Signika-700.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'source code pro';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local('Source Code Pro'),
+    url(/fonts/sourcecodepro-regular.woff) format('woff');
+}
+
+@font-face {
+  font-family: 'Press Start 2P';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local('Press Start 2P'),
+    url(/fonts/pressstart2p-400.woff2) format('woff2');
+}
+
 :root {
+  font-family:
+    'Signika',
+    Roboto,
+    sans-serif;
   // showbox skin primitives (in-world panels read these)
   --semi: rgba(13, 13, 13, 0.85);
   --bright: #f5f5f0;
@@ -34,12 +98,6 @@ a {
 
 * {
   touch-action: manipulation;
-}
-
-body,
-html {
-  margin: 0;
-  padding: 0;
 }
 
 img.blockie {
@@ -125,11 +183,11 @@ section {
     }
   }
 
-  & > video {
+  &>video {
     max-width: 100%;
   }
 
-  & > h1:first-child {
+  &>h1:first-child {
     margin-top: 20px;
   }
 }
@@ -343,7 +401,7 @@ div.leaflet-marker-icon.MarkersClusters {
     height: 8px;
   }
 
-  > div {
+  >div {
     width: 30px;
     height: 30px;
     margin-left: 5px;
@@ -357,8 +415,7 @@ div.leaflet-marker-icon.MarkersClusters {
   }
 
   &.-avatar {
-    > div {
-    }
+    >div {}
   }
 }
 
@@ -367,7 +424,7 @@ div.leaflet-marker-icon.MarkersClusters {
   */
 div.leaflet-popup-content {
   div.womp {
-    a > img {
+    a>img {
       max-width: 100%;
       object-fit: contain;
     }
@@ -469,8 +526,7 @@ div.leaflet-popup-content {
     }
   }
 
-  h2 {
-  }
+  h2 {}
 
   h2.address {
     font-size: 1.5em;
@@ -491,7 +547,7 @@ div.leaflet-popup-content {
     display: flex;
     flex-direction: column;
 
-    > .parcel_mode {
+    >.parcel_mode {
       width: 20px;
       height: 20px;
       justify-content: center;
@@ -573,7 +629,7 @@ a.xr-now {
     background: #ffa;
   }
 
-  & > li {
+  &>li {
     display: inline-block;
     list-style: none;
     margin: 20px 0 2px 2px;
@@ -827,13 +883,13 @@ dl.deets {
     padding: 5px 0;
     cursor: pointer;
 
-    & > div:first-child {
+    &>div:first-child {
       width: 10%;
       text-align: center;
       margin: auto 0;
     }
 
-    & > div:not(:first-child) {
+    &>div:not(:first-child) {
       margin: auto 5px;
     }
 
@@ -848,7 +904,7 @@ dl.deets {
       }
     }
 
-    & > div:last-child {
+    &>div:last-child {
       text-align: center;
       margin: auto 5px auto auto;
       display: flex;
@@ -866,7 +922,7 @@ dl.deets {
     &.-space {
       justify-content: space-between;
 
-      > div:last-child {
+      >div:last-child {
         margin: unset;
       }
     }
@@ -886,18 +942,18 @@ dl.deets {
       display: none;
     }
 
-    & > div {
+    &>div {
       margin: 0 5px 0 5px;
     }
 
-    & > div:first-child {
+    &>div:first-child {
       //margin: auto 0 auto 10%;
     }
 
     &.-space {
       justify-content: flex-end;
 
-      > div > a {
+      >div>a {
         padding: 5px;
         background: #ebebeb;
         color: black;

@@ -27,10 +27,10 @@ function cubeBoxes(n: name) {
   const boxes = []
   for (let i = 0; i < 25; i++) {
     if (bitmap[i]) {
-      const left = (i % 5) + 1
-      const top = Math.floor(i / 5)
+      const col = i % 5
+      const row = Math.floor(i / 5)
       boxes.push(
-        <div class="box" style={{ left: `${left}rem`, top: `${top}rem` }} key={i}>
+        <div class="box" style={{ left: `calc(var(--size) * ${col + 1})`, top: `calc(var(--size) * ${row})` }} key={i}>
           <div class="face-N" />
           <div class="face-E" />
           <div class="face-S" />
