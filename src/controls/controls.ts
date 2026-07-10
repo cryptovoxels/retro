@@ -786,7 +786,11 @@ export default abstract class Controls implements IControls {
     this.vehicleFeature = null
     this.vehicleSteer.forward = 0
     this.vehicleSteer.turn = 0
-    if (car) car.releaseDriver(this.persona.uuid)
+    if (car) {
+      try {
+        car.releaseDriver(this.persona.uuid)
+      } catch {}
+    }
     this.enableGravity()
     if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
       ;(this.scene.activeCamera as any).checkCollisions = true

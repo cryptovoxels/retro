@@ -361,6 +361,9 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   }
 
   disconnect() {
+    try {
+      this.controls?.stopVehicle?.()
+    } catch {}
     this.multiplayerClient.close()
   }
 
