@@ -111,25 +111,16 @@ export class ParcelVersionValidator {
   }
 
   inside(wPos: number[]): boolean {
-    const streetWidth = 4
-    const overHeight = 8
-    const underHeight = 1
-    const bounds = new BABYLON.BoundingBox(
-      new BABYLON.Vector3(this.parcel.x1 - streetWidth, this.parcel.y1 - underHeight, this.parcel.z1 - streetWidth),
-      new BABYLON.Vector3(this.parcel.x2 + streetWidth, this.parcel.y2 + overHeight, this.parcel.z2 + streetWidth),
-    )
+    const bounds = new BABYLON.BoundingBox(new BABYLON.Vector3(this.parcel.x1, this.parcel.y1, this.parcel.z1), new BABYLON.Vector3(this.parcel.x2, this.parcel.y2, this.parcel.z2))
 
     return bounds.intersectsPoint(BABYLON.Vector3.FromArray(wPos))
   }
 
-  // stolen from /src/parcel.tsx
+  // features live exactly inside the world bounds now, no street fudge
   featureBounds(parcel: Parcel) {
-    const streetWidth = 4
-    const overHeight = 8
-    const underHeight = 1
     return [
-      [parcel.x1 - streetWidth, parcel.y1 - underHeight, parcel.z1 - streetWidth],
-      [parcel.x2 + streetWidth, parcel.y2 + overHeight, parcel.z2 + streetWidth],
+      [parcel.x1, parcel.y1, parcel.z1],
+      [parcel.x2, parcel.y2, parcel.z2],
     ]
   }
 }

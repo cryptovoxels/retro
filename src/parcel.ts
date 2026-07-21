@@ -207,19 +207,15 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
     this.budget = new ParcelBudget(this)
 
-    const streetWidth = 4
-    const overHeight = 8
-    const underHeight = 1
-    // this.sandbox is set via `updateMeta()` above
-    this.featureBounds = this.sandbox
-      ? this.boundingBox
-      : new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), parent._worldMatrix)
+    // x1..z2 are the world bounds: the tessellated AABB that reaches the street
+    // centerline. building is allowed exactly inside them, no street fudge.
+    this.featureBounds = this.boundingBox
 
     const hardFeatureBound = 25
 
     // in sandbox, set hardBoundingbox to be the featureBounds
     this.hardFeatureBounds = this.sandbox
-      ? new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), parent._worldMatrix)
+      ? this.boundingBox
       : new BABYLON.BoundingBox(
           new BABYLON.Vector3(this.x1 - hardFeatureBound, this.y1 - hardFeatureBound, this.z1 - hardFeatureBound),
           new BABYLON.Vector3(this.x2 + hardFeatureBound, this.y2 + hardFeatureBound, this.z2 + hardFeatureBound),

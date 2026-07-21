@@ -180,19 +180,8 @@ export function checkInsideParcel(
 }
 
 function parcelCenter(parcel: Parcel) {
-  if (parcel.geometry) {
-    let x = 0
-    let y = 0
-    const coords = parcel.geometry.coordinates[0]
-
-    coords.forEach((tuple: any) => {
-      x += tuple[0]
-      y += tuple[1]
-    })
-
-    return [x / coords.length, y / coords.length]
-  }
-
+  // must match the client anchor (bounding box centre of the world bounds);
+  // the geometry polygon is the on-chain interior and is centred differently
   return [(parcel.x2 + parcel.x1) / 200, (parcel.z2 + parcel.z1) / 200]
 }
 

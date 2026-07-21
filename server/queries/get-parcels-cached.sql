@@ -15,14 +15,15 @@ select properties.id as id,
        CAST(distance_to_closest_common as double precision),
        lower(properties.owner) as owner,
        memoized_hash as hash,
-       properties.x1,
-       properties.x2,
-       y1,
+       -- the engine builds/renders inside the world bounds; x1..z2 stay on-chain interior
+       COALESCE(world_x1, properties.x1) as x1,
+       COALESCE(world_x2, properties.x2) as x2,
+       COALESCE(world_y1, y1) as y1,
        lightmap_url,
        is_common,
-       y2,
-       properties.z1,
-       properties.z2,
+       COALESCE(world_y2, y2) as y2,
+       COALESCE(world_z1, properties.z1) as z1,
+       COALESCE(world_z2, properties.z2) as z2,
        settings
 from properties
          left join

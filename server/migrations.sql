@@ -284,3 +284,16 @@ SELECT apply_migration('island-board-slots', $$
     PRIMARY KEY (post_id, wallet)
   );
 $$);
+
+SELECT apply_migration('world-bounds', $$
+  -- world_* is the buildable AABB (streets split at the centerline, ground parcels
+  -- get 10m of underground). x1..z2 stay as the on-chain owned interior.
+  -- populated by scripts/world-bounds.mjs
+  ALTER TABLE properties
+    ADD COLUMN IF NOT EXISTS world_x1 integer,
+    ADD COLUMN IF NOT EXISTS world_x2 integer,
+    ADD COLUMN IF NOT EXISTS world_y1 integer,
+    ADD COLUMN IF NOT EXISTS world_y2 integer,
+    ADD COLUMN IF NOT EXISTS world_z1 integer,
+    ADD COLUMN IF NOT EXISTS world_z2 integer;
+$$);
