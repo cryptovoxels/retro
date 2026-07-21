@@ -7,7 +7,7 @@ import { rewriteParcelAsset, markParcelDoneIfReady, buildTryList } from './rewri
 import { appendFailure } from './failures'
 import { Kind, env, Env } from './resolve'
 import { validatorFor } from './validate'
-import { refreshDiscordUrls } from './discord'
+import { initDiscord, signDiscord } from './discord'
 
 function optsFromParcel(db: DatabaseSync, parcelId: number, field: string): { transparent?: boolean; stretch?: boolean; assetUrl?: string | null } {
   const row = db.prepare('SELECT content FROM parcels WHERE id = ?').get(parcelId) as { content: string } | undefined
@@ -74,7 +74,9 @@ async function processOne(db: DatabaseSync, storeDir: string, dataDir: string, r
   }
 
   const opts = optsFromParcel(db, row.parcel_id, row.field)
-  const tryList = buildTryList(row.kind as Kind, row.raw_url, row.url, e, opts)
+  let tryList = buildTryList(row.kind as Kind, row.raw_url, row.url, e, opts)
+  // discord urls need a fresh signature or they 404
+  tryList = await Promise.all(tryList.map(async (u) => (u.match(/discordapp\.(com|net)\/attachments/) ? (await signDiscord(u)) || u : u)))
   const [primary, ...rest] = tryList
 
   if (!primary) {
@@ -109,7 +111,7 @@ export async function runPool(db: DatabaseSync, dataDir: string, concurrency: nu
   const storeDir = path.join(dataDir, 'store')
   const e = env()
   reclaimStuck(db)
-  await refreshDiscordUrls(db)
+  initDiscord(db)
   db.prepare(
     `UPDATE parcels SET done = 1 WHERE done = 0 AND id NOT IN (
       SELECT DISTINCT parcel_id FROM assets WHERE status NOT IN ('done','failed','skip')
