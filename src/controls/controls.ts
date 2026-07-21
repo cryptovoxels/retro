@@ -128,6 +128,7 @@ export default abstract class Controls implements IControls {
   private vehicleWasFirstPerson = true
   private vehicleFlyingRestore: boolean | null = null
   private vehicleLastStateAt = 0
+  private vehicleNearbyAt = 0
   private vehicleHintEl: HTMLDivElement | null = null
   vehicleNearby: import('../features/vox-model').Megavox | null = null
   /** mobile / shared: -1..1 forward and turn while driving */
@@ -733,7 +734,8 @@ export default abstract class Controls implements IControls {
   findNearbyDriveable(): import('../features/vox-model').Megavox | null {
     const grid = this.grid
     if (!grid) return null
-    const me = this.persona.position
+    // persona is world/grid; absolutePosition is scene-absolute (includes worldOffset)
+    const me = this.persona.position.add(this.worldOffset.position)
     let best: import('../features/vox-model').Megavox | null = null
     let bestD = 4 * 4
     const parcels = this.grid.parcels
@@ -862,14 +864,18 @@ export default abstract class Controls implements IControls {
   private updateVehicle() {
     // proximity hint when not driving
     if (!this.vehicleFeature) {
-      const near = this.findNearbyDriveable()
-      this.vehicleNearby = near
+      const now = Date.now()
+      if (now - this.vehicleNearbyAt > 250) {
+        this.vehicleNearbyAt = now
+        this.vehicleNearby = this.findNearbyDriveable()
+        this.refreshMobileDriveChrome?.()
+      }
+      const near = this.vehicleNearby
       if (near && !near.driverUuid) {
         this.setVehicleHint(isMobile() ? null : 'E drive')
       } else {
         this.setVehicleHint(null)
       }
-      this.refreshMobileDriveChrome?.()
       return
     }
 
