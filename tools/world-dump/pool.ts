@@ -57,7 +57,7 @@ function reclaimStuck(db: DatabaseSync): void {
   db.prepare(`UPDATE assets SET status = 'pending' WHERE status = 'fetching'`).run()
 }
 
-async function processOne(db: DatabaseSync, storeDir: string, dataDir: string, row: AssetRow, e: Env): Promise<void> {
+async function processOne(db: DatabaseSync, storeDir: string, dataDir: string, row: AssetRow, e: Env): Promise<'done' | 'failed' | 'skip'> {
   const isValid = validatorFor(row.kind as Kind)
 
   // lazy url dedupe — only reuse if blob on disk still passes validator
@@ -69,7 +69,7 @@ async function processOne(db: DatabaseSync, storeDir: string, dataDir: string, r
       db.prepare(`UPDATE assets SET status = 'done', hash = ?, error = NULL, updated_at = datetime('now') WHERE id = ?`).run(prior.hash, row.id)
       rewriteParcelAsset(db, row.parcel_id, row.field, prior.hash)
       markParcelDoneIfReady(db, row.parcel_id)
-      return
+      return 'done'
     }
   }
 
@@ -83,7 +83,7 @@ async function processOne(db: DatabaseSync, storeDir: string, dataDir: string, r
     // empty try list = page URL / nothing to fetch -> skip
     db.prepare(`UPDATE assets SET status = 'skip', error = NULL, updated_at = datetime('now') WHERE id = ?`).run(row.id)
     markParcelDoneIfReady(db, row.parcel_id)
-    return
+    return 'skip'
   }
 
   try {
@@ -91,6 +91,7 @@ async function processOne(db: DatabaseSync, storeDir: string, dataDir: string, r
     db.prepare(`UPDATE assets SET status = 'done', hash = ?, error = NULL, updated_at = datetime('now') WHERE id = ?`).run(result.hash, row.id)
     rewriteParcelAsset(db, row.parcel_id, row.field, result.hash)
     markParcelDoneIfReady(db, row.parcel_id)
+    return 'done'
   } catch (err: any) {
     const tried = err?.tried || [{ url: primary, error: err?.message || String(err) }]
     const errMsg = tried.map((t: any) => `${t.url} -> ${t.error}`).join('; ')
@@ -104,6 +105,7 @@ async function processOne(db: DatabaseSync, storeDir: string, dataDir: string, r
       tried,
     })
     markParcelDoneIfReady(db, row.parcel_id)
+    return 'failed'
   }
 }
 
@@ -118,22 +120,27 @@ export async function runPool(db: DatabaseSync, dataDir: string, concurrency: nu
     )`,
   ).run()
 
+  // in-memory counters: the old per-completion SUM() over 500k rows was a
+  // synchronous full table scan that blocked the event loop and serialized everything
+  const start = db
+    .prepare(
+      `SELECT
+        SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as done,
+        SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) as failed
+      FROM assets`,
+    )
+    .get() as any
+  let pending = start.pending || 0
+  let done = start.done || 0
+  let failed = start.failed || 0
   let active = 0
   let stop = false
 
   const tick = () => {
-    const stats = db
-      .prepare(
-        `SELECT
-          SUM(CASE WHEN status='pending' THEN 1 ELSE 0 END) as pending,
-          SUM(CASE WHEN status='done' THEN 1 ELSE 0 END) as done,
-          SUM(CASE WHEN status='failed' THEN 1 ELSE 0 END) as failed,
-          SUM(CASE WHEN status='fetching' THEN 1 ELSE 0 END) as fetching
-        FROM assets`,
-      )
-      .get() as any
-    process.stdout.write(`\rpending=${stats.pending || 0} fetching=${active} done=${stats.done || 0} failed=${stats.failed || 0}   `)
+    process.stdout.write(`\rpending=${pending} fetching=${active} done=${done} failed=${failed}   `)
   }
+  const timer = setInterval(tick, 1000)
 
   await new Promise<void>((resolve) => {
     const pump = () => {
@@ -143,16 +150,23 @@ export async function runPool(db: DatabaseSync, dataDir: string, concurrency: nu
         if (!row) {
           if (active === 0) {
             stop = true
+            clearInterval(timer)
             console.log('\nrun complete')
             resolve()
             return
           }
           break
         }
+        pending--
         active++
         processOne(db, storeDir, dataDir, row, e)
+          .then((r) => {
+            if (r === 'done') done++
+            else if (r === 'failed') failed++
+          })
           .catch((err) => {
             console.error('\nworker error', err)
+            pending++
             try {
               db.prepare(`UPDATE assets SET status = 'pending', updated_at = datetime('now') WHERE id = ? AND status = 'fetching'`).run(row.id)
             } catch {
@@ -161,11 +175,9 @@ export async function runPool(db: DatabaseSync, dataDir: string, concurrency: nu
           })
           .finally(() => {
             active--
-            tick()
             pump()
           })
       }
-      tick()
     }
     pump()
   })
