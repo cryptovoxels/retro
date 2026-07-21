@@ -50,3 +50,5 @@ db/import.sql
 world.db
 parcels.ndjson
 dist/world-dump.mjs
+world.db-shm
+world.db-wal

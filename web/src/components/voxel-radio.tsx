@@ -20,14 +20,14 @@ function loadPanel(key: string, def: PanelMode): PanelMode {
     const v = localStorage.getItem(`radio.panel.${key}`)
     if (v === 'open' || v === 'closed') return v
     if (v === 'shade') return 'open'
-  } catch { }
+  } catch {}
   return def
 }
 
 function savePanel(key: string, mode: PanelMode) {
   try {
     localStorage.setItem(`radio.panel.${key}`, mode)
-  } catch { }
+  } catch {}
 }
 
 const R = 13
