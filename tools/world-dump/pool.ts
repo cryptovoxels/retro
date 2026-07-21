@@ -7,6 +7,7 @@ import { rewriteParcelAsset, markParcelDoneIfReady, buildTryList } from './rewri
 import { appendFailure } from './failures'
 import { Kind, env, Env } from './resolve'
 import { validatorFor } from './validate'
+import { refreshDiscordUrls } from './discord'
 
 function optsFromParcel(db: DatabaseSync, parcelId: number, field: string): { transparent?: boolean; stretch?: boolean; assetUrl?: string | null } {
   const row = db.prepare('SELECT content FROM parcels WHERE id = ?').get(parcelId) as { content: string } | undefined
@@ -31,7 +32,10 @@ function optsFromParcel(db: DatabaseSync, parcelId: number, field: string): { tr
 function claimAsset(db: DatabaseSync): AssetRow | null {
   db.exec('BEGIN IMMEDIATE')
   try {
-    const row = db.prepare(`SELECT id, parcel_id, field, kind, raw_url, url, hash, status, error, tries FROM assets WHERE status = 'pending' ORDER BY id LIMIT 1`).get() as AssetRow | undefined
+    // random offset so 2000 discord urls in a row don't hog every worker
+    const off = (Math.random() * 5000) | 0
+    const claim = db.prepare(`SELECT id, parcel_id, field, kind, raw_url, url, hash, status, error, tries FROM assets WHERE status = 'pending' ORDER BY id LIMIT 1 OFFSET ?`)
+    const row = (claim.get(off) || claim.get(0)) as AssetRow | undefined
     if (!row) {
       db.exec('COMMIT')
       return null
@@ -105,6 +109,7 @@ export async function runPool(db: DatabaseSync, dataDir: string, concurrency: nu
   const storeDir = path.join(dataDir, 'store')
   const e = env()
   reclaimStuck(db)
+  await refreshDiscordUrls(db)
   db.prepare(
     `UPDATE parcels SET done = 1 WHERE done = 0 AND id NOT IN (
       SELECT DISTINCT parcel_id FROM assets WHERE status NOT IN ('done','failed','skip')
