@@ -30,15 +30,8 @@ export function patchField(parcel: any, field: string, value: string): void {
   }
 }
 
-export function rewriteParcelAsset(
-  db: DatabaseSync,
-  parcelId: number,
-  field: string,
-  hash: string,
-): void {
-  const row = db.prepare('SELECT lightmap_url, content FROM parcels WHERE id = ?').get(parcelId) as
-    | { lightmap_url: string | null; content: string }
-    | undefined
+export function rewriteParcelAsset(db: DatabaseSync, parcelId: number, field: string, hash: string): void {
+  const row = db.prepare('SELECT lightmap_url, content FROM parcels WHERE id = ?').get(parcelId) as { lightmap_url: string | null; content: string } | undefined
   if (!row) return
 
   const parcel: any = {
@@ -56,20 +49,12 @@ export function rewriteParcelAsset(
 }
 
 export function markParcelDoneIfReady(db: DatabaseSync, parcelId: number): void {
-  const pending = db
-    .prepare(`SELECT COUNT(*) as c FROM assets WHERE parcel_id = ? AND status NOT IN ('done','failed','skip')`)
-    .get(parcelId) as { c: number }
+  const pending = db.prepare(`SELECT COUNT(*) as c FROM assets WHERE parcel_id = ? AND status NOT IN ('done','failed','skip')`).get(parcelId) as { c: number }
   if (pending.c === 0) {
     db.prepare('UPDATE parcels SET done = 1 WHERE id = ?').run(parcelId)
   }
 }
 
-export function buildTryList(
-  kind: Kind,
-  rawUrl: string,
-  primaryUrl: string,
-  e: Env = env(),
-  opts: ResolveOpts = {},
-): string[] {
+export function buildTryList(kind: Kind, rawUrl: string, primaryUrl: string, e: Env = env(), opts: ResolveOpts = {}): string[] {
   return buildTryUrls(kind, rawUrl || primaryUrl, e, opts)
 }

@@ -30,11 +30,7 @@ export function readBlobHead(filePath: string, n = 64): Buffer {
   }
 }
 
-async function fetchOne(
-  url: string,
-  storeDir: string,
-  isValid: Validator,
-): Promise<{ hash: string; path: string; bytes: number; ext: string }> {
+async function fetchOne(url: string, storeDir: string, isValid: Validator): Promise<{ hash: string; path: string; bytes: number; ext: string }> {
   const timeout = AbortSignal.timeout(parseInt(process.env.FETCH_TIMEOUT_MS || '30000', 10))
   const res = await fetch(url, {
     method: 'GET',
@@ -105,12 +101,7 @@ async function fetchOne(
 }
 
 /** Try primary url then fallbacks. Only writes to CAS if isValid(head) passes. */
-export async function download(
-  url: string,
-  fallbacks: string[],
-  isValid: Validator,
-  storeDir: string,
-): Promise<{ hash: string; path: string; bytes: number; ext: string; tried: { url: string; error: string }[] }> {
+export async function download(url: string, fallbacks: string[], isValid: Validator, storeDir: string): Promise<{ hash: string; path: string; bytes: number; ext: string; tried: { url: string; error: string }[] }> {
   const urls = [url, ...fallbacks].filter(Boolean)
   const tried: { url: string; error: string }[] = []
   const retries = parseInt(process.env.RETRIES || '2', 10) || 2

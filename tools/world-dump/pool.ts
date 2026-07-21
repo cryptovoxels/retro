@@ -31,9 +31,7 @@ function optsFromParcel(db: DatabaseSync, parcelId: number, field: string): { tr
 function claimAsset(db: DatabaseSync): AssetRow | null {
   db.exec('BEGIN IMMEDIATE')
   try {
-    const row = db
-      .prepare(`SELECT id, parcel_id, field, kind, raw_url, url, hash, status, error, tries FROM assets WHERE status = 'pending' ORDER BY id LIMIT 1`)
-      .get() as AssetRow | undefined
+    const row = db.prepare(`SELECT id, parcel_id, field, kind, raw_url, url, hash, status, error, tries FROM assets WHERE status = 'pending' ORDER BY id LIMIT 1`).get() as AssetRow | undefined
     if (!row) {
       db.exec('COMMIT')
       return null
@@ -59,9 +57,7 @@ async function processOne(db: DatabaseSync, storeDir: string, dataDir: string, r
   const isValid = validatorFor(row.kind as Kind)
 
   // lazy url dedupe — only reuse if blob on disk still passes validator
-  const prior = db
-    .prepare(`SELECT hash FROM assets WHERE url = ? AND status = 'done' AND hash IS NOT NULL LIMIT 1`)
-    .get(row.url) as { hash: string } | undefined
+  const prior = db.prepare(`SELECT hash FROM assets WHERE url = ? AND status = 'done' AND hash IS NOT NULL LIMIT 1`).get(row.url) as { hash: string } | undefined
 
   if (prior?.hash) {
     const existing = findExistingBlob(storeDir, prior.hash)

@@ -33,12 +33,7 @@ export function ipfsMirrors(url: string): string[] {
   const cid = m[1]
   const rest = m[2] || ''
   const path = `/ipfs/${cid}${rest}`
-  return [
-    `https://ipfs.io${path}`,
-    `https://cloudflare-ipfs.com${path}`,
-    `https://dweb.link${path}`,
-    `https://gateway.pinata.cloud${path}`,
-  ]
+  return [`https://ipfs.io${path}`, `https://cloudflare-ipfs.com${path}`, `https://dweb.link${path}`, `https://gateway.pinata.cloud${path}`]
 }
 
 /** cdn.discordapp.com <-> media.discordapp.net */
