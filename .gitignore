@@ -15,6 +15,7 @@ render/costumes/*
 .env*
 !.env.example
 .build
+tools/world-dump/tmp/
 **/report.html
 dist/bakes
 dist/music/unclean
@@ -46,3 +47,6 @@ scripting/meta.json
 *.rdb
 dump.rdb
 db/import.sql
+world.db
+parcels.ndjson
+dist/world-dump.mjs

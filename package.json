@@ -68,7 +68,9 @@
     "multiplayer:start": "tsx multiplayer/src/index.ts",
     "compressor:dev": "tsx --watch compressor/src/index.ts",
     "compressor:start": "tsx compressor/src/index.ts",
-    "compressor:test": "vitest run --project compressor"
+    "compressor:test": "vitest run --project compressor",
+    "world-dump:build": "node tools/world-dump/build.mjs",
+    "world-dump": "node --experimental-sqlite dist/world-dump.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.472.0",
