@@ -302,7 +302,7 @@ function CreateMeshAtPositionWindow({ resolveAndClose, rejectAndClose }: { resol
   }
 
   return (
-    <div className="OverlayWindow -small-width -auto-height">
+    <dialog className="-small-width -auto-height">
       <h2>Create Sphere at position</h2>
       <label>Enter x,y,z numbers separated by commas; eg. '3,0,5.2`</label>
       <input name="" value={stringValue} onInput={(e) => setStringValue(e.currentTarget.value)} />
@@ -314,7 +314,7 @@ function CreateMeshAtPositionWindow({ resolveAndClose, rejectAndClose }: { resol
       </select>
       <button onClick={() => parseAndSetPosition()}>Submit</button>
       <button onClick={() => rejectAndClose()}>Cancel</button>
-    </div>
+    </dialog>
   )
 }
 

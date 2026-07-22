@@ -139,7 +139,7 @@ export class NFTGatingSettingsWindow extends Component<Props, State> {
       return <TokenToEnterView key={t.hash} onSubmit={this.saveNewToken} onRemoveToken={this.onRemoveToken} hash={t.hash} address={t.address} tokenId={t.tokenId} chain={t.chain} type={t.type} />
     })
     return (
-      <div className={`OverlayWindow -auto-height -fixed`}>
+      <dialog className={`-auto-height -fixed`}>
         <header>
           <h3>Limit entry to NFT holders.</h3>
           <button onClick={this.props.onClose}>&times;</button>
@@ -159,7 +159,7 @@ export class NFTGatingSettingsWindow extends Component<Props, State> {
             </div>
           )}
         </section>
-      </div>
+      </dialog>
     )
   }
 }

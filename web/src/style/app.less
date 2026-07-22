@@ -1,13 +1,16 @@
 /* one stylesheet: web + in-world, client rules last in source order */
 
 // --- tokens ---
-@mobile: ~'only screen and (max-width: 800px)';
-@tiny: ~'only screen and (max-width: 500px)';
-@tablet: ~'only screen and (min-width: 500px) and (max-width: 800px)';
-@desktop: ~'only screen and (min-width: 800px) and (min-height: 450px)';
+@narrow: ~'(max-width: 50em)';   // ~800px
+@wide:   ~'(min-width: 50em)';
+@dark:   ~'(prefers-color-scheme: dark)';
+
 @dark: ~'prefers-color-scheme: dark';
-@pc: ~'only screen and (min-width: 800px)';
 @multiplier: 0.5;
+
+// vars
+@hexsize: 3.2rem;
+
 
 :root {
   --gap: 0.2rem;
@@ -502,8 +505,6 @@ select {
   }
 }
 
-@pc: ~'only screen and (min-width: 800px)';
-
 .wrap-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
@@ -525,7 +526,7 @@ img {
   max-width: 100%;
 }
 
-@media @mobile {
+@media @narrow {
   .wrap-grid {
     grid-template-columns: repeat(auto-fill, minmax(40vw, 1fr));
   }
@@ -679,7 +680,7 @@ header nav img.logo {
   margin: 2px;
 }
 
-@media @mobile {
+@media @narrow {
   header nav {
     position: relative;
 
@@ -757,10 +758,6 @@ header nav img.logo {
   }
 }
 
-@media @pc {
-  display: flex !important;
-}
-
 main {
   max-width: 2000px;
   margin: 0 auto;
@@ -811,7 +808,7 @@ button.hamburger {
   }
 }
 
-@media @mobile {
+@media @narrow {
   article {
     background: none;
     padding: 0;
@@ -897,7 +894,7 @@ button.hamburger {
   }
 }
 
-@media @mobile {
+@media @narrow {
   .live-streams li {
     flex: 0 0 min(75vw, 14rem);
   }
@@ -915,7 +912,7 @@ div.map {
   outline: none;
   inset: 0;
 
-  @media @mobile {
+  @media @narrow {
     width: 100%;
     height: calc(85dvh - var(--chatbar));
   }
@@ -923,116 +920,6 @@ div.map {
 
 .shortie iframe {
   height: 60vh;
-}
-
-// ?coords= in URL: canvas in main > article, web/panes in main > aside
-body.in-world main {
-  display: grid;
-  grid-template-columns: 1fr clamp(18rem, 30%, 32rem);
-  grid-template-rows: auto 1fr;
-  grid-template-areas:
-    'header header'
-    'canvas sidebar';
-  height: 100vh;
-  overflow: hidden;
-  max-width: none;
-
-  >header {
-    grid-area: header;
-  }
-
-  >article {
-    grid-area: canvas;
-    position: relative;
-    min-height: 0;
-    min-width: 0;
-  }
-
-  >aside {
-    grid-area: sidebar;
-    overflow-y: auto;
-    min-height: 0;
-    min-width: 0;
-    padding: 1rem;
-    position: relative;
-
-    .sidebar-close {
-      position: absolute;
-      top: 0.5rem;
-      right: 0.5rem;
-      z-index: 3;
-      cursor: pointer;
-      background: none;
-      border: none;
-      color: inherit;
-    }
-
-    &>div {
-      background: var(--surface-2);
-    }
-
-    a {
-      color: var(--red);
-      text-decoration: underline;
-    }
-
-    dl {
-      dt {
-        font-weight: bold;
-        margin-top: 0.5rem;
-      }
-
-      dd {
-        margin: 0 0 0.5rem 0;
-      }
-    }
-
-    img.womp {
-      max-width: 100%;
-      margin: 1rem 0;
-    }
-
-    .sidebar-tabs {
-      display: flex;
-      gap: 1rem;
-      margin: 0 0 1rem 0;
-      padding: 0;
-      list-style: none;
-
-      li {
-        cursor: pointer;
-        text-transform: lowercase;
-
-        &.-active {
-          font-weight: bold;
-          color: var(--red);
-        }
-      }
-    }
-
-    .parcel-sidebar-map {
-      height: 14rem;
-      width: 100%;
-    }
-
-    .parcels-table tr.-selected {
-      font-weight: bold;
-      color: var(--red);
-    }
-  }
-}
-
-// sidebar closed: world fills the whole viewport (aside stays mounted, just hidden,
-// so the children Router and any open pane keep their state)
-body.in-world.sidebar-closed main {
-  grid-template-columns: 1fr;
-  grid-template-areas:
-    'header'
-    'canvas';
-
-  >aside {
-    display: none;
-  }
 }
 
 .sidebar-view {
@@ -1334,7 +1221,7 @@ figcaption {
 
 // Mode buttons show full words on desktop, single letters on mobile
 
-@media @mobile {}
+@media @narrow {}
 
 // Definition list
 
@@ -2322,19 +2209,6 @@ table.spaces {
   }
 }
 
-/*
- * Client-only (in-world) styles. Single file, showbox skin.
- * Merged from the old per-component imports; dead web-header + NFT-notification
- * styles were dropped. See old-client.less for the original pile.
- */
-
-@mobile: ~'only screen and (max-width: 800px)';
-@tiny: ~'only screen and (max-width: 500px)';
-@tablet: ~'only screen and (min-width: 500px) and (max-width: 800px)';
-@desktop: ~'only screen and (min-width: 800px) and (min-height: 450px)';
-@dark: ~'prefers-color-scheme: dark';
-
-@multiplier: 0.5;
 
 /* The switch - the box around the slider */
 
@@ -2556,22 +2430,6 @@ dl.deets {
   }
 }
 
-// Mint a name window
-
-.OverlayWindow.-wearable-transfer {
-  max-width: 28rem;
-}
-
-// vars
-@hexsize: 3.2rem;
-@moderator: #7684ff;
-@builder: #ffef76;
-@TabActiveColor: #777;
-@overlayWindowBackground: var(--bg);
-@overlayWindowBorderColor: var(--line);
-@overlayWindowTextColor: var(--fg);
-@overlayWindowInputColor: var(--fg);
-
 // The in-world skin only applies under body.in-world (toggled by Client.adopt/unmount),
 // so client.less's global resets stop bleeding onto web pages.
 body.in-world {
@@ -2705,7 +2563,7 @@ body.in-world main>aside section {
 
 // Mobile: chat is a full-width bar pinned to the bottom of the screen.
 // Messages float above the input over the canvas; the canvas is shrunk by --chatbar.
-@media @mobile {
+@media @narrow {
   .UserInterface div.chat {
     margin: 0;
     padding: 0;
@@ -3218,12 +3076,6 @@ body.in-world main>aside section.settings,
     }
   }
 
-  section.explorer[data-tab='map'] {
-    @media @desktop {
-      width: 800px;
-    }
-  }
-
   dl.props {
     dt {
       font-weight: normal;
@@ -3353,7 +3205,6 @@ section.build-tab nav.build-main-tabs {
 
     &[data-active='true'] {
       color: var(--fg);
-      border-bottom: 2px solid @TabActiveColor;
     }
   }
 }
@@ -3547,16 +3398,6 @@ section.build-tab nav.build-main-tabs {
     img {
       width: 40px;
       height: 40px;
-
-      @media @desktop {
-        width: 55px;
-        height: 55px;
-
-        &:hover {
-          transform: scale(1.5);
-          transition: all 0.2s ease-in-out;
-        }
-      }
     }
 
     p {
@@ -4447,12 +4288,6 @@ form.PermissionsRadioSelector>div {
 
     table {
 
-      tr.-moderatorOnly th,
-      tr.-moderatorOnly td,
-      tr.-moderatorOnly td a {
-        color: @moderator;
-      }
-
       th,
       td {
         text-align: left;
@@ -4468,15 +4303,6 @@ form.PermissionsRadioSelector>div {
       margin: 10px 0;
     }
 
-    &.-moderator h4 {
-      color: @moderator;
-    }
-
-    &.-builder h4 {
-      color: @builder;
-    }
-
-    button {}
   }
 }
 
@@ -4641,11 +4467,11 @@ div.mobile-buttons {
 }
 
 /* Overlay windows (admin / nft / take-womp etc) */
-.OverlayWindow {
-  background: @overlayWindowBackground;
-  color: @overlayWindowTextColor;
+dialog {
+  background: var(--semi);
   border: none;
-  position: absolute;
+  display: block;
+  position: fixed;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
@@ -4655,7 +4481,7 @@ div.mobile-buttons {
   padding: 1rem;
   z-index: 12000;
 
-  @media @mobile {
+  @media @narrow {
     width: 80vw;
     height: 95vh;
   }
@@ -4673,17 +4499,7 @@ div.mobile-buttons {
     font-weight: bold;
     white-space: nowrap;
     text-overflow: ellipsis;
-  }
-
-  input,
-  button,
-  select,
-  textarea {
-    color: @overlayWindowInputColor;
-
-    &:disabled {
-      color: var(--disabled);
-    }
+    font-size: 1.2rem;
   }
 
   .close {
@@ -4702,7 +4518,7 @@ div.mobile-buttons {
   &.-auto-height {
     height: fit-content;
 
-    @media @mobile {
+    @media @narrow {
       height: 90%;
     }
   }
@@ -4725,20 +4541,23 @@ div.mobile-buttons {
 }
 
 .nft-view {
-  max-height: ~'calc(100vh - 3rem)';
-  max-width: ~'calc(100vw - 3rem)';
+  max-height: 50vh;
+  max-width: 50vw;
   box-sizing: border-box;
-  background: var(--bg);
 
   h1 a {
     text-decoration: none;
     color: var(--fg);
   }
 
+  div.center{
+    text-align: center;
+  }
   img,
   video {
-    display: block;
-    height: ~'calc(100vh - 20rem)';
+    // display: block;
+    // height: ~'calc(100vh - 20rem)';
+    width: 100%;
     object-fit: contain;
   }
 
@@ -4805,7 +4624,7 @@ div.mobile-buttons {
   max-width: 45vw;
   box-sizing: border-box;
 
-  @media @mobile {
+  @media @narrow {
     max-width: unset;
     width: 95%;
   }
@@ -4847,7 +4666,7 @@ div.location a.address {
     text-decoration: none;
   }
 
-  @media @mobile {
+  @media @narrow {
     font-size: 32px;
     letter-spacing: 0;
     text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.8);

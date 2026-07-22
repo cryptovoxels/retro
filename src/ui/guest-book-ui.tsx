@@ -138,7 +138,7 @@ export class GuestBookUi extends Component<Props, State> {
 
   render() {
     return (
-      <div className="OverlayWindow -auto-height -small-width">
+      <dialog className="-auto-height -small-width">
         <header>
           <h3>{this.parcelName}: Guest book</h3>
           <button className="close" onClick={this.props.onClose}>
@@ -166,7 +166,7 @@ export class GuestBookUi extends Component<Props, State> {
           </div>
           <Signers wallets={this.wallets} currentParcel={this.currentParcel} cleanBook={this.cleanBook} scene={this.props.scene} />
         </section>
-      </div>
+      </dialog>
     )
   }
 }

@@ -58,11 +58,6 @@ export function NftImageHTMLUi({ asset, onClose, feature }: Props) {
   }, [])
 
   useEffect(() => {
-    addInspectToURL(feature.uuid)
-    return removeInspectFromURL
-  }, [])
-
-  useEffect(() => {
     if (assetHelper.isAnimated) {
       assetHelper.getTypeOfContent().then(setType)
     }
@@ -89,7 +84,7 @@ export function NftImageHTMLUi({ asset, onClose, feature }: Props) {
   }
 
   return (
-    <div class="nft-modal">
+    <>
       <button class="close" onClick={onClose}>
         &times;
       </button>
@@ -98,29 +93,14 @@ export function NftImageHTMLUi({ asset, onClose, feature }: Props) {
           {assetHelper.getName}
         </a>
       </h1>
-      <br />
 
-      {content()}
+      <div class="center">{content()}</div>
       <p class="nft-description">{assetHelper.description}</p>
-    </div>
+    </>
   )
 }
 
-function addInspectToURL(uuid: string) {
-  const queryParams = new URLSearchParams(document.location.search.substring(1))
-  queryParams.set('inspect', uuid)
-  const url = '/play?' + queryParams.toString().replace('%40', '@').replace(/%2C/g, ',')
-  history.replaceState({}, 'Voxels', url)
-}
-
-function removeInspectFromURL() {
-  const queryParams = new URLSearchParams(document.location.search.substring(1))
-  queryParams.delete('inspect')
-  const url = '/play?' + queryParams.toString().replace('%40', '@').replace(/%2C/g, ',')
-  history.replaceState({}, 'Voxels', url)
-}
-
-let node: null | HTMLDivElement = null
+let node: any = null
 
 export default function showNftImageHTMLUi(feature: NftImage) {
   const asset = feature.asset
@@ -133,8 +113,8 @@ export default function showNftImageHTMLUi(feature: NftImage) {
     node = null
   }
 
-  const div = document.createElement('div')
-  div.className = 'pointer-lock-close OverlayWindow nft-view'
+  const div = document.createElement('dialog')
+  div.className = 'pointer-lock-close nft-view'
   document.body.appendChild(div)
   node = div
 

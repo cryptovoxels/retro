@@ -387,13 +387,13 @@ async function main() {
 
   if (wantsXR()) return ui
 
-  isInspect() && toggleBabylonInspector(scene).then(/** ignore promise */)
-  // also toggle the inspector on Shift + CTRL + Meta + I
-  window.addEventListener('keydown', (ev) => {
-    if (ev.shiftKey && ev.ctrlKey && ev.metaKey && ev.code === 'KeyI') {
-      toggleBabylonInspector(scene)
-    }
-  })
+  // isInspect() && toggleBabylonInspector(scene).then(/** ignore promise */)
+  // // also toggle the inspector on Shift + CTRL + Meta + I
+  // window.addEventListener('keydown', (ev) => {
+  //   if (ev.shiftKey && ev.ctrlKey && ev.metaKey && ev.code === 'KeyI') {
+  //     toggleBabylonInspector(scene)
+  //   }
+  // })
 
   return ui
 

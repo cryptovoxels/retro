@@ -2,6 +2,7 @@ import { render } from 'preact'
 import { unmountComponentAtNode } from 'preact/compat'
 import { exitPointerLock, requestPointerLockIfNoOverlays } from '../../common/helpers/ui-helpers'
 import { isURL } from '../utils/helpers'
+import { truncate } from '../../web/src/lib/string-utils'
 
 function isExternal(url: string) {
   if (!isURL(url)) {
@@ -12,8 +13,8 @@ function isExternal(url: string) {
 }
 
 export default function (url: string) {
-  const div = document.createElement('div')
-  div.className = 'open-link pointer-lock-close OverlayWindow'
+  const div = document.createElement('dialog')
+  div.className = 'open-link pointer-lock-close'
   document.body.appendChild(div)
 
   const target = !isExternal(url) ? '_self' : '_blank'
@@ -42,16 +43,9 @@ export default function (url: string) {
         </a>
       </h3>
       <br />
-      {isExternal(url) && (
-        <p>
-          <iframe src={url} sandbox="allow-same-origin allow-scripts" referrerpolicy="no-referrer" loading="lazy" width="100%" height="600" style="border: none;"></iframe>
-          <br />
-          <small>Voxels is not responsible for the information, content or products found on third party websites. </small>
-        </p>
-      )}
       Link:{' '}
       <a style={{ fontSize: 'small', fontStyle: 'italic' }} href={url} target={target}>
-        <small>{url}</small>
+        <small>{truncate(url, 32)}</small>
       </a>
     </div>,
     div,

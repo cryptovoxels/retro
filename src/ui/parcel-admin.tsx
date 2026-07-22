@@ -24,7 +24,7 @@ export class ParcelAdminOverlay extends Component<Props> {
   render() {
     const p = this.props.parcel
     return (
-      <div className="OverlayWindow -auto-height ParcelAdminWindow">
+      <dialog className="-auto-height ParcelAdminWindow">
         <header>
           <h3>Parcel Admin</h3>
         </header>
@@ -51,7 +51,7 @@ export class ParcelAdminOverlay extends Component<Props> {
             </div>
           </div>
         </section>
-      </div>
+      </dialog>
     )
   }
 }

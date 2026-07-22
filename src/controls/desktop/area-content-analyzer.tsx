@@ -178,7 +178,7 @@ export class AreaContentAnalyzer extends Component<Props, State> {
     })
 
     return (
-      <div className="OverlayWindow -resizable">
+      <dialog className="-resizable">
         <header>
           <h3>📊 Area Content Analyzer</h3>
           <p className="subtitle">
@@ -282,7 +282,7 @@ export class AreaContentAnalyzer extends Component<Props, State> {
             </div>
           </div>
         </section>
-      </div>
+      </dialog>
     )
   }
 }

@@ -110,7 +110,7 @@ export class CollectibleHTMLUi extends HTMLUi<Props, State> {
 
   render() {
     return (
-      <div className={`OverlayWindow -nft-view`}>
+      <dialog class="nft-view">
         <header>
           <h3>{this.name}</h3>
           <button className="close" onClick={() => this.close()}>
@@ -174,7 +174,7 @@ export class CollectibleHTMLUi extends HTMLUi<Props, State> {
             </div>
           </div>
         </section>
-      </div>
+      </dialog>
     )
   }
 }

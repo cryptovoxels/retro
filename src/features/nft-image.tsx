@@ -311,12 +311,6 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     this.assetHelper = new OpenseaAssetHelper(data)
     this.forceUpdate = false
 
-    if (queryParams.get('inspect') == this.uuid) {
-      setTimeout(() => {
-        this.onClick()
-      }, 100)
-    }
-
     return this.assetHelper.getImage
   }
 
