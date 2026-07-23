@@ -46,6 +46,13 @@ export default class MobileControls extends Controls {
       this.walking()
     })
 
+    this.scene.onPointerObservable.add((info) => {
+      if (!this.idleLook.active) return
+      if (info.type !== BABYLON.PointerEventTypes.POINTERMOVE) return
+      const e = info.event as PointerEvent
+      if (e.movementX || e.movementY) this.idleLook.stop()
+    })
+
     // by now the UX buttons for the mobile should be in the DOM so we can grab them
     this.scene.onAfterRenderObservable.addOnce(() => {
       this.btnCameraView = document.querySelector('.mobile-controls-container > .camera-view-button')
@@ -102,6 +109,7 @@ export default class MobileControls extends Controls {
     }
 
     if (this.direction) {
+      if (this.direction.lengthSquared() > 1e-6) this.idleLook.stop()
       camera._localDirection.copyFrom(this.direction)
     }
 

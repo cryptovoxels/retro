@@ -84,10 +84,12 @@ export default class DesktopControls extends Controls {
 
     const mouse = cam.inputs.attached['mouse'] as BABYLON.FreeCameraMouseInput | undefined
     if (locked) {
+      this.idleLook.abort()
       mouse?.attachControl(true)
     } else {
       mouse?.detachControl()
       this.resetControls()
+      this.idleLook.start()
     }
   }
 
@@ -225,6 +227,9 @@ export default class DesktopControls extends Controls {
 
       this.shiftKey = e.shiftKey
       this.ctrlKey = e.ctrlKey || e.metaKey
+
+      const moveKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'PageUp', 'PageDown', 'KeyV']
+      if (moveKeys.includes(e.code)) this.idleLook.stop()
 
       const congaCancelKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
       if (this.congaTarget && congaCancelKeys.includes(e.code)) {

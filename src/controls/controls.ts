@@ -13,6 +13,7 @@ import type { Environment } from '../enviroments/environment'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
 import { IControls } from './iControls'
 import { Animations } from '../avatar-animations'
+import { IdleLook } from './idle-look'
 
 export const CAMERA_DISTANCE = isMobile() ? 2.5 : 1.5
 export const MIN_CAMERA_DISTANCE = 0.5
@@ -137,6 +138,7 @@ export default abstract class Controls implements IControls {
   MAX_PICK_DISTANCE = 20
   gravityDisabledOverride: boolean | null = null
   audioContext: AudioContext = undefined!
+  idleLook: IdleLook
   private cameraZoomed = false
   // For gravity gating. See refreshGravity().
   private _containingParcelsWaitState: 'ready' | 'waiting-for-parcel-list' | 'waiting-for-colliders' = 'ready'
@@ -147,6 +149,7 @@ export default abstract class Controls implements IControls {
     protected canvas: HTMLCanvasElement,
   ) {
     this.user = window.user
+    this.idleLook = new IdleLook(this, this.scene)
 
     this.worldOffset = new BABYLON.TransformNode('avatar/worldOffset', this.scene)
 
@@ -183,6 +186,9 @@ export default abstract class Controls implements IControls {
     this.scene.onBeforeRenderObservable.add(() => {
       if (this.initialCameraPos) {
         console.warn('this.initialCameraPos already set in onBeforeRenderObservable(). suspected logic error')
+      }
+      if (this.idleLook.active) {
+        this.idleLook.tick(this.scene.getEngine().getDeltaTime() / 1000)
       }
       this.updateConga()
       this.updateVehicle()
