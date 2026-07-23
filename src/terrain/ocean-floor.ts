@@ -11,13 +11,13 @@ export default class OceanFloor implements ChunkObserver {
     this.size = size
     this.halfSize = size * 0.5
 
-    const oceanFloorTexture = new BABYLON.Texture(process.env.ASSET_PATH + '/textures/sand.jpg?voxelscom', scene)
-    oceanFloorTexture.uScale = this.size / 12
-    oceanFloorTexture.vScale = this.size / 12
+    const oceanFloorTexture = new BABYLON.Texture(process.env.ASSET_PATH + '/textures/subgrid.png', scene)
+    oceanFloorTexture.uScale = this.size
+    oceanFloorTexture.vScale = this.size
 
     const oceanFloorMaterial = new BABYLON.StandardMaterial('skybox/ocean-floor', scene)
     oceanFloorMaterial.ambientTexture = oceanFloorTexture
-    oceanFloorMaterial.specularColor = new BABYLON.Color3(0, 0, 0)
+    oceanFloorMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1)
     oceanFloorMaterial.fogEnabled = true
 
     this._mesh = BABYLON.MeshBuilder.CreateGround('ocean_floor_original', { width: this.size, height: this.size, subdivisions: 1 }, scene)
@@ -37,7 +37,7 @@ export default class OceanFloor implements ChunkObserver {
   createInstance(x: number, y: number): BABYLON.InstancedMesh {
     const i = this._mesh.createInstance(`ocean_floor_i_${x}_${y}`)
     i.position.x = this.size * x + this.halfSize
-    i.position.y = -12
+    i.position.y = -6
     i.position.z = this.size * y + this.halfSize
     i.parent = this.parent
     return i

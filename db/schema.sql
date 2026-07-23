@@ -1,4 +1,4 @@
-\restrict nXd6WDwMoT9y7hAd5SudVkxUhtgjGUH7c0KBv8KG39AY0lmgmzyrweI95rXK5wu
+\restrict jC7Qu2oP6R5e6mXowJwdwMUL6OPvlMTFqH29lz7khpzd9FlvBI7ryHvaqWOweQC
 CREATE SCHEMA metrics;
 CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
@@ -209,7 +209,7 @@ CREATE TABLE public.applied_migrations (
     applied_at timestamp with time zone DEFAULT now() NOT NULL
 );
 CREATE TABLE public.asset_library (
-    id uuid NOT NULL,
+    id uuid DEFAULT gen_random_uuid() NOT NULL,
     type text DEFAULT 'feature'::text NOT NULL,
     name character varying(50) NOT NULL,
     description character varying(200),
@@ -368,6 +368,27 @@ CREATE TABLE public.guest_passes (
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     revoked_at timestamp with time zone
 );
+CREATE TABLE public.island_post_hearts (
+    post_id integer NOT NULL,
+    wallet text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+CREATE TABLE public.island_posts (
+    id integer NOT NULL,
+    island text NOT NULL,
+    author text NOT NULL,
+    content text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL,
+    parcel_id integer
+);
+CREATE SEQUENCE public.island_posts_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ALTER SEQUENCE public.island_posts_id_seq OWNED BY public.island_posts.id;
 CREATE TABLE public.islands (
     id integer NOT NULL,
     name text,
@@ -718,6 +739,7 @@ ALTER TABLE ONLY public.comments ALTER COLUMN id SET DEFAULT nextval('public.com
 ALTER TABLE ONLY public.costumes ALTER COLUMN id SET DEFAULT nextval('public.costumes_id_seq'::regclass);
 ALTER TABLE ONLY public.emoji_badges ALTER COLUMN id SET DEFAULT nextval('public.emoji_badges_id_seq'::regclass);
 ALTER TABLE ONLY public.favorites ALTER COLUMN id SET DEFAULT nextval('public.favorites_id_seq'::regclass);
+ALTER TABLE ONLY public.island_posts ALTER COLUMN id SET DEFAULT nextval('public.island_posts_id_seq'::regclass);
 ALTER TABLE ONLY public.islands ALTER COLUMN id SET DEFAULT nextval('public.islands_id_seq'::regclass);
 ALTER TABLE ONLY public.jobs ALTER COLUMN id SET DEFAULT nextval('public.jobs_id_seq'::regclass);
 ALTER TABLE ONLY public.mails ALTER COLUMN id SET DEFAULT nextval('public.mailboxes_id_seq'::regclass);
@@ -753,6 +775,10 @@ ALTER TABLE ONLY public.favorites
     ADD CONSTRAINT favorites_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.guest_passes
     ADD CONSTRAINT guest_passes_pkey PRIMARY KEY (token);
+ALTER TABLE ONLY public.island_post_hearts
+    ADD CONSTRAINT island_post_hearts_pkey PRIMARY KEY (post_id, wallet);
+ALTER TABLE ONLY public.island_posts
+    ADD CONSTRAINT island_posts_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.islands
     ADD CONSTRAINT islands_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.jobs
@@ -833,6 +859,8 @@ CREATE INDEX idx_properties_owner_island ON public.properties USING btree (lower
 CREATE INDEX idx_properties_owner_lower ON public.properties USING btree (lower(owner));
 CREATE INDEX idx_spaces_owner ON public.spaces USING btree (lower(owner));
 CREATE INDEX idx_spaces_owner_lower ON public.spaces USING btree (lower(owner));
+CREATE INDEX island_posts_island_idx ON public.island_posts USING btree (island);
+CREATE UNIQUE INDEX island_posts_slot_idx ON public.island_posts USING btree (island, lower(author));
 CREATE INDEX lower_avatar_name ON public.avatars USING btree (lower(name));
 CREATE INDEX lower_avatar_owner ON public.avatars USING btree (lower(owner));
 CREATE INDEX owner_index ON public.properties USING btree (lower(owner));
@@ -851,4 +879,6 @@ CREATE INDEX womps_author ON public.womps USING btree (lower(author));
 CREATE UNIQUE INDEX womps_id ON public.womps USING btree (id);
 CREATE INDEX womps_parcel_id ON public.womps USING btree (parcel_id);
 CREATE TRIGGER wearables_recalculate_total_wearables_trigger AFTER INSERT ON public.wearables FOR EACH ROW WHEN ((new.token_id IS NOT NULL)) EXECUTE FUNCTION public.recalculate_total_wearables();
-\unrestrict nXd6WDwMoT9y7hAd5SudVkxUhtgjGUH7c0KBv8KG39AY0lmgmzyrweI95rXK5wu
+ALTER TABLE ONLY public.island_post_hearts
+    ADD CONSTRAINT island_post_hearts_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.island_posts(id) ON DELETE CASCADE;
+\unrestrict jC7Qu2oP6R5e6mXowJwdwMUL6OPvlMTFqH29lz7khpzd9FlvBI7ryHvaqWOweQC

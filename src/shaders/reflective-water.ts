@@ -51,12 +51,12 @@ export class ReflectiveWater {
     this.chunkSize = options.chunkSize || 48 // Default to 48 like current terrain
     this.waterColor = BABYLON.Vector3.FromArray(WATER_COLOR.asArray())
     this.waterColor2 = new BABYLON.Vector3(WATER_COLOR.r * 0.7, WATER_COLOR.g * 0.9 + 0.15, WATER_COLOR.b * 0.8 + 0.2)
-    this.colorBlendFactor = options.colorBlendFactor || 0.2 // Current ocean.ts default
+    this.colorBlendFactor = options.colorBlendFactor || 0.5 // Current ocean.ts default
     this.colorBlendFactor2 = options.colorBlendFactor2 || 0.2 // Current ocean.ts default
-    this.bumpHeight = options.bumpHeight || 0.4 // Current ocean.ts default
-    this.windForce = options.windForce || 0.4 // Current ocean.ts default
-    this.windHeading = options.windHeading || 0.26 // Current ocean.ts default
-    this.waveLength = options.waveLength || 3.0 // Current ocean.ts default
+    this.bumpHeight = options.bumpHeight || 0.5 // Current ocean.ts default
+    this.windForce = options.windForce || 0.1 // Current ocean.ts default
+    this.windHeading = options.windHeading || 0.1 // Current ocean.ts default
+    this.waveLength = options.waveLength || 2.0 // Current ocean.ts default
 
     this.waterPlane = BABYLON.Plane.FromPositionAndNormal(new BABYLON.Vector3(0, OCEAN_HEIGHT_OFFSET, 0), new BABYLON.Vector3(0, 1, 0))
 
