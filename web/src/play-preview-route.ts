@@ -12,7 +12,7 @@ function worldPath(path: string) {
 
 function canvasInWorld() {
   const canvas = document.getElementById('renderCanvas')
-  return !!(canvas && document.querySelector('.client-placeholder')?.contains(canvas))
+  return !!(canvas && document.querySelector('.client')?.contains(canvas))
 }
 
 export function maybePlayPreview(from: string, to: string) {

@@ -179,7 +179,7 @@ function updateNavbarWithCoords(scene: BABYLON.Scene, connector: Connector) {
 
       // only reflect coords into the URL when the world canvas is actually on screen.
       // (peek/hidden on pure web pages like /events -> don't touch the URL)
-      if (!document.getElementsByClassName('client-placeholder')[0]) return
+      if (!document.getElementsByClassName('client')[0]) return
 
       const path = document.location.pathname
       const url = params ? `${path}?${params}` : path

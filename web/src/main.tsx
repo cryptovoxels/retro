@@ -14,7 +14,7 @@ import VoxelRadio from './components/voxel-radio'
 import Footer from './footer'
 import Home from './home'
 import { Client } from './client'
-import { getCoords, getParcelId, notifyUrlChange, syncParcelUrl } from './helpers/coords-nav'
+import { getCoords, getParcelId, isFullClientPath, notifyUrlChange, syncParcelUrl } from './helpers/coords-nav'
 import WebHeader from './web-header'
 
 import { useEffect, useRef, useState } from 'preact/hooks'
@@ -83,6 +83,8 @@ const Main = () => {
   const prevUrl = useRef(location.pathname + location.search)
   const lightBroadcast = currentPath.startsWith('/golive/broadcast')
   const coords = new URLSearchParams(urlSearch).get('coords') || ''
+  const full = isFullClientPath(currentPath)
+  const embed = !!coords && !full
 
   useEffect(() => {
     ensureRadio()
@@ -115,11 +117,7 @@ const Main = () => {
       <main class={lightBroadcast ? 'showbox-light-shell' : ''}>
         {!lightBroadcast && <WebHeader path={currentPath} coords={coords} />}
 
-        {coords && (
-          <article>
-            <Client coords={coords} />
-          </article>
-        )}
+        {embed && <div class="client-slot" />}
 
         <WorldSidebar coords={coords} path={currentPath}>
           <Router onChange={handleRoute}>
@@ -134,6 +132,8 @@ const Main = () => {
         </WorldSidebar>
         {!lightBroadcast && !coords && <Footer />}
       </main>
+
+      {coords && <Client coords={coords} mode={embed ? 'embed' : 'full'} />}
 
       <Snackbar />
       <PlayPreview />

@@ -11,9 +11,8 @@ import { app, AppEvent } from './state'
 import { fetchOptions } from './utils'
 import { AvatarLink } from './components/avatar-link'
 import { ParcelMetrics as Metrics } from './components/metrics'
-import { Client } from './client'
 import { ParcelShop } from './components/parcel-shop'
-import { isSplit, getParcelIdFromPath, routeWithCoords, withCoords } from './helpers/coords-nav'
+import { isSplit, getCoords, getParcelIdFromPath, naviportHere, routeWithCoords, withCoords } from './helpers/coords-nav'
 
 export interface Props {
   parcel?: ParcelWithMintednessRecord
@@ -132,6 +131,13 @@ export default class Parcel extends Component<Props, State> {
     this.abort = null
   }
 
+  ensureCoords() {
+    if (getCoords()) return
+    const c = this.helper?.spawnCoords
+    if (!c) return
+    naviportHere(c)
+  }
+
   componentDidMount() {
     this.syncVisitUrl()
     void this.fetch(this.props.id!)
@@ -147,6 +153,7 @@ export default class Parcel extends Component<Props, State> {
 
   componentDidUpdate(prevProps: Props, prevState: State) {
     this.syncVisitUrl()
+    this.ensureCoords()
     if (!isSplit() && this.props.id != this.state.parcelId) {
       void this.fetch(this.props.id!)
     }
@@ -407,10 +414,7 @@ export default class Parcel extends Component<Props, State> {
 
     return (
       <section class="columns parcel-page">
-        <article>
-          {head}
-          <Client coords={this.helper.spawnCoords} />
-        </article>
+        <article>{head}</article>
         <aside>{this.renderSidebar(islandSlug!)}</aside>
       </section>
     )

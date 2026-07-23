@@ -33,13 +33,13 @@ export function WorldSidebar({ coords, path, children }: Props) {
     if (key && key !== prevKey.current) sidebarClosed.value = false
     prevKey.current = key
 
-    document.body.classList.toggle('sidebar-closed', sidebarClosed.value)
     bump((n) => n + 1)
   })
 
-  // when closed we keep the aside mounted (CSS hides it + collapses the grid) so the
-  // children Router and any open pane keep their state; only the canvas resizes.
+  // when closed we keep the aside mounted so the children Router and any open pane keep their state
   if (!coords) return <>{children}</>
+
+  const closed = sidebarClosed.value ? '-closed' : undefined
 
   const close = (
     <button class="sidebar-close" title="close" onClick={() => (sidebarClosed.value = true)}>
@@ -49,7 +49,7 @@ export function WorldSidebar({ coords, path, children }: Props) {
 
   if (uiPane.value === 'broadcast') {
     return (
-      <aside class="-broadcast-open">
+      <aside class={['-broadcast-open', closed].filter(Boolean).join(' ')}>
         {close}
         <InWorldPane id="broadcast" />
       </aside>
@@ -59,7 +59,7 @@ export function WorldSidebar({ coords, path, children }: Props) {
   const parcel = selectNearestEditableParcel()
   if (parcel && isAuthoring(parcel.id)) {
     return (
-      <aside>
+      <aside class={closed}>
         <Authoring parcel={parcel} />
       </aside>
     )
@@ -68,7 +68,7 @@ export function WorldSidebar({ coords, path, children }: Props) {
   const pane = uiPane.value
   const showClose = !pane || isPersistentPane(pane)
   return (
-    <aside>
+    <aside class={closed}>
       {showClose && close}
       {pane ? <InWorldPane id={pane} /> : children}
     </aside>

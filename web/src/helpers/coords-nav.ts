@@ -9,6 +9,14 @@ export function isSplit() {
   return !!getCoords()
 }
 
+export function isFullClientPath(path?: string) {
+  const p = (path || (typeof location !== 'undefined' ? location.pathname : '')).split('?')[0]
+  if (p === '/play' || p === '/scratchpad') return true
+  if (/^\/spaces\/[^/]+\/play$/.test(p)) return true
+  if (/^\/assets\/\d+\/play$/.test(p)) return true
+  return false
+}
+
 export function withCoords(path: string) {
   const c = getCoords()
   if (!c) return path

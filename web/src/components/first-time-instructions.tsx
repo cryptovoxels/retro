@@ -62,7 +62,7 @@ export function FirstTimeInstructions() {
     if (!show) return
 
     const find = () => {
-      const el = document.querySelector('.client-placeholder') as HTMLElement | null
+      const el = document.querySelector('.client') as HTMLElement | null
       if (!el?.isConnected) {
         setHost(null)
         return
