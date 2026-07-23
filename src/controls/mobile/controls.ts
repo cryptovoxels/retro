@@ -1,6 +1,6 @@
 import Controls, { CAMERA_DISTANCE } from '../controls'
 import DpadControls, { toggleDpadControls } from '../../ui/mobile/dpad'
-import OurCamera from '../utils/our-camera'
+import PlayerCamera from '../utils/player-camera'
 import { decodeCoords } from '../../../common/helpers/utils'
 import { getCoordsFromURL } from '../../utils/helpers'
 import { createFirstPersonCamera } from '../utils/fps-camera'
@@ -31,7 +31,7 @@ export default class MobileControls extends Controls {
     return camera
   }
 
-  addControls(camera: OurCamera | BABYLON.ArcRotateCamera) {
+  addControls(camera: PlayerCamera | BABYLON.ArcRotateCamera) {
     camera.attachControl(this.canvas, true)
 
     // Mobile overlays
@@ -102,7 +102,7 @@ export default class MobileControls extends Controls {
     // while driving, dpad feeds updateVehicle via this.direction - do not also walk the camera
     if (this.vehicleFeature) return
 
-    const camera = this.camera as OurCamera & {
+    const camera = this.camera as PlayerCamera & {
       _localDirection: BABYLON.Vector3
       _transformedDirection: BABYLON.Vector3
       _cameraTransformMatrix: BABYLON.Matrix

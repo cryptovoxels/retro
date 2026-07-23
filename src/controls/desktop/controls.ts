@@ -1,6 +1,6 @@
 import Controls, { featureFromPick, MAX_CAMERA_DISTANCE, MIN_CAMERA_DISTANCE } from '../controls'
 
-import OurCamera from '../utils/our-camera'
+import PlayerCamera from '../utils/player-camera'
 import { LocaleKeyboardMoveInput } from '../utils/locale-keyboard-move-input'
 import { clamp } from 'lodash'
 import { unmountComponentAtNode } from 'preact/compat'
@@ -35,7 +35,7 @@ export default class DesktopControls extends Controls {
     return camera
   }
 
-  addControls(camera: OurCamera) {
+  addControls(camera: PlayerCamera) {
     camera.attachControl(this.canvas, true)
     this.addLockListener()
 
@@ -73,7 +73,7 @@ export default class DesktopControls extends Controls {
   }
 
   onPointerLockChange() {
-    const cam = this.camera as OurCamera | undefined
+    const cam = this.camera as PlayerCamera | undefined
     if (!cam?.inputs) return
 
     const canvas = this.scene.getEngine().getRenderingCanvas()
@@ -290,7 +290,7 @@ export default class DesktopControls extends Controls {
     )
   }
 
-  addGamepadControls(camera: OurCamera) {
+  addGamepadControls(camera: PlayerCamera) {
     camera.inputs.addGamepad()
     const gamepad = <BABYLON.FreeCameraGamepadInput>camera.inputs.attached['gamepad']
 

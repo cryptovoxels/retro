@@ -1,40 +1,21 @@
 import type Controls from './controls'
-import OurCamera from './utils/our-camera'
+import PlayerCamera from './utils/player-camera'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
 
 const DEG = Math.PI / 180
 const BOB_SPEED = 0.7
 const POS = 0.04
-const ROLL = 1.5 * DEG
-const LOOK = 1
-const BLEND = 0.5
-
-function smooth(t: number) {
-  // smootherstep — no flat spots, no linear mush
-  return t * t * t * (t * (t * 6 - 15) + 10)
-}
-
-function aim(from: BABYLON.Vector3, to: BABYLON.Vector3) {
-  const dx = to.x - from.x
-  const dy = to.y - from.y
-  const dz = to.z - from.z
-  const horiz = Math.sqrt(dx * dx + dz * dz)
-  return {
-    yaw: Math.atan2(dx, dz),
-    pitch: -Math.atan2(dy, horiz || 1e-6),
-  }
-}
+const ANG = 1.5 * DEG
+const BLEND = 0.5 // mix 0->1 over 500ms
 
 export class IdleLook {
   private controls: Controls
   private live = false
   private goal = 0
-  private amount = 0
+  private mix = 0
   private bobT = 0
-  private home = new BABYLON.Vector3()
-  private target = new BABYLON.Vector3()
-  private right = new BABYLON.Vector3()
-  private up = new BABYLON.Vector3()
+  private pos = new BABYLON.Vector3()
+  private rot = new BABYLON.Vector3()
   private scratch = new BABYLON.Vector3()
 
   constructor(controls: Controls, _scene: BABYLON.Scene) {
@@ -42,27 +23,20 @@ export class IdleLook {
   }
 
   get active() {
-    return this.live || this.amount > 0
+    return this.live || this.mix > 0
   }
 
   start() {
     if (hasPointerLock()) return
     const cam = this.controls.camera
-    if (!(cam instanceof OurCamera)) return
-
-    // capture rest pose from wherever the cam is now
-    this.home.copyFrom(cam.position)
-    this.right.copyFrom(cam.getDirection(BABYLON.Axis.X))
-    this.up.copyFrom(cam.getDirection(BABYLON.Axis.Y))
-    this.scratch.copyFrom(cam.getDirection(BABYLON.Axis.Z))
-    this.target.copyFrom(this.home).addInPlace(this.scratch.scaleInPlace(LOOK))
+    if (!(cam instanceof PlayerCamera)) return
     this.bobT = 0
     this.live = true
     this.goal = 1
   }
 
   stop() {
-    if (!this.live && this.amount <= 0) return
+    if (!this.live && this.mix <= 0) return
     this.live = false
     this.goal = 0
   }
@@ -71,18 +45,18 @@ export class IdleLook {
   abort() {
     this.live = false
     this.goal = 0
-    this.amount = 0
-    this.apply(0)
+    this.mix = 0
+    const cam = this.controls.camera
+    if (cam instanceof PlayerCamera) cam.clearIdle()
   }
 
   tick(dt: number) {
     const cam = this.controls.camera
-    if (!(cam instanceof OurCamera)) {
+    if (!(cam instanceof PlayerCamera)) {
       this.abort()
       return
     }
 
-    // mouselook owns the camera — get out of the way
     if (hasPointerLock()) {
       if (this.active) this.abort()
       return
@@ -91,50 +65,30 @@ export class IdleLook {
     const moving = this.controls.jumping || cam.cameraDirection.lengthSquared() > 1e-6
     if (moving && this.live) this.stop()
 
-    if (this.amount < this.goal) {
-      this.amount = Math.min(1, this.amount + dt / BLEND)
-    } else if (this.amount > this.goal) {
-      this.amount = Math.max(0, this.amount - dt / BLEND)
+    if (this.mix < this.goal) {
+      this.mix = Math.min(1, this.mix + dt / BLEND)
+    } else if (this.mix > this.goal) {
+      this.mix = Math.max(0, this.mix - dt / BLEND)
     }
 
-    const w = smooth(this.amount)
-
-    if (this.amount <= 0 && this.goal <= 0) {
-      cam.rotationQuaternion = null as any
-      cam.rotation.z = 0
+    if (this.mix <= 0 && this.goal <= 0) {
+      cam.clearIdle()
       this.live = false
       return
     }
 
     this.bobT += dt * BOB_SPEED
 
-    // walking: free the body, just fade roll out so we don't eat WASD
-    if (moving && this.goal === 0) {
-      cam.rotationQuaternion = null as any
-      cam.rotation.z = Math.sin(this.bobT) * ROLL * w
-      return
-    }
+    // positional bob (sin) in local right/up
+    const sx = Math.sin(this.bobT) * POS
+    const sy = Math.sin(this.bobT * 2) * POS
+    this.pos.copyFrom(cam.getDirection(BABYLON.Axis.X)).scaleInPlace(sx)
+    this.scratch.copyFrom(cam.getDirection(BABYLON.Axis.Y)).scaleInPlace(sy)
+    this.pos.addInPlace(this.scratch)
 
-    this.apply(w)
-  }
+    // rotational bob (cos) — counters the sway a bit
+    this.rot.set(Math.cos(this.bobT) * ANG, Math.cos(this.bobT * 0.5) * ANG, Math.cos(this.bobT) * ANG)
 
-  private apply(w: number) {
-    const cam = this.controls.camera
-    if (!(cam instanceof OurCamera)) return
-
-    const sx = Math.sin(this.bobT) * POS * w
-    const sy = Math.sin(this.bobT * 2) * POS * w
-
-    cam.position.copyFrom(this.home)
-    this.scratch.copyFrom(this.right).scaleInPlace(sx)
-    cam.position.addInPlace(this.scratch)
-    this.scratch.copyFrom(this.up).scaleInPlace(sy)
-    cam.position.addInPlace(this.scratch)
-
-    const a = aim(cam.position, this.target)
-    cam.rotationQuaternion = null as any
-    cam.rotation.x = a.pitch
-    cam.rotation.y = a.yaw
-    cam.rotation.z = Math.sin(this.bobT) * ROLL * w
+    cam.applyIdle(this.pos, this.rot, this.mix)
   }
 }

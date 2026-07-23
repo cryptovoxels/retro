@@ -3,7 +3,7 @@ import { decodeCoords, encodeCoords } from '../../common/helpers/utils'
 import { AudioEngine } from '../audio/audio-engine'
 import Connector from '../connector'
 import type Controls from '../controls/controls'
-import OurCamera from '../controls/utils/our-camera'
+import PlayerCamera from '../controls/utils/player-camera'
 import { Environment } from '../enviroments/environment'
 import Grid from '../grid'
 import { ParcelMesher } from '../parcel-mesher'
@@ -163,7 +163,7 @@ function updateNavbarWithCoords(scene: BABYLON.Scene, connector: Connector) {
       // Grab new searchParams
       const queryParams = new URLSearchParams(document.location.search.substring(1))
 
-      const camera = scene.activeCamera as OurCamera
+      const camera = scene.activeCamera as PlayerCamera
 
       const coords = {
         position: connector.persona.position.clone(),

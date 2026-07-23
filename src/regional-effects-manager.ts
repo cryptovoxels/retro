@@ -2,7 +2,7 @@
 // if match: dispatches events notifiying of region + regional effects (e.g. fog, skybox, etc)
 
 import { isBatterySaver } from '../common/helpers/detector'
-import OurCamera from './controls/utils/our-camera'
+import PlayerCamera from './controls/utils/player-camera'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
 
 type Region = {
@@ -117,7 +117,7 @@ function distanceOfPointFromBoxEdge(rect: BABYLON.BoundingBox, p: BABYLON.Vector
   return Math.sqrt(dx * dx + dy * dy)
 }
 
-function getCameraDistanceFromBounds(bounds: BABYLON.BoundingBox, camera: OurCamera) {
+function getCameraDistanceFromBounds(bounds: BABYLON.BoundingBox, camera: PlayerCamera) {
   return distanceOfPointFromBoxEdge(bounds, camera.position)
 }
 
@@ -198,7 +198,7 @@ export default class RegionalManager extends TypedEventTarget<Record<RegionEvent
   }
 
   private get camera() {
-    return this.scene.cameras[0] as OurCamera | null
+    return this.scene.cameras[0] as PlayerCamera | null
   }
 
   // for debug purposes

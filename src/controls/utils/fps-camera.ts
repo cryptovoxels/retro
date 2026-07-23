@@ -1,8 +1,8 @@
-import OurCamera from './our-camera'
+import PlayerCamera from './player-camera'
 import { coords } from '../../../common/helpers/utils'
 
-export function createFirstPersonCamera(scene: BABYLON.Scene, coords: coords): OurCamera {
-  const camera = new OurCamera('player-camera', coords?.position || BABYLON.Vector3.Zero(), scene)
+export function createFirstPersonCamera(scene: BABYLON.Scene, coords: coords): PlayerCamera {
+  const camera = new PlayerCamera('player-camera', coords?.position || BABYLON.Vector3.Zero(), scene)
 
   camera.minZ = 0.1
   camera.maxZ = window.draw.distance * 2.0

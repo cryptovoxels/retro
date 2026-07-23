@@ -4,7 +4,7 @@ import { decodeCoordsFromURL } from '../utils/helpers'
 import { encodeCoords } from '../../common/helpers/utils'
 import type Grid from '../grid'
 import Connector from '../connector'
-import OurCamera from './utils/our-camera'
+import PlayerCamera from './utils/player-camera'
 import { isLoaded } from '../utils/loading-done'
 import Feature, { MeshExtended } from '../features/feature'
 import Avatar from '../avatar'
@@ -76,7 +76,7 @@ const easeCamera = (current: number, target: number, easingSpeed = CAMERA_EASE_O
 const MIN_CAMERA_DISTANCE_FOR_SELF_AVATAR = 0.2
 
 export default abstract class Controls implements IControls {
-  camera: OurCamera | BABYLON.ArcRotateCamera = undefined!
+  camera: PlayerCamera | BABYLON.ArcRotateCamera = undefined!
   // initialCameraPos:
   // this allows us to do camera transformation for 1st/3rd view and still keeping the
   // Controls to move the camera. The trick is to cache the camera position before rendering
@@ -377,9 +377,9 @@ export default abstract class Controls implements IControls {
     this.showSelfAvatar ? this.persona.avatar?.show() : this.persona.avatar?.hide()
   }
 
-  abstract createCamera(): OurCamera | BABYLON.ArcRotateCamera
+  abstract createCamera(): PlayerCamera | BABYLON.ArcRotateCamera
 
-  abstract addControls(camera: OurCamera | BABYLON.ArcRotateCamera): void
+  abstract addControls(camera: PlayerCamera | BABYLON.ArcRotateCamera): void
 
   enableMovement() {
     this.camera.speed = this.running ? this.runSpeed : this.defaultSpeed
@@ -496,7 +496,7 @@ export default abstract class Controls implements IControls {
 
   // this is called by the render loop in index.ts
   refreshGravity() {
-    if (this.camera instanceof OurCamera) {
+    if (this.camera instanceof PlayerCamera) {
       // To avoid falling into the abyss, or through the floor of a second-floor parcel, gravity stays off at least until:
       // 1. All islands have been meshed (this.grounded === true), and
       // 2. Every parcel containing the camera position has a collider (this._containingParcelsWaitState === 'ready').
