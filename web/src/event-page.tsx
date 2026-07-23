@@ -109,7 +109,7 @@ export default class EventPage extends Component<Props, State> {
           </figcaption>
 
           <figure class="shortie">
-            <iframe id="ParcelorbitView" key={this.parcel?.orbitUrl} scrolling="no" src={this.parcel?.orbitUrl} />
+            <div class="client-slot" />
           </figure>
 
           <div>{this.state.event.description}</div>
