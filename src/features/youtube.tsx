@@ -185,7 +185,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
 
   onEnter = () => {
     // tablets and mobile devices don't autoplay,
-    if (!this.autoplay || window.config.isOrbit || isMobile()) {
+    if (!this.autoplay || isMobile()) {
       return
     }
     // disable autoplay in battery saver mode
@@ -200,7 +200,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
 
       // fade it back in!
       this.fadeIn(AUTOPLAY_FADE_TIME)
-    } else if (this.autoplay && !window.config.isOrbit) {
+    } else if (this.autoplay) {
       this.play()
     }
   }

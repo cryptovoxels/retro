@@ -22,7 +22,7 @@ export default function getTokenMetadata(req: Request, res: Response) {
     // const companyParcel = parcel.owner.toLowerCase() == '0x2D891ED45C4C3EAB978513DF4B92a35Cf131d2e2'.toLowerCase()
 
     const loc = getLocation(parcel)
-    const animationUrl = `https://www.voxels.com/play?coords=${loc}&embedded=true&mode=orbit&isolate=true`
+    const animationUrl = `https://www.voxels.com/play?coords=${loc}&embedded=true&isolate=true`
 
     const helper = new ParcelHelper(parcel)
     const isWaterfront = helper.isWaterFront

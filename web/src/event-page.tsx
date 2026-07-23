@@ -1,18 +1,17 @@
-import { Component, Fragment } from 'preact'
+import { Component } from 'preact'
 import { useEffect, useState } from 'preact/hooks'
-import { SURVEYOR_URL } from '../../common/helpers/apis'
 import ParcelHelper from '../../common/helpers/parcel-helper'
-import { Interval, intervalAsString, milliSecondsToInterval, nth } from '../../common/helpers/time-helpers'
-import { canUseDom, copyTextToClipboard, ssrFriendlyWindow } from '../../common/helpers/utils'
+import { Interval, intervalAsString, milliSecondsToInterval } from '../../common/helpers/time-helpers'
+import { canUseDom, ssrFriendlyWindow } from '../../common/helpers/utils'
 import { Event } from '../../common/messages/event'
 import Loading from './components/loading'
-import { fmt } from './components/date-field'
-import { PanelType } from './components/panel'
-import ParcelEvent, { removeEvent } from './helpers/event'
+import ParcelEvent from './helpers/event'
 import { app, AppEvent } from './state'
 import cachedFetch from './helpers/cached-fetch'
 import { fetchOptions } from './utils'
 import { PlayButton } from './components/play-button'
+import { ParcelMetrics } from './components/metrics'
+import { naviportHere } from './helpers/coords-nav'
 
 export interface Props {
   event?: Event
@@ -23,8 +22,6 @@ export interface Props {
 export interface State {
   event: Event | null
   loading: boolean
-  visitor_anons: string[]
-  visitor_wallets: string[]
 }
 
 export default class EventPage extends Component<Props, State> {
@@ -38,8 +35,6 @@ export default class EventPage extends Component<Props, State> {
     this.state = {
       event: event,
       loading: false,
-      visitor_anons: [],
-      visitor_wallets: [],
     }
     this.setEventHelpers(event)
   }
@@ -70,7 +65,7 @@ export default class EventPage extends Component<Props, State> {
       .then((r) => {
         this.setEventHelpers(r.event)
         this.setState({ event: r.event }, () => {
-          this.fetchStats()
+          if (this.parcel) naviportHere(this.parcel.centerLocation)
         })
       })
       .finally(() => {
@@ -83,36 +78,15 @@ export default class EventPage extends Component<Props, State> {
     if (ssrFriendlyWindow) ssrFriendlyWindow.location.href = where
   }
 
-  fetchStats() {
-    if (!this.state?.event?.parcel_id) {
-      console.warn('no event state, aborting surveyor stat fetching')
-    }
-    if (!this.state.event?.starts_at || !this.state.event?.expires_at) return false
-    const start = new Date(this.state.event.starts_at).getTime()
-    const end = new Date(this.state.event.expires_at).getTime()
-
-    return fetch(`${SURVEYOR_URL}/api/events/by/parcel/${this.state.event?.parcel_id}.json`)
-      .then((r) => {
-        if (!r.ok) throw new Error(`surveyor responded with ${r.status} - ${r.statusText}`)
-        return r.json()
-      })
-      .then((data) => {
-        if (!data.success) throw new Error('surveyor did not respond with success status')
-        this.setState(calculateStats(data.events, start, end))
-      })
-  }
-
   render() {
     if (!this.state.event || !this.helper) {
       return <Loading />
     }
 
-    const ts = fmt(this.state.event.starts_at as any)
-    const title = `${this.state.event.name} - ${ts}`
-    const description = this.state.event.description
-
     const isMod = app.state?.moderator || this.helper.isOwner
     const canEdit = this.helper.canEdit && (this.helper.isOwner || isMod) && this.state.event?.id
+    const recent =
+      this.helper.isInPast && Date.now() - this.helper.expires_at.getTime() < 7 * 24 * 60 * 60 * 1000
 
     return (
       <section class="columns nav">
@@ -143,16 +117,20 @@ export default class EventPage extends Component<Props, State> {
 
         <aside class="push-header">
           <dl>
-            {this.helper.isInPast && <SummaryPast event={this.helper} anons={this.state.visitor_anons} wallets={this.state.visitor_wallets} isMod={isMod} />}
-            {this.helper.isLive && <SummaryLive event={this.helper} anons={this.state.visitor_anons} wallets={this.state.visitor_wallets} isMod={isMod} />}
-            {this.helper.isInFuture && <SummaryFuture event={this.helper} anons={this.state.visitor_anons} wallets={this.state.visitor_wallets} isMod={isMod} />}
+            {this.helper.isInPast && <SummaryPast event={this.helper} />}
+            {this.helper.isLive && <SummaryLive event={this.helper} />}
+            {this.helper.isInFuture && <SummaryFuture event={this.helper} />}
 
             <dt>Duration</dt>
             <dd>{this.helper.duration()}</dd>
-            <dt>Visitors</dt>
-            <dd>
-              {this.state.visitor_wallets.length} <i /> {this.state.visitor_anons.length} <i />
-            </dd>
+            {recent && (
+              <>
+                <dt>Activity</dt>
+                <dd>
+                  <ParcelMetrics parcelId={this.state.event.parcel_id} />
+                </dd>
+              </>
+            )}
             <dt>Calendar</dt>
             <dd>
               <a href={`/api/events/${this.state.event.id}.ics`} target="_blank" download={`voxels_event_${this.state.event.id + '.ics'}`}>
@@ -191,9 +169,9 @@ export default class EventPage extends Component<Props, State> {
   }
 }
 
-type SummaryProps = { event: ParcelEvent; anons: string[]; wallets: string[]; isMod: boolean }
+type SummaryProps = { event: ParcelEvent }
 
-function SummaryPast({ event, anons, wallets, isMod }: SummaryProps) {
+function SummaryPast({ event }: SummaryProps) {
   return (
     <>
       <dt>Host</dt>
@@ -208,12 +186,11 @@ function SummaryPast({ event, anons, wallets, isMod }: SummaryProps) {
       <dd>{event.formattedDate(true)}</dd>
       <dt>Duration</dt>
       <dd>{event.duration()}</dd>
-      <Visitors event={event} anons={anons} wallets={wallets} isMod={isMod} />
     </>
   )
 }
 
-function SummaryFuture({ event, anons, wallets, isMod }: SummaryProps) {
+function SummaryFuture({ event }: SummaryProps) {
   return (
     <>
       <dt>Starts in</dt>
@@ -232,12 +209,11 @@ function SummaryFuture({ event, anons, wallets, isMod }: SummaryProps) {
       <dd>{event.formattedDate(true)}</dd>
       <dt>Duration</dt>
       <dd>{event.duration()}</dd>
-      <Visitors event={event} anons={anons} wallets={wallets} isMod={isMod} />
     </>
   )
 }
 
-function SummaryLive({ event, anons, wallets, isMod }: SummaryProps) {
+function SummaryLive({ event }: SummaryProps) {
   const [players, setPlayers] = useState<number>(0)
   useEffect(() => {
     event.fetchPlayersPresent(setPlayers).catch(console.error)
@@ -265,32 +241,7 @@ function SummaryLive({ event, anons, wallets, isMod }: SummaryProps) {
       <dd>{event.duration()}</dd>
       <dt>Players</dt>
       <dd>{players} present</dd>
-      <Visitors event={event} anons={anons} wallets={wallets} isMod={isMod} />
     </>
-  )
-}
-
-function Visitors(props: SummaryProps) {
-  return (
-    <Fragment>
-      <dt>Visitors</dt>
-      <dd title="unique wallets | anonymous visitors">
-        {props.wallets.length} <i /> {props.anons.length} <i />{' '}
-        {props.isMod && (
-          <a style={'float:right'} onClick={() => copyToClipboard(props.wallets.join(','))} title="Click to copy wallet addresses to clipboard">
-            Copy wallets
-          </a>
-        )}
-      </dd>
-    </Fragment>
-  )
-}
-
-const copyToClipboard = (text: string) => {
-  copyTextToClipboard(
-    text,
-    () => app.showSnackbar(`Copied wallets address to clipboard`, PanelType.Success),
-    () => app.showSnackbar(`Could not copy wallets`, PanelType.Info),
   )
 }
 
@@ -366,32 +317,3 @@ const CountupTimer = ({ endDate }: { endDate: Date }) => {
 }
 
 const ShowCounter = (interval: Interval) => <span>{intervalAsString(interval)}</span>
-
-type SurveyorEvent = {
-  time: string
-  avatar: {
-    wallet: string
-    uuid: string
-  }
-}
-const calculateStats = (data: SurveyorEvent[], eventStart: number, eventEnd: number) => {
-  const actionsDuringEvent = data
-    .filter((e) => {
-      const d = new Date(e.time).getTime()
-      return d > eventStart && d < eventEnd
-    })
-    .map((e) => e.avatar)
-  // all visitors with wallets
-  const eventsWithWallets = actionsDuringEvent.filter((ev) => ev.wallet !== null)
-  // unique wallets
-  const walletVisitors = eventsWithWallets.reduce((res: string[], ev) => (res.includes(ev.wallet) ? res : [...res, ev.wallet]), [])
-  // uuids used by wallets
-  const uuidsWithWallets = eventsWithWallets.reduce((res: string[], ev) => (res.includes(ev.uuid) ? res : [...res, ev.uuid]), [])
-  // unique uuids without a wallet
-  const anonVisitors = actionsDuringEvent.reduce((res: string[], ev) => (res.includes(ev.uuid) || uuidsWithWallets.includes(ev.uuid) ? res : [...res, ev.uuid]), [])
-
-  return {
-    visitor_anons: anonVisitors,
-    visitor_wallets: walletVisitors,
-  }
-}

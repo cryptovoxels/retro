@@ -215,10 +215,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       chatEnabled: chatSettings.enabled,
       voiceEnabled: voiceSettings.enabled,
     }
-
-    if (window.config.isOrbit) {
-      return
-    }
   }
 
   get engine() {
@@ -342,7 +338,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
     // setInterval(this.updateCanEdit.bind(this), 1000)
 
-    if (this.props.minimapSettings.enabled && !window.config.isOrbit && !window.config.isSpace) {
+    if (this.props.minimapSettings.enabled && !window.config.isSpace) {
       this.presenceEs = new EventSource('/api/users/live')
       this.presenceEs.onmessage = (e) => {
         try {

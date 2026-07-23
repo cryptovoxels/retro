@@ -153,7 +153,7 @@ export default class SpawnPoint extends Feature3D<SpawnPointRecord> {
   }
 
   refreshVisible() {
-    const shouldShow = this.parcel.canEdit && !window.config.isOrbit
+    const shouldShow = this.parcel.canEdit
 
     if (this.mesh) {
       this.mesh.visibility = shouldShow ? 1 : 0

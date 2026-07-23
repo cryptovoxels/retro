@@ -50,12 +50,6 @@ You can also specify `womp`, `emote`, `chat` or `welcome`
 
 Loads only the parcel you are in and therefore isolates your parcel from the rest of the world.
 
-## Orbit mode
-
-    &mode=orbit
-
-Enable orbitting mode (like on parcel preview page).
-
 ## Mute audio
 
     &audio=off

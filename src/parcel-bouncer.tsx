@@ -120,8 +120,6 @@ export default class ParcelBouncer {
   }
 
   async handleUser() {
-    // Dont handle a non existant user in orbit mode
-    if (window.config.isOrbit) return
     this.init()
     if (!this.onlyTokenHoldersCanEnter) {
       // The parcel is not private, do nothing

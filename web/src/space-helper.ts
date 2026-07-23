@@ -45,10 +45,6 @@ export default class SpaceHelper {
     return `/spaces/${this.id}/play`
   }
 
-  get orbitUrl() {
-    return `/spaces/${this.id}/play?mode=orbit`
-  }
-
   get ownerName() {
     return avatarName(this.owner)
   }

@@ -77,13 +77,6 @@ export default class Persona {
       }
     }, 500)
 
-    // Don't load the avatar resources in orbit mode;
-    // Login is also not allowed in orbit mode
-    // This can be changed in the future when we have readonly mode
-    if (window.config.isOrbit) {
-      return
-    }
-
     // load avatar on startup for all users (anonymous or logged in)
     loadAvatar()
 

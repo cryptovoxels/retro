@@ -340,7 +340,7 @@ async function main() {
     mapSettings = map.getSettings()
 
     if (!window.config.isBot) {
-      if (mapSettings.enabled && !window.config.isOrbit && !window.config.isSpace) {
+      if (mapSettings.enabled && !window.config.isSpace) {
         mapScene = map.start(scene)
         main.setMapScene(mapScene)
       }

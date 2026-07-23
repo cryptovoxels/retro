@@ -1,9 +1,7 @@
 import { isDesktop, isMobile, isTablet, wantsXR } from '../../common/helpers/detector'
 import DesktopControls from './desktop/controls'
 import MobileControls from './mobile/controls'
-import OrbitControls from './orbit/controls'
 import type Controls from './controls'
-import OrbitSpaceControls from './orbit/space-controls'
 import XROverlay from './webxr'
 
 export let xr: XROverlay | undefined
@@ -11,13 +9,7 @@ export let xr: XROverlay | undefined
 export const CreateControls = (scene: BABYLON.Scene, canvas: HTMLCanvasElement): Controls => {
   let controls: Controls | undefined
 
-  if (window.config.isOrbit) {
-    if (window.config.isSpace) {
-      controls = new OrbitSpaceControls(scene, canvas)
-    } else {
-      controls = new OrbitControls(scene, canvas)
-    }
-  } else if (isMobile() || isTablet()) {
+  if (isMobile() || isTablet()) {
     controls = new MobileControls(scene, canvas)
   } else if (isDesktop()) {
     controls = new DesktopControls(scene, canvas)

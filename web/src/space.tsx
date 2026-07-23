@@ -28,7 +28,6 @@ export interface State {
 
 export default class Space extends Component<Props, State> {
   map: any
-  iframe: HTMLIFrameElement = undefined!
 
   constructor(props: Props) {
     super()
@@ -103,14 +102,6 @@ export default class Space extends Component<Props, State> {
     }
   }
 
-  refreshIframe() {
-    if (!this.iframe) {
-      return
-    }
-    this.iframe.src += `&nonce=${Math.random()}`
-    this.fetch()
-  }
-
   switchTab(tab: string) {
     this.setState({ parcelTab: tab })
   }
@@ -161,14 +152,7 @@ export default class Space extends Component<Props, State> {
           </figcaption>
 
           <figure>
-            <iframe
-              id="ParcelorbitView"
-              ref={(c) => {
-                this.iframe = c!
-              }}
-              scrolling="no"
-              src={this.helper?.orbitUrl}
-            />
+            <div class="client-slot" />
           </figure>
 
           {(this.isOwner && (

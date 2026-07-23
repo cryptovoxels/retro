@@ -180,32 +180,30 @@ export default abstract class Controls implements IControls {
       })
     }
 
-    if (!window.config.isOrbit) {
-      this.scene.onBeforeRenderObservable.add(() => {
-        if (this.initialCameraPos) {
-          console.warn('this.initialCameraPos already set in onBeforeRenderObservable(). suspected logic error')
-        }
-        this.updateConga()
-        this.updateVehicle()
-        // let persona update its position from the camera, since we are steering the camera
-        this.persona.update(cameraPosition(this.scene), cameraRotation(this.scene), this)
-        this.swimming = this.persona.isSwimming(SWIM_LEVEL) ?? this.swimming
-        // store the position before we do camera adjustment in perspectiveAdjustment
-        this.initialCameraPos = this.camera.position.clone()
-        // adjust camera for 1st / 3rd person view
-        this.firstOrThirdPersonAdjustment()
-      })
+    this.scene.onBeforeRenderObservable.add(() => {
+      if (this.initialCameraPos) {
+        console.warn('this.initialCameraPos already set in onBeforeRenderObservable(). suspected logic error')
+      }
+      this.updateConga()
+      this.updateVehicle()
+      // let persona update its position from the camera, since we are steering the camera
+      this.persona.update(cameraPosition(this.scene), cameraRotation(this.scene), this)
+      this.swimming = this.persona.isSwimming(SWIM_LEVEL) ?? this.swimming
+      // store the position before we do camera adjustment in perspectiveAdjustment
+      this.initialCameraPos = this.camera.position.clone()
+      // adjust camera for 1st / 3rd person view
+      this.firstOrThirdPersonAdjustment()
+    })
 
-      this.scene.onAfterRenderObservable.add(() => {
-        if (this.initialCameraPos) {
-          // we have rendered, possibly with the camera in 3rd person view, set it back to how it was before adjustement
-          this.camera.position = this.initialCameraPos
-          this.initialCameraPos = null
-        } else {
-          console.warn('resetCamera() called without an this.initialCameraPos. suspected logic error')
-        }
-      })
-    }
+    this.scene.onAfterRenderObservable.add(() => {
+      if (this.initialCameraPos) {
+        // we have rendered, possibly with the camera in 3rd person view, set it back to how it was before adjustement
+        this.camera.position = this.initialCameraPos
+        this.initialCameraPos = null
+      } else {
+        console.warn('resetCamera() called without an this.initialCameraPos. suspected logic error')
+      }
+    })
 
     // Seriously limit pick checking on mouse moves
     this.defaultPointerMovePredicate = this.defaultPointerMovePredicate.bind(this)
@@ -265,7 +263,7 @@ export default abstract class Controls implements IControls {
       // Only third person needs to move the pick camera back to match the rendered view.
       // First person picks with the live camera (same path as the working unlocked pick),
       // so the ray starts at the true eye, not the persona origin.
-      if (!window.config.isOrbit && !this.firstPersonView && this.persona) {
+      if (!this.firstPersonView && this.persona) {
         const q = BABYLON.Quaternion.RotationYawPitchRoll(cam.rotation.y, cam.rotation.x, cam.rotation.z)
         const back = new BABYLON.Vector3(0, 0, -1).rotateByQuaternionToRef(q, new BABYLON.Vector3())
         cam.position.copyFrom(this.persona.position.add(back.scale(this.cameraDistance)))
@@ -295,7 +293,7 @@ export default abstract class Controls implements IControls {
     if (hasPointerLock()) {
       return this.pickAtView(undefined, undefined, true)
     }
-    if (!window.config.isOrbit && !this.firstPersonView) {
+    if (!this.firstPersonView) {
       return this.pickAtView(this.scene.pointerX, this.scene.pointerY, true) ?? pickInfo ?? null
     }
     return pickInfo ?? null

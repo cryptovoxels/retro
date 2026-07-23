@@ -128,10 +128,6 @@ export default class ParcelHelper {
     return `/play?coords=${this.centerLocation}`
   }
 
-  get orbitUrl() {
-    return `/play?coords=${this.centerLocation}&mode=orbit`
-  }
-
   public get centerLocation() {
     const z = Math.round(this.center[1] * 100)
     const x = Math.round(this.center[0] * 100)

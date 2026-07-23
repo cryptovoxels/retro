@@ -197,7 +197,7 @@ export default class Grid extends SocketClient {
   }
 
   get seeksConnection() {
-    return !window.config.isOrbit
+    return true
   }
 
   // ParcelManager methods - folded into Grid
@@ -317,13 +317,11 @@ export default class Grid extends SocketClient {
   private get nearbyDistance() {
     // isolate keeps activePoolSize at 1; still need normal draw distance so the worker finds the parcel mesh
     if (this.isolateMode) return window.draw.distance
-    if (window.config.isOrbit) return 40
     // In Custom mode, parcel activation distance is same as draw distance
     return window.draw.distance
   }
 
   private get unloadDistance() {
-    if (window.config.isOrbit) return 45
     // Unload distance is 10% more than draw distance to avoid flickering
     return window.draw.distance * 1.1
   }

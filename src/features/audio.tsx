@@ -461,7 +461,7 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
   }
 
   onEnter = () => {
-    if (!this.autoplay || window.config.isOrbit) {
+    if (!this.autoplay) {
       return
     }
     audioFadeInAndPlay(this)

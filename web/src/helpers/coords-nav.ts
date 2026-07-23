@@ -13,6 +13,12 @@ export function isFullClientPath(path?: string) {
   return false
 }
 
+/** space/asset detail pages that host an embedded client-slot */
+export function isEmbedClientPath(path?: string) {
+  const p = (path || (typeof location !== 'undefined' ? location.pathname : '')).split('?')[0]
+  return /^\/spaces\/[^/]+$/.test(p) || /^\/assets\/\d+$/.test(p)
+}
+
 export function withCoords(path: string) {
   const c = getCoords()
   if (!c) return path
