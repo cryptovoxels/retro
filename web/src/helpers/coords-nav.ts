@@ -5,10 +5,6 @@ export function getCoords() {
   return new URLSearchParams(location.search).get('coords') || ''
 }
 
-export function isSplit() {
-  return !!getCoords()
-}
-
 export function isFullClientPath(path?: string) {
   const p = (path || (typeof location !== 'undefined' ? location.pathname : '')).split('?')[0]
   if (p === '/play' || p === '/scratchpad') return true

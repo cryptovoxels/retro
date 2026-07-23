@@ -158,21 +158,13 @@ async function main() {
 
   const canvas = document.createElement('canvas')
   canvas.id = 'renderCanvas'
-  canvas.style.cssText = 'width: 100%; height: 100%; display: block; touch-action: none;'
-
-  // The one canvas lives forever. The web router (web/src/parcel.tsx Client)
-  // reparents it into whatever view is on screen and parks it back here when no
-  // world is visible, so the WebGL context never dies between navigations.
-  const holder = document.createElement('div')
-  holder.id = 'world-holder'
-  holder.style.cssText = 'position: fixed; left: -99999px; width: 1px; height: 1px; overflow: hidden;'
-  holder.appendChild(canvas)
-  document.body.appendChild(holder)
+  canvas.style.cssText = 'width: 100%; height: 100%; display: none; touch-action: none;'
+  document.body.appendChild(canvas)
 
   canvas.addEventListener(
     'wheel',
     (e) => {
-      if (document.body.classList.contains('in-world')) e.preventDefault()
+      if (document.querySelector('.client')?.contains(canvas)) e.preventDefault()
     },
     { passive: false },
   )

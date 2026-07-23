@@ -2,7 +2,6 @@ import { Component, createRef } from 'preact'
 import { route } from 'preact-router'
 import { canUseDom } from '../../common/helpers/utils'
 import { getCoords, notifyUrlChange, syncParcelUrl } from './helpers/coords-nav'
-import { app } from './state'
 import type { BootResult } from '../../src'
 
 function boot(): Promise<BootResult> {
@@ -39,7 +38,7 @@ export class Client extends Component<FrameProps, FrameState> {
     if (previousProps.coords !== this.props.coords && this.props.coords) {
       this.naviport()
     }
-    if (previousProps.mode !== this.props.mode) {
+    if (this.props.mode === 'embed' || previousProps.mode !== this.props.mode) {
       this.track()
     }
   }
@@ -51,12 +50,8 @@ export class Client extends Component<FrameProps, FrameState> {
 
     const canvas = document.getElementById('renderCanvas')
     if (canvas && this.box.current?.contains(canvas)) {
-      if (app.playPreview.value) {
-        document.getElementById('world-preview')?.appendChild(canvas)
-        window.engine?.resize()
-      } else {
-        document.getElementById('world-holder')?.appendChild(canvas)
-      }
+      canvas.style.display = 'none'
+      document.body.appendChild(canvas)
     }
   }
 
@@ -68,6 +63,7 @@ export class Client extends Component<FrameProps, FrameState> {
     }
 
     box.appendChild(canvas)
+    canvas.style.display = 'block'
     this.syncCoordsUrl()
     this.track()
     this.naviport()

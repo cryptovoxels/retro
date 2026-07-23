@@ -91,7 +91,6 @@ class State extends EventEmitter {
 export class Appstate extends State {
   rememberSignIn = false
   showSnackbar = Snackbar.show ?? console.log
-  playPreview = signal<{ returnPath: string } | null>(null)
   // the world the "Play" button enters: set by the parcel/womp page you're viewing
   visitUrl = signal<string | undefined>(undefined)
   private lastOnlineIntervalHandle: NodeJS.Timeout | null = null
@@ -393,16 +392,6 @@ export class Appstate extends State {
       // clean name if we dont have a JWT
       this.setState({ name: undefined })
     }
-  }
-
-  enterPlayPreview(returnPath?: string) {
-    this.playPreview.value = { returnPath: returnPath ?? location.pathname + location.search }
-  }
-
-  exitPlayPreview(): string {
-    const path = this.playPreview.value?.returnPath || '/play'
-    this.playPreview.value = null
-    return path
   }
 }
 

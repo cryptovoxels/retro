@@ -17,10 +17,8 @@ import { Client } from './client'
 import { getCoords, getParcelId, isFullClientPath, notifyUrlChange, syncParcelUrl } from './helpers/coords-nav'
 import WebHeader from './web-header'
 
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useState } from 'preact/hooks'
 import { JSXInternal } from 'preact/src/jsx'
-import { PlayPreview } from './play-preview'
-import { maybePlayPreview } from './play-preview-route'
 import { ensureRadio } from './radio/global'
 import { app, AppEvent } from './state'
 import { InWorldPane } from './in-world-pane'
@@ -69,9 +67,6 @@ const Main = () => {
       window.location.href = e.url
     }
 
-    maybePlayPreview(prevUrl.current, e.url)
-    prevUrl.current = location.pathname + location.search
-
     setCurrentPath(e.url)
     setUrlSearch(location.search)
 
@@ -80,7 +75,6 @@ const Main = () => {
 
   const [currentPath, setCurrentPath] = useState(window.location.pathname)
   const [urlSearch, setUrlSearch] = useState(location.search)
-  const prevUrl = useRef(location.pathname + location.search)
   const lightBroadcast = currentPath.startsWith('/golive/broadcast')
   const coords = new URLSearchParams(urlSearch).get('coords') || ''
   const full = isFullClientPath(currentPath)
@@ -117,8 +111,6 @@ const Main = () => {
       <main class={lightBroadcast ? 'showbox-light-shell' : ''}>
         {!lightBroadcast && <WebHeader path={currentPath} coords={coords} />}
 
-        {embed && <div class="client-slot" />}
-
         <WorldSidebar coords={coords} path={currentPath}>
           <Router onChange={handleRoute}>
             {AppRoutes()}
@@ -136,7 +128,6 @@ const Main = () => {
       {coords && <Client coords={coords} mode={embed ? 'embed' : 'full'} />}
 
       <Snackbar />
-      <PlayPreview />
     </MainApp>
   )
 }

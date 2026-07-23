@@ -7,8 +7,7 @@ import cachedFetch from '../src/helpers/cached-fetch'
 import { wompCache } from './store/index'
 import { AvatarLink } from './components/avatar-link'
 import { avatarName } from '../../common/messages/avatar-ref'
-import { restoreInfoOnMove } from '../../common/ui-signals'
-import { getCoords, isSplit, naviportHere } from './helpers/coords-nav'
+import { getCoords, naviportHere } from './helpers/coords-nav'
 import { app } from './state'
 
 const TTL = 60
@@ -55,14 +54,12 @@ export default class Womp extends Component<Props, State> {
   componentDidMount() {
     this.syncVisitUrl()
     this.ensureCoords()
-    if (isSplit()) restoreInfoOnMove.value = true
     void this.fetchWomp(this.state.id)
   }
 
   async componentDidUpdate(prevProps: Props) {
     this.syncVisitUrl()
     this.ensureCoords()
-    if (isSplit()) restoreInfoOnMove.value = true
     if (prevProps && prevProps.id != this.props.id) {
       const id = parseInt(this.props.id, 10)
       this.fetchWomp(id)
@@ -156,18 +153,12 @@ export default class Womp extends Component<Props, State> {
       </Head>
     )
 
-    if (isSplit()) {
-      return (
-        <>
-          {head}
-          {this.renderAside(img)}
-        </>
-      )
-    }
-
     return (
       <section class="columns">
-        <article>{head}</article>
+        <article>
+          {head}
+          <div class="client-slot" />
+        </article>
         <aside>{this.renderAside(img)}</aside>
       </section>
     )

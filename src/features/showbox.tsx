@@ -21,7 +21,6 @@ import { showboxAudioConstraints, showboxRoomHint, SHOWBOX_ROOM_OPTIONS, type Sh
 import { VideoFxProcessor, FX_PALETTES, FX_DEFAULT_PALETTE, VIDEO_FX, type FxAudio } from '../../common/helpers/showbox-video-fx'
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
-import { isSplit } from '../../web/src/helpers/coords-nav'
 import { duckRadio, setRadioBroadcasting, unduckRadio } from '../../web/src/radio/global'
 import { broadcastDockEl, broadcastLiveStartedAt, broadcastShowboxUuid, closeBroadcastSidebar, uiAsideTick, uiPane } from '../store'
 import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
@@ -1487,7 +1486,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   sidebarDock() {
-    return isSplit() && !mobile
+    return !mobile
   }
 
   dismissBroadcastPanel() {

@@ -10,7 +10,7 @@ import cachedFetch from './helpers/cached-fetch'
 import parse from './helpers/parse'
 import { Spinner } from './spinner'
 import { app } from './state'
-import { getParcelId, isSplit, naviportHere } from './helpers/coords-nav'
+import { naviportHere } from './helpers/coords-nav'
 import { parcelCache } from './store/index'
 import { fetchOptions } from './utils'
 
@@ -197,9 +197,7 @@ export default class Parcels extends Component<Props, State> {
     if (!this.state.loading && !this.state.parcels) {
       view = <div>No parcels found</div>
     } else {
-      const selected = getParcelId()
-      const split = isSplit()
-      const parcels = this.state.parcels.map((p: any) => <TableRow key={p.id} record={p} helper={new ParcelHelper(p)} teleport={split} selected={split && selected === p.id} />)
+      const parcels = this.state.parcels.map((p: any) => <TableRow key={p.id} record={p} helper={new ParcelHelper(p)} teleport={false} selected={false} />)
 
       view = (
         <table class="parcels-table">
@@ -217,10 +215,6 @@ export default class Parcels extends Component<Props, State> {
     }
 
     const description = this.owner ? `owned by ${this.owner}` : null
-
-    if (isSplit()) {
-      return <section class="sidebar-view">{this.state.loading ? <Spinner size={18} /> : view}</section>
-    }
 
     return (
       <section>

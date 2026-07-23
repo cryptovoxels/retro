@@ -12,7 +12,7 @@ import { fetchOptions } from './utils'
 import { AvatarLink } from './components/avatar-link'
 import { ParcelMetrics as Metrics } from './components/metrics'
 import { ParcelShop } from './components/parcel-shop'
-import { isSplit, getCoords, getParcelIdFromPath, naviportHere, routeWithCoords, withCoords } from './helpers/coords-nav'
+import { getCoords, getParcelIdFromPath, naviportHere, routeWithCoords, withCoords } from './helpers/coords-nav'
 
 export interface Props {
   parcel?: ParcelWithMintednessRecord
@@ -98,7 +98,6 @@ export default class Parcel extends Component<Props, State> {
   }
 
   onUrl = () => {
-    if (!isSplit()) return
     const id = getParcelIdFromPath()
     if (!id || id === this.state.parcelId) return
     void this.fetch(id)
@@ -146,15 +145,13 @@ export default class Parcel extends Component<Props, State> {
       history.pushState = (history as any)['oldPushState']
     }
     app.on(AppEvent.Change, this.onAppChange)
-    if (isSplit()) {
-      window.addEventListener('parcelchange', this.onUrl)
-    }
+    window.addEventListener('parcelchange', this.onUrl)
   }
 
   componentDidUpdate(prevProps: Props, prevState: State) {
     this.syncVisitUrl()
     this.ensureCoords()
-    if (!isSplit() && this.props.id != this.state.parcelId) {
+    if (this.props.id != this.state.parcelId) {
       void this.fetch(this.props.id!)
     }
 
@@ -179,9 +176,7 @@ export default class Parcel extends Component<Props, State> {
     this.map = null
     this.parcelLayer = null
 
-    if (isSplit()) {
-      window.removeEventListener('parcelchange', this.onUrl)
-    }
+    window.removeEventListener('parcelchange', this.onUrl)
 
     history.pushState = function () {
       ;(history as any)['oldPushState'].apply(this, arguments as any)
@@ -403,18 +398,12 @@ export default class Parcel extends Component<Props, State> {
 
     const head = <Head title={parcelName} description={parcelDesc} url={`/parcels/${this.state.parcelId}`} imageURL={ogImage} />
 
-    if (isSplit()) {
-      return (
-        <>
-          {head}
-          {this.renderSidebar(islandSlug!)}
-        </>
-      )
-    }
-
     return (
       <section class="columns parcel-page">
-        <article>{head}</article>
+        <article>
+          {head}
+          <div class="client-slot" />
+        </article>
         <aside>{this.renderSidebar(islandSlug!)}</aside>
       </section>
     )

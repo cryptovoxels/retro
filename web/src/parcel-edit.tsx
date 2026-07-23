@@ -4,7 +4,7 @@ import { blocks } from '../../common/content/blocks'
 import { Login } from './auth/login'
 import SelectUser from './components/select-user'
 import cachedFetch, { invalidateUrl } from './helpers/cached-fetch'
-import { isSplit, routeWithCoords, withCoords } from './helpers/coords-nav'
+import { routeWithCoords, withCoords } from './helpers/coords-nav'
 import { app } from './state'
 
 type ParcelUser = { wallet: string; role: string }
@@ -309,15 +309,6 @@ export default function ParcelEdit(props: Props) {
   )
 
   if (!canEdit) {
-    if (isSplit()) {
-      return (
-        <>
-          {title}
-          <p>You don't have permission to edit this parcel.</p>
-        </>
-      )
-    }
-
     return (
       <section class="columns">
         <article>
@@ -325,17 +316,6 @@ export default function ParcelEdit(props: Props) {
           <p>You don't have permission to edit this parcel.</p>
         </article>
       </section>
-    )
-  }
-
-  if (isSplit()) {
-    return (
-      <>
-        {title}
-        {form}
-        {quickBuild}
-        {history}
-      </>
     )
   }
 
