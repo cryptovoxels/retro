@@ -139,14 +139,6 @@ export const defaultInteractBar = () => {
   return searchParams.get('interact')
 }
 
-export const regionalEffectsEnabled = () => {
-  return true
-}
-
-export const customSkyboxesEnabled = () => {
-  return true
-}
-
 export const wantsXR = (): boolean => {
   return isOculusQuest() || searchParams.get('xr') === 'true'
 }

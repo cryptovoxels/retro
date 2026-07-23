@@ -61,7 +61,6 @@ import { createWorld } from './init/world'
 import { sceneConfigFromURL, SceneConfig } from './scene-config'
 import type { Environment } from './enviroments/environment'
 import { PostProcesses } from './graphic/post-processes'
-import LutFactor from './graphic/lut-factor'
 import { ColorGrader } from './graphic/color-grading'
 import { FOV } from './graphic/field-of-view'
 import { Minimap, MinimapSettings } from './minimap'
@@ -305,7 +304,7 @@ async function main() {
   new DragDrop(scene)
 
   // not related to a parcel or space
-  const { environment, regions } = await createEnvironment(scene, controls.worldOffset)
+  const { environment } = await createEnvironment(scene, controls.worldOffset)
   // Give the Controls a chance to observe things in the Environment
   controls.attachEnvironment(environment)
 
@@ -313,13 +312,7 @@ async function main() {
     xr.attachEnvironment(environment)
   }
 
-  const lutFactor = new LutFactor()
-  const color = new ColorGrader(scene, lutFactor)
-  regions.addEventListener('color-grading-entered', color.colorGradingEntered.bind(color))
-  regions.addEventListener('color-grading-exited', color.colorGradingExited.bind(color))
-
-  // @ts-expect-error for debug
-  window._lutFactor = lutFactor
+  const color = new ColorGrader(scene)
   window._color = color
 
   graphic.postProcesses = new PostProcesses(scene, color, graphic)

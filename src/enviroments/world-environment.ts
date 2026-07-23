@@ -1,7 +1,6 @@
 import { Terrain } from '../terrain/terrain'
 import Skybox from '../terrain/skybox'
 import Horizon from '../terrain/horizon'
-import CustomSkybox from '../terrain/customSkybox'
 import UnderwaterSkybox from '../terrain/underwater-skybox'
 import { StateObservable } from '../utils/state-observable'
 import { Environment } from './environment'
@@ -16,7 +15,6 @@ export class WorldEnvironment extends Environment {
   terrain?: Terrain
   horizon?: Horizon
   skybox?: Skybox
-  customSkybox?: CustomSkybox
   private underwaterSkybox?: UnderwaterSkybox
   private _invalidateGroundLoaded: (() => void) | undefined
   private _isNight: boolean | null = null
@@ -100,11 +98,8 @@ export class WorldEnvironment extends Environment {
     await super.load()
 
     this.skybox = new Skybox(this.scene)
-    this.customSkybox = new CustomSkybox(this.scene)
 
-    const skyObjects = [this.skybox, this.customSkybox]
-
-    const terrain = new Terrain(this.scene, this.parent, skyObjects)
+    const terrain = new Terrain(this.scene, this.parent, [this.skybox])
     this.terrain = terrain
     this._groundStateObservable = terrain.islandsStateObservable
     this._invalidateGroundLoaded = () => terrain.invalidateIslandsLoaded()

@@ -35,7 +35,7 @@ export class Terrain {
     // Extract meshes from skyboxes for reflection
     const skyboxMeshes: BABYLON.Mesh[] = []
     for (const skybox of skyboxes) {
-      // Skybox and CustomSkybox have .mesh property
+      // Skybox has .mesh property
       if (skybox.mesh) {
         skyboxMeshes.push(skybox.mesh)
       }
