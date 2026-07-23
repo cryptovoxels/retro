@@ -17,4 +17,4 @@ from womps
          left join
      properties on womps.parcel_id = properties.id
 order by id desc limit
-  200;
+  $1;

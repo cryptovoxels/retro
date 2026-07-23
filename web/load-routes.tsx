@@ -49,7 +49,7 @@ export default function loadRoutes(app: Express) {
       order by 
         id desc 
       limit 
-        32;
+        20;
     `,
       )
       let womps = r.rows

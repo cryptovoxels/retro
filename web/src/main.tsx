@@ -163,10 +163,10 @@ function Play(_props: { path?: string }) {
 
 function hydrate(vnode: JSXInternal.Element, parent: HTMLElement) {
   let replace = parent.firstElementChild ?? undefined
-  // SSR renders route content only (section/article). Main adds <main> + chrome.
-  // Reusing the SSR root as replaceNode leaves that markup alongside Main.
+  // SSR dumps route fragments as body siblings (live-hero + columns). Main adds <main>.
+  // Nuke all of them or the leftovers stack under the client tree.
   if (replace && replace.tagName !== 'MAIN') {
-    replace.remove()
+    while (parent.firstElementChild) parent.firstElementChild.remove()
     replace = undefined
   }
   return render(vnode, parent, replace)
