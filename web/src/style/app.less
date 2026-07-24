@@ -60,7 +60,7 @@ body {
 }
 
 body {
-  font-family: 'Source Code Pro', monospace;
+  font-family: 'Source Code Pro', sans-serif;
   font-size: 14px;
   line-height: 1.5;
   margin-bottom: 20rem;
@@ -75,6 +75,7 @@ h4,
 h5,
 h6 {
   font-weight: 700;
+  font-family: sans-serif;
   margin: 0 0 0.5rem;
 }
 
@@ -133,6 +134,7 @@ select {
 * {
   touch-action: manipulation;
 }
+
 
 // --- web + components + in-world ---
 
@@ -279,12 +281,12 @@ select {
       flex-wrap: wrap;
       gap: 0.5rem;
 
-      li > div {
+      li>div {
         width: 4rem;
         height: 4rem;
       }
 
-      li > img {
+      li>img {
         width: 4rem;
         height: 4rem;
         object-fit: cover;
@@ -461,8 +463,7 @@ select {
   }
 }
 
-.classifieds {
-}
+.classifieds {}
 
 .toggle {
   width: 3rem;
@@ -514,7 +515,7 @@ select {
     max-width: 100%;
   }
 
-  img + p {
+  img+p {
     margin: 0;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -556,10 +557,9 @@ button.iconish {
 button,
 a.buttonish {
   display: inline-block;
-  border-style: solid;
-  border-width: 1px;
-  border-color: #f5f5f5 var(--muted-2) var(--muted-2) #f5f5f5;
-  background: #eee;
+  border-style: none;
+  background: var(--fg);
+  border-radius: 3px;
   color: var(--bg);
   text-decoration: none;
   padding: 0.2rem 0.5rem;
@@ -700,7 +700,7 @@ header nav img.logo {
       z-index: 1;
     }
 
-    > ul {
+    >ul {
       width: 100%;
       overflow-x: auto;
       flex-wrap: nowrap;
@@ -712,7 +712,7 @@ header nav img.logo {
       }
     }
 
-    > ul > li {
+    >ul>li {
       flex: 0 0 auto;
       white-space: nowrap;
     }
@@ -781,18 +781,18 @@ button.hamburger {
   align-items: start;
   gap: 0.5rem 1rem;
 
-  & > nav {
+  &>nav {
     margin-top: 4rem;
     overflow: hidden;
     max-width: 10rem;
     transition: max-width 200ms ease-in-out;
   }
 
-  & > article {
+  &>article {
     flex: 1;
   }
 
-  & > aside {
+  &>aside {
     width: 25vw;
 
     a {
@@ -817,8 +817,8 @@ button.hamburger {
   .columns {
     flex-direction: column;
 
-    & > article,
-    & > aside {
+    &>article,
+    &>aside {
       width: 100%;
     }
   }
@@ -1013,12 +1013,12 @@ body.in-world.chat-route main {
   grid-template-columns: 1fr clamp(24rem, 40%, 40rem);
 }
 
-body.in-world.chat-route main > aside .chat-page {
+body.in-world.chat-route main>aside .chat-page {
   height: 100%;
   padding: 0;
 }
 
-body.in-world.chat-route main > aside .chat-page h1 {
+body.in-world.chat-route main>aside .chat-page h1 {
   position: sticky;
   top: 0;
   background: var(--surface-2);
@@ -1086,8 +1086,8 @@ body:-webkit-full-screen .client-placeholder {
 }
 
 // Fullscreen: broadcast controls slide in from the right; canvas stays full viewport.
-body:fullscreen.in-world main > aside.-broadcast-open,
-body:-webkit-full-screen.in-world main > aside.-broadcast-open {
+body:fullscreen.in-world main>aside.-broadcast-open,
+body:-webkit-full-screen.in-world main>aside.-broadcast-open {
   display: block;
   position: fixed;
   top: 0;
@@ -1101,8 +1101,8 @@ body:-webkit-full-screen.in-world main > aside.-broadcast-open {
 }
 
 // closing collapses the dock even in fullscreen; the live tab brings it back
-body:fullscreen main > aside.-broadcast-open.-closed,
-body:-webkit-full-screen main > aside.-broadcast-open.-closed {
+body:fullscreen main>aside.-broadcast-open.-closed,
+body:-webkit-full-screen main>aside.-broadcast-open.-closed {
   display: none;
 }
 
@@ -1147,6 +1147,7 @@ body:-webkit-full-screen main > aside.-broadcast-open.-closed {
 }
 
 @keyframes showbox-live-pulse {
+
   0%,
   100% {
     opacity: 1;
@@ -1230,7 +1231,7 @@ body.done-loading {
 
 // Figcaption
 
-figcaption + figure {
+figcaption+figure {
   margin-top: -2rem;
 }
 
@@ -1259,8 +1260,7 @@ figcaption {
 
 // Mode buttons show full words on desktop, single letters on mobile
 
-@media @narrow {
-}
+@media @narrow {}
 
 // Definition list
 
@@ -1402,6 +1402,7 @@ div.f {
 }
 
 .island-admin {
+
   article,
   aside {
     width: 40vw;
@@ -1595,7 +1596,7 @@ hgroup {
     margin: 1rem 0 0 0;
   }
 
-  h1 + p {
+  h1+p {
     margin-top: -0.5rem;
   }
 }
@@ -1669,7 +1670,7 @@ p.empty {
       margin: 0;
       padding: 0;
 
-      & > a {
+      &>a {
         display: block;
 
         // truncate
@@ -1704,11 +1705,9 @@ menu.context {
     cursor: pointer;
   }
 
-  li:hover {
-  }
+  li:hover {}
 
-  li:hover {
-  }
+  li:hover {}
 }
 
 // Parcels / spaces table
@@ -1735,6 +1734,7 @@ table.spaces {
 // Radar
 
 .radar {
+
   &,
   ul,
   li {
@@ -1748,7 +1748,7 @@ table.spaces {
     list-style-type: '>';
   }
 
-  & > li {
+  &>li {
     margin-bottom: 1rem;
     list-style: none;
   }
@@ -1833,6 +1833,7 @@ table.spaces {
   }
 
   &.showbox-dock-live.showbox-dock-chat-focus {
+
     .showbox-dock-live-tools,
     .showbox-dock-link-btn,
     .showbox-dock-footer,
@@ -1937,6 +1938,7 @@ table.spaces {
 }
 
 @keyframes showbox-live-pulse {
+
   0%,
   100% {
     opacity: 1;
@@ -2173,8 +2175,10 @@ table.spaces {
 
 // global web button:hover sticks on mobile after tap
 .showbox-dock {
+
   .showbox-dock-link-btn,
   .showbox-dock-cancel {
+
     &:hover,
     &:focus,
     &:active {
@@ -2185,6 +2189,7 @@ table.spaces {
   }
 
   .showbox-dock-viewer-count {
+
     &:hover,
     &:focus,
     &:active {
@@ -2198,6 +2203,7 @@ table.spaces {
   .showbox-dock-share-main,
   .showbox-dock-share-pick,
   .showbox-dock-go:not(.stop) {
+
     &:hover,
     &:focus,
     &:active {
@@ -2208,6 +2214,7 @@ table.spaces {
   }
 
   .showbox-dock-go.stop {
+
     &:hover,
     &:focus,
     &:active {
@@ -2219,6 +2226,7 @@ table.spaces {
 
   .showbox-dock-chat-reply button,
   .showbox-dock-share-row button {
+
     &:hover,
     &:focus,
     &:active {
@@ -2229,6 +2237,7 @@ table.spaces {
   }
 
   .showbox-dock-share-menu button {
+
     &:hover,
     &:focus,
     &:active {
@@ -2263,13 +2272,13 @@ table.spaces {
       display: flex;
       gap: 0.5rem;
 
-      > div {
+      >div {
         display: block;
         overflow: hidden;
         text-overflow: ellipsis;
       }
 
-      > div,
+      >div,
       input[type='text'] {
         flex: 1;
       }
@@ -2509,7 +2518,7 @@ button.iconish {
 // the aside is the single scroll container in split view; inner pane sections
 // must not make a second one (that was the double-scrollbar). pin headers with
 // position: sticky instead of a nested scroller.
-body.in-world main > aside section {
+body.in-world main>aside section {
   overflow: visible;
   padding: 0.5rem;
 }
@@ -2644,7 +2653,7 @@ body.in-world main > aside section {
       text-align: center;
       width: 100%;
 
-      > i {
+      >i {
         margin-right: 5px;
       }
 
@@ -2710,9 +2719,9 @@ body.in-world main > aside section {
 }
 
 /* Feature editor */
-body.in-world main > aside .editor,
-body.in-world main > aside .edit-pane-inspector,
-body.in-world main > aside section.settings,
+body.in-world main>aside .editor,
+body.in-world main>aside .edit-pane-inspector,
+body.in-world main>aside section.settings,
 .UserInterface dialog.editor {
   font-size: 1em;
   overflow-x: hidden;
@@ -2755,8 +2764,7 @@ body.in-world main > aside section.settings,
     cursor: pointer;
   }
 
-  button {
-  }
+  button {}
 
   button.asset-library {
     width: 100%;
@@ -2836,7 +2844,7 @@ body.in-world main > aside section.settings,
     text-shadow: 1px 1px 1px var(--bg);
   }
 
-  .textures + p {
+  .textures+p {
     margin: 16px 0 0 12px;
 
     small {
@@ -2902,7 +2910,7 @@ body.in-world main > aside section.settings,
       min-width: 0;
       overflow: hidden;
 
-      > input[type='checkbox'] {
+      >input[type='checkbox'] {
         flex: 0 0 auto;
         margin: 0 4px;
         align-self: center;
@@ -2920,7 +2928,7 @@ body.in-world main > aside section.settings,
         display: contents;
       }
 
-      > label,
+      >label,
       label:first-child {
         color: var(--border-color);
         font-size: 0.85em;
@@ -2931,10 +2939,10 @@ body.in-world main > aside section.settings,
         align-self: center;
       }
 
-      > input,
-      > select,
-      > textarea,
-      > button {
+      >input,
+      >select,
+      >textarea,
+      >button {
         grid-column: 2;
         padding: 4px 6px;
         align-self: center;
@@ -2943,13 +2951,13 @@ body.in-world main > aside section.settings,
         background: transparent;
       }
 
-      > div:not(.sub-f),
-      > .button-tabs,
+      >div:not(.sub-f),
+      >.button-tabs,
       form label {
         grid-column: 1 / -1;
       }
 
-      > select ~ * {
+      >select~* {
         grid-column: 1 / -1;
       }
 
@@ -2967,7 +2975,7 @@ body.in-world main > aside section.settings,
       grid-template-columns: 38% 1fr;
       border-bottom: 1px solid var(--surface-2);
 
-      > label {
+      >label {
         color: var(--border-color);
         font-size: 0.85em;
         padding: 4px 6px;
@@ -2975,7 +2983,7 @@ body.in-world main > aside section.settings,
         align-self: center;
       }
 
-      > small {
+      >small {
         margin: 0;
         padding: 4px 6px;
         align-self: center;
@@ -2983,7 +2991,7 @@ body.in-world main > aside section.settings,
 
       .behaviour-row,
       .behaviour-add,
-      > .f {
+      >.f {
         grid-column: 1 / -1;
       }
     }
@@ -3043,7 +3051,7 @@ body.in-world main > aside section.settings,
       margin-top: 10px;
     }
 
-    input[type='checkbox'] + small {
+    input[type='checkbox']+small {
       display: inline;
     }
 
@@ -3052,12 +3060,13 @@ body.in-world main > aside section.settings,
       margin: 5px 0;
     }
 
-    select + div {
+    select+div {
       margin-top: 4px;
     }
   }
 
   .f.fs {
+
     input[type='number'],
     input.number {
       width: 83px;
@@ -3100,7 +3109,7 @@ body.in-world main > aside section.settings,
     justify-content: space-around;
     text-align: center;
 
-    div > small > button {
+    div>small>button {
       margin-right: 0;
     }
   }
@@ -3137,17 +3146,15 @@ body.in-world main > aside section.settings,
       input[type='text'],
       input[type='number'],
       input[type='range'],
-      textarea {
-      }
+      textarea {}
 
-      textarea {
-      }
+      textarea {}
     }
   }
 }
 
-body.in-world main > aside section.settings {
-  > section + section {
+body.in-world main>aside section.settings {
+  >section+section {
     margin-top: 0;
   }
 
@@ -3190,7 +3197,7 @@ body.in-world main > aside section.settings {
   }
 }
 
-body.in-world main > aside .editor ul.toolbar,
+body.in-world main>aside .editor ul.toolbar,
 .UserInterface dialog ul.toolbar {
   margin-bottom: 10px;
   padding-left: 0;
@@ -3241,7 +3248,7 @@ section.build-tab nav.build-main-tabs {
 }
 
 .FeatureSpawnList {
-  > header {
+  >header {
     display: flex;
     align-items: center;
     margin-bottom: 5px;
@@ -3340,7 +3347,7 @@ section.build-tab nav.build-main-tabs {
     flex-wrap: wrap;
     margin-top: 5px;
 
-    > div {
+    >div {
       margin: 3px;
       cursor: pointer;
 
@@ -3474,8 +3481,8 @@ section.build-tab nav.build-main-tabs {
 .SortingOptions {
   margin: 5px 4px;
 
-  > a,
-  > button {
+  >a,
+  >button {
     padding: 4px 8px;
     text-decoration: none;
     background: var(--surface-2);
@@ -3504,8 +3511,8 @@ section.build-tab nav.build-main-tabs {
     }
   }
 
-  > a.categories,
-  > a.types {
+  >a.categories,
+  >a.types {
     padding: 4px 0;
 
     select {
@@ -3527,17 +3534,17 @@ section.build-tab nav.build-main-tabs {
   &.-small {
     height: 100%;
 
-    > *:nth-child(2) {
+    >*:nth-child(2) {
       flex-grow: 1;
     }
 
-    > img {
+    >img {
       width: 140px;
       height: 140px;
     }
   }
 
-  &.-large > img {
+  &.-large>img {
     width: 180px;
     height: 180px;
   }
@@ -3547,7 +3554,7 @@ section.build-tab nav.build-main-tabs {
     margin: 0 5px 0 0;
   }
 
-  > img {
+  >img {
     width: 180px;
     height: 180px;
     background-color: var(--line);
@@ -3555,17 +3562,17 @@ section.build-tab nav.build-main-tabs {
     margin-bottom: 5px;
   }
 
-  > div.loading-image,
-  > div.broken-image {
+  >div.loading-image,
+  >div.broken-image {
     width: 100%;
 
-    > img {
+    >img {
       display: block;
       margin: auto;
     }
   }
 
-  > div.broken-image {
+  >div.broken-image {
     height: 100%;
     filter: grayscale();
   }
@@ -3619,7 +3626,7 @@ section.build-tab nav.build-main-tabs {
       flex: 1;
     }
 
-    div + div {
+    div+div {
       margin-left: 4px;
     }
   }
@@ -3637,11 +3644,9 @@ section.build-tab nav.build-main-tabs {
     gap: 10px;
     margin: 10px;
 
-    img {
-    }
+    img {}
 
-    img {
-    }
+    img {}
 
     div.asset-card-container {
       position: relative;
@@ -3695,13 +3700,13 @@ section.build-tab nav.build-main-tabs {
       margin: 0;
       padding: 0;
 
-      &.-selected > .feature-tree-row {
+      &.-selected>.feature-tree-row {
         color: var(--red);
       }
     }
   }
 
-  .feature-tree-parcel > .feature-tree-label {
+  .feature-tree-parcel>.feature-tree-label {
     display: block;
     padding: 4px 6px;
     font-size: 0.85em;
@@ -3745,7 +3750,7 @@ section.build-tab nav.build-main-tabs {
   min-height: 0;
   overflow: visible;
 
-  > section {
+  >section {
     display: flex;
     flex-direction: column;
     height: 100%;
@@ -3759,7 +3764,7 @@ section.build-tab nav.build-main-tabs {
   }
 }
 
-body.in-world main > aside .edit-pane-inspector {
+body.in-world main>aside .edit-pane-inspector {
   overflow: visible;
 
   .scrollContainer {
@@ -3770,8 +3775,8 @@ body.in-world main > aside .edit-pane-inspector {
 
 // these panes set overflow-x: hidden, which per spec forces overflow-y to auto and
 // makes a second scrollbar; the aside is the only scroller in split view
-body.in-world main > aside .editor,
-body.in-world main > aside section.settings {
+body.in-world main>aside .editor,
+body.in-world main>aside section.settings {
   overflow: visible;
 
   .scrollContainer {
@@ -3870,14 +3875,14 @@ section.take-womp {
   }
 }
 
-form.PermissionsRadioSelector > div {
+form.PermissionsRadioSelector>div {
   margin: 10px 0;
 
-  > label {
+  >label {
     cursor: pointer;
     display: flex;
 
-    > div {
+    >div {
       margin-left: 5px;
       flex: 1;
 
@@ -3985,11 +3990,11 @@ form.PermissionsRadioSelector > div {
   .colos {
     display: flex;
 
-    & > ul {
+    &>ul {
       flex: 1;
     }
 
-    & > ul:last-child {
+    &>ul:last-child {
       padding-left: 8px;
     }
   }
@@ -4022,7 +4027,7 @@ form.PermissionsRadioSelector > div {
       margin-top: 1rem;
     }
 
-    u + p {
+    u+p {
       color: var(--border-color);
       display: inline-block;
       margin: 0;
@@ -4044,6 +4049,7 @@ form.PermissionsRadioSelector > div {
 
 /* Parcel info + debug tools */
 .parcel-information-overlay {
+
   h2,
   h3,
   h4,
@@ -4069,7 +4075,7 @@ form.PermissionsRadioSelector > div {
     margin: 5px 0 5px 7px;
   }
 
-  .actions > li {
+  .actions>li {
     margin: 5px 0 2px 2px;
 
     a {
@@ -4091,7 +4097,7 @@ form.PermissionsRadioSelector > div {
     padding: 8px;
     margin: 2px 2px 10px;
 
-    > * {
+    >* {
       margin-bottom: 8px;
     }
 
@@ -4319,6 +4325,7 @@ form.PermissionsRadioSelector > div {
     user-select: text;
 
     table {
+
       th,
       td {
         text-align: left;
@@ -4457,7 +4464,7 @@ div.mobile-buttons {
     height: @size;
     margin: 1rem;
 
-    & > button.hex-button {
+    &>button.hex-button {
       position: relative;
       padding: 0;
       margin: 0 0.5rem 0 0;
@@ -4553,11 +4560,9 @@ dialog {
     }
   }
 
-  &.-fixed {
-  }
+  &.-fixed {}
 
-  &.-fixed {
-  }
+  &.-fixed {}
 
   iframe {
     background: #eee;
@@ -4565,6 +4570,7 @@ dialog {
 }
 
 .ParcelAdminWindow .OverlayHighlightContent {
+
   input[type='text'],
   textarea {
     flex: 2;
@@ -4614,7 +4620,7 @@ dialog {
     }
   }
 
-  li + li {
+  li+li {
     margin-top: 3px;
   }
 
@@ -4631,8 +4637,7 @@ dialog {
     user-select: text;
   }
 
-  button {
-  }
+  button {}
 
   ul {
     margin: 0 0 0 15px;
@@ -4648,7 +4653,7 @@ dialog {
     top: 0;
   }
 
-  & > a:hover {
+  &>a:hover {
     background: none !important;
   }
 }
@@ -4749,6 +4754,7 @@ button[accesskey] {
 
 /* Map marker css icons */
 div.css-icon {
+
   div.party,
   div.exhibition {
     height: 18px;

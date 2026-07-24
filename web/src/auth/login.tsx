@@ -196,7 +196,7 @@ export const Login = ({ reason, hideHeading }: { reason?: string; hideHeading?: 
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: chosenName.trim() }),
-    }).catch(() => {})
+    }).catch(() => { })
   }
 
   const onMetamask = async () => {
@@ -259,7 +259,7 @@ export const Login = ({ reason, hideHeading }: { reason?: string; hideHeading?: 
           onClick={(e) => {
             e.preventDefault()
             setStage('code')
-            postJSON('/api/signin/code', { email }).catch(() => {})
+            postJSON('/api/signin/code', { email }).catch(() => { })
           }}
         >
           use email code instead
@@ -300,32 +300,28 @@ export const Login = ({ reason, hideHeading }: { reason?: string; hideHeading?: 
   return (
     <section class="login">
       {!hideHeading && <h1>log in{reason ? ` to ${reason}` : ''}</h1>}
-      <div class="login-form">
-        <div class="login-block">
-          <h1>wallet</h1>
-          <button type="button" onClick={onMetamask} disabled={busy}>
-            <img src={'/images/metamask.png'} width={30} height={30} title={'Metamask'} alt="" />
-            &nbsp;{busy ? 'connecting...' : 'Metamask'}
-          </button>
-          {mmHint && <p>{mmHint}</p>}
-        </div>
 
-        <hr class="login-form-divider" />
-
-        <div class="login-block">
-          <h1>email login</h1>
-          <form onSubmit={onContinue}>
-            <div class="f">
-              <label>email</label>
-              <input type="email" value={email} onInput={(e) => setEmail(e.currentTarget.value)} autocomplete="email" autocapitalize="none" placeholder="you@example.com" />
-            </div>
-            {error && <p>{error}</p>}
-            <button type="submit" disabled={busy || !email.trim()}>
-              {busy ? 'checking...' : 'continue'}
-            </button>
-          </form>
+      <form onSubmit={onContinue}>
+        <div class="f">
+          <label>email</label>
+          <input type="email" value={email} onInput={(e) => setEmail(e.currentTarget.value)} autocomplete="email" autocapitalize="none" autoFocus />
         </div>
-      </div>
+        {error && <p>{error}</p>}
+        <button type="submit" disabled={busy || !email.trim()}>
+          {busy ? 'checking...' : 'continue'}
+        </button>
+      </form>
+
+      <br />
+      <br />
+
+      <h3>or use your crypto wallet</h3>
+      <button type="button" onClick={onMetamask} disabled={busy}>
+        <img src={'/images/metamask.png'} width={30} height={30} title={'Metamask'} alt="" />
+        &nbsp;{busy ? 'connecting...' : 'Metamask'}
+      </button>
+      {mmHint && <p>{mmHint}</p>}
+
     </section>
   )
 }
