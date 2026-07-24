@@ -84,7 +84,8 @@ export default class DesktopControls extends Controls {
 
     const mouse = cam.inputs.attached['mouse'] as BABYLON.FreeCameraMouseInput | undefined
     if (locked) {
-      this.idleLook.abort()
+      // lerp out — don't abort/snap
+      this.idleLook.stop()
       mouse?.attachControl(true)
     } else {
       mouse?.detachControl()
@@ -114,6 +115,8 @@ export default class DesktopControls extends Controls {
 
     if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 0 && !hasPointerLock() && !eventData.event.shiftKey) {
       window.ui?.clearAllExplore()
+      // start lerp-out on the click itself so it doesn't snap when lock fires
+      this.idleLook.stop()
       this.requestPointerLock()?.catch(() => {})
       return
     }
@@ -372,11 +375,13 @@ export default class DesktopControls extends Controls {
       element.remove()
     })
 
-    this.canvas.focus()
-
+    // don't focus() before lock — steals the user gesture, forces a second click
     const maybePromise: unknown = this.canvas.requestPointerLock()
     if (maybePromise instanceof Promise) {
-      return maybePromise
+      return maybePromise.then((v) => {
+        this.canvas.focus()
+        return v
+      })
     }
 
     return new Promise<Event>((resolve, reject) => {
@@ -390,6 +395,7 @@ export default class DesktopControls extends Controls {
       }
       const pointerLockSuccess = (e: Event) => {
         removeEvents()
+        this.canvas.focus()
         resolve(e)
       }
 

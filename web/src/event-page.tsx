@@ -85,8 +85,7 @@ export default class EventPage extends Component<Props, State> {
 
     const isMod = app.state?.moderator || this.helper.isOwner
     const canEdit = this.helper.canEdit && (this.helper.isOwner || isMod) && this.state.event?.id
-    const recent =
-      this.helper.isInPast && Date.now() - this.helper.expires_at.getTime() < 7 * 24 * 60 * 60 * 1000
+    const recent = this.helper.isInPast && Date.now() - this.helper.expires_at.getTime() < 7 * 24 * 60 * 60 * 1000
 
     return (
       <section class="columns nav">

@@ -90,7 +90,6 @@ export default class Persona {
       }
     })
 
-
     setTimeout(() => {
       this.controls.idleLook?.start()
     }, 1000)

@@ -8,7 +8,8 @@ export default class PlayerCamera extends BABYLON.FreeCamera {
   private diff = BABYLON.Vector3.Zero()
   private next = BABYLON.Vector3.Zero()
   private idlePos = BABYLON.Vector3.Zero()
-  private idleRot = BABYLON.Vector3.Zero()
+  private idleBase = BABYLON.Quaternion.Identity()
+  private idleApplied = false
 
   constructor(name: string, position: BABYLON.Vector3, scene?: BABYLON.Scene, setActiveOnSceneIfNoneActive = true) {
     super(name, position, scene, setActiveOnSceneIfNoneActive)
@@ -25,21 +26,30 @@ export default class PlayerCamera extends BABYLON.FreeCamera {
     }
   }
 
-  // undo last idle, apply pos/rot * mix (no lookAt, just add)
-  applyIdle(pos: BABYLON.Vector3, rot: BABYLON.Vector3, mix: number) {
-    this.position.subtractInPlace(this.idlePos)
-    this.rotation.subtractInPlace(this.idleRot)
+  // apply offset * mix and slerp(baseEuler, lookQuat, mix)
+  applyIdle(pos: BABYLON.Vector3, look: BABYLON.Quaternion, mix: number) {
+    this.clearIdle()
+
     this.idlePos.copyFrom(pos).scaleInPlace(mix)
-    this.idleRot.copyFrom(rot).scaleInPlace(mix)
     this.position.addInPlace(this.idlePos)
-    this.rotation.addInPlace(this.idleRot)
+
+    BABYLON.Quaternion.FromEulerAnglesToRef(this.rotation.x, this.rotation.y, this.rotation.z, this.idleBase)
+    if (mix <= 0) return
+
+    if (!this.rotationQuaternion) this.rotationQuaternion = BABYLON.Quaternion.Identity()
+    BABYLON.Quaternion.SlerpToRef(this.idleBase, look, mix, this.rotationQuaternion)
+    this.idleApplied = true
   }
 
   clearIdle() {
-    this.position.subtractInPlace(this.idlePos)
-    this.rotation.subtractInPlace(this.idleRot)
-    this.idlePos.setAll(0)
-    this.idleRot.setAll(0)
+    if (this.idlePos.lengthSquared() > 0) {
+      this.position.subtractInPlace(this.idlePos)
+      this.idlePos.setAll(0)
+    }
+    if (this.idleApplied) {
+      this.rotationQuaternion = null as any
+      this.idleApplied = false
+    }
   }
 
   _collideWithWorld(displacement: BABYLON.Vector3): void {
