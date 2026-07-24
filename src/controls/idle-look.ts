@@ -2,6 +2,8 @@ import type Controls from './controls'
 import PlayerCamera from './utils/player-camera'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
 
+const ENABLED = false // todo: re-enable when neck bob feels right
+
 const BOB_SPEED = 0.7
 const BLEND = 0.5 // mix 0->1 over 500ms
 const LOOK_DIST = 20
@@ -39,10 +41,11 @@ export class IdleLook {
   }
 
   get active() {
-    return this.live || this.mix > 0
+    return ENABLED && (this.live || this.mix > 0)
   }
 
   start() {
+    if (!ENABLED) return
     if (hasPointerLock()) return
     const cam = this.controls.camera
     if (!(cam instanceof PlayerCamera)) return
@@ -79,6 +82,7 @@ export class IdleLook {
   }
 
   tick(dt: number) {
+    if (!ENABLED) return
     const cam = this.controls.camera
     if (!(cam instanceof PlayerCamera)) {
       this.abort()
