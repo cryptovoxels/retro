@@ -33,7 +33,8 @@ export function WorldSidebar({ coords, path, children }: Props) {
     sidebarClosed.value
 
     const parcel = selectNearestEditableParcel()
-    const key = uiPane.value || (parcel && isAuthoring(parcel.id) ? `auth:${parcel.id}` : '')
+    // match the pane id we actually render (default info), so close isn't undone by a key flap
+    const key = uiPane.value || (parcel && isAuthoring(parcel.id) ? `auth:${parcel.id}` : isFullClientPath(path) ? 'info' : '')
     if (key && key !== prevKey.current) sidebarClosed.value = false
     prevKey.current = key
 
@@ -45,8 +46,15 @@ export function WorldSidebar({ coords, path, children }: Props) {
   if (!coords) return <>{children}</>
 
   const closed = sidebarClosed.value ? '-closed' : undefined
+  const onClose = (e: Event) => {
+    e.preventDefault()
+    e.stopPropagation()
+    sidebarClosed.value = true
+    document.body.classList.add('sidebar-closed')
+    window.engine?.resize()
+  }
   const close = (
-    <button class="sidebar-close" title="close" onClick={() => (sidebarClosed.value = true)}>
+    <button type="button" class="sidebar-close" title="close" onClick={onClose}>
       x
     </button>
   )

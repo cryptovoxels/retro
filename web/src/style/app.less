@@ -1033,7 +1033,8 @@ body.in-world.chat-route main>aside .chat-page h1 {
 }
 
 .client {
-  z-index: 2;
+  // keep the world under main/aside so the push panel receives clicks (close X, map, etc.)
+  z-index: 1;
 
   .client-canvas,
   canvas {
@@ -1049,7 +1050,7 @@ body.in-world.chat-route main>aside .chat-page h1 {
   // sized by JS to .client-world (push panel); fallback full-bleed if no slot
   &.-full {
     position: fixed;
-    inset: 0;
+    // no inset:0 — that fights left/width from fit() and can stretch over the sidebar
   }
 
   &.-embed {
@@ -1067,6 +1068,8 @@ body.in-world {
   --world-sidebar: min(22rem, 36vw);
 
   main:has(> .client-world) {
+    position: relative;
+    z-index: 2;
     max-width: none;
     height: 100vh;
     display: grid;
@@ -1098,19 +1101,22 @@ body.in-world {
     min-width: 0;
     min-height: 0;
     padding: 1rem;
+    padding-top: 2rem;
     background: var(--bg);
     box-sizing: border-box;
 
     .sidebar-close {
-      position: absolute;
-      top: 0.5rem;
-      right: 0.5rem;
-      z-index: 3;
+      position: sticky;
+      top: 0;
+      float: right;
+      z-index: 5000; // above leaflet panes
       cursor: pointer;
-      background: none;
+      background: var(--bg);
       border: none;
       color: var(--red);
       font-weight: bold;
+      padding: 0.25rem 0.5rem;
+      margin: -0.5rem -0.5rem 0 0;
     }
   }
 }
