@@ -53,6 +53,8 @@ export class Client extends Component<FrameProps, FrameState> {
       canvas.style.display = 'none'
       document.body.appendChild(canvas)
     }
+
+    document.body.classList.remove('in-world')
   }
 
   private adopt() {
@@ -64,6 +66,7 @@ export class Client extends Component<FrameProps, FrameState> {
 
     box.appendChild(canvas)
     canvas.style.display = 'block'
+    document.body.classList.add('in-world')
     this.syncCoordsUrl()
     this.track()
     this.naviport()
