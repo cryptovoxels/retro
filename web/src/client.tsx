@@ -110,10 +110,11 @@ export class Client extends Component<FrameProps, FrameState> {
 
     if (!slot) {
       if (this.props.mode === 'full') {
-        root.style.top = ''
-        root.style.left = ''
-        root.style.right = ''
-        root.style.bottom = ''
+        root.style.position = 'fixed'
+        root.style.top = '0'
+        root.style.left = '0'
+        root.style.right = '0'
+        root.style.bottom = '0'
         root.style.width = ''
         root.style.height = ''
         window.engine?.resize()
@@ -127,10 +128,10 @@ export class Client extends Component<FrameProps, FrameState> {
       root.style.position = 'fixed'
       root.style.top = `${r.top}px`
       root.style.left = `${r.left}px`
-      root.style.width = `${r.width}px`
-      root.style.height = `${r.height}px`
-      root.style.right = ''
-      root.style.bottom = ''
+      root.style.width = `${Math.max(0, r.width)}px`
+      root.style.height = `${Math.max(0, r.height)}px`
+      root.style.right = 'auto'
+      root.style.bottom = 'auto'
       window.engine?.resize()
     }
 
