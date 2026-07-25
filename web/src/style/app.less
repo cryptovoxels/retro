@@ -2518,7 +2518,7 @@ button.iconish {
 // the aside is the single scroll container in split view; inner pane sections
 // must not make a second one (that was the double-scrollbar). pin headers with
 // position: sticky instead of a nested scroller.
-body.in-world main>aside section {
+main>aside section {
   overflow: visible;
   padding: 0.5rem;
 }
@@ -2719,9 +2719,9 @@ body.in-world main>aside section {
 }
 
 /* Feature editor */
-body.in-world main>aside .editor,
-body.in-world main>aside .edit-pane-inspector,
-body.in-world main>aside section.settings,
+main>aside .editor,
+main>aside .edit-pane-inspector,
+main>aside section.settings,
 .UserInterface dialog.editor {
   font-size: 1em;
   overflow-x: hidden;
@@ -3153,7 +3153,7 @@ body.in-world main>aside section.settings,
   }
 }
 
-body.in-world main>aside section.settings {
+main>aside section.settings {
   >section+section {
     margin-top: 0;
   }
@@ -3197,7 +3197,7 @@ body.in-world main>aside section.settings {
   }
 }
 
-body.in-world main>aside .editor ul.toolbar,
+main>aside .editor ul.toolbar,
 .UserInterface dialog ul.toolbar {
   margin-bottom: 10px;
   padding-left: 0;
@@ -3764,7 +3764,7 @@ section.build-tab nav.build-main-tabs {
   }
 }
 
-body.in-world main>aside .edit-pane-inspector {
+main>aside .edit-pane-inspector {
   overflow: visible;
 
   .scrollContainer {
@@ -3775,8 +3775,8 @@ body.in-world main>aside .edit-pane-inspector {
 
 // these panes set overflow-x: hidden, which per spec forces overflow-y to auto and
 // makes a second scrollbar; the aside is the only scroller in split view
-body.in-world main>aside .editor,
-body.in-world main>aside section.settings {
+main>aside .editor,
+main>aside section.settings {
   overflow: visible;
 
   .scrollContainer {
