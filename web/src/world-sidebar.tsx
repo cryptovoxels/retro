@@ -3,6 +3,7 @@ import { useSignalEffect } from '@preact/signals'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { authoring, isAuthoring, isPersistentPane, nearestEditableParcel, selectNearestEditableParcel, sidebarClosed, uiAsideTick, uiPane } from '../../src/store'
 import { Authoring } from './authoring'
+import { isFullClientPath } from './helpers/coords-nav'
 import { InWorldPane } from './in-world-pane'
 
 type Props = {
@@ -34,7 +35,6 @@ export function WorldSidebar({ coords, path, children }: Props) {
     bump((n) => n + 1)
   })
 
-  // pages always render; in-world panes sit beside them when open
   if (!coords) return <>{children}</>
 
   const closed = sidebarClosed.value ? '-closed' : undefined
@@ -44,6 +44,28 @@ export function WorldSidebar({ coords, path, children }: Props) {
     </button>
   )
 
+  // /play etc: one aside owns the active pane. Don't also render Router children
+  // (Play used to always mount info, so edit stacked triangles + Edit Megavox).
+  if (isFullClientPath(path)) {
+    const parcel = selectNearestEditableParcel()
+    if (parcel && isAuthoring(parcel.id) && uiPane.value !== 'broadcast') {
+      return (
+        <aside class={closed}>
+          <Authoring parcel={parcel} />
+        </aside>
+      )
+    }
+    const paneId = uiPane.value || 'info'
+    const showClose = paneId === 'broadcast' || isPersistentPane(paneId)
+    return (
+      <aside class={[paneId === 'broadcast' ? '-broadcast-open' : '', closed].filter(Boolean).join(' ') || undefined}>
+        {showClose && close}
+        <InWorldPane id={paneId} />
+      </aside>
+    )
+  }
+
+  // parcel/embed pages: page HTML stays; in-world pane sits beside when open
   let pane: VNode | null = null
 
   if (uiPane.value === 'broadcast') {
