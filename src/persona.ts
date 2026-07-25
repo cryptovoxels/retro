@@ -163,12 +163,18 @@ export default class Persona {
     }
     this.teleportNoHistory(coords)
 
-    // add the previous location to history when teleporting
+    // Push the DESTINATION into history. Use oldPushState so the monkey-patched
+    // pushState in main.tsx does not fire urlchange/naviport with the pre-teleport
+    // URL (that race snapped hyperlink teleports back near the clicked graphic).
+    const encoded = encodeCoords(coords)
+    const queryParams = new URLSearchParams(location.search)
+    queryParams.set('coords', encoded)
+    const params = queryParams.toString().replace('%40', '@').replace(/%2C/g, ',')
+    const href = params ? `${location.pathname}?${params}` : location.pathname
     const currentParcel = this.connector.currentOrNearestParcel()
-    if (currentParcel) {
-      const name = currentParcel.name || currentParcel.address
-      window.history.pushState(encodeCoords(coords), name, window.location.href)
-    }
+    const name = currentParcel?.name || currentParcel?.address || encoded
+    const push = (history as any).oldPushState?.bind(history) ?? history.pushState.bind(history)
+    push(encoded, name, href)
 
     this.connector.sendMetric(Action.Teleport)
   }
