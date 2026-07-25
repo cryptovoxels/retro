@@ -21,7 +21,6 @@ import { useEffect, useState } from 'preact/hooks'
 import { JSXInternal } from 'preact/src/jsx'
 import { ensureRadio } from './radio/global'
 import { app, AppEvent } from './state'
-import { InWorldPane } from './in-world-pane'
 import { WorldSidebar } from './world-sidebar'
 import { AppRoutes } from './app-routes'
 
@@ -144,9 +143,9 @@ function RadioPopout(_props: { path?: string }) {
 }
 
 function Play(_props: { path?: string }) {
-  // in the world the sidebar defaults to parcel info instead of a dead placeholder;
-  // this is also the fallback the sidebar shows whenever no other pane is open.
-  if (getCoords()) return <InWorldPane id="info" />
+  // WorldSidebar owns the in-world pane on /play (uiPane || info). Returning info
+  // here stacked a second copy under the edit aside when you right-clicked a feature.
+  if (getCoords()) return null
   return (
     <section>
       <p>add coords to play</p>

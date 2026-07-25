@@ -1060,6 +1060,43 @@ body.in-world.chat-route main>aside .chat-page h1 {
   }
 }
 
+// Client sits outside main (absolute full-bleed). Ben deleted the old main grid
+// that placed aside in a sidebar column - without a replacement the edit pane
+// dumped into normal document flow on top of the world. Pin it as a right drawer.
+body.in-world {
+  overflow: hidden;
+
+  main {
+    max-width: none;
+  }
+
+  main>aside {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(22rem, 36vw);
+    z-index: 4;
+    overflow-y: auto;
+    padding: 1rem;
+    padding-top: 3.5rem;
+    background: var(--bg);
+    box-sizing: border-box;
+
+    .sidebar-close {
+      position: absolute;
+      top: 3.5rem;
+      right: 0.5rem;
+      z-index: 3;
+      cursor: pointer;
+      background: none;
+      border: none;
+      color: var(--red);
+      font-weight: bold;
+    }
+  }
+}
+
 aside.-closed {
   display: none;
 }
@@ -3197,6 +3234,8 @@ main>aside section.settings {
   }
 }
 
+// toolbar class is enough - don't depend on main>aside chain for button chrome
+.editor-toolbar ul.toolbar,
 main>aside .editor ul.toolbar,
 .UserInterface dialog ul.toolbar {
   margin-bottom: 10px;
