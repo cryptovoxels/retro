@@ -21,16 +21,23 @@ export function WorldSidebar({ coords, path, children }: Props) {
     if (path?.startsWith('/chat')) sidebarClosed.value = false
   }, [path])
 
+  useEffect(() => {
+    return () => document.body.classList.remove('sidebar-closed')
+  }, [])
+
   useSignalEffect(() => {
     authoring.value
     uiPane.value
     uiAsideTick.value
     nearestEditableParcel.value
+    sidebarClosed.value
 
     const parcel = selectNearestEditableParcel()
     const key = uiPane.value || (parcel && isAuthoring(parcel.id) ? `auth:${parcel.id}` : '')
     if (key && key !== prevKey.current) sidebarClosed.value = false
     prevKey.current = key
+
+    document.body.classList.toggle('sidebar-closed', !!coords && sidebarClosed.value)
 
     bump((n) => n + 1)
   })
@@ -44,24 +51,31 @@ export function WorldSidebar({ coords, path, children }: Props) {
     </button>
   )
 
-  // /play etc: one aside owns the active pane. Don't also render Router children
-  // (Play used to always mount info, so edit stacked triangles + Edit Megavox).
+  // /play etc: push panel — world slot + one aside. Client sizes to .client-world.
   if (isFullClientPath(path)) {
     const parcel = selectNearestEditableParcel()
+    let panel: VNode
     if (parcel && isAuthoring(parcel.id) && uiPane.value !== 'broadcast') {
-      return (
+      panel = (
         <aside class={closed}>
           <Authoring parcel={parcel} />
         </aside>
       )
+    } else {
+      const paneId = uiPane.value || 'info'
+      const showClose = paneId === 'broadcast' || isPersistentPane(paneId)
+      panel = (
+        <aside class={[paneId === 'broadcast' ? '-broadcast-open' : '', closed].filter(Boolean).join(' ') || undefined}>
+          {showClose && close}
+          <InWorldPane id={paneId} />
+        </aside>
+      )
     }
-    const paneId = uiPane.value || 'info'
-    const showClose = paneId === 'broadcast' || isPersistentPane(paneId)
     return (
-      <aside class={[paneId === 'broadcast' ? '-broadcast-open' : '', closed].filter(Boolean).join(' ') || undefined}>
-        {showClose && close}
-        <InWorldPane id={paneId} />
-      </aside>
+      <>
+        <div class="client-world" />
+        {panel}
+      </>
     )
   }
 
