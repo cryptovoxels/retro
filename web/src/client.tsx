@@ -28,6 +28,9 @@ export class Client extends Component<FrameProps, FrameState> {
     if (!canUseDom) {
       return
     }
+    // editor/sidebar CSS is gated on this; set it as soon as the world client mounts,
+    // not only after canvas adopt (which can early-return and leave the class off)
+    document.body.classList.add('in-world')
     void boot().then((ui) => {
       this.setState({ ui })
       this.adopt()
