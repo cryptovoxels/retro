@@ -1046,8 +1046,9 @@ body.in-world.chat-route main>aside .chat-page h1 {
     inset: 0;
   }
 
+  // sized by JS to .client-world (push panel); fallback full-bleed if no slot
   &.-full {
-    position: absolute;
+    position: fixed;
     inset: 0;
   }
 
@@ -1060,32 +1061,49 @@ body.in-world.chat-route main>aside .chat-page h1 {
   }
 }
 
-// Client sits outside main (absolute full-bleed). Ben deleted the old main grid
-// that placed aside in a sidebar column - without a replacement the edit pane
-// dumped into normal document flow on top of the world. Pin it as a right drawer.
+// Push panel: header full width, world | sidebar below. Client tracks .client-world.
 body.in-world {
   overflow: hidden;
+  --world-sidebar: min(22rem, 36vw);
 
-  main {
+  main:has(> .client-world) {
     max-width: none;
+    height: 100vh;
+    display: grid;
+    grid-template-columns: 1fr var(--world-sidebar);
+    grid-template-rows: auto 1fr;
+    grid-template-areas:
+      'header header'
+      'world sidebar';
+    overflow: hidden;
   }
 
-  main>aside {
-    position: fixed;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: min(22rem, 36vw);
+  main:has(> .client-world)>header {
+    grid-area: header;
+    position: relative;
+    z-index: 5;
+  }
+
+  .client-world {
+    grid-area: world;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  main:has(> .client-world)>aside {
+    grid-area: sidebar;
+    position: relative;
     z-index: 4;
     overflow-y: auto;
+    min-width: 0;
+    min-height: 0;
     padding: 1rem;
-    padding-top: 3.5rem;
     background: var(--bg);
     box-sizing: border-box;
 
     .sidebar-close {
       position: absolute;
-      top: 3.5rem;
+      top: 0.5rem;
       right: 0.5rem;
       z-index: 3;
       cursor: pointer;
@@ -1095,6 +1113,13 @@ body.in-world {
       font-weight: bold;
     }
   }
+}
+
+body.in-world.sidebar-closed main:has(> .client-world) {
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    'header'
+    'world';
 }
 
 aside.-closed {

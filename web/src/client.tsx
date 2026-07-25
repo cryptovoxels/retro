@@ -72,6 +72,8 @@ export class Client extends Component<FrameProps, FrameState> {
     document.body.classList.add('in-world')
     this.syncCoordsUrl()
     this.track()
+    // .client-world may land in the same frame as mount; re-fit once the push slot exists
+    requestAnimationFrame(() => this.track())
     this.naviport()
 
     if (this.watch) clearInterval(this.watch)
@@ -103,24 +105,32 @@ export class Client extends Component<FrameProps, FrameState> {
     const root = this.root.current
     if (!root) return
 
-    if (this.props.mode === 'full') {
-      root.style.top = ''
-      root.style.left = ''
-      root.style.width = ''
-      root.style.height = ''
-      window.engine?.resize()
+    // full: fill .client-world push slot; embed: fill .client-slot on the page
+    const slot = document.querySelector(this.props.mode === 'full' ? '.client-world' : '.client-slot') as HTMLElement | null
+
+    if (!slot) {
+      if (this.props.mode === 'full') {
+        root.style.top = ''
+        root.style.left = ''
+        root.style.right = ''
+        root.style.bottom = ''
+        root.style.width = ''
+        root.style.height = ''
+        window.engine?.resize()
+      }
       return
     }
 
-    const slot = document.querySelector('.client-slot') as HTMLElement | null
-    if (!slot) return
-
     const fit = () => {
       const r = slot.getBoundingClientRect()
-      root.style.top = `${r.top + window.scrollY}px`
-      root.style.left = `${r.left + window.scrollX}px`
+      // fixed + viewport rect so the canvas tracks the push-panel slot as the sidebar opens/closes
+      root.style.position = 'fixed'
+      root.style.top = `${r.top}px`
+      root.style.left = `${r.left}px`
       root.style.width = `${r.width}px`
       root.style.height = `${r.height}px`
+      root.style.right = ''
+      root.style.bottom = ''
       window.engine?.resize()
     }
 
