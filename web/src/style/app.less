@@ -1391,6 +1391,31 @@ small {
     color: var(--bright);
   }
 
+  .m-e {
+    background: var(--red);
+    color: var(--bright);
+  }
+
+  .m-x {
+    background: var(--bright);
+    color: var(--red);
+  }
+
+  .m-i {
+    background: var(--red);
+    color: var(--dark);
+  }
+
+  .m-c {
+    background: var(--dark);
+    color: var(--red);
+  }
+
+  .m-d {
+    background: var(--bright);
+    color: var(--dark);
+  }
+
   time {
     line-height: 0.9rem;
     background: var(--dark);
@@ -1801,6 +1826,30 @@ table.spaces {
 .parcel-page {
   aside {
     width: 15rem;
+  }
+
+  // pruned in the LESS collapse; without it about/map render as bare bullets
+  .sidebar-tabs {
+    display: flex;
+    gap: 1rem;
+    margin: 0 0 1rem 0;
+    padding: 0;
+    list-style: none;
+
+    li {
+      cursor: pointer;
+      text-transform: lowercase;
+
+      &.-active {
+        font-weight: bold;
+        color: var(--red);
+      }
+    }
+  }
+
+  .parcel-sidebar-map {
+    height: 14rem;
+    width: 100%;
   }
 }
 
@@ -2541,8 +2590,8 @@ dl.deets {
   }
 }
 
-// The in-world skin only applies under body.in-world (toggled by Client.adopt/unmount),
-// so client.less's global resets stop bleeding onto web pages.
+// The in-world skin only applies under body.in-world (toggled by Client.adopt/unmount).
+// Keep element resets inside .client so parcel/embed page HTML (about/map sidebar) stays intact.
 body.in-world {
   color-scheme: dark;
 
@@ -2563,16 +2612,19 @@ body.in-world {
     margin: 1rem 0;
   }
 
-  p,
-  li,
-  ul,
-  section,
-  h1,
-  h2,
-  h3,
-  h4 {
-    margin: 0;
-    padding: 0;
+  .client {
+
+    p,
+    li,
+    ul,
+    section,
+    h1,
+    h2,
+    h3,
+    h4 {
+      margin: 0;
+      padding: 0;
+    }
   }
 }
 
