@@ -1067,6 +1067,8 @@ body.in-world {
   overflow: hidden;
   --world-sidebar: min(22rem, 36vw);
 
+  // main sits above .client so sidebar/header get clicks; punch through the world
+  // cell or the empty grid slot eats pointer lock / WASD
   main:has(> .client-world) {
     position: relative;
     z-index: 2;
@@ -1079,12 +1081,14 @@ body.in-world {
       'header header'
       'world sidebar';
     overflow: hidden;
+    pointer-events: none;
   }
 
   main:has(> .client-world)>header {
     grid-area: header;
     position: relative;
     z-index: 5;
+    pointer-events: auto;
   }
 
   .client-world {
@@ -1104,6 +1108,7 @@ body.in-world {
     padding-top: 2rem;
     background: var(--bg);
     box-sizing: border-box;
+    pointer-events: auto;
 
     .sidebar-close {
       position: sticky;
