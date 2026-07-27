@@ -1,68 +1,16 @@
 import { Component, Fragment } from 'preact'
-import { useEffect, useRef, useState } from 'preact/hooks'
-import { avatarName } from '../../common/messages/avatar-ref'
-import { isMobile } from '../../common/helpers/detector'
-import { audiencePlayQuery } from '../../common/helpers/parcel-helper'
-import { jitterCoord, orderLiveStrip } from '../../common/helpers/utils'
+import { useEffect, useState } from 'preact/hooks'
+import ParcelHelper from '../../common/helpers/parcel-helper'
 import { currentVersion } from '../../common/version'
 import { Event } from '../../common/messages/event'
 import Head from './components/head'
 import PopularParcels from './components/popular-parcels'
-import { Womp } from './components/womp-card'
 import { getClientPath } from './helpers/client-helpers'
+import { getCoords, naviportHere } from './helpers/coords-nav'
+import cachedFetch from './helpers/cached-fetch'
 import { app, AppEvent } from './state'
-import WompsList from './womps-list'
 import Radar from './components/radar'
 import Classifieds from './components/classifieds'
-
-type Props = {
-  womps?: Womp[]
-}
-
-type LiveParcel = { id: number; name?: string; address: string }
-type LiveEntry = { room: string; parcel: LiveParcel; coord?: string; avatar: any; thumbnail: string; viewers?: number; ts?: number }
-
-function LiveSection() {
-  const [streams, setStreams] = useState<Map<string, LiveEntry>>(new Map())
-  const ref = useRef<EventSource | null>(null)
-
-  useEffect(() => {
-    const es = new EventSource('/api/live')
-    ref.current = es
-    es.onmessage = (e) => {
-      const msg = JSON.parse(e.data)
-      setStreams((prev) => {
-        const next = new Map(prev)
-        if (msg.type === 'snapshot') msg.entries.forEach((s: LiveEntry) => next.set(s.room, s))
-        else if (msg.type === 'remove') next.delete(msg.parcel)
-        else next.set(msg.room, { ...next.get(msg.room), ...msg } as LiveEntry)
-        return next
-      })
-    }
-    return () => es.close()
-  }, [])
-
-  if (streams.size === 0) return null
-
-  const ordered = orderLiveStrip([...streams.values()])
-
-  return (
-    <>
-      <h3>Live</h3>
-      <ul class="live-streams">
-        {ordered.map((s) => (
-          <li key={s.room}>
-            <a href={s.coord ? `/play?${audiencePlayQuery(jitterCoord(s.coord), isMobile())}` : `/parcels/${s.parcel.id}`}>
-              <img loading="lazy" src={s.thumbnail} alt="" />
-              <span>{s.parcel.name || s.parcel.address}</span>
-              <small>{avatarName(s.avatar)}</small>
-            </a>
-          </li>
-        ))}
-      </ul>
-    </>
-  )
-}
 
 function countdown(ms: number) {
   const s = Math.floor(ms / 1000)
@@ -113,10 +61,65 @@ function EventsList() {
   )
 }
 
-export default class Explore extends Component<any, Props> {
+function busiestParcel(): Promise<number | null> {
+  return new Promise((resolve) => {
+    const es = new EventSource('/api/users/live')
+    const done = (id: number | null) => {
+      clearTimeout(t)
+      es.close()
+      resolve(id)
+    }
+    const t = setTimeout(() => done(null), 3000)
+    es.onmessage = (e) => {
+      try {
+        const msg = JSON.parse(e.data)
+        if (msg.type !== 'snapshot') return
+        const counts = new Map<number, number>()
+        for (const u of msg.users ?? []) {
+          if (u.parcel == null) continue
+          counts.set(u.parcel, (counts.get(u.parcel) ?? 0) + 1)
+        }
+        let best: number | null = null
+        let n = 0
+        for (const [id, c] of counts) {
+          if (c > n) {
+            n = c
+            best = id
+          }
+        }
+        done(best)
+      } catch {
+        done(null)
+      }
+    }
+    es.onerror = () => done(null)
+  })
+}
+
+async function popularParcel(): Promise<number | null> {
+  try {
+    const r = await cachedFetch('/api/metrics/popular')
+    const data = await r.json()
+    if (!data.ok) return null
+    return data.metrics?.[0]?.parcel?.id ?? null
+  } catch {
+    return null
+  }
+}
+
+async function pickFrontpageParcel() {
+  if (getCoords()) return
+  const id = (await busiestParcel()) ?? (await popularParcel())
+  if (!id) return
+  const url = await new ParcelHelper({ id }).spawnUrl()
+  naviportHere(url, id)
+}
+
+export default class Explore extends Component {
   componentDidMount() {
     app.on(AppEvent.Logout, this.rerender)
     app.on(AppEvent.Login, this.rerender)
+    void pickFrontpageParcel()
   }
 
   rerender = () => {
@@ -139,11 +142,10 @@ export default class Explore extends Component<any, Props> {
           </Fragment>
         </Head>
 
-        <section class="live-hero">
-          <LiveSection />
-        </section>
-
         <section class="columns">
+          <article>
+            <div class="client-slot" />
+          </article>
           <aside>
             <Radar />
             <EventsList />
@@ -153,11 +155,6 @@ export default class Explore extends Component<any, Props> {
 
             <Classifieds limit={3} />
           </aside>
-
-          <article>
-            <h3>Womps</h3>
-            <WompsList numberToShow={20} mobilePreview={6} collapsed={false} fetch="/womps.json" womps={this.props.womps ?? undefined} ttl={600} />
-          </article>
         </section>
       </Fragment>
     )
