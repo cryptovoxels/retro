@@ -8,13 +8,20 @@ export class Island {
   center: BABYLON.Vector3
   radius: number
   outline: BABYLON.Vector2[]
-  texturePath = '/textures/subgrid.png'
+  texturePath = '/textures/ground.png'
   private readonly _mesh: BABYLON.Mesh
 
   constructor(list: Islands, desc: IslandRecord) {
     this.list = list
     this.desc = desc
     this.outline = this.desc.geometry.coordinates[0].map((c: [x: number, y: number]) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
+
+    if (window.config.isSpace) {
+      this.texturePath = '/textures/subgrid.png'
+    } else if (desc.texture) {
+      // texture comes from the DB
+      this.texturePath = desc.texture
+    }
 
     // build mesh
     const shape = this.desc.geometry.coordinates[0].map((c) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
