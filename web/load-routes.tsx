@@ -30,33 +30,8 @@ const renderPage = (content: any) => renderComponent(content)
 export default function loadRoutes(app: Express) {
   const duration = '10 minutes'
 
-  app.get('/', cache(duration), async (req, res) => {
-    try {
-      let r = await db.query(
-        'sql/get-womps',
-        `
-      select 
-        womps.id,
-        womps.author,
-        womps.content,
-        womps.parcel_id,
-        womps.image_url,
-        womps.coords,
-        womps.created_at,
-        womps.updated_at
-      from 
-        womps
-      order by 
-        id desc 
-      limit 
-        20;
-    `,
-      )
-      let womps = r.rows
-      res.send(renderPage(<Explore womps={womps} />))
-    } catch (e) {
-      res.send(renderPage(<LoadingPage />))
-    }
+  app.get('/', cache(duration), (req, res) => {
+    res.send(renderPage(<Explore />))
   })
 
   app.get('/explore', cache(duration), (req, res) => {
