@@ -14,7 +14,6 @@ function babylonBundleUrls(minified) {
 
 const babylonBundleLocalFilenames = [
   'msgpack.js',
-  'leaflet.js',
 ]
 
 // Bundle file names and contents depend on whether we want to minify

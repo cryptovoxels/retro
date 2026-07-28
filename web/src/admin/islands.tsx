@@ -3,11 +3,12 @@ import { ParcelMetaCodec, type ParcelMeta } from '../../../common/types'
 import ndarray, { NdArray } from 'ndarray'
 import * as t from 'io-ts'
 import { contours } from 'd3-contour'
-
-const L = window.L as typeof window.L
+import type { MapMarker, VoxelsMap } from '../helpers/load-voxels-map'
+import { loadVoxelsMap } from '../helpers/load-voxels-map'
 
 const PAVEMENT_LEVEL = 1
 const BLEED_MARGIN = 2
+const PAGE_ORTHO = 2000
 
 // Fixme cant import from the src bundle
 import aoMeshVertexShader from '../../../src/shaders/ao-mesh.vsh'
@@ -140,9 +141,9 @@ export default class IslandsAdmin extends Component<Props, State> {
   private canvas = createRef<HTMLCanvasElement>()
   private engine: BABYLON.Engine | null = null
   private islandMesh: BABYLON.Mesh | null = null
-  map: L.Map | undefined
+  map: VoxelsMap | null = null
   mapRef = createRef<HTMLDivElement>()
-  parcelLayer: L.LayerGroup | undefined
+  centerMarker: MapMarker | null = null
 
   constructor(props: Props) {
     super(props)
@@ -303,6 +304,9 @@ export default class IslandsAdmin extends Component<Props, State> {
 
   componentWillUnmount(): void {
     this.engine?.dispose()
+    this.map?.dispose()
+    this.map = null
+    this.centerMarker = null
   }
 
   download = () => {
@@ -328,91 +332,25 @@ export default class IslandsAdmin extends Component<Props, State> {
     setTimeout(() => this.regenerate(), 100)
   }
 
-  generateParcelLayer(field: IslandField, bounds: vec4) {
-    this.parcelLayer?.clearLayers()
+  generateParcelLayer(_field: IslandField, _bounds: vec4) {
+    this.syncCenterMarker()
+  }
 
-    // const [minX, minZ] = this.state.center
-    const [w, h] = field.shape
-    const scale = 0.01
-
-    // Add island geometry
-    for (let x = 0; x < w; x++) {
-      for (let z = 0; z < h; z++) {
-        if (field.get(x, z) === 1) {
-          const worldX = this.state.center[0] + (x + bounds[0]) * scale
-          const worldZ = this.state.center[1] + (z + bounds[1]) * scale
-
-          const [lat1, lng1] = [worldZ, worldX]
-          const [lat2, lng2] = [worldZ + scale, worldX + scale]
-
-          const latlngs: L.LatLngBoundsExpression = [
-            [lat1, lng1],
-            [lat2, lng2],
-          ]
-
-          // console.log(bounds)
-
-          const rect = L.rectangle(latlngs, {
-            color: '#eee',
-            fillOpacity: 0.8,
-          })
-
-          this.parcelLayer?.addLayer(rect)
-        }
-      }
+  syncCenterMarker() {
+    if (!this.map) return
+    const x = this.state.center[0] * 100
+    const z = this.state.center[1] * 100
+    if (this.centerMarker) {
+      this.centerMarker.setPos(x, z)
+      this.centerMarker.el.innerHTML = `<span>${this.state.name || 'island'}</span>`
+      return
     }
-
-    // Add parcels
-    for (const p of this.state.parcels) {
-      // const [w, h, d] = [p.x2 - p.x1, p.y2 - p.y1, p.z2 - p.z1]
-
-      const [lat1, lng1] = [p.z1 * scale + this.state.center[1], p.x1 * scale + this.state.center[0]]
-      const [lat2, lng2] = [p.z2 * scale + this.state.center[1], p.x2 * scale + this.state.center[0]]
-
-      const latlngs: L.LatLngBoundsExpression = [
-        [lat1, lng1],
-        [lat2, lng2],
-      ]
-
-      console.log(lat1, lng1, lat2, lng2)
-
-      const rect = L.rectangle(latlngs, {
-        color: '#f0f',
-        weight: 1,
-        noClip: true,
-        fillOpacity: 1,
-      })
-
-      this.parcelLayer?.addLayer(rect)
-    }
-
-    // Add label
-
-    const label = L.marker([this.state.center[1], this.state.center[0]], {
-      icon: L.divIcon({
-        className: 'island-label',
-        html: `<span>${this.state.name}</span>`,
-        iconSize: [100, 20],
-        iconAnchor: [50, 10],
-      }),
+    this.centerMarker = this.map.addMarker({
+      x,
+      z,
+      className: 'island-label',
+      html: `<span>${this.state.name || 'island'}</span>`,
     })
-    console.log(label.getLatLng())
-    this.parcelLayer?.addLayer(label)
-
-    // Add island geometry
-
-    const geojson = this.getIslandGeometry() as any
-    console.log(JSON.stringify(geojson))
-
-    const island = L.geoJSON(geojson, {
-      style: {
-        fillColor: '#fff',
-        color: '#f0f',
-        weight: 1,
-        fillOpacity: 0.5,
-      },
-    })
-    this.parcelLayer?.addLayer(island)
   }
 
   regenerate() {
@@ -471,42 +409,34 @@ export default class IslandsAdmin extends Component<Props, State> {
     this.generateIsland()
   }
 
-  center() {
+  async center() {
     if (!this.mapRef.current) {
       return
     }
 
     if (!this.map) {
-      const world = L.tileLayer(`${process.env.MAP_URL}/tile?z={z}&x={x}&y={y}`, {
-        minZoom: 3,
-        maxZoom: 20,
-        attribution: 'Map data &copy; Voxels',
-        id: 'Voxels',
+      const el = this.mapRef.current
+      el.style.position = 'relative'
+      el.style.height = '16rem'
+      const canvas = document.createElement('canvas')
+      canvas.className = 'voxels-map'
+      canvas.style.cssText = 'width:100%;height:100%;display:block;touch-action:none'
+      el.appendChild(canvas)
+
+      const { VoxelsMap } = await loadVoxelsMap()
+      this.map = new VoxelsMap(canvas, {
+        ortho: PAGE_ORTHO / 2,
+        parcels: true,
+        onClick: (x, z) => {
+          this.setState({ center: [x / 100, z / 100] })
+          setTimeout(() => this.regenerate(), 100)
+        },
       })
-
-      this.map = L.map(this.mapRef.current, { layers: [world], preferCanvas: true }) as L.Map
-
-      // On click, set center
-
-      this.map.on('click', (e) => {
-        this.setState({ center: [e.latlng.lng, e.latlng.lat] })
-        setTimeout(() => this.regenerate(), 100)
-      })
-
-      this.parcelLayer = L.layerGroup().addTo(this.map)
-
-      this.map.setView([this.state.center[1], this.state.center[0]], 8)
+      this.map.setView(this.state.center[0] * 100, this.state.center[1] * 100)
+      this.map.load().catch((e) => console.error('admin island map load failed', e))
     }
 
-    // let marker = L.marker([this.state.center[1], this.state.center[0]], {
-    //   icon: L.icon({
-    //     iconUrl: '/assets/marker.png',
-    //     iconSize: [32, 32],
-    //     iconAnchor: [16, 32],
-    //   }),
-    // })
-
-    // this.map.addLayer(marker)
+    this.syncCenterMarker()
   }
 
   // Convert a designer parcel (local voxel coords) into the geo-coord payload the db wants.

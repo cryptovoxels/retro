@@ -1,9 +1,10 @@
-import { Component } from 'preact'
+import { Component, createRef } from 'preact'
+import type { VoxelsMap } from './helpers/load-voxels-map'
+import { loadVoxelsMap } from './helpers/load-voxels-map'
 import Head from './components/head'
 import Loading from './components/loading'
+import { mapParcelPopup } from './map-parcel-popup'
 import { fetchOptions } from './utils'
-
-const L = null
 
 export interface Props {
   slug?: number
@@ -13,25 +14,30 @@ export interface Props {
 export interface State {
   island?: any
   slug?: any
-  parcels?: any
 }
 
 export default class Parcels extends Component<Props, State> {
-  map: L.Map | null = null
+  map: VoxelsMap | null = null
+  mapBox = createRef<HTMLDivElement>()
 
-  constructor() {
-    super()
+  componentDidMount() {
+    this.fetch()
   }
 
-  get L() {
-    return window.L
-  }
-
-  get latlng() {
-    return {
-      lat: this.state.island.position.coordinates[1],
-      lng: this.state.island.position.coordinates[0],
+  componentDidUpdate() {
+    if (this.props.slug !== this.state.slug) {
+      this.fetch()
     }
+  }
+
+  componentWillUnmount() {
+    this.map?.dispose()
+    this.map = null
+  }
+
+  get worldCenter() {
+    const [lng, lat] = this.state.island.position.coordinates
+    return { x: lng * 100, z: lat * 100 }
   }
 
   get coords() {
@@ -43,36 +49,6 @@ export default class Parcels extends Component<Props, State> {
     return `Located ${lat}, ${lng} of center.`
   }
 
-  async waitForDomAndLeaflet() {
-    // Wait for the Dom to be loaded and for Leaflet to be ready before loading the map.
-    return new Promise((resolve) => {
-      const i = setInterval(() => {
-        if (window.L && document.querySelector('#map')) {
-          clearInterval(i)
-          resolve(true)
-        }
-      }, 100)
-    })
-  }
-
-  componentDidMount() {
-    this.fetch()
-
-    fetch(`${process.env.API}/parcels.json`, fetchOptions())
-      .then((r) => r.json())
-      .then((r) => {
-        const parcels = r.parcels
-        this.setState({ parcels })
-        setTimeout(() => this.addParcels(), 50)
-      })
-  }
-
-  componentDidUpdate() {
-    if (this.props.slug !== this.state.slug) {
-      this.fetch()
-    }
-  }
-
   fetch() {
     const slug = this.props.slug
 
@@ -81,64 +57,36 @@ export default class Parcels extends Component<Props, State> {
     fetch(`${process.env.API}/islands/${slug}.json`, fetchOptions())
       .then((r) => r.json())
       .then((r) => {
-        this.setState({ island: r.island })
-
-        if (this.map) {
-          this.map.setView(this.latlng, 9)
-        }
+        this.setState({ island: r.island }, () => void this.addMap())
       })
-  }
-
-  addParcels() {
-    if (!this.map) {
-      return
-    }
-
-    const onEachFeature = (feature: any, layer: any) => {
-      layer.on('click', () => {
-        const p = feature.parcels.parcel
-        const div = document.createElement('div')
-        div.innerHTML = `<b><a href='/parcels/${p.id}'>${p.address}</a></b><br /><br />${p.price ? p.price.toFixed(2) + '<small>ETH</small>' : ''}`
-
-        layer.bindPopup(div).openPopup()
-      })
-    }
-
-    const other = {
-      color: '#333333',
-      opacity: 0,
-      fillColor: '#ffffff',
-      fillOpacity: 0,
-      dashArray: '5,5',
-      weight: 4,
-    }
-
-    this.L.geoJSON(
-      this.state.parcels.map((p: any) => {
-        return { type: 'Feature', geometry: p.geometry, parcels: { parcel: p } }
-      }),
-      { style: other, onEachFeature },
-    ).addTo(this.map)
   }
 
   async addMap() {
-    if (this.map) {
-      return
-    }
-    await this.waitForDomAndLeaflet()
-    const mapElement: HTMLElement | null = document.querySelector('#map')
-    if (!mapElement) {
-      console.error('Map element not found')
-      return
-    }
-    this.map = this.L.map(mapElement, { scrollWheelZoom: false }).setView(this.latlng, 9)
+    if (this.map || !this.state.island) return
+    const el = this.mapBox.current
+    if (!el) return
 
-    this.L.tileLayer(`${process.env.MAP_URL}/tile/?z={z}&x={x}&y={y}`, {
-      minZoom: 5,
-      maxZoom: 20,
-      attribution: 'Map data &copy; Voxels',
-      id: 'cryptovoxels',
-    }).addTo(this.map)
+    el.innerHTML = ''
+    el.style.position = 'relative'
+    const canvas = document.createElement('canvas')
+    canvas.className = 'voxels-map'
+    canvas.style.cssText = 'width:100%;height:100%;display:block;touch-action:none'
+    el.appendChild(canvas)
+
+    const { x, z } = this.worldCenter
+    const { VoxelsMap } = await loadVoxelsMap()
+    this.map = new VoxelsMap(canvas, {
+      ortho: 400,
+      parcels: true,
+      onClick: (wx, wz) => {
+        if (!this.map) return
+        const parcel = this.map.parcelAt(wx, wz)
+        if (!parcel) return
+        mapParcelPopup(this.map, wx, wz, parcel, (url) => window.location.assign(url))
+      },
+    })
+    this.map.setView(x, z, 400)
+    this.map.load().catch((e) => console.error('island map load failed', e))
   }
 
   render() {
@@ -156,10 +104,6 @@ export default class Parcels extends Component<Props, State> {
       )
     })
 
-    if (!this.map && window && window['addEventListener']) {
-      setTimeout(() => this.addMap(), 50)
-    }
-
     const height = window.innerHeight - 80 + 'px'
 
     return (
@@ -168,7 +112,7 @@ export default class Parcels extends Component<Props, State> {
 
         <h1>{this.state.island.name}</h1>
         <p>{this.coords}</p>
-        <div id="map" class={'map map-web'} style={{ height }}></div>
+        <div id="map" class={'map map-web'} style={{ height }} ref={this.mapBox}></div>
 
         <div>
           <h3>Places</h3>

@@ -23,7 +23,7 @@ module.exports = (env, argv) => {
     cache: false,
     // The client engine (src/**) is browser-only. client.tsx dynamic-imports it
     // behind a canUseDom guard, so keep it out of the SSR bundle entirely.
-    plugins: [new webpack.IgnorePlugin({ resourceRegExp: /^\.\.\/\.\.\/src$/ })],
+    plugins: [new webpack.IgnorePlugin({ resourceRegExp: /^\.\.\/\.\.\/src$/ }), new webpack.IgnorePlugin({ resourceRegExp: /src\/voxels-map$/ })],
     module: {
       rules: [
         {

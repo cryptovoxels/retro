@@ -67,7 +67,6 @@ import { Minimap, MinimapSettings } from './minimap'
 import { MetaMaskInpageProvider } from '@metamask/providers'
 import { currentBuildDate, currentVersion } from '../common/version'
 import { CameraSettings } from './controls/user-control-settings'
-import L from '../vendor/library/leaflet'
 import { createGPUMemoryHUD } from './utils/memory-overlay'
 
 if (process.env.NODE_ENV === 'development') {
@@ -83,9 +82,6 @@ type Voxels = {
 // Register of the singletons we still have bound to window
 declare global {
   interface Window {
-    // leaflet
-    L: typeof L
-
     // CV objects
     main: MainLoop | undefined
     connector: Connector

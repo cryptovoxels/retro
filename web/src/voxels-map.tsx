@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'preact/hooks'
-import { VoxelsMap } from '../../src/voxels-map'
+import type { VoxelsMap } from './helpers/load-voxels-map'
+import { loadVoxelsMap } from './helpers/load-voxels-map'
 
 export default function VoxelsMapView() {
   const canvas = useRef<HTMLCanvasElement>(null)
@@ -8,10 +9,18 @@ export default function VoxelsMapView() {
     const el = canvas.current
     if (!el) return
 
-    const m = new VoxelsMap(el)
-    m.load().catch((e) => console.error('voxels map load failed', e))
+    let dead = false
+    let map: VoxelsMap | null = null
+    loadVoxelsMap().then(({ VoxelsMap: Map }) => {
+      if (dead) return
+      map = new Map(el)
+      map.load().catch((e) => console.error('voxels map load failed', e))
+    })
 
-    return () => m.dispose()
+    return () => {
+      dead = true
+      map?.dispose()
+    }
   }, [])
 
   return <canvas class="voxels-map" ref={canvas} />

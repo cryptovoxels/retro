@@ -2,6 +2,7 @@ import { render } from 'preact-render-to-string'
 import ParcelHelper from '../../common/helpers/parcel-helper'
 import { copyTextToClipboard, encodeCoords } from '../../common/helpers/utils'
 import { MapParcelRecord } from '../../common/messages/api-parcels'
+import type { ParcelData, VoxelsMap } from './helpers/load-voxels-map'
 import { PanelType } from './components/panel'
 import ParcelEvent from './helpers/event'
 import { app } from './state'
@@ -20,23 +21,12 @@ const copyToClipboard = (playCoords: string | null) => {
   )
 }
 
-export function mapParcelPopup(
-  map: L.Map,
-  latLng: {
-    lat: number
-    lng: number
-  },
-  parcel: MapParcelRecord,
-  openSpawnUrl: (url: string) => void,
-) {
+export function mapParcelPopup(map: VoxelsMap, x: number, z: number, parcel: MapParcelRecord | ParcelData, openSpawnUrl: (url: string) => void) {
   const div = document.createElement('div')
   div.className = 'map-teleport-popup'
 
-  const marker = window.L.popup().setLatLng([latLng.lat, latLng.lng])
+  const helper = new ParcelHelper(parcel as any)
 
-  const helper = new ParcelHelper(parcel)
-
-  // once loaded, show parcel info with spawn
   div.innerHTML = render(
     <article class="component">
       <strong>
@@ -46,7 +36,6 @@ export function mapParcelPopup(
       <div>
         Owned by <AvatarLink avatar={parcel.owner} />
       </div>
-      {/* container used for popup on-click of the map.  */}
       <div id="popup-buttonContainer" role="group"></div>
     </article>,
   )
@@ -60,12 +49,11 @@ export function mapParcelPopup(
     button.textContent = 'Loading..'
     button.disabled = true
     helper.spawnUrl().then(openSpawnUrl)
-    map.closePopup(marker)
+    map.closePopup()
   }
 
   buttonContainer.appendChild(button)
 
-  // COPY TELEPORT URL
   const button2 = document.createElement('button')
   button2.className = 'copyCoordinates'
   button2.textContent = 'Copy Coordinates'
@@ -73,47 +61,40 @@ export function mapParcelPopup(
     button2.textContent = 'Loading..'
     button2.disabled = true
     helper.spawnUrl().then(copyToClipboard)
-    map.closePopup(marker)
+    map.closePopup()
   }
   buttonContainer.appendChild(button2)
 
-  marker.setContent(div).openOn(map)
+  map.openPopup(x, z, div)
 }
 
-export function mapTeleportPopup(map: L.Map, latLng: L.LatLng, openSpawnUrl: (url: string) => void) {
+export function mapTeleportPopup(map: VoxelsMap, x: number, z: number, openSpawnUrl: (url: string) => void) {
   const div = document.createElement('div')
   div.className = 'map-teleport-popup'
 
-  // show loading
   const coords = {
-    position: BABYLON.Vector3.FromArray([latLng.lng * 100, 2.5, latLng.lat * 100]),
+    position: BABYLON.Vector3.FromArray([x, 2.5, z]),
     rotation: BABYLON.Vector3.Zero(),
     flying: true,
   }
 
-  const marker = window.L.popup().setLatLng([latLng.lat, latLng.lng])
   const encoded = encodeCoords(coords)
-  // once loaded, show parcel info with spawn.
-  // add div to contain the popup on click
   div.innerHTML = render(<div id="popup-buttonContainer" role="group"></div>)
 
   const buttonContainer = div.querySelector('#popup-buttonContainer')!
-  // TELEPORT HERE BUTTON
   const teleportHereBtn = document.createElement('button')
   teleportHereBtn.className = 'teleportHere'
   teleportHereBtn.textContent = 'Teleport here'
   teleportHereBtn.onclick = () => {
     openSpawnUrl(`/play?coords=${encoded}`)
-    map.closePopup(marker)
+    map.closePopup()
   }
   buttonContainer.appendChild(teleportHereBtn)
 
-  // COPY TELEPORT URL
   const copyCoordsLinkBtn = document.createElement('button')
   copyCoordsLinkBtn.className = 'teleportHere'
   copyCoordsLinkBtn.textContent = 'Copy Coordinates'
   copyCoordsLinkBtn.onclick = () => {
-    console.log(encoded)
     copyTextToClipboard(
       `${process.env.ASSET_PATH}/play?coords=${encoded}`,
       () => {
@@ -124,17 +105,16 @@ export function mapTeleportPopup(map: L.Map, latLng: L.LatLng, openSpawnUrl: (ur
       },
     )
 
-    map.closePopup(marker)
+    map.closePopup()
   }
   buttonContainer.appendChild(copyCoordsLinkBtn)
-  marker.setContent(div).openOn(map)
+  map.openPopup(x, z, div)
 }
 
-export function mapEventMarkerPopup(event: ParcelEvent, openSpawnUrl: (url: string | null) => void): L.Content {
+export function mapEventMarkerPopup(event: ParcelEvent, openSpawnUrl: (url: string | null) => void): HTMLElement {
   const div = document.createElement('div')
   div.className = 'map-teleport-popup'
 
-  // once loaded, show parcel info with spawn
   div.innerHTML = render(
     <div>
       <h2>
@@ -156,7 +136,7 @@ export function mapEventMarkerPopup(event: ParcelEvent, openSpawnUrl: (url: stri
         </a>
       </div>
       <br />
-      <div style={{ textAlign: 'center' }}></div>
+      <div id="popup-buttonContainer" style={{ textAlign: 'center' }}></div>
     </div>,
   )
 
@@ -173,7 +153,6 @@ export function mapEventMarkerPopup(event: ParcelEvent, openSpawnUrl: (url: stri
 
   buttonContainer.appendChild(button)
 
-  // COPY TELEPORT URL
   const button2 = document.createElement('button')
   button2.className = 'copyCoordinates'
   button2.textContent = 'Copy link to event'

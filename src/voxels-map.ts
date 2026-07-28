@@ -1,4 +1,5 @@
 import { ExponentialBackoff, handleAll, retry } from 'cockatiel'
+import { getParcelHelper } from '../common/helpers/parcel-helper'
 import { SingleParcelRecord } from '../common/messages/parcel'
 
 const retryPolicy = retry(handleAll, { backoff: new ExponentialBackoff(), maxAttempts: 5 })
@@ -13,7 +14,14 @@ export interface ParcelData {
   z1: number
   z2: number
   is_common?: boolean
-  settings?: { sandbox?: boolean }
+  settings?: any
+  owner?: any
+  parcel_users?: any
+  name?: string | null
+  address?: string | null
+  suburb?: string
+  geometry?: any
+  label?: string | null
 }
 
 export class Island {
@@ -225,20 +233,50 @@ const fetchCachedParcels = (url: string, cachebust = false): Promise<SingleParce
   })
 }
 
-export function pickParcelMesh(data: ParcelData, meshes: ReturnType<typeof createBaseMeshes>) {
+export function pickParcelMesh(data: ParcelData, meshes: ReturnType<typeof createBaseMeshes>, wallet?: string) {
   if (data.is_common) return meshes.common
   if (data.settings?.sandbox) return meshes.sandbox
+  if (wallet) {
+    const help = getParcelHelper(data as any)
+    if (help.isOwner(wallet)) return meshes.owner
+    if (help.isContributor(wallet)) return meshes.contributor
+  }
   return meshes.parcel
 }
 
 const PAGE_ORTHO = 2000
 const SIDEBAR_ORTHO = 200
 
+export type MapMarkerOpts = {
+  x: number
+  z: number
+  html?: string
+  className?: string
+  title?: string
+  onClick?: (e: MouseEvent) => void
+}
+
+export type MapMarker = {
+  el: HTMLDivElement
+  x: number
+  z: number
+  setPos: (x: number, z: number) => void
+  setRotation: (deg: number) => void
+  setClass: (name: string) => void
+  remove: () => void
+}
+
 export type VoxelsMapOpts = {
   ortho?: number
-  // track this scene's active camera (island info sidebar)
+  // lock camera to this scene's active camera (island info sidebar)
   follow?: BABYLON.Scene
+  // show a player arrow tracking this scene without locking pan
+  arrow?: BABYLON.Scene
   parcels?: boolean
+  nav?: boolean
+  wallet?: string
+  onClick?: (x: number, z: number) => void
+  onMove?: () => void
 }
 
 // babylon top-down map — shop page (wide) or island info sidebar (follow + parcels)
@@ -248,24 +286,55 @@ export class VoxelsMap {
   private camera: BABYLON.FreeCamera
   private islands: Island[] = []
   private parcels: MapParcel[] = []
+  private rows: ParcelData[] = []
   private meshes?: ReturnType<typeof createBaseMeshes>
   private playerMesh?: BABYLON.Mesh
   private followObs?: BABYLON.Observer<BABYLON.Scene>
+  private overlayObs?: BABYLON.Observer<BABYLON.Scene>
   private ro?: ResizeObserver
   private dragging = false
+  private moved = false
   private lastX = 0
   private lastZ = 0
   private ortho: number
   private follow?: BABYLON.Scene
+  private arrow?: BABYLON.Scene
   private wantParcels: boolean
+  private wallet?: string
+  private overlay: HTMLDivElement
+  private markers = new Set<MapMarker>()
+  private popup: HTMLDivElement | null = null
+  private popupX = 0
+  private popupZ = 0
+  private onClick?: (x: number, z: number) => void
+  private onMove?: () => void
+  private homeX = 0
+  private homeZ = 0
+  private homeOrtho: number
 
   constructor(
     private canvas: HTMLCanvasElement,
     opts: VoxelsMapOpts = {},
   ) {
     this.ortho = opts.ortho ?? PAGE_ORTHO
+    this.homeOrtho = this.ortho
     this.follow = opts.follow
+    this.arrow = opts.arrow ?? opts.follow
     this.wantParcels = !!opts.parcels
+    this.wallet = opts.wallet
+    this.onClick = opts.onClick
+    this.onMove = opts.onMove
+
+    const parent = canvas.parentElement
+    if (parent) {
+      const style = getComputedStyle(parent)
+      if (style.position === 'static') parent.style.position = 'relative'
+    }
+
+    this.overlay = document.createElement('div')
+    this.overlay.className = 'voxels-map-overlay'
+    this.overlay.style.cssText = 'position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2'
+    canvas.insertAdjacentElement('afterend', this.overlay)
 
     this.engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true })
     this.scene = new BABYLON.Scene(this.engine)
@@ -281,12 +350,12 @@ export class VoxelsMap {
     this.camera.position.z = 0
     this.scene.activeCamera = this.camera
 
-    if (this.follow) {
+    if (this.arrow) {
       this.playerMesh = this.createTriangleMesh('map_player')
       this.playerMesh.material = createMaterial('map_player', this.scene, 1, 1, 1)
       this.playerMesh.alwaysSelectAsActiveMesh = true
       this.playerMesh.scaling.set(1.75, 1.75, 2.5)
-      this.followObs = this.follow.onAfterRenderObservable.add(() => this.syncFollow())
+      this.followObs = this.arrow.onAfterRenderObservable.add(() => this.syncArrow())
     }
 
     this.engine.resize()
@@ -299,21 +368,31 @@ export class VoxelsMap {
     })
     this.ro.observe(canvas as unknown as Element)
     this.bindPanZoom()
+    this.overlayObs = this.scene.onAfterRenderObservable.add(() => this.syncOverlay())
+
+    if (opts.nav) this.addNav()
   }
 
   async load() {
     this.islands = await loadIslands(this.scene, undefined, false, true)
     if (this.wantParcels) await this.loadParcels()
-    this.syncFollow()
+    this.syncArrow()
   }
 
   dispose() {
-    if (this.follow && this.followObs) {
-      this.follow.onAfterRenderObservable.remove(this.followObs)
+    if (this.arrow && this.followObs) {
+      this.arrow.onAfterRenderObservable.remove(this.followObs)
       this.followObs = undefined
+    }
+    if (this.overlayObs) {
+      this.scene.onAfterRenderObservable.remove(this.overlayObs)
+      this.overlayObs = undefined
     }
     this.ro?.disconnect()
     this.engine.stopRenderLoop()
+    this.closePopup()
+    for (const m of [...this.markers]) m.remove()
+    this.overlay.remove()
     this.parcels.forEach((p) => p.dispose())
     this.parcels = []
     this.islands.forEach((i) => i.dispose())
@@ -321,11 +400,169 @@ export class VoxelsMap {
     this.engine.dispose()
   }
 
-  private syncFollow() {
-    if (!this.follow?.activeCamera) return
-    const cam = this.follow.activeCamera
-    this.camera.position.x = cam.position.x
-    this.camera.position.z = cam.position.z
+  setWallet(wallet?: string) {
+    this.wallet = wallet
+    if (!this.meshes || !this.rows.length) return
+    this.parcels.forEach((p) => p.dispose())
+    this.parcels = this.rows.filter((p) => p.visible !== false).map((p) => new MapParcel(this.scene, p, pickParcelMesh(p, this.meshes!, this.wallet)))
+  }
+
+  getParcels() {
+    return this.rows
+  }
+
+  parcelAt(x: number, z: number): ParcelData | undefined {
+    for (const p of this.rows) {
+      if (p.visible === false) continue
+      if (x >= p.x1 && x <= p.x2 && z >= p.z1 && z <= p.z2) return p
+    }
+  }
+
+  setView(x: number, z: number, ortho?: number) {
+    this.camera.position.x = x
+    this.camera.position.z = z
+    if (ortho != null) this.setOrtho(ortho)
+    this.onMove?.()
+  }
+
+  fitBounds(x1: number, z1: number, x2: number, z2: number, pad = 1.2) {
+    const w = Math.abs(x2 - x1) || 1
+    const d = Math.abs(z2 - z1) || 1
+    const aspect = this.aspect()
+    const size = Math.max(d, w / aspect) * pad
+    this.setView((x1 + x2) / 2, (z1 + z2) / 2, Math.max(80, Math.min(10000, size)))
+  }
+
+  getBounds() {
+    const aspect = this.aspect()
+    const halfH = this.ortho / 2
+    const halfW = halfH * aspect
+    const x = this.camera.position.x
+    const z = this.camera.position.z
+    return { x1: x - halfW, z1: z - halfH, x2: x + halfW, z2: z + halfH }
+  }
+
+  worldToScreen(x: number, z: number) {
+    const aspect = this.aspect()
+    const w = this.canvas.clientWidth || 1
+    const h = this.canvas.clientHeight || 1
+    const halfH = this.ortho / 2
+    const halfW = halfH * aspect
+    const px = ((x - this.camera.position.x) / (halfW * 2)) * w + w / 2
+    const py = ((this.camera.position.z - z) / (halfH * 2)) * h + h / 2
+    return { px, py }
+  }
+
+  screenToWorld(px: number, py: number) {
+    const rect = this.canvas.getBoundingClientRect()
+    const lx = px - rect.left
+    const ly = py - rect.top
+    const aspect = this.aspect()
+    const w = this.canvas.clientWidth || 1
+    const h = this.canvas.clientHeight || 1
+    const halfH = this.ortho / 2
+    const halfW = halfH * aspect
+    return {
+      x: this.camera.position.x + (lx / w - 0.5) * halfW * 2,
+      z: this.camera.position.z - (ly / h - 0.5) * halfH * 2,
+    }
+  }
+
+  addMarker(opts: MapMarkerOpts): MapMarker {
+    const el = document.createElement('div')
+    el.className = opts.className || 'voxels-map-marker'
+    el.style.cssText = 'position:absolute;transform:translate(-50%,-50%);pointer-events:auto;cursor:pointer'
+    if (opts.html) el.innerHTML = opts.html
+    if (opts.title) el.title = opts.title
+    if (opts.onClick)
+      el.addEventListener('click', (e) => {
+        e.stopPropagation()
+        opts.onClick!(e)
+      })
+    this.overlay.appendChild(el)
+
+    const marker: MapMarker = {
+      el,
+      x: opts.x,
+      z: opts.z,
+      setPos: (x, z) => {
+        marker.x = x
+        marker.z = z
+      },
+      setRotation: (deg) => {
+        el.style.transform = `translate(-50%,-50%) rotate(${deg}deg)`
+      },
+      setClass: (name) => {
+        el.className = name
+      },
+      remove: () => {
+        el.remove()
+        this.markers.delete(marker)
+      },
+    }
+    this.markers.add(marker)
+    return marker
+  }
+
+  openPopup(x: number, z: number, el: HTMLElement) {
+    this.closePopup()
+    const wrap = document.createElement('div')
+    wrap.className = 'voxels-map-popup'
+    wrap.style.cssText = 'position:absolute;transform:translate(-50%,-100%);pointer-events:auto;z-index:5;margin-top:-8px'
+    wrap.appendChild(el)
+    wrap.addEventListener('click', (e) => e.stopPropagation())
+    this.overlay.appendChild(wrap)
+    this.popup = wrap
+    this.popupX = x
+    this.popupZ = z
+  }
+
+  closePopup() {
+    this.popup?.remove()
+    this.popup = null
+  }
+
+  private syncOverlay() {
+    for (const m of this.markers) {
+      const { px, py } = this.worldToScreen(m.x, m.z)
+      m.el.style.left = `${px}px`
+      m.el.style.top = `${py}px`
+    }
+    if (this.popup) {
+      const { px, py } = this.worldToScreen(this.popupX, this.popupZ)
+      this.popup.style.left = `${px}px`
+      this.popup.style.top = `${py}px`
+    }
+  }
+
+  private addNav() {
+    const box = document.createElement('div')
+    box.className = 'voxels-map-nav'
+    box.style.cssText = 'position:absolute;top:1rem;right:1rem;display:flex;flex-direction:column;gap:0.25rem;pointer-events:auto;z-index:4'
+    const mk = (label: string, fn: () => void) => {
+      const b = document.createElement('button')
+      b.type = 'button'
+      b.textContent = label
+      b.onclick = (e) => {
+        e.stopPropagation()
+        fn()
+      }
+      box.appendChild(b)
+    }
+    mk('+', () => this.setOrtho(Math.max(80, this.ortho * 0.9)))
+    mk('-', () => this.setOrtho(Math.min(10000, this.ortho * 1.1)))
+    mk('⌂', () => this.setView(this.homeX, this.homeZ, this.homeOrtho))
+    this.overlay.appendChild(box)
+  }
+
+  private syncArrow() {
+    const src = this.arrow
+    if (!src?.activeCamera) return
+    const cam = src.activeCamera
+    if (this.follow) {
+      this.camera.position.x = cam.position.x
+      this.camera.position.z = cam.position.z
+    }
     if (this.playerMesh) {
       this.playerMesh.position.copyFrom(cam.position)
       this.playerMesh.position.y = 2
@@ -337,8 +574,9 @@ export class VoxelsMap {
 
   private async loadParcels() {
     this.meshes = createBaseMeshes(this.scene)
-    const rows = await fetchAllParcels()
-    this.parcels = (rows || []).filter((p) => p.visible).map((p) => new MapParcel(this.scene, p, pickParcelMesh(p, this.meshes!)))
+    const rows = await fetchMapParcels()
+    this.rows = rows
+    this.parcels = rows.filter((p) => p.visible !== false).map((p) => new MapParcel(this.scene, p, pickParcelMesh(p, this.meshes!, this.wallet)))
   }
 
   private createTriangleMesh(name: string) {
@@ -364,6 +602,7 @@ export class VoxelsMap {
     this.camera.orthoBottom = -size / 2
     this.camera.orthoRight = (size / 2) * aspect
     this.camera.orthoLeft = -(size / 2) * aspect
+    this.onMove?.()
   }
 
   private bindPanZoom() {
@@ -382,6 +621,7 @@ export class VoxelsMap {
 
     this.canvas.addEventListener('pointerdown', (e) => {
       this.dragging = true
+      this.moved = false
       this.lastX = e.clientX
       this.lastZ = e.clientY
       this.canvas.setPointerCapture(e.pointerId)
@@ -389,15 +629,24 @@ export class VoxelsMap {
 
     this.canvas.addEventListener('pointermove', (e) => {
       if (!this.dragging) return
+      const dx = e.clientX - this.lastX
+      const dz = e.clientY - this.lastZ
+      if (Math.abs(dx) + Math.abs(dz) > 3) this.moved = true
       const aspect = this.aspect()
       const scale = this.ortho / (this.canvas.clientHeight || 1)
-      this.camera.position.x += ((e.clientX - this.lastX) * scale) / aspect
-      this.camera.position.z -= (e.clientY - this.lastZ) * scale
+      this.camera.position.x += (dx * scale) / aspect
+      this.camera.position.z -= dz * scale
       this.lastX = e.clientX
       this.lastZ = e.clientY
+      this.onMove?.()
     })
 
     const up = (e: PointerEvent) => {
+      if (this.dragging && !this.moved) {
+        const { x, z } = this.screenToWorld(e.clientX, e.clientY)
+        this.closePopup()
+        this.onClick?.(x, z)
+      }
       this.dragging = false
       try {
         this.canvas.releasePointerCapture(e.pointerId)
@@ -408,5 +657,4 @@ export class VoxelsMap {
   }
 }
 
-export { SIDEBAR_ORTHO }
-
+export { PAGE_ORTHO, SIDEBAR_ORTHO }

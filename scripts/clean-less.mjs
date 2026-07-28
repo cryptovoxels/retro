@@ -156,19 +156,14 @@ body = body.replace(/body,\s*html \{\s*margin: 0;\s*padding: 0;\s*\}\s*body \{[\
 body = body.replace(/a \{\s*color: unset;[\s\S]*?color: var\(--red\);\s*\}\s*\}\s*/, '')
 body = body.replace(/\* \{\s*touch-action: manipulation;\s*\}\s*/, '')
 
-// vendor block stays at start of body (pickr + leaflet)
+// vendor block stays at start of body (pickr)
 const vendorEnd = body.search(/\/\/ Color pickr|\/\* required styles \*\//)
 let vendor = ''
 if (vendorEnd >= 0) {
   const costumerStart = body.search(/\n\.costumer|\/\* Forms \*\/|\.costumer-main/)
   const cut = costumerStart > 0 ? costumerStart : body.search(/\n@hexsize:/)
   if (cut > 0) {
-    vendor =
-      '// --- vendor ---\n' +
-      body
-        .slice(0, cut)
-        .replace(/\/\/ Color pickr\s*/g, '')
-        .replace(/\/\/ Import leaflet css\s*/g, '')
+    vendor = '// --- vendor ---\n' + body.slice(0, cut).replace(/\/\/ Color pickr\s*/g, '')
     body = body.slice(cut)
   }
 }
@@ -178,7 +173,7 @@ const lines = body.split('\n')
 const out = []
 for (const line of lines) {
   let l = line
-  if (!l.includes('.pickr') && !l.includes('.pcr-') && !l.includes('.leaflet-')) {
+  if (!l.includes('.pickr') && !l.includes('.pcr-')) {
     for (const [hex, v] of colors) {
       if (hex === 'white' || hex === 'black') continue
       l = l.split(hex).join(v)

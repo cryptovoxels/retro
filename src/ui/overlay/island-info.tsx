@@ -24,7 +24,7 @@ async function teleportToParcelSpawn(parcelId: number): Promise<boolean> {
   return false
 }
 
-// in-world babylon map (same as corner minimap / shop) — no leaflet tile server
+// in-world babylon map (same as corner minimap / shop)
 function IslandMinimap({ scene }: { scene: BABYLON.Scene }) {
   const canvas = useRef<HTMLCanvasElement>(null)
 

@@ -13,7 +13,7 @@ type Data = { floor: number; fresh: Item[]; secondary: Item[]; deals: Item[] }
 
 const CLASSIFIEDS_URL = '/api/classifieds.json'
 const eth = (n: number) => parseFloat(n.toFixed(3))
-const DETAIL_MAP_ZOOM = 10
+const DETAIL_MAP_ORTHO = 200
 const WOMP_PAGE = 6
 
 const selectedFromUrl = () => {
@@ -131,7 +131,7 @@ export default function ForSale(_props: { path?: string }) {
       u.searchParams.set('parcel', String(id))
       history.replaceState(null, '', u.pathname + u.search)
     }
-    mapRef.current?.focusParcel(id, DETAIL_MAP_ZOOM)
+    mapRef.current?.focusParcel(id, DETAIL_MAP_ORTHO)
   }
 
   const back = () => {
@@ -148,7 +148,7 @@ export default function ForSale(_props: { path?: string }) {
 
   useEffect(() => {
     if (view !== 'detail' || !selectedId) return
-    mapRef.current?.focusParcel(selectedId, DETAIL_MAP_ZOOM)
+    mapRef.current?.focusParcel(selectedId, DETAIL_MAP_ORTHO)
   }, [view, selectedId, allItems.length])
 
   return (

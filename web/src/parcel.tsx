@@ -3,7 +3,8 @@ import { format } from 'timeago.js'
 import ParcelHelper from '../../common/helpers/parcel-helper'
 import { canUseDom } from '../../common/helpers/utils'
 import { FullParcelRecord, NearbyParcelRecord, ParcelWithMintednessRecord } from '../../common/messages/parcel'
-import type { Map } from '../../vendor/library/leaflet'
+import type { VoxelsMap } from './helpers/load-voxels-map'
+import { loadVoxelsMap } from './helpers/load-voxels-map'
 import ParcelEvents from './components/parcel-events'
 import cachedFetch from './helpers/cached-fetch'
 import Head from './components/head'
@@ -36,18 +37,8 @@ const tabs: { id: SidebarTab; label: string }[] = [
   { id: 'map', label: 'map' },
 ]
 
-const parcelMapStyle = {
-  color: '#333333',
-  opacity: 1.0,
-  fillColor: '#ffffff',
-  fillOpacity: 0.5,
-  dashArray: '5,5',
-  weight: 4,
-}
-
 export default class Parcel extends Component<Props, State> {
-  map: Map | null = null
-  parcelLayer: any = null
+  map: VoxelsMap | null = null
   mapBox = createRef<HTMLDivElement>()
 
   constructor(props: Props) {
@@ -164,17 +155,15 @@ export default class Parcel extends Component<Props, State> {
     }
 
     if (this.state.tab !== 'map' && this.map) {
-      this.map.remove()
+      this.map.dispose()
       this.map = null
-      this.parcelLayer = null
     }
   }
 
   componentWillUnmount() {
     app.visitUrl.value = undefined
-    this.map?.remove()
+    this.map?.dispose()
     this.map = null
-    this.parcelLayer = null
 
     window.removeEventListener('parcelchange', this.onUrl)
 
@@ -189,13 +178,11 @@ export default class Parcel extends Component<Props, State> {
     if (!this.map || !this.state.parcel) {
       return
     }
-
-    this.map.setView(this.helper!.latLng, 10)
-    this.parcelLayer?.remove()
-    this.parcelLayer = window.L.geoJSON([this.state.parcel.geometry], { style: parcelMapStyle }).addTo(this.map)
+    const p = this.state.parcel
+    this.map.setView((p.x1 + p.x2) / 2, (p.z1 + p.z2) / 2, 200)
   }
 
-  addMap() {
+  async addMap() {
     if (!canUseDom || !this.state.parcel) {
       return
     }
@@ -205,15 +192,18 @@ export default class Parcel extends Component<Props, State> {
       return
     }
 
-    this.map = window.L.map(mapElem, { scrollWheelZoom: false }).setView(this.helper!.latLng, 10)
-    window.L.tileLayer(`${process.env.MAP_URL}/tile/?z={z}&x={x}&y={y}`, {
-      minZoom: 5,
-      maxZoom: 20,
-      attribution: 'Map data &copy; Voxels',
-      id: 'Voxels',
-    }).addTo(this.map)
+    mapElem.innerHTML = ''
+    mapElem.style.position = 'relative'
+    const canvas = document.createElement('canvas')
+    canvas.className = 'voxels-map'
+    canvas.style.cssText = 'width:100%;height:100%;display:block;touch-action:none'
+    mapElem.appendChild(canvas)
 
-    this.parcelLayer = window.L.geoJSON([this.state.parcel.geometry], { style: parcelMapStyle }).addTo(this.map)
+    const p = this.state.parcel
+    const { VoxelsMap } = await loadVoxelsMap()
+    this.map = new VoxelsMap(canvas, { ortho: 200, parcels: true })
+    this.map.setView((p.x1 + p.x2) / 2, (p.z1 + p.z2) / 2, 200)
+    this.map.load().catch((e) => console.error('parcel map load failed', e))
   }
 
   setTab(tab: SidebarTab) {
