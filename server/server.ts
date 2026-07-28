@@ -54,6 +54,8 @@ import MailsController from './controllers/mails'
 import ModerationReportsController from './controllers/reports'
 import WompsController from './controllers/womps'
 import IslandBoardController from './controllers/island-board'
+import BlogController from './controllers/blog'
+import { ingestReleaseNotes } from './blog-ingest'
 import createGridSocket from './grid/createGridSocket'
 import { searchAndReturn } from './handlers/search'
 import { EthereumListener } from './jobs/ethereum-listener'
@@ -367,6 +369,8 @@ CostumesController(db, passport, app)
 WompsController(db, passport, app)
 
 IslandBoardController(db, passport, app)
+BlogController(db, passport, app)
+void ingestReleaseNotes().catch((e) => console.error('blog ingest failed:', e))
 // Spaces
 SpacesController(db, passport, app)
 // collections

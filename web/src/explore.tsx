@@ -11,6 +11,7 @@ import cachedFetch from './helpers/cached-fetch'
 import { app, AppEvent } from './state'
 import Radar from './components/radar'
 import Classifieds from './components/classifieds'
+import BlogTeaser from './components/blog-teaser'
 
 function countdown(ms: number) {
   const s = Math.floor(ms / 1000)
@@ -147,6 +148,7 @@ export default class Explore extends Component {
             <div class="client-slot" />
           </article>
           <aside>
+            <BlogTeaser />
             <Radar />
             <EventsList />
 

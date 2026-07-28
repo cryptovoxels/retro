@@ -290,4 +290,13 @@ use `1rem` whenever required for padding, no borders, or colors. No solid backgr
 * If it's a UI change, add a screenshot to the github PR
 * Screenshot doesnt need to be diagnostic, just makes the PRs more pretty when viewing on github
 
+## Release notes
+
+When asked to write release notes:
+
+1. Look at the newest file in `release-notes/` (filenames are `YYYY-MM-DD-<slug>.md`).
+2. Diff the code since that file landed (or since a sensible recent point if the folder is empty). Commit messages are low signal - read the actual `git diff`.
+3. Write `release-notes/YYYY-MM-DD-<slug>.md`. First line is `# <title>`. Body is markdown. Zine voice, lowercase subheadings. What changed and why a player cares.
+4. Commit and push. Next deploy ingests new files into the blog (`on conflict do nothing`, so edits in the DB stick).
+
 

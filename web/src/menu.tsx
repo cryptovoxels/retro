@@ -55,6 +55,7 @@ export default function Menu() {
       title: 'home',
       items: [
         { label: 'Home', href: '/' },
+        { label: 'Blog', href: '/blog' },
         { label: signedIn ? 'Profile' : 'Login', href: '/account' },
         { label: 'Log out', href: '/logout', when: signedIn },
       ],

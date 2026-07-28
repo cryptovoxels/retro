@@ -284,3 +284,28 @@ SELECT apply_migration('island-board-slots', $$
     PRIMARY KEY (post_id, wallet)
   );
 $$);
+
+SELECT apply_migration('blog', $$
+  DROP TABLE IF EXISTS blog_comments; -- leftover from an earlier draft
+  CREATE TABLE IF NOT EXISTS posts (
+    slug       text PRIMARY KEY,
+    title      text NOT NULL,
+    body       text NOT NULL,
+    author     text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+  );
+$$);
+
+SELECT apply_migration('blog-posts-to-posts', $$
+  -- local DBs already applied 'blog' as blog_posts; rename once
+  DO $d$
+  BEGIN
+    IF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'blog_posts')
+       AND NOT EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'posts') THEN
+      ALTER TABLE blog_posts RENAME TO posts;
+    ELSIF EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'blog_posts')
+       AND EXISTS (SELECT 1 FROM pg_tables WHERE schemaname = 'public' AND tablename = 'posts') THEN
+      DROP TABLE blog_posts;
+    END IF;
+  END $d$;
+$$);

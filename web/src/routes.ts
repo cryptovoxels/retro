@@ -10,6 +10,8 @@ const duration = '10 minutes'
 
 export const routes: RouteDef[] = [
   { path: '/', component: 'explore', server: false },
+  { path: '/blog', component: 'blog' },
+  { path: '/blog/:slug', component: 'post' },
   { path: '/chat', component: 'chat' },
   { path: '/menu', component: 'menu' },
   { path: '/terms', component: 'terms', server: false },
