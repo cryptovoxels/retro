@@ -1,15 +1,15 @@
-import { useEffect, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { format } from 'timeago.js'
 import { encodeCoords } from '../../../common/helpers/utils'
 import type { Event as EventMessage } from '../../../common/messages/event'
 import ParcelEvent from '../../../web/src/helpers/event'
 import { fetchOptions } from '../../../web/src/utils'
 import { EventRow } from '../../components/explorer/events'
-import { BigMap } from '../map-overlay'
 import { cameraPosition } from '../../utils/camera'
 import { app } from '../../../web/src/state'
 import type Grid from '../../grid'
 import type Parcel from '../../parcel'
+import { SIDEBAR_ORTHO, VoxelsMap } from '../../voxels-map'
 
 // the server resolves a parcel's spawn point: /visit redirects to a /play?coords= url -
 // the same lookup the big-map popups use
@@ -22,6 +22,21 @@ async function teleportToParcelSpawn(parcelId: number): Promise<boolean> {
     }
   } catch {}
   return false
+}
+
+// in-world babylon map (same as corner minimap / shop) — no leaflet tile server
+function IslandMinimap({ scene }: { scene: BABYLON.Scene }) {
+  const canvas = useRef<HTMLCanvasElement>(null)
+
+  useEffect(() => {
+    const el = canvas.current
+    if (!el) return
+    const m = new VoxelsMap(el, { ortho: SIDEBAR_ORTHO, follow: scene, parcels: true })
+    void m.load().catch((e) => console.error('island minimap load failed', e))
+    return () => m.dispose()
+  }, [scene])
+
+  return <canvas class="island-voxels-map" ref={canvas} />
 }
 
 // a live showbox stream on the island, from the same redis entries that feed the homepage strip
@@ -119,7 +134,7 @@ export default function IslandInfoTab(props: { scene: BABYLON.Scene }) {
         </div>
 
         <div class="island-minimap">
-          <BigMap scene={props.scene} />
+          <IslandMinimap scene={props.scene} />
         </div>
 
         {island && <IslandBoard island={island} />}
