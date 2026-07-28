@@ -4,7 +4,7 @@ export const DAY_SUN_POSITION = new BABYLON.Vector3(5, 5, -5).normalize()
 export const NIGHT_SUN_POSITION = new BABYLON.Vector3(3, 0, -5).normalize()
 export const DAY_BRIGHTNESS = 1.0
 export const NIGHT_BRIGHTNESS = 0.2
-export const DAY_FOG_COLOR = new BABYLON.Color3(0.3, 0.3, 0.3)
+export const DAY_FOG_COLOR = BABYLON.Color3.FromHexString('#90abc0')
 export const NIGHT_FOG_COLOR = new BABYLON.Color3(0.08, 0.05, 0.05)
 
 export const WATER_COLOR = new BABYLON.Color3(0.12, 0.25, 0.45)
