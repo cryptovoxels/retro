@@ -20,14 +20,14 @@ function loadPanel(key: string, def: PanelMode): PanelMode {
     const v = localStorage.getItem(`radio.panel.${key}`)
     if (v === 'open' || v === 'closed') return v
     if (v === 'shade') return 'open'
-  } catch {}
+  } catch { }
   return def
 }
 
 function savePanel(key: string, mode: PanelMode) {
   try {
     localStorage.setItem(`radio.panel.${key}`, mode)
-  } catch {}
+  } catch { }
 }
 
 const R = 13
@@ -77,13 +77,12 @@ class Knob extends Component<KnobProps> {
     const size = small ? '1.5rem' : '2rem'
     return (
       <div onPointerDown={this.down} title={label}>
-        <svg viewBox="0 0 32 32" width={size} height={size}>
-          {small && <circle cx={C} cy={C} r={R + 2} fill="none" stroke="currentColor" stroke-width="1" />}
-          <path fill="none" stroke="currentColor" stroke-width="2" opacity="0.35" d={FULL} />
-          <path fill="none" stroke="currentColor" stroke-width="2" d={arc(A0 + t * SPAN)} />
+        <svg style={{ marginTop: '4px' }} viewBox="0 0 32 32" width={size} height={size}>
+          <path fill="none" stroke="currentColor" stroke-width="4" opacity="0.35" d={FULL} />
+          <path fill="none" stroke="currentColor" stroke-width="5" d={arc(A0 + t * SPAN)} />
         </svg>
         {!small && <label>{label}</label>}
-      </div>
+      </div >
     )
   }
 }
