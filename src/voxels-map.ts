@@ -232,20 +232,41 @@ export function pickParcelMesh(data: ParcelData, meshes: ReturnType<typeof creat
 }
 
 const PAGE_ORTHO = 2000
+const SIDEBAR_ORTHO = 200
 
-// full-page babylon map (sale page and future main map)
+export type VoxelsMapOpts = {
+  ortho?: number
+  // track this scene's active camera (island info sidebar)
+  follow?: BABYLON.Scene
+  parcels?: boolean
+}
+
+// babylon top-down map — shop page (wide) or island info sidebar (follow + parcels)
 export class VoxelsMap {
   private engine: BABYLON.Engine
   private scene: BABYLON.Scene
   private camera: BABYLON.FreeCamera
   private islands: Island[] = []
+  private parcels: MapParcel[] = []
+  private meshes?: ReturnType<typeof createBaseMeshes>
+  private playerMesh?: BABYLON.Mesh
+  private followObs?: BABYLON.Observer<BABYLON.Scene>
   private ro?: ResizeObserver
   private dragging = false
   private lastX = 0
   private lastZ = 0
-  private ortho = PAGE_ORTHO
+  private ortho: number
+  private follow?: BABYLON.Scene
+  private wantParcels: boolean
 
-  constructor(private canvas: HTMLCanvasElement) {
+  constructor(
+    private canvas: HTMLCanvasElement,
+    opts: VoxelsMapOpts = {},
+  ) {
+    this.ortho = opts.ortho ?? PAGE_ORTHO
+    this.follow = opts.follow
+    this.wantParcels = !!opts.parcels
+
     this.engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true })
     this.scene = new BABYLON.Scene(this.engine)
     this.scene.clearColor = OCEAN
@@ -260,8 +281,16 @@ export class VoxelsMap {
     this.camera.position.z = 0
     this.scene.activeCamera = this.camera
 
+    if (this.follow) {
+      this.playerMesh = this.createTriangleMesh('map_player')
+      this.playerMesh.material = createMaterial('map_player', this.scene, 1, 1, 1)
+      this.playerMesh.alwaysSelectAsActiveMesh = true
+      this.playerMesh.scaling.set(1.75, 1.75, 2.5)
+      this.followObs = this.follow.onAfterRenderObservable.add(() => this.syncFollow())
+    }
+
     this.engine.resize()
-    this.setOrtho(PAGE_ORTHO)
+    this.setOrtho(this.ortho)
 
     this.engine.runRenderLoop(() => this.scene.render())
     this.ro = new ResizeObserver(() => {
@@ -274,14 +303,52 @@ export class VoxelsMap {
 
   async load() {
     this.islands = await loadIslands(this.scene, undefined, false, true)
+    if (this.wantParcels) await this.loadParcels()
+    this.syncFollow()
   }
 
   dispose() {
+    if (this.follow && this.followObs) {
+      this.follow.onAfterRenderObservable.remove(this.followObs)
+      this.followObs = undefined
+    }
     this.ro?.disconnect()
     this.engine.stopRenderLoop()
+    this.parcels.forEach((p) => p.dispose())
+    this.parcels = []
     this.islands.forEach((i) => i.dispose())
     this.scene.dispose()
     this.engine.dispose()
+  }
+
+  private syncFollow() {
+    if (!this.follow?.activeCamera) return
+    const cam = this.follow.activeCamera
+    this.camera.position.x = cam.position.x
+    this.camera.position.z = cam.position.z
+    if (this.playerMesh) {
+      this.playerMesh.position.copyFrom(cam.position)
+      this.playerMesh.position.y = 2
+      if (cam instanceof BABYLON.TargetCamera) {
+        this.playerMesh.rotation.y = cam.rotation.y
+      }
+    }
+  }
+
+  private async loadParcels() {
+    this.meshes = createBaseMeshes(this.scene)
+    const rows = await fetchAllParcels()
+    this.parcels = (rows || []).filter((p) => p.visible).map((p) => new MapParcel(this.scene, p, pickParcelMesh(p, this.meshes!)))
+  }
+
+  private createTriangleMesh(name: string) {
+    const vertexData = new BABYLON.VertexData()
+    vertexData.positions = [-0, 1, 1, -1, 1, -1, 1, 1, -1]
+    vertexData.indices = [0, 1, 2]
+    const m = new BABYLON.Mesh(name, this.scene)
+    vertexData.applyToMesh(m)
+    m.convertToUnIndexedMesh()
+    return m
   }
 
   private aspect() {
@@ -305,10 +372,13 @@ export class VoxelsMap {
       (e) => {
         e.preventDefault()
         const f = e.deltaY > 0 ? 1.1 : 0.9
-        this.setOrtho(Math.max(100, Math.min(10000, this.ortho * f)))
+        this.setOrtho(Math.max(80, Math.min(10000, this.ortho * f)))
       },
       { passive: false },
     )
+
+    // follow mode sticks to the player — pan would just fight it
+    if (this.follow) return
 
     this.canvas.addEventListener('pointerdown', (e) => {
       this.dragging = true
@@ -337,3 +407,6 @@ export class VoxelsMap {
     this.canvas.addEventListener('pointercancel', up)
   }
 }
+
+export { SIDEBAR_ORTHO }
+
