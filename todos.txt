@@ -2,3 +2,9 @@
 
 - ownership tracking per wallet in DB - needed for "yours" tab in wearable selector (WearableSelector currently shows free/editions only)
 - ownership check API endpoint - given a wallet + list of wearable uuids, return which ones they don't own; needed to populate unowned[] state in Costumer, enable the shopping list and re-enable the Wear button guard
+
+## sky / atmosphere
+
+- goal: make daytime feel more uplifting (less dead grey)
+- restored day fog to `#90abc0` and sky `rayleigh: 2` / `mieCoefficient: 0.03` (undo Ben's grey overcast pass)
+- if still too strong, nudge fog brighter (e.g. `#a8c0d4`)
