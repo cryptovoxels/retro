@@ -20,14 +20,14 @@ function loadPanel(key: string, def: PanelMode): PanelMode {
     const v = localStorage.getItem(`radio.panel.${key}`)
     if (v === 'open' || v === 'closed') return v
     if (v === 'shade') return 'open'
-  } catch { }
+  } catch {}
   return def
 }
 
 function savePanel(key: string, mode: PanelMode) {
   try {
     localStorage.setItem(`radio.panel.${key}`, mode)
-  } catch { }
+  } catch {}
 }
 
 const R = 13
@@ -82,7 +82,7 @@ class Knob extends Component<KnobProps> {
           <path fill="none" stroke="currentColor" stroke-width="5" d={arc(A0 + t * SPAN)} />
         </svg>
         {!small && <label>{label}</label>}
-      </div >
+      </div>
     )
   }
 }

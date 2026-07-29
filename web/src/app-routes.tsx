@@ -49,8 +49,11 @@ import { ChatPage } from './chat-page'
 import Menu from './menu'
 import { routes } from './routes'
 
+const WorldPane = () => null
+
 const components: Record<string, ComponentType<any>> = {
   explore: Explore,
+  worldPane: WorldPane,
   blog: Blog,
   post: PostPage,
   chat: ChatPage,

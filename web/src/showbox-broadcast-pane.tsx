@@ -4,7 +4,7 @@ import { broadcastDockEl } from '../../src/store'
 // Mount point for the imperative showbox broadcast dock when ?coords= split layout is active.
 export function ShowboxBroadcastPane() {
   const ref = useRef<HTMLDivElement>(null)
-  // the dock outlives this mount (preact tears the pane down whenever uiPane leaves 'broadcast') -
+  // the dock outlives this mount (preact tears the pane down whenever /live leaves) -
   // re-adopt the panel on every remount, or reopening via the live tab shows an empty box mid-show
   useEffect(() => {
     const el = broadcastDockEl.el

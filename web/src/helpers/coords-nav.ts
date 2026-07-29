@@ -1,5 +1,27 @@
 import { route } from 'preact-router'
 
+export const PANE_PATHS: Record<string, string> = {
+  explorer: '/explore',
+  settings: '/settings',
+  emote: '/dance',
+  add: '/add',
+  edit: '/edit',
+  voxels: '/voxels',
+  bake: '/bake',
+  broadcast: '/live',
+  takeWomp: '/womp',
+}
+const BY_PATH = Object.fromEntries(Object.entries(PANE_PATHS).map(([k, v]) => [v, k]))
+
+export function paneFromPath(p?: string) {
+  const path = (p || (typeof location !== 'undefined' ? location.pathname : '')).split('?')[0]
+  return BY_PATH[path]
+}
+
+export function routePane(pane?: string) {
+  route(withCoords(pane ? PANE_PATHS[pane] : '/play'))
+}
+
 export function getCoords() {
   if (typeof location === 'undefined') return ''
   return new URLSearchParams(location.search).get('coords') || ''
@@ -10,6 +32,7 @@ export function isFullClientPath(path?: string) {
   if (p === '/play' || p === '/scratchpad') return true
   if (/^\/spaces\/[^/]+\/play$/.test(p)) return true
   if (/^\/assets\/\d+\/play$/.test(p)) return true
+  if (paneFromPath(p)) return true
   return false
 }
 

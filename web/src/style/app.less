@@ -13,8 +13,8 @@
 
 :root {
   --gap: 0.2rem;
-  --bg: #f3f3f3;
-  --fg: #555;
+  --bg: #343434;
+  --fg: #ccc;
   --surface: #1a1a1a;
   --surface-2: #222;
   --line: #333;
@@ -26,7 +26,7 @@
   --muted-3: #ccc;
   --border-color: #aaa;
   --hover: #f3f3f3;
-  --accent: #03f;
+  --accent: #f23;
   --red: var(--accent);
   --axis-x: var(--accent);
   --axis-y: #6bbf59;
@@ -1134,15 +1134,40 @@ body.in-world {
   }
 }
 
-body.in-world.sidebar-closed main:has(> .client-world) {
+body.in-world main:has(> .client-world):not(:has(> aside)) {
   grid-template-columns: 1fr;
   grid-template-areas:
     'header'
     'world';
 }
 
-aside.-closed {
-  display: none;
+header nav ul.world-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  list-style: none;
+  margin: 0;
+  padding: 0.5rem 0 0;
+
+  li {
+    margin: 0;
+    padding: 0;
+  }
+
+  li.disabled {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  a {
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .active a {
+    font-weight: bold;
+    color: var(--red);
+  }
 }
 
 // homepage / parcel embed: world info docks on the right (no .client-world push grid)
@@ -2665,81 +2690,6 @@ button.iconish {
   text-shadow: 2px 2px var(--bg);
 }
 
-/* Sidebar nav */
-
-// left in-world chrome (Fullscreen / Explore / Settings / Dance / Info / …).
-// pruned when LESS collapsed; without it the links sit unstyled in the canvas.
-.UserInterface aside {
-  width: 8rem;
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  z-index: 2;
-  pointer-events: none;
-
-  & > ul.ui-sidebar {
-    pointer-events: auto;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 8rem;
-    margin: 0;
-    padding: 0;
-
-    li:first-child {
-      margin-top: 1rem;
-    }
-
-    li {
-      list-style: none;
-      margin: 0;
-      padding: 0 1rem;
-    }
-
-    li.disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-
-      a {
-        color: unset;
-      }
-    }
-
-    a,
-    u {
-      display: block;
-      text-decoration: none;
-      cursor: pointer;
-      text-shadow: 1px 1px 1px var(--bg);
-
-      &:hover {
-        text-decoration: underline;
-        font-weight: bold;
-      }
-    }
-
-    .active a,
-    .active u {
-      text-decoration: underline;
-      font-weight: bold;
-      color: var(--red);
-    }
-  }
-
-  @media screen and (max-width: 799px), screen and (max-height: 449px) {
-    &[data-active='false'] > ul.ui-sidebar {
-      transform: translateX(-100%);
-      visibility: hidden;
-      pointer-events: none;
-    }
-  }
-}
-
 // the aside is the single scroll container in split view; inner pane sections
 // must not make a second one (that was the double-scrollbar). pin headers with
 // position: sticky instead of a nested scroller.
@@ -2918,7 +2868,7 @@ main > aside section {
   }
 }
 
-.UserInterface aside .EmoteList ul {
+.EmoteList ul {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
   gap: 0.5rem;
@@ -2933,7 +2883,7 @@ main > aside section {
   }
 }
 
-.UserInterface aside .AnimateList ul {
+.AnimateList ul {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
   gap: 0.5rem;
@@ -2978,10 +2928,6 @@ main > aside section.settings,
       padding: 0;
       gap: 2px;
     }
-  }
-
-  .scrollContainer {
-    overflow-x: hidden;
   }
 
   textarea,
@@ -3090,12 +3036,10 @@ main > aside section.settings,
     dd {
       margin: 0;
       padding: 4px 6px;
-      border-bottom: 1px solid var(--surface-2);
       align-self: center;
     }
 
     dt {
-      color: var(--border-color);
       font-size: 0.85em;
 
       &:empty {
@@ -3120,8 +3064,9 @@ main > aside section.settings,
         width: 100%;
         border: none;
         padding: 4px;
-        background: transparent;
-        color: var(--border-color);
+        background: white;
+        color: black;
+        border-radius: 4px;
       }
 
       input[type='checkbox'] {
@@ -3131,7 +3076,7 @@ main > aside section.settings,
 
     dd.vec3 {
       display: flex;
-      gap: 0;
+      gap: 1rem;
       padding: 0;
       min-width: 0;
       overflow: hidden;
@@ -3156,7 +3101,6 @@ main > aside section.settings,
 
       > label,
       label:first-child {
-        color: var(--border-color);
         font-size: 0.85em;
         padding: 4px 6px;
         display: block;
@@ -3987,21 +3931,10 @@ section.build-tab nav.build-main-tabs {
     height: 100%;
     min-height: 0;
   }
-
-  .scrollContainer {
-    flex: 1;
-    min-height: 0;
-    overflow: visible;
-  }
 }
 
 main > aside .edit-pane-inspector {
   overflow: visible;
-
-  .scrollContainer {
-    overflow: visible;
-    flex: none;
-  }
 }
 
 // these panes set overflow-x: hidden, which per spec forces overflow-y to auto and
@@ -4009,10 +3942,6 @@ main > aside .edit-pane-inspector {
 main > aside .editor,
 main > aside section.settings {
   overflow: visible;
-
-  .scrollContainer {
-    overflow: visible;
-  }
 }
 
 .inspector.overlay {
@@ -4276,227 +4205,6 @@ form.PermissionsRadioSelector > div {
     color: var(--border-color);
     font-size: 0.9em;
   }
-}
-
-/* Parcel info + debug tools */
-.parcel-information-overlay {
-  h2,
-  h3,
-  h4,
-  h5 {
-    color: #d8d8d8;
-  }
-
-  a {
-    color: #969696;
-  }
-
-  p {
-    margin-bottom: 1px;
-  }
-
-  .parcels-details {
-    padding: 5px;
-    border: none;
-    background-color: var(--tinge);
-  }
-
-  .actions {
-    margin: 5px 0 5px 7px;
-  }
-
-  .actions > li {
-    margin: 5px 0 2px 2px;
-
-    a {
-      text-decoration: none;
-      background-color: var(--dark);
-      height: 15px;
-      margin-right: 3px;
-    }
-
-    &:hover a {
-      background-color: #464646;
-    }
-  }
-
-  .overlay-parcel-info-content {
-    display: flex;
-    flex-direction: column;
-    background-color: var(--tinge);
-    padding: 8px;
-    margin: 2px 2px 10px;
-
-    > * {
-      margin-bottom: 8px;
-    }
-
-    .event-item {
-      background-color: #1d1d1d;
-    }
-
-    p {
-      margin-bottom: 2px;
-    }
-
-    h1,
-    h2,
-    h3,
-    h4,
-    h5 {
-      margin: 2px 0;
-      text-shadow: none;
-    }
-  }
-
-  .womp {
-    width: 128px;
-  }
-
-  // recent womps: tight 3-up thumbnails, no caption
-  .parcel-womps-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
-
-    .womp {
-      width: auto;
-    }
-
-    .womp img {
-      width: 100%;
-      aspect-ratio: 1/1;
-      object-fit: cover;
-      margin: 0;
-    }
-
-    .womp p {
-      display: none;
-    }
-  }
-
-  .womps-show-more {
-    width: 100%;
-    margin-top: 0.5rem;
-    background: none;
-    border: 0;
-    color: var(--bright);
-    cursor: pointer;
-    opacity: 0.7;
-
-    &:hover {
-      opacity: 1;
-    }
-  }
-
-  // island context view (shown when you're not on a parcel)
-  .island-minimap {
-    .island-voxels-map {
-      width: 100%;
-      height: 14rem;
-      display: block;
-      touch-action: none;
-      margin-bottom: 1rem;
-    }
-  }
-
-  .island-parcels {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-
-    a {
-      cursor: pointer;
-    }
-  }
-
-  // "live now": showbox streams on the island, one tap into the audience
-  .island-live-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    margin-bottom: 0.5rem;
-
-    img {
-      width: 96px;
-      aspect-ratio: 16 / 9;
-      object-fit: cover;
-      display: block;
-      flex-shrink: 0;
-      background: #000;
-    }
-
-    .island-live-dot {
-      color: var(--red);
-      animation: showbox-live-pulse 1.2s ease-in-out infinite;
-    }
-
-    .island-live-name {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .island-live-viewers {
-      opacity: 0.7;
-      white-space: nowrap;
-    }
-  }
-
-  .island-board {
-    textarea {
-      width: 100%;
-      min-height: 3rem;
-    }
-
-    .island-board-actions {
-      display: flex;
-      gap: 0.5rem;
-    }
-
-    .island-board-cancel {
-      background: none;
-      border: 0;
-      color: var(--bright);
-      opacity: 0.7;
-      cursor: pointer;
-      text-decoration: underline;
-    }
-
-    .island-board-posts {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-
-      li {
-        margin-bottom: 1rem;
-      }
-
-      .who {
-        opacity: 0.7;
-
-        span {
-          margin-left: 0.5rem;
-        }
-      }
-
-      .island-board-meta {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-
-        a {
-          cursor: pointer;
-        }
-      }
-    }
-  }
-}
-
-.debug-tools-overlay {
-  .parcel-information-overlay();
 }
 
 .parcel-states {

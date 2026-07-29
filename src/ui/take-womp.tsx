@@ -6,7 +6,8 @@ import { app } from '../../web/src/state'
 import { wompFlash } from '../graphic/womp-flash'
 import { MinimapSettings } from '../minimap'
 import type Parcel from '../parcel'
-import { pendingWomp, sidebarClosed, uiAsideTick, uiPane } from '../store'
+import { pendingWomp, uiAsideTick } from '../store'
+import { routePane } from '../../web/src/helpers/coords-nav'
 
 interface Props {
   onClose?: () => void
@@ -116,8 +117,7 @@ export default class TakeWomp extends Component<Props, State> {
     wompFlash(scene)
 
     pendingWomp.value = { coords, parcel, image }
-    uiPane.value = 'takeWomp'
-    sidebarClosed.value = false
+    routePane('takeWomp')
     uiAsideTick.value++
     exitPointerLock()
   }

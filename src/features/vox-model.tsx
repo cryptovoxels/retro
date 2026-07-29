@@ -230,47 +230,45 @@ class Editor extends FeatureEditor<VoxModel> {
             <span>&times;</span>
           </button>
         </header>
-        <div className="scrollContainer">
-          <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          <EditorProps>
-            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
-            {!!this.importError && (
-              <dd class="full">
-                <Panel type="danger">{this.importError}</Panel>
-              </dd>
-            )}
-            <UrlSourceVoxModels feature={this.props.feature} scene={this.props.scene} />
+        <Toolbar feature={this.props.feature} scene={this.props.scene} />
+        <EditorProps>
+          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+          {!!this.importError && (
+            <dd class="full">
+              <Panel type="danger">{this.importError}</Panel>
+            </dd>
+          )}
+          <UrlSourceVoxModels feature={this.props.feature} scene={this.props.scene} />
 
-            <Advanced>
-              <Animation feature={this.props.feature} />
+          <Advanced>
+            <Animation feature={this.props.feature} />
 
-              <FeatureID feature={this.props.feature} />
+            <FeatureID feature={this.props.feature} />
 
-              <Hyperlink feature={this.props.feature} />
+            <Hyperlink feature={this.props.feature} />
 
-              {this.state.type === 'vox-model' && (
-                <>
-                  <dt>scale to grid</dt>
-                  <dd>
-                    <input type="checkbox" name="cubescale" onChange={(e) => this.setState({ cubescale: e.currentTarget.checked })} checked={this.state.cubescale} />
-                  </dd>
-                </>
-              )}
-
+            {this.state.type === 'vox-model' && (
               <>
-                <dt>Enable Collision</dt>
+                <dt>scale to grid</dt>
                 <dd>
-                  <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable} />
+                  <input type="checkbox" name="cubescale" onChange={(e) => this.setState({ cubescale: e.currentTarget.checked })} checked={this.state.cubescale} />
                 </dd>
               </>
+            )}
 
-              <Behaviours feature={this.props.feature} />
-            </Advanced>
-          </EditorProps>
-        </div>
+            <>
+              <dt>Enable Collision</dt>
+              <dd>
+                <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable} />
+              </dd>
+            </>
+
+            <Behaviours feature={this.props.feature} />
+          </Advanced>
+        </EditorProps>
       </section>
     )
   }
@@ -460,81 +458,79 @@ Megavox.Editor = class MegavoxEditor extends Editor {
             <span>&times;</span>
           </button>
         </header>
-        <div className="scrollContainer">
-          <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          <EditorProps>
-            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
-            {!!this.importError && (
-              <dd class="full">
-                <Panel type="danger">{this.importError}</Panel>
-              </dd>
-            )}
-            <UrlSourceVoxModels feature={this.props.feature} scene={this.props.scene} />
+        <Toolbar feature={this.props.feature} scene={this.props.scene} />
+        <EditorProps>
+          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+          {!!this.importError && (
+            <dd class="full">
+              <Panel type="danger">{this.importError}</Panel>
+            </dd>
+          )}
+          <UrlSourceVoxModels feature={this.props.feature} scene={this.props.scene} />
 
-            <Advanced>
-              <Animation feature={this.props.feature} />
-              <FeatureID feature={this.props.feature} />
-              <Hyperlink feature={this.props.feature} />
+          <Advanced>
+            <Animation feature={this.props.feature} />
+            <FeatureID feature={this.props.feature} />
+            <Hyperlink feature={this.props.feature} />
 
-              {this.state.type === 'vox-model' && (
-                <>
-                  <dt>scale to grid</dt>
-                  <dd>
-                    <input type="checkbox" name="cubescale" onChange={(e) => this.setState({ cubescale: e.currentTarget.checked })} checked={this.state.cubescale} />
-                  </dd>
-                </>
-              )}
-
-              {isMega && (
-                <>
-                  <dt>driveable</dt>
-                  <dd>
-                    <input
-                      type="checkbox"
-                      name="driveable"
-                      checked={!!this.state.driveable}
-                      onChange={(e) => {
-                        const driveable = e.currentTarget.checked
-                        this.setState({ driveable, collidable: driveable ? true : this.state.collidable })
-                      }}
-                    />
-                    <small> anyone can hop in with E / Drive. forward is local +Z - rotate if it drives sideways.</small>
-                  </dd>
-                  {!!this.state.driveable && (
-                    <dd class="full">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          ;(this.props.feature as any).recallToPark?.()
-                        }}
-                      >
-                        bring back
-                      </button>
-                      <small> reset to the saved park spot (kicks a driver if needed).</small>
-                    </dd>
-                  )}
-                </>
-              )}
-
+            {this.state.type === 'vox-model' && (
               <>
-                <dt>Enable Collision</dt>
+                <dt>scale to grid</dt>
+                <dd>
+                  <input type="checkbox" name="cubescale" onChange={(e) => this.setState({ cubescale: e.currentTarget.checked })} checked={this.state.cubescale} />
+                </dd>
+              </>
+            )}
+
+            {isMega && (
+              <>
+                <dt>driveable</dt>
                 <dd>
                   <input
                     type="checkbox"
-                    name="collidable"
-                    disabled={isMega && !!this.state.driveable}
-                    onChange={(e) => this.setState({ collidable: e.currentTarget.checked })}
-                    checked={this.state.collidable || (isMega && !!this.state.driveable)}
+                    name="driveable"
+                    checked={!!this.state.driveable}
+                    onChange={(e) => {
+                      const driveable = e.currentTarget.checked
+                      this.setState({ driveable, collidable: driveable ? true : this.state.collidable })
+                    }}
                   />
+                  <small> anyone can hop in with E / Drive. forward is local +Z - rotate if it drives sideways.</small>
                 </dd>
+                {!!this.state.driveable && (
+                  <dd class="full">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        ;(this.props.feature as any).recallToPark?.()
+                      }}
+                    >
+                      bring back
+                    </button>
+                    <small> reset to the saved park spot (kicks a driver if needed).</small>
+                  </dd>
+                )}
               </>
+            )}
 
-              <Behaviours feature={this.props.feature} />
-            </Advanced>
-          </EditorProps>
-        </div>
+            <>
+              <dt>Enable Collision</dt>
+              <dd>
+                <input
+                  type="checkbox"
+                  name="collidable"
+                  disabled={isMega && !!this.state.driveable}
+                  onChange={(e) => this.setState({ collidable: e.currentTarget.checked })}
+                  checked={this.state.collidable || (isMega && !!this.state.driveable)}
+                />
+              </dd>
+            </>
+
+            <Behaviours feature={this.props.feature} />
+          </Advanced>
+        </EditorProps>
       </section>
     )
   }

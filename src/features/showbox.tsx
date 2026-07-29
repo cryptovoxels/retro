@@ -1,4 +1,5 @@
 import { Component, h } from 'preact'
+import { route } from 'preact-router'
 import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
 import { isMobile, wantsAudio } from '../../common/helpers/detector'
@@ -22,7 +23,8 @@ import { VideoFxProcessor, FX_PALETTES, FX_DEFAULT_PALETTE, VIDEO_FX, type FxAud
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { duckRadio, setRadioBroadcasting, unduckRadio } from '../../web/src/radio/global'
-import { broadcastDockEl, broadcastLiveStartedAt, broadcastShowboxUuid, closeBroadcastSidebar, uiAsideTick, uiPane } from '../store'
+import { broadcastDockEl, broadcastLiveStartedAt, broadcastShowboxUuid, closeBroadcastSidebar, uiAsideTick } from '../store'
+import { routePane } from '../../web/src/helpers/coords-nav'
 import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
 import { cohostPaneRects, MAX_COHOST_PANES } from '../../common/helpers/cohost-panes'
 import { encodeCoords } from '../../common/helpers/utils'
@@ -1521,7 +1523,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     this.broadcastPanelSidebar = true
     broadcastShowboxUuid.value = this.uuid
-    uiPane.value = 'broadcast'
+    routePane('broadcast')
     uiAsideTick.value++
     this.applySidebarDockStyles(panel)
     broadcastDockEl.el = panel
@@ -2415,7 +2417,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   promptHostSignIn() {
     if (this.hostJoinLoginPending || this.broadcastPanel) return
     this.hostJoinLoginPending = true
-    window.ui?.setPane('login')
+    route('/account')
     app.showSnackbar('sign in to go live as host', PanelType.Success)
     app.once(AppEvent.Login, () => {
       this.hostJoinLoginPending = false
@@ -5270,81 +5272,79 @@ class Editor extends FeatureEditor<Showbox> {
             <span>&times;</span>
           </button>
         </header>
-        <div className="scrollContainer">
-          <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          <EditorProps>
-            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
-            {isMirror ? (
-              <div className="f">
-                <label>Mode</label>
-                <select value={this.state.angleMode ? 'second' : 'mirror'} onChange={(e) => this.setState({ angleMode: e.currentTarget.value === 'second' })}>
-                  <option value="second">Second screen</option>
-                  <option value="mirror">Mirror showbox</option>
-                </select>
-                {this.state.angleMode ? (
-                  <div className="f">
-                    <small>A dedicated screen for an extra feed, no audio. Share a screen or add a camera, then drag and resize it in-world.</small>
-                    <div>
-                      <button type="button" onClick={() => void this.props.feature.startAngleBroadcast(undefined, true)}>
-                        Share screen
-                      </button>{' '}
-                      <button type="button" onClick={() => this.props.feature.openAnglePanel(true)}>
-                        Add camera
-                      </button>
-                    </div>
+        <Toolbar feature={this.props.feature} scene={this.props.scene} />
+        <EditorProps>
+          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+          {isMirror ? (
+            <div className="f">
+              <label>Mode</label>
+              <select value={this.state.angleMode ? 'second' : 'mirror'} onChange={(e) => this.setState({ angleMode: e.currentTarget.value === 'second' })}>
+                <option value="second">Second screen</option>
+                <option value="mirror">Mirror showbox</option>
+              </select>
+              {this.state.angleMode ? (
+                <div className="f">
+                  <small>A dedicated screen for an extra feed, no audio. Share a screen or add a camera, then drag and resize it in-world.</small>
+                  <div>
+                    <button type="button" onClick={() => void this.props.feature.startAngleBroadcast(undefined, true)}>
+                      Share screen
+                    </button>{' '}
+                    <button type="button" onClick={() => this.props.feature.openAnglePanel(true)}>
+                      Add camera
+                    </button>
                   </div>
-                ) : (
-                  <div className="f">
-                    <label>Source</label>
-                    <select value={this.state.mirrorSource} onChange={(e) => this.setState({ mirrorSource: e.currentTarget.value as MirrorSource })}>
-                      <option value="auto">whoever is live</option>
-                      <option value="host">host (parcel owner)</option>
-                      <option value="collaborator">collaborator</option>
-                      <option value="guest">guest</option>
-                    </select>
-                    <small>Mirrors the first showbox video with no audio. Falls back to whoever is live if your pick isn't streaming. Manage the stream and guest links on the first showbox.</small>
-                  </div>
-                )}
+                </div>
+              ) : (
+                <div className="f">
+                  <label>Source</label>
+                  <select value={this.state.mirrorSource} onChange={(e) => this.setState({ mirrorSource: e.currentTarget.value as MirrorSource })}>
+                    <option value="auto">whoever is live</option>
+                    <option value="host">host (parcel owner)</option>
+                    <option value="collaborator">collaborator</option>
+                    <option value="guest">guest</option>
+                  </select>
+                  <small>Mirrors the first showbox video with no audio. Falls back to whoever is live if your pick isn't streaming. Manage the stream and guest links on the first showbox.</small>
+                </div>
+              )}
+            </div>
+          ) : (
+            <GuestPasses feature={this.props.feature} guestMode={this.state.guestMode} onGuestModeChange={(guestMode) => this.setState({ guestMode })} />
+          )}
+          {!isMirror && (
+            <div className="f">
+              <label>Screen shape</label>
+              <div>
+                <label>
+                  <input type="radio" name="screenShape" checked={this.state.screenShape === 'landscape'} onChange={() => this.setState({ screenShape: 'landscape' })} />
+                  landscape
+                </label>
+                <label>
+                  <input type="radio" name="screenShape" checked={this.state.screenShape === 'portrait'} onChange={() => this.setState({ screenShape: 'portrait' })} />
+                  portrait
+                </label>
               </div>
-            ) : (
-              <GuestPasses feature={this.props.feature} guestMode={this.state.guestMode} onGuestModeChange={(guestMode) => this.setState({ guestMode })} />
+            </div>
+          )}
+          <Advanced>
+            <FeatureID feature={this.props.feature} />
+            {!isMirror && (
+              <div className="f">
+                <label>Spatial Rolloff Factor</label>
+                <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onChange={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
+                <small>0 = heard everywhere in the parcel. Higher = fades as you walk away from the screen.</small>
+              </div>
             )}
             {!isMirror && (
               <div className="f">
-                <label>Screen shape</label>
-                <div>
-                  <label>
-                    <input type="radio" name="screenShape" checked={this.state.screenShape === 'landscape'} onChange={() => this.setState({ screenShape: 'landscape' })} />
-                    landscape
-                  </label>
-                  <label>
-                    <input type="radio" name="screenShape" checked={this.state.screenShape === 'portrait'} onChange={() => this.setState({ screenShape: 'portrait' })} />
-                    portrait
-                  </label>
-                </div>
+                <label>Volume</label>
+                <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
               </div>
             )}
-            <Advanced>
-              <FeatureID feature={this.props.feature} />
-              {!isMirror && (
-                <div className="f">
-                  <label>Spatial Rolloff Factor</label>
-                  <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onChange={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
-                  <small>0 = heard everywhere in the parcel. Higher = fades as you walk away from the screen.</small>
-                </div>
-              )}
-              {!isMirror && (
-                <div className="f">
-                  <label>Volume</label>
-                  <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
-                </div>
-              )}
-              <Behaviours feature={this.props.feature} />
-            </Advanced>
-          </EditorProps>
-        </div>
+            <Behaviours feature={this.props.feature} />
+          </Advanced>
+        </EditorProps>
       </section>
     )
   }

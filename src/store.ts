@@ -1,18 +1,12 @@
 import type Parcel from './parcel'
 import Feature from './features/feature'
 import Group from './features/group'
-import { restoreInfoOnMove } from '../common/ui-signals'
-import { effect, signal } from '@preact/signals'
+import { signal } from '@preact/signals'
+import { paneFromPath, routePane } from '../web/src/helpers/coords-nav'
 import Grid from './grid'
 export type CheckedFeatures = Record<string, Feature>
 
 const TICK = 500
-
-// where you were standing when the womp sidebar opened; walking away from that spot restores info
-let wompAnchor: { x: number; z: number } | undefined
-let wompAnchorPath = ''
-
-const wompSidebarOpen = () => typeof location !== 'undefined' && !!new URLSearchParams(location.search).get('coords') && location.pathname.startsWith('/womps/')
 
 setInterval(() => {
   const grid = window.grid as Grid
@@ -37,45 +31,7 @@ setInterval(() => {
     currentOrNearestParcel.value = undefined
   }
 
-  // the parcel you're actually standing on (undefined in the void); drives the info pane's
-  // island-context view. separate from currentOrNearestParcel, which never goes empty.
   currentParcel.value = grid.currentParcel() || undefined
-
-  // womp sidebar (homepage, recent womps in info, etc): once you walk again, snap back to info
-  // so you can hop between looking at womps and the parcel/island info + its recent womps list.
-  const wompSidebar = wompSidebarOpen()
-  const pane = uiPane.value
-
-  if (!wompSidebar && pane !== 'info') wompAnchor = undefined
-
-  if (restoreInfoOnMove.value || wompSidebar) {
-    if (pane && pane !== 'info') {
-      restoreInfoOnMove.value = false
-      wompAnchor = undefined
-    } else if (wompSidebar && !pane) {
-      const path = location.pathname
-      if (path !== wompAnchorPath) {
-        wompAnchorPath = path
-        wompAnchor = undefined
-      }
-      const pos = window.persona?.position
-      if (!wompAnchor && pos) wompAnchor = { x: pos.x, z: pos.z }
-      const walked = !!wompAnchor && !!pos && (Math.abs(pos.x - wompAnchor.x) > 0.08 || Math.abs(pos.z - wompAnchor.z) > 0.08)
-      if (walked) {
-        restoreInfoOnMove.value = false
-        wompAnchor = undefined
-        sidebarClosed.value = false
-        uiPane.value = 'info'
-        uiAsideTick.value++
-      }
-    } else if (restoreInfoOnMove.value && window.persona?.isMoving()) {
-      restoreInfoOnMove.value = false
-      wompAnchor = undefined
-      sidebarClosed.value = false
-      uiPane.value = 'info'
-      uiAsideTick.value++
-    }
-  }
 }, TICK)
 
 const actions = {
@@ -188,38 +144,20 @@ export const selectCheckedFeatures = (): CheckedFeatures => {
   return checkedFeatures.value
 }
 
-export const uiPane = signal<string | undefined>(undefined)
-
-// panes you open on purpose and leave up while walking around (they get a close X and survive
-// tapping back into the world); contextual build/edit panes dismiss on canvas re-engage.
-// broadcast: the host's dock must stay up for the whole show - only its own close/stop ends it.
-export const PERSISTENT_PANES = new Set(['info', 'explorer', 'settings', 'help', 'broadcast'])
-export const isPersistentPane = (p?: string) => !!p && PERSISTENT_PANES.has(p)
-
 export const uiAsideTick = signal(0)
-export const sidebarClosed = signal(false)
 export const broadcastShowboxUuid = signal<string | undefined>(undefined)
 // when the local broadcast went live; the closed-sidebar "live" tab reads this for its timer
 export const broadcastLiveStartedAt = signal<number | undefined>(undefined)
-// the imperative broadcast dock element. preact tears the sidebar mount down whenever uiPane
-// leaves 'broadcast', which orphans the dock DOM - the mount re-adopts it from here on remount
+// the imperative broadcast dock element. preact tears the sidebar mount down whenever the
+// /live route leaves, which orphans the dock DOM - the mount re-adopts it from here on remount
 // so reopening via the live tab doesn't show an empty pane mid-broadcast.
 export const broadcastDockEl: { el: HTMLDivElement | null } = { el: null }
 
 export const closeBroadcastSidebar = () => {
   broadcastShowboxUuid.value = undefined
-  if (uiPane.value === 'broadcast') uiPane.value = undefined
-  // the live reopen tab is gone once the uuid clears, so don't leave the sidebar stuck collapsed
-  sidebarClosed.value = false
+  if (paneFromPath() === 'broadcast') routePane()
   uiAsideTick.value++
 }
-
-// while the broadcast dock is open it is the sidebar's home: hopping into edit/settings/a tool
-// swaps the pane (the pulsing live tab appears), and when that pane closes we snap back to the
-// dock instead of the default info view. stop/close clears the uuid first, which ends this.
-effect(() => {
-  if (!uiPane.value && broadcastShowboxUuid.value) uiPane.value = 'broadcast'
-})
 
 export type PendingWomp = {
   coords: string
@@ -231,19 +169,6 @@ export const pendingWomp = signal<PendingWomp | null>(null)
 
 export const closeTakeWomp = () => {
   pendingWomp.value = null
-  if (uiPane.value === 'takeWomp') uiPane.value = undefined
+  if (paneFromPath() === 'takeWomp') routePane()
   uiAsideTick.value++
-}
-
-export const authoring = signal<Set<number>>(new Set())
-
-export const enterAuthoring = (id: number) => {
-  const s = new Set(authoring.value)
-  s.add(id)
-  authoring.value = s
-}
-
-export const isAuthoring = (id?: number) => {
-  const pid = id ?? selectNearestEditableParcel()?.id
-  return pid != null && authoring.value.has(pid)
 }

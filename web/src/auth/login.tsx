@@ -196,7 +196,7 @@ export const Login = ({ reason, hideHeading }: { reason?: string; hideHeading?: 
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: chosenName.trim() }),
-    }).catch(() => { })
+    }).catch(() => {})
   }
 
   const onMetamask = async () => {
@@ -259,7 +259,7 @@ export const Login = ({ reason, hideHeading }: { reason?: string; hideHeading?: 
           onClick={(e) => {
             e.preventDefault()
             setStage('code')
-            postJSON('/api/signin/code', { email }).catch(() => { })
+            postJSON('/api/signin/code', { email }).catch(() => {})
           }}
         >
           use email code instead
@@ -321,7 +321,6 @@ export const Login = ({ reason, hideHeading }: { reason?: string; hideHeading?: 
         &nbsp;{busy ? 'connecting...' : 'Metamask'}
       </button>
       {mmHint && <p>{mmHint}</p>}
-
     </section>
   )
 }

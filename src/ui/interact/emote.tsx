@@ -80,7 +80,7 @@ export class EmoteOverlay extends Component<Props, any> {
   }
 
   refocus() {
-    this.ui.refocus()
+    this.ui.closeWithPointerLock()
   }
 
   get ui(): UserInterface {

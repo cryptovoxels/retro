@@ -78,7 +78,7 @@ const Main = () => {
   const coords = new URLSearchParams(urlSearch).get('coords') || ''
   const full = isFullClientPath(currentPath)
   const spaceish = isEmbedClientPath(currentPath)
-  const showClient = !!coords || spaceish
+  const showClient = !!coords || spaceish || full
   const embed = !full && showClient
 
   useEffect(() => {
@@ -143,8 +143,7 @@ function RadioPopout(_props: { path?: string }) {
 }
 
 function Play(_props: { path?: string }) {
-  // WorldSidebar owns the in-world pane on /play (uiPane || info). Returning info
-  // here stacked a second copy under the edit aside when you right-clicked a feature.
+  // WorldSidebar owns the in-world pane on /play and pane routes.
   if (getCoords()) return null
   return (
     <section>

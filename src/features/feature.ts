@@ -9,7 +9,6 @@ import { rebindGizmosBoundToFeature } from '../tools/gizmos'
 import { easingFunctions, easingModes, FeatureEditor, FeatureEditorProps } from '../ui/features'
 import FeatureBasicGUI from '../ui/gui/gui'
 import { inspectFeature } from '../ui/inspect-feature'
-import { enterAuthoring } from '../store'
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
 import { getTransformVectorsRelativeToNode } from '../utils/feature'
 import { axisNames2D, axisNames3D, bboxCompletelyWithin, tidyURL, tidyVec3, XYZ } from '../utils/helpers'
@@ -478,8 +477,6 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   openEditor() {
     if (this.parcel.canEdit && window.ui) {
       const ui = window.ui
-
-      enterAuthoring(this.parcel.id)
       ui.activeTool = window.ui.featureTool
       // todo sort this shit
       ui.openEditor((this.constructor as any).Editor, this)
