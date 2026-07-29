@@ -2901,10 +2901,6 @@ main > aside section.settings,
     }
   }
 
-  .scrollContainer {
-    overflow-x: hidden;
-  }
-
   textarea,
   input {
     cursor: pointer;
@@ -3906,21 +3902,10 @@ section.build-tab nav.build-main-tabs {
     height: 100%;
     min-height: 0;
   }
-
-  .scrollContainer {
-    flex: 1;
-    min-height: 0;
-    overflow: visible;
-  }
 }
 
 main > aside .edit-pane-inspector {
   overflow: visible;
-
-  .scrollContainer {
-    overflow: visible;
-    flex: none;
-  }
 }
 
 // these panes set overflow-x: hidden, which per spec forces overflow-y to auto and
@@ -3928,10 +3913,6 @@ main > aside .edit-pane-inspector {
 main > aside .editor,
 main > aside section.settings {
   overflow: visible;
-
-  .scrollContainer {
-    overflow: visible;
-  }
 }
 
 .inspector.overlay {

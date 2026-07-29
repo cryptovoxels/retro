@@ -253,46 +253,44 @@ class Editor extends FeatureEditor<Portal> {
             <span>&times;</span>
           </button>
         </header>
-        <div className="scrollContainer">
-          <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          <EditorProps>
-            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+        <Toolbar feature={this.props.feature} scene={this.props.scene} />
+        <EditorProps>
+          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
+          <div className="f">
+            <label>To a functional portal, select a womp.</label>
+          </div>
+
+          <UrlSourcePortalWomp feature={this.props.feature} />
+
+          <div className="f">
+            <label>Portal sound</label>
+            <label>
+              <input type="checkbox" checked={this.state.playSound} onChange={(e) => this.setState({ playSound: e.currentTarget.checked })} />
+              Make sound
+            </label>
+          </div>
+
+          {this.selectedWomp && (
             <div className="f">
-              <label>To a functional portal, select a womp.</label>
+              <label>Selected location:</label>
+              <img src={this.state.url} width={50} height={50} title={this.selectedWomp.coords} />
+              <dt>Parcel id</dt>
+              <dd>{this.selectedWomp.parcel_id}</dd>
+              <dt>Coordinates</dt>
+              <dd>/play?coords={this.selectedWomp.coords}</dd>
+              <dt>Created at</dt>
+              <dd>{this.selectedWomp.created_at}</dd>
             </div>
+          )}
 
-            <UrlSourcePortalWomp feature={this.props.feature} />
-
-            <div className="f">
-              <label>Portal sound</label>
-              <label>
-                <input type="checkbox" checked={this.state.playSound} onChange={(e) => this.setState({ playSound: e.currentTarget.checked })} />
-                Make sound
-              </label>
-            </div>
-
-            {this.selectedWomp && (
-              <div className="f">
-                <label>Selected location:</label>
-                <img src={this.state.url} width={50} height={50} title={this.selectedWomp.coords} />
-                <dt>Parcel id</dt>
-                <dd>{this.selectedWomp.parcel_id}</dd>
-                <dt>Coordinates</dt>
-                <dd>/play?coords={this.selectedWomp.coords}</dd>
-                <dt>Created at</dt>
-                <dd>{this.selectedWomp.created_at}</dd>
-              </div>
-            )}
-
-            <Advanced>
-              <FeatureID feature={this.props.feature} />
-            </Advanced>
-          </EditorProps>
-        </div>
+          <Advanced>
+            <FeatureID feature={this.props.feature} />
+          </Advanced>
+        </EditorProps>
       </section>
     )
   }

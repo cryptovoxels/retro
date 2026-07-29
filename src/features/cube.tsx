@@ -137,42 +137,40 @@ class Editor extends FeatureEditor<Cube> {
             <span>&times;</span>
           </button>
         </header>
-        <div className="scrollContainer">
-          <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          <EditorProps>
-            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+        <Toolbar feature={this.props.feature} scene={this.props.scene} />
+        <EditorProps>
+          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-            <UrlSourceImages feature={this.props.feature} />
+          <UrlSourceImages feature={this.props.feature} />
 
-            <Advanced>
-              <FeatureID feature={this.props.feature} />
-              <Animation feature={this.props.feature} />
+          <Advanced>
+            <FeatureID feature={this.props.feature} />
+            <Animation feature={this.props.feature} />
 
+            <div className="f">
+              <form>
+                <label>
+                  <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable}></input>
+                  Enable Collision
+                </label>
+              </form>
+            </div>
+
+            <div style={{ display: 'flex', justify: 'flex-start' }}>
               <div className="f">
-                <form>
-                  <label>
-                    <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable}></input>
-                    Enable Collision
-                  </label>
-                </form>
+                <label>Tint</label>
+                <span>
+                  <input type="color" value={this.state.color} onInput={(e) => this.setState({ color: e.currentTarget.value })} />
+                </span>
               </div>
-
-              <div style={{ display: 'flex', justify: 'flex-start' }}>
-                <div className="f">
-                  <label>Tint</label>
-                  <span>
-                    <input type="color" value={this.state.color} onInput={(e) => this.setState({ color: e.currentTarget.value })} />
-                  </span>
-                </div>
-                <SpecularColorSetting feature={this.props.feature} />
-              </div>
-              <Behaviours feature={this.props.feature} />
-            </Advanced>
-          </EditorProps>
-        </div>
+              <SpecularColorSetting feature={this.props.feature} />
+            </div>
+            <Behaviours feature={this.props.feature} />
+          </Advanced>
+        </EditorProps>
       </section>
     )
   }
