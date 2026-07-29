@@ -12,6 +12,7 @@ import { app, AppEvent } from './state'
 import Radar from './components/radar'
 import Classifieds from './components/classifieds'
 import BlogTeaser from './components/blog-teaser'
+import { restoreInfoOnMove } from '../../common/ui-signals'
 
 function countdown(ms: number) {
   const s = Math.floor(ms / 1000)
@@ -109,11 +110,16 @@ async function popularParcel(): Promise<number | null> {
 }
 
 async function pickFrontpageParcel() {
-  if (getCoords()) return
+  // once the world is up, walking opens the in-world info sidebar (same as /play)
+  if (getCoords()) {
+    restoreInfoOnMove.value = true
+    return
+  }
   const id = (await busiestParcel()) ?? (await popularParcel())
   if (!id) return
   const url = await new ParcelHelper({ id }).spawnUrl()
   naviportHere(url, id)
+  restoreInfoOnMove.value = true
 }
 
 export default class Explore extends Component {
