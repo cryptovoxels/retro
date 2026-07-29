@@ -34,10 +34,6 @@ export default function loadRoutes(app: Express) {
     res.send(renderPage(<Explore />))
   })
 
-  app.get('/explore', cache(duration), (req, res) => {
-    res.send(renderPage(<Explore />))
-  })
-
   app.get('/terms', cache(duration), (req, res) => {
     res.send(renderPage(<Terms />))
   })

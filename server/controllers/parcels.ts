@@ -323,13 +323,6 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
     res.status(200).send({ success: false })
   })
 
-  // Route to Obtain the snapshots of a parcel, no cache because refreshing would not show the newest name even with 1s cache.
-  app.get(
-    '/api/parcels/:id/snapshots.json',
-    cache(false),
-    createRequestHandlerForQuery(db, 'get-parcel-snapshots', 'snapshots', (req) => [req.params.id, req.query.autosave === 'include']),
-  )
-
   if (config.isDevelopment) {
     app.use('/api/parcels/map.json', cache(false), proxy('https://www.voxels.com', { proxyReqPathResolver: (req) => req.originalUrl }))
   } else {

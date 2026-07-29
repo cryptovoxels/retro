@@ -1,6 +1,5 @@
 import { route } from 'preact-router'
 import { Link } from 'preact-router/match'
-import { sidebarClosed } from '../../src/store'
 import Head from './components/head'
 import { getCoords, withCoords } from './helpers/coords-nav'
 import { app } from './state'
@@ -46,7 +45,6 @@ export default function Menu() {
 
   const onPlay = (e: Event) => {
     e.preventDefault()
-    if (coords) sidebarClosed.value = false
     route(app.visitUrl.value || (coords ? href('/play') : '/play?coords=0E,0N'))
   }
 

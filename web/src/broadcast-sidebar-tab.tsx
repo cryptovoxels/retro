@@ -1,16 +1,14 @@
 import { useSignalEffect } from '@preact/signals'
 import { useEffect, useState } from 'preact/hooks'
 import { isMobileMedia } from '../../common/helpers/detector'
-import { broadcastLiveStartedAt, broadcastShowboxUuid, sidebarClosed, uiAsideTick, uiPane } from '../../src/store'
-import { getCoords } from './helpers/coords-nav'
+import { broadcastLiveStartedAt, broadcastShowboxUuid, uiAsideTick } from '../../src/store'
+import { getCoords, paneFromPath, routePane } from './helpers/coords-nav'
 
 export function BroadcastSidebarTab() {
   const [, bump] = useState(0)
   useSignalEffect(() => {
     broadcastShowboxUuid.value
     broadcastLiveStartedAt.value
-    uiPane.value
-    sidebarClosed.value
     uiAsideTick.value
     bump((n) => n + 1)
   })
@@ -24,7 +22,7 @@ export function BroadcastSidebarTab() {
 
   if (!getCoords() || isMobileMedia() || !broadcastShowboxUuid.value) return null
   // the panel is already on screen, no need for the reopen tab
-  if (uiPane.value === 'broadcast' && !sidebarClosed.value) return null
+  if (paneFromPath() === 'broadcast') return null
 
   const started = broadcastLiveStartedAt.value
   const s = started ? Math.max(0, Math.floor((Date.now() - started) / 1000)) : 0
@@ -36,8 +34,7 @@ export function BroadcastSidebarTab() {
       class="broadcast-sidebar-tab"
       title="open broadcast controls"
       onClick={() => {
-        uiPane.value = 'broadcast'
-        sidebarClosed.value = false
+        routePane('broadcast')
         uiAsideTick.value++
       }}
     >
