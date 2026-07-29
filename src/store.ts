@@ -48,7 +48,7 @@ setInterval(() => {
 
   if (!wompSidebar && pane !== 'info') wompAnchor = undefined
 
-  if (!sidebarClosed.value && (restoreInfoOnMove.value || wompSidebar)) {
+  if (restoreInfoOnMove.value || wompSidebar) {
     if (pane && pane !== 'info') {
       restoreInfoOnMove.value = false
       wompAnchor = undefined
@@ -64,12 +64,14 @@ setInterval(() => {
       if (walked) {
         restoreInfoOnMove.value = false
         wompAnchor = undefined
+        sidebarClosed.value = false
         uiPane.value = 'info'
         uiAsideTick.value++
       }
     } else if (restoreInfoOnMove.value && window.persona?.isMoving()) {
       restoreInfoOnMove.value = false
       wompAnchor = undefined
+      sidebarClosed.value = false
       uiPane.value = 'info'
       uiAsideTick.value++
     }
