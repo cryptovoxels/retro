@@ -51,7 +51,7 @@ module.exports = (env, argv) => {
     module: {
       rules: [
         {
-          test: /\.(vsh|fsh|fx)$/,
+          test: /\.(vsh|fsh|fx|wgsl)$/,
           use: 'raw-loader',
         },
         {

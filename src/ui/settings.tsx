@@ -50,6 +50,7 @@ interface State {
   showMinimapSettings: boolean
   mouseSensitivityPercentage: number
   realisticLighting: boolean
+  raycaster: boolean
   voiceEnabled: boolean
   voiceDeviceId: string
   voicePitch: number
@@ -69,6 +70,7 @@ export class SettingsUI extends Component<Props, State> {
       // we reverse the value as higher values are lower sensitivities
       mouseSensitivityPercentage: toReversedPercentage(this.cameraSettings.angularSensitivity, MIN_SENSITIVITY, MAX_SENSITIVITY),
       realisticLighting: this.graphicsEngine.getSettings().realisticLighting ?? false,
+      raycaster: this.graphicsEngine.getSettings().raycaster ?? false,
       voiceEnabled: voiceSettings.enabled,
       voiceDeviceId: voiceSettings.deviceId,
       voicePitch: voiceSettings.pitch,
@@ -267,6 +269,14 @@ export class SettingsUI extends Component<Props, State> {
     this.sendGraphicsSettings()
   }
 
+  onRaycasterChange(el: HTMLInputElement) {
+    const g = this.state.graphic
+    g.raycaster = el.checked
+    this.setState({ graphic: g, raycaster: el.checked })
+    this.sendGraphicsSettings()
+    window.location.reload()
+  }
+
   sendGraphicsSettings() {
     this.graphicsEngine.setSettings(this.state.graphic)
   }
@@ -454,6 +464,11 @@ export class SettingsUI extends Component<Props, State> {
             <dt>Realistic lighting</dt>
             <dd>
               <input type="checkbox" checked={this.state.realisticLighting} onChange={(e) => this.onRealisticLightingChange(e.target as HTMLInputElement)} />
+            </dd>
+
+            <dt>raycaster (experimental) - reloads the page</dt>
+            <dd>
+              <input type="checkbox" checked={this.state.raycaster} onChange={(e) => this.onRaycasterChange(e.target as HTMLInputElement)} />
             </dd>
 
             {isCustomGraphics && !isMobile() && (

@@ -7,7 +7,9 @@
     "web/**/*",
     "common/**/*",
     "test/**/*",
-    "decls.d.ts"
+    "decls.d.ts",
+    "src/shaders/custom.d.ts",
+    "src/raycast/types/fastnoise-lite.d.ts"
   ],
   "exclude": [
     "node_modules",

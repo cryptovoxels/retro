@@ -164,6 +164,21 @@ async function main() {
     { passive: false },
   )
 
+  // experimental webgpu raycaster — standalone boot, no babylon
+  try {
+    const raw = window.localStorage.getItem('graphicSettings')
+    const graphicSettings = raw ? JSON.parse(raw) : null
+    if (graphicSettings?.raycaster && navigator.gpu) {
+      canvas.style.cssText = 'width:100%;height:100%;display:block;position:fixed;inset:0;z-index:1;touch-action:none;'
+      const { bootRaycast } = await import('./raycast/boot')
+      await bootRaycast(canvas)
+      // hang — Client never mounts the babylon UI; canvas owns the page
+      return new Promise<BootResult>(() => {})
+    }
+  } catch (e) {
+    console.error('raycaster boot failed, falling through to babylon', e)
+  }
+
   try {
     var r = await fetch(process.env.ASSET_PATH + '/acknowtt.json')
     var font = await r.json()
