@@ -26,6 +26,9 @@ export const TERRAIN_CHUNK_WORLD = VOX_RES * VOXEL_WORLD_SCALE
 /** Retro field voxel is 50cm; raycast voxel is 10cm. */
 const FIELD_UPSCALE = 5
 
+/** dev serves the bundle off a different origin than the api (same trick as src/parcel.ts) */
+export const api = (path: string) => (process.env.NODE_ENV !== 'production' ? (process.env.ASSET_PATH || '') + path : path)
+
 const MACRO_RES = 32
 const MACRO_CELL_WORLD = 8
 const MACRO_CELL_COUNT = MACRO_RES ** 3
@@ -141,7 +144,7 @@ function upscaleField(field: { get: (x: number, y: number, z: number) => number;
 
 async function fetchParcelContent(id: number): Promise<ParcelContent | null> {
   try {
-    const res = await fetch(`/grid/parcels/${id}`)
+    const res = await fetch(api(`/grid/parcels/${id}`))
     if (!res.ok) return null
     const json = (await res.json()) as { success?: boolean; parcel?: any }
     if (!json?.parcel) return null
@@ -191,7 +194,7 @@ async function ensureParcelLoaded(parcel: Parcel) {
 }
 
 export async function loadTerrainParcels(): Promise<void> {
-  const res = await fetch('/api/parcels/cached.json')
+  const res = await fetch(api('/api/parcels/cached.json'))
   if (!res.ok) throw new Error(`parcels: ${res.status}`)
   const json = (await res.json()) as { parcels?: unknown[]; success?: boolean }
   const raw = Array.isArray(json) ? json : json.parcels

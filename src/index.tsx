@@ -169,7 +169,9 @@ async function main() {
     const raw = window.localStorage.getItem('graphicSettings')
     const graphicSettings = raw ? JSON.parse(raw) : null
     if (graphicSettings?.raycaster && navigator.gpu) {
-      canvas.style.cssText = 'width:100%;height:100%;display:block;position:fixed;inset:0;z-index:1;touch-action:none;'
+      // above the page header and push panel, which otherwise paint over the canvas
+      canvas.style.cssText = 'display:block;position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483646;touch-action:none;'
+      document.documentElement.style.overflow = 'hidden'
       const { bootRaycast } = await import('./raycast/boot')
       await bootRaycast(canvas)
       // hang — Client never mounts the babylon UI; canvas owns the page

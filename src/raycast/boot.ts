@@ -10,8 +10,10 @@ import {
   VOXEL_WORDS_PER_CHUNK,
   MAX_ACTIVE_TERRAIN_CHUNKS,
   activeTerrain,
+  api,
   chunkPosHalf,
   computeGridAnchor,
+  getParcelMap,
   loadTerrainParcels,
   macroGridTerrain,
   nearbyParcelsWithContent,
@@ -20,6 +22,7 @@ import {
   voxelWords,
 } from './terrain'
 import { loadPropsFromParcels, type Prop } from './prop'
+import { decodeCoords } from '../../common/helpers/utils'
 
 const FLY_SPEED = 8
 const FLY_SPRINT_MULT = 2.6
@@ -77,7 +80,7 @@ function flyForward(yaw: number, pitch: number, dst: Vec3) {
 
 function makeOverlay(): { stats: HTMLElement; hint: HTMLElement } {
   const wrap = document.createElement('div')
-  wrap.style.cssText = 'position:fixed;top:0;left:0;padding:1rem;z-index:9999;pointer-events:auto;font:12px/1.4 monospace;color:#cfc;text-shadow:0 1px 2px #000'
+  wrap.style.cssText = 'position:fixed;top:0;left:0;padding:1rem;z-index:2147483647;pointer-events:auto;font:12px/1.4 monospace;color:#cfc;text-shadow:0 1px 2px #000'
   const stats = document.createElement('div')
   const hint = document.createElement('div')
   hint.textContent = 'click to fly · WASD · shift sprint · click voxel to delete · [x] exit raycaster'
@@ -100,6 +103,25 @@ function makeOverlay(): { stats: HTMLElement; hint: HTMLElement } {
   wrap.appendChild(exit)
   document.body.appendChild(wrap)
   return { stats, hint }
+}
+
+/** spawn where the player actually is: ?coords= first, then /parcels/:id, else world origin */
+async function spawnPos(): Promise<Vec3> {
+  const coords = new URLSearchParams(location.search).get('coords')
+  if (coords) {
+    const { position } = decodeCoords(coords)
+    return vec3.fromValues(position.x, position.y, position.z)
+  }
+  const id = location.pathname.match(/^\/parcels\/(\d+)$/)?.[1]
+  if (id) {
+    try {
+      const p = (await (await fetch(api(`/grid/parcels/${id}`))).json())?.parcel
+      if (p) return vec3.fromValues((p.x1 + p.x2) / 2, p.y1 + 4, (p.z1 + p.z2) / 2)
+    } catch {
+      /* fall through to origin */
+    }
+  }
+  return vec3.fromValues(0, 4, 8)
 }
 
 export async function bootRaycast(canvas: HTMLCanvasElement) {
@@ -147,6 +169,9 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
   } catch (e) {
     console.warn('raycaster: parcels list failed', e)
   }
+
+  vec3.copy(await spawnPos(), flyCam.pos)
+  console.log('raycaster: spawn', flyCam.pos[0].toFixed(1), flyCam.pos[1].toFixed(1), flyCam.pos[2].toFixed(1), 'parcels', getParcelMap()?.parcels.size ?? 0)
 
   onPropsDirty(() => {
     propsDirty = true
@@ -261,8 +286,10 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
   let internalRenderHeight = 1
 
   const recreateScreenTargets = () => {
-    canvas.width = window.innerWidth * window.devicePixelRatio
-    canvas.height = window.innerHeight * window.devicePixelRatio
+    // size the backing store from the element, not the window, so it always matches what is painted
+    const rect = canvas.getBoundingClientRect()
+    canvas.width = Math.max(1, Math.floor((rect.width || window.innerWidth) * window.devicePixelRatio))
+    canvas.height = Math.max(1, Math.floor((rect.height || window.innerHeight) * window.devicePixelRatio))
     internalRenderWidth = Math.max(1, Math.floor(canvas.width * renderScale))
     internalRenderHeight = Math.max(1, Math.floor(canvas.height * renderScale))
     context.configure({ device, format, alphaMode: 'opaque' })
