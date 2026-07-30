@@ -15,8 +15,7 @@ import {
   chunkPosHalf,
   computeGridAnchor,
   directories,
-  getParcelMap,
-  loadTerrainParcels,
+  loadTerrainIndex,
   macroGridTerrain,
   pool,
   poolStats,
@@ -24,9 +23,12 @@ import {
   updateTerrainStreaming,
 } from './terrain'
 import { decodeCoords } from '../../common/helpers/utils'
+import { colliderCount, initPhysics, move, type PhysMode, setVoxelRemoved, updateColliders } from './physics'
 
 const FLY_SPEED = 8
 const FLY_SPRINT_MULT = 2.6
+const WALK_SPEED = 4.5
+const WALK_SPRINT = 2
 const MOUSE_SENS = 0.0022
 const PITCH_LIMIT = Math.PI / 2 - 0.02
 const worldUp = vec3.fromValues(0, 1, 0)
@@ -64,7 +66,7 @@ function makeOverlay(): { stats: HTMLElement; hint: HTMLElement; wrap: HTMLEleme
   wrap.style.cssText = 'position:absolute;top:0;left:0;padding:1rem;z-index:2;pointer-events:auto;font:12px/1.4 monospace;color:#cfc;text-shadow:0 1px 2px #000'
   const stats = document.createElement('div')
   const hint = document.createElement('div')
-  hint.textContent = 'click to fly · WASD · shift sprint · click voxel to delete · [x] exit raycaster'
+  hint.textContent = 'click to fly · WASD · shift sprint · [f] walk/fly · click voxel to delete · [x] exit'
   const exit = document.createElement('button')
   exit.textContent = 'exit raycaster'
   exit.style.cssText = 'display:block;margin-top:0.5rem;pointer-events:auto'
@@ -121,11 +123,15 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
     pitch: -0.3,
   }
   const keysDown = new Set<string>()
+  let mode: PhysMode = 'fly'
   // quarter-res compute, nearest blit; canvas backing store is CSS pixels (no retina)
   const renderScale = 0.25
 
   window.addEventListener('keydown', (e) => {
     keysDown.add(e.code)
+    if (e.code === 'KeyF' && !e.repeat) {
+      mode = mode === 'fly' ? 'walk' : 'fly'
+    }
     if (e.code === 'KeyX') {
       try {
         const raw = window.localStorage.getItem('graphicSettings')
@@ -147,14 +153,11 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
     flyCam.pitch = Math.max(-PITCH_LIMIT, Math.min(PITCH_LIMIT, flyCam.pitch))
   })
 
-  try {
-    await loadTerrainParcels()
-  } catch (e) {
-    console.warn('raycaster: parcels list failed', e)
-  }
+  const bakedChunks = await loadTerrainIndex()
 
   vec3.copy(await spawnPos(), flyCam.pos)
-  console.log('raycaster: spawn', flyCam.pos[0].toFixed(1), flyCam.pos[1].toFixed(1), flyCam.pos[2].toFixed(1), 'parcels', getParcelMap()?.parcels.size ?? 0)
+  console.log('raycaster: spawn', flyCam.pos[0].toFixed(1), flyCam.pos[1].toFixed(1), flyCam.pos[2].toFixed(1), 'baked chunks', bakedChunks)
+  void initPhysics([flyCam.pos[0], flyCam.pos[1], flyCam.pos[2]])
 
   const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
   if (!adapter) {
@@ -314,7 +317,7 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
   canvas.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return
     if (lastGpuPick.kind !== 'terrain') return
-    const { chunkSlot, voxelCoord } = lastGpuPick
+    const { chunkSlot, voxelCoord, worldCoord } = lastGpuPick
     const cx = Math.floor(voxelCoord[0])
     const cy = Math.floor(voxelCoord[1])
     const cz = Math.floor(voxelCoord[2])
@@ -324,6 +327,7 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
     if (brickId) {
       device.queue.writeBuffer(brickPoolBuffer, brickId * BRICK_BYTES, pool.words.subarray(brickId * BRICK_WORDS, (brickId + 1) * BRICK_WORDS))
     }
+    setVoxelRemoved(worldCoord[0], worldCoord[1], worldCoord[2])
   })
 
   async function render(time: number) {
@@ -345,18 +349,33 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
       if (keysDown.has('KeyS')) forwardAmt -= 1
       if (keysDown.has('KeyD')) strafeAmt += 1
       if (keysDown.has('KeyA')) strafeAmt -= 1
-      if (keysDown.has('Space')) tmpMove[1] += 1
-      if (keysDown.has('ControlLeft') || keysDown.has('KeyC')) tmpMove[1] -= 1
-      vec3.addScaled(tmpMove, tmpForward, forwardAmt, tmpMove)
-      vec3.addScaled(tmpMove, tmpRight, strafeAmt, tmpMove)
-      if (vec3.lengthSq(tmpMove) > 1e-8) {
-        vec3.normalize(tmpMove, tmpMove)
-        const sprint = keysDown.has('ShiftLeft') || keysDown.has('ShiftRight') ? FLY_SPRINT_MULT : 1
-        vec3.scale(tmpMove, FLY_SPEED * sprint * dt, tmpMove)
-        vec3.add(flyCam.pos, tmpMove, flyCam.pos)
+      if (mode === 'fly') {
+        if (keysDown.has('Space')) tmpMove[1] += 1
+        if (keysDown.has('ControlLeft') || keysDown.has('KeyC')) tmpMove[1] -= 1
+        vec3.addScaled(tmpMove, tmpForward, forwardAmt, tmpMove)
+        vec3.addScaled(tmpMove, tmpRight, strafeAmt, tmpMove)
+      } else {
+        // walk: horizontal only from yaw
+        const flat = vec3.set(-Math.sin(flyCam.yaw), 0, -Math.cos(flyCam.yaw), tmpForward)
+        vec3.normalize(vec3.cross(flat, worldUp, tmpRight), tmpRight)
+        vec3.addScaled(tmpMove, flat, forwardAmt, tmpMove)
+        vec3.addScaled(tmpMove, tmpRight, strafeAmt, tmpMove)
+        tmpMove[1] = 0
       }
+      if (vec3.lengthSq(tmpMove) > 1e-8) vec3.normalize(tmpMove, tmpMove)
+      const sprint = keysDown.has('ShiftLeft') || keysDown.has('ShiftRight')
+      const speed = mode === 'fly' ? FLY_SPEED * (sprint ? FLY_SPRINT_MULT : 1) : WALK_SPEED * (sprint ? WALK_SPRINT : 1)
+      const next = move(dt, flyCam.pos, {
+        wish: [tmpMove[0], tmpMove[1], tmpMove[2]],
+        speed,
+        jump: mode === 'walk' && keysDown.has('Space'),
+        mode,
+      })
+      vec3.set(next[0], next[1], next[2], flyCam.pos)
+      if (flyCam.pos[1] < -20) mode = 'fly'
     }
 
+    updateColliders(flyCam.pos)
     const anchor = computeGridAnchor(flyCam.pos)
     const terrain = updateTerrainStreaming(flyCam.pos, anchor)
     if (terrain.dirtyBricks.length || terrain.dirtySlots.length || terrain.macroDirty) {
@@ -436,7 +455,7 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
     lastRafWallMs = wallStart
     const fpsEst = frameMs > 1e-6 ? 1000 / frameMs : 0
     const ps = poolStats()
-    statsOverlay.innerHTML = `raycaster · ${fpsEst.toFixed(0)} Hz<br/>chunks ${activeTerrain.length}/${MAX_ACTIVE_TERRAIN_CHUNKS}<br/>bricks ${ps.used} (${(ps.bytes / (1024 * 1024)).toFixed(1)}MB) dedup ${ps.dedupHits}<br/>lru ${ps.lruChunks} (${ps.lruMb.toFixed(0)}MB)<br/>pos ${flyCam.pos[0].toFixed(1)}, ${flyCam.pos[1].toFixed(1)}, ${flyCam.pos[2].toFixed(1)}`
+    statsOverlay.innerHTML = `raycaster · ${fpsEst.toFixed(0)} Hz · ${mode}<br/>chunks ${activeTerrain.length}/${MAX_ACTIVE_TERRAIN_CHUNKS}${ps.macroOverflow ? ` · macro overflow ${ps.macroOverflow}` : ''} · phys ${colliderCount()}<br/>bricks ${ps.used} (${(ps.bytes / (1024 * 1024)).toFixed(1)}MB) dedup ${ps.dedupHits}<br/>pos ${flyCam.pos[0].toFixed(1)}, ${flyCam.pos[1].toFixed(1)}, ${flyCam.pos[2].toFixed(1)}`
 
     requestAnimationFrame((t) => void render(t))
   }

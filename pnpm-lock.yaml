@@ -16,6 +16,9 @@ importers:
       '@bugsnag/js':
         specifier: 7.20.2
         version: 7.20.2
+      '@dimforge/rapier3d-compat':
+        specifier: ^0.19.3
+        version: 0.19.3
       '@metamask/providers':
         specifier: ^11.1.1
         version: 11.1.2
@@ -878,6 +881,9 @@ packages:
 
   '@dabh/diagnostics@2.0.8':
     resolution: { integrity: sha512-R4MSXTVnuMzGD7bzHdW2ZhhdPC/igELENcq5IjEverBvq5hn1SXCWcsi6eSsdWP0/Ur+SItRRjAktmdoX/8R/Q== }
+
+  '@dimforge/rapier3d-compat@0.19.3':
+    resolution: { integrity: sha512-mMVdSj1PRTT108s9Swbu2GQOmHbn8kbJANRV5xfczL3s0T4vkgZAuoMRgvBzQcHanpKusbC0ZJj6z3mC3aj3vg== }
 
   '@discoveryjs/json-ext@0.5.7':
     resolution: { integrity: sha512-dBVuXR082gk3jsFp7Rd/JI4kytwGHecnCoTtXFb7DB6CNHp4rg5k1bhg0nWdLGLnOV71lmDzGQaLMy8iPLY0pw== }
@@ -6969,6 +6975,8 @@ snapshots:
       '@so-ric/colorspace': 1.1.6
       enabled: 2.0.0
       kuler: 2.0.0
+
+  '@dimforge/rapier3d-compat@0.19.3': {}
 
   '@discoveryjs/json-ext@0.5.7': {}
 

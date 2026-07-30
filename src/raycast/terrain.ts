@@ -1,11 +1,5 @@
 import { vec3, utils, type Vec3, type Vec3Arg } from 'wgpu-matrix'
-import { createComlinkWorker } from '../../common/helpers/comlink-worker'
-import { BrickPool, DIR_LEN, DIR_WORDS_PER_CHUNK, MAX_CHUNKS, type Brickified } from './bricks'
-import { LOD_CHUNK_WORLD, LOD_COUNT, LOD_VOXEL_SCALE, LOD_Y_LAYERS } from './gen'
-import { Bounds } from './math/bounds'
-import { ParcelMap, parseParcelRecord, type Parcel, type ParcelContent } from './parcel'
-import type { RaycastWorkerApi } from './worker'
-import workerFallback from './worker'
+import { BrickPool, DIR_LEN, DIR_WORDS_PER_CHUNK, LOD_CHUNK_WORLD, LOD_COUNT, LOD_Y_LAYERS, MAX_CHUNKS, parseMeke } from './bricks'
 
 const MAT4_F32_SIZE = 16 * Float32Array.BYTES_PER_ELEMENT
 const VEC4_U32_SIZE = 4 * Uint32Array.BYTES_PER_ELEMENT
@@ -24,14 +18,15 @@ export const api = (path: string) => (process.env.NODE_ENV !== 'production' ? (p
 const MACRO_RES = 32
 const MACRO_CELL_WORLD = 8
 const MACRO_CELL_COUNT = MACRO_RES ** 3
-const MAX_CHUNKS_PER_MACRO = 16
+const MAX_CHUNKS_PER_MACRO = 32
 const MACRO_INV_CELL_WORLD = 1 / MACRO_CELL_WORLD
 
 const LOD_COL_LO = -2
 const LOD_COL_HI = 2
+/** keep chunks this many columns beyond the desired window before freeing */
+const EVICT_MARGIN = 2
 
-const LRU_MAX_BYTES = 256 * 1024 * 1024
-const INFLIGHT_MAX = 4
+const INFLIGHT_MAX = 8
 
 const VEC3_ONES = vec3.create(1, 1, 1)
 const sHalfExtent = vec3.create()
@@ -73,45 +68,8 @@ const regenSet = new Set<string>()
 const inflight = new Set<string>()
 let lastDesired = new Set<string>()
 
-// CPU LRU of brickified outputs
-const lru = new Map<string, Brickified>()
-let lruBytes = 0
-
-function lruTouch(key: string, data: Brickified) {
-  if (lru.has(key)) {
-    lru.delete(key)
-  } else {
-    lruBytes += data.brickBytes.byteLength + data.directory.byteLength
-  }
-  lru.set(key, data)
-  while (lruBytes > LRU_MAX_BYTES && lru.size > 0) {
-    const oldest = lru.keys().next().value as string
-    const v = lru.get(oldest)!
-    lru.delete(oldest)
-    lruBytes -= v.brickBytes.byteLength + v.directory.byteLength
-  }
-}
-
-function lruGet(key: string): Brickified | null {
-  const v = lru.get(key)
-  if (!v) return null
-  lru.delete(key)
-  lru.set(key, v)
-  return v
-}
-
-type CachedMeta = {
-  originM: [number, number, number]
-  boundsMin: [number, number, number]
-  boundsMax: [number, number, number]
-  loaded: boolean
-}
-
-let parcelMap: ParcelMap | null = null
-const parcelMeta = new Map<number, CachedMeta>()
-const parcelLoadQueue = new Set<number>()
-let workerApi: RaycastWorkerApi | null = null
-let workerReady: Promise<void> | null = null
+/** baked chunk keys from index.json; keys not in here are air */
+let baked: Set<string> | null = null
 
 function chunkKey(lod: number, cx: number, cy: number, cz: number) {
   return `${lod}:${cx}:${cy}:${cz}`
@@ -122,117 +80,17 @@ function parseKey(key: string): { lod: number; cx: number; cy: number; cz: numbe
   return { lod, cx, cy, cz }
 }
 
-export async function initTerrainWorker() {
-  if (workerReady) return workerReady
-  workerReady = (async () => {
-    const { worker } = await createComlinkWorker<RaycastWorkerApi>(
-      () => new Worker(new URL('./worker.ts', import.meta.url)),
-      () => workerFallback,
-      { workerName: 'raycast-terrain' },
-    )
-    workerApi = worker
-  })()
-  return workerReady
-}
-
-async function fetchParcelContent(id: number): Promise<ParcelContent | null> {
+export async function loadTerrainIndex(): Promise<number> {
   try {
-    const res = await fetch(api(`/grid/parcels/${id}`))
-    if (!res.ok) return null
-    const json = (await res.json()) as { success?: boolean; parcel?: any }
-    if (!json?.parcel) return null
-    const p = json.parcel
-    return {
-      voxels: p.voxels || '',
-      palette: p.palette,
-      features: p.features,
-    }
-  } catch {
-    return null
-  }
-}
-
-function dirtyChunksForParcel(parcel: Parcel) {
-  const b = parcel.bounds
-  for (const [key] of slotByKey) {
-    const { lod, cx, cy, cz } = parseKey(key)
-    const world = LOD_CHUNK_WORLD[lod]
-    const scale = LOD_VOXEL_SCALE[lod]
-    const minX = (cx * world) / 0.1
-    const minY = (cy * world) / 0.1
-    const minZ = (cz * world) / 0.1
-    const maxX = minX + 64 * (scale / 0.1)
-    const maxY = minY + 64 * (scale / 0.1)
-    const maxZ = minZ + 64 * (scale / 0.1)
-    if (maxX <= b.min[0] || minX >= b.max[0]) continue
-    if (maxY <= b.min[1] || minY >= b.max[1]) continue
-    if (maxZ <= b.min[2] || minZ >= b.max[2]) continue
-    lru.delete(key)
-    if (!regenSet.has(key)) {
-      regenSet.add(key)
-      regenQueue.push(key)
-    }
-  }
-}
-
-async function ensureParcelLoaded(parcel: Parcel) {
-  const meta = parcelMeta.get(parcel.id)
-  if (meta?.loaded || parcelLoadQueue.has(parcel.id)) return
-  parcelLoadQueue.add(parcel.id)
-  try {
-    await initTerrainWorker()
-    const content = await fetchParcelContent(parcel.id)
-    if (!content?.voxels || !workerApi) return
-    parcel.content = content
-    const ok = await workerApi.loadParcel({
-      id: parcel.id,
-      originM: parcel.originM,
-      boundsMin: [parcel.bounds.min[0], parcel.bounds.min[1], parcel.bounds.min[2]],
-      boundsMax: [parcel.bounds.max[0], parcel.bounds.max[1], parcel.bounds.max[2]],
-      voxels: content.voxels,
-      palette: content.palette ?? undefined,
-      features: content.features ?? null,
-    })
-    if (!ok) return
-    parcelMeta.set(parcel.id, {
-      originM: parcel.originM,
-      boundsMin: [parcel.bounds.min[0], parcel.bounds.min[1], parcel.bounds.min[2]],
-      boundsMax: [parcel.bounds.max[0], parcel.bounds.max[1], parcel.bounds.max[2]],
-      loaded: true,
-    })
-    dirtyChunksForParcel(parcel)
+    const res = await fetch(api('/poneke/index.json'))
+    if (!res.ok) throw new Error(`${res.status}`)
+    const json = (await res.json()) as { chunks?: string[] }
+    baked = new Set(json.chunks || [])
   } catch (e) {
-    console.error(`raycast: parcel ${parcel.id} load failed`, e)
-  } finally {
-    parcelLoadQueue.delete(parcel.id)
+    console.error('raycast: chunk index failed (run npm run bake:poneke), sky only', e)
+    baked = new Set()
   }
-}
-
-export async function loadTerrainParcels(): Promise<void> {
-  await initTerrainWorker()
-  const res = await fetch(api('/api/parcels/cached.json'))
-  if (!res.ok) throw new Error(`parcels: ${res.status}`)
-  const json = (await res.json()) as { parcels?: unknown[]; success?: boolean }
-  const raw = Array.isArray(json) ? json : json.parcels
-  if (!Array.isArray(raw)) throw new Error('parcels: bad payload')
-
-  const list: ReturnType<typeof parseParcelRecord>[] = []
-  const origins = new Map<number, [number, number, number]>()
-  for (const row of raw) {
-    if (!row || typeof row !== 'object') continue
-    const o = row as Record<string, unknown>
-    if (typeof o.id !== 'number') continue
-    if (typeof o.x1 === 'number' && typeof o.y1 === 'number' && typeof o.z1 === 'number') {
-      origins.set(o.id, [o.x1, o.y1, o.z1])
-    }
-    const parsed = parseParcelRecord(row)
-    if (parsed) list.push(parsed)
-  }
-  parcelMap = new ParcelMap(
-    list.filter((p): p is NonNullable<typeof p> => p != null),
-    origins,
-  )
-  parcelMeta.clear()
+  return baked.size
 }
 
 export function computeGridAnchor(cam: Vec3Arg): Vec3 {
@@ -258,8 +116,8 @@ function desiredKeys(cam: Vec3Arg): string[] {
     const camZ = Math.floor(cam[2] / world)
     const yLayers = LOD_Y_LAYERS[lod]
     for (let dy = 0; dy < yLayers; dy++) {
-      for (let dz = LOD_COL_LO; dz < LOD_COL_HI; dz++) {
-        for (let dx = LOD_COL_LO; dx < LOD_COL_HI; dx++) {
+      for (let dz = LOD_COL_LO; dz <= LOD_COL_HI; dz++) {
+        for (let dx = LOD_COL_LO; dx <= LOD_COL_HI; dx++) {
           if (lod > 0 && dx >= -1 && dx <= 0 && dz >= -1 && dz <= 0) continue
           out.push(chunkKey(lod, camX + dx, dy, camZ + dz))
         }
@@ -300,9 +158,12 @@ function rebuildActiveList() {
   }
 }
 
+let macroOverflow = 0
+
 function clearMacroGrid() {
   macroGridTerrain.fill(0xffff_ffff)
   macroCounts.fill(0)
+  macroOverflow = 0
 }
 
 function insertChunkToMacroGrid(anchor: Vec3Arg, chunkCenter: Vec3Arg, halfExtent: number, chunkSlot: number) {
@@ -323,7 +184,10 @@ function insertChunkToMacroGrid(anchor: Vec3Arg, chunkCenter: Vec3Arg, halfExten
         const by = euclidMod(wy - anchor[1], MACRO_RES)
         const bz = euclidMod(wz - anchor[2], MACRO_RES)
         const cell = bx + by * MACRO_RES + bz * MACRO_RES * MACRO_RES
-        if (macroCounts[cell] >= MAX_CHUNKS_PER_MACRO) continue
+        if (macroCounts[cell] >= MAX_CHUNKS_PER_MACRO) {
+          macroOverflow++
+          continue
+        }
         macroGridTerrain[cell * MAX_CHUNKS_PER_MACRO + macroCounts[cell]] = chunkSlot
         macroCounts[cell]++
       }
@@ -366,27 +230,12 @@ function writeChunkSlot(slot: number, lod: number, cx: number, cy: number, cz: n
   pendingMacroDirty = true
 }
 
-function kickParcelLoads(cam: Vec3Arg) {
-  if (!parcelMap) return
-  // load parcels out to fog distance so coarse LODs have content
-  const r = 120 / 0.1
-  const cx = cam[0] / 0.1
-  const cy = cam[1] / 0.1
-  const cz = cam[2] / 0.1
-  const q = Bounds.create(cx - r, cy - r, cz - r, cx + r, cy + r, cz + r)
-  for (const p of parcelMap.search(q)) void ensureParcelLoaded(p)
-}
-
-async function generateOne(key: string): Promise<boolean> {
-  const cached = lruGet(key)
+async function loadOne(key: string): Promise<boolean> {
   const { lod, cx, cy, cz } = parseKey(key)
-  let local = cached
-  if (!local) {
-    if (!workerApi) await initTerrainWorker()
-    if (!workerApi) return false
-    local = await workerApi.genChunk(lod, cx, cy, cz)
-    lruTouch(key, local)
-  }
+  const res = await fetch(api(`/poneke/${lod}/${cx}_${cy}_${cz}.meke`))
+  if (!res.ok) return false
+  const local = parseMeke(new Uint8Array(await res.arrayBuffer()))
+  if (!local) return false
   if (!lastDesired.has(key) && !slotByKey.has(key)) return false
   let slot = slotByKey.get(key)
   if (slot == null) {
@@ -429,13 +278,23 @@ export function updateTerrainStreaming(cameraPos: Vec3Arg, anchor: Vec3Arg): Ter
   if (camMoved) {
     vec3.set(cam0x, 0, cam0z, sCamLod0)
     lastDesired = new Set(desiredKeys(cameraPos))
-    kickParcelLoads(cameraPos)
 
+    // hysteresis: undesired chunks linger EVICT_MARGIN columns so replacements
+    // can stream in first. coarse chunks under the finer ring go immediately
+    // (they'd occlude the fine voxels).
     for (const [key, slot] of [...slotByKey]) {
-      if (!lastDesired.has(key)) freeSlot(slot)
+      if (lastDesired.has(key)) continue
+      const { lod, cx, cz } = parseKey(key)
+      const world = LOD_CHUNK_WORLD[lod]
+      const dx = cx - Math.floor(cameraPos[0] / world)
+      const dz = cz - Math.floor(cameraPos[2] / world)
+      const inHole = lod > 0 && dx >= -1 && dx <= 0 && dz >= -1 && dz <= 0
+      const far = LOD_COL_HI + EVICT_MARGIN
+      if (inHole || Math.abs(dx) > far || Math.abs(dz) > far) freeSlot(slot)
     }
 
     for (const key of lastDesired) {
+      if (!baked?.has(key)) continue
       if (slotByKey.has(key)) continue
       if (regenSet.has(key) || inflight.has(key)) continue
       regenSet.add(key)
@@ -461,8 +320,8 @@ export function updateTerrainStreaming(cameraPos: Vec3Arg, anchor: Vec3Arg): Ter
     if (!lastDesired.has(key) && !slotByKey.has(key)) continue
     if (inflight.has(key)) continue
     inflight.add(key)
-    void generateOne(key)
-      .catch((e) => console.error('raycast: chunk gen failed', key, e))
+    void loadOne(key)
+      .catch((e) => console.error('raycast: chunk load failed', key, e))
       .finally(() => inflight.delete(key))
   }
 
@@ -478,16 +337,11 @@ export function updateTerrainStreaming(cameraPos: Vec3Arg, anchor: Vec3Arg): Ter
   return { dirtySlots, dirtyBricks, macroDirty }
 }
 
-export function getParcelMap(): ParcelMap | null {
-  return parcelMap
-}
-
 export function poolStats() {
   return {
     ...pool.stats(),
-    lruChunks: lru.size,
-    lruMb: lruBytes / (1024 * 1024),
     slots: slotByKey.size,
+    macroOverflow,
   }
 }
 

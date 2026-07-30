@@ -1,18 +1,13 @@
 import { vec3 } from 'wgpu-matrix'
 import { defaultColors } from '../../common/content/blocks'
 import { getBufferFromVoxels, getFieldShape } from '../../common/voxels/helpers'
-import { brickify, type Brickified, VOX_RES } from './bricks'
+import { brickify, type Brickified, LOD_CHUNK_WORLD, LOD_COUNT, LOD_VOXEL_SCALE, VOX_RES } from './bricks'
 import { Bounds } from './math/bounds'
 import { VoxelData } from './math/voxeldata'
 import { nearestPaletteIndexFromRgb } from './palette'
 
 const AIR = 0xff
 const GRID_SPACING_10CM = 80
-
-export const LOD_VOXEL_SCALE = [0.1, 0.2, 0.4, 0.8] as const
-export const LOD_CHUNK_WORLD = LOD_VOXEL_SCALE.map((s) => VOX_RES * s)
-export const LOD_Y_LAYERS = [8, 4, 2, 1] as const
-export const LOD_COUNT = 4
 
 const TERRAIN_SHAPE = vec3.create(VOX_RES, VOX_RES, VOX_RES)
 
@@ -67,13 +62,6 @@ export type ParcelMips = {
   minM: [number, number, number]
   maxM: [number, number, number]
   mips: FieldMip[]
-  features: Array<{
-    type: string
-    position?: number[]
-    rotation?: number[]
-    scale?: number[]
-    url?: unknown
-  }> | null
 }
 
 function setByte(words: Uint32Array, idx: number, v: number) {
@@ -164,7 +152,6 @@ export function buildParcelMips(
   boundsMax: [number, number, number],
   voxels: string,
   palette: string[] | undefined,
-  features: ParcelMips['features'],
 ): ParcelMips | null {
   const [ox, oy, oz] = originM
   const mx = (boundsMax[0] - boundsMin[0]) / 10
@@ -184,22 +171,7 @@ export function buildParcelMips(
     minM: [boundsMin[0] / 10, boundsMin[1] / 10, boundsMin[2] / 10],
     maxM: [boundsMax[0] / 10, boundsMax[1] / 10, boundsMax[2] / 10],
     mips,
-    features,
   }
-}
-
-export type BakedProp = {
-  /** dense words, 0xff air, shape sx*sy*sz */
-  words: Uint32Array
-  sx: number
-  sy: number
-  sz: number
-  /** world position of voxel (0,0,0) in meters */
-  wx: number
-  wy: number
-  wz: number
-  /** voxel size in meters (usually 0.1) */
-  scale: number
 }
 
 function sampleMip(mip: FieldMip, mx: number, my: number, mz: number): number {
@@ -211,7 +183,7 @@ function sampleMip(mip: FieldMip, mx: number, my: number, mz: number): number {
 }
 
 /** Generate dense 64^3 chunk words at LOD, then brickify. */
-export function generateChunkBrickified(lod: number, cx: number, cy: number, cz: number, parcels: ParcelMips[], props: BakedProp[]): Brickified {
+export function generateChunkBrickified(lod: number, cx: number, cy: number, cz: number, parcels: ParcelMips[]): Brickified {
   ensureColors()
   const chunk = new VoxelData(TERRAIN_SHAPE)
   chunk.words.fill(0xffff_ffff)
@@ -258,52 +230,5 @@ export function generateChunkBrickified(lod: number, cx: number, cy: number, cz:
     }
   }
 
-  // bake props into chunk (all LODs)
-  for (const prop of props) {
-    const pScale = prop.scale
-    for (let z = 0; z < prop.sz; z++) {
-      for (let y = 0; y < prop.sy; y++) {
-        for (let x = 0; x < prop.sx; x++) {
-          const v = getByte(prop.words, x + y * prop.sx + z * prop.sx * prop.sy)
-          if (v === AIR) continue
-          const mx = prop.wx + (x + 0.5) * pScale
-          const my = prop.wy + (y + 0.5) * pScale
-          const mz = prop.wz + (z + 0.5) * pScale
-          if (mx < chunkBounds.x1 || my < chunkBounds.y1 || mz < chunkBounds.z1) continue
-          if (mx >= chunkBounds.x2 || my >= chunkBounds.y2 || mz >= chunkBounds.z2) continue
-          const ix = Math.floor((mx - worldMinX) / scale)
-          const iy = Math.floor((my - worldMinY) / scale)
-          const iz = Math.floor((mz - worldMinZ) / scale)
-          if (ix < 0 || iy < 0 || iz < 0 || ix >= VOX_RES || iy >= VOX_RES || iz >= VOX_RES) continue
-          chunk.set(vec3.fromValues(ix, iy, iz), v)
-        }
-      }
-    }
-  }
-
   return brickify(chunk.words)
-}
-
-/** Parse a .vox buffer into a BakedProp at world origin (voxel 0,0,0). */
-export async function bakeVoxBuffer(buffer: ArrayBuffer, wx: number, wy: number, wz: number, scale = 0.1): Promise<BakedProp | null> {
-  const VoxReader = require('@sh-dave/format-vox').VoxReader
-  const vox: any = await new Promise((resolve, reject) => {
-    VoxReader.read(buffer, (data: any, err: string | null) => {
-      if (err || !data?.models?.[0]) reject(err || 'bad vox')
-      else resolve(data)
-    })
-  })
-  const size = vox.sizes[0] as { x: number; y: number; z: number }
-  const words = new Uint32Array(Math.ceil((size.x * size.y * size.z) / 4))
-  words.fill(0xffff_ffff)
-  const palette = vox.palette as { r: number; g: number; b: number; a: number }[]
-  const model = vox.models[0] as { x: number; y: number; z: number; colorIndex: number }[]
-  for (const row of model) {
-    const c = palette[row.colorIndex]
-    if (!c || c.a < 10) continue
-    const clr = nearestPaletteIndexFromRgb(c.r / 255, c.g / 255, c.b / 255)
-    const y = size.y - 1 - row.y
-    setByte(words, row.x + y * size.x + row.z * size.x * size.y, clr)
-  }
-  return { words, sx: size.x, sy: size.y, sz: size.z, wx, wy, wz, scale }
 }

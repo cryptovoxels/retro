@@ -13,6 +13,11 @@ export const DIR_WORDS_PER_CHUNK = DIR_LEN
 export const GPU_BRICK_BYTES = MAX_BRICKS * BRICK_BYTES
 export const GPU_DIR_BYTES = MAX_CHUNKS * DIR_LEN * 4
 
+export const LOD_VOXEL_SCALE = [0.1, 0.2, 0.4, 0.8] as const
+export const LOD_CHUNK_WORLD = LOD_VOXEL_SCALE.map((s) => VOX_RES * s)
+export const LOD_Y_LAYERS = [8, 4, 2, 1] as const
+export const LOD_COUNT = 4
+
 const AIR = 0xff
 const hashEngine = new TextDecoder('latin1')
 
@@ -77,6 +82,25 @@ export function brickify(words: Uint32Array): Brickified {
 
   const brickBytes = new Uint8Array(unique.length * BRICK_BYTES)
   for (let i = 0; i < unique.length; i++) brickBytes.set(unique[i], i * BRICK_BYTES)
+  return { directory, brickBytes, hashes }
+}
+
+/** .meke chunk file: u32 magic, u32 brick count, u32[512] directory, then bricks */
+export const MEKE_MAGIC = 0x454b454d
+
+export function parseMeke(bytes: Uint8Array): Brickified | null {
+  const headerBytes = 8 + DIR_LEN * 4
+  if (bytes.byteLength < headerBytes) return null
+  const head = new DataView(bytes.buffer, bytes.byteOffset, 8)
+  if (head.getUint32(0, true) !== MEKE_MAGIC) return null
+  const n = head.getUint32(4, true)
+  if (bytes.byteLength < headerBytes + n * BRICK_BYTES) return null
+  const directory = new Uint32Array(DIR_LEN)
+  new Uint8Array(directory.buffer).set(bytes.subarray(8, headerBytes))
+  // slice() so brickBytes is 4-byte aligned for install()
+  const brickBytes = bytes.slice(headerBytes, headerBytes + n * BRICK_BYTES)
+  const hashes: string[] = []
+  for (let i = 0; i < n; i++) hashes.push(brickHash(brickBytes.subarray(i * BRICK_BYTES, (i + 1) * BRICK_BYTES)))
   return { directory, brickBytes, hashes }
 }
 

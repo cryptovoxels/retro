@@ -18,6 +18,7 @@ render/costumes/*
 tools/world-dump/tmp/
 **/report.html
 dist/bakes
+dist/poneke
 dist/music/unclean
 cryptovoxels.sql
 server/bundle_server.js

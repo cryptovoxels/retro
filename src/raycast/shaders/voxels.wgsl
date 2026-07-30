@@ -1,5 +1,5 @@
 struct MacroCell {
-    chunk_indices: array<u32, 16>,
+    chunk_indices: array<u32, 32>,
 };
 
 struct MicroHit {
@@ -188,7 +188,7 @@ fn trace_ray_detail(ray_origin: vec3<f32>, ray_dir: vec3<f32>) -> SceneDetail {
         let mcell = macro_grid_terrain[ci];
 
         if (mcell.chunk_indices[0] != 0xffffffffu) {
-            for (var k = 0u; k < 16u; k++) {
+            for (var k = 0u; k < 32u; k++) {
                 let chunk_idx = mcell.chunk_indices[k];
                 if (chunk_idx == 0xffffffffu) { break; }
 
