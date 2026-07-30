@@ -391,6 +391,9 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
   })
 
   async function maybeReloadProps() {
+    // todo: re-enable prop loading once parcel fields are solid
+    propsDirty = false
+    return
     if (!propsDirty) return
     if (performance.now() - lastPropsRebuild < 1000) return
     propsDirty = false
