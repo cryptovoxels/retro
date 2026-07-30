@@ -1,8 +1,9 @@
-import { mat4, quat, vec3, type Mat4, type Quat, type Vec3 } from 'wgpu-matrix'
+import { mat4, quat, vec3, type Mat4 } from 'wgpu-matrix'
 import Config from '../../common/config'
 import { computeAabb } from './math/maths'
 import { VoxelData } from './math/voxeldata'
 import { nearestPaletteIndexFromRgb } from './palette'
+import { Mesh } from './scene'
 
 const VoxReader = require('@sh-dave/format-vox').VoxReader
 
@@ -17,13 +18,8 @@ function parseVox(buffer: ArrayBuffer): Promise<any> {
   })
 }
 
-export class Prop {
+export class Prop extends Mesh {
   readonly id: number
-  position: Vec3 = vec3.create(0, 0, 0)
-  rotation: Quat = quat.identity()
-  scale: Vec3 = vec3.create(1, 1, 1)
-  shape: Vec3
-  data: VoxelData
   ready = false
 
   private _boundsCache:
@@ -41,10 +37,8 @@ export class Prop {
     | undefined
 
   constructor(id?: number) {
+    super()
     this.id = id ?? nextPropId++
-    this.shape = vec3.fromValues(1, 1, 1)
-    this.data = new VoxelData(this.shape)
-    this.data.clear()
   }
 
   async loadUrl(url: string) {
@@ -82,23 +76,24 @@ export class Prop {
     this.flush()
   }
 
+  /** world-from-local with voxel scale + center pivot (art instance matrix). */
   worldFromLocal(voxelWorldScale = 0.1): Mat4 {
     const sx = this.data.shape[0]
     const sy = this.data.shape[1]
     const sz = this.data.shape[2]
-    const pivotLocal = vec3.fromValues(sx * 0.5, sy * 0.5, sz * 0.5)
-    const negPivotLocal = vec3.create(0, 0, 0)
-    vec3.scale(pivotLocal, -1, negPivotLocal)
+    const pivot = vec3.fromValues(sx * 0.5, sy * 0.5, sz * 0.5)
+    const negPivot = vec3.create(0, 0, 0)
+    vec3.scale(pivot, -1, negPivot)
 
-    const out = mat4.identity()
-    mat4.translate(out, this.position, out)
-    mat4.multiply(out, mat4.fromQuat(this.rotation), out)
-    mat4.scale(out, vec3.fromValues(this.scale[0] * voxelWorldScale, this.scale[1] * voxelWorldScale, this.scale[2] * voxelWorldScale), out)
-    mat4.translate(out, negPivotLocal, out)
+    const out = mat4.clone(this.getWorldMatrix())
+    // bake voxel scale + pivot into the mesh world matrix
+    mat4.scale(out, vec3.fromValues(voxelWorldScale, voxelWorldScale, voxelWorldScale), out)
+    mat4.translate(out, negPivot, out)
     return out
   }
 
   flush(voxelWorldScale = 0.1) {
+    this.markDirty()
     const sx = Math.max(1, Math.floor(this.shape[0]))
     const sy = Math.max(1, Math.floor(this.shape[1]))
     const sz = Math.max(1, Math.floor(this.shape[2]))
@@ -154,10 +149,9 @@ export async function loadPropsFromParcels(
       const scl = f.scale || [1, 1, 1]
       // feature position is parcel-local meters
       vec3.set(parcel.originM[0] + (pos[0] || 0), parcel.originM[1] + (pos[1] || 0), parcel.originM[2] + (pos[2] || 0), prop.position)
-      quat.fromEuler(rot[0] || 0, rot[1] || 0, rot[2] || 0, 'yxz', prop.rotation)
-      // feature scale is roughly "half-meters per vox unit" in retro; map loosely
-      // default template scale [0.5,0.5,0.5] with 0.02 mesh scale -> ~1cm; we use 10cm voxels so scale factors stay relative
-      vec3.set(scl[0] || 1, scl[1] || 1, scl[2] || 1, prop.scale)
+      quat.fromEuler(rot[0] || 0, rot[1] || 0, rot[2] || 0, 'yxz', prop.rotationQuaternion)
+      vec3.set(scl[0] || 1, scl[1] || 1, scl[2] || 1, prop.scaling)
+      prop.markDirty()
       props.push(prop)
       const resolved = url.startsWith('http') || url.startsWith('//') ? Config.voxModelURL(url) : url.startsWith('/') ? url : `${process.env.ASSET_PATH || ''}/models/${url}`
       void prop.loadUrl(resolved)

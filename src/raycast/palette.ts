@@ -1,68 +1,70 @@
+// LEGO solids curated from https://github.com/boneskull/lego-color-swatches
+// slot 0 is air (unusable); slots 1..63 are colors
 export const PALETTE_HEX = [
-  '#ff0040',
-  '#131313',
-  '#1b1b1b',
-  '#272727',
-  '#3d3d3d',
-  '#5d5d5d',
-  '#858585',
-  '#b4b4b4',
-  '#ffffff',
-  '#c7cfdd',
-  '#92a1b9',
-  '#657392',
-  '#424c6e',
-  '#2a2f4e',
-  '#1a1932',
-  '#0e071b',
-  '#1c121c',
-  '#391f21',
-  '#5d2c28',
-  '#8a4836',
-  '#bf6f4a',
-  '#e69c69',
-  '#f6ca9f',
-  '#f9e6cf',
-  '#edab50',
-  '#e07438',
-  '#c64524',
-  '#8e251d',
-  '#ff5000',
-  '#ed7614',
-  '#ffa214',
-  '#ffc825',
-  '#ffeb57',
-  '#d3fc7e',
-  '#99e65f',
-  '#5ac54f',
-  '#33984b',
-  '#1e6f50',
-  '#134c4c',
-  '#0c2e44',
-  '#00396d',
-  '#0069aa',
-  '#0098dc',
-  '#00cdf9',
-  '#0cf1ff',
-  '#94fdff',
-  '#fdd2ed',
-  '#f389f5',
-  '#db3ffd',
-  '#7a09fa',
-  '#3003d9',
-  '#0c0293',
-  '#03193f',
-  '#3b1443',
-  '#622461',
-  '#93388f',
-  '#ca52c9',
-  '#c85086',
-  '#f68187',
-  '#f5555d',
-  '#ea323c',
-  '#c42430',
-  '#891e2b',
-  '#571c27',
+  '#000000', // air (unused)
+  '#B3D7D1', // Aqua
+  '#05131D', // Black
+  '#0055BF', // Blue
+  '#6874CA', // Blue-Violet
+  '#4B9F4A', // Bright Green
+  '#9FC3E9', // Bright Light Blue
+  '#F8BB3D', // Bright Light Orange
+  '#FFF03A', // Bright Light Yellow
+  '#E4ADC8', // Bright Pink
+  '#583927', // Brown
+  '#AE7A59', // Copper
+  '#078BC9', // Dark Azure
+  '#0A3463', // Dark Blue
+  '#2032B0', // Dark Blue-Violet
+  '#6C6E68', // Dark Bluish Grey
+  '#352100', // Dark Brown
+  '#7C503A', // Dark Flesh
+  '#184632', // Dark Green
+  '#6D6E5C', // Dark Grey
+  '#A95500', // Dark Orange
+  '#C870A0', // Dark Pink
+  '#3F3691', // Dark Purple
+  '#720E0F', // Dark Red
+  '#958A73', // Dark Tan
+  '#008F9B', // Dark Turquoise
+  '#FA9C1C', // Earth Orange
+  '#D09168', // Flesh
+  '#237841', // Green
+  '#E1D5ED', // Lavender
+  '#A0A5A9', // Light Bluish Grey
+  '#F6D7B3', // Light Flesh
+  '#C2DAB8', // Light Green
+  '#9BA19D', // Light Grey
+  '#D9E4A7', // Light Lime
+  '#F9BA61', // Light Orange
+  '#FECCCF', // Light Pink
+  '#CD6298', // Light Purple
+  '#55A5AF', // Light Turquoise
+  '#FBE696', // Light Yellow
+  '#BBE90B', // Lime
+  '#3592C3', // Maersk Blue
+  '#923978', // Magenta
+  '#36AEBF', // Medium Azure
+  '#5A93DB', // Medium Blue
+  '#CC702A', // Medium Dark Flesh
+  '#F785B1', // Medium Dark Pink
+  '#73DCA1', // Medium Green
+  '#AC78BA', // Medium Lavender
+  '#C7D23C', // Medium Lime
+  '#FFA70B', // Medium Orange
+  '#9B9A5A', // Olive Green
+  '#FE8A18', // Orange
+  '#FC97AC', // Pink
+  '#81007B', // Purple
+  '#C91A09', // Red
+  '#582A12', // Reddish Brown
+  '#4C61DB', // Royal Blue
+  '#6074A1', // Sand Blue
+  '#A0BCAC', // Sand Green
+  '#E4CD9E', // Tan
+  '#FFFFFF', // White
+  '#F2CD37', // Yellow
+  '#DFEEA5', // Yellowish Green
 ] as const
 
 export const PALETTE_COLOR_COUNT = 64

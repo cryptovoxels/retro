@@ -2,29 +2,33 @@ import { mat4, vec3, type Mat4, type Vec3 } from 'wgpu-matrix'
 import shaderSource from './shaders/voxels.wgsl'
 import blitShaderSource from './shaders/blit.wgsl'
 import { fillPalette, palette } from './palette'
+import { BRICK_BYTES, BRICK_WORDS, GPU_BRICK_BYTES, GPU_DIR_BYTES } from './bricks'
 import {
   UNIFORM_BUFFER_SIZE,
   UNIFORM_GRID_ANCHOR_OFFSET,
   UNIFORM_TERRAIN_PARAMS_OFFSET,
   VOX_RES,
-  VOXEL_WORDS_PER_CHUNK,
+  DIR_WORDS_PER_CHUNK,
   MAX_ACTIVE_TERRAIN_CHUNKS,
   activeTerrain,
   api,
   chunkPosHalf,
   computeGridAnchor,
+  directories,
   getParcelMap,
   loadTerrainParcels,
   macroGridTerrain,
   nearbyParcelsWithContent,
   onPropsDirty,
+  pool,
+  poolStats,
+  slotDirectory,
   updateTerrainStreaming,
-  voxelWords,
 } from './terrain'
 import { loadPropsFromParcels, type Prop } from './prop'
 import { decodeCoords } from '../../common/helpers/utils'
 
-// todo: re-enable prop loading once parcel fields are solid
+// props are baked into terrain chunks in the worker; art_* path stays disabled
 const PROPS_ENABLED = false
 
 const FLY_SPEED = 8
@@ -210,10 +214,16 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
     size: macroGridTerrain.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
-  const voxelWordsBuffer = device.createBuffer({
-    size: voxelWords.byteLength,
+  const directoriesBuffer = device.createBuffer({
+    size: GPU_DIR_BYTES,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
+  const brickPoolBuffer = device.createBuffer({
+    size: GPU_BRICK_BYTES,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
+  // seed brick 0 (watea) as air
+  device.queue.writeBuffer(brickPoolBuffer, 0, pool.words.subarray(0, BRICK_WORDS))
   const paletteBuffer = device.createBuffer({
     size: palette.byteLength,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
@@ -313,7 +323,7 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
         { binding: 0, resource: { buffer: uniformBuffer } },
         { binding: 1, resource: { buffer: chunkPosBuffer } },
         { binding: 2, resource: { buffer: macroGridBuffer } },
-        { binding: 3, resource: { buffer: voxelWordsBuffer } },
+        { binding: 3, resource: { buffer: directoriesBuffer } },
         { binding: 4, resource: { buffer: paletteBuffer } },
         { binding: 5, resource: outputView },
         { binding: 6, resource: { buffer: artVoxelWordsBuffer } },
@@ -323,6 +333,7 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
         { binding: 10, resource: { buffer: uiLinesBuffer } },
         { binding: 11, resource: { buffer: pickGpuBuffer } },
         { binding: 12, resource: { buffer: uiUniformBuffer } },
+        { binding: 13, resource: { buffer: brickPoolBuffer } },
       ],
     })
     blitBindGroup = device.createBindGroup({
@@ -398,11 +409,12 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
     const cx = Math.floor(voxelCoord[0])
     const cy = Math.floor(voxelCoord[1])
     const cz = Math.floor(voxelCoord[2])
-    const linear = cx + cy * 64 + cz * 4096
-    const wordIdx = chunkSlot * VOXEL_WORDS_PER_CHUNK + (linear >> 2)
-    const shift = (linear & 3) * 8
-    voxelWords[wordIdx] = (voxelWords[wordIdx] & ~(0xff << shift)) | (0xff << shift)
-    device.queue.writeBuffer(voxelWordsBuffer, wordIdx * 4, new Uint32Array([voxelWords[wordIdx]]))
+    const dir = slotDirectory(chunkSlot)
+    const brickId = pool.setVoxel(dir, cx, cy, cz, 0xff)
+    device.queue.writeBuffer(directoriesBuffer, chunkSlot * DIR_WORDS_PER_CHUNK * 4, dir)
+    if (brickId) {
+      device.queue.writeBuffer(brickPoolBuffer, brickId * BRICK_BYTES, pool.words.subarray(brickId * BRICK_WORDS, (brickId + 1) * BRICK_WORDS))
+    }
   })
 
   async function maybeReloadProps() {
@@ -452,10 +464,18 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
     }
 
     const anchor = computeGridAnchor(flyCam.pos)
-    if (updateTerrainStreaming(flyCam.pos, anchor)) {
+    const terrain = updateTerrainStreaming(flyCam.pos, anchor)
+    if (terrain.dirtyBricks.length || terrain.dirtySlots.length || terrain.macroDirty) {
+      for (const id of terrain.dirtyBricks) {
+        if (id <= 0) continue
+        device.queue.writeBuffer(brickPoolBuffer, id * BRICK_BYTES, pool.words.subarray(id * BRICK_WORDS, (id + 1) * BRICK_WORDS))
+      }
+      for (const slot of terrain.dirtySlots) {
+        const start = slot * DIR_WORDS_PER_CHUNK
+        device.queue.writeBuffer(directoriesBuffer, start * 4, directories.subarray(start, start + DIR_WORDS_PER_CHUNK))
+      }
       device.queue.writeBuffer(chunkPosBuffer, 0, chunkPosHalf)
-      device.queue.writeBuffer(voxelWordsBuffer, 0, voxelWords)
-      device.queue.writeBuffer(macroGridBuffer, 0, macroGridTerrain)
+      if (terrain.macroDirty) device.queue.writeBuffer(macroGridBuffer, 0, macroGridTerrain)
       propsDirty = true
     }
 
@@ -513,7 +533,7 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
     }
 
     uniformU32[0] = activeTerrain.length
-    uniformU32[1] = VOXEL_WORDS_PER_CHUNK
+    uniformU32[1] = DIR_WORDS_PER_CHUNK
     uniformU32[2] = VOX_RES
     uniformU32[3] = artCount
     device.queue.writeBuffer(uniformBuffer, 0, uniformBytes)
@@ -558,7 +578,8 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
 
     lastRafWallMs = wallStart
     const fpsEst = frameMs > 1e-6 ? 1000 / frameMs : 0
-    statsOverlay.innerHTML = `raycaster · ${fpsEst.toFixed(0)} Hz<br/>chunks ${activeTerrain.length}/${MAX_ACTIVE_TERRAIN_CHUNKS}<br/>props ${artCount}<br/>pos ${flyCam.pos[0].toFixed(1)}, ${flyCam.pos[1].toFixed(1)}, ${flyCam.pos[2].toFixed(1)}`
+    const ps = poolStats()
+    statsOverlay.innerHTML = `raycaster · ${fpsEst.toFixed(0)} Hz<br/>chunks ${activeTerrain.length}/${MAX_ACTIVE_TERRAIN_CHUNKS}<br/>bricks ${ps.used} (${(ps.bytes / (1024 * 1024)).toFixed(1)}MB) dedup ${ps.dedupHits}<br/>lru ${ps.lruChunks} (${ps.lruMb.toFixed(0)}MB)<br/>pos ${flyCam.pos[0].toFixed(1)}, ${flyCam.pos[1].toFixed(1)}, ${flyCam.pos[2].toFixed(1)}`
 
     requestAnimationFrame((t) => void render(t))
   }

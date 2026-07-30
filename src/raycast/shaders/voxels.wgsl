@@ -1,5 +1,5 @@
 struct MacroCell {
-    chunk_indices: array<u32, 8>,
+    chunk_indices: array<u32, 16>,
 };
 
 struct ArtInstance {
@@ -88,12 +88,15 @@ struct ArtTraceHit {
 const MACRO_RES: i32 = 32;
 const MACRO_CELL: f32 = 8.0;
 const VOX_RES_I: i32 = 64;
-const VOXEL_WORLD_SCALE: f32 = 0.1;
-// only 3 chunks of terrain are ever resident, so stop marching where the data ends
-const MAX_RAY_DIST: f32 = 19.2;
-const FOG_START: f32 = 11.0;
-const FOG_END: f32 = 19.2;
-const MACRO_MAX_STEPS: i32 = 768; 
+const DIR_AXIS: u32 = 8u;
+const DIR_LEN: u32 = 512u;
+const BRICK: u32 = 8u;
+const BRICK_WORDS: u32 = 128u;
+// LOD cascade ~100m
+const MAX_RAY_DIST: f32 = 102.4;
+const FOG_START: f32 = 70.0;
+const FOG_END: f32 = 102.4;
+const MACRO_MAX_STEPS: i32 = 768;
 const EPSILON: f32 = 0.0001;
 
 /// Face UV band near edges (creases) vs corners/interior. In 0..1 face space.
@@ -104,7 +107,7 @@ const LUM_FACE_BRIGHT: f32 = 1.0;
 @group(0) @binding(0) var<uniform> ubo: Uniforms;
 @group(0) @binding(1) var<storage, read> chunk_pos_half: array<vec4<f32>>;
 @group(0) @binding(2) var<storage, read> macro_grid_terrain: array<MacroCell>;
-@group(0) @binding(3) var<storage, read> voxel_words: array<u32>;
+@group(0) @binding(3) var<storage, read> directories: array<u32>;
 @group(0) @binding(4) var<storage, read> palette: array<vec4<f32>>;
 @group(0) @binding(5) var output_tex: texture_storage_2d<rgba8unorm, write>;
 @group(0) @binding(6) var<storage, read> art_voxel_words: array<u32>;
@@ -114,6 +117,7 @@ const LUM_FACE_BRIGHT: f32 = 1.0;
 @group(0) @binding(10) var<storage, read> ui_lines: array<GpuLine>;
 @group(0) @binding(11) var<storage, read_write> pick_gpu: PickGpu;
 @group(0) @binding(12) var<uniform> ui: UiUniforms;
+@group(0) @binding(13) var<storage, read> brick_pool: array<u32>;
 
 fn sky_color(ray_dir: vec3<f32>) -> vec3<f32> {
     let horizon_haze = vec3<f32>(0.70, 0.78, 0.86);
@@ -134,15 +138,6 @@ fn sun_dir() -> vec3<f32> {
 fn shade_diffuse(normal: vec3<f32>) -> f32 {
     let ambient: f32 = 0.2;
     return max(dot(normal, sun_dir()), ambient);
-}
-
-fn hash2(v: vec2<u32>) -> f32 {
-    var x = v.x * 1664525u + 1013904223u;
-    x ^= v.y * 2246822519u;
-    x ^= x >> 13u;
-    x *= 3266489917u;
-    x ^= x >> 16u;
-    return f32(x) * (1.0 / 4294967296.0);
 }
 
 fn no_hit() -> MicroHit {
@@ -203,8 +198,9 @@ fn sd_segment(p: vec2<f32>, a: vec2<f32>, b: vec2<f32>) -> f32 {
 }
 
 fn blend_ui_lines(pixel_xy: vec2<f32>, base: vec4<f32>) -> vec4<f32> {
-    var out_c = base;
     let n = ui.line_count;
+    if (n == 0u) { return base; }
+    var out_c = base;
     for (var i = 0u; i < n; i++) {
         let ln = ui_lines[i];
         let d = sd_segment(pixel_xy, ln.a, ln.b);
@@ -333,36 +329,6 @@ fn trace_art_instance_detail(
     return ArtTraceHit(no_hit(), vec4<i32>(0), inst.art_id, inst_idx);
 }
 
-fn trace_art_instance(
-    inst_idx: u32,
-    ray_origin: vec3<f32>,
-    ray_dir: vec3<f32>,
-    t_min: f32,
-    t_max: f32,
-) -> MicroHit {
-    return trace_art_instance_detail(inst_idx, ray_origin, ray_dir, t_min, t_max).micro;
-}
-
-fn trace_arts_in_segment(
-    ray_origin: vec3<f32>,
-    ray_dir: vec3<f32>,
-    t_min: f32,
-    t_max: f32,
-    current_best_t: f32,
-) -> MicroHit {
-    var best = no_hit();
-    var limit_t = min(t_max, current_best_t);
-    if (limit_t <= t_min) { return best; }
-    for (var i = 0u; i < ubo.terrain_params.w; i++) {
-        let hit = trace_art_instance(i, ray_origin, ray_dir, t_min, limit_t);
-        if (hit.ok != 0u && hit.t_world < limit_t) {
-            best = hit;
-            limit_t = hit.t_world;
-        }
-    }
-    return best;
-}
-
 fn trace_arts_segment_scene_detail(
     ray_origin: vec3<f32>,
     ray_dir: vec3<f32>,
@@ -423,7 +389,7 @@ fn trace_ray_detail(ray_origin: vec3<f32>, ray_dir: vec3<f32>) -> SceneDetail {
         let mcell = macro_grid_terrain[ci];
 
         if (mcell.chunk_indices[0] != 0xffffffffu) {
-            for (var k = 0u; k < 8u; k++) {
+            for (var k = 0u; k < 16u; k++) {
                 let chunk_idx = mcell.chunk_indices[k];
                 if (chunk_idx == 0xffffffffu) { break; }
 
@@ -440,7 +406,7 @@ fn trace_ray_detail(ray_origin: vec3<f32>, ray_dir: vec3<f32>) -> SceneDetail {
                 let tx = min(seg.y, t_exit_clamped) + EPSILON;
 
                 if (tx > te && seg.x < t_exit_clamped && seg.y > tau && te < MAX_RAY_DIST) {
-                    let th = trace_micro_chunk_detail(chunk_idx, p4.xyz, ray_origin, ray_dir, te, tx);
+                    let th = trace_micro_chunk_detail(chunk_idx, p4.xyz, p4.w, ray_origin, ray_dir, te, tx);
                     if (th.micro.ok != 0u) {
                         var sd: SceneDetail;
                         sd.micro = th.micro;
@@ -481,44 +447,47 @@ fn shade_scene_detail(d: SceneDetail, ray_dir: vec3<f32>) -> vec4<f32> {
     return vec4<f32>(final_color, depth_norm);
 }
 
-fn trace_scene(uv: vec2<f32>) -> vec4<f32> {
-    let aspect = ubo.resolution.x / ubo.resolution.y;
-    let p = (uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);
-    let ray_dir = normalize((ubo.viewInv * vec4<f32>(normalize(vec3<f32>(p, -1.5)), 0.0)).xyz);
-    let ray_origin = (ubo.viewInv * vec4<f32>(0.0, 0.0, 0.0, 1.0)).xyz;
-    let d = trace_ray_detail(ray_origin, ray_dir);
-    return shade_scene_detail(d, ray_dir);
-}
-
 /// 0..1 coordinates on the hit voxel face (axis of `on` ignored).
-fn face_uv(on: vec3<f32>, hit_p: vec3<f32>, wx_lo: vec3<f32>) -> vec2<f32> {
-    let s = VOXEL_WORLD_SCALE;
+fn face_uv(on: vec3<f32>, hit_p: vec3<f32>, wx_lo: vec3<f32>, vox_scale: f32) -> vec2<f32> {
     var u: f32;
     var v: f32;
     if (abs(on.x) > 0.5) {
-        u = (hit_p.y - wx_lo.y) / s;
-        v = (hit_p.z - wx_lo.z) / s;
+        u = (hit_p.y - wx_lo.y) / vox_scale;
+        v = (hit_p.z - wx_lo.z) / vox_scale;
     } else if (abs(on.y) > 0.5) {
-        u = (hit_p.x - wx_lo.x) / s;
-        v = (hit_p.z - wx_lo.z) / s;
+        u = (hit_p.x - wx_lo.x) / vox_scale;
+        v = (hit_p.z - wx_lo.z) / vox_scale;
     } else {
-        u = (hit_p.x - wx_lo.x) / s;
-        v = (hit_p.y - wx_lo.y) / s;
+        u = (hit_p.x - wx_lo.x) / vox_scale;
+        v = (hit_p.y - wx_lo.y) / vox_scale;
     }
     return vec2<f32>(clamp(u, 0.0, 1.0), clamp(v, 0.0, 1.0));
 }
 
-fn voxel_byte_at(word_idx_base: u32, c: vec3<i32>) -> u32 {
-    if (any(c < vec3<i32>(0)) || any(c >= vec3<i32>(VOX_RES_I))) {
-        return 0xffu;
-    }
-    let linear = u32(c.x) + u32(c.y) * 64u + u32(c.z) * 4096u;
-    let word = voxel_words[word_idx_base + (linear >> 2u)];
+fn brick_id_at(chunk_idx: u32, bx: u32, by: u32, bz: u32) -> u32 {
+    return directories[chunk_idx * DIR_LEN + bx + by * DIR_AXIS + bz * DIR_AXIS * DIR_AXIS];
+}
+
+fn brick_voxel(brick_id: u32, lx: u32, ly: u32, lz: u32) -> u32 {
+    let linear = lx + ly * BRICK + lz * BRICK * BRICK;
+    let word = brick_pool[brick_id * BRICK_WORDS + (linear >> 2u)];
     return (word >> ((linear & 3u) * 8u)) & 0xffu;
 }
 
-fn voxel_is_air(word_idx_base: u32, c: vec3<i32>) -> bool {
-    return voxel_byte_at(word_idx_base, c) == 0xffu;
+fn voxel_byte_at(chunk_idx: u32, c: vec3<i32>) -> u32 {
+    if (any(c < vec3<i32>(0)) || any(c >= vec3<i32>(VOX_RES_I))) {
+        return 0xffu;
+    }
+    let bx = u32(c.x) >> 3u;
+    let by = u32(c.y) >> 3u;
+    let bz = u32(c.z) >> 3u;
+    let brick_id = brick_id_at(chunk_idx, bx, by, bz);
+    if (brick_id == 0u) { return 0xffu; }
+    return brick_voxel(brick_id, u32(c.x) & 7u, u32(c.y) & 7u, u32(c.z) & 7u);
+}
+
+fn voxel_is_air(chunk_idx: u32, c: vec3<i32>) -> bool {
+    return voxel_byte_at(chunk_idx, c) == 0xffu;
 }
 
 /// `face_uv` layout: ±X → (y,z), ±Y → (x,z), ±Z → (x,y). Offsets step across that edge into the neighbor cell.
@@ -624,90 +593,128 @@ fn coplanar_smoothed_albedo(
     return 0.5 * (cu + cv);
 }
 
+fn hit_solid_voxel(
+    chunk_idx: u32,
+    chunk_pos: vec3<f32>,
+    vox_scale: f32,
+    cell: vec3<i32>,
+    voxel: u32,
+    ray_origin: vec3<f32>,
+    ray_dir: vec3<f32>,
+    inv_rd: vec3<f32>,
+    t_entry: f32,
+    t_exit: f32,
+) -> TerrainChunkHit {
+    let wx_lo = chunk_pos + (vec3<f32>(cell) - vec3<f32>(32.0)) * vox_scale;
+    let wx_hi = wx_lo + vec3<f32>(vox_scale);
+    let t1 = (wx_lo - ray_origin) * inv_rd;
+    let t2 = (wx_hi - ray_origin) * inv_rd;
+    let t_near = max(max(min(t1.x, t2.x), min(t1.y, t2.y)), min(t1.z, t2.z));
+    let t_far = min(min(max(t1.x, t2.x), max(t1.y, t2.y)), max(t1.z, t2.z));
+    if (t_far < t_entry - EPSILON || t_near > t_exit + EPSILON) {
+        return TerrainChunkHit(MicroHit(vec3<f32>(0.0), 0.0, vec3<f32>(0.0), 0u, 1.0), chunk_idx, vec4<i32>(0));
+    }
+    let t_world = clamp(max(t_near, t_entry), t_entry, t_exit);
+    let tx = min(t1.x, t2.x);
+    let ty = min(t1.y, t2.y);
+    let tz = min(t1.z, t2.z);
+    let teps = max(1e-5 * abs(t_near), 1e-6);
+    var on = vec3<f32>(0.0, 1.0, 0.0);
+    if (abs(tx - t_near) < teps) {
+        on = vec3<f32>(select(1.0, -1.0, t1.x < t2.x), 0.0, 0.0);
+    } else if (abs(ty - t_near) < teps) {
+        on = vec3<f32>(0.0, select(1.0, -1.0, t1.y < t2.y), 0.0);
+    } else if (abs(tz - t_near) < teps) {
+        on = vec3<f32>(0.0, 0.0, select(1.0, -1.0, t1.z < t2.z));
+    }
+    let hit_p = ray_origin + ray_dir * t_world;
+    let uvf = face_uv(on, hit_p, wx_lo, vox_scale);
+    let c_mid = palette[voxel & 63u].xyz;
+    let alb = coplanar_smoothed_albedo(on, cell, uvf, chunk_idx, c_mid);
+    let lum = world_crease_luminance(on, cell, uvf, chunk_idx);
+    return TerrainChunkHit(
+        MicroHit(alb, t_world, on, 1u, lum),
+        chunk_idx,
+        vec4<i32>(cell.x, cell.y, cell.z, 0),
+    );
+}
+
+/// Directory DDA (8^3 bricks) then brick-local voxel DDA. Air bricks skipped.
 fn trace_micro_chunk_detail(
     chunk_idx: u32,
     chunk_pos: vec3<f32>,
+    half_extent: f32,
     ray_origin: vec3<f32>,
     ray_dir: vec3<f32>,
     t_entry: f32,
     t_exit: f32,
 ) -> TerrainChunkHit {
     let inv_rd = 1.0 / (ray_dir + vec3<f32>(1e-9));
-    let inv_s = 1.0 / VOXEL_WORLD_SCALE;
-    let local_origin = (ray_origin - chunk_pos) * inv_s + 32.0;
-    let local_dir = ray_dir * inv_s;
+    let vox_scale = half_extent / 32.0;
+    let brick_scale = vox_scale * 8.0;
+    let inv_b = 1.0 / brick_scale;
+    let local_origin = (ray_origin - chunk_pos) * inv_b + 4.0;
+    let local_dir = ray_dir * inv_b;
     let start_p = local_origin + local_dir * (t_entry + EPSILON);
-    
-    var cell = clamp(vec3<i32>(floor(start_p)), vec3<i32>(0), vec3<i32>(63));
-    let step_l = vec3<i32>(sign(local_dir));
-    let delta = abs(1.0 / (local_dir + 1e-9));
-    var side = (sign(local_dir) * (vec3<f32>(cell) - local_origin) + sign(local_dir) * 0.5 + 0.5) * delta;
-    
-    let words_per_chunk = ubo.terrain_params.y;
-    let word_idx_base = chunk_idx * words_per_chunk;
-    var mask = vec3<f32>(0.0);
 
-    for (var s = 0; s < 128; s++) {
-        let linear = u32(cell.x) + u32(cell.y) * 64u + u32(cell.z) * 4096u;
-        let word = voxel_words[word_idx_base + (linear >> 2u)];
-        let voxel = (word >> ((linear & 3u) * 8u)) & 0xffu;
-        
-        if (voxel != 0xffu) {
-            // World-space AABB for this voxel: same frame as ray_origin (camera), so t is true distance along the ray.
-            let wx_lo = chunk_pos + (vec3<f32>(cell) - vec3<f32>(32.0)) * VOXEL_WORLD_SCALE;
-            let wx_hi = wx_lo + vec3<f32>(VOXEL_WORLD_SCALE);
-            let t1 = (wx_lo - ray_origin) * inv_rd;
-            let t2 = (wx_hi - ray_origin) * inv_rd;
-            let t_near = max(max(min(t1.x, t2.x), min(t1.y, t2.y)), min(t1.z, t2.z));
-            let t_far = min(min(max(t1.x, t2.x), max(t1.y, t2.y)), max(t1.z, t2.z));
-            if (t_far < t_entry - EPSILON || t_near > t_exit + EPSILON) { break; }
-            let t_world = clamp(max(t_near, t_entry), t_entry, t_exit);
-            let tx = min(t1.x, t2.x);
-            let ty = min(t1.y, t2.y);
-            let tz = min(t1.z, t2.z);
-            let teps = max(1e-5 * abs(t_near), 1e-6);
-            var on = vec3<f32>(0.0, 1.0, 0.0);
-            if (abs(tx - t_near) < teps) {
-                on = vec3<f32>(select(1.0, -1.0, t1.x < t2.x), 0.0, 0.0);
-            } else if (abs(ty - t_near) < teps) {
-                on = vec3<f32>(0.0, select(1.0, -1.0, t1.y < t2.y), 0.0);
-            } else if (abs(tz - t_near) < teps) {
-                on = vec3<f32>(0.0, 0.0, select(1.0, -1.0, t1.z < t2.z));
+    var bcell = clamp(vec3<i32>(floor(start_p)), vec3<i32>(0), vec3<i32>(7));
+    let step_b = vec3<i32>(sign(local_dir));
+    let delta_b = abs(1.0 / (local_dir + 1e-9));
+    var side_b = (sign(local_dir) * (vec3<f32>(bcell) - local_origin) + sign(local_dir) * 0.5 + 0.5) * delta_b;
+    var mask_b = vec3<f32>(0.0);
+
+    for (var s = 0; s < 32; s++) {
+        let brick_id = brick_id_at(chunk_idx, u32(bcell.x), u32(bcell.y), u32(bcell.z));
+        if (brick_id != 0u) {
+            // fine DDA inside this 8^3 brick
+            let inv_s = 1.0 / vox_scale;
+            let vox_origin = (ray_origin - chunk_pos) * inv_s + 32.0;
+            let vox_dir = ray_dir * inv_s;
+            let brick_min = vec3<f32>(bcell) * 8.0;
+            let brick_max = brick_min + 8.0;
+            let t1b = (brick_min - vox_origin) / (vox_dir + vec3<f32>(1e-9));
+            let t2b = (brick_max - vox_origin) / (vox_dir + vec3<f32>(1e-9));
+            let t_near_b = max(max(min(t1b.x, t2b.x), min(t1b.y, t2b.y)), min(t1b.z, t2b.z));
+            let t_far_b = min(min(max(t1b.x, t2b.x), max(t1b.y, t2b.y)), max(t1b.z, t2b.z));
+            let te = max(t_near_b, t_entry) + EPSILON;
+            let tx = min(t_far_b, t_exit);
+            if (tx > te) {
+                let start_v = vox_origin + vox_dir * te;
+                var cell = clamp(vec3<i32>(floor(start_v)), vec3<i32>(brick_min), vec3<i32>(brick_max) - vec3<i32>(1));
+                let step_l = vec3<i32>(sign(vox_dir));
+                let delta = abs(1.0 / (vox_dir + 1e-9));
+                var side = (sign(vox_dir) * (vec3<f32>(cell) - vox_origin) + sign(vox_dir) * 0.5 + 0.5) * delta;
+                var mask = vec3<f32>(0.0);
+                for (var vs = 0; vs < 32; vs++) {
+                    let lx = u32(cell.x) & 7u;
+                    let ly = u32(cell.y) & 7u;
+                    let lz = u32(cell.z) & 7u;
+                    let voxel = brick_voxel(brick_id, lx, ly, lz);
+                    if (voxel != 0xffu) {
+                        let hit = hit_solid_voxel(
+                            chunk_idx, chunk_pos, vox_scale, cell, voxel,
+                            ray_origin, ray_dir, inv_rd, t_entry, t_exit,
+                        );
+                        if (hit.micro.ok != 0u) { return hit; }
+                    }
+                    mask = step(side.xyz, side.yzx) * step(side.xyz, side.zxy);
+                    side += mask * delta;
+                    cell += vec3<i32>(mask) * step_l;
+                    if (any(cell < vec3<i32>(brick_min)) || any(cell >= vec3<i32>(brick_max))) { break; }
+                }
             }
-            let hit_p = ray_origin + ray_dir * t_world;
-            let uvf = face_uv(on, hit_p, wx_lo);
-            let c_mid = palette[voxel & 63u].xyz;
-            let alb = coplanar_smoothed_albedo(on, cell, uvf, word_idx_base, c_mid);
-            let lum = world_crease_luminance(on, cell, uvf, word_idx_base);
-            return TerrainChunkHit(
-                MicroHit(alb, t_world, on, 1u, lum),
-                chunk_idx,
-                vec4<i32>(cell.x, cell.y, cell.z, 0),
-            );
         }
-        
-        mask = step(side.xyz, side.yzx) * step(side.xyz, side.zxy);
-        side += mask * delta;
-        cell += vec3<i32>(mask) * step_l;
-        
-        if (any(cell < vec3<i32>(0)) || any(cell >= vec3<i32>(64))) { break; }
+
+        mask_b = step(side_b.xyz, side_b.yzx) * step(side_b.xyz, side_b.zxy);
+        side_b += mask_b * delta_b;
+        bcell += vec3<i32>(mask_b) * step_b;
+        if (any(bcell < vec3<i32>(0)) || any(bcell >= vec3<i32>(8))) { break; }
     }
     return TerrainChunkHit(
         MicroHit(vec3<f32>(0.0), 0.0, vec3<f32>(0.0), 0u, 1.0),
         chunk_idx,
         vec4<i32>(0),
     );
-}
-
-fn trace_micro_chunk(
-    chunk_idx: u32,
-    chunk_pos: vec3<f32>,
-    ray_origin: vec3<f32>,
-    ray_dir: vec3<f32>,
-    t_entry: f32,
-    t_exit: f32,
-) -> MicroHit {
-    return trace_micro_chunk_detail(chunk_idx, chunk_pos, ray_origin, ray_dir, t_entry, t_exit).micro;
 }
 
 @compute @workgroup_size(8, 8)
@@ -719,24 +726,15 @@ fn cs_main(@builtin(global_invocation_id) id: vec3<u32>) {
     let cy = (u32(ubo.resolution.y) - 1u) / 2u;
     let is_center = id.x == cx && id.y == cy;
 
-    var mosaic: vec4<f32>;
+    let aspect = ubo.resolution.x / ubo.resolution.y;
+    let p = (base_uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);
+    let ray_dir = normalize((ubo.viewInv * vec4<f32>(normalize(vec3<f32>(p, -1.5)), 0.0)).xyz);
+    let ray_origin = (ubo.viewInv * vec4<f32>(0.0, 0.0, 0.0, 1.0)).xyz;
+    let d = trace_ray_detail(ray_origin, ray_dir);
     if (is_center) {
-        let aspect = ubo.resolution.x / ubo.resolution.y;
-        let p = (base_uv * 2.0 - 1.0) * vec2<f32>(aspect, 1.0);
-        let ray_dir = normalize((ubo.viewInv * vec4<f32>(normalize(vec3<f32>(p, -1.5)), 0.0)).xyz);
-        let ray_origin = (ubo.viewInv * vec4<f32>(0.0, 0.0, 0.0, 1.0)).xyz;
-        let d = trace_ray_detail(ray_origin, ray_dir);
         write_pick_from_detail(d);
-        mosaic = shade_scene_detail(d, ray_dir);
-    } else {
-        let r0 = hash2(id.xy ^ vec2<u32>(0x9e3779b9u, 0x85ebca6bu));
-        let r1 = hash2(id.yx ^ vec2<u32>(0xc2b2ae35u, 0x27d4eb2fu));
-        let jitter = (vec2<f32>(r0, r1) - 0.5) / ubo.resolution;
-        let s0 = trace_scene(base_uv + jitter);
-        let s1 = trace_scene(base_uv - jitter);
-        mosaic = mix(s0, s1, 0.5);
     }
-
+    var mosaic = shade_scene_detail(d, ray_dir);
     mosaic = blend_ui_lines(pixel, mosaic);
     textureStore(output_tex, vec2<i32>(id.xy), mosaic);
 }
