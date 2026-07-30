@@ -110,18 +110,8 @@ type CachedMeta = {
 let parcelMap: ParcelMap | null = null
 const parcelMeta = new Map<number, CachedMeta>()
 const parcelLoadQueue = new Set<number>()
-const propsDirtyListeners: Array<() => void> = []
-
 let workerApi: RaycastWorkerApi | null = null
 let workerReady: Promise<void> | null = null
-
-export function onPropsDirty(fn: () => void) {
-  propsDirtyListeners.push(fn)
-}
-
-function notifyPropsDirty() {
-  for (const fn of propsDirtyListeners) fn()
-}
 
 function chunkKey(lod: number, cx: number, cy: number, cz: number) {
   return `${lod}:${cx}:${cy}:${cz}`
@@ -211,7 +201,6 @@ async function ensureParcelLoaded(parcel: Parcel) {
       loaded: true,
     })
     dirtyChunksForParcel(parcel)
-    notifyPropsDirty()
   } catch (e) {
     console.error(`raycast: parcel ${parcel.id} load failed`, e)
   } finally {
@@ -491,16 +480,6 @@ export function updateTerrainStreaming(cameraPos: Vec3Arg, anchor: Vec3Arg): Ter
 
 export function getParcelMap(): ParcelMap | null {
   return parcelMap
-}
-
-export function nearbyParcelsWithContent(cam: Vec3Arg, radiusM = 48): Parcel[] {
-  if (!parcelMap) return []
-  const r = radiusM / 0.1
-  const cx = cam[0] / 0.1
-  const cy = cam[1] / 0.1
-  const cz = cam[2] / 0.1
-  const q = Bounds.create(cx - r, cy - r, cz - r, cx + r, cy + r, cz + r)
-  return parcelMap.search(q).filter((p) => p.content?.features)
 }
 
 export function poolStats() {
