@@ -133,6 +133,9 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
     return
   }
 
+  // stop the browser from smoothing our chunky pixels if anything scales the element
+  canvas.style.imageRendering = 'pixelated'
+
   const { stats: statsOverlay, wrap: overlay } = makeOverlay()
   const flyCam = {
     pos: vec3.fromValues(0, 4, 8),
@@ -140,7 +143,8 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
     pitch: -0.3,
   }
   const keysDown = new Set<string>()
-  const renderScale = 1
+  // quarter-res compute, nearest blit; canvas backing store is CSS pixels (no retina)
+  const renderScale = 0.25
   let props: Prop[] = []
   let propsDirty = true
 
@@ -289,10 +293,10 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
   let internalRenderHeight = 1
 
   const recreateScreenTargets = () => {
-    // size the backing store from the element, not the window, so it always matches what is painted
+    // CSS pixels only — no devicePixelRatio. compute runs at renderScale, blit nearest-upsamples.
     const rect = canvas.getBoundingClientRect()
-    canvas.width = Math.max(1, Math.floor((rect.width || window.innerWidth) * window.devicePixelRatio))
-    canvas.height = Math.max(1, Math.floor((rect.height || window.innerHeight) * window.devicePixelRatio))
+    canvas.width = Math.max(1, Math.floor(rect.width || window.innerWidth))
+    canvas.height = Math.max(1, Math.floor(rect.height || window.innerHeight))
     internalRenderWidth = Math.max(1, Math.floor(canvas.width * renderScale))
     internalRenderHeight = Math.max(1, Math.floor(canvas.height * renderScale))
     context.configure({ device, format, alphaMode: 'opaque' })
