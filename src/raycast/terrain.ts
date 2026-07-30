@@ -52,6 +52,8 @@ const sVoxel = vec3.create()
 const sParcelCopyOrigin = vec3.create()
 const sCamChunk = vec3.create()
 const sTerrainCenterChunk = vec3.create(Number.NaN, 0, Number.NaN)
+// macro grid cells are indexed off the anchor, so a moved anchor invalidates them
+const sMacroAnchor = vec3.create(Number.NaN, Number.NaN, Number.NaN)
 
 export const chunkPosHalf = new Float32Array(MAX_ACTIVE_TERRAIN_CHUNKS * 4)
 export const voxelWords = new Uint32Array(MAX_ACTIVE_TERRAIN_CHUNKS * VOXEL_WORDS_PER_CHUNK)
@@ -302,12 +304,16 @@ export function updateTerrainStreaming(cameraPos: Vec3Arg, anchor: Vec3Arg): boo
     Number.isFinite(sTerrainCenterChunk[0]) &&
     Number.isFinite(sTerrainCenterChunk[2]) &&
     Math.abs(sCamChunk[0] - sTerrainCenterChunk[0]) < TERRAIN_STREAM_THRESHOLD_CHUNKS &&
-    Math.abs(sCamChunk[2] - sTerrainCenterChunk[2]) < TERRAIN_STREAM_THRESHOLD_CHUNKS
+    Math.abs(sCamChunk[2] - sTerrainCenterChunk[2]) < TERRAIN_STREAM_THRESHOLD_CHUNKS &&
+    anchor[0] === sMacroAnchor[0] &&
+    anchor[1] === sMacroAnchor[1] &&
+    anchor[2] === sMacroAnchor[2]
   ) {
     return false
   }
 
   vec3.copy(sCamChunk, sTerrainCenterChunk)
+  vec3.copy(anchor, sMacroAnchor)
 
   activeTerrain.length = 0
   clearMacroGrid()

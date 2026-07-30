@@ -89,11 +89,10 @@ const MACRO_RES: i32 = 32;
 const MACRO_CELL: f32 = 8.0;
 const VOX_RES_I: i32 = 64;
 const VOXEL_WORLD_SCALE: f32 = 0.1;
-const MAX_RAY_DIST: f32 = 32.0;
-const FOG_START: f32 = 16.0;
-const FOG_END: f32 = 32.0;
-/// Matches `horizon_hot_pink` in sky_color — fog settles to this at max distance.
-const FOG_COLOR: vec3<f32> = vec3<f32>(1.0, 0.22, 0.66);
+// only 3 chunks of terrain are ever resident, so stop marching where the data ends
+const MAX_RAY_DIST: f32 = 19.2;
+const FOG_START: f32 = 11.0;
+const FOG_END: f32 = 19.2;
 const MACRO_MAX_STEPS: i32 = 768; 
 const EPSILON: f32 = 0.0001;
 
@@ -117,15 +116,12 @@ const LUM_FACE_BRIGHT: f32 = 1.0;
 @group(0) @binding(12) var<uniform> ui: UiUniforms;
 
 fn sky_color(ray_dir: vec3<f32>) -> vec3<f32> {
-    let fuchsia = vec3<f32>(1.0, 0.02, 0.82);
-    let horizon_hot_pink = vec3<f32>(1.0, 0.22, 0.66);
-    let zenith_yellow = vec3<f32>(1.0, 0.93, 0.36);
-    let elev = clamp(ray_dir.y * 0.5 + 0.5, 0.0, 1.0);
-    var sky = mix(horizon_hot_pink, zenith_yellow, smoothstep(0.0, 1.0, pow(elev, 0.9)));
-
-    let azimuth = atan2(ray_dir.z, ray_dir.x);
-    let azimuth_band = pow(abs(sin(azimuth * 0.5)), 1.6) * (1.0 - smoothstep(0.05, 0.75, abs(ray_dir.y)));
-    sky = mix(sky, fuchsia, 0.45 * azimuth_band);
+    let horizon_haze = vec3<f32>(0.70, 0.78, 0.86);
+    let mid_teal = vec3<f32>(0.20, 0.44, 0.57);
+    let zenith_navy = vec3<f32>(0.04, 0.14, 0.36);
+    let up = clamp(ray_dir.y, 0.0, 1.0);
+    var sky = mix(horizon_haze, mid_teal, smoothstep(0.0, 0.16, up));
+    sky = mix(sky, zenith_navy, smoothstep(0.12, 0.72, up));
     return sky;
 }
 
@@ -480,7 +476,7 @@ fn shade_scene_detail(d: SceneDetail, ray_dir: vec3<f32>) -> vec4<f32> {
     let diffuse = shade_diffuse(d.micro.normal);
     let lit = d.micro.color * diffuse * d.micro.lum;
     let fog_w = clamp((d.micro.t_world - FOG_START) / (FOG_END - FOG_START), 0.0, 1.0);
-    let final_color = mix(lit, FOG_COLOR, fog_w);
+    let final_color = mix(lit, sky, fog_w);
     let depth_norm = clamp(d.micro.t_world / MAX_RAY_DIST, 0.0, 1.0);
     return vec4<f32>(final_color, depth_norm);
 }
