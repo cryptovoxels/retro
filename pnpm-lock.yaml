@@ -172,9 +172,6 @@ importers:
       express-winston:
         specifier: ^4.1.0
         version: 4.2.0(winston@3.19.0)
-      fastnoise-lite:
-        specifier: ^1.1.1
-        version: 1.1.1
       fflate:
         specifier: ^0.8.0
         version: 0.8.2
@@ -3665,9 +3662,6 @@ packages:
   fastest-levenshtein@1.0.16:
     resolution: { integrity: sha512-eRnCtTTtGZFpQCwhJiUOuxPQWRXVKYDn0b2PeHfXL6/Zi53SLAzAHfVhVWK2AryC/WH05kGfxhFIPvTF0SXQzg== }
     engines: { node: '>= 4.9.1' }
-
-  fastnoise-lite@1.1.1:
-    resolution: { integrity: sha512-3XEk16gmVq1HUL0+BdoR+/wD/tfB6VQjpliqQ7rSSE2omh23wrJGidQ5Mfr4mECCUtBGtcEov44BGIyVqs+U4w== }
 
   fastq@1.20.1:
     resolution: { integrity: sha512-GGToxJ/w1x32s/D2EKND7kTil4n8OVk/9mycTc4VDza13lOvpUZTGX3mFSCtV9ksdGBVzvsyAVLM6mHFThxXxw== }
@@ -10485,8 +10479,6 @@ snapshots:
       strnum: 2.2.2
 
   fastest-levenshtein@1.0.16: {}
-
-  fastnoise-lite@1.1.1: {}
 
   fastq@1.20.1:
     dependencies:

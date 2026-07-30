@@ -24,6 +24,9 @@ import {
 import { loadPropsFromParcels, type Prop } from './prop'
 import { decodeCoords } from '../../common/helpers/utils'
 
+// todo: re-enable prop loading once parcel fields are solid
+const PROPS_ENABLED = false
+
 const FLY_SPEED = 8
 const FLY_SPRINT_MULT = 2.6
 const MOUSE_SENS = 0.0022
@@ -78,9 +81,9 @@ function flyForward(yaw: number, pitch: number, dst: Vec3) {
   return vec3.set(-Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp, dst)
 }
 
-function makeOverlay(): { stats: HTMLElement; hint: HTMLElement } {
+function makeOverlay(): { stats: HTMLElement; hint: HTMLElement; wrap: HTMLElement } {
   const wrap = document.createElement('div')
-  wrap.style.cssText = 'position:fixed;top:0;left:0;padding:1rem;z-index:2147483647;pointer-events:auto;font:12px/1.4 monospace;color:#cfc;text-shadow:0 1px 2px #000'
+  wrap.style.cssText = 'position:absolute;top:0;left:0;padding:1rem;z-index:2;pointer-events:auto;font:12px/1.4 monospace;color:#cfc;text-shadow:0 1px 2px #000'
   const stats = document.createElement('div')
   const hint = document.createElement('div')
   hint.textContent = 'click to fly · WASD · shift sprint · click voxel to delete · [x] exit raycaster'
@@ -102,7 +105,7 @@ function makeOverlay(): { stats: HTMLElement; hint: HTMLElement } {
   wrap.appendChild(hint)
   wrap.appendChild(exit)
   document.body.appendChild(wrap)
-  return { stats, hint }
+  return { stats, hint, wrap }
 }
 
 /** spawn where the player actually is: ?coords= first, then /parcels/:id, else world origin */
@@ -130,7 +133,7 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
     return
   }
 
-  const { stats: statsOverlay } = makeOverlay()
+  const { stats: statsOverlay, wrap: overlay } = makeOverlay()
   const flyCam = {
     pos: vec3.fromValues(0, 4, 8),
     yaw: 0,
@@ -326,8 +329,16 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
       ],
     })
   }
-  recreateScreenTargets()
-  window.addEventListener('resize', recreateScreenTargets)
+  const syncScreen = () => {
+    const host = canvas.parentElement
+    if (host && overlay.parentElement !== host) host.appendChild(overlay)
+    recreateScreenTargets()
+  }
+  syncScreen()
+  window.addEventListener('resize', syncScreen)
+  new ResizeObserver(syncScreen).observe(canvas as any)
+  // <Client>.track calls engine.resize when the push-panel slot changes
+  ;(window as any).engine = { resize: syncScreen }
 
   fillPalette()
   device.queue.writeBuffer(paletteBuffer, 0, palette)
@@ -391,9 +402,7 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
   })
 
   async function maybeReloadProps() {
-    // todo: re-enable prop loading once parcel fields are solid
-    propsDirty = false
-    return
+    if (!PROPS_ENABLED) return
     if (!propsDirty) return
     if (performance.now() - lastPropsRebuild < 1000) return
     propsDirty = false

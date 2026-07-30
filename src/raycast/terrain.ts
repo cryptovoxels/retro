@@ -1,4 +1,3 @@
-import FastNoiseLite from 'fastnoise-lite'
 import { vec3, utils, type Vec3, type Vec3Arg } from 'wgpu-matrix'
 import { defaultColors } from '../../common/content/blocks'
 import { getBufferFromVoxels, getFieldShape } from '../../common/voxels/helpers'
@@ -66,25 +65,10 @@ type TerrainChunkSlot = {
   slot: number
 }
 
-const TERRAIN_Y_LO = 0
-const TERRAIN_Y_HI = 2
-
-export const terrainNoise = new FastNoiseLite(0x7e57)
-terrainNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2)
-terrainNoise.SetFractalType(FastNoiseLite.FractalType.FBm)
-terrainNoise.SetFractalOctaves(2)
-terrainNoise.SetFractalLacunarity(2)
-terrainNoise.SetFractalGain(0.35)
-terrainNoise.SetFrequency(0.08)
-
-const SURFACE_CLR = nearestPaletteIndexFromRgb(0.35, 0.62, 0.28)
-const BROWN_LAYER_INDEX = nearestPaletteIndexFromRgb(0.54, 0.28, 0.21)
-const FLOWER_YELLOW_CLR = nearestPaletteIndexFromRgb(0.98, 0.88, 0.18)
-const FLOWER_BLUE_CLR = nearestPaletteIndexFromRgb(0.28, 0.52, 0.98)
-
-const flowerNoise = new FastNoiseLite(0xf10a3c)
-flowerNoise.SetNoiseType(FastNoiseLite.NoiseType.OpenSimplex2)
-flowerNoise.SetFrequency(0.55)
+const GROUND_CLR = nearestPaletteIndexFromRgb(1, 1, 1)
+const GRID_CLR = nearestPaletteIndexFromRgb(0.2, 0.2, 0.2)
+/** grid line every 8m, and a world voxel is 10cm */
+const GRID_SPACING = 80
 
 let parcelMap: ParcelMap | null = null
 const parcelFieldCache = new Map<number, VoxelData>()
@@ -219,13 +203,6 @@ export async function loadTerrainParcels(): Promise<void> {
   parcelFieldCache.clear()
 }
 
-function flatTerrainSurfaceWorldY(n: number): number {
-  const t = (Math.max(-1, Math.min(1, n)) + 1) * 0.5
-  const span = TERRAIN_Y_HI - TERRAIN_Y_LO + 1
-  const o = Math.floor(t * span)
-  return TERRAIN_Y_LO + Math.min(TERRAIN_Y_HI - TERRAIN_Y_LO, o)
-}
-
 export const activeTerrain: TerrainChunkSlot[] = []
 
 export function computeGridAnchor(cam: Vec3Arg): Vec3 {
@@ -250,33 +227,19 @@ function createTerrainChunk(chunkCoord: Vec3Arg): VoxelData {
   const sx = TERRAIN_CHUNK_SHAPE[0]
   const sy = TERRAIN_CHUNK_SHAPE[1]
   const sz = TERRAIN_CHUNK_SHAPE[2]
-  const baseWorldY = chunkCoord[1] * sy
 
-  // noise ground only on Y layer 0
+  // one voxel thick white floor with dark grey grid lines, at world y 0
   if (chunkCoord[1] === 0) {
     for (sVoxel[2] = 0; sVoxel[2] < sz; sVoxel[2]++) {
       for (sVoxel[0] = 0; sVoxel[0] < sx; sVoxel[0]++) {
         const worldX = chunkCoord[0] * sx + sVoxel[0]
         const worldZ = chunkCoord[2] * sz + sVoxel[2]
-        const topWorldY = Math.max(TERRAIN_Y_LO, Math.min(baseWorldY + sy - 1, flatTerrainSurfaceWorldY(terrainNoise.GetNoise(worldX, worldZ))))
-
-        for (sVoxel[1] = 0; sVoxel[1] < sy; sVoxel[1]++) {
-          const worldY = baseWorldY + sVoxel[1]
-          if (worldY < TERRAIN_Y_LO || worldY > topWorldY) continue
-
-          let voxelColor = worldY === topWorldY ? SURFACE_CLR : BROWN_LAYER_INDEX
-          if (worldY === topWorldY) {
-            const fy = flowerNoise.GetNoise(worldX * 1.9, worldZ * 1.9)
-            const fb = flowerNoise.GetNoise(worldX * 2.1 + 71, worldZ * 2.1 - 43)
-            if (fy > 0.78) voxelColor = FLOWER_YELLOW_CLR
-            else if (fb > 0.78) voxelColor = FLOWER_BLUE_CLR
-          }
-          const voxelIndex = sVoxel[0] + sVoxel[1] * sx + sVoxel[2] * sx * sy
-          const wordIndex = voxelIndex >>> 2
-          const shift = (voxelIndex & 3) * 8
-          const mask = 0xff << shift
-          w[wordIndex] = (w[wordIndex] & ~mask) | (voxelColor << shift)
-        }
+        const line = euclidMod(worldX, GRID_SPACING) === 0 || euclidMod(worldZ, GRID_SPACING) === 0
+        const voxelIndex = sVoxel[0] + sVoxel[2] * sx * sy
+        const wordIndex = voxelIndex >>> 2
+        const shift = (voxelIndex & 3) * 8
+        const mask = 0xff << shift
+        w[wordIndex] = (w[wordIndex] & ~mask) | ((line ? GRID_CLR : GROUND_CLR) << shift)
       }
     }
   }

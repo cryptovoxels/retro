@@ -169,13 +169,10 @@ async function main() {
     const raw = window.localStorage.getItem('graphicSettings')
     const graphicSettings = raw ? JSON.parse(raw) : null
     if (graphicSettings?.raycaster && navigator.gpu) {
-      // above the page header and push panel, which otherwise paint over the canvas
-      canvas.style.cssText = 'display:block;position:fixed;inset:0;width:100vw;height:100vh;z-index:2147483646;touch-action:none;'
-      document.documentElement.style.overflow = 'hidden'
       const { bootRaycast } = await import('./raycast/boot')
       await bootRaycast(canvas)
-      // hang — Client never mounts the babylon UI; canvas owns the page
-      return new Promise<BootResult>(() => {})
+      // stub UI so <Client> still adopts #renderCanvas into .client-canvas / .client-world
+      return { UI: (() => null) as any, props: {} as any }
     }
   } catch (e) {
     console.error('raycaster boot failed, falling through to babylon', e)

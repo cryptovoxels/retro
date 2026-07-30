@@ -128,7 +128,6 @@
     "express-rate-limit": "^6.7.1",
     "express-static-gzip": "^2.1.7",
     "express-winston": "^4.1.0",
-    "fastnoise-lite": "^1.1.1",
     "fflate": "^0.8.0",
     "file-type": "^22.0.0",
     "flatbush": "^4.6.2",
