@@ -121,20 +121,19 @@ export default class WebHeader extends Component<Props, State> {
               {signedIn && <A to="/account/womps">My womps</A>}
               <li>
                 <a href="https://discord.gg/3RSCZGr3fr" target="_blank" rel="noopener">
-                  Discord
+                  &rarr; Discord
                 </a>
               </li>
               <li>
                 <a href="https://www.x.com/cryptovoxels" target="_blank" rel="noopener">
-                  Twitter
+                  &rarr; Twitter
                 </a>
               </li>
               <li>
                 <a href="https://github.com/cryptovoxels/retro" target="_blank" rel="noopener">
-                  Github
+                  &rarr; Github
                 </a>
               </li>
-              <A to="/search">Search</A>
               <A to="/radio">Radio</A>
               <A to="/conduct">Conduct</A>
               <A to="/behaviours">Behaviours</A>

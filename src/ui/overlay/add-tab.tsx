@@ -75,12 +75,10 @@ export default class AddTab extends Component<Props, any> {
     }
 
     return (
-      <li className={!this.isSelectable(feature.type) && ('selectable' as any)} onClick={() => this.spawn({ ...featureTemplates[feature.type] })}>
-        <div className={'middle-container'}>
+      <li>
+        <a href="#" onClick={() => this.spawn({ ...featureTemplates[feature.type] })}>
           {feature.title}
-          <small>{feature.subtitle}</small>
-        </div>
-        {this.metaText(feature.type)}
+        </a>
       </li>
     )
   }

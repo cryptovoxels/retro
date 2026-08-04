@@ -56,9 +56,9 @@ export default class Privacy extends Component<any, any> {
 
     return (
       <section>
-        <Head title={'Privacy Policy'} />
+        <Head title="Privacy Policy" />
 
-        <h3>Privacy Policy</h3>
+        <h1>Privacy Policy</h1>
 
         <p>
           By using Voxels you agree to the privacy policy below, and the <a href="/conduct">Code of Conduct</a>

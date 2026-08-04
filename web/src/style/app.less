@@ -947,7 +947,7 @@ div.map {
 
 .client-slot {
   width: 100%;
-  height: 80vh;
+  height: 100vh;
 }
 
 .client {
@@ -2521,7 +2521,7 @@ dl.deets {
 
 // The in-world skin only applies under body.in-world (toggled by Client.adopt/unmount).
 // Keep element resets inside .client so parcel/embed page HTML (about/map sidebar) stays intact.
-body.in-world {
+body.x-in-world {
   #babylonUnmuteIconBtn {
     left: 60px !important;
   }
@@ -2611,22 +2611,20 @@ button.iconish {
 
     a,
     u {
-      display: block;
-      text-decoration: none;
+      opacity: 0.8;
+      display: inline-block;
       cursor: pointer;
-      text-shadow: 1px 1px 1px var(--bg);
-
-      &:hover {
-        text-decoration: underline;
-        font-weight: bold;
-      }
+      background: white;
+      box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
+      border-radius: 0.8rem;
+      padding: 0.1rem 0.5rem;
     }
 
     .active a,
     .active u {
       text-decoration: underline;
       font-weight: bold;
-      color: var(--red);
+      color: unset;
     }
   }
 
@@ -2656,13 +2654,10 @@ main > aside section {
 
 /* Chat */
 .UserInterface div.chat {
-  position: fixed;
-  bottom: 0;
-  left: 0;
+  position: absolute;
+  bottom: 0.5rem;
+  left: 0.5rem;
   z-index: 100;
-  color: var(--fg);
-  margin: 0 0 4px 0;
-  padding: 4px;
   display: flex;
   flex-direction: column;
   pointer-events: none;
@@ -2691,21 +2686,9 @@ main > aside section {
     }
   }
 
-  .chat-messages.at-cap {
-    mask-image: linear-gradient(to bottom, transparent 0, var(--bg) 40px);
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0, var(--bg) 40px);
-  }
-
   p {
-    margin: 0 0.6rem;
-
-    span {
-      padding: 2px 0.4rem;
-      text-shadow: 1px 1px 1px var(--bg);
-      background: #0005;
-    }
+    margin: 0 0.8rem;
   }
-
   form {
     padding: 0 0.5rem;
     display: flex;
@@ -2719,41 +2702,6 @@ main > aside section {
 
     input {
       font-size: 1rem;
-    }
-  }
-}
-
-// Mobile: chat is a full-width bar pinned to the bottom of the screen.
-// Messages float above the input over the canvas; the canvas is shrunk by --chatbar.
-@media @narrow {
-  .UserInterface div.chat {
-    margin: 0;
-    padding: 0;
-
-    .chat-messages {
-      pointer-events: none;
-      max-height: 30vh;
-      overflow: hidden;
-      margin: 0;
-      padding: 0.25rem 0.5rem;
-
-      // float text over the canvas: no bubble, lean on the text-shadow for legibility
-      p span {
-        background: transparent;
-      }
-    }
-
-    form {
-      pointer-events: auto;
-      width: 100%;
-      margin: 0;
-      padding: 0.4rem 0.5rem;
-      box-sizing: border-box;
-      background: rgba(0, 0, 0, 0.5);
-
-      input {
-        flex: 1;
-      }
     }
   }
 }
@@ -3385,52 +3333,18 @@ section.build-tab nav.build-main-tabs {
     }
   }
 
-  .add-buttons li {
+  ul,
+  li {
     list-style: none;
-    margin: 0 0 2px 0;
-    padding: 8px 0 8px 20px;
-    position: relative;
-    display: flex;
-
-    &.selectable {
-      cursor: pointer;
-
-      &:hover {
-        background: #555;
-      }
-
-      .meta {
-        opacity: 0.3;
-        color: var(--fg);
-        font-weight: normal;
-      }
-    }
-
-    img {
-      width: 24px;
-      position: absolute;
-      left: 4px;
-      top: 8px;
-      filter: grayscale() brightness(1.5) contrast(2);
-    }
-
-    small {
-      display: block;
-      color: var(--fg) 7;
-      margin: 0;
-    }
-
-    .middle-container {
-      width: 71%;
-    }
-
-    .meta {
-      color: #dd0000;
-      font-size: smaller;
-      position: absolute;
-      top: 10px;
-      right: 4px;
-    }
+    margin: 0;
+    padding: 0;
+  }
+  li a {
+    display: block;
+    border-top: var(--border);
+    list-style: none;
+    margin: 0;
+    padding: 0.5rem 1rem;
   }
 }
 

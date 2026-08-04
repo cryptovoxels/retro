@@ -5,6 +5,7 @@ import { useListControls } from './components/list-controls'
 import { Spinner } from './spinner'
 import { fetchOptions } from './utils'
 import { Collection } from '../../common/helpers/collections-helpers'
+import { truncate } from './lib/string-utils'
 
 const LIMIT = 100
 
@@ -36,51 +37,31 @@ export default function ListCollections({ path }: { path?: string }) {
 
   const rows = collections.map((c) => (
     <tr key={c.id}>
+      <td>{c.total_wearables}</td>
       <td>
         <a href={`/collections/${c.id}`}>{c.name}</a>
-        <br />
-        <small>{c.description}&nbsp;</small>
       </td>
-      <td>{c.total_wearables}</td>
+      <td>
+        <small>{truncate(c.description || '', 100)}</small>
+      </td>
     </tr>
   ))
 
   return (
     <section class="columns">
       <article>
-        <Head title="Collections" url="/collections" description="Asset and wearable collections made by users" />
+        <h1>Collections</h1>
+
         {controlsEl}
 
         <table>
-          <thead>
-            <tr>
-              <th scope="col" style="width:70%">
-                Name
-              </th>
-              <th scope="col" style="width:10%">
-                Collectibles
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr>
-                <td colSpan={2}>
-                  <Spinner />
-                </td>
-              </tr>
-            ) : collections.length > 0 ? (
-              rows
-            ) : (
-              'No collections found.'
-            )}
-          </tbody>
+          <tbody>{rows}</tbody>
         </table>
-      </article>
 
-      <aside>
-        <a href="/collections/new">New collection</a>
-      </aside>
+        <p>
+          <a href="/collections/new">New collection</a>
+        </p>
+      </article>
     </section>
   )
 }
