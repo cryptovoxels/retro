@@ -3,6 +3,7 @@ import Cookies from 'js-cookie'
 import { signal } from '@preact/signals'
 import { avatarName, type AvatarRef } from '../../common/messages/avatar-ref'
 import * as messages from '../../common/messages'
+import { messageList } from '../../src/connector'
 import { app } from './state'
 
 const clientUUID = uuid()
@@ -32,6 +33,15 @@ function entityDecode(str: string) {
   return converter.value
 }
 
+/** Feed ChatPanel when the world connector is not mounted (/chat without coords). */
+function pushMessageList(text: string, avatarRef?: AvatarRef) {
+  if ((window as any).connector) return
+  const list = messageList.value.slice()
+  list.push({ avatar: undefined, avatarRef: avatarRef ?? 'anon', text, timestamp: Date.now() })
+  while (list.length > 1000) list.shift()
+  messageList.value = list
+}
+
 function socketUrl() {
   if (process.env.NODE_ENV === 'development') {
     return `ws://localhost:3780/socket?client_uuid=${clientUUID}`
@@ -56,6 +66,9 @@ function send(message: messages.Message) {
 export function connectShardChat() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return ws
 
+  // clear before open so a fast Send is not wiped by history replay setup
+  if (!(window as any).connector) messageList.value = []
+
   ws = new WebSocket(socketUrl())
   ws.binaryType = 'arraybuffer'
 
@@ -75,6 +88,7 @@ export function connectShardChat() {
       const text = entityDecode(m.text)
       const who = chatLineName(m.avatar)
       chatMessages.value = [...chatMessages.value, { text, uuid: m.uuid, who }]
+      pushMessageList(text, m.avatar ?? who)
     } catch {}
   }
 
@@ -99,6 +113,7 @@ export function sendChat(text: string) {
   const who = (app.state.name || '').trim() || 'anon'
   // mp publish skips the sender - show our line locally so reply feels instant
   chatMessages.value = [...chatMessages.value, { text: trimmed, who }]
+  pushMessageList(trimmed, who)
   send({
     type: messages.MessageType.chat,
     id: '',

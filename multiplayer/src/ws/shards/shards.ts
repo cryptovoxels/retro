@@ -53,6 +53,23 @@ export default async function createShards(
     jwtSecret,
     onRadarEvent,
   })
+  try {
+    const { rows } = await connection.query<{ id: string; uuid: string; text: string; avatar: unknown }>(
+      'chat/load-recent',
+      `SELECT id, uuid, text, avatar FROM chat_messages ORDER BY created_at DESC LIMIT 1000`,
+    )
+    for (const row of rows.reverse()) {
+      worldShard.recentChat.push({
+        type: MessageType.chat,
+        id: row.id,
+        uuid: row.uuid,
+        text: row.text,
+        avatar: (row.avatar as any) ?? undefined,
+      })
+    }
+  } catch (err) {
+    console.error('failed to load chat history', err)
+  }
   const spaceShards = new Map<SpaceId, Shard>()
 
   const interval = setInterval(() => {

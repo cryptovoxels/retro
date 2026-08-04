@@ -208,6 +208,16 @@ export class Client {
     this.shard.recentChat.push(stamped)
     if (this.shard.recentChat.length > MAX_RECENT_CHAT) this.shard.recentChat.shift()
     this.shard.broadcastFromClient(stamped, data, this.clientUUID)
+    if (this.shard.id === 'world') {
+      this.connection
+        .query('chat/insert', `INSERT INTO chat_messages (id, uuid, text, avatar) VALUES ($1, $2, $3, $4)`, [
+          stamped.id,
+          stamped.uuid,
+          stamped.text,
+          stamped.avatar != null ? JSON.stringify(stamped.avatar) : null,
+        ])
+        .catch((err) => console.error('chat persist failed', err))
+    }
   }
 
   private handlePing(): void {

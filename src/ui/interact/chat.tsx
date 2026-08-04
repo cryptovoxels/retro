@@ -9,6 +9,7 @@ import { Emojis, replaceEmojiText, replaceEmoticonsAndEmojiText } from '../../..
 import { Emotes } from '../../../common/messages/constant'
 import { avatarName } from '../../../common/messages/avatar-ref'
 import { PanelType } from '../../../web/src/components/panel'
+import { sendChat } from '../../../web/src/shard-chat'
 import { app } from '../../../web/src/state'
 import Avatar from '../../avatar'
 import Connector, { ChatMessageRecord, messageList } from '../../connector'
@@ -287,11 +288,15 @@ const ChatInput = ({ keepFocus }: { keepFocus?: boolean }) => {
   }
 
   const say = (e: Event) => {
+    e.preventDefault()
     const msg = currentMessage
-    setMessage('')
+    if (!msg?.trim()) return
 
-    if (msg && window.connector) {
+    if (window.connector) {
+      setMessage('')
       window.connector.sendMessage(msg)
+    } else if (sendChat(msg)) {
+      setMessage('')
     }
 
     if (keepFocus) {
@@ -299,7 +304,6 @@ const ChatInput = ({ keepFocus }: { keepFocus?: boolean }) => {
     } else {
       blur()
     }
-    e.preventDefault()
   }
 
   const blur = () => {

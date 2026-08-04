@@ -5,7 +5,7 @@ import cachedFetch, { invalidateUrl } from './helpers/cached-fetch'
 import { app, AppEvent } from './state'
 import { fetchOptions } from './utils'
 
-type Post = { slug: string; title: string; body: string; author: string; created_at: string }
+type Post = { slug: string; title: string; body: string; author: string; created_at: string; replies?: number }
 
 export default function Blog(_props: { path?: string }) {
   const [posts, setPosts] = useState<Post[]>([])
@@ -90,9 +90,7 @@ export default function Blog(_props: { path?: string }) {
                 {/* number of replies, placeholder for now */}
                 {typeof p.replies === 'number' ? p.replies : 0}
               </td>
-              <td>
-                {new Date(p.created_at).toLocaleDateString()}
-              </td>
+              <td>{new Date(p.created_at).toLocaleDateString()}</td>
             </tr>
           ))}
         </tbody>

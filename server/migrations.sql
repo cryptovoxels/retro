@@ -309,3 +309,14 @@ SELECT apply_migration('blog-posts-to-posts', $$
     END IF;
   END $d$;
 $$);
+
+SELECT apply_migration('chat-messages', $$
+  CREATE TABLE IF NOT EXISTS chat_messages (
+    id text PRIMARY KEY,
+    uuid text NOT NULL,
+    text text NOT NULL,
+    avatar jsonb,
+    created_at timestamptz NOT NULL DEFAULT now()
+  );
+  CREATE INDEX IF NOT EXISTS chat_messages_created_at_idx ON chat_messages (created_at DESC);
+$$);
