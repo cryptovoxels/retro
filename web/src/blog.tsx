@@ -72,13 +72,31 @@ export default function Blog(_props: { path?: string }) {
         </form>
       )}
 
-      <ul>
-        {posts.map((p) => (
-          <li key={p.slug}>
-            <a href={`/blog/${p.slug}`}>{p.title}</a> <span>{new Date(p.created_at).toLocaleDateString()}</span>
-          </li>
-        ))}
-      </ul>
+      <table>
+        <thead>
+          <tr>
+            <th>title</th>
+            <th>replies</th>
+            <th>date</th>
+          </tr>
+        </thead>
+        <tbody>
+          {posts.map((p) => (
+            <tr key={p.slug}>
+              <td>
+                <a href={`/blog/${p.slug}`}>{p.title}</a>
+              </td>
+              <td>
+                {/* number of replies, placeholder for now */}
+                {typeof p.replies === 'number' ? p.replies : 0}
+              </td>
+              <td>
+                {new Date(p.created_at).toLocaleDateString()}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </section>
   )
 }

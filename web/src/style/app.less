@@ -15,8 +15,6 @@
   --gap: 0.2rem;
   --bg: #f3f3f3;
   --fg: #555;
-  --surface: #1a1a1a;
-  --surface-2: #222;
   --line: #333;
   --line-trans: #333a;
   --scroll-track: #444;
@@ -37,7 +35,6 @@
   --semi: rgba(13, 13, 13, 0.85);
   --bright: var(--fg);
   --dark: var(--bg);
-  --tinge: var(--surface);
   --chatbar: 3rem;
 }
 
@@ -819,7 +816,6 @@ button.hamburger {
     aspect-ratio: 16 / 9;
     object-fit: cover;
     display: block;
-    background: var(--surface-2);
   }
 
   span {
@@ -902,8 +898,7 @@ div.map {
     flex-direction: column;
     gap: 0.25rem;
     padding: 0.5rem;
-    background: var(--surface);
-    border: 1px solid var(--line);
+    border: var(--border);
   }
 
   .chat-line {
@@ -939,13 +934,9 @@ div.map {
     gap: 0.5rem;
     flex-shrink: 0;
     padding-top: 0.5rem;
-    border-top: 1px solid var(--line);
 
     input {
       flex: 1;
-      background: var(--surface);
-      color: inherit;
-      border: 1px solid var(--line);
       padding: 0.5rem;
     }
 
@@ -967,7 +958,6 @@ body.in-world.chat-route main > aside .chat-page {
 body.in-world.chat-route main > aside .chat-page h1 {
   position: sticky;
   top: 0;
-  background: var(--surface-2);
   padding: 0.5rem 0;
   margin: 0 0 0.5rem 0;
   z-index: 1;
@@ -1886,7 +1876,6 @@ table.spaces {
   input[type='text'],
   select {
     width: 100%;
-    background: var(--surface);
     color: var(--fg);
     border: 1px solid var(--line);
     padding: 8px;
@@ -2101,8 +2090,6 @@ table.spaces {
   flex: 1 1 auto;
   min-height: 64px;
   overflow-y: auto;
-  background: var(--surface);
-  border: 1px solid var(--line);
   padding: 8px;
   font-size: 14px;
   line-height: 1.4;
@@ -2135,7 +2122,6 @@ table.spaces {
 
   input {
     flex: 1;
-    background: var(--surface);
     color: var(--fg);
     border: 1px solid var(--disabled);
     padding: 10px 8px;
@@ -2155,7 +2141,6 @@ table.spaces {
 }
 
 .showbox-dock-share-block {
-  border-top: 1px solid var(--surface-2);
   padding: 8px 0;
   display: flex;
   flex-direction: column;
@@ -2235,13 +2220,11 @@ table.spaces {
   top: 100%;
   left: 0;
   right: 0;
-  background: var(--surface);
   border: 1px solid var(--line);
   margin-top: 2px;
   z-index: 6;
 
   button {
-    background: var(--surface);
     color: var(--fg);
     border: 0;
     padding: 8px;
@@ -2328,7 +2311,6 @@ table.spaces {
     &:hover,
     &:focus,
     &:active {
-      background: var(--surface);
       color: var(--fg);
       outline: none;
     }
@@ -3027,7 +3009,6 @@ main > aside section.settings,
     dd {
       margin: 0;
       padding: 4px 6px;
-      border-bottom: 1px solid var(--surface-2);
       align-self: center;
     }
 
@@ -3085,7 +3066,6 @@ main > aside section.settings,
       grid-column: 1 / -1;
       grid-template-columns: 38% 1fr;
       padding: 0;
-      border-bottom: 1px solid var(--surface-2);
 
       form {
         display: contents;
@@ -3136,7 +3116,6 @@ main > aside section.settings,
       grid-column: 1 / -1;
       display: grid;
       grid-template-columns: 38% 1fr;
-      border-bottom: 1px solid var(--surface-2);
 
       > label {
         color: var(--border-color);
@@ -3372,8 +3351,6 @@ main > aside .editor ul.toolbar,
   gap: 0;
 
   li button {
-    background: var(--surface-2);
-    color: var(--fg);
     border: 1px solid #555;
     margin-left: 2px;
 
@@ -3651,8 +3628,6 @@ section.build-tab nav.build-main-tabs {
   > button {
     padding: 4px 8px;
     text-decoration: none;
-    background: var(--surface-2);
-    color: var(--fg);
     font: inherit;
     font-size: smaller;
     border: 1px solid #555;
