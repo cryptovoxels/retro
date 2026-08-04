@@ -26,7 +26,6 @@
   "scripts": {
     "mp": "concurrently -k \"npm run watch-css\" \"npm run webpack:start\" \"npm run multiplayer:dev\"",
     "dev": "NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_ENV=development concurrently -k \"npm run watch-css\" \"npm run server:dev\" \"npm run webpack:web:start\" \"npm run multiplayer:dev\"",
-    "dev:scratchpad": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/dev-scratchpad.ps1",
     "dev:stable": "NODE_TLS_REJECT_UNAUTHORIZED=0 NODE_ENV=development concurrently -k \"npm run watch-css\" \"npm run webpack:server:stable\" \"npm run webpack:web:start\" \"npm run multiplayer:dev\"",
     "server:dev": "tsx --watch server/boot.ts",
     "server:start": "tsx server/boot.ts",

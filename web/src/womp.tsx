@@ -100,11 +100,6 @@ export default class Womp extends Component<Props, State> {
   }
 
   renderAside(img: string) {
-    const onZoom = () => {
-      const el = document.querySelector('img.womp') as HTMLImageElement
-      if (el) el.requestFullscreen()
-    }
-
     return (
       <>
         <dl>
@@ -121,8 +116,6 @@ export default class Womp extends Component<Props, State> {
           <dt>Created at</dt>
           <dd>{new Date(this.state.womp.created_at).toLocaleString()}</dd>
         </dl>
-
-        <img src={img} class="womp" onClick={onZoom} />
 
         {this.state.womp.content && <p>{this.state.womp.content}</p>}
 
@@ -143,21 +136,14 @@ export default class Womp extends Component<Props, State> {
 
     const img = this.state.womp.image_url
     const name = this.state.womp.author ? avatarName(this.state.womp.author) : null
-    const metaTitle = name ? `Captured by ${name}` : `Captured at ${this.state.womp.parcel_name || this.state.womp.space_name}`
-
-    const head = (
-      <Head title={metaTitle} url={`/womps/${this.state.womp.id}`} description={this.state.womp.content || `This womp ${this.state.womp.id} was captured at ${this.state.womp.parcel_name || this.state.womp.space_name}`} imageURL={img}>
-        <script id="womp-json" data-womp-id={this.state.womp.id} type="application/json">
-          {JSON.stringify(this.state.womp)}
-        </script>
-      </Head>
-    )
+    const title = this.state.womp.title ? this.state.womp.title : `Womp ${this.state.womp.id}`
 
     return (
       <section class="columns">
         <article>
-          {head}
-          <div class="client-slot" />
+          <h1>{title}</h1>
+
+          <img src={img} class="womp" />
         </article>
         <aside>{this.renderAside(img)}</aside>
       </section>

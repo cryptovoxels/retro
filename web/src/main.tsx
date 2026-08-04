@@ -117,7 +117,6 @@ const Main = () => {
             {AppRoutes()}
             <RadioPopout path="/radio" />
             <Play path="/play" />
-            <Play path="/scratchpad" />
             <Play path="/spaces/:id/play" />
             <Play path="/assets/:id/play" />
             <AccountRoutes path="/account/:path*" />

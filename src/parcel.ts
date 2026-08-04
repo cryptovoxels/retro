@@ -373,7 +373,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   get sandbox() {
-    return this.kind == 'scratchpad' || this.settings.sandbox === true
+    return this.settings.sandbox === true
   }
 
   get hostedScripts() {

@@ -14,8 +14,6 @@ import Toggle from '../web/src/components/toggle'
 import { app, AppEvent } from '../web/src/state'
 import { KeyboardHandler } from './components/keyboard-handler'
 import { OnlyMobile } from './components/utils'
-import { Animations } from './avatar-animations'
-import { EmoteAnimation } from './states'
 import Connector, { messageList } from './connector'
 import DesktopControls from './controls/desktop/controls'
 import { Environment } from './enviroments/environment'
@@ -25,8 +23,6 @@ import type { FeatureTemplate } from './features/_metadata'
 import type Grid from './grid'
 import type { MinimapSettings } from './minimap'
 import Parcel from './parcel'
-import { isScratchpad } from './scene-config'
-import { onLoadPromise } from './utils/loading-done'
 import {
   selectCurrentOrNearestParcel,
   selectCurrentParcel,
@@ -59,7 +55,6 @@ import { ChatOverlay, chatSettings } from './ui/interact/chat'
 import { voiceSettings } from './voice-settings'
 import { EmoteOverlay } from './ui/interact/emote'
 import { HelpOverlay } from './ui/interact/help'
-import { ScratchpadGuide, ScratchpadGuideMini } from './ui/scratchpad-guide'
 import { FirstTimeInstructions } from '../web/src/components/first-time-instructions'
 import { BroadcastSidebarTab } from '../web/src/broadcast-sidebar-tab'
 import { ShowboxBroadcastPane } from '../web/src/showbox-broadcast-pane'
@@ -149,10 +144,6 @@ type UserInterfaceState = {
   active: boolean
   /** Shown next to minimap expand; same source as Explore radar */
   onlineCount: number
-  scratchpadGuideOpen?: boolean
-  scratchpadGuideMini?: boolean
-  scratchpadGuideRestart?: boolean
-  scratchpadGuideKey?: number
   chatEnabled: boolean
   dragging?: boolean
   voice?: 'off' | 'live' | 'muted'
@@ -357,11 +348,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       }
     }
 
-    onLoadPromise.then(() => {
-      if (!isScratchpad() || isMobileMedia()) return
-      this.setState({ scratchpadGuideOpen: true, scratchpadGuideMini: false, scratchpadGuideRestart: false })
-    })
-
     chatSettings.addEventListener('changed', this.onChatSettingsChange)
     voiceSettings.addEventListener('changed', this.onVoiceSettingsChange)
 
@@ -391,42 +377,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       return
     }
     this.setState({ voiceEnabled: true })
-  }
-
-  enterScratchpadGuideMini = () => {
-    exitPointerLock()
-    uiPane.value = 'add'
-    this.setState({ pane: 'add', active: true, scratchpadGuideMini: true })
-  }
-
-  celebrateScratchpadGuideComplete = () => {
-    exitPointerLock()
-    this.connector.emote('🔥')
-    this.connector.persona.popState(this.connector.controls)
-    this.connector.persona.setState({ state: new EmoteAnimation(Animations.Dance) }, this.connector.controls)
-    this.setState({ scratchpadGuideOpen: false, scratchpadGuideMini: false, scratchpadGuideRestart: true })
-  }
-
-  restartScratchpadGuide = () => {
-    uiPane.value = undefined
-    this.setState({
-      scratchpadGuideMini: false,
-      scratchpadGuideKey: (this.state.scratchpadGuideKey || 0) + 1,
-      pane: undefined,
-      active: false,
-    })
-  }
-
-  openScratchpadGuide = () => {
-    uiPane.value = undefined
-    this.setState({
-      scratchpadGuideOpen: true,
-      scratchpadGuideMini: false,
-      scratchpadGuideRestart: false,
-      scratchpadGuideKey: (this.state.scratchpadGuideKey || 0) + 1,
-      pane: undefined,
-      active: false,
-    })
   }
 
   updateCanEdit = () => {}
@@ -503,13 +453,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         { code: 'Escape', handleEvent: () => this.onEscape() },
         {
           code: 'Tab',
-          handleEvent: (e) => {
-            if (isScratchpad() && this.state.scratchpadGuideOpen) {
-              e.preventDefault()
-              this.setPane('add')
-              return
-            }
-
+          handleEvent: () => {
             if (this.state.pane) return
 
             if (!this.state.active) {
@@ -538,11 +482,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   setPane(pane: UIPanes) {
-    if (isScratchpad() && this.state.scratchpadGuideOpen && pane === 'add') {
-      this.enterScratchpadGuideMini()
-      return
-    }
-
     // opening a pane always reveals the sidebar; if it was collapsed, reveal instead of toggling shut
     const wasCollapsed = sidebarClosed.value
     sidebarClosed.value = false
@@ -844,7 +783,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return <TakeWomp coords={w.coords} parcel={w.parcel} image={w.image} scene={this.props.scene} onClose={closeTakeWomp} />
       }
       case 'help':
-        return <HelpOverlay scene={this.props.scene} onShowScratchpadGuide={isScratchpad() ? this.openScratchpadGuide : undefined} />
+        return <HelpOverlay scene={this.props.scene} />
       case 'explorer':
         return <ExplorerUI scene={this.props.scene} initialTab={this.explorerPaneInitialTab.current!} />
       case 'bake':
@@ -1001,16 +940,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
             {this.state.chatEnabled && !location.pathname.startsWith('/chat') && <ChatOverlay scene={this.props.scene} />}
           </aside>
-
-          {this.state.scratchpadGuideOpen && !this.state.scratchpadGuideMini && <ScratchpadGuide key={this.state.scratchpadGuideKey || 0} voxelTool={this.voxelTool} onComplete={this.celebrateScratchpadGuideComplete} />}
-
-          {this.state.scratchpadGuideOpen && this.state.scratchpadGuideMini && <ScratchpadGuideMini onGotIt={this.celebrateScratchpadGuideComplete} onStartOver={this.restartScratchpadGuide} />}
-
-          {!this.state.scratchpadGuideOpen && this.state.scratchpadGuideRestart && isScratchpad() && (
-            <button type="button" class="scratchpad-guide-restart linkish" onClick={this.openScratchpadGuide}>
-              start over
-            </button>
-          )}
 
           {nearestEditableParcel && <ToolBelt parcel={nearestEditableParcel} scene={this.props.scene} />}
 

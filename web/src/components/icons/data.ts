@@ -92,15 +92,6 @@ const RAW_ICONS = {
     .#.#.
   `,
 
-  // pencil / notepad
-  scratchpad: `
-    ####.
-    #..#.
-    #..##
-    ####.
-    ...#.
-  `,
-
   // arrow pointing right out of a doorway
   logout: `
     ###..

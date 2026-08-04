@@ -20,7 +20,6 @@ import { isOwner } from './lib/helpers'
 import AdminController from './controllers/admin'
 import GuestPassesController from './controllers/guest-passes'
 import { livekitService } from './controllers/livekit'
-import ScratchpadController from './controllers/scratchpad'
 import CollectiblesController from './controllers/collectibles'
 import CollectionsController from './controllers/collections'
 import FavoritesController from './controllers/favorites'
@@ -343,9 +342,6 @@ GuestPassesController(db, passport, app, livekitService, gridSocket)
 
 // The NFTs
 NftController(db, passport, app)
-
-// Scratchpad for all users
-ScratchpadController(app)
 
 // Models (LLM utilities)
 ModelsController(app)

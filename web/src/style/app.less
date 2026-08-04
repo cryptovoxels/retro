@@ -4,8 +4,6 @@
 @narrow: ~'(max-width: 50em)'; // ~800px
 @wide: ~'(min-width: 50em)';
 @dark: ~'(prefers-color-scheme: dark)';
-
-@dark: ~'prefers-color-scheme: dark';
 @multiplier: 0.5;
 
 // vars
@@ -530,6 +528,7 @@ select {
 
 img {
   max-width: 100%;
+  max-height: 85vh;
 }
 
 @media @narrow {
@@ -944,23 +943,6 @@ div.map {
       padding: 0.5rem 1rem;
     }
   }
-}
-
-body.in-world.chat-route main {
-  grid-template-columns: 1fr clamp(24rem, 40%, 40rem);
-}
-
-body.in-world.chat-route main > aside .chat-page {
-  height: 100%;
-  padding: 0;
-}
-
-body.in-world.chat-route main > aside .chat-page h1 {
-  position: sticky;
-  top: 0;
-  padding: 0.5rem 0;
-  margin: 0 0 0.5rem 0;
-  z-index: 1;
 }
 
 .client-slot {
@@ -2540,8 +2522,6 @@ dl.deets {
 // The in-world skin only applies under body.in-world (toggled by Client.adopt/unmount).
 // Keep element resets inside .client so parcel/embed page HTML (about/map sidebar) stays intact.
 body.in-world {
-  color-scheme: dark;
-
   #babylonUnmuteIconBtn {
     left: 60px !important;
   }
@@ -4037,93 +4017,6 @@ form.PermissionsRadioSelector > div {
   }
 }
 
-/* Scratchpad guide */
-.scratchpad-guide {
-  left: 12rem;
-  bottom: 7rem;
-  z-index: 600;
-  max-width: 14rem;
-  padding: 0.75rem 1rem;
-  background: rgba(0, 0, 0, 0.55);
-  color: var(--fg);
-  text-shadow: 1px 1px 1px var(--bg);
-
-  .scratchpad-guide-head {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-    margin-bottom: 0.5rem;
-    gap: 1rem;
-  }
-
-  ul {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-  }
-
-  li {
-    margin: 0.25rem 0;
-
-    &.done,
-    &.skipped {
-      opacity: 0.45;
-    }
-  }
-
-  .mark {
-    display: inline-block;
-    width: 1.75rem;
-    font-family: monospace;
-  }
-
-  .hint {
-    margin: 0.25rem 0 0.25rem 1.75rem;
-    color: var(--border-color);
-  }
-
-  button.linkish {
-    margin-left: 1.75rem;
-    background: none;
-    border: none;
-    color: var(--border-color);
-    cursor: pointer;
-    padding: 0;
-    text-decoration: underline;
-
-    &:hover {
-      color: #eee;
-    }
-  }
-
-  &.scratchpad-guide-mini {
-    left: 50%;
-    transform: translateX(-50%);
-    max-width: none;
-    display: flex;
-    gap: 1rem;
-    align-items: center;
-    padding: 0.5rem 1rem;
-
-    button.linkish {
-      margin-left: 0;
-      color: var(--fg);
-    }
-  }
-}
-
-.scratchpad-guide-restart {
-  left: 12rem;
-  bottom: 7rem;
-  z-index: 600;
-  padding: 0.5rem 0.75rem;
-  background: rgba(0, 0, 0, 0.55);
-  color: var(--fg);
-  text-shadow: 1px 1px 1px var(--bg);
-  border: none;
-  cursor: pointer;
-}
-
 /* Help */
 .help-overlay {
   * {
@@ -4175,18 +4068,6 @@ form.PermissionsRadioSelector > div {
       display: inline-block;
       margin: 0;
     }
-  }
-
-  .scratchpad-help-steps {
-    margin: 0 0 1rem 1.25rem;
-    padding: 0;
-    line-height: 1.5;
-  }
-
-  .scratchpad-help-outro {
-    margin: 0 0 1rem 0;
-    color: var(--border-color);
-    font-size: 0.9em;
   }
 }
 

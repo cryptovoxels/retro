@@ -115,7 +115,7 @@ export const blackbody = (temperature: number) => {
 
 let costumerVoidShaderRegistered = false
 
-/** Full-canvas sky for costumer (replaces scratchpad-style Wobble). */
+/** Full-canvas sky for costumer. */
 export function registerCostumerVoidBackground(): void {
   if (costumerVoidShaderRegistered) {
     return
@@ -259,7 +259,7 @@ export function setupScene(canvas: HTMLCanvasElement, engine: BABYLON.Engine, on
   return scene
 }
 
-/** Infinite-ish studio floor; same tile density idea as scratchpad (128 plane, 1024 repeats). */
+/** Infinite-ish studio floor (128 plane, 1024 repeats). */
 function addCostumerGround(scene: BABYLON.Scene): void {
   if (scene.getMeshByName('costumer/ground')) {
     return

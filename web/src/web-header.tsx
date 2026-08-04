@@ -106,7 +106,6 @@ export default class WebHeader extends Component<Props, State> {
               <A to="/spaces">Spaces</A>
               <A to="/womps">Womps</A>
               <A to="/events">Events</A>
-              <A to="/scratchpad">Scratchpad</A>
               <A to="/chat">Chat</A>
               <A to="/golive">Go live</A>
               {signedIn && <A to="/mail">Mail</A>}

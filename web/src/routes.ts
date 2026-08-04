@@ -72,7 +72,6 @@ export const routes: RouteDef[] = [
   { path: '/costumes/', server: '/costumes/', cache: '30 seconds' },
   { path: '/metrics', server: '/metrics', cache: false },
   { path: '/radio', server: '/radio' },
-  { path: '/scratchpad', server: '/scratchpad' },
 ]
 
 type ShellRoute = { path: string; cache: string | false }
