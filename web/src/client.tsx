@@ -78,8 +78,11 @@ export class Client extends Component<FrameProps, FrameState> {
 
     if (this.watch) clearInterval(this.watch)
     this.watch = setInterval(() => {
+      if (!getCoords()) return
+      const m = location.pathname.match(/^\/parcels\/(\d+)$/)
+      if (!m) return
       const id = window.grid?.currentParcel()?.id
-      if (getCoords() && id) syncParcelUrl(id)
+      if (id && id !== parseInt(m[1], 10)) syncParcelUrl(id)
     }, 200)
   }
 

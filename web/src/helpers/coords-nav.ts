@@ -61,7 +61,7 @@ export function syncParcelUrl(id: number) {
   const u = new URL(location.href)
   u.pathname = `/parcels/${id}`
   u.searchParams.delete('parcel')
-  route(u.pathname + u.search, true)
+  history.replaceState(null, '', u.pathname + u.search)
   notifyParcelChange()
 }
 
