@@ -52,3 +52,4 @@ parcels.ndjson
 dist/world-dump.mjs
 world.db-shm
 world.db-wal
+/dist/poneke
