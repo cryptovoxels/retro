@@ -12,8 +12,8 @@ const WALK_SPEED = 4.5
 const WALK_SPRINT = 2
 const JUMP = 7
 const GRAVITY = -20
+const DEATH_SPEED = 14
 const PHYS_RANGE = 2 // lod0 chunk columns around camera
-const FALL_Y = -20
 
 export type PhysMode = 'fly' | 'walk'
 
@@ -33,6 +33,7 @@ let controller: RAPIER.KinematicCharacterController | null = null
 let ready = false
 let vy = 0
 let jumpLatch = false
+let fatal = false
 const cols = new Map<string, ChunkCol>()
 const pending: string[] = []
 const pendingSet = new Set<string>()
@@ -213,6 +214,7 @@ export type MoveInput = {
 
 /** apply character movement; returns new eye position. fail-soft if not ready. */
 export function move(dt: number, eye: [number, number, number] | Float32Array, input: MoveInput): [number, number, number] {
+  fatal = false
   if (!ready || !world || !body || !capsule || !controller || dt <= 0) {
     return [eye[0] + input.wish[0] * input.speed * dt, eye[1] + input.wish[1] * input.speed * dt, eye[2] + input.wish[2] * input.speed * dt]
   }
@@ -247,7 +249,10 @@ export function move(dt: number, eye: [number, number, number] | Float32Array, i
   controller.computeColliderMovement(capsule, { x: dx, y: dy, z: dz })
   const m = controller.computedMovement()
   if (input.mode === 'walk') {
-    if (controller.computedGrounded() && vy < 0) vy = 0
+    if (controller.computedGrounded() && vy < 0) {
+      fatal = vy < -DEATH_SPEED
+      vy = 0
+    }
     // if we hit a ceiling, kill upward velocity
     if (m.y < dy - 1e-4 && vy > 0) vy = 0
   }
@@ -260,15 +265,7 @@ export function move(dt: number, eye: [number, number, number] | Float32Array, i
   body.setNextKinematicTranslation(next)
   world.step()
 
-  const out = centerToEye(body.translation())
-  if (out[1] < FALL_Y) {
-    // pop back up a bit and force fly — caller should flip mode
-    out[1] = 4
-    body.setNextKinematicTranslation(eyeToCenter({ x: out[0], y: out[1], z: out[2] }))
-    world.step()
-    vy = 0
-  }
-  return out
+  return centerToEye(body.translation())
 }
 
 /** mirror a deleted voxel into the matching chunk collider (world meters). */
@@ -302,7 +299,15 @@ export function setVoxelRemoved(wx: number, wy: number, wz: number) {
   }
 }
 
-export function fellBelow(): boolean {
-  if (!body) return false
-  return body.translation().y + EYE < FALL_Y
+export function died(): boolean {
+  return fatal
+}
+
+export function respawn(eye: [number, number, number] | Float32Array) {
+  if (!body || !world) return
+  body.setNextKinematicTranslation(eyeToCenter({ x: eye[0], y: eye[1], z: eye[2] }))
+  world.step()
+  vy = 0
+  jumpLatch = false
+  fatal = false
 }

@@ -23,7 +23,7 @@ import {
   updateTerrainStreaming,
 } from './terrain'
 import { decodeCoords } from '../../common/helpers/utils'
-import { colliderCount, initPhysics, move, type PhysMode, setVoxelRemoved, updateColliders } from './physics'
+import { colliderCount, died, initPhysics, move, type PhysMode, respawn, setVoxelRemoved, updateColliders } from './physics'
 
 const FLY_SPEED = 8
 const FLY_SPRINT_MULT = 2.6
@@ -61,12 +61,18 @@ function flyForward(yaw: number, pitch: number, dst: Vec3) {
   return vec3.set(-Math.sin(yaw) * cp, Math.sin(pitch), -Math.cos(yaw) * cp, dst)
 }
 
-function makeOverlay(): { stats: HTMLElement; hint: HTMLElement; wrap: HTMLElement } {
+function makeOverlay(): { stats: HTMLElement; hint: HTMLElement; wrap: HTMLElement; dead: HTMLElement; respawnButton: HTMLButtonElement } {
   const wrap = document.createElement('div')
   wrap.style.cssText = 'position:absolute;top:0;left:0;padding:1rem;z-index:2;pointer-events:auto;font:12px/1.4 monospace;color:#cfc;text-shadow:0 1px 2px #000'
   const stats = document.createElement('div')
   const hint = document.createElement('div')
-  hint.textContent = 'click to fly · WASD · shift sprint · [f] walk/fly · click voxel to delete · [x] exit'
+  hint.textContent = 'click to fly · WASD · shift sprint · hit space to jump · [f] walk/fly · click voxel to delete · [x] exit'
+  const dead = document.createElement('div')
+  dead.style.display = 'none'
+  dead.textContent = 'YOU ARE DEAD '
+  const respawnButton = document.createElement('button')
+  respawnButton.textContent = '[respawn]'
+  dead.appendChild(respawnButton)
   const exit = document.createElement('button')
   exit.textContent = 'exit raycaster'
   exit.style.cssText = 'display:block;margin-top:0.5rem;pointer-events:auto'
@@ -83,9 +89,10 @@ function makeOverlay(): { stats: HTMLElement; hint: HTMLElement; wrap: HTMLEleme
   }
   wrap.appendChild(stats)
   wrap.appendChild(hint)
+  wrap.appendChild(dead)
   wrap.appendChild(exit)
   document.body.appendChild(wrap)
-  return { stats, hint, wrap }
+  return { stats, hint, wrap, dead, respawnButton }
 }
 
 /** spawn where the player actually is: ?coords= first, then /parcels/:id, else world origin */
@@ -116,7 +123,7 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
   // stop the browser from smoothing our chunky pixels if anything scales the element
   canvas.style.imageRendering = 'pixelated'
 
-  const { stats: statsOverlay, wrap: overlay } = makeOverlay()
+  const { stats: statsOverlay, wrap: overlay, dead: deadOverlay, respawnButton } = makeOverlay()
   const flyCam = {
     pos: vec3.fromValues(0, 4, 8),
     yaw: 0,
@@ -155,9 +162,18 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
 
   const bakedChunks = await loadTerrainIndex()
 
-  vec3.copy(await spawnPos(), flyCam.pos)
+  const spawn = await spawnPos()
+  vec3.copy(spawn, flyCam.pos)
   console.log('raycaster: spawn', flyCam.pos[0].toFixed(1), flyCam.pos[1].toFixed(1), flyCam.pos[2].toFixed(1), 'baked chunks', bakedChunks)
   void initPhysics([flyCam.pos[0], flyCam.pos[1], flyCam.pos[2]])
+  let dead = false
+  respawnButton.onclick = () => {
+    dead = false
+    mode = 'walk'
+    deadOverlay.style.display = 'none'
+    vec3.copy(spawn, flyCam.pos)
+    respawn(spawn)
+  }
 
   const adapter = await navigator.gpu.requestAdapter({ powerPreference: 'high-performance' })
   if (!adapter) {
@@ -339,7 +355,7 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
     const dt = lastFrameTimeMs > 0 ? Math.min(0.05, (time - lastFrameTimeMs) * 0.001) : 0
     lastFrameTimeMs = time
 
-    if ((document.pointerLockElement as any) === canvas) {
+    if (!dead && (document.pointerLockElement as any) === canvas) {
       flyForward(flyCam.yaw, flyCam.pitch, tmpForward)
       vec3.normalize(vec3.cross(tmpForward, worldUp, tmpRight), tmpRight)
       vec3.zero(tmpMove)
@@ -372,7 +388,11 @@ export async function bootRaycast(canvas: HTMLCanvasElement) {
         mode,
       })
       vec3.set(next[0], next[1], next[2], flyCam.pos)
-      if (flyCam.pos[1] < -20) mode = 'fly'
+      if (died()) {
+        dead = true
+        deadOverlay.style.display = 'block'
+        document.exitPointerLock()
+      }
     }
 
     updateColliders(flyCam.pos)
