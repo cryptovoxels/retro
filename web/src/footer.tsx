@@ -26,13 +26,10 @@ export default class WebHeader extends Component<Props, State> {
               <Link href="/conduct">Conduct</Link>
             </li>
             <li>
-              <Link href="/behaviours">Behaviours</Link>
-            </li>
-            <li>
               <a href="https://discord.gg/3RSCZGr3fr">Discord</a>
             </li>
             <li>
-              <a href="https://www.x.com/cryptovoxels">Twitter</a>
+              <a href="https://www.x.com/cryptovoxels">X</a>
             </li>
             <li>
               <Link href="/privacy">Privacy</Link>
@@ -41,12 +38,12 @@ export default class WebHeader extends Component<Props, State> {
               <Link href="/terms">Terms</Link>
             </li>
             <li>
-              <Link href="https://github.com/cryptovoxels/retro">Github</Link>
+
             </li>
           </ul>
         </nav>
 
-        <p>&copy; 2018-2026 Nolan Consulting Limited</p>
+        <p><Link href="https://github.com/cryptovoxels/retro">source</Link></p>
       </footer>
     )
   }

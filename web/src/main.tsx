@@ -121,8 +121,6 @@ const Main = () => {
           <Play path="/assets/:id/play" />
           <AccountRoutes path="/account/:path*" />
         </Router>
-
-        <Footer />
       </main>
 
       <Client coords={coords} mode={'embed'} />

@@ -12,6 +12,7 @@ import { app, AppEvent } from './state'
 import { CubeIcon } from './components/icons/icons'
 import VoxelRadio from './components/voxel-radio'
 import { getCoords, PANE_PATHS, paneFromPath, withCoords } from './helpers/coords-nav'
+import Footer from './footer'
 
 type Props = {
   path: string
@@ -50,9 +51,9 @@ function WorldNav({ href }: { href: (p: string) => string }) {
   const current = paneFromPath()
 
   return (
-    <ul class="world-nav">
+    <>
       {ui?.state.voiceEnabled && (
-        <li title="Microphone">
+        <li>
           <div class="voice-toggle">
             <span class={ui.state.voice !== 'live' ? 'active' : ''}>off</span>
             <Toggle checked={ui.state.voice === 'live'} onChange={() => ui.toggleVoice()} />
@@ -82,7 +83,7 @@ function WorldNav({ href }: { href: (p: string) => string }) {
           </li>
         )
       })}
-    </ul>
+    </>
   )
 }
 
@@ -154,22 +155,17 @@ export default class WebHeader extends Component<Props, State> {
                 </a>
               </li>
               <li>{navLink(signedIn ? 'Profile' : 'Login', '/account')}</li>
-              <li>{navLink('Events', '/events')}</li>
-              <li>{navLink('Chat', '/chat')}</li>
               {signedIn && <li>{navLink('Log out', '/logout')}</li>}
               <li>{navLink('...', '/menu')}</li>
 
               <li>
-                <div class="header-end">
                   <VoxelRadio />
-                  <form action="/search" onSubmit={this.onSubmit}>
-                    <input name="q" value={this.state.query} type="search" onInput={this.onInput} placeholder="Search" />
-                  </form>
-                </div>
               </li>
+              <WorldNav href={href} />
             </ul>
-            <WorldNav href={href} />
           </nav>
+
+          <Footer />
         </header>
       </>
     )
