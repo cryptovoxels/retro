@@ -44,12 +44,9 @@ export default class Parcel extends Component<Props, State> {
   constructor(props: Props) {
     super(props)
 
-    const parcel = props.parcel ?? null
-
     this.state = {
       parcelId: props.id!,
-      parcel: parcel ?? undefined,
-      loading: !parcel,
+      loading: true,
       nearby: [],
       tab: 'about',
     }

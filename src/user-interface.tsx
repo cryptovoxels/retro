@@ -865,6 +865,16 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.setState({ enabled: true })
   }
 
+  enterFullScreen = () => {
+    document.querySelector('canvas')?.requestFullscreen()
+    requestPointerLock()
+    // this.engine.enterFullscreen(true)
+  }
+
+  enterTheatre = () => {
+    this.engine.enterTheatre()
+  }
+
   render() {
     if (!this.state.enabled) {
       return <Fragment />
@@ -903,6 +913,12 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         <div class={classes}>
           <Snackbar />
 
+          <div class="top-right">
+            <button onClick={this.enterFullScreen}>⌞ ⌝</button>
+
+            <button onClick={this.enterTheatre}>⛶</button>
+          </div>
+
           <aside data-active={this.state.active}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
               {this.state.voiceEnabled && (
@@ -912,22 +928,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                     <Toggle checked={this.state.voice === 'live'} onChange={() => this.toggleVoice()} />
                     <span class={this.state.voice === 'live' ? 'active' : ''}>on</span>
                   </div>
-                </li>
-              )}
-              {!isMobileMedia() && (
-                /**
-                 * Fullscreen toggle; no point showing "fullscreen on mobile" as most devices are always fullscreen
-                 */
-                <li title={this.state.fullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}>
-                  <a
-                    onClick={(e) => {
-                      e.preventDefault()
-                      this.engine.enterFullscreen(!this.state.fullscreen)
-                    }}
-                    href="#"
-                  >
-                    {this.state.fullscreen ? `Exit Fullscreen` : `Fullscreen`}
-                  </a>
                 </li>
               )}
 
