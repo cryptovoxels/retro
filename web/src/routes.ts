@@ -13,7 +13,6 @@ export const routes: RouteDef[] = [
   { path: '/blog', component: 'blog' },
   { path: '/blog/:slug', component: 'post' },
   { path: '/chat', component: 'chat' },
-  { path: '/menu', component: 'menu' },
   { path: '/terms', component: 'terms', server: false },
   { path: '/privacy', component: 'privacy', server: false },
   { path: '/conduct', component: 'conduct', server: false },

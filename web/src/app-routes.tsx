@@ -46,7 +46,6 @@ import IslandsAdmin from './admin/islands'
 import Admin from './admin/admin'
 import NotFound from './not-found'
 import { ChatPage } from './chat-page'
-import Menu from './menu'
 import { routes } from './routes'
 
 const components: Record<string, ComponentType<any>> = {
@@ -54,7 +53,6 @@ const components: Record<string, ComponentType<any>> = {
   blog: Blog,
   post: PostPage,
   chat: ChatPage,
-  menu: Menu,
   terms: Terms,
   privacy: Privacy,
   conduct: Conduct,

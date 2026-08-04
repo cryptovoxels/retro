@@ -60,7 +60,7 @@ body {
 }
 
 body {
-  font-family: 'Source Code Pro', sans-serif;
+  font-family: 'helvetica neue', sans-serif;
   font-size: 0.9rem;
   line-height: 1.5;
   margin-bottom: 20rem;
@@ -579,61 +579,49 @@ a.buttonish {
   }
 }
 
-// Nav tweaks
+// Nav tweaks — left column
 header {
   position: sticky;
   top: 0;
   z-index: 100;
+  height: 100vh;
+  overflow-y: auto;
+  box-sizing: border-box;
+  background: var(--bg);
 }
 
 header nav {
-  margin: 0 0 1rem 0;
+  margin: 0;
+  padding: 1rem;
 
   ul {
     display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 1rem;
+    flex-direction: column;
+    gap: 0;
     margin: 0;
     padding: 0;
-    border-top: var(--border);
-    border-bottom: var(--border);
   }
 
   li {
     list-style: none;
   }
 
-  svg {
-    display: inline-block;
+  li > a {
+    display: block;
+    padding: 0 1rem;
+    border-bottom: var(--border);
   }
 
   a.active {
     font-weight: bold;
     text-decoration: none;
     color: inherit;
-
-    svg {
-      display: none;
-    }
   }
 
-  li:last-child {
-    text-align: right;
-    flex: 1;
-  }
-
-  .header-end {
-    display: flex;
-    align-items: center;
-    justify-content: flex-end;
-    gap: 1rem;
-
-    .voxel-radio {
-      flex: 1;
-      min-width: 8rem;
-      max-width: 16rem;
-    }
+  .voxel-radio {
+    margin: 2rem 0;
+    min-width: 0;
+    max-width: none;
   }
 }
 
@@ -664,24 +652,6 @@ footer {
   }
 }
 
-.menu {
-  padding: 1rem;
-}
-
-.menu-section {
-  margin-bottom: 2rem;
-}
-
-.menu-section h3 {
-  margin-bottom: 1rem;
-}
-
-.menu-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
-  gap: 2rem;
-}
-
 header nav img.logo {
   width: 28px;
   height: 32px;
@@ -689,48 +659,6 @@ header nav img.logo {
 }
 
 @media @narrow {
-  header nav {
-    position: relative;
-
-    li.logo {
-      display: none;
-    }
-
-    &::after {
-      content: '';
-      position: absolute;
-      right: 0;
-      top: 0;
-      bottom: 0;
-      width: 2.5rem;
-      background: linear-gradient(to right, rgba(13, 13, 13, 0), var(--bg));
-      pointer-events: none;
-      z-index: 1;
-    }
-
-    > ul {
-      width: 100%;
-      overflow-x: auto;
-      flex-wrap: nowrap;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-
-      &::-webkit-scrollbar {
-        display: none;
-      }
-    }
-
-    > ul > li {
-      flex: 0 0 auto;
-      white-space: nowrap;
-    }
-
-    li:last-child {
-      flex: 0 0 auto;
-      text-align: left;
-    }
-  }
-
   footer nav {
     position: relative;
 
@@ -769,6 +697,16 @@ header nav img.logo {
 main {
   max-width: 2000px;
   margin: 0 auto;
+  display: grid;
+  grid-template-columns: auto 1fr;
+
+  > header {
+    grid-column: 1;
+  }
+
+  > :not(header) {
+    grid-column: 2;
+  }
 }
 
 // Grid layout
@@ -1070,7 +1008,7 @@ body.in-world.chat-route main > aside .chat-page h1 {
   }
 }
 
-// Push panel: header full width, world | sidebar below. Client tracks .client-world.
+// Push panel: nav | world | sidebar. Client tracks .client-world.
 body.in-world {
   overflow: hidden;
   --world-sidebar: min(22rem, 36vw);
@@ -1083,17 +1021,16 @@ body.in-world {
     max-width: none;
     height: 100vh;
     display: grid;
-    grid-template-columns: 1fr var(--world-sidebar);
-    grid-template-rows: auto 1fr;
-    grid-template-areas:
-      'header header'
-      'world sidebar';
+    grid-template-columns: auto 1fr var(--world-sidebar);
+    grid-template-rows: 1fr;
+    grid-template-areas: 'header world sidebar';
     overflow: hidden;
     pointer-events: none;
   }
 
   main:has(> .client-world) > header {
     grid-area: header;
+    grid-column: unset;
     position: relative;
     z-index: 5;
     pointer-events: auto;
@@ -1101,12 +1038,14 @@ body.in-world {
 
   .client-world {
     grid-area: world;
+    grid-column: unset;
     min-width: 0;
     min-height: 0;
   }
 
   main:has(> .client-world) > aside {
     grid-area: sidebar;
+    grid-column: unset;
     position: relative;
     z-index: 4;
     overflow-y: auto;
@@ -1135,10 +1074,8 @@ body.in-world {
 }
 
 body.in-world.sidebar-closed main:has(> .client-world) {
-  grid-template-columns: 1fr;
-  grid-template-areas:
-    'header'
-    'world';
+  grid-template-columns: auto 1fr;
+  grid-template-areas: 'header world';
 }
 
 aside.-closed {
