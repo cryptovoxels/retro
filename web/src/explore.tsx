@@ -135,14 +135,6 @@ export default class Explore extends Component {
   render() {
     return (
       <Fragment>
-        <Head title="" url={'/'}>
-          <Fragment>
-            <link rel="prefetch" href={getClientPath(currentVersion)} />
-            <link rel="prefetch" href="/api/parcels/cached.json" />
-            <link rel="prefetch" href="/api/parcels/map.json" />
-          </Fragment>
-        </Head>
-
         <section class="columns">
           <article>
             <div class="client-slot" />

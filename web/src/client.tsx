@@ -30,7 +30,6 @@ export class Client extends Component<FrameProps, FrameState> {
     }
     // editor/sidebar CSS is gated on this; set it as soon as the world client mounts,
     // not only after canvas adopt (which can early-return and leave the class off)
-    document.body.classList.add('in-world')
     void boot().then((ui) => {
       this.setState({ ui })
       this.adopt()
@@ -57,7 +56,6 @@ export class Client extends Component<FrameProps, FrameState> {
       document.body.appendChild(canvas)
     }
 
-    document.body.classList.remove('in-world')
   }
 
   private adopt() {
@@ -69,7 +67,6 @@ export class Client extends Component<FrameProps, FrameState> {
 
     box.appendChild(canvas)
     canvas.style.display = 'block'
-    document.body.classList.add('in-world')
     this.syncCoordsUrl()
     this.track()
     // .client-world may land in the same frame as mount; re-fit once the push slot exists

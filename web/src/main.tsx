@@ -109,24 +109,23 @@ const Main = () => {
 
   return (
     <MainApp>
-      <main class={lightBroadcast ? 'showbox-light-shell' : ''}>
-        {!lightBroadcast && <WebHeader path={currentPath} coords={coords} />}
+      <main>
+        <WebHeader path={currentPath} coords={coords} />
 
-        <WorldSidebar coords={coords} path={currentPath}>
-          <Router onChange={handleRoute}>
-            {AppRoutes()}
-            <RadioPopout path="/radio" />
-            <Play path="/play" />
-            <Play path="/scratchpad" />
-            <Play path="/spaces/:id/play" />
-            <Play path="/assets/:id/play" />
-            <AccountRoutes path="/account/:path*" />
-          </Router>
-        </WorldSidebar>
-        {!lightBroadcast && !showClient && <Footer />}
+        <Router onChange={handleRoute}>
+          {AppRoutes()}
+          <RadioPopout path="/radio" />
+          <Play path="/play" />
+          <Play path="/scratchpad" />
+          <Play path="/spaces/:id/play" />
+          <Play path="/assets/:id/play" />
+          <AccountRoutes path="/account/:path*" />
+        </Router>
+
+        <Footer />
       </main>
 
-      {showClient && <Client coords={coords} mode={embed ? 'embed' : 'full'} />}
+      <Client coords={coords} mode={'embed'} />
 
       <Snackbar />
     </MainApp>
