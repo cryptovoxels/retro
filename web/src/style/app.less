@@ -717,7 +717,6 @@ button.hamburger {
 }
 
 .columns {
-  margin: 0 1rem;
   display: flex;
   flex-direction: row;
   align-items: start;
@@ -732,10 +731,12 @@ button.hamburger {
 
   & > article {
     flex: 1;
+    padding: 0.5rem 0;
   }
 
   & > aside {
-    width: 25vw;
+    width: 15rem;
+    padding: 1rem 0;
 
     a {
       color: var(--red);
@@ -1045,7 +1046,8 @@ body.in-world {
   }
 }
 
-body.in-world.sidebar-closed main:has(> .client-world) {
+body.in-world.sidebar-closed main:has(> .client-world),
+body.in-world main:has(> .client-world):not(:has(> aside)) {
   grid-template-columns: auto 1fr;
   grid-template-areas: 'header world';
 }
@@ -1196,10 +1198,12 @@ table {
   width: 100%;
   border-collapse: collapse;
 
+  td{
+      vertical-align: top;
+  }
   th,
   td {
     border-bottom: var(--border);
-    padding: 0.5rem;
   }
 
   th {
@@ -3985,7 +3989,7 @@ form.PermissionsRadioSelector > div {
   }
 }
 
-/* Parcel info + debug tools */
+/* debug tools (and leftover overlay sections) */
 .parcel-information-overlay {
   h2,
   h3,
@@ -4055,155 +4059,46 @@ form.PermissionsRadioSelector > div {
       text-shadow: none;
     }
   }
-
-  .womp {
-    width: 128px;
-  }
-
-  // recent womps: tight 3-up thumbnails, no caption
-  .parcel-womps-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 0.5rem;
-
-    .womp {
-      width: auto;
-    }
-
-    .womp img {
-      width: 100%;
-      aspect-ratio: 1/1;
-      object-fit: cover;
-      margin: 0;
-    }
-
-    .womp p {
-      display: none;
-    }
-  }
-
-  .womps-show-more {
-    width: 100%;
-    margin-top: 0.5rem;
-    background: none;
-    border: 0;
-    color: var(--bright);
-    cursor: pointer;
-    opacity: 0.7;
-
-    &:hover {
-      opacity: 1;
-    }
-  }
-
-  // island context view (shown when you're not on a parcel)
-  .island-minimap {
-    .island-voxels-map {
-      width: 100%;
-      height: 14rem;
-      display: block;
-      touch-action: none;
-      margin-bottom: 1rem;
-    }
-  }
-
-  .island-parcels {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-
-    a {
-      cursor: pointer;
-    }
-  }
-
-  // "live now": showbox streams on the island, one tap into the audience
-  .island-live-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    cursor: pointer;
-    margin-bottom: 0.5rem;
-
-    img {
-      width: 96px;
-      aspect-ratio: 16 / 9;
-      object-fit: cover;
-      display: block;
-      flex-shrink: 0;
-      background: #000;
-    }
-
-    .island-live-dot {
-      color: var(--red);
-      animation: showbox-live-pulse 1.2s ease-in-out infinite;
-    }
-
-    .island-live-name {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-
-    .island-live-viewers {
-      opacity: 0.7;
-      white-space: nowrap;
-    }
-  }
-
-  .island-board {
-    textarea {
-      width: 100%;
-      min-height: 3rem;
-    }
-
-    .island-board-actions {
-      display: flex;
-      gap: 0.5rem;
-    }
-
-    .island-board-cancel {
-      background: none;
-      border: 0;
-      color: var(--bright);
-      opacity: 0.7;
-      cursor: pointer;
-      text-decoration: underline;
-    }
-
-    .island-board-posts {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-
-      li {
-        margin-bottom: 1rem;
-      }
-
-      .who {
-        opacity: 0.7;
-
-        span {
-          margin-left: 0.5rem;
-        }
-      }
-
-      .island-board-meta {
-        display: flex;
-        align-items: center;
-        gap: 0.75rem;
-
-        a {
-          cursor: pointer;
-        }
-      }
-    }
-  }
 }
 
 .debug-tools-overlay {
   .parcel-information-overlay();
+}
+
+// for-sale recent womps: tight 3-up thumbnails, no caption
+.parcel-womps-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+
+  .womp {
+    width: auto;
+  }
+
+  .womp img {
+    width: 100%;
+    aspect-ratio: 1/1;
+    object-fit: cover;
+    margin: 0;
+  }
+
+  .womp p {
+    display: none;
+  }
+}
+
+.womps-show-more {
+  width: 100%;
+  margin-top: 0.5rem;
+  background: none;
+  border: 0;
+  color: var(--bright);
+  cursor: pointer;
+  opacity: 0.7;
+
+  &:hover {
+    opacity: 1;
+  }
 }
 
 .parcel-states {

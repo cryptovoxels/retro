@@ -33,8 +33,7 @@ export function WorldSidebar({ coords, path, children }: Props) {
     sidebarClosed.value
 
     const parcel = selectNearestEditableParcel()
-    // match the pane id we actually render (default info), so close isn't undone by a key flap
-    const key = uiPane.value || (parcel && isAuthoring(parcel.id) ? `auth:${parcel.id}` : isFullClientPath(path) ? 'info' : '')
+    const key = uiPane.value || (parcel && isAuthoring(parcel.id) ? `auth:${parcel.id}` : '')
     if (key && key !== prevKey.current) sidebarClosed.value = false
     prevKey.current = key
 
@@ -62,15 +61,15 @@ export function WorldSidebar({ coords, path, children }: Props) {
   // /play etc: push panel — world slot + one aside. Client sizes to .client-world.
   if (isFullClientPath(path)) {
     const parcel = selectNearestEditableParcel()
-    let panel: VNode
+    let panel: VNode | null = null
     if (parcel && isAuthoring(parcel.id) && uiPane.value !== 'broadcast') {
       panel = (
         <aside class={closed}>
           <Authoring parcel={parcel} />
         </aside>
       )
-    } else {
-      const paneId = uiPane.value || 'info'
+    } else if (uiPane.value) {
+      const paneId = uiPane.value
       const showClose = paneId === 'broadcast' || isPersistentPane(paneId)
       panel = (
         <aside class={[paneId === 'broadcast' ? '-broadcast-open' : '', closed].filter(Boolean).join(' ') || undefined}>

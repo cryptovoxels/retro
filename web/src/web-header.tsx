@@ -115,10 +115,6 @@ export default class WebHeader extends Component<Props, State> {
               <A to="/collections">Collections</A>
               {signedIn && <A to="/costumer">Costume</A>}
               <A to="/shop">Shop</A>
-              {signedIn && <A to={wallet ? `/u/${wallet}/assets` : '/assets'}>My assets</A>}
-              {signedIn && <A to="/account/parcels">My parcels</A>}
-              {signedIn && <A to="/account/spaces">My spaces</A>}
-              {signedIn && <A to="/account/womps">My womps</A>}
               <li>
                 <a href="https://discord.gg/3RSCZGr3fr" target="_blank" rel="noopener">
                   &rarr; Discord

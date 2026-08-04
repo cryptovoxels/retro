@@ -25,7 +25,6 @@ import type { MinimapSettings } from './minimap'
 import Parcel from './parcel'
 import {
   selectCurrentOrNearestParcel,
-  selectCurrentParcel,
   selectNearestEditableParcel,
   selectSelectedFeature,
   selectCheckedFeatures,
@@ -66,8 +65,6 @@ import { BuildTab } from './ui/overlay/build-tab/build-tab'
 import DebugTools from './ui/overlay/debug-tools'
 import EditPane from './ui/overlay/edit-pane'
 import CustomizeVoxels from './ui/overlay/customize-voxels'
-import ParcelInfoTab from './ui/overlay/parcel-info'
-import IslandInfoTab from './ui/overlay/island-info'
 import ToolBelt from './ui/overlay/tool-belt'
 import ParcelSnapshots from './ui/parcel-snapshots'
 import { SettingsUI } from './ui/settings'
@@ -101,7 +98,7 @@ export enum Mode {
   Avatar,
 }
 
-export type UIPanes = 'add' | 'edit' | 'voxels' | 'info' | 'debugTool' | 'nfts' | 'chat' | 'emote' | 'settings' | 'womp' | 'takeWomp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake' | 'broadcast'
+export type UIPanes = 'add' | 'edit' | 'voxels' | 'debugTool' | 'nfts' | 'chat' | 'emote' | 'settings' | 'womp' | 'takeWomp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake' | 'broadcast'
 
 export interface Tool {
   activate: () => void
@@ -275,7 +272,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   clearAllExplore() {
-    // panes you opened on purpose (info/explorer/settings/help) stay up while you walk around;
+    // panes you opened on purpose (explorer/settings/help) stay up while you walk around;
     // deactivateTools() clears uiPane too, so capture and restore it after.
     const keep = isPersistentPane(uiPane.value) ? uiPane.value : undefined
     setCheckedFeatures([])
@@ -344,7 +341,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           } else return
           const n = this.presenceUuids.size
           if (n !== this.state.onlineCount) this.setState({ onlineCount: n })
-        } catch {}
+        } catch { }
       }
     }
 
@@ -379,7 +376,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.setState({ voiceEnabled: true })
   }
 
-  updateCanEdit = () => {}
+  updateCanEdit = () => { }
 
   componentWillUnmount() {
     this.presenceEs?.close()
@@ -437,7 +434,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     // (excludes events fired from input elements and repeat events by held keys)
     this.keyboardHandler = new KeyboardHandler(this.props.scene, {
       keyDown: [
-        { key: '!', handleEvent: () => {} },
+        { key: '!', handleEvent: () => { } },
         { code: 'KeyE', handleEvent: () => this.editFeatureIfHasLock() },
         { code: 'KeyX', handleEvent: () => this.deleteFeature() },
         { code: 'KeyM', handleEvent: () => this.editFeatureThenMove() },
@@ -760,13 +757,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return <ParcelSnapshots parcel={nearestEditableParcel || undefined} scene={this.props.scene} />
       case 'login':
         return <Login />
-      case 'info': {
-        // standing on a parcel: THAT parcel's details. in the void: island context (map, events, parcels).
-        // display the same parcel the gate tested - currentOrNearestParcel swaps an uneditable shell
-        // for the nearest inner parcel, which drifted the pane to a neighbor's info while walking.
-        const standingIn = selectCurrentParcel()
-        return standingIn ? <ParcelInfoTab parcel={standingIn} scene={this.props.scene} /> : <IslandInfoTab scene={this.props.scene} />
-      }
       case 'debugTool':
         return <DebugTools parcel={currentOrNearestParcel} scene={this.props.scene} environment={this.props.environment} />
       case 'chat':
@@ -884,11 +874,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
               <li class={active('emote')}>
                 <a href="#dance" onMouseOver={onHover('emote')} onClick={onClick('emote')}>
                   Dance
-                </a>
-              </li>
-              <li class={active('info')}>
-                <a href="#info" onMouseOver={onHover('info')} onClick={onClick('info')}>
-                  Info
                 </a>
               </li>
               <li class={active('add', !canEdit)}>

@@ -49,17 +49,17 @@ const TableRow = (props: TableRowProps) => {
       <td>{props.record.id}</td>
       <td>
         {props.record.name ? (
-          <p>
-            <b>{link(props.record.name)}</b>
+          <>
+            {link(props.record.name)}
             <br />
             <small>{props.helper.address}</small>
-          </p>
+          </>
         ) : (
-          <p>
-            <b>{link(props.record.address ?? '')}</b>
+          <>
+            {link(props.record.address ?? '')}
             <br />
             <small>{props.record.island}</small>
-          </p>
+          </>
         )}
       </td>
       <td>
