@@ -305,11 +305,6 @@ export default class Grid extends SocketClient {
       return 3
     }
 
-    // Use custom max active parcels if in Custom graphics mode
-    if (settings.level === GraphicLevels.Custom && settings.customMaxActiveParcels !== undefined) {
-      return settings.customMaxActiveParcels
-    }
-
     // Default calculation with a max cap of 30 to prevent performance issues
     return Math.min(30, Math.ceil(window.draw.distance / 12))
   }
@@ -317,7 +312,6 @@ export default class Grid extends SocketClient {
   private get nearbyDistance() {
     // isolate keeps activePoolSize at 1; still need normal draw distance so the worker finds the parcel mesh
     if (this.isolateMode) return window.draw.distance
-    // In Custom mode, parcel activation distance is same as draw distance
     return window.draw.distance
   }
 

@@ -68,7 +68,7 @@ export class SettingsUI extends Component<Props, State> {
       showMinimapSettings: !window.config.isSpace,
       // we reverse the value as higher values are lower sensitivities
       mouseSensitivityPercentage: toReversedPercentage(this.cameraSettings.angularSensitivity, MIN_SENSITIVITY, MAX_SENSITIVITY),
-      realisticLighting: this.graphicsEngine.getSettings().realisticLighting ?? false,
+      realisticLighting: this.graphicsEngine.getSettings().realisticLighting ?? true,
       voiceEnabled: voiceSettings.enabled,
       voiceDeviceId: voiceSettings.deviceId,
       voicePitch: voiceSettings.pitch,
@@ -207,17 +207,7 @@ export class SettingsUI extends Component<Props, State> {
   onGraphicLevelChange(e: InputEvent) {
     const srcElement = e.currentTarget as HTMLInputElement
     const g = this.state.graphic
-    const newLevel = parseInt(srcElement.value, 10) || 0
-    const wasCustom = g.level === GraphicLevels.Custom
-    const isPreset = newLevel !== GraphicLevels.Custom
-
-    g.level = newLevel
-
-    // Always enable sharpening for custom mode
-    if (g.level === GraphicLevels.Custom) {
-      g.customSharpening = true
-    }
-
+    g.level = parseInt(srcElement.value, 10) || 0
     this.setState({ graphic: g })
     this.sendGraphicsSettings()
   }
@@ -271,58 +261,34 @@ export class SettingsUI extends Component<Props, State> {
     this.graphicsEngine.setSettings(this.state.graphic)
   }
 
-  onCustomDrawDistanceChange(e: InputEvent) {
-    const srcElement = e.currentTarget as HTMLInputElement
-    const graphic = this.state.graphic
-    graphic.customDrawDistance = parseInt(srcElement.value, 10)
-    this.setState({ graphic })
-    this.sendGraphicsSettings()
-  }
-
-  onCustomWaterQualityChange(e: InputEvent) {
-    const srcElement = e.currentTarget as HTMLInputElement
-    const graphic = this.state.graphic
-    graphic.customWaterQuality = srcElement.value as 'simple' | 'reflection'
-    this.setState({ graphic })
-    this.sendGraphicsSettings()
-  }
-
-  onCustomGlowEffectsChange(inputElement: HTMLInputElement) {
-    const graphic = this.state.graphic
-    graphic.customGlowEffects = inputElement.checked
-    this.setState({ graphic })
-    this.sendGraphicsSettings()
-  }
-
-  onCustomAntiAliasingChange(e: InputEvent) {
-    const srcElement = e.currentTarget as HTMLInputElement
-    const graphic = this.state.graphic
-    graphic.customAntiAliasing = parseInt(srcElement.value, 10)
-    this.setState({ graphic })
-    this.sendGraphicsSettings()
-  }
-
-  onCustomMaxActiveParcelsChange(e: InputEvent) {
-    const srcElement = e.currentTarget as HTMLInputElement
-    const graphic = this.state.graphic
-    graphic.customMaxActiveParcels = parseInt(srcElement.value, 10)
-    this.setState({ graphic })
-    this.sendGraphicsSettings()
-  }
-
-  onCustomFogChange(inputElement: HTMLInputElement) {
-    const graphic = this.state.graphic
-    graphic.customFog = inputElement.checked
-    this.setState({ graphic })
-    this.sendGraphicsSettings()
-  }
-
   render() {
-    const isCustomGraphics = this.state.graphic.level === GraphicLevels.Custom
-
     return (
       <section class="settings">
         <h2>Settings</h2>
+
+        <section>
+          <h3>gfx</h3>
+          <dl class="props">
+            {!isMobile() && (
+              <>
+                <dt>Quality</dt>
+                <dd>
+                  <select value={this.state.graphic.level} onChange={this.onGraphicLevelChange.bind(this) as any}>
+                    <option value={GraphicLevels.Low}>Low</option>
+                    <option value={GraphicLevels.Medium}>Medium</option>
+                    <option value={GraphicLevels.High}>High</option>
+                    <option value={GraphicLevels.Ultra}>Ultra</option>
+                  </select>
+                </dd>
+              </>
+            )}
+
+            <dt>Realistic lighting</dt>
+            <dd>
+              <input type="checkbox" checked={this.state.realisticLighting} onChange={(e) => this.onRealisticLightingChange(e.target as HTMLInputElement)} />
+            </dd>
+          </dl>
+        </section>
 
         <section>
           <h3>general</h3>
@@ -425,78 +391,6 @@ export class SettingsUI extends Component<Props, State> {
                 <dt>Monitor yourself</dt>
                 <dd>
                   <input type="checkbox" onChange={(e) => this.onToggleVoiceMonitor(e.target as HTMLInputElement)} checked={this.state.voiceMonitor} />
-                </dd>
-              </>
-            )}
-          </dl>
-        </section>
-
-        <section>
-          <h3>gfx</h3>
-          <dl class="props">
-            {!isMobile() && (
-              <>
-                <dt>Quality</dt>
-                <dd>
-                  <select value={this.state.graphic.level} onChange={this.onGraphicLevelChange.bind(this) as any}>
-                    <option value={GraphicLevels.Low}>Low</option>
-                    <option value={GraphicLevels.Medium}>Medium</option>
-                    <option value={GraphicLevels.High}>High</option>
-                    <option value={GraphicLevels.Ultra}>Ultra</option>
-                    <option value={GraphicLevels.Custom}>Custom</option>
-                  </select>
-                </dd>
-              </>
-            )}
-
-            <dt>Realistic lighting</dt>
-            <dd>
-              <input type="checkbox" checked={this.state.realisticLighting} onChange={(e) => this.onRealisticLightingChange(e.target as HTMLInputElement)} />
-            </dd>
-
-            {isCustomGraphics && !isMobile() && (
-              <>
-                <dt>Draw distance: {this.state.graphic.customDrawDistance || 128}</dt>
-                <dd>
-                  <input type="range" min={32} max={512} step={16} value={this.state.graphic.customDrawDistance || 128} onInput={this.onCustomDrawDistanceChange.bind(this) as any} />
-                </dd>
-                <dd class="full">
-                  <small>Controls both view distance and parcel loading distance.</small>
-                </dd>
-
-                <dt>Max active parcels: {this.state.graphic.customMaxActiveParcels || 11}</dt>
-                <dd>
-                  <input type="range" min={3} max={50} step={1} value={this.state.graphic.customMaxActiveParcels || 11} onInput={this.onCustomMaxActiveParcelsChange.bind(this) as any} />
-                </dd>
-                <dd class="full">
-                  <small>Maximum number of parcels that can be active at once. Lower values improve FPS.</small>
-                </dd>
-
-                <dt>Water quality</dt>
-                <dd>
-                  <label>
-                    <input type="radio" name="water-quality" value="simple" checked={this.state.graphic.customWaterQuality === 'simple'} onChange={this.onCustomWaterQualityChange.bind(this) as any} />
-                    Low
-                  </label>
-                  <label>
-                    <input type="radio" name="water-quality" value="reflection" checked={this.state.graphic.customWaterQuality === 'reflection'} onChange={this.onCustomWaterQualityChange.bind(this) as any} />
-                    High
-                  </label>
-                </dd>
-
-                <dt>Glow effects</dt>
-                <dd>
-                  <input type="checkbox" checked={this.state.graphic.customGlowEffects !== false} onChange={(e) => this.onCustomGlowEffectsChange(e.target as HTMLInputElement)} />
-                </dd>
-
-                <dt>Fog</dt>
-                <dd>
-                  <input type="checkbox" checked={this.state.graphic.customFog !== false} onChange={(e) => this.onCustomFogChange(e.target as HTMLInputElement)} />
-                </dd>
-
-                <dt>Anti-aliasing: {this.state.graphic.customAntiAliasing ?? 2}</dt>
-                <dd>
-                  <input type="range" min={0} max={8} step={2} value={this.state.graphic.customAntiAliasing ?? 2} onInput={this.onCustomAntiAliasingChange.bind(this) as any} />
                 </dd>
               </>
             )}

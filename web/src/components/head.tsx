@@ -23,7 +23,7 @@ export default function Head(props: Props) {
     try {
       const u = new URL(`${process.env.ASSET_PATH}` + `/${url}`)
       url = u.toString()
-    } catch (e: unknown) { }
+    } catch (e: unknown) {}
   }
   // remove double forward slashes
   url = url?.replace(/([^:]\/)\/+/g, '$1')

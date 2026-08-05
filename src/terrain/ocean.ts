@@ -520,11 +520,6 @@ export class Ocean implements ChunkObserver {
   }
 
   private getMaterialTypeFor = (graphicLevel: GraphicLevels): WaterMaterialType => {
-    // For custom graphics level, use the custom water quality setting
-    if (graphicLevel === GraphicLevels.Custom) {
-      return window.graphic.customWaterQuality
-    }
-    // For other levels, use reflection for medium and above, simple for low and mobile
     return graphicLevel >= GraphicLevels.Medium ? 'reflection' : 'simple'
   }
 }

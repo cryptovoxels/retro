@@ -7,7 +7,6 @@ import { Environment } from './environment'
 import { TimeOfDay } from '../utils/time-of-day'
 import { DAY_BRIGHTNESS, DAY_FOG_COLOR, DAY_SUN_POSITION, NIGHT_BRIGHTNESS, NIGHT_FOG_COLOR, NIGHT_SUN_POSITION, UNDERWATER_CLEAR_COLOR, UNDERWATER_TINT, UNDERWATER_FOG_DENSITY } from './world-environment-constants'
 import { createEvent } from '../utils/EventEmitter'
-import { GraphicLevels } from '../graphic/graphic-engine'
 import { cameraPosition } from '../utils/camera'
 import { OCEAN_HEIGHT_OFFSET } from '../constants'
 
@@ -79,9 +78,6 @@ export class WorldEnvironment extends Environment {
   get fogDensity() {
     if (this.isUnderwater) {
       return UNDERWATER_FOG_DENSITY
-    }
-    if (window.graphic.level === GraphicLevels.Custom && !window.graphic.customFog) {
-      return 0
     }
     return super.fogDensity
   }

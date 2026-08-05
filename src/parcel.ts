@@ -14,6 +14,7 @@ import type { ParcelGeometry, ParcelKind, ParcelPatch, ParcelRecord, ParcelRef, 
 import { getBufferFromVoxels, getFieldShape, getVoxelsFromBuffer } from '../common/voxels/helpers'
 import { VoxelSize } from '../common/voxels/mesher'
 import { buildCleanMesh } from './clean-mesher'
+import { createWhiteTexture } from './textures/textures'
 import type { LanternRecord } from '../common/messages/feature'
 import { app } from '../web/src/state'
 import { mintParcel } from '../web/src/helpers/mint-parcel'
@@ -1510,7 +1511,15 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       const lanterns = this.features.filter((f) => f.type === 'lantern') as LanternRecord[]
       // Y matches setVoxelMesh so voxel.ts pick/place math is correct
       const off: [number, number, number] = [-this.width / 4 + 0.25, -0.75 + this.ZFightingNudge, -this.depth / 4 + 0.25]
-      const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id, this.paletteColors, this.tilesetTexture ?? undefined)
+      const pending = !!(this.tileset && !this.tilesetTexture)
+      const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id, this.paletteColors, this.tilesetTexture ?? (pending ? createWhiteTexture(this.scene) : undefined))
+      if (pending) {
+        const mat = opaque.material as BABYLON.StandardMaterial
+        const tex = new BABYLON.Texture(process.env.IMG_HOST + '/' + this.tileset!.slice(1), this.scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, () => {
+          this.tilesetTexture = tex
+          if (opaque.material === mat) mat.diffuseTexture = tex
+        })
+      }
       if (gen !== this.voxelFieldGen) {
         this.disposeGeneratedMeshes(opaque, glass)
         return

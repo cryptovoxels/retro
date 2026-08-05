@@ -6,12 +6,10 @@ export class PostProcesses {
   private readonly colorGrader: ColorGrader
   private readonly pipelines: Record<GraphicLevels, BABYLON.PostProcessRenderPipeline>
   private glowLayer: BABYLON.Nullable<BABYLON.GlowLayer> = null
-  private graphics: GraphicEngine
 
   constructor(scene: BABYLON.Scene, color: ColorGrader, graphics: GraphicEngine) {
     this.scene = scene
     this.colorGrader = color
-    this.graphics = graphics
 
     const sharpen = new BABYLON.SharpenPostProcess('sharpen', 1.0, null, BABYLON.Texture.BILINEAR_SAMPLINGMODE, this.scene.getEngine(), false, BABYLON.Constants.TEXTURETYPE_UNSIGNED_INT)
     sharpen.edgeAmount = 0.1
@@ -21,7 +19,6 @@ export class PostProcesses {
       [GraphicLevels.Medium]: this.createPipeline(GraphicLevels.Medium, [this.colorGrader.postProcess]),
       [GraphicLevels.High]: this.createPipeline(GraphicLevels.High, [this.colorGrader.postProcess, sharpen]),
       [GraphicLevels.Ultra]: this.createPipeline(GraphicLevels.Ultra, [this.colorGrader.postProcess, sharpen]),
-      [GraphicLevels.Custom]: this.createPipeline(GraphicLevels.Custom, [this.colorGrader.postProcess, sharpen]),
     }
 
     // Initialize with current graphics level
@@ -55,29 +52,6 @@ export class PostProcesses {
         this.colorGrader.postProcess.samples = 8
         this.glowLayer = glow(this.scene, 48, 2, 0.1)
         break
-      case GraphicLevels.Custom:
-        // Use custom settings from graphics engine
-        const antiAliasing = this.graphics.customAntiAliasing
-        const glowEnabled = this.graphics.customGlowEffects
-        const sharpeningEnabled = this.graphics.customSharpening
-
-        // Set anti-aliasing samples
-        this.colorGrader.postProcess.samples = antiAliasing
-
-        // Enable glow if custom glow effects is on
-        if (glowEnabled) {
-          this.glowLayer = glow(this.scene, 48, 2, 0.1)
-        }
-
-        // Use appropriate pipeline based on sharpening setting
-        const pipelineToUse = sharpeningEnabled ? GraphicLevels.High : GraphicLevels.Medium
-
-        // Override the pipeline selection for custom mode
-        Object.values(this.pipelines).forEach((p) => {
-          this.scene.postProcessRenderPipelineManager.detachCamerasFromRenderPipeline(p.name, this.scene.activeCamera)
-        })
-        this.scene.postProcessRenderPipelineManager.attachCamerasToRenderPipeline(this.pipelines[pipelineToUse].name, this.scene.activeCamera)
-        return // Skip the normal pipeline attachment below
       default:
         this.colorGrader.postProcess.samples = 0
         level = GraphicLevels.Low

@@ -333,7 +333,7 @@ export default class CustomizeVoxels extends Component<Props, State> {
   render() {
     if (this.state.reloading) {
       return (
-        <div class="f CustomizeVoxels">
+        <div class="CustomizeVoxels">
           <p>Please wait...</p>
         </div>
       )
@@ -375,7 +375,7 @@ export default class CustomizeVoxels extends Component<Props, State> {
     })
 
     return (
-      <div class="f CustomizeVoxels">
+      <div class="CustomizeVoxels">
         <button title="Click to reset the voxel textures to default" style="float:right" onClick={() => this.resetTileSet()}>
           Reset
         </button>
