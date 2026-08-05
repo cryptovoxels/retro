@@ -38,7 +38,7 @@ function RecentWomps({ parcelId }: { parcelId: number }) {
     cachedFetch(`/api/womps/at/parcel/${parcelId}.json?limit=${limit}`, fetchOptions(), 60)
       .then((r) => r.json())
       .then((r) => live && r.success && setWomps(r.womps))
-      .catch(() => {})
+      .catch(() => { })
     return () => {
       live = false
     }
@@ -83,7 +83,7 @@ export default function ForSale(_props: { path?: string }) {
     cachedFetch(CLASSIFIEDS_URL)
       .then((r) => r.json())
       .then((d) => d.success && setData(d))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false))
   }, [])
 
@@ -91,7 +91,7 @@ export default function ForSale(_props: { path?: string }) {
     fetch('https://api.coinbase.com/v2/prices/ETH-USD/spot')
       .then((r) => r.json())
       .then((d) => setRate(parseFloat(d?.data?.amount) || 0))
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
   const fmt = (price: number) => (!usd || !rate ? `${eth(price)}Ξ` : `$${parseFloat((price * rate).toFixed(0))}`)
@@ -111,12 +111,6 @@ export default function ForSale(_props: { path?: string }) {
       .sort((a, b) => a.price - b.price)
   }, [data, active])
 
-  const items = useMemo(() => {
-    if (visibleIds === null) return allItems
-    const inView = new Set(visibleIds)
-    return allItems.filter((i) => inView.has(i.id) || i.id === selectedId)
-  }, [allItems, visibleIds, selectedId])
-
   const forSale = useMemo(() => allItems.map((i) => ({ id: i.id, price: i.price, label: fmt(i.price) })), [allItems, usd, rate])
   const selectedItem = selectedId ? allItems.find((i) => i.id === selectedId) : undefined
 
@@ -129,7 +123,7 @@ export default function ForSale(_props: { path?: string }) {
     cachedFetch(`/api/parcels/${selectedId}.json`, fetchOptions())
       .then((r) => r.json())
       .then((r) => live && r.parcel && setParcel(r.parcel))
-      .catch(() => {})
+      .catch(() => { })
     return () => {
       live = false
     }
@@ -207,7 +201,7 @@ export default function ForSale(_props: { path?: string }) {
               <div>
                 <h2>Parcels for sale</h2>
                 <p>
-                  {loading ? 'loading listings...' : `${items.length} listings`}
+                  {loading ? 'loading listings...' : `${allItems.length} listings`}
                   {data && data.floor ? ` - floor ${fmt(data.floor)}` : ''}
                 </p>
               </div>
@@ -234,7 +228,7 @@ export default function ForSale(_props: { path?: string }) {
                 </tr>
               </thead>
               <tbody>
-                {items.map((i) => (
+                {allItems.map((i) => (
                   <tr
                     key={i.id}
                     tabIndex={0}
