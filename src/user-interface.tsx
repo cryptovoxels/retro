@@ -473,9 +473,17 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     NUMBER_KEYS.forEach((key, index) => {
       this.keyboardHandler.addKeyDown({
         key,
-        handleEvent: () => this.activateVoxelTool(SelectionMode.Add, { texture: index }),
+        handleEvent: () => this.openVoxelCustomize(index),
       })
     })
+  }
+
+  openVoxelCustomize(textureIndex: number) {
+    if (!this.grid.nearestEditableParcel()) return
+    this.voxelTool.texture = textureIndex
+    if (this.state.pane !== 'voxels') {
+      this.setPane('voxels')
+    }
   }
 
   setPane(pane: UIPanes) {

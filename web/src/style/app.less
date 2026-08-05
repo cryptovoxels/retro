@@ -872,12 +872,36 @@ div.map {
     text-transform: lowercase;
   }
 
+  .chat-body {
+    display: flex;
+    flex: 1;
+    min-height: 0;
+    gap: 1rem;
+  }
+
   .chat-panel {
     display: flex;
     flex-direction: column;
     flex: 1;
     min-height: 0;
     gap: 0.5rem;
+  }
+
+  .chat-online {
+    width: 12rem;
+    flex-shrink: 0;
+    overflow-y: auto;
+    min-height: 0;
+
+    h2 {
+      margin: 0 0 0.5rem 0;
+      text-transform: lowercase;
+      font-weight: bold;
+    }
+
+    p {
+      margin: 0;
+    }
   }
 
   .chat-messages {
@@ -3357,14 +3381,18 @@ section.build-tab nav.build-main-tabs {
       cursor: pointer;
 
       &:hover,
-      &.-dragOver {
-        background-color: #000;
+      &.dragOver {
+        background-color: var(--red);
         position: relative;
 
         img,
         div {
           opacity: 0.2;
         }
+      }
+
+      &.selected {
+        outline: 2px solid var(--red);
       }
 
       img,
@@ -3387,28 +3415,22 @@ section.build-tab nav.build-main-tabs {
   div.tints {
     margin-top: 10px;
 
+    > span {
+      display: inline-block;
+      margin-right: 3px;
+      cursor: pointer;
+
+      &.selected {
+        outline: 2px solid var(--red);
+      }
+    }
+
     input {
       width: 24px;
       height: 24px;
-      margin-right: 3px;
+      margin-right: 0;
       cursor: pointer;
       border: none;
-    }
-  }
-
-  div.OtherTextures {
-    border-top: 2px solid #3c2744;
-    padding: 2px 0;
-
-    img.other-parcel-texture {
-      margin: 4px;
-      width: 48px;
-      height: 48px;
-      cursor: pointer;
-
-      &:hover {
-        transform: scale(1.1);
-      }
     }
   }
 }
@@ -4271,23 +4293,22 @@ div.mobile-buttons {
 
 /* Overlay windows (admin / nft / take-womp etc) */
 dialog {
-  background: var(--semi);
+  background: white;
   border: none;
+  border-radius: 1rem;
+  box-shadow: 0.5rem 0.5rem 1rem rgba(0, 0, 0, 0.3);
   display: block;
-  position: fixed;
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
+  position: absolute;
+  bottom: 1rem;
+  right: 1rem;
+  color: black;
   width: 50vw;
-  max-height: 95vh;
+  margin: 0;
+  max-height: 90vh;
   overflow: auto;
-  padding: 1rem;
+  border: 1rem solid white;
+  padding: 0;
   z-index: 12000;
-
-  @media @narrow {
-    width: 80vw;
-    height: 95vh;
-  }
 
   h1,
   h2,

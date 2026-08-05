@@ -7,7 +7,7 @@ import { VoxelSize } from '../../common/voxels/constants'
 const DEBUG_LIGHT_PROBES = false
 export const GLASS = 2
 
-export type Geo = { positions: Float32Array; normals: Float32Array; uvs: Float32Array; colors: Float32Array; indices: Uint32Array }
+export type Geo = { positions: Float32Array; normals: Float32Array; uvs: Float32Array; colors: Float32Array; colorIndices: Float32Array; indices: Uint32Array }
 export type GlassGeo = { positions: Float32Array; normals: Float32Array; indices: Uint32Array }
 export type LightmapOut = { opaque: Geo; glass: GlassGeo | null }
 
@@ -268,7 +268,7 @@ const FACES: Array<{
   },
 ]
 
-function opaqueGeo(field: NdArray<Uint8Array>, light: Uint8Array, pal: [number, number, number][]): Geo {
+function opaqueGeo(field: NdArray<Uint8Array>, light: Uint8Array): Geo {
   const [w, h, d] = field.shape
   const pw = w + 2,
     ph = h + 2
@@ -292,6 +292,7 @@ function opaqueGeo(field: NdArray<Uint8Array>, light: Uint8Array, pal: [number, 
   const normals: number[] = []
   const uvs: number[] = []
   const colors: number[] = []
+  const colorIndices: number[] = []
   const indices: number[] = []
   const Y_OFFSET = 0.5
 
@@ -305,7 +306,6 @@ function opaqueGeo(field: NdArray<Uint8Array>, light: Uint8Array, pal: [number, 
 
         const layer = cell % 32
         const colorIndex = Math.floor(cell / 32) % 8
-        const tint = pal[colorIndex] ?? pal[0]
         const col = layer % ATLAS_COLS
         const row = Math.floor(layer / ATLAS_COLS)
         let u0 = col / ATLAS_COLS,
@@ -358,7 +358,9 @@ function opaqueGeo(field: NdArray<Uint8Array>, light: Uint8Array, pal: [number, 
                 sg += g
                 sb += b
               }
-            colors.push(sr * multiple * tint[0], sg * multiple * tint[1], sb * multiple * tint[2], 1)
+            // lighting only - tint applied on main thread so palette drag is instant
+            colors.push(sr * multiple, sg * multiple, sb * multiple, 1)
+            colorIndices.push(colorIndex)
           }
 
           uvs.push(u0, v0, u0, v1, u1, v1, u1, v0)
@@ -375,6 +377,7 @@ function opaqueGeo(field: NdArray<Uint8Array>, light: Uint8Array, pal: [number, 
     normals: new Float32Array(normals),
     uvs: new Float32Array(uvs),
     colors: new Float32Array(colors),
+    colorIndices: new Float32Array(colorIndices),
     indices: new Uint32Array(indices),
   }
 }
@@ -421,10 +424,10 @@ export function bakeLightmap(
   off2: number,
   lanterns: Array<{ position: [number, number, number]; color: string; strength?: number | string }>,
   off: [number, number, number],
-  pal: [number, number, number][],
+  _pal?: [number, number, number][],
 ): LightmapOut {
   const field16 = ndarray(data, shape, stride, off2)
   const field8 = to8bit(field16)
   const light = floodfill(field8, lanterns, off)
-  return { opaque: opaqueGeo(field8, light, pal), glass: glassGeo(field8) }
+  return { opaque: opaqueGeo(field8, light), glass: glassGeo(field8) }
 }

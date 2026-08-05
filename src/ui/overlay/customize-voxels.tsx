@@ -1,16 +1,10 @@
-import { md5 } from '../../../common/helpers/utils'
-import { debounce, uniqBy } from 'lodash'
+import { debounce } from 'lodash'
 import { Component } from 'preact'
-import { useEffect, useRef, useState } from 'preact/hooks'
 import { blocks, defaultColors } from '../../../common/content/blocks'
-import LoadingIcon from '../../../web/src/components/loading-icon'
-import { app } from '../../../web/src/state'
 import type Parcel from '../../parcel'
 
 const DEFAULT_TILESET = '/textures/atlas-ao.png?voxelscom'
 const { setTimeout } = window
-
-const stableHash = md5
 
 interface Props {
   parcel: Parcel
@@ -24,6 +18,8 @@ interface State {
   uploading: boolean
   uploadingText?: string
   reloading?: boolean
+  texture: number
+  tint: number
 }
 
 export default class CustomizeVoxels extends Component<Props, State> {
@@ -31,18 +27,19 @@ export default class CustomizeVoxels extends Component<Props, State> {
   dynamicTexture: BABYLON.DynamicTexture | undefined
   dragOverTimer: number | undefined
   controller: AbortController | null = null
-  setColor = debounce(
-    (index: number, value: string) => {
-      const palette = this.palette.slice()
-      palette[index] = value
+  textureObserver: any = null
 
-      this.setState({ palette }, () => {
-        this.updatePalette()
-      })
-    },
-    100,
-    { trailing: true, leading: false },
-  )
+  setColor = (index: number, value: string) => {
+    const palette = this.palette.slice()
+    palette[index] = value
+    this.setState({ palette })
+    this.props.parcel.applyPaletteLive(palette)
+    this.commitPalette()
+  }
+
+  commitPalette = debounce(() => {
+    this.props.parcel.setPalette(this.state.palette)
+  }, 200)
 
   constructor(props: Props) {
     super(props)
@@ -50,6 +47,8 @@ export default class CustomizeVoxels extends Component<Props, State> {
       tileset: props.parcel.tileset,
       palette: props.parcel.palette || defaultColors,
       uploading: false,
+      texture: window.ui?.voxelTool.texture ?? 0,
+      tint: window.ui?.voxelTool.tint ?? 0,
     }
   }
 
@@ -104,6 +103,15 @@ export default class CustomizeVoxels extends Component<Props, State> {
 
   componentDidMount() {
     this.loadImage()
+    this.textureObserver =
+      window.ui?.voxelTool.onCurrentTextureTintUpdate.add(({ texture, tint }) => {
+        this.setState({ texture, tint })
+      }) ?? null
+  }
+
+  componentWillUnmount() {
+    this.textureObserver?.remove()
+    this.textureObserver = null
   }
 
   updatePalette() {
@@ -112,6 +120,26 @@ export default class CustomizeVoxels extends Component<Props, State> {
 
   updateTileset() {
     this.props.parcel.setTileset(this.state.tileset)
+  }
+
+  selectTexture(index: number) {
+    if (!window.ui) return
+    window.ui.voxelTool.texture = index
+    this.setState({ texture: index })
+  }
+
+  selectTint(index: number) {
+    if (!window.ui) return
+    window.ui.voxelTool.tint = index
+    this.setState({ tint: index })
+  }
+
+  onSlotClick(index: number, e: MouseEvent) {
+    if (e.shiftKey) {
+      this.uploadTexture(index)
+      return
+    }
+    this.selectTexture(index)
   }
 
   uploadTexture(index: number) {
@@ -303,7 +331,6 @@ export default class CustomizeVoxels extends Component<Props, State> {
 
     const signal = this.controller.signal
 
-    // fetch(`http://localhost:3000/upload/atlas`, {
     fetch(`https://img.cryptovoxels.com/node/upload/atlas`, {
       method: 'POST',
       body: formData,
@@ -339,6 +366,7 @@ export default class CustomizeVoxels extends Component<Props, State> {
       )
     }
 
+    const tint = this.state.tint || 0
     const images = blocks.map((b, index) => {
       const j = index + 1
       const y = Math.floor(j / 4)
@@ -353,17 +381,20 @@ export default class CustomizeVoxels extends Component<Props, State> {
         backgroundPositionX,
         backgroundPositionY,
         backgroundImage: `url(${this.tilesetUrl})`,
+        backgroundColor: this.palette[tint],
       }
+
+      const classes = [index === this.state.texture && 'selected', this.state.dragOverIndex === index && 'dragOver'].filter(Boolean).join(' ')
 
       return (
         <div
-          title="Click to replace texture"
-          class={this.state.dragOverIndex === index && ('-dragOver' as any)}
+          title="Click to select. Shift-click to upload."
+          class={classes}
           onDrop={(e) => this.onDrop(index, e)}
           onDragOver={(e) => this.dragOver(index, e)}
           onDragLeave={() => this.dragLeave()}
           onDragEnd={() => this.dragEnd()}
-          onClick={() => this.uploadTexture(index)}
+          onClick={(e) => this.onSlotClick(index, e)}
         >
           {glass ? <img className="tile" src="/images/glass.png" /> : <div className="tile" style={style} />}
         </div>
@@ -371,7 +402,11 @@ export default class CustomizeVoxels extends Component<Props, State> {
     })
 
     const tintEditors = this.palette.map((color, idx) => {
-      return <TintColorInput color={color} idx={idx} setColor={(id, color) => this.setColor(id, color)} />
+      return (
+        <span class={idx === tint ? 'selected' : undefined} onClick={() => this.selectTint(idx)}>
+          <TintColorInput color={color} idx={idx} setColor={(id, c) => this.setColor(id, c)} />
+        </span>
+      )
     })
 
     return (
@@ -379,9 +414,9 @@ export default class CustomizeVoxels extends Component<Props, State> {
         <button title="Click to reset the voxel textures to default" style="float:right" onClick={() => this.resetTileSet()}>
           Reset
         </button>
-        <h4>Customize Voxels</h4>
+        <h4>Voxels</h4>
         <small>
-          You can add your own images as <strong>voxel textures</strong>. To upload, click on one of the slots below, or just drag and drop.
+          Click a slot to select. Shift-click or drag-and-drop to upload a <strong>voxel texture</strong>.
         </small>
         <div className="textures">
           <input style="display: none;" type="file" class="tile-uploader" accept="image/*" />
@@ -393,10 +428,7 @@ export default class CustomizeVoxels extends Component<Props, State> {
             {this.state.uploadingText}
           </div>
         )}
-        {app.signedIn && <OtherTextures />}
-        <small>
-          Click any of the colors below to update <strong>voxel tints</strong>.
-        </small>
+        <h4>Voxel tints</h4>
         <div className="tints">
           {tintEditors}{' '}
           <button title="Click to reset the tints to default" style="float:right" onClick={() => this.resetPalette()}>
@@ -411,125 +443,6 @@ export default class CustomizeVoxels extends Component<Props, State> {
 
 export const TintColorInput = ({ idx, color, setColor }: { idx: number; color: string; setColor: (id: number, col: string) => void }) => {
   return <input className="tint" type="color" onInput={(e) => setColor(idx, e.currentTarget.value)} value={color} />
-}
-
-export const OtherTextures = () => {
-  const [show, setShow] = useState<boolean>(false)
-  const set = useRef<Map<string, string>>(new Map<string, string>())
-  const [loading, setLoading] = useState<boolean>(false)
-  let controller: AbortController
-
-  async function cutImageUp(ev: any, image: HTMLImageElement, cb: () => void) {
-    const numColsToCut = 4
-    const numRowsToCut = 4
-    const widthOfOnePiece = 256
-    const heightOfOnePiece = 256
-
-    const oversize = 64
-    const canvas = document.createElement('canvas')
-    canvas.style.display = 'none'
-    canvas.width = 128
-    canvas.height = 128
-    const context = canvas.getContext('2d')
-    for (let x = 0; x < numColsToCut; ++x) {
-      for (let y = 0; y < numRowsToCut; ++y) {
-        // clear canvas
-        context?.clearRect(0, 0, canvas.width, canvas.height)
-        // draw image
-        context!.drawImage(image, x * widthOfOnePiece + oversize, y * heightOfOnePiece + oversize, 128, 128, 0, 0, canvas.width, canvas.height)
-
-        // Create a hash of the image data to avoid duplicate textures
-        // This is not perfect as it will only be a perfect match, and we'll notice a few similar images
-        // TODO: Make this a good 99% check to avoid duplicates
-        const url = canvas.toDataURL()
-        const hashed = stableHash(url)
-        if (!set.current.has(hashed)) {
-          set.current.set(hashed, url)
-        }
-      }
-    }
-    cb()
-  }
-
-  const img = new Image()
-  img.crossOrigin = 'Anonymous'
-  const loadImage = (href: string) => {
-    return new Promise((resolve) => {
-      const kill = () => {
-        resolve(true)
-      }
-
-      img.src = href
-      img.onload = (e) => {
-        cutImageUp(e, img, kill)
-      }
-    })
-  }
-
-  useEffect(() => {
-    if (show) {
-      fetchTextures()
-    }
-  }, [show])
-
-  const fetchTextures = () => {
-    controller = new AbortController()
-
-    const signal = controller.signal
-    setLoading(true)
-    fetch(`${process.env.API}/parcels/resources/${app.state.wallet}.json`, {
-      method: 'GET',
-      signal,
-    })
-      .then((r) => r.json())
-      .then(async (res: { sucess: boolean; resources: { tileset: string }[] }) => {
-        if (res && res.resources) {
-          // Get valid tilesets only and remove duplicates
-          const resources = uniqBy(
-            res.resources.filter((p) => !!p.tileset).filter((p) => !p.tileset.match('/textures/atlas-ao.png')),
-            (v) => v.tileset,
-          )
-
-          for (const r of resources) {
-            await loadImage(process.env.IMG_HOST + r.tileset)
-          }
-        }
-        setLoading(false)
-        controller = null!
-      })
-  }
-
-  const length = set.current.size
-
-  if (!show) {
-    return (
-      <div className="OtherTextures">
-        <span>Replace with a texture from another parcel</span>
-        <div className="Center">
-          <button onClick={() => setShow(true)}>Click to Load textures</button>
-        </div>
-      </div>
-    )
-  }
-
-  return (
-    <div className="OtherTextures">
-      {!loading && !!length ? <span>We found {set.current.size} textures in your other parcels! You can drag and drop any following images into the slots above:</span> : !loading && !length && <span>No custom textures were found.</span>}
-      <div style={{ display: 'flex', overflowX: 'auto', padding: 3 }}>
-        {loading && (
-          <div style={{ display: 'flex', alignItems: 'Center', justifyContent: 'space-between', width: '100%' }}>
-            <LoadingIcon />
-            <small> Searching for textures in your other parcels</small>
-          </div>
-        )}
-        {!loading &&
-          !!length &&
-          Array.from(set.current.entries()).map(([hash, url]) => {
-            return <img className={'other-parcel-texture'} onDragStart={(e) => e.dataTransfer!.setData('text/plain', url)} key={hash} src={url} title={'Drag me into a voxels slot!'} />
-          })}
-      </div>
-    </div>
-  )
 }
 
 export async function dataUrlToFile(dataUrl: string, fileName: string): Promise<File> {

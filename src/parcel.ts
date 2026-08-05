@@ -13,7 +13,7 @@ import { FeatureRecord } from '../common/messages/feature'
 import type { ParcelGeometry, ParcelKind, ParcelPatch, ParcelRecord, ParcelRef, ParcelSettings } from '../common/messages/parcel'
 import { getBufferFromVoxels, getFieldShape, getVoxelsFromBuffer } from '../common/voxels/helpers'
 import { VoxelSize } from '../common/voxels/mesher'
-import { buildCleanMesh } from './clean-mesher'
+import { applyCleanPalette, buildCleanMesh } from './clean-mesher'
 import { createWhiteTexture } from './textures/textures'
 import type { LanternRecord } from '../common/messages/feature'
 import { app } from '../web/src/state'
@@ -853,12 +853,16 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   setPalette(colors: Array<string> | undefined) {
-    this.palette = colors
-    Object.assign(this.content, { palette: colors })
-
-    this.refreshPalette()
+    this.applyPaletteLive(colors)
     this.sendPalette()
     this.onTileSetUpdate.notifyObservers()
+  }
+
+  // instant local tint update (no network) - used while dragging the color wheel
+  applyPaletteLive(colors: Array<string> | undefined) {
+    this.palette = colors
+    Object.assign(this.content, { palette: colors })
+    this.refreshPalette()
   }
 
   setTileset(tileset: any) {
@@ -1365,14 +1369,18 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       return
     }
 
-    const material = this.voxelMesh.material as BABYLON.ShaderMaterial
+    const material = this.voxelMesh.material
+    if (!material) return
 
     // regenerate if we are still using greedy blocks so that we don't change the pallet of surrounding parcels
     if (isShared(material)) return this.refreshVoxels()
 
     const palette = this.paletteColors
 
-    if (palette && palette[1]) {
+    // realistic lighting (clean mesh): rewrite vertex colors from stored lighting * palette
+    if (applyCleanPalette(this.voxelMesh, palette)) return
+
+    if (palette && palette[1] && material instanceof BABYLON.ShaderMaterial) {
       material.setColor3Array('palette', palette)
     }
   }

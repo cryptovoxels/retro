@@ -12,6 +12,7 @@ const POINTER_WHEEL_MULTIPLIER = 0.001
 export default class DesktopControls extends Controls {
   keyboardInput?: LocaleKeyboardMoveInput
   private lockListener?: () => void
+  private nerfClick = false
 
   constructor(scene: BABYLON.Scene, canvas: HTMLCanvasElement) {
     super(scene, canvas)
@@ -117,6 +118,7 @@ export default class DesktopControls extends Controls {
       window.ui?.clearAllExplore()
       // start lerp-out on the click itself so it doesn't snap when lock fires
       this.idleLook.stop()
+      this.nerfClick = true
       this.requestPointerLock()?.catch(() => {})
       return
     }
@@ -147,7 +149,11 @@ export default class DesktopControls extends Controls {
           break
         }
         if (btn === 0 && hasPointerLock() && !window.ui?.activeTool) {
-          this.lockedLeftClick(this.pickAtReticule())
+          if (this.nerfClick) {
+            this.nerfClick = false
+          } else {
+            this.lockedLeftClick(this.pickAtReticule())
+          }
           eventState.skipNextObservers = true
         }
         break

@@ -73,11 +73,10 @@ async function start(signal: AbortSignal) {
     onRadarEvent,
   )
 
-  // Heartbeat: re-SET all logged-in world clients to refresh TTL
+  // Heartbeat: re-SET all world clients to refresh TTL (including chat-only, null parcel)
   if (redis) {
     setInterval(() => {
       for (const c of shards.worldShard.getClientList()) {
-        if (c.lastSeenParcel === null) continue
         const val = JSON.stringify({ avatar: c.avatar, parcel: c.lastSeenParcel })
         redis!.set(`radar:${c.clientUUID}`, val, { EX: RADAR_TTL }).catch(() => {})
       }

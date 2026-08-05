@@ -60,6 +60,7 @@ export class Shard {
     const client = new Client(clientUUID, ws, this.connection, this.jwtSecret, this)
     this.connectedClients.set(clientUUID, client)
     this.sendClientJoinedMessage(client)
+    this.onRadarEvent?.({ type: 'move', uuid: clientUUID, avatar: null, parcel: null })
 
     return { kind: 'success', client }
   }

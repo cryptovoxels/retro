@@ -258,7 +258,7 @@ export type RadarEvent =
       type: 'move'
       uuid: string
       avatar: import('../../../../common/messages/avatar-ref').AvatarRef | null
-      parcel: number
+      parcel: number | null
     }
   | { type: 'leave'; uuid: string }
 

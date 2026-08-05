@@ -325,6 +325,12 @@ export class Client {
       },
     }
     this.shard.broadcastFromClient(createAvatar, toBuffer(messages.CreateAvatarEncoder(createAvatar)), this.clientUUID)
+    this.shard.onRadarEvent?.({
+      type: 'move',
+      uuid: this.clientUUID,
+      avatar: this.avatar,
+      parcel: this.lastSeenParcel,
+    })
   }
 
   get day() {
