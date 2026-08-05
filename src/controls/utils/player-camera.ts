@@ -3,6 +3,7 @@ const FRAME_DURATION_AT_60_FPS = 1000 / 60 // ms
 // FreeCamera + custom jump/fall via inertiaVector
 export default class PlayerCamera extends BABYLON.FreeCamera {
   inertiaVector = new BABYLON.Vector3(0, 0, 0)
+  doubleJump = true // available until spent mid-air
   private collider: BABYLON.Collider = undefined!
   private old = BABYLON.Vector3.Zero()
   private diff = BABYLON.Vector3.Zero()
@@ -22,6 +23,11 @@ export default class PlayerCamera extends BABYLON.FreeCamera {
 
   jump() {
     if (this.inertiaVector.y === 0) {
+      this.inertiaVector.y = 0.1
+      return
+    }
+    if (this.doubleJump) {
+      this.doubleJump = false
       this.inertiaVector.y = 0.1
     }
   }
@@ -103,6 +109,7 @@ export default class PlayerCamera extends BABYLON.FreeCamera {
       this.inertiaVector.y -= 0.003
     } else {
       this.inertiaVector.y = 0
+      this.doubleJump = true
     }
 
     this.next.copyFrom(newPosition)

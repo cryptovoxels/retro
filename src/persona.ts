@@ -149,7 +149,6 @@ export default class Persona {
     }
 
     this.teleportNoHistory(coords)
-    this.controls.setFlying(true)
   }
 
   // teleport a user with and push the previous location to the browsers history

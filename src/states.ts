@@ -116,7 +116,18 @@ class Running extends Moving {
 }
 
 abstract class JumpState extends CharacterState {
+  private jumpArmed = false
+
+  enter(persona: Persona, controls: Controls) {
+    this.jumpArmed = false
+  }
+
   handleControls(persona: Persona, controls: Controls): Transition | void {
+    if (!controls.jumping) this.jumpArmed = true
+    if (this.jumpArmed && controls.jumping) {
+      this.jumpArmed = false
+      if ('jump' in controls.camera) controls.camera.jump()
+    }
     if (controls.isOnGround() || controls.swimming || controls.flying) {
       return { state: null }
     }
@@ -125,6 +136,7 @@ abstract class JumpState extends CharacterState {
 
 class RunningJumping extends JumpState {
   enter(persona: Persona, controls: Controls) {
+    super.enter(persona, controls)
     if ('jump' in controls.camera) {
       controls.camera?.jump()
     }
@@ -135,6 +147,7 @@ class RunningJumping extends JumpState {
 
 class Jumping extends JumpState {
   enter(persona: Persona, controls: Controls) {
+    super.enter(persona, controls)
     if ('jump' in controls.camera) {
       controls.camera?.jump()
     }
@@ -146,7 +159,8 @@ class Jumping extends JumpState {
 class Falling extends JumpState {
   private fallingDistance = 0
 
-  enter(persona: Persona) {
+  enter(persona: Persona, controls: Controls) {
+    super.enter(persona, controls)
     persona.animation = Animations.Floating
   }
 
@@ -160,7 +174,10 @@ class Falling extends JumpState {
 }
 
 class Flying extends CharacterState {
+  private wasAirborne = false
+
   enter(persona: Persona) {
+    this.wasAirborne = false
     persona.animation = Animations.Floating
     persona.audio?.footstepSounds?.noStep()
     persona.audio?.flySound?.stop()
@@ -168,6 +185,11 @@ class Flying extends CharacterState {
 
   handleControls(persona: Persona, controls: Controls): Transition | void {
     if (!controls.flying) {
+      return { state: null }
+    }
+    if (!controls.isOnGround()) this.wasAirborne = true
+    if (this.wasAirborne && controls.isOnGround()) {
+      controls.setFlying(false)
       return { state: null }
     }
     if (isMoving(persona)) {
@@ -193,8 +215,10 @@ class Swimming extends CharacterState {
 
 class FloatMoving extends Moving {
   // needed to revert animations correctly when animating underwater or in the sky
+  private wasAirborne = false
 
   enter(persona: Persona, controls: Controls) {
+    this.wasAirborne = !controls.isOnGround()
     persona.animation = Animations.Floating
     persona.audio?.footstepSounds?.noStep()
     if (controls.flying) {
@@ -208,6 +232,13 @@ class FloatMoving extends Moving {
   }
 
   handleControls(persona: Persona, controls: Controls): Transition | void {
+    if (controls.flying) {
+      if (!controls.isOnGround()) this.wasAirborne = true
+      if (this.wasAirborne && controls.isOnGround()) {
+        controls.setFlying(false)
+        return { state: null }
+      }
+    }
     if ((!controls.swimming && !controls.flying) || !isMoving(persona)) {
       return { state: null }
     }

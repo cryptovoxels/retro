@@ -86,7 +86,7 @@ export default abstract class Controls implements IControls {
   initialCameraPos: BABYLON.Vector3 | null = null
   facingForward = true
   hasGamepad = false
-  flying = true
+  flying = false
   jumping = false
   swimming = false
   cameraDistance = 0
@@ -143,9 +143,9 @@ export default abstract class Controls implements IControls {
   audioContext: AudioContext = undefined!
   idleLook: IdleLook
   private cameraZoomed = false
-  // For gravity gating. See refreshGravity().
-  private _containingParcelsWaitState: 'ready' | 'waiting-for-parcel-list' | 'waiting-for-colliders' = 'ready'
-  private _containingParcels: number[] = []
+  // Gravity stays off until parcel colliders underfoot exist. See refreshGravity().
+  groundReady = true
+  private floorParcels: number[] | null = null // null = waiting for parcel ids
 
   constructor(
     protected scene: BABYLON.Scene,
@@ -514,21 +514,20 @@ export default abstract class Controls implements IControls {
       throw new Error('invalidateGroundLoaded() called before attachEnvironment()!')
     }
 
+    this.groundReady = false
     //TODO: Instead of switching on environment type here, this logic should probably be moved into methods in SpaceEnvironment and WorldEnvironment that override an abstract Environment method
     if (window.config.isSpace) {
       // Spaces always contain exactly one Parcel with ID 0
-      this._containingParcels = [0]
-      this._containingParcelsWaitState = 'waiting-for-colliders'
+      this.floorParcels = [0]
     } else {
       if (!this.grid) {
         throw new Error('invalidateGroundLoaded() called before attachEnvironment()!')
       }
 
       // The main thread doesn't keep a complete list of parcels, so we need to wait for the grid worker to tell us the definitive set of parcels containing the camera.
-      this._containingParcelsWaitState = 'waiting-for-parcel-list'
+      this.floorParcels = null
       this.grid.queryParcelsAtPosition(this.camera.position).then((parcelIds) => {
-        this._containingParcels = parcelIds
-        this._containingParcelsWaitState = 'waiting-for-colliders'
+        this.floorParcels = parcelIds
       })
     }
 
@@ -540,12 +539,12 @@ export default abstract class Controls implements IControls {
     if (this.camera instanceof PlayerCamera) {
       // To avoid falling into the abyss, or through the floor of a second-floor parcel, gravity stays off at least until:
       // 1. All islands have been meshed (this.grounded === true), and
-      // 2. Every parcel containing the camera position has a collider (this._containingParcelsWaitState === 'ready').
-      if (this._containingParcelsWaitState === 'waiting-for-colliders' && this._containingParcels.every((id) => this.grid?.getByID(id)?.isColliderEnabled())) {
-        this._containingParcels = []
-        this._containingParcelsWaitState = 'ready'
+      // 2. Every parcel containing the camera position has a collider (this.groundReady).
+      if (!this.groundReady && this.floorParcels && this.floorParcels.every((id) => this.grid?.getByID(id)?.isColliderEnabled())) {
+        this.groundReady = true
+        this.floorParcels = null
       }
-      this.camera.applyGravity = !this.flying && !this.swimming && this.grounded && isLoaded() && !this.gravityDisabledOverride && this._containingParcelsWaitState === 'ready'
+      this.camera.applyGravity = !this.flying && !this.swimming && this.grounded && isLoaded() && !this.gravityDisabledOverride && this.groundReady
     }
   }
 

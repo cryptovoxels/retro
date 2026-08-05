@@ -29,12 +29,21 @@ export default class DesktopControls extends Controls {
     const coords = decodeCoordsFromURL()
     const camera = createFirstPersonCamera(this.scene, coords)
     this.resetWorldOffset(coords.position)
+    this.setFlying(coords.flying ?? false)
 
     if (coords && coords.rotation) {
       camera['rotation'].y = coords?.rotation.y || 0
     }
 
     return camera
+  }
+
+  override setFlying(value: boolean) {
+    super.setFlying(value)
+    if (this.keyboardInput) {
+      this.keyboardInput.keysUpward = value ? ['PageUp', 'Space'] : []
+      this.keyboardInput.keysDownward = value ? ['PageDown', 'KeyV'] : []
+    }
   }
 
   addControls(camera: PlayerCamera) {
@@ -49,25 +58,6 @@ export default class DesktopControls extends Controls {
     this.scene.onPointerObservable.add(this.desktopClicks, undefined, true)
 
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault())
-    this.startSpawnGroundCheck()
-  }
-
-  private startSpawnGroundCheck() {
-    const start = Date.now()
-    const id = setInterval(() => {
-      if (Date.now() - start > 10_000) {
-        clearInterval(id)
-        return
-      }
-      if (!this.persona) return
-      const origin = this.persona.position.add(this.worldOffset.position)
-      const ray = new BABYLON.Ray(origin, new BABYLON.Vector3(0, -1, 0), 2)
-      const hit = this.scene.pickWithRay(ray, (e) => e.checkCollisions, true)
-      if (hit?.hit) {
-        this.setFlying(false)
-        clearInterval(id)
-      }
-    }, 100)
   }
 
   dispose() {
@@ -233,9 +223,9 @@ export default class DesktopControls extends Controls {
   addKeyboardControls(camera: BABYLON.Camera) {
     this.keyboardInput = new LocaleKeyboardMoveInput({
       keysUp: ['ArrowUp', 'KeyW'],
-      keysUpward: ['PageUp', 'Space'],
+      keysUpward: this.flying ? ['PageUp', 'Space'] : [],
       keysDown: ['ArrowDown', 'KeyS'],
-      keysDownward: ['PageDown', 'KeyV'],
+      keysDownward: this.flying ? ['PageDown', 'KeyV'] : [],
       keysLeft: ['ArrowLeft', 'KeyA'],
       keysRight: ['ArrowRight', 'KeyD'],
     })

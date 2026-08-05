@@ -148,6 +148,7 @@ const headings = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'N']
 export const decodeCoords = (coords: string | null): coords => {
   const result = new BABYLON.Vector3(0, CAMERA_HEIGHT, 0)
   const rotation = new BABYLON.Vector3(0, 0, 0)
+  let flying = false
 
   if (coords) {
     const terms = coords.split(/[,@]/)
@@ -155,8 +156,10 @@ export const decodeCoords = (coords: string | null): coords => {
     terms.forEach((t) => {
       if (t.match(/\dU$/)) {
         result.y = parseFloat(t) + CAMERA_HEIGHT
-      } else if (t.match(/\F$/)) {
+        flying = false
+      } else if (t.match(/\dF$/)) {
         result.y = parseFloat(t) + CAMERA_HEIGHT
+        flying = true
       } else if (t.match(/\dN$/)) {
         result.z = parseFloat(t)
       } else if (t.match(/\dS$/)) {
@@ -171,7 +174,7 @@ export const decodeCoords = (coords: string | null): coords => {
     })
   }
 
-  return { position: result, rotation }
+  return { position: result, rotation, flying }
 }
 
 /**

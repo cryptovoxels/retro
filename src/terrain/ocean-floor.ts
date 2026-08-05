@@ -16,6 +16,7 @@ export default class OceanFloor implements ChunkObserver {
     oceanFloorTexture.vScale = this.size
 
     const oceanFloorMaterial = new BABYLON.StandardMaterial('skybox/ocean-floor', scene)
+    oceanFloorMaterial.diffuseColor.set(0.2, 0.2, 0.2)
     oceanFloorMaterial.ambientTexture = oceanFloorTexture
     oceanFloorMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1)
     oceanFloorMaterial.fogEnabled = true
