@@ -135,7 +135,7 @@ export default class Explore extends Component {
   render() {
     return (
       <Fragment>
-        <Head title="" url={'/'}>
+        <Head title="Voxels (formerly Cryptovoxels)" url={'/'}>
           <Fragment>
             <link rel="prefetch" href={getClientPath(currentVersion)} />
             <link rel="prefetch" href="/api/parcels/cached.json" />
