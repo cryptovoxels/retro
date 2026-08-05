@@ -91,8 +91,11 @@ export default abstract class Controls implements IControls {
   swimming = false
   cameraDistance = 0
   targetCameraDistance: number = CAMERA_DISTANCE
-  reticuleNormal: BABYLON.Mesh
-  reticuleHighlight: BABYLON.Mesh
+  reticuleRoot: BABYLON.TransformNode
+  reticuleChannels: BABYLON.Mesh[]
+  reticuleActive = false
+  private chromaAmount = 0
+  private reticuleSpinT = 0
   user: User
   defaultSpeed = 0.88
   runSpeed = 4.0
@@ -168,18 +171,14 @@ export default abstract class Controls implements IControls {
     // Enable feature clicking
     this.scene.onPointerObservable.add(this.featureClickHandler.bind(this))
 
-    this.reticuleNormal = generateReticule(scene, false)
-    this.reticuleNormal.setEnabled(true)
-    this.reticuleNormal.parent = this.camera
-    this.reticuleHighlight = generateReticule(scene, true)
-    this.reticuleHighlight.setEnabled(false)
-    this.reticuleHighlight.parent = this.camera
+    const reticule = generateReticule(scene)
+    this.reticuleRoot = reticule.root
+    this.reticuleChannels = reticule.channels
+    this.reticuleRoot.parent = this.camera
 
     if (isDesktop()) {
-      this.scene.registerBeforeRender(() => {
-        // Show the reticule in 20% visibility in 3rd person mode.
-        this.reticuleNormal.visibility = hasPointerLock() || this.hasGamepad ? (this.firstPersonView ? 1 : 0.2) : 0
-        this.reticuleHighlight.visibility = hasPointerLock() || this.hasGamepad ? (this.firstPersonView ? 1 : 0.2) : 0
+      this.scene.onBeforeRenderObservable.add(() => {
+        this.tickReticuleSpin()
       })
     }
 
@@ -449,14 +448,51 @@ export default abstract class Controls implements IControls {
     return this.worldOffset.absolutePosition.add(worldPosition)
   }
 
-  setActiveReticule(highlight = false) {
-    if (highlight && this.reticuleNormal.isEnabled()) {
-      this.reticuleHighlight.setEnabled(true)
-      this.reticuleNormal.setEnabled(false)
-    } else if (!highlight && this.reticuleHighlight.isEnabled()) {
-      this.reticuleHighlight.setEnabled(false)
-      this.reticuleNormal.setEnabled(true)
+  setActiveReticule(active = false) {
+    this.reticuleActive = active
+  }
+
+  private tickReticuleSpin() {
+    const dt = this.scene.getEngine().getDeltaTime() / 1000
+    const target = this.reticuleActive ? 1 : 0
+    if (this.chromaAmount !== target) {
+      const step = dt / 0.2
+      if (this.chromaAmount < target) this.chromaAmount = Math.min(target, this.chromaAmount + step)
+      else this.chromaAmount = Math.max(target, this.chromaAmount - step)
     }
+
+    const shown = hasPointerLock() || this.hasGamepad
+    const baseVis = shown ? (this.firstPersonView ? 1 : 0.2) : 0
+    const vis = baseVis * (0.5 + 0.5 * this.chromaAmount)
+
+    if (this.chromaAmount === 0 && !this.reticuleActive) {
+      for (const ch of this.reticuleChannels) {
+        ch.visibility = vis
+        ch.rotation.z = 0
+        ch.position.x = 0
+        ch.position.y = 0
+      }
+      this.reticuleSpinT = 0
+      return
+    }
+
+    this.reticuleSpinT += dt
+    const t = this.reticuleSpinT
+    const a = this.chromaAmount
+    const orbit = 0.0009 * a
+    const [r, g, b] = this.reticuleChannels
+    r.visibility = vis
+    g.visibility = vis
+    b.visibility = vis
+    r.rotation.z = t * 2.6 * a
+    g.rotation.z = (t * 3.4 + 0.7) * a
+    b.rotation.z = (t * 1.9 - 0.7) * a
+    r.position.x = Math.cos(t * 4.1) * orbit
+    r.position.y = Math.sin(t * 4.1) * orbit
+    g.position.x = Math.cos(t * 5.2 + 2.1) * orbit
+    g.position.y = Math.sin(t * 5.2 + 2.1) * orbit
+    b.position.x = Math.cos(t * 3.3 + 4.2) * orbit
+    b.position.y = Math.sin(t * 3.3 + 4.2) * orbit
   }
 
   setFlying(value: boolean) {
@@ -956,86 +992,70 @@ export default abstract class Controls implements IControls {
   }
 }
 
-function generateReticule(scene: BABYLON.Scene, highlight = false) {
-  let name = 'reticule'
-  if (highlight) {
-    name += '_highlight'
-  }
+function generateReticule(scene: BABYLON.Scene) {
   const w = 128
   const utilLayer = new BABYLON.UtilityLayerRenderer(scene)
-  const texture = new BABYLON.DynamicTexture(name, w, scene, false)
+  const utilScene = utilLayer.utilityLayerScene
+  const texture = new BABYLON.DynamicTexture('reticule', w, scene, false)
   texture.hasAlpha = true
 
   const ctx = <CanvasRenderingContext2D>texture.getContext()
+  const radius = w * 0.2
+  const centerX = w * 0.5
+  const centerY = w * 0.5
 
-  const createHexagon = () => {
-    const radius = w * 0.1
-    const centerX = w * 0.5
-    const centerY = w * 0.5
-
-    // Background
-    ctx.beginPath()
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)'
-    ctx.lineWidth = 2
-
-    for (let i = 0; i <= 6; i++) {
-      const angle = (Math.PI / 3) * i - Math.PI / 2
-      const x = centerX + radius * Math.cos(angle)
-      const y = centerY + radius * Math.sin(angle)
-      if (i === 0) {
-        ctx.moveTo(x + 2, y + 2)
-      } else {
-        ctx.lineTo(x + 2, y + 2)
-      }
-    }
-
-    ctx.stroke()
-
-    // Foreground
-    ctx.beginPath()
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
-    ctx.lineWidth = highlight ? 3 : 2
-
-    for (let i = 0; i <= 6; i++) {
-      const angle = (Math.PI / 3) * i - Math.PI / 2
-      const x = centerX + radius * Math.cos(angle)
-      const y = centerY + radius * Math.sin(angle)
-      if (i === 0) {
-        ctx.moveTo(x, y)
-      } else {
-        ctx.lineTo(x, y)
-      }
-    }
-
-    ctx.stroke()
-
-    texture.update()
+  ctx.beginPath()
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)'
+  ctx.lineWidth = 4
+  for (let i = 0; i <= 6; i++) {
+    const angle = (Math.PI / 3) * i - Math.PI / 2
+    const x = centerX + radius * Math.cos(angle)
+    const y = centerY + radius * Math.sin(angle)
+    if (i === 0) ctx.moveTo(x + 2, y + 2)
+    else ctx.lineTo(x + 2, y + 2)
   }
+  ctx.stroke()
 
-  createHexagon()
+  ctx.beginPath()
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
+  ctx.lineWidth = 4
+  for (let i = 0; i <= 6; i++) {
+    const angle = (Math.PI / 3) * i - Math.PI / 2
+    const x = centerX + radius * Math.cos(angle)
+    const y = centerY + radius * Math.sin(angle)
+    if (i === 0) ctx.moveTo(x, y)
+    else ctx.lineTo(x, y)
+  }
+  ctx.stroke()
+  texture.update()
 
-  const material = new BABYLON.StandardMaterial(name, scene)
-  material.diffuseTexture = texture
-  material.opacityTexture = texture
-  material.emissiveColor.set(1, 1, 1)
-  material.disableLighting = true
+  const root = new BABYLON.TransformNode('reticule', utilScene)
+  root.position.set(0, 0, 0.2)
 
-  const reticule = BABYLON.MeshBuilder.CreatePlane(name, { size: 0.02 }, utilLayer.utilityLayerScene)
-  reticule.material = material
-  reticule.position.set(0, 0, 0.2)
-  reticule.isPickable = false
-  // reticule.rotation.z = Math.PI / 4
-  // set invisible until render loop starts
-  reticule.visibility = 0
+  const colors: [string, BABYLON.Color3][] = [
+    ['r', new BABYLON.Color3(1, 0.15, 0.15)],
+    ['g', new BABYLON.Color3(0.15, 1, 0.15)],
+    ['b', new BABYLON.Color3(0.15, 0.4, 1)],
+  ]
 
-  // material.freeze()
-  // material.blockDirtyMechanism = true
+  const channels = colors.map(([suffix, color]) => {
+    const material = new BABYLON.StandardMaterial(`reticule_${suffix}`, utilScene)
+    material.diffuseTexture = texture
+    material.opacityTexture = texture
+    material.emissiveColor.copyFrom(color)
+    material.disableLighting = true
+    material.alphaMode = BABYLON.Engine.ALPHA_ADD
+    material.disableDepthWrite = true
 
-  // if (highlight) {
-  //   animateReticuleScale(reticule)
-  // }
+    const mesh = BABYLON.MeshBuilder.CreatePlane(`reticule_${suffix}`, { size: 0.04 }, utilScene)
+    mesh.material = material
+    mesh.parent = root
+    mesh.isPickable = false
+    mesh.visibility = 0
+    return mesh
+  })
 
-  return reticule
+  return { root, channels }
 }
 
 export function featureFromPick(pickInfo?: BABYLON.PickingInfo | null): Feature | null {

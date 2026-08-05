@@ -8,7 +8,7 @@ import nftFrameBlueShaderBlue from '../shaders/nft-frame-blue.fsh'
 import nftFrameShaderClassic from '../shaders/nft-frame-classic.fsh'
 import nftFrameColorsShaderColors from '../shaders/nft-frame-colors.fsh'
 import nftVertexShader from '../shaders/nft.vsh'
-import { fetchSpinnerTexture, fetchTexture } from '../textures/textures'
+import { fetchTexture } from '../textures/textures'
 import { rebindGizmosBoundToFeature } from '../tools/gizmos'
 import { Advanced, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UrlSourceNftImages } from '../ui/features'
 import OpenseaAssetHelper from '../ui/gui/opensea-asset-helper'
@@ -44,6 +44,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
   static classicFrameMaterial: NFTFrame
   static colorsFrameMaterial: NFTFrame
   static blueFrameMaterial: NFTFrame
+  static draftMaterial: BABYLON.StandardMaterial | null = null
   static metadata: FeatureMetadata = {
     title: 'NFT Image',
     subtitle: 'nfts you own',
@@ -121,12 +122,28 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     this.generateNFT()
   }
 
-  async renderLoading() {
-    const texture = await fetchSpinnerTexture(this.scene, this.abortController.signal)
-    // if for some reason the loading image takes longer to load than the actual image, don't replace it!
-    if (this.loaded) return null
-    texture.hasAlpha = false
-    return this.renderImage(texture)
+  createDraft() {
+    if (this.disposed) return
+    if (!NftImage.draftMaterial) {
+      const m = new BABYLON.StandardMaterial('nft-draft', this.scene)
+      m.specularColor.set(0, 0, 0)
+      m.diffuseColor.set(0.45, 0.45, 0.45)
+      m.emissiveColor.set(0.35, 0.35, 0.35)
+      m.backFaceCulling = false
+      m.zOffset = -2
+      m.freeze()
+      NftImage.draftMaterial = m
+    }
+    const plane = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    plane.material = NftImage.draftMaterial
+    if (this.mesh) this.mesh.dispose()
+    this.mesh = plane
+    rebindGizmosBoundToFeature(this)
+    this.setCommon()
+  }
+
+  get isInteract() {
+    return true
   }
 
   shouldBeInteractive() {
@@ -147,12 +164,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     // get the URL of the asset
     return new Promise(async (resolve) => {
       this.loaded = false
-      if (this.recentlySpawned) {
-        // we don't want to show a loading image in other cases as this makes the world look more janky, but it is important
-        // for builder user experience to show loading image if the image was just added by the user (e.g. drag and drop)
-        await this.renderLoading()
-        resolve()
-      }
+      this.createDraft()
       var url = await this.loadURL()
 
       if (!this.assetHelper) {

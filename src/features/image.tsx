@@ -87,11 +87,7 @@ export default class Image extends Feature2D<ImageRecord> {
 
   async generate(): Promise<void> {
     this.loaded = false
-    if (this.recentlySpawned) {
-      // we don't want to show a loading image in other cases as this makes the world look more janky, but it is important
-      // for builder user experience to show loading image if the image was just added by the user (e.g. drag and drop)
-      this.renderLoading()
-    }
+    this.renderLoading()
 
     const texture = await fetchTexture(this.scene, this.textureURL, this.abortController.signal, {
       transparent: !!this.description.transparent,

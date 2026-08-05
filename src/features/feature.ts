@@ -90,7 +90,6 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   parcel: Parcel
   onEnter?: () => void
   onExit?: () => void
-  recentlySpawned = false
   animation?: BABYLON.Animation
   _animationDisabled = false
   timer?: number
@@ -406,6 +405,10 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
   updateAfterWorldOffsetChange = () => {
     // virtual
+  }
+
+  get isInteract() {
+    return false
   }
 
   shouldBeInteractive() {

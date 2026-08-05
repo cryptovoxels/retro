@@ -219,14 +219,7 @@ export class DragDrop {
     }
 
     this.ui.activeTool = this.ui.featureTool
-    const feature = await this.ui.featureTool.spawn(this.pickInfo, featureTemplate)
-    if (feature) {
-      // this is set by the featureTool.spawn() to avoid loading a loader to every new image a user sees, so we wait
-      // for the feature to finish it thing, unset the recently spawned and then re-generate it. another option is to
-      // rewrite the featureTool.spawn()
-      feature.recentlySpawned = false
-      feature.generate()
-    }
+    await this.ui.featureTool.spawn(this.pickInfo, featureTemplate)
   }
 
   async uploadAndSpawn(file: File, featureTemplate: any) {

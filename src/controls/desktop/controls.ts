@@ -173,14 +173,9 @@ export default class DesktopControls extends Controls {
         break
 
       case BABYLON.PointerEventTypes.POINTERMOVE:
-        const metadata = eventData.pickInfo?.pickedMesh?.metadata
+        const feature = featureFromPick(eventData.pickInfo)
         const distance = eventData.pickInfo?.distance || Infinity
-
-        if (metadata && !!metadata.isInteractive && distance < this.MAX_PICK_DISTANCE) {
-          this.setActiveReticule(true)
-        } else {
-          this.setActiveReticule(false)
-        }
+        this.setActiveReticule(!!feature?.isInteract && distance < this.MAX_PICK_DISTANCE)
         this.updateMuteHint(eventData)
     }
   }

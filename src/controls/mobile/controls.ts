@@ -41,8 +41,7 @@ export default class MobileControls extends Controls {
 
     // Hide / show reticule
     this.scene.registerBeforeRender(() => {
-      this.reticuleNormal.visibility = 0
-      this.reticuleHighlight.visibility = 0
+      for (const ch of this.reticuleChannels) ch.visibility = 0
       this.walking()
     })
 

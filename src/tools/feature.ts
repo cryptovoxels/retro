@@ -411,7 +411,6 @@ export default class FeatureTool implements Tool {
 
     const featureUuid = (conserveUuid && featureTemplate.uuid) || uuid()
     const feature: MeshedFeature = this.createFeature(this.scene, this.selection.parcel!, featureUuid, featureTemplate as any)
-    feature.recentlySpawned = true
     this._prematureFeature = feature
     // We disable animations on the premature feature to avoid animations breaking the premature feature preview
     feature.animationDisabled = true
@@ -474,7 +473,6 @@ export default class FeatureTool implements Tool {
     const featureUuid = (conserveUuid && featureTemplate.uuid) || uuid()
 
     const feature: MeshedFeature = this.createFeature(this.scene, this.selection.parcel, featureUuid, featureTemplate as any)
-    feature.recentlySpawned = true
 
     // Wait for mesh generation before continuing
     await feature.generate()
