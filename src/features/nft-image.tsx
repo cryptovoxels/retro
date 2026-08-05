@@ -12,7 +12,7 @@ import { fetchSpinnerTexture, fetchTexture } from '../textures/textures'
 import { rebindGizmosBoundToFeature } from '../tools/gizmos'
 import { Advanced, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UrlSourceNftImages } from '../ui/features'
 import OpenseaAssetHelper from '../ui/gui/opensea-asset-helper'
-import showNftImageHTMLUi from '../ui/html-ui/nft-image-ui'
+import showNftView from '../ui/html-ui/nft-view'
 import { tidyFloat } from '../utils/helpers'
 import { opensea, readOpenseaUrl } from '../utils/proxy'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -318,7 +318,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     this.connector.sendMetric(Action.Inspect)
 
     // I guess we'll still use the `HasGUI` for the option of opening the HTMLUI.
-    this.description.hasGui && showNftImageHTMLUi(this)
+    this.description.hasGui && showNftView(this)
   }
 
   renderImage(texture: BABYLON.Texture): BABYLON.Mesh | null {

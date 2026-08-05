@@ -262,6 +262,8 @@ It's simple, we can style it simply. Add fuck all classes,
 never add styling css unless instructed to. Layout is ok,
 use `1rem` whenever required for padding, no borders, or colors. No solid backgrounds. No font sizes.
 
+Important: Never use css classes starting with a hyphen. Remove hypen-prefix from old code. That shit sucks ass.
+
 ## Styling
 
 * Never use border-radius

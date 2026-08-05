@@ -900,6 +900,10 @@ div.map {
     p {
       margin: 0;
     }
+
+    .chat-times {
+      margin-top: 1rem;
+    }
   }
 
   .chat-messages {
@@ -4306,13 +4310,14 @@ dialog {
   box-shadow: 0.5rem 0.5rem 1rem rgba(0, 0, 0, 0.3);
   display: block;
   position: absolute;
-  bottom: 1rem;
-  right: -1rem;
-  left: auto;
+  left: 50%;
+  top: 50%;
   color: black;
-  width: 50vw;
+  min-width: 20rem;
+  max-width: 50vw;
   margin: 0;
   max-height: 90vh;
+  transform: translate(-50%, -50%);
   overflow: auto;
   border: 1rem solid white;
   padding: 0;
@@ -4377,24 +4382,103 @@ dialog {
   }
 }
 
-.nft-view {
-  max-width: 50vw;
+@keyframes nft-bounce-in {
+  0% {
+    scale: 0.85;
+    opacity: 0;
+  }
+  60% {
+    scale: 1.04;
+    opacity: 1;
+  }
+  100% {
+    scale: 1;
+    opacity: 1;
+  }
+}
+
+@keyframes nft-bounce-out {
+  0% {
+    scale: 1;
+    opacity: 1;
+  }
+  100% {
+    scale: 0.85;
+    opacity: 0;
+  }
+}
+
+/* scoped: do not touch other dialogs */
+dialog.nft-view {
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  max-height: none;
+  min-width: 0;
+  overflow: hidden;
+  /* keep centered; animate scale alone so bounce doesn't drift */
+  transform: none;
+  translate: -50% -50%;
+  transition:
+    width 80ms ease-out,
+    height 80ms ease-out;
+  animation: nft-bounce-in 200ms ease-out;
+
+  &.-out {
+    animation: nft-bounce-out 200ms ease-in forwards;
+  }
+
+  h1,
+  h3 {
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0.5rem 1rem;
+  }
 
   div.center {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
     text-align: center;
   }
 
-  img,
-  video {
-    // display: block;
-    // height: ~'calc(100vh - 20rem)';
+  .SplitPanel {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .SplitPanel .Panel {
+    min-height: 0;
+  }
+
+  .nft-media {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
     width: 100%;
-    object-fit: contain;
-    border-radius: 0.5rem;
+
+    a {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    img,
+    video {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
   }
 
   .nft-description {
+    flex: 0 1 auto;
+    max-height: 30%;
+    overflow: auto;
     white-space: pre-line;
     word-break: break-word;
     padding: 1rem;

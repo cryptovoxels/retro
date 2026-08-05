@@ -36,6 +36,8 @@ export class PostProcesses {
     if (!camera) return
 
     if (on) {
+      const t0 = performance.now()
+
       if (this.blurPP) return
       if (!BABYLON.Effect.ShadersStore['focusBlurPixelShader']) {
         BABYLON.Effect.ShadersStore['focusBlurPixelShader'] = `
@@ -56,9 +58,13 @@ void main(void) {
 `
       }
       const pp = new BABYLON.PostProcess('focusBlur', 'focusBlur', ['time', 'amount'], null, 1.0, camera, BABYLON.Texture.BILINEAR_SAMPLINGMODE, this.scene.getEngine(), false)
+
       pp.onApply = (effect) => {
-        effect.setFloat('time', performance.now() * 0.001)
-        effect.setFloat('amount', 1.0)
+        const t1 = performance.now()
+        effect.setFloat('time', t1 * 0.001)
+
+        const amount = Math.min(12.0, (t1 - t0) * 0.004)
+        effect.setFloat('amount', amount)
       }
       this.blurPP = pp
     } else if (this.blurPP) {

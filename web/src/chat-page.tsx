@@ -67,9 +67,28 @@ function placeLabel(parcel: number | null): string {
   return info?.name || info?.address || `parcel ${parcel}`
 }
 
+const TIMES: { label: string; timeZone?: string }[] = [
+  { label: 'Local' },
+  { label: 'New york', timeZone: 'America/New_York' },
+  { label: 'Los Angeles', timeZone: 'America/Los_Angeles' },
+  { label: 'Paris', timeZone: 'Europe/Paris' },
+  { label: 'Shenzhen', timeZone: 'Asia/Shanghai' },
+]
+
+function formatClock(now: Date, timeZone?: string): string {
+  const raw = new Intl.DateTimeFormat('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+    ...(timeZone ? { timeZone } : {}),
+  }).format(now)
+  return raw.replace(/\s/g, '').toLowerCase()
+}
+
 export function ChatPage(_props: { path?: string }) {
   const [users, setUsers] = useState(() => new Map<string, PresenceUser>())
   const [, bump] = useState(0)
+  const [now, setNow] = useState(() => new Date())
 
   useEffect(() => {
     document.body.classList.toggle('chat-route', true)
@@ -99,6 +118,11 @@ export function ChatPage(_props: { path?: string }) {
       } catch {}
     }
     return () => es.close()
+  }, [])
+
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(id)
   }, [])
 
   const places = groupByPlace(dedupeUsers(users))
@@ -133,6 +157,13 @@ export function ChatPage(_props: { path?: string }) {
               ))}
             </ul>
           )}
+          <div class="chat-times">
+            {TIMES.map(({ label, timeZone }) => (
+              <div key={label}>
+                {label}: {formatClock(now, timeZone)}
+              </div>
+            ))}
+          </div>
         </aside>
       </div>
     </section>
