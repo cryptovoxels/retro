@@ -6,7 +6,6 @@ import { validWallet } from '../lib/isValidWallet'
 import db, { pgp } from '../pg'
 import { dropConnectionsForWallet } from '../server'
 import { VoxelsUserRequest } from '../user'
-import { postman } from './mails-handler'
 
 const mpHttpUrl = (process.env.MULTIPLAYER_HOST || 'ws://localhost:3780').replace(/^ws/, 'http')
 const notifyAvatarChanged = (wallet: string) =>
@@ -106,20 +105,6 @@ export async function suspendAvatar(req: Request, res: Response) {
   const suspendedAvatar = await Avatar.suspend(req.params.wallet, req.body.reason, days)
 
   if (suspendedAvatar) {
-    const body = {
-      destinator: suspendedAvatar.wallet,
-      subject: 'Your account has been suspended',
-      content: `You won’t be able to build or chat with other users. Your wearables won’t be displayed in world and your avatar will appear anonymous.
-
-        Reason:
-        ${suspendedAvatar.reason}
-
-        Expires:
-        ${suspendedAvatar.expires_at}
-    `,
-    }
-    postman(body)
-
     await dropConnectionsForWallet(suspendedAvatar.wallet)
   }
 
@@ -138,14 +123,5 @@ export async function unsuspendAvatar(req: Request, res: Response) {
   }
 
   const result = await Avatar.unsuspend(req.params.wallet)
-  if (result) {
-    const body = {
-      destinator: result.wallet,
-      subject: 'Your account has been unsuspended',
-      content: `This suspension on this wallet has been removed. You will be able to build and chat again.
-    `,
-    }
-    postman(body)
-  }
   res.status(200).send({ success: !!result })
 }

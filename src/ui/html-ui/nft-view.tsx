@@ -6,6 +6,7 @@ import { HTMLUi } from './html-ui'
 import { unmountComponentAtNode } from 'preact/compat'
 import type NftImage from '../../features/nft-image'
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { truncate } from '../../../web/src/lib/string-utils'
 
 async function textureToDataUrl(tex: BABYLON.BaseTexture): Promise<string | null> {
   try {
@@ -176,7 +177,7 @@ export function NftView({ asset, onClose, feature, dialogEl }: Props) {
 
   const contract = asset.asset_contract
   const ownerCount = asset.top_ownerships?.length || 0
-  const tags = [contract?.schema_name, contract?.chain, asset.token_id ? `token #${asset.token_id}` : null, ownerCount ? `${ownerCount} owners` : null].filter(Boolean) as string[]
+  const tags = [contract?.name, contract?.schema_name, contract?.chain, asset.token_id ? `token #${asset.token_id}` : null, ownerCount ? `${ownerCount} owners` : null].filter(Boolean) as string[]
 
   return (
     <>
@@ -185,19 +186,17 @@ export function NftView({ asset, onClose, feature, dialogEl }: Props) {
       </button>
       <header class="nft-header">
         <h1>{assetHelper.getName}</h1>
-        <div class="nft-collection-row">
-          <a class="nft-collection" href={asset.external_link || asset.permalink} target="_blank">
-            {(contract as any)?.image_url ? <img src={(contract as any).image_url} alt="" /> : null}
-            <span>{contract?.name || 'collection'}</span>
-          </a>
-          <a class="nft-open" href={asset.permalink} target="_blank">
-            open
-          </a>
-        </div>
+        {contract?.name && (
+          <p>
+            <a href={asset.permalink} target="_blank">
+              {contract?.name}
+            </a>
+          </p>
+        )}
         {tags.length > 0 ? (
           <ul class="nft-tags">
             {tags.map((t) => (
-              <li key={t}>{t}</li>
+              <li key={t}>{truncate(t, 10)}</li>
             ))}
           </ul>
         ) : null}

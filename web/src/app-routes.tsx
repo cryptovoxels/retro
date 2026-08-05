@@ -25,7 +25,6 @@ import Explore from './explore'
 import Logout from './logout'
 import Island from './island'
 import Islands from './islands'
-import Mail from './mail'
 import WorldMap from './map'
 import Parcel from './parcel'
 import ParcelEdit from './parcel-edit'
@@ -59,7 +58,6 @@ const components: Record<string, ComponentType<any>> = {
   behaviours: BehavioursDoc,
   logout: Logout,
   notFound: NotFound,
-  mail: Mail,
   search: Search,
   assets: Assets,
   assetsNew: AssetsNew,

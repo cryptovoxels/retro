@@ -6,7 +6,7 @@ import { PanelType } from './components/panel'
 import { app, AppEvent } from './state'
 import { CubeIcon } from './components/icons/icons'
 import VoxelRadio from './components/voxel-radio'
-import { getCoords, withCoords } from './helpers/coords-nav'
+import { getCoords, withCoords, routeWithCoords } from './helpers/coords-nav'
 
 type Props = {
   path: string
@@ -69,12 +69,8 @@ export default class WebHeader extends Component<Props, State> {
   }
 
   onMiniClick = () => {
-    const coords = window.connector?.controls?.getCoords?.()
-    if (!coords) {
-      return
-    }
-
-    route(`/play?coords=${coords}`)
+    if (!window.connector) return
+    routeWithCoords('/play')
   }
 
   render() {
@@ -117,9 +113,6 @@ export default class WebHeader extends Component<Props, State> {
               <A to="/events">Events</A>
               <A to="/chat">Chat</A>
               <A to="/golive">Go live</A>
-              {signedIn && <A to="/mail">Mail</A>}
-              {signedIn && <A to="/account/collaborations">Collabs</A>}
-              {signedIn && <A to="/account/favorites">Favorites</A>}
               <A to="/assets">Assets</A>
               <A to="/collections">Collections</A>
               {signedIn && <A to="/costumer">Costume</A>}
@@ -156,7 +149,7 @@ export default class WebHeader extends Component<Props, State> {
               </li>
 
               <li>
-                <div onClick={this.onMiniClick} id='mini-client'></div>
+                <div onClick={this.onMiniClick} id="mini-client"></div>
               </li>
             </ul>
           </nav>

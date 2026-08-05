@@ -1,8 +1,6 @@
 import { Component } from 'preact'
 import { app, AppEvent } from '../state'
 import { Link } from 'preact-router/match'
-import { openMailboxUI } from './mailbox/mailbox-ui'
-import UploadButton from './upload-button'
 
 const active = (...args: string[]) => {
   const path = window.location?.pathname ?? ''
@@ -12,7 +10,6 @@ const active = (...args: string[]) => {
 type State = {
   signedIn: boolean
   wallet: string | null
-  unreadCount: number
   userName?: string
   signInVisible?: boolean
 }
@@ -21,17 +18,12 @@ export default class WebTopBar extends Component<unknown, State> {
   state: State = {
     signedIn: app.signedIn,
     wallet: app.state.wallet,
-    unreadCount: app.state.unreadMailCount,
     userName: app.state.name,
-  }
-
-  get hasUnreadMail() {
-    return this.state.unreadCount > 0
   }
 
   onAppChange = () => {
     const { signedIn, state } = app
-    this.setState({ signedIn, userName: state.name, wallet: state.wallet, unreadCount: state.unreadMailCount })
+    this.setState({ signedIn, userName: state.name, wallet: state.wallet })
   }
 
   closeOverlays = () => {
@@ -77,9 +69,6 @@ export default class WebTopBar extends Component<unknown, State> {
               <Link activeClassName="active" href="/account/favorites">
                 Favorites
               </Link>
-            </li>
-            <li>
-              <a href="/mail">Mailbox {this.hasUnreadMail && <span>{this.state.unreadCount}</span>}</a>
             </li>
             <li>
               <Link activeClassName="active" href="/account/parcels">

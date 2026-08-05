@@ -49,7 +49,6 @@ import AssetLibraryController from './controllers/assets'
 import AvatarsController from './controllers/avatars'
 import CostumesController from './controllers/costumes'
 import ExternalsController from './controllers/externals'
-import MailsController from './controllers/mails'
 import ModerationReportsController from './controllers/reports'
 import WompsController from './controllers/womps'
 import IslandBoardController from './controllers/island-board'
@@ -59,7 +58,6 @@ import createGridSocket from './grid/createGridSocket'
 import { searchAndReturn } from './handlers/search'
 import { EthereumListener } from './jobs/ethereum-listener'
 import cleanCollections from './jobs/remove-collections'
-import cleanMailBoxes from './jobs/remove-old-mails'
 import truncateMetrics from './jobs/truncate-metrics'
 import log from './lib/logger'
 import { createRequestHandlerForQuery, query } from './lib/query-helpers'
@@ -375,9 +373,6 @@ CollectionsController(db, passport, app)
 CollectiblesController(db, passport, app)
 //Events
 EventsController(db, passport, app)
-// Emoji Badges
-// Mails controller
-MailsController(db, passport, app)
 // Favorites controller
 FavoritesController(db, passport, app)
 // Asset library controller:
@@ -572,12 +567,6 @@ const start = () => {
 
 const master = () => {
   log.info(`master() running on DYNO=${process.env.DYNO} PORT=${port}`) //TODO: Remove
-
-  // clean mail older than x months old at start up or every 3 days
-  setTimeout(() => {
-    setInterval(() => cleanMailBoxes(), 1000 * 60 * 60 * 24 * 3)
-    cleanMailBoxes()
-  }, 1000)
 
   //clean collections with no addresses every day at start up and once per day
   setTimeout(() => {

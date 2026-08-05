@@ -218,7 +218,6 @@ export default function ExternalsController(db: Db, passport: PassportStatic, ap
       }
     })
   }
-
 }
 
 // Resolve the parcel contract to its OpenSea collection slug (cached for the process).

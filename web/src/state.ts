@@ -45,10 +45,9 @@ export interface StateObject {
   moderator?: boolean
   name?: string
   unverifiedWallet?: string
-  unreadMailCount: number
   key?: string
   costume?: any
-  settings?: { quietMails?: boolean }
+  settings?: any
   hideInstructions?: boolean
 }
 
@@ -67,7 +66,6 @@ class State extends EventEmitter {
 
     this.state = {
       wallet: null,
-      unreadMailCount: 0,
       key: null!,
       costume: {},
       settings: {},
@@ -213,22 +211,6 @@ export class Appstate extends State {
     this.setState({ name })
   }
 
-  async markMailAsRead(mailId: number) {
-    const r = await fetch(`${process.env.API}/mails/read`, {
-      method: 'put',
-      credentials: 'include',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        id: mailId,
-      }),
-    })
-    const mail = await r.json()
-    this.setState({ unreadMailCount: parseInt(mail.unreadCount) })
-  }
-
   signout() {
     this.localStorage?.removeItem('cv-wearables-owned')
     try {
@@ -241,7 +223,6 @@ export class Appstate extends State {
       wallet: null!,
       key: null!,
       moderator: false,
-      unreadMailCount: 0,
       name: null!,
       costume: {},
     })

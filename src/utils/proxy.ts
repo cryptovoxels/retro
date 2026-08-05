@@ -83,6 +83,8 @@ export const opensea = async (contract: string, token: string, chain_id = 1, acc
     asset_contract: {
       address: nftData.contract,
       schema_name: legacyAssetSchemaName(chain_id, nftData.token_standard),
+      chain: nftData.chain,
+      name: nftData.collection, // slug is the best name v2 gives us
     },
     creator: nftData.creator,
     owners: nftData.owners,

@@ -107,18 +107,19 @@ export default class Parcels extends Component<Props, State> {
     const height = window.innerHeight - 80 + 'px'
 
     return (
-      <section>
+      <section class="columns">
         <Head title={`${this.state.island.name}`} />
 
-        <h1>{this.state.island.name}</h1>
-        <p>{this.coords}</p>
-        <div id="map" class={'map map-web'} style={{ height }} ref={this.mapBox}></div>
+        <article>
+          <div id="map" class={'map map-web'} style={{ height }} ref={this.mapBox}></div>
+        </article>
 
-        <div>
-          <h3>Places</h3>
+        <aside>
+          <h1>{this.state.island.name}</h1>
+          <p>{this.coords}</p>
 
           <ul>{parcels}</ul>
-        </div>
+        </aside>
       </section>
     )
   }

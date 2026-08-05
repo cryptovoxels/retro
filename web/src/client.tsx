@@ -104,9 +104,7 @@ export class Client extends Component<FrameProps, FrameState> {
     // full: .client-world; embed: .client-slot; else #mini-client in the nav
     const preferred = this.props.mode === 'full' ? '.client-world' : '.client-slot'
 
-    const slot =
-      (document.querySelector(preferred) as HTMLElement | null) ||
-      (document.querySelector('#mini-client') as HTMLElement | null)
+    const slot = (document.querySelector(preferred) as HTMLElement | null) || (document.querySelector('#mini-client') as HTMLElement | null)
 
     if (!slot) {
       if (this.props.mode === 'full') {

@@ -12,7 +12,7 @@ export const ApiAvatar = t.type(
     description: t.union([t.string, t.null]),
     names: t.union([t.array(t.string), t.null]),
     moderator: t.boolean,
-    settings: t.partial({ quietMails: t.boolean }),
+    settings: t.any,
     created_at: t.union([t.string, t.null]),
     last_online: t.union([t.string, t.null]),
     costume_id: t.union([t.number, t.null]),

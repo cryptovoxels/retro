@@ -126,7 +126,6 @@ type UserInterfaceState = {
   hover?: string
   signedIn: boolean
   wallet: string | null
-  unreadCount: number
   fullscreen: boolean
   settingsVisible?: boolean
   personaVisible?: boolean
@@ -195,7 +194,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       enabled: props.enabled,
       signedIn: app?.signedIn ?? false,
       wallet: app?.state.wallet ?? null,
-      unreadCount: app?.state.unreadMailCount ?? 0,
       fullscreen: false,
       currentOrNearestParcel: null,
       active: false,
@@ -216,7 +214,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       signedIn,
       userName: window.user.name,
       wallet: state.wallet,
-      unreadCount: state.unreadMailCount,
     })
 
     if (signedIn && this.state.pane === 'login') {

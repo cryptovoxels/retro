@@ -19,7 +19,6 @@ export const routes: RouteDef[] = [
   { path: '/behaviours', component: 'behaviours', server: false },
   { path: '/logout', component: 'logout', cache: false },
   { path: '/not-found', component: 'notFound', server: false },
-  { path: '/mail', component: 'mail' },
   { path: '/search', component: 'search' },
   { path: '/assets', component: 'assets' },
   { path: '/assets/new', component: 'assetsNew' },
