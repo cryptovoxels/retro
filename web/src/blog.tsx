@@ -86,10 +86,7 @@ export default function Blog(_props: { path?: string }) {
               <td>
                 <a href={`/blog/${p.slug}`}>{p.title}</a>
               </td>
-              <td>
-                {/* number of replies, placeholder for now */}
-                {typeof p.replies === 'number' ? p.replies : 0}
-              </td>
+              <td>{p.replies ?? 0}</td>
               <td>{new Date(p.created_at).toLocaleDateString()}</td>
             </tr>
           ))}

@@ -18,7 +18,14 @@ function slugify(title: string) {
 export default function BlogController(db: Db, passport: PassportStatic, app: Express) {
   app.get('/api/posts.json', cache('1 minute'), async (_req, res: Response) => {
     try {
-      const r = await db.query('embedded/list-posts', `select slug, title, body, author, created_at from posts order by created_at desc limit 10`, [])
+      const r = await db.query(
+        'embedded/list-posts',
+        `select slug, title, body, author, created_at,
+          (select count(*)::int from comments c
+           where c.commentable_type = 'Post' and c.commentable_id = posts.slug) as replies
+         from posts order by created_at desc limit 10`,
+        [],
+      )
       res.json({ success: true, posts: r.rows ?? [] })
     } catch {
       res.json({ success: true, posts: [] })
