@@ -1,5 +1,4 @@
 import Portal from '../../features/portal'
-import { hasPointerLock, requestPointerLock } from '../../../common/helpers/ui-helpers'
 
 export default class PortalTeleportGUI {
   scene: BABYLON.Scene
@@ -27,12 +26,12 @@ export default class PortalTeleportGUI {
     if (!this.portal.mesh) {
       return
     }
-    // Create plane mesh
+    // Create plane mesh — 4:1 to match ADT 512x128
     this.plane = BABYLON.MeshBuilder.CreatePlane(
       'portal/gui',
       {
         width: 1,
-        height: 0.5,
+        height: 0.25,
         sideOrientation: BABYLON.Mesh.FRONTSIDE,
       },
       this.scene,
@@ -57,9 +56,7 @@ export default class PortalTeleportGUI {
     this.grid = new BABYLON.GUI.Grid()
     advancedDynamicTexture.addControl(this.grid)
     this.grid.addColumnDefinition(1)
-
-    this.grid.addRowDefinition(0.5)
-    this.grid.addRowDefinition(0.5)
+    this.grid.addRowDefinition(1)
 
     this.redrawGUI()
   }
@@ -69,19 +66,6 @@ export default class PortalTeleportGUI {
     if (this.advancedDynamicTexture) {
       this.dispose()
       this.generate()
-    }
-  }
-
-  teleportUser = () => {
-    if (hasPointerLock() && this.portal.coordinatesUrl) {
-      this.dispose()
-      if (this.portal.isPortalToAnotherRealm()) {
-        window.ui?.openLink(this.portal.coordinatesUrl)
-      } else {
-        window.persona.teleport(this.portal.coordinatesUrl)
-      }
-    } else {
-      requestPointerLock()
     }
   }
 
@@ -96,27 +80,13 @@ export default class PortalTeleportGUI {
     this.grid.fontWeight = 'bold'
     this.grid.fontSize = '44px'
 
-    const name = this.parcelName
-
     const text = new BABYLON.GUI.TextBlock()
-    text.text = name
+    text.text = this.parcelName
     text.textWrapping = 2
     text.height = '50px'
     text.color = 'white'
-    //text.fontSize = 12
 
     this.grid.addControl(text, 0, 0)
-
-    //Create button
-    const button = BABYLON.GUI.Button.CreateSimpleButton('teleport_button', 'Click to teleport')
-    button.width = text.width
-    button.height = '50px'
-    button.color = '#333'
-    button.isPointerBlocker = true
-    button.cornerRadius = 8
-    button.background = 'White'
-    button.onPointerUpObservable.add(this.teleportUser)
-    this.grid.addControl(button, 1, 0)
 
     this.advancedDynamicTexture.update(true)
   }

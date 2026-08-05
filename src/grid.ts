@@ -834,8 +834,10 @@ export default class Grid extends SocketClient {
       }
     })
 
-    // activate newly added parcels
+    // activate newly added parcels (hold neighbors until current features are up)
+    const allowOthers = !currentParcel || currentParcel.areFeaturesLoaded
     newPool.forEach((parcel) => {
+      if (!allowOthers && parcel !== currentParcel) return
       if (parcel && parcel.loaded && parcel.activationStatus === ParcelActivationState.Inactive) {
         this.subscribeParcel(parcel.id, true)
 

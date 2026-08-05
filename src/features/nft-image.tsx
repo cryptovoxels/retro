@@ -9,14 +9,14 @@ import nftFrameShaderClassic from '../shaders/nft-frame-classic.fsh'
 import nftFrameColorsShaderColors from '../shaders/nft-frame-colors.fsh'
 import nftVertexShader from '../shaders/nft.vsh'
 import { fetchTexture } from '../textures/textures'
-import { rebindGizmosBoundToFeature } from '../tools/gizmos'
+import { rebindGizmos } from '../tools/gizmos'
 import { Advanced, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UrlSourceNftImages } from '../ui/features'
 import OpenseaAssetHelper from '../ui/gui/opensea-asset-helper'
 import showNftView from '../ui/html-ui/nft-view'
 import { tidyFloat } from '../utils/helpers'
 import { opensea, readOpenseaUrl } from '../utils/proxy'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
-import { Feature2D, TransparencyMode } from './feature'
+import Feature, { Feature2D, TransparencyMode } from './feature'
 import { setTextureProperties } from './image'
 import NFTFrame from './utils/nft-frame'
 import { Action } from '../../common/messages'
@@ -44,7 +44,6 @@ export default class NftImage extends Feature2D<NftImageRecord> {
   static classicFrameMaterial: NFTFrame
   static colorsFrameMaterial: NFTFrame
   static blueFrameMaterial: NFTFrame
-  static draftMaterial: BABYLON.StandardMaterial | null = null
   static metadata: FeatureMetadata = {
     title: 'NFT Image',
     subtitle: 'nfts you own',
@@ -122,23 +121,13 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     this.generateNFT()
   }
 
-  createDraft() {
+  generateDraft() {
     if (this.disposed) return
-    if (!NftImage.draftMaterial) {
-      const m = new BABYLON.StandardMaterial('nft-draft', this.scene)
-      m.specularColor.set(0, 0, 0)
-      m.diffuseColor.set(0.45, 0.45, 0.45)
-      m.emissiveColor.set(0.35, 0.35, 0.35)
-      m.backFaceCulling = false
-      m.zOffset = -2
-      m.freeze()
-      NftImage.draftMaterial = m
+    if (!(this.mesh instanceof BABYLON.Mesh)) {
+      this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+      rebindGizmos(this)
     }
-    const plane = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
-    plane.material = NftImage.draftMaterial
-    if (this.mesh) this.mesh.dispose()
-    this.mesh = plane
-    rebindGizmosBoundToFeature(this)
+    this.mesh.material = Feature.getDraftMaterial(this.scene)
     this.setCommon()
   }
 
@@ -164,8 +153,12 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     // get the URL of the asset
     return new Promise(async (resolve) => {
       this.loaded = false
-      this.createDraft()
+      this.generateDraft()
       var url = await this.loadURL()
+
+      if (this.disposed || this.abortController.signal.aborted) {
+        return resolve()
+      }
 
       if (!this.assetHelper) {
         console.warn('NFT URL:', this.url, 'could not be loaded.')
@@ -273,14 +266,22 @@ export default class NftImage extends Feature2D<NftImageRecord> {
         }, 1000)
       }
 
-      const texture = await fetchTexture(this.scene, url, this.abortController.signal, {
-        transparent: !!this.description.transparent,
-        stretch: !!this.description.stretch,
-        pixelated: this.description.pixelated,
-      })
-      texture.hasAlpha = false
-      this.renderImage(texture)
-      this.loaded = true
+      try {
+        const texture = await fetchTexture(this.scene, url, this.abortController.signal, {
+          transparent: !!this.description.transparent,
+          stretch: !!this.description.stretch,
+          pixelated: this.description.pixelated,
+        })
+        if (this.disposed || this.abortController.signal.aborted) {
+          texture.dispose()
+          return resolve()
+        }
+        texture.hasAlpha = false
+        this.renderImage(texture)
+        this.loaded = true
+      } catch {
+        // aborted or failed: leave draft
+      }
       resolve()
     })
   }
@@ -327,7 +328,6 @@ export default class NftImage extends Feature2D<NftImageRecord> {
   renderImage(texture: BABYLON.Texture): BABYLON.Mesh | null {
     if (this.disposed) return null
 
-    const plane = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
     const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
     material.specularColor.set(0, 0, 0)
     material.diffuseColor.set(1, 1, 1)
@@ -346,20 +346,23 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     material.zOffset = -2
     material.diffuseTexture = texture
 
-    plane.material = material
-
-    if (this.mesh) {
-      this.mesh.dispose()
+    if (!(this.mesh instanceof BABYLON.Mesh)) {
+      this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+      rebindGizmos(this)
+    } else {
+      const old = this.mesh.material
+      this.mesh.material = null
+      if (old instanceof BABYLON.StandardMaterial && old !== Feature.draftMaterial && old.getBindedMeshes().length <= 1) {
+        old.dispose(false, true)
+      }
     }
-    this.mesh = plane
 
-    // if any gizmos are bound to this feature we need to rebind them, since we just replaced mesh.
-    rebindGizmosBoundToFeature(this)
+    this.mesh.material = material
 
-    setTextureProperties(this, texture, material, plane)
+    setTextureProperties(this, texture, material, this.mesh)
 
     this.setCommon()
-    return plane
+    return this.mesh
   }
 
   afterSetCommon = () => {

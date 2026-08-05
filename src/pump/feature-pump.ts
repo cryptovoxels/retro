@@ -5,7 +5,6 @@ import { PumpWorkerManager } from './pump-worker-manager'
 import type { FeatureRecord, LoadItem, LoadOrderItem, ParcelInstanceRelations, SortableFeature, WorkerOperationType } from './types'
 
 const DEFAULT_MAX_CONCURRENT_FEATURES = 20 // Default max concurrent features
-const DEFAULT_TIMEOUT = 5000 // Default timeout in milliseconds
 
 enum ParcelProcessingState {
   PENDING_INSTANCE_DETECTION = 'pending_instance_detection',
@@ -116,6 +115,10 @@ export class FeaturePump {
 
     // Mark that a rebuild is needed on next pump cycle
     this.needsSorting = true
+
+    if (features.length === 0) {
+      onDone(parcel)
+    }
   }
 
   /**
@@ -232,18 +235,13 @@ export class FeaturePump {
   private handleActivations(): void {
     if (this.loadQueue.length === 0) return
 
-    let totalPendingFeatures = this.getTotalLoadingFeatureCount()
-
-    if (totalPendingFeatures >= this.maxConcurrentFeatures) {
-      this.checkAndTimeoutOldestFeature()
-      totalPendingFeatures = this.getTotalLoadingFeatureCount()
-    }
+    const totalPendingFeatures = this.getTotalLoadingFeatureCount()
 
     if (totalPendingFeatures >= this.maxConcurrentFeatures) {
       return
     }
 
-    const loadItem = this.loadQueue.shift()
+    const loadItem = this.shiftPreferredLoadItem()
     if (!loadItem) return
 
     if (Array.isArray(loadItem)) {
@@ -253,23 +251,19 @@ export class FeaturePump {
     }
   }
 
-  private checkAndTimeoutOldestFeature(): void {
-    const now = performance.now()
-    let oldestFeature: { uuid: string; startTime: number; abortController: AbortController; parcelId: number } | null = null
+  private shiftPreferredLoadItem(): LoadItem | undefined {
+    const currentId = this.currentParcel?.id
+    if (currentId === undefined) return this.loadQueue.shift()
 
-    // Find the oldest loading feature across all parcels
-    for (const [parcelId, tracking] of this.parcelStates.entries()) {
-      for (const [uuid, loadingInfo] of tracking.loadingFeatures.entries()) {
-        if (!oldestFeature || loadingInfo.startTime < oldestFeature.startTime) {
-          oldestFeature = { uuid, ...loadingInfo, parcelId }
-        }
-      }
-    }
+    const idx = this.loadQueue.findIndex((item) => this.loadItemParcelId(item) === currentId)
+    if (idx === -1) return this.loadQueue.shift()
+    return this.loadQueue.splice(idx, 1)[0]
+  }
 
-    // If we found an old feature that's been loading for more than the timeout, abort it
-    if (oldestFeature && now - oldestFeature.startTime > DEFAULT_TIMEOUT) {
-      oldestFeature.abortController.abort('ABORT:feature creation timed out')
-    }
+  private loadItemParcelId(item: LoadItem): number | undefined {
+    const feature = Array.isArray(item) ? item[0] : item
+    if (!feature) return undefined
+    return this.findParcelContaining(feature.uuid)?.id
   }
 
   private handleDeactivations(): boolean {
@@ -303,18 +297,20 @@ export class FeaturePump {
   private applyWorkerSortOrder(loadOrder: LoadOrderItem[]): void {
     // Create a UUID -> original feature map for all features with instance detection complete
     const featureMap = new Map<string, FeatureRecord>()
+    const uuidToParcelId = new Map<string, number>()
     const readyParcels = this.getParcelsByState(ParcelProcessingState.INSTANCE_DETECTION_COMPLETE)
 
     for (const tracking of readyParcels) {
       for (const feature of tracking.features) {
         if (!this.isFeatureAlreadyCreated(feature, tracking.parcel)) {
           featureMap.set(feature.uuid, feature)
+          uuidToParcelId.set(feature.uuid, tracking.parcel.id)
         }
       }
     }
 
     // Convert worker load order (with sorted UUIDs) to load queue with original features
-    this.loadQueue = loadOrder
+    const mapped = loadOrder
       .map((item) => {
         if (Array.isArray(item)) {
           // Group of UUIDs - map each UUID to original feature
@@ -325,6 +321,22 @@ export class FeaturePump {
         }
       })
       .filter(Boolean) as LoadItem[]
+
+    // Current parcel features first; keep relative order within each bucket
+    const currentId = this.currentParcel?.id
+    if (currentId === undefined) {
+      this.loadQueue = mapped
+      return
+    }
+
+    const current: LoadItem[] = []
+    const others: LoadItem[] = []
+    for (const item of mapped) {
+      const uuid = Array.isArray(item) ? item[0]?.uuid : item.uuid
+      if (uuid && uuidToParcelId.get(uuid) === currentId) current.push(item)
+      else others.push(item)
+    }
+    this.loadQueue = [...current, ...others]
   }
 
   private getSortableFeatures(): SortableFeature[] {

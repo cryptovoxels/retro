@@ -301,7 +301,7 @@ const getFeature = (gizmo: BABYLON.IGizmo): Feature | null => {
   return attachedEntity.feature as Feature // defined in feature.ts setCommon
 }
 
-export const rebindGizmosBoundToFeature = (feature: Feature) => {
+export const rebindGizmos = (feature: Feature) => {
   gizmos.forEach((gizmo: BABYLON.Gizmo) => {
     const boundFeature = getFeature(gizmo)
     if (!boundFeature) return

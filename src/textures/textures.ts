@@ -17,7 +17,6 @@
  */
 
 import config from '../../common/config'
-import { isLocal } from '../../common/helpers/detector'
 import { getGpuTextureFormat } from './gpu'
 import { buildCachedTextureUrl } from './bucket'
 import { Metadata, metadataFromResponse } from './metadata-cache'
@@ -70,11 +69,6 @@ export async function fetchAtlasTexture(scene: BABYLON.Scene): Promise<BABYLON.T
     console.error('Error loading default atlas texture', err)
     return new BABYLON.Texture(null, scene)
   }
-}
-
-export async function fetchSpinnerTexture(scene: BABYLON.Scene, signal: AbortSignal): Promise<BABYLON.Texture> {
-  const srcURL = isLocal() ? 'https://media-crvox.sfo2.digitaloceanspaces.com/0xa253d7cd38dc2d0b2e65ad42a7e4beb3c60a83ad/1647239662741-60a5095b-a75e-4a88-aee6-181785921a47.gif' : `${process.env.ASSET_PATH}/images/loading-large.gif`
-  return fetchTexture(scene, srcURL, signal)
 }
 
 export async function fetchNoImageTexture(scene: BABYLON.Scene): Promise<BABYLON.Texture> {

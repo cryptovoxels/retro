@@ -1,4 +1,5 @@
 import { PortalRecord } from '../../common/messages/feature'
+import { voxFromFill } from '../../common/voxels/vox-from-fill'
 import { Position, Rotation, Scale, EditorProps } from '../../web/src/components/editor'
 import { AudioBus } from '../audio/audio-engine'
 import { fetchTexture } from '../textures/textures'
@@ -6,6 +7,9 @@ import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UrlSou
 import PortalTeleportGUI from '../ui/gui/portal-gui'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, FeatureTrigger } from './feature'
+
+const DIAMOND = Math.PI / 4
+const SPIN_FRAMES = 600
 
 export default class Portal extends Feature3D<PortalRecord> {
   static metadata: FeatureMetadata = {
@@ -18,9 +22,13 @@ export default class Portal extends Feature3D<PortalRecord> {
     type: 'portal',
     scale: [0.6, 0.6, 0.6],
   }
+  static outlineMesh: BABYLON.Mesh | null = null
+
   sound: BABYLON.Sound | null = null
   proximityTrigger: FeatureTrigger | null = null
   _teleportGUI: PortalTeleportGUI | null = null
+  outline: BABYLON.Mesh | null = null
+  spinAnim: BABYLON.Animatable | null = null
 
   // fixme
   get audio() {
@@ -50,23 +58,54 @@ export default class Portal extends Feature3D<PortalRecord> {
     return !this.description.womp.space_id ? `/play?coords=${this.description.womp.coords}` : `/spaces/${this.description.womp.space_id}/play?coords=${this.description.womp.coords}`
   }
 
+  static getOutlineMesh(scene: BABYLON.Scene) {
+    if (!Portal.outlineMesh) {
+      Portal.outlineMesh = voxFromFill(
+        [16, 16, 16],
+        // Outline all 12 edges of the cube: return 1 for any voxel on any edge.
+        (x, y, z, w, h, d) => {
+          // a cube has edges where two coordinates are constant (either 0 or max-1), and the third varies
+          let onEdge =
+            ((x === 0 || x === w - 1) && (y === 0 || y === h - 1)) || // z varies (edges parallel to z)
+            ((x === 0 || x === w - 1) && (z === 0 || z === d - 1)) || // y varies (edges parallel to y)
+            ((y === 0 || y === h - 1) && (z === 0 || z === d - 1)) // x varies (edges parallel to x)
+
+          return onEdge ? 1 : 0
+        },
+        scene,
+      )
+      Portal.outlineMesh.name = 'portal-outline'
+      Portal.outlineMesh.isVisible = false
+      Portal.outlineMesh.isPickable = false
+      const mat = new BABYLON.StandardMaterial('portal-outline', scene)
+      mat.diffuseColor.set(1, 1, 1)
+      mat.emissiveColor.set(0.8, 0.8, 0.9)
+      mat.specularColor.set(0, 0, 0)
+      mat.linkEmissiveWithDiffuse = true // so vertex AO darkens the emissive look
+      mat.freeze()
+      Portal.outlineMesh.material = mat
+    }
+    return Portal.outlineMesh
+  }
+
   toString() {
     return 'Portal:' + this.description.url
   }
 
   whatIsThis() {
-    return <label>A spherical portal that uses Womps you've taken in the past.</label>
+    return <label>A portal cube that uses Womps you've taken in the past.</label>
   }
 
   async generate() {
     this.description.isTrigger = true
     // How close you have to be for trigger to trigger. (minimum 1.76)
-    this.description.proximityToTrigger = 3.5
+    this.description.proximityToTrigger = 2
 
-    this.mesh = BABYLON.MeshBuilder.CreateSphere(this.uniqueEntityName('mesh'), { diameter: 1 }, this.scene)
+    this.mesh = BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), { size: 0.45 }, this.scene)
     this.mesh.isPickable = true
     this.mesh.onAfterWorldMatrixUpdateObservable.add(this.updateAfterWorldOffsetChange)
 
+    this.attachOutline()
     this.setCommon()
 
     const m = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
@@ -84,6 +123,34 @@ export default class Portal extends Feature3D<PortalRecord> {
       onUnTrigger: this.onUnTrigger.bind(this),
     })
     return Promise.resolve()
+  }
+
+  attachOutline() {
+    if (!this.mesh || this.outline) return
+    this.outline = Portal.getOutlineMesh(this.scene).clone(`feature/portal/outline/${this.uuid}`)!
+    this.outline.isVisible = true
+    this.outline.isPickable = false
+    this.outline.setParent(this.mesh)
+    this.outline.position.setAll(0)
+    this.outline.rotation.setAll(0)
+    this.outline.scaling.setAll(0.5)
+  }
+
+  startSpin() {
+    if (!this.mesh) return
+    this.spinAnim?.stop()
+    const baseY = this.rotation.y
+    this.mesh.rotation.x = this.rotation.x + DIAMOND
+    this.mesh.rotation.z = this.rotation.z + DIAMOND
+    this.mesh.rotation.y = baseY
+
+    const spin = new BABYLON.Animation('portal-spin', 'rotation.y', 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE)
+    spin.setKeys([
+      { frame: 0, value: baseY },
+      { frame: SPIN_FRAMES, value: baseY + Math.PI * 2 },
+    ])
+    this.mesh.animations = [spin]
+    this.spinAnim = this.scene.beginAnimation(this.mesh, 0, SPIN_FRAMES, true)
   }
 
   shouldBeInteractive(): boolean {
@@ -106,13 +173,16 @@ export default class Portal extends Feature3D<PortalRecord> {
     if (this._teleportGUI && this.proximityTrigger?.triggered) {
       // We already triggered the GUI via proximity. If user clicks on the Mesh and not the Button of the GUI, we assume they want to teleport
       // but to be sure we ask the user.
-      if (this.coordinatesUrl && confirm('Do you want to teleport to ' + this.parcelName + '?')) {
+      if (this.coordinatesUrl) {
         if (this.isPortalToAnotherRealm()) {
-          window.ui?.openLink(this.coordinatesUrl)
+          if (confirm('Do you want to teleport to ' + this.parcelName + '?')) {
+            window.ui?.openLink(this.coordinatesUrl)
+          }
         } else {
           window.persona.teleport(this.coordinatesUrl)
         }
       }
+
       // Don't toggle off GUI on-click if we triggered it via proximity.
       return
     }
@@ -132,6 +202,7 @@ export default class Portal extends Feature3D<PortalRecord> {
   afterSetCommon = () => {
     this.refreshSound()
     this._teleportGUI?.refresh()
+    this.startSpin()
   }
 
   refreshSound() {
@@ -184,6 +255,12 @@ export default class Portal extends Feature3D<PortalRecord> {
   }
 
   dispose() {
+    this.spinAnim?.stop()
+    this.spinAnim = null
+    if (this.outline) {
+      this.outline.dispose(false, false)
+      this.outline = null
+    }
     if (this.sound) {
       this.sound.stop()
       this.sound.dispose()
@@ -204,18 +281,17 @@ export default class Portal extends Feature3D<PortalRecord> {
     this.mesh.material?.dispose()
     const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
 
-    material.alpha = 0.9
-    material.specularColor.set(0, 0, 0.2)
+    material.alpha = 0.85
+    material.specularColor.set(0.4, 0.4, 0.5)
+    material.diffuseColor.set(0.05, 0.05, 0.1)
+    material.emissiveColor.set(0.15, 0.15, 0.25)
+    material.ambientColor.set(0.1, 0.1, 0.15)
 
-    material.ambientColor.set(1, 1, 1)
-    material.emissiveColor.set(0.7, 0.7, 1)
-    material.diffuseColor.set(0.2, 0.2, 1)
-    //material.emissiveColor.set(0.1, 0.1, 0.4)
-    // images are inverted
     texture.hasAlpha = false
-    texture.uScale = -1
-    texture.vScale = -1
-    material.diffuseTexture = texture
+    texture.coordinatesMode = BABYLON.Texture.SPHERICAL_MODE
+    texture.uScale = 0.25
+    texture.vScale = 0.25
+    material.reflectionTexture = texture
     material.blockDirtyMechanism = true
 
     this.mesh.material = material

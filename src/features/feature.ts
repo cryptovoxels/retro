@@ -5,7 +5,7 @@ import { app } from '../../web/src/state'
 import Avatar from '../avatar'
 import type Connector from '../connector'
 import type Parcel from '../parcel'
-import { rebindGizmosBoundToFeature } from '../tools/gizmos'
+import { rebindGizmos } from '../tools/gizmos'
 import { easingFunctions, easingModes, FeatureEditor, FeatureEditorProps } from '../ui/features'
 import FeatureBasicGUI from '../ui/gui/gui'
 import { inspectFeature } from '../ui/inspect-feature'
@@ -82,6 +82,26 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   static timerLength = 100 //how long (milliseconds) to be close to feature to trigger animation
   static Editor: any // todo type this
   static layer: BABYLON.HighlightLayer
+  static draftMaterial: BABYLON.StandardMaterial | null = null
+  private static draftPulseObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
+
+  static getDraftMaterial(scene: BABYLON.Scene): BABYLON.StandardMaterial {
+    if (!Feature.draftMaterial) {
+      const m = new BABYLON.StandardMaterial('feature-draft', scene)
+      m.specularColor.set(0, 0, 0)
+      m.diffuseColor.set(0.4, 0.4, 0.4)
+      m.emissiveColor.set(0.4, 0.4, 0.4)
+      m.backFaceCulling = false
+      Feature.draftMaterial = m
+      Feature.draftPulseObs = scene.onBeforeRenderObservable.add(() => {
+        const g = 0.4 + 0.1 * Math.sin(Date.now() * 0.003)
+        m.diffuseColor.set(g, g, g)
+        m.emissiveColor.set(g, g, g)
+      })
+    }
+    return Feature.draftMaterial
+  }
+
   parent: BABYLON.TransformNode | null = null
   uuid: string
   scene: BABYLON.Scene
@@ -727,6 +747,8 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
   public abstract generate(): Promise<void>
 
+  generateDraft(): void {}
+
   disposeBasicGui() {
     if (this.basicGui) {
       this.basicGui.dispose()
@@ -746,7 +768,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     this.abortController = new AbortController()
     await this.generate()
     // mesh has been replaced, so we must bind the gizmo to the new mesh
-    rebindGizmosBoundToFeature(this)
+    rebindGizmos(this)
   }
 
   dispose() {
@@ -766,7 +788,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
         this.mesh.material = null
         this.mesh.dispose()
         this.mesh = null
-        if (material instanceof BABYLON.StandardMaterial && material.getBindedMeshes().length <= 1) {
+        if (material instanceof BABYLON.StandardMaterial && material !== Feature.draftMaterial && material.getBindedMeshes().length <= 1) {
           material?.dispose(false, true)
         }
       }

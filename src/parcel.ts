@@ -120,6 +120,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
   lightmap_url: string | null = null
 
+  get areFeaturesLoaded() {
+    return this.featuresLoaded
+  }
+
   constructor(
     scene: BABYLON.Scene,
     parent: BABYLON.TransformNode,

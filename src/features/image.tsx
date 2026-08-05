@@ -1,12 +1,12 @@
 import { throttle } from 'lodash'
 import { ImageMode, ImageRecord, WrapMode } from '../../common/messages/feature'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
-import { fetchSpinnerTexture, fetchTexture } from '../textures/textures'
-import { rebindGizmosBoundToFeature } from '../tools/gizmos'
+import { fetchTexture } from '../textures/textures'
+import { rebindGizmos } from '../tools/gizmos'
 import { Advanced, Animation, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, Toolbar, UrlSourceImages } from '../ui/features'
 import { tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
-import { Feature2D, MeshExtended, TransparencyMode } from './feature'
+import Feature, { Feature2D, MeshExtended, TransparencyMode } from './feature'
 
 export default class Image extends Feature2D<ImageRecord> {
   static metadata: FeatureMetadata = {
@@ -85,38 +85,49 @@ export default class Image extends Feature2D<ImageRecord> {
     this.addEvents()
   }
 
-  async generate(): Promise<void> {
-    this.loaded = false
-    this.renderLoading()
-
-    const texture = await fetchTexture(this.scene, this.textureURL, this.abortController.signal, {
-      transparent: !!this.description.transparent,
-      stretch: !!this.description.stretch,
-      pixelated: this.description.pixelated,
-    })
-    texture.hasAlpha = false
-    this.renderImage(texture)
-    this.loaded = true
+  generateDraft() {
+    if (this.disposed) return
+    if (!(this.mesh instanceof BABYLON.Mesh)) {
+      this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+      rebindGizmos(this)
+    }
+    this.mesh.material = Feature.getDraftMaterial(this.scene)
+    this.setCommon()
   }
 
-  async renderLoading() {
-    const texture = await fetchSpinnerTexture(this.scene, this.abortController.signal)
-    // if for some reason the loading image takes longer to load than the actual image, don't replace it!
-    if (this.loaded) return null
-    texture.hasAlpha = false
-    return this.renderImage(texture)
+  async generate(): Promise<void> {
+    this.loaded = false
+    this.generateDraft()
+    void this.loadContent()
+  }
+
+  private async loadContent() {
+    try {
+      const texture = await fetchTexture(this.scene, this.textureURL, this.abortController.signal, {
+        transparent: !!this.description.transparent,
+        stretch: !!this.description.stretch,
+        pixelated: this.description.pixelated,
+      })
+      if (this.disposed || this.abortController.signal.aborted) {
+        texture.dispose()
+        return
+      }
+      texture.hasAlpha = false
+      this.renderImage(texture)
+      this.loaded = true
+    } catch {
+      // aborted or failed: leave draft
+    }
   }
 
   renderImage(texture: BABYLON.Texture): BABYLON.Mesh | null {
     if (this.disposed) return null
 
-    const vertical = this.rotation.x == 0 && this.rotation.z == 0
-
     if (this.description.uScale && this.description.vScale) {
       texture.uScale = parseFloat(this.description.uScale.toString())
       texture.vScale = parseFloat(this.description.vScale.toString())
     }
-    const plane = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+
     const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
     material.specularColor.set(0, 0, 0)
     material.diffuseColor.set(1, 1, 1)
@@ -125,25 +136,28 @@ export default class Image extends Feature2D<ImageRecord> {
     material.backFaceCulling = false
     material.zOffset = -1
 
-    plane.material = material
-    if (this.mesh) {
-      this.mesh.dispose()
+    if (!(this.mesh instanceof BABYLON.Mesh)) {
+      this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+      rebindGizmos(this)
+    } else {
+      const old = this.mesh.material
+      this.mesh.material = null
+      if (old instanceof BABYLON.StandardMaterial && old !== Feature.draftMaterial && old.getBindedMeshes().length <= 1) {
+        old.dispose(false, true)
+      }
     }
-    this.mesh = plane
 
-    // if any gizmos are bound to this feature we need to rebind them, since we just replaced mesh.
-    rebindGizmosBoundToFeature(this)
-
+    this.mesh.material = material
     this.mesh.visibility = tidyFloat(this.description.opacity, 1)
 
-    setTextureProperties(this, texture, material, plane)
+    setTextureProperties(this, texture, material, this.mesh)
 
     this.setCommon()
     this.addAnimation()
     this.addScriptTriggers()
     this.addEvents()
 
-    return plane
+    return this.mesh
   }
 
   onClick() {
