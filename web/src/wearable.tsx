@@ -38,7 +38,9 @@ export default class Wearable extends Component<Props, State> {
   }
 
   fetch = async () => {
-    const url = `/api/collections/${this.props.cid}/${this.props.address}/c/${this.props.tid}.json`
+    const url = this.byId
+      ? `/api/collections/${this.props.cid}/collectibles/${this.props.tid}`
+      : `/api/collections/${this.props.cid}/${this.props.address}/c/${this.props.tid}.json`
 
     const f = await fetch(url)
     const { collectible } = await f.json()
@@ -56,6 +58,10 @@ export default class Wearable extends Component<Props, State> {
     this.viewer?.loadURL(`/api/collectibles/${this.wearable!.id}/vox`)
   }
 
+  get byId() {
+    return this.props.address === 'collectibles'
+  }
+
   get wearable() {
     return this.state.collectible
   }
@@ -64,16 +70,24 @@ export default class Wearable extends Component<Props, State> {
     return parseInt(this.props.tid!, 10)
   }
 
+  get collectionUrl() {
+    return this.byId ? `/collections/${this.props.cid}` : `/collections/${this.props.cid}/${this.props.address}`
+  }
+
   get previousUrl() {
     if (this.tid > 1) {
-      return `/collections/${this.props.cid}/${this.props.address}/${this.tid - 1}`
+      return this.byId
+        ? `/collections/${this.props.cid}/collectibles/${this.tid - 1}`
+        : `/collections/${this.props.cid}/${this.props.address}/${this.tid - 1}`
     } else {
       return null
     }
   }
 
   get nextUrl() {
-    return `/collections/${this.props.cid}/${this.props.address}/${this.tid + 1}`
+    return this.byId
+      ? `/collections/${this.props.cid}/collectibles/${this.tid + 1}`
+      : `/collections/${this.props.cid}/${this.props.address}/${this.tid + 1}`
   }
 
   render() {
@@ -90,7 +104,7 @@ export default class Wearable extends Component<Props, State> {
             <h1>{this.wearable.name}</h1>
 
             <p>
-              <a href={`/collections/${this.props.cid}/${this.props.address}`}>Back to collection</a>
+              <a href={this.collectionUrl}>Back to collection</a>
             </p>
           </hgroup>
           <figcaption>
@@ -118,7 +132,7 @@ export default class Wearable extends Component<Props, State> {
             </dd>
             <dt>Collection</dt>
             <dd>
-              <a href={`/collections/${this.props.cid}/${this.props.address}`}>{this.wearable.collection_name}</a>
+              <a href={this.collectionUrl}>{this.wearable.collection_name}</a>
             </dd>
             <dt>System ID</dt>
             <dd>{this.wearable.id}</dd>

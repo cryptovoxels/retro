@@ -478,7 +478,6 @@ export default abstract class Controls implements IControls {
       return
     }
 
-
     this.reticuleSpinT += dt
     const t = this.reticuleSpinT
     const a = this.chromaAmount
@@ -821,7 +820,7 @@ export default abstract class Controls implements IControls {
     this.vehicleFlyingRestore = this.flying
     this.disableGravity()
     if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
-      ; (this.scene.activeCamera as any).checkCollisions = false
+      ;(this.scene.activeCamera as any).checkCollisions = false
     }
     this.disableMovement()
     if (this.firstPersonView) this.enterThirdPerson(3)
@@ -837,11 +836,11 @@ export default abstract class Controls implements IControls {
     if (car) {
       try {
         car.releaseDriver(this.persona.uuid)
-      } catch { }
+      } catch {}
     }
     this.enableGravity()
     if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
-      ; (this.scene.activeCamera as any).checkCollisions = true
+      ;(this.scene.activeCamera as any).checkCollisions = true
     }
     this.enableMovement()
     if (this.vehicleFlyingRestore !== null) {
@@ -937,7 +936,7 @@ export default abstract class Controls implements IControls {
       this.enableGravity()
       this.enableMovement()
       if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
-        ; (this.scene.activeCamera as any).checkCollisions = true
+        ;(this.scene.activeCamera as any).checkCollisions = true
       }
       this.refreshMobileDriveChrome?.()
       return

@@ -38,7 +38,7 @@ function RecentWomps({ parcelId }: { parcelId: number }) {
     cachedFetch(`/api/womps/at/parcel/${parcelId}.json?limit=${limit}`, fetchOptions(), 60)
       .then((r) => r.json())
       .then((r) => live && r.success && setWomps(r.womps))
-      .catch(() => {})
+      .catch(() => { })
     return () => {
       live = false
     }
@@ -83,7 +83,7 @@ export default function ForSale(_props: { path?: string }) {
     cachedFetch(CLASSIFIEDS_URL)
       .then((r) => r.json())
       .then((d) => d.success && setData(d))
-      .catch(() => {})
+      .catch(() => { })
       .finally(() => setLoading(false))
   }, [])
 
@@ -91,7 +91,7 @@ export default function ForSale(_props: { path?: string }) {
     fetch('https://api.coinbase.com/v2/prices/ETH-USD/spot')
       .then((r) => r.json())
       .then((d) => setRate(parseFloat(d?.data?.amount) || 0))
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
   const fmt = (price: number) => (!usd || !rate ? `${eth(price)}Ξ` : `$${parseFloat((price * rate).toFixed(0))}`)
@@ -123,7 +123,7 @@ export default function ForSale(_props: { path?: string }) {
     cachedFetch(`/api/parcels/${selectedId}.json`, fetchOptions())
       .then((r) => r.json())
       .then((r) => live && r.parcel && setParcel(r.parcel))
-      .catch(() => {})
+      .catch(() => { })
     return () => {
       live = false
     }
@@ -199,16 +199,11 @@ export default function ForSale(_props: { path?: string }) {
           <>
             <header class="for-sale-head">
               <div>
-                <h2>Parcels for sale</h2>
+                <h2>Shop</h2>
                 <p>
                   {loading ? 'loading listings...' : `${allItems.length} listings`}
                   {data && data.floor ? ` - floor ${fmt(data.floor)}` : ''}
                 </p>
-              </div>
-              <div class="for-sale-currency">
-                <span class={!usd ? 'active' : ''}>eth</span>
-                <Toggle checked={usd} onChange={setUsd} />
-                <span class={usd ? 'active' : ''}>usd</span>
               </div>
             </header>
             {showTabs && (
