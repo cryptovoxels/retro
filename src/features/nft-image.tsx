@@ -524,7 +524,6 @@ class Editor extends FeatureEditor<NftImage> {
   render() {
     return (
       <section>
-                  <h2>Edit NFT Image</h2>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>

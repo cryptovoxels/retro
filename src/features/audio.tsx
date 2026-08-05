@@ -613,7 +613,6 @@ class Editor extends FeatureEditor<Audio> {
   render() {
     return (
       <section>
-                  <h2>Edit Audio Feature</h2>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>

@@ -325,7 +325,6 @@ class Editor extends FeatureEditor<CollectibleModel> {
   render() {
     return (
       <section>
-                  <h2>Edit Collectible Model</h2>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>

@@ -219,7 +219,6 @@ class Editor extends FeatureEditor<Image> {
   render() {
     return (
       <section>
-                  <h2>Edit Image</h2>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>

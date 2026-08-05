@@ -150,7 +150,6 @@ class Editor extends FeatureEditor<SliderInput> {
   render() {
     return (
       <section>
-                  <h2>Edit Slider Input</h2>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>

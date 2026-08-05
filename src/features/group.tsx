@@ -146,7 +146,6 @@ class Editor extends FeatureEditor<Group> {
     const f = this.props.feature
     return (
       <section>
-                  <h2>Edit Group</h2>
         <div className="scrollContainer">
           <Toolbar feature={f} scene={this.props.scene} />
           <EditorProps>

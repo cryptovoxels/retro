@@ -224,7 +224,6 @@ class Editor extends FeatureEditor<VoxModel> {
   render() {
     return (
       <section>
-                  <h2>Edit Vox Model</h2>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>
@@ -449,7 +448,6 @@ Megavox.Editor = class MegavoxEditor extends Editor {
     const isMega = this.state.type === 'megavox'
     return (
       <section>
-                  <h2>{isMega ? 'Edit Megavox' : 'Edit Vox Model'}</h2>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>

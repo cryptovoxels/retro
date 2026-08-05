@@ -131,7 +131,6 @@ class Editor extends FeatureEditor<Cube> {
   render() {
     return (
       <section>
-                  <h2>Edit Cube</h2>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>

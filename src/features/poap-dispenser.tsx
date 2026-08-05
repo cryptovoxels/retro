@@ -108,7 +108,6 @@ class Editor extends FeatureEditor<PoapDispenser> {
   render() {
     return (
       <section>
-                  <h2>Edit Achievement</h2>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>

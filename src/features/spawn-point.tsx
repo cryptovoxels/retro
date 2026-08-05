@@ -188,7 +188,6 @@ class Editor extends FeatureEditor<SpawnPoint> {
   render() {
     return (
       <section>
-                  <h2>Edit Spawn Point</h2>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>
