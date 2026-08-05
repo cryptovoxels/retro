@@ -6,13 +6,14 @@ import { clamp } from 'lodash'
 import { unmountComponentAtNode } from 'preact/compat'
 import { createFirstPersonCamera } from '../utils/fps-camera'
 import { decodeCoordsFromURL } from '../../utils/helpers'
-import { hasPointerLock } from '../../../common/helpers/ui-helpers'
+import { hasPointerLock, isFastviewBlocking } from '../../../common/helpers/ui-helpers'
 import { app, AppEvent } from '../../../web/src/state'
 const POINTER_WHEEL_MULTIPLIER = 0.001
 export default class DesktopControls extends Controls {
   keyboardInput?: LocaleKeyboardMoveInput
   private lockListener?: () => void
   private nerfClick = false
+  private mouseLookAttached = false
 
   constructor(scene: BABYLON.Scene, canvas: HTMLCanvasElement) {
     super(scene, canvas)
@@ -38,6 +39,7 @@ export default class DesktopControls extends Controls {
 
   addControls(camera: PlayerCamera) {
     camera.attachControl(this.canvas, true)
+    this.mouseLookAttached = true // camera.attachControl attaches mouse; lock handler may detach
     this.addLockListener()
 
     this.addKeyboardControls(camera)
@@ -87,9 +89,16 @@ export default class DesktopControls extends Controls {
     if (locked) {
       // lerp out — don't abort/snap
       this.idleLook.stop()
-      mouse?.attachControl(true)
+      // Babylon FreeCameraMouseInput stacks observers on every attach; never attach twice
+      if (!this.mouseLookAttached) {
+        mouse?.attachControl(true)
+        this.mouseLookAttached = true
+      }
     } else {
-      mouse?.detachControl()
+      if (this.mouseLookAttached) {
+        mouse?.detachControl()
+        this.mouseLookAttached = false
+      }
       this.resetControls()
       this.idleLook.start()
     }
@@ -148,6 +157,12 @@ export default class DesktopControls extends Controls {
           break
         }
         if (btn === 0 && hasPointerLock() && !window.ui?.activeTool) {
+          if (isFastviewBlocking()) {
+            const fv = document.querySelector('dialog.fastview, dialog.nft-view.-out') as any
+            fv?.dismiss?.()
+            eventState.skipNextObservers = true
+            break
+          }
           if (this.nerfClick) {
             this.nerfClick = false
           } else {

@@ -13,6 +13,13 @@ const FASTVIEW_MOUSE = 100
 const FASTVIEW_WALK = 0.1
 const NFT_BOUNCE_MS = 200
 
+/** True while fastview owns locked left-clicks (open or bouncing out). */
+let fastviewBlocksWorld = false
+
+export function isFastviewBlocking() {
+  return fastviewBlocksWorld
+}
+
 export function mediaSize(ar: number, zoom: number) {
   const maxW = innerWidth * 0.85
   const maxH = innerHeight * 0.7
@@ -65,7 +72,9 @@ export function openDialog(className: string, fastview = false) {
     closed = true
     inFastview = false
     dismissing = false
+    fastviewBlocksWorld = false
     el.classList.remove('fastview')
+    delete (el as any).dismiss
     stopFastviewListeners()
     el.removeEventListener('click', onButtonClick, true)
     unmountComponentAtNode(el)
@@ -89,6 +98,7 @@ export function openDialog(className: string, fastview = false) {
     }
     teardown()
   }
+  ;(el as any).dismiss = dismiss
 
   const onMove = (e: MouseEvent) => {
     if (!inFastview || !hasPointerLock()) return
@@ -105,6 +115,7 @@ export function openDialog(className: string, fastview = false) {
   const leaveFastView = () => {
     if (!inFastview) return
     inFastview = false
+    fastviewBlocksWorld = false
     el.classList.remove('fastview')
     stopFastviewListeners()
   }
@@ -114,6 +125,7 @@ export function openDialog(className: string, fastview = false) {
   }
 
   if (fastview) {
+    fastviewBlocksWorld = true
     el.classList.add('fastview')
     document.addEventListener('mousemove', onMove)
     document.addEventListener('pointerlockchange', onLockChange)
