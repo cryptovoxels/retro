@@ -138,13 +138,6 @@ export default class NftImage extends Feature2D<NftImageRecord> {
       NftImage.generateFrameMaterials(this.scene)
     }
 
-    if (this.deprecatedSince('5.40.1')) {
-      this.description.hasGui = true
-      this.description.hasGuiResizable = false
-    }
-    if (this.deprecatedSince('5.23.0')) {
-      this.description.hasFrame = true
-    }
     this.generateNFT()
 
     return Promise.resolve()
@@ -444,7 +437,6 @@ class Editor extends FeatureEditor<NftImage> {
       pixelated: !!props.feature.description.pixelated,
       hasFrame: !!props.feature.description.hasFrame,
       nftFrameStyle: props.feature.description.nftFrameStyle || 'classic',
-      hasGui: !!props.feature.description.hasGui,
       blendMode: props.feature.blendMode,
       transparencyMode: props.feature.transparencyMode,
       emissiveColorIntensity: tidyFloat(props.feature.description.emissiveColorIntensity, 0.5),
@@ -484,7 +476,6 @@ class Editor extends FeatureEditor<NftImage> {
       emissiveColorIntensity: parseFloat(this.state.emissiveColorIntensity).toFixed(2),
       hasFrame: this.state.hasFrame,
       nftFrameStyle: this.state.nftFrameStyle,
-      hasGui: this.state.hasGui,
     })
   }
 
@@ -563,13 +554,6 @@ class Editor extends FeatureEditor<NftImage> {
               <input type="range" min={0.01} max={1} value={this.state.emissiveColorIntensity} step={0.01} onChange={(e) => this.setState({ emissiveColorIntensity: e.currentTarget.value })}></input>
             </div>
 
-            <div className="f">
-              <label>Gui</label>
-              <label>
-                <input type="checkbox" checked={this.state.hasGui} onChange={(e) => this.setState({ hasGui: e.currentTarget.checked })} />
-                Show Information on click
-              </label>
-            </div>
             {this.state.isOwner && (
               <div className="f">
                 <label>Frame</label>
