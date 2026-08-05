@@ -479,6 +479,7 @@ export default class FeatureTool implements Tool {
     this.selection.parcel.featuresList.push(feature)
     this.selection.parcel.budget.consume(feature)
     feature.sendToServer()
+    if (feature.type === 'lantern') this.selection.parcel.relight()
 
     if (feature instanceof Group && featureTemplate.children) {
       await Promise.all(
