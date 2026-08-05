@@ -7,6 +7,7 @@ import cachedFetch from './helpers/cached-fetch'
 import { fetchOptions } from './utils'
 import WorldMap from './map'
 import type { ParcelRecord } from '../../common/messages/parcel'
+import { truncate } from './lib/string-utils'
 
 type Item = { id: number; name: string | null; address: string; price: number; permalink: string }
 type Data = { floor: number; fresh: Item[]; secondary: Item[]; deals: Item[] }
@@ -85,12 +86,15 @@ export default function ForSale(_props: { path?: string }) {
       .catch(() => {})
   }, [])
 
-  const fmt = (price: number) => (!usd || !rate ? `${eth(price)}Ξ` : `$${parseFloat((price * rate).toFixed(2))}`)
+  const fmt = (price: number) => (!usd || !rate ? `${eth(price)}Ξ` : `$${parseFloat((price * rate).toFixed(0))}`)
+
+  const isValid = (i: Item) => i.price > 0 && i.price < 4.2
 
   const allItems = useMemo(() => {
     if (!data) return []
     const seen = new Set<number>()
     return [...data.fresh, ...data.secondary]
+      .filter(isValid)
       .filter((i) => {
         if (seen.has(i.id)) return false
         seen.add(i.id)
@@ -152,11 +156,12 @@ export default function ForSale(_props: { path?: string }) {
   }, [view, selectedId, allItems.length])
 
   return (
-    <section class="for-sale">
-      <Head title="Land for sale" url="/shop" />
-      <div class="for-sale-map">
+    <section class="columns for-sale">
+      <Head title="Parcels for sale" url="/shop" />
+
+      <article>
         <WorldMap ref={mapRef} forSale={forSale} selectedForSale={selectedId} onForSaleSelect={select} onForSaleViewportChange={setVisibleIds} priceFmt={`${usd}-${rate}`} />
-      </div>
+      </article>
       <aside class="for-sale-list">
         {view === 'detail' ? (
           <>
@@ -176,8 +181,8 @@ export default function ForSale(_props: { path?: string }) {
                   <h2>{parcel.name || parcel.address || `#${selectedId}`}</h2>
                   {selectedItem ? <p class="for-sale-detail-price">{fmt(selectedItem.price)}</p> : null}
                   {selectedItem?.permalink ? (
-                    <a class="for-sale-buy" href={selectedItem.permalink} target="_blank" rel="noopener noreferrer">
-                      buy
+                    <a class="buttonish" href={selectedItem.permalink} target="_blank">
+                      Buy for {fmt(selectedItem.price)}
                     </a>
                   ) : null}
                   <RecentWomps parcelId={parcel.id} />
@@ -192,7 +197,7 @@ export default function ForSale(_props: { path?: string }) {
           <>
             <header class="for-sale-head">
               <div>
-                <h2>land for sale</h2>
+                <h2>Parcels for sale</h2>
                 <p>
                   {items.length ? `${items.length} listings` : 'loading listings...'}
                   {data && data.floor ? ` - floor ${fmt(data.floor)}` : ''}
@@ -204,25 +209,32 @@ export default function ForSale(_props: { path?: string }) {
                 <span class={usd ? 'active' : ''}>usd</span>
               </div>
             </header>
-            <div class="for-sale-cards">
-              {items.map((i) => (
-                <a
-                  class="for-sale-card"
-                  key={i.id}
-                  href={`/shop?parcel=${i.id}`}
-                  onClick={(e) => {
-                    e.preventDefault()
-                    select(i.id)
-                  }}
-                  onMouseEnter={() => mapRef.current?.highlightParcel(i.id)}
-                  onMouseLeave={() => mapRef.current?.highlightParcel(null)}
-                >
-                  <div class="addr">{i.name || i.address || `#${i.id}`}</div>
-                  {i.name && i.address ? <div class="sub">{i.address}</div> : null}
-                  <div class="price">{fmt(i.price)}</div>
-                </a>
-              ))}
-            </div>
+            <table>
+              <thead>
+                <tr>
+                  <th>name</th>
+                  <th class="price">price</th>
+                </tr>
+              </thead>
+              <tbody>
+                {items.map((i) => (
+                  <tr
+                    key={i.id}
+                    tabIndex={0}
+                    style={{ cursor: 'pointer' }}
+                    onClick={(e: any) => {
+                      e.preventDefault()
+                      select(i.id)
+                    }}
+                    onMouseEnter={() => mapRef.current?.highlightParcel(i.id)}
+                    onMouseLeave={() => mapRef.current?.highlightParcel(null)}
+                  >
+                    <td>{truncate(i.name || i.address || `#${i.id}`, 30)}</td>
+                    <td class="price">{fmt(i.price)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </>
         )}
       </aside>

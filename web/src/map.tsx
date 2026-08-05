@@ -115,7 +115,6 @@ export default class WorldMap extends Component<Props, State> {
       mapParcelPopup(this.map, x, z, parcel, go)
       return
     }
-    mapTeleportPopup(this.map, x, z, go)
   }
 
   updateForSalePinLabels = () => {
@@ -228,10 +227,8 @@ export default class WorldMap extends Component<Props, State> {
   }
 
   render() {
-    const style = this.state.embed ? { height: '100vh', width: '100vw' } : { height: '95%', width: '100%' }
-
     return (
-      <section class="worldmap" style={style}>
+      <section class="worldmap">
         {this.props.path === '/map' && (
           <a class="map-for-sale-cta buttonish primary" href="/shop">
             land for sale

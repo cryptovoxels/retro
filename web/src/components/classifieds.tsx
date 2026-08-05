@@ -16,7 +16,7 @@ type Props = { limit?: number }
 
 export default function Classifieds({ limit }: Props) {
   const [data, setData] = useState<Data | null>(null)
-  const [tab, setTab] = useState<Tab>('secondary')
+  const [tab, setTab] = useState<Tab>('fresh')
   const [sort, setSort] = useState<Sort>('price')
   const [asc, setAsc] = useState(true)
   const [usd, setUsd] = useState(false)
@@ -86,9 +86,6 @@ export default function Classifieds({ limit }: Props) {
       <br />
       <br />
       <div class="classifieds-head">
-        <h3>
-          <a href="/shop">Shop</a>
-        </h3>
         {!limit && (
           <div class="classifieds-currency">
             <span class={!usd ? 'active' : ''}>eth</span>
@@ -107,12 +104,6 @@ export default function Classifieds({ limit }: Props) {
         </nav>
       )}
       <table class="clipped">
-        <thead>
-          <tr>
-            {th('name', 'name')}
-            {th('price', 'price')}
-          </tr>
-        </thead>
         <tbody>
           {items.length === 0 ? (
             <tr>

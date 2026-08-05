@@ -448,8 +448,8 @@ export class VoxelsMap {
     const h = this.canvas.clientHeight || 1
     const halfH = this.ortho / 2
     const halfW = halfH * aspect
-    const px = ((x - this.camera.position.x) / (halfW * 2)) * w + w / 2
-    const py = ((this.camera.position.z - z) / (halfH * 2)) * h + h / 2
+    const px = ((this.camera.position.x - x) / (halfW * 2)) * w + w / 2
+    const py = ((z - this.camera.position.z) / (halfH * 2)) * h + h / 2
     return { px, py }
   }
 
@@ -463,8 +463,8 @@ export class VoxelsMap {
     const halfH = this.ortho / 2
     const halfW = halfH * aspect
     return {
-      x: this.camera.position.x + (lx / w - 0.5) * halfW * 2,
-      z: this.camera.position.z - (ly / h - 0.5) * halfH * 2,
+      x: this.camera.position.x - (lx / w - 0.5) * halfW * 2,
+      z: this.camera.position.z + (ly / h - 0.5) * halfH * 2,
     }
   }
 

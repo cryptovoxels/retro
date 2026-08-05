@@ -174,16 +174,34 @@ export function NftView({ asset, onClose, feature, dialogEl }: Props) {
     }
   }
 
+  const contract = asset.asset_contract
+  const ownerCount = asset.top_ownerships?.length || 0
+  const tags = [contract?.schema_name, contract?.chain, asset.token_id ? `token #${asset.token_id}` : null, ownerCount ? `${ownerCount} owners` : null].filter(Boolean) as string[]
+
   return (
     <>
       <button class="close" onClick={onClose}>
         &times;
       </button>
-      <h1>
-        <a href={asset.permalink} target="_blank">
-          &rarr; {assetHelper.getName}
-        </a>
-      </h1>
+      <header class="nft-header">
+        <h1>{assetHelper.getName}</h1>
+        <div class="nft-collection-row">
+          <a class="nft-collection" href={asset.external_link || asset.permalink} target="_blank">
+            {(contract as any)?.image_url ? <img src={(contract as any).image_url} alt="" /> : null}
+            <span>{contract?.name || 'collection'}</span>
+          </a>
+          <a class="nft-open" href={asset.permalink} target="_blank">
+            open
+          </a>
+        </div>
+        {tags.length > 0 ? (
+          <ul class="nft-tags">
+            {tags.map((t) => (
+              <li key={t}>{t}</li>
+            ))}
+          </ul>
+        ) : null}
+      </header>
 
       <div class="center">
         <NftMediaBox dialogEl={dialogEl} aspect={aspect} onDismiss={onClose}>

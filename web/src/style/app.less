@@ -564,7 +564,7 @@ a.buttonish {
 }
 
 // Nav tweaks — left column
-header {
+header:has(nav) {
   position: sticky;
   top: 0;
   z-index: 100;
@@ -724,7 +724,7 @@ button.hamburger {
 
   & > aside {
     width: 15rem;
-    padding: 1rem 0;
+    padding: 0.5rem 0.5rem 1rem 0;
 
     a {
       color: var(--red);
@@ -1217,9 +1217,14 @@ table {
   td {
     vertical-align: top;
   }
+
   th,
   td {
     border-bottom: var(--border);
+  }
+
+  .price {
+    text-align: right;
   }
 
   th {
@@ -2703,6 +2708,7 @@ main > aside section {
   p {
     margin: 0 0.8rem;
   }
+
   form {
     padding: 0 0.5rem;
     display: flex;
@@ -3002,11 +3008,13 @@ dialog.editor {
         display: block;
         padding: 0;
       }
+
       input {
         text-align: center;
         outline: none;
         padding: 0.2rem 0;
       }
+
       > input[type='checkbox'] {
         flex: 0 0 auto;
         margin: 0 4px;
@@ -3343,6 +3351,7 @@ section.build-tab nav.build-main-tabs {
     margin: 0;
     padding: 0;
   }
+
   li a {
     display: block;
     border-top: var(--border);
@@ -4387,10 +4396,12 @@ dialog {
     scale: 0.85;
     opacity: 0;
   }
+
   60% {
     scale: 1.04;
     opacity: 1;
   }
+
   100% {
     scale: 1;
     opacity: 1;
@@ -4402,6 +4413,7 @@ dialog {
     scale: 1;
     opacity: 1;
   }
+
   100% {
     scale: 0.85;
     opacity: 0;
@@ -4434,6 +4446,66 @@ dialog.nft-view {
     flex: 0 0 auto;
     margin: 0;
     padding: 0.5rem 1rem;
+  }
+
+  .nft-header {
+    flex: 0 0 auto;
+    padding: 0.5rem 1rem 0;
+
+    h1 {
+      padding: 0;
+    }
+  }
+
+  .nft-collection-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    margin-top: 0.5rem;
+  }
+
+  .nft-collection {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+
+    img {
+      width: 1.5rem;
+      height: 1.5rem;
+      object-fit: cover;
+      flex: 0 0 auto;
+    }
+
+    span {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  .nft-open {
+    flex: 0 0 auto;
+    color: inherit;
+  }
+
+  .nft-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    list-style: none;
+    margin: 0.5rem 0 0;
+    padding: 0;
+
+    li {
+      border: 1px solid currentColor;
+      padding: 0.15rem 0.5rem;
+      text-transform: uppercase;
+      opacity: 0.8;
+    }
   }
 
   div.center {
@@ -4716,4 +4788,17 @@ div.css-icon {
     background: transparent;
     border: none;
   }
+}
+
+.worldmap {
+  height: calc(100vh - 1rem);
+}
+
+.for-sale-pin {
+  background: white;
+  border: var(--border);
+  border-width: 2px;
+  border-radius: 1rem;
+  padding: 0.2rem 0.5rem;
+  box-shadow: 3px 3px 3px rgba(0, 0, 0, 0.2);
 }

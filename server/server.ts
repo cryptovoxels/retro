@@ -62,7 +62,7 @@ import cleanCollections from './jobs/remove-collections'
 import cleanMailBoxes from './jobs/remove-old-mails'
 import truncateMetrics from './jobs/truncate-metrics'
 import log from './lib/logger'
-import { createRequestHandlerForQuery } from './lib/query-helpers'
+import { createRequestHandlerForQuery, query } from './lib/query-helpers'
 import { getTypeOfContract } from './lib/utils'
 import preCorsController from './pre-cors'
 
@@ -483,16 +483,22 @@ app.get(
 
 app.get('/api/parcels/cached.json', cache('60 seconds', true), createRequestHandlerForQuery(db, 'get-parcels-cached', 'parcels'))
 
-app.get(
-  '/api/parcels/:id.json',
-  cache('15 seconds'),
-  passport.authenticate(['jwt', 'anonymous'], { session: false }),
-  createRequestHandlerForQuery(db, 'get-parcel', 'parcel', (req) => {
-    const id = parseInt(req.params.id, 10)
-    if (isNaN(id)) return null
-    return [id, isOwner(req)]
-  }),
-)
+const parcelProxy = proxy('https://www.voxels.com', {
+  proxyReqPathResolver: (req) => req.originalUrl,
+})
+
+app.get('/api/parcels/:id.json', cache(config.isDevelopment ? false : '15 seconds'), passport.authenticate(['jwt', 'anonymous'], { session: false }), async (req, res, next) => {
+  const id = parseInt(req.params.id, 10)
+  if (isNaN(id)) return res.status(400).json({ success: false })
+
+  const result = await query(db, 'get-parcel', 'parcel', [id, isOwner(req)])
+  if (result.success) return res.status(200).json(result)
+
+  if (config.isDevelopment) return parcelProxy(req, res, next)
+
+  noCache(res)
+  res.status(400).json({ success: false })
+})
 
 app.get(
   '/api/wallet/:address/parcels.json',
