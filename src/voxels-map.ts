@@ -311,6 +311,8 @@ export class VoxelsMap {
   private homeX = 0
   private homeZ = 0
   private homeOrtho: number
+  private flying = false
+  private flyTarget: { x: number; z: number; ortho?: number } | null = null
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -380,6 +382,7 @@ export class VoxelsMap {
   }
 
   dispose() {
+    this.stopFly()
     if (this.arrow && this.followObs) {
       this.arrow.onAfterRenderObservable.remove(this.followObs)
       this.followObs = undefined
@@ -419,10 +422,33 @@ export class VoxelsMap {
   }
 
   setView(x: number, z: number, ortho?: number) {
+    this.stopFly()
     this.camera.position.x = x
     this.camera.position.z = z
     if (ortho != null) this.setOrtho(ortho)
     this.onMove?.()
+  }
+
+  flyTo(x: number, z: number, ortho?: number, ms = 700) {
+    if (this.flyTarget && this.flyTarget.x === x && this.flyTarget.z === z && this.flyTarget.ortho === ortho) return
+    this.stopFly()
+    const fps = 60
+    const frames = Math.max(1, Math.round((ms / 1000) * fps))
+
+    const ease = new BABYLON.QuadraticEase()
+    ease.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT)
+
+    const to = new BABYLON.Vector3(x, this.camera.position.y, z)
+    this.flying = true
+    this.flyTarget = { x, z, ortho }
+    BABYLON.Animation.CreateAndStartAnimation('map-fly', this.camera, 'position', fps, frames, this.camera.position.clone(), to, 0, ease, () => {
+      this.flying = false
+      this.flyTarget = null
+      this.onMove?.()
+    })
+    if (ortho != null) {
+      BABYLON.Animation.CreateAndStartAnimation('map-zoom', this, 'flyOrtho', fps, frames, this.ortho, ortho, 0, ease, undefined, this.scene)
+    }
   }
 
   fitBounds(x1: number, z1: number, x2: number, z2: number, pad = 1.2) {
@@ -595,6 +621,22 @@ export class VoxelsMap {
     return w / h
   }
 
+  private get flyOrtho() {
+    return this.ortho
+  }
+
+  private set flyOrtho(v: number) {
+    this.setOrtho(v)
+  }
+
+  private stopFly() {
+    if (!this.flying) return
+    this.scene.stopAnimation(this.camera)
+    this.scene.stopAnimation(this)
+    this.flying = false
+    this.flyTarget = null
+  }
+
   private setOrtho(size: number) {
     this.ortho = size
     const aspect = this.aspect()
@@ -602,7 +644,7 @@ export class VoxelsMap {
     this.camera.orthoBottom = -size / 2
     this.camera.orthoRight = (size / 2) * aspect
     this.camera.orthoLeft = -(size / 2) * aspect
-    this.onMove?.()
+    if (!this.flying) this.onMove?.()
   }
 
   private bindPanZoom() {
@@ -610,6 +652,7 @@ export class VoxelsMap {
       'wheel',
       (e) => {
         e.preventDefault()
+        this.stopFly()
         const f = e.deltaY > 0 ? 1.1 : 0.9
         this.setOrtho(Math.max(80, Math.min(10000, this.ortho * f)))
       },
@@ -620,6 +663,7 @@ export class VoxelsMap {
     if (this.follow) return
 
     this.canvas.addEventListener('pointerdown', (e) => {
+      this.stopFly()
       this.dragging = true
       this.moved = false
       this.lastX = e.clientX
