@@ -408,23 +408,8 @@ select {
 
 .classifieds-tabs {
   display: flex;
-  gap: 1rem;
+  gap: 0.5rem;
   margin: 1rem 0;
-  border-bottom: var(--border);
-
-  button {
-    background: none;
-    border: 0;
-    border-bottom: 3px solid transparent;
-    margin-bottom: -1px;
-    padding: 0.5rem 0;
-    color: var(--muted);
-
-    &.active {
-      color: inherit;
-      border-bottom-color: var(--red);
-    }
-  }
 }
 
 .admin-section {
@@ -560,6 +545,10 @@ a.buttonish {
     color: #0004;
     opacity: 0.8;
     cursor: default;
+  }
+  &.active {
+    background: var(--accent);
+    color: white;
   }
 }
 

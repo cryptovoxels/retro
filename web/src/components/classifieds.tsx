@@ -7,7 +7,7 @@ type Data = { fresh: Item[]; secondary: Item[] }
 type Tab = 'fresh' | 'secondary'
 type Sort = 'name' | 'address' | 'price'
 
-const LABELS: Record<Tab, string> = { fresh: 'freshly minted', secondary: 'secondary' }
+const LABELS: Record<Tab, string> = { fresh: 'new', secondary: 'used' }
 const URL = '/api/classifieds.json'
 const eth = (n: number) => parseFloat(n.toFixed(3))
 const name = (i: Item) => i.name || i.address || `#${i.id}`
@@ -26,7 +26,7 @@ export default function Classifieds({ limit }: Props) {
     cachedFetch(URL)
       .then((r) => r.json())
       .then((d) => d.success && setData(d))
-      .catch(() => { })
+      .catch(() => {})
   }, [])
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export default function Classifieds({ limit }: Props) {
     fetch('https://api.coinbase.com/v2/prices/ETH-USD/spot')
       .then((r) => r.json())
       .then((d) => setRate(parseFloat(d?.data?.amount) || 0))
-      .catch(() => { })
+      .catch(() => {})
   }, [limit])
 
   if (!data || (!data.fresh.length && !data.secondary.length)) return null

@@ -11,7 +11,9 @@ import { truncate } from './lib/string-utils'
 
 type Item = { id: number; name: string | null; address: string; price: number; permalink: string }
 type Data = { floor: number; fresh: Item[]; secondary: Item[]; deals: Item[] }
+type Tab = 'fresh' | 'secondary'
 
+const LABELS: Record<Tab, string> = { fresh: 'new', secondary: 'used' }
 const CLASSIFIEDS_URL = '/api/classifieds.json'
 const eth = (n: number) => parseFloat(n.toFixed(3))
 const DETAIL_MAP_ORTHO = 200
@@ -63,7 +65,9 @@ function RecentWomps({ parcelId }: { parcelId: number }) {
 
 export default function ForSale(_props: { path?: string }) {
   const initialId = selectedFromUrl()
+  const [loading, setLoading] = useState(true)
   const [data, setData] = useState<Data | null>(null)
+  const [tab, setTab] = useState<Tab>('fresh')
   const [usd, setUsd] = useState(false)
   const [rate, setRate] = useState(0)
   const [selectedId, setSelectedId] = useState<number | null>(initialId)
@@ -72,11 +76,15 @@ export default function ForSale(_props: { path?: string }) {
   const [visibleIds, setVisibleIds] = useState<number[] | null>(null)
   const mapRef = useRef<WorldMap | null>(null)
 
+  const showTabs = !!(data && data.fresh.length > 0 && data.secondary.length > 0)
+  const active: Tab = showTabs ? (tab === 'fresh' ? 'fresh' : 'secondary') : data?.fresh.length ? 'fresh' : 'secondary'
+
   useEffect(() => {
     cachedFetch(CLASSIFIEDS_URL)
       .then((r) => r.json())
       .then((d) => d.success && setData(d))
       .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => {
@@ -93,7 +101,7 @@ export default function ForSale(_props: { path?: string }) {
   const allItems = useMemo(() => {
     if (!data) return []
     const seen = new Set<number>()
-    return [...data.fresh, ...data.secondary]
+    return data[active]
       .filter(isValid)
       .filter((i) => {
         if (seen.has(i.id)) return false
@@ -101,7 +109,7 @@ export default function ForSale(_props: { path?: string }) {
         return true
       })
       .sort((a, b) => a.price - b.price)
-  }, [data])
+  }, [data, active])
 
   const items = useMemo(() => {
     if (visibleIds === null) return allItems
@@ -199,7 +207,7 @@ export default function ForSale(_props: { path?: string }) {
               <div>
                 <h2>Parcels for sale</h2>
                 <p>
-                  {items.length ? `${items.length} listings` : 'loading listings...'}
+                  {loading ? 'loading listings...' : `${items.length} listings`}
                   {data && data.floor ? ` - floor ${fmt(data.floor)}` : ''}
                 </p>
               </div>
@@ -209,6 +217,15 @@ export default function ForSale(_props: { path?: string }) {
                 <span class={usd ? 'active' : ''}>usd</span>
               </div>
             </header>
+            {showTabs && (
+              <nav class="classifieds-tabs">
+                {(['fresh', 'secondary'] as Tab[]).map((t) => (
+                  <button key={t} class={active === t ? 'active' : ''} onClick={() => setTab(t)}>
+                    {LABELS[t]}
+                  </button>
+                ))}
+              </nav>
+            )}
             <table>
               <thead>
                 <tr>
