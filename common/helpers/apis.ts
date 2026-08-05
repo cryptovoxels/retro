@@ -1,7 +1,6 @@
 import { ExponentialBackoff, handleAll, retry } from 'cockatiel'
 import { parseUnits } from 'ethers'
 import type { AlchemyNFTWithMetadata } from '../messages/api-alchemy'
-import { OrderRecordV2 } from '../messages/api-opensea'
 // Create a retry policy that'll try whatever function we execute 2 times with a randomized exponential backoff.
 const retryPolicy = retry(handleAll, { maxAttempts: 2, backoff: new ExponentialBackoff() })
 
@@ -169,58 +168,6 @@ export const getAvatarNameFromWallet = async (wallet: string, cachebust = false)
     return r.name.name // lol
   } catch {
     return null
-  }
-}
-
-/// OPENSEA WRAPPERS --------------------------------------------------------------------------------
-// OPENSEA WRAPPER CAUSE HOLY SHIT
-type openseaOrdersFetchConfigs = {
-  asset_contract_address?: string
-  token_id?: string
-  token_ids?: string[]
-  maker?: string
-  taker?: string
-  owner?: string
-  is_english?: boolean
-  bundled?: boolean
-  include_bundled?: boolean
-  listed_after?: number
-  listed_before?: number
-  side: 1 | 0 //1= sell;0=buy
-  sale_kind?: 0 | 1 // 0 = fixed-price; 1 = Dutch
-  only_english?: boolean
-  limit: number
-  offset: number
-  order_by: 'created_date' | 'eth_price'
-  order_direction: 'asc' | 'desc'
-}
-
-export const defaultOpenseaConfig: openseaOrdersFetchConfigs = {
-  is_english: false,
-  bundled: false,
-  include_bundled: false,
-  side: 1,
-  limit: 30,
-  offset: 0,
-  order_by: 'created_date',
-  order_direction: 'desc',
-}
-
-export type OpenseaListingsV2Configs = {
-  asset_contract_address: string
-  limit?: string
-  token_ids: string[]
-}
-
-export const fetchListingsV2 = async (config: OpenseaListingsV2Configs, signal?: AbortSignal) => {
-  const c = Object.assign({}, config)
-
-  try {
-    const data = await fetchJSON(`${process.env.API}/externals/opensea/listings`, { method: 'POST', headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify(c), signal })
-    return data.orders as OrderRecordV2[]
-  } catch (err) {
-    console.error(`fetchListingsV2 error: ${err}`)
-    return []
   }
 }
 

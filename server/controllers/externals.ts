@@ -1,14 +1,12 @@
 import { ethers } from 'ethers'
 import { Express, Request, Response } from 'express'
 import proxy from 'express-http-proxy'
-import { chunk } from 'lodash'
 import { PassportStatic } from 'passport'
-import querystring from 'querystring'
-import { fetchJSON, OpenseaListingsV2Configs } from '../../common/helpers/apis'
+import { fetchJSON } from '../../common/helpers/apis'
 import config from '../../common/config'
 import { isStringHex } from '../../common/helpers/utils'
 import { AlchemyNFTAPIWithMetadata, AlchemyNFTWithMetadata } from '../../common/messages/api-alchemy'
-import { OpenseaListingsResponseV2, OpenSeaNftModelV2, OpenSeaNFTV2Extended, OrderRecordV2 } from '../../common/messages/api-opensea'
+import { OpenSeaNftModelV2, OpenSeaNFTV2Extended } from '../../common/messages/api-opensea'
 import cache from '../cache'
 import { requireAdmin } from '../lib/helpers'
 import log from '../lib/logger'
@@ -221,25 +219,6 @@ export default function ExternalsController(db: Db, passport: PassportStatic, ap
     })
   }
 
-  app.post('/api/externals/opensea/listings', cache('30 seconds'), async (req: Request, res: Response) => {
-    const config = req.body as OpenseaListingsV2Configs
-    const result = await fetchOpenseaListingsV2(config)
-    switch (result.type) {
-      case 'success':
-        res.json({ success: true, orders: result.orders })
-        break
-      case 'serverError':
-        res.sendStatus(500)
-        break
-      case 'possibleClientErrorNotSureLol':
-        res.sendStatus(400)
-        break
-      default:
-        const n: never = result
-        log.error('Unhandled result', { result: n })
-        res.sendStatus(500)
-    }
-  })
 }
 
 // Resolve the parcel contract to its OpenSea collection slug (cached for the process).
@@ -336,77 +315,4 @@ const validateMetadataQueryAndReturn = async (req: Request) => {
   // }
 
   return { contractAddress, tokenId: String(tokenId), chain, tokenType } as { contractAddress: string; tokenId: string; chain: number; tokenType?: string }
-}
-
-type FetchOpenseaListingsResult =
-  | {
-      type: 'serverError'
-    }
-  | {
-      type: 'possibleClientErrorNotSureLol'
-    }
-  | {
-      type: 'success'
-      orders: OrderRecordV2[]
-    }
-
-const fetchOpenseaListingsV2 = async (config: OpenseaListingsV2Configs): Promise<FetchOpenseaListingsResult> => {
-  if (!config.token_ids?.length) {
-    return {
-      type: 'success',
-      orders: [],
-    }
-  }
-
-  const c = Object.assign({}, config)
-
-  if (!process.env.OPENSEA_APIKEY) {
-    return {
-      type: 'serverError',
-    }
-  }
-
-  const headers = { 'X-API-KEY': process.env.OPENSEA_APIKEY! }
-  const apiURL = new URL('https://api.opensea.io/v2/orders/ethereum/seaport/listings')
-  const orders: OrderRecordV2[] = []
-  const fetchOrders = async () => {
-    try {
-      const data = await fetchJSON(apiURL.toString(), { method: 'GET', headers: headers })
-      const r = data as OpenseaListingsResponseV2
-      if (r.orders) {
-        const os = r.orders
-          .map((o) => {
-            ;(o as any).asset = {}
-            ;(o as any).asset.token_id = o.protocol_data.parameters.offer[0]?.identifierOrCriteria
-            return o
-          })
-          .filter((o: any) => !!o.asset?.token_id && o.order_type != 'basic') // no fixed-price
-        orders.push(...os)
-      }
-    } catch (err) {
-      log.error(err)
-      return {
-        kind: 'possibleClientErrorNotSureLol',
-      }
-    }
-  }
-
-  if (config.token_ids.length <= 30) {
-    apiURL.search = querystring.stringify(c)
-    await fetchOrders()
-  } else if (config.token_ids?.length > 30) {
-    // Only 50 tokens at a time
-    const chunked = chunk(config.token_ids, 30)
-
-    for (const tempIds of chunked) {
-      apiURL.search = querystring.stringify(Object.assign(c, { token_ids: tempIds }))
-
-      await fetchOrders()
-    }
-  }
-
-  return {
-    type: 'success',
-    orders,
-  }
 }

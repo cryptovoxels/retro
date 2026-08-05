@@ -68,6 +68,15 @@ export default class WebHeader extends Component<Props, State> {
     route(`/search?q=${encodeURIComponent(this.state.query)}`)
   }
 
+  onMiniClick = () => {
+    const coords = window.connector?.controls?.getCoords?.()
+    if (!coords) {
+      return
+    }
+
+    route(`/play?coords=${coords}`)
+  }
+
   render() {
     const signedIn = app.signedIn
     const admin = app.isAdmin()
@@ -144,6 +153,10 @@ export default class WebHeader extends Component<Props, State> {
                     <input name="q" value={this.state.query} type="search" onInput={this.onInput} placeholder="Search" />
                   </form>
                 </div>
+              </li>
+
+              <li>
+                <div onClick={this.onMiniClick} id='mini-client'></div>
               </li>
             </ul>
           </nav>
