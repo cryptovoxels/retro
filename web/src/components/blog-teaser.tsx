@@ -23,6 +23,8 @@ export default function BlogTeaser() {
     }
   }, [])
 
+  const ago = (date: string) => format(date).replace(/ ([a-z]).+/, '$1')
+
   return (
     <>
       <h3>Blog</h3>
@@ -35,7 +37,7 @@ export default function BlogTeaser() {
                   <a href={`/blog/${p.slug}`}>{p.title}</a>
                 </td>
                 <td>{p.replies ?? 0}</td>
-                <td>{format(p.created_at)}</td>
+                <td>{ago(p.created_at)}</td>
               </tr>
             ))}
           </tbody>

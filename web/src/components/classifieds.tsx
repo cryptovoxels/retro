@@ -26,7 +26,7 @@ export default function Classifieds({ limit }: Props) {
     cachedFetch(URL)
       .then((r) => r.json())
       .then((d) => d.success && setData(d))
-      .catch(() => {})
+      .catch(() => { })
   }, [])
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export default function Classifieds({ limit }: Props) {
     fetch('https://api.coinbase.com/v2/prices/ETH-USD/spot')
       .then((r) => r.json())
       .then((d) => setRate(parseFloat(d?.data?.amount) || 0))
-      .catch(() => {})
+      .catch(() => { })
   }, [limit])
 
   if (!data || (!data.fresh.length && !data.secondary.length)) return null
@@ -110,7 +110,6 @@ export default function Classifieds({ limit }: Props) {
         <thead>
           <tr>
             {th('name', 'name')}
-            {th('address', 'address')}
             {th('price', 'price')}
           </tr>
         </thead>
@@ -125,7 +124,6 @@ export default function Classifieds({ limit }: Props) {
                 <td>
                   <a href={`/shop?parcel=${i.id}`}>{name(i)}</a>
                 </td>
-                <td>{i.address}</td>
                 <td>{fmt(i.price)}</td>
               </tr>
             ))
