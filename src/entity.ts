@@ -58,7 +58,7 @@ export abstract class Entity {
 
   /**
    * Getter to obtain the coordinates of the avatar
-   * @returns {{ position: BABYLON.Vector3,rotation: BABYLON.Vector3, flying: boolean }} Position object.
+   * @returns {string} Encoded position.
    */
   get coords(): string {
     if (!this.hasPosition) {
@@ -70,7 +70,6 @@ export abstract class Entity {
     return encodeCoords({
       position: v,
       rotation: new BABYLON.Vector3(0, Math.PI, 0),
-      flying: this.animation?.is(Animations.Floating),
     })
   }
 

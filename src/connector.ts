@@ -887,8 +887,8 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     this.persona.teleportNoHistory({
       position: pos,
       rotation: new BABYLON.Vector3(0, yaw, 0),
-      flying: leaderFlying,
     })
+    this.controls.setFlying(leaderFlying)
   }
 
   private handleConga(text: string) {

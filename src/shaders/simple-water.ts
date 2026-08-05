@@ -39,7 +39,7 @@ export class SimpleWater {
   private setupMaterialProperties(): void {
     this.material.setVector3('diffuseColor', new BABYLON.Vector3(0, 0.4, 0.7))
     this.material.setFloat('sunSpecularPower', 8.0)
-    this.material.backFaceCulling = false
+    this.material.backFaceCulling = true
   }
 
   private updateUniforms(): void {

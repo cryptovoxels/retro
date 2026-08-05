@@ -20,6 +20,9 @@ export const MIN_CAMERA_DISTANCE = 0.5
 export const MAX_CAMERA_DISTANCE = 10
 const CAMERA_EASE_OUT = 1.4
 const SWIM_LEVEL = -2
+const STAND_ELLIPSOID_Y = 0.85
+const CROUCH_ELLIPSOID_Y = 0.4
+const CROUCH_SPEED_MULT = 0.5
 
 /** Meters behind the person in front (each hop of the snake). */
 const CONGA_FOLLOW_DISTANCE = 1.35
@@ -103,6 +106,9 @@ export default abstract class Controls implements IControls {
   movementEnabled = true
   shiftKey = false
   ctrlKey = false
+  crouching = false
+  /** Desktop Control key held — not meta/Cmd. */
+  crouchHeld = false
   firstPersonView = true
   walkRunAnimation: BABYLON.Animatable | null = null
   /** mobile dpad sets this; also used as drive steer while in a vehicle */
@@ -416,8 +422,9 @@ export default abstract class Controls implements IControls {
     if (this.movementEnabled) {
       const fps = 60
       const duration = 13
+      const target = this.crouching ? this.defaultSpeed * CROUCH_SPEED_MULT : this.defaultSpeed
       this.walkRunAnimation?.stop()
-      this.walkRunAnimation = BABYLON.Animation.CreateAndStartAnimation('walk-to-run', this.camera, 'speed', fps, duration, this.camera.speed, this.defaultSpeed, undefined, WALK_TO_RUN_EASE)
+      this.walkRunAnimation = BABYLON.Animation.CreateAndStartAnimation('walk-to-run', this.camera, 'speed', fps, duration, this.camera.speed, target, undefined, WALK_TO_RUN_EASE)
       this.walkRunAnimation!.loopAnimation = false
     }
   }
@@ -546,6 +553,47 @@ export default abstract class Controls implements IControls {
       }
       this.camera.applyGravity = !this.flying && !this.swimming && this.grounded && isLoaded() && !this.gravityDisabledOverride && this.groundReady
     }
+  }
+
+  setCrouching(want: boolean, force = false) {
+    if (!(this.camera instanceof PlayerCamera)) return
+    if (want === this.crouching) return
+
+    const dy = STAND_ELLIPSOID_Y - CROUCH_ELLIPSOID_Y
+
+    if (want) {
+      this.camera.ellipsoid.y = CROUCH_ELLIPSOID_Y
+      this.camera.position.y -= dy
+      this.crouching = true
+      if (this.movementEnabled && !this.running) {
+        this.camera.speed = this.defaultSpeed * CROUCH_SPEED_MULT
+      }
+      return
+    }
+
+    if (!force) {
+      const origin = this.camera.globalPosition
+      const ray = new BABYLON.Ray(origin, new BABYLON.Vector3(0, 1, 0), dy + BABYLON.Epsilon)
+      const hit = this.scene.pickWithRay(ray, (e) => e.checkCollisions, true)
+      if (hit?.hit) return
+    }
+
+    this.camera.ellipsoid.y = STAND_ELLIPSOID_Y
+    this.camera.position.y += dy
+    this.crouching = false
+    if (this.movementEnabled && !this.running) {
+      this.camera.speed = this.defaultSpeed
+    }
+  }
+
+  refreshCrouch() {
+    if (!(this.camera instanceof PlayerCamera)) return
+    if (this.flying || this.swimming) {
+      if (this.crouching) this.setCrouching(false, true)
+      return
+    }
+    if (this.crouchHeld) this.setCrouching(true)
+    else if (this.crouching) this.setCrouching(false)
   }
 
   // Disables gravity until ground is detected underneath the avatar

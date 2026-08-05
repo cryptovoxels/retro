@@ -134,6 +134,7 @@ export default class FeatureTool implements Tool {
     selectorMaterial.alpha = 0
 
     this.selector.material = selectorMaterial
+    this.selector.visibility = 0
 
     this.createFeatureLoadingMesh()
 

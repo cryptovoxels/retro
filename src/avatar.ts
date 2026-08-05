@@ -36,10 +36,13 @@ export default class Avatar extends Entity {
   private static woody: BABYLON.AssetContainer | undefined
   private static awaitingRootAvatarLoading: (() => void)[] = []
   private static rootAvatarLoadState = LoadState.None
+  private static silhouetteMaterial: BABYLON.StandardMaterial | null = null
+  private static silhouetteGroupReady = false
   skeleton: BABYLON.Skeleton | null = null
   private readonly _description: AvatarRecord
   private readonly _uuid: string
   private armatureMesh: BABYLON.Mesh | null = null
+  private silhouetteMesh: BABYLON.Mesh | null = null
   private neckBone: BABYLON.Bone | undefined
   private nameMesh: BABYLON.Mesh | null = null
   private nameTexture: BABYLON.DynamicTexture | null = null
@@ -296,6 +299,27 @@ export default class Avatar extends Entity {
     })
   }
 
+  // flat white, 50% alpha, depth GREATER: only draws where the body is behind walls
+  private static ensureSilhouetteMaterial(scene: BABYLON.Scene): BABYLON.StandardMaterial {
+    if (!Avatar.silhouetteMaterial) {
+      const mat = new BABYLON.StandardMaterial('avatar/silhouette', scene)
+      mat.disableLighting = true
+      mat.emissiveColor = new BABYLON.Color3(1, 1, 1)
+      mat.diffuseColor = BABYLON.Color3.Black()
+      mat.alpha = 0.5
+      mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
+      mat.disableDepthWrite = true
+      mat.depthFunction = BABYLON.Constants.GREATER
+      mat.freeze()
+      Avatar.silhouetteMaterial = mat
+    }
+    if (!Avatar.silhouetteGroupReady) {
+      scene.setRenderingAutoClearDepthStencil(2, false, false, false)
+      Avatar.silhouetteGroupReady = true
+    }
+    return Avatar.silhouetteMaterial
+  }
+
   private static async loadRootAvatar(scene: BABYLON.Scene) {
     if (Avatar.rootAvatarLoadState !== LoadState.None) return
     Avatar.rootAvatarLoadState = LoadState.Loading
@@ -498,6 +522,7 @@ export default class Avatar extends Entity {
           m.visibility = 1
         })
       }
+      if (this.silhouetteMesh) this.silhouetteMesh.visibility = 1
       if (this.nameMesh) this.nameMesh.visibility = 1
       this._attachmentManager?.showAllWearables()
     }
@@ -512,6 +537,7 @@ export default class Avatar extends Entity {
           m.visibility = 0
         })
       }
+      if (this.silhouetteMesh) this.silhouetteMesh.visibility = 0
       if (this.nameMesh) this.nameMesh.visibility = 0
       this._attachmentManager?.hideAllWearables()
     }
@@ -605,6 +631,8 @@ export default class Avatar extends Entity {
     this._avatarMesh = null
     this.armatureMesh?.dispose()
     this.armatureMesh = null
+    this.silhouetteMesh?.dispose()
+    this.silhouetteMesh = null
     this.skeleton?.dispose()
     this.skeleton = null
     this.collider?.dispose()
@@ -871,6 +899,19 @@ export default class Avatar extends Entity {
     this.armatureMesh.skeleton = this.skeleton
     this.animation?.copy(this.skeleton)
 
+    if (!this.isUser) {
+      const sil = this.armatureMesh.clone(`avatar/silhouette/${this._uuid}`, null) as BABYLON.Mesh
+      sil.isPickable = false
+      sil.renderOutline = false
+      sil.metadata = { isAvatarPart: true }
+      sil.skeleton = this.skeleton
+      sil.material = Avatar.ensureSilhouetteMaterial(this.scene)
+      sil.renderingGroupId = 2
+      sil.setParent(this.node)
+      sil.addLODLevel(AVATAR_VIEW_DISTANCE, null)
+      this.silhouetteMesh = sil
+    }
+
     const t = this.skeleton?.getBoneIndexByName('mixamorig:Head')
     this.neckBone = this.skeleton.bones[t]
     if (!this.neckBone) {
@@ -903,6 +944,7 @@ export default class Avatar extends Entity {
     // avatars that it already has data for, the meshes will be offset due to the absolute and relative coordinate
     // systems we are using to fix an z-fighting issue on far away islands
     this._avatarMesh.position.set(0, -AVATAR_HEIGHT, 0)
+    this.silhouetteMesh?.position.set(0, -AVATAR_HEIGHT, 0)
     this.collider?.position.set(0, -AVATAR_HEIGHT / 2, 0)
 
     this.loadFinished()

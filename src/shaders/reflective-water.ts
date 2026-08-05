@@ -153,7 +153,7 @@ export class ReflectiveWater {
     this.material.setFloat('windForce', this.windForce)
     this.material.setFloat('windHeading', this.windHeading)
     this.material.setFloat('waveLength', this.waveLength)
-    this.material.backFaceCulling = false
+    this.material.backFaceCulling = true
 
     this.material.setTexture('reflectionSampler', this.reflectionTexture)
     this.material.setTexture('bumpSampler', this.bumpTexture)

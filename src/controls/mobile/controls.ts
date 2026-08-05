@@ -20,7 +20,6 @@ export default class MobileControls extends Controls {
     const coords = decodeCoords(getCoordsFromURL())
     const camera = createFirstPersonCamera(this.scene, coords)
     this.resetWorldOffset(coords.position)
-    this.setFlying(coords.flying ?? false)
 
     if (coords && coords.rotation) {
       camera['rotation'].y = coords?.rotation.y || 0

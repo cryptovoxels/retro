@@ -65,6 +65,7 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
 
     scene.onAfterRenderObservable.add(() => {
       controls.refreshGravity()
+      controls.refreshCrouch()
     })
 
     // start the environment load loop (which will load water on demand)
@@ -164,7 +165,6 @@ function updateNavbarWithCoords(scene: BABYLON.Scene, connector: Connector) {
       const coords = {
         position: connector.persona.position.clone(),
         rotation: camera.rotation.clone(),
-        flying: connector.controls.flying,
       }
 
       const coordsParam = encodeCoords(coords)

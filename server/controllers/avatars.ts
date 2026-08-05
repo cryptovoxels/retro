@@ -143,7 +143,6 @@ export default function AvatarsController(db: Db, passport: PassportStatic, app:
       const coords = encodeCoords({
         position,
         rotation: new BABYLON.Vector3(0, Math.PI, 0),
-        flying: r.user.animation === 'Floating',
       })
 
       const url = `/play?coords=${coords}`

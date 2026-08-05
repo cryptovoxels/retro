@@ -7,6 +7,7 @@ export class PostProcesses {
   private readonly pipelines: Record<GraphicLevels, BABYLON.PostProcessRenderPipeline>
   private glowLayer: BABYLON.Nullable<BABYLON.GlowLayer> = null
   private blurPP: BABYLON.Nullable<BABYLON.PostProcess> = null
+  private underwaterPP: BABYLON.Nullable<BABYLON.PostProcess> = null
 
   constructor(scene: BABYLON.Scene, color: ColorGrader, graphics: GraphicEngine) {
     this.scene = scene
@@ -73,6 +74,42 @@ void main(void) {
       } catch {}
       this.blurPP.dispose()
       this.blurPP = null
+    }
+  }
+
+  setUnderwater(on: boolean) {
+    const camera = this.scene.activeCamera
+    if (!camera) return
+
+    if (on) {
+      if (this.underwaterPP) return
+      if (!BABYLON.Effect.ShadersStore['underwaterPixelShader']) {
+        BABYLON.Effect.ShadersStore['underwaterPixelShader'] = `
+varying vec2 vUV;
+uniform sampler2D textureSampler;
+uniform float time;
+
+void main(void) {
+  float w = sin(time * 2.2 + vUV.y * 12.0) * 0.04;
+  float w2 = cos(time * 1.7 + vUV.x * 10.0) * 0.03;
+  vec2 uv = vUV + vec2(w, w2);
+  vec3 c = texture2D(textureSampler, uv).xyz;
+  float r = (c.x + c.y + c.z) / 3.0;
+  gl_FragColor = vec4(0, r * 0.5, r, 1.0);
+}
+`
+      }
+      const pp = new BABYLON.PostProcess('underwater', 'underwater', ['time'], null, 1.0, camera, BABYLON.Texture.BILINEAR_SAMPLINGMODE, this.scene.getEngine(), false)
+      pp.onApply = (effect) => {
+        effect.setFloat('time', performance.now() * 0.001)
+      }
+      this.underwaterPP = pp
+    } else if (this.underwaterPP) {
+      try {
+        camera.detachPostProcess(this.underwaterPP)
+      } catch {}
+      this.underwaterPP.dispose()
+      this.underwaterPP = null
     }
   }
 

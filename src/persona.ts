@@ -191,8 +191,6 @@ export default class Persona {
       setCameraRotation(this.scene, new BABYLON.Vector3(r.x, coords.rotation.y, r.z))
     }
 
-    this.controls.setFlying(coords.flying ?? false)
-
     // make sure we see the features of new area immediately (otherwise we have to wait up to 5 seconds)
     this.connector.refreshNearestParcels()
 

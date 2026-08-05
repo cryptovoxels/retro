@@ -104,4 +104,8 @@ export class Terrain {
   hasWaterMeshAt(x: number, z: number) {
     return this._ocean.hasWaterMeshAt(x, z)
   }
+
+  getIsland(point: BABYLON.Vector2) {
+    return this._islands.getIsland(point)
+  }
 }

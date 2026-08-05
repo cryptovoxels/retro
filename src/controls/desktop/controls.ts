@@ -29,7 +29,6 @@ export default class DesktopControls extends Controls {
     const coords = decodeCoordsFromURL()
     const camera = createFirstPersonCamera(this.scene, coords)
     this.resetWorldOffset(coords.position)
-    this.setFlying(coords.flying ?? false)
 
     if (coords && coords.rotation) {
       camera['rotation'].y = coords?.rotation.y || 0
@@ -102,6 +101,8 @@ export default class DesktopControls extends Controls {
   resetControls() {
     this.shiftKey = false
     this.ctrlKey = false
+    this.crouchHeld = false
+    this.setCrouching(false, true)
     this.walk()
     this.keyboardInput?.reset()
   }
@@ -237,6 +238,11 @@ export default class DesktopControls extends Controls {
       this.shiftKey = e.shiftKey
       this.ctrlKey = e.ctrlKey || e.metaKey
 
+      if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
+        this.crouchHeld = true
+        this.idleLook.stop()
+      }
+
       const moveKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'PageUp', 'PageDown', 'KeyV']
       if (moveKeys.includes(e.code)) this.idleLook.stop()
 
@@ -273,6 +279,10 @@ export default class DesktopControls extends Controls {
     window.addEventListener('keyup', (e) => {
       this.shiftKey = e.shiftKey
       this.ctrlKey = e.ctrlKey || e.metaKey
+
+      if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
+        this.crouchHeld = e.ctrlKey
+      }
 
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
         this.walk()

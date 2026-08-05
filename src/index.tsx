@@ -313,6 +313,7 @@ async function main() {
 
   graphic.postProcesses = new PostProcesses(scene, color, graphic)
   ;(engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
+  ;(engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
 
   // now we can set up and create all those things that loads stuff, like the connector, the pump (tm) and parcel loaders, audio etc
   const { grid, connector } = await createWorld(scene, canvas, controls, environment)

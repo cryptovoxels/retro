@@ -1,6 +1,7 @@
 import { IslandRecord, MultiPolygonGeometry } from '../../common/messages/api-islands'
 import { StateObservable } from '../utils/state-observable'
 import { createIslandMaterial } from '../materials'
+import { pointInPolygon } from '../utils/polygon-utils'
 
 export class Island {
   list: Islands
@@ -190,5 +191,16 @@ export default class Islands {
 
   getIslandData(): IslandRecord[] {
     return this.islands.map((island) => island.desc)
+  }
+
+  getIsland(point: BABYLON.Vector2): Island | false {
+    for (const island of this.islands) {
+      const dx = point.x - island.center.x
+      const dz = point.y - island.center.z
+      if (dx * dx + dz * dz > island.radius * island.radius) continue
+      const polygon = island.outline.map((v) => ({ x: v.x, z: v.y }))
+      if (pointInPolygon({ x: point.x, z: point.y }, polygon)) return island
+    }
+    return false
   }
 }

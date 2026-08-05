@@ -46,7 +46,6 @@ export function mapTeleportPopup(map: VoxelsMap, x: number, z: number, openSpawn
   const coords = {
     position: BABYLON.Vector3.FromArray([x, 2.5, z]),
     rotation: BABYLON.Vector3.Zero(),
-    flying: true,
   }
 
   const encoded = encodeCoords(coords)

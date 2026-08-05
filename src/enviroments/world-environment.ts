@@ -1,11 +1,10 @@
 import { Terrain } from '../terrain/terrain'
 import Skybox from '../terrain/skybox'
 import Horizon from '../terrain/horizon'
-import UnderwaterSkybox from '../terrain/underwater-skybox'
 import { StateObservable } from '../utils/state-observable'
 import { Environment } from './environment'
 import { TimeOfDay } from '../utils/time-of-day'
-import { DAY_BRIGHTNESS, DAY_FOG_COLOR, DAY_SUN_POSITION, NIGHT_BRIGHTNESS, NIGHT_FOG_COLOR, NIGHT_SUN_POSITION, UNDERWATER_CLEAR_COLOR, UNDERWATER_TINT, UNDERWATER_FOG_DENSITY } from './world-environment-constants'
+import { DAY_BRIGHTNESS, DAY_FOG_COLOR, DAY_SUN_POSITION, NIGHT_BRIGHTNESS, NIGHT_FOG_COLOR, NIGHT_SUN_POSITION } from './world-environment-constants'
 import { createEvent } from '../utils/EventEmitter'
 import { cameraPosition } from '../utils/camera'
 import { OCEAN_HEIGHT_OFFSET } from '../constants'
@@ -14,7 +13,6 @@ export class WorldEnvironment extends Environment {
   terrain?: Terrain
   horizon?: Horizon
   skybox?: Skybox
-  private underwaterSkybox?: UnderwaterSkybox
   private _invalidateGroundLoaded: (() => void) | undefined
   private _isNight: boolean | null = null
   private _isUnderwater: boolean | null = null
@@ -46,11 +44,15 @@ export class WorldEnvironment extends Environment {
       return false
     }
 
+    if (this.terrain?.getIsland(new BABYLON.Vector2(cameraPos.x, cameraPos.z))) {
+      return false
+    }
+
     return this.hasWaterAtPosition(cameraPos)
   }
 
   private isAboveWaterSurface(position: BABYLON.Vector3): boolean {
-    return position.y >= OCEAN_HEIGHT_OFFSET
+    return position.y >= OCEAN_HEIGHT_OFFSET + 0.3
   }
 
   private hasWaterAtPosition(position: BABYLON.Vector3): boolean {
@@ -63,23 +65,23 @@ export class WorldEnvironment extends Environment {
 
   get fogColor() {
     if (this.isUnderwater) {
-      return UNDERWATER_TINT
+      return new BABYLON.Color3(0.2, 0.2, 0.2)
     }
     return this.isNight ? NIGHT_FOG_COLOR : DAY_FOG_COLOR
   }
 
-  get clearColor() {
-    if (this.isUnderwater) {
-      return UNDERWATER_CLEAR_COLOR
-    }
-    return super.clearColor
-  }
-
   get fogDensity() {
     if (this.isUnderwater) {
-      return UNDERWATER_FOG_DENSITY
+      return 0.12
     }
     return super.fogDensity
+  }
+
+  get clearColor() {
+    if (this.isUnderwater) {
+      return new BABYLON.Color4(0.03, 0.03, 0.03, 1)
+    }
+    return super.clearColor
   }
 
   get horizonAlphaMode() {
@@ -101,7 +103,6 @@ export class WorldEnvironment extends Environment {
     this._invalidateGroundLoaded = () => terrain.invalidateIslandsLoaded()
 
     this.horizon = new Horizon(this.scene)
-    this.underwaterSkybox = new UnderwaterSkybox(this.scene, UNDERWATER_TINT)
 
     await terrain.load()
   }
@@ -136,9 +137,9 @@ export class WorldEnvironment extends Environment {
     const skyboxBrightness = this.brightness
 
     this.skybox?.update(this.sunPosition, skyboxBrightness)
+    if (this.skybox) this.skybox.mesh.isVisible = !this.isUnderwater
     this.horizon?.update(this.horizonAlphaMode, this.fogColor)
     this.horizon?.setVisible(!this.isUnderwater)
-    this.underwaterSkybox?.setVisible(this.isUnderwater)
     this.terrain?.update()
   }
 
@@ -149,6 +150,7 @@ export class WorldEnvironment extends Environment {
 
     this.updateFog(this.scene)
     this.scene.clearColor = this.clearColor
+    ;(window as any).engine?.setUnderwater?.(this.isUnderwater)
 
     // Update ambient light intensity when day/night changes
     if (this.ambientLight) {

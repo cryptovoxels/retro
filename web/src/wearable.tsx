@@ -38,9 +38,7 @@ export default class Wearable extends Component<Props, State> {
   }
 
   fetch = async () => {
-    const url = this.byId
-      ? `/api/collections/${this.props.cid}/collectibles/${this.props.tid}`
-      : `/api/collections/${this.props.cid}/${this.props.address}/c/${this.props.tid}.json`
+    const url = this.byId ? `/api/collections/${this.props.cid}/collectibles/${this.props.tid}` : `/api/collections/${this.props.cid}/${this.props.address}/c/${this.props.tid}.json`
 
     const f = await fetch(url)
     const { collectible } = await f.json()
@@ -76,18 +74,14 @@ export default class Wearable extends Component<Props, State> {
 
   get previousUrl() {
     if (this.tid > 1) {
-      return this.byId
-        ? `/collections/${this.props.cid}/collectibles/${this.tid - 1}`
-        : `/collections/${this.props.cid}/${this.props.address}/${this.tid - 1}`
+      return this.byId ? `/collections/${this.props.cid}/collectibles/${this.tid - 1}` : `/collections/${this.props.cid}/${this.props.address}/${this.tid - 1}`
     } else {
       return null
     }
   }
 
   get nextUrl() {
-    return this.byId
-      ? `/collections/${this.props.cid}/collectibles/${this.tid + 1}`
-      : `/collections/${this.props.cid}/${this.props.address}/${this.tid + 1}`
+    return this.byId ? `/collections/${this.props.cid}/collectibles/${this.tid + 1}` : `/collections/${this.props.cid}/${this.props.address}/${this.tid + 1}`
   }
 
   render() {
