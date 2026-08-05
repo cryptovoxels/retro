@@ -214,9 +214,7 @@ export default class TakeWomp extends Component<Props, State> {
   render() {
     return (
       <section class="take-womp">
-        <header>
-          <h2>new womp</h2>
-        </header>
+        <h2>new womp</h2>
 
         <img class="take-womp-preview" src={this.props.image} alt="" />
 

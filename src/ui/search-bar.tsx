@@ -66,7 +66,7 @@ export abstract class SearchBar<Props extends SearchBarProps = SearchBarProps> e
   render() {
     let results = this.state.items.map((parcel) => (
       <li tabIndex={0} className="result" onKeyDown={this.onKey} onClick={() => this.select(parcel)} title="Teleport to this parcel">
-        <header>{parcel.name || parcel.address}</header>
+        <p>{parcel.name || parcel.address}</p>
         <p>
           <small>
             {parcel.name ? `${parcel.address}, ` : ''}

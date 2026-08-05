@@ -111,12 +111,7 @@ export class CollectibleHTMLUi extends HTMLUi<Props, State> {
   render() {
     return (
       <dialog class="nft-view">
-        <header>
-          <h3>{this.name}</h3>
-          <button className="close" onClick={() => this.close()}>
-            &times;
-          </button>
-        </header>
+        <h3>{this.name}</h3>
         <section className="SplitPanel">
           <div className="Panel">
             <div className="Center">

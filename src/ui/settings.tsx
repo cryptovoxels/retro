@@ -29,7 +29,7 @@ function loadPersistedAudio(): PersistedAudio | undefined {
       const s = JSON.parse(stored)
       if (typeof s.musicVolume === 'number') musicVolume = s.musicVolume
     }
-  } catch { }
+  } catch {}
   const engine = window._audio?.getSettings()
   if (engine) return { ...engine, musicVolume }
   return { parcelAudioVolume: 1, soundEffectsVolume: 1, musicVolume }

@@ -25,9 +25,8 @@ export class ParcelAdminOverlay extends Component<Props> {
     const p = this.props.parcel
     return (
       <dialog className="-auto-height ParcelAdminWindow">
-        <header>
-          <h3>Parcel Admin</h3>
-        </header>
+        <h3>Parcel Admin</h3>
+
         <section class="SplitPanel">
           <div className="Panel">
             <div className="OverlayHighlightContent">

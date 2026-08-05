@@ -97,9 +97,8 @@ export default class ParcelSnapshots extends Component<Props, State> {
 
     return (
       <section className="parcel-states">
-        <header>
-          <h2>Snapshots</h2>
-        </header>
+        <h2>Snapshots</h2>
+
         <div className="scrollContainer">
           <div className="overlay-header">
             <p>Parcels are automatically saved every edit. Snapshots are user-selected states of your parcel that you can chose to come back to later.</p>

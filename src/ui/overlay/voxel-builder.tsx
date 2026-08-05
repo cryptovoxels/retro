@@ -154,14 +154,12 @@ export default class VoxelBuilder extends Component<Props, State> {
 
     return (
       <div class="f VoxelBuilder">
-        <header>
-          <h4>Blocks</h4>
+        <h4>Blocks</h4>
 
-          <button class="tint" onClick={this.toggleTintChooser}>
-            Choose Tint <span style={tintStyle} />
-            {this.state.tintChooser && <ul class="tint-chooser">{tints}</ul>}
-          </button>
-        </header>
+        <button class="tint" onClick={this.toggleTintChooser}>
+          Choose Tint <span style={tintStyle} />
+          {this.state.tintChooser && <ul class="tint-chooser">{tints}</ul>}
+        </button>
 
         <small></small>
 

@@ -69,9 +69,7 @@ export default function Baking({ parcel }: props) {
 
   return (
     <section class="baking">
-      <header onMouseDown={onDragStart}>
-        <h2>Baking</h2>
-      </header>
+      <h2>Baking</h2>
 
       <ul class="toolbar">
         <li>{baking ? <Spinner /> : <button onClick={onClick}>Bake</button>}</li>

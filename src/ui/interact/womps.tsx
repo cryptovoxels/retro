@@ -85,9 +85,8 @@ export class WompOverlay extends Component<Props, State> {
   render() {
     return (
       <section class="le-wompies">
-        <header>
-          <h2>Womps</h2>
-        </header>
+        <h2>Womps</h2>
+
         <div style={{ display: 'flex', alignItems: 'center', flex: 1, marginBottom: '10px' }}>
           <span style={{ flex: 1, fontSize: 'smaller' }}>Explore womps captured by other users, click to teleport!</span>
           {this.isLoggedInOnMultiplayerServer && (

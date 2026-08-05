@@ -90,9 +90,7 @@ export class EmoteOverlay extends Component<Props, any> {
   render() {
     return (
       <section class="emote">
-        <header>
-          <h2>Dance</h2>
-        </header>
+        <h2>Dance</h2>
 
         <div class="AnimateList">
           <ul>

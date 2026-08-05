@@ -550,10 +550,11 @@ button.iconish {
 button,
 a.buttonish {
   display: inline-block;
-  border-style: none;
-  background: var(--fg);
-  border-radius: 3px;
-  color: var(--bg);
+  border: var(--border);
+  border-radius: 0.5rem;
+  background: white;
+  color: unset;
+  font-weight: bold;
   text-decoration: none;
   padding: 0.2rem 0.5rem;
 
@@ -2495,7 +2496,6 @@ dl.deets {
     line-height: 24px;
   }
 
-
   a {
     border: 1px solid var(--border);
     display: inline-block;
@@ -3681,7 +3681,6 @@ section.build-tab nav.build-main-tabs {
 }
 
 .edit-pane-tree {
-  flex: 0 0 15rem;
   max-height: 15rem;
   min-height: 0;
   margin-top: auto;
@@ -3705,35 +3704,11 @@ section.build-tab nav.build-main-tabs {
       margin: 0;
       padding: 0;
 
-      &.-selected > .feature-tree-row {
-        color: var(--red);
+      &.selected > a {
+        color: unset;
+        font-weight: bold;
+        text-decoration: none;
       }
-    }
-  }
-
-  .feature-tree-parcel > .feature-tree-label {
-    display: block;
-    padding: 4px 6px;
-    font-size: 0.85em;
-  }
-
-  .feature-tree-parcel .feature-tree-row {
-    cursor: pointer;
-  }
-
-  .feature-tree-row {
-    display: flex;
-    align-items: center;
-    padding: 4px 6px;
-    cursor: pointer;
-
-    .feature-tree-label {
-      flex: 1;
-      min-width: 0;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-      font-size: 0.85em;
     }
   }
 }

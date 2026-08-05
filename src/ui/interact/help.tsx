@@ -20,9 +20,7 @@ export class HelpOverlay extends Component<Props> {
   render() {
     return (
       <section class="help-overlay">
-        <header onMouseDown={onDragStart}>
-          <h2>Help</h2>
-        </header>
+        <h2>Help</h2>
 
         <div class="colos">
           <ul class="bindings">
