@@ -115,11 +115,10 @@ export default class DesktopControls extends Controls {
     const btn = eventData.event.button
 
     if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 0 && !hasPointerLock() && !eventData.event.shiftKey) {
-      window.ui?.clearAllExplore()
       // start lerp-out on the click itself so it doesn't snap when lock fires
       this.idleLook.stop()
       this.nerfClick = true
-      this.requestPointerLock()?.catch(() => {})
+      this.requestPointerLock()?.catch(() => { })
       return
     }
 
@@ -310,18 +309,18 @@ export default class DesktopControls extends Controls {
       console.log('Gamepad detected')
       if ((gamepad as any)['onButtonDownObservable']) {
         this.hasGamepad = gamepadManager.gamepads.some((g) => g.isConnected)
-        ;(gamepad as any)['onButtonDownObservable'].add((buttonId: any) => {
-          const button = this.getGamepadButton(gamepad, buttonId)
-          if (button) {
-            this.onGamepadButton(button, true)
-          }
-        })
-        ;(gamepad as any)['onButtonUpObservable'].add((buttonId: any) => {
-          const button = this.getGamepadButton(gamepad, buttonId)
-          if (button) {
-            this.onGamepadButton(button, false)
-          }
-        })
+          ; (gamepad as any)['onButtonDownObservable'].add((buttonId: any) => {
+            const button = this.getGamepadButton(gamepad, buttonId)
+            if (button) {
+              this.onGamepadButton(button, true)
+            }
+          })
+          ; (gamepad as any)['onButtonUpObservable'].add((buttonId: any) => {
+            const button = this.getGamepadButton(gamepad, buttonId)
+            if (button) {
+              this.onGamepadButton(button, false)
+            }
+          })
       }
     })
 

@@ -221,7 +221,7 @@ export default class Selector implements Tool {
     if (selection) {
       Object.entries(selection).forEach(([key, value]) => {
         if (key in this.selection) {
-          ;(this as any)[key as any] = value // uses setters if they exist
+          ; (this as any)[key as any] = value // uses setters if they exist
         } else {
           Object.assign(this.selection, { [key]: value })
         }
@@ -330,8 +330,13 @@ export default class Selector implements Tool {
     if (!hasPointerLock()) {
       // Escaped out of the reticule: drop the ghost now instead of waiting for a mouse move.
       if (this.controls.firstPersonView) this.box.visibility = 0
+
+      // Set default tool
+      window.ui?.setTool(window.ui?.defaultTool)
+
       return
     }
+
     const pick = this.controls.pickForPointer(null)
     if (pick) this.onMove(pick)
   }

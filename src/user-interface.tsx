@@ -271,18 +271,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     uiAsideTick.value++
   }
 
-  clearAllExplore() {
-    // panes you opened on purpose (explorer/settings/help) stay up while you walk around;
-    // deactivateTools() clears uiPane too, so capture and restore it after.
-    const keep = isPersistentPane(uiPane.value) ? uiPane.value : undefined
-    setCheckedFeatures([])
-    selectedFeature.value = undefined
-    this.featureTool.unHighlight()
-    this.deactivateTools()
-    uiPane.value = keep
-    this.setState({ pane: keep as UIPanes | undefined, active: !!keep, feature: undefined, editor: undefined })
-  }
-
   editShiftSelect(feature: Feature) {
     if (!feature.parcel?.canEdit || hasPointerLock()) return
 
@@ -341,7 +329,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           } else return
           const n = this.presenceUuids.size
           if (n !== this.state.onlineCount) this.setState({ onlineCount: n })
-        } catch {}
+        } catch { }
       }
     }
 
@@ -376,7 +364,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.setState({ voiceEnabled: true })
   }
 
-  updateCanEdit = () => {}
+  updateCanEdit = () => { }
 
   componentWillUnmount() {
     this.presenceEs?.close()
@@ -434,9 +422,10 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     // (excludes events fired from input elements and repeat events by held keys)
     this.keyboardHandler = new KeyboardHandler(this.props.scene, {
       keyDown: [
-        { key: '!', handleEvent: () => {} },
+        { key: '!', handleEvent: () => { } },
         { code: 'KeyE', handleEvent: () => this.editFeatureIfHasLock() },
         { code: 'KeyX', handleEvent: () => this.deleteFeature() },
+        { code: 'Backspace', handleEvent: () => this.deleteFeature() },
         { code: 'KeyM', handleEvent: () => this.editFeatureThenMove() },
         { code: 'KeyR', handleEvent: () => this.toggleRealism() },
         { code: 'KeyP', handleEvent: () => this.takeWomp(this.props.scene) },
@@ -480,7 +469,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   openVoxelCustomize(textureIndex: number) {
     if (!this.grid.nearestEditableParcel()) return
-    this.voxelTool.texture = textureIndex
+    this.voxelTool.setMode(SelectionMode.Add, { texture: textureIndex })
+    this.setTool(this.voxelTool)
     if (this.state.pane !== 'voxels') {
       this.setPane('voxels')
     }
@@ -503,8 +493,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
     uiPane.value = pane
     this.setState({ pane: pane, active: true })
-
-    exitPointerLock()
   }
 
   activateVoxelTool(mode?: SelectionMode, options?: SelectionModeOptions) {
@@ -573,9 +561,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   setTool(tool: Tool | null) {
-    uiPane.value = undefined
-    this.setState({ pane: undefined, active: false })
-
     if ((this.activeTool && !this.activeTool.enabled.value) || this.activeTool !== tool) {
       if (this.activeTool) {
         this.activeTool.deactivate()
@@ -635,7 +620,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
     feature.delete()
     this.featureTool.unHighlight()
-    this.hide()
+    this.closeWithPointerLock()
   }
 
   editFeatureIfHasLock(): void {
@@ -820,6 +805,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     const onClick = (p: UIPanes) => (e: any) => {
       e.preventDefault()
       this.setPane(p)
+      exitPointerLock()
+
     }
 
     const nearestEditableParcel = selectNearestEditableParcel() ?? null
