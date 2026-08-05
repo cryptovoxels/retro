@@ -14,9 +14,14 @@ export function createIslandMaterial(scene: BABYLON.Scene, config: IslandMateria
   const material = new BABYLON.StandardMaterial(`island/${config.name}`, scene)
 
   // Standard material colors
-  material.emissiveColor.set(0.7, 0.7, 0.7)
-  material.diffuseColor.set(1, 1, 1)
-  material.specularColor.set(0, 0, 0)
+  // material.emissiveColor.set(0.7, 0.7, 0.7)
+  const c = 0.05
+  material.diffuseColor.set(c, c, c)
+  const d = 0.2
+  material.emissiveColor.set(d, d, d)
+  const e = 0.2
+  material.specularColor.set(e, e, e)
+  material.specularPower = 10
 
   // Set diffuse texture
   material.diffuseTexture = config.texture
