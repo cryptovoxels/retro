@@ -91,12 +91,7 @@ class Editor extends FeatureEditor<Lantern> {
   render() {
     return (
       <section>
-        <header>
-          <h2>Edit Lantern</h2>
-          <button onClick={this.onBackClick} class="close">
-            <span>&times;</span>
-          </button>
-        </header>
+                  <h2>Edit Lantern</h2>
         <div className="scrollContainer">
           <Toolbar feature={this.props.feature} scene={this.props.scene} />
           <EditorProps>

@@ -167,15 +167,6 @@ export class FeatureEditor<T extends Feature = Feature> extends Component<Featur
     this.forceUpdate()
   }
 
-  onBackClick = () => {
-    if (this.props.feature.groupId) {
-      this.ui?.editFeature(this.props.feature.group)
-    } else {
-      this.ui?.closeWithPointerLock()
-      this.ui?.featureTool.unHighlight()
-    }
-  }
-
   render() {
     return <div />
   }
