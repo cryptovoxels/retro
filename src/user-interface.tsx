@@ -329,7 +329,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           } else return
           const n = this.presenceUuids.size
           if (n !== this.state.onlineCount) this.setState({ onlineCount: n })
-        } catch { }
+        } catch {}
       }
     }
 
@@ -364,7 +364,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.setState({ voiceEnabled: true })
   }
 
-  updateCanEdit = () => { }
+  updateCanEdit = () => {}
 
   componentWillUnmount() {
     this.presenceEs?.close()
@@ -422,7 +422,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     // (excludes events fired from input elements and repeat events by held keys)
     this.keyboardHandler = new KeyboardHandler(this.props.scene, {
       keyDown: [
-        { key: '!', handleEvent: () => { } },
+        { key: '!', handleEvent: () => {} },
         { code: 'KeyE', handleEvent: () => this.editFeatureIfHasLock() },
         { code: 'KeyX', handleEvent: () => this.deleteFeature() },
         { code: 'Backspace', handleEvent: () => this.deleteFeature() },
@@ -806,7 +806,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       e.preventDefault()
       this.setPane(p)
       exitPointerLock()
-
     }
 
     const nearestEditableParcel = selectNearestEditableParcel() ?? null

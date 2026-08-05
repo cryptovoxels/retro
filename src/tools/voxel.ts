@@ -221,7 +221,7 @@ export default class Selector implements Tool {
     if (selection) {
       Object.entries(selection).forEach(([key, value]) => {
         if (key in this.selection) {
-          ; (this as any)[key as any] = value // uses setters if they exist
+          ;(this as any)[key as any] = value // uses setters if they exist
         } else {
           Object.assign(this.selection, { [key]: value })
         }
