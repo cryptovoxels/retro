@@ -316,9 +316,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
 
   onClick() {
     this.connector.sendMetric(Action.Inspect)
-
-    // I guess we'll still use the `HasGUI` for the option of opening the HTMLUI.
-    this.description.hasGui && showNftView(this)
+    showNftView(this)
   }
 
   renderImage(texture: BABYLON.Texture): BABYLON.Mesh | null {
