@@ -464,10 +464,12 @@ export default abstract class Controls implements IControls {
     const shown = hasPointerLock() || this.hasGamepad
     const baseVis = shown ? (this.firstPersonView ? 1 : 0.2) : 0
     const vis = baseVis * (0.5 + 0.5 * this.chromaAmount)
+    const scale = 0.5 + 0.5 * this.chromaAmount
 
     if (this.chromaAmount === 0 && !this.reticuleActive) {
       for (const ch of this.reticuleChannels) {
         ch.visibility = vis
+        ch.scaling.setAll(scale)
         ch.rotation.z = 0
         ch.position.x = 0
         ch.position.y = 0
@@ -475,6 +477,7 @@ export default abstract class Controls implements IControls {
       this.reticuleSpinT = 0
       return
     }
+
 
     this.reticuleSpinT += dt
     const t = this.reticuleSpinT
@@ -484,6 +487,9 @@ export default abstract class Controls implements IControls {
     r.visibility = vis
     g.visibility = vis
     b.visibility = vis
+    r.scaling.setAll(scale)
+    g.scaling.setAll(scale)
+    b.scaling.setAll(scale)
     r.rotation.z = t * 2.6 * a
     g.rotation.z = (t * 3.4 + 0.7) * a
     b.rotation.z = (t * 1.9 - 0.7) * a
@@ -815,7 +821,7 @@ export default abstract class Controls implements IControls {
     this.vehicleFlyingRestore = this.flying
     this.disableGravity()
     if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
-      ;(this.scene.activeCamera as any).checkCollisions = false
+      ; (this.scene.activeCamera as any).checkCollisions = false
     }
     this.disableMovement()
     if (this.firstPersonView) this.enterThirdPerson(3)
@@ -831,11 +837,11 @@ export default abstract class Controls implements IControls {
     if (car) {
       try {
         car.releaseDriver(this.persona.uuid)
-      } catch {}
+      } catch { }
     }
     this.enableGravity()
     if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
-      ;(this.scene.activeCamera as any).checkCollisions = true
+      ; (this.scene.activeCamera as any).checkCollisions = true
     }
     this.enableMovement()
     if (this.vehicleFlyingRestore !== null) {
@@ -931,7 +937,7 @@ export default abstract class Controls implements IControls {
       this.enableGravity()
       this.enableMovement()
       if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
-        ;(this.scene.activeCamera as any).checkCollisions = true
+        ; (this.scene.activeCamera as any).checkCollisions = true
       }
       this.refreshMobileDriveChrome?.()
       return

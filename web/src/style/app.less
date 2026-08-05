@@ -135,7 +135,7 @@ select {
   // ...
 
   aside {
-    width: 25vw !important;
+    width: 22vw !important;
   }
 
   figure {
@@ -712,7 +712,7 @@ button.hamburger {
   }
 
   & > aside {
-    width: 15rem;
+    width: 22rem;
     padding: 0.5rem 0.5rem 1rem 0;
 
     a {
@@ -989,7 +989,6 @@ div.map {
 // Push panel: nav | world | sidebar. Client tracks .client-world.
 body.in-world {
   overflow: hidden;
-  --world-sidebar: min(22rem, 36vw);
 
   // main sits above .client so sidebar/header get clicks; punch through the world
   // cell or the empty grid slot eats pointer lock / WASD
@@ -999,7 +998,7 @@ body.in-world {
     max-width: none;
     height: 100vh;
     display: grid;
-    grid-template-columns: auto 1fr var(--world-sidebar);
+    grid-template-columns: auto 1fr 23rem;
     grid-template-rows: 1fr;
     grid-template-areas: 'header world sidebar';
     overflow: hidden;
@@ -1067,7 +1066,7 @@ body.in-world main:not(:has(> .client-world)) > aside {
   top: 0;
   right: 0;
   bottom: 0;
-  width: var(--world-sidebar, min(22rem, 36vw));
+  width: 24rem;
   z-index: 4;
   overflow-y: auto;
   padding: 1rem;
@@ -1782,9 +1781,6 @@ table.spaces {
 // Parcel / spaces page
 
 .parcel-page {
-  aside {
-    width: 15rem;
-  }
 
   // pruned in the LESS collapse; without it about/map render as bare bullets
   .sidebar-tabs {
@@ -3864,11 +3860,10 @@ button.TakeWompButton {
 
 .womp-button {
   position: absolute;
-  bottom: calc(var(--chatbar) + 1rem);
-  left: 50%;
-  transform: translateX(-50%);
+  right: 1rem;
+  top: 1rem;
   border: 1px solid var(--fg);
-  background: rgba(0, 0, 0, 0.5);
+  background:white;
   color: var(--fg);
   padding: 0.5rem 1rem;
   cursor: pointer;
