@@ -53,7 +53,7 @@ export class UrlSourceVideos extends UrlSourceComponent<UrlSourceVideosProps, Ur
     if (this.hasAnimation && this.asset?.token_id === nftInfo.token && this.asset?.asset_contract.address === nftInfo.contract) {
       return this.asset?.animation_url
     } else {
-      this.asset = await opensea(nftInfo.contract, nftInfo.token, nftInfo.chain, this.props.feature.parcel.owner, false)
+      this.asset = await opensea(nftInfo.contract, nftInfo.token, nftInfo.chain)
       if (this.hasAnimation) {
         return this.asset?.animation_url
       }

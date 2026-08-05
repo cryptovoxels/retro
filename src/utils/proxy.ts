@@ -1,10 +1,8 @@
-import { simpleHash } from '../../common/helpers/utils'
-import config from '../../common/config'
 import { OpenSeaNftModelDetailedV2, OpenSeaNftModelDetailedV2Extended, TraitRecord } from '../../common/messages/api-opensea'
 import { isAddress } from 'ethers'
 import { isValidUrl } from '../../common/helpers/utils'
 
-/** Base mainnet (OpenSea chain slug `base`). Requires `chain_id=8453` on `/v2/opensea` (proxy CDN). */
+/** Base mainnet (OpenSea chain slug `base`). */
 export const OPENSEA_BASE_CHAIN_ID = 8453
 
 /** OpenSea `/assets/<slug>/...` path segment for permalinks and metadata. */
@@ -22,57 +20,24 @@ function legacyAssetSchemaName(chain_id: number, token_standard?: string | null)
   return 'ERC721'
 }
 
-// Main function to get NFT data
-export const getNFTData = async (contract: string, token: string, chain_id = 1, account_address = '', forceUpdate = false): Promise<OpenSeaNftModelDetailedV2Extended> => {
-  const parameters: { contract: string; token: string; chain_id: number; account_address: string; force_update?: number } = {
-    contract,
-    token,
-    chain_id,
-    account_address: '',
+// Postgres-backed OpenSea NFT (one OpenSea call on miss, forever after)
+export const getNFTData = async (contract: string, token: string, chain_id = 1): Promise<OpenSeaNftModelDetailedV2Extended> => {
+  const q = new URLSearchParams({ contract, token, chain_id: String(chain_id) })
+  const response = await fetch(`${process.env.API || '/api'}/externals/opensea/nft.json?${q}`)
+  if (!response.ok) {
+    throw new Error(`Failed to fetch NFT data: ${response.status} ${response.statusText}`)
   }
-
-  if (account_address && isAddress(account_address)) {
-    parameters.account_address = account_address
+  const data = await response.json()
+  if (!data?.success) {
+    throw new Error('Failed to fetch NFT data')
   }
-
-  if (forceUpdate) {
-    parameters.force_update = 1
-  }
-
-  const hash = urlHasher(`chain_id=${chain_id},contract=${parameters.contract},token=${parameters.token},account_address=${parameters.account_address}`)
-
-  // Try cached version first
-  if (!forceUpdate) {
-    try {
-      const response = await fetch(`${config.proxy_cdn_base_url}/v2/opensea/${hash}.json`)
-      if (response.ok) {
-        const data = await response.json()
-        return mapOpenseaV2ToNFTMetadata(data, chain_id)
-      }
-    } catch (err) {
-      // console.error(`Error loading cached OpenSea data: ${err}`);
-    }
-  }
-
-  // Fallback to direct API call
-  const q = new URLSearchParams()
-  for (const [k, v] of Object.entries(parameters)) q.set(k, String(v))
-  return fetch(`${config.proxy_base_url}/v2/opensea?${q}`).then(async (response) => {
-    if (!response.ok) {
-      throw new Error(`Failed to fetch NFT data: ${response.status} ${response.statusText}`)
-    }
-    // Parse the response as plain JSON first to avoid validation errors
-    const data = await response.json()
-    // Then manually validate and convert to our format
-    return mapOpenseaV2ToNFTMetadata(data, chain_id)
-  })
+  return mapOpenseaV2ToNFTMetadata(data, chain_id)
 }
 
-// Legacy function for backward compatibility
-export const opensea = async (contract: string, token: string, chain_id = 1, accountAddress = '', forceUpdate = false): Promise<any> => {
-  const nftData = await getNFTData(contract, token, chain_id, accountAddress, forceUpdate)
+export const opensea = async (contract: string, token: string, chain_id = 1): Promise<any> => {
+  const nftData = await getNFTData(contract, token, chain_id)
+  const total = (nftData as any).total_supply
 
-  // Convert from NFTMetadata to a format compatible with the old ProxyAssetOpensea
   return {
     token_id: nftData.identifier,
     image_url: nftData.image_url,
@@ -84,7 +49,9 @@ export const opensea = async (contract: string, token: string, chain_id = 1, acc
       address: nftData.contract,
       schema_name: legacyAssetSchemaName(chain_id, nftData.token_standard),
       chain: nftData.chain,
-      name: nftData.collection, // slug is the best name v2 gives us
+      name: nftData.collection,
+      ...(total != null ? { total_supply: String(total) } : {}),
+      ...(nftData.created_at ? { created_date: nftData.created_at } : {}),
     },
     creator: nftData.creator,
     owners: nftData.owners,
@@ -92,20 +59,7 @@ export const opensea = async (contract: string, token: string, chain_id = 1, acc
   }
 }
 
-// Helper function to hash URLs for caching
-function urlHasher(urlOrString: string, ignoreParams?: string[]): string {
-  try {
-    const u = new URL(urlOrString)
-    ignoreParams?.forEach((x) => u.searchParams.delete(x))
-    urlOrString = u.toString()
-  } catch {
-    // NO-OP
-  }
-  return simpleHash(urlOrString)
-}
-
-function mapOpenseaV2ToNFTMetadata(data: OpenSeaNftModelDetailedV2, chain_id: number): OpenSeaNftModelDetailedV2Extended {
-  // Validate critical fields
+function mapOpenseaV2ToNFTMetadata(data: OpenSeaNftModelDetailedV2 & { total_supply?: number; success?: boolean; chain?: string }, chain_id: number): OpenSeaNftModelDetailedV2Extended {
   if (!data.identifier || !data.contract) {
     throw new Error(`Invalid NFT data: missing identifier or contract. Data: ${JSON.stringify(data)}`)
   }
@@ -135,7 +89,6 @@ function mapOpenseaV2ToNFTMetadata(data: OpenSeaNftModelDetailedV2, chain_id: nu
           quantity: typeof owner.quantity === 'number' ? owner.quantity : 1,
         }))
       : [],
-    // Copy remaining fields from OpenSeaNftModelDetailedV2
     collection: data.collection,
     token_standard: data.token_standard,
     updated_at: data.updated_at,
@@ -148,7 +101,8 @@ function mapOpenseaV2ToNFTMetadata(data: OpenSeaNftModelDetailedV2, chain_id: nu
     opensea_url: data.opensea_url,
     display_image_url: data.display_image_url,
     rarity: data.rarity,
-  }
+    ...(data.total_supply != null ? { total_supply: data.total_supply } : {}),
+  } as OpenSeaNftModelDetailedV2Extended & { total_supply?: number }
 }
 
 // Helper function to read OpenSea URLs (ethereum, polygon/matic, base)

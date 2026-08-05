@@ -55,6 +55,92 @@ export default function ExternalsController(db: Db, passport: PassportStatic, ap
     res.send({ success: true, nfts })
   })
 
+  // Single NFT by contract/token — Postgres hit, else one OpenSea call (first write wins).
+  app.get('/api/externals/opensea/nft.json', cache('60 seconds'), async (req, res) => {
+    const contractRaw = typeof req.query.contract === 'string' ? req.query.contract : ''
+    const token = typeof req.query.token === 'string' ? req.query.token : ''
+    const chain_id = typeof req.query.chain_id === 'string' ? parseInt(req.query.chain_id, 10) : 1
+    if (!ethers.isAddress(contractRaw) || !token || !Number.isFinite(chain_id)) {
+      return res.status(400).json({ success: false })
+    }
+    const contract = contractRaw.toLowerCase()
+    const chainSlug = chain_id === 137 ? 'matic' : chain_id === 8453 ? 'base' : 'ethereum'
+
+    const respond = (immutable: any, mutable: any) => {
+      res.json({ success: true, ...immutable, ...mutable, chain: chainSlug })
+    }
+
+    try {
+      const hit = await db.query('sql/nfts/get', `select immutable, mutable from nfts where chain_id = $1 and contract = $2 and token_id = $3`, [chain_id, contract, token])
+      if (hit.rows[0]) {
+        return respond(hit.rows[0].immutable, hit.rows[0].mutable || {})
+      }
+
+      const apiKey = process.env.OPENSEA_APIKEY
+      if (!apiKey) {
+        return res.status(503).json({ success: false })
+      }
+
+      const url = `https://api.opensea.io/api/v2/chain/${chainSlug}/contract/${contract}/nfts/${encodeURIComponent(token)}`
+      const r = await fetch(url, { method: 'GET', headers: { 'X-API-KEY': apiKey } })
+      if (!r.ok) {
+        log.info('opensea nft fetch failed', { status: r.status, contract, token, chain_id })
+        return res.status(502).json({ success: false })
+      }
+      const body: any = await r.json().catch(() => null)
+      const nft = body?.nft || body
+      if (!nft?.identifier || !nft?.contract) {
+        return res.status(502).json({ success: false })
+      }
+
+      const total_supply = nft.rarity?.total_supply
+      const immutable: any = {
+        identifier: nft.identifier,
+        collection: nft.collection,
+        contract: nft.contract,
+        token_standard: nft.token_standard,
+        name: nft.name,
+        description: nft.description,
+        image_url: nft.image_url,
+        display_image_url: nft.display_image_url,
+        animation_url: nft.animation_url,
+        display_animation_url: nft.display_animation_url,
+        metadata_url: nft.metadata_url,
+        traits: nft.traits,
+        creator: nft.creator,
+        opensea_url: nft.opensea_url,
+        created_at: nft.created_at,
+      }
+      if (total_supply != null) immutable.total_supply = total_supply
+
+      const mutable: any = {
+        owners: nft.owners,
+        updated_at: nft.updated_at,
+        is_disabled: nft.is_disabled,
+        is_nsfw: nft.is_nsfw,
+        is_suspicious: nft.is_suspicious,
+        rarity: nft.rarity,
+        estimated_value_usd: nft.estimated_value_usd,
+      }
+
+      await db.query(
+        'sql/nfts/insert',
+        `insert into nfts (chain_id, contract, token_id, immutable, mutable)
+         values ($1, $2, $3, $4::jsonb, $5::jsonb)
+         on conflict (chain_id, contract, token_id) do nothing`,
+        [chain_id, contract, token, JSON.stringify(immutable), JSON.stringify(mutable)],
+      )
+
+      // re-read so concurrent first-writes all return the same winner
+      const again = await db.query('sql/nfts/get-after-insert', `select immutable, mutable from nfts where chain_id = $1 and contract = $2 and token_id = $3`, [chain_id, contract, token])
+      const row = again.rows[0]
+      return respond(row?.immutable || immutable, row?.mutable || mutable)
+    } catch (e) {
+      log.error('opensea nft endpoint failed', { e: String(e) })
+      return res.status(502).json({ success: false })
+    }
+  })
+
   app.get('/api/externals/alchemy/nfts.json', cache('60 seconds'), passport.authenticate('jwt', { session: false }), async (req, res) => {
     const wallet = (req.user as VoxelsUser | null)?.wallet
     if (!wallet) {

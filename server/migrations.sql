@@ -320,3 +320,15 @@ SELECT apply_migration('chat-messages', $$
   );
   CREATE INDEX IF NOT EXISTS chat_messages_created_at_idx ON chat_messages (created_at DESC);
 $$);
+
+SELECT apply_migration('nfts-table', $$
+  CREATE TABLE IF NOT EXISTS nfts (
+    chain_id   integer NOT NULL,
+    contract   text NOT NULL,
+    token_id   text NOT NULL,
+    immutable  jsonb NOT NULL,
+    mutable    jsonb NOT NULL DEFAULT '{}'::jsonb,
+    fetched_at timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (chain_id, contract, token_id)
+  );
+$$);

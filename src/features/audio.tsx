@@ -379,7 +379,7 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
     if (this.hasAnimation && this.asset?.token_id === nftInfo.token && this.asset?.asset_contract.address === nftInfo.contract) {
       return this.asset.animation_url
     } else {
-      const data = await opensea(nftInfo.contract, nftInfo.token, nftInfo.chain, this.parcel.owner, false).catch((err) => {
+      const data = await opensea(nftInfo.contract, nftInfo.token, nftInfo.chain).catch((err) => {
         console.warn(`Audio: couldn't fetch NFT for parcel ${this.parcel.id}`, err, nftInfo)
       })
       if (data) {

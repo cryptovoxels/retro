@@ -302,7 +302,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     }
     this.asset = this.assetHelper = null
 
-    const data = await opensea(nftInfo.contract, nftInfo.token, nftInfo.chain, this.parcel.owner, this.forceUpdate).catch((err) => {
+    const data = await opensea(nftInfo.contract, nftInfo.token, nftInfo.chain).catch((err) => {
       console.warn(`couldn't fetch NFT for parcel ${this.parcel.id}`, err, nftInfo)
     })
 
@@ -512,7 +512,7 @@ class Editor extends FeatureEditor<NftImage> {
       return
     }
 
-    const r = await opensea(nftInfo.contract, nftInfo.token, nftInfo.chain, app.state.wallet, cachebust)
+    const r = await opensea(nftInfo.contract, nftInfo.token, nftInfo.chain)
 
     const helper = new OpenseaAssetHelper(r)
     this.setState({ isOwner: helper.isOwner(app.state.wallet) })

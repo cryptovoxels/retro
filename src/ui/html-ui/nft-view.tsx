@@ -177,7 +177,17 @@ export function NftView({ asset, onClose, feature, dialogEl }: Props) {
 
   const contract = asset.asset_contract
   const ownerCount = asset.top_ownerships?.length || 0
-  const tags = [contract?.name, contract?.schema_name, contract?.chain, asset.token_id ? `token #${asset.token_id}` : null, ownerCount ? `${ownerCount} owners` : null].filter(Boolean) as string[]
+  const supply = (contract as any)?.total_supply
+  const minted = (contract as any)?.created_date
+  const tags = [
+    contract?.name,
+    contract?.schema_name,
+    contract?.chain,
+    supply ? `${supply} mints` : null,
+    minted ? String(minted).slice(0, 10) : null,
+    asset.token_id ? `token #${asset.token_id}` : null,
+    ownerCount ? `${ownerCount} owners` : null,
+  ].filter(Boolean) as string[]
 
   return (
     <>
