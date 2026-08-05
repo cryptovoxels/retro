@@ -112,12 +112,16 @@ function bounds(positions: number[]) {
 }
 
 export function bakePolytextTransform(positions: number[]) {
-  let m = multiply(rotX(-Math.PI / 2), rotY(-Math.PI / 2))
+  // Match old polytext-v2 worker bakeCurrentTransformIntoVertices:
+  // rotation.x/y = -PI/2, scaling (4,1,8), position (depth/2, 0, -width*4/2)
+  // Babylon Compose is T * R * S with R = RotationYawPitchRoll(y, x, z) = Ry * Rx
   const b = bounds(positions)
   const width = b.maxX - b.minX
   const depth = b.maxZ - b.minZ
-  m = multiply(m, scale(4, 1, 8))
-  m = multiply(m, translate(depth / 2, 0, (-width * 4) / 2))
+  const S = scale(4, 1, 8)
+  const R = multiply(rotY(-Math.PI / 2), rotX(-Math.PI / 2))
+  const T = translate(depth / 2, 0, (-width * 4) / 2)
+  const m = multiply(T, multiply(R, S))
 
   for (let i = 0; i < positions.length; i += 3) {
     transformPoint(positions, i, m)
