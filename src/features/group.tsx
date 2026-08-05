@@ -146,16 +146,14 @@ class Editor extends FeatureEditor<Group> {
     const f = this.props.feature
     return (
       <section>
-        <div className="scrollContainer">
-          <Toolbar feature={f} scene={this.props.scene} />
-          <EditorProps>
-            <button onClick={this.onUngroup}>Dissolve</button>
-            <Position feature={f} key={f.position.toString()} />
-            <Rotation feature={f} key={f.rotation.toString()} />
-            <FeatureID feature={f} />
-            <Behaviours feature={f} />
-          </EditorProps>
-        </div>
+        <Toolbar feature={f} scene={this.props.scene} />
+        <EditorProps>
+          <button onClick={this.onUngroup}>Dissolve</button>
+          <Position feature={f} key={f.position.toString()} />
+          <Rotation feature={f} key={f.rotation.toString()} />
+          <FeatureID feature={f} />
+          <Behaviours feature={f} />
+        </EditorProps>
       </section>
     )
   }

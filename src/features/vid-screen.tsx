@@ -197,19 +197,17 @@ class Editor extends FeatureEditor<VidScreen> {
   render() {
     return (
       <section>
-        <div className="scrollContainer">
-          <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          <EditorProps>
-            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+        <Toolbar feature={this.props.feature} scene={this.props.scene} />
+        <EditorProps>
+          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-            <FeatureID feature={this.props.feature} />
+          <FeatureID feature={this.props.feature} />
 
-            <Behaviours feature={this.props.feature} />
-          </EditorProps>
-        </div>
+          <Behaviours feature={this.props.feature} />
+        </EditorProps>
       </section>
     )
   }

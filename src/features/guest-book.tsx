@@ -255,35 +255,33 @@ class Editor extends FeatureEditor<GuestBook> {
   render() {
     return (
       <section>
-        <div className="scrollContainer">
-          <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          <EditorProps>
-            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
-            {this.state.error && <Panel type="warning">{this.state.error}</Panel>}
+        <Toolbar feature={this.props.feature} scene={this.props.scene} />
+        <EditorProps>
+          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+          {this.state.error && <Panel type="warning">{this.state.error}</Panel>}
+          <div className="f">
+            <label>Sign Message</label>
+            <textarea style={{ width: '100%', height: '50px' }} onInput={(e) => this.setState({ signature_text: e.currentTarget.value })} value={this.state.signature_text} />
+            <p style="color: #CCC;font-size: 85%;">
+              This message will appear when a signature is requested. Please be aware that changing this message will <strong>invalidate</strong> any previously recorded signatures.
+            </p>
+            <button onClick={() => this.updateSignatureMessage()}>Save signature message</button>
+          </div>
+          <Advanced>
             <div className="f">
-              <label>Sign Message</label>
-              <textarea style={{ width: '100%', height: '50px' }} onInput={(e) => this.setState({ signature_text: e.currentTarget.value })} value={this.state.signature_text} />
-              <p style="color: #CCC;font-size: 85%;">
-                This message will appear when a signature is requested. Please be aware that changing this message will <strong>invalidate</strong> any previously recorded signatures.
-              </p>
-              <button onClick={() => this.updateSignatureMessage()}>Save signature message</button>
+              <label>Feature ID</label>
+              <input value={this.state.id} onInput={(e) => this.setState({ id: e.currentTarget.value })} type="text" />
             </div>
-            <Advanced>
-              <div className="f">
-                <label>Feature ID</label>
-                <input value={this.state.id} onInput={(e) => this.setState({ id: e.currentTarget.value })} type="text" />
-              </div>
 
-              <label>
-                <input type="checkbox" checked={!!this.state.allowSignChatCommand} onChange={(e) => this.setState({ allowSignChatCommand: e.currentTarget.checked })} />
-                Users can sign using the '/sign' chat command
-              </label>
-            </Advanced>
-          </EditorProps>
-        </div>
+            <label>
+              <input type="checkbox" checked={!!this.state.allowSignChatCommand} onChange={(e) => this.setState({ allowSignChatCommand: e.currentTarget.checked })} />
+              Users can sign using the '/sign' chat command
+            </label>
+          </Advanced>
+        </EditorProps>
       </section>
     )
   }

@@ -232,70 +232,68 @@ class Editor extends FeatureEditor<Polytext> {
   render() {
     return (
       <section>
-        <div className="scrollContainer">
-          <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          <EditorProps>
-            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
-            <Animation feature={this.props.feature} />
+        <Toolbar feature={this.props.feature} scene={this.props.scene} />
+        <EditorProps>
+          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+          <Animation feature={this.props.feature} />
+
+          <div className="f">
+            <label>Text</label>
+            <input type="text" value={this.state.text} onInput={(e) => this.setState({ text: e.currentTarget.value })} />
+            <small>(Only up to 12 characters supported)</small>
+          </div>
+          <div className="f color-selectors">
+            <div>
+              <label>Diffuse Color</label>
+              <input type="color" value={this.state.color} onInput={(e) => this.setState({ color: e.currentTarget.value })} />
+              <small>
+                <button title="Reset" onClick={() => this.setState({ color: '#FFFFFF' })}>
+                  Reset
+                </button>
+              </small>
+            </div>
+            <div>
+              <label>Specular Color</label>
+              <input type="color" value={this.state.specularColor} onInput={(e) => this.setState({ specularColor: e.currentTarget.value })} />
+              <small>
+                <button title="Reset" onClick={() => this.setState({ specularColor: '#FFFFFF' })}>
+                  Reset
+                </button>
+              </small>
+            </div>
+            <div>
+              <label>Emissive Color</label>
+              <input type="color" value={this.state.emissiveColor} onInput={(e) => this.setState({ emissiveColor: e.currentTarget.value })} />
+              <small>
+                <button title="Reset" onClick={() => this.setState({ emissiveColor: '#000000' })}>
+                  Reset
+                </button>
+              </small>
+            </div>
+          </div>
+
+          <Advanced>
+            <FeatureID feature={this.props.feature} />
 
             <div className="f">
-              <label>Text</label>
-              <input type="text" value={this.state.text} onInput={(e) => this.setState({ text: e.currentTarget.value })} />
-              <small>(Only up to 12 characters supported)</small>
-            </div>
-            <div className="f color-selectors">
-              <div>
-                <label>Diffuse Color</label>
-                <input type="color" value={this.state.color} onInput={(e) => this.setState({ color: e.currentTarget.value })} />
-                <small>
-                  <button title="Reset" onClick={() => this.setState({ color: '#FFFFFF' })}>
-                    Reset
-                  </button>
-                </small>
-              </div>
-              <div>
-                <label>Specular Color</label>
-                <input type="color" value={this.state.specularColor} onInput={(e) => this.setState({ specularColor: e.currentTarget.value })} />
-                <small>
-                  <button title="Reset" onClick={() => this.setState({ specularColor: '#FFFFFF' })}>
-                    Reset
-                  </button>
-                </small>
-              </div>
-              <div>
-                <label>Emissive Color</label>
-                <input type="color" value={this.state.emissiveColor} onInput={(e) => this.setState({ emissiveColor: e.currentTarget.value })} />
-                <small>
-                  <button title="Reset" onClick={() => this.setState({ emissiveColor: '#000000' })}>
-                    Reset
-                  </button>
-                </small>
-              </div>
+              <label>
+                <input type="checkbox" checked={this.state.edges} onInput={(e) => this.setState({ edges: (e as any).target['checked'] })} />
+                Edges
+              </label>
             </div>
 
-            <Advanced>
-              <FeatureID feature={this.props.feature} />
+            <div className="f">
+              <form>
+                <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable}></input>
+                <label for="collidable">Enable Collision</label>
+              </form>
+            </div>
 
-              <div className="f">
-                <label>
-                  <input type="checkbox" checked={this.state.edges} onInput={(e) => this.setState({ edges: (e as any).target['checked'] })} />
-                  Edges
-                </label>
-              </div>
-
-              <div className="f">
-                <form>
-                  <input type="checkbox" name="collidable" onChange={(e) => this.setState({ collidable: e.currentTarget.checked })} checked={this.state.collidable}></input>
-                  <label for="collidable">Enable Collision</label>
-                </form>
-              </div>
-
-              <Behaviours feature={this.props.feature} />
-            </Advanced>
-          </EditorProps>
-        </div>
+            <Behaviours feature={this.props.feature} />
+          </Advanced>
+        </EditorProps>
       </section>
     )
   }

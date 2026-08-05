@@ -325,47 +325,45 @@ class Editor extends FeatureEditor<CollectibleModel> {
   render() {
     return (
       <section>
-        <div className="scrollContainer">
-          <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          <EditorProps>
-            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+        <Toolbar feature={this.props.feature} scene={this.props.scene} />
+        <EditorProps>
+          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-            <UrlSourceCollectibleModels feature={this.props.feature} />
+          <UrlSourceCollectibleModels feature={this.props.feature} />
 
-            <Advanced>
-              <FeatureID feature={this.props.feature} />
-              {!window.config.isSpace && (
+          <Advanced>
+            <FeatureID feature={this.props.feature} />
+            {!window.config.isSpace && (
+              <div className="f">
+                <label>Interactivity Options</label>
+                <label>
+                  <input checked={this.state.tryable} onInput={(e) => this.setState({ tryable: e.currentTarget.checked })} type="checkbox" />
+                  <small>Allow parcel visitors to try on collectible</small>
+                </label>
+              </div>
+            )}
+            {this.state.tryable && !window.config.isSpace && (
+              <div className="sub-f">
                 <div className="f">
-                  <label>Interactivity Options</label>
+                  <label>Pop up</label>
                   <label>
-                    <input checked={this.state.tryable} onInput={(e) => this.setState({ tryable: e.currentTarget.checked })} type="checkbox" />
-                    <small>Allow parcel visitors to try on collectible</small>
+                    <input checked={!!this.state.showTryOnPopUp} onInput={(e) => this.setState({ showTryOnPopUp: e.currentTarget.checked })} type="checkbox" />
+                    <small>Shows a 'Try on' popup when nearby</small>
                   </label>
                 </div>
-              )}
-              {this.state.tryable && !window.config.isSpace && (
-                <div className="sub-f">
-                  <div className="f">
-                    <label>Pop up</label>
-                    <label>
-                      <input checked={!!this.state.showTryOnPopUp} onInput={(e) => this.setState({ showTryOnPopUp: e.currentTarget.checked })} type="checkbox" />
-                      <small>Shows a 'Try on' popup when nearby</small>
-                    </label>
-                  </div>
-                  <CollectibleTryBone feature={this.props.feature} scene={this.props.parcel.scene} />
-                  <CollectibleTryPosition feature={this.props.feature} />
-                  <CollectibleTryRotation feature={this.props.feature} />
-                  <CollectibleTryScale feature={this.props.feature} />
-                </div>
-              )}
-              <Animation feature={this.props.feature} />
-              <Behaviours feature={this.props.feature} />
-            </Advanced>
-          </EditorProps>
-        </div>
+                <CollectibleTryBone feature={this.props.feature} scene={this.props.parcel.scene} />
+                <CollectibleTryPosition feature={this.props.feature} />
+                <CollectibleTryRotation feature={this.props.feature} />
+                <CollectibleTryScale feature={this.props.feature} />
+              </div>
+            )}
+            <Animation feature={this.props.feature} />
+            <Behaviours feature={this.props.feature} />
+          </Advanced>
+        </EditorProps>
       </section>
     )
   }

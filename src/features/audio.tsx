@@ -613,59 +613,57 @@ class Editor extends FeatureEditor<Audio> {
   render() {
     return (
       <section>
-        <div className="scrollContainer">
-          <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          <EditorProps>
-            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+        <Toolbar feature={this.props.feature} scene={this.props.scene} />
+        <EditorProps>
+          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-            <UrlSourceAudio feature={this.props.feature}>
-              {this.state.streaming ? <small>Url Must be begin with 'https://' as streaming is enabled</small> : <small>MP3s up to 10 minutes long are supported. Opensea audio NFTs are accepted.</small>}
-            </UrlSourceAudio>
+          <UrlSourceAudio feature={this.props.feature}>
+            {this.state.streaming ? <small>Url Must be begin with 'https://' as streaming is enabled</small> : <small>MP3s up to 10 minutes long are supported. Opensea audio NFTs are accepted.</small>}
+          </UrlSourceAudio>
 
-            <Advanced>
-              <FeatureID feature={this.props.feature} />
+          <Advanced>
+            <FeatureID feature={this.props.feature} />
 
-              <div className="f">
-                <label>Sprite</label>
-                <input checked={this.state.sprite} onInput={(e) => this.setSprite(e.currentTarget.checked)} type="checkbox" />
-                <small>Displays a small button and preloads audio</small>
-              </div>
+            <div className="f">
+              <label>Sprite</label>
+              <input checked={this.state.sprite} onInput={(e) => this.setSprite(e.currentTarget.checked)} type="checkbox" />
+              <small>Displays a small button and preloads audio</small>
+            </div>
 
-              <div className="f">
-                <label>Streaming</label>
-                <input checked={this.state.streaming} onInput={(e) => this.setState({ streaming: e.currentTarget.checked })} type="checkbox" />
-                <small>Load audio directly for streaming sources</small>
-              </div>
+            <div className="f">
+              <label>Streaming</label>
+              <input checked={this.state.streaming} onInput={(e) => this.setState({ streaming: e.currentTarget.checked })} type="checkbox" />
+              <small>Load audio directly for streaming sources</small>
+            </div>
 
-              <div className="f">
-                <label>Autoplay</label>
-                <input checked={this.state.autoplay} onInput={(e) => this.setState({ autoplay: e.currentTarget.checked })} type="checkbox" />
-                <small>Play when someone enters the parcel</small>
-              </div>
+            <div className="f">
+              <label>Autoplay</label>
+              <input checked={this.state.autoplay} onInput={(e) => this.setState({ autoplay: e.currentTarget.checked })} type="checkbox" />
+              <small>Play when someone enters the parcel</small>
+            </div>
 
-              <div className="f">
-                <label>Loop (repeat forever)</label>
-                <input checked={this.state.loop} onInput={(e) => this.setState({ loop: e.currentTarget.checked })} type="checkbox" />
-                <small>Loop playback until the player leaves your parcel</small>
-              </div>
+            <div className="f">
+              <label>Loop (repeat forever)</label>
+              <input checked={this.state.loop} onInput={(e) => this.setState({ loop: e.currentTarget.checked })} type="checkbox" />
+              <small>Loop playback until the player leaves your parcel</small>
+            </div>
 
-              <div className="f">
-                <label>Spatial Rolloff Factor</label>
-                <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onChange={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
-                <small>Choose how quickly the sound fades away as the player moves away from the emitter (higher values fade away faster)</small>
-              </div>
+            <div className="f">
+              <label>Spatial Rolloff Factor</label>
+              <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onChange={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
+              <small>Choose how quickly the sound fades away as the player moves away from the emitter (higher values fade away faster)</small>
+            </div>
 
-              <div className="f">
-                <label>Volume</label>
-                <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
-              </div>
-              <Behaviours feature={this.props.feature} />
-            </Advanced>
-          </EditorProps>
-        </div>
+            <div className="f">
+              <label>Volume</label>
+              <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
+            </div>
+            <Behaviours feature={this.props.feature} />
+          </Advanced>
+        </EditorProps>
       </section>
     )
   }

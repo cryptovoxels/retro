@@ -182,45 +182,43 @@ class Editor extends FeatureEditor<Sign> {
   render() {
     return (
       <section>
-        <div className="scrollContainer">
-          <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          <EditorProps>
-            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-            <Scale feature={this.props.feature} handleStateChange={() => this.props.feature.regenerate()} />
-            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+        <Toolbar feature={this.props.feature} scene={this.props.scene} />
+        <EditorProps>
+          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+          <Scale feature={this.props.feature} handleStateChange={() => this.props.feature.regenerate()} />
+          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-            <div className="f">
-              <label>Text</label>
-              <input type="text" value={this.state.text} onInput={(e) => this.setText(e.currentTarget.value)} />
-            </div>
+          <div className="f">
+            <label>Text</label>
+            <input type="text" value={this.state.text} onInput={(e) => this.setText(e.currentTarget.value)} />
+          </div>
 
-            <div className="f">
-              <label>Font size</label>
-              <input type="number" min={16} max={92} value={this.state.fontSize} onInput={(e) => this.setSize(parseInt(e.currentTarget.value))} />
-            </div>
+          <div className="f">
+            <label>Font size</label>
+            <input type="number" min={16} max={92} value={this.state.fontSize} onInput={(e) => this.setSize(parseInt(e.currentTarget.value))} />
+          </div>
 
-            <div className="f">
-              <label>Color</label>
-              <input type="color" value={this.state.color} onInput={(e) => this.setState({ color: e.currentTarget.value })} />
-            </div>
-            <div className="f">
-              <label>Background</label>
-              <input type="color" value={this.state.background} onInput={(e) => this.setState({ background: e.currentTarget.value })} />
-            </div>
-            <Advanced>
-              <FeatureID feature={this.props.feature} />
+          <div className="f">
+            <label>Color</label>
+            <input type="color" value={this.state.color} onInput={(e) => this.setState({ color: e.currentTarget.value })} />
+          </div>
+          <div className="f">
+            <label>Background</label>
+            <input type="color" value={this.state.background} onInput={(e) => this.setState({ background: e.currentTarget.value })} />
+          </div>
+          <Advanced>
+            <FeatureID feature={this.props.feature} />
 
-              <Hyperlink feature={this.props.feature} />
+            <Hyperlink feature={this.props.feature} />
 
-              <BlendMode feature={this.props.feature} handleStateChange={this.onBlendModeChange} />
+            <BlendMode feature={this.props.feature} handleStateChange={this.onBlendModeChange} />
 
-              <Animation feature={this.props.feature} />
+            <Animation feature={this.props.feature} />
 
-              <Behaviours feature={this.props.feature} />
-            </Advanced>
-          </EditorProps>
-        </div>
+            <Behaviours feature={this.props.feature} />
+          </Advanced>
+        </EditorProps>
       </section>
     )
   }

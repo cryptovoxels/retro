@@ -91,28 +91,26 @@ class Editor extends FeatureEditor<Lantern> {
   render() {
     return (
       <section>
-        <div className="scrollContainer">
-          <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          <EditorProps>
-            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+        <Toolbar feature={this.props.feature} scene={this.props.scene} />
+        <EditorProps>
+          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
 
-            <div className="f">
-              <label>Color</label>
-              <input type="color" value={this.state.color} onInput={(e) => this.setState({ color: e.currentTarget.value })} />
-            </div>
+          <div className="f">
+            <label>Color</label>
+            <input type="color" value={this.state.color} onInput={(e) => this.setState({ color: e.currentTarget.value })} />
+          </div>
 
-            <div className="f">
-              <label>Strength: {this.state.strength}</label>
-              <input type="range" min={1} max={100} value={this.state.strength} onInput={(e) => this.updateStrength(parseFloat(e.currentTarget.value))} />
-            </div>
+          <div className="f">
+            <label>Strength: {this.state.strength}</label>
+            <input type="range" min={1} max={100} value={this.state.strength} onInput={(e) => this.updateStrength(parseFloat(e.currentTarget.value))} />
+          </div>
 
-            <Advanced>
-              <FeatureID feature={this.props.feature} />
-            </Advanced>
-          </EditorProps>
-        </div>
+          <Advanced>
+            <FeatureID feature={this.props.feature} />
+          </Advanced>
+        </EditorProps>
       </section>
     )
   }

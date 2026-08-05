@@ -479,70 +479,68 @@ class Editor extends FeatureEditor<Youtube> {
   render() {
     return (
       <section>
-        <div className="scrollContainer">
-          <Toolbar feature={this.props.feature} scene={this.props.scene} />
-          <EditorProps>
-            {/* keys are provided so that the getState in the component is reset after gizmo is used */}
-            <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
-            <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
-            <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+        <Toolbar feature={this.props.feature} scene={this.props.scene} />
+        <EditorProps>
+          {/* keys are provided so that the getState in the component is reset after gizmo is used */}
+          <Position feature={this.props.feature} key={this.props.feature.position.toString()} />
+          <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
+          <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
+
+          <div className="f">
+            <label>URL</label>
+            <input type="text" value={this.state.url} onInput={(e) => this.setState({ url: e.currentTarget.value })} />
+
+            <small>
+              Supported URLs:
+              <br /> * Youtube single video
+              <br /> * Twitch channel
+            </small>
+          </div>
+
+          <div className="f">
+            <label>Preview Image URL (optional)</label>
+            <input type="text" value={this.state.previewUrl} onInput={(e) => this.setState({ previewUrl: e.currentTarget.value })} />
+            <small>This image will show before the user plays the video. If left empty, uses thumbnail provided by the service.</small>
+          </div>
+          <Advanced>
+            <FeatureID feature={this.props.feature} />
 
             <div className="f">
-              <label>URL</label>
-              <input type="text" value={this.state.url} onInput={(e) => this.setState({ url: e.currentTarget.value })} />
-
-              <small>
-                Supported URLs:
-                <br /> * Youtube single video
-                <br /> * Twitch channel
-              </small>
+              <label>Video size ratio</label>
+              <input type="radio" checked={this.props.feature.description.screenRatio === '43'} onChange={this.changeRatio.bind(this)} name="ratio" value="43" /> 4:3&nbsp;&nbsp;&nbsp;
+              <input type="radio" checked={this.props.feature.description.screenRatio === '169'} onChange={this.changeRatio.bind(this)} name="ratio" value="169" /> 16:9
             </div>
 
             <div className="f">
-              <label>Preview Image URL (optional)</label>
-              <input type="text" value={this.state.previewUrl} onInput={(e) => this.setState({ previewUrl: e.currentTarget.value })} />
-              <small>This image will show before the user plays the video. If left empty, uses thumbnail provided by the service.</small>
+              <label>
+                <input checked={this.state.autoplay} onInput={(e) => this.setState({ autoplay: e.currentTarget.checked })} type="checkbox" />
+                Autoplay
+              </label>
+              <small>Play when someone enters the parcel</small>
             </div>
-            <Advanced>
-              <FeatureID feature={this.props.feature} />
 
-              <div className="f">
-                <label>Video size ratio</label>
-                <input type="radio" checked={this.props.feature.description.screenRatio === '43'} onChange={this.changeRatio.bind(this)} name="ratio" value="43" /> 4:3&nbsp;&nbsp;&nbsp;
-                <input type="radio" checked={this.props.feature.description.screenRatio === '169'} onChange={this.changeRatio.bind(this)} name="ratio" value="169" /> 16:9
-              </div>
+            <div className="f">
+              <label>
+                <input checked={this.state.loop} onInput={(e) => this.setState({ loop: e.currentTarget.checked })} type="checkbox" />
+                Loop (repeat forever)
+              </label>
+              <small>Loop playback until the player leaves your parcel</small>
+            </div>
 
-              <div className="f">
-                <label>
-                  <input checked={this.state.autoplay} onInput={(e) => this.setState({ autoplay: e.currentTarget.checked })} type="checkbox" />
-                  Autoplay
-                </label>
-                <small>Play when someone enters the parcel</small>
-              </div>
+            <div className="f">
+              <label>Spatial Rolloff Factor</label>
+              <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onChange={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
+              <small>Choose how quickly the sound fades away as the player moves away from the emitter (higher values fade away faster)</small>
+            </div>
 
-              <div className="f">
-                <label>
-                  <input checked={this.state.loop} onInput={(e) => this.setState({ loop: e.currentTarget.checked })} type="checkbox" />
-                  Loop (repeat forever)
-                </label>
-                <small>Loop playback until the player leaves your parcel</small>
-              </div>
+            <div className="f">
+              <label>Volume</label>
+              <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
+            </div>
 
-              <div className="f">
-                <label>Spatial Rolloff Factor</label>
-                <input type="range" step="0.1" min="0" max="5" value={this.state.rolloffFactor} onChange={(e) => this.setState({ rolloffFactor: parseFloat(e.currentTarget.value) })} />
-                <small>Choose how quickly the sound fades away as the player moves away from the emitter (higher values fade away faster)</small>
-              </div>
-
-              <div className="f">
-                <label>Volume</label>
-                <input type="range" step="0.01" min="0" max={MAX_VOLUME} value={this.state.volume} onChange={(e) => this.setState({ volume: parseFloat(e.currentTarget.value) })} />
-              </div>
-
-              <Behaviours feature={this.props.feature} />
-            </Advanced>
-          </EditorProps>
-        </div>
+            <Behaviours feature={this.props.feature} />
+          </Advanced>
+        </EditorProps>
       </section>
     )
   }
