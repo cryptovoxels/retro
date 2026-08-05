@@ -1,21 +1,10 @@
 import { render } from 'preact'
-import { unmountComponentAtNode } from 'preact/compat'
 import { format } from 'timeago.js'
 import { SuspendedMessage } from '../../common/messages/grid'
-import { exitPointerLock, requestPointerLockIfNoOverlays } from '../../common/helpers/ui-helpers'
+import { openDialog } from '../../common/helpers/ui-helpers'
 
 export function displaySuspendedMessage(bannedMessage: SuspendedMessage) {
-  const div = document.createElement('div')
-  div.className = 'suspended-window pointer-lock-close overlay'
-  document.body.appendChild(div)
-
-  exitPointerLock()
-
-  const close = () => {
-    div && unmountComponentAtNode(div)
-    div.remove()
-    requestPointerLockIfNoOverlays()
-  }
+  const { el, close } = openDialog('suspended-window pointer-lock-close overlay')
 
   render(
     <div>
@@ -34,6 +23,6 @@ export function displaySuspendedMessage(bannedMessage: SuspendedMessage) {
         <button onClick={close}>Oh, okay then</button>
       </p>
     </div>,
-    div,
+    el,
   )
 }

@@ -1,6 +1,6 @@
 import { Component, render } from 'preact'
 import { unmountComponentAtNode } from 'preact/compat'
-import { exitPointerLock, requestPointerLockIfNoOverlays } from '../../common/helpers/ui-helpers'
+import { openDialog, requestPointerLockIfNoOverlays } from '../../common/helpers/ui-helpers'
 import { ParcelRecord } from '../../common/messages/parcel'
 
 interface Props {
@@ -58,27 +58,27 @@ export class ParcelAdminOverlay extends Component<Props> {
 export function toggleParcelAdminOverlay(parcel: ParcelRecord, scene: BABYLON.Scene, onClose?: () => void) {
   if (ParcelAdminOverlay.currentElement?.parentElement) {
     unmountComponentAtNode(ParcelAdminOverlay.currentElement)
+    ParcelAdminOverlay.currentElement.remove()
     ParcelAdminOverlay.currentElement = null!
+    if (!document.querySelector('.pointer-lock-close,.overlay')) {
+      ;(window as any).engine?.setBlur?.(false)
+    }
+    requestPointerLockIfNoOverlays()
   } else {
-    const div = document.createElement('div')
-    div.className = 'pointer-lock-close'
-    document.body.appendChild(div)
-    ParcelAdminOverlay.currentElement = div
+    const { el, close } = openDialog('pointer-lock-close')
+    ParcelAdminOverlay.currentElement = el
 
     render(
       <ParcelAdminOverlay
         parcel={parcel}
         onClose={() => {
-          !!ParcelAdminOverlay.currentElement && unmountComponentAtNode(ParcelAdminOverlay.currentElement)
           ParcelAdminOverlay.currentElement = null!
+          close()
           onClose && onClose()
-          div.remove()
         }}
         scene={scene}
       />,
-      div,
+      el,
     )
-
-    exitPointerLock()
   }
 }

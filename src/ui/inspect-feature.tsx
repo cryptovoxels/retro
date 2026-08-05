@@ -1,25 +1,20 @@
 import { render } from 'preact'
-import { unmountComponentAtNode } from 'preact/compat'
 import Feature from '../features/feature'
-import { exitPointerLock, requestPointerLock } from '../../common/helpers/ui-helpers'
+import { openDialog } from '../../common/helpers/ui-helpers'
 import { decodeCoords, encodeCoords } from '../../common/helpers/utils'
 import ParcelHelper, { featurePlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
 
 export function inspectFeature(feature: Feature) {
-  const div = document.createElement('div')
-  div.className = 'inspect-feature pointer-lock-close overlay'
-  document.body.appendChild(div)
-
   const ui = window.ui
   const connector = window.connector
   if (!ui) {
     return null
   }
 
+  const { el, close: baseClose } = openDialog('inspect-feature pointer-lock-close overlay')
+
   ui.activeTool = ui.featureTool // needed to make it unHighlight once closed
   ui.featureTool.highlightFeature(feature, feature.mesh as BABYLON.AbstractMesh | undefined)
-
-  exitPointerLock()
 
   const isModerator = window.user.moderator
 
@@ -27,11 +22,9 @@ export function inspectFeature(feature: Feature) {
   const canNerf = nearestEditableParcel?.isExternalFeatureInParcel(feature)
 
   const close = () => {
-    div && unmountComponentAtNode(div)
-    div.remove()
+    baseClose()
     if (!document.querySelector('.overlay')) {
       window.ui?.deactivateToolsAndUnHighlightSelection()
-      requestPointerLock()
     }
   }
 
@@ -79,37 +72,29 @@ export function inspectFeature(feature: Feature) {
   }
 
   const viewSource = () => {
-    const div = document.createElement('div')
-    div.className = 'inspect-feature pointer-lock-close overlay view-source'
+    const { el, close } = openDialog('inspect-feature pointer-lock-close overlay view-source')
     const source = document.createElement('pre')
     const closeButton = document.createElement('button')
     closeButton.innerHTML = '&times;'
     closeButton.className = 'close'
-    div.appendChild(closeButton)
-    closeButton.onclick = () => {
-      div.remove()
-    }
+    el.appendChild(closeButton)
+    closeButton.onclick = () => close()
 
     source.innerHTML = JSON.stringify(feature.description, null, 2)
-    div.appendChild(source)
-    document.body.appendChild(div)
+    el.appendChild(source)
   }
 
   const viewScript = () => {
-    const div = document.createElement('div')
-    div.className = 'inspect-feature pointer-lock-close overlay'
+    const { el, close } = openDialog('inspect-feature pointer-lock-close overlay')
     const source = document.createElement('pre')
     const closeButton = document.createElement('button')
     closeButton.innerHTML = '&times;'
     closeButton.className = 'close'
-    div.appendChild(closeButton)
-    closeButton.onclick = () => {
-      div.remove()
-    }
+    el.appendChild(closeButton)
+    closeButton.onclick = () => close()
 
     source.innerHTML = feature.description.script?.toString() || ''
-    div.appendChild(source)
-    document.body.appendChild(div)
+    el.appendChild(source)
   }
   // truncate string to be as long as an owner address
   const truncate = (str: string) => {
@@ -229,6 +214,6 @@ export function inspectFeature(feature: Feature) {
         </div>
       )}
     </div>,
-    div,
+    el,
   )
 }

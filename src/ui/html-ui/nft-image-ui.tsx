@@ -1,6 +1,6 @@
 import { createRef, Fragment, render } from 'preact'
 import { ProxyAssetOpensea } from '../../../common/messages/api-opensea'
-import { exitPointerLock, requestPointerLockIfNoOverlays } from '../../../common/helpers/ui-helpers'
+import { openDialog, requestPointerLockIfNoOverlays } from '../../../common/helpers/ui-helpers'
 import OpenseaAssetHelper from '../gui/opensea-asset-helper'
 import { HTMLUi } from './html-ui'
 import { unmountComponentAtNode } from 'preact/compat'
@@ -79,7 +79,11 @@ export function NftImageHTMLUi({ asset, onClose, feature }: Props) {
       case 'video':
         return <video src={asset.animation_url!} controls autoPlay loop playsInline />
       default:
-        return <img src={imageURL()} alt={assetHelper.getName} />
+        return (
+          <a href={asset.permalink} target="_blank">
+            <img src={imageURL()} alt={assetHelper.getName} />
+          </a>
+        )
     }
   }
 
@@ -90,7 +94,7 @@ export function NftImageHTMLUi({ asset, onClose, feature }: Props) {
       </button>
       <h1>
         <a href={asset.permalink} target="_blank">
-          {assetHelper.getName}
+          &rarr; {assetHelper.getName}
         </a>
       </h1>
 
@@ -113,19 +117,14 @@ export default function showNftImageHTMLUi(feature: NftImage) {
     node = null
   }
 
-  const div = document.createElement('dialog')
-  div.className = 'pointer-lock-close nft-view'
-  document.body.appendChild(div)
-  node = div
+  const { el, close } = openDialog('pointer-lock-close nft-view')
+  node = el
 
   const onClose = () => {
-    unmountComponentAtNode(div)
-    div.remove()
     node = null
+    close()
     HTMLUi.close()
   }
 
-  render(<NftImageHTMLUi feature={feature} asset={asset} onClose={onClose} />, div)
-
-  exitPointerLock()
+  render(<NftImageHTMLUi feature={feature} asset={asset} onClose={onClose} />, el)
 }

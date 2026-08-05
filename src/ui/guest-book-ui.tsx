@@ -3,7 +3,7 @@ import { unmountComponentAtNode } from 'preact/compat'
 import { useEffect, useState } from 'preact/hooks'
 import { getAvatarNameFromWallet } from '../../common/helpers/apis'
 import { pluralize } from '../../common/helpers/english-helper'
-import { exitPointerLock, requestPointerLockIfNoOverlays } from '../../common/helpers/ui-helpers'
+import { openDialog } from '../../common/helpers/ui-helpers'
 import { copyTextToClipboard } from '../../common/helpers/utils'
 import { PanelType } from '../../web/src/components/panel'
 import { app, AppEvent } from '../../web/src/state'
@@ -174,22 +174,21 @@ export class GuestBookUi extends Component<Props, State> {
 export function toggleGuestBookUi(guestBook: GuestBook, scene: BABYLON.Scene) {
   if (GuestBookUi.currentElement) {
     unmountComponentAtNode(GuestBookUi.currentElement)
+    GuestBookUi.currentElement.remove()
     GuestBookUi.currentElement = null!
+    if (!document.querySelector('.pointer-lock-close,.overlay')) {
+      ;(window as any).engine?.setBlur?.(false)
+    }
   } else {
-    const div = document.createElement('div')
-    div.className = 'pointer-lock-close'
-    document.body.appendChild(div)
-    GuestBookUi.currentElement = div
+    const { el, close } = openDialog('pointer-lock-close')
+    GuestBookUi.currentElement = el
 
     const onClose = () => {
-      !!GuestBookUi.currentElement && unmountComponentAtNode(GuestBookUi.currentElement)
       GuestBookUi.currentElement = null!
-      div.remove()
-      requestPointerLockIfNoOverlays()
+      close()
     }
 
-    render(<GuestBookUi onClose={onClose} guestBook={guestBook} scene={scene} />, div)
-    exitPointerLock()
+    render(<GuestBookUi onClose={onClose} guestBook={guestBook} scene={scene} />, el)
   }
 }
 

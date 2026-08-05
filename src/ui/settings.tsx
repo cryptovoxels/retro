@@ -3,7 +3,7 @@ import { isMobile } from '../../common/helpers/detector'
 import { AudioSettings } from '../audio/audio-engine'
 import { setRadioVolume } from '../../web/src/radio/global'
 import Connector from '../connector'
-import { FOV, NORMAL_FOV, WIDE_FOV } from '../graphic/field-of-view'
+import { FOV } from '../graphic/field-of-view'
 import { type GraphicEngine, GraphicLevels, GraphicSettings } from '../graphic/graphic-engine'
 import type { MinimapSettings } from '../minimap'
 import { chatSettings } from './interact/chat'
@@ -214,7 +214,8 @@ export class SettingsUI extends Component<Props, State> {
 
   onFOVChange(e: InputEvent) {
     const srcElement = e.currentTarget as HTMLInputElement
-    const fov = parseFloat(srcElement.value)
+    const deg = parseFloat(srcElement.value)
+    const fov = (deg * Math.PI) / 180
     this.setState({ fov })
     this.fov.value = fov
   }
@@ -293,16 +294,9 @@ export class SettingsUI extends Component<Props, State> {
         <section>
           <h3>general</h3>
           <dl class="props">
-            <dt>Field of view</dt>
+            <dt>Field of view: {Math.round((this.state.fov * 180) / Math.PI)}</dt>
             <dd>
-              <label>
-                <input type="radio" name="fov" value={NORMAL_FOV} checked={this.state.fov === NORMAL_FOV} onChange={this.onFOVChange.bind(this) as any} />
-                Normal
-              </label>
-              <label>
-                <input type="radio" name="fov" value={WIDE_FOV} checked={this.state.fov === WIDE_FOV} onChange={this.onFOVChange.bind(this) as any} />
-                Wide
-              </label>
+              <input type="range" min={30} max={100} step={1} value={Math.round((this.state.fov * 180) / Math.PI)} onInput={this.onFOVChange.bind(this) as any} />
             </dd>
 
             {!isMobile() && (

@@ -75,7 +75,6 @@ export enum FeatureAssetType {
   Megavox = 'megavox',
   SpawnPoint = 'spawn-point',
   Video = 'video',
-  PoapDispenser = 'poap-dispenser',
   Portal = 'portal',
 }
 

@@ -1,9 +1,13 @@
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
-import { isMobile } from '../../common/helpers/detector'
+
+const FOV_KEY = 'fov2'
+const DEFAULT_FOV = (70 * Math.PI) / 180
+const MIN_FOV = (30 * Math.PI) / 180
+const MAX_FOV = (100 * Math.PI) / 180
 
 const getSavedFOV = (): number | null => {
   if (typeof localStorage === 'undefined') return null
-  const stored = localStorage.getItem('fov')
+  const stored = localStorage.getItem(FOV_KEY)
 
   if (!stored) return null
 
@@ -14,14 +18,14 @@ const getSavedFOV = (): number | null => {
 
 const saveFOV = (fov: number) => {
   if (typeof localStorage === 'undefined') return
-  localStorage.setItem('fov', fov.toString())
+  localStorage.setItem(FOV_KEY, fov.toString())
 }
 
 export const WIDE_FOV = Math.PI / 2
 export const NORMAL_FOV = 1.2
 
 export class FOV extends TypedEventTarget<{ changed: { value: number } }> {
-  private fov: number = getSavedFOV() ?? (isMobile() ? WIDE_FOV : NORMAL_FOV) // wide by default on mobile, normal on desktop
+  private fov: number = clampFov(getSavedFOV() ?? DEFAULT_FOV)
 
   constructor() {
     super()
@@ -32,12 +36,16 @@ export class FOV extends TypedEventTarget<{ changed: { value: number } }> {
   }
 
   public set value(value: number) {
-    if (value === this.fov) return
-    this.fov = value
-    // todo max/min clamp?
+    const next = clampFov(value)
+    if (next === this.fov) return
+    this.fov = next
 
-    saveFOV(value)
+    saveFOV(next)
 
-    this.dispatchEvent(createEvent('changed', { value }))
+    this.dispatchEvent(createEvent('changed', { value: next }))
   }
+}
+
+function clampFov(value: number) {
+  return Math.min(MAX_FOV, Math.max(MIN_FOV, value))
 }

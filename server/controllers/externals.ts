@@ -10,7 +10,6 @@ import { isStringHex } from '../../common/helpers/utils'
 import { AlchemyNFTAPIWithMetadata, AlchemyNFTWithMetadata } from '../../common/messages/api-alchemy'
 import { OpenseaListingsResponseV2, OpenSeaNftModelV2, OpenSeaNFTV2Extended, OrderRecordV2 } from '../../common/messages/api-opensea'
 import cache from '../cache'
-import { encryptPoapEditCode, redeemPoapForWallet } from '../handlers/poap-handler'
 import { requireAdmin } from '../lib/helpers'
 import log from '../lib/logger'
 import { parseQueryInt } from '../lib/query-parsing-helpers'
@@ -164,10 +163,6 @@ export default function ExternalsController(db: Db, passport: PassportStatic, ap
 
     res.json({ success: true, ...r })
   })
-
-  // Poap
-  app.post('/api/poap/encrypt', passport.authenticate('jwt', { session: false }), encryptPoapEditCode)
-  app.post('/api/poap/redeem', passport.authenticate('jwt', { session: false }), redeemPoapForWallet)
 
   // Floor + 30d volume + the suggested "just above floor" price and the fees the
   // client must bake into the Seaport consideration for OpenSea to accept the listing.

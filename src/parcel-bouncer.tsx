@@ -1,7 +1,7 @@
 import { render, unmountComponentAtNode, useEffect, useState } from 'preact/compat'
 import { cameraPosition } from './utils/camera'
 import { fetchMetadataViaAlchemy } from '../common/helpers/apis'
-import { exitPointerLock, requestPointerLockIfNoOverlays } from '../common/helpers/ui-helpers'
+import { exitPointerLock, openDialog } from '../common/helpers/ui-helpers'
 import { AlchemyNFTWithMetadata } from '../common/messages/api-alchemy'
 import { tokensToEnter } from '../common/messages/parcel'
 import LoadingIcon from '../web/src/components/loading-icon'
@@ -306,34 +306,21 @@ export default class ParcelBouncer {
 }
 
 export async function displayParcelNFTRequirementsOverlay(bouncer: ParcelBouncer): Promise<() => void> {
-  const div = document.createElement('div')
   const d = document.querySelector('.CheckUserIsAllowedInParcel')
   if (d) {
     unmountComponentAtNode(d)
     d.remove()
   }
-  div.className = 'CheckUserIsAllowedInParcel pointer-lock-close'
-
-  const closeUI = () => {
-    onClose()
-  }
-
-  const onClose = () => {
-    unmountComponentAtNode(div)
-    div?.remove()
-    requestPointerLockIfNoOverlays()
-  }
+  const { el, close } = openDialog('CheckUserIsAllowedInParcel pointer-lock-close')
 
   return new Promise(function (resolve) {
     const onRender = () => {
-      resolve(closeUI)
+      resolve(close)
     }
-
-    document.body.appendChild(div)
 
     const state = bouncer.isUserAllowed as NFTRequirementState
 
-    render(<DisplayParcelNFTRequirementsOverlay parcel={bouncer.parcel} state={state} onClose={onClose} />, div, onRender)
+    render(<DisplayParcelNFTRequirementsOverlay parcel={bouncer.parcel} state={state} onClose={close} />, el, onRender)
   })
 }
 

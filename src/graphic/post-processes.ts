@@ -6,6 +6,7 @@ export class PostProcesses {
   private readonly colorGrader: ColorGrader
   private readonly pipelines: Record<GraphicLevels, BABYLON.PostProcessRenderPipeline>
   private glowLayer: BABYLON.Nullable<BABYLON.GlowLayer> = null
+  private blurPP: BABYLON.Nullable<BABYLON.PostProcess> = null
 
   constructor(scene: BABYLON.Scene, color: ColorGrader, graphics: GraphicEngine) {
     this.scene = scene
@@ -28,6 +29,45 @@ export class PostProcesses {
     graphics.addEventListener('settingsChanged', (event) => {
       this.changeEffects(event.detail.level)
     })
+  }
+
+  setBlur(on: boolean) {
+    const camera = this.scene.activeCamera
+    if (!camera) return
+
+    if (on) {
+      if (this.blurPP) return
+      if (!BABYLON.Effect.ShadersStore['focusBlurPixelShader']) {
+        BABYLON.Effect.ShadersStore['focusBlurPixelShader'] = `
+varying vec2 vUV;
+uniform sampler2D textureSampler;
+uniform float time;
+uniform float amount;
+
+void main(void) {
+  float w = sin(time * 2.2 + vUV.y * 12.0) * amount * 0.004;
+  float w2 = cos(time * 1.7 + vUV.x * 10.0) * amount * 0.003;
+  vec2 uv = vUV + vec2(w, w2);
+  float r = texture2D(textureSampler, uv + vec2(amount * 0.006, 0.0)).r;
+  float g = texture2D(textureSampler, uv).g;
+  float b = texture2D(textureSampler, uv - vec2(amount * 0.006, 0.0)).b;
+  gl_FragColor = vec4(r, g, b, 1.0);
+}
+`
+      }
+      const pp = new BABYLON.PostProcess('focusBlur', 'focusBlur', ['time', 'amount'], null, 1.0, camera, BABYLON.Texture.BILINEAR_SAMPLINGMODE, this.scene.getEngine(), false)
+      pp.onApply = (effect) => {
+        effect.setFloat('time', performance.now() * 0.001)
+        effect.setFloat('amount', 1.0)
+      }
+      this.blurPP = pp
+    } else if (this.blurPP) {
+      try {
+        camera.detachPostProcess(this.blurPP)
+      } catch {}
+      this.blurPP.dispose()
+      this.blurPP = null
+    }
   }
 
   changeEffects(level: GraphicLevels) {

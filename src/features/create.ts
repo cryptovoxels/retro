@@ -25,7 +25,6 @@ import Youtube from './youtube'
 import GuestBook from './guest-book'
 import PoseBall from './pose-ball'
 import { FeatureRecord, FeatureType, YoutubeRecord } from '../../common/messages/feature'
-import PoapDispenser from './poap-dispenser'
 import Parcel from '../parcel'
 import { Unhandled } from './unhandled'
 import { featureTemplates } from './_metadata'
@@ -67,8 +66,6 @@ export const createFeature = (scene: BABYLON.Scene, parcel: Parcel, uuid: string
       return new Button(scene, parcel, uuid, description)
     case 'vox-model':
       return new VoxModel(scene, parcel, uuid, description)
-    case 'poap-dispenser':
-      return new PoapDispenser(scene, parcel, uuid, description)
     case 'megavox':
       return new Megavox(scene, parcel, uuid, description)
     case 'particles':

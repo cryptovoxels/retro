@@ -19,7 +19,6 @@
   --disabled: #666;
   --muted: #888;
   --muted-2: #999;
-  --muted-3: #ccc;
   --border-color: #aaa;
   --hover: #f3f3f3;
   --accent: #03f;
@@ -249,7 +248,6 @@ select {
         width: 2rem;
         height: 2rem;
         line-height: 2rem;
-        border: 1px solid var(--muted-3);
         font-size: 0.8rem;
         overflow: hidden;
         background: var(--hover);
@@ -320,7 +318,7 @@ select {
   top: -0.5rem;
   display: inline-block;
   --size: 10px;
-  --fore: var(--muted-3);
+  --fore: var(--fg);
   --back: #777;
   --half: calc(var(--size) / 2);
   min-width: calc(6 * var(--size));
@@ -1417,7 +1415,6 @@ small {
     td,
     th {
       text-align: left;
-      border-bottom: 1px solid var(--muted-3) 5;
       padding: 0.5em;
     }
   }
@@ -1521,7 +1518,6 @@ section.login {
 
   hr.login-form-divider {
     border: 0;
-    border-top: 1px solid var(--muted-3);
     margin: 1.25rem 0;
     width: 100%;
     align-self: stretch;
@@ -2875,7 +2871,6 @@ dialog.editor {
       margin: 0 2px 0 0;
       padding: 4px 10px;
       list-style: none;
-      color: var(--muted-3);
       border-bottom: 1px solid #111;
       max-width: 60px;
       white-space: nowrap;
@@ -2997,16 +2992,16 @@ dialog.editor {
       border-radius: 1rem;
       text-align: center;
 
-      span{
-          background: #ccc;
-          color: #333;
-          display: block;
-          padding: 0;
+      span {
+        background: #ccc;
+        color: #333;
+        display: block;
+        padding: 0;
       }
-      input{
-          text-align: center;
-          outline: none;
-          padding: 0.2rem 0;
+      input {
+        text-align: center;
+        outline: none;
+        padding: 0.2rem 0;
       }
       > input[type='checkbox'] {
         flex: 0 0 auto;
@@ -3314,7 +3309,6 @@ section.build-tab nav.build-main-tabs {
     padding: 8px 12px;
     background: none;
     border: none;
-    color: var(--muted-3);
     font-weight: bold;
     cursor: pointer;
 
@@ -3460,7 +3454,6 @@ section.build-tab nav.build-main-tabs {
     cursor: pointer;
 
     h5 {
-      color: var(--muted-3);
       margin: 2px 2px 5px;
     }
   }
@@ -3784,7 +3777,7 @@ section.build-tab nav.build-main-tabs {
   overflow: visible;
 
   section {
-      padding: 0;
+    padding: 0;
     margin: 0;
   }
 }
@@ -4314,7 +4307,8 @@ dialog {
   display: block;
   position: absolute;
   bottom: 1rem;
-  right: 1rem;
+  right: -1rem;
+  left: auto;
   color: black;
   width: 50vw;
   margin: 0;
@@ -4342,15 +4336,19 @@ dialog {
 
   .close {
     background: none;
-    width: 2rem;
-    height: 2rem;
     position: absolute;
-    top: 0.5rem;
-    right: 0.5rem;
+    top: -0.5rem;
+    right: 0;
+    padding: 0;
     border: none;
-    font-size: 1rem;
-    color: var(--muted-3);
+    font-size: 3rem;
+    line-height: 2rem;
+    color: #666;
     cursor: pointer;
+
+    &:hover {
+      color: black;
+    }
   }
 
   &.-auto-height {
@@ -4380,14 +4378,8 @@ dialog {
 }
 
 .nft-view {
-  max-height: 50vh;
   max-width: 50vw;
   box-sizing: border-box;
-
-  h1 a {
-    text-decoration: none;
-    color: var(--fg);
-  }
 
   div.center {
     text-align: center;
@@ -4399,12 +4391,12 @@ dialog {
     // height: ~'calc(100vh - 20rem)';
     width: 100%;
     object-fit: contain;
+    border-radius: 0.5rem;
   }
 
   .nft-description {
     white-space: pre-line;
     word-break: break-word;
-    color: var(--muted-3);
     padding: 1rem;
   }
 }

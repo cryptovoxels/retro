@@ -2,7 +2,7 @@ import { render } from 'preact'
 import { getWearableGif } from '../../../web/src/helpers/wearable-helpers'
 
 import CollectibleModel from '../../features/collectible-model'
-import { exitPointerLock } from '../../../common/helpers/ui-helpers'
+import { openDialog } from '../../../common/helpers/ui-helpers'
 import { HTMLUi } from './html-ui'
 import { unmountComponentAtNode } from 'preact/compat'
 import { SUPPORTED_CHAINS_BY_ID } from '../../../common/helpers/chain-helpers'
@@ -19,7 +19,7 @@ type State = {
 }
 
 export class CollectibleHTMLUi extends HTMLUi<Props, State> {
-  static currentElement: HTMLDivElement
+  static currentElement: HTMLElement
 
   constructor(props: Props) {
     super()
@@ -181,19 +181,14 @@ export default function showCollectibleHTMLUi(collectible: CollectibleModel, sce
     CollectibleHTMLUi.close()
   }
 
-  const div = document.createElement('div')
-  div.className = 'pointer-lock-close'
-  CollectibleHTMLUi.currentElement = div
-  document.body.appendChild(div)
+  const { el, close } = openDialog('pointer-lock-close')
+  CollectibleHTMLUi.currentElement = el
 
   const onClose = () => {
-    unmountComponentAtNode(div)
-    div.remove()
     CollectibleHTMLUi.currentElement = null!
+    close()
     HTMLUi.close()
   }
 
-  render(<CollectibleHTMLUi collectible={collectible} onClose={onClose} scene={scene} />, div)
-
-  exitPointerLock()
+  render(<CollectibleHTMLUi collectible={collectible} onClose={onClose} scene={scene} />, el)
 }

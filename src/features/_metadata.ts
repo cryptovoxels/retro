@@ -3,7 +3,6 @@ import Boombox from './boombox'
 import Button from './button'
 import Cube from './cube'
 import GuestBook from './guest-book'
-import PoapDispenser from './poap-dispenser'
 import PoseBall from './pose-ball'
 import Image from './image'
 import Lantern from './lantern'
@@ -66,7 +65,6 @@ export const featureTemplates: Record<PlaceableFeatureTypes, FeatureTemplate> = 
   boombox: Boombox.template,
   showbox: Showbox.template,
   'guest-book': GuestBook.template,
-  'poap-dispenser': PoapDispenser.template,
   'spawn-point': SpawnPoint.template,
   'text-input': TextInput.template,
   'slider-input': SliderInput.template,
@@ -82,7 +80,7 @@ export const featureTemplates: Record<PlaceableFeatureTypes, FeatureTemplate> = 
 }
 
 // these are the features that can be placed by the user
-export type PlaceableFeatureTypes = Exclude<FeatureType, 'animation-platform' | 'script' | 'polytext-v2' | 'vox' | 'screen'>
+export type PlaceableFeatureTypes = Exclude<FeatureType, 'animation-platform' | 'script' | 'polytext-v2' | 'vox' | 'screen' | 'poap-dispenser'>
 
 // Used to display info about the Feature in the add tab
 export type FeatureMetadata = {

@@ -155,35 +155,6 @@ export const getPropertyIdIfParcelRentable = async (parcelId: number) => {
 }
 
 /**
- * Checks if the wallet holds a token for a specific event
- * @param wallet the string
- * @returns
- */
-export const checkWalletOwnsPOAP = async (event_id: string, wallet: string) => {
-  if (!event_id) {
-    return false
-  }
-  if (!wallet) {
-    return false
-  }
-  const url = `https://api.poap.tech/actions/scan/${wallet}/${event_id}`
-  let p
-  try {
-    p = await fetch(url, { method: 'GET', headers: { Accept: 'application/json' } })
-  } catch {
-    return false
-  }
-
-  let resp
-  try {
-    resp = await p.json()
-    return !!resp.event
-  } catch {
-    return false
-  }
-}
-
-/**
  * Grab the name or ENS name of that wallet
  */
 export const getAvatarNameFromWallet = async (wallet: string, cachebust = false) => {

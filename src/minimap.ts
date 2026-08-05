@@ -311,7 +311,7 @@ export class MinimapSettings extends TypedEventTarget<{ changed: { enabled: bool
     this.dispatchEvent(createEvent('changed', this.json))
   }
 
-  private _zoomed = false
+  private _zoomed = true
 
   public get zoomed(): boolean {
     return this._zoomed
@@ -334,7 +334,7 @@ export class MinimapSettings extends TypedEventTarget<{ changed: { enabled: bool
     this.dispatchEvent(createEvent('changed', this.json))
   }
 
-  private _rotate = false
+  private _rotate = true
 
   get rotate(): boolean {
     return this._rotate
@@ -357,7 +357,7 @@ export class MinimapSettings extends TypedEventTarget<{ changed: { enabled: bool
 
   private getSavedSettings() {
     if (typeof localStorage === 'undefined') return null
-    const stored = localStorage.getItem('minimap') || '{}'
+    const stored = localStorage.getItem('minimap2') || '{}'
     if (!stored) return null
     const settings = JSON.parse(stored)
     if (!settings) return null
@@ -366,6 +366,6 @@ export class MinimapSettings extends TypedEventTarget<{ changed: { enabled: bool
 
   private saveSettings(settings: any) {
     if (typeof localStorage === 'undefined') return
-    localStorage.setItem('minimap', JSON.stringify(settings))
+    localStorage.setItem('minimap2', JSON.stringify(settings))
   }
 }

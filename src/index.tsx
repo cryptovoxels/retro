@@ -312,6 +312,7 @@ async function main() {
   window._color = color
 
   graphic.postProcesses = new PostProcesses(scene, color, graphic)
+  ;(engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
 
   // now we can set up and create all those things that loads stuff, like the connector, the pump (tm) and parcel loaders, audio etc
   const { grid, connector } = await createWorld(scene, canvas, controls, environment)

@@ -87,7 +87,7 @@ export class GraphicEngine extends TypedEventTarget<{
   private refresh() {
     if (isBatterySaver()) {
       this.engine.setHardwareScalingLevel(1 / this.devicePixelRatio)
-    } else if (this.#level === GraphicLevels.Low) {
+    } else if (this.#level === GraphicLevels.Low || this.#level === GraphicLevels.Medium) {
       this.engine.setHardwareScalingLevel(1)
     } else {
       this.engine.setHardwareScalingLevel(1 / this.devicePixelRatio)

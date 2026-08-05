@@ -17,7 +17,6 @@ const types: Readonly<FeatureType[]> = [
   'megavox',
   'nft-image',
   'particles',
-  'poap-dispenser',
   'polytext-v2',
   'portal',
   'richtext',

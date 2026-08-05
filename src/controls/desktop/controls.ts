@@ -379,6 +379,7 @@ export default class DesktopControls extends Controls {
       unmountComponentAtNode(element)
       element.remove()
     })
+    ;(window as any).engine?.setBlur?.(false)
 
     // don't focus() before lock — steals the user gesture, forces a second click
     const maybePromise: unknown = this.canvas.requestPointerLock()

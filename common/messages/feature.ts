@@ -648,24 +648,6 @@ export const PortalRecord = t.intersection(
 )
 export type PortalRecord = t.TypeOf<typeof PortalRecord>
 
-export const PoapDispenserRecord = t.intersection(
-  [
-    FeatureCommon,
-    t.type({
-      type: t.literal('poap-dispenser'),
-    }),
-    t.partial(
-      {
-        event_id: t.string,
-        edit_code: t.string,
-      },
-      TYPE_SPECIFIC,
-    ),
-  ],
-  'PoapDispenserRecord',
-)
-export type PoapDispenserRecord = t.TypeOf<typeof PoapDispenserRecord>
-
 export const GroupRecord = t.intersection(
   [
     FeatureCommon,
@@ -726,6 +708,23 @@ export const ScreenRecord = t.intersection(
 )
 export type ScreenRecord = t.TypeOf<typeof ScreenRecord>
 
+const PoapDispenserRecord = t.intersection(
+  [
+    FeatureCommon,
+    t.type({
+      type: t.literal('poap-dispenser'),
+    }),
+    t.partial(
+      {
+        event_id: t.string,
+        edit_code: t.string,
+      },
+      TYPE_SPECIFIC,
+    ),
+  ],
+  'PoapDispenserRecord',
+)
+
 // Multi-feature types based on capability
 
 export const CollidableFeatureRecord = t.type(
@@ -764,7 +763,6 @@ export const FeatureRecord = t.union(
     AssetRecord,
     SignRecord,
     CubeRecord,
-    PoapDispenserRecord,
     RichTextRecord,
     ImageRecord,
     VidScreenRecord,
@@ -790,6 +788,7 @@ export const FeatureRecord = t.union(
     GuestBookRecord,
     PoseBallRecord,
     ScreenRecord,
+    PoapDispenserRecord,
     DeprecatedScript,
     DeprecatedAnimationPlatform,
     DeprecatedVox,
