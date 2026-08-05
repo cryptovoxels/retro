@@ -54,7 +54,7 @@ export class GridWorkerParcel {
     return vec3(this.description.x2, this.description.y2, this.description.z2)
   }
 
-  public async load(): Promise<void> {
+  public async load(priority: FetchOptions['priority'] = 'low'): Promise<void> {
     if (this.loadState === LoadState.Loading || this.loadState === LoadState.Loaded) {
       console.info(`[grid-worker] Parcel ${this.id} already loaded or loading`)
       return
@@ -63,7 +63,7 @@ export class GridWorkerParcel {
     // Fetch data if needed
     if (!isCompleteParcelRecord(this.description)) {
       this.loadState = LoadState.Loading
-      const success = await this.fetchParcelData()
+      const success = await this.fetchParcelData(priority)
       if (!success) {
         this.loadState = LoadState.Error
         return
@@ -115,21 +115,21 @@ export class GridWorkerParcel {
     return aabbDistance(p, this.min, this.max)
   }
 
-  private async fetchParcelData(): Promise<boolean> {
+  private async fetchParcelData(priority: FetchOptions['priority'] = 'low'): Promise<boolean> {
     const url = `/grid/parcels/${this.id}`
 
     const abortController = new AbortController()
     this.loadAbortController = abortController
 
     try {
-      const res = await this.fetchJson(url, abortController.signal)
+      const res = await this.fetchJson(url, abortController.signal, priority)
       const response = (await res.json()) as ApiParcelMessage
       return this.handleFetchSuccess(response)
     } catch {
       if (abortController.signal.aborted) return false
       const fallbackResult = await retryPolicy
         .execute(async () => {
-          const res = await this.fetchJson(url, abortController.signal)
+          const res = await this.fetchJson(url, abortController.signal, priority)
           const response = (await res.json()) as ApiParcelMessage
           return this.handleFetchSuccess(response)
         }, abortController.signal)
@@ -147,8 +147,8 @@ export class GridWorkerParcel {
     return true
   }
 
-  private async fetchJson(url: string, signal?: AbortSignal) {
-    const opts: FetchOptions = { method: 'get', signal, priority: 'high', cache: 'no-store' }
+  private async fetchJson(url: string, signal?: AbortSignal, priority: FetchOptions['priority'] = 'low') {
+    const opts: FetchOptions = { method: 'get', signal, priority, cache: 'no-store' }
     const req = await fetch(url, opts)
     if (!req.ok) throw new Error(req.statusText)
     return req

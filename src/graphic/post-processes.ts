@@ -1,5 +1,6 @@
 import { GraphicLevels, type GraphicEngine } from './graphic-engine'
 import type { ColorGrader } from './color-grading'
+import { isLoaded, markLoaded } from '../utils/loading-done'
 
 export class PostProcesses {
   private readonly scene: BABYLON.Scene
@@ -8,6 +9,10 @@ export class PostProcesses {
   private glowLayer: BABYLON.Nullable<BABYLON.GlowLayer> = null
   private blurPP: BABYLON.Nullable<BABYLON.PostProcess> = null
   private underwaterPP: BABYLON.Nullable<BABYLON.PostProcess> = null
+  private coverPP: BABYLON.Nullable<BABYLON.PostProcess> = null
+  private coverAmount = 1
+  private revealing = false
+  private coverObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
 
   constructor(scene: BABYLON.Scene, color: ColorGrader, graphics: GraphicEngine) {
     this.scene = scene
@@ -29,6 +34,67 @@ export class PostProcesses {
     // Listen to graphics changes
     graphics.addEventListener('settingsChanged', (event) => {
       this.changeEffects(event.detail.level)
+    })
+  }
+
+  cover() {
+    const camera = this.scene.activeCamera
+    if (!camera) return
+
+    if (this.coverObs) {
+      this.scene.onBeforeRenderObservable.remove(this.coverObs)
+      this.coverObs = null
+    }
+    this.revealing = false
+    this.coverAmount = 1
+
+    if (this.coverPP) return
+
+    if (!BABYLON.Effect.ShadersStore['worldCoverPixelShader']) {
+      BABYLON.Effect.ShadersStore['worldCoverPixelShader'] = `
+varying vec2 vUV;
+uniform sampler2D textureSampler;
+uniform float amount;
+
+void main(void) {
+  gl_FragColor = mix(texture2D(textureSampler, vUV), vec4(0.5, 0.5, 0.5, 1.0), amount);
+}
+`
+    }
+
+    const pp = new BABYLON.PostProcess('worldCover', 'worldCover', ['amount'], null, 1.0, camera, BABYLON.Texture.BILINEAR_SAMPLINGMODE, this.scene.getEngine(), false)
+    pp.onApply = (effect) => {
+      effect.setFloat('amount', this.coverAmount)
+    }
+    this.coverPP = pp
+  }
+
+  reveal() {
+    if (!this.coverPP || this.revealing) return
+    this.revealing = true
+    if (!isLoaded()) markLoaded()
+
+    let elapsed = 0
+    this.coverObs = this.scene.onBeforeRenderObservable.add(() => {
+      elapsed += this.scene.getEngine().getDeltaTime()
+      this.coverAmount = 1 - Math.min(1, elapsed / 400)
+
+      if (this.coverAmount <= 0) {
+        this.coverAmount = 0
+        if (this.coverObs) {
+          this.scene.onBeforeRenderObservable.remove(this.coverObs)
+          this.coverObs = null
+        }
+        const camera = this.scene.activeCamera
+        if (this.coverPP) {
+          try {
+            camera?.detachPostProcess(this.coverPP)
+          } catch {}
+          this.coverPP.dispose()
+          this.coverPP = null
+        }
+        this.revealing = false
+      }
     })
   }
 

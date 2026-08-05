@@ -74,13 +74,11 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
     })
   }
 
-  // wait 10 seconds for the first parcel to load
-  // If nothing has loaded by then we're probably out at sea, manually mark as loaded so that the loading screen goes away
+  // wait 3 seconds for the first parcel to load
+  // If nothing has loaded by then we're probably out at sea — lift the grey cover
   setTimeout(() => {
-    if (!grid.length) {
-      console.warn('No parcels loaded, marking as loaded')
-    }
-  }, 10e3)
+    window.graphic?.postProcesses?.reveal()
+  }, 3e3)
 
   createGizmos(scene)
 

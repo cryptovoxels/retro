@@ -1,5 +1,7 @@
 # AGENTS.md
 
+* Don't write junior dev dogshit
+* This is gamedev not a webdev
 * BABYLON is loaded globally
 * Never use RAF (use babylon observables)
 

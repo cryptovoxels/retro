@@ -69,8 +69,8 @@ export default class Grid extends SocketClient {
   // ParcelManager properties - folded into Grid
   public fastbootParcel: Parcel | undefined
   public parcels: Map<Parcel['id'], Parcel> = new Map()
-  private readonly parcelMeshLoadedEventHandler: (event: TypedEvent<'MeshLoaded', ParcelEventMap['MeshLoaded']>) => void
-  private readonly parcelMeshUnloadedEventHandler: (event: TypedEvent<'MeshUnloading', ParcelEventMap['MeshUnloading']>) => void
+  private readonly parcelLoaded: (event: TypedEvent<'MeshLoaded', ParcelEventMap['MeshLoaded']>) => void
+  private readonly parcelUnloaded: (event: TypedEvent<'MeshUnloading', ParcelEventMap['MeshUnloading']>) => void
 
   public enteredParcel: Parcel | undefined = undefined
   public priorParcel: Parcel | undefined = undefined
@@ -117,12 +117,13 @@ export default class Grid extends SocketClient {
     }
 
     // Initialize ParcelManager event handlers
-    this.parcelMeshLoadedEventHandler = (event) => {
+    this.parcelLoaded = (event) => {
       if (!event.detail) return
       this.environment.parcelMeshesAdded([event.detail])
+      window.graphic?.postProcesses?.reveal()
     }
 
-    this.parcelMeshUnloadedEventHandler = (event) => {
+    this.parcelUnloaded = (event) => {
       if (!event.detail) return
       this.environment.parcelMeshesRemoved([event.detail])
     }
@@ -225,8 +226,8 @@ export default class Grid extends SocketClient {
       return
     }
     this.parcels.delete(parcel.id)
-    gridParcel.removeEventListener('MeshLoaded', this.parcelMeshLoadedEventHandler)
-    gridParcel.removeEventListener('MeshUnloading', this.parcelMeshUnloadedEventHandler)
+    gridParcel.removeEventListener('MeshLoaded', this.parcelLoaded)
+    gridParcel.removeEventListener('MeshUnloading', this.parcelUnloaded)
 
     gridParcel.unload()
 
@@ -280,8 +281,8 @@ export default class Grid extends SocketClient {
       return undefined
     }
     const p = new Parcel(this.scene, parent, description, grid, Grid.mesher, isFastboot, fieldBuffer)
-    p.addEventListener('MeshLoaded', this.parcelMeshLoadedEventHandler, { passive: true })
-    p.addEventListener('MeshUnloading', this.parcelMeshUnloadedEventHandler, { passive: true })
+    p.addEventListener('MeshLoaded', this.parcelLoaded, { passive: true })
+    p.addEventListener('MeshUnloading', this.parcelUnloaded, { passive: true })
     this.parcels.set(p.id, p)
     if (p.sandbox || p.canEdit) {
       window.user.parcels.push(p)

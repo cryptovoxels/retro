@@ -212,8 +212,10 @@ class GridWorker implements GridWorkerAPI {
     if (this.parcelLoadingQueue.size >= MAX_PARCEL_QUEUE_SIZE || totalPendingParcels >= MAX_PARCEL_QUEUE_SIZE * 2) return
 
     // only queue up parcels to load at a time (to avoid filling the queue too fast when moving around)
+    const toLoad = this.getParcelsForLoading()
+    const nearestId = toLoad[0]?.parcel.id
     let count = 0
-    for (const { parcel } of this.getParcelsForLoading()) {
+    for (const { parcel } of toLoad) {
       if (count >= MAX_PARCELS_TO_QUEUE_PER_CYCLE || this.parcelLoadingQueue.size >= MAX_PARCEL_QUEUE_SIZE) {
         break
       }
@@ -222,7 +224,7 @@ class GridWorker implements GridWorkerAPI {
 
       this.parcelLoadingQueue.add(parcel.id)
       count++
-      parcel.load().finally(() => {
+      parcel.load(parcel.id === nearestId ? 'high' : 'low').finally(() => {
         this.parcelLoadingQueue.delete(parcel.id)
       })
     }

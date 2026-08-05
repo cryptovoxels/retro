@@ -41,7 +41,6 @@ import Robots from './robots/robots'
 // Features
 import Polytext from './features/polytext'
 import { type AudioEngine } from './audio/audio-engine'
-import { loadingDone, onLoadPromise } from './utils/loading-done'
 import { isBatterySaver, isDebug, isInspect, isIOS, isMobile, wantsXR } from '../common/helpers/detector'
 import { DragDrop } from './tools/drag-drop'
 
@@ -282,7 +281,6 @@ async function main() {
   window.main = main
   main.setScene(scene)
 
-  // handling of the loading screen (spinning logo)
   const assetsManager = new BABYLON.AssetsManager(scene)
   assetsManager.useDefaultLoadingScreen = false
   assetsManager.load()
@@ -292,12 +290,19 @@ async function main() {
 
   // start has to be called after controls (camera) are added to the scene and will
   // load the current graphic settings from the localstore
-  loadingDone('ALLES')
   graphic.start()
 
   initializeTextureAnimation(scene)
 
   new DragDrop(scene)
+
+  const color = new ColorGrader(scene)
+  window._color = color
+
+  graphic.postProcesses = new PostProcesses(scene, color, graphic)
+  graphic.postProcesses.cover()
+  ;(engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
+  ;(engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
 
   // not related to a parcel or space
   const { environment } = await createEnvironment(scene, controls.worldOffset)
@@ -307,13 +312,6 @@ async function main() {
   if (xr) {
     xr.attachEnvironment(environment)
   }
-
-  const color = new ColorGrader(scene)
-  window._color = color
-
-  graphic.postProcesses = new PostProcesses(scene, color, graphic)
-  ;(engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
-  ;(engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
 
   // now we can set up and create all those things that loads stuff, like the connector, the pump (tm) and parcel loaders, audio etc
   const { grid, connector } = await createWorld(scene, canvas, controls, environment)
@@ -381,8 +379,7 @@ async function main() {
   return ui
 
   async function toggleBabylonInspector(scene: BABYLON.Scene | null) {
-    // show babylonjs built in scene explorer, we need to wait until the loading spinner is gone
-    // due to the inspector adds dom element that confuses things
+    // show babylonjs built in scene explorer
     // https://doc.babylonjs.com/features/playground_debuglayer
 
     scene?.executeWhenReady(() => {
@@ -390,8 +387,6 @@ async function main() {
         scene?.debugLayer.hide()
         return
       }
-
-      // await onLoadPromise
 
       scene?.debugLayer.show({
         overlay: false,
