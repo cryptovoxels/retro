@@ -143,6 +143,15 @@ export default abstract class Controls implements IControls {
   vehicleNearby: import('../features/vox-model').Megavox | null = null
   /** mobile / shared: -1..1 forward and turn while driving */
   vehicleSteer = { forward: 0, turn: 0 }
+  /** document-level WASD - Babylon camera keyboard often misses keys while speed is 0 / no canvas focus */
+  private driveHeld = new Set<string>()
+  private onDriveKeyDown = (e: KeyboardEvent) => {
+    if (e.repeat) return
+    this.driveHeld.add(e.code)
+  }
+  private onDriveKeyUp = (e: KeyboardEvent) => {
+    this.driveHeld.delete(e.code)
+  }
 
   MAX_PICK_DISTANCE = 20
   gravityDisabledOverride: boolean | null = null
@@ -176,6 +185,9 @@ export default abstract class Controls implements IControls {
 
     // Enable feature clicking
     this.scene.onPointerObservable.add(this.featureClickHandler.bind(this))
+
+    document.addEventListener('keydown', this.onDriveKeyDown)
+    document.addEventListener('keyup', this.onDriveKeyUp)
 
     const reticule = generateReticule(scene)
     this.reticuleRoot = reticule.root
@@ -879,6 +891,9 @@ export default abstract class Controls implements IControls {
       ;(this.scene.activeCamera as any).checkCollisions = false
     }
     this.disableMovement()
+    // features freeze their world matrix after setCommon - thaw so drive pose updates show up
+    car.mesh?.unfreezeWorldMatrix()
+    if (car.mesh?.rotationQuaternion) car.mesh.rotationQuaternion = null
     if (this.firstPersonView) this.enterThirdPerson(3)
     this.setVehicleHint(null)
     this.refreshMobileDriveChrome?.()
@@ -889,9 +904,13 @@ export default abstract class Controls implements IControls {
     this.vehicleFeature = null
     this.vehicleSteer.forward = 0
     this.vehicleSteer.turn = 0
+    this.driveHeld.clear()
     if (car) {
       try {
         car.releaseDriver(this.persona.uuid)
+      } catch {}
+      try {
+        car.mesh?.freezeWorldMatrix()
       } catch {}
     }
     this.enableGravity()
@@ -950,10 +969,11 @@ export default abstract class Controls implements IControls {
     let turn = this.vehicleSteer.turn
     const kb = (this as any).keyboardInput as { pressedCodes?: () => string[] } | undefined
     const codes = kb?.pressedCodes?.() || []
-    if (codes.includes('KeyW') || codes.includes('ArrowUp')) forward = 1
-    if (codes.includes('KeyS') || codes.includes('ArrowDown')) forward = -1
-    if (codes.includes('KeyA') || codes.includes('ArrowLeft')) turn = -1
-    if (codes.includes('KeyD') || codes.includes('ArrowRight')) turn = 1
+    const held = (code: string) => this.driveHeld.has(code) || codes.includes(code)
+    if (held('KeyW') || held('ArrowUp')) forward = 1
+    if (held('KeyS') || held('ArrowDown')) forward = -1
+    if (held('KeyA') || held('ArrowLeft')) turn = -1
+    if (held('KeyD') || held('ArrowRight')) turn = 1
     // mobile dpad: controls.direction is set by dpad (x = strafe, z = forward in camera space) - while driving use as steer
     if (this.direction && (Math.abs(this.direction.x) > 0.05 || Math.abs(this.direction.z) > 0.05)) {
       forward = this.direction.z
@@ -1013,7 +1033,9 @@ export default abstract class Controls implements IControls {
       car.mesh.position.z += Math.cos(yaw) * forward * speed * dt
     }
     car.mesh.position.y = this.vehicleHoverY
-    car.mesh.computeWorldMatrix(true)
+    // frozen meshes need freezeWorldMatrix() again to bake the new pose (computeWorldMatrix alone is a no-op when frozen)
+    if (car.mesh.isWorldMatrixFrozen) car.mesh.freezeWorldMatrix()
+    else car.mesh.computeWorldMatrix(true)
 
     // water rescue: swim level
     const worldY = car.absolutePosition?.y ?? car.mesh.position.y
@@ -1022,7 +1044,8 @@ export default abstract class Controls implements IControls {
         car.mesh.position.copyFrom(this.vehicleLastDryPos)
         car.mesh.rotation.copyFrom(this.vehicleLastDryRot)
         this.vehicleHoverY = this.vehicleLastDryPos.y
-        car.mesh.computeWorldMatrix(true)
+        if (car.mesh.isWorldMatrixFrozen) car.mesh.freezeWorldMatrix()
+        else car.mesh.computeWorldMatrix(true)
         car.broadcastDriveState()
       } else {
         car.recallToPark()
