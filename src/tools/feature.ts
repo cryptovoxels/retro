@@ -821,7 +821,7 @@ export default class FeatureTool implements Tool {
     // inspector mode for figuring out who owns a particular feature and mod nerfing
     if (this.selection.mode === 'inspect' && pickedFeature && mesh && mesh.feature) {
       if (pickedNormal) {
-        const rotation = getPlacementRotation(pickedNormal, !(pickedFeature instanceof Feature2D))
+        const rotation = getPlacementRotation(pickedNormal, !(pickedFeature instanceof Feature2D), pickedPointRounded, cameraPosition(this.scene))
         this.selector.rotation = rotation
       }
       this.highlightFeature(mesh.feature, mesh!)
@@ -888,7 +888,7 @@ export default class FeatureTool implements Tool {
       const boundingBox = feature.boundingBox
       if (!boundingBox) return false
 
-      const rotation = getPlacementRotation(pickedNormal, featureIs3D(feature))
+      const rotation = getPlacementRotation(pickedNormal, featureIs3D(feature), pickedPointRounded, cameraPosition(this.scene))
       this.spawnRotation = rotation
       this.selector.rotation = rotation
       this.selector.parent = parcel!.transform!
@@ -897,7 +897,7 @@ export default class FeatureTool implements Tool {
       const { spawnPoint, selectorCenter } = placementFromPick(pickedPointRounded, pickedNormal, rotation, boundingBox.minimum, boundingBox.maximum, feature.scale, parcel.transform.position)
 
       const localSize = boundingBox.maximum.subtract(boundingBox.minimum)
-      this.selector.scaling.set(localSize.x + OVERSIZE, localSize.y + OVERSIZE, localSize.z + OVERSIZE)
+      this.selector.scaling.set(localSize.x + OVERSIZE, localSize.y + OVERSIZE, Math.max(localSize.z + OVERSIZE, 0.05))
       this.selector.position.copyFrom(selectorCenter)
       this.spawnPoint = spawnPoint
       this.selector.visibility = 1
@@ -916,7 +916,7 @@ export default class FeatureTool implements Tool {
       const featureScale = () => (accurateScale ? accurateScale : featureTemplateScale)
       const isFeatureTemplate3D = getAxes(this.selection.featureTemplate.type).length == 1
 
-      let rotation = getPlacementRotation(pickedNormal, isFeatureTemplate3D)
+      let rotation = getPlacementRotation(pickedNormal, isFeatureTemplate3D, pickedPointRounded, cameraPosition(this.scene))
       if (this.selection.feature && pickedNormal.y > 0) {
         rotation = rotation.clone()
         rotation.y = this.selection.feature.rotation.y
@@ -929,7 +929,8 @@ export default class FeatureTool implements Tool {
 
       this.selector.rotation = rotation
       const localSize = bounds.max.subtract(bounds.min)
-      this.selector.scaling.set(localSize.x + OVERSIZE, localSize.y + OVERSIZE, localSize.z + OVERSIZE)
+      // zero-depth 2D templates (showbox scale.z=0) still need a visible ghost outline
+      this.selector.scaling.set(localSize.x + OVERSIZE, localSize.y + OVERSIZE, Math.max(localSize.z + OVERSIZE, 0.05))
       this.selector.position.copyFrom(selectorCenter)
       this.spawnPoint = spawnPoint
       this.spawnRotation = rotation
@@ -964,12 +965,24 @@ export const normalIsFromWall = (normal: BABYLON.Vector3): 'z' | 'x' | false => 
 
 const HALF = Math.PI / 2
 
-const getPlacementRotation = (normal: BABYLON.Vector3, is3D: boolean): BABYLON.Vector3 => {
+// 2D screens on floor/ceiling: stand upright, yaw toward the camera (snapped to 90deg)
+const getPseudoBillboardRotation = (pickedPoint: BABYLON.Vector3, camPos: BABYLON.Vector3): BABYLON.Vector3 => {
+  const a = new BABYLON.Vector2(pickedPoint.x, pickedPoint.z)
+  const b = new BABYLON.Vector2(camPos.x, camPos.z)
+  let yaw = Math.PI * 0.5 - BABYLON.Angle.BetweenTwoPoints(b, a).radians()
+  const granularity = Math.PI / 2
+  yaw = Math.round(yaw / granularity) * granularity
+  return new BABYLON.Vector3(0, yaw, 0)
+}
+
+const getPlacementRotation = (normal: BABYLON.Vector3, is3D: boolean, pickPoint?: BABYLON.Vector3, camPos?: BABYLON.Vector3): BABYLON.Vector3 => {
   if (Math.abs(normal.y) > 0) {
     if (is3D) {
       return normal.y > 0 ? new BABYLON.Vector3(0, 0, 0) : new BABYLON.Vector3(0, 0, Math.PI)
     }
-    return normal.y > 0 ? new BABYLON.Vector3(-HALF, 0, 0) : new BABYLON.Vector3(HALF, 0, Math.PI)
+    // showbox/image/video etc - never lay flat on the floor (invisible zero-depth plane)
+    if (pickPoint && camPos) return getPseudoBillboardRotation(pickPoint, camPos)
+    return BABYLON.Vector3.Zero()
   }
   if (Math.abs(normal.x) > 0) {
     if (is3D) {
