@@ -338,22 +338,30 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     )
   }
 
-  // hide the lot car for remotes while someone is driving (ghost under avatar). local driver keeps the real mesh.
+  // hide the lot car for remotes only when we are drawing the avatar ghost instead.
+  // if the home parcel is loaded, keep the lot mesh on and follow via applyDrivePose so bystanders see the drive.
   setParkedVisible(visible: boolean) {
     this.parkedVisible = visible
     if (!this.mesh) return
-    const localDriver = !!this.driverUuid && this.driverUuid === window.connector?.persona?.uuid
-    this.mesh.setEnabled(localDriver || (visible && !this.isDriven))
+    const localUuid = window.connector?.persona?.uuid
+    const localDriver = !!this.driverUuid && this.driverUuid === localUuid
+    const remoteDriven = !!this.driverUuid && this.driverUuid !== localUuid
+    if (remoteDriven || localDriver) {
+      this.mesh.setEnabled(true)
+      this.mesh.isVisible = true
+      return
+    }
+    this.mesh.setEnabled(visible && !this.isDriven)
   }
 
   applyDrivePose(position: [number, number, number], rotation: [number, number, number]) {
     if (!this.mesh) return
+    // stay unfrozen while posing — freeze+update was shearing the car for bystanders
+    if (this.mesh.isWorldMatrixFrozen) this.mesh.unfreezeWorldMatrix()
+    if (this.mesh.rotationQuaternion) this.mesh.rotationQuaternion = null
     this.mesh.position.fromArray(position)
     this.mesh.rotation.fromArray(rotation)
-    if (this.mesh.rotationQuaternion) this.mesh.rotationQuaternion = null
-    // frozen meshes need freezeWorldMatrix() again to bake the new pose
-    if (this.mesh.isWorldMatrixFrozen) this.mesh.freezeWorldMatrix()
-    else this.mesh.computeWorldMatrix(true)
+    this.mesh.computeWorldMatrix(true)
   }
 
   broadcastDriveState(extra: Record<string, any> = {}) {
@@ -405,6 +413,9 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     const pos = (this.description.position as [number, number, number]) || [0, 0, 0]
     const rot = (this.description.rotation as [number, number, number]) || [0, 0, 0]
     this.applyDrivePose(pos, rot)
+    try {
+      this.mesh?.freezeWorldMatrix()
+    } catch {}
     this.setParkedVisible(true)
     this.broadcastDriveState({ recall: true, position: pos, rotation: rot, driverUuid: null, emptySince: null })
     // kick local driver if they were in this car
@@ -503,9 +514,14 @@ export class Megavox extends VoxModel<MegavoxRecord> {
       if (Array.isArray(state.position) && Array.isArray(state.rotation)) {
         this.applyDrivePose(state.position as [number, number, number], state.rotation as [number, number, number])
       }
+    } else if (this.driverUuid && this.driverUuid !== window.connector?.persona?.uuid && Array.isArray(state.position) && Array.isArray(state.rotation)) {
+      // home parcel loaded: move the real lot car with the driver so everyone sees them driving
+      this.applyDrivePose(state.position as [number, number, number], state.rotation as [number, number, number])
+      if (this.mesh) {
+        this.mesh.setEnabled(true)
+        this.mesh.isVisible = true
+      }
     }
-    // while someone else drives, leave the lot mesh on the park spot (hidden). remotes see the avatar vehicle ghost —
-    // applying drive pose here sheared/stretched frozen meshes for bystanders.
     this.maybeRecoverAbandoned()
   }
 

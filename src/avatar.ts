@@ -215,16 +215,29 @@ export default class Avatar extends Entity {
       this.clearVehicleMesh()
       return
     }
-    const key = `${next.voxUrl}|${next.scale.join(',')}`
+    // home parcel loaded → lot megavox follows via receiveState; skip ghost so we don't draw two cars
+    if (this.findHomeDriveable(next)?.mesh) {
+      this.clearVehicleMesh()
+      return
+    }
+    const key = `${next.voxUrl}|${next.scale.map((n) => Number(n).toFixed(3)).join(',')}`
     if (key !== prevKey) void this.ensureVehicleMesh(next, key)
     this.syncVehicleMeshPose()
   }
 
-  private restoreHomeParkedCar(payload: import('../common/messages').AvatarVehiclePayload) {
+  private findHomeDriveable(payload: import('../common/messages').AvatarVehiclePayload) {
     try {
       const parcel = window.grid?.parcels?.get?.(payload.homeParcelId) || [...(window.grid?.parcels?.values?.() || [])].find((p: any) => p.id === payload.homeParcelId)
-      const f = parcel?.featuresList?.find((x: any) => x?.uuid === payload.featureUuid)
-      if (f?.type === 'megavox' && !(f as any).driverUuid) (f as any).setParkedVisible?.(true)
+      return parcel?.featuresList?.find((x: any) => x?.uuid === payload.featureUuid && x?.type === 'megavox') as any
+    } catch {
+      return null
+    }
+  }
+
+  private restoreHomeParkedCar(payload: import('../common/messages').AvatarVehiclePayload) {
+    try {
+      const f = this.findHomeDriveable(payload)
+      if (f && !f.driverUuid) f.setParkedVisible?.(true)
     } catch {}
   }
 
@@ -255,28 +268,18 @@ export default class Avatar extends Entity {
       mesh.isPickable = false
       mesh.checkCollisions = false
       mesh.rotationQuaternion = null
-      // same as Feature.setCommon — vertices are already in meters; scale is mesh.scaling only once
+      mesh.setEnabled(true)
+      mesh.isVisible = true
       const sx = Math.max(1e-4, Number(payload.scale[0]) || 1)
       const sy = Math.max(1e-4, Number(payload.scale[1]) || 1)
       const sz = Math.max(1e-4, Number(payload.scale[2]) || 1)
       mesh.scaling.set(sx, sy, sz)
-      // worldOffset sibling of the avatar node (not under the skeleton — that shears/stretches)
-      const root = this.node.parent
-      if (root) mesh.setParent(root)
-      else mesh.parent = null
+      // sibling of avatar under worldOffset (assign parent, don't preserve-world — that sheared scale)
+      mesh.parent = this.node.parent
       this.syncVehicleMeshPose()
-      this.hideHomeParkedCar(payload)
     } catch (e) {
       console.warn('vehicle ghost load failed', e)
     }
-  }
-
-  private hideHomeParkedCar(payload: import('../common/messages').AvatarVehiclePayload) {
-    try {
-      const parcel = window.grid?.parcels?.get?.(payload.homeParcelId) || [...(window.grid?.parcels?.values?.() || [])].find((p: any) => p.id === payload.homeParcelId)
-      const f = parcel?.featuresList?.find((x: any) => x?.uuid === payload.featureUuid)
-      if (f?.type === 'megavox') (f as any).setParkedVisible?.(false)
-    } catch {}
   }
 
   private syncVehicleMeshPose() {
@@ -284,6 +287,8 @@ export default class Avatar extends Entity {
     const v = this._vehicle
     if (!mesh || !v || !this.hasPosition) return
     mesh.rotationQuaternion = null
+    mesh.setEnabled(true)
+    mesh.isVisible = true
     mesh.position.copyFrom(this.position)
     mesh.position.y -= 0.2
     mesh.rotation.set(0, v.yaw, 0)
