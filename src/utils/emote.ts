@@ -10,11 +10,13 @@ const positionRadius = 0.3 // how wide circle around the position to randomly sp
 const maxLifetime = 2 * 60 // lifetime in frames
 
 export const emote = (emoji: string, position: BABYLON.Vector3, scene: BABYLON.Scene, nicerLooking = true) => {
+  if (!scene || scene.isDisposed) return
+
   const system = new BABYLON.SolidParticleSystem('avatar/emote-' + Date.now(), scene)
 
   const particleCount = BABYLON.Scalar.RandomRange(1, 25)
 
-  const plane = BABYLON.MeshBuilder.CreatePlane('avatar/emote-plane-' + Date.now(), { width: emojiSize, height: emojiSize })
+  const plane = BABYLON.MeshBuilder.CreatePlane('avatar/emote-plane-' + Date.now(), { width: emojiSize, height: emojiSize }, scene)
   system.addShape(plane, particleCount)
   plane.dispose()
   const mesh = system.buildMesh()

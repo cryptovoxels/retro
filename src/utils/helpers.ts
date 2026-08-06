@@ -22,13 +22,15 @@ export const decodeCoordsFromURL = (url?: string) => {
  * @param {string} path the path of the audio resource.
  * @returns {AudioBuffer} AudioBuffer of the audio.
  */
-export async function loadSample(ctx: AudioContext, path: string): Promise<AudioBuffer> {
-  const opts: FetchOptions = { priority: 'low' } // low priority for audio to reduce contention
-  const body = await window.fetch(path, opts)
-  const buffer = await body.arrayBuffer()
-  return (await new Promise((resolve, reject) => {
-    ctx.decodeAudioData(buffer, resolve, () => reject(null))
-  })) as AudioBuffer
+export async function loadSample(ctx: AudioContext, path: string): Promise<AudioBuffer | null> {
+  try {
+    const opts: FetchOptions = { priority: 'low' } // low priority for audio to reduce contention
+    const body = await window.fetch(path, opts)
+    const buffer = await body.arrayBuffer()
+    return await ctx.decodeAudioData(buffer)
+  } catch {
+    return null
+  }
 }
 
 /**
