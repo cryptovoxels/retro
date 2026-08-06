@@ -291,7 +291,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
     ctx.fillText('twitch / ' + channel, w / 2, h / 2 - 40)
 
     ctx.fillStyle = '#f5f5f0'
-    ctx.fillText('twitch embedding is disabled', w / 2, h / 2)
+    ctx.fillText('twitch disabled embedding', w / 2, h / 2)
 
     const cta = '\u25B6 open on twitch.tv'
     const tw = ctx.measureText(cta).width
