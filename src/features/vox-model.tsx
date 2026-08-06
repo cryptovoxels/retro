@@ -315,6 +315,7 @@ export class Megavox extends VoxModel<MegavoxRecord> {
   emptySince: number | null = null
   private parkedVisible = true
   private emptyRecallTimer: ReturnType<typeof setTimeout> | null = null
+  private staleDriverTimer: ReturnType<typeof setTimeout> | null = null
 
   // Needed by VoxModel.generate()
   protected override _voxImportParams(): VoxImportOptions {
@@ -349,7 +350,10 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     if (!this.mesh) return
     this.mesh.position.fromArray(position)
     this.mesh.rotation.fromArray(rotation)
-    this.mesh.computeWorldMatrix(true)
+    if (this.mesh.rotationQuaternion) this.mesh.rotationQuaternion = null
+    // frozen meshes need freezeWorldMatrix() again to bake the new pose
+    if (this.mesh.isWorldMatrixFrozen) this.mesh.freezeWorldMatrix()
+    else this.mesh.computeWorldMatrix(true)
   }
 
   broadcastDriveState(extra: Record<string, any> = {}) {
@@ -369,6 +373,7 @@ export class Megavox extends VoxModel<MegavoxRecord> {
   claimDriver(uuid: string) {
     if (this.driverUuid && this.driverUuid !== uuid) return false
     this.clearEmptyRecall()
+    this.clearStaleDriverCheck()
     this.driverUuid = uuid
     this.emptySince = null
     this.setParkedVisible(false)
@@ -377,41 +382,101 @@ export class Megavox extends VoxModel<MegavoxRecord> {
   }
 
   releaseDriver(uuid?: string) {
-    if (uuid && this.driverUuid && this.driverUuid !== uuid) return
+    if (!this.driverUuid) return
+    if (uuid && this.driverUuid !== uuid) return
     this.driverUuid = null
     this.emptySince = Date.now()
     this.setParkedVisible(true)
     this.broadcastDriveState()
-    this.scheduleEmptyRecall()
+    // far from the lot → come back soon; nearby abandon → give them a minute
+    this.scheduleEmptyRecall(this.distanceFromParkSq() > 16 * 16 ? 8_000 : EMPTY_RECALL_MS)
+  }
+
+  /** true if the mesh is meaningfully away from the saved park spot */
+  isAwayFromPark() {
+    return this.distanceFromParkSq() > 4
   }
 
   recallToPark() {
     this.clearEmptyRecall()
+    this.clearStaleDriverCheck()
     this.driverUuid = null
     this.emptySince = null
     const pos = (this.description.position as [number, number, number]) || [0, 0, 0]
     const rot = (this.description.rotation as [number, number, number]) || [0, 0, 0]
     this.applyDrivePose(pos, rot)
     this.setParkedVisible(true)
-    this.broadcastDriveState({ recall: true, position: pos, rotation: rot })
+    this.broadcastDriveState({ recall: true, position: pos, rotation: rot, driverUuid: null, emptySince: null })
     // kick local driver if they were in this car
     const controls = window.connector?.controls as any
     if (controls?.vehicleFeature === this) controls.stopVehicle?.()
   }
 
-  private scheduleEmptyRecall() {
+  private distanceFromParkSq() {
+    if (!this.mesh) return 0
+    const park = (this.description.position as [number, number, number]) || [0, 0, 0]
+    const dx = this.mesh.position.x - park[0]
+    const dy = this.mesh.position.y - park[1]
+    const dz = this.mesh.position.z - park[2]
+    return dx * dx + dy * dy + dz * dz
+  }
+
+  private isDriverPresent(uuid: string) {
+    const c = window.connector
+    if (!c) return false
+    if (uuid === c.persona?.uuid) return c.controls?.vehicleFeature === this
+    return c.avatarsByUuid?.has(uuid) ?? false
+  }
+
+  private scheduleEmptyRecall(waitMs = EMPTY_RECALL_MS) {
     this.clearEmptyRecall()
+    const emptySince = this.emptySince || Date.now()
+    const remaining = Math.max(0, waitMs - (Date.now() - emptySince))
     this.emptyRecallTimer = setTimeout(() => {
       this.emptyRecallTimer = null
       if (this.driverUuid) return
       this.recallToPark()
-    }, 120_000)
+    }, remaining)
   }
 
   private clearEmptyRecall() {
     if (this.emptyRecallTimer) {
       clearTimeout(this.emptyRecallTimer)
       this.emptyRecallTimer = null
+    }
+  }
+
+  private scheduleStaleDriverCheck() {
+    this.clearStaleDriverCheck()
+    this.staleDriverTimer = setTimeout(() => {
+      this.staleDriverTimer = null
+      if (!this.driverUuid) return
+      if (this.isDriverPresent(this.driverUuid)) return
+      // driver left the shard without releasing - unhide and snap home
+      this.recallToPark()
+    }, STALE_DRIVER_MS)
+  }
+
+  private clearStaleDriverCheck() {
+    if (this.staleDriverTimer) {
+      clearTimeout(this.staleDriverTimer)
+      this.staleDriverTimer = null
+    }
+  }
+
+  /** stranded far from the lot, or overdue empty timer (e.g. after reload) */
+  private maybeRecoverAbandoned() {
+    if (!this.isDriveable || !this.mesh) return
+    if (this.driverUuid) {
+      if (!this.isDriverPresent(this.driverUuid)) this.scheduleStaleDriverCheck()
+      return
+    }
+    if (!this.emptySince && !this.isAwayFromPark()) return
+    const wait = this.isAwayFromPark() ? 8_000 : EMPTY_RECALL_MS
+    if (this.emptySince && Date.now() - this.emptySince >= wait) this.recallToPark()
+    else if (this.emptySince || this.isAwayFromPark()) {
+      if (!this.emptySince) this.emptySince = Date.now()
+      this.scheduleEmptyRecall(wait)
     }
   }
 
@@ -426,8 +491,13 @@ export class Megavox extends VoxModel<MegavoxRecord> {
       if (wasUs && next && next !== window.connector?.persona?.uuid) {
         ;(window.connector?.controls as any)?.stopVehicle?.()
       }
-      if (!next && state.emptySince) this.scheduleEmptyRecall()
-      else if (next) this.clearEmptyRecall()
+      if (next) {
+        this.clearEmptyRecall()
+        if (!this.isDriverPresent(next)) this.scheduleStaleDriverCheck()
+        else this.clearStaleDriverCheck()
+      } else if (state.emptySince) {
+        this.scheduleEmptyRecall(this.isAwayFromPark() ? 8_000 : EMPTY_RECALL_MS)
+      }
     }
     if (state.recall || (state.position && !this.driverUuid)) {
       if (Array.isArray(state.position) && Array.isArray(state.rotation)) {
@@ -437,13 +507,28 @@ export class Megavox extends VoxModel<MegavoxRecord> {
       // remote driver with home parcel loaded: keep lot feature pose in sync (usually hidden)
       this.applyDrivePose(state.position as [number, number, number], state.rotation as [number, number, number])
     }
+    this.maybeRecoverAbandoned()
   }
 
   override dispose() {
+    // unloading mid-recall kills the timer and strands the pose in shard state — snap home first
+    if (this.isDriveable && this.mesh && (!this.driverUuid || !this.isDriverPresent(this.driverUuid!)) && this.isAwayFromPark()) {
+      try {
+        const pos = (this.description.position as [number, number, number]) || [0, 0, 0]
+        const rot = (this.description.rotation as [number, number, number]) || [0, 0, 0]
+        this.driverUuid = null
+        this.emptySince = null
+        this.broadcastDriveState({ recall: true, position: pos, rotation: rot, driverUuid: null, emptySince: null })
+      } catch {}
+    }
     this.clearEmptyRecall()
+    this.clearStaleDriverCheck()
     super.dispose()
   }
 }
+
+const EMPTY_RECALL_MS = 30_000
+const STALE_DRIVER_MS = 15_000
 
 Megavox.Editor = class MegavoxEditor extends Editor {
   constructor(props: FeatureEditorProps<VoxModel>) {

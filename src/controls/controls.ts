@@ -944,7 +944,9 @@ export default abstract class Controls implements IControls {
     this.vehicleFacingNudge = 0
     if (car) {
       try {
-        car.releaseDriver(this.persona.uuid)
+        // left far from the lot: snap home now. unloading the parcel would kill the recall timer and strand it.
+        if (car.isAwayFromPark()) car.recallToPark()
+        else car.releaseDriver(this.persona.uuid)
       } catch {}
       try {
         car.mesh?.freezeWorldMatrix()
