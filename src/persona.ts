@@ -245,8 +245,11 @@ export default class Persona {
     // spin the avatar around when walking backwards (but only in 3rd person view)
     this.facingForward = this.firstPersonView || controls.facingForward
     // if in third person mode, only set avatar direction when walking (so that the avatar isn't following the camera direction)
-    // while driving, face the car yaw every frame
-    if (this.firstPersonView || controls.vehicleFeature || this.state[this.state.length - 1] instanceof States.Moving) {
+    const driveYaw = controls.getVehicleDriveYaw?.() ?? null
+    if (driveYaw != null) {
+      // seated: face the car nose, not the orbiting camera
+      this.rotation.y = driveYaw
+    } else if (this.firstPersonView || this.state[this.state.length - 1] instanceof States.Moving) {
       this.rotation.y = rotation.y
     }
 
