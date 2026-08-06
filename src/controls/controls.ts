@@ -826,10 +826,12 @@ export default abstract class Controls implements IControls {
   findNearbyDriveable(): import('../features/vox-model').Megavox | null {
     const grid = this.grid
     if (!grid) return null
-    // persona is world/grid; absolutePosition is scene-absolute (includes worldOffset)
+    // persona is world/grid; mesh absolute / bb is scene-absolute (includes worldOffset)
     const me = this.persona.position.add(this.worldOffset.position)
     let best: import('../features/vox-model').Megavox | null = null
-    let bestD = 4 * 4
+    let bestD = Infinity
+    // distance to the mesh surface (not the pivot) - megavox cars are often wider than 4m
+    const reachSq = 2.5 * 2.5
     const parcels = this.grid.parcels
     if (!parcels) return null
     for (const parcel of parcels.values()) {
@@ -837,10 +839,17 @@ export default abstract class Controls implements IControls {
         if (f?.type !== 'megavox') continue
         const m = f as import('../features/vox-model').Megavox
         if (!m.isDriveable || !m.mesh) continue
-        const p = m.absolutePosition
-        if (!p) continue
-        const d = BABYLON.Vector3.DistanceSquared(me, p)
-        if (d < bestD) {
+        const bb = m.boundingBox
+        let d: number
+        if (bb) {
+          const closest = BABYLON.Vector3.Clamp(me, bb.minimumWorld, bb.maximumWorld)
+          d = BABYLON.Vector3.DistanceSquared(me, closest)
+        } else {
+          const p = m.absolutePosition
+          if (!p) continue
+          d = BABYLON.Vector3.DistanceSquared(me, p)
+        }
+        if (d < reachSq && d < bestD) {
           bestD = d
           best = m
         }
