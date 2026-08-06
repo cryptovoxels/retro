@@ -980,12 +980,13 @@ export default abstract class Controls implements IControls {
   } | null {
     const car = this.vehicleFeature
     if (!car?.mesh) return null
-    const scale = car.description.scale as [number, number, number] | undefined
+    // live mesh.scaling matches what the driver sees (includes cubescale / nudge tweaks)
+    const s = car.mesh.scaling
     return {
       featureUuid: car.uuid,
       homeParcelId: car.parcel.id,
       voxUrl: String(car.description.url || ''),
-      scale: scale ? [scale[0], scale[1], scale[2]] : [1, 1, 1],
+      scale: [s.x || 1, s.y || 1, s.z || 1],
       yaw: car.mesh.rotation.y,
     }
   }

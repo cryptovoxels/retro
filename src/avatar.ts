@@ -244,7 +244,6 @@ export default class Avatar extends Entity {
       const url = payload.voxUrl ? Config.voxModelURL(payload.voxUrl, undefined, 'megavox') : `${process.env.ASSET_PATH}/models/vox-five.vox`
       const mesh = await voxImporter().import(url, {
         megavox: true,
-        sizeHint: new BABYLON.Vector3(payload.scale[0], payload.scale[1], payload.scale[2]),
         wantCollider: false,
       } as any)
       if (gen !== this._vehicleLoadGen) {
@@ -255,8 +254,16 @@ export default class Avatar extends Entity {
       this._vehicleMesh = mesh
       mesh.isPickable = false
       mesh.checkCollisions = false
-      // world-space under same parent as avatar node
-      mesh.parent = this.node.parent
+      mesh.rotationQuaternion = null
+      // same as Feature.setCommon — vertices are already in meters; scale is mesh.scaling only once
+      const sx = Math.max(1e-4, Number(payload.scale[0]) || 1)
+      const sy = Math.max(1e-4, Number(payload.scale[1]) || 1)
+      const sz = Math.max(1e-4, Number(payload.scale[2]) || 1)
+      mesh.scaling.set(sx, sy, sz)
+      // worldOffset sibling of the avatar node (not under the skeleton — that shears/stretches)
+      const root = this.node.parent
+      if (root) mesh.setParent(root)
+      else mesh.parent = null
       this.syncVehicleMeshPose()
       this.hideHomeParkedCar(payload)
     } catch (e) {
@@ -276,10 +283,10 @@ export default class Avatar extends Entity {
     const mesh = this._vehicleMesh
     const v = this._vehicle
     if (!mesh || !v || !this.hasPosition) return
+    mesh.rotationQuaternion = null
     mesh.position.copyFrom(this.position)
     mesh.position.y -= 0.2
-    mesh.rotation.y = v.yaw
-    if (v.scale) mesh.scaling.fromArray(v.scale)
+    mesh.rotation.set(0, v.yaw, 0)
   }
 
   get main() {
