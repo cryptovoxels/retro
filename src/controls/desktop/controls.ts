@@ -252,9 +252,14 @@ export default class DesktopControls extends Controls {
       }
 
       if (e.code === 'KeyE') {
-        this.tryEnterVehicle()
+        // stop bubble so document KeyE (edit feature) does not toggle us straight back out / open the editor
+        if (this.vehicleFeature || this.findNearbyDriveable()) {
+          e.stopPropagation()
+          this.tryEnterVehicle()
+        }
       }
       if (e.code === 'Escape' && this.vehicleFeature) {
+        e.stopPropagation()
         this.stopVehicle()
       }
 

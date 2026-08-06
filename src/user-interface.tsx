@@ -420,7 +420,18 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.keyboardHandler = new KeyboardHandler(this.props.scene, {
       keyDown: [
         { key: '!', handleEvent: () => {} },
-        { code: 'KeyE', handleEvent: () => this.editFeatureIfHasLock() },
+        {
+          code: 'KeyE',
+          handleEvent: () => {
+            // canvas may not have focus (no pointer lock) - still allow hop-in / exit here
+            const c = this.connector.controls
+            if (c.vehicleFeature || c.findNearbyDriveable()) {
+              c.tryEnterVehicle()
+              return
+            }
+            this.editFeatureIfHasLock()
+          },
+        },
         { code: 'KeyX', handleEvent: () => this.deleteFeature() },
         { code: 'Backspace', handleEvent: () => this.deleteFeature() },
         { code: 'KeyM', handleEvent: () => this.editFeatureThenMove() },
@@ -527,6 +538,10 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   // the one ESC: leave fullscreen/theatre. two-step -- a locked pointer eats the
   // first ESC (browser releases it), the next ESC exits /play back to the parcel.
   onEscape() {
+    if (this.connector.controls.vehicleFeature) {
+      this.connector.controls.stopVehicle()
+      return
+    }
     if (document.fullscreenElement) {
       void document.exitFullscreen()
       return
