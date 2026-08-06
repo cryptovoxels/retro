@@ -561,6 +561,11 @@ header:has(nav) {
   height: 100vh;
   overflow-y: auto;
   box-sizing: border-box;
+
+  // desktop keeps the full column; mobile uses .site-nav-toggle
+  > .site-nav-toggle {
+    display: none;
+  }
 }
 
 header nav {
@@ -1054,6 +1059,83 @@ body.in-world.sidebar-closed main:has(> .client-world),
 body.in-world main:has(> .client-world):not(:has(> aside)) {
   grid-template-columns: auto 1fr;
   grid-template-areas: 'header world';
+}
+
+// left column eats the phone; park it in a drawer (after desktop grid rules so cascade wins)
+@media @narrow {
+  main {
+    grid-template-columns: 1fr;
+
+    > header,
+    > :not(header) {
+      grid-column: 1;
+    }
+  }
+
+  header:has(nav) {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(16rem, 85vw);
+    height: 100vh;
+    z-index: 1000;
+    background: var(--bg);
+    transform: translateX(-100%);
+    transition: transform 150ms ease-out;
+    pointer-events: none;
+
+    > .site-nav-toggle {
+      display: block;
+      position: absolute;
+      left: 100%;
+      top: 0.5rem;
+      margin-left: 0.25rem;
+      pointer-events: auto;
+      z-index: 1001;
+      background: var(--bg);
+      color: var(--fg);
+      box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
+    }
+
+    &.nav-open {
+      transform: none;
+      pointer-events: auto;
+    }
+
+    nav {
+      pointer-events: auto;
+    }
+  }
+
+  body.in-world {
+    main:has(> .client-world) {
+      grid-template-columns: 1fr;
+      grid-template-areas: 'world';
+    }
+
+    main:has(> .client-world):has(> aside) {
+      grid-template-columns: 1fr min(23rem, 100%);
+      grid-template-areas: 'world sidebar';
+    }
+
+    &.sidebar-closed main:has(> .client-world),
+    main:has(> .client-world):not(:has(> aside)) {
+      grid-template-columns: 1fr;
+      grid-template-areas: 'world';
+    }
+
+    // beat desktop in-world header { position: relative; pointer-events: auto }
+    main:has(> .client-world) > header {
+      grid-area: unset;
+      position: fixed;
+      pointer-events: none;
+
+      &.nav-open {
+        pointer-events: auto;
+      }
+    }
+  }
 }
 
 aside.-closed {
