@@ -503,10 +503,9 @@ export class Megavox extends VoxModel<MegavoxRecord> {
       if (Array.isArray(state.position) && Array.isArray(state.rotation)) {
         this.applyDrivePose(state.position as [number, number, number], state.rotation as [number, number, number])
       }
-    } else if (this.driverUuid && this.driverUuid !== window.connector?.persona?.uuid && Array.isArray(state.position) && Array.isArray(state.rotation)) {
-      // remote driver with home parcel loaded: keep lot feature pose in sync (usually hidden)
-      this.applyDrivePose(state.position as [number, number, number], state.rotation as [number, number, number])
     }
+    // while someone else drives, leave the lot mesh on the park spot (hidden). remotes see the avatar vehicle ghost —
+    // applying drive pose here sheared/stretched frozen meshes for bystanders.
     this.maybeRecoverAbandoned()
   }
 
