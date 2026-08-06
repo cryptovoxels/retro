@@ -279,12 +279,7 @@ export default abstract class Controls implements IControls {
   // Ben's reticule pick (1c4cec3) used scene.pick() without pointerMovePredicate, so build-mode
   // picks hit avatar/features instead of voxel colliders. Tools pass useMovePredicate=true;
   // context menu / locked click use unpredicated center ray when no tool is active.
-  pickAtView(
-    x?: number,
-    y?: number,
-    useMovePredicate = false,
-    predicateOverride?: (mesh: BABYLON.AbstractMesh) => boolean,
-  ): BABYLON.PickingInfo | null {
+  pickAtView(x?: number, y?: number, useMovePredicate = false, predicateOverride?: (mesh: BABYLON.AbstractMesh) => boolean): BABYLON.PickingInfo | null {
     const cam = this.camera
     if (!cam) return null
 
@@ -926,7 +921,7 @@ export default abstract class Controls implements IControls {
     if (car.parcel.canEdit) {
       const cur = Number((car.description as { driveYawOffset?: number }).driveYawOffset) || 0
       const twoPi = Math.PI * 2
-      const next = ((cur + delta) % twoPi + twoPi) % twoPi
+      const next = (((cur + delta) % twoPi) + twoPi) % twoPi
       car.set({ driveYawOffset: next } as any)
       this.vehicleFacingNudge = 0
     } else {
