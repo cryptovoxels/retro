@@ -2,6 +2,7 @@ import { Component } from 'preact'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { convertDataURItoJPGFile, uploadMedia } from '../../common/helpers/upload-media'
 import { PanelType } from '../../web/src/components/panel'
+import { track } from '../../web/src/helpers/umami'
 import { app } from '../../web/src/state'
 import { wompFlash } from '../graphic/womp-flash'
 import { MinimapSettings } from '../minimap'
@@ -86,6 +87,7 @@ export default class TakeWomp extends Component<Props, State> {
     }
 
     playWompSound()
+    track('create_womp')
 
     minimapSettings.hide = true
 

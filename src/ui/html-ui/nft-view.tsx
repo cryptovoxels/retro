@@ -7,6 +7,7 @@ import { unmountComponentAtNode } from 'preact/compat'
 import type NftImage from '../../features/nft-image'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { truncate } from '../../../web/src/lib/string-utils'
+import { track } from '../../../web/src/helpers/umami'
 
 async function textureToDataUrl(tex: BABYLON.BaseTexture): Promise<string | null> {
   try {
@@ -229,6 +230,8 @@ export default function showNftView(feature: NftImage) {
   if (!asset) {
     return
   }
+
+  track('view_nft')
 
   if (node) {
     unmountComponentAtNode(node)

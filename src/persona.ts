@@ -6,6 +6,7 @@ import Connector from './connector'
 import { Animations, isCongaSyncedDance } from './avatar-animations'
 import * as States from './states'
 import { app, AppEvent } from '../web/src/state'
+import { track } from '../web/src/helpers/umami'
 import Avatar, { LoadUserAvatar } from './avatar'
 import { decodeCoordsFromURL } from './utils/helpers'
 import { wantsXR } from '../common/helpers/detector'
@@ -162,6 +163,7 @@ export default class Persona {
       console.warn('Invalid coords', coordsOrUrl)
       return
     }
+    track('teleport')
     this.teleportNoHistory(coords)
 
     // Push the DESTINATION into history. Use oldPushState so the monkey-patched

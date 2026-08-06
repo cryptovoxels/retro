@@ -3,6 +3,7 @@ import type { AvatarRef } from '../common/messages/avatar-ref'
 import * as messages from '../common/messages'
 import { MessageType } from '../common/messages'
 import { PanelType } from '../web/src/components/panel'
+import { track } from '../web/src/helpers/umami'
 import { app, AppEvent } from '../web/src/state'
 import { Animations } from './avatar-animations'
 import Avatar, { AvatarRecord, LoadAvatar } from './avatar'
@@ -808,6 +809,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       return
     }
 
+    track('chat')
     this.sendMetric(messages.Action.Chat)
 
     // Show speech bubble?

@@ -11,6 +11,7 @@ import VertexShader from '../shaders/ao-mesh.vsh'
 import FragmentShader from '../shaders/ao-mesh.fsh'
 import { createGlassMaterial } from '../materials/glass'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
+import { track } from '../../web/src/helpers/umami'
 
 /*
  * Fixme - this needs some refactoring around selection mode and selection
@@ -38,6 +39,8 @@ interface Selection {
   tint?: number
   count?: number
 }
+
+let lastBlockEdit = 0 // leading-edge throttle: fire once, then ignore for 60s
 
 export type SelectionModeOptions = {
   start?: BABYLON.Vector3
@@ -287,6 +290,12 @@ export default class Selector implements Tool {
   }
 
   async placeBlocks(parcel: Parcel, a: BABYLON.Vector3, b: BABYLON.Vector3, block: number) {
+    const now = Date.now()
+    if (now - lastBlockEdit >= 60_000) {
+      lastBlockEdit = now
+      track('block_edit')
+    }
+
     const bounds = this.getBounds(a, b)
     const { minimum, maximum } = bounds
 

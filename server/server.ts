@@ -199,6 +199,18 @@ app.use(responseTime())
 
 preCorsController(passport, app)
 
+app.use(
+  '/um',
+  cache(false),
+  proxy('https://cloud.umami.is', {
+    proxyReqPathResolver: (req) => req.url,
+    proxyReqOptDecorator: (opts, srcReq) => {
+      opts.headers['x-forwarded-for'] = srcReq.ip
+      return opts
+    },
+  }),
+)
+
 // in dev mode we need to proxy to the webpack dev servers
 if (config.isDevelopment) {
   const protocol = 'http'

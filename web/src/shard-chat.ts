@@ -4,6 +4,7 @@ import { signal } from '@preact/signals'
 import { avatarName, type AvatarRef } from '../../common/messages/avatar-ref'
 import * as messages from '../../common/messages'
 import { messageList } from '../../src/connector'
+import { track } from './helpers/umami'
 import { app } from './state'
 
 const clientUUID = uuid()
@@ -120,6 +121,7 @@ export function sendChat(text: string) {
     uuid: clientUUID,
     text: trimmed,
   })
+  track('chat')
   return true
 }
 

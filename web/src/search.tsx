@@ -6,6 +6,7 @@ import { ssrFriendlyWindow } from '../../common/helpers/utils'
 import Head from './components/head'
 import PaginationLinks from './components/pagination-links'
 import cachedFetch from './helpers/cached-fetch'
+import { track } from './helpers/umami'
 import { getWearableGif } from './helpers/wearable-helpers'
 import { Spinner } from './spinner'
 import { fetchOptions } from './utils'
@@ -198,6 +199,7 @@ export default class Search extends Component<Props, State> {
       return
     }
 
+    track('search')
     this.controller = new AbortController()
 
     const r = await cachedFetch(`/api/search?q=${encodeURIComponent(this.query!)}`, fetchOptions(this.controller), ttl)

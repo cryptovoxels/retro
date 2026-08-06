@@ -15,6 +15,7 @@ import Footer from './footer'
 import Home from './home'
 import { Client } from './client'
 import { getCoords, getParcelId, isEmbedClientPath, isFullClientPath, notifyUrlChange, syncParcelUrl } from './helpers/coords-nav'
+import { track, trackPage } from './helpers/umami'
 import WebHeader from './web-header'
 
 import { useEffect, useState } from 'preact/hooks'
@@ -30,9 +31,11 @@ applyTheme()
 class MainApp extends Component {
   componentDidMount() {
     app.on(AppEvent.Login, () => {
+      track('login')
       this.forceUpdate()
     })
     app.on(AppEvent.Logout, () => {
+      track('logout')
       this.forceUpdate()
     })
   }
@@ -68,6 +71,10 @@ const Main = () => {
     if (/^\/parcels\/\d+\/visit$/.test(e.url)) {
       window.location.href = e.url
     }
+
+    const path = e.url.split('?')[0]
+    trackPage(path)
+    if (path === '/shop') track('visit_shop')
 
     setCurrentPath(e.url)
     setUrlSearch(location.search)
