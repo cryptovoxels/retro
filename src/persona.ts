@@ -137,6 +137,8 @@ export default class Persona {
   // teleports a user without adding the previous location to the browser. Might be good for moving players
 
   isMoving() {
+    // car motion moves the camera every frame - don't treat that as walking
+    if (this.controls.vehicleFeature) return false
     return !cameraPosition(this.scene).equalsWithEpsilon(this.position, this.wantsXR ? 0.05 : 0.02)
   }
 
@@ -243,7 +245,8 @@ export default class Persona {
     // spin the avatar around when walking backwards (but only in 3rd person view)
     this.facingForward = this.firstPersonView || controls.facingForward
     // if in third person mode, only set avatar direction when walking (so that the avatar isn't following the camera direction)
-    if (this.firstPersonView || this.state[this.state.length - 1] instanceof States.Moving) {
+    // while driving, face the car yaw every frame
+    if (this.firstPersonView || controls.vehicleFeature || this.state[this.state.length - 1] instanceof States.Moving) {
       this.rotation.y = rotation.y
     }
 
@@ -253,6 +256,11 @@ export default class Persona {
       if (isCongaSyncedDance(frontAnim)) {
         this._animation = frontAnim
       }
+    }
+
+    // driving: stay seated (isMoving is false, but Idle would still set Walk off)
+    if (controls.vehicleFeature) {
+      this._animation = Animations.Sitting
     }
 
     //Directly call move avatar function to move current user avatar

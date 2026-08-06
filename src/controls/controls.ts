@@ -894,7 +894,10 @@ export default abstract class Controls implements IControls {
     // features freeze their world matrix after setCommon - thaw so drive pose updates show up
     car.mesh?.unfreezeWorldMatrix()
     if (car.mesh?.rotationQuaternion) car.mesh.rotationQuaternion = null
-    if (this.firstPersonView) this.enterThirdPerson(3)
+    this.persona.audio?.footstepSounds?.noStep()
+    this.persona.animation = Animations.Sitting
+    // start in chase cam so you can see the car; C still toggles first/third while driving
+    if (this.firstPersonView) this.enterThirdPerson(5)
     this.setVehicleHint(null)
     this.refreshMobileDriveChrome?.()
   }
@@ -1064,8 +1067,7 @@ export default abstract class Controls implements IControls {
       this.camera.position.copyFrom(abs.subtract(this.worldOffset.position))
       this.camera.position.y += 1.2
       this.camera.rotation.y = yaw
-      if (this.firstPersonView) this.enterThirdPerson(3.5)
-      this.targetCameraDistance = 3.5
+      // don't force third person / distance every frame - let C toggle and scroll zoom work
     }
 
     const now = Date.now()
