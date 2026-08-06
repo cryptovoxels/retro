@@ -279,7 +279,12 @@ export default abstract class Controls implements IControls {
   // Ben's reticule pick (1c4cec3) used scene.pick() without pointerMovePredicate, so build-mode
   // picks hit avatar/features instead of voxel colliders. Tools pass useMovePredicate=true;
   // context menu / locked click use unpredicated center ray when no tool is active.
-  pickAtView(x?: number, y?: number, useMovePredicate = false): BABYLON.PickingInfo | null {
+  pickAtView(
+    x?: number,
+    y?: number,
+    useMovePredicate = false,
+    predicateOverride?: (mesh: BABYLON.AbstractMesh) => boolean,
+  ): BABYLON.PickingInfo | null {
     const cam = this.camera
     if (!cam) return null
 
@@ -294,7 +299,7 @@ export default abstract class Controls implements IControls {
         cam.position.copyFrom(this.persona.position.add(back.scale(this.cameraDistance)))
       }
 
-      const predicate = useMovePredicate ? this.scene.pointerMovePredicate : undefined
+      const predicate = predicateOverride ?? (useMovePredicate ? this.scene.pointerMovePredicate : undefined)
       const engine = this.scene.getEngine()
       // scene.pick wants CSS pixels; getRenderWidth is device pixels. Convert via the hardware
       // scaling level (set to 1/dpr) or the reticule center is off by dpr on hi-dpi screens.
@@ -308,6 +313,14 @@ export default abstract class Controls implements IControls {
     } finally {
       cam.position.copyFrom(saved)
     }
+  }
+
+  // Highlight only: isInteract features + voxel-field occlusion. Skips vox/megavox/cube/polytext.
+  reticuleHighlightPredicate(mesh: BABYLON.AbstractMesh): boolean {
+    if (!mesh.isPickable || !mesh.isVisible || !mesh.isEnabled()) return false
+    if (mesh.name.startsWith('voxel-field/collider') || mesh.name.startsWith('voxelizer/')) return true
+    const f = (mesh as MeshExtended).feature ?? (mesh.parent as MeshExtended | null)?.feature
+    return !!f?.isInteract
   }
 
   pickAtReticule() {

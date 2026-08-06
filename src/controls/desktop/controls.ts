@@ -164,7 +164,9 @@ export default class DesktopControls extends Controls {
         break
 
       case BABYLON.PointerEventTypes.POINTERMOVE:
-        const pick = hasPointerLock() ? this.pickAtReticule() : eventData.pickInfo
+        const pick = hasPointerLock()
+          ? this.pickAtView(undefined, undefined, false, (m) => this.reticuleHighlightPredicate(m))
+          : eventData.pickInfo
         const feature = featureFromPick(pick)
         const distance = pick?.distance || Infinity
         this.setActiveReticule(!!feature?.isInteract && distance < this.MAX_PICK_DISTANCE)
