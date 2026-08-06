@@ -332,7 +332,7 @@ export class Megavox extends VoxModel<MegavoxRecord> {
   override whatIsThis() {
     return (
       <label>
-        A large .vox model (megavox). Check <em>driveable</em> to let anyone hop in with E / Drive and cruise the island. Forward is local -Z (typical vox nose) - rotate the model if it drives sideways.
+        A large .vox model (megavox). Check <em>driveable</em> to let anyone hop in with E / Drive and cruise the island. While seated, press <em>T</em> to flip facing if you are backwards.
       </label>
     )
   }
@@ -510,7 +510,7 @@ Megavox.Editor = class MegavoxEditor extends Editor {
                       this.setState({ driveable, collidable: driveable ? true : this.state.collidable })
                     }}
                   />
-                  <small> anyone can hop in with E / Drive. forward is local -Z - rotate if it drives sideways.</small>
+                  <small> anyone can hop in with E / Drive. seated: T flips facing (saved if you can edit).</small>
                 </dd>
                 {!!this.state.driveable && (
                   <dd class="full">
