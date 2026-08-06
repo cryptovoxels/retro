@@ -901,6 +901,7 @@ export default abstract class Controls implements IControls {
     this.vehicleFacingNudge = 0
     // start in chase cam so you can see the car; C still toggles first/third while driving
     if (this.firstPersonView) this.enterThirdPerson(5)
+    this.camera.rotation.y = this.driveFacingYaw(car)
     this.setVehicleHint('T flip facing · C camera · E exit')
     this.refreshMobileDriveChrome?.()
   }
@@ -918,7 +919,14 @@ export default abstract class Controls implements IControls {
     } else {
       this.vehicleFacingNudge += delta
     }
+    this.camera.rotation.y += delta
     this.setVehicleHint('facing flipped')
+  }
+
+  /** yaw the seated avatar / W should use; null if not driving */
+  getVehicleDriveYaw(): number | null {
+    if (!this.vehicleFeature) return null
+    return this.driveFacingYaw(this.vehicleFeature)
   }
 
   private driveFacingYaw(car: import('../features/vox-model').Megavox): number {
@@ -1090,8 +1098,7 @@ export default abstract class Controls implements IControls {
     if (abs) {
       this.camera.position.copyFrom(abs.subtract(this.worldOffset.position))
       this.camera.position.y += 1.2
-      this.camera.rotation.y = this.driveFacingYaw(car)
-      // don't force third person / distance every frame - let C toggle and scroll zoom work
+      // mouse owns look (pitch + yaw); car facing is separate via getVehicleDriveYaw
     }
 
     const now = Date.now()
