@@ -229,7 +229,10 @@ app.post('/um/api/send', cache(false), async (req, res) => {
       body: JSON.stringify(body),
     })
     const text = await r.text()
-    res.status(r.status).type(r.headers.get('content-type') || 'application/json').send(text)
+    res
+      .status(r.status)
+      .type(r.headers.get('content-type') || 'application/json')
+      .send(text)
   } catch {
     res.status(502).end()
   }

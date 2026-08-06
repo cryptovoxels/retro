@@ -530,6 +530,7 @@ export default abstract class Controls implements IControls {
   }
 
   setFlying(value: boolean) {
+    if (!value) this.groundReady = true
     this.flying = value
   }
 
