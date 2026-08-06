@@ -32,7 +32,24 @@
   --semi: rgba(13, 13, 13, 0.85);
   --bright: var(--fg);
   --dark: var(--bg);
+  --surface: #fff;
   --chatbar: 3rem;
+}
+
+// opt-in via Settings; localStorage key "theme"
+html[data-theme='dark'] {
+  --bg: #0d0d0d;
+  --fg: #f5f5f0;
+  --line: #ddd;
+  --line-trans: #ddda;
+  --scroll-track: #222;
+  --disabled: #888;
+  --muted: #999;
+  --muted-2: #aaa;
+  --border-color: #444;
+  --hover: #1a1a1a;
+  --semi: rgba(13, 13, 13, 0.9);
+  --surface: #1f1f1f;
 }
 
 // --- fonts ---
@@ -389,7 +406,7 @@ select {
   padding: var(--gap);
   border: var(--border);
   border-width: 2px;
-  background: white;
+  background: var(--surface);
 
   > :last-child {
     margin-left: auto;
@@ -455,7 +472,7 @@ select {
   width: 2.5rem;
   height: 1.5rem;
   padding: 0;
-  background: white;
+  background: var(--surface);
   border: 3px solid #555;
   border-radius: 1rem;
   position: relative;
@@ -535,7 +552,7 @@ a.buttonish {
   display: inline-block;
   border: var(--border);
   border-radius: 0.5rem;
-  background: white;
+  background: var(--surface);
   color: unset;
   font-weight: bold;
   text-decoration: none;
@@ -600,6 +617,15 @@ header nav {
     margin: 2rem 0;
     min-width: 0;
     max-width: none;
+  }
+
+  .theme-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.5rem 1rem;
+    cursor: pointer;
+    white-space: nowrap;
   }
 }
 
@@ -2698,7 +2724,7 @@ button.iconish {
       opacity: 0.8;
       display: inline-block;
       cursor: pointer;
-      background: white;
+      background: var(--surface);
       box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
       border-radius: 0.8rem;
       padding: 0.1rem 0.5rem;
@@ -3944,7 +3970,7 @@ button.TakeWompButton {
   right: 1rem;
   top: 1rem;
   border: 1px solid var(--fg);
-  background: white;
+  background: var(--surface);
   color: var(--fg);
   padding: 0.5rem 1rem;
   cursor: pointer;
@@ -4377,7 +4403,7 @@ div.mobile-buttons {
 
 /* Overlay windows (admin / nft / take-womp etc) */
 dialog {
-  background: white;
+  background: var(--surface);
   border: none;
   border-radius: 1rem;
   box-shadow: 0.5rem 0.5rem 1rem rgba(0, 0, 0, 0.3);
@@ -4385,7 +4411,7 @@ dialog {
   position: absolute;
   left: 50%;
   top: 50%;
-  color: black;
+  color: var(--fg);
   min-width: 20rem;
   max-width: 50vw;
   margin: 0;
@@ -4868,7 +4894,7 @@ div.css-icon {
 }
 
 .for-sale-pin {
-  background: white;
+  background: var(--surface);
   border: var(--border);
   border-width: 2px;
   border-radius: 1rem;

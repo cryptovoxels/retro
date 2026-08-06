@@ -9,6 +9,7 @@ import type { MinimapSettings } from '../minimap'
 import { chatSettings } from './interact/chat'
 import { voiceSettings } from '../voice-settings'
 import { DEFAULT_SENSITIVITY, MAX_SENSITIVITY, MIN_SENSITIVITY } from '../controls/user-control-settings'
+import { getTheme, setTheme } from '../../common/helpers/theme'
 
 function toReversedPercentage(value: number, min: number, max: number): number {
   return ((max - value) / (max - min)) * 100
@@ -55,6 +56,7 @@ interface State {
   voicePitch: number
   voiceMonitor: boolean
   voiceInputDevices: InputDevice[]
+  darkMode: boolean
 }
 
 export class SettingsUI extends Component<Props, State> {
@@ -74,6 +76,7 @@ export class SettingsUI extends Component<Props, State> {
       voicePitch: voiceSettings.pitch,
       voiceMonitor: voiceSettings.monitor,
       voiceInputDevices: [{ label: 'Default', deviceId: 'default' }],
+      darkMode: getTheme() === 'dark',
     }
 
     this.fov.addEventListener(
@@ -251,6 +254,11 @@ export class SettingsUI extends Component<Props, State> {
     this.forceUpdate()
   }
 
+  onToggleDark(inputElement: HTMLInputElement) {
+    setTheme(inputElement.checked ? 'dark' : 'light')
+    this.setState({ darkMode: inputElement.checked })
+  }
+
   onRealisticLightingChange(el: HTMLInputElement) {
     const g = this.state.graphic
     g.realisticLighting = el.checked
@@ -339,6 +347,11 @@ export class SettingsUI extends Component<Props, State> {
             <dt>Show chat</dt>
             <dd>
               <input type="checkbox" onChange={(e) => this.onToggleChat(e.target as HTMLInputElement)} checked={chatSettings.enabled} />
+            </dd>
+
+            <dt>Dark mode</dt>
+            <dd>
+              <input type="checkbox" onChange={(e) => this.onToggleDark(e.target as HTMLInputElement)} checked={this.state.darkMode} />
             </dd>
           </dl>
         </section>
