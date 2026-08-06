@@ -23,6 +23,9 @@ import { ensureRadio } from './radio/global'
 import { app, AppEvent } from './state'
 import { WorldSidebar } from './world-sidebar'
 import { AppRoutes } from './app-routes'
+import { applyTheme } from '../../common/helpers/theme'
+
+applyTheme()
 
 class MainApp extends Component {
   componentDidMount() {
