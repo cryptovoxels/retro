@@ -1031,9 +1031,9 @@ export default abstract class Controls implements IControls {
     if (Math.abs(turn) > 0.01) car.mesh.rotation.y += turn * turnSpeed * dt
     if (Math.abs(forward) > 0.01) {
       const yaw = car.mesh.rotation.y
-      // local +Z forward
-      car.mesh.position.x += Math.sin(yaw) * forward * speed * dt
-      car.mesh.position.z += Math.cos(yaw) * forward * speed * dt
+      // vox/megavox models face local -Z; move that way so W goes toward the nose
+      car.mesh.position.x += -Math.sin(yaw) * forward * speed * dt
+      car.mesh.position.z += -Math.cos(yaw) * forward * speed * dt
     }
     car.mesh.position.y = this.vehicleHoverY
     // frozen meshes need freezeWorldMatrix() again to bake the new pose (computeWorldMatrix alone is a no-op when frozen)
@@ -1066,7 +1066,8 @@ export default abstract class Controls implements IControls {
       const yaw = car.mesh.rotation.y
       this.camera.position.copyFrom(abs.subtract(this.worldOffset.position))
       this.camera.position.y += 1.2
-      this.camera.rotation.y = yaw
+      // look the same way we drive (local -Z), not mesh +Z
+      this.camera.rotation.y = yaw + Math.PI
       // don't force third person / distance every frame - let C toggle and scroll zoom work
     }
 
