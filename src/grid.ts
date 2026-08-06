@@ -217,6 +217,10 @@ export default class Grid extends SocketClient {
   }
 
   unload(parcel: Parcel) {
+    // driving keeps the home lot alive — the car mesh lives on that parcel
+    const driven = window.connector?.controls?.vehicleFeature as { disposed?: boolean; parcel?: { id: number } } | null | undefined
+    if (driven && !driven.disposed && driven.parcel?.id === parcel.id) return
+
     // clear any pending tasks for this parcel
     window.main?.pump.clearParcelTasksForID(parcel.id)
 
@@ -239,6 +243,13 @@ export default class Grid extends SocketClient {
     if (userIndex >= 0) {
       window.user.parcels.splice(userIndex, 1)
     }
+  }
+
+  /** after exiting a car that had pinned its home lot past draw distance */
+  unloadIfBeyondDraw(parcel: Parcel) {
+    if (!this.parcels.has(parcel.id)) return
+    if (parcel.toCamera().length() <= this.unloadDistance) return
+    this.unload(parcel)
   }
 
   getByID(id: number): Parcel | undefined {
