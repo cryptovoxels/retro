@@ -508,6 +508,8 @@ export const MegavoxRecord = t.intersection(
       {
         // hop in with E / Drive and cruise; auto-enables collidable in the editor
         driveable: t.boolean,
+        // extra radians on top of the default vox -Z facing (T while seated nudges this)
+        driveYawOffset: t.number,
       },
       'megavoxfields',
     ),

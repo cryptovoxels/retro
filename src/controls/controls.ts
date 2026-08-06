@@ -143,6 +143,8 @@ export default abstract class Controls implements IControls {
   vehicleNearby: import('../features/vox-model').Megavox | null = null
   /** mobile / shared: -1..1 forward and turn while driving */
   vehicleSteer = { forward: 0, turn: 0 }
+  /** visitor-only facing nudge when they can't save driveYawOffset */
+  private vehicleFacingNudge = 0
   /** document-level WASD - Babylon camera keyboard often misses keys while speed is 0 / no canvas focus */
   private driveHeld = new Set<string>()
   private onDriveKeyDown = (e: KeyboardEvent) => {
@@ -896,10 +898,33 @@ export default abstract class Controls implements IControls {
     if (car.mesh?.rotationQuaternion) car.mesh.rotationQuaternion = null
     this.persona.audio?.footstepSounds?.noStep()
     this.persona.animation = Animations.Sitting
+    this.vehicleFacingNudge = 0
     // start in chase cam so you can see the car; C still toggles first/third while driving
     if (this.firstPersonView) this.enterThirdPerson(5)
-    this.setVehicleHint(null)
+    this.setVehicleHint('T flip facing · C camera · E exit')
     this.refreshMobileDriveChrome?.()
+  }
+
+  /** While seated: nudge which way is "forward" (W + look). Saves on the megavox if you can edit. */
+  nudgeDriveFacing(delta = Math.PI) {
+    const car = this.vehicleFeature
+    if (!car) return
+    if (car.parcel.canEdit) {
+      const cur = Number((car.description as { driveYawOffset?: number }).driveYawOffset) || 0
+      const twoPi = Math.PI * 2
+      const next = ((cur + delta) % twoPi + twoPi) % twoPi
+      car.set({ driveYawOffset: next } as any)
+      this.vehicleFacingNudge = 0
+    } else {
+      this.vehicleFacingNudge += delta
+    }
+    this.setVehicleHint('facing flipped')
+  }
+
+  private driveFacingYaw(car: import('../features/vox-model').Megavox): number {
+    // default +PI = vox local -Z; driveYawOffset / nudge for seated adjustments
+    const saved = Number((car.description as { driveYawOffset?: number }).driveYawOffset) || 0
+    return (car.mesh?.rotation.y ?? 0) + Math.PI + saved + this.vehicleFacingNudge
   }
 
   stopVehicle() {
@@ -908,6 +933,7 @@ export default abstract class Controls implements IControls {
     this.vehicleSteer.forward = 0
     this.vehicleSteer.turn = 0
     this.driveHeld.clear()
+    this.vehicleFacingNudge = 0
     if (car) {
       try {
         car.releaseDriver(this.persona.uuid)
@@ -1030,10 +1056,9 @@ export default abstract class Controls implements IControls {
 
     if (Math.abs(turn) > 0.01) car.mesh.rotation.y += turn * turnSpeed * dt
     if (Math.abs(forward) > 0.01) {
-      const yaw = car.mesh.rotation.y
-      // vox/megavox models face local -Z; move that way so W goes toward the nose
-      car.mesh.position.x += -Math.sin(yaw) * forward * speed * dt
-      car.mesh.position.z += -Math.cos(yaw) * forward * speed * dt
+      const facing = this.driveFacingYaw(car)
+      car.mesh.position.x += Math.sin(facing) * forward * speed * dt
+      car.mesh.position.z += Math.cos(facing) * forward * speed * dt
     }
     car.mesh.position.y = this.vehicleHoverY
     // frozen meshes need freezeWorldMatrix() again to bake the new pose (computeWorldMatrix alone is a no-op when frozen)
@@ -1063,11 +1088,9 @@ export default abstract class Controls implements IControls {
     // seat: put camera (persona) on the car so sendAvatar carries us with it; chase offset applied in firstOrThirdPersonAdjustment via cameraDistance
     const abs = car.absolutePosition
     if (abs) {
-      const yaw = car.mesh.rotation.y
       this.camera.position.copyFrom(abs.subtract(this.worldOffset.position))
       this.camera.position.y += 1.2
-      // look the same way we drive (local -Z), not mesh +Z
-      this.camera.rotation.y = yaw + Math.PI
+      this.camera.rotation.y = this.driveFacingYaw(car)
       // don't force third person / distance every frame - let C toggle and scroll zoom work
     }
 

@@ -258,6 +258,10 @@ export default class DesktopControls extends Controls {
           this.tryEnterVehicle()
         }
       }
+      if (e.code === 'KeyT' && this.vehicleFeature) {
+        e.stopPropagation()
+        this.nudgeDriveFacing(Math.PI)
+      }
       if (e.code === 'Escape' && this.vehicleFeature) {
         e.stopPropagation()
         this.stopVehicle()
