@@ -949,6 +949,9 @@ export default abstract class Controls implements IControls {
       try {
         car.mesh?.freezeWorldMatrix()
       } catch {}
+      try {
+        this.grid?.unloadIfBeyondDraw?.(car.parcel)
+      } catch {}
     }
     this.enableGravity()
     if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
