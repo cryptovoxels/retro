@@ -127,7 +127,7 @@ export default class WompWall extends Feature2D<WompWallRecord> {
       ctx.fillRect(r.x, r.y, r.w, r.h)
     }
 
-    this.dynamicTexture.update(false)
+    this.dynamicTexture.update()
   }
 
   private scheduleRefresh() {
@@ -193,7 +193,7 @@ export default class WompWall extends Feature2D<WompWallRecord> {
     )
 
     if (this.disposed || gen !== this.paintGen || !this.dynamicTexture) return
-    this.dynamicTexture.update(false)
+    this.dynamicTexture.update()
   }
 
   addEvents(mesh?: any) {
@@ -214,15 +214,25 @@ export default class WompWall extends Feature2D<WompWallRecord> {
   }
 
   onClick(_event: FeatureEvent) {
-    if (!this.mesh || !this.lastPick?.pickedPoint) return
-    const inv = BABYLON.Matrix.Invert(this.mesh.getWorldMatrix())
-    const local = BABYLON.Vector3.TransformCoordinates(this.lastPick.pickedPoint, inv)
-    // plane size 1: x/y in [-0.5, 0.5], y up → u/v 0..1 with v from bottom
-    const index = tileIndexFromUv(local.x + 0.5, local.y + 0.5)
+    const index = this.tileIndexFromPick(this.lastPick)
     if (index < 0) return
     const womp = this.tiles[index]
     if (!womp?.id) return
     window.ui?.openLink(`/womps/${womp.id}`)
+  }
+
+  private tileIndexFromPick(pick: BABYLON.PickingInfo | null): number {
+    if (!pick) return -1
+    const uv = pick.getTextureCoordinates()
+    if (uv) return tileIndexFromUv(uv.x, uv.y)
+
+    // fallback: pick points are in grid space (worldOffset already subtracted)
+    if (!this.mesh || !pick.pickedPoint) return -1
+    const offset = window.persona?.controls?.worldOffset?.position
+    const world = pick.pickedPoint.clone()
+    if (offset) world.addInPlace(offset)
+    const local = BABYLON.Vector3.TransformCoordinates(world, BABYLON.Matrix.Invert(this.mesh.getWorldMatrix()))
+    return tileIndexFromUv(local.x + 0.5, local.y + 0.5)
   }
 
   dispose() {
