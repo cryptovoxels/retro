@@ -863,11 +863,13 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         <div class={classes}>
           <Snackbar />
 
-          <div class="top-right">
-            <button onClick={this.enterFullScreen}>⌞ ⌝</button>
+          {!isMobileMedia() && (
+            <div class="top-right">
+              <button onClick={this.enterFullScreen}>⌞ ⌝</button>
 
-            <button onClick={this.enterTheatre}>⛶</button>
-          </div>
+              <button onClick={this.enterTheatre}>⛶</button>
+            </div>
+          )}
 
           <aside data-active={this.state.active}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
