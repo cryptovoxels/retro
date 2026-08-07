@@ -2805,11 +2805,13 @@ main > aside section {
     max-height: 50vh;
     max-width: min(28rem, 72vw);
     overflow: hidden;
-    color: var(--fg);
-    // dark halo over the world — not theme --bg (that chalks out on dark parcels)
+    // HUD over the world: always light glyphs + crisp dark edge (no soft blur mud)
+    color: #fff;
     text-shadow:
-      0 1px 2px rgba(0, 0, 0, 0.85),
-      0 0 3px rgba(0, 0, 0, 0.55);
+      1px 0 0 rgba(0, 0, 0, 0.75),
+      -1px 0 0 rgba(0, 0, 0, 0.75),
+      0 1px 0 rgba(0, 0, 0, 0.75),
+      0 -1px 0 rgba(0, 0, 0, 0.75);
 
     .chat-who {
       font-weight: bold;
