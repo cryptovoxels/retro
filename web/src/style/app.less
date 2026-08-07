@@ -2763,8 +2763,9 @@ main > aside section {
 /* Chat */
 .UserInterface div.chat {
   position: absolute;
-  bottom: 0.5rem;
-  left: 0.5rem;
+  // clear iOS home indicator / mobile browser bottom chrome
+  bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  left: max(0.5rem, env(safe-area-inset-left, 0px));
   z-index: 100;
   display: flex;
   flex-direction: column;
