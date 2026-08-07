@@ -635,11 +635,15 @@ class YoutubePlayer {
     YoutubePlayer.depthMask.zOffset = -16
     YoutubePlayer.depthMask.blockDirtyMechanism = true
 
+    // fixed overlay under UI chrome — must not sit in document flow or a full-size
+    // firstChild pushes header/nav off-screen and eats settings clicks (post Great Merge)
     const container = document.createElement('div')
     container.id = 'youtube-css-container'
+    container.style.cssText = 'position:fixed;inset:0;z-index:1;overflow:hidden;pointer-events:none'
     document.body.insertBefore(container, document.body.firstChild)
 
     YoutubePlayer.renderer = new CSS3DRenderer()
+    YoutubePlayer.renderer.domElement.style.cssText = 'position:absolute;inset:0;pointer-events:none'
     container.appendChild(YoutubePlayer.renderer.domElement)
     YoutubePlayer.renderer.setSize(window.innerWidth, window.innerHeight)
 
