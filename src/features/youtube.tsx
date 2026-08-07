@@ -570,6 +570,7 @@ class YoutubePlayer {
   static initiated: boolean
   static renderObservable: BABYLON.Observer<BABYLON.Scene> | null
   static renderer: CSS3DRenderer
+  static overlayObserver: ResizeObserver | null = null
   div: HTMLDivElement | undefined = undefined
   iframe: HTMLIFrameElement | undefined = undefined
   scene: BABYLON.Scene
@@ -617,6 +618,22 @@ class YoutubePlayer {
     return this.scene.getEngine()
   }
 
+  // pin overlay to the babylon canvas slot (not the full window) so CSS3D matches the push-panel view
+  static syncOverlayToCanvas() {
+    const container = document.getElementById('youtube-css-container')
+    const canvas = document.getElementById('renderCanvas')
+    if (!container || !canvas || !YoutubePlayer.renderer) return
+
+    const r = canvas.getBoundingClientRect()
+    const w = Math.max(0, r.width)
+    const h = Math.max(0, r.height)
+    container.style.top = `${r.top}px`
+    container.style.left = `${r.left}px`
+    container.style.width = `${w}px`
+    container.style.height = `${h}px`
+    YoutubePlayer.renderer.setSize(w, h)
+  }
+
   // COMMANDER WORF - INITIATE!
   static initiate(scene: BABYLON.Scene) {
     if (YoutubePlayer.initiated) {
@@ -639,17 +656,23 @@ class YoutubePlayer {
     // firstChild pushes header/nav off-screen and eats settings clicks (post Great Merge)
     const container = document.createElement('div')
     container.id = 'youtube-css-container'
-    container.style.cssText = 'position:fixed;inset:0;z-index:1;overflow:hidden;pointer-events:none'
+    container.style.cssText = 'position:fixed;top:0;left:0;z-index:1;overflow:hidden;pointer-events:none'
     document.body.insertBefore(container, document.body.firstChild)
 
     YoutubePlayer.renderer = new CSS3DRenderer()
     YoutubePlayer.renderer.domElement.style.cssText = 'position:absolute;inset:0;pointer-events:none'
     container.appendChild(YoutubePlayer.renderer.domElement)
-    YoutubePlayer.renderer.setSize(window.innerWidth, window.innerHeight)
+    YoutubePlayer.syncOverlayToCanvas()
 
-    window.addEventListener('resize', () => {
-      YoutubePlayer.renderer.setSize(window.innerWidth, window.innerHeight)
-    })
+    window.addEventListener('resize', YoutubePlayer.syncOverlayToCanvas)
+    window.addEventListener('scroll', YoutubePlayer.syncOverlayToCanvas, true)
+    const canvas = document.getElementById('renderCanvas')
+    if (canvas && typeof ResizeObserver !== 'undefined') {
+      YoutubePlayer.overlayObserver = new ResizeObserver(() => YoutubePlayer.syncOverlayToCanvas())
+      YoutubePlayer.overlayObserver.observe(canvas)
+      const parent = canvas.parentElement
+      if (parent) YoutubePlayer.overlayObserver.observe(parent)
+    }
   }
 
   refreshVolume() {
@@ -734,6 +757,7 @@ class YoutubePlayer {
   createCSSobject() {
     YoutubePlayer.renderObservable = this.scene.onBeforeRenderObservable.add(() => {
       if (!this.scene.activeCamera) return
+      YoutubePlayer.syncOverlayToCanvas()
       YoutubePlayer.renderer.render(this.scene, this.scene.activeCamera, this.height)
     })
 
