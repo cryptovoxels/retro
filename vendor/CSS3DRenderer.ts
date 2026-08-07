@@ -5,7 +5,8 @@ export class CSS3DObject extends BABYLON.Mesh {
     super('CSS3DObject', scene)
     this.element = element
     this.element.style.position = 'absolute'
-    this.element.style.pointerEvents = 'auto'
+    // none: play/pause is mesh click; auto stole nav/settings when the iframe projected large
+    this.element.style.pointerEvents = 'none'
   }
 }
 
