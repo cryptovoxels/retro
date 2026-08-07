@@ -215,11 +215,8 @@ export default class Avatar extends Entity {
       this.clearVehicleMesh()
       return
     }
-    // home parcel loaded → lot megavox follows via receiveState; skip ghost so we don't draw two cars
-    if (this.findHomeDriveable(next)?.mesh) {
-      this.clearVehicleMesh()
-      return
-    }
+    // always draw a ghost for remotes — moving the lot megavox shears/stretches it for bystanders
+    this.hideHomeParkedCar(next)
     const key = `${next.voxUrl}|${next.scale.map((n) => Number(n).toFixed(3)).join(',')}`
     if (key !== prevKey) void this.ensureVehicleMesh(next, key)
     this.syncVehicleMeshPose()
@@ -232,6 +229,13 @@ export default class Avatar extends Entity {
     } catch {
       return null
     }
+  }
+
+  private hideHomeParkedCar(payload: import('../common/messages').AvatarVehiclePayload) {
+    try {
+      const f = this.findHomeDriveable(payload)
+      if (f) f.setParkedVisible?.(false)
+    } catch {}
   }
 
   private restoreHomeParkedCar(payload: import('../common/messages').AvatarVehiclePayload) {
@@ -270,12 +274,15 @@ export default class Avatar extends Entity {
       mesh.rotationQuaternion = null
       mesh.setEnabled(true)
       mesh.isVisible = true
-      const sx = Math.max(1e-4, Number(payload.scale[0]) || 1)
-      const sy = Math.max(1e-4, Number(payload.scale[1]) || 1)
-      const sz = Math.max(1e-4, Number(payload.scale[2]) || 1)
-      mesh.scaling.set(sx, sy, sz)
-      // sibling of avatar under worldOffset (assign parent, don't preserve-world — that sheared scale)
-      mesh.parent = this.node.parent
+      const clamp = (n: number) => {
+        const v = Math.abs(Number(n))
+        if (!Number.isFinite(v) || v < 1e-4) return 1
+        return Math.min(64, v)
+      }
+      mesh.scaling.set(clamp(payload.scale[0]), clamp(payload.scale[1]), clamp(payload.scale[2]))
+      // sibling of avatar under worldOffset (assign parent — setParent preserve-world shears scale)
+      const root = this.node.parent
+      mesh.parent = root
       this.syncVehicleMeshPose()
     } catch (e) {
       console.warn('vehicle ghost load failed', e)
@@ -289,6 +296,8 @@ export default class Avatar extends Entity {
     mesh.rotationQuaternion = null
     mesh.setEnabled(true)
     mesh.isVisible = true
+    // keep parent + scale fixed — only pose
+    if (mesh.parent !== this.node.parent) mesh.parent = this.node.parent
     mesh.position.copyFrom(this.position)
     mesh.position.y -= 0.2
     mesh.rotation.set(0, v.yaw, 0)

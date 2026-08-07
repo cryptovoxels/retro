@@ -338,20 +338,13 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     )
   }
 
-  // hide the lot car for remotes only when we are drawing the avatar ghost instead.
-  // if the home parcel is loaded, keep the lot mesh on and follow via applyDrivePose so bystanders see the drive.
+  // remotes see the avatar vehicle ghost — do not drag the lot mesh (that shears/stretches it).
+  // local driver keeps the real mesh.
   setParkedVisible(visible: boolean) {
     this.parkedVisible = visible
     if (!this.mesh) return
-    const localUuid = window.connector?.persona?.uuid
-    const localDriver = !!this.driverUuid && this.driverUuid === localUuid
-    const remoteDriven = !!this.driverUuid && this.driverUuid !== localUuid
-    if (remoteDriven || localDriver) {
-      this.mesh.setEnabled(true)
-      this.mesh.isVisible = true
-      return
-    }
-    this.mesh.setEnabled(visible && !this.isDriven)
+    const localDriver = !!this.driverUuid && this.driverUuid === window.connector?.persona?.uuid
+    this.mesh.setEnabled(localDriver || (visible && !this.isDriven))
   }
 
   applyDrivePose(position: [number, number, number], rotation: [number, number, number]) {
@@ -514,14 +507,9 @@ export class Megavox extends VoxModel<MegavoxRecord> {
       if (Array.isArray(state.position) && Array.isArray(state.rotation)) {
         this.applyDrivePose(state.position as [number, number, number], state.rotation as [number, number, number])
       }
-    } else if (this.driverUuid && this.driverUuid !== window.connector?.persona?.uuid && Array.isArray(state.position) && Array.isArray(state.rotation)) {
-      // home parcel loaded: move the real lot car with the driver so everyone sees them driving
-      this.applyDrivePose(state.position as [number, number, number], state.rotation as [number, number, number])
-      if (this.mesh) {
-        this.mesh.setEnabled(true)
-        this.mesh.isVisible = true
-      }
     }
+    // while someone else drives, leave the lot mesh on the park spot (hidden). remotes see the avatar vehicle ghost —
+    // applying drive pose here sheared/stretched meshes for bystanders.
     this.maybeRecoverAbandoned()
   }
 
