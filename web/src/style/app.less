@@ -2783,12 +2783,12 @@ main > aside section {
     max-height: 50vh;
     max-width: min(28rem, 72vw);
     overflow: hidden;
-    padding: 0.5rem 0.6rem 0.35rem;
-    box-sizing: border-box;
-    // soft scrim so lines stay readable over sky / dark voxels
-    background: color-mix(in srgb, var(--bg) 78%, transparent);
     color: var(--fg);
-    text-shadow: 0 1px 2px color-mix(in srgb, var(--bg) 92%, transparent);
+    // dark + light halo so lines hold on sky and dark voxels — no box
+    text-shadow:
+      0 1px 2px color-mix(in srgb, var(--bg) 95%, transparent),
+      0 0 1px color-mix(in srgb, var(--fg) 55%, transparent),
+      0 -1px 1px color-mix(in srgb, var(--bg) 80%, transparent);
 
     .chat-who {
       font-weight: bold;
