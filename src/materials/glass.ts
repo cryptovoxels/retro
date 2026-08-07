@@ -27,6 +27,7 @@ export function createGlassMaterial(scene: BABYLON.Scene, config: GlassConfig = 
   material.diffuseColor = baseColor
   material.emissiveColor = baseColor
   material.alpha = config.alpha ?? 0.25
+  material.zOffset = -1
   material.needDepthPrePass = false
   material.backFaceCulling = false
 

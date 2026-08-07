@@ -1382,7 +1382,12 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     const palette = this.paletteColors
 
     // realistic lighting (clean mesh): rewrite vertex colors from stored lighting * palette
-    if (applyCleanPalette(this.voxelMesh, palette)) return
+    if (applyCleanPalette(this.voxelMesh, palette)) {
+      if (this.glassMesh) applyCleanPalette(this.glassMesh, palette)
+      // stained spill is baked into light RGB - rebake so walls pick up new tint
+      this.refreshVoxels()
+      return
+    }
 
     if (palette && palette[1] && material instanceof BABYLON.ShaderMaterial) {
       material.setColor3Array('palette', palette)
@@ -1545,8 +1550,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       opaque.isPickable = true
       opaque.checkCollisions = opaque.getTotalVertices() !== 0
       opaque.freezeWorldMatrix()
-      if (glass) {
-        this.setGlassMesh(glass, { collidable: false, pickable: false })
+      this.setGlassMesh(glass, { collidable: false, pickable: false })
+      if (this.glassMesh) {
+        this.glassMesh.position.set(off[0], off[1], off[2])
+        this.glassMesh.freezeWorldMatrix()
       }
       this.dispatchEvent(createEvent('MeshLoaded', opaque))
       return

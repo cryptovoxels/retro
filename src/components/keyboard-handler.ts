@@ -139,9 +139,10 @@ export class KeyboardHandler {
 }
 
 function checkHandlerForEvent(handler: KeyboardEventHandler, event: KeyboardEvent) {
-  // if not modifier keys not specified, ignore shortcuts with modifier keys pressed
+  // if modifier keys not specified, ignore shortcuts with those modifiers pressed
   if (!('metaKey' in handler) && event.metaKey) return
   if (!('ctrlKey' in handler) && event.ctrlKey) return
+  if (!('shiftKey' in handler) && event.shiftKey) return
 
   // scan through to see if our handler matches the event
   for (const key in handler) {

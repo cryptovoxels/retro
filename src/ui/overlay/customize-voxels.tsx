@@ -142,6 +142,12 @@ export default class CustomizeVoxels extends Component<Props, State> {
     this.selectTexture(index)
   }
 
+  onTintClick(index: number, e: MouseEvent) {
+    this.selectTint(index)
+    if (e.shiftKey) return
+    e.preventDefault()
+  }
+
   uploadTexture(index: number) {
     if (index === 1) {
       alert("Currently you can't replace default glass texture.")
@@ -403,8 +409,8 @@ export default class CustomizeVoxels extends Component<Props, State> {
 
     const tintEditors = this.palette.map((color, idx) => {
       return (
-        <span class={idx === tint ? 'selected' : undefined} onClick={() => this.selectTint(idx)}>
-          <TintColorInput color={color} idx={idx} setColor={(id, c) => this.setColor(id, c)} />
+        <span class={idx === tint ? 'selected' : undefined} title="Click to select. Shift-click to change." onClick={(e) => this.onTintClick(idx, e)}>
+          <TintColorInput color={color} idx={idx} setColor={(id, c) => this.setColor(id, c)} onPick={(e) => this.onTintClick(idx, e)} />
         </span>
       )
     })
@@ -429,6 +435,7 @@ export default class CustomizeVoxels extends Component<Props, State> {
           </div>
         )}
         <h4>Voxel tints</h4>
+        <small>Click to select. Shift-click to change.</small>
         <div className="tints">
           {tintEditors}{' '}
           <button title="Click to reset the tints to default" style="float:right" onClick={() => this.resetPalette()}>
@@ -441,8 +448,18 @@ export default class CustomizeVoxels extends Component<Props, State> {
   }
 }
 
-export const TintColorInput = ({ idx, color, setColor }: { idx: number; color: string; setColor: (id: number, col: string) => void }) => {
-  return <input className="tint" type="color" onInput={(e) => setColor(idx, e.currentTarget.value)} value={color} />
+export const TintColorInput = ({
+  idx,
+  color,
+  setColor,
+  onPick,
+}: {
+  idx: number
+  color: string
+  setColor: (id: number, col: string) => void
+  onPick?: (e: MouseEvent) => void
+}) => {
+  return <input className="tint" type="color" onClick={onPick} onInput={(e) => setColor(idx, e.currentTarget.value)} value={color} />
 }
 
 export async function dataUrlToFile(dataUrl: string, fileName: string): Promise<File> {

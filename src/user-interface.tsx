@@ -65,7 +65,6 @@ import { BuildTab } from './ui/overlay/build-tab/build-tab'
 import DebugTools from './ui/overlay/debug-tools'
 import EditPane from './ui/overlay/edit-pane'
 import CustomizeVoxels from './ui/overlay/customize-voxels'
-import ToolBelt from './ui/overlay/tool-belt'
 import ParcelSnapshots from './ui/parcel-snapshots'
 import { SettingsUI } from './ui/settings'
 import TakeWomp from './ui/take-womp'
@@ -419,7 +418,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     // (excludes events fired from input elements and repeat events by held keys)
     this.keyboardHandler = new KeyboardHandler(this.props.scene, {
       keyDown: [
-        { key: '!', handleEvent: () => {} },
         {
           code: 'KeyE',
           handleEvent: () => {
@@ -470,9 +468,19 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     NUMBER_KEYS.forEach((key, index) => {
       this.keyboardHandler.addKeyDown({
         key,
+        shiftKey: false,
         handleEvent: () => this.openVoxelCustomize(index),
       })
     })
+
+    // shift-1 .. shift-8 → palette tint 0..7
+    for (let i = 0; i < 8; i++) {
+      this.keyboardHandler.addKeyDown({
+        code: `Digit${i + 1}`,
+        shiftKey: true,
+        handleEvent: () => this.selectVoxelTint(i),
+      })
+    }
   }
 
   openVoxelCustomize(textureIndex: number) {
@@ -482,6 +490,13 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     if (this.state.pane !== 'voxels') {
       this.setPane('voxels')
     }
+  }
+
+  selectVoxelTint(tintIndex: number) {
+    if (!this.grid.nearestEditableParcel()) return
+    this.voxelTool.tint = tintIndex
+    this.voxelTool.setMode(SelectionMode.Add)
+    this.setTool(this.voxelTool)
   }
 
   setPane(pane: UIPanes) {
@@ -930,8 +945,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
             {this.state.chatEnabled && !location.pathname.startsWith('/chat') && <ChatOverlay scene={this.props.scene} />}
           </aside>
-
-          {nearestEditableParcel && <ToolBelt parcel={nearestEditableParcel} scene={this.props.scene} />}
 
           <BroadcastSidebarTab />
 

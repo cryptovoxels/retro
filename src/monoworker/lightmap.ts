@@ -8,10 +8,13 @@ const DEBUG_LIGHT_PROBES = false
 export const GLASS = 2
 
 export type Geo = { positions: Float32Array; normals: Float32Array; uvs: Float32Array; colors: Float32Array; colorIndices: Float32Array; indices: Uint32Array }
-export type GlassGeo = { positions: Float32Array; normals: Float32Array; indices: Uint32Array }
+export type GlassGeo = { positions: Float32Array; normals: Float32Array; colorIndices: Float32Array; indices: Uint32Array }
 export type LightmapOut = { opaque: Geo; glass: GlassGeo | null }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
+
+const isGlass = (v: number) => v % 32 === GLASS
+const passable = (v: number) => v === 0 || isGlass(v)
 
 function to8bit(field: NdArray<Uint16Array>): NdArray<Uint8Array> {
   const [w, h, d] = field.shape
@@ -19,11 +22,8 @@ function to8bit(field: NdArray<Uint16Array>): NdArray<Uint8Array> {
   for (let x = 0; x < w; x++) {
     for (let y = 0; y < h; y++) {
       for (let z = 0; z < d; z++) {
-        const v = field.get(x, y, z) & 0xff
-
-        if (v != GLASS) {
-          out.set(x, y, z, v)
-        }
+        // keep glass (+ tint) so flood-fill can stain light
+        out.set(x, y, z, field.get(x, y, z) & 0xff)
       }
     }
   }
@@ -51,7 +51,12 @@ const BOUNCE = [65 * S, 65 * S, 65 * S] as const // dim warm bounce (3800K @ 35%
 //
 // returns Uint8Array of length (W+2)*(H+2)*(D+2)*6*3 - 6 directional slots per cell.
 // buildMesh sums all 6 slots when sampling light.
-function floodfill(field: NdArray<Uint8Array>, lanterns: Array<{ position: [number, number, number]; color: string; strength?: number | string }>, off: [number, number, number]): Uint8Array {
+function floodfill(
+  field: NdArray<Uint8Array>,
+  lanterns: Array<{ position: [number, number, number]; color: string; strength?: number | string }>,
+  off: [number, number, number],
+  pal: [number, number, number][],
+): Uint8Array {
   const [w, h, d] = field.shape
   const pw = w + 2,
     ph = h + 2,
@@ -80,6 +85,13 @@ function floodfill(field: NdArray<Uint8Array>, lanterns: Array<{ position: [numb
     return changed
   }
 
+  // multiply light by glass palette tint when entering a glass cell
+  const stain = (v: number, r: number, g: number, b: number): [number, number, number] => {
+    if (!isGlass(v)) return [r, g, b]
+    const p = pal[Math.floor(v / 32) % 8] || [1, 1, 1]
+    return [Math.round(r * p[0]), Math.round(g * p[1]), Math.round(b * p[2])]
+  }
+
   // flat queue: 5 values per entry [cellIdx, dirIdx, r, g, b]
   const queue: number[] = []
   const enqueue = (i: number, dir: number, r: number, g: number, b: number) => queue.push(i, dir, r, g, b)
@@ -92,9 +104,10 @@ function floodfill(field: NdArray<Uint8Array>, lanterns: Array<{ position: [numb
       fz = pz - 1
     const inField = fx >= 0 && fy >= 0 && fz >= 0 && fx < w && fy < h && fz < d
     const fv = inField ? field.get(fx, fy, fz) : 0
-    if (fv !== 0 && fv !== 2) return
+    if (!passable(fv)) return
+    const [sr, sg, sb] = stain(fv, r, g, b)
     const i = idx(px, py, pz)
-    if (setMax(i, dir, r, g, b)) enqueue(i, dir, r, g, b)
+    if (setMax(i, dir, sr, sg, sb)) enqueue(i, dir, sr, sg, sb)
   }
 
   if (DEBUG_LIGHT_PROBES) {
@@ -181,11 +194,9 @@ function floodfill(field: NdArray<Uint8Array>, lanterns: Array<{ position: [numb
         fz = nz - 1
       const inField = fx >= 0 && fy >= 0 && fz >= 0 && fx < w && fy < h && fz < d
       const nv = inField ? field.get(fx, fy, fz) : 0
-      if (nv !== 0 && nv !== 2) continue
+      if (!passable(nv)) continue
       const ni = idx(nx, ny, nz)
-      const nr = Math.round(cr * fall)
-      const ng = Math.round(cg * fall)
-      const nb = Math.round(cb * fall)
+      const [nr, ng, nb] = stain(nv, Math.round(cr * fall), Math.round(cg * fall), Math.round(cb * fall))
       if (nr > getC(ni, d2, 0) + 4 || ng > getC(ni, d2, 1) + 4 || nb > getC(ni, d2, 2) + 4) {
         if (setMax(ni, d2, nr, ng, nb)) enqueue(ni, d2, nr, ng, nb)
       }
@@ -302,7 +313,7 @@ function opaqueGeo(field: NdArray<Uint8Array>, light: Uint8Array): Geo {
     for (let y = 0; y < h; y++) {
       for (let z = 0; z < d; z++) {
         const cell = field.get(x, y, z)
-        if (cell === 0) continue
+        if (cell === 0 || isGlass(cell)) continue
 
         const layer = cell % 32
         const colorIndex = Math.floor(cell / 32) % 8
@@ -327,9 +338,9 @@ function opaqueGeo(field: NdArray<Uint8Array>, light: Uint8Array): Geo {
             ay = y + ny,
             az = z + nz
 
-          // neighbor out of bounds = exposed face; glass (2) doesn't cull opaque faces
+          // neighbor out of bounds = exposed face; glass doesn't cull opaque faces
           const nv = ax >= 0 && ay >= 0 && az >= 0 && ax < w && ay < h && az < d ? field.get(ax, ay, az) : 0
-          if (nv !== 0 && nv !== 2) continue
+          if (!passable(nv)) continue
 
           // air cell in front of this face (padded), and the 2 tangent axes of the face plane
           const base = [ax + 1, ay + 1, az + 1]
@@ -386,23 +397,28 @@ function glassGeo(field: NdArray<Uint8Array>): GlassGeo | null {
   const [w, h, d] = field.shape
   const positions: number[] = []
   const normals: number[] = []
+  const colorIndices: number[] = []
   const indices: number[] = []
+  const Y_OFFSET = 0.5
   let vi = 0
 
   for (let x = 0; x < w; x++) {
     for (let y = 0; y < h; y++) {
       for (let z = 0; z < d; z++) {
-        if (field.get(x, y, z) !== 2) continue
+        const cell = field.get(x, y, z)
+        if (!isGlass(cell)) continue
+        const colorIndex = Math.floor(cell / 32) % 8
         for (const face of FACES) {
           const [nx, ny, nz] = face.ni
           const ax = x + nx,
             ay = y + ny,
             az = z + nz
           const nv = ax >= 0 && ay >= 0 && az >= 0 && ax < w && ay < h && az < d ? field.get(ax, ay, az) : 0
-          if (nv === 2) continue // cull glass-glass shared faces
+          if (isGlass(nv)) continue // cull glass-glass shared faces
           for (const [vx, vy, vz] of face.v) {
-            positions.push((x + vx) * VoxelSize, (y + vy) * VoxelSize, (z + vz) * VoxelSize)
+            positions.push((x + vx) * VoxelSize, (y + vy) * VoxelSize + Y_OFFSET, (z + vz) * VoxelSize)
             normals.push(...face.n)
+            colorIndices.push(colorIndex)
           }
           indices.push(vi, vi + 1, vi + 2, vi, vi + 2, vi + 3)
           vi += 4
@@ -412,7 +428,12 @@ function glassGeo(field: NdArray<Uint8Array>): GlassGeo | null {
   }
 
   if (vi === 0) return null
-  return { positions: new Float32Array(positions), normals: new Float32Array(normals), indices: new Uint32Array(indices) }
+  return {
+    positions: new Float32Array(positions),
+    normals: new Float32Array(normals),
+    colorIndices: new Float32Array(colorIndices),
+    indices: new Uint32Array(indices),
+  }
 }
 
 // ─── entry point ──────────────────────────────────────────────────────────────
@@ -424,10 +445,11 @@ export function bakeLightmap(
   off2: number,
   lanterns: Array<{ position: [number, number, number]; color: string; strength?: number | string }>,
   off: [number, number, number],
-  _pal?: [number, number, number][],
+  pal?: [number, number, number][],
 ): LightmapOut {
   const field16 = ndarray(data, shape, stride, off2)
   const field8 = to8bit(field16)
-  const light = floodfill(field8, lanterns, off)
+  const palette = pal?.length ? pal : Array.from({ length: 8 }, () => [1, 1, 1] as [number, number, number])
+  const light = floodfill(field8, lanterns, off, palette)
   return { opaque: opaqueGeo(field8, light), glass: glassGeo(field8) }
 }

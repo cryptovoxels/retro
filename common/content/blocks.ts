@@ -20,11 +20,6 @@ export const blocks = [
 export const defaultColors = ['#ffffff', '#888888', '#000000', '#ff71ce', '#01cdfe', '#05ffa1', '#b967ff', '#fffb96']
 
 export function getBlockId(textureIndex: any, tintIndex: any) {
-  if (textureIndex === 1) {
-    // glass can't be tinted
-    return blocks[1].value
-  } else {
-    let block = blocks[textureIndex] || blocks[0]
-    return block.value + tintIndex * 32
-  }
+  const block = blocks[textureIndex] || blocks[0]
+  return block.value + tintIndex * 32
 }

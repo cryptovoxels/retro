@@ -1,5 +1,5 @@
 import Grid from '../grid'
-import { defaultColors, getBlockId } from '../../common/content/blocks'
+import { defaultColors } from '../../common/content/blocks'
 import type Parcel from '../parcel'
 import Connector from '../connector'
 import Controls from '../controls/controls'
@@ -165,29 +165,27 @@ export default class Selector implements Tool {
   }
 
   private setTextureOffset(value: number) {
-    // Glass (texture index 1) uses a special transparent material for accurate preview
-    const isGlass = value === 1
-    if (isGlass) {
-      this.box.material = this.glassMaterial
-      return
-    }
-
-    // Switch back to voxel shader material for non-glass textures
-    this.box.material = this.voxelMaterial
-
-    // Update the block vertex attribute to select the texture tile
-    // Toolbelt slot 0 maps to atlas position 1 (position 0 is empty/special)
-    // Block value encodes: textureIndex + (tintIndex * 32)
-    const textureIndex = value + 1
-    const blockValue = textureIndex + this.tint * 32
+    const tint = this.selection.tint ?? 0
+    // Tool slot 0 -> atlas 1; block value encodes: textureIndex + (tintIndex * 32)
+    const blockValue = value + 1 + tint * 32
 
     const vertexCount = this.box.getTotalVertices()
     const blockData = new Float32Array(vertexCount).fill(blockValue)
     this.box.updateVerticesData('block', blockData)
+
+    // Glass (texture index 1) uses a special transparent material for accurate preview
+    if (value === 1) {
+      const palette = this.selection.parcel?.palette || defaultColors
+      const hex = palette[tint] || defaultColors[0]
+      this.box.material = createGlassMaterial(this.scene as any, { tint: hex, name: 'ghost-block' })
+      return
+    }
+
+    this.box.material = this.voxelMaterial
   }
 
   get tint() {
-    return this.selection?.tint || 0
+    return this.selection?.tint ?? 0
   }
 
   set tint(value: number) {
@@ -196,8 +194,12 @@ export default class Selector implements Tool {
     this.onCurrentTextureTintUpdate.notifyObservers({ texture: this.texture, tint: this.tint })
   }
 
+  // same low-byte encoding as setTextureOffset ghost; opaque bit for solids
   get blockId() {
-    return getBlockId(this.texture, this.tint)
+    const tex = this.selection.textureIndex ?? 0
+    const tint = this.selection.tint ?? 0
+    const low = tex + 1 + tint * 32
+    return tex === 1 ? low : (1 << 15) | low
   }
 
   private async updateMaterialForParcel(parcel: Parcel): Promise<void> {
@@ -220,11 +222,11 @@ export default class Selector implements Tool {
 
   setMode(mode: SelectionMode, selection?: SelectionModeOptions) {
     this.selection.mode = mode
-    // Object.assign doesn't call setters.
+    // Object.assign doesn't call setters; texture/tint live on the class.
     if (selection) {
       Object.entries(selection).forEach(([key, value]) => {
-        if (key in this.selection) {
-          ;(this as any)[key as any] = value // uses setters if they exist
+        if (key === 'texture' || key === 'tint') {
+          ;(this as any)[key] = value
         } else {
           Object.assign(this.selection, { [key]: value })
         }
