@@ -55,6 +55,7 @@ export default class AddTab extends Component<Props, any> {
   }
 
   isNotAvailable(type: PlaceableFeatureTypes) {
+    if (type === 'womp-wall' && window.config?.isSpace) return true
     return !this.props.parcel || (type && ParcelBudget.budget(type, this.props.parcel) == 0)
   }
 

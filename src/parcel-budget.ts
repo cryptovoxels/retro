@@ -22,6 +22,7 @@ export const featureBudget: BudgetLimits = {
   lantern: 20,
   boombox: 4,
   'guest-book': 1,
+  'womp-wall': 1,
   'pose-ball': 10,
   'spawn-point': 1,
   'text-input': 20,

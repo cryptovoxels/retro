@@ -211,6 +211,7 @@ export function Toolbar(props: { feature: Feature; scene: BABYLON.Scene }) {
       case 'spawn-point':
       case 'boombox':
       case 'guest-book':
+      case 'womp-wall':
         return false
       default:
         return true

@@ -3,6 +3,7 @@ import Boombox from './boombox'
 import Button from './button'
 import Cube from './cube'
 import GuestBook from './guest-book'
+import WompWall from './womp-wall'
 import PoseBall from './pose-ball'
 import Image from './image'
 import Lantern from './lantern'
@@ -32,6 +33,7 @@ export const featuresInfo: FeatureMetadata[] = [
   Button.metadata,
   Cube.metadata,
   GuestBook.metadata,
+  WompWall.metadata,
   Image.metadata,
   Lantern.metadata,
   Megavox.metadata,
@@ -65,6 +67,7 @@ export const featureTemplates: Record<PlaceableFeatureTypes, FeatureTemplate> = 
   boombox: Boombox.template,
   showbox: Showbox.template,
   'guest-book': GuestBook.template,
+  'womp-wall': WompWall.template,
   'spawn-point': SpawnPoint.template,
   'text-input': TextInput.template,
   'slider-input': SliderInput.template,
