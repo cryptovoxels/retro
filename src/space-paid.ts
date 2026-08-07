@@ -8,9 +8,10 @@ export function sponsorBy() {
 }
 
 export function mono(on: boolean) {
+  // kill any leftover css filter from the first dumb pass
   const c = document.querySelector('canvas#renderCanvas') as HTMLCanvasElement | null
-  if (!c) return
-  c.style.filter = on ? 'saturate(0%)' : ''
+  if (c) c.style.filter = ''
+  window.graphic?.postProcesses?.setMono(on)
 }
 
 const G = 'G4RBl3DgArBlEd'

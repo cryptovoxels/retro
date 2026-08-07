@@ -10,6 +10,7 @@ export class PostProcesses {
   private blurPP: BABYLON.Nullable<BABYLON.PostProcess> = null
   private underwaterPP: BABYLON.Nullable<BABYLON.PostProcess> = null
   private coverPP: BABYLON.Nullable<BABYLON.PostProcess> = null
+  private monoPP: BABYLON.Nullable<BABYLON.PostProcess> = null
   private coverAmount = 1
   private revealing = false
   private coverObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
@@ -176,6 +177,54 @@ void main(void) {
       } catch {}
       this.underwaterPP.dispose()
       this.underwaterPP = null
+    }
+  }
+
+  /** unpaid spaces: dithered 16-value posterised mono */
+  setMono(on: boolean) {
+    const camera = this.scene.activeCamera
+    if (!camera) return
+
+    if (on) {
+      if (this.monoPP) return
+      if (!BABYLON.Effect.ShadersStore['sponsorMonoPixelShader']) {
+        BABYLON.Effect.ShadersStore['sponsorMonoPixelShader'] = `
+varying vec2 vUV;
+uniform sampler2D textureSampler;
+
+float bayer4(vec2 p) {
+  float x = mod(floor(p.x), 4.0);
+  float y = mod(floor(p.y), 4.0);
+  float i = x + y * 4.0;
+  // 4x4 Bayer / 16 -> 0..1 thresholds
+  float m0 = 0.0;  float m1 = 8.0;  float m2 = 2.0;  float m3 = 10.0;
+  float m4 = 12.0; float m5 = 4.0;  float m6 = 14.0; float m7 = 6.0;
+  float m8 = 3.0;  float m9 = 11.0; float m10 = 1.0; float m11 = 9.0;
+  float m12 = 15.0;float m13 = 7.0; float m14 = 13.0;float m15 = 5.0;
+  float v =
+    i < 1.0 ? m0 : i < 2.0 ? m1 : i < 3.0 ? m2 : i < 4.0 ? m3 :
+    i < 5.0 ? m4 : i < 6.0 ? m5 : i < 7.0 ? m6 : i < 8.0 ? m7 :
+    i < 9.0 ? m8 : i < 10.0 ? m9 : i < 11.0 ? m10 : i < 12.0 ? m11 :
+    i < 13.0 ? m12 : i < 14.0 ? m13 : i < 15.0 ? m14 : m15;
+  return v / 16.0;
+}
+
+void main(void) {
+  vec3 c = texture2D(textureSampler, vUV).rgb;
+  float l = dot(c, vec3(0.299, 0.587, 0.114));
+  float levels = 15.0; // 16 values: 0..15
+  float g = floor(l * levels + bayer4(gl_FragCoord.xy)) / levels;
+  gl_FragColor = vec4(vec3(g), 1.0);
+}
+`
+      }
+      this.monoPP = new BABYLON.PostProcess('sponsorMono', 'sponsorMono', null, null, 1.0, camera, BABYLON.Texture.NEAREST_SAMPLINGMODE, this.scene.getEngine(), false)
+    } else if (this.monoPP) {
+      try {
+        camera.detachPostProcess(this.monoPP)
+      } catch {}
+      this.monoPP.dispose()
+      this.monoPP = null
     }
   }
 
