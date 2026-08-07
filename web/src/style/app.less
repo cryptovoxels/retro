@@ -1049,6 +1049,8 @@ body.in-world {
     pointer-events: none;
     grid-column: unset;
     grid-area: unset;
+    // base header uses overflow-y:auto which clips the peeking hamburger
+    overflow: visible;
 
     > .site-nav-toggle {
       display: block;
@@ -1070,6 +1072,9 @@ body.in-world {
 
     nav {
       pointer-events: auto;
+      height: 100%;
+      overflow-y: auto;
+      box-sizing: border-box;
     }
   }
 
@@ -1139,6 +1144,8 @@ body.in-world main:has(> .client-world):not(:has(> aside)) {
     transform: translateX(-100%);
     transition: transform 150ms ease-out;
     pointer-events: none;
+    // don't clip the peeking hamburger (base header is overflow-y: auto)
+    overflow: visible;
 
     > .site-nav-toggle {
       display: block;
@@ -1160,6 +1167,9 @@ body.in-world main:has(> .client-world):not(:has(> aside)) {
 
     nav {
       pointer-events: auto;
+      height: 100%;
+      overflow-y: auto;
+      box-sizing: border-box;
     }
   }
 
