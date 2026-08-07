@@ -2785,11 +2785,12 @@ main > aside section {
     max-width: min(28rem, 72vw);
     overflow: hidden;
     color: var(--fg);
-    // dark + light halo so lines hold on sky and dark voxels — no box
+    // hard 1px outline — readable without the soft blur halo
     text-shadow:
-      0 1px 2px color-mix(in srgb, var(--bg) 95%, transparent),
-      0 0 1px color-mix(in srgb, var(--fg) 55%, transparent),
-      0 -1px 1px color-mix(in srgb, var(--bg) 80%, transparent);
+      1px 0 0 color-mix(in srgb, var(--bg) 88%, transparent),
+      -1px 0 0 color-mix(in srgb, var(--bg) 88%, transparent),
+      0 1px 0 color-mix(in srgb, var(--bg) 88%, transparent),
+      0 -1px 0 color-mix(in srgb, var(--bg) 88%, transparent);
 
     .chat-who {
       font-weight: bold;
