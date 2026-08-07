@@ -526,7 +526,10 @@ CREATE TABLE public.spaces (
     visits integer DEFAULT 0,
     memoized_hash text,
     state json,
-    lightmap_url text
+    lightmap_url text,
+    "until" timestamp with time zone,
+    "by" text,
+    sub text
 );
 CREATE MATERIALIZED VIEW public.mv_space_counts AS
  SELECT lower(owner) AS lower_owner,

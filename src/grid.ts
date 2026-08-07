@@ -364,6 +364,13 @@ export default class Grid extends SocketClient {
     if (el.id === 'space' && this.environment instanceof SpacesEnvironment) {
       this.environment.applyEnvironment(desc.environment)
     }
+
+    if (el.id === 'space') {
+      // stash paid/by on the parcel for unpaid() checks
+      ;(p as any).paid = !!desc.paid
+      ;(p as any).by = desc.by || null
+      void import('./space-paid').then((m) => m.mono(!desc.paid))
+    }
   }
 
   public patchParcel(parcelId: number, patch: ParcelPatch) {

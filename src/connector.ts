@@ -16,6 +16,7 @@ import { ConnectionState } from './utils/socket-client'
 import { Transform } from './utils/transform'
 import { signal } from '@preact/signals'
 import { decodeCoords } from '../common/helpers/utils'
+import { garble, unpaid } from './space-paid'
 
 const UPDATE_AVATAR_INTERVAL_MS = 200
 
@@ -759,8 +760,9 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
 
   onChat(message: messages.ChatMessage) {
     const avatar = this._avatarsByUuid.get(message.uuid)
-    avatar?.addChat(message.text)
-    this.addChat(message.text, avatar, message.avatar)
+    const text = unpaid() ? garble(message.text) : message.text
+    avatar?.addChat(text)
+    this.addChat(text, avatar, message.avatar)
   }
 
   onEmoteMessage(message: messages.AvatarEmoteMessage) {
@@ -812,14 +814,16 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     track('chat')
     this.sendMetric(messages.Action.Chat)
 
+    const shown = unpaid() ? garble(text) : text
+
     // Show speech bubble?
-    this.persona.avatar?.addChat(text)
+    this.persona.avatar?.addChat(shown)
 
     let chatRef: typeof app.avatarRef = app.avatarRef ?? app.state.wallet ?? undefined
     if (chatRef && typeof chatRef === 'object' && app.state.name) {
       chatRef = { ...chatRef, name: app.state.name }
     }
-    this.addChat(text, this.persona.avatar, chatRef)
+    this.addChat(shown, this.persona.avatar, chatRef)
 
     const message: messages.ChatMessage = {
       type: messages.MessageType.chat,

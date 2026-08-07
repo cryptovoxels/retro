@@ -15,8 +15,11 @@ import { PassportStatic } from 'passport'
 import { isValidUUID } from '../lib/helpers'
 import { VoxelsUserRequest } from '../user'
 import { parseQueryInt } from '../lib/query-parsing-helpers'
+import { checkout, ensureSpaceSponsorCols } from '../stripe'
 
 const clamp = (a: number, min: number, max: number) => Math.min(Math.max(a, min), max)
+
+void ensureSpaceSponsorCols().catch((e) => console.error('spaces cols', e))
 
 const parse = {
   ethaddress: (token: any): string | undefined => {
@@ -144,13 +147,12 @@ export default function SpacesController(db: Db, passport: PassportStatic, app: 
     space.addLastModifiedHeader(res)
 
     const title = `${space.name || 'My Space'} | Voxels Space`
-    // .voxels is a getter, pulling from content, which does not work with ... spread syntax
-    const summary = { ...space, voxels: space.voxels }
+    const boot = space.boot()
     // fastboot JSON in <head> (see play.tsx for why)
     const head = (
       <head>
         <title>{title}</title>
-        <JsonData id="space" data={summary} dataId={space.spaceId} />
+        <JsonData id="space" data={boot} dataId={space.spaceId} />
       </head>
     )
 
@@ -192,8 +194,23 @@ export default function SpacesController(db: Db, passport: PassportStatic, app: 
     if (!space) {
       return res.status(404).json({ success: false, space: null, message: 'Not found' })
     }
-    const summary = { ...space, voxels: space.voxels }
-    res.json({ success: true, space: summary })
+    res.json({ success: true, space: space.boot() })
+  })
+
+  app.post('/api/spaces/:id/sponsor', passport.authenticate('jwt', { session: false }), async (req: VoxelsUserRequest, res: Response) => {
+    if (!isValidUUID(req.params.id)) {
+      return res.status(404).json({ error: 'Not found' })
+    }
+    const who = req.user?.wallet
+    if (!who) {
+      return res.status(401).json({ error: 'login' })
+    }
+    const yr = !!(req.body?.yr || req.query.yr)
+    const url = await checkout(req.params.id, who, yr)
+    if (!url) {
+      return res.status(400).json({ error: 'cant sponsor' })
+    }
+    res.json({ url })
   })
 
   app.get(
@@ -212,8 +229,8 @@ export default function SpacesController(db: Db, passport: PassportStatic, app: 
     cache('60 seconds'),
     createRequestHandlerForQuery(db, 'spaces/browse', 'spaces', (req) => {
       const page = parseQueryInt(req.query.page, 1) - 1
-
-      return [page]
+      const view = req.query.view === 'abandoned' ? 'abandoned' : ''
+      return [page, view]
     }),
   )
 }

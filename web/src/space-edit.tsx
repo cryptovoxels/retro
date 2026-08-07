@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { route } from 'preact-router'
 import { Login } from './auth/login'
+import SelectUser from './components/select-user'
 import { app } from './state'
 
 interface Props {
@@ -15,7 +16,7 @@ export default function SpaceEdit(props: Props) {
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    fetch(`/spaces/${props.id}.json`)
+    fetch(`/api/spaces/${props.id}.json`)
       .then((r) => r.json())
       .then((d) => setSpace(d.space))
   }, [props.id])
@@ -26,6 +27,18 @@ export default function SpaceEdit(props: Props) {
 
   function setSettings(key: string, value: any) {
     setSpace((s: any) => ({ ...s, settings: { ...s.settings, [key]: value } }))
+  }
+
+  function addCollab(wallet: string) {
+    const collab: string[] = [...(space.settings?.collab || [])]
+    const w = wallet.toLowerCase()
+    if (!collab.includes(w)) collab.push(w)
+    setSettings('collab', collab)
+  }
+
+  function dropCollab(wallet: string) {
+    const collab = ((space.settings?.collab || []) as string[]).filter((w) => w.toLowerCase() !== wallet.toLowerCase())
+    setSettings('collab', collab)
   }
 
   async function submit(e: Event) {
@@ -42,6 +55,7 @@ export default function SpaceEdit(props: Props) {
         hosted_scripts: !!space.settings?.hosted_scripts,
         script_host_url: space.settings?.script_host_url,
         unlisted: !!space.unlisted,
+        collab: space.settings?.collab || [],
         ...(hasSlug ? { slug: space.slug } : {}),
       }),
     })
@@ -53,6 +67,7 @@ export default function SpaceEdit(props: Props) {
 
   // slug is only editable if it was already set and isn't a UUID
   const hasSlug = space.slug && space.slug.length !== 36
+  const paid = !!(space.paid || (space.until && new Date(space.until) > new Date()))
 
   return (
     <section class="columns">
@@ -83,23 +98,27 @@ export default function SpaceEdit(props: Props) {
               Sandbox (publicly editable)
             </label>
           </div>
-          <div class="f">
-            <label>
-              <input type="checkbox" checked={!!space.settings?.hosted_scripts} onChange={(e: any) => setSettings('hosted_scripts', e.target.checked)} />
-              Hosted scripts (multiplayer)
-            </label>
-          </div>
-          {space.settings?.hosted_scripts && (
-            <div class="f">
-              <label>Script host URL</label>
-              <input type="text" value={space.settings?.script_host_url || ''} onInput={(e: any) => setSettings('script_host_url', e.target.value)} />
-            </div>
-          )}
           {hasSlug && (
             <div class="f">
               <label>Slug</label>
               <input type="text" value={space.slug || ''} onInput={(e: any) => set('slug', e.target.value)} />
             </div>
+          )}
+          {paid && (
+            <>
+              <h3>collaborators</h3>
+              <SelectUser onSelect={addCollab} />
+              <ul>
+                {((space.settings?.collab || []) as string[]).map((w) => (
+                  <li key={w}>
+                    <a href={`/u/${w}`}>{w.substring(0, 10)}...</a>{' '}
+                    <button type="button" onClick={() => dropCollab(w)}>
+                      remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
           <button type="submit" disabled={saving}>
             {saving ? 'Saving...' : 'Save'}

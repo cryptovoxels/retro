@@ -160,6 +160,10 @@ const httpServer = http.createServer(app)
 httpServer.setTimeout(1000 * 25)
 
 app.use(cookieParser())
+// stripe needs the raw body for sig check — before json parser
+app.post('/api/stripe/webhook', bodyParser.raw({ type: 'application/json' }), (req, res) => {
+  void import('./stripe').then((m) => m.webhook(req, res))
+})
 app.use(bodyParser.json({ limit: '50mb' }))
 
 // Add error handler for body-parser JSON errors (recommended approach)

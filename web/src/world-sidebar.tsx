@@ -28,7 +28,7 @@ export function WorldSidebar({ coords, path, children }: Props) {
     bump((n) => n + 1)
   })
 
-  if (!coords) return <>{children}</>
+  if (!coords && !isFullClientPath(path)) return <>{children}</>
 
   // /play etc: push panel — world slot + one aside. Client sizes to .client-world.
   if (isFullClientPath(path)) {

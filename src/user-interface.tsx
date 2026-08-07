@@ -70,6 +70,8 @@ import ParcelSnapshots from './ui/parcel-snapshots'
 import { SettingsUI } from './ui/settings'
 import TakeWomp from './ui/take-womp'
 import WompButton from './ui/womp-button'
+import SponsorButton from './ui/sponsor-button'
+import { unpaid } from './space-paid'
 
 const NUMBER_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const
 
@@ -935,7 +937,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           <BroadcastSidebarTab />
 
-          <WompButton onClick={() => this.takeWomp(this.props.scene)} />
+          {!unpaid() && <WompButton onClick={() => this.takeWomp(this.props.scene)} />}
+          <SponsorButton />
 
           <ConnectionStatusUI connector={this.connector} grid={this.grid} scene={this.props.scene} />
           <OnlyMobile>

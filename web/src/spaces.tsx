@@ -30,6 +30,7 @@ export interface State {
   page: number
   loading: boolean
   total?: number
+  abandoned: boolean
 }
 
 export default class Spaces extends Component<Props, State> {
@@ -39,9 +40,11 @@ export default class Spaces extends Component<Props, State> {
     super()
 
     const page = (props.page && parseInt(props.page, 10)) || 1
+    const abandoned = !!(ssrFriendlyWindow && new URLSearchParams(document.location.search).get('view') === 'abandoned')
 
     this.state = {
       page,
+      abandoned,
       ...(props.spaces ? { spaces: props.spaces, total: this.getPageCount(props.spaces), loading: false } : { loading: true }),
     }
   }
@@ -87,7 +90,7 @@ export default class Spaces extends Component<Props, State> {
     if (this.owner) {
       url = `/api/wallet/${this.owner}/spaces.json?page=${page}`
     } else {
-      url = `/api/spaces.json?page=${page}`
+      url = `/api/spaces.json?page=${page}${this.state.abandoned ? '&view=abandoned' : ''}`
     }
 
     const r = await cachedFetch(url, {}, 120)
@@ -127,8 +130,25 @@ export default class Spaces extends Component<Props, State> {
       <section>
         <Head title={'Spaces'} />
 
-        <div style={{ display: 'flex', flex: 1, width: '100%' }}>
+        <div style={{ display: 'flex', flex: 1, width: '100%', gap: '1rem', alignItems: 'center' }}>
           <div style={{ flexGrow: 1 }} />
+          {!this.owner && (
+            <label>
+              <input
+                type="checkbox"
+                checked={this.state.abandoned}
+                onChange={(e: any) => {
+                  const abandoned = !!e.target.checked
+                  const u = new URL(location.href)
+                  if (abandoned) u.searchParams.set('view', 'abandoned')
+                  else u.searchParams.delete('view')
+                  history.replaceState(null, '', u.pathname + u.search)
+                  this.setState({ abandoned, page: 1 }, this.fetch.bind(this))
+                }}
+              />{' '}
+              abandoned
+            </label>
+          )}
           <div>
             {app.state.wallet && (
               <button class="outline" onClick={() => (window.location.href = '/spaces/new')}>

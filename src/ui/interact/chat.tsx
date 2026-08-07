@@ -16,6 +16,7 @@ import Connector, { ChatMessageRecord, messageList } from '../../connector'
 import GuestBook from '../../features/guest-book'
 import Persona from '../../persona'
 import { matcher } from '../../obscenity'
+import { garble, unpaid } from '../../space-paid'
 import { NearByPlayers } from './nearby-players'
 import { createEvent, TypedEventTarget } from '../../utils/EventEmitter'
 
@@ -193,7 +194,8 @@ function SlashCongaLinks({ text }: { text: string }) {
 }
 
 const ChatText = ({ text }: { text: string }) => {
-  const decoded = decodeChatHtmlEntities(text)
+  let decoded = decodeChatHtmlEntities(text)
+  if (unpaid()) decoded = garble(decoded)
   const matches = matcher.getAllMatches(decoded, true)
   const parts: JSX.Element[] = []
   let last = 0

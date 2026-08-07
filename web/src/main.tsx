@@ -88,7 +88,7 @@ const Main = () => {
   const coords = new URLSearchParams(urlSearch).get('coords') || ''
   const full = isFullClientPath(currentPath)
   const spaceish = isEmbedClientPath(currentPath)
-  const showClient = !!coords || spaceish
+  const showClient = !!coords || spaceish || full
   const embed = !full && showClient
 
   useEffect(() => {

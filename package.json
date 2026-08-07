@@ -190,6 +190,7 @@
     "split-require": "3.1.2",
     "stats.js": "0.17.0",
     "strftime": "0.10.2",
+    "stripe": "^17",
     "tape": "5.6.4",
     "texture-compressor": "^1.0.2",
     "throng": "^5.0.0",

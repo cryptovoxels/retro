@@ -17,10 +17,25 @@ export default class Space extends AbstractParcel {
   slug: string | undefined
   unlisted: boolean | undefined
   updated_at: string | undefined
+  until: string | Date | null | undefined
+  by: string | null | undefined
+  sub: string | null | undefined
 
   private constructor(spaceId: string, record: SpaceRecord) {
     super(record)
     this.spaceId = spaceId
+    this.until = (record as any).until
+    this.by = (record as any).by
+    this.sub = (record as any).sub
+  }
+
+  get paid() {
+    return !!(this.until && new Date(this.until) > new Date())
+  }
+
+  /** fastboot / api shape */
+  boot() {
+    return { ...this, voxels: this.voxels, paid: this.paid, by: this.by || null, until: this.until || null }
   }
 
   get voxels() {
@@ -186,6 +201,11 @@ export default class Space extends AbstractParcel {
     if ('hosted_scripts' in body) {
       this.settings.hosted_scripts = false // Spaces do not have hosted_scripts at the moment, but I don't nerf this as maybe they will in the future
       shouldUpdateParcelScript = true
+    }
+
+    if ('collab' in body && Array.isArray(body.collab) && this.paid) {
+      ;(this.settings as any).collab = body.collab.filter((w: any) => typeof w === 'string' && w.length === 42).map((w: string) => w.toLowerCase())
+      shouldUpdateMeta = true
     }
 
     return { shouldUpdateMeta, shouldUpdateParcelScript }

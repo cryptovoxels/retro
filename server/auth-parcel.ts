@@ -60,17 +60,24 @@ export default async function authParcel(parcel: ParcelAuthRef, user: VoxelsUser
   }
 }
 
-export async function authSpace(space: ParcelAuthRef, user: VoxelsUser | null): Promise<ParcelAuthResult> {
+export async function authSpace(space: ParcelAuthRef & { until?: string | Date | null }, user: VoxelsUser | null): Promise<ParcelAuthResult> {
   let wallet: string | null = null
   if (user && typeof user.wallet === 'string' && user.wallet.length === 42) {
     wallet = user.wallet.toLowerCase()
   }
 
-  if (space.owner.toLowerCase() == wallet) {
+  const owner = typeof space.owner === 'string' ? space.owner : ((space.owner as any)?.owner as string) || ''
+
+  if (owner.toLowerCase() == wallet) {
     return 'Owner'
   } else if (!!user?.moderator) {
     return 'Moderator'
-  } else if (space.settings.sandbox === true) {
+  } else if (space.until && new Date(space.until) > new Date() && wallet) {
+    const collab: string[] = ((space.settings as any)?.collab as string[]) || []
+    if (collab.some((w) => w.toLowerCase() === wallet)) return 'Collaborator'
+  }
+
+  if (space.settings.sandbox === true) {
     // anons are now able to edit sandbox
     return 'Sandbox'
   } else {
