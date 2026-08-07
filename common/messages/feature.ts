@@ -679,6 +679,17 @@ export const GuestBookRecord = t.intersection(
 )
 export type GuestBookRecord = t.TypeOf<typeof GuestBookRecord>
 
+export const WompWallRecord = t.intersection(
+  [
+    FeatureCommon,
+    t.type({
+      type: t.literal('womp-wall'),
+    }),
+  ],
+  'WompWallRecord',
+)
+export type WompWallRecord = t.TypeOf<typeof WompWallRecord>
+
 export const PoseBallRecord = t.intersection(
   [
     FeatureCommon,
@@ -788,6 +799,7 @@ export const FeatureRecord = t.union(
     PortalRecord,
     GroupRecord,
     GuestBookRecord,
+    WompWallRecord,
     PoseBallRecord,
     ScreenRecord,
     PoapDispenserRecord,

@@ -23,6 +23,7 @@ import VoxModel, { Megavox } from './vox-model'
 import Showbox from './showbox'
 import Youtube from './youtube'
 import GuestBook from './guest-book'
+import WompWall from './womp-wall'
 import PoseBall from './pose-ball'
 import { FeatureRecord, FeatureType, YoutubeRecord } from '../../common/messages/feature'
 import Parcel from '../parcel'
@@ -86,6 +87,8 @@ export const createFeature = (scene: BABYLON.Scene, parcel: Parcel, uuid: string
       return new Group(scene, parcel, uuid, description)
     case 'guest-book':
       return new GuestBook(scene, parcel, uuid, description)
+    case 'womp-wall':
+      return new WompWall(scene, parcel, uuid, description)
     case 'pose-ball':
       return new PoseBall(scene, parcel, uuid, description)
 
@@ -120,6 +123,7 @@ export const getAxes = (type?: FeatureType) => {
     case 'video':
     case 'nft-image':
     case 'image':
+    case 'womp-wall':
     case 'audio':
     case 'slider-input':
       return FEATURE_2D_AXES
@@ -141,6 +145,7 @@ export const pivotToBottomOfBoundingBoxDefault = (type: FeatureType, scale?: num
     case 'cube':
     case 'nft-image':
     case 'image':
+    case 'womp-wall':
     case 'audio':
     case 'portal':
     case 'richtext':
