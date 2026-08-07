@@ -1,7 +1,9 @@
 import { WompWallRecord } from '../../common/messages/feature'
+import { decodeCoords } from '../../common/helpers/utils'
 import { Position, Rotation, Scale, EditorProps } from '../../web/src/components/editor'
 import { rebindGizmos } from '../tools/gizmos'
 import { FeatureEditor, FeatureEditorProps, Toolbar } from '../ui/features'
+import type Parcel from '../parcel'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import Feature, { Feature2D, FeatureEvent, MeshExtended } from './feature'
 import {
@@ -16,9 +18,12 @@ import {
 const TEX_W = 768
 const TEX_H = 512
 const REFRESH_MS = 60_000
+const FETCH_LIMIT = 40
 
 type WallWomp = {
   id: number
+  parcel_id?: number
+  coords?: string
   image_url?: string
   image_supplied?: boolean
 }
@@ -141,7 +146,8 @@ export default class WompWall extends Feature2D<WompWallRecord> {
 
   private async loadAndPaint() {
     const gen = ++this.paintGen
-    const parcelId = this.parcel?.id
+    const parcel = this.parcel
+    const parcelId = parcel?.id
     if (!parcelId || window.config?.isSpace) {
       this.tiles = Array(TILES).fill(null)
       this.paintEmpty()
@@ -151,7 +157,7 @@ export default class WompWall extends Feature2D<WompWallRecord> {
     let womps: WallWomp[] = []
     try {
       const api = process.env.API || '/api'
-      const res = await fetch(`${api}/womps/at/parcel/${parcelId}.json?limit=${TILES}`, { signal: this.abortController.signal })
+      const res = await fetch(`${api}/womps/at/parcel/${parcelId}.json?limit=${FETCH_LIMIT}`, { signal: this.abortController.signal })
       if (!res.ok) return
       const data = await res.json()
       womps = Array.isArray(data?.womps) ? data.womps : []
@@ -161,11 +167,14 @@ export default class WompWall extends Feature2D<WompWallRecord> {
 
     if (this.disposed || gen !== this.paintGen) return
 
+    // API is by parcel_id (look-at tags); keep only shots taken while standing on this lot
+    womps = womps.filter((w) => wompTakenOnParcel(w, parcel))
+
     this.tiles = Array(TILES).fill(null)
     for (let i = 0; i < TILES && i < womps.length; i++) {
       const w = womps[i]
       if (!w?.id) continue
-      this.tiles[i] = { id: w.id, image_url: w.image_url, image_supplied: w.image_supplied }
+      this.tiles[i] = { id: w.id, parcel_id: w.parcel_id, coords: w.coords, image_url: w.image_url, image_supplied: w.image_supplied }
     }
 
     this.paintEmpty()
@@ -245,6 +254,17 @@ export default class WompWall extends Feature2D<WompWallRecord> {
     this.dynamicTexture = null
     super.dispose()
   }
+}
+
+function wompTakenOnParcel(w: WallWomp, parcel: Parcel): boolean {
+  if (Number(w.parcel_id) !== Number(parcel.id)) return false
+  if (!w.coords) return true
+  const { position } = decodeCoords(w.coords)
+  const minX = Math.min(parcel.x1, parcel.x2)
+  const maxX = Math.max(parcel.x1, parcel.x2)
+  const minZ = Math.min(parcel.z1, parcel.z2)
+  const maxZ = Math.max(parcel.z1, parcel.z2)
+  return position.x >= minX && position.x <= maxX && position.z >= minZ && position.z <= maxZ
 }
 
 function cellRect(index: number): { x: number; y: number; w: number; h: number } {
