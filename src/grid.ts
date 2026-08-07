@@ -366,9 +366,11 @@ export default class Grid extends SocketClient {
     }
 
     if (el.id === 'space') {
-      // stash paid/by on the parcel for unpaid() checks
+      // stash paid/by/who/say on the parcel for unpaid() checks
       ;(p as any).paid = !!desc.paid
       ;(p as any).by = desc.by || null
+      ;(p as any).who = desc.who || null
+      ;(p as any).say = desc.say || null
       void import('./space-paid').then((m) => m.mono(!desc.paid))
     }
   }

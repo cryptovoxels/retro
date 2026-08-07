@@ -14,9 +14,11 @@ export async function ensureSpaceSponsorCols() {
   await db.query('embedded/spaces-col-until', `alter table spaces add column if not exists "until" timestamptz`, [])
   await db.query('embedded/spaces-col-by', `alter table spaces add column if not exists "by" text`, [])
   await db.query('embedded/spaces-col-sub', `alter table spaces add column if not exists sub text`, [])
+  await db.query('embedded/spaces-col-who', `alter table spaces add column if not exists who text`, [])
+  await db.query('embedded/spaces-col-say', `alter table spaces add column if not exists say text`, [])
 }
 
-export async function checkout(spaceId: string, who: string, yr = false) {
+export async function checkout(spaceId: string, who: string, say = '', yr = false) {
   if (!isValidUUID(spaceId) || !who) return null
   if (!key()) return null
 
@@ -28,20 +30,22 @@ export async function checkout(spaceId: string, who: string, yr = false) {
   if (!price) return null
 
   const name = await Avatar.getNameByWalletOrDefault(who)
+  const blurb = (say || '').slice(0, 50)
+  const meta = { space: spaceId, who, name, say: blurb }
   const session = await stripe().checkout.sessions.create({
     mode: 'subscription',
     line_items: [{ price, quantity: 1 }],
     success_url: `${origin()}/spaces/${spaceId}/play?paid=1`,
     cancel_url: `${origin()}/spaces/${spaceId}/play`,
     client_reference_id: spaceId,
-    metadata: { space: spaceId, who, name },
-    subscription_data: { metadata: { space: spaceId, who, name } },
+    metadata: meta,
+    subscription_data: { metadata: meta },
   })
   return session.url
 }
 
-async function mark(space: string, by: string, sub: string, until: Date) {
-  await db.query('embedded/space-mark-paid', `update spaces set "until"=$2, "by"=$3, sub=$4 where id=$1`, [space, until.toISOString(), by, sub])
+async function mark(space: string, by: string, who: string, say: string, sub: string, until: Date) {
+  await db.query('embedded/space-mark-paid', `update spaces set "until"=$2, "by"=$3, who=$4, say=$5, sub=$6 where id=$1`, [space, until.toISOString(), by, who || null, (say || '').slice(0, 50) || null, sub])
 }
 
 async function lapse(sub: string) {
@@ -70,11 +74,13 @@ export async function webhook(req: Request, res: Response) {
       const s = event.data.object as Stripe.Checkout.Session
       const space = s.metadata?.space || s.client_reference_id
       const by = s.metadata?.name || s.metadata?.who || 'someone'
+      const who = s.metadata?.who || ''
+      const say = s.metadata?.say || ''
       const sub = typeof s.subscription === 'string' ? s.subscription : s.subscription?.id
       if (space && sub) {
         const subObj = await stripe().subscriptions.retrieve(sub)
         const until = new Date((subObj.current_period_end || 0) * 1000)
-        await mark(space, by, sub, until)
+        await mark(space, by, who, say, sub, until)
       }
     } else if (event.type === 'invoice.paid') {
       const inv = event.data.object as Stripe.Invoice
@@ -83,9 +89,11 @@ export async function webhook(req: Request, res: Response) {
         const subObj = await stripe().subscriptions.retrieve(sub)
         const space = subObj.metadata?.space
         const by = subObj.metadata?.name || subObj.metadata?.who || 'someone'
+        const who = subObj.metadata?.who || ''
+        const say = subObj.metadata?.say || ''
         if (space) {
           const until = new Date((subObj.current_period_end || 0) * 1000)
-          await mark(space, by, sub, until)
+          await mark(space, by, who, say, sub, until)
         }
       }
     } else if (event.type === 'customer.subscription.deleted') {

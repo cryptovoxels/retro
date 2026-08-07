@@ -529,6 +529,8 @@ CREATE TABLE public.spaces (
     lightmap_url text,
     "until" timestamp with time zone,
     "by" text,
+    who text,
+    say text,
     sub text
 );
 CREATE MATERIALIZED VIEW public.mv_space_counts AS

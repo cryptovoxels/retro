@@ -19,6 +19,8 @@ export default class Space extends AbstractParcel {
   updated_at: string | undefined
   until: string | Date | null | undefined
   by: string | null | undefined
+  who: string | null | undefined
+  say: string | null | undefined
   sub: string | null | undefined
 
   private constructor(spaceId: string, record: SpaceRecord) {
@@ -26,6 +28,8 @@ export default class Space extends AbstractParcel {
     this.spaceId = spaceId
     this.until = (record as any).until
     this.by = (record as any).by
+    this.who = (record as any).who
+    this.say = (record as any).say
     this.sub = (record as any).sub
   }
 
@@ -35,7 +39,15 @@ export default class Space extends AbstractParcel {
 
   /** fastboot / api shape */
   boot() {
-    return { ...this, voxels: this.voxels, paid: this.paid, by: this.by || null, until: this.until || null }
+    return {
+      ...this,
+      voxels: this.voxels,
+      paid: this.paid,
+      by: this.by || null,
+      who: this.who || null,
+      say: this.say || null,
+      until: this.until || null,
+    }
   }
 
   get voxels() {

@@ -206,7 +206,8 @@ export default function SpacesController(db: Db, passport: PassportStatic, app: 
       return res.status(401).json({ error: 'login' })
     }
     const yr = !!(req.body?.yr || req.query.yr)
-    const url = await checkout(req.params.id, who, yr)
+    const say = typeof req.body?.say === 'string' ? req.body.say : ''
+    const url = await checkout(req.params.id, who, say, yr)
     if (!url) {
       return res.status(400).json({ error: 'cant sponsor' })
     }

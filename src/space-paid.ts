@@ -4,7 +4,12 @@ export function unpaid() {
 }
 
 export function sponsorBy() {
-  return ((window.grid?.fastbootParcel as any)?.by as string) || ''
+  const p = window.grid?.fastbootParcel as any
+  return {
+    by: (p?.by as string) || '',
+    who: (p?.who as string) || '',
+    say: ((p?.say as string) || '').slice(0, 50),
+  }
 }
 
 export function mono(on: boolean) {
