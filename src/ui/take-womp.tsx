@@ -80,7 +80,7 @@ export default class TakeWomp extends Component<Props, State> {
       return
     }
 
-    const parcel = window.grid?.getTargetParcel()
+    const parcel = window.grid?.currentOrNearestParcel()
     if (!parcel) {
       app.showSnackbar('Failed to capture womp. No parcel found', PanelType.Danger)
       return
