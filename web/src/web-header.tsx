@@ -8,7 +8,6 @@ import { app, AppEvent } from './state'
 import { CubeIcon } from './components/icons/icons'
 import VoxelRadio from './components/voxel-radio'
 import { getCoords, withCoords, routeWithCoords } from './helpers/coords-nav'
-import { getTheme, setTheme } from '../../common/helpers/theme'
 import cachedFetch from './helpers/cached-fetch'
 import { messageList } from '../../src/connector'
 
@@ -22,7 +21,6 @@ type State = {
   snackbarMessage: string
   expanded: boolean
   query: string
-  darkMode: boolean
   blogN: number
   shopN: number
   eventsN: number
@@ -59,7 +57,6 @@ export default class WebHeader extends Component<Props, State> {
     snackbarMessage: '',
     expanded: false,
     query: getQueryParams()?.get('q') ?? '',
-    darkMode: getTheme() === 'dark',
     blogN: 0,
     shopN: 0,
     eventsN: 0,
@@ -159,12 +156,6 @@ export default class WebHeader extends Component<Props, State> {
     routeWithCoords('/play')
   }
 
-  onToggleDark = (e: JSX.TargetedEvent<HTMLInputElement, Event>) => {
-    const on = e.currentTarget.checked
-    setTheme(on ? 'dark' : 'light')
-    this.setState({ darkMode: on })
-  }
-
   render() {
     const signedIn = app.signedIn
     const admin = app.isAdmin()
@@ -250,9 +241,6 @@ export default class WebHeader extends Component<Props, State> {
 
               <li>
                 <div class="header-end">
-                  <label class="theme-toggle">
-                    <input type="checkbox" checked={this.state.darkMode} onChange={this.onToggleDark} /> Dark
-                  </label>
                   <VoxelRadio />
                   <form action="/search" onSubmit={this.onSubmit}>
                     <input name="q" value={this.state.query} type="search" onInput={this.onInput} placeholder="Search" />
