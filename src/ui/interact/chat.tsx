@@ -131,9 +131,9 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
         <div class={'chat-messages' + (atCap ? ' at-cap' : '')}>
           {msgs.map((m, i) => (
             <p key={i}>
-              <span>
-                {chatName(m)}: <ChatText text={m.text} />
-              </span>
+              <span class="chat-who">{chatName(m)}</span>
+              {': '}
+              <ChatText text={m.text} />
             </p>
           ))}
         </div>

@@ -2790,7 +2790,19 @@ main > aside section {
     gap: 2px;
     margin-bottom: 2px;
     max-height: 50vh;
+    max-width: min(28rem, 72vw);
     overflow: hidden;
+    padding: 0.5rem 0.6rem 0.35rem;
+    box-sizing: border-box;
+    // soft scrim so lines stay readable over sky / dark voxels
+    background: color-mix(in srgb, var(--bg) 78%, transparent);
+    color: var(--fg);
+    text-shadow: 0 1px 2px color-mix(in srgb, var(--bg) 92%, transparent);
+
+    .chat-who {
+      font-weight: bold;
+      color: var(--red);
+    }
   }
 
   s.profanity {
@@ -2804,7 +2816,8 @@ main > aside section {
   }
 
   p {
-    margin: 0 0.8rem;
+    margin: 0;
+    line-height: 1.35;
   }
 
   form {
