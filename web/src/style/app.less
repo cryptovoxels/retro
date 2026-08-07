@@ -2861,6 +2861,17 @@ main > aside section {
   }
 }
 
+// safe-area alone misses Android/iOS browser toolbars (often 0). Lift chat + give dpad room.
+@media @narrow {
+  :root {
+    --chatbar: 6rem;
+  }
+
+  .UserInterface div.chat {
+    bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
+  }
+}
+
 /* Emote + animate lists */
 .AnimateList {
   margin: 5px 0;
