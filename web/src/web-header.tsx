@@ -177,10 +177,10 @@ export default class WebHeader extends Component<Props, State> {
 
     return (
       <>
+        <button class="hamburger site-nav-toggle" type="button" aria-label={this.state.expanded ? 'Close menu' : 'Open menu'} aria-expanded={this.state.expanded} onClick={() => this.setState({ expanded: !this.state.expanded })}>
+          {this.state.expanded ? '×' : '☰'}
+        </button>
         <header class={this.state.expanded ? 'nav-open' : undefined}>
-          <button class="hamburger site-nav-toggle" type="button" aria-label={this.state.expanded ? 'Close menu' : 'Open menu'} aria-expanded={this.state.expanded} onClick={() => this.setState({ expanded: !this.state.expanded })}>
-            {this.state.expanded ? '×' : '☰'}
-          </button>
           <nav>
             <ul>
               <li class="logo">
