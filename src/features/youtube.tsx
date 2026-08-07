@@ -382,10 +382,17 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
   play() {
     if (this.disposed) return
     if (this.playing) return
+    if (YoutubePlayer.disabled) return
+
+    // click is a user gesture — kick the audio context so we don't sit waiting forever
     if (!this.audio?.running) {
-      // if the audio context isn't running yet, wait a second and try again
-      setTimeout(() => this.play(), 1000)
-      return
+      try {
+        void this.audio?.audioContext?.resume?.()
+      } catch {}
+      if (!this.audio?.running) {
+        setTimeout(() => this.play(), 250)
+        return
+      }
     }
 
     this.playing = true
@@ -405,10 +412,6 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
     let ratio = 16 / 9
     if (this.description.screenRatio === '43') {
       ratio = 4 / 3
-    }
-
-    if (YoutubePlayer.disabled) {
-      return
     }
 
     this.player = new YoutubePlayer(this, this.scene, ratio)
@@ -562,7 +565,7 @@ export interface IYoutubePlayer {
 }
 
 class YoutubePlayer {
-  static disabled = true
+  static disabled = false
   static depthMask: BABYLON.StandardMaterial
   static initiated: boolean
   static renderObservable: BABYLON.Observer<BABYLON.Scene> | null
