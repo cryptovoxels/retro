@@ -579,10 +579,15 @@ header:has(nav) {
   overflow-y: auto;
   box-sizing: border-box;
 
-  // desktop keeps the full column; mobile uses .site-nav-toggle
+  // desktop keeps the full column; drawer modes use main > .site-nav-toggle
   > .site-nav-toggle {
     display: none;
   }
+}
+
+// floating menu button (sibling of header — never clipped by drawer transform)
+main > .site-nav-toggle {
+  display: none;
 }
 
 header nav {
@@ -1034,7 +1039,7 @@ body.in-world {
     pointer-events: none;
   }
 
-  // out of the grid - hamburger drawer over the canvas
+  // out of the grid - site nav drawer over the canvas
   main:has(> .client-world) > header:has(nav) {
     position: fixed;
     top: 0;
@@ -1049,21 +1054,7 @@ body.in-world {
     pointer-events: none;
     grid-column: unset;
     grid-area: unset;
-    // base header uses overflow-y:auto which clips the peeking hamburger
-    overflow: visible;
-
-    > .site-nav-toggle {
-      display: block;
-      position: absolute;
-      left: 100%;
-      top: 0.5rem;
-      margin-left: 0.25rem;
-      pointer-events: auto;
-      z-index: 1001;
-      background: var(--bg);
-      color: var(--fg);
-      box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
-    }
+    overflow-y: auto;
 
     &.nav-open {
       transform: translateX(0);
@@ -1072,10 +1063,20 @@ body.in-world {
 
     nav {
       pointer-events: auto;
-      height: 100%;
-      overflow-y: auto;
-      box-sizing: border-box;
     }
+  }
+
+  // fixed to the viewport — not inside the transformed drawer
+  main:has(> .client-world) > .site-nav-toggle {
+    display: block;
+    position: fixed;
+    left: max(0.5rem, env(safe-area-inset-left, 0px));
+    top: max(0.5rem, env(safe-area-inset-top, 0px));
+    z-index: 1001;
+    pointer-events: auto;
+    background: var(--bg);
+    color: var(--fg);
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
   }
 
   .client-world {
@@ -1144,21 +1145,7 @@ body.in-world main:has(> .client-world):not(:has(> aside)) {
     transform: translateX(-100%);
     transition: transform 150ms ease-out;
     pointer-events: none;
-    // don't clip the peeking hamburger (base header is overflow-y: auto)
-    overflow: visible;
-
-    > .site-nav-toggle {
-      display: block;
-      position: absolute;
-      left: 100%;
-      top: 0.5rem;
-      margin-left: 0.25rem;
-      pointer-events: auto;
-      z-index: 1001;
-      background: var(--bg);
-      color: var(--fg);
-      box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
-    }
+    overflow-y: auto;
 
     &.nav-open {
       transform: none;
@@ -1167,10 +1154,19 @@ body.in-world main:has(> .client-world):not(:has(> aside)) {
 
     nav {
       pointer-events: auto;
-      height: 100%;
-      overflow-y: auto;
-      box-sizing: border-box;
     }
+  }
+
+  main > .site-nav-toggle {
+    display: block;
+    position: fixed;
+    left: max(0.5rem, env(safe-area-inset-left, 0px));
+    top: max(0.5rem, env(safe-area-inset-top, 0px));
+    z-index: 1001;
+    pointer-events: auto;
+    background: var(--bg);
+    color: var(--fg);
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
   }
 
   body.in-world {
@@ -1189,7 +1185,6 @@ body.in-world main:has(> .client-world):not(:has(> aside)) {
       grid-template-columns: 1fr;
       grid-template-areas: 'world';
     }
-
   }
 }
 
