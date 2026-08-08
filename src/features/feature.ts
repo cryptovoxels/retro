@@ -503,8 +503,11 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       const ui = window.ui
 
       enterAuthoring(this.parcel.id)
-      ui.activeTool = window.ui.featureTool
-      // todo sort this shit
+      // same as E / highlightFeature — assign activeTool alone skips activate() and leaves the wrong tool live
+      ui.setFirstPersonPerspective()
+      ui.featureTool.setMode('edit')
+      ui.setTool(ui.featureTool)
+      ui.featureTool.nextMode = null
       ui.openEditor((this.constructor as any).Editor, this)
       ui.featureTool.highlightFeature(this)
     }

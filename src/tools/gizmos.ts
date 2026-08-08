@@ -275,6 +275,19 @@ const createAxisDragGizmos = () => {
 
 const axisLabelOf = (gizmo: BABYLON.Gizmo): AxisLabel | undefined => gizmo._rootMesh?.metadata?.axisLabel
 
+const isGizmoHierarchyMesh = (mesh: BABYLON.AbstractMesh | null | undefined) => {
+  if (!mesh) return false
+  for (const g of gizmos) {
+    if (!g.isEnabled || !g._rootMesh) continue
+    let n: BABYLON.Node | null = mesh
+    while (n) {
+      if (n === g._rootMesh) return true
+      n = n.parent
+    }
+  }
+  return false
+}
+
 // position gizmos onDrag
 const addOnAxisDragBehavior = (gizmo: BABYLON.AxisDragGizmo, axes: AxisLabel) => {
   gizmo.dragBehavior.onDragStartObservable.add(onAxisStartDrag(gizmo))
@@ -495,8 +508,8 @@ const bindGizmoToFeature = (gizmo: BABYLON.Gizmo, feature: Feature) => {
     if (isFlatWallFeature(feature) && gizmo instanceof BABYLON.AxisDragGizmo) {
       gizmo.updateGizmoRotationToMatchAttachedMesh = true
       gizmo.coloredMaterial.alpha = 1
-      // smaller than default so the arrow doesn't eat face-center clicks meant for window-drag
-      gizmo.scaleRatio = 1
+      // small — Z points at the camera on wall art, so a fat arrow collider covers the face
+      gizmo.scaleRatio = 0.75
     } else if (gizmo instanceof BABYLON.AxisDragGizmo) {
       gizmo.updateGizmoRotationToMatchAttachedMesh = false
       gizmo.scaleRatio = 1.5
@@ -670,10 +683,17 @@ const attachWindowDrag = (feature: Feature) => {
     const btn = info.event.button
 
     if (info.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 0) {
-      // utility layer (corner handles / Z arrow) wins — don't start face drag on those
+      // Corner handles always win. Z-gizmo has a fat util-layer collider that covers the face when
+      // the arrow points at the camera — a blanket util hit veto made face-drag randomly dead.
+      // Prefer face drag when the face is under the cursor; only yield when the gizmo is clearly closer.
       if (utilLayer) {
         const uPick = utilLayer.utilityLayerScene.pick(scene.pointerX, scene.pointerY)
-        if (uPick?.hit) return
+        const um = uPick?.pickedMesh
+        if (uPick?.hit && um?.name?.startsWith('feature/showbox/resize-handle/')) return
+        if (uPick?.hit && isGizmoHierarchyMesh(um)) {
+          const facePick = scene.pick(scene.pointerX, scene.pointerY, (m) => m === mesh)
+          if (!facePick?.hit || uPick.distance + 0.02 < (facePick.distance ?? Infinity)) return
+        }
       }
       const pick = scene.pick(scene.pointerX, scene.pointerY, (m) => m === mesh)
       if (!pick?.hit) return

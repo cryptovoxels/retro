@@ -157,6 +157,13 @@ export class FeatureEditor<T extends Feature = Feature> extends Component<Featur
     this.props.feature.addEventListener('dragged', this.featureWasDragged.bind(this))
   }
 
+  componentDidUpdate(prevProps: FeatureEditorProps<T>) {
+    if (prevProps.feature?.uuid !== this.props.feature?.uuid) {
+      unbindGizmosFromFeature(prevProps.feature)
+      bindGizmosToFeature(this.props.feature)
+    }
+  }
+
   componentWillUnmount() {
     FeatureEditor.openedEditor = null!
     unbindGizmosFromFeature(this.props.feature)
