@@ -21,6 +21,7 @@ import { getTransformVectorsRelativeToNode } from '../utils/feature'
 import { bboxCompletelyWithin } from '../utils/helpers'
 import { cameraPosition } from '../utils/camera'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
+import { isFlatWallFeature } from './flat-wall'
 
 type AABB = {
   min: BABYLON.Vector3
@@ -755,9 +756,9 @@ export default class FeatureTool implements Tool {
     const feature = this.selection.feature
     const target = mesh ?? (feature?.mesh instanceof BABYLON.AbstractMesh ? feature.mesh : undefined)
 
-    // showboxes are thin rotated planes - world AABB floats off the screen.
+    // flat wall features are thin rotated planes - world AABB floats off the screen.
     // match the mesh world pose; force a visible Z so scale.z=0 still outlines.
-    if (feature?.type === 'showbox' && target) {
+    if (feature && isFlatWallFeature(feature) && target) {
       const wm = target.computeWorldMatrix(true)
       wm.decompose(highlightScale, highlightRot, highlightPos)
       this.selector.parent = null!

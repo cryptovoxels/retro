@@ -5,6 +5,7 @@ import { IYoutubePlayer } from '../features/youtube'
 import { setSelectedFeature } from '../store'
 import { createEvent } from '../utils/EventEmitter'
 import { axisNames3D, limitAbsoluteValue, round, XYZ } from '../utils/helpers'
+import { isFlatWallFeature } from './flat-wall'
 
 let utilLayer = undefined as BABYLON.UtilityLayerRenderer | undefined
 const gizmos: (BABYLON.AxisDragGizmo | BABYLON.RotationGizmo | BABYLON.AxisScaleGizmo)[] = []
@@ -85,8 +86,7 @@ const collectSnapPeers = (feature: Feature, frame: PlaneFrame): Feature[] => {
   const peers: Feature[] = []
   for (const f of feature.parcel.featuresList) {
     if (!f || f.uuid === feature.uuid || !f.mesh) continue
-    const t = f.type
-    if (t !== 'showbox' && t !== 'image' && t !== 'video' && t !== 'nft-image' && t !== 'youtube' && t !== 'sign' && t !== 'vid-screen') continue
+    if (!isFlatWallFeature(f)) continue
     const m = f.mesh as BABYLON.AbstractMesh
     const other = planeFrameFromMesh(m)
     if (Math.abs(BABYLON.Vector3.Dot(frame.normal, other.normal)) < SNAP_PLANE_DOT) continue
@@ -300,8 +300,8 @@ const onAxisDragEnd = (gizmo: BABYLON.AxisDragGizmo, axis: AxisLabel) => () => {
   const mesh = gizmo.attachedMesh
   if (!mesh) return
 
-  // showbox Z is local-depth; mesh.position can change on all axes when rotated - persist full delta
-  if (feature.type === 'showbox') {
+  // flat wall features: local-depth Z; mesh.position can change on all axes when rotated - persist full delta
+  if (isFlatWallFeature(feature)) {
     const position = initialFeaturePosition.clone().add(mesh.position.subtract(initialPosition))
     feature.set({ position: roundNumberArray(position.asArray(), 4) as Vec3Description })
   } else {
@@ -463,8 +463,8 @@ export const bindGizmosToFeature = (feature: Feature) => {
   gizmos.forEach((gizmo: BABYLON.Gizmo) => {
     bindGizmoToFeature(gizmo, feature)
   })
-  // showboxes: face drag + corner resize + blue Z for depth (no X/Y arrows)
-  if (feature.type === 'showbox') {
+  // flat wall features: face drag + corner resize + blue Z for depth (no X/Y arrows)
+  if (isFlatWallFeature(feature)) {
     attachWindowDrag(feature)
     showResizeHandles(feature)
   } else {
@@ -473,8 +473,8 @@ export const bindGizmosToFeature = (feature: Feature) => {
 }
 
 const bindGizmoToFeature = (gizmo: BABYLON.Gizmo, feature: Feature) => {
-  // showboxes: skip scale arrows and X/Y drag; keep Z for depth along the screen normal
-  if (feature.type === 'showbox') {
+  // flat wall: skip scale arrows and X/Y drag; keep Z for depth along the screen normal
+  if (isFlatWallFeature(feature)) {
     if (gizmo instanceof BABYLON.AxisScaleGizmo) return
     if (gizmo instanceof BABYLON.AxisDragGizmo && axisLabelOf(gizmo) !== 'Z') return
   }
@@ -492,7 +492,7 @@ const bindGizmoToFeature = (gizmo: BABYLON.Gizmo, feature: Feature) => {
   if (gizmo instanceof BABYLON.AxisDragGizmo || gizmo instanceof BABYLON.AxisScaleGizmo) {
     gizmo.isEnabled = true
     // depth must follow the screen facing, not world Z (wall screens are rotated)
-    if (feature.type === 'showbox' && gizmo instanceof BABYLON.AxisDragGizmo) {
+    if (isFlatWallFeature(feature) && gizmo instanceof BABYLON.AxisDragGizmo) {
       gizmo.updateGizmoRotationToMatchAttachedMesh = true
       gizmo.coloredMaterial.alpha = 1
       // smaller than default so the arrow doesn't eat face-center clicks meant for window-drag
@@ -536,7 +536,7 @@ export const rebindGizmos = (feature: Feature) => {
     }
   })
   // regenerate() swaps the mesh; re-point the window-drag onto the new one (handles read the mesh live, so they're fine)
-  if (feature.type === 'showbox' && windowDragMesh && windowDragMesh !== feature.mesh) {
+  if (isFlatWallFeature(feature) && windowDragMesh && windowDragMesh !== feature.mesh) {
     attachWindowDrag(feature)
   }
 }
