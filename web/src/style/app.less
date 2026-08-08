@@ -2736,8 +2736,8 @@ button.iconish {
     padding: 0;
 
     li:first-child {
-      // clear fixed ☰ above Explore
-      margin-top: 2.75rem;
+      // clear fixed ☰ above Explore + a little breathing room
+      margin-top: 3.5rem;
     }
 
     li,
@@ -4042,6 +4042,12 @@ button.TakeWompButton {
   z-index: 1000;
 }
 
+// desktop: sits in .top-right under fullscreen, not over it
+.top-right .womp-button {
+  position: static;
+  z-index: auto;
+}
+
 section.take-womp {
   .take-womp-preview {
     max-width: 100%;
@@ -4947,8 +4953,14 @@ div.css-icon {
   position: absolute;
   top: 0;
   right: 0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
 
-  button {
+  > button:not(.womp-button) {
     background: transparent;
     border: none;
   }

@@ -503,6 +503,30 @@ export default class Grid extends SocketClient {
     return this.getNearest(16, (pickInfo && pickInfo.pickedPoint) || this.getPointInFrontOfCamera(5))[0]
   }
 
+  /** Parcel whose footprint contains the look-at hit. No nearest/5m fallback (that tagged neighbors onto the wrong lot). */
+  public getLookAtParcel(): Parcel | undefined {
+    if (window.config.isSpace) {
+      return this.currentOrNearestParcel()
+    }
+    if (!this.scene.activeCamera) {
+      return undefined
+    }
+
+    const ray = this.scene.activeCamera.getForwardRay(40)
+    const pickInfo = this.scene.pickWithRay(ray)
+    if (!pickInfo?.pickedPoint) return undefined
+
+    // pick is world; contains() is grid
+    const origin = this.parent?.position
+    const p = origin ? pickInfo.pickedPoint.subtract(origin) : pickInfo.pickedPoint
+    let best: Parcel | undefined
+    for (const parcel of this.nearestParcels) {
+      if (!parcel.contains(p)) continue
+      if (!best || parcel.footprintCm2 < best.footprintCm2) best = parcel
+    }
+    return best
+  }
+
   public getNearest(count: number, point?: BABYLON.Vector3): Array<Parcel> {
     const target = point ?? this.getCameraPosition()
 

@@ -167,7 +167,7 @@ export default class WompWall extends Feature2D<WompWallRecord> {
 
     if (this.disposed || gen !== this.paintGen) return
 
-    // parcel_id is look-at; require feet were on this lot (drops street look-ins and cross-lot tags)
+    // parcel_id + feet on this lot (drops street look-ins and cross-lot tags)
     womps = womps.filter((w) => wompTakenOnParcel(w, parcel))
 
     this.tiles = Array(TILES).fill(null)
@@ -260,12 +260,9 @@ function wompTakenOnParcel(w: WallWomp, parcel: Parcel): boolean {
   if (Number(w.parcel_id) !== Number(parcel.id)) return false
   if (!w.coords) return false
   const { position } = decodeCoords(w.coords)
-  // xz only — y/towers vary; decode also bakes CAMERA_HEIGHT into y
-  const minX = Math.min(parcel.x1, parcel.x2)
-  const maxX = Math.max(parcel.x1, parcel.x2)
-  const minZ = Math.min(parcel.z1, parcel.z2)
-  const maxZ = Math.max(parcel.z1, parcel.z2)
-  return position.x >= minX && position.x <= maxX && position.z >= minZ && position.z <= maxZ
+  // feet must be on this lot; clamp y so towers / CAMERA_HEIGHT don't fail contains()
+  const midY = (parcel.y1 + parcel.y2) / 2
+  return parcel.contains(new BABYLON.Vector3(position.x, midY, position.z))
 }
 
 function cellRect(index: number): { x: number; y: number; w: number; h: number } {

@@ -550,7 +550,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.setState({ pane: undefined, active: false })
   }
 
-  // the one ESC: leave fullscreen/theatre. two-step -- a locked pointer eats the
+  // the one ESC: leave fullscreen. two-step -- a locked pointer eats the
   // first ESC (browser releases it), the next ESC exits /play back to the parcel.
   onEscape() {
     if (this.connector.controls.vehicleFeature) {
@@ -815,13 +815,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   enterFullScreen = () => {
-    document.querySelector('canvas')?.requestFullscreen()
+    // body, not canvas — keeps in-world UI visible (see body:fullscreen CSS)
+    void document.body.requestFullscreen?.()
     requestPointerLock()
-    // this.engine.enterFullscreen(true)
-  }
-
-  enterTheatre = () => {
-    // this.engine.enterTheatre()
   }
 
   render() {
@@ -865,11 +861,13 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           {!isMobileMedia() && (
             <div class="top-right">
-              <button onClick={this.enterFullScreen}>⌞ ⌝</button>
-
-              <button onClick={this.enterTheatre}>⛶</button>
+              <button type="button" title="Fullscreen" onClick={this.enterFullScreen}>
+                ⌞ ⌝
+              </button>
+              <WompButton onClick={() => this.takeWomp(this.props.scene)} />
             </div>
           )}
+          {isMobileMedia() && <WompButton onClick={() => this.takeWomp(this.props.scene)} />}
 
           <aside data-active={this.state.active}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
@@ -949,8 +947,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           </aside>
 
           <BroadcastSidebarTab />
-
-          <WompButton onClick={() => this.takeWomp(this.props.scene)} />
 
           <ConnectionStatusUI connector={this.connector} grid={this.grid} scene={this.props.scene} />
           <OnlyMobile>
