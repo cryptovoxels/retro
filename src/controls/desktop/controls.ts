@@ -165,7 +165,8 @@ export default class DesktopControls extends Controls {
           if (picked?.parcel?.canEdit) {
             picked.openEditor()
           } else {
-            window.ui.showEditBrowse()
+            // click away: clear selection and return to pointer lock
+            window.ui.closeWithPointerLock()
           }
           eventState.skipNextObservers = true
           break
