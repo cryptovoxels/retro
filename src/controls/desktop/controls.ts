@@ -7,6 +7,7 @@ import { unmountComponentAtNode } from 'preact/compat'
 import { createFirstPersonCamera } from '../utils/fps-camera'
 import { decodeCoordsFromURL } from '../../utils/helpers'
 import { hasPointerLock, isFastviewBlocking } from '../../../common/helpers/ui-helpers'
+import { uiPane } from '../../store'
 import { app, AppEvent } from '../../../web/src/state'
 const POINTER_WHEEL_MULTIPLIER = 0.001
 export default class DesktopControls extends Controls {
@@ -154,19 +155,23 @@ export default class DesktopControls extends Controls {
           }
           break
         }
-        // editor open: click empty space (or another object) clears the current selection
-        if (btn === 0 && !hasPointerLock() && window.ui?.state?.editor && !window.ui?.state?.dragging) {
+        // edit aside open (inspector or tree-only browse): empty click fully closes the sidebar
+        const editPaneOpen =
+          !hasPointerLock() &&
+          !window.ui?.state?.dragging &&
+          (uiPane.value === 'edit' || window.ui?.state?.pane === 'edit' || !!window.ui?.state?.editor || !!window.ui?.state?.feature)
+        if (btn === 0 && editPaneOpen) {
           // trailing tap after a real face-drag must not clear the selection
           if ((window.ui as any)._windowDragActive) break
-          const selected = window.ui.state.feature
+          const selected = window.ui?.state?.feature
           const picked = featureFromPick(eventData.pickInfo)
           // same-object tap (incl. the click that ends a drag) keeps selection; empty / other exits
-          if (picked?.uuid === selected?.uuid) break
+          if (selected && picked?.uuid === selected.uuid) break
           if (picked?.parcel?.canEdit) {
             picked.openEditor()
           } else {
-            // click away: leave edit mode entirely and return to pointer lock
-            window.ui.closeWithPointerLock()
+            // click away: leave edit mode entirely — sidebar goes away, pointer lock back
+            window.ui?.closeWithPointerLock()
           }
           eventState.skipNextObservers = true
           break

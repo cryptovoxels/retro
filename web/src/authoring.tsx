@@ -1,7 +1,6 @@
 import { useSignalEffect } from '@preact/signals'
 import { useState } from 'preact/hooks'
 import type Parcel from '../../src/parcel'
-import EditPane from '../../src/ui/overlay/edit-pane'
 import { authoring, uiAsideTick, uiPane } from '../../src/store'
 import type UserInterface from '../../src/user-interface'
 
@@ -24,7 +23,7 @@ export function Authoring({ parcel }: { parcel: Parcel }) {
   if (!ui) return null
 
   const pane = uiPane.value
-  if (pane) return ui.paneContent(pane as any)
-
-  return <EditPane parcel={parcel} scene={ui.props.scene} />
+  // no pane = no aside content (do not fall back to a bare feature tree)
+  if (!pane) return null
+  return ui.paneContent(pane as any)
 }
