@@ -25,7 +25,17 @@ export function getGridMono() {
 }
 
 export function getComputePool() {
-  return (pool ??= Promise.all(Array.from({ length: COMPUTE_COUNT }, () => spawn())))
+  // spawn one-by-one so a flaky importScripts does not thundering-herd 4 workers
+  return (pool ??= (async () => {
+    const first = await spawn()
+    // main-thread fallback is a shared singleton; one handle is enough
+    if (!first.isWorker) return [first]
+    const handles: MonoHandle[] = [first]
+    for (let i = 1; i < COMPUTE_COUNT; i++) {
+      handles.push(await spawn())
+    }
+    return handles
+  })())
 }
 
 const busy = new Map<Mono, number>()
