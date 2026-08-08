@@ -384,6 +384,10 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   closeWithPointerLock() {
+    setCheckedFeatures([])
+    selectedFeature.value = undefined
+    this.featureTool.unHighlight()
+    this.setState({ editor: undefined, feature: undefined })
     this.hide()
     requestPointerLock()
   }
