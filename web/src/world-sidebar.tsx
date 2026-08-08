@@ -22,8 +22,8 @@ export function WorldSidebar({ coords, path, children }: Props) {
     uiAsideTick.value
     nearestEditableParcel.value
 
-    const parcel = selectNearestEditableParcel()
-    const key = uiPane.value || (parcel && isAuthoring(parcel.id) ? `auth:${parcel.id}` : '')
+    // authoring alone must not keep the aside up - edit is contextual and dies with uiPane
+    const key = uiPane.value || ''
     prevKey.current = key
     bump((n) => n + 1)
   })
@@ -34,7 +34,7 @@ export function WorldSidebar({ coords, path, children }: Props) {
   if (isFullClientPath(path)) {
     const parcel = selectNearestEditableParcel()
     let panel: VNode | null = null
-    if (parcel && isAuthoring(parcel.id) && uiPane.value !== 'broadcast') {
+    if (parcel && isAuthoring(parcel.id) && uiPane.value && uiPane.value !== 'broadcast') {
       panel = (
         <aside>
           <Authoring parcel={parcel} />
@@ -67,7 +67,7 @@ export function WorldSidebar({ coords, path, children }: Props) {
     )
   } else {
     const parcel = selectNearestEditableParcel()
-    if (parcel && isAuthoring(parcel.id)) {
+    if (parcel && isAuthoring(parcel.id) && uiPane.value) {
       pane = (
         <aside>
           <Authoring parcel={parcel} />
