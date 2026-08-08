@@ -295,6 +295,11 @@ export default class FeatureTool implements Tool {
   }
 
   onPointerObservable(eventData: BABYLON.PointerInfo) {
+    // sidebar feature editor owns the mouse (face-drag / corners / click-away). if we keep
+    // handling taps here, POINTERTAP after every drag attempt runs onLeftClick -> deactivate()
+    // and face-drag feels randomly dead until you re-open the editor enough times.
+    if (this.ui?.state?.editor) return
+
     const pick = this.controls.pickForPointer(eventData.pickInfo) ?? null
     switch (eventData.type) {
       case BABYLON.PointerEventTypes.POINTERTAP:

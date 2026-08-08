@@ -271,19 +271,6 @@ const createAxisDragGizmos = () => {
 
 const axisLabelOf = (gizmo: BABYLON.Gizmo): AxisLabel | undefined => gizmo._rootMesh?.metadata?.axisLabel
 
-const isGizmoHierarchyMesh = (mesh: BABYLON.AbstractMesh | null | undefined) => {
-  if (!mesh) return false
-  for (const g of gizmos) {
-    if (!g.isEnabled || !g._rootMesh) continue
-    let n: BABYLON.Node | null = mesh
-    while (n) {
-      if (n === g._rootMesh) return true
-      n = n.parent
-    }
-  }
-  return false
-}
-
 // position gizmos onDrag
 const addOnAxisDragBehavior = (gizmo: BABYLON.AxisDragGizmo, axes: AxisLabel) => {
   gizmo.dragBehavior.onDragStartObservable.add(onAxisStartDrag(gizmo))
@@ -464,11 +451,22 @@ const onRotationDragEnd = (gizmo: BABYLON.RotationGizmo) => () => {
   GenericOnDragEnd(gizmo)
 }
 
+const clearGizmo = (gizmo: BABYLON.Gizmo) => {
+  gizmo.attachedMesh = null
+  gizmo.attachedNode = null
+  if (gizmo instanceof BABYLON.AxisDragGizmo || gizmo instanceof BABYLON.AxisScaleGizmo) {
+    gizmo.isEnabled = false
+    if (gizmo instanceof BABYLON.AxisDragGizmo) gizmo.updateGizmoRotationToMatchAttachedMesh = false
+  }
+}
+
 /**
  * Bind the gizmos to the feature
  * and adds the appropriate dragBehaviors
  */
 export const bindGizmosToFeature = (feature: Feature) => {
+  // always drop leftovers first — skipped X/Y axes used to stay enabled from the previous feature
+  gizmos.forEach(clearGizmo)
   gizmos.forEach((gizmo: BABYLON.Gizmo) => {
     bindGizmoToFeature(gizmo, feature)
   })
@@ -484,8 +482,10 @@ export const bindGizmosToFeature = (feature: Feature) => {
 const bindGizmoToFeature = (gizmo: BABYLON.Gizmo, feature: Feature) => {
   // flat wall: skip scale arrows and X/Y drag; keep Z for depth along the screen normal
   if (isFlatWallFeature(feature)) {
-    if (gizmo instanceof BABYLON.AxisScaleGizmo) return
-    if (gizmo instanceof BABYLON.AxisDragGizmo && axisLabelOf(gizmo) !== 'Z') return
+    if (gizmo instanceof BABYLON.AxisScaleGizmo || (gizmo instanceof BABYLON.AxisDragGizmo && axisLabelOf(gizmo) !== 'Z')) {
+      clearGizmo(gizmo)
+      return
+    }
   }
 
   if (feature.mesh) {
@@ -517,14 +517,7 @@ const bindGizmoToFeature = (gizmo: BABYLON.Gizmo, feature: Feature) => {
 export const unbindGizmosFromFeature = (feature: Feature) => {
   gizmos.forEach((gizmo) => {
     if (getFeature(gizmo)?.uuid !== feature.uuid) return
-
-    gizmo.attachedMesh = null
-    gizmo.attachedNode = null
-
-    if (gizmo instanceof BABYLON.AxisDragGizmo || gizmo instanceof BABYLON.AxisScaleGizmo) {
-      gizmo.isEnabled = false
-      if (gizmo instanceof BABYLON.AxisDragGizmo) gizmo.updateGizmoRotationToMatchAttachedMesh = false
-    }
+    clearGizmo(gizmo)
   })
   detachWindowDrag()
   hideResizeHandles(feature)
@@ -678,17 +671,11 @@ const attachWindowDrag = (feature: Feature) => {
     const btn = info.event.button
 
     if (info.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 0) {
-      // Corner handles always win. Z-gizmo has a fat util-layer collider that covers the face when
-      // the arrow points at the camera — a blanket util hit veto made face-drag randomly dead.
-      // Prefer face drag when the face is under the cursor; only yield when the gizmo is clearly closer.
+      // Corner handles win. Do not compare util-layer vs main-scene pick distances — those cameras
+      // disagree and the Z arrow (pointing at you) looked "closer" and vetoed face-drag every time.
       if (utilLayer) {
         const uPick = utilLayer.utilityLayerScene.pick(scene.pointerX, scene.pointerY)
-        const um = uPick?.pickedMesh
-        if (uPick?.hit && um?.name?.startsWith('feature/showbox/resize-handle/')) return
-        if (uPick?.hit && isGizmoHierarchyMesh(um)) {
-          const facePick = scene.pick(scene.pointerX, scene.pointerY, (m) => m === mesh)
-          if (!facePick?.hit || uPick.distance + 0.02 < (facePick.distance ?? Infinity)) return
-        }
+        if (uPick?.hit && uPick.pickedMesh?.name?.startsWith('feature/showbox/resize-handle/')) return
       }
       const pick = scene.pick(scene.pointerX, scene.pointerY, (m) => m === mesh)
       if (!pick?.hit) return
