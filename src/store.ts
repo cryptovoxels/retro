@@ -199,6 +199,16 @@ export const enterAuthoring = (id: number) => {
   authoring.value = s
 }
 
+export const exitAuthoring = (id?: number) => {
+  if (id == null) {
+    authoring.value = new Set()
+    return
+  }
+  const s = new Set(authoring.value)
+  s.delete(id)
+  authoring.value = s
+}
+
 export const isAuthoring = (id?: number) => {
   const pid = id ?? selectNearestEditableParcel()?.id
   return pid != null && authoring.value.has(pid)

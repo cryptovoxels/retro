@@ -33,6 +33,7 @@ import {
   setSelectedFeature,
   toggleCheckedFeature,
   enterAuthoring,
+  exitAuthoring,
   isPersistentPane,
   uiAsideTick,
   uiPane,
@@ -384,14 +385,17 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   closeWithPointerLock() {
-    // full exit: clear selection, kill edit tool, close aside, relock — one click away
+    // full exit: kill selection + edit tool + world sidebar (not tree-only browse), then relock
+    const parcelId = this.state.feature?.parcel?.id ?? selectNearestEditableParcel()?.id
     setCheckedFeatures([])
     selectedFeature.value = undefined
     this.featureTool.unHighlight()
     this.featureTool.setMode('edit')
     this.setTool(this.defaultTool)
-    this.setState({ editor: undefined, feature: undefined })
-    this.hide()
+    uiPane.value = undefined
+    if (parcelId != null) exitAuthoring(parcelId)
+    uiAsideTick.value++
+    this.setState({ editor: undefined, feature: undefined, pane: undefined, active: false, publishAsset: undefined })
     requestPointerLock()
   }
 
