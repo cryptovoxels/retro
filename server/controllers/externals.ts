@@ -27,15 +27,15 @@ export default function ExternalsController(db: Db, passport: PassportStatic, ap
       return res.status(503).send({ success: false })
     }
     const headers = { 'X-API-KEY': apiKey }
-    const chain = 'ethereum' as const
-    const fetchMore = async () => {
+    const chains = ['ethereum', 'base'] as const
+    const fetchChain = async (chain: (typeof chains)[number]) => {
       const LIMIT = 50
       let next = ''
       const result: OpenSeaNFTV2Extended[] = []
       const f = async () => {
         const response = await fetch(`https://api.opensea.io/api/v2/chain/${chain}/account/${wallet}/nfts?limit=${LIMIT}` + (next ? `&next=${next}` : ''), { method: 'GET', headers })
         if (response.status !== 200) {
-          log.info('There was a problem with opensea fetch! Status Code: ' + response.status, response.statusText)
+          log.info('There was a problem with opensea fetch! Status Code: ' + response.status, response.statusText, { chain })
           return
         }
         const data = await response.json()
@@ -50,7 +50,7 @@ export default function ExternalsController(db: Db, passport: PassportStatic, ap
       return result
     }
 
-    const nfts = await fetchMore()
+    const nfts = (await Promise.all(chains.map((c) => fetchChain(c)))).flat()
     res.setHeader('Cache-Control', 'private, max-age=60')
     res.send({ success: true, nfts })
   })

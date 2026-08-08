@@ -198,7 +198,7 @@ export const OpenSeaNFTV2Extended = t.intersection([
   t.type({
     // Our own fields
     owner: t.string,
-    chain: t.literal('ethereum'), // only ethereum supported for now
+    chain: t.union([t.literal('ethereum'), t.literal('matic'), t.literal('base')]),
     permalink: t.string,
   }),
 ])

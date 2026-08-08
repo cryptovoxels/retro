@@ -322,6 +322,13 @@ export default class NftImage extends Feature2D<NftImageRecord> {
 
   onClick() {
     this.connector.sendMetric(Action.Inspect)
+    void this.openDetails()
+  }
+
+  private async openDetails() {
+    if (!this.asset) {
+      await this.loadURL().catch(() => {})
+    }
     showNftView(this)
   }
 
@@ -386,6 +393,11 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     if (!this.mesh) {
       return
     }
+
+    // wire click even when metadata fetch failed (Base etc.) so we can retry on inspect
+    this.addScriptTriggers()
+    this.addEvents()
+
     if (!this.asset) {
       return
     }
@@ -410,8 +422,6 @@ export default class NftImage extends Feature2D<NftImageRecord> {
 
       return BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), options, this.scene)
     }
-    this.addScriptTriggers()
-    this.addEvents()
 
     if (!this.assetHelper?.isOwner(this.parcel.owner)) {
       return
