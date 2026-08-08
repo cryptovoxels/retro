@@ -10,6 +10,7 @@ let utilLayer = undefined as BABYLON.UtilityLayerRenderer | undefined
 const gizmos: (BABYLON.AxisDragGizmo | BABYLON.RotationGizmo | BABYLON.AxisScaleGizmo)[] = []
 // This is to allow reverting the position if the new position set by gizmo is not allowed (outside hard limit)
 let initialPosition: BABYLON.Vector3
+let initialFeaturePosition: BABYLON.Vector3
 
 // showboxes drag around like a window: grab the body, slide it in its own plane (depth locked). one shared behavior.
 let windowDrag: BABYLON.PointerDragBehavior | null = null
@@ -23,9 +24,7 @@ let activeHandles: ResizeHandleSet | null = null
 type AxisLabel = 'X' | 'Y' | 'Z'
 
 const updateHighlight = () => {
-  queueMicrotask(() => {
-    window.ui?.featureTool?.updateHighlight()
-  })
+  window.ui?.featureTool?.updateHighlight()
 }
 
 /**
@@ -60,10 +59,13 @@ const createAxisDragGizmos = () => {
     gizmo.coloredMaterial.alpha = a.alpha
     gizmo.updateGizmoRotationToMatchAttachedMesh = false
     gizmo.isEnabled = false
+    gizmo._rootMesh.metadata = { ...(gizmo._rootMesh.metadata || {}), axisLabel: a.label }
     addOnAxisDragBehavior(gizmo, a.label as AxisLabel)
     return gizmo
   })
 }
+
+const axisLabelOf = (gizmo: BABYLON.Gizmo): AxisLabel | undefined => gizmo._rootMesh?.metadata?.axisLabel
 
 // position gizmos onDrag
 const addOnAxisDragBehavior = (gizmo: BABYLON.AxisDragGizmo, axes: AxisLabel) => {
@@ -80,28 +82,29 @@ const onAxisStartDrag = (gizmo: BABYLON.Gizmo) => () => {
   const feature = getFeature(gizmo)
   if (!feature) return
   initialPosition = gizmo.attachedMesh!.position.clone()
+  initialFeaturePosition = feature.position.clone()
 }
 
 const onAxisDragEnd = (gizmo: BABYLON.AxisDragGizmo, axis: AxisLabel) => () => {
   const feature = getFeature(gizmo)
   if (!feature) return
 
-  const delta = gizmo.attachedMesh!.position.clone().subtract(initialPosition)
-  const position = feature.position.clone()
+  const mesh = gizmo.attachedMesh
+  if (!mesh) return
 
-  if (axis === 'X') {
-    position.x += delta.x
-    console.log('x drag', delta.x)
-  } else if (axis === 'Y') {
-    position.y += delta.y
-    console.log('y drag', delta.y)
-  } else if (axis === 'Z') {
-    position.z += delta.z
-    console.log('z drag', delta.z)
+  // showbox Z is local-depth; mesh.position can change on all axes when rotated - persist full delta
+  if (feature.type === 'showbox') {
+    const position = initialFeaturePosition.clone().add(mesh.position.subtract(initialPosition))
+    feature.set({ position: roundNumberArray(position.asArray(), 4) as Vec3Description })
+  } else {
+    const delta = mesh.position.clone().subtract(initialPosition)
+    const position = feature.position.clone()
+    if (axis === 'X') position.x += delta.x
+    else if (axis === 'Y') position.y += delta.y
+    else if (axis === 'Z') position.z += delta.z
+    feature.set({ position: roundNumberArray(position.asArray(), 4) as Vec3Description })
   }
 
-  feature.set({ position: roundNumberArray(position.asArray(), 4) as Vec3Description })
-  // feature.dispatchEvent('dragged')
   feature.dispatchEvent(createEvent('dragged', true))
 
   onDragObservableHandler(gizmo)()
@@ -252,7 +255,7 @@ export const bindGizmosToFeature = (feature: Feature) => {
   gizmos.forEach((gizmo: BABYLON.Gizmo) => {
     bindGizmoToFeature(gizmo, feature)
   })
-  // showboxes move by dragging the body like a window, and resize from corner handles - no arrows
+  // showboxes: face drag + corner resize + blue Z for depth (no X/Y arrows)
   if (feature.type === 'showbox') {
     attachWindowDrag(feature)
     showResizeHandles(feature)
@@ -262,8 +265,11 @@ export const bindGizmosToFeature = (feature: Feature) => {
 }
 
 const bindGizmoToFeature = (gizmo: BABYLON.Gizmo, feature: Feature) => {
-  // showboxes use a body-drag (move) + custom corner handles (resize), so no arrow gizmos for them
-  if (feature.type === 'showbox' && (gizmo instanceof BABYLON.AxisDragGizmo || gizmo instanceof BABYLON.AxisScaleGizmo)) return
+  // showboxes: skip scale arrows and X/Y drag; keep Z for depth along the screen normal
+  if (feature.type === 'showbox') {
+    if (gizmo instanceof BABYLON.AxisScaleGizmo) return
+    if (gizmo instanceof BABYLON.AxisDragGizmo && axisLabelOf(gizmo) !== 'Z') return
+  }
 
   if (feature.mesh) {
     if (feature.type === 'group' || feature.type === 'polytext' || feature.type === 'polytext-v2') {
@@ -277,6 +283,14 @@ const bindGizmoToFeature = (gizmo: BABYLON.Gizmo, feature: Feature) => {
 
   if (gizmo instanceof BABYLON.AxisDragGizmo || gizmo instanceof BABYLON.AxisScaleGizmo) {
     gizmo.isEnabled = true
+    // depth must follow the screen facing, not world Z (wall screens are rotated)
+    if (feature.type === 'showbox' && gizmo instanceof BABYLON.AxisDragGizmo) {
+      gizmo.updateGizmoRotationToMatchAttachedMesh = true
+      gizmo.coloredMaterial.alpha = 1
+    } else if (gizmo instanceof BABYLON.AxisDragGizmo) {
+      gizmo.updateGizmoRotationToMatchAttachedMesh = false
+      if (axisLabelOf(gizmo) === 'Z') gizmo.coloredMaterial.alpha = 0.5
+    }
   }
 }
 
@@ -289,6 +303,7 @@ export const unbindGizmosFromFeature = (feature: Feature) => {
 
     if (gizmo instanceof BABYLON.AxisDragGizmo || gizmo instanceof BABYLON.AxisScaleGizmo) {
       gizmo.isEnabled = false
+      if (gizmo instanceof BABYLON.AxisDragGizmo) gizmo.updateGizmoRotationToMatchAttachedMesh = false
     }
   })
   detachWindowDrag()
@@ -357,20 +372,38 @@ const attachWindowDrag = (feature: Feature) => {
   const behavior = new BABYLON.PointerDragBehavior({ dragPlaneNormal: BABYLON.Axis.Z })
   behavior.useObjectOrientationForDragging = true
 
+  const canvas = mesh.getScene().getEngine().getRenderingCanvas()
+  mesh.enablePointerMoveEvents = true
+  mesh.actionManager = new BABYLON.ActionManager(mesh.getScene())
+  mesh.actionManager.registerAction(
+    new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, () => {
+      if (canvas) canvas.style.cursor = 'move'
+    }),
+  )
+  mesh.actionManager.registerAction(
+    new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, () => {
+      if (canvas && canvas.style.cursor === 'move') canvas.style.cursor = ''
+    }),
+  )
+
   behavior.onDragStartObservable.add(() => {
     windowDragFeatureStart = feature.position.clone()
     windowDragMeshStart = mesh.position.clone()
     windowDragMoved = false // a plain click fires start+end with no move - don't treat it as a drag
+    mesh.unfreezeWorldMatrix()
   })
   behavior.onDragObservable.add(() => {
     if (!windowDragMoved) {
       windowDragMoved = true
       window.ui?.setDragging(true) // only once a real drag has begun, so a click doesn't flicker the editor
+      if (canvas) canvas.style.cursor = 'move'
     }
+    updateHighlight()
   })
   behavior.onDragEndObservable.add(() => {
     if (!windowDragMoved) return // plain click: never moved -> don't persist, don't touch UI
     window.ui?.setDragging(false)
+    if (canvas) canvas.style.cursor = ''
     if (windowDragFeatureStart && windowDragMeshStart) {
       // persist feature.position + the mesh delta, mirroring onAxisDragEnd (mesh space can differ under a group)
       const position = windowDragFeatureStart.add(mesh.position.subtract(windowDragMeshStart))
@@ -380,6 +413,7 @@ const attachWindowDrag = (feature: Feature) => {
     }
     windowDragFeatureStart = windowDragMeshStart = null
     windowDragMoved = false
+    updateHighlight()
   })
 
   mesh.addBehavior(behavior)
@@ -388,7 +422,10 @@ const attachWindowDrag = (feature: Feature) => {
 }
 
 const detachWindowDrag = () => {
-  if (windowDrag && windowDragMesh) windowDragMesh.removeBehavior(windowDrag)
+  if (windowDrag && windowDragMesh) {
+    windowDragMesh.removeBehavior(windowDrag)
+    windowDragMesh.actionManager = null
+  }
   windowDrag = null
   windowDragMesh = null
   windowDragFeatureStart = windowDragMeshStart = null
@@ -595,6 +632,7 @@ class ResizeHandleSet {
       feature.refreshWorldMatrix()
       if (feature.isAnimated) feature.startAnimation(false)
       setSelectedFeature(feature) // preact rerender of the editor number fields
+      updateHighlight()
     })
 
     handle.addBehavior(behavior)

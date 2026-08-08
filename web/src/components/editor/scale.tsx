@@ -84,7 +84,7 @@ export function Scale(props: ScaleProps) {
         {axes.map((axis: XYZ) => (
           <VectorField key={axis} title={axis} value={scaleValues[axis]} setter={setScale(axis)} errorMessage={setError} step={0.1} />
         ))}
-        {props.alwaysLocked ? null : <input type="checkbox" checked={aspectRatioLocked} onChange={toggleAspectRatioLocked} title="Lock aspect ratio" />}
+        {props.alwaysLocked ? null : <input type="checkbox" checked={aspectRatioLocked} onChange={toggleAspectRatioLocked} title="Keep aspect ratio" />}
       </dd>
       {displayError(error)}
     </>
