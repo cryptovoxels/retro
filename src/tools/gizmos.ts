@@ -227,10 +227,6 @@ const applyPlaneSnap = (feature: Feature, mesh: BABYLON.Mesh) => {
 }
 
 /** After a real face-drag, ignore the trailing POINTERTAP so click-away does not clear selection. */
-const markWindowDragFinished = () => {
-  if (window.ui) (window.ui as any)._suppressAuthoringDeselectUntil = performance.now() + 400
-}
-
 const updateHighlight = () => {
   window.ui?.featureTool?.updateHighlight()
 }
@@ -630,7 +626,6 @@ const finishWindowDrag = (feature: Feature, mesh: BABYLON.Mesh, canvas: HTMLCanv
     windowDragMoved = false
     return
   }
-  markWindowDragFinished()
   window.ui?.setDragging(false)
   if (canvas) canvas.style.cursor = ''
   if (windowDragFeatureStart && windowDragMeshStart) {

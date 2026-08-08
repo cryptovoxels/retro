@@ -158,14 +158,14 @@ export default class DesktopControls extends Controls {
         if (btn === 0 && !hasPointerLock() && window.ui?.state?.editor && !window.ui?.state?.dragging) {
           // trailing tap after a real face-drag must not clear the selection
           if ((window.ui as any)._windowDragActive) break
-          if (performance.now() < ((window.ui as any)._suppressAuthoringDeselectUntil || 0)) break
           const selected = window.ui.state.feature
           const picked = featureFromPick(eventData.pickInfo)
+          // same-object tap (incl. the click that ends a drag) keeps selection; empty / other exits
           if (picked?.uuid === selected?.uuid) break
           if (picked?.parcel?.canEdit) {
             picked.openEditor()
           } else {
-            // click away: clear selection and return to pointer lock
+            // click away: leave edit mode entirely and return to pointer lock
             window.ui.closeWithPointerLock()
           }
           eventState.skipNextObservers = true
