@@ -111,12 +111,17 @@ export default class Polytext extends NonMeshedFeature<PolytextDescription> {
     mesh.setParent(parent)
 
     if (text?.length) {
-      renderJob++
+      const job = ++renderJob
 
       const processText = (worker: Mono) => {
         return worker
-          .meshText(text, renderJob)
+          .meshText(text, job)
           .then((data) => {
+            // regenerate disposes the old mesh; ignore late results from a prior job
+            if (mesh.isDisposed() || data.renderJob !== job) {
+              return
+            }
+
             const { positions, indices, uvs } = data
 
             if (positions.length === 0) {

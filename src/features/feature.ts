@@ -794,12 +794,18 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
         if (material instanceof BABYLON.StandardMaterial && material !== Feature.draftMaterial && material.getBindedMeshes().length <= 1) {
           material?.dispose(false, true)
         }
+      } else {
+        // TransformNode features (polytext): must dispose or regenerate leaves the old text stuck in the scene
+        // Groups pass doNotRecurse so child feature meshes survive until they reparent onto the new node
+        this.mesh.dispose(/* doNotRecurse */ this.type === 'group')
+        this.mesh = null
       }
     }
     this.disposeBasicGui()
 
     if (this.parent) {
       this.parent.dispose()
+      this.parent = null
     }
 
     this.removeAllTriggers()
