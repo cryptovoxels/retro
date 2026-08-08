@@ -75,9 +75,12 @@ const planeBoundsOfMesh = (mesh: BABYLON.AbstractMesh, frame: PlaneFrame): Plane
 }
 
 const collectSnapPeers = (feature: Feature, frame: PlaneFrame): Feature[] => {
+  // flat wall art only — snapping to every megavox/group on the lot made magnets too dense / flaky
   const peers: Feature[] = []
   for (const f of feature.parcel.featuresList) {
     if (!f || f.uuid === feature.uuid || !f.mesh) continue
+    const t = f.type
+    if (t !== 'showbox' && t !== 'image' && t !== 'video' && t !== 'nft-image' && t !== 'youtube' && t !== 'sign' && t !== 'vid-screen') continue
     const m = f.mesh as BABYLON.AbstractMesh
     const other = planeFrameFromMesh(m)
     if (Math.abs(BABYLON.Vector3.Dot(frame.normal, other.normal)) < SNAP_PLANE_DOT) continue
@@ -91,18 +94,16 @@ const collectSnapPeers = (feature: Feature, frame: PlaneFrame): Feature[] => {
 const ensureSnapGuides = (layer: BABYLON.UtilityLayerRenderer) => {
   const scene = layer.utilityLayerScene
   if (!snapGuideU) {
-    snapGuideU = BABYLON.MeshBuilder.CreateLines('feature/snap-guide-u', { points: [BABYLON.Vector3.Zero(), BABYLON.Vector3.Zero()], updatable: true }, scene)
+    snapGuideU = BABYLON.MeshBuilder.CreateLines('feature/snap-guide-u', { points: [new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, 0.01, 0)], updatable: true }, scene)
     snapGuideU.color = BABYLON.Color3.FromHexString('#6af')
     snapGuideU.alpha = 0.35
     snapGuideU.isPickable = false
-    snapGuideU.alwaysSelectAsActiveMesh = true
   }
   if (!snapGuideV) {
-    snapGuideV = BABYLON.MeshBuilder.CreateLines('feature/snap-guide-v', { points: [BABYLON.Vector3.Zero(), BABYLON.Vector3.Zero()], updatable: true }, scene)
+    snapGuideV = BABYLON.MeshBuilder.CreateLines('feature/snap-guide-v', { points: [new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0.01, 0, 0)], updatable: true }, scene)
     snapGuideV.color = BABYLON.Color3.FromHexString('#6af')
     snapGuideV.alpha = 0.35
     snapGuideV.isPickable = false
-    snapGuideV.alwaysSelectAsActiveMesh = true
   }
   snapGuideU.setEnabled(false)
   snapGuideV.setEnabled(false)
@@ -110,108 +111,118 @@ const ensureSnapGuides = (layer: BABYLON.UtilityLayerRenderer) => {
 
 const setSnapGuide = (guide: BABYLON.LinesMesh | null, a: BABYLON.Vector3, b: BABYLON.Vector3) => {
   if (!guide) return
-  BABYLON.MeshBuilder.CreateLines(guide.name, { points: [a, b], instance: guide })
-  guide.setEnabled(true)
+  try {
+    BABYLON.MeshBuilder.CreateLines(guide.name, { points: [a, b], instance: guide })
+    guide.setEnabled(true)
+  } catch {
+    guide.setEnabled(false)
+  }
 }
 
 const clearSnapGuides = () => {
-  snapGuideU?.setEnabled(false)
-  snapGuideV?.setEnabled(false)
-}
-
-const disposeSnapGuides = () => {
-  snapGuideU?.dispose()
-  snapGuideV?.dispose()
-  snapGuideU = snapGuideV = null
+  try {
+    snapGuideU?.setEnabled(false)
+    snapGuideV?.setEnabled(false)
+  } catch {}
 }
 
 /** Soft-snap mesh on its plane to peer edges/centers; draw faint guides. Hold Alt to skip. */
 const applyPlaneSnap = (feature: Feature, mesh: BABYLON.Mesh) => {
-  clearSnapGuides()
-  if (snapAltHeld || !snapPeers.length || !utilLayer) return
+  try {
+    clearSnapGuides()
+    if (snapAltHeld || !snapPeers.length || !utilLayer) return
 
-  const frame = planeFrameFromMesh(mesh)
-  const mine = planeBoundsOfMesh(mesh, frame)
-  if (!mine) return
+    const frame = planeFrameFromMesh(mesh)
+    const mine = planeBoundsOfMesh(mesh, frame)
+    if (!mine) return
 
-  const myCenterU = (mine.minU + mine.maxU) * 0.5
-  const myCenterV = (mine.minV + mine.maxV) * 0.5
-  const myUs = [mine.minU, mine.maxU, myCenterU]
-  const myVs = [mine.minV, mine.maxV, myCenterV]
+    const myCenterU = (mine.minU + mine.maxU) * 0.5
+    const myCenterV = (mine.minV + mine.maxV) * 0.5
+    const myUs = [mine.minU, mine.maxU, myCenterU]
+    const myVs = [mine.minV, mine.maxV, myCenterV]
 
-  let bestDu = 0
-  let bestDuAbs = SNAP_THRESH
-  let bestDv = 0
-  let bestDvAbs = SNAP_THRESH
-  let guideU: { u: number; minV: number; maxV: number } | null = null
-  let guideV: { v: number; minU: number; maxU: number } | null = null
+    let bestDu = 0
+    let bestDuAbs = SNAP_THRESH
+    let bestDv = 0
+    let bestDvAbs = SNAP_THRESH
+    let guideU: { u: number; minV: number; maxV: number } | null = null
+    let guideV: { v: number; minU: number; maxU: number } | null = null
 
-  for (const peer of snapPeers) {
-    const peerMesh = peer.mesh as BABYLON.AbstractMesh | undefined
-    if (!peerMesh) continue
-    const theirs = planeBoundsOfMesh(peerMesh, frame)
-    if (!theirs) continue
-    const theirCenterU = (theirs.minU + theirs.maxU) * 0.5
-    const theirCenterV = (theirs.minV + theirs.maxV) * 0.5
-    const theirUs = [theirs.minU, theirs.maxU, theirCenterU]
-    const theirVs = [theirs.minV, theirs.maxV, theirCenterV]
+    for (const peer of snapPeers) {
+      const peerMesh = peer.mesh as BABYLON.AbstractMesh | undefined
+      if (!peerMesh) continue
+      const theirs = planeBoundsOfMesh(peerMesh, frame)
+      if (!theirs) continue
+      const theirCenterU = (theirs.minU + theirs.maxU) * 0.5
+      const theirCenterV = (theirs.minV + theirs.maxV) * 0.5
+      const theirUs = [theirs.minU, theirs.maxU, theirCenterU]
+      const theirVs = [theirs.minV, theirs.maxV, theirCenterV]
 
-    for (const mu of myUs) {
-      for (const tu of theirUs) {
-        const d = tu - mu
-        const a = Math.abs(d)
-        if (a < bestDuAbs) {
-          bestDuAbs = a
-          bestDu = d
-          guideU = { u: tu, minV: Math.min(mine.minV, theirs.minV) - SNAP_GUIDE_PAD, maxV: Math.max(mine.maxV, theirs.maxV) + SNAP_GUIDE_PAD }
+      for (const mu of myUs) {
+        for (const tu of theirUs) {
+          const d = tu - mu
+          const a = Math.abs(d)
+          if (a < bestDuAbs) {
+            bestDuAbs = a
+            bestDu = d
+            guideU = { u: tu, minV: Math.min(mine.minV, theirs.minV) - SNAP_GUIDE_PAD, maxV: Math.max(mine.maxV, theirs.maxV) + SNAP_GUIDE_PAD }
+          }
+        }
+      }
+      for (const mv of myVs) {
+        for (const tv of theirVs) {
+          const d = tv - mv
+          const a = Math.abs(d)
+          if (a < bestDvAbs) {
+            bestDvAbs = a
+            bestDv = d
+            guideV = { v: tv, minU: Math.min(mine.minU, theirs.minU) - SNAP_GUIDE_PAD, maxU: Math.max(mine.maxU, theirs.maxU) + SNAP_GUIDE_PAD }
+          }
         }
       }
     }
-    for (const mv of myVs) {
-      for (const tv of theirVs) {
-        const d = tv - mv
-        const a = Math.abs(d)
-        if (a < bestDvAbs) {
-          bestDvAbs = a
-          bestDv = d
-          guideV = { v: tv, minU: Math.min(mine.minU, theirs.minU) - SNAP_GUIDE_PAD, maxU: Math.max(mine.maxU, theirs.maxU) + SNAP_GUIDE_PAD }
-        }
+
+    if (bestDuAbs >= SNAP_THRESH) {
+      bestDu = 0
+      guideU = null
+    }
+    if (bestDvAbs >= SNAP_THRESH) {
+      bestDv = 0
+      guideV = null
+    }
+    if (!guideU && !guideV) return
+
+    if (bestDu || bestDv) {
+      const shiftWorld = frame.axisX.scale(bestDu).add(frame.axisY.scale(bestDv))
+      if (!isFinite(shiftWorld.x + shiftWorld.y + shiftWorld.z)) return
+      const parent = mesh.parent as BABYLON.TransformNode | null
+      if (parent) {
+        const inv = parent.getWorldMatrix().clone().invert()
+        mesh.position.addInPlace(BABYLON.Vector3.TransformNormal(shiftWorld, inv))
+      } else {
+        mesh.position.addInPlace(shiftWorld)
       }
+      mesh.computeWorldMatrix(true)
     }
-  }
 
-  if (bestDuAbs >= SNAP_THRESH) {
-    bestDu = 0
-    guideU = null
-  }
-  if (bestDvAbs >= SNAP_THRESH) {
-    bestDv = 0
-    guideV = null
-  }
-  if (!guideU && !guideV) return
-
-  if (bestDu || bestDv) {
-    const shiftWorld = frame.axisX.scale(bestDu).add(frame.axisY.scale(bestDv))
-    const parent = mesh.parent as BABYLON.TransformNode | null
-    if (parent) {
-      const inv = parent.getWorldMatrix().clone().invert()
-      mesh.position.addInPlace(BABYLON.Vector3.TransformNormal(shiftWorld, inv))
-    } else {
-      mesh.position.addInPlace(shiftWorld)
+    if (guideU) {
+      const a = frame.origin.add(frame.axisX.scale(guideU.u)).add(frame.axisY.scale(guideU.minV))
+      const b = frame.origin.add(frame.axisX.scale(guideU.u)).add(frame.axisY.scale(guideU.maxV))
+      setSnapGuide(snapGuideU, a, b)
     }
-    mesh.computeWorldMatrix(true)
+    if (guideV) {
+      const a = frame.origin.add(frame.axisY.scale(guideV.v)).add(frame.axisX.scale(guideV.minU))
+      const b = frame.origin.add(frame.axisY.scale(guideV.v)).add(frame.axisX.scale(guideV.maxU))
+      setSnapGuide(snapGuideV, a, b)
+    }
+  } catch {
+    clearSnapGuides()
   }
+}
 
-  if (guideU) {
-    const a = frame.origin.add(frame.axisX.scale(guideU.u)).add(frame.axisY.scale(guideU.minV))
-    const b = frame.origin.add(frame.axisX.scale(guideU.u)).add(frame.axisY.scale(guideU.maxV))
-    setSnapGuide(snapGuideU, a, b)
-  }
-  if (guideV) {
-    const a = frame.origin.add(frame.axisY.scale(guideV.v)).add(frame.axisX.scale(guideV.minU))
-    const b = frame.origin.add(frame.axisY.scale(guideV.v)).add(frame.axisX.scale(guideV.maxU))
-    setSnapGuide(snapGuideV, a, b)
-  }
+/** After a real face-drag, ignore the trailing POINTERTAP so click-away does not clear selection. */
+const markWindowDragFinished = () => {
+  if (window.ui) (window.ui as any)._suppressAuthoringDeselectUntil = performance.now() + 400
 }
 
 const updateHighlight = () => {
@@ -623,6 +634,7 @@ const attachWindowDrag = (feature: Feature) => {
     document.removeEventListener('keyup', snapAltKeyUp)
     snapAltHeld = false
     if (!windowDragMoved) return // plain click: never moved -> don't persist, don't touch UI
+    markWindowDragFinished()
     window.ui?.setDragging(false)
     if (canvas) canvas.style.cursor = ''
     if (windowDragFeatureStart && windowDragMeshStart) {
