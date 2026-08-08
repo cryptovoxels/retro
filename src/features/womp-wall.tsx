@@ -6,6 +6,7 @@ import { FeatureEditor, FeatureEditorProps, Toolbar } from '../ui/features'
 import type Parcel from '../parcel'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import Feature, { Feature2D, FeatureEvent, MeshExtended } from './feature'
+import showWompView from '../ui/html-ui/womp-view'
 import {
   tileIndexFromUv,
   WOMP_WALL_COLS as COLS,
@@ -56,7 +57,7 @@ export default class WompWall extends Feature2D<WompWallRecord> {
   }
 
   whatIsThis() {
-    return <label>Shows recent womps taken on this parcel. One per parcel. Click a tile to open that womp.</label>
+    return <label>Shows recent womps taken on this parcel. One per parcel. Click a tile to lightbox that womp.</label>
   }
 
   toString() {
@@ -227,7 +228,7 @@ export default class WompWall extends Feature2D<WompWallRecord> {
     if (index < 0) return
     const womp = this.tiles[index]
     if (!womp?.id) return
-    window.ui?.openLink(`/womps/${womp.id}`)
+    showWompView(womp)
   }
 
   private tileIndexFromPick(pick: BABYLON.PickingInfo | null): number {
