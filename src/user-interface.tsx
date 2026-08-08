@@ -873,15 +873,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           <aside data-active={this.state.active}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
-              {this.state.voiceEnabled && (
-                <li title="Microphone">
-                  <div class="voice-toggle">
-                    Voice
-                    <Toggle checked={this.state.voice === 'live'} onChange={() => this.toggleVoice()} />
-                  </div>
-                </li>
-              )}
-
               <li class={active('explorer')}>
                 <a href="#explorer" onMouseOver={onHover('explorer')} onClick={onClick('explorer')}>
                   Explore
@@ -924,6 +915,15 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   <kbd>B</kbd>ake
                 </a>
               </li>
+
+              {this.state.voiceEnabled && (
+                <li title="Microphone">
+                  <div class="voice-toggle">
+                    Voice
+                    <Toggle checked={this.state.voice === 'live'} onChange={() => this.toggleVoice()} />
+                  </div>
+                </li>
+              )}
 
               {mintable && (
                 <u

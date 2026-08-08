@@ -1,5 +1,3 @@
-import { isMobile } from '../../../common/helpers/detector'
-import { hasPointerLock, requestPointerLockIfNoOverlays } from '../../../common/helpers/ui-helpers'
 import Feature from '../../features/feature'
 import { cameraPosition } from '../../utils/camera'
 
@@ -297,14 +295,12 @@ export default class FeatureBasicGUI {
       if (!this.grid.isVisible) {
         return
       }
-      if (!!isMobile() || hasPointerLock()) {
-        if (control.onClick) {
-          control.onClick(eventData, eventState)
-        } else {
-          this.onClick(control.uuid, control.id)
-        }
+      // fire even without pointer lock — unlocked mouse aim was a no-op (desktop
+      // POINTERDOWN re-locks first, so POINTERUP often saw !hasPointerLock)
+      if (control.onClick) {
+        control.onClick(eventData, eventState)
       } else {
-        requestPointerLockIfNoOverlays()
+        this.onClick(control.uuid, control.id)
       }
     })
 

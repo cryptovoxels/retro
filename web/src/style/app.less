@@ -2723,8 +2723,8 @@ button.iconish {
   pointer-events: none;
 
   & > ul.ui-sidebar {
-    pointer-events: auto;
-    height: 100%;
+    // punch through empty column so 3D ActionGui (try on / guestbook) gets clicks
+    pointer-events: none;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -2736,11 +2736,13 @@ button.iconish {
     padding: 0;
 
     li:first-child {
-      // clear fixed ☰ above Voice / Explore
+      // clear fixed ☰ above Explore
       margin-top: 2.75rem;
     }
 
-    li {
+    li,
+    > u {
+      pointer-events: auto;
       list-style: none;
       margin: 0;
       padding: 0 var(--play-gutter, 1rem);
