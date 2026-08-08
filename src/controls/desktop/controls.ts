@@ -108,7 +108,10 @@ export default class DesktopControls extends Controls {
   }
 
   desktopClicks(eventData: BABYLON.PointerInfo, eventState: BABYLON.EventState) {
-    if (eventData.pickInfo?.pickedPoint) {
+    // while authoring, leave pickInfo in world space — PointerDragBehavior / gizmos need it.
+    // outside authoring, convert to persona space for click handlers below.
+    const authoring = !!(window.ui?.state?.active || window.ui?.state?.dragging || window.ui?.state?.editor)
+    if (!authoring && eventData.pickInfo?.pickedPoint) {
       eventData.pickInfo.pickedPoint = eventData.pickInfo.pickedPoint.subtract(this.worldOffset.position)
     }
 
@@ -117,7 +120,7 @@ export default class DesktopControls extends Controls {
     if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 0 && !hasPointerLock() && !eventData.event.shiftKey) {
       // edit UI / gizmo drag needs a free mouse (showbox face-drag, Z arrow, corner handles).
       // don't steal the click into pointer lock while authoring.
-      if (!window.ui?.state?.active && !window.ui?.state?.dragging) {
+      if (!authoring) {
         // start lerp-out on the click itself so it doesn't snap when lock fires
         this.idleLook.stop()
         this.nerfClick = true

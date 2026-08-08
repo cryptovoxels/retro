@@ -287,8 +287,11 @@ const bindGizmoToFeature = (gizmo: BABYLON.Gizmo, feature: Feature) => {
     if (feature.type === 'showbox' && gizmo instanceof BABYLON.AxisDragGizmo) {
       gizmo.updateGizmoRotationToMatchAttachedMesh = true
       gizmo.coloredMaterial.alpha = 1
+      // smaller than default so the arrow doesn't eat face-center clicks meant for window-drag
+      gizmo.scaleRatio = 1
     } else if (gizmo instanceof BABYLON.AxisDragGizmo) {
       gizmo.updateGizmoRotationToMatchAttachedMesh = false
+      gizmo.scaleRatio = 1.5
       if (axisLabelOf(gizmo) === 'Z') gizmo.coloredMaterial.alpha = 0.5
     }
   }
@@ -367,13 +370,18 @@ const attachWindowDrag = (feature: Feature) => {
   if (!mesh) return
   detachWindowDrag()
 
+  mesh.unfreezeWorldMatrix()
+  mesh.isPickable = true
+  mesh.enablePointerMoveEvents = true
+
   // drag plane normal = the screen's local Z; useObjectOrientationForDragging makes that normal follow the
   // screen's facing, so the body slides on the wall it faces instead of a world-aligned plane.
+  // whole face is the grab target — corner handles (utility layer) and Z arrow win when you hit those instead.
   const behavior = new BABYLON.PointerDragBehavior({ dragPlaneNormal: BABYLON.Axis.Z })
   behavior.useObjectOrientationForDragging = true
+  behavior.dragButtons = [0]
 
   const canvas = mesh.getScene().getEngine().getRenderingCanvas()
-  mesh.enablePointerMoveEvents = true
   mesh.actionManager = new BABYLON.ActionManager(mesh.getScene())
   mesh.actionManager.registerAction(
     new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, () => {

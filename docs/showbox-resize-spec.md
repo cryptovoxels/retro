@@ -4,7 +4,7 @@
 
 Opening the showbox editor binds gizmos via `bindGizmosToFeature` in `src/tools/gizmos.ts`.
 
-- **Face drag** — `attachWindowDrag`: slide on the screen's local plane (depth locked). Short click does not move.
+- **Face drag** — `attachWindowDrag`: slide on the screen's local plane (depth locked). Short click does not move. Grab any part of the screen face that is not a corner handle or the Z arrow.
 - **Corner handles** — four utility-layer boxes; opposite corner pinned; aspect lock via `feature.scaleAspectLocked` (default true).
 - **Depth** — blue Z `AxisDragGizmo` only (local to the screen). X/Y arrows stay off.
 - **Re-stick to another wall** — use the existing **Move** tool (surface snap). Face drag does not wall-snap.
