@@ -18,6 +18,7 @@ let windowDragMesh: BABYLON.Mesh | null = null
 let windowDragFeatureStart: BABYLON.Vector3 | null = null
 let windowDragMeshStart: BABYLON.Vector3 | null = null
 let windowDragMoved = false
+let windowDragCursorObserver: BABYLON.Observer<BABYLON.PointerInfo> | null = null
 // showbox corner-resize handles (custom; the native BoundingBoxGizmo floated off the parcel-parented mesh)
 let activeHandles: ResizeHandleSet | null = null
 
@@ -370,9 +371,15 @@ const attachWindowDrag = (feature: Feature) => {
   if (!mesh) return
   detachWindowDrag()
 
+  const scene = mesh.getScene()
+  const canvas = scene.getEngine().getRenderingCanvas()
+
   mesh.unfreezeWorldMatrix()
   mesh.isPickable = true
   mesh.enablePointerMoveEvents = true
+  // babylon applies this when meshUnderPointer is this mesh — ActionManager hover was flaky
+  mesh.hoverCursor = 'move'
+  scene.constantlyUpdateMeshUnderPointer = true
 
   // drag plane normal = the screen's local Z; useObjectOrientationForDragging makes that normal follow the
   // screen's facing, so the body slides on the wall it faces instead of a world-aligned plane.
@@ -381,18 +388,21 @@ const attachWindowDrag = (feature: Feature) => {
   behavior.useObjectOrientationForDragging = true
   behavior.dragButtons = [0]
 
-  const canvas = mesh.getScene().getEngine().getRenderingCanvas()
-  mesh.actionManager = new BABYLON.ActionManager(mesh.getScene())
-  mesh.actionManager.registerAction(
-    new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, () => {
-      if (canvas) canvas.style.cursor = 'move'
-    }),
-  )
-  mesh.actionManager.registerAction(
-    new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, () => {
-      if (canvas && canvas.style.cursor === 'move') canvas.style.cursor = ''
-    }),
-  )
+  // belt-and-suspenders: keep move cursor while hovering the face (handles set resize and win when over corners)
+  windowDragCursorObserver = scene.onPointerObservable.add((info) => {
+    if (info.type !== BABYLON.PointerEventTypes.POINTERMOVE || !canvas || !windowDragMesh) return
+    if (windowDragMoved || window.ui?.state?.dragging) {
+      canvas.style.cursor = 'move'
+      return
+    }
+    const cur = canvas.style.cursor
+    if (cur === 'nwse-resize' || cur === 'nesw-resize') return
+    if (scene.meshUnderPointer === windowDragMesh || info.pickInfo?.pickedMesh === windowDragMesh) {
+      canvas.style.cursor = 'move'
+    } else if (cur === 'move') {
+      canvas.style.cursor = ''
+    }
+  })
 
   behavior.onDragStartObservable.add(() => {
     windowDragFeatureStart = feature.position.clone()
@@ -404,8 +414,8 @@ const attachWindowDrag = (feature: Feature) => {
     if (!windowDragMoved) {
       windowDragMoved = true
       window.ui?.setDragging(true) // only once a real drag has begun, so a click doesn't flicker the editor
-      if (canvas) canvas.style.cursor = 'move'
     }
+    if (canvas) canvas.style.cursor = 'move'
     updateHighlight()
   })
   behavior.onDragEndObservable.add(() => {
@@ -431,8 +441,15 @@ const attachWindowDrag = (feature: Feature) => {
 
 const detachWindowDrag = () => {
   if (windowDrag && windowDragMesh) {
+    const scene = windowDragMesh.getScene()
+    if (windowDragCursorObserver) {
+      scene.onPointerObservable.remove(windowDragCursorObserver)
+      windowDragCursorObserver = null
+    }
+    windowDragMesh.hoverCursor = 'default'
     windowDragMesh.removeBehavior(windowDrag)
-    windowDragMesh.actionManager = null
+    const canvas = scene.getEngine().getRenderingCanvas()
+    if (canvas && canvas.style.cursor === 'move') canvas.style.cursor = ''
   }
   windowDrag = null
   windowDragMesh = null
