@@ -157,6 +157,7 @@ export default class DesktopControls extends Controls {
         // editor open: click empty space (or another object) clears the current selection
         if (btn === 0 && !hasPointerLock() && window.ui?.state?.editor && !window.ui?.state?.dragging) {
           // trailing tap after a real face-drag must not clear the selection
+          if ((window.ui as any)._windowDragActive) break
           if (performance.now() < ((window.ui as any)._suppressAuthoringDeselectUntil || 0)) break
           const selected = window.ui.state.feature
           const picked = featureFromPick(eventData.pickInfo)
