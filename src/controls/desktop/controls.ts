@@ -154,6 +154,19 @@ export default class DesktopControls extends Controls {
           }
           break
         }
+        // editor open: click empty space (or another object) clears the current selection
+        if (btn === 0 && !hasPointerLock() && window.ui?.state?.editor && !window.ui?.state?.dragging) {
+          const selected = window.ui.state.feature
+          const picked = featureFromPick(eventData.pickInfo)
+          if (picked?.uuid === selected?.uuid) break
+          if (picked?.parcel?.canEdit) {
+            picked.openEditor()
+          } else {
+            window.ui.showEditBrowse()
+          }
+          eventState.skipNextObservers = true
+          break
+        }
         if (btn === 0 && hasPointerLock() && !window.ui?.activeTool) {
           if (isFastviewBlocking()) {
             const fv = document.querySelector('dialog.fastview, dialog.nft-view.-out') as any
