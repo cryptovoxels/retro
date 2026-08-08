@@ -1,5 +1,4 @@
 import { Component, JSX } from 'preact'
-import { route } from 'preact-router'
 import { Link } from 'preact-router/match'
 import { effect } from '@preact/signals'
 import { ssrFriendlyDocument } from '../../common/helpers/utils'
@@ -147,8 +146,11 @@ export default class WebHeader extends Component<Props, State> {
   onSubmit = (e: JSX.TargetedEvent<HTMLFormElement, Event>) => {
     e.stopPropagation()
     e.preventDefault()
+    const q = this.state.query.trim()
     this.setState({ expanded: false })
-    route(`/search?q=${encodeURIComponent(this.state.query)}`)
+    if (!q) return
+    // WorldSidebar unmounts <Router> on /play, so route() never swaps the page — hard nav.
+    window.location.assign(`/search?q=${encodeURIComponent(q)}`)
   }
 
   onMiniClick = () => {
