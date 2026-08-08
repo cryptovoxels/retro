@@ -19,10 +19,200 @@ let windowDragFeatureStart: BABYLON.Vector3 | null = null
 let windowDragMeshStart: BABYLON.Vector3 | null = null
 let windowDragMoved = false
 let windowDragCursorObserver: BABYLON.Observer<BABYLON.PointerInfo> | null = null
+let windowDragFeature: Feature | null = null
+let snapPeers: Feature[] = []
+let snapGuideU: BABYLON.LinesMesh | null = null
+let snapGuideV: BABYLON.LinesMesh | null = null
+let snapAltHeld = false
+const snapAltKeyDown = (e: KeyboardEvent) => {
+  if (e.key === 'Alt') snapAltHeld = true
+}
+const snapAltKeyUp = (e: KeyboardEvent) => {
+  if (e.key === 'Alt') snapAltHeld = false
+}
 // showbox corner-resize handles (custom; the native BoundingBoxGizmo floated off the parcel-parented mesh)
 let activeHandles: ResizeHandleSet | null = null
 
 type AxisLabel = 'X' | 'Y' | 'Z'
+
+// same-plane edge/center snap while face-dragging a showbox
+const SNAP_THRESH = 0.08 // meters — soft magnet distance
+const SNAP_PLANE_DOT = 0.98 // normals must mostly agree
+const SNAP_PLANE_DEPTH = 0.25 // how far off the wall still counts as "same plane"
+const SNAP_GUIDE_PAD = 0.4 // extend faint guides past the aligned edges
+
+type PlaneFrame = { origin: BABYLON.Vector3; axisX: BABYLON.Vector3; axisY: BABYLON.Vector3; normal: BABYLON.Vector3 }
+type PlaneBounds = { minU: number; maxU: number; minV: number; maxV: number }
+
+const planeFrameFromMesh = (mesh: BABYLON.AbstractMesh): PlaneFrame => {
+  const W = mesh.computeWorldMatrix(true)
+  return {
+    origin: mesh.getAbsolutePosition().clone(),
+    axisX: BABYLON.Vector3.TransformNormal(BABYLON.Axis.X, W).normalize(),
+    axisY: BABYLON.Vector3.TransformNormal(BABYLON.Axis.Y, W).normalize(),
+    normal: BABYLON.Vector3.TransformNormal(BABYLON.Axis.Z, W).normalize(),
+  }
+}
+
+const planeBoundsOfMesh = (mesh: BABYLON.AbstractMesh, frame: PlaneFrame): PlaneBounds | null => {
+  const bb = mesh.getBoundingInfo()?.boundingBox
+  if (!bb) return null
+  let minU = Infinity
+  let maxU = -Infinity
+  let minV = Infinity
+  let maxV = -Infinity
+  for (const p of bb.vectorsWorld) {
+    const d = p.subtract(frame.origin)
+    const u = BABYLON.Vector3.Dot(d, frame.axisX)
+    const v = BABYLON.Vector3.Dot(d, frame.axisY)
+    if (u < minU) minU = u
+    if (u > maxU) maxU = u
+    if (v < minV) minV = v
+    if (v > maxV) maxV = v
+  }
+  if (!isFinite(minU)) return null
+  return { minU, maxU, minV, maxV }
+}
+
+const collectSnapPeers = (feature: Feature, frame: PlaneFrame): Feature[] => {
+  const peers: Feature[] = []
+  for (const f of feature.parcel.featuresList) {
+    if (!f || f.uuid === feature.uuid || !f.mesh) continue
+    const m = f.mesh as BABYLON.AbstractMesh
+    const other = planeFrameFromMesh(m)
+    if (Math.abs(BABYLON.Vector3.Dot(frame.normal, other.normal)) < SNAP_PLANE_DOT) continue
+    const depth = Math.abs(BABYLON.Vector3.Dot(other.origin.subtract(frame.origin), frame.normal))
+    if (depth > SNAP_PLANE_DEPTH) continue
+    peers.push(f)
+  }
+  return peers
+}
+
+const ensureSnapGuides = (layer: BABYLON.UtilityLayerRenderer) => {
+  const scene = layer.utilityLayerScene
+  if (!snapGuideU) {
+    snapGuideU = BABYLON.MeshBuilder.CreateLines('feature/snap-guide-u', { points: [BABYLON.Vector3.Zero(), BABYLON.Vector3.Zero()], updatable: true }, scene)
+    snapGuideU.color = BABYLON.Color3.FromHexString('#6af')
+    snapGuideU.alpha = 0.35
+    snapGuideU.isPickable = false
+    snapGuideU.alwaysSelectAsActiveMesh = true
+  }
+  if (!snapGuideV) {
+    snapGuideV = BABYLON.MeshBuilder.CreateLines('feature/snap-guide-v', { points: [BABYLON.Vector3.Zero(), BABYLON.Vector3.Zero()], updatable: true }, scene)
+    snapGuideV.color = BABYLON.Color3.FromHexString('#6af')
+    snapGuideV.alpha = 0.35
+    snapGuideV.isPickable = false
+    snapGuideV.alwaysSelectAsActiveMesh = true
+  }
+  snapGuideU.setEnabled(false)
+  snapGuideV.setEnabled(false)
+}
+
+const setSnapGuide = (guide: BABYLON.LinesMesh | null, a: BABYLON.Vector3, b: BABYLON.Vector3) => {
+  if (!guide) return
+  BABYLON.MeshBuilder.CreateLines(guide.name, { points: [a, b], instance: guide })
+  guide.setEnabled(true)
+}
+
+const clearSnapGuides = () => {
+  snapGuideU?.setEnabled(false)
+  snapGuideV?.setEnabled(false)
+}
+
+const disposeSnapGuides = () => {
+  snapGuideU?.dispose()
+  snapGuideV?.dispose()
+  snapGuideU = snapGuideV = null
+}
+
+/** Soft-snap mesh on its plane to peer edges/centers; draw faint guides. Hold Alt to skip. */
+const applyPlaneSnap = (feature: Feature, mesh: BABYLON.Mesh) => {
+  clearSnapGuides()
+  if (snapAltHeld || !snapPeers.length || !utilLayer) return
+
+  const frame = planeFrameFromMesh(mesh)
+  const mine = planeBoundsOfMesh(mesh, frame)
+  if (!mine) return
+
+  const myCenterU = (mine.minU + mine.maxU) * 0.5
+  const myCenterV = (mine.minV + mine.maxV) * 0.5
+  const myUs = [mine.minU, mine.maxU, myCenterU]
+  const myVs = [mine.minV, mine.maxV, myCenterV]
+
+  let bestDu = 0
+  let bestDuAbs = SNAP_THRESH
+  let bestDv = 0
+  let bestDvAbs = SNAP_THRESH
+  let guideU: { u: number; minV: number; maxV: number } | null = null
+  let guideV: { v: number; minU: number; maxU: number } | null = null
+
+  for (const peer of snapPeers) {
+    const peerMesh = peer.mesh as BABYLON.AbstractMesh | undefined
+    if (!peerMesh) continue
+    const theirs = planeBoundsOfMesh(peerMesh, frame)
+    if (!theirs) continue
+    const theirCenterU = (theirs.minU + theirs.maxU) * 0.5
+    const theirCenterV = (theirs.minV + theirs.maxV) * 0.5
+    const theirUs = [theirs.minU, theirs.maxU, theirCenterU]
+    const theirVs = [theirs.minV, theirs.maxV, theirCenterV]
+
+    for (const mu of myUs) {
+      for (const tu of theirUs) {
+        const d = tu - mu
+        const a = Math.abs(d)
+        if (a < bestDuAbs) {
+          bestDuAbs = a
+          bestDu = d
+          guideU = { u: tu, minV: Math.min(mine.minV, theirs.minV) - SNAP_GUIDE_PAD, maxV: Math.max(mine.maxV, theirs.maxV) + SNAP_GUIDE_PAD }
+        }
+      }
+    }
+    for (const mv of myVs) {
+      for (const tv of theirVs) {
+        const d = tv - mv
+        const a = Math.abs(d)
+        if (a < bestDvAbs) {
+          bestDvAbs = a
+          bestDv = d
+          guideV = { v: tv, minU: Math.min(mine.minU, theirs.minU) - SNAP_GUIDE_PAD, maxU: Math.max(mine.maxU, theirs.maxU) + SNAP_GUIDE_PAD }
+        }
+      }
+    }
+  }
+
+  if (bestDuAbs >= SNAP_THRESH) {
+    bestDu = 0
+    guideU = null
+  }
+  if (bestDvAbs >= SNAP_THRESH) {
+    bestDv = 0
+    guideV = null
+  }
+  if (!guideU && !guideV) return
+
+  if (bestDu || bestDv) {
+    const shiftWorld = frame.axisX.scale(bestDu).add(frame.axisY.scale(bestDv))
+    const parent = mesh.parent as BABYLON.TransformNode | null
+    if (parent) {
+      const inv = parent.getWorldMatrix().clone().invert()
+      mesh.position.addInPlace(BABYLON.Vector3.TransformNormal(shiftWorld, inv))
+    } else {
+      mesh.position.addInPlace(shiftWorld)
+    }
+    mesh.computeWorldMatrix(true)
+  }
+
+  if (guideU) {
+    const a = frame.origin.add(frame.axisX.scale(guideU.u)).add(frame.axisY.scale(guideU.minV))
+    const b = frame.origin.add(frame.axisX.scale(guideU.u)).add(frame.axisY.scale(guideU.maxV))
+    setSnapGuide(snapGuideU, a, b)
+  }
+  if (guideV) {
+    const a = frame.origin.add(frame.axisY.scale(guideV.v)).add(frame.axisX.scale(guideV.minU))
+    const b = frame.origin.add(frame.axisY.scale(guideV.v)).add(frame.axisX.scale(guideV.maxU))
+    setSnapGuide(snapGuideV, a, b)
+  }
+}
 
 const updateHighlight = () => {
   window.ui?.featureTool?.updateHighlight()
@@ -378,7 +568,7 @@ const attachWindowDrag = (feature: Feature) => {
   mesh.isPickable = true
   mesh.enablePointerMoveEvents = true
   // babylon applies this when meshUnderPointer is this mesh — ActionManager hover was flaky
-  mesh.hoverCursor = 'move'
+  ;(mesh as any).hoverCursor = 'move'
   scene.constantlyUpdateMeshUnderPointer = true
 
   // drag plane normal = the screen's local Z; useObjectOrientationForDragging makes that normal follow the
@@ -409,6 +599,12 @@ const attachWindowDrag = (feature: Feature) => {
     windowDragMeshStart = mesh.position.clone()
     windowDragMoved = false // a plain click fires start+end with no move - don't treat it as a drag
     mesh.unfreezeWorldMatrix()
+    windowDragFeature = feature
+    snapAltHeld = false
+    document.addEventListener('keydown', snapAltKeyDown)
+    document.addEventListener('keyup', snapAltKeyUp)
+    if (utilLayer) ensureSnapGuides(utilLayer)
+    snapPeers = collectSnapPeers(feature, planeFrameFromMesh(mesh))
   })
   behavior.onDragObservable.add(() => {
     if (!windowDragMoved) {
@@ -416,9 +612,16 @@ const attachWindowDrag = (feature: Feature) => {
       window.ui?.setDragging(true) // only once a real drag has begun, so a click doesn't flicker the editor
     }
     if (canvas) canvas.style.cursor = 'move'
+    applyPlaneSnap(feature, mesh)
     updateHighlight()
   })
   behavior.onDragEndObservable.add(() => {
+    clearSnapGuides()
+    snapPeers = []
+    windowDragFeature = null
+    document.removeEventListener('keydown', snapAltKeyDown)
+    document.removeEventListener('keyup', snapAltKeyUp)
+    snapAltHeld = false
     if (!windowDragMoved) return // plain click: never moved -> don't persist, don't touch UI
     window.ui?.setDragging(false)
     if (canvas) canvas.style.cursor = ''
@@ -440,13 +643,19 @@ const attachWindowDrag = (feature: Feature) => {
 }
 
 const detachWindowDrag = () => {
+  clearSnapGuides()
+  snapPeers = []
+  windowDragFeature = null
+  document.removeEventListener('keydown', snapAltKeyDown)
+  document.removeEventListener('keyup', snapAltKeyUp)
+  snapAltHeld = false
   if (windowDrag && windowDragMesh) {
     const scene = windowDragMesh.getScene()
     if (windowDragCursorObserver) {
       scene.onPointerObservable.remove(windowDragCursorObserver)
       windowDragCursorObserver = null
     }
-    windowDragMesh.hoverCursor = 'default'
+    ;(windowDragMesh as any).hoverCursor = 'default'
     windowDragMesh.removeBehavior(windowDrag)
     const canvas = scene.getEngine().getRenderingCanvas()
     if (canvas && canvas.style.cursor === 'move') canvas.style.cursor = ''
