@@ -1023,6 +1023,9 @@ div.map {
 // Push panel: world | sidebar. Site nav is a hamburger drawer (same as phone).
 body.in-world {
   overflow: hidden;
+  // one left edge for ☰, Explore stack, and chat
+  --play-gutter: max(1rem, env(safe-area-inset-left, 0px));
+  --play-top: max(0.5rem, env(safe-area-inset-top, 0px));
 
   // main sits above .client so sidebar gets clicks; punch through the world
   // cell or the empty grid slot eats pointer lock / WASD
@@ -1066,12 +1069,12 @@ body.in-world {
     }
   }
 
-  // fixed to the viewport — not inside the transformed drawer
+  // fixed to the viewport — same left edge as Explore / chat
   main:has(> .client-world) > .site-nav-toggle {
     display: block;
     position: fixed;
-    left: max(0.5rem, env(safe-area-inset-left, 0px));
-    top: max(0.5rem, env(safe-area-inset-top, 0px));
+    left: var(--play-gutter);
+    top: var(--play-top);
     z-index: 1001;
     pointer-events: auto;
     background: var(--bg);
@@ -1160,7 +1163,7 @@ body.in-world main:has(> .client-world):not(:has(> aside)) {
   main > .site-nav-toggle {
     display: block;
     position: fixed;
-    left: max(0.5rem, env(safe-area-inset-left, 0px));
+    left: max(1rem, env(safe-area-inset-left, 0px));
     top: max(0.5rem, env(safe-area-inset-top, 0px));
     z-index: 1001;
     pointer-events: auto;
@@ -1170,6 +1173,9 @@ body.in-world main:has(> .client-world):not(:has(> aside)) {
   }
 
   body.in-world {
+    --play-gutter: max(1rem, env(safe-area-inset-left, 0px));
+    --play-top: max(0.5rem, env(safe-area-inset-top, 0px));
+
     main:has(> .client-world) {
       grid-template-columns: 1fr;
       grid-template-areas: 'world';
@@ -1184,6 +1190,11 @@ body.in-world main:has(> .client-world):not(:has(> aside)) {
     main:has(> .client-world):not(:has(> aside)) {
       grid-template-columns: 1fr;
       grid-template-areas: 'world';
+    }
+
+    main:has(> .client-world) > .site-nav-toggle {
+      left: var(--play-gutter);
+      top: var(--play-top);
     }
   }
 }
@@ -2725,13 +2736,14 @@ button.iconish {
     padding: 0;
 
     li:first-child {
-      margin-top: 1rem;
+      // clear fixed ☰ above Voice / Explore
+      margin-top: 2.75rem;
     }
 
     li {
       list-style: none;
       margin: 0;
-      padding: 0 1rem;
+      padding: 0 var(--play-gutter, 1rem);
     }
 
     li.disabled {
@@ -2791,7 +2803,7 @@ main > aside section {
   position: absolute;
   // clear iOS home indicator / mobile browser bottom chrome
   bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
-  left: max(0.5rem, env(safe-area-inset-left, 0px));
+  left: var(--play-gutter, 1rem);
   z-index: 100;
   display: flex;
   flex-direction: column;
@@ -2840,7 +2852,7 @@ main > aside section {
   }
 
   form {
-    padding: 0 0.5rem;
+    padding: 0;
     display: flex;
     flex-direction: row;
     gap: 0.5rem;
@@ -2864,6 +2876,7 @@ main > aside section {
 
   .UserInterface div.chat {
     bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
+    left: var(--play-gutter, 1rem);
   }
 }
 
