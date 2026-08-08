@@ -34,6 +34,7 @@
   --dark: var(--bg);
   --surface: #fff;
   --chatbar: 3rem;
+  color-scheme: light;
 }
 
 // opt-in via Settings; localStorage key "theme"
@@ -50,6 +51,9 @@ html[data-theme='dark'] {
   --hover: #1a1a1a;
   --semi: rgba(13, 13, 13, 0.9);
   --surface: #1f1f1f;
+  // #03f sinks into dark grey; keep the voxels blue, just brighter
+  --accent: #6af;
+  color-scheme: dark;
 }
 
 // --- fonts ---
@@ -140,6 +144,8 @@ input,
 textarea,
 select {
   font: inherit;
+  // transparent editor fields otherwise keep UA black fieldtext on dark bg
+  color: inherit;
 }
 
 * {
@@ -559,7 +565,7 @@ a.buttonish {
   padding: 0.2rem 0.5rem;
 
   &[disabled] {
-    color: #0004;
+    color: var(--disabled);
     opacity: 0.8;
     cursor: default;
   }
@@ -1766,7 +1772,7 @@ section.profile {
 .loading-image {
   width: 100%;
   aspect-ratio: 1/1;
-  background: #eee;
+  background: var(--hover);
   position: relative;
 
   .loading {
@@ -1783,7 +1789,6 @@ section.profile {
     width: 16px;
     filter: grayscale(100%);
     transform: translate(-50%, -50%);
-    mix-blend-mode: multiply;
   }
 }
 
@@ -3159,8 +3164,8 @@ dialog.editor {
       text-align: center;
 
       span {
-        background: #ccc;
-        color: #333;
+        background: var(--muted-2);
+        color: var(--bg);
         display: block;
         padding: 0;
       }
@@ -3658,11 +3663,6 @@ section.build-tab nav.build-main-tabs {
   .spinny {
     text-align: center;
     margin: 2rem 0 4rem 0;
-
-    &,
-    * {
-      mix-blend-mode: multiply;
-    }
   }
 
   .SortingOptions,
@@ -3979,7 +3979,7 @@ main > aside section.settings {
     }
 
     small {
-      color: #555;
+      color: var(--muted);
       display: block;
     }
   }
@@ -4518,11 +4518,11 @@ dialog {
     border: none;
     font-size: 3rem;
     line-height: 2rem;
-    color: #666;
+    color: var(--muted);
     cursor: pointer;
 
     &:hover {
-      color: black;
+      color: var(--fg);
     }
   }
 

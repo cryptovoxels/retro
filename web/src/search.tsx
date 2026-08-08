@@ -192,9 +192,10 @@ export default class Search extends Component<Props, State> {
       this.controller = null
     }
 
-    this.setState({ query: this.query, loading: true, results: [] })
+    const q = this.query
+    this.setState({ query: q ?? '', loading: true, results: [] })
 
-    if (!this.state.query) {
+    if (!q) {
       this.setState({ loading: false })
       return
     }
@@ -202,7 +203,7 @@ export default class Search extends Component<Props, State> {
     track('search')
     this.controller = new AbortController()
 
-    const r = await cachedFetch(`/api/search?q=${encodeURIComponent(this.query!)}`, fetchOptions(this.controller), ttl)
+    const r = await cachedFetch(`/api/search?q=${encodeURIComponent(q)}`, fetchOptions(this.controller), ttl)
     const { results } = await r.json()
 
     this.setState({ results, loading: false, total: results.length })
