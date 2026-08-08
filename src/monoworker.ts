@@ -11,6 +11,8 @@ import { setFontData, meshText } from './monoworker/polytext'
 import { gridWorker } from './monoworker/grid'
 
 const api = {
+  // ready probe for createComlinkWorker (importScripts can fail after new Worker)
+  ping: () => true as const,
   bakeLightmap,
   processVoxelisation,
   processJob,
@@ -31,4 +33,6 @@ const api = {
 export type Mono = typeof api
 export const mono = api
 
-if (typeof self !== 'undefined' && 'postMessage' in self) Comlink.expose(api)
+// only expose inside a real worker (main-thread fallback imports this module too)
+const inWorker = typeof WorkerGlobalScope !== 'undefined' && typeof self !== 'undefined' && self instanceof WorkerGlobalScope
+if (inWorker) Comlink.expose(api)
