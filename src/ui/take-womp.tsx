@@ -80,7 +80,8 @@ export default class TakeWomp extends Component<Props, State> {
       return
     }
 
-    const parcel = window.grid?.currentOrNearestParcel()
+    // look-at parcel (not nearest-underfoot): wall filters to coords on that same lot
+    const parcel = window.grid?.getTargetParcel()
     if (!parcel) {
       app.showSnackbar('Failed to capture womp. No parcel found', PanelType.Danger)
       return

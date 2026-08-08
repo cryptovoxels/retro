@@ -18,7 +18,7 @@ import {
 const TEX_W = 768
 const TEX_H = 512
 const REFRESH_MS = 60_000
-const FETCH_LIMIT = 40
+const FETCH_LIMIT = 80
 
 type WallWomp = {
   id: number
@@ -167,7 +167,7 @@ export default class WompWall extends Feature2D<WompWallRecord> {
 
     if (this.disposed || gen !== this.paintGen) return
 
-    // API is by parcel_id (look-at tags); keep only shots taken while standing on this lot
+    // parcel_id is look-at; require feet were on this lot (drops street look-ins and cross-lot tags)
     womps = womps.filter((w) => wompTakenOnParcel(w, parcel))
 
     this.tiles = Array(TILES).fill(null)
@@ -258,8 +258,9 @@ export default class WompWall extends Feature2D<WompWallRecord> {
 
 function wompTakenOnParcel(w: WallWomp, parcel: Parcel): boolean {
   if (Number(w.parcel_id) !== Number(parcel.id)) return false
-  if (!w.coords) return true
+  if (!w.coords) return false
   const { position } = decodeCoords(w.coords)
+  // xz only — y/towers vary; decode also bakes CAMERA_HEIGHT into y
   const minX = Math.min(parcel.x1, parcel.x2)
   const maxX = Math.max(parcel.x1, parcel.x2)
   const minZ = Math.min(parcel.z1, parcel.z2)
