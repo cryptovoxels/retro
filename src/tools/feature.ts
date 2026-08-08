@@ -27,6 +27,9 @@ type AABB = {
   max: BABYLON.Vector3
 }
 const OVERSIZE = 0.01
+const highlightScale = new BABYLON.Vector3()
+const highlightRot = new BABYLON.Quaternion()
+const highlightPos = new BABYLON.Vector3()
 
 const SELECTION_COLORS = {
   inside: {
@@ -749,8 +752,28 @@ export default class FeatureTool implements Tool {
   }
 
   updateHighlight(mesh?: BABYLON.AbstractMesh) {
-    const boundingBox = mesh ? boundingBoxOfMesh(mesh) : this.selection.feature?.boundingBox
+    const feature = this.selection.feature
+    const target = mesh ?? (feature?.mesh instanceof BABYLON.AbstractMesh ? feature.mesh : undefined)
 
+    // showboxes are thin rotated planes - world AABB floats off the screen.
+    // match the mesh world pose; force a visible Z so scale.z=0 still outlines.
+    if (feature?.type === 'showbox' && target) {
+      const wm = target.computeWorldMatrix(true)
+      wm.decompose(highlightScale, highlightRot, highlightPos)
+      this.selector.parent = null!
+      this.selector.position.copyFrom(highlightPos)
+      if (!this.selector.rotationQuaternion) this.selector.rotationQuaternion = new BABYLON.Quaternion()
+      this.selector.rotationQuaternion.copyFrom(highlightRot)
+      this.selector.scaling.set(Math.abs(highlightScale.x) + OVERSIZE, Math.abs(highlightScale.y) + OVERSIZE, Math.max(Math.abs(highlightScale.z) + OVERSIZE, 0.05))
+      this.highlight()
+      this.refreshBounds()
+      return
+    }
+
+    this.selector.parent = null!
+    this.selector.rotationQuaternion = null
+
+    const boundingBox = target ? boundingBoxOfMesh(target) : feature?.boundingBox
     if (!boundingBox) return
 
     this.selector.position.copyFrom(boundingBox.centerWorld)
