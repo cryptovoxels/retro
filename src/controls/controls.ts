@@ -1058,7 +1058,9 @@ export default abstract class Controls implements IControls {
     if (!this.vehicleHintEl) {
       const el = document.createElement('div')
       el.className = 'vehicle-drive-hint'
-      el.style.cssText = 'position:fixed;left:50%;bottom:5rem;transform:translateX(-50%);z-index:40;pointer-events:none;opacity:0.85;'
+      // same look as the mute hint so it reads over any scene
+      el.style.cssText =
+        'position:fixed;left:50%;bottom:5rem;transform:translateX(-50%);z-index:40;pointer-events:none;padding:4px 8px;background:rgba(13,13,13,0.85);color:#f5f5f0;font-family:"Source Code Pro",monospace;font-size:12px;white-space:nowrap;'
       document.body.appendChild(el)
       this.vehicleHintEl = el
     }
