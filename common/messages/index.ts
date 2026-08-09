@@ -333,6 +333,8 @@ export type AvatarVehiclePayload = {
   voxUrl: string
   scale: [number, number, number]
   yaw: number
+  /** driveSeatOffset (car-local) - remotes subtract it from the avatar position to find the car origin */
+  seat: [number, number, number]
 }
 
 export type UpdateAvatarMessage = {
@@ -354,7 +356,7 @@ extensionCodec.register({
     if (input.type != MessageType.updateAvatar) {
       return null
     }
-    const vehicle = input.vehicle ? [input.vehicle.featureUuid, input.vehicle.homeParcelId, input.vehicle.voxUrl || '', Float32Array.from(input.vehicle.scale), input.vehicle.yaw] : null
+    const vehicle = input.vehicle ? [input.vehicle.featureUuid, input.vehicle.homeParcelId, input.vehicle.voxUrl || '', Float32Array.from(input.vehicle.scale), input.vehicle.yaw, Float32Array.from(input.vehicle.seat || [0, 1.2, 0])] : null
     return encodeAlias([encodeUUID(input.uuid), Float32Array.from(input.position), compressQuaternion(input.orientation), input.animation, input.inConga ? 1 : 0, input.congaFollowsUuid ? encodeUUID(input.congaFollowsUuid) : null, vehicle])
   },
   decode: (data): UpdateAvatarMessage => {
@@ -375,12 +377,14 @@ extensionCodec.register({
       // msgpack hands Float32Array back as raw bytes - decode like position does, or the
       // ghost car gets byte values (0-255) as scale and looks insanely stretched
       const scale = v[3] instanceof Uint8Array ? uint8ToFloat32(v[3]) : v[3]
+      const seat = v[5] instanceof Uint8Array ? uint8ToFloat32(v[5]) : v[5]
       m.vehicle = {
         featureUuid: String(v[0]),
         homeParcelId: Number(v[1]) || 0,
         voxUrl: String(v[2] || ''),
         scale: [Number(scale?.[0]) || 1, Number(scale?.[1]) || 1, Number(scale?.[2]) || 1],
         yaw: Number(v[4]) || 0,
+        seat: seat ? [Number(seat[0]) || 0, Number(seat[1]) || 0, Number(seat[2]) || 0] : [0, 1.2, 0],
       }
     }
     return m
