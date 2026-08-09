@@ -931,7 +931,7 @@ export default abstract class Controls implements IControls {
   private driveHint(car: import('../features/vox-model').Megavox): string {
     const fly = car.isFlyable ? ' · Space/V climb' : ''
     const seat = car.parcel.canEdit ? ' · G seat' : ''
-    return `T flip facing · C camera · E exit${fly}${seat}`
+    return `T turn facing · C camera · E exit${fly}${seat}`
   }
 
   /** G while seated (owners): drive keys move the seat; G again saves and goes back to driving */
@@ -963,7 +963,7 @@ export default abstract class Controls implements IControls {
   }
 
   /** While seated: nudge which way is "forward" (W + look). Saves on the megavox if you can edit. */
-  nudgeDriveFacing(delta = Math.PI) {
+  nudgeDriveFacing(delta = Math.PI / 2) {
     const car = this.vehicleFeature
     if (!car) return
     if (car.parcel.canEdit) {
@@ -976,7 +976,7 @@ export default abstract class Controls implements IControls {
       this.vehicleFacingNudge += delta
     }
     this.camera.rotation.y += delta
-    this.setVehicleHint('facing flipped')
+    this.setVehicleHint('facing turned 90')
   }
 
   /** yaw the seated avatar / W should use; null if not driving */
