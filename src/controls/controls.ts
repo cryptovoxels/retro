@@ -145,6 +145,11 @@ export default abstract class Controls implements IControls {
   vehicleSteer = { forward: 0, turn: 0 }
   /** visitor-only facing nudge when they can't save driveYawOffset */
   private vehicleFacingNudge = 0
+  /** working seat offset while seated (local to megavox); flushed to driveSeatOffset when editable */
+  private vehicleSeatOffset: [number, number, number] = [0, 1.2, 0]
+  private vehicleSeatSaveAt = 0
+  private vehicleSeatLocal = new BABYLON.Vector3()
+  private vehicleSeatWorld = new BABYLON.Vector3()
   /** document-level WASD - Babylon camera keyboard often misses keys while speed is 0 / no canvas focus */
   private driveHeld = new Set<string>()
   private onDriveKeyDown = (e: KeyboardEvent) => {
@@ -897,6 +902,8 @@ export default abstract class Controls implements IControls {
     this.vehicleLastDryRot = car.mesh?.rotation.clone() ?? null
     this.vehicleWasFirstPerson = this.firstPersonView
     this.vehicleFlyingRestore = this.flying
+    this.vehicleSeatOffset = this.readDriveSeatOffset(car)
+    this.vehicleSeatSaveAt = 0
     this.disableGravity()
     if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
       ;(this.scene.activeCamera as any).checkCollisions = false
@@ -911,8 +918,25 @@ export default abstract class Controls implements IControls {
     // start in chase cam so you can see the car; C still toggles first/third while driving
     if (this.firstPersonView) this.enterThirdPerson(5)
     this.camera.rotation.y = this.driveFacingYaw(car)
-    this.setVehicleHint('T flip facing · C camera · E exit')
+    const flyHint = car.isFlyable ? ' · Space/V climb' : ''
+    const seatHint = car.parcel.canEdit ? ' · R/F [ ] , . seat' : ''
+    this.setVehicleHint(`T flip facing · C camera · E exit${flyHint}${seatHint}`)
     this.refreshMobileDriveChrome?.()
+  }
+
+  private readDriveSeatOffset(car: import('../features/vox-model').Megavox): [number, number, number] {
+    const o = (car.description as { driveSeatOffset?: number[] }).driveSeatOffset
+    if (Array.isArray(o) && o.length >= 3) {
+      return [Number(o[0]) || 0, Number(o[1]) || 0, Number(o[2]) || 0]
+    }
+    return [0, 1.2, 0]
+  }
+
+  private flushDriveSeatOffset() {
+    const car = this.vehicleFeature
+    if (!car?.parcel.canEdit) return
+    const o = this.vehicleSeatOffset
+    car.set({ driveSeatOffset: [o[0], o[1], o[2]] } as any)
   }
 
   /** While seated: nudge which way is "forward" (W + look). Saves on the megavox if you can edit. */
@@ -945,6 +969,7 @@ export default abstract class Controls implements IControls {
   }
 
   stopVehicle() {
+    this.flushDriveSeatOffset()
     const car = this.vehicleFeature
     this.vehicleFeature = null
     this.vehicleSteer.forward = 0
@@ -1081,6 +1106,9 @@ export default abstract class Controls implements IControls {
     const { forward, turn } = this.readDriveInput()
     const speed = this.running ? 8 : 4
     const turnSpeed = 1.6
+    const kb = (this as any).keyboardInput as { pressedCodes?: () => string[] } | undefined
+    const codes = kb?.pressedCodes?.() || []
+    const held = (code: string) => this.driveHeld.has(code) || codes.includes(code)
 
     if (Math.abs(turn) > 0.01) car.mesh.rotation.y += turn * turnSpeed * dt
     if (Math.abs(forward) > 0.01) {
@@ -1088,10 +1116,56 @@ export default abstract class Controls implements IControls {
       car.mesh.position.x += Math.sin(facing) * forward * speed * dt
       car.mesh.position.z += Math.cos(facing) * forward * speed * dt
     }
+    // hovercraft: Space/PageUp climb, V/PageDown dive
+    if (car.isFlyable) {
+      let climb = 0
+      if (held('Space') || held('PageUp')) climb = 1
+      if (held('KeyV') || held('PageDown')) climb = -1
+      if (climb) this.vehicleHoverY += climb * speed * dt
+      // soft floor - water rescue still snaps if you go under
+      if (this.vehicleHoverY < SWIM_LEVEL + 0.5) this.vehicleHoverY = SWIM_LEVEL + 0.5
+    }
     car.mesh.position.y = this.vehicleHoverY
     // frozen meshes need freezeWorldMatrix() again to bake the new pose (computeWorldMatrix alone is a no-op when frozen)
     if (car.mesh.isWorldMatrixFrozen) car.mesh.freezeWorldMatrix()
     else car.mesh.computeWorldMatrix(true)
+
+    // owner seat nudge: R/F up/down, [/] left/right, ,/. back/forward (local to car)
+    if (car.parcel.canEdit) {
+      const step = 1.5 * dt
+      let moved = false
+      if (held('KeyR')) {
+        this.vehicleSeatOffset[1] += step
+        moved = true
+      }
+      if (held('KeyF')) {
+        this.vehicleSeatOffset[1] -= step
+        moved = true
+      }
+      if (held('BracketLeft')) {
+        this.vehicleSeatOffset[0] -= step
+        moved = true
+      }
+      if (held('BracketRight')) {
+        this.vehicleSeatOffset[0] += step
+        moved = true
+      }
+      if (held('Comma')) {
+        this.vehicleSeatOffset[2] += step
+        moved = true
+      }
+      if (held('Period')) {
+        this.vehicleSeatOffset[2] -= step
+        moved = true
+      }
+      if (moved) {
+        const nowSeat = Date.now()
+        if (nowSeat - this.vehicleSeatSaveAt > 200) {
+          this.vehicleSeatSaveAt = nowSeat
+          this.flushDriveSeatOffset()
+        }
+      }
+    }
 
     // water rescue: swim level
     const worldY = car.absolutePosition?.y ?? car.mesh.position.y
@@ -1113,11 +1187,13 @@ export default abstract class Controls implements IControls {
       this.vehicleLastDryRot = car.mesh.rotation.clone()
     }
 
-    // seat: put camera (persona) on the car so sendAvatar carries us with it; chase offset applied in firstOrThirdPersonAdjustment via cameraDistance
-    const abs = car.absolutePosition
-    if (abs) {
-      this.camera.position.copyFrom(abs.subtract(this.worldOffset.position))
-      this.camera.position.y += 1.2
+    // seat: put camera on driveSeatOffset (local to mesh) so sendAvatar rides with the car
+    if (car.mesh) {
+      const [ox, oy, oz] = this.vehicleSeatOffset
+      this.vehicleSeatLocal.copyFromFloats(ox, oy, oz)
+      BABYLON.Vector3.TransformCoordinatesToRef(this.vehicleSeatLocal, car.mesh.getWorldMatrix(), this.vehicleSeatWorld)
+      this.camera.position.copyFrom(this.vehicleSeatWorld)
+      this.camera.position.subtractInPlace(this.worldOffset.position)
       // mouse owns look (pitch + yaw); car facing is separate via getVehicleDriveYaw
     }
 
