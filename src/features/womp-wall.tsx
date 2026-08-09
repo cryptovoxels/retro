@@ -7,19 +7,13 @@ import type Parcel from '../parcel'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import Feature, { Feature2D, FeatureEvent, MeshExtended } from './feature'
 import showWompView from '../ui/html-ui/womp-view'
-import {
-  tileIndexFromUv,
-  WOMP_WALL_COLS as COLS,
-  WOMP_WALL_GAP as GAP,
-  WOMP_WALL_HEADER_FRAC as HEADER_FRAC,
-  WOMP_WALL_ROWS as ROWS,
-  WOMP_WALL_TILES as TILES,
-} from './womp-wall-hit'
+import { tileIndexFromUv, WOMP_WALL_COLS as COLS, WOMP_WALL_GAP as GAP, WOMP_WALL_HEADER_FRAC as HEADER_FRAC, WOMP_WALL_ROWS as ROWS, WOMP_WALL_TILES as TILES } from './womp-wall-hit'
 
 const TEX_W = 768
 const TEX_H = 512
 const REFRESH_MS = 60_000
-const FETCH_LIMIT = 80
+// wall paints 6 tiles, the rest is arrow-key history in the lightbox
+const FETCH_LIMIT = 200
 
 type WallWomp = {
   id: number
@@ -43,6 +37,7 @@ export default class WompWall extends Feature2D<WompWallRecord> {
   }
 
   private tiles: Array<WallWomp | null> = Array(TILES).fill(null)
+  private womps: WallWomp[] = []
   private lastPick: BABYLON.PickingInfo | null = null
   private refreshTimer: ReturnType<typeof setTimeout> | null = null
   private dynamicTexture: BABYLON.DynamicTexture | null = null
@@ -151,6 +146,7 @@ export default class WompWall extends Feature2D<WompWallRecord> {
     const parcelId = parcel?.id
     if (!parcelId || window.config?.isSpace) {
       this.tiles = Array(TILES).fill(null)
+      this.womps = []
       this.paintEmpty()
       return
     }
@@ -169,7 +165,8 @@ export default class WompWall extends Feature2D<WompWallRecord> {
     if (this.disposed || gen !== this.paintGen) return
 
     // parcel_id + feet on this lot (drops street look-ins and cross-lot tags)
-    womps = womps.filter((w) => wompTakenOnParcel(w, parcel))
+    womps = womps.filter((w) => w?.id && wompTakenOnParcel(w, parcel))
+    this.womps = womps
 
     this.tiles = Array(TILES).fill(null)
     for (let i = 0; i < TILES && i < womps.length; i++) {
@@ -228,7 +225,7 @@ export default class WompWall extends Feature2D<WompWallRecord> {
     if (index < 0) return
     const womp = this.tiles[index]
     if (!womp?.id) return
-    showWompView(womp)
+    showWompView(womp, this.womps)
   }
 
   private tileIndexFromPick(pick: BABYLON.PickingInfo | null): number {
