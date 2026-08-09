@@ -254,6 +254,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     uiPane.value = 'edit'
     this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'edit', active: true, publishAsset: undefined })
     exitPointerLock()
+    // off-object drags look around while editing
+    ;(this.connector.controls as any).attachDragLook?.()
   }
 
   openPublishAsset(asset: FeatureTemplate | string) {
