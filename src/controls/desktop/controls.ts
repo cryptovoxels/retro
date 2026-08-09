@@ -85,12 +85,24 @@ export default class DesktopControls extends Controls {
         this.mouseLookAttached = true
       }
     } else {
-      if (this.mouseLookAttached) {
+      // feature editor open: keep drag-look attached so off-object drags still look around.
+      // face drag / gizmos claim their pointer-downs on prepointer, so they never fight the camera.
+      const editorOpen = !!(window.ui?.state?.editor || window.ui?.state?.feature)
+      if (this.mouseLookAttached && !editorOpen) {
         mouse?.detachControl()
         this.mouseLookAttached = false
       }
       this.resetControls()
       this.idleLook.start()
+    }
+  }
+
+  // unlocked entry into the editor (tree click) — locked entry keeps the input from lock time
+  attachDragLook() {
+    const mouse = (this.camera as PlayerCamera | undefined)?.inputs?.attached['mouse'] as BABYLON.FreeCameraMouseInput | undefined
+    if (mouse && !this.mouseLookAttached) {
+      mouse.attachControl(true)
+      this.mouseLookAttached = true
     }
   }
 
