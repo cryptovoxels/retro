@@ -51,7 +51,7 @@ export async function createComlinkWorker<T>(workerFactory: () => Worker, fallba
     const worker = workerFactory()
     const api = Comlink.wrap<T & ReadyApi>(worker)
 
-    await waitForWorkerReady(worker, api)
+    await waitForWorkerReady(worker, api as ReadyApi)
 
     return {
       worker: api as T,

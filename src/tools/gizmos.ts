@@ -23,6 +23,7 @@ let windowDragMoved = false
 let windowDragActive = false
 let windowDragCursorObserver: BABYLON.Observer<BABYLON.PointerInfo> | null = null
 let windowDragPointerObserver: BABYLON.Observer<BABYLON.PointerInfo> | null = null
+let windowDragPrePointerObserver: BABYLON.Observer<BABYLON.PointerInfoPre> | null = null
 let windowDragUnfreezeObserver: BABYLON.Observer<BABYLON.Scene> | null = null
 let windowDragFeature: Feature | null = null
 let windowDragFrame: PlaneFrame | null = null
@@ -668,13 +669,15 @@ const attachWindowDrag = (feature: Feature) => {
     }
   })
 
-  windowDragPointerObserver = scene.onPointerObservable.add((info, state) => {
-    if (!windowDragMesh || windowDragMesh !== mesh) return
-    const btn = info.event.button
+  // Drag START runs on the PRE-pointer observable: the utility layer swallows any POINTERDOWN
+  // its scene picks (skipOnPointerObservable) — and the Z arrow points at the camera on wall art,
+  // so its collider covers the face center and face drag looked randomly dead. Face wins on the
+  // face; corner handles still win; the Z arrow stays grabbable where it sticks past the face.
+  windowDragPrePointerObserver = scene.onPrePointerObservable.add(
+    (info) => {
+      if (!windowDragMesh || windowDragMesh !== mesh) return
+      if (info.type !== BABYLON.PointerEventTypes.POINTERDOWN || info.event.button !== 0) return
 
-    if (info.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 0) {
-      // Corner handles win. Do not compare util-layer vs main-scene pick distances — those cameras
-      // disagree and the Z arrow (pointing at you) looked "closer" and vetoed face-drag every time.
       if (utilLayer) {
         const uPick = utilLayer.utilityLayerScene.pick(scene.pointerX, scene.pointerY)
         if (uPick?.hit && uPick.pickedMesh?.name?.startsWith('feature/showbox/resize-handle/')) return
@@ -705,45 +708,54 @@ const attachWindowDrag = (feature: Feature) => {
       document.addEventListener('pointerup', onDocPointerUp)
       if (utilLayer) ensureSnapGuides(utilLayer)
       snapPeers = collectSnapPeers(feature, frame)
-      state.skipNextObservers = true
-      return
-    }
+      // we own the gesture: gizmo layer and desktop clicks both skip this down
+      info.skipOnPointerObservable = true
+    },
+    undefined,
+    true,
+  )
 
-    if (!windowDragActive) return
+  windowDragPointerObserver = scene.onPointerObservable.add(
+    (info, state) => {
+      if (!windowDragMesh || windowDragMesh !== mesh) return
+      if (!windowDragActive) return
 
-    if (info.type === BABYLON.PointerEventTypes.POINTERMOVE || info.type === BABYLON.PointerEventTypes.POINTERUP) {
-      const frame = windowDragFrame
-      const worldStart = windowDragMeshWorldStart
-      if (!frame || !worldStart) return
-      mesh.unfreezeWorldMatrix()
-      const ray = pointerRay(scene)
-      if (!ray) return
-      const hit = rayHitPlane(ray, frame.origin, frame.normal)
-      if (!hit) return
+      if (info.type === BABYLON.PointerEventTypes.POINTERMOVE || info.type === BABYLON.PointerEventTypes.POINTERUP) {
+        const frame = windowDragFrame
+        const worldStart = windowDragMeshWorldStart
+        if (!frame || !worldStart) return
+        mesh.unfreezeWorldMatrix()
+        const ray = pointerRay(scene)
+        if (!ray) return
+        const hit = rayHitPlane(ray, frame.origin, frame.normal)
+        if (!hit) return
 
-      const u = BABYLON.Vector3.Dot(hit.subtract(frame.origin), frame.axisX)
-      const v = BABYLON.Vector3.Dot(hit.subtract(frame.origin), frame.axisY)
-      const du = u - windowDragGrabU
-      const dv = v - windowDragGrabV
-      if (!windowDragMoved && (Math.abs(du) > 0.002 || Math.abs(dv) > 0.002)) {
-        windowDragMoved = true
-        window.ui?.setDragging(true)
+        const u = BABYLON.Vector3.Dot(hit.subtract(frame.origin), frame.axisX)
+        const v = BABYLON.Vector3.Dot(hit.subtract(frame.origin), frame.axisY)
+        const du = u - windowDragGrabU
+        const dv = v - windowDragGrabV
+        if (!windowDragMoved && (Math.abs(du) > 0.002 || Math.abs(dv) > 0.002)) {
+          windowDragMoved = true
+          window.ui?.setDragging(true)
+        }
+        if (windowDragMoved) {
+          const worldPos = worldStart.add(frame.axisX.scale(du)).add(frame.axisY.scale(dv))
+          setMeshWorldPositionOnPlane(mesh, worldPos)
+          applyPlaneSnap(feature, mesh)
+          if (canvas) canvas.style.cursor = 'move'
+          updateHighlight()
+        }
+
+        if (info.type === BABYLON.PointerEventTypes.POINTERUP) {
+          document.removeEventListener('pointerup', onDocPointerUp)
+          finishWindowDrag(feature, mesh, canvas)
+          state.skipNextObservers = true
+        }
       }
-      if (windowDragMoved) {
-        const worldPos = worldStart.add(frame.axisX.scale(du)).add(frame.axisY.scale(dv))
-        setMeshWorldPositionOnPlane(mesh, worldPos)
-        applyPlaneSnap(feature, mesh)
-        if (canvas) canvas.style.cursor = 'move'
-        updateHighlight()
-      }
-
-      if (info.type === BABYLON.PointerEventTypes.POINTERUP) {
-        document.removeEventListener('pointerup', onDocPointerUp)
-        finishWindowDrag(feature, mesh, canvas)
-        state.skipNextObservers = true
-      }
-    }
-  }, undefined, true) // run before desktopClicks so we own the gesture
+    },
+    undefined,
+    true,
+  ) // run before desktopClicks so we own the gesture
 
   const onDocPointerUp = () => {
     if (!windowDragActive || !windowDragMesh) return
@@ -772,6 +784,10 @@ const detachWindowDrag = () => {
     if (windowDragPointerObserver) {
       scene.onPointerObservable.remove(windowDragPointerObserver)
       windowDragPointerObserver = null
+    }
+    if (windowDragPrePointerObserver) {
+      scene.onPrePointerObservable.remove(windowDragPrePointerObserver)
+      windowDragPrePointerObserver = null
     }
     if (windowDragUnfreezeObserver) {
       scene.onBeforeRenderObservable.remove(windowDragUnfreezeObserver)
