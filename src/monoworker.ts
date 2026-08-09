@@ -34,5 +34,6 @@ export type Mono = typeof api
 export const mono = api
 
 // only expose inside a real worker (main-thread fallback imports this module too)
-const inWorker = typeof WorkerGlobalScope !== 'undefined' && typeof self !== 'undefined' && self instanceof WorkerGlobalScope
+const WGS = (globalThis as any).WorkerGlobalScope
+const inWorker = typeof WGS !== 'undefined' && typeof self !== 'undefined' && self instanceof WGS
 if (inWorker) Comlink.expose(api)
