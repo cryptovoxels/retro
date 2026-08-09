@@ -1035,6 +1035,7 @@ export default abstract class Controls implements IControls {
     voxUrl: string
     scale: [number, number, number]
     yaw: number
+    seat: [number, number, number]
   } | null {
     const car = this.vehicleFeature
     if (!car?.mesh) return null
@@ -1051,6 +1052,7 @@ export default abstract class Controls implements IControls {
       voxUrl: String(car.description.url || ''),
       scale: [clamp(s.x), clamp(s.y), clamp(s.z)],
       yaw: car.mesh.rotation.y,
+      seat: [this.vehicleSeatOffset[0], this.vehicleSeatOffset[1], this.vehicleSeatOffset[2]],
     }
   }
 

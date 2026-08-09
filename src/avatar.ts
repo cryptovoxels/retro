@@ -298,8 +298,18 @@ export default class Avatar extends Entity {
     mesh.isVisible = true
     // keep parent + scale fixed — only pose
     if (mesh.parent !== this.node.parent) mesh.parent = this.node.parent
+    // the driver broadcasts their seat position (camera rides driveSeatOffset in car space).
+    // car origin = seat - yaw-rotated scaled seat offset (same math as the driver, in reverse)
+    const seat = v.seat || [0, 1.2, 0]
+    const sx = seat[0] * mesh.scaling.x
+    const sy = seat[1] * mesh.scaling.y
+    const sz = seat[2] * mesh.scaling.z
+    const cos = Math.cos(v.yaw)
+    const sin = Math.sin(v.yaw)
     mesh.position.copyFrom(this.position)
-    mesh.position.y -= 0.2
+    mesh.position.x -= sx * cos + sz * sin
+    mesh.position.y -= sy
+    mesh.position.z -= sz * cos - sx * sin
     mesh.rotation.set(0, v.yaw, 0)
   }
 
@@ -720,6 +730,8 @@ export default class Avatar extends Entity {
 
     if (this.isUser) return
 
+    // ghost car follows the interpolated avatar every tick, not just on network updates
+    this.syncVehicleMeshPose()
     this.updateRemoteLocomotionAudio(previous)
   }
 
