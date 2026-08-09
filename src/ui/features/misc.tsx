@@ -130,15 +130,24 @@ export class FeatureEditor<T extends Feature = Feature> extends Component<Featur
   }
 
   merge(props: any) {
+    // mid-gizmo-drag: setDragging rerenders the editor, and a coerced autosave here
+    // regenerate()s the mesh under the drag — deltas at release then jump back
+    if (window.ui?.state?.dragging) return
+
     Object.keys(props).forEach((key) => {
-      if ((this.props.feature.description as any)[key] === props[key]) {
-        delete props[key]
-      }
+      const cur = (this.props.feature.description as any)[key]
+      const next = props[key]
+      // strict, loose (1 == "1.00"), both-falsy (undefined vs false), and omitted-key defaults
+      if (cur === next || cur == next || (!cur && !next)) delete props[key]
+      else if (cur == null && (next === false || next === 1 || next === '1' || next === '1.00' || next === 'Repeat')) delete props[key]
     })
+    if (!Object.keys(props).length) return
 
     if (!this.throttledSet) {
       this.throttledSet = throttle(
         (p: any) => {
+          if (window.ui?.state?.dragging) return
+          if (!Object.keys(p).length) return
           this.props.feature.set(p)
         },
         100,
