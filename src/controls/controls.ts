@@ -943,7 +943,7 @@ export default abstract class Controls implements IControls {
       this.setVehicleHint('adjust seat: WASD move · R/F up/down · G save')
     } else {
       this.flushDriveSeatOffset()
-      this.setVehicleHint(this.driveHint(car))
+      this.setVehicleHint('seat saved')
     }
   }
 
@@ -1144,6 +1144,8 @@ export default abstract class Controls implements IControls {
       if (held('KeyR')) this.vehicleSeatOffset[1] += step
       if (held('KeyF')) this.vehicleSeatOffset[1] -= step
     } else {
+      // they know how to drive now - drop the teaching text
+      if (this.vehicleHintEl && (Math.abs(forward) > 0.01 || Math.abs(turn) > 0.01)) this.setVehicleHint(null)
       if (Math.abs(turn) > 0.01) car.mesh.rotation.y += turn * turnSpeed * dt
       if (Math.abs(forward) > 0.01) {
         const facing = this.driveFacingYaw(car)
