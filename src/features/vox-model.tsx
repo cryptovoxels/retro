@@ -326,6 +326,10 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     return !!this.description.driveable
   }
 
+  get isFlyable() {
+    return !!this.description.driveable && !!this.description.flyable
+  }
+
   get isDriven() {
     return !!this.driverUuid
   }
@@ -333,7 +337,8 @@ export class Megavox extends VoxModel<MegavoxRecord> {
   override whatIsThis() {
     return (
       <label>
-        A large .vox model (megavox). Check <em>driveable</em> to let anyone hop in with E / Drive and cruise the island. While seated, press <em>T</em> to flip facing if you are backwards.
+        A large .vox model (megavox). Check <em>driveable</em> to let anyone hop in with E / Drive and cruise the island. While seated, press <em>T</em> to flip facing if you are backwards. Check <em>flyable</em> for hovercrafts (Space / V
+        to climb).
       </label>
     )
   }
@@ -539,6 +544,7 @@ Megavox.Editor = class MegavoxEditor extends Editor {
     this.state = {
       ...this.state,
       driveable: !!(props.feature.description as any).driveable,
+      flyable: !!(props.feature.description as any).flyable,
     }
   }
 
@@ -550,6 +556,7 @@ Megavox.Editor = class MegavoxEditor extends Editor {
     }
     if (this.state.type === 'megavox') {
       patch.driveable = !!this.state.driveable
+      patch.flyable = !!this.state.driveable && !!this.state.flyable
       if (this.state.driveable) patch.collidable = true
     }
     this.merge(patch)
@@ -595,23 +602,36 @@ Megavox.Editor = class MegavoxEditor extends Editor {
                     checked={!!this.state.driveable}
                     onChange={(e) => {
                       const driveable = e.currentTarget.checked
-                      this.setState({ driveable, collidable: driveable ? true : this.state.collidable })
+                      this.setState({ driveable, collidable: driveable ? true : this.state.collidable, flyable: driveable ? this.state.flyable : false })
                     }}
                   />
-                  <small> anyone can hop in with E / Drive. seated: T flips facing (saved if you can edit).</small>
+                  <small> anyone can hop in with E / Drive.</small>
                 </dd>
                 {!!this.state.driveable && (
-                  <dd class="full">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        ;(this.props.feature as any).recallToPark?.()
-                      }}
-                    >
-                      bring back
-                    </button>
-                    <small> reset to the saved park spot (kicks a driver if needed).</small>
-                  </dd>
+                  <>
+                    <dt>flyable</dt>
+                    <dd>
+                      <input type="checkbox" name="flyable" checked={!!this.state.flyable} onChange={(e) => this.setState({ flyable: e.currentTarget.checked })} />
+                      <small> hovercraft mode - Space / PageUp climb, V / PageDown dive.</small>
+                    </dd>
+                    <dd class="full">
+                      <small>
+                        while seated (you can edit this parcel): <em>T</em> flips facing · <em>R</em> / <em>F</em> seat up / down · <em>[</em> / <em>]</em> seat left / right · <em>,</em> / <em>.</em> seat back / forward. saves on the
+                        megavox so everyone sits in your spot.
+                      </small>
+                    </dd>
+                    <dd class="full">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          ;(this.props.feature as any).recallToPark?.()
+                        }}
+                      >
+                        bring back
+                      </button>
+                      <small> reset to the saved park spot (kicks a driver if needed).</small>
+                    </dd>
+                  </>
                 )}
               </>
             )}
