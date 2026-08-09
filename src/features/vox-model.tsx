@@ -370,8 +370,8 @@ export class Megavox extends VoxModel<MegavoxRecord> {
   override whatIsThis() {
     return (
       <label>
-        A large .vox model (megavox). Check <em>driveable</em> to let anyone hop in with E / Drive and cruise the island. Seated owners press <em>G</em> to adjust the seat, <em>T</em> to flip facing. Check <em>flyable</em> for hovercrafts
-        (Space / V to climb).
+        A large .vox model (megavox). Check <em>driveable</em> to let anyone hop in with E / Drive and cruise the island. Seated owners press <em>G</em> to adjust the seat, <em>T</em> to turn facing 90 degrees. Check <em>flyable</em> for
+        hovercrafts (Space / V to climb).
       </label>
     )
   }

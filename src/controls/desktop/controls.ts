@@ -297,7 +297,8 @@ export default class DesktopControls extends Controls {
       }
       if (e.code === 'KeyT' && this.vehicleFeature) {
         e.stopPropagation()
-        this.nudgeDriveFacing(Math.PI)
+        // quarter turns: 4 taps covers every megavox facing, not just front/back
+        this.nudgeDriveFacing(Math.PI / 2)
       }
       if (e.code === 'KeyG' && this.vehicleFeature) {
         // stop bubble so document KeyG (emote pane) does not open over us
