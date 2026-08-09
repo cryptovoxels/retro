@@ -24,7 +24,7 @@ Not included (different interaction): `womp-wall`, `audio`, `text-input`, `slide
 1. **Face drag** — click-hold the plane (not a corner / Z arrow); slides on that plane. Mesh stays unfrozen while bound so drag keeps working after `setCommon` freezes.
 2. **Corner resize** — four utility-layer handles; opposite corner pinned; aspect lock via `feature.scaleAspectLocked` (default on when unset).
 3. **Depth** — blue Z arrow only (local to the feature). No X/Y arrows.
-4. **Snap** — while face-dragging, soft-snap to edges/centers of other flat-wall peers on the same plane; faint guides. Hold Alt to skip.
+4. **Snap** — hold Alt while face-dragging to soft-snap to edges/centers of other flat-wall peers on the same plane; faint guides. Free drag is the default.
 5. **Outline** — selection highlight follows mesh world pose (not world AABB).
 
 ## Entry points

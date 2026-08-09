@@ -134,11 +134,11 @@ const clearSnapGuides = () => {
   } catch {}
 }
 
-/** Soft-snap mesh on its plane to peer edges/centers; draw faint guides. Hold Alt to skip. */
+/** Soft-snap mesh on its plane to peer edges/centers; draw faint guides. Hold Alt to snap — free drag is the default. */
 const applyPlaneSnap = (feature: Feature, mesh: BABYLON.Mesh) => {
   try {
     clearSnapGuides()
-    if (snapAltHeld || !snapPeers.length || !utilLayer) return
+    if (!snapAltHeld || !snapPeers.length || !utilLayer) return
 
     const frame = planeFrameFromMesh(mesh)
     const mine = planeBoundsOfMesh(mesh, frame)
