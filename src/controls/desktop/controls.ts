@@ -164,7 +164,8 @@ export default class DesktopControls extends Controls {
           // trailing tap after a real face-drag must not clear the selection
           if ((window.ui as any)._windowDragActive) break
           const selected = window.ui?.state?.feature
-          const picked = featureFromPick(eventData.pickInfo)
+          // compare roots — right-click selects the group root, raw pick returns the child
+          const picked = featureFromPick(eventData.pickInfo)?.mostParent
           // same-object tap (incl. the click that ends a drag) keeps selection; empty / other exits
           if (selected && picked?.uuid === selected.uuid) break
           if (picked?.parcel?.canEdit) {

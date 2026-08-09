@@ -15,6 +15,7 @@ let initialFeaturePosition: BABYLON.Vector3
 
 // showboxes drag around like a window: grab the body, slide it in its own plane (depth locked). one shared behavior.
 let windowDragMesh: BABYLON.Mesh | null = null
+let windowDragMeshWasPickable = true
 let windowDragFeatureStart: BABYLON.Vector3 | null = null
 let windowDragMeshStart: BABYLON.Vector3 | null = null
 let windowDragMeshWorldStart: BABYLON.Vector3 | null = null
@@ -641,6 +642,7 @@ const attachWindowDrag = (feature: Feature) => {
   const canvas = scene.getEngine().getRenderingCanvas()
 
   mesh.unfreezeWorldMatrix()
+  windowDragMeshWasPickable = mesh.isPickable
   mesh.isPickable = true
   mesh.enablePointerMoveEvents = true
   ;(mesh as any).hoverCursor = 'move'
@@ -775,7 +777,9 @@ const detachWindowDrag = () => {
       scene.onBeforeRenderObservable.remove(windowDragUnfreezeObserver)
       windowDragUnfreezeObserver = null
     }
-    ;(windowDragMesh as any).hoverCursor = 'default'
+    ;(windowDragMesh as any).hoverCursor = ''
+    windowDragMesh.isPickable = windowDragMeshWasPickable
+    scene.constantlyUpdateMeshUnderPointer = false // else the whole app picks every pointer move forever
     const canvas = scene.getEngine().getRenderingCanvas()
     if (canvas && canvas.style.cursor === 'move') canvas.style.cursor = ''
   }
