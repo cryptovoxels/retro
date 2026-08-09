@@ -317,6 +317,7 @@ export class Megavox extends VoxModel<MegavoxRecord> {
   private parkedVisible = true
   private emptyRecallTimer: ReturnType<typeof setTimeout> | null = null
   private staleDriverTimer: ReturnType<typeof setTimeout> | null = null
+  private lastDriveStateAt = 0
   private driveGui: ActionGui | null = null
   private driveTrigger: FeatureTrigger | null = null
 
@@ -468,6 +469,8 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     const c = window.connector
     if (!c) return false
     if (uuid === c.persona?.uuid) return c.controls?.vehicleFeature === this
+    // far drivers leave avatar range but keep the 120ms drive-state heartbeat - trust it
+    if (Date.now() - this.lastDriveStateAt < STALE_DRIVER_MS) return true
     return c.avatarsByUuid?.has(uuid) ?? false
   }
 
@@ -525,6 +528,7 @@ export class Megavox extends VoxModel<MegavoxRecord> {
 
   override receiveState(state: Record<string, any>) {
     if (!state || typeof state !== 'object') return
+    if (state.driverUuid) this.lastDriveStateAt = Date.now()
     if ('driverUuid' in state) {
       const next = state.driverUuid || null
       const wasUs = this.driverUuid === window.connector?.persona?.uuid
