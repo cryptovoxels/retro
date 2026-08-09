@@ -372,7 +372,9 @@ extensionCodec.register({
     }
     if (res.length > 6 && res[6] != null && Array.isArray(res[6])) {
       const v = res[6]
-      const scale = v[3] instanceof Float32Array ? Array.from(v[3]) : v[3]
+      // msgpack hands Float32Array back as raw bytes - decode like position does, or the
+      // ghost car gets byte values (0-255) as scale and looks insanely stretched
+      const scale = v[3] instanceof Uint8Array ? uint8ToFloat32(v[3]) : v[3]
       m.vehicle = {
         featureUuid: String(v[0]),
         homeParcelId: Number(v[1]) || 0,
