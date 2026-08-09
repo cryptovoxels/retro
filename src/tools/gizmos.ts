@@ -1013,21 +1013,28 @@ class ResizeHandleSet {
     })
 
     behavior.onDragEndObservable.add(() => {
-      window.ui?.setDragging(false)
       if (this.canvas) this.canvas.style.cursor = ''
       const feature = this.feature
       const mesh = feature.mesh
-      if (!mesh) return
+      if (!mesh) {
+        window.ui?.setDragging(false)
+        return
+      }
+      // commit BEFORE clearing dragging — setDragging(false) rerenders the editor and merge
+      // must see the post-drag description (and the dragging guard must still be up during set)
+      // 2dp matches the Position/Scale field truncate — 4dp remounts those fields and they
+      // write the truncated value back ~100ms later (second tiny settle after release)
       const scale = limitVector3AbsoluteValues(featureScaleStart.add(mesh.scaling.subtract(meshScaleStart)), 50)
       const position = featurePosStart.add(mesh.position.subtract(meshPosStart))
       feature.set({
-        scale: roundNumberArray(scale.asArray(), 4) as Vec3Description,
-        position: roundNumberArray(position.asArray(), 4) as Vec3Description,
+        scale: roundNumberArray(scale.asArray(), 2) as Vec3Description,
+        position: roundNumberArray(position.asArray(), 2) as Vec3Description,
       })
       feature.refreshWorldMatrix()
       if (feature.isAnimated) feature.startAnimation(false)
       setSelectedFeature(feature) // preact rerender of the editor number fields
       updateHighlight()
+      window.ui?.setDragging(false)
     })
 
     handle.addBehavior(behavior)
