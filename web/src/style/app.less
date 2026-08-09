@@ -4714,6 +4714,39 @@ dialog.nft-view {
       height: 100%;
       object-fit: contain;
     }
+
+    .gallery-nav {
+      position: absolute;
+      top: 50%;
+      translate: 0 -50%;
+      background: none;
+      border: none;
+      padding: 0 1rem;
+      font-size: 3rem;
+      line-height: 1;
+      color: var(--muted);
+      cursor: pointer;
+
+      &:hover {
+        color: var(--fg);
+      }
+
+      &.prev {
+        left: 0;
+      }
+
+      &.next {
+        right: 0;
+      }
+    }
+
+    .gallery-count {
+      position: absolute;
+      bottom: 0.5rem;
+      left: 50%;
+      translate: -50%;
+      color: var(--muted);
+    }
   }
 
   .nft-description {
