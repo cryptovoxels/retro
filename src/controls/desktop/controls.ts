@@ -170,8 +170,6 @@ export default class DesktopControls extends Controls {
         // edit aside open (inspector or tree-only browse): empty click fully closes the sidebar
         const editPaneOpen = !hasPointerLock() && !window.ui?.state?.dragging && (uiPane.value === 'edit' || window.ui?.state?.pane === 'edit' || !!window.ui?.state?.editor || !!window.ui?.state?.feature)
         if (btn === 0 && editPaneOpen) {
-          // trailing tap after a real face-drag must not clear the selection
-          if ((window.ui as any)._windowDragActive) break
           const selected = window.ui?.state?.feature
           // compare roots — right-click selects the group root, raw pick returns the child
           const picked = featureFromPick(eventData.pickInfo)?.mostParent

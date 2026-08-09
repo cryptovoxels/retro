@@ -568,7 +568,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   closeInteractOverlay() {
     uiPane.value = undefined
-    this.setState({ pane: undefined, active: false })
+    // ghost editor/feature keeps click-away + drag-look + feature tool in edit limbo
+    this.setState({ pane: undefined, active: false, editor: undefined, feature: undefined })
   }
 
   // the one ESC: leave fullscreen. two-step -- a locked pointer eats the
@@ -663,7 +664,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   deleteFeature() {
-    const feature = this.featureTool?.selection?.feature as Feature | undefined
+    // tree hover writes selection.feature and never resets — X must delete the SELECTED feature
+    const feature = (this.state.feature ?? this.featureTool?.selection?.feature) as Feature | undefined
     if (!feature?.parcel?.canEdit) return
 
     feature.delete()
