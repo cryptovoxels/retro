@@ -1146,7 +1146,18 @@ export default abstract class Controls implements IControls {
     } else {
       // they know how to drive now - drop the teaching text
       if (this.vehicleHintEl && (Math.abs(forward) > 0.01 || Math.abs(turn) > 0.01)) this.setVehicleHint(null)
-      if (Math.abs(turn) > 0.01) car.mesh.rotation.y += turn * turnSpeed * dt
+      if (Math.abs(turn) > 0.01) {
+        const delta = turn * turnSpeed * dt
+        // spin about the model's center, not the mesh origin (vox pivot isn't centered)
+        const center = car.mesh.getBoundingInfo().boundingBox.centerWorld
+        const px = car.mesh.absolutePosition.x - center.x
+        const pz = car.mesh.absolutePosition.z - center.z
+        const cos = Math.cos(delta)
+        const sin = Math.sin(delta)
+        car.mesh.position.x += px * cos + pz * sin - px
+        car.mesh.position.z += pz * cos - px * sin - pz
+        car.mesh.rotation.y += delta
+      }
       if (Math.abs(forward) > 0.01) {
         const facing = this.driveFacingYaw(car)
         car.mesh.position.x += Math.sin(facing) * forward * speed * dt
