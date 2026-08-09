@@ -539,8 +539,10 @@ export const rebindGizmos = (feature: Feature) => {
       bindGizmoToFeature(gizmo, feature)
     }
   })
-  // regenerate() swaps the mesh; re-point the window-drag onto the new one (handles read the mesh live, so they're fine)
-  if (isFlatWallFeature(feature) && windowDragMesh && windowDragMesh !== feature.mesh) {
+  // regenerate() swaps the mesh; re-point the window-drag onto the new one (handles read the mesh live, so they're fine).
+  // uuid scope is load-bearing: every image still streaming into the parcel calls rebindGizmos on
+  // mesh creation, and without it the first one after you open an editor stole the drag observers.
+  if (isFlatWallFeature(feature) && windowDragMesh && (windowDragMesh as any).feature?.uuid === feature.uuid && windowDragMesh !== feature.mesh) {
     attachWindowDrag(feature)
   }
 }
