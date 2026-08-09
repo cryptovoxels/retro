@@ -861,6 +861,10 @@ export default class Grid extends SocketClient {
 
     newPool.length = Math.min(newPool.length, this.activePoolSize)
 
+    // driving pins the home lot: deactivating it would dispose the car under the driver
+    const driven = window.connector?.controls?.vehicleFeature as { disposed?: boolean; parcel?: Parcel } | null | undefined
+    if (driven && !driven.disposed && driven.parcel && !newPool.includes(driven.parcel)) newPool.push(driven.parcel)
+
     // deactivate parcels no longer needed
     this.activeParcelPool.forEach((parcel) => {
       if (!newPool.includes(parcel) && parcel && parcel.activationStatus !== ParcelActivationState.Inactive) {
