@@ -892,9 +892,14 @@ export default abstract class Controls implements IControls {
       this.stopVehicle()
       return
     }
-    if (this.congaTarget) this.stopConga()
     const car = this.findNearbyDriveable()
-    if (!car) return
+    if (car) this.enterVehicle(car)
+  }
+
+  /** enter a specific car (E key path and the floating Drive button both land here) */
+  enterVehicle(car: import('../features/vox-model').Megavox) {
+    if (this.vehicleFeature) return
+    if (this.congaTarget) this.stopConga()
     if (car.driverUuid && car.driverUuid !== this.persona.uuid) return
     if (!car.claimDriver(this.persona.uuid)) return
     this.vehicleFeature = car
