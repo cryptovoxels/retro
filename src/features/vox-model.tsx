@@ -337,8 +337,8 @@ export class Megavox extends VoxModel<MegavoxRecord> {
   override whatIsThis() {
     return (
       <label>
-        A large .vox model (megavox). Check <em>driveable</em> to let anyone hop in with E / Drive and cruise the island. While seated, press <em>T</em> to flip facing if you are backwards. Check <em>flyable</em> for hovercrafts (Space / V
-        to climb).
+        A large .vox model (megavox). Check <em>driveable</em> to let anyone hop in with E / Drive and cruise the island. Seated owners press <em>G</em> to adjust the seat, <em>T</em> to flip facing. Check <em>flyable</em> for hovercrafts
+        (Space / V to climb).
       </label>
     )
   }
@@ -616,8 +616,7 @@ Megavox.Editor = class MegavoxEditor extends Editor {
                     </dd>
                     <dd class="full">
                       <small>
-                        while seated (you can edit this parcel): <em>T</em> flips facing · <em>R</em> / <em>F</em> seat up / down · <em>[</em> / <em>]</em> seat left / right · <em>,</em> / <em>.</em> seat back / forward. saves on the
-                        megavox so everyone sits in your spot.
+                        seated? press <em>G</em> to adjust where you sit - saves for everyone. <em>T</em> flips facing.
                       </small>
                     </dd>
                     <dd class="full">
