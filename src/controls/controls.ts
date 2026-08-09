@@ -147,7 +147,8 @@ export default abstract class Controls implements IControls {
   private vehicleFacingNudge = 0
   /** working seat offset while seated (local to megavox); flushed to driveSeatOffset when editable */
   private vehicleSeatOffset: [number, number, number] = [0, 1.2, 0]
-  private vehicleSeatSaveAt = 0
+  /** G toggles: drive keys move the seat instead of the car (owners only) */
+  private vehicleSeatMode = false
   private vehicleSeatLocal = new BABYLON.Vector3()
   private vehicleSeatWorld = new BABYLON.Vector3()
   /** document-level WASD - Babylon camera keyboard often misses keys while speed is 0 / no canvas focus */
@@ -903,7 +904,7 @@ export default abstract class Controls implements IControls {
     this.vehicleWasFirstPerson = this.firstPersonView
     this.vehicleFlyingRestore = this.flying
     this.vehicleSeatOffset = this.readDriveSeatOffset(car)
-    this.vehicleSeatSaveAt = 0
+    this.vehicleSeatMode = false
     this.disableGravity()
     if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
       ;(this.scene.activeCamera as any).checkCollisions = false
@@ -918,10 +919,27 @@ export default abstract class Controls implements IControls {
     // start in chase cam so you can see the car; C still toggles first/third while driving
     if (this.firstPersonView) this.enterThirdPerson(5)
     this.camera.rotation.y = this.driveFacingYaw(car)
-    const flyHint = car.isFlyable ? ' · Space/V climb' : ''
-    const seatHint = car.parcel.canEdit ? ' · R/F [ ] , . seat' : ''
-    this.setVehicleHint(`T flip facing · C camera · E exit${flyHint}${seatHint}`)
+    this.setVehicleHint(this.driveHint(car))
     this.refreshMobileDriveChrome?.()
+  }
+
+  private driveHint(car: import('../features/vox-model').Megavox): string {
+    const fly = car.isFlyable ? ' · Space/V climb' : ''
+    const seat = car.parcel.canEdit ? ' · G seat' : ''
+    return `T flip facing · C camera · E exit${fly}${seat}`
+  }
+
+  /** G while seated (owners): drive keys move the seat; G again saves and goes back to driving */
+  toggleSeatMode() {
+    const car = this.vehicleFeature
+    if (!car?.parcel.canEdit) return
+    this.vehicleSeatMode = !this.vehicleSeatMode
+    if (this.vehicleSeatMode) {
+      this.setVehicleHint('adjust seat: WASD move · R/F up/down · G save')
+    } else {
+      this.flushDriveSeatOffset()
+      this.setVehicleHint(this.driveHint(car))
+    }
   }
 
   private readDriveSeatOffset(car: import('../features/vox-model').Megavox): [number, number, number] {
@@ -972,6 +990,7 @@ export default abstract class Controls implements IControls {
     this.flushDriveSeatOffset()
     const car = this.vehicleFeature
     this.vehicleFeature = null
+    this.vehicleSeatMode = false
     this.vehicleSteer.forward = 0
     this.vehicleSteer.turn = 0
     this.driveHeld.clear()
@@ -1110,62 +1129,34 @@ export default abstract class Controls implements IControls {
     const codes = kb?.pressedCodes?.() || []
     const held = (code: string) => this.driveHeld.has(code) || codes.includes(code)
 
-    if (Math.abs(turn) > 0.01) car.mesh.rotation.y += turn * turnSpeed * dt
-    if (Math.abs(forward) > 0.01) {
-      const facing = this.driveFacingYaw(car)
-      car.mesh.position.x += Math.sin(facing) * forward * speed * dt
-      car.mesh.position.z += Math.cos(facing) * forward * speed * dt
-    }
-    // hovercraft: Space/PageUp climb, V/PageDown dive
-    if (car.isFlyable) {
-      let climb = 0
-      if (held('Space') || held('PageUp')) climb = 1
-      if (held('KeyV') || held('PageDown')) climb = -1
-      if (climb) this.vehicleHoverY += climb * speed * dt
-      // soft floor - water rescue still snaps if you go under
-      if (this.vehicleHoverY < SWIM_LEVEL + 0.5) this.vehicleHoverY = SWIM_LEVEL + 0.5
+    if (this.vehicleSeatMode && car.parcel.canEdit) {
+      // seat mode: car parks, drive keys slide the seat (local to car; -z is the nose)
+      const step = 1.5 * dt
+      if (Math.abs(forward) > 0.01) this.vehicleSeatOffset[2] -= forward * step
+      if (Math.abs(turn) > 0.01) this.vehicleSeatOffset[0] += turn * step
+      if (held('KeyR')) this.vehicleSeatOffset[1] += step
+      if (held('KeyF')) this.vehicleSeatOffset[1] -= step
+    } else {
+      if (Math.abs(turn) > 0.01) car.mesh.rotation.y += turn * turnSpeed * dt
+      if (Math.abs(forward) > 0.01) {
+        const facing = this.driveFacingYaw(car)
+        car.mesh.position.x += Math.sin(facing) * forward * speed * dt
+        car.mesh.position.z += Math.cos(facing) * forward * speed * dt
+      }
+      // hovercraft: Space/PageUp climb, V/PageDown dive
+      if (car.isFlyable) {
+        let climb = 0
+        if (held('Space') || held('PageUp')) climb = 1
+        if (held('KeyV') || held('PageDown')) climb = -1
+        if (climb) this.vehicleHoverY += climb * speed * dt
+        // soft floor - water rescue still snaps if you go under
+        if (this.vehicleHoverY < SWIM_LEVEL + 0.5) this.vehicleHoverY = SWIM_LEVEL + 0.5
+      }
     }
     car.mesh.position.y = this.vehicleHoverY
     // frozen meshes need freezeWorldMatrix() again to bake the new pose (computeWorldMatrix alone is a no-op when frozen)
     if (car.mesh.isWorldMatrixFrozen) car.mesh.freezeWorldMatrix()
     else car.mesh.computeWorldMatrix(true)
-
-    // owner seat nudge: R/F up/down, [/] left/right, ,/. back/forward (local to car)
-    if (car.parcel.canEdit) {
-      const step = 1.5 * dt
-      let moved = false
-      if (held('KeyR')) {
-        this.vehicleSeatOffset[1] += step
-        moved = true
-      }
-      if (held('KeyF')) {
-        this.vehicleSeatOffset[1] -= step
-        moved = true
-      }
-      if (held('BracketLeft')) {
-        this.vehicleSeatOffset[0] -= step
-        moved = true
-      }
-      if (held('BracketRight')) {
-        this.vehicleSeatOffset[0] += step
-        moved = true
-      }
-      if (held('Comma')) {
-        this.vehicleSeatOffset[2] += step
-        moved = true
-      }
-      if (held('Period')) {
-        this.vehicleSeatOffset[2] -= step
-        moved = true
-      }
-      if (moved) {
-        const nowSeat = Date.now()
-        if (nowSeat - this.vehicleSeatSaveAt > 200) {
-          this.vehicleSeatSaveAt = nowSeat
-          this.flushDriveSeatOffset()
-        }
-      }
-    }
 
     // water rescue: swim level
     const worldY = car.absolutePosition?.y ?? car.mesh.position.y

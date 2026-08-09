@@ -299,6 +299,11 @@ export default class DesktopControls extends Controls {
         e.stopPropagation()
         this.nudgeDriveFacing(Math.PI)
       }
+      if (e.code === 'KeyG' && this.vehicleFeature) {
+        // stop bubble so document KeyG (emote pane) does not open over us
+        e.stopPropagation()
+        this.toggleSeatMode()
+      }
       if (e.code === 'Escape' && this.vehicleFeature) {
         e.stopPropagation()
         this.stopVehicle()
