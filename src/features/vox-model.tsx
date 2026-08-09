@@ -7,7 +7,8 @@ import { rebindGizmos } from '../tools/gizmos'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, Toolbar, UrlSourceVoxModels } from '../ui/features'
 import { isURL } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
-import Feature, { Feature3D, FeatureEvent, MeshExtended, transformVectors } from './feature'
+import Feature, { Feature3D, FeatureEvent, FeatureTrigger, MeshExtended, transformVectors } from './feature'
+import ActionGui from '../ui/gui/action-button-gui'
 
 // used when "Scale To Grid" is enabled
 const CUBESCALE_MULTIPLIER_X = 0.02
@@ -208,7 +209,7 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     }
   }
 
-  private afterGenerate() {
+  protected afterGenerate() {
     this.setCommon()
     this.addScriptTriggers()
     this.addEvents()
@@ -316,6 +317,37 @@ export class Megavox extends VoxModel<MegavoxRecord> {
   private parkedVisible = true
   private emptyRecallTimer: ReturnType<typeof setTimeout> | null = null
   private staleDriverTimer: ReturnType<typeof setTimeout> | null = null
+  private driveGui: ActionGui | null = null
+  private driveTrigger: FeatureTrigger | null = null
+
+  // click target above the car (like collectible try-on): walk close, tap Drive
+  protected override afterGenerate() {
+    super.afterGenerate()
+    if (this.isDriveable && !this.driveTrigger) {
+      this.driveTrigger = { proximityToTrigger: 7, onTrigger: () => this.showDriveGui(), onUnTrigger: () => this.hideDriveGui() }
+      this.addTrigger(this.driveTrigger)
+    }
+  }
+
+  private showDriveGui() {
+    if (this.driveGui || !this.mesh) return
+    if (!this.isDriveable || this.driverUuid) return
+    // float over the roof, not inside the model
+    const top = this.mesh.getBoundingInfo().boundingBox.maximumWorld.y - this.mesh.absolutePosition.y
+    const gui = new ActionGui(this, { position: new BABYLON.Vector3(0, top + 0.6, 0) })
+    gui.addButton('Drive', {
+      positionInGrid: [0, 0],
+      height: '50px',
+      onClick: () => (window.connector?.controls as any)?.enterVehicle?.(this),
+    })
+    gui.refresh()
+    this.driveGui = gui
+  }
+
+  private hideDriveGui() {
+    this.driveGui?.dispose()
+    this.driveGui = null
+  }
 
   // Needed by VoxModel.generate()
   protected override _voxImportParams(): VoxImportOptions {
@@ -383,6 +415,7 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     this.driverUuid = uuid
     this.emptySince = null
     this.setParkedVisible(false)
+    this.hideDriveGui()
     this.broadcastDriveState()
     return true
   }
@@ -393,6 +426,7 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     this.driverUuid = null
     this.emptySince = Date.now()
     this.setParkedVisible(true)
+    if (this.driveTrigger?.triggered) this.showDriveGui()
     this.broadcastDriveState()
     // far from the lot → come back soon; nearby abandon → give them a minute
     this.scheduleEmptyRecall(this.distanceFromParkSq() > 16 * 16 ? 8_000 : EMPTY_RECALL_MS)
@@ -497,6 +531,8 @@ export class Megavox extends VoxModel<MegavoxRecord> {
       this.driverUuid = next
       this.emptySince = state.emptySince ?? (next ? null : this.emptySince)
       this.setParkedVisible(!next)
+      if (next) this.hideDriveGui()
+      else if (this.driveTrigger?.triggered) this.showDriveGui()
       if (wasUs && next && next !== window.connector?.persona?.uuid) {
         ;(window.connector?.controls as any)?.stopVehicle?.()
       }
@@ -531,6 +567,7 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     }
     this.clearEmptyRecall()
     this.clearStaleDriverCheck()
+    this.hideDriveGui()
     super.dispose()
   }
 }
