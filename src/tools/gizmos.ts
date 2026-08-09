@@ -941,6 +941,13 @@ class ResizeHandleSet {
     const anchorLocal = new BABYLON.Vector3(-corner.sx * 0.5, -corner.sy * 0.5, 0)
     let startW = 1 // scale at drag start, so we can keep the screen's aspect ratio
     let startH = 1
+    // drag-start snapshots for the commit. mesh transform = feature values + setCommon's z-nudge
+    // and nudgeGrowth, so committing the raw mesh values baked the nudge in and the image jumped
+    // (and grew) on every release. Commit feature values + drag delta instead, like face drag does.
+    const featurePosStart = new BABYLON.Vector3()
+    const meshPosStart = new BABYLON.Vector3()
+    const featureScaleStart = new BABYLON.Vector3()
+    const meshScaleStart = new BABYLON.Vector3()
 
     behavior.onDragStartObservable.add(() => {
       const mesh = this.feature.mesh
@@ -951,6 +958,10 @@ class ResizeHandleSet {
       mesh.unfreezeWorldMatrix() // we mutate scaling/position during the drag
       startW = Math.abs(mesh.scaling.x) || 1
       startH = Math.abs(mesh.scaling.y) || 1
+      featurePosStart.copyFrom(this.feature.position)
+      meshPosStart.copyFrom(mesh.position)
+      featureScaleStart.copyFrom(this.feature.scale)
+      meshScaleStart.copyFrom(mesh.scaling)
       const W = mesh.computeWorldMatrix(true)
       axisX.copyFrom(BABYLON.Vector3.TransformNormal(BABYLON.Axis.X, W).normalize())
       axisY.copyFrom(BABYLON.Vector3.TransformNormal(BABYLON.Axis.Y, W).normalize())
@@ -1005,9 +1016,14 @@ class ResizeHandleSet {
       window.ui?.setDragging(false)
       if (this.canvas) this.canvas.style.cursor = ''
       const feature = this.feature
-      if (!feature.mesh) return
-      setScale(feature) // persists clamped/rounded scale (existing helper)
-      feature.set({ position: roundNumberArray(feature.mesh.position.asArray(), 4) as Vec3Description })
+      const mesh = feature.mesh
+      if (!mesh) return
+      const scale = limitVector3AbsoluteValues(featureScaleStart.add(mesh.scaling.subtract(meshScaleStart)), 50)
+      const position = featurePosStart.add(mesh.position.subtract(meshPosStart))
+      feature.set({
+        scale: roundNumberArray(scale.asArray(), 4) as Vec3Description,
+        position: roundNumberArray(position.asArray(), 4) as Vec3Description,
+      })
       feature.refreshWorldMatrix()
       if (feature.isAnimated) feature.startAnimation(false)
       setSelectedFeature(feature) // preact rerender of the editor number fields
