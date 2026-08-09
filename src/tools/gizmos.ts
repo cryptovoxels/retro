@@ -25,7 +25,7 @@ let windowDragCursorObserver: BABYLON.Observer<BABYLON.PointerInfo> | null = nul
 let windowDragPointerObserver: BABYLON.Observer<BABYLON.PointerInfo> | null = null
 let windowDragPrePointerObserver: BABYLON.Observer<BABYLON.PointerInfoPre> | null = null
 let windowDragUnfreezeObserver: BABYLON.Observer<BABYLON.Scene> | null = null
-let windowDragFeature: Feature | null = null
+let windowDragDocPointerUp: (() => void) | null = null
 let windowDragFrame: PlaneFrame | null = null
 let windowDragGrabU = 0
 let windowDragGrabV = 0
@@ -608,14 +608,17 @@ const setMeshWorldPositionOnPlane = (mesh: BABYLON.Mesh, worldPos: BABYLON.Vecto
 const finishWindowDrag = (feature: Feature, mesh: BABYLON.Mesh, canvas: HTMLCanvasElement | null) => {
   clearSnapGuides()
   snapPeers = []
-  windowDragFeature = null
   windowDragFrame = null
   document.removeEventListener('keydown', snapAltKeyDown)
   document.removeEventListener('keyup', snapAltKeyUp)
+  if (windowDragDocPointerUp) {
+    document.removeEventListener('pointerup', windowDragDocPointerUp)
+    windowDragDocPointerUp = null
+  }
+  if (utilLayer) utilLayer.pickingEnabled = true
   snapAltHeld = false
   const wasDrag = windowDragActive && windowDragMoved
   windowDragActive = false
-  if (window.ui) (window.ui as any)._windowDragActive = false
   if (!wasDrag) {
     windowDragFeatureStart = windowDragMeshStart = windowDragMeshWorldStart = null
     windowDragMoved = false
@@ -700,13 +703,17 @@ const attachWindowDrag = (feature: Feature) => {
       windowDragMeshWorldStart = mesh.getAbsolutePosition().clone()
       windowDragMoved = false
       windowDragActive = true
-      if (window.ui) (window.ui as any)._windowDragActive = true
-      windowDragFeature = feature
       snapAltHeld = false
       document.addEventListener('keydown', snapAltKeyDown)
       document.addEventListener('keyup', snapAltKeyUp)
+      windowDragDocPointerUp = onDocPointerUp
       document.addEventListener('pointerup', onDocPointerUp)
-      if (utilLayer) ensureSnapGuides(utilLayer)
+      if (utilLayer) {
+        // gizmo layer swallows MOVEs its scene picks — the Z collider covers the face center,
+        // so a center grab froze mid-drag. It has no business picking while we own the gesture.
+        utilLayer.pickingEnabled = false
+        ensureSnapGuides(utilLayer)
+      }
       snapPeers = collectSnapPeers(feature, frame)
       // we own the gesture: gizmo layer and desktop clicks both skip this down
       info.skipOnPointerObservable = true
@@ -715,51 +722,46 @@ const attachWindowDrag = (feature: Feature) => {
     true,
   )
 
+  // MOVE only. The claimed DOWN never captured the pointer, so Babylon drops the matching UP/TAP
+  // on scene observables — the document pointerup below is the one true terminator.
   windowDragPointerObserver = scene.onPointerObservable.add(
-    (info, state) => {
+    (info) => {
       if (!windowDragMesh || windowDragMesh !== mesh) return
       if (!windowDragActive) return
+      if (info.type !== BABYLON.PointerEventTypes.POINTERMOVE) return
 
-      if (info.type === BABYLON.PointerEventTypes.POINTERMOVE || info.type === BABYLON.PointerEventTypes.POINTERUP) {
-        const frame = windowDragFrame
-        const worldStart = windowDragMeshWorldStart
-        if (!frame || !worldStart) return
-        mesh.unfreezeWorldMatrix()
-        const ray = pointerRay(scene)
-        if (!ray) return
-        const hit = rayHitPlane(ray, frame.origin, frame.normal)
-        if (!hit) return
+      const frame = windowDragFrame
+      const worldStart = windowDragMeshWorldStart
+      if (!frame || !worldStart) return
+      mesh.unfreezeWorldMatrix()
+      const ray = pointerRay(scene)
+      if (!ray) return
+      const hit = rayHitPlane(ray, frame.origin, frame.normal)
+      if (!hit) return
 
-        const u = BABYLON.Vector3.Dot(hit.subtract(frame.origin), frame.axisX)
-        const v = BABYLON.Vector3.Dot(hit.subtract(frame.origin), frame.axisY)
-        const du = u - windowDragGrabU
-        const dv = v - windowDragGrabV
-        if (!windowDragMoved && (Math.abs(du) > 0.002 || Math.abs(dv) > 0.002)) {
-          windowDragMoved = true
-          window.ui?.setDragging(true)
-        }
-        if (windowDragMoved) {
-          const worldPos = worldStart.add(frame.axisX.scale(du)).add(frame.axisY.scale(dv))
-          setMeshWorldPositionOnPlane(mesh, worldPos)
-          applyPlaneSnap(feature, mesh)
-          if (canvas) canvas.style.cursor = 'move'
-          updateHighlight()
-        }
-
-        if (info.type === BABYLON.PointerEventTypes.POINTERUP) {
-          document.removeEventListener('pointerup', onDocPointerUp)
-          finishWindowDrag(feature, mesh, canvas)
-          state.skipNextObservers = true
-        }
+      const u = BABYLON.Vector3.Dot(hit.subtract(frame.origin), frame.axisX)
+      const v = BABYLON.Vector3.Dot(hit.subtract(frame.origin), frame.axisY)
+      const du = u - windowDragGrabU
+      const dv = v - windowDragGrabV
+      if (!windowDragMoved && (Math.abs(du) > 0.002 || Math.abs(dv) > 0.002)) {
+        windowDragMoved = true
+        window.ui?.setDragging(true)
+      }
+      if (windowDragMoved) {
+        const worldPos = worldStart.add(frame.axisX.scale(du)).add(frame.axisY.scale(dv))
+        setMeshWorldPositionOnPlane(mesh, worldPos)
+        applyPlaneSnap(feature, mesh)
+        if (canvas) canvas.style.cursor = 'move'
+        updateHighlight()
       }
     },
     undefined,
     true,
-  ) // run before desktopClicks so we own the gesture
+  )
 
   const onDocPointerUp = () => {
-    if (!windowDragActive || !windowDragMesh) return
-    document.removeEventListener('pointerup', onDocPointerUp)
+    // mesh guard: a stale listener from an interrupted drag must never finish another feature's drag
+    if (!windowDragActive || windowDragMesh !== mesh) return
     finishWindowDrag(feature, mesh, canvas)
   }
 
@@ -769,12 +771,15 @@ const attachWindowDrag = (feature: Feature) => {
 const detachWindowDrag = () => {
   clearSnapGuides()
   snapPeers = []
-  windowDragFeature = null
   windowDragFrame = null
   windowDragActive = false
-  if (window.ui) (window.ui as any)._windowDragActive = false
   document.removeEventListener('keydown', snapAltKeyDown)
   document.removeEventListener('keyup', snapAltKeyUp)
+  if (windowDragDocPointerUp) {
+    document.removeEventListener('pointerup', windowDragDocPointerUp)
+    windowDragDocPointerUp = null
+  }
+  if (utilLayer) utilLayer.pickingEnabled = true
   if (windowDragMesh) {
     const scene = windowDragMesh.getScene()
     if (windowDragCursorObserver) {
