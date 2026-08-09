@@ -153,8 +153,13 @@ export class FeatureEditor<T extends Feature = Feature> extends Component<Featur
     bindGizmosToFeature(this.props.feature)
   }
 
+  // bound once so removeEventListener actually removes it
+  featureWasDragged = () => {
+    this.forceUpdate()
+  }
+
   componentDidMount() {
-    this.props.feature.addEventListener('dragged', this.featureWasDragged.bind(this))
+    this.props.feature.addEventListener('dragged', this.featureWasDragged)
   }
 
   componentDidUpdate(prevProps: FeatureEditorProps<T>) {
@@ -167,11 +172,7 @@ export class FeatureEditor<T extends Feature = Feature> extends Component<Featur
   componentWillUnmount() {
     FeatureEditor.openedEditor = null!
     unbindGizmosFromFeature(this.props.feature)
-    this.props.feature.removeEventListener('dragged', this.featureWasDragged.bind(this))
-  }
-
-  featureWasDragged() {
-    this.forceUpdate()
+    this.props.feature.removeEventListener('dragged', this.featureWasDragged)
   }
 
   render() {
@@ -195,14 +196,13 @@ export function Toolbar(props: { feature: Feature; scene: BABYLON.Scene }) {
     ui?.closeWithPointerLock()
   }
 
+  // no hideEditor() here — closeWithPointerLock deactivates the tool that copy/move just armed
   const onClone = () => {
     ui?.copyFeature(props.feature)
-    hideEditor()
   }
 
   const onMove = () => {
     ui?.moveFeature(props.feature)
-    hideEditor()
   }
 
   const onDelete = () => {

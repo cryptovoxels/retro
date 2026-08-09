@@ -391,12 +391,15 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     selectedFeature.value = undefined
     this.featureTool.unHighlight()
     this.featureTool.setMode('edit')
+    this.featureTool.selection.feature = undefined // or X/Backspace later deletes the invisible last selection
     this.setTool(this.defaultTool)
     uiPane.value = undefined
     if (parcelId != null) exitAuthoring(parcelId)
     uiAsideTick.value++
     this.setState({ editor: undefined, feature: undefined, pane: undefined, active: false, publishAsset: undefined })
-    requestPointerLock()
+    // controls path avoids focus-before-lock (steals the gesture) and eats the post-unlock cooldown rejection
+    const controls = this.connector.controls as any
+    controls?.requestPointerLock ? controls.requestPointerLock()?.catch?.(() => {}) : requestPointerLock()
   }
 
   get camera(): BABYLON.UniversalCamera {
@@ -526,7 +529,12 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     }
 
     uiPane.value = pane
-    this.setState({ pane: pane, active: true })
+    // stale editor/feature poisons the add flow (tool taps early-return, click-away misfires)
+    if (pane !== 'edit') {
+      this.setState({ pane: pane, active: true, editor: undefined, feature: undefined })
+    } else {
+      this.setState({ pane: pane, active: true })
+    }
   }
 
   activateVoxelTool(mode?: SelectionMode, options?: SelectionModeOptions) {
