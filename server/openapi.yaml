@@ -1,0 +1,2533 @@
+openapi: 3.1.0
+
+info:
+  title: Voxels public read API
+  version: '1.0.0'
+  description: |
+    The read-only part of the Voxels API. Everything here is unauthenticated GET.
+
+    Write routes, sign-in, admin, moderation, livekit, radio, metrics, guest
+    passes and the internal /grid/* routes are deliberately not described.
+
+    Most handlers answer with an envelope: `{"success": true, "<field>": ...}`,
+    where `<field>` is plural for a list and singular for one record. A failed
+    lookup answers `{"success": false}`, usually with status 400 and sometimes
+    with 200, so check the flag rather than the status.
+
+servers:
+  - url: https://www.voxels.com
+
+tags:
+  - name: parcels
+  - name: womps
+  - name: avatars
+  - name: collectibles
+  - name: collections
+  - name: wearables
+  - name: islands
+  - name: spaces
+  - name: events
+  - name: search
+
+paths:
+  /api/parcels.json:
+    get:
+      operationId: listParcels
+      tags: [parcels]
+      summary: List parcels, or fetch a batch by id
+      description: |
+        Without `parcel_ids` this lists minted parcels and each row carries
+        `parcel_users`, `owner`, `suburb` and `hash`. With `parcel_ids` it runs a
+        different query whose rows are narrower (no owner avatar, no suburb, no
+        hash) and whose `y2` is the height, not the top of the box. Ids that are
+        not numbers are dropped rather than rejected.
+      parameters:
+        - name: parcel_ids
+          in: query
+          description: Repeat once per parcel id.
+          schema:
+            type: array
+            items:
+              type: integer
+        - name: limit
+          in: query
+          description: Only read when `parcel_ids` is absent.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  parcels:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ParcelSummary'
+
+  /api/parcels/cached.json:
+    get:
+      operationId: listCachedParcels
+      tags: [parcels]
+      summary: Every visible parcel
+      description: |
+        The whole visible world in one document, cached hard. `owner` here is a
+        lowercased wallet string, not the avatar object the other parcel routes
+        return.
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  parcels:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/CachedParcel'
+
+  /api/parcels/summary.json:
+    get:
+      operationId: listParcelSummaries
+      tags: [parcels]
+      summary: id, address, island and name for every visible parcel
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  parcels:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        address:
+                          type: [string, 'null']
+                        island:
+                          type: string
+                        name:
+                          type: [string, 'null']
+
+  /api/parcels/xyz.json:
+    get:
+      operationId: listParcelBounds
+      tags: [parcels]
+      summary: Bounds and geometry only, for every parcel
+      description: Includes unminted and invisible parcels. `y2` is the height, not the top of the box.
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  parcels:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        height:
+                          type: number
+                        geometry:
+                          $ref: '#/components/schemas/ParcelGeometry'
+                        x1:
+                          type: number
+                        x2:
+                          type: number
+                        y1:
+                          type: number
+                        y2:
+                          type: number
+                        z1:
+                          type: number
+                        z2:
+                          type: number
+
+  /api/parcels/map.json:
+    get:
+      operationId: getParcelMap
+      tags: [parcels]
+      summary: The map layer's parcel list
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  parcels:
+                    type: array
+                    items:
+                      type: object
+
+  /api/parcels/search.json:
+    get:
+      operationId: searchParcels
+      tags: [parcels]
+      summary: Search minted, non-common parcels
+      description: |
+        `q` matches address, island, parcel name, owner wallet or owner avatar
+        name. A bare wallet or a bare integer take their own code paths. Each row
+        carries `pagination_count`, the total the filter matched.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Missing `q` is a 400.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: Capped at 50.
+          schema:
+            type: integer
+        - name: page
+          in: query
+          description: Zero-based, multiplied by `limit` for the offset.
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          description: Anything else falls back to `id` descending.
+          schema:
+            type: string
+            enum: [id, name, height, island, distance]
+            default: id
+        - name: asc
+          in: query
+          description: The string `true` flips the order.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  parcels:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: '#/components/schemas/ParcelSummary'
+                        - type: object
+                          properties:
+                            pagination_count:
+                              type: [integer, string]
+                              description: Total rows the filter matched, before limit.
+        '400':
+          $ref: '#/components/responses/Failure'
+
+  /api/parcels/favorites.json:
+    get:
+      operationId: listFavoritedParcels
+      tags: [parcels]
+      summary: Parcels somebody has favorited
+      description: |
+        `q` matches the wallet that favorited the parcel, not the parcel itself.
+        Empty `q` matches every wallet, so the default answer is every favorited
+        parcel. The rows come from a join against `favorites` with no grouping,
+        so a parcel favorited by several wallets appears once per favorite.
+      parameters:
+        - name: q
+          in: query
+          description: Favoriting wallet, matched with `like`. Empty matches all.
+          schema:
+            type: string
+        - name: limit
+          in: query
+          description: No cap. Missing means no limit.
+          schema:
+            type: integer
+        - name: page
+          in: query
+          description: Zero-based, multiplied by `limit` for the offset.
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          description: Anything else falls back to `id` descending.
+          schema:
+            type: string
+            enum: [id, name, height, island, suburb, distance]
+            default: id
+        - name: asc
+          in: query
+          description: The string `true` flips the order.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  parcels:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ParcelSummary'
+
+  /api/parcels/{id}.json:
+    get:
+      operationId: getParcel
+      tags: [parcels]
+      summary: One parcel with its build
+      description: |
+        The only parcel route that returns `content`, which holds the voxels, the
+        palette, the tileset and every feature on the plot. A non-numeric id is a
+        400. A parcel that is neither minted nor visible is a 400 as well.
+      parameters:
+        - $ref: '#/components/parameters/ParcelId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  parcel:
+                    $ref: '#/components/schemas/Parcel'
+        '400':
+          $ref: '#/components/responses/Failure'
+
+  /api/parcels/{id}.vox:
+    get:
+      operationId: getParcelVox
+      tags: [parcels]
+      summary: The parcel's build as a MagicaVoxel file
+      parameters:
+        - $ref: '#/components/parameters/ParcelId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/Failure'
+
+  /api/parcels/{id}.png:
+    get:
+      operationId: getParcelImage
+      tags: [parcels]
+      summary: The parcel's tile off the map renderer
+      parameters:
+        - $ref: '#/components/parameters/ParcelId'
+      responses:
+        '200':
+          description: ok
+          content:
+            image/png:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/Failure'
+
+  /api/parcels/{id}/query:
+    get:
+      operationId: refreshParcelFromChain
+      tags: [parcels]
+      summary: Re-read the parcel's owner from the contract, then return it
+      description: |
+        A read with a side effect: it asks the contract who owns the parcel and
+        writes the answer back before answering. The `parcel` it returns is the
+        model object, not the `/api/parcels/{id}.json` shape.
+      parameters:
+        - $ref: '#/components/parameters/ParcelId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  parcel:
+                    type: object
+        '404':
+          $ref: '#/components/responses/Failure'
+
+  /api/parcels/by/{wallet}/query:
+    get:
+      operationId: refreshParcelsByWallet
+      tags: [parcels]
+      summary: Re-read every parcel a wallet owns
+      description: |
+        Broken upstream, documented so nobody spends an afternoon on it. The
+        handler parses `req.params.id`, which this route does not declare, so the
+        parse is always NaN and every call answers 404 `{"success": false}`
+        before it reaches the subgraph. Verified against production.
+      parameters:
+        - name: wallet
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '404':
+          $ref: '#/components/responses/Failure'
+
+  /api/parcels/{id}/history.json:
+    get:
+      operationId: getParcelHistory
+      tags: [parcels]
+      summary: Saved versions of a parcel, newest first
+      parameters:
+        - $ref: '#/components/parameters/ParcelId'
+        - name: limit
+          in: query
+          schema:
+            type: integer
+        - name: page
+          in: query
+          schema:
+            type: integer
+        - name: asc
+          in: query
+          description: The string `true` flips the order.
+          schema:
+            type: string
+        - name: start_date
+          in: query
+          schema:
+            type: integer
+        - name: end_date
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  versions:
+                    type: array
+                    items:
+                      type: object
+
+  /api/parcels/{id}/history-count.json:
+    get:
+      operationId: getParcelHistoryCount
+      tags: [parcels]
+      summary: How many versions a parcel has
+      parameters:
+        - $ref: '#/components/parameters/ParcelId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  info:
+                    type: object
+
+  /api/parcels/{id}/history/{version}.json:
+    get:
+      operationId: getParcelVersion
+      tags: [parcels]
+      summary: One saved version of a parcel
+      parameters:
+        - $ref: '#/components/parameters/ParcelId'
+        - name: version
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  version:
+                    type: object
+
+  /api/parcels/{id}/snapshots.json:
+    get:
+      operationId: getParcelSnapshots
+      tags: [parcels]
+      summary: Versions the owner marked as snapshots
+      parameters:
+        - $ref: '#/components/parameters/ParcelId'
+        - name: autosave
+          in: query
+          description: The string `include` folds autosaves in.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  snapshots:
+                    type: array
+                    items:
+                      type: object
+
+  /api/suburbs/{suburb_id}/popular.json:
+    get:
+      operationId: getPopularParcelsBySuburb
+      tags: [parcels]
+      summary: The busiest parcels in a suburb
+      parameters:
+        - name: suburb_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: days
+          in: query
+          description: Window in days, 7 when absent or unparseable.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  parcels:
+                    type: array
+                    items:
+                      type: object
+
+  /api/wallet/{address}/parcels.json:
+    get:
+      operationId: getParcelsByOwner
+      tags: [parcels]
+      summary: Parcels a wallet owns
+      parameters:
+        - $ref: '#/components/parameters/WalletAddress'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  parcels:
+                    type: array
+                    items:
+                      type: object
+
+  /api/wallet/{address}/contributing-parcels.json:
+    get:
+      operationId: getContributingParcels
+      tags: [parcels]
+      summary: Parcels a wallet can build on but does not own
+      parameters:
+        - $ref: '#/components/parameters/WalletAddress'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  parcels:
+                    type: array
+                    items:
+                      type: object
+
+  /api/womps.json:
+    get:
+      operationId: listWomps
+      tags: [womps]
+      summary: The newest womps across the world
+      description: |
+        A womp is a photograph somebody took in world. Note that the handler
+        reads a `kind` query parameter and then never passes it to the query, so
+        `?kind=broadcast` does nothing.
+      parameters:
+        - $ref: '#/components/parameters/WompLimit'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  womps:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Womp'
+        '404':
+          $ref: '#/components/responses/Failure'
+
+  /api/womps/{id}.json:
+    get:
+      operationId: getWomp
+      tags: [womps]
+      summary: One womp
+      parameters:
+        - $ref: '#/components/parameters/WompId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  womp:
+                    $ref: '#/components/schemas/Womp'
+        '404':
+          $ref: '#/components/responses/Failure'
+
+  /api/womps/{id}.jpg:
+    get:
+      operationId: getWompImage
+      tags: [womps]
+      summary: The photograph itself, when it lives in the database
+      description: |
+        Only womps whose bytes were uploaded to Voxels answer here. The rest are
+        hosted elsewhere and only have `image_url`; `image_supplied` on the womp
+        record tells you which is which.
+      parameters:
+        - $ref: '#/components/parameters/WompId'
+      responses:
+        '200':
+          description: ok
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/Failure'
+
+  /api/womps/at/parcel/{parcelId}.json:
+    get:
+      operationId: listWompsByParcel
+      tags: [womps]
+      summary: Womps taken on one parcel
+      description: Reports are filtered out.
+      parameters:
+        - name: parcelId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - $ref: '#/components/parameters/WompLimit'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  womps:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Womp'
+        '404':
+          $ref: '#/components/responses/Failure'
+
+  /api/womps/at/space/{spaceId}.json:
+    get:
+      operationId: listWompsBySpace
+      tags: [womps]
+      summary: Womps taken in one space
+      parameters:
+        - name: spaceId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/WompLimit'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  womps:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Womp'
+        '404':
+          $ref: '#/components/responses/Failure'
+
+  /api/womps/by/{wallet}:
+    get:
+      operationId: listWompsByAuthor
+      tags: [womps]
+      summary: Womps one citizen took
+      description: |
+        Matches `womps.author` exactly, so the wallet has to be cased the way it
+        was stored. Reports are filtered out.
+      parameters:
+        - $ref: '#/components/parameters/Wallet'
+        - $ref: '#/components/parameters/WompLimit'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  womps:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Womp'
+        '404':
+          $ref: '#/components/responses/Failure'
+
+  /api/avatars/{wallet}.json:
+    get:
+      operationId: getAvatar
+      tags: [avatars]
+      summary: One citizen by wallet
+      parameters:
+        - $ref: '#/components/parameters/Wallet'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  avatar:
+                    $ref: '#/components/schemas/Avatar'
+        '400':
+          $ref: '#/components/responses/Failure'
+
+  /api/avatars/by/{nameOrWallet}.json:
+    get:
+      operationId: getAvatarByNameOrWallet
+      tags: [avatars]
+      summary: One citizen by name or wallet
+      description: Both comparisons are case-insensitive.
+      parameters:
+        - name: nameOrWallet
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  avatar:
+                    $ref: '#/components/schemas/Avatar'
+        '400':
+          $ref: '#/components/responses/Failure'
+
+  /api/avatars/search:
+    get:
+      operationId: searchAvatars
+      tags: [avatars]
+      summary: Name or wallet substring match, ten at most
+      description: |
+        The odd one out: it answers with a bare array, no envelope, and an empty
+        `q` gives `[]`.
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    name:
+                      type: [string, 'null']
+                    wallet:
+                      type: string
+
+  /api/avatars/{wallet}/assets:
+    get:
+      operationId: getAvatarAssets
+      tags: [avatars]
+      summary: Wearables this wallet authored
+      description: Minted and unsuppressed only. Authorship, not ownership.
+      parameters:
+        - $ref: '#/components/parameters/Wallet'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  assets:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Wearable'
+
+  /api/avatars/{wallet}/wearables:
+    get:
+      operationId: getAvatarWornWearables
+      tags: [avatars]
+      summary: The collectibles in this citizen's current costume
+      parameters:
+        - $ref: '#/components/parameters/Wallet'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  wearables:
+                    type: array
+                    items:
+                      type: object
+
+  /api/avatars/{wallet}/costume.json:
+    get:
+      operationId: getAvatarCostume
+      tags: [avatars]
+      summary: The costume this citizen is wearing
+      parameters:
+        - $ref: '#/components/parameters/Wallet'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  costume:
+                    $ref: '#/components/schemas/Costume'
+
+  /api/avatars/{wallet}/costumes:
+    get:
+      operationId: listAvatarCostumes
+      tags: [avatars]
+      summary: Every costume this citizen has saved
+      parameters:
+        - $ref: '#/components/parameters/Wallet'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  costumes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Costume'
+
+  /api/avatars/{wallet}/score.json:
+    get:
+      operationId: getAvatarScore
+      tags: [avatars]
+      summary: This citizen's scores
+      parameters:
+        - $ref: '#/components/parameters/Wallet'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  scores:
+                    type: array
+                    items:
+                      type: object
+
+  /api/costumes/{id}:
+    get:
+      operationId: getCostume
+      tags: [avatars]
+      summary: One costume by id
+      description: |
+        Answers `{"success": true, "costume": null}` for an id that does not
+        exist rather than a 404.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  costume:
+                    $ref: '#/components/schemas/Costume'
+
+  /api/avatar/{wallet}/name.json:
+    get:
+      operationId: getAvatarName
+      tags: [avatars]
+      summary: This citizen's display name
+      parameters:
+        - $ref: '#/components/parameters/Wallet'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  name:
+                    type: object
+
+  /api/avatar/{wallet}/names:
+    get:
+      operationId: getAvatarNames
+      tags: [avatars]
+      summary: Every name this wallet holds
+      description: No `success` on the happy path, just `name` and `names`.
+      parameters:
+        - $ref: '#/components/parameters/Wallet'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  name:
+                    type: [string, 'null']
+                  names:
+                    type: array
+                    items:
+                      type: string
+        '400':
+          $ref: '#/components/responses/Failure'
+
+  /api/names/exists/{name}:
+    get:
+      operationId: nameExists
+      tags: [avatars]
+      summary: Whether a name is taken
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  exists:
+                    type: boolean
+
+  /api/avatar/owns/{chain_identifier}/{contract}/{token_id}:
+    get:
+      operationId: avatarOwnsToken
+      tags: [avatars]
+      summary: Whether a wallet holds a token
+      description: |
+        Rate limited to five calls per thirty seconds per client, because it
+        costs a chain read. A missing or malformed `wallet` answers 200 with
+        `{"success": false}`, not a 400.
+      parameters:
+        - $ref: '#/components/parameters/ChainIdentifier'
+        - name: contract
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: token_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: wallet
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  ownsToken:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/Failure'
+        '429':
+          description: Too many requests
+
+  /api/helper/typeOfContract/{chain_identifier}/{contract}:
+    get:
+      operationId: getTypeOfContract
+      tags: [collections]
+      summary: Whether a contract is ERC721 or ERC1155
+      parameters:
+        - $ref: '#/components/parameters/ChainIdentifier'
+        - name: contract
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  type:
+                    type: [string, 'null']
+        '400':
+          $ref: '#/components/responses/Failure'
+
+  /api/collectibles.json:
+    get:
+      operationId: listCollectibles
+      tags: [collectibles]
+      summary: Search minted collectibles
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          description: One-based, and one is subtracted before the query sees it.
+          schema:
+            type: integer
+        - name: sort
+          in: query
+          schema:
+            type: string
+            default: updated_at
+        - name: asc
+          in: query
+          description: The string `true` flips the order.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  collectibles:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Collectible'
+
+  /api/collectibles/{uuid}/vox:
+    get:
+      operationId: getCollectibleVox
+      tags: [collectibles]
+      summary: A collectible's MagicaVoxel model
+      description: |
+        This is the one way to get a wearable's geometry from the wid on an
+        avatar attachment. The name behind that wid is not resolvable: the
+        attachment carries only the opaque uuid and the shop API is closed. The
+        model is, so a costume can be rebuilt without ever knowing what the
+        pieces are called.
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: ok
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/Failure'
+
+  /api/collectibles/wearable/{uuid}.json:
+    get:
+      operationId: getWearableByUuid
+      tags: [collectibles]
+      summary: One wearable by uuid
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  wearable:
+                    $ref: '#/components/schemas/Wearable'
+        '400':
+          $ref: '#/components/responses/Failure'
+
+  /api/collections:
+    get:
+      operationId: listCollections
+      tags: [collections]
+      summary: Wearable collections
+      parameters:
+        - name: q
+          in: query
+          description: Substring match on the collection name.
+          schema:
+            type: string
+        - name: sort
+          in: query
+          schema:
+            type: string
+            enum: [popular, newest, oldest]
+            default: popular
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 15
+        - name: page
+          in: query
+          description: Zero-based.
+          schema:
+            type: integer
+            default: 0
+        - name: owner
+          in: query
+          description: Exact match, so the wallet has to be cased as stored.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  collections:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Collection'
+
+  /api/collections/{id}:
+    get:
+      operationId: getCollection
+      tags: [collections]
+      summary: One collection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  collection:
+                    $ref: '#/components/schemas/Collection'
+        '400':
+          $ref: '#/components/responses/Failure'
+
+  /api/collections/{id}/collectibles:
+    get:
+      operationId: listCollectiblesByCollection
+      tags: [collections]
+      summary: Everything in a collection
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  collectibles:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Collectible'
+
+  /api/collections/{collection_id}/collectibles/{token_id}:
+    get:
+      operationId: getCollectibleByCollectionAndToken
+      tags: [collections]
+      summary: One collectible by collection id and token id
+      parameters:
+        - name: collection_id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: token_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  collectible:
+                    $ref: '#/components/schemas/Collectible'
+        '400':
+          $ref: '#/components/responses/Failure'
+
+  /api/collections/{chain_identifier}/{collection_address}/c/{token_id}.json:
+    get:
+      operationId: getCollectibleByChainAndAddress
+      tags: [collections]
+      summary: One collectible by chain, contract and token id
+      description: An unrecognised chain identifier falls back to ethereum rather than erroring.
+      parameters:
+        - $ref: '#/components/parameters/ChainIdentifier'
+        - name: collection_address
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: token_id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  collectible:
+                    $ref: '#/components/schemas/Collectible'
+        '400':
+          $ref: '#/components/responses/Failure'
+
+  /api/wearables/search:
+    get:
+      operationId: searchWearables
+      tags: [wearables]
+      summary: Wearable name substring match, fifty at most
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WearablePickList'
+
+  /api/wearables/suggest:
+    get:
+      operationId: suggestWearables
+      tags: [wearables]
+      summary: Thirty wearables, the ones for a given bone first
+      parameters:
+        - name: bone
+          in: query
+          description: An exact bone name sorts its wearables to the top.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WearablePickList'
+
+  /api/wearables/free.json:
+    get:
+      operationId: listFreeWearables
+      tags: [wearables]
+      summary: Wearables anyone can put on
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  wearables:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Wearable'
+
+  /api/wearables/{wearable_id}/vox:
+    get:
+      operationId: getWearableVoxById
+      tags: [wearables]
+      summary: A wearable's MagicaVoxel model, by wearable uuid
+      parameters:
+        - name: wearable_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: ok
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/Failure'
+
+  /api/wearables/{address}/{token}/vox:
+    get:
+      operationId: getWearableVoxByToken
+      tags: [wearables]
+      summary: A wearable's MagicaVoxel model, by contract and token id
+      description: |
+        Two-segment sibling of the route above. Express matches whichever arity
+        the request has, so a single segment goes to `{wearable_id}` and two go
+        here. The address is matched case-insensitively against the collection.
+      parameters:
+        - name: address
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ok
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/Failure'
+
+  /w/{hash}/{format}:
+    get:
+      operationId: streamWearableByHash
+      tags: [wearables]
+      summary: A wearable's model by content hash
+      description: |
+        `format` has to be `vox` or `.vox`; every other value is a 404. The hash
+        has to be longer than 39 characters or the lookup is skipped.
+      parameters:
+        - name: hash
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/WearableFormat'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          $ref: '#/components/responses/Failure'
+
+  /c/v2/{chain_identifier}/{collection_address}/{token_id}/{format}:
+    get:
+      operationId: streamWearableByChainInfo
+      tags: [wearables]
+      summary: A wearable's model by chain, contract and token id
+      description: |
+        Same handler as `/w/{hash}/{format}`. `token_id` is read as hex when it
+        looks like hex and as decimal otherwise.
+      parameters:
+        - $ref: '#/components/parameters/ChainIdentifier'
+        - name: collection_address
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: token_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/WearableFormat'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '400':
+          $ref: '#/components/responses/Failure'
+        '404':
+          $ref: '#/components/responses/Failure'
+
+  /api/islands.json:
+    get:
+      operationId: listIslands
+      tags: [islands]
+      summary: Every island with its shoreline
+      description: |
+        The heavy one: it carries the shore polygon plus the holes and lakes cut
+        out of it. Use `/api/islands-metadata.json` if you only need names and
+        positions.
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  islands:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Island'
+
+  /api/islands-metadata.json:
+    get:
+      operationId: listIslandsMetadata
+      tags: [islands]
+      summary: Island names and positions
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  islands:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/IslandMetadata'
+
+  /api/islands/{slug}.json:
+    get:
+      operationId: getIsland
+      tags: [islands]
+      summary: One island and every parcel on it
+      description: |
+        The slug is the island name lowercased with runs of whitespace turned
+        into single hyphens, so `Origin City` is `origin-city`. `parcels` holds
+        whole property rows.
+      parameters:
+        - name: slug
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  island:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      name:
+                        type: string
+                      position:
+                        $ref: '#/components/schemas/GeoJsonPoint'
+                      parcels:
+                        type: array
+                        items:
+                          type: object
+        '400':
+          $ref: '#/components/responses/Failure'
+
+  /api/spaces.json:
+    get:
+      operationId: listSpaces
+      tags: [spaces]
+      summary: Browsable spaces
+      description: A space is a build that is not pinned to a parcel. Womps can be taken in one.
+      parameters:
+        - $ref: '#/components/parameters/OneBasedPage'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  spaces:
+                    type: array
+                    items:
+                      type: object
+
+  /api/spaces/{id}.json:
+    get:
+      operationId: getSpace
+      tags: [spaces]
+      summary: One space with its content
+      description: A malformed uuid throws inside the handler and comes back as a 400.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  space:
+                    type: object
+        '400':
+          $ref: '#/components/responses/Failure'
+
+  /api/wallet/{address}/spaces.json:
+    get:
+      operationId: getSpacesByOwner
+      tags: [spaces]
+      summary: Spaces a wallet owns
+      parameters:
+        - $ref: '#/components/parameters/WalletAddress'
+        - $ref: '#/components/parameters/OneBasedPage'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  spaces:
+                    type: array
+                    items:
+                      type: object
+
+  /api/events.json:
+    get:
+      operationId: listEvents
+      tags: [events]
+      summary: Events people have put on their parcels
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventList'
+
+  /api/events/on.json:
+    get:
+      operationId: listEventsOn
+      tags: [events]
+      summary: Events happening now or soon
+      parameters:
+        - name: live
+          in: query
+          description: The string `true` narrows this to what is on right now.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventList'
+
+  /api/events/on/{limit}/{page}.json:
+    get:
+      operationId: listEventsOnPaged
+      tags: [events]
+      summary: Paged version of the above
+      parameters:
+        - name: limit
+          in: path
+          required: true
+          description: Three when it will not parse.
+          schema:
+            type: integer
+        - name: page
+          in: path
+          required: true
+          description: Zero-based.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventList'
+
+  /api/events/{id}.json:
+    get:
+      operationId: getEvent
+      tags: [events]
+      summary: One event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  event:
+                    type: object
+        '400':
+          $ref: '#/components/responses/Failure'
+
+  /api/parcels/{id}/event.json:
+    get:
+      operationId: getEventByParcel
+      tags: [events]
+      summary: The event on a parcel
+      parameters:
+        - $ref: '#/components/parameters/ParcelId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  event:
+                    type: object
+        '400':
+          $ref: '#/components/responses/Failure'
+
+  /api/parcels/{id}/events/history.json:
+    get:
+      operationId: getEventHistoryByParcel
+      tags: [events]
+      summary: Events a parcel has already held
+      parameters:
+        - $ref: '#/components/parameters/ParcelId'
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EventList'
+
+  /api/search:
+    get:
+      operationId: search
+      tags: [search]
+      summary: Full text search across the world
+      description: |
+        Reads a materialised view that mixes parcels, wearables and the rest, so
+        `type` tells you what each hit is. Fifty results, no paging: `limit` and
+        `page` are fixed in the handler. `q` is lowercased, stripped of percent
+        signs and cut to eighty characters. An empty `q` returns an empty list
+        with `success: true`.
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  results:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/SearchResult'
+
+components:
+  parameters:
+    ParcelId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+
+    Wallet:
+      name: wallet
+      in: path
+      required: true
+      schema:
+        type: string
+
+    WalletAddress:
+      name: address
+      in: path
+      required: true
+      schema:
+        type: string
+
+    WompId:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+
+    WompLimit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        default: 50
+
+    ChainIdentifier:
+      name: chain_identifier
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [eth, matic]
+
+    WearableFormat:
+      name: format
+      in: path
+      required: true
+      schema:
+        type: string
+        enum: [vox, .vox]
+
+    OneBasedPage:
+      name: page
+      in: query
+      description: One-based.
+      schema:
+        type: integer
+        default: 1
+
+  responses:
+    Failure:
+      description: The lookup did not land. Some handlers send this with status 200.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Failure'
+
+  schemas:
+    Failure:
+      type: object
+      properties:
+        success:
+          type: boolean
+          const: false
+        message:
+          type: string
+
+    AvatarRef:
+      description: |
+        A citizen, or the bare lowercased wallet string when no avatar row
+        matches. Anywhere an owner or author appears, expect either shape, and in
+        the same array: `parcel_users` on a parcel mixes objects and strings.
+      oneOf:
+        - type: string
+        - type: object
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: [string, 'null']
+            owner:
+              type: string
+            created_at:
+              type: [string, 'null']
+
+    GeoJsonPoint:
+      type: object
+      properties:
+        type:
+          type: string
+          const: Point
+        crs:
+          type: object
+        coordinates:
+          type: array
+          items:
+            type: number
+
+    ParcelGeometry:
+      description: The parcel footprint as GeoJSON, in EPSG:3857, hundredths of the world unit.
+      type: object
+      properties:
+        type:
+          type: string
+          const: Polygon
+        crs:
+          type: object
+        coordinates:
+          type: array
+          items:
+            type: array
+            items:
+              type: array
+              items:
+                type: number
+
+    ParcelBounds:
+      description: |
+        The parcel's box in metres. x and z are world position, y1 is the floor
+        and y2 the ceiling. Watch out for `y2` on the list routes, where several
+        queries alias `y2 - y1` to `y2` and hand you the height instead.
+      type: object
+      properties:
+        x1:
+          type: number
+        x2:
+          type: number
+        y1:
+          type: number
+        y2:
+          type: number
+        z1:
+          type: number
+        z2:
+          type: number
+        height:
+          type: number
+
+    ParcelContent:
+      description: The build. Only `/api/parcels/{id}.json` returns this.
+      type: object
+      properties:
+        voxels:
+          type: [string, 'null']
+          description: |
+            The structure, as base64 of a zlib stream over a flat little-endian
+            Uint16 grid. Nothing in the payload says how to read it.
+
+            The grid is `((x2-x1)*2, (y2-y1)*2, (z2-z1)*2)`, two voxels to the
+            metre, and it runs z fastest, then y, then x. Read it any other way
+            and the build shears into diagonal ribbons that still fill the right
+            box, which looks like a render bug rather than a decode one. The
+            check that settles the ordering is the ground: every parcel has a
+            full slab at y=0, and only this ordering produces one.
+
+            Each cell is a packed integer. The low five bits are the tile index
+            into the tileset atlas, a 4x4 grid of material textures, so a cell of
+            0 is empty air. Bits 5 to 7 index `palette`. Bit 15 is set on solid
+            voxels and the mesher ignores it.
+        palette:
+          type: [array, 'null']
+          items:
+            type: string
+          description: |
+            Eight hex colours the builder tints the atlas materials with. Null
+            when the builder never touched them, and a missing entry falls back
+            to the default for that slot.
+          maxItems: 8
+        tileset:
+          type: [string, 'null', boolean]
+          description: |
+            Path to a custom atlas image, relative to the Voxels image host, or
+            null and false for the built-in one.
+        features:
+          type: [array, 'null']
+          items:
+            $ref: '#/components/schemas/Feature'
+        scripting:
+          type: [string, boolean, 'null']
+        lightmap_url:
+          type: [string, 'null']
+        brightness:
+          type: [number, 'null']
+        environment:
+          type: [string, 'null']
+
+    Feature:
+      description: |
+        Something hung on the plot: an image, screen, sign, text, light, portal,
+        spawn point or collectible model. Voxels are only the structure, so a
+        build with the features stripped out is a grey shell.
+
+        `type` is an open set, and the union in the code runs to about thirty
+        members. Read what you know and skip the rest.
+      type: object
+      properties:
+        type:
+          type: string
+        uuid:
+          type: string
+          description: Missing on some old features.
+        position:
+          $ref: '#/components/schemas/Vec3'
+          description: |
+            Parcel-local metres. x and z are measured from the MIDDLE of the
+            plot, not a corner, so they go negative. y is measured up from the
+            floor.
+        rotation:
+          $ref: '#/components/schemas/Vec3'
+          description: Radians, composed yaw, pitch, roll. Degrees are what a wearable attachment uses, not this.
+        scale:
+          $ref: '#/components/schemas/Vec3'
+          description: For a flat feature such as an image, the rectangle's width and height in metres.
+        groupId:
+          type: [string, 'null']
+          description: |
+            The uuid of a `group` feature. Nesting is by reference, not by
+            embedding: the array is flat and a group can name another group as
+            its parent, so walk the chain to get a feature's world transform.
+        url:
+          description: A string, a one-element array or an object with a `url` key, depending on the feature's age.
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+            - type: object
+            - type: 'null'
+        collidable:
+          type: boolean
+        link:
+          type: [string, 'null']
+
+    Vec3:
+      description: Either a three-element array or an object with x, y and z.
+      oneOf:
+        - type: array
+          items:
+            type: [number, 'null']
+          minItems: 3
+          maxItems: 3
+        - type: object
+          properties:
+            x:
+              type: number
+            y:
+              type: number
+            z:
+              type: number
+
+    Parcel:
+      description: One parcel with its build. What `/api/parcels/{id}.json` returns.
+      allOf:
+        - $ref: '#/components/schemas/ParcelBounds'
+        - type: object
+          properties:
+            id:
+              type: integer
+            token:
+              type: [integer, 'null']
+            name:
+              type: [string, 'null']
+            label:
+              type: [string, 'null']
+            description:
+              type: [string, 'null']
+            address:
+              type: [string, 'null']
+              description: The street address. About ten parcels have none.
+            island:
+              type: string
+            suburb:
+              type: [string, 'null']
+            kind:
+              type: string
+              enum: [plot, inner, outer, unit, basement, asset]
+            geometry:
+              $ref: '#/components/schemas/ParcelGeometry'
+            owner:
+              $ref: '#/components/schemas/AvatarRef'
+            parcel_users:
+              type: [array, 'null']
+              items:
+                $ref: '#/components/schemas/AvatarRef'
+            content:
+              $ref: '#/components/schemas/ParcelContent'
+            settings:
+              type: [object, 'null']
+            lightmap_url:
+              type: [string, 'null']
+            traffic_visits:
+              type: integer
+            distance_to_center:
+              type: number
+            distance_to_ocean:
+              type: number
+            distance_to_closest_common:
+              type: number
+            is_common:
+              type: boolean
+            minted:
+              type: boolean
+            visible:
+              type: boolean
+            updated_at:
+              type: string
+
+    ParcelSummary:
+      description: A row from the parcel list routes. No `content`.
+      allOf:
+        - $ref: '#/components/schemas/ParcelBounds'
+        - type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: [string, 'null']
+            label:
+              type: [string, 'null']
+            address:
+              type: [string, 'null']
+            island:
+              type: string
+            suburb:
+              type: [string, 'null']
+            geometry:
+              $ref: '#/components/schemas/ParcelGeometry'
+            owner:
+              $ref: '#/components/schemas/AvatarRef'
+            parcel_users:
+              type: [array, 'null']
+              items:
+                type: object
+            hash:
+              type: [string, 'null']
+            lightmap_url:
+              type: [string, 'null']
+            visible:
+              type: boolean
+            distance_to_center:
+              type: number
+            distance_to_ocean:
+              type: number
+            distance_to_closest_common:
+              type: number
+
+    CachedParcel:
+      description: A row from `/api/parcels/cached.json`.
+      allOf:
+        - $ref: '#/components/schemas/ParcelBounds'
+        - type: object
+          properties:
+            id:
+              type: integer
+            name:
+              type: [string, 'null']
+            address:
+              type: [string, 'null']
+            island:
+              type: string
+            suburb:
+              type: [string, 'null']
+            kind:
+              type: string
+            geometry:
+              $ref: '#/components/schemas/ParcelGeometry'
+            owner:
+              type: string
+              description: A lowercased wallet, not an avatar object.
+            parcel_users:
+              type: array
+              items:
+                type: object
+                properties:
+                  wallet:
+                    type: string
+                  role:
+                    type: string
+                    enum: [owner, contributor, excluded]
+            hash:
+              type: [string, 'null']
+            lightmap_url:
+              type: [string, 'null']
+            settings:
+              type: [object, 'null']
+            is_common:
+              type: boolean
+            visible:
+              type: boolean
+            distance_to_center:
+              type: number
+            distance_to_ocean:
+              type: number
+            distance_to_closest_common:
+              type: number
+
+    Womp:
+      description: A photograph somebody took in world.
+      type: object
+      properties:
+        id:
+          type: integer
+        author:
+          $ref: '#/components/schemas/AvatarRef'
+        content:
+          type: string
+          description: The caption.
+        coords:
+          type: string
+          description: |
+            Where the shot was taken, in the same string the play URL uses, for
+            example `SW@3558E,2017S,3U`: heading, then east/west, north/south and
+            an optional height above ground.
+        parcel_id:
+          type: [integer, 'null']
+        space_id:
+          type: [string, 'null']
+        parcel_name:
+          type: [string, 'null']
+        parcel_address:
+          type: [string, 'null']
+        parcel_island:
+          type: [string, 'null']
+        space_name:
+          type: [string, 'null']
+        image_url:
+          type: [string, 'null']
+        image_supplied:
+          type: boolean
+          description: |
+            True when the bytes are in the database, which is what makes
+            `/api/womps/{id}.jpg` work. False means the picture only lives at
+            `image_url`. Absent on `/api/womps/{id}.json`.
+        created_at:
+          type: string
+        updated_at:
+          type: string
+
+    Avatar:
+      description: A citizen.
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        owner:
+          type: string
+          description: The wallet.
+        name:
+          type: [string, 'null']
+          description: The display name, one of `names`.
+        names:
+          type: array
+          items:
+            type: string
+          description: Every name the wallet holds.
+        description:
+          type: [string, 'null']
+        social_link_1:
+          type: [string, 'null']
+        social_link_2:
+          type: [string, 'null']
+        moderator:
+          type: boolean
+        settings:
+          type: [object, 'null']
+        costume_id:
+          type: [string, 'null']
+        costume:
+          $ref: '#/components/schemas/Costume'
+        home_id:
+          type: [integer, 'null']
+        created_at:
+          type: [string, 'null']
+          description: Pacific/Auckland, not UTC.
+        last_online:
+          type: [string, 'null']
+          description: Pacific/Auckland, not UTC.
+
+    Costume:
+      description: |
+        What a citizen is wearing. `attachments` name a bone and a wearable; an
+        attachment's position and scale are in bone-local space and its rotation
+        is in degrees, which is the opposite of a parcel feature.
+      type: [object, 'null']
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: [string, 'null']
+        attachments:
+          type: array
+          items:
+            type: object
+
+    Wearable:
+      description: A wearable collectible.
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: The wid. This is what `/api/collectibles/{uuid}/vox` takes.
+        name:
+          type: [string, 'null']
+        description:
+          type: [string, 'null']
+        author:
+          $ref: '#/components/schemas/AvatarRef'
+        token_id:
+          type: [integer, 'null']
+          description: Null until the wearable is minted.
+        collection_id:
+          type: [integer, 'null']
+        collection_name:
+          type: [string, 'null']
+        collection_address:
+          type: [string, 'null']
+        chain_id:
+          type: [integer, 'null']
+        category:
+          type: [string, 'null']
+        default_bone:
+          type: [string, 'null']
+        default_settings:
+          type: [object, 'null']
+        custom_attributes:
+          type: [object, 'null']
+        offer_prices:
+          type: [object, 'null']
+        issues:
+          type: [integer, 'null']
+          description: How many were minted.
+        is_free:
+          type: boolean
+        hash:
+          type: [string, 'null']
+        suppressed:
+          type: boolean
+        rejected_at:
+          type: [string, 'null']
+        created_at:
+          type: [string, 'null']
+        updated_at:
+          type: [string, 'null']
+
+    WearablePickList:
+      description: The trimmed shape the wearable pickers use.
+      type: object
+      properties:
+        success:
+          type: boolean
+        wearables:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: [string, 'null']
+              is_free:
+                type: boolean
+
+    Collectible:
+      description: A minted wearable, as the collectible routes return it.
+      allOf:
+        - $ref: '#/components/schemas/Wearable'
+
+    Collection:
+      description: A wearable collection.
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: [string, 'null']
+        image_url:
+          type: [string, 'null']
+        owner:
+          type: [string, 'null']
+        address:
+          type: [string, 'null']
+          description: The contract. Null for a collection that was never deployed.
+        slug:
+          type: [string, 'null']
+        type:
+          type: [string, 'null']
+          description: ERC721 or ERC1155.
+        chainid:
+          type: [integer, 'null']
+          description: 1 for ethereum, 137 for polygon.
+        settings:
+          type: [object, 'null']
+        suppressed:
+          type: boolean
+        rejected_at:
+          type: [string, 'null']
+        created_at:
+          type: [string, 'null']
+        total_wearables:
+          type: [integer, string]
+          description: A count, which postgres hands back as a string on the list route.
+
+    Island:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        texture:
+          type: [string, 'null']
+        geometry:
+          type: object
+          description: The shoreline, as GeoJSON.
+        holes_geometry_json:
+          type: [object, 'null']
+          description: Land cut out of the island.
+        lakes_geometry_json:
+          type: [object, 'null']
+        position:
+          $ref: '#/components/schemas/GeoJsonPoint'
+        content:
+          type: [object, 'null']
+
+    IslandMetadata:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        other_name:
+          type: [string, 'null']
+        position:
+          $ref: '#/components/schemas/GeoJsonPoint'
+
+    SearchResult:
+      type: object
+      properties:
+        id:
+          type: string
+          description: A parcel id, a wearable uuid and so on, depending on `type`.
+        name:
+          type: [string, 'null']
+        type:
+          type: string
+          description: What kind of thing this is, for example `wearable`.
+        description:
+          type: [string, 'null']
+        created_at:
+          type: [string, 'null']
+        rank:
+          type: number
+
+    EventList:
+      type: object
+      properties:
+        success:
+          type: boolean
+        events:
+          type: array
+          items:
+            type: object
