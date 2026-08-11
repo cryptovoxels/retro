@@ -4999,13 +4999,44 @@ main:has(.worldmap) {
   box-shadow: 3px 3px 3px rgba(0, 0, 0, 0.2);
 }
 
-#mini-client {
-  margin-top: 1rem;
-  height: 7rem;
-  cursor: pointer;
+.mini-client-dock {
+  display: none;
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 40;
+  width: 12rem;
+
+  .mini-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+    translate: 40% -40%;
+    cursor: pointer;
+    background: var(--bg);
+    border: none;
+    color: var(--fg);
+    font-weight: bold;
+    padding: 0.15rem 0.45rem;
+    pointer-events: auto;
+  }
+
+  #mini-client {
+    height: 7rem;
+    cursor: pointer;
+    background: var(--bg);
+  }
+}
+
+// only when the world is parked (coords on a page with no full/embed slot)
+body.in-world:not(:has(.client-world)):not(:has(.client-slot)) .mini-client-dock {
+  display: block;
 }
 
 .mini {
+  cursor: pointer;
+
   .UserInterface {
     display: none;
   }
