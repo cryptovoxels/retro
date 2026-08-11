@@ -25,7 +25,7 @@ function authorWallet(author: Author) {
   return String(author ?? '').toLowerCase()
 }
 
-export default function PostPage(props: { path?: string; slug?: string }) {
+export default function PostPage(props: { path?: string; slug?: string; onBack?: () => void }) {
   const slug = props.slug ?? ''
   const [post, setPost] = useState<Post | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
@@ -85,6 +85,19 @@ export default function PostPage(props: { path?: string; slug?: string }) {
       <section class="prose">
         <Head title="blog" />
         <p>not found</p>
+        {props.onBack && (
+          <p>
+            <a
+              href="/blog"
+              onClick={(e) => {
+                e.preventDefault()
+                props.onBack!()
+              }}
+            >
+              &lsaquo; back
+            </a>
+          </p>
+        )}
       </section>
     )
   }
@@ -96,7 +109,19 @@ export default function PostPage(props: { path?: string; slug?: string }) {
     <section class="prose">
       <Head title={post.title} url={`/blog/${post.slug}`} />
       <p>
-        <a href="/blog">blog</a>
+        {props.onBack ? (
+          <a
+            href="/blog"
+            onClick={(e) => {
+              e.preventDefault()
+              props.onBack!()
+            }}
+          >
+            &lsaquo; back
+          </a>
+        ) : (
+          <a href="/blog">blog</a>
+        )}
       </p>
       <h1>{post.title}</h1>
       <p>

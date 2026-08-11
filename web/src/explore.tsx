@@ -12,6 +12,7 @@ import { app, AppEvent } from './state'
 import Radar from './components/radar'
 import Classifieds from './components/classifieds'
 import BlogTeaser from './components/blog-teaser'
+import PostPage from './post'
 
 function countdown(ms: number) {
   const s = Math.floor(ms / 1000)
@@ -116,7 +117,9 @@ async function pickFrontpageParcel() {
   naviportHere(url, id)
 }
 
-export default class Explore extends Component {
+export default class Explore extends Component<{}, { post: string | null }> {
+  state = { post: null }
+
   componentDidMount() {
     app.on(AppEvent.Logout, this.rerender)
     app.on(AppEvent.Login, this.rerender)
@@ -151,14 +154,20 @@ export default class Explore extends Component {
             <button class="sidebar-close" title="Close - play fullscreen" onClick={() => window.connector && routeWithCoords('/play')}>
               &times;
             </button>
-            <BlogTeaser />
-            <Radar />
-            <EventsList />
+            {this.state.post ? (
+              <PostPage slug={this.state.post} onBack={() => this.setState({ post: null })} />
+            ) : (
+              <Fragment>
+                <BlogTeaser onOpen={(slug) => this.setState({ post: slug })} />
+                <Radar />
+                <EventsList />
 
-            <h3>Popular</h3>
-            <PopularParcels />
+                <h3>Popular</h3>
+                <PopularParcels />
 
-            <Classifieds limit={3} />
+                <Classifieds limit={3} />
+              </Fragment>
+            )}
           </aside>
         </section>
       </Fragment>
