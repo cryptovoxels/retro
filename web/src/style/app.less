@@ -602,8 +602,9 @@ header:has(nav) {
   }
 }
 
-// floating menu button (sibling of header - never clipped by drawer transform)
-main > .site-nav-toggle {
+// floating menu button (sibling of header - never clipped by drawer transform).
+// button.site-nav-toggle: outrank button.hamburger's background:none, we're over the canvas
+main > button.site-nav-toggle {
   position: fixed;
   left: max(1rem, env(safe-area-inset-left, 0px));
   top: max(0.5rem, env(safe-area-inset-top, 0px));
@@ -803,7 +804,7 @@ main:has(.columns.home) {
       cursor: pointer;
       background: var(--bg);
       border: none;
-      color: var(--red);
+      color: var(--fg);
       font-weight: bold;
       padding: 0.25rem 0.5rem;
     }
