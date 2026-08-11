@@ -3,7 +3,7 @@ import { Component, createRef, Fragment, JSX } from 'preact'
 import { forwardRef } from 'preact/compat'
 import { useEffect, useRef, useState } from 'preact/hooks'
 
-import { isMobile } from '../../../common/helpers/detector'
+import { isMobile, isMobileMedia } from '../../../common/helpers/detector'
 import { resetMobileViewportLayout } from '../../controls/mobile/controls'
 import { Emojis, replaceEmojiText, replaceEmoticonsAndEmojiText } from '../../../common/helpers/emojis'
 import { Emotes } from '../../../common/messages/constant'
@@ -29,6 +29,7 @@ type State = {
   nearby: Avatar[]
   lastRead: TimeStamp
   focused: boolean
+  collapsed: boolean
 }
 
 export class ChatOverlay extends Component<Props, State> {
@@ -43,6 +44,7 @@ export class ChatOverlay extends Component<Props, State> {
       nearby: [],
       lastRead: Date.now(),
       focused: false,
+      collapsed: localStorage.getItem('chat-collapsed') === '1',
     }
     this.inputRef = createRef<HTMLDivElement>()
     ChatOverlay.instance = this
@@ -91,10 +93,26 @@ export class ChatOverlay extends Component<Props, State> {
     }
   }
 
+  toggleCollapsed = () => {
+    const collapsed = !this.state.collapsed
+    this.setState({ collapsed })
+    localStorage.setItem('chat-collapsed', collapsed ? '1' : '0')
+  }
+
   render() {
     const isGuest = !!app.state.wallet?.startsWith('guest:')
     const chatCap = isGuest ? 25 : 10
-    return <ChatPanel cap={chatCap} variant="overlay" style={isGuest ? 'font-size: 14px' : undefined} />
+    // small screens: chat covers too much world, let people tuck it away
+    if (isMobileMedia() && this.state.collapsed) {
+      return (
+        <div class="chat">
+          <button class="chat-toggle" onClick={this.toggleCollapsed}>
+            Chat
+          </button>
+        </div>
+      )
+    }
+    return <ChatPanel cap={chatCap} variant="overlay" style={isGuest ? 'font-size: 14px' : undefined} onHide={isMobileMedia() ? this.toggleCollapsed : undefined} />
   }
 }
 
@@ -104,7 +122,7 @@ function chatName(m: ChatMessageRecord) {
   return avatar?.name || 'anon'
 }
 
-export function ChatPanel({ cap, variant = 'page', class: className, style }: { cap: number; variant?: 'overlay' | 'page'; class?: string; style?: string }) {
+export function ChatPanel({ cap, variant = 'page', class: className, style, onHide }: { cap: number; variant?: 'overlay' | 'page'; class?: string; style?: string; onHide?: () => void }) {
   const [, bump] = useState(0)
   const box = useRef<HTMLDivElement>(null)
 
@@ -138,6 +156,11 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
           ))}
         </div>
         <ChatInput />
+        {onHide && (
+          <button class="chat-toggle" onClick={onHide}>
+            hide chat
+          </button>
+        )}
       </div>
     )
   }
