@@ -1,5 +1,4 @@
 import { Component } from 'preact'
-import { Emotes } from '../../../common/messages/constant'
 import { Animations } from '../../avatar-animations'
 import Connector from '../../connector'
 import Persona from '../../persona'
@@ -7,11 +6,7 @@ import { EmoteAnimation } from '../../states'
 import type UserInterface from '../../user-interface'
 import { focusFirst, onListArrowKeys } from '../keynav'
 
-interface Props {
-  onClose?: () => void
-}
-
-export class EmoteOverlay extends Component<Props, any> {
+export class DancePane extends Component<any, any> {
   constructor() {
     super()
 
@@ -26,11 +21,6 @@ export class EmoteOverlay extends Component<Props, any> {
 
   get persona(): Persona {
     return this.connector.persona
-  }
-
-  get emojis() {
-    // Emotes are from the @cryptovoxels/messages; see https://github.com/cryptovoxels/messages/pull/7
-    return Emotes
   }
 
   get animations() {
@@ -66,11 +56,6 @@ export class EmoteOverlay extends Component<Props, any> {
     this.setState({ animation: this.persona.animation })
   }
 
-  emote(emoji: string) {
-    this.connector.emote(emoji)
-    this.refocus()
-  }
-
   playAnimation(animation: Animations) {
     this.setState({ animation })
     // remove last EmoteAnimation
@@ -78,10 +63,6 @@ export class EmoteOverlay extends Component<Props, any> {
     if (animation) {
       this.persona.setState({ state: new EmoteAnimation(animation) }, this.connector.controls)
     }
-    this.refocus()
-  }
-
-  refocus() {
     this.ui.refocus()
   }
 
@@ -100,16 +81,6 @@ export class EmoteOverlay extends Component<Props, any> {
               <li key={a.name} class={animationMatches(this.state.animation, a.animation) ? '-active' : ''} tabIndex={0} onClick={() => this.playAnimation(a!.animation!)}>
                 {animationMatches(this.state.animation, a.animation) && '⭐️'}
                 {a.name}
-              </li>
-            ))}
-          </ul>
-        </div>
-
-        <div class="EmoteList">
-          <ul>
-            {this.emojis.slice(0, 40).map((e) => (
-              <li key={e} tabIndex={0} onClick={() => this.emote(e)}>
-                {e}
               </li>
             ))}
           </ul>
