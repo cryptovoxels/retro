@@ -348,6 +348,9 @@ export class VoxelsMap {
     this.camera = new BABYLON.FreeCamera('voxels_map_cam', new BABYLON.Vector3(0, 100, 0), this.scene)
     this.camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
     this.camera.setTarget(BABYLON.Vector3.Zero())
+    // setTarget straight down resolves yaw to PI, rendering the world 180deg
+    // rotated (south-up). force yaw 0 so north is up, same as the minimap.
+    this.camera.rotation.y = 0
     this.camera.position.x = 0
     this.camera.position.z = 0
     this.scene.activeCamera = this.camera
@@ -474,8 +477,8 @@ export class VoxelsMap {
     const h = this.canvas.clientHeight || 1
     const halfH = this.ortho / 2
     const halfW = halfH * aspect
-    const px = ((this.camera.position.x - x) / (halfW * 2)) * w + w / 2
-    const py = ((z - this.camera.position.z) / (halfH * 2)) * h + h / 2
+    const px = ((x - this.camera.position.x) / (halfW * 2)) * w + w / 2
+    const py = ((this.camera.position.z - z) / (halfH * 2)) * h + h / 2
     return { px, py }
   }
 
@@ -489,8 +492,8 @@ export class VoxelsMap {
     const halfH = this.ortho / 2
     const halfW = halfH * aspect
     return {
-      x: this.camera.position.x - (lx / w - 0.5) * halfW * 2,
-      z: this.camera.position.z + (ly / h - 0.5) * halfH * 2,
+      x: this.camera.position.x + (lx / w - 0.5) * halfW * 2,
+      z: this.camera.position.z - (ly / h - 0.5) * halfH * 2,
     }
   }
 
@@ -678,8 +681,8 @@ export class VoxelsMap {
       if (Math.abs(dx) + Math.abs(dz) > 3) this.moved = true
       const aspect = this.aspect()
       const scale = this.ortho / (this.canvas.clientHeight || 1)
-      this.camera.position.x += (dx * scale) / aspect
-      this.camera.position.z -= dz * scale
+      this.camera.position.x -= (dx * scale) / aspect
+      this.camera.position.z += dz * scale
       this.lastX = e.clientX
       this.lastZ = e.clientY
       this.onMove?.()
