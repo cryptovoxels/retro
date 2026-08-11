@@ -2817,13 +2817,8 @@ main > aside section {
   pointer-events: none;
 
   form,
-  .chat-messages,
-  .chat-toggle {
+  .chat-messages {
     pointer-events: auto;
-  }
-
-  .chat-toggle {
-    padding: 0.3rem;
   }
 
   .chat-messages {
@@ -2862,6 +2857,11 @@ main > aside section {
   p {
     margin: 0;
     line-height: 1.35;
+    transition: opacity 1s;
+
+    &.faded {
+      opacity: 0;
+    }
   }
 
   form {

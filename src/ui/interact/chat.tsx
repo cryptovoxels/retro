@@ -3,7 +3,7 @@ import { Component, createRef, Fragment, JSX } from 'preact'
 import { forwardRef } from 'preact/compat'
 import { useEffect, useRef, useState } from 'preact/hooks'
 
-import { isMobile, isMobileMedia } from '../../../common/helpers/detector'
+import { isMobile } from '../../../common/helpers/detector'
 import { resetMobileViewportLayout } from '../../controls/mobile/controls'
 import { Emojis, replaceEmojiText, replaceEmoticonsAndEmojiText } from '../../../common/helpers/emojis'
 import { Emotes } from '../../../common/messages/constant'
@@ -29,7 +29,6 @@ type State = {
   nearby: Avatar[]
   lastRead: TimeStamp
   focused: boolean
-  collapsed: boolean
 }
 
 export class ChatOverlay extends Component<Props, State> {
@@ -44,7 +43,6 @@ export class ChatOverlay extends Component<Props, State> {
       nearby: [],
       lastRead: Date.now(),
       focused: false,
-      collapsed: localStorage.getItem('chat-collapsed') === '1',
     }
     this.inputRef = createRef<HTMLDivElement>()
     ChatOverlay.instance = this
@@ -93,26 +91,10 @@ export class ChatOverlay extends Component<Props, State> {
     }
   }
 
-  toggleCollapsed = () => {
-    const collapsed = !this.state.collapsed
-    this.setState({ collapsed })
-    localStorage.setItem('chat-collapsed', collapsed ? '1' : '0')
-  }
-
   render() {
     const isGuest = !!app.state.wallet?.startsWith('guest:')
     const chatCap = isGuest ? 25 : 10
-    // small screens: chat covers too much world, let people tuck it away
-    if (isMobileMedia() && this.state.collapsed) {
-      return (
-        <div class="chat">
-          <button class="chat-toggle" onClick={this.toggleCollapsed}>
-            Chat
-          </button>
-        </div>
-      )
-    }
-    return <ChatPanel cap={chatCap} variant="overlay" style={isGuest ? 'font-size: 14px' : undefined} onHide={isMobileMedia() ? this.toggleCollapsed : undefined} />
+    return <ChatPanel cap={chatCap} variant="overlay" style={isGuest ? 'font-size: 14px' : undefined} />
   }
 }
 
@@ -122,8 +104,14 @@ function chatName(m: ChatMessageRecord) {
   return avatar?.name || 'anon'
 }
 
-export function ChatPanel({ cap, variant = 'page', class: className, style, onHide }: { cap: number; variant?: 'overlay' | 'page'; class?: string; style?: string; onHide?: () => void }) {
+// game-HUD chat: messages show briefly then fade so the world stays visible.
+// Focusing the input recalls the full recent history while you type.
+const CHAT_FADE_MS = 15000
+const CHAT_GONE_MS = 18000
+
+export function ChatPanel({ cap, variant = 'page', class: className, style }: { cap: number; variant?: 'overlay' | 'page'; class?: string; style?: string }) {
   const [, bump] = useState(0)
+  const [focused, setFocused] = useState(false)
   const box = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -132,6 +120,13 @@ export function ChatPanel({ cap, variant = 'page', class: className, style, onHi
       bump((n) => n + 1)
     })
   }, [])
+
+  // ticker so messages age out without new ones arriving
+  useEffect(() => {
+    if (variant !== 'overlay') return
+    const t = setInterval(() => bump((n) => n + 1), 3000)
+    return () => clearInterval(t)
+  }, [variant])
 
   useEffect(() => {
     if (variant !== 'page') return
@@ -144,18 +139,20 @@ export function ChatPanel({ cap, variant = 'page', class: className, style, onHi
   const atCap = messageList.value.length >= cap
 
   if (variant === 'overlay') {
+    const now = Date.now()
+    const shown = focused ? msgs : msgs.filter((m) => now - m.timestamp < CHAT_GONE_MS)
     return (
       <div class={'chat' + (className ? ' ' + className : '')} style={style}>
         <div class={'chat-messages' + (atCap ? ' at-cap' : '')}>
-          {msgs.map((m, i) => (
-            <p key={i}>
+          {shown.map((m) => (
+            <p key={m.timestamp} class={!focused && now - m.timestamp > CHAT_FADE_MS ? 'faded' : undefined}>
               <span class="chat-who">{chatName(m)}</span>
               {': '}
               <ChatText text={m.text} />
             </p>
           ))}
         </div>
-        <ChatInput onHide={onHide} />
+        <ChatInput onFocusChange={setFocused} />
       </div>
     )
   }
@@ -283,7 +280,7 @@ const CongaText = ({ text }: { text: string }) => {
   return <SlashCongaLinks text={text} />
 }
 
-const ChatInput = ({ keepFocus, onHide }: { keepFocus?: boolean; onHide?: () => void }) => {
+const ChatInput = ({ keepFocus, onFocusChange }: { keepFocus?: boolean; onFocusChange?: (focused: boolean) => void }) => {
   const [currentMessage, setMessage] = useState<string>('')
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -302,16 +299,7 @@ const ChatInput = ({ keepFocus, onHide }: { keepFocus?: boolean; onHide?: () => 
 
   // Mobile guests chat from the broadcast dock when live (panel covers this UI). Desktop guests use normal chat here.
   if (app.state.wallet?.startsWith('guest:') && isMobile()) {
-    return (
-      <div>
-        <small style="padding: 0 0.5rem; color: #888">chat in the broadcast panel</small>
-        {onHide && (
-          <button type="button" class="chat-toggle" onClick={onHide}>
-            hide
-          </button>
-        )}
-      </div>
-    )
+    return <small style="padding: 0 0.5rem; color: #888">chat in the broadcast panel</small>
   }
 
   const say = (e: Event) => {
@@ -352,13 +340,19 @@ const ChatInput = ({ keepFocus, onHide }: { keepFocus?: boolean; onHide?: () => 
   return (
     <div>
       <form onSubmit={say}>
-        <input type="text" onKeyDown={onChatKeydown} onBlur={() => isMobile() && resetMobileViewportLayout()} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} ref={inputRef} />
+        <input
+          type="text"
+          onKeyDown={onChatKeydown}
+          onFocus={() => onFocusChange?.(true)}
+          onBlur={() => {
+            onFocusChange?.(false)
+            isMobile() && resetMobileViewportLayout()
+          }}
+          value={currentMessage}
+          onChange={(e: any) => setMessage(e.target.value)}
+          ref={inputRef}
+        />
         <button type="submit">Send</button>
-        {onHide && (
-          <button type="button" class="chat-toggle" onClick={onHide}>
-            hide
-          </button>
-        )}
       </form>
     </div>
   )
