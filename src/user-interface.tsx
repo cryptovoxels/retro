@@ -126,7 +126,6 @@ type UserInterfaceState = {
   hover?: string
   signedIn: boolean
   wallet: string | null
-  fullscreen: boolean
   settingsVisible?: boolean
   personaVisible?: boolean
   currentOrNearestParcel: Parcel | null
@@ -194,7 +193,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       enabled: props.enabled,
       signedIn: app?.signedIn ?? false,
       wallet: app?.state.wallet ?? null,
-      fullscreen: false,
       currentOrNearestParcel: null,
       active: false,
       onlineCount: 0,
@@ -219,10 +217,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     if (signedIn && this.state.pane === 'login') {
       this.setState({ pane: undefined, active: false })
     }
-  }
-
-  refreshFullscreen = () => {
-    this.setState({ fullscreen: !!document.fullscreenElement })
   }
 
   setDragging = (v: boolean) => this.setState({ dragging: v })
@@ -302,7 +296,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   componentDidMount() {
     app.on(AppEvent.Change, this.onAppChange)
-    document.addEventListener('fullscreenchange', this.refreshFullscreen)
     document.addEventListener('pointerlockchange', this.onPointerLockChange)
     if (isMobileMedia()) {
       this.canvas.addEventListener('touchstart', () => {
@@ -369,7 +362,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.presenceEs?.close()
     this.presenceEs = null
     app.removeListener(AppEvent.Change, this.onAppChange)
-    document.removeEventListener('fullscreenchange', this.refreshFullscreen)
     document.removeEventListener('pointerlockchange', this.onPointerLockChange)
     chatSettings.removeEventListener('changed', this.onChatSettingsChange)
     voiceSettings.removeEventListener('changed', this.onVoiceSettingsChange)
@@ -840,12 +832,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.setState({ enabled: true })
   }
 
-  enterFullScreen = () => {
-    // body, not canvas — keeps in-world UI visible (see body:fullscreen CSS)
-    void document.body.requestFullscreen?.()
-    requestPointerLock()
-  }
-
   render() {
     if (!this.state.enabled) {
       return <Fragment />
@@ -887,9 +873,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           {!isMobileMedia() && (
             <div class="top-right">
-              <button type="button" title="Fullscreen" onClick={this.enterFullScreen}>
-                ⌞ ⌝
-              </button>
               <WompButton onClick={() => this.takeWomp(this.props.scene)} />
             </div>
           )}
