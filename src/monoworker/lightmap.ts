@@ -51,12 +51,7 @@ const BOUNCE = [65 * S, 65 * S, 65 * S] as const // dim warm bounce (3800K @ 35%
 //
 // returns Uint8Array of length (W+2)*(H+2)*(D+2)*6*3 - 6 directional slots per cell.
 // buildMesh sums all 6 slots when sampling light.
-function floodfill(
-  field: NdArray<Uint8Array>,
-  lanterns: Array<{ position: [number, number, number]; color: string; strength?: number | string }>,
-  off: [number, number, number],
-  pal: [number, number, number][],
-): Uint8Array {
+function floodfill(field: NdArray<Uint8Array>, lanterns: Array<{ position: [number, number, number]; color: string; strength?: number | string }>, off: [number, number, number], pal: [number, number, number][]): Uint8Array {
   const [w, h, d] = field.shape
   const pw = w + 2,
     ph = h + 2,
