@@ -400,7 +400,7 @@ export default abstract class Controls implements IControls {
         this.persona.firstPersonView = this.firstPersonView
       }
     } else {
-      this.cameraDistance = 2.0
+      this.cameraDistance = easeCamera(this.cameraDistance, this.targetCameraDistance)
     }
 
     // place camera
