@@ -729,8 +729,9 @@ header nav img.logo {
 main {
   max-width: 2000px;
   margin: 0 auto;
-  // clear the fixed menu button
-  padding-top: 2.5rem;
+  // clear the fixed menu button; side padding was lost when the left nav
+  // column became a hamburger drawer - without it every page jams the edge
+  padding: 2.5rem 1rem 1rem;
 }
 
 // blog list + posts: a readable column, not text jammed against the viewport edge
@@ -4979,8 +4980,14 @@ div.css-icon {
   }
 }
 
+// map is full-bleed like home / play
+main:has(.worldmap) {
+  padding: 0;
+  max-width: none;
+}
+
 .worldmap {
-  height: calc(100vh - 1rem);
+  height: 100vh;
 }
 
 .for-sale-pin {

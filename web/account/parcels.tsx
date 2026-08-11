@@ -88,14 +88,19 @@ export class Parcels extends Component<Props, State> {
     }
   }
 
+  toggleShowAll() {
+    this.setState({ showAll: !this.state.showAll })
+  }
+
   render() {
     if (this.state.loading) {
       return loadingBox()
     }
 
     const showTheseMany = 10
+    const total = this.state.parcels.length
     const parcels = this.getParcelsSorted()
-      .slice(0, this.state.showAll ? this.state.parcels.length : showTheseMany)
+      .slice(0, this.state.showAll ? total : showTheseMany)
       .map((p: any) => <PropertyItem key={p.id} record={p} helper={new ParcelHelper(p)} />)
 
     if (parcels.length === 0) return null
@@ -106,6 +111,19 @@ export class Parcels extends Component<Props, State> {
         <table class="parcels">
           <tbody>{parcels}</tbody>
         </table>
+        {total > showTheseMany && (
+          <p>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault()
+                this.toggleShowAll()
+              }}
+            >
+              {this.state.showAll ? 'show less' : `see all ${total}`}
+            </a>
+          </p>
+        )}
       </>
     )
   }
