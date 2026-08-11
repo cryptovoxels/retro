@@ -1043,13 +1043,18 @@ body.in-world {
   --play-gutter: max(1rem, env(safe-area-inset-left, 0px));
   --play-top: max(0.5rem, env(safe-area-inset-top, 0px));
 
+  // the world owns the viewport - the 2.5rem menu clearance shoves the
+  // bottom-anchored chat input under safari's toolbar (homepage embed too)
+  main {
+    padding-top: 0;
+  }
+
   // main sits above .client so sidebar gets clicks; punch through the world
   // cell or the empty grid slot eats pointer lock / WASD
   main:has(> .client-world) {
     position: relative;
     z-index: 2;
     max-width: none;
-    padding: 0;
     height: 100vh;
     display: grid;
     grid-template-columns: 1fr 23rem;
