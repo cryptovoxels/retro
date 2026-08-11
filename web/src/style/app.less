@@ -778,6 +778,38 @@ button.hamburger {
   }
 }
 
+// home: the world bleeds to the viewport edges like /play, so the floating
+// menu button sits over the canvas. the sidebar X routes to /play proper.
+main:has(.columns.home) {
+  max-width: none;
+  padding: 0;
+}
+
+.columns.home {
+  gap: 0;
+
+  > article {
+    padding: 0;
+  }
+
+  > aside {
+    height: 100vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: 0.5rem 1rem 1rem;
+
+    .sidebar-close {
+      float: right;
+      cursor: pointer;
+      background: var(--bg);
+      border: none;
+      color: var(--red);
+      font-weight: bold;
+      padding: 0.25rem 0.5rem;
+    }
+  }
+}
+
 @media @narrow {
   article {
     background: none;
@@ -791,6 +823,10 @@ button.hamburger {
     & > aside {
       width: 100%;
     }
+  }
+
+  .columns.home > aside {
+    height: auto;
   }
 }
 
@@ -3979,7 +4015,7 @@ button.TakeWompButton {
   z-index: 1000;
 }
 
-// desktop: sits in .top-right under fullscreen, not over it
+// desktop: sits in .top-right
 .top-right .womp-button {
   position: static;
   z-index: auto;

@@ -6,7 +6,7 @@ import { Event } from '../../common/messages/event'
 import Head from './components/head'
 import PopularParcels from './components/popular-parcels'
 import { getClientPath } from './helpers/client-helpers'
-import { getCoords, naviportHere } from './helpers/coords-nav'
+import { getCoords, naviportHere, routeWithCoords } from './helpers/coords-nav'
 import cachedFetch from './helpers/cached-fetch'
 import { app, AppEvent } from './state'
 import Radar from './components/radar'
@@ -143,11 +143,14 @@ export default class Explore extends Component {
           </Fragment>
         </Head>
 
-        <section class="columns">
+        <section class="columns home">
           <article>
             <div class="client-slot" />
           </article>
           <aside>
+            <button class="sidebar-close" title="Close - play fullscreen" onClick={() => window.connector && routeWithCoords('/play')}>
+              &times;
+            </button>
             <BlogTeaser />
             <Radar />
             <EventsList />
