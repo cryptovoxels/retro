@@ -782,7 +782,10 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       return
     }
 
-    OpenLink(withCoords(url))
+    // withCoords here mangled external URLs to a bare pathname, so every sign/image
+    // hyperlink got refused by OpenLink's isExternal check. OpenLink only opens
+    // external URLs anyway - coords make no sense on those.
+    OpenLink(url)
   }
 
   paneContent(paneId: UIPanes) {
