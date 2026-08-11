@@ -2730,6 +2730,7 @@ button.iconish {
   & > ul.ui-sidebar {
     // punch through empty column so 3D ActionGui (try on / guestbook) gets clicks
     pointer-events: none;
+    transition: opacity 0.5s;
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
@@ -2787,6 +2788,15 @@ button.iconish {
       visibility: hidden;
       pointer-events: none;
     }
+  }
+}
+
+// walking fades the sidebar so the world gets the screen; mouse over the column brings it back
+body.walking .UserInterface aside > ul.ui-sidebar {
+  opacity: 0;
+
+  &:hover {
+    opacity: 1;
   }
 }
 

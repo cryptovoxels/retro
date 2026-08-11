@@ -72,6 +72,9 @@ export default class DesktopControls extends Controls {
     const canvas = this.scene.getEngine().getRenderingCanvas()
     const locked = document.pointerLockElement === canvas
 
+    // sidebar buttons are unclickable while locked - fade them out of the way
+    document.body.classList.toggle('walking', locked)
+
     this.scene.preventDefaultOnPointerDown = locked
     this.scene.preventDefaultOnPointerUp = locked
 
@@ -281,7 +284,11 @@ export default class DesktopControls extends Controls {
       }
 
       const moveKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'PageUp', 'PageDown', 'KeyV']
-      if (moveKeys.includes(e.code)) this.idleLook.stop()
+      if (moveKeys.includes(e.code)) {
+        this.idleLook.stop()
+        // walking with a free cursor fades the sidebar too; hover brings it back
+        document.body.classList.add('walking')
+      }
 
       const congaCancelKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight']
       if (this.congaTarget && congaCancelKeys.includes(e.code)) {
