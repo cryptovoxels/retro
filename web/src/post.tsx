@@ -31,10 +31,12 @@ export default function PostPage(props: { path?: string; slug?: string; onBack?:
   const [comments, setComments] = useState<Comment[]>([])
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
+  const [loading, setLoading] = useState(!!slug)
   const [, tick] = useState(0)
 
   const load = () => {
     if (!slug) return
+    setLoading(true)
     cachedFetch(`/api/posts/${slug}.json`, fetchOptions(undefined, undefined, true))
       .then((r) => r.json())
       .then((d) => {
@@ -46,6 +48,7 @@ export default function PostPage(props: { path?: string; slug?: string; onBack?:
         setComments(d.comments || [])
       })
       .catch(() => setPost(null))
+      .finally(() => setLoading(false))
   }
 
   useEffect(() => {
@@ -80,24 +83,39 @@ export default function PostPage(props: { path?: string; slug?: string; onBack?:
     load()
   }
 
+  const back = props.onBack && (
+    <p>
+      <a
+        href="/blog"
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          props.onBack!()
+        }}
+      >
+        &lsaquo; back
+      </a>
+    </p>
+  )
+
+  // sidebar embed: skip the full-page prose column so it fits the home aside
+  const wrap = props.onBack ? 'sidebar-post' : 'prose'
+
+  if (loading) {
+    return (
+      <section class={wrap}>
+        {back}
+        <p>loading...</p>
+      </section>
+    )
+  }
+
   if (!post) {
     return (
-      <section class="prose">
+      <section class={wrap}>
         <Head title="blog" />
         <p>not found</p>
-        {props.onBack && (
-          <p>
-            <a
-              href="/blog"
-              onClick={(e) => {
-                e.preventDefault()
-                props.onBack!()
-              }}
-            >
-              &lsaquo; back
-            </a>
-          </p>
-        )}
+        {back}
       </section>
     )
   }
@@ -106,23 +124,13 @@ export default function PostPage(props: { path?: string; slug?: string; onBack?:
   const me = (app.state.wallet ?? '').toLowerCase()
 
   return (
-    <section class="prose">
-      <Head title={post.title} url={`/blog/${post.slug}`} />
-      <p>
-        {props.onBack ? (
-          <a
-            href="/blog"
-            onClick={(e) => {
-              e.preventDefault()
-              props.onBack!()
-            }}
-          >
-            &lsaquo; back
-          </a>
-        ) : (
+    <section class={wrap}>
+      {!props.onBack && <Head title={post.title} url={`/blog/${post.slug}`} />}
+      {back || (
+        <p>
           <a href="/blog">blog</a>
-        )}
-      </p>
+        </p>
+      )}
       <h1>{post.title}</h1>
       <p>
         {authorLabel(post.author)} · {new Date(post.created_at).toLocaleDateString()}

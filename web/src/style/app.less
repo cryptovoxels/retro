@@ -741,6 +741,13 @@ section.prose {
   padding: 1rem;
 }
 
+// post opened inside the home sidebar - no max-width column, just flow in the aside
+section.sidebar-post {
+  h1 {
+    font-size: 1.25rem;
+  }
+}
+
 // Grid layout
 
 button.hamburger {
@@ -802,6 +809,9 @@ main:has(.columns.home) {
   }
 
   > aside {
+    // above the fixed embed canvas (z-index 1) so blog links get clicks
+    position: relative;
+    z-index: 3;
     height: 100vh;
     overflow-y: auto;
     box-sizing: border-box;
