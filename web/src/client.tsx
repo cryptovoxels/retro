@@ -13,6 +13,7 @@ type Mode = 'full' | 'embed'
 type FrameProps = {
   coords: string
   mode: Mode
+  path?: string
 }
 
 type FrameState = { ui?: BootResult }
@@ -41,7 +42,8 @@ export class Client extends Component<FrameProps, FrameState> {
     if (previousProps.coords !== this.props.coords && this.props.coords) {
       this.naviport()
     }
-    if (this.props.mode === 'embed' || previousProps.mode !== this.props.mode) {
+    // path change (home -> profile) keeps embed mode but swaps slot; always re-fit
+    if (this.props.mode === 'embed' || previousProps.mode !== this.props.mode || previousProps.path !== this.props.path) {
       this.track()
     }
   }
@@ -50,6 +52,7 @@ export class Client extends Component<FrameProps, FrameState> {
     this.untrack()
     if (this.watch) clearInterval(this.watch)
     this.watch = null
+    document.body.classList.remove('mini-world')
 
     const canvas = document.getElementById('renderCanvas')
     if (canvas && this.box.current?.contains(canvas)) {
@@ -101,12 +104,17 @@ export class Client extends Component<FrameProps, FrameState> {
     const root = this.root.current
     if (!root) return
 
-    // full: .client-world; embed: .client-slot; else #mini-client in the nav
+    // full: .client-world; embed: .client-slot; else #mini-client dock
     const preferred = this.props.mode === 'full' ? '.client-world' : '.client-slot'
+    let slot = document.querySelector(preferred) as HTMLElement | null
+    const mini = !slot
+    if (!slot) slot = document.querySelector('#mini-client') as HTMLElement | null
 
-    const slot = (document.querySelector(preferred) as HTMLElement | null) || (document.querySelector('#mini-client') as HTMLElement | null)
+    // show the dock BEFORE measuring - #mini-client is 0x0 while display:none
+    document.body.classList.toggle('mini-world', !!slot && mini)
 
     if (!slot) {
+      document.body.classList.remove('mini-world')
       if (this.props.mode === 'full') {
         root.style.position = 'fixed'
         root.style.top = '0'
@@ -121,7 +129,8 @@ export class Client extends Component<FrameProps, FrameState> {
     }
 
     const fit = () => {
-      const r = slot.getBoundingClientRect()
+      const r = slot!.getBoundingClientRect()
+      if (mini && (r.width < 2 || r.height < 2)) return
       // fixed + viewport rect so the canvas tracks the push-panel slot as the sidebar opens/closes
       root.style.position = 'fixed'
       root.style.top = `${r.top}px`
@@ -131,7 +140,7 @@ export class Client extends Component<FrameProps, FrameState> {
       root.style.right = 'auto'
       root.style.bottom = 'auto'
 
-      if (slot.id.match(/mini/)) {
+      if (mini) {
         root.classList.add('mini')
         root.title = 'Click to play fullscreen'
       } else {
@@ -144,6 +153,8 @@ export class Client extends Component<FrameProps, FrameState> {
 
     this.fit = fit
     fit()
+    // dock just flipped to display:block - remeasure after layout
+    if (mini) requestAnimationFrame(fit)
     this.observer = new ResizeObserver(fit)
     this.observer.observe(slot)
     window.addEventListener('scroll', fit, true)
