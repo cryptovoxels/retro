@@ -1066,10 +1066,6 @@ div.map {
 
   &.-embed {
     position: absolute;
-
-    canvas {
-      border-radius: 1rem;
-    }
   }
 }
 
@@ -2792,6 +2788,9 @@ main > aside section {
   .chat-messages {
     display: flex;
     flex-direction: column;
+    // anchor to the bottom: when the stack outgrows max-height, old lines
+    // clip off the top instead of the newest message clipping at the input
+    justify-content: flex-end;
     gap: 2px;
     margin-bottom: 2px;
     max-height: 50vh;
