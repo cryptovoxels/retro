@@ -1,0 +1,1370 @@
+# Voxels public read API
+
+The read-only part of the Voxels API. Everything here is unauthenticated GET.
+
+Write routes, sign-in, admin, moderation, livekit, radio, metrics, guest passes and the internal /grid/* routes are deliberately not described.
+
+Most handlers answer with an envelope: `{"success": true, "<field>": ...}`, where `<field>` is plural for a list and singular for one record. A failed lookup answers `{"success": false}`, usually with status 400 and sometimes with 200, so check the flag rather than the status.
+
+Base url is `https://www.voxels.com`. Everything here is a GET and none of it needs a key.
+
+Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not this page.
+
+## what is in here
+
+- parcels, 19 routes
+- womps, 6 routes
+- avatars, 13 routes
+- collectibles, 3 routes
+- collections, 6 routes
+- wearables, 7 routes
+- islands, 3 routes
+- spaces, 3 routes
+- events, 6 routes
+- search, 1 route
+
+## parcels
+
+### GET /api/parcels.json
+
+List parcels, or fetch a batch by id
+
+Without `parcel_ids` this lists minted parcels and each row carries `parcel_users`, `owner`, `suburb` and `hash`. With `parcel_ids` it runs a different query whose rows are narrower (no owner avatar, no suburb, no hash) and whose `y2` is the height, not the top of the box. Ids that are not numbers are dropped rather than rejected.
+
+parameters
+
+- `parcel_ids` (query) array of integer: Repeat once per parcel id.
+- `limit` (query) integer: Only read when `parcel_ids` is absent.
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `parcels` array of `ParcelSummary`
+
+### GET /api/parcels/cached.json
+
+Every visible parcel
+
+The whole visible world in one document, cached hard. `owner` here is a lowercased wallet string, not the avatar object the other parcel routes return.
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `parcels` array of `CachedParcel`
+
+### GET /api/parcels/summary.json
+
+id, address, island and name for every visible parcel
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `parcels` array of object
+    - `id` integer
+    - `address` string or null
+    - `island` string
+    - `name` string or null
+
+### GET /api/parcels/xyz.json
+
+Bounds and geometry only, for every parcel
+
+Includes unminted and invisible parcels. `y2` is the height, not the top of the box.
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `parcels` array of object
+    - `id` integer
+    - `height` number
+    - `geometry` `ParcelGeometry`
+    - `x1` number
+    - `x2` number
+    - `y1` number
+    - `y2` number
+    - `z1` number
+    - `z2` number
+
+### GET /api/parcels/map.json
+
+The map layer's parcel list
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `parcels` array of object
+
+### GET /api/parcels/search.json
+
+Search minted, non-common parcels
+
+`q` matches address, island, parcel name, owner wallet or owner avatar name. A bare wallet or a bare integer take their own code paths. Each row carries `pagination_count`, the total the filter matched.
+
+parameters
+
+- `q` (query, required) string: Missing `q` is a 400.
+- `limit` (query) integer: Capped at 50.
+- `page` (query) integer: Zero-based, multiplied by `limit` for the offset.
+- `sort` (query) string, one of `id`, `name`, `height`, `island`, `distance`, defaults to `id`: Anything else falls back to `id` descending.
+- `asc` (query) string: The string `true` flips the order.
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `parcels` array of `ParcelSummary` plus object
+    - everything in `ParcelSummary`
+    - `pagination_count` integer or string: Total rows the filter matched, before limit.
+- `400` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/parcels/favorites.json
+
+Parcels somebody has favorited
+
+`q` matches the wallet that favorited the parcel, not the parcel itself. Empty `q` matches every wallet, so the default answer is every favorited parcel. The rows come from a join against `favorites` with no grouping, so a parcel favorited by several wallets appears once per favorite.
+
+parameters
+
+- `q` (query) string: Favoriting wallet, matched with `like`. Empty matches all.
+- `limit` (query) integer: No cap. Missing means no limit.
+- `page` (query) integer: Zero-based, multiplied by `limit` for the offset.
+- `sort` (query) string, one of `id`, `name`, `height`, `island`, `suburb`, `distance`, defaults to `id`: Anything else falls back to `id` descending.
+- `asc` (query) string: The string `true` flips the order.
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `parcels` array of `ParcelSummary`
+
+### GET /api/parcels/{id}.json
+
+One parcel with its build
+
+The only parcel route that returns `content`, which holds the voxels, the palette, the tileset and every feature on the plot. A non-numeric id is a 400. A parcel that is neither minted nor visible is a 400 as well.
+
+parameters
+
+- `id` (path, required) integer
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `parcel` `Parcel`
+- `400` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/parcels/{id}.vox
+
+The parcel's build as a MagicaVoxel file
+
+parameters
+
+- `id` (path, required) integer
+
+answers
+
+- `200` `application/octet-stream`, bytes
+- `404` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/parcels/{id}.png
+
+The parcel's tile off the map renderer
+
+parameters
+
+- `id` (path, required) integer
+
+answers
+
+- `200` `image/png`, bytes
+- `404` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/parcels/{id}/query
+
+Re-read the parcel's owner from the contract, then return it
+
+A read with a side effect: it asks the contract who owns the parcel and writes the answer back before answering. The `parcel` it returns is the model object, not the `/api/parcels/{id}.json` shape.
+
+parameters
+
+- `id` (path, required) integer
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `parcel` object
+- `404` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/parcels/by/{wallet}/query
+
+Re-read every parcel a wallet owns
+
+Broken upstream, documented so nobody spends an afternoon on it. The handler parses `req.params.id`, which this route does not declare, so the parse is always NaN and every call answers 404 `{"success": false}` before it reaches the subgraph. Verified against production.
+
+parameters
+
+- `wallet` (path, required) string
+
+answers
+
+- `404` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/parcels/{id}/history.json
+
+Saved versions of a parcel, newest first
+
+parameters
+
+- `id` (path, required) integer
+- `limit` (query) integer
+- `page` (query) integer
+- `asc` (query) string: The string `true` flips the order.
+- `start_date` (query) integer
+- `end_date` (query) integer
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `versions` array of object
+
+### GET /api/parcels/{id}/history-count.json
+
+How many versions a parcel has
+
+parameters
+
+- `id` (path, required) integer
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `info` object
+
+### GET /api/parcels/{id}/history/{version}.json
+
+One saved version of a parcel
+
+parameters
+
+- `id` (path, required) integer
+- `version` (path, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `version` object
+
+### GET /api/parcels/{id}/snapshots.json
+
+Versions the owner marked as snapshots
+
+parameters
+
+- `id` (path, required) integer
+- `autosave` (query) string: The string `include` folds autosaves in.
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `snapshots` array of object
+
+### GET /api/suburbs/{suburb_id}/popular.json
+
+The busiest parcels in a suburb
+
+parameters
+
+- `suburb_id` (path, required) integer
+- `days` (query) integer: Window in days, 7 when absent or unparseable.
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `parcels` array of object
+
+### GET /api/wallet/{address}/parcels.json
+
+Parcels a wallet owns
+
+parameters
+
+- `address` (path, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `parcels` array of object
+
+### GET /api/wallet/{address}/contributing-parcels.json
+
+Parcels a wallet can build on but does not own
+
+parameters
+
+- `address` (path, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `parcels` array of object
+
+## womps
+
+### GET /api/womps.json
+
+The newest womps across the world
+
+A womp is a photograph somebody took in world. Note that the handler reads a `kind` query parameter and then never passes it to the query, so `?kind=broadcast` does nothing.
+
+parameters
+
+- `limit` (query) integer, defaults to `50`
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `womps` array of `Womp`
+- `404` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/womps/{id}.json
+
+One womp
+
+parameters
+
+- `id` (path, required) integer
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `womp` `Womp`
+- `404` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/womps/{id}.jpg
+
+The photograph itself, when it lives in the database
+
+Only womps whose bytes were uploaded to Voxels answer here. The rest are hosted elsewhere and only have `image_url`; `image_supplied` on the womp record tells you which is which.
+
+parameters
+
+- `id` (path, required) integer
+
+answers
+
+- `200` `image/jpeg`, bytes
+- `404` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/womps/at/parcel/{parcelId}.json
+
+Womps taken on one parcel
+
+Reports are filtered out.
+
+parameters
+
+- `parcelId` (path, required) integer
+- `limit` (query) integer, defaults to `50`
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `womps` array of `Womp`
+- `404` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/womps/at/space/{spaceId}.json
+
+Womps taken in one space
+
+parameters
+
+- `spaceId` (path, required) string, a uuid
+- `limit` (query) integer, defaults to `50`
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `womps` array of `Womp`
+- `404` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/womps/by/{wallet}
+
+Womps one citizen took
+
+Matches `womps.author` exactly, so the wallet has to be cased the way it was stored. Reports are filtered out.
+
+parameters
+
+- `wallet` (path, required) string
+- `limit` (query) integer, defaults to `50`
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `womps` array of `Womp`
+- `404` The lookup did not land. Some handlers send this with status 200.
+
+## avatars
+
+### GET /api/avatars/{wallet}.json
+
+One citizen by wallet
+
+parameters
+
+- `wallet` (path, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `avatar` `Avatar`
+- `400` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/avatars/by/{nameOrWallet}.json
+
+One citizen by name or wallet
+
+Both comparisons are case-insensitive.
+
+parameters
+
+- `nameOrWallet` (path, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `avatar` `Avatar`
+- `400` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/avatars/search
+
+Name or wallet substring match, ten at most
+
+The odd one out: it answers with a bare array, no envelope, and an empty `q` gives `[]`.
+
+parameters
+
+- `q` (query) string
+
+answers
+
+- `200` array of object
+  - `name` string or null
+  - `wallet` string
+
+### GET /api/avatars/{wallet}/assets
+
+Wearables this wallet authored
+
+Minted and unsuppressed only. Authorship, not ownership.
+
+parameters
+
+- `wallet` (path, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `assets` array of `Wearable`
+
+### GET /api/avatars/{wallet}/wearables
+
+The collectibles in this citizen's current costume
+
+parameters
+
+- `wallet` (path, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `wearables` array of object
+
+### GET /api/avatars/{wallet}/costume.json
+
+The costume this citizen is wearing
+
+parameters
+
+- `wallet` (path, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `costume` `Costume`
+
+### GET /api/avatars/{wallet}/costumes
+
+Every costume this citizen has saved
+
+parameters
+
+- `wallet` (path, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `costumes` array of `Costume`
+
+### GET /api/avatars/{wallet}/score.json
+
+This citizen's scores
+
+parameters
+
+- `wallet` (path, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `scores` array of object
+
+### GET /api/costumes/{id}
+
+One costume by id
+
+Answers `{"success": true, "costume": null}` for an id that does not exist rather than a 404.
+
+parameters
+
+- `id` (path, required) string, a uuid
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `costume` `Costume`
+
+### GET /api/avatar/{wallet}/name.json
+
+This citizen's display name
+
+parameters
+
+- `wallet` (path, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `name` object
+
+### GET /api/avatar/{wallet}/names
+
+Every name this wallet holds
+
+No `success` on the happy path, just `name` and `names`.
+
+parameters
+
+- `wallet` (path, required) string
+
+answers
+
+- `200` object
+  - `name` string or null
+  - `names` array of string
+- `400` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/names/exists/{name}
+
+Whether a name is taken
+
+parameters
+
+- `name` (path, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `exists` boolean
+
+### GET /api/avatar/owns/{chain_identifier}/{contract}/{token_id}
+
+Whether a wallet holds a token
+
+Rate limited to five calls per thirty seconds per client, because it costs a chain read. A missing or malformed `wallet` answers 200 with `{"success": false}`, not a 400.
+
+parameters
+
+- `chain_identifier` (path, required) string, one of `eth`, `matic`
+- `contract` (path, required) string
+- `token_id` (path, required) string
+- `wallet` (query, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `ownsToken` boolean
+- `400` The lookup did not land. Some handlers send this with status 200.
+- `429` Too many requests
+
+## collectibles
+
+### GET /api/collectibles.json
+
+Search minted collectibles
+
+parameters
+
+- `q` (query) string
+- `page` (query) integer: One-based, and one is subtracted before the query sees it.
+- `sort` (query) string, defaults to `updated_at`
+- `asc` (query) string: The string `true` flips the order.
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `collectibles` array of `Collectible`
+
+### GET /api/collectibles/{uuid}/vox
+
+A collectible's MagicaVoxel model
+
+This is the one way to get a wearable's geometry from the wid on an avatar attachment. The name behind that wid is not resolvable: the attachment carries only the opaque uuid and the shop API is closed. The model is, so a costume can be rebuilt without ever knowing what the pieces are called.
+
+parameters
+
+- `uuid` (path, required) string, a uuid
+
+answers
+
+- `200` `application/octet-stream`, bytes
+- `404` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/collectibles/wearable/{uuid}.json
+
+One wearable by uuid
+
+parameters
+
+- `uuid` (path, required) string, a uuid
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `wearable` `Wearable`
+- `400` The lookup did not land. Some handlers send this with status 200.
+
+## collections
+
+### GET /api/helper/typeOfContract/{chain_identifier}/{contract}
+
+Whether a contract is ERC721 or ERC1155
+
+parameters
+
+- `chain_identifier` (path, required) string, one of `eth`, `matic`
+- `contract` (path, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `type` string or null
+- `400` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/collections
+
+Wearable collections
+
+parameters
+
+- `q` (query) string: Substring match on the collection name.
+- `sort` (query) string, one of `popular`, `newest`, `oldest`, defaults to `popular`
+- `limit` (query) integer, defaults to `15`
+- `page` (query) integer, defaults to `0`: Zero-based.
+- `owner` (query) string: Exact match, so the wallet has to be cased as stored.
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `collections` array of `Collection`
+
+### GET /api/collections/{id}
+
+One collection
+
+parameters
+
+- `id` (path, required) integer
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `collection` `Collection`
+- `400` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/collections/{id}/collectibles
+
+Everything in a collection
+
+parameters
+
+- `id` (path, required) integer
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `collectibles` array of `Collectible`
+
+### GET /api/collections/{collection_id}/collectibles/{token_id}
+
+One collectible by collection id and token id
+
+parameters
+
+- `collection_id` (path, required) integer
+- `token_id` (path, required) integer
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `collectible` `Collectible`
+- `400` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/collections/{chain_identifier}/{collection_address}/c/{token_id}.json
+
+One collectible by chain, contract and token id
+
+An unrecognised chain identifier falls back to ethereum rather than erroring.
+
+parameters
+
+- `chain_identifier` (path, required) string, one of `eth`, `matic`
+- `collection_address` (path, required) string
+- `token_id` (path, required) integer
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `collectible` `Collectible`
+- `400` The lookup did not land. Some handlers send this with status 200.
+
+## wearables
+
+### GET /api/wearables/search
+
+Wearable name substring match, fifty at most
+
+parameters
+
+- `q` (query) string
+
+answers
+
+- `200` `WearablePickList`
+
+### GET /api/wearables/suggest
+
+Thirty wearables, the ones for a given bone first
+
+parameters
+
+- `bone` (query) string: An exact bone name sorts its wearables to the top.
+
+answers
+
+- `200` `WearablePickList`
+
+### GET /api/wearables/free.json
+
+Wearables anyone can put on
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `wearables` array of `Wearable`
+
+### GET /api/wearables/{wearable_id}/vox
+
+A wearable's MagicaVoxel model, by wearable uuid
+
+parameters
+
+- `wearable_id` (path, required) string, a uuid
+
+answers
+
+- `200` `application/octet-stream`, bytes
+- `404` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/wearables/{address}/{token}/vox
+
+A wearable's MagicaVoxel model, by contract and token id
+
+Two-segment sibling of the route above. Express matches whichever arity the request has, so a single segment goes to `{wearable_id}` and two go here. The address is matched case-insensitively against the collection.
+
+parameters
+
+- `address` (path, required) string
+- `token` (path, required) integer
+
+answers
+
+- `200` `application/octet-stream`, bytes
+- `404` The lookup did not land. Some handlers send this with status 200.
+
+### GET /w/{hash}/{format}
+
+A wearable's model by content hash
+
+`format` has to be `vox` or `.vox`; every other value is a 404. The hash has to be longer than 39 characters or the lookup is skipped.
+
+parameters
+
+- `hash` (path, required) string
+- `format` (path, required) string, one of `vox`, `.vox`
+
+answers
+
+- `200` `application/octet-stream`, bytes
+- `404` The lookup did not land. Some handlers send this with status 200.
+
+### GET /c/v2/{chain_identifier}/{collection_address}/{token_id}/{format}
+
+A wearable's model by chain, contract and token id
+
+Same handler as `/w/{hash}/{format}`. `token_id` is read as hex when it looks like hex and as decimal otherwise.
+
+parameters
+
+- `chain_identifier` (path, required) string, one of `eth`, `matic`
+- `collection_address` (path, required) string
+- `token_id` (path, required) string
+- `format` (path, required) string, one of `vox`, `.vox`
+
+answers
+
+- `200` `application/octet-stream`, bytes
+- `400` The lookup did not land. Some handlers send this with status 200.
+- `404` The lookup did not land. Some handlers send this with status 200.
+
+## islands
+
+### GET /api/islands.json
+
+Every island with its shoreline
+
+The heavy one: it carries the shore polygon plus the holes and lakes cut out of it. Use `/api/islands-metadata.json` if you only need names and positions.
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `islands` array of `Island`
+
+### GET /api/islands-metadata.json
+
+Island names and positions
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `islands` array of `IslandMetadata`
+
+### GET /api/islands/{slug}.json
+
+One island and every parcel on it
+
+The slug is the island name lowercased with runs of whitespace turned into single hyphens, so `Origin City` is `origin-city`. `parcels` holds whole property rows.
+
+parameters
+
+- `slug` (path, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `island` object
+    - `id` integer
+    - `name` string
+    - `position` `GeoJsonPoint`
+    - `parcels` array of object
+- `400` The lookup did not land. Some handlers send this with status 200.
+
+## spaces
+
+### GET /api/spaces.json
+
+Browsable spaces
+
+A space is a build that is not pinned to a parcel. Womps can be taken in one.
+
+parameters
+
+- `page` (query) integer, defaults to `1`: One-based.
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `spaces` array of object
+
+### GET /api/spaces/{id}.json
+
+One space with its content
+
+A malformed uuid throws inside the handler and comes back as a 400.
+
+parameters
+
+- `id` (path, required) string, a uuid
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `space` object
+- `400` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/wallet/{address}/spaces.json
+
+Spaces a wallet owns
+
+parameters
+
+- `address` (path, required) string
+- `page` (query) integer, defaults to `1`: One-based.
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `spaces` array of object
+
+## events
+
+### GET /api/events.json
+
+Events people have put on their parcels
+
+answers
+
+- `200` `EventList`
+
+### GET /api/events/on.json
+
+Events happening now or soon
+
+parameters
+
+- `live` (query) string: The string `true` narrows this to what is on right now.
+
+answers
+
+- `200` `EventList`
+
+### GET /api/events/on/{limit}/{page}.json
+
+Paged version of the above
+
+parameters
+
+- `limit` (path, required) integer: Three when it will not parse.
+- `page` (path, required) integer: Zero-based.
+
+answers
+
+- `200` `EventList`
+
+### GET /api/events/{id}.json
+
+One event
+
+parameters
+
+- `id` (path, required) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `event` object
+- `400` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/parcels/{id}/event.json
+
+The event on a parcel
+
+parameters
+
+- `id` (path, required) integer
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `event` object
+- `400` The lookup did not land. Some handlers send this with status 200.
+
+### GET /api/parcels/{id}/events/history.json
+
+Events a parcel has already held
+
+parameters
+
+- `id` (path, required) integer
+
+answers
+
+- `200` `EventList`
+
+## search
+
+### GET /api/search
+
+Full text search across the world
+
+Reads a materialised view that mixes parcels, wearables and the rest, so `type` tells you what each hit is. Fifty results, no paging: `limit` and `page` are fixed in the handler. `q` is lowercased, stripped of percent signs and cut to eighty characters. An empty `q` returns an empty list with `success: true`.
+
+parameters
+
+- `q` (query) string
+
+answers
+
+- `200` object
+  - `success` boolean
+  - `results` array of `SearchResult`
+
+## schemas
+
+The shapes the routes above hand back.
+
+### Failure
+
+- `success` boolean, always `false`
+- `message` string
+
+### AvatarRef
+
+A citizen, or the bare lowercased wallet string when no avatar row matches. Anywhere an owner or author appears, expect either shape, and in the same array: `parcel_users` on a parcel mixes objects and strings.
+
+- string
+- object
+  - `id` string, a uuid
+  - `name` string or null
+  - `owner` string
+  - `created_at` string or null
+
+### GeoJsonPoint
+
+- `type` string, always `Point`
+- `crs` object
+- `coordinates` array of number
+
+### ParcelGeometry
+
+The parcel footprint as GeoJSON, in EPSG:3857, hundredths of the world unit.
+
+- `type` string, always `Polygon`
+- `crs` object
+- `coordinates` array of array of array of number
+
+### ParcelBounds
+
+The parcel's box in metres. x and z are world position, y1 is the floor and y2 the ceiling. Watch out for `y2` on the list routes, where several queries alias `y2 - y1` to `y2` and hand you the height instead.
+
+- `x1` number
+- `x2` number
+- `y1` number
+- `y2` number
+- `z1` number
+- `z2` number
+- `height` number
+
+### ParcelContent
+
+The build. Only `/api/parcels/{id}.json` returns this.
+
+- `voxels` string or null: The structure, as base64 of a zlib stream over a flat little-endian Uint16 grid. Nothing in the payload says how to read it.
+
+  The grid is `((x2-x1)*2, (y2-y1)*2, (z2-z1)*2)`, two voxels to the metre, and it runs z fastest, then y, then x. Read it any other way and the build shears into diagonal ribbons that still fill the right box, which looks like a render bug rather than a decode one. The check that settles the ordering is the ground: every parcel has a full slab at y=0, and only this ordering produces one.
+
+  Each cell is a packed integer. The low five bits are the tile index into the tileset atlas, a 4x4 grid of material textures, so a cell of 0 is empty air. Bits 5 to 7 index `palette`. Bit 15 is set on solid voxels and the mesher ignores it.
+- `palette` array of string or null: Eight hex colours the builder tints the atlas materials with. Null when the builder never touched them, and a missing entry falls back to the default for that slot.
+- `tileset` string or null or boolean: Path to a custom atlas image, relative to the Voxels image host, or null and false for the built-in one.
+- `features` array of `Feature` or null
+- `scripting` string or boolean or null
+- `lightmap_url` string or null
+- `brightness` number or null
+- `environment` string or null
+
+### Feature
+
+Something hung on the plot: an image, screen, sign, text, light, portal, spawn point or collectible model. Voxels are only the structure, so a build with the features stripped out is a grey shell.
+
+`type` is an open set, and the union in the code runs to about thirty members. Read what you know and skip the rest.
+
+- `type` string
+- `uuid` string: Missing on some old features.
+- `position` `Vec3`: Parcel-local metres. x and z are measured from the MIDDLE of the plot, not a corner, so they go negative. y is measured up from the floor.
+- `rotation` `Vec3`: Radians, composed yaw, pitch, roll. Degrees are what a wearable attachment uses, not this.
+- `scale` `Vec3`: For a flat feature such as an image, the rectangle's width and height in metres.
+- `groupId` string or null: The uuid of a `group` feature. Nesting is by reference, not by embedding: the array is flat and a group can name another group as its parent, so walk the chain to get a feature's world transform.
+- `url` string or array of string or object or null: A string, a one-element array or an object with a `url` key, depending on the feature's age.
+- `collidable` boolean
+- `link` string or null
+
+### Vec3
+
+Either a three-element array or an object with x, y and z.
+
+- array of number or null
+- object
+  - `x` number
+  - `y` number
+  - `z` number
+
+### Parcel
+
+One parcel with its build. What `/api/parcels/{id}.json` returns.
+
+- everything in `ParcelBounds`
+- `id` integer
+- `token` integer or null
+- `name` string or null
+- `label` string or null
+- `description` string or null
+- `address` string or null: The street address. About ten parcels have none.
+- `island` string
+- `suburb` string or null
+- `kind` string, one of `plot`, `inner`, `outer`, `unit`, `basement`, `asset`
+- `geometry` `ParcelGeometry`
+- `owner` `AvatarRef`
+- `parcel_users` array of `AvatarRef` or null
+- `content` `ParcelContent`
+- `settings` object or null
+- `lightmap_url` string or null
+- `traffic_visits` integer
+- `distance_to_center` number
+- `distance_to_ocean` number
+- `distance_to_closest_common` number
+- `is_common` boolean
+- `minted` boolean
+- `visible` boolean
+- `updated_at` string
+
+### ParcelSummary
+
+A row from the parcel list routes. No `content`.
+
+- everything in `ParcelBounds`
+- `id` integer
+- `name` string or null
+- `label` string or null
+- `address` string or null
+- `island` string
+- `suburb` string or null
+- `geometry` `ParcelGeometry`
+- `owner` `AvatarRef`
+- `parcel_users` array of object or null
+- `hash` string or null
+- `lightmap_url` string or null
+- `visible` boolean
+- `distance_to_center` number
+- `distance_to_ocean` number
+- `distance_to_closest_common` number
+
+### CachedParcel
+
+A row from `/api/parcels/cached.json`.
+
+- everything in `ParcelBounds`
+- `id` integer
+- `name` string or null
+- `address` string or null
+- `island` string
+- `suburb` string or null
+- `kind` string
+- `geometry` `ParcelGeometry`
+- `owner` string: A lowercased wallet, not an avatar object.
+- `parcel_users` array of object
+  - `wallet` string
+  - `role` string, one of `owner`, `contributor`, `excluded`
+- `hash` string or null
+- `lightmap_url` string or null
+- `settings` object or null
+- `is_common` boolean
+- `visible` boolean
+- `distance_to_center` number
+- `distance_to_ocean` number
+- `distance_to_closest_common` number
+
+### Womp
+
+A photograph somebody took in world.
+
+- `id` integer
+- `author` `AvatarRef`
+- `content` string: The caption.
+- `coords` string: Where the shot was taken, in the same string the play URL uses, for example `SW@3558E,2017S,3U`: heading, then east/west, north/south and an optional height above ground.
+- `parcel_id` integer or null
+- `space_id` string or null
+- `parcel_name` string or null
+- `parcel_address` string or null
+- `parcel_island` string or null
+- `space_name` string or null
+- `image_url` string or null
+- `image_supplied` boolean: True when the bytes are in the database, which is what makes `/api/womps/{id}.jpg` work. False means the picture only lives at `image_url`. Absent on `/api/womps/{id}.json`.
+- `created_at` string
+- `updated_at` string
+
+### Avatar
+
+A citizen.
+
+- `id` string, a uuid
+- `owner` string: The wallet.
+- `name` string or null: The display name, one of `names`.
+- `names` array of string: Every name the wallet holds.
+- `description` string or null
+- `social_link_1` string or null
+- `social_link_2` string or null
+- `moderator` boolean
+- `settings` object or null
+- `costume_id` string or null
+- `costume` `Costume`
+- `home_id` integer or null
+- `created_at` string or null: Pacific/Auckland, not UTC.
+- `last_online` string or null: Pacific/Auckland, not UTC.
+
+### Costume
+
+What a citizen is wearing. `attachments` name a bone and a wearable; an attachment's position and scale are in bone-local space and its rotation is in degrees, which is the opposite of a parcel feature.
+
+- `id` string, a uuid
+- `name` string or null
+- `attachments` array of object
+
+### Wearable
+
+A wearable collectible.
+
+- `id` string, a uuid: The wid. This is what `/api/collectibles/{uuid}/vox` takes.
+- `name` string or null
+- `description` string or null
+- `author` `AvatarRef`
+- `token_id` integer or null: Null until the wearable is minted.
+- `collection_id` integer or null
+- `collection_name` string or null
+- `collection_address` string or null
+- `chain_id` integer or null
+- `category` string or null
+- `default_bone` string or null
+- `default_settings` object or null
+- `custom_attributes` object or null
+- `offer_prices` object or null
+- `issues` integer or null: How many were minted.
+- `is_free` boolean
+- `hash` string or null
+- `suppressed` boolean
+- `rejected_at` string or null
+- `created_at` string or null
+- `updated_at` string or null
+
+### WearablePickList
+
+The trimmed shape the wearable pickers use.
+
+- `success` boolean
+- `wearables` array of object
+  - `id` string, a uuid
+  - `name` string or null
+  - `is_free` boolean
+
+### Collectible
+
+A minted wearable, as the collectible routes return it.
+
+- everything in `Wearable`
+
+### Collection
+
+A wearable collection.
+
+- `id` integer
+- `name` string
+- `description` string or null
+- `image_url` string or null
+- `owner` string or null
+- `address` string or null: The contract. Null for a collection that was never deployed.
+- `slug` string or null
+- `type` string or null: ERC721 or ERC1155.
+- `chainid` integer or null: 1 for ethereum, 137 for polygon.
+- `settings` object or null
+- `suppressed` boolean
+- `rejected_at` string or null
+- `created_at` string or null
+- `total_wearables` integer or string: A count, which postgres hands back as a string on the list route.
+
+### Island
+
+- `id` integer
+- `name` string
+- `texture` string or null
+- `geometry` object: The shoreline, as GeoJSON.
+- `holes_geometry_json` object or null: Land cut out of the island.
+- `lakes_geometry_json` object or null
+- `position` `GeoJsonPoint`
+- `content` object or null
+
+### IslandMetadata
+
+- `id` integer
+- `name` string
+- `other_name` string or null
+- `position` `GeoJsonPoint`
+
+### SearchResult
+
+- `id` string: A parcel id, a wearable uuid and so on, depending on `type`.
+- `name` string or null
+- `type` string: What kind of thing this is, for example `wearable`.
+- `description` string or null
+- `created_at` string or null
+- `rank` number
+
+### EventList
+
+- `success` boolean
+- `events` array of object
