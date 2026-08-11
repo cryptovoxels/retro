@@ -140,7 +140,9 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
 
   if (variant === 'overlay') {
     const now = Date.now()
-    const shown = focused ? msgs : msgs.filter((m) => now - m.timestamp < CHAT_GONE_MS)
+    let shown = focused ? msgs : msgs.filter((m) => now - m.timestamp < CHAT_GONE_MS)
+    // small screens: last 4 lines is plenty, focus recalls the rest
+    if (!focused && isMobile()) shown = shown.slice(-4)
     return (
       <div class={'chat' + (className ? ' ' + className : '')} style={style}>
         <div class={'chat-messages' + (atCap ? ' at-cap' : '')}>
