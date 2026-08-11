@@ -49,7 +49,7 @@ export default function Blog(_props: { path?: string }) {
   }
 
   return (
-    <section>
+    <section class="prose">
       <Head title="blog" url="/blog" />
       <h1>blog</h1>
 

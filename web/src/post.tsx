@@ -25,16 +25,18 @@ function authorWallet(author: Author) {
   return String(author ?? '').toLowerCase()
 }
 
-export default function PostPage(props: { path?: string; slug?: string }) {
+export default function PostPage(props: { path?: string; slug?: string; onBack?: () => void }) {
   const slug = props.slug ?? ''
   const [post, setPost] = useState<Post | null>(null)
   const [comments, setComments] = useState<Comment[]>([])
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
+  const [loading, setLoading] = useState(!!slug)
   const [, tick] = useState(0)
 
   const load = () => {
     if (!slug) return
+    setLoading(true)
     cachedFetch(`/api/posts/${slug}.json`, fetchOptions(undefined, undefined, true))
       .then((r) => r.json())
       .then((d) => {
@@ -46,6 +48,7 @@ export default function PostPage(props: { path?: string; slug?: string }) {
         setComments(d.comments || [])
       })
       .catch(() => setPost(null))
+      .finally(() => setLoading(false))
   }
 
   useEffect(() => {
@@ -80,11 +83,39 @@ export default function PostPage(props: { path?: string; slug?: string }) {
     load()
   }
 
+  const back = props.onBack && (
+    <p>
+      <a
+        href="/blog"
+        onClick={(e) => {
+          e.preventDefault()
+          e.stopPropagation()
+          props.onBack!()
+        }}
+      >
+        &lsaquo; back
+      </a>
+    </p>
+  )
+
+  // sidebar embed: skip the full-page prose column so it fits the home aside
+  const wrap = props.onBack ? 'sidebar-post' : 'prose'
+
+  if (loading) {
+    return (
+      <section class={wrap}>
+        {back}
+        <p>loading...</p>
+      </section>
+    )
+  }
+
   if (!post) {
     return (
-      <section>
+      <section class={wrap}>
         <Head title="blog" />
         <p>not found</p>
+        {back}
       </section>
     )
   }
@@ -93,11 +124,13 @@ export default function PostPage(props: { path?: string; slug?: string }) {
   const me = (app.state.wallet ?? '').toLowerCase()
 
   return (
-    <section>
-      <Head title={post.title} url={`/blog/${post.slug}`} />
-      <p>
-        <a href="/blog">blog</a>
-      </p>
+    <section class={wrap}>
+      {!props.onBack && <Head title={post.title} url={`/blog/${post.slug}`} />}
+      {back || (
+        <p>
+          <a href="/blog">blog</a>
+        </p>
+      )}
       <h1>{post.title}</h1>
       <p>
         {authorLabel(post.author)} · {new Date(post.created_at).toLocaleDateString()}

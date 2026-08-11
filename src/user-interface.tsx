@@ -126,7 +126,6 @@ type UserInterfaceState = {
   hover?: string
   signedIn: boolean
   wallet: string | null
-  fullscreen: boolean
   settingsVisible?: boolean
   personaVisible?: boolean
   currentOrNearestParcel: Parcel | null
@@ -194,7 +193,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       enabled: props.enabled,
       signedIn: app?.signedIn ?? false,
       wallet: app?.state.wallet ?? null,
-      fullscreen: false,
       currentOrNearestParcel: null,
       active: false,
       onlineCount: 0,
@@ -219,10 +217,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     if (signedIn && this.state.pane === 'login') {
       this.setState({ pane: undefined, active: false })
     }
-  }
-
-  refreshFullscreen = () => {
-    this.setState({ fullscreen: !!document.fullscreenElement })
   }
 
   setDragging = (v: boolean) => this.setState({ dragging: v })
@@ -302,7 +296,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   componentDidMount() {
     app.on(AppEvent.Change, this.onAppChange)
-    document.addEventListener('fullscreenchange', this.refreshFullscreen)
     document.addEventListener('pointerlockchange', this.onPointerLockChange)
     if (isMobileMedia()) {
       this.canvas.addEventListener('touchstart', () => {
@@ -369,7 +362,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.presenceEs?.close()
     this.presenceEs = null
     app.removeListener(AppEvent.Change, this.onAppChange)
-    document.removeEventListener('fullscreenchange', this.refreshFullscreen)
     document.removeEventListener('pointerlockchange', this.onPointerLockChange)
     chatSettings.removeEventListener('changed', this.onChatSettingsChange)
     voiceSettings.removeEventListener('changed', this.onVoiceSettingsChange)
@@ -840,12 +832,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.setState({ enabled: true })
   }
 
-  enterFullScreen = () => {
-    // body, not canvas — keeps in-world UI visible (see body:fullscreen CSS)
-    void document.body.requestFullscreen?.()
-    requestPointerLock()
-  }
-
   render() {
     if (!this.state.enabled) {
       return <Fragment />
@@ -887,9 +873,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           {!isMobileMedia() && (
             <div class="top-right">
-              <button type="button" title="Fullscreen" onClick={this.enterFullScreen}>
-                ⌞ ⌝
-              </button>
               <WompButton onClick={() => this.takeWomp(this.props.scene)} />
             </div>
           )}
@@ -897,6 +880,13 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           <aside data-active={this.state.active}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
+              {!this.state.signedIn && (
+                <li class={active('login')}>
+                  <a href="#login" onMouseOver={onHover('login')} onClick={onClick('login')}>
+                    Login
+                  </a>
+                </li>
+              )}
               <li class={active('explorer')}>
                 <a href="#explorer" onMouseOver={onHover('explorer')} onClick={onClick('explorer')}>
                   Explore
@@ -913,32 +903,36 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   Dance
                 </a>
               </li>
-              <li class={active('add', !canEdit)}>
-                <a title="Add things to your thing" href="#add" onMouseOver={onHover('add')} onClick={onClick('add')} accessKey="a">
-                  Add
-                </a>
-              </li>
-              <li class={active('parcelSnapshots', !canEdit)}>
-                <a href="#snapshots" onMouseOver={onHover('parcelSnapshots')} onClick={onClick('parcelSnapshots')}>
-                  Shots
-                </a>
-              </li>
-              <li class={active('edit', !canEdit)}>
-                <a href="#edit" onMouseOver={onHover('edit')} onClick={onClick('edit')}>
-                  Edit
-                </a>
-              </li>
-              <li class={active('voxels', !canEdit)}>
-                <a href="#voxels" onMouseOver={onHover('voxels')} onClick={onClick('voxels')}>
-                  Voxels
-                </a>
-              </li>
+              {this.state.signedIn && (
+                <>
+                  <li class={active('add', !canEdit)}>
+                    <a title="Add things to your thing" href="#add" onMouseOver={onHover('add')} onClick={onClick('add')} accessKey="a">
+                      Add
+                    </a>
+                  </li>
+                  <li class={active('parcelSnapshots', !canEdit)}>
+                    <a href="#snapshots" onMouseOver={onHover('parcelSnapshots')} onClick={onClick('parcelSnapshots')}>
+                      Shots
+                    </a>
+                  </li>
+                  <li class={active('edit', !canEdit)}>
+                    <a href="#edit" onMouseOver={onHover('edit')} onClick={onClick('edit')}>
+                      Edit
+                    </a>
+                  </li>
+                  <li class={active('voxels', !canEdit)}>
+                    <a href="#voxels" onMouseOver={onHover('voxels')} onClick={onClick('voxels')}>
+                      Voxels
+                    </a>
+                  </li>
 
-              <li class={active('bake', !canEdit)}>
-                <a href="#bake" onMouseOver={onHover('bake')} accessKey="b" onClick={onClick('bake')}>
-                  <kbd>B</kbd>ake
-                </a>
-              </li>
+                  <li class={active('bake', !canEdit)}>
+                    <a href="#bake" onMouseOver={onHover('bake')} accessKey="b" onClick={onClick('bake')}>
+                      <kbd>B</kbd>ake
+                    </a>
+                  </li>
+                </>
+              )}
 
               {this.state.voiceEnabled && (
                 <li title="Microphone">

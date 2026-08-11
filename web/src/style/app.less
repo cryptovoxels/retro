@@ -602,8 +602,9 @@ header:has(nav) {
   }
 }
 
-// floating menu button (sibling of header - never clipped by drawer transform)
-main > .site-nav-toggle {
+// floating menu button (sibling of header - never clipped by drawer transform).
+// button.site-nav-toggle: outrank button.hamburger's background:none, we're over the canvas
+main > button.site-nav-toggle {
   position: fixed;
   left: max(1rem, env(safe-area-inset-left, 0px));
   top: max(0.5rem, env(safe-area-inset-top, 0px));
@@ -728,8 +729,23 @@ header nav img.logo {
 main {
   max-width: 2000px;
   margin: 0 auto;
-  // clear the fixed menu button
-  padding-top: 2.5rem;
+  // clear the fixed menu button; side padding was lost when the left nav
+  // column became a hamburger drawer - without it every page jams the edge
+  padding: 2.5rem 1rem 1rem;
+}
+
+// blog list + posts: a readable column, not text jammed against the viewport edge
+section.prose {
+  max-width: 42rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+// post opened inside the home sidebar - no max-width column, just flow in the aside
+section.sidebar-post {
+  h1 {
+    font-size: 1.25rem;
+  }
 }
 
 // Grid layout
@@ -778,6 +794,41 @@ button.hamburger {
   }
 }
 
+// home: the world bleeds to the viewport edges like /play, so the floating
+// menu button sits over the canvas. the sidebar X routes to /play proper.
+main:has(.columns.home) {
+  max-width: none;
+  padding: 0;
+}
+
+.columns.home {
+  gap: 0;
+
+  > article {
+    padding: 0;
+  }
+
+  > aside {
+    // above the fixed embed canvas (z-index 1) so blog links get clicks
+    position: relative;
+    z-index: 3;
+    height: 100vh;
+    overflow-y: auto;
+    box-sizing: border-box;
+    padding: 0.5rem 1rem 1rem;
+
+    .sidebar-close {
+      float: right;
+      cursor: pointer;
+      background: var(--bg);
+      border: none;
+      color: var(--fg);
+      font-weight: bold;
+      padding: 0.25rem 0.5rem;
+    }
+  }
+}
+
 @media @narrow {
   article {
     background: none;
@@ -791,6 +842,10 @@ button.hamburger {
     & > aside {
       width: 100%;
     }
+  }
+
+  .columns.home > aside {
+    height: auto;
   }
 }
 
@@ -1029,10 +1084,6 @@ div.map {
 
   &.-embed {
     position: absolute;
-
-    canvas {
-      border-radius: 1rem;
-    }
   }
 }
 
@@ -2755,6 +2806,9 @@ main > aside section {
   .chat-messages {
     display: flex;
     flex-direction: column;
+    // anchor to the bottom: when the stack outgrows max-height, old lines
+    // clip off the top instead of the newest message clipping at the input
+    justify-content: flex-end;
     gap: 2px;
     margin-bottom: 2px;
     max-height: 50vh;
@@ -3979,7 +4033,7 @@ button.TakeWompButton {
   z-index: 1000;
 }
 
-// desktop: sits in .top-right under fullscreen, not over it
+// desktop: sits in .top-right
 .top-right .womp-button {
   position: static;
   z-index: auto;
@@ -4936,8 +4990,23 @@ div.css-icon {
   }
 }
 
+// map is full-bleed like home / play
+main:has(.worldmap) {
+  padding: 0;
+  max-width: none;
+}
+
 .worldmap {
-  height: calc(100vh - 1rem);
+  height: 100vh;
+  position: relative;
+}
+
+// clear the fixed hamburger (same ~3.5rem offset as the play sidebar pills)
+.map-for-sale-cta {
+  position: absolute;
+  top: calc(3.5rem + env(safe-area-inset-top, 0px));
+  left: max(1rem, env(safe-area-inset-left, 0px));
+  z-index: 5;
 }
 
 .for-sale-pin {
@@ -4949,13 +5018,49 @@ div.css-icon {
   box-shadow: 3px 3px 3px rgba(0, 0, 0, 0.2);
 }
 
-#mini-client {
-  margin-top: 1rem;
-  height: 7rem;
-  cursor: pointer;
+.mini-client-dock {
+  display: none;
+  position: fixed;
+  left: 1rem;
+  bottom: 1rem;
+  z-index: 40;
+  width: 12rem;
+
+  .mini-close {
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 2;
+    translate: 40% -40%;
+    cursor: pointer;
+    background: var(--bg);
+    border: none;
+    color: var(--fg);
+    font-weight: bold;
+    padding: 0.15rem 0.45rem;
+    pointer-events: auto;
+  }
+
+  #mini-client {
+    height: 7rem;
+    cursor: pointer;
+    background: var(--bg);
+  }
+}
+
+// Client toggles body.mini-world when parking on #mini-client (must be visible before measure)
+body.mini-world .mini-client-dock {
+  display: block;
+}
+
+// parked on a normal page - let the profile/blog scroll; in-world overflow:hidden was clipping it
+body.in-world.mini-world {
+  overflow: auto;
 }
 
 .mini {
+  cursor: pointer;
+
   .UserInterface {
     display: none;
   }

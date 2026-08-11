@@ -6,7 +6,8 @@ import { PanelType } from './components/panel'
 import { app, AppEvent } from './state'
 import { CubeIcon } from './components/icons/icons'
 import VoxelRadio from './components/voxel-radio'
-import { getCoords, withCoords, routeWithCoords } from './helpers/coords-nav'
+import { getCoords, withCoords, routeWithCoords, notifyUrlChange } from './helpers/coords-nav'
+import { route } from 'preact-router'
 import cachedFetch from './helpers/cached-fetch'
 import { messageList } from '../../src/connector'
 
@@ -158,6 +159,16 @@ export default class WebHeader extends Component<Props, State> {
     routeWithCoords('/play')
   }
 
+  onMiniClose = (e: Event) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const u = new URL(location.href)
+    u.searchParams.delete('coords')
+    u.searchParams.delete('parcel')
+    route(u.pathname + u.search)
+    notifyUrlChange()
+  }
+
   render() {
     const signedIn = app.signedIn
     const admin = app.isAdmin()
@@ -249,13 +260,16 @@ export default class WebHeader extends Component<Props, State> {
                   </form>
                 </div>
               </li>
-
-              <li>
-                <div onClick={this.onMiniClick} id="mini-client"></div>
-              </li>
             </ul>
           </nav>
         </header>
+        {/* parked world when you leave /play with coords still in the URL - click expands, X drops coords */}
+        <div class="mini-client-dock">
+          <button type="button" class="mini-close" title="Close world" onClick={this.onMiniClose}>
+            &times;
+          </button>
+          <div id="mini-client" onClick={this.onMiniClick} />
+        </div>
       </>
     )
   }

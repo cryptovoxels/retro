@@ -111,8 +111,15 @@ const CHAT_GONE_MS = 18000
 
 export function ChatPanel({ cap, variant = 'page', class: className, style }: { cap: number; variant?: 'overlay' | 'page'; class?: string; style?: string }) {
   const [, bump] = useState(0)
-  const [focused, setFocused] = useState(false)
+  const [focused, setFocusedRaw] = useState(false)
   const box = useRef<HTMLDivElement>(null)
+  // leaving the input restarts the age-out clock so the recalled history
+  // fades out instead of vanishing the moment you hit Enter
+  const blurAt = useRef(0)
+  const setFocused = (f: boolean) => {
+    if (!f) blurAt.current = Date.now()
+    setFocusedRaw(f)
+  }
 
   useEffect(() => {
     return effect(() => {
@@ -140,7 +147,8 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
 
   if (variant === 'overlay') {
     const now = Date.now()
-    let shown = focused ? msgs : msgs.filter((m) => now - m.timestamp < CHAT_GONE_MS)
+    const age = (m: ChatMessageRecord) => now - Math.max(m.timestamp, blurAt.current)
+    let shown = focused ? msgs : msgs.filter((m) => age(m) < CHAT_GONE_MS)
     // small screens: last 4 lines is plenty, focused or not - the keyboard
     // leaves no room for the full backlog
     if (isMobile()) shown = shown.slice(-4)
@@ -148,7 +156,7 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
       <div class={'chat' + (className ? ' ' + className : '')} style={style}>
         <div class={'chat-messages' + (atCap ? ' at-cap' : '')}>
           {shown.map((m) => (
-            <p key={m.timestamp} class={!focused && now - m.timestamp > CHAT_FADE_MS ? 'faded' : undefined}>
+            <p key={m.timestamp} class={!focused && age(m) > CHAT_FADE_MS ? 'faded' : undefined}>
               <span class="chat-who">{chatName(m)}</span>
               {': '}
               <ChatText text={m.text} />

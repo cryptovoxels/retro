@@ -90,8 +90,9 @@ export class Contributor extends Component<Props, State> {
     }
 
     const showTheseMany = 10
+    const total = this.state.contributorsParcels.length
     const contributorsParcels = this.getContributorsParcelsSorted()
-      .slice(0, this.state.showAll ? this.state.contributorsParcels.length : showTheseMany)
+      .slice(0, this.state.showAll ? total : showTheseMany)
       .map((p: any) => <PropertyItem record={p} helper={new ParcelHelper(p)} />)
 
     if (contributorsParcels.length === 0) return null
@@ -102,6 +103,19 @@ export class Contributor extends Component<Props, State> {
         <table class="parcels">
           <tbody>{contributorsParcels}</tbody>
         </table>
+        {total > showTheseMany && (
+          <p>
+            <a
+              href="#"
+              onClick={(e) => {
+                e.preventDefault()
+                this.toggleShowAll()
+              }}
+            >
+              {this.state.showAll ? 'show less' : `see all ${total}`}
+            </a>
+          </p>
+        )}
       </>
     )
   }
