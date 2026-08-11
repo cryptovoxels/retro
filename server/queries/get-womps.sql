@@ -16,5 +16,6 @@ select womps.id,
 from womps
          left join
      properties on womps.parcel_id = properties.id
+where womps.kind = any($2)
 order by id desc limit
   $1;

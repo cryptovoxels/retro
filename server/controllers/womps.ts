@@ -19,7 +19,7 @@ export default function WompsController(db: Db, passport: PassportStatic, app: E
       noCache(res)
       return res.status(404).json({ success: false, message: 'not found' })
     }
-    createRequestHandlerForQuery(db, 'get-womps', 'womps', () => [limit])(req, res)
+    createRequestHandlerForQuery(db, 'get-womps', 'womps', () => [limit, kinds])(req, res)
   })
 
   app.get('/api/womps/at/parcel/:parcelId.json', cache('60 seconds'), (req, res) => {
