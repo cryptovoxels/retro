@@ -82,7 +82,7 @@ export default function PostPage(props: { path?: string; slug?: string }) {
 
   if (!post) {
     return (
-      <section>
+      <section class="prose">
         <Head title="blog" />
         <p>not found</p>
       </section>
@@ -93,7 +93,7 @@ export default function PostPage(props: { path?: string; slug?: string }) {
   const me = (app.state.wallet ?? '').toLowerCase()
 
   return (
-    <section>
+    <section class="prose">
       <Head title={post.title} url={`/blog/${post.slug}`} />
       <p>
         <a href="/blog">blog</a>
