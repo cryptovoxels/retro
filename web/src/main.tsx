@@ -135,7 +135,7 @@ const Main = () => {
         {!lightBroadcast && !showClient && <Footer />}
       </main>
 
-      {showClient && <Client coords={coords} mode={embed ? 'embed' : 'full'} />}
+      {showClient && <Client coords={coords} mode={embed ? 'embed' : 'full'} path={currentPath} />}
 
       <Snackbar />
     </MainApp>

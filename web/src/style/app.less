@@ -5029,9 +5029,14 @@ main:has(.worldmap) {
   }
 }
 
-// only when the world is parked (coords on a page with no full/embed slot)
-body.in-world:not(:has(.client-world)):not(:has(.client-slot)) .mini-client-dock {
+// Client toggles body.mini-world when parking on #mini-client (must be visible before measure)
+body.mini-world .mini-client-dock {
   display: block;
+}
+
+// parked on a normal page - let the profile/blog scroll; in-world overflow:hidden was clipping it
+body.in-world.mini-world {
+  overflow: auto;
 }
 
 .mini {
