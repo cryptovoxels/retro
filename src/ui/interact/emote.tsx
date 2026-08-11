@@ -5,6 +5,7 @@ import Connector from '../../connector'
 import Persona from '../../persona'
 import { EmoteAnimation } from '../../states'
 import type UserInterface from '../../user-interface'
+import { focusFirst, onListArrowKeys } from '../keynav'
 
 interface Props {
   onClose?: () => void
@@ -54,6 +55,7 @@ export class EmoteOverlay extends Component<Props, any> {
 
   componentDidMount() {
     this.persona.onAnimationChanged.add(this.onAnimationChanged)
+    focusFirst(this.base as HTMLElement, '[tabindex]')
   }
 
   componentWillUnmount() {
@@ -89,7 +91,7 @@ export class EmoteOverlay extends Component<Props, any> {
 
   render() {
     return (
-      <section class="emote">
+      <section class="emote" onKeyDown={onListArrowKeys}>
         <h2>Dance</h2>
 
         <div class="AnimateList">
