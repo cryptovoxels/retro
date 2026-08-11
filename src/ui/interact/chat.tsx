@@ -104,8 +104,14 @@ function chatName(m: ChatMessageRecord) {
   return avatar?.name || 'anon'
 }
 
+// game-HUD chat: messages show briefly then fade so the world stays visible.
+// Focusing the input recalls the full recent history while you type.
+const CHAT_FADE_MS = 15000
+const CHAT_GONE_MS = 18000
+
 export function ChatPanel({ cap, variant = 'page', class: className, style }: { cap: number; variant?: 'overlay' | 'page'; class?: string; style?: string }) {
   const [, bump] = useState(0)
+  const [focused, setFocused] = useState(false)
   const box = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -114,6 +120,13 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
       bump((n) => n + 1)
     })
   }, [])
+
+  // ticker so messages age out without new ones arriving
+  useEffect(() => {
+    if (variant !== 'overlay') return
+    const t = setInterval(() => bump((n) => n + 1), 3000)
+    return () => clearInterval(t)
+  }, [variant])
 
   useEffect(() => {
     if (variant !== 'page') return
@@ -126,18 +139,20 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
   const atCap = messageList.value.length >= cap
 
   if (variant === 'overlay') {
+    const now = Date.now()
+    const shown = focused ? msgs : msgs.filter((m) => now - m.timestamp < CHAT_GONE_MS)
     return (
       <div class={'chat' + (className ? ' ' + className : '')} style={style}>
         <div class={'chat-messages' + (atCap ? ' at-cap' : '')}>
-          {msgs.map((m, i) => (
-            <p key={i}>
+          {shown.map((m) => (
+            <p key={m.timestamp} class={!focused && now - m.timestamp > CHAT_FADE_MS ? 'faded' : undefined}>
               <span class="chat-who">{chatName(m)}</span>
               {': '}
               <ChatText text={m.text} />
             </p>
           ))}
         </div>
-        <ChatInput />
+        <ChatInput onFocusChange={setFocused} />
       </div>
     )
   }
@@ -265,7 +280,7 @@ const CongaText = ({ text }: { text: string }) => {
   return <SlashCongaLinks text={text} />
 }
 
-const ChatInput = ({ keepFocus }: { keepFocus?: boolean }) => {
+const ChatInput = ({ keepFocus, onFocusChange }: { keepFocus?: boolean; onFocusChange?: (focused: boolean) => void }) => {
   const [currentMessage, setMessage] = useState<string>('')
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -325,7 +340,18 @@ const ChatInput = ({ keepFocus }: { keepFocus?: boolean }) => {
   return (
     <div>
       <form onSubmit={say}>
-        <input type="text" onKeyDown={onChatKeydown} onBlur={() => isMobile() && resetMobileViewportLayout()} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} ref={inputRef} />
+        <input
+          type="text"
+          onKeyDown={onChatKeydown}
+          onFocus={() => onFocusChange?.(true)}
+          onBlur={() => {
+            onFocusChange?.(false)
+            isMobile() && resetMobileViewportLayout()
+          }}
+          value={currentMessage}
+          onChange={(e: any) => setMessage(e.target.value)}
+          ref={inputRef}
+        />
         <button type="submit">Send</button>
       </form>
     </div>
