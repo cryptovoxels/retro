@@ -1,6 +1,7 @@
 import { Component, createRef } from 'preact'
 import { route } from 'preact-router'
 import { canUseDom } from '../../common/helpers/utils'
+import { wantsNoUI } from '../../common/helpers/detector'
 import { getCoords, notifyUrlChange, syncParcelUrl, routeWithCoords } from './helpers/coords-nav'
 import type { BootResult } from '../../src'
 
@@ -197,7 +198,7 @@ export class Client extends Component<FrameProps, FrameState> {
     return (
       <div class={`client -${this.props.mode}`} ref={this.root} onClick={this.onRootClick}>
         <div class="client-canvas" ref={this.box} />
-        {ui && <ui.UI {...ui.props} />}
+        {ui && !wantsNoUI() && <ui.UI {...ui.props} />}
       </div>
     )
   }

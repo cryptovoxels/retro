@@ -1,4 +1,4 @@
-import { isDesktop, isMobile } from '../../common/helpers/detector'
+import { isDesktop, isMobile, wantsNoUI } from '../../common/helpers/detector'
 import { User } from '../user'
 import { decodeCoordsFromURL } from '../utils/helpers'
 import { encodeCoords } from '../../common/helpers/utils'
@@ -202,7 +202,7 @@ export default abstract class Controls implements IControls {
     this.reticuleChannels = reticule.channels
     this.reticuleRoot.parent = this.camera
 
-    if (isDesktop()) {
+    if (isDesktop() && !wantsNoUI()) {
       this.scene.onBeforeRenderObservable.add(() => {
         this.tickReticuleSpin()
       })
