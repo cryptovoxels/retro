@@ -45,10 +45,10 @@ export default class WorldMap extends Component<Props, State> {
     return new URLSearchParams(document.location.search.substring(1))
   }
 
-  get coords(): { x: number; z: number } | undefined {
+  get coords(): { x: number; z: number; yaw: number } | undefined {
     if (this.queryParams.get('coords')) {
-      const { position } = decodeCoords(this.queryParams.get('coords'))
-      return { x: position.x, z: position.z }
+      const { position, rotation } = decodeCoords(this.queryParams.get('coords'))
+      return { x: position.x, z: position.z, yaw: rotation?.y ?? 0 }
     }
   }
 
@@ -71,7 +71,15 @@ export default class WorldMap extends Component<Props, State> {
     })
 
     if (this.coords) {
-      this.map.setView(this.coords.x, this.coords.z, DETAIL_ORTHO)
+      // center on you, but keep the wide page zoom - DETAIL_ORTHO is for shop parcel focus
+      this.map.setView(this.coords.x, this.coords.z, PAGE_ORTHO)
+      const you = this.map.addMarker({
+        x: this.coords.x,
+        z: this.coords.z,
+        className: 'map-you-arrow',
+        title: 'You are here!',
+      })
+      you.setRotation((this.coords.yaw * 180) / Math.PI)
     } else if (this.props.onForSaleSelect) {
       this.map.setView(0, 0, SHOP_LIST_ORTHO)
       this.forSaleViewInitialized = true
