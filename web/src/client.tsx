@@ -1,7 +1,7 @@
 import { Component, createRef } from 'preact'
 import { route } from 'preact-router'
 import { canUseDom } from '../../common/helpers/utils'
-import { getCoords, notifyUrlChange, syncParcelUrl } from './helpers/coords-nav'
+import { getCoords, notifyUrlChange, syncParcelUrl, routeWithCoords } from './helpers/coords-nav'
 import type { BootResult } from '../../src'
 
 function boot(): Promise<BootResult> {
@@ -133,8 +133,10 @@ export class Client extends Component<FrameProps, FrameState> {
 
       if (slot.id.match(/mini/)) {
         root.classList.add('mini')
+        root.title = 'Click to play fullscreen'
       } else {
         root.classList.remove('mini')
+        root.title = ''
       }
 
       window.engine?.resize()
@@ -172,10 +174,17 @@ export class Client extends Component<FrameProps, FrameState> {
     })
   }
 
+  private onRootClick = () => {
+    // fixed canvas covers #mini-client, so expand has to live on the client root
+    if (!this.root.current?.classList.contains('mini')) return
+    if (!window.connector) return
+    routeWithCoords('/play')
+  }
+
   render() {
     const ui = this.state.ui
     return (
-      <div class={`client -${this.props.mode}`} ref={this.root}>
+      <div class={`client -${this.props.mode}`} ref={this.root} onClick={this.onRootClick}>
         <div class="client-canvas" ref={this.box} />
         {ui && <ui.UI {...ui.props} />}
       </div>
