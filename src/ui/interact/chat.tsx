@@ -155,12 +155,7 @@ export function ChatPanel({ cap, variant = 'page', class: className, style, onHi
             </p>
           ))}
         </div>
-        <ChatInput />
-        {onHide && (
-          <button class="chat-toggle" onClick={onHide}>
-            hide chat
-          </button>
-        )}
+        <ChatInput onHide={onHide} />
       </div>
     )
   }
@@ -288,7 +283,7 @@ const CongaText = ({ text }: { text: string }) => {
   return <SlashCongaLinks text={text} />
 }
 
-const ChatInput = ({ keepFocus }: { keepFocus?: boolean }) => {
+const ChatInput = ({ keepFocus, onHide }: { keepFocus?: boolean; onHide?: () => void }) => {
   const [currentMessage, setMessage] = useState<string>('')
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -307,7 +302,16 @@ const ChatInput = ({ keepFocus }: { keepFocus?: boolean }) => {
 
   // Mobile guests chat from the broadcast dock when live (panel covers this UI). Desktop guests use normal chat here.
   if (app.state.wallet?.startsWith('guest:') && isMobile()) {
-    return <small style="padding: 0 0.5rem; color: #888">chat in the broadcast panel</small>
+    return (
+      <div>
+        <small style="padding: 0 0.5rem; color: #888">chat in the broadcast panel</small>
+        {onHide && (
+          <button type="button" class="chat-toggle" onClick={onHide}>
+            hide
+          </button>
+        )}
+      </div>
+    )
   }
 
   const say = (e: Event) => {
@@ -350,6 +354,11 @@ const ChatInput = ({ keepFocus }: { keepFocus?: boolean }) => {
       <form onSubmit={say}>
         <input type="text" onKeyDown={onChatKeydown} onBlur={() => isMobile() && resetMobileViewportLayout()} value={currentMessage} onChange={(e: any) => setMessage(e.target.value)} ref={inputRef} />
         <button type="submit">Send</button>
+        {onHide && (
+          <button type="button" class="chat-toggle" onClick={onHide}>
+            hide
+          </button>
+        )}
       </form>
     </div>
   )
