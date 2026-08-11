@@ -2887,14 +2887,14 @@ main > aside section {
     margin: 0;
     padding: 10px;
     list-style: none;
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
+    display: flex;
+    flex-direction: column;
 
     li {
       margin: 0;
       padding: 10px 0;
       cursor: pointer;
-      text-align: center;
+      text-align: left;
       width: 100%;
 
       > i {
@@ -2953,8 +2953,8 @@ main > aside section {
 }
 
 .UserInterface aside .AnimateList ul {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  display: flex;
+  flex-direction: column;
   gap: 0.5rem;
 
   li:hover {

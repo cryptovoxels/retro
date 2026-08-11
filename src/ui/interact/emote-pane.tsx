@@ -2,7 +2,7 @@ import { Component } from 'preact'
 import { Emotes } from '../../../common/messages/constant'
 import Connector from '../../connector'
 import type UserInterface from '../../user-interface'
-import { focusFirst, onListArrowKeys } from '../keynav'
+import { focusFirst, onGridArrowKeys } from '../keynav'
 
 export class EmotePane extends Component {
   get connector(): Connector {
@@ -29,7 +29,7 @@ export class EmotePane extends Component {
 
   render() {
     return (
-      <section class="emote" onKeyDown={onListArrowKeys}>
+      <section class="emote" onKeyDown={onGridArrowKeys}>
         <h2>Emote</h2>
 
         <div class="EmoteList">
