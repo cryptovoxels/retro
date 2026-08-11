@@ -64,6 +64,9 @@ export class HelpOverlay extends Component<Props> {
               <span>T</span> Emote
             </li>
             <li>
+              <span>/e dance</span> Dance by name
+            </li>
+            <li>
               <span>P</span> Capture Womp
             </li>
           </ul>

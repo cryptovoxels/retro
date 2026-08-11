@@ -5,6 +5,7 @@ import Persona from '../../persona'
 import { EmoteAnimation } from '../../states'
 import type UserInterface from '../../user-interface'
 import { focusFirst, onListArrowKeys } from '../keynav'
+import { dances } from './dances'
 
 export class DancePane extends Component<any, any> {
   constructor() {
@@ -23,26 +24,6 @@ export class DancePane extends Component<any, any> {
     return this.connector.persona
   }
 
-  get animations() {
-    return [
-      { name: 'Idle', animation: null },
-      { name: 'Wave', animation: Animations.Wave },
-      { name: 'Dance', animation: Animations.Dance },
-      { name: 'Sitting', animation: Animations.Sitting },
-      { name: 'Spin', animation: Animations.Spin },
-      { name: 'Savage', animation: Animations.Savage },
-      { name: 'Uprock', animation: Animations.Uprock },
-      { name: 'Floss', animation: Animations.Floss },
-      { name: 'Backflip', animation: Animations.Backflip },
-      { name: 'Celebrate', animation: Animations.Celebration },
-      { name: 'Orange', animation: Animations.Orange },
-      { name: 'Hype', animation: Animations.Hype },
-      { name: 'Shocked', animation: Animations.Shocked },
-      { name: 'Wipe', animation: Animations.Wipe },
-      { name: 'Applause', animation: Animations.Applause },
-    ]
-  }
-
   componentDidMount() {
     this.persona.onAnimationChanged.add(this.onAnimationChanged)
     focusFirst(this.base as HTMLElement, '[tabindex]')
@@ -56,7 +37,7 @@ export class DancePane extends Component<any, any> {
     this.setState({ animation: this.persona.animation })
   }
 
-  playAnimation(animation: Animations) {
+  playAnimation(animation: Animations | null) {
     this.setState({ animation })
     // remove last EmoteAnimation
     this.persona.popState(this.connector.controls)
@@ -77,8 +58,8 @@ export class DancePane extends Component<any, any> {
 
         <div class="AnimateList">
           <ul>
-            {this.animations.map((a) => (
-              <li key={a.name} class={animationMatches(this.state.animation, a.animation) ? '-active' : ''} tabIndex={0} onClick={() => this.playAnimation(a!.animation!)}>
+            {dances.map((a) => (
+              <li key={a.name} class={animationMatches(this.state.animation, a.animation) ? '-active' : ''} tabIndex={0} onClick={() => this.playAnimation(a.animation)}>
                 {animationMatches(this.state.animation, a.animation) && '⭐️'}
                 {a.name}
               </li>
