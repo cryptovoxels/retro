@@ -880,6 +880,13 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           <aside data-active={this.state.active}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
+              {!this.state.signedIn && (
+                <li class={active('login')}>
+                  <a href="#login" onMouseOver={onHover('login')} onClick={onClick('login')}>
+                    Login
+                  </a>
+                </li>
+              )}
               <li class={active('explorer')}>
                 <a href="#explorer" onMouseOver={onHover('explorer')} onClick={onClick('explorer')}>
                   Explore
@@ -896,32 +903,36 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   Dance
                 </a>
               </li>
-              <li class={active('add', !canEdit)}>
-                <a title="Add things to your thing" href="#add" onMouseOver={onHover('add')} onClick={onClick('add')} accessKey="a">
-                  Add
-                </a>
-              </li>
-              <li class={active('parcelSnapshots', !canEdit)}>
-                <a href="#snapshots" onMouseOver={onHover('parcelSnapshots')} onClick={onClick('parcelSnapshots')}>
-                  Shots
-                </a>
-              </li>
-              <li class={active('edit', !canEdit)}>
-                <a href="#edit" onMouseOver={onHover('edit')} onClick={onClick('edit')}>
-                  Edit
-                </a>
-              </li>
-              <li class={active('voxels', !canEdit)}>
-                <a href="#voxels" onMouseOver={onHover('voxels')} onClick={onClick('voxels')}>
-                  Voxels
-                </a>
-              </li>
+              {this.state.signedIn && (
+                <>
+                  <li class={active('add', !canEdit)}>
+                    <a title="Add things to your thing" href="#add" onMouseOver={onHover('add')} onClick={onClick('add')} accessKey="a">
+                      Add
+                    </a>
+                  </li>
+                  <li class={active('parcelSnapshots', !canEdit)}>
+                    <a href="#snapshots" onMouseOver={onHover('parcelSnapshots')} onClick={onClick('parcelSnapshots')}>
+                      Shots
+                    </a>
+                  </li>
+                  <li class={active('edit', !canEdit)}>
+                    <a href="#edit" onMouseOver={onHover('edit')} onClick={onClick('edit')}>
+                      Edit
+                    </a>
+                  </li>
+                  <li class={active('voxels', !canEdit)}>
+                    <a href="#voxels" onMouseOver={onHover('voxels')} onClick={onClick('voxels')}>
+                      Voxels
+                    </a>
+                  </li>
 
-              <li class={active('bake', !canEdit)}>
-                <a href="#bake" onMouseOver={onHover('bake')} accessKey="b" onClick={onClick('bake')}>
-                  <kbd>B</kbd>ake
-                </a>
-              </li>
+                  <li class={active('bake', !canEdit)}>
+                    <a href="#bake" onMouseOver={onHover('bake')} accessKey="b" onClick={onClick('bake')}>
+                      <kbd>B</kbd>ake
+                    </a>
+                  </li>
+                </>
+              )}
 
               {this.state.voiceEnabled && (
                 <li title="Microphone">
