@@ -576,24 +576,42 @@ a.buttonish {
   }
 }
 
-// Nav tweaks — left column
+// Site nav is a hamburger drawer everywhere - desktop matches play / phone
 header:has(nav) {
-  position: sticky;
+  position: fixed;
   top: 0;
-  z-index: 100;
+  left: 0;
+  bottom: 0;
+  width: min(16rem, 85vw);
   height: 100vh;
+  z-index: 1000;
+  background: var(--bg);
+  transform: translateX(-100%);
+  transition: transform 150ms ease-out;
+  pointer-events: none;
   overflow-y: auto;
   box-sizing: border-box;
 
-  // desktop keeps the full column; drawer modes use main > .site-nav-toggle
-  > .site-nav-toggle {
-    display: none;
+  &.nav-open {
+    transform: none;
+    pointer-events: auto;
+  }
+
+  nav {
+    pointer-events: auto;
   }
 }
 
-// floating menu button (sibling of header — never clipped by drawer transform)
+// floating menu button (sibling of header - never clipped by drawer transform)
 main > .site-nav-toggle {
-  display: none;
+  position: fixed;
+  left: max(1rem, env(safe-area-inset-left, 0px));
+  top: max(0.5rem, env(safe-area-inset-top, 0px));
+  z-index: 1001;
+  pointer-events: auto;
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
 }
 
 header nav {
@@ -710,16 +728,8 @@ header nav img.logo {
 main {
   max-width: 2000px;
   margin: 0 auto;
-  display: grid;
-  grid-template-columns: auto 1fr;
-
-  > header {
-    grid-column: 1;
-  }
-
-  > :not(header) {
-    grid-column: 2;
-  }
+  // clear the fixed menu button
+  padding-top: 2.5rem;
 }
 
 // Grid layout
@@ -1039,6 +1049,7 @@ body.in-world {
     position: relative;
     z-index: 2;
     max-width: none;
+    padding: 0;
     height: 100vh;
     display: grid;
     grid-template-columns: 1fr 23rem;
@@ -1048,56 +1059,20 @@ body.in-world {
     pointer-events: none;
   }
 
-  // out of the grid - site nav drawer over the canvas
-  main:has(> .client-world) > header:has(nav) {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: min(16rem, 85vw);
-    height: 100vh;
-    z-index: 1000;
-    background: var(--bg);
-    transform: translateX(-100%);
-    transition: transform 150ms ease-out;
-    pointer-events: none;
-    grid-column: unset;
-    grid-area: unset;
-    overflow-y: auto;
-
-    &.nav-open {
-      transform: translateX(0);
-      pointer-events: auto;
-    }
-
-    nav {
-      pointer-events: auto;
-    }
-  }
-
-  // fixed to the viewport — same left edge as Explore / chat
+  // same left edge as Explore / chat
   main:has(> .client-world) > .site-nav-toggle {
-    display: block;
-    position: fixed;
     left: var(--play-gutter);
     top: var(--play-top);
-    z-index: 1001;
-    pointer-events: auto;
-    background: var(--bg);
-    color: var(--fg);
-    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
   }
 
   .client-world {
     grid-area: world;
-    grid-column: unset;
     min-width: 0;
     min-height: 0;
   }
 
   main:has(> .client-world) > aside {
     grid-area: sidebar;
-    grid-column: unset;
     position: relative;
     z-index: 4;
     overflow-y: auto;
@@ -1131,57 +1106,8 @@ body.in-world main:has(> .client-world):not(:has(> aside)) {
   grid-template-areas: 'world';
 }
 
-// left column eats the phone; park it in a drawer (after desktop grid rules so cascade wins)
 @media @narrow {
-  main {
-    grid-template-columns: 1fr;
-
-    > header,
-    > :not(header) {
-      grid-column: 1;
-    }
-  }
-
-  header:has(nav) {
-    position: fixed;
-    top: 0;
-    left: 0;
-    bottom: 0;
-    width: min(16rem, 85vw);
-    height: 100vh;
-    z-index: 1000;
-    background: var(--bg);
-    transform: translateX(-100%);
-    transition: transform 150ms ease-out;
-    pointer-events: none;
-    overflow-y: auto;
-
-    &.nav-open {
-      transform: none;
-      pointer-events: auto;
-    }
-
-    nav {
-      pointer-events: auto;
-    }
-  }
-
-  main > .site-nav-toggle {
-    display: block;
-    position: fixed;
-    left: max(1rem, env(safe-area-inset-left, 0px));
-    top: max(0.5rem, env(safe-area-inset-top, 0px));
-    z-index: 1001;
-    pointer-events: auto;
-    background: var(--bg);
-    color: var(--fg);
-    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.4);
-  }
-
   body.in-world {
-    --play-gutter: max(1rem, env(safe-area-inset-left, 0px));
-    --play-top: max(0.5rem, env(safe-area-inset-top, 0px));
-
     main:has(> .client-world) {
       grid-template-columns: 1fr;
       grid-template-areas: 'world';
@@ -1196,11 +1122,6 @@ body.in-world main:has(> .client-world):not(:has(> aside)) {
     main:has(> .client-world):not(:has(> aside)) {
       grid-template-columns: 1fr;
       grid-template-areas: 'world';
-    }
-
-    main:has(> .client-world) > .site-nav-toggle {
-      left: var(--play-gutter);
-      top: var(--play-top);
     }
   }
 }
