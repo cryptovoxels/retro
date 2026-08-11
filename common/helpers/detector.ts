@@ -111,6 +111,11 @@ export const wantsEmbeddedUI = () => {
   return searchParams.get('ui') === 'embedded'
 }
 
+// &ui=off drops the HUD and reticule (used by go-live links, see secret-flags.md)
+export const wantsNoUI = () => {
+  return ['off', 'false', '0'].includes(searchParams.get('ui') ?? '')
+}
+
 export const isAndroid = () => {
   return navigator.userAgent.match(/android/i)
 }
