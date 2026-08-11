@@ -5,7 +5,7 @@ import { app, AppEvent } from '../state'
 
 type Post = { slug: string; title: string; created_at: string; replies?: number }
 
-export default function BlogTeaser() {
+export default function BlogTeaser({ onOpen }: { onOpen?: (slug: string) => void }) {
   const [posts, setPosts] = useState<Post[]>([])
   const [, tick] = useState(0)
 
@@ -34,7 +34,18 @@ export default function BlogTeaser() {
             {posts.map((p) => (
               <tr key={p.slug}>
                 <td>
-                  <a href={`/blog/${p.slug}`}>{p.title}</a>
+                  <a
+                    href={`/blog/${p.slug}`}
+                    onClick={
+                      onOpen &&
+                      ((e) => {
+                        e.preventDefault()
+                        onOpen(p.slug)
+                      })
+                    }
+                  >
+                    {p.title}
+                  </a>
                 </td>
                 <td>{p.replies ?? 0}</td>
                 <td>{ago(p.created_at)}</td>
