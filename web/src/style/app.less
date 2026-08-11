@@ -4988,6 +4988,15 @@ main:has(.worldmap) {
 
 .worldmap {
   height: 100vh;
+  position: relative;
+}
+
+// clear the fixed hamburger (same ~3.5rem offset as the play sidebar pills)
+.map-for-sale-cta {
+  position: absolute;
+  top: calc(3.5rem + env(safe-area-inset-top, 0px));
+  left: max(1rem, env(safe-area-inset-left, 0px));
+  z-index: 5;
 }
 
 .for-sale-pin {
