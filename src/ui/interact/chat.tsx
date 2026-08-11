@@ -149,8 +149,9 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
     const now = Date.now()
     const age = (m: ChatMessageRecord) => now - Math.max(m.timestamp, blurAt.current)
     let shown = focused ? msgs : msgs.filter((m) => age(m) < CHAT_GONE_MS)
-    // small screens: last 4 lines is plenty, focus recalls the rest
-    if (!focused && isMobile()) shown = shown.slice(-4)
+    // small screens: last 4 lines is plenty, focused or not - the keyboard
+    // leaves no room for the full backlog
+    if (isMobile()) shown = shown.slice(-4)
     return (
       <div class={'chat' + (className ? ' ' + className : '')} style={style}>
         <div class={'chat-messages' + (atCap ? ' at-cap' : '')}>
@@ -162,7 +163,14 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
             </p>
           ))}
         </div>
-        <ChatInput onFocusChange={setFocused} />
+        <ChatInput
+          onFocusChange={(f) => {
+            setFocused(f)
+            // safari scrolls the page to keep the input above the keyboard and
+            // leaves it there - snap back to the world when done typing
+            if (!f && isMobile()) window.scrollTo(0, 0)
+          }}
+        />
       </div>
     )
   }
