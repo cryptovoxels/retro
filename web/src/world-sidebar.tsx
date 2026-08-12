@@ -67,6 +67,9 @@ export function WorldSidebar({ coords, path, children }: Props) {
 
   if (!coords) return <>{children}</>
 
+  // womp detail page owns its .columns aside - don't stack explore/tools on top of it
+  if (path && /^\/womps\/\d+/.test(path)) return <>{children}</>
+
   const closed = sidebarClosed.value ? '-closed' : undefined
 
   // /play etc: push panel — world slot + one aside. Client sizes to .client-world.
