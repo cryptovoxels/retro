@@ -5,6 +5,8 @@ import 'babylonjs-loaders'
 import 'babylonjs-materials'
 import 'babylonjs'
 
+BABYLON.Logger.LogLevels = BABYLON.Logger.NoneLogLevel
+
 // Mock performance API if not available
 if (typeof performance === 'undefined') {
   global.performance = {
