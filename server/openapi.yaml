@@ -390,10 +390,11 @@ paths:
       tags: [parcels]
       summary: Re-read every parcel a wallet owns
       description: |
-        Broken upstream, documented so nobody spends an afternoon on it. The
-        handler parses `req.params.id`, which this route does not declare, so the
-        parse is always NaN and every call answers 404 `{"success": false}`
-        before it reaches the subgraph. Verified against production.
+        Reads the subgraph for every parcel the wallet owns, then re-queries the
+        contract for each one as a just-to-make-sure step. Answers
+        `{"success": false}` when the subgraph is unreachable or returns nothing,
+        on the theory that an owner seeing no parcels is worse than an owner
+        seeing a stale list.
       parameters:
         - name: wallet
           in: path
@@ -600,11 +601,18 @@ paths:
       tags: [womps]
       summary: The newest womps across the world
       description: |
-        A womp is a photograph somebody took in world. Note that the handler
-        reads a `kind` query parameter and then never passes it to the query, so
-        `?kind=broadcast` does nothing.
+        A womp is a photograph somebody took in world. The feed carries the
+        `public` and `broadcast` kinds; `profile` womps, which their author kept
+        off the public feed, and `report` womps are not listed here.
       parameters:
         - $ref: '#/components/parameters/WompLimit'
+        - name: kind
+          in: query
+          description: The only accepted value is `broadcast`, which narrows the
+            feed to broadcasts. Anything else is ignored and you get both kinds.
+          schema:
+            type: string
+            enum: [broadcast]
       responses:
         '200':
           description: ok
