@@ -1161,11 +1161,10 @@ paths:
       tags: [collectibles]
       summary: A collectible's MagicaVoxel model
       description: |
-        This is the one way to get a wearable's geometry from the wid on an
-        avatar attachment. The name behind that wid is not resolvable: the
-        attachment carries only the opaque uuid and the shop API is closed. The
-        model is, so a costume can be rebuilt without ever knowing what the
-        pieces are called.
+        The geometry behind the wid on an avatar attachment, which is all an
+        attachment carries besides its bone and transform. For what the piece
+        is called, who made it and which collection it belongs to, put the same
+        wid through `/api/collectibles/wearable/{uuid}.json`.
       parameters:
         - name: uuid
           in: path
