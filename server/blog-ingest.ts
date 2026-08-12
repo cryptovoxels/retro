@@ -28,7 +28,15 @@ export async function ingestReleaseNotes() {
     if (!body) continue
 
     try {
-      await db.query('embedded/ingest-post', `insert into posts (slug, title, body, author) values ($1, $2, $3, 'voxels') on conflict (slug) do nothing`, [slug, title, body])
+      // voxels release-notes re-sync on boot so typo fixes in the files land; hand-edited
+      // posts (other authors) stay put
+      await db.query(
+        'embedded/ingest-post',
+        `insert into posts (slug, title, body, author) values ($1, $2, $3, 'voxels')
+         on conflict (slug) do update set title = excluded.title, body = excluded.body
+         where posts.author = 'voxels'`,
+        [slug, title, body],
+      )
     } catch (e) {
       console.error('blog ingest failed for', file, e)
     }
