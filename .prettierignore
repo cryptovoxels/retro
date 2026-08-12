@@ -21,6 +21,7 @@ src/fonts
 
 # Configuration and data
 *.json
+pnpm-lock.yaml
 common/contracts/
 procgen/
 
