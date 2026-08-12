@@ -52,6 +52,8 @@ export default class Womp extends Component<Props, State> {
   }
 
   componentDidMount() {
+    // this page owns the right column - drop explore / tools so they don't cover the metadata
+    window.ui?.closeWithPointerLock?.()
     this.syncVisitUrl()
     this.ensureCoords()
     void this.fetchWomp(this.state.id)

@@ -1262,9 +1262,10 @@ body.in-world main:not(:has(> .client-world)) > aside {
   }
 }
 
-// one sidebar at a time: while a world pane (main > aside drawer) is open, the
-// page's own column sidebar ducks out instead of stacking behind the drawer
-body.in-world main:has(> aside) .columns > aside {
+// one sidebar at a time on home / parcel pages only - do NOT hide womp (or other
+// .columns) metadata asides; those pages own their right column
+body.in-world main:has(> aside) .columns.home > aside,
+body.in-world main:has(> aside) .columns.parcel-page > aside {
   display: none;
 }
 
