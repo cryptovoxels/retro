@@ -74,7 +74,7 @@ export class UrlSourceNftImages extends UrlSourceComponent<UrlSourceNftImagesPro
         <URLTab urlTab={this.state.urlTab} url={this.state.url} setURL={this.updateUrl.bind(this)}>
           <div>
             <small>
-              <a href="/art">Paste an ART url</a>
+              <a href="/art" target="_blank">Paste an ART url</a>
             </small>
           </div>
         </URLTab>
