@@ -83,10 +83,7 @@ export default class TakeWomp extends Component<Props, State> {
     // wall-eligible only when standing on + looking at the same lot (strict look-at hit, not nearest)
     const standing = window.grid?.currentParcel()
     const looking = window.grid?.getLookAtParcel()
-    const parcel =
-      standing && looking && Number(standing.id) === Number(looking.id)
-        ? standing
-        : looking || standing || window.grid?.currentOrNearestParcel()
+    const parcel = standing && looking && Number(standing.id) === Number(looking.id) ? standing : looking || standing || window.grid?.currentOrNearestParcel()
     if (!parcel) {
       app.showSnackbar('Failed to capture womp. No parcel found', PanelType.Danger)
       return
