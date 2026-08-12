@@ -22,4 +22,17 @@ export default defineWorkspace([
       globals: true,
     },
   },
+  // Server tape tests. same runner as the rest, tape API not vitest expect()
+  {
+    test: {
+      name: 'server',
+      include: ['server/test/**/*-test.ts'],
+      // these hit postgres with a schema that does not match, or load the db on import
+      exclude: ['server/test/favorites-test.ts', 'server/test/report-test.ts', 'server/test/suspended-avatars-test.ts', 'server/test/parcel-test.ts'],
+      environment: 'node',
+      globals: false,
+      setupFiles: ['./test/vitest-tape.ts'],
+      isolate: true,
+    },
+  },
 ])
