@@ -2,15 +2,17 @@ import { Component, ComponentChildren } from 'preact'
 import { requestPointerLockIfNoOverlays } from '../../common/helpers/ui-helpers'
 import { app, AppEvent } from '../../web/src/state'
 import { CommunityEvents } from '../components/explorer/events'
-import { Home } from '../components/explorer/home'
 import { AccountParcels, FavoritesParcels, ParcelsList } from '../components/explorer/parcels'
 import Radar from '../../web/src/components/radar'
+import { Womp } from '../../web/src/components/womp-card'
+import WompsList from '../../web/src/womps-list'
 import { BigMap } from './map-overlay'
 import { ExplorerSearchBar } from './search-bar'
 
 const { setInterval } = window
 
-export type Tab = 'home' | 'users' | 'events' | 'parcels' | 'map'
+// 'womps' is not in the tab bar - it's the "see more" view of the Online tab, back returns to users
+export type Tab = 'users' | 'events' | 'parcels' | 'map' | 'womps'
 
 export type ParcelsSubTab = 'my-parcels' | 'favorites' | 'all'
 
@@ -30,7 +32,7 @@ interface State {
 
 export class ExplorerUI extends Component<Props, State> {
   static currentElement: Element | null
-  static currentTab: Tab | null = 'home'
+  static currentTab: Tab | null = 'users'
   static currentSubTab: ParcelsSubTab | null = 'all'
   interval: string | number | NodeJS.Timeout | undefined
   abort: AbortController | null = null
@@ -160,10 +162,18 @@ export class ExplorerUI extends Component<Props, State> {
     await new Promise<void>((resolve) => this.setState((prev) => ({ tab, subTab: subTab ?? prev.subTab }), resolve))
   }
 
+  teleportToWomp = (womp: Womp) => {
+    if (!womp.coords) return
+    window.persona.teleport(womp.coords)
+    this.closeWithPointerLock()
+  }
+
   render() {
     // Main tab menu
     const mainTabs = this.mainTabs.map((i) => {
-      const className = this.state.tab == i.tab ? '-active' : ''
+      // the womps view is Online's see-more, keep that tab lit
+      const active = this.state.tab == i.tab || (this.state.tab == 'womps' && i.tab == 'users')
+      const className = active ? '-active' : ''
       return (
         <li key={i.name} tabIndex={0} className={className} onClick={() => this.setTab(i.tab)}>
           {i.name}
@@ -187,16 +197,28 @@ export class ExplorerUI extends Component<Props, State> {
         break
       case 'users':
         openTab = (
-          <Radar
-            teleportTo={(coords) => {
-              window.persona.teleport(coords)
-              this.closeWithPointerLock()
-            }}
-          />
+          <>
+            <Radar
+              teleportTo={(coords) => {
+                window.persona.teleport(coords)
+                this.closeWithPointerLock()
+              }}
+            />
+            <CommunityEvents liveOnly />
+            <h3>Latest womps</h3>
+            <WompsList numberToShow={9} ttl={600} onWompClick={this.teleportToWomp} onSeeMore={() => this.setTab('womps')} />
+          </>
         )
         break
-      case 'home':
-        openTab = <Home onTeleport={this.closeWithPointerLock} scene={this.props.scene} />
+      case 'womps':
+        openTab = (
+          <>
+            <p>
+              <a onClick={() => this.setTab('users')}>&larr; back</a>
+            </p>
+            <WompsList hint={'No womps found'} numberToShow={42} collapsed={false} ttl={600} onWompClick={this.teleportToWomp} />
+          </>
+        )
         break
       case 'map':
         openTab = <BigMap scene={this.props.scene} onTeleport={this.closeWithPointerLock} />
