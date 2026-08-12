@@ -213,9 +213,10 @@ export class ExplorerUI extends Component<Props, State> {
       case 'womps':
         openTab = (
           <>
-            <p>
+            <p class="explorer-back">
               <a onClick={() => this.setTab('users')}>&larr; back</a>
             </p>
+            <h3>Womps</h3>
             <WompsList hint={'No womps found'} numberToShow={42} collapsed={false} ttl={600} onWompClick={this.teleportToWomp} />
           </>
         )
