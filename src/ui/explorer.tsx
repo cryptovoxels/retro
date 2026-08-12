@@ -39,8 +39,9 @@ export class ExplorerUI extends Component<Props, State> {
     super()
 
     this.state = {
-      tab: props.initialTab ?? 'users',
-      subTab: app.signedIn ? 'my-parcels' : 'all',
+      // survive parent remounts (InWorldPane / WorldSidebar bump a lot)
+      tab: props.initialTab ?? ExplorerUI.currentTab ?? 'users',
+      subTab: ExplorerUI.currentSubTab ?? (app.signedIn ? 'my-parcels' : 'all'),
       signedIn: app.signedIn,
       clients: 0,
     }
@@ -100,13 +101,7 @@ export class ExplorerUI extends Component<Props, State> {
   }
 
   onAppChange = () => {
-    const { signedIn } = app
-
-    this.setState({ signedIn }, () => {
-      if (!app.signedIn && this.state.tab !== 'home') {
-        this.setState({ tab: 'home' })
-      }
-    })
+    this.setState({ signedIn: app.signedIn })
   }
 
   componentDidUpdate(prevProps: Props, prevState: State) {
@@ -121,8 +116,7 @@ export class ExplorerUI extends Component<Props, State> {
   componentWillUnmount() {
     app.removeListener(AppEvent.Change, this.onAppChange)
     this.interval && clearInterval(this.interval)
-    ExplorerUI.currentTab = null
-    ExplorerUI.currentSubTab = null
+    // keep currentTab so a remount does not snap back to Online
     this.abort?.abort('ABORT: quitting component')
     this.abort = null
   }
@@ -163,17 +157,7 @@ export class ExplorerUI extends Component<Props, State> {
   }
 
   async setTab(tab: Tab, subTab?: ParcelsSubTab) {
-    console.debug('setTab', tab, subTab)
-    await new Promise<void>((resolve) =>
-      this.setState((prev) => {
-        console.debug('setTab setState', tab, subTab)
-        console.debug('setTab setState prev', prev)
-
-        return { tab, subTab: subTab ?? prev.subTab }
-      }, resolve),
-    )
-
-    this.forceUpdate()
+    await new Promise<void>((resolve) => this.setState((prev) => ({ tab, subTab: subTab ?? prev.subTab }), resolve))
   }
 
   render() {
