@@ -1154,7 +1154,8 @@ body.in-world {
       cursor: pointer;
       background: var(--bg);
       border: none;
-      color: var(--red);
+      // same grey X as the home sidebar (--red is #03f, reads as a random blue dot)
+      color: var(--fg);
       font-weight: bold;
       padding: 0.25rem 0.5rem;
       margin: -0.5rem -0.5rem 0 0;
@@ -1192,17 +1193,18 @@ aside.-closed {
   display: none;
 }
 
-// homepage / parcel embed: world info docks on the right (no .client-world push grid)
+// homepage / parcel embed: the pane takes the exact box of the page's own aside
+// (22rem column, same padding) so opening Explore/Settings/etc reads as the one
+// sidebar swapping content, not a second drawer sliding over it
 body.in-world main:not(:has(> .client-world)) > aside {
   position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
-  width: 24rem;
+  width: 22rem;
   z-index: 4;
   overflow-y: auto;
-  padding: 1rem;
-  padding-top: 2rem;
+  padding: 0.5rem 1rem 1rem;
   background: var(--bg);
   box-sizing: border-box;
 
@@ -1214,11 +1216,17 @@ body.in-world main:not(:has(> .client-world)) > aside {
     cursor: pointer;
     background: var(--bg);
     border: none;
-    color: var(--red);
+    // same grey X as the home sidebar (--red is #03f, reads as a random blue dot)
+    color: var(--fg);
     font-weight: bold;
     padding: 0.25rem 0.5rem;
-    margin: -0.5rem -0.5rem 0 0;
   }
+}
+
+// one sidebar at a time: while a world pane (main > aside drawer) is open, the
+// page's own column sidebar ducks out instead of stacking behind the drawer
+body.in-world main:has(> aside) .columns > aside {
+  display: none;
 }
 
 .client-placeholder {
