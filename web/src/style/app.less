@@ -519,6 +519,45 @@ select {
     white-space: nowrap;
     overflow: hidden;
   }
+
+  // richer cards (see-more /womps): author, time, caption under the shot
+  .womp.-medium {
+    .womp-meta {
+      margin-top: 0.25rem;
+    }
+
+    .womp-where,
+    .womp-who,
+    .womp-caption {
+      margin: 0;
+      line-height: 1.25;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .womp-where {
+      white-space: nowrap;
+      font-weight: bold;
+    }
+
+    .womp-who {
+      opacity: 0.75;
+      white-space: nowrap;
+    }
+
+    .womp-caption {
+      margin-top: 0.15rem;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      white-space: normal;
+    }
+  }
+
+  &:has(.womp.-medium) {
+    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    gap: 1rem;
+  }
 }
 
 img {
@@ -1964,6 +2003,44 @@ table.spaces {
   & > li {
     margin-bottom: 1rem;
     list-style: none;
+  }
+}
+
+// Explore Online: pack radar / live / womps a bit tighter so more fits in the sidebar
+.explorer {
+  h3 {
+    margin: 0.65rem 0 0.3rem;
+  }
+
+  .explorer-back {
+    margin: 0 0 0.35rem;
+  }
+
+  .radar > li {
+    margin-bottom: 0.35rem;
+  }
+
+  .ExplorerCommunityEvents {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .EventRow {
+    margin: 0 0 0.5rem;
+    padding: 0;
+    gap: 0.5rem;
+  }
+
+  .wrap-grid {
+    gap: 0.65rem;
+    grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
+  }
+
+  // see-more: lean on the shared rich-card styles; keep the grid a touch denser in the sidebar
+  &:has(.womp.-medium) .wrap-grid {
+    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
+    gap: 0.85rem;
   }
 }
 

@@ -1,4 +1,5 @@
 import { format, TDate } from 'timeago.js'
+import { avatarName } from '../../../common/messages/avatar-ref'
 
 export interface Womp {
   id: number
@@ -33,6 +34,7 @@ export const timeFormat = (t: TDate) => format(t).replace(/ ([a-z])[a-z]+/, '$1'
 
 export function WompCard(props: CardProps) {
   const nearbyCount = props.nearbyCount ?? props.womp.nearby_count
+  const rich = /\b-medium\b/.test(props.className || '')
 
   const onClick = (e: Event) => {
     if (!props.onClick) {
@@ -43,17 +45,30 @@ export function WompCard(props: CardProps) {
   }
 
   const location = props.womp.parcel_id ? (props.womp.parcel_name ?? props.womp.parcel_address) : (props.womp.space_name ?? 'The Void')
+  const author = avatarName(props.womp.author) || 'anon'
+  const when = props.womp.created_at ? timeFormat(props.womp.created_at) : ''
+  const caption = props.womp.content ? (props.womp.content.length > 80 ? props.womp.content.slice(0, 76) + '...' : props.womp.content) : ''
 
   return (
-    <div class="womp">
+    <div class={`womp ${props.className || ''}`.trim()} title={props.hoverText}>
       <a onClick={onClick} href={`/womps/${props.womp.id}`}>
-        <img loading="lazy" src={props.womp.image_url} alt={props.womp.content} />
-        <p title={location}>{location}</p>
+        <img loading="lazy" src={props.womp.image_url} alt={props.womp.content || location} />
+        {rich ? (
+          <div class="womp-meta">
+            <p class="womp-where" title={location}>
+              {location}
+            </p>
+            <p class="womp-who">
+              {author}
+              {when ? ` · ${when}` : ''}
+              {nearbyCount ? ` · ${nearbyCount} nearby` : ''}
+            </p>
+            {caption ? <p class="womp-caption">{caption}</p> : null}
+          </div>
+        ) : (
+          <p title={location}>{location}</p>
+        )}
       </a>
     </div>
   )
-}
-
-function stopPropagation(e: MouseEvent) {
-  e.stopPropagation()
 }
