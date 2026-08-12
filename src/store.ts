@@ -149,7 +149,8 @@ export const uiPane = signal<string | undefined>(undefined)
 // panes you open on purpose and leave up while walking around (they get a close X and survive
 // tapping back into the world); contextual build/edit panes dismiss on canvas re-engage.
 // broadcast: the host's dock must stay up for the whole show - only its own close/stop ends it.
-export const PERSISTENT_PANES = new Set(['explorer', 'settings', 'help', 'broadcast'])
+// open on purpose, survive canvas re-engage, closed via the sidebar X
+export const PERSISTENT_PANES = new Set(['explorer', 'settings', 'help', 'dance', 'emote', 'broadcast'])
 export const isPersistentPane = (p?: string) => !!p && PERSISTENT_PANES.has(p)
 
 export const uiAsideTick = signal(0)
