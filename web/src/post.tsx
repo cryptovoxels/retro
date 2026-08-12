@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'preact/hooks'
 import { micromark } from 'micromark'
 import Head from './components/head'
+import { postExcerpt, postShareUrl, tweetIntentUrl } from './helpers/blog-share'
 import cachedFetch, { invalidateUrl } from './helpers/cached-fetch'
 import { app, AppEvent } from './state'
 import { fetchOptions } from './utils'
 
 type Author = { name?: string; owner?: string } | string
 type Comment = { id: number; body: string; created_at: string; author: Author }
-type Post = { slug: string; title: string; body: string; author: Author; created_at: string }
+export type BlogPost = { slug: string; title: string; body: string; author: Author; created_at: string }
 
 function authorLabel(author: Author) {
   if (author && typeof author === 'object') return author.name || short(author.owner)
@@ -25,13 +26,21 @@ function authorWallet(author: Author) {
   return String(author ?? '').toLowerCase()
 }
 
-export default function PostPage(props: { path?: string; slug?: string; onBack?: () => void }) {
-  const slug = props.slug ?? ''
-  const [post, setPost] = useState<Post | null>(null)
-  const [comments, setComments] = useState<Comment[]>([])
+export default function PostPage(props: {
+  path?: string
+  slug?: string
+  onBack?: () => void
+  // SSR / fastboot
+  post?: BlogPost | null
+  comments?: Comment[]
+}) {
+  const slug = props.slug ?? props.post?.slug ?? ''
+  const [post, setPost] = useState<BlogPost | null>(props.post ?? null)
+  const [comments, setComments] = useState<Comment[]>(props.comments ?? [])
   const [text, setText] = useState('')
   const [busy, setBusy] = useState(false)
-  const [loading, setLoading] = useState(!!slug)
+  const [loading, setLoading] = useState(!props.post && !!slug)
+  const [copied, setCopied] = useState(false)
   const [, tick] = useState(0)
 
   const load = () => {
@@ -52,7 +61,8 @@ export default function PostPage(props: { path?: string; slug?: string; onBack?:
   }
 
   useEffect(() => {
-    load()
+    // SSR already gave us the post; still refresh comments in the background when empty
+    if (!props.post) load()
     const rerender = () => tick((n) => n + 1)
     app.on(AppEvent.Login, rerender)
     app.on(AppEvent.Logout, rerender)
@@ -81,6 +91,20 @@ export default function PostPage(props: { path?: string; slug?: string; onBack?:
     await fetch(`/api/comments/${id}/remove`, fetchOptions(undefined, JSON.stringify({})))
     await invalidateUrl(`/api/posts/${slug}.json`, true)
     load()
+  }
+
+  const shareUrl = slug ? postShareUrl(slug) : ''
+
+  const copyLink = async () => {
+    if (!shareUrl) return
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      // fallback: select-friendly prompt
+      window.prompt('Copy link', shareUrl)
+    }
   }
 
   const back = props.onBack && (
@@ -122,10 +146,12 @@ export default function PostPage(props: { path?: string; slug?: string; onBack?:
 
   const html = micromark(post.body)
   const me = (app.state.wallet ?? '').toLowerCase()
+  const excerpt = postExcerpt(post.body)
+  const tweetUrl = tweetIntentUrl(post.title, shareUrl)
 
   return (
     <section class={wrap}>
-      {!props.onBack && <Head title={post.title} url={`/blog/${post.slug}`} />}
+      {!props.onBack && <Head title={post.title} description={excerpt} url={`/blog/${post.slug}`} type="article" />}
       {back || (
         <p>
           <a href="/blog">blog</a>
@@ -135,6 +161,16 @@ export default function PostPage(props: { path?: string; slug?: string; onBack?:
       <p>
         {authorLabel(post.author)} · {new Date(post.created_at).toLocaleDateString()}
       </p>
+      {!props.onBack && (
+        <p class="post-share">
+          <button type="button" onClick={copyLink}>
+            {copied ? 'Copied' : 'Copy link'}
+          </button>{' '}
+          <a href={tweetUrl} target="_blank" rel="noopener noreferrer">
+            Share on X
+          </a>
+        </p>
+      )}
       <div dangerouslySetInnerHTML={{ __html: html }} />
 
       <h3>comments</h3>
