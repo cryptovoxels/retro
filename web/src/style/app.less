@@ -5041,10 +5041,11 @@ main:has(.worldmap) {
     pointer-events: auto;
   }
 
+  // no background - the dock sits above the canvas (z 40 vs 1) for clicks,
+  // an opaque bg here paints over the world and the mini view looks blank
   #mini-client {
     height: 7rem;
     cursor: pointer;
-    background: var(--bg);
   }
 }
 
@@ -5061,7 +5062,8 @@ body.in-world.mini-world {
 .mini {
   cursor: pointer;
 
-  .UserInterface {
+  .UserInterface,
+  dialog.first-time {
     display: none;
   }
 }
