@@ -497,7 +497,9 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     this.staleDriverTimer = setTimeout(() => {
       this.staleDriverTimer = null
       if (!this.driverUuid) return
-      if (this.isDriverPresent(this.driverUuid)) return
+      // still alive (fresh heartbeat / avatar in range): keep watching, don't drop the watchdog -
+      // a snapshot on parcel load fakes a fresh heartbeat and used to strand claimed cars forever
+      if (this.isDriverPresent(this.driverUuid)) return this.scheduleStaleDriverCheck()
       // driver left the shard without releasing - unhide and snap home
       this.recallToPark()
     }, STALE_DRIVER_MS)
@@ -542,8 +544,9 @@ export class Megavox extends VoxModel<MegavoxRecord> {
       }
       if (next) {
         this.clearEmptyRecall()
-        if (!this.isDriverPresent(next)) this.scheduleStaleDriverCheck()
-        else this.clearStaleDriverCheck()
+        // watchdog stays armed while claimed. every heartbeat re-arms it (120ms cadence, never
+        // fires for a live driver); when the driver vanishes the last timer recalls the car
+        this.scheduleStaleDriverCheck()
       } else if (state.emptySince) {
         this.scheduleEmptyRecall(this.isAwayFromPark() ? 8_000 : EMPTY_RECALL_MS)
       }
