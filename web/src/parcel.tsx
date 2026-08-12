@@ -391,7 +391,15 @@ export default class Parcel extends Component<Props, State> {
           {head}
           <div class="client-slot" />
         </article>
-        <aside>{this.renderSidebar(islandSlug!)}</aside>
+        <aside>
+          <button class="sidebar-close" title="Close - play fullscreen" onClick={() => window.connector && routeWithCoords('/play')}>
+            &times;
+          </button>
+          <header>
+            <h1>{parcelName}</h1>
+          </header>
+          {this.renderSidebar(islandSlug!)}
+        </aside>
       </section>
     )
   }
