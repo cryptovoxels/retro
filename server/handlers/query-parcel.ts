@@ -27,12 +27,6 @@ export async function refreshParcelsByWallet(req: Request, res: Response) {
     return
   }
 
-  const parcel_id = parseInt(req.params.id, 10)
-  if (isNaN(parcel_id)) {
-    res.status(404).json({ success: false })
-    return
-  }
-
   // Fetch the subgraph for list of parcels
   const p = await fetch(`${process.env.SUBGRAPHS_ROUTER}/api/parcels/${req.params.wallet}.json?force_update=true`)
   const r = await p.json()
