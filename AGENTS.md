@@ -18,6 +18,7 @@
 - **Be direct**: Concise responses, thorough reasoning, simple solutions. No over-engineering.
 - **Stay grounded**: If unsure, say so. Never invent file paths or function names.
 - **User is truth**: If corrected, treat it as ground truth. User instructions always override this file.
+- **Never write specs**: Ben thinks they suck ass. Use tape instead like it's 2018 still. `import test from 'tape'`. `t.equal`, `t.end()`. Files named `*-test.ts`. No vitest `expect()`, no `describe`/`it`, no `*.test.ts` for new server tests.
 
 ## Committing
 
