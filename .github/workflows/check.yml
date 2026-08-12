@@ -1,6 +1,4 @@
-# Runs the two gates AGENTS.md already asks you to run before committing.
-# Tests are not here yet: 7 files under test/src (terrain, ocean, pump,
-# enviroments) fail on a clean checkout, so a test job would be red on arrival.
+# Runs the gates AGENTS.md asks you to run before committing.
 name: check
 
 on:
@@ -26,9 +24,15 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - run: npx tsc --noEmit --project tsconfig.precommit.json
-
-      - run: npx prettier --check .
+      # None of these three needs the others, so run them at once and pay for
+      # the slowest instead of the sum. Buffered so the logs read one at a time.
+      - run: |
+          npx tsc --noEmit --project tsconfig.precommit.json >/tmp/tsc.log 2>&1 & a=$!
+          npx prettier --check . >/tmp/fmt.log 2>&1 & b=$!
+          pnpm test >/tmp/test.log 2>&1 & c=$!
+          wait $a; ra=$?; wait $b; rb=$?; wait $c; rc=$?
+          cat /tmp/tsc.log /tmp/fmt.log /tmp/test.log
+          exit $(( ra | rb | rc ))
 
       # AGENTS.md: CI must stay under 60s or it may get deleted
       - if: always()
