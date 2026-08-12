@@ -2,11 +2,13 @@ import ApiDoc from './src/api-doc'
 import ArtDoc from './src/art-doc'
 import Avatar from './src/avatar'
 import BehavioursDoc from './src/behaviours-doc'
+import Blog from './src/blog'
 import Conduct from './src/conduct'
 import EventPage from './src/event-page'
 import Explore from './src/explore'
 import Parcel from './src/parcel'
 import Parcels from './src/parcels'
+import PostPage from './src/post'
 import Privacy from './src/privacy'
 import Space from './src/space'
 import Terms from './src/terms'
@@ -140,6 +142,54 @@ export default function loadRoutes(app: Express) {
       }
       res.send(renderPage(<Womp womp={response.womp} id={response.womp.id} />))
     })
+  })
+
+  // blog: SSR so X / Discord / Slack get og + twitter cards (shell alone has none)
+  app.get('/blog', cache(duration), (_req, res) => {
+    res.send(renderPage(<Blog />))
+  })
+
+  app.get('/blog/:slug', cache('1 minute'), async (req, res) => {
+    const slug = req.params.slug
+    if (typeof slug !== 'string' || !slug) {
+      return res.status(404).send(renderPage(<NotFound />))
+    }
+
+    try {
+      const post = await db.query(
+        'embedded/ssr-get-post',
+        `select p.slug, p.title, p.body, p.created_at,
+          CASE
+            WHEN p.author = 'voxels' THEN to_json(p.author::text)
+            ELSE COALESCE(
+              (SELECT row_to_json(sub) FROM (SELECT a.name, a.owner FROM avatars a WHERE lower(a.owner) = lower(p.author) LIMIT 1) sub),
+              to_json(p.author)
+            )
+          END as author
+         from posts p where p.slug = $1`,
+        [slug],
+      )
+      if (!(post.rows?.length ?? 0)) {
+        return res.status(404).send(renderPage(<NotFound />))
+      }
+
+      const comments = await db.query(
+        'embedded/ssr-get-comments',
+        `select c.id, c.body, c.created_at,
+          COALESCE(
+            (SELECT row_to_json(sub) FROM (SELECT a.name, a.owner FROM avatars a WHERE lower(a.owner) = lower(c.owner) LIMIT 1) sub),
+            to_json(c.owner)
+          ) as author
+         from comments c
+         where c.commentable_type = 'Post' and c.commentable_id = $1
+         order by c.created_at asc`,
+        [slug],
+      )
+
+      res.send(renderPage(<PostPage slug={slug} post={post.rows![0]} comments={comments.rows ?? []} />))
+    } catch {
+      res.status(500).send(renderPage(<LoadingPage />))
+    }
   })
 
   app.get(['/avatar/:walletOrName', '/avatar/:walletOrName/:tab?', '/u/:walletOrName', '/u/:walletOrName/:tab?'], (req, res) => {

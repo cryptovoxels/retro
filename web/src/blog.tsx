@@ -50,7 +50,7 @@ export default function Blog(_props: { path?: string }) {
 
   return (
     <section class="prose">
-      <Head title="blog" url="/blog" />
+      <Head title="blog" description="Updates from Voxels - builds, driving, and world news." url="/blog" />
       <h1>blog</h1>
 
       {app.isAdmin() && (
