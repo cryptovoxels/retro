@@ -1154,7 +1154,8 @@ body.in-world {
       cursor: pointer;
       background: var(--bg);
       border: none;
-      color: var(--red);
+      // same grey X as the home sidebar (--red is #03f, reads as a random blue dot)
+      color: var(--fg);
       font-weight: bold;
       padding: 0.25rem 0.5rem;
       margin: -0.5rem -0.5rem 0 0;
@@ -1214,11 +1215,18 @@ body.in-world main:not(:has(> .client-world)) > aside {
     cursor: pointer;
     background: var(--bg);
     border: none;
-    color: var(--red);
+    // same grey X as the home sidebar (--red is #03f, reads as a random blue dot)
+    color: var(--fg);
     font-weight: bold;
     padding: 0.25rem 0.5rem;
     margin: -0.5rem -0.5rem 0 0;
   }
+}
+
+// one sidebar at a time: while a world pane (main > aside drawer) is open, the
+// page's own column sidebar ducks out instead of stacking behind the drawer
+body.in-world main:has(> aside) .columns > aside {
+  display: none;
 }
 
 .client-placeholder {
