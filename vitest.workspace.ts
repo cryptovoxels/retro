@@ -13,15 +13,6 @@ export default defineWorkspace([
       exclude: ['test/compressor/**'],
     },
   },
-  // Server tests - pure Node.js environment. the older server/test/*-test.ts files are tape, not vitest
-  {
-    test: {
-      name: 'server',
-      include: ['server/test/**/*.test.ts'],
-      environment: 'node',
-      globals: true,
-    },
-  },
   // Compressor tests - pure Node.js environment
   {
     test: {
