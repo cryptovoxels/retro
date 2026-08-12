@@ -1340,6 +1340,7 @@ A citizen.
 - `social_link_1` string or null
 - `social_link_2` string or null
 - `moderator` boolean
+- `type` string or null, one of `woody`, `vidda`, `zuck`, `bnolan`, `null`: Which body the citizen wears. Everything but `woody` is deprecated and you are unlikely to meet one.
 - `settings` object or null
 - `costume_id` string or null
 - `costume` [`Costume`](#costume)
@@ -1354,6 +1355,9 @@ What a citizen is wearing. `attachments` name a bone and a wearable; an attachme
 - `id` string, a uuid
 - `name` string or null
 - `attachments` array of object
+- `wallet` string or null: Whose costume it is.
+- `skin` string or null: The body texture as an SVG document, inline, not a url. Runs to tens of kilobytes, so a caller that only wants the attachments pays for this too.
+- `default_color` string or null: Hex, the colour worn where nothing covers the body.
 
 ### Wearable
 

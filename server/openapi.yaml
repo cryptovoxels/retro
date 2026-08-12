@@ -2333,6 +2333,12 @@ components:
           type: [string, 'null']
         moderator:
           type: boolean
+        type:
+          type: [string, 'null']
+          description: |
+            Which body the citizen wears. Everything but `woody` is deprecated
+            and you are unlikely to meet one.
+          enum: [woody, vidda, zuck, bnolan, null]
         settings:
           type: [object, 'null']
         costume_id:
@@ -2364,6 +2370,18 @@ components:
           type: array
           items:
             type: object
+        wallet:
+          type: [string, 'null']
+          description: Whose costume it is.
+        skin:
+          type: [string, 'null']
+          description: |
+            The body texture as an SVG document, inline, not a url. Runs to
+            tens of kilobytes, so a caller that only wants the attachments
+            pays for this too.
+        default_color:
+          type: [string, 'null']
+          description: Hex, the colour worn where nothing covers the body.
 
     Wearable:
       description: A wearable collectible.
