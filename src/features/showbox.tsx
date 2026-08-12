@@ -44,7 +44,7 @@ import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from 
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
 
-// Quick-access subset for the broadcast dock. Full list lives in src/ui/interact/emote.tsx.
+// Quick-access subset for the broadcast dock. Full list lives in src/ui/interact/dance-pane.tsx.
 const DOCK_DANCES: Array<{ label: string; anim: Animations }> = [
   { label: 'dance', anim: Animations.Dance },
   { label: 'hype', anim: Animations.Hype },

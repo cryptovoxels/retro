@@ -53,7 +53,8 @@ import { FeatureEditor } from './ui/features/misc'
 import HomeButton from './ui/home-button'
 import { ChatOverlay, chatSettings } from './ui/interact/chat'
 import { voiceSettings } from './voice-settings'
-import { EmoteOverlay } from './ui/interact/emote'
+import { DancePane } from './ui/interact/dance-pane'
+import { EmotePane } from './ui/interact/emote-pane'
 import { HelpOverlay } from './ui/interact/help'
 import { FirstTimeInstructions } from '../web/src/components/first-time-instructions'
 import { BroadcastSidebarTab } from '../web/src/broadcast-sidebar-tab'
@@ -98,7 +99,7 @@ export enum Mode {
   Avatar,
 }
 
-export type UIPanes = 'add' | 'edit' | 'voxels' | 'debugTool' | 'nfts' | 'chat' | 'emote' | 'settings' | 'womp' | 'takeWomp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake' | 'broadcast'
+export type UIPanes = 'add' | 'edit' | 'voxels' | 'debugTool' | 'nfts' | 'chat' | 'dance' | 'emote' | 'settings' | 'womp' | 'takeWomp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake' | 'broadcast'
 
 export interface Tool {
   activate: () => void
@@ -447,7 +448,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         { code: 'KeyF', handleEvent: () => this.connector.controls.toggleFlying() },
         { code: 'KeyC', handleEvent: () => this.connector.controls.togglePerspective() },
         { code: 'KeyB', handleEvent: () => this.toggleVoxelTool() },
-        { code: 'KeyG', handleEvent: () => this.setPane('emote') },
+        { code: 'KeyG', handleEvent: () => this.setPane('dance') },
+        { code: 'KeyT', handleEvent: () => this.setPane('emote') },
         { code: 'KeyZ', handleEvent: () => this.connector.controls.toggleZoom() },
         { code: 'Enter', handleEvent: this.focusChat },
         { code: 'Escape', handleEvent: () => this.onEscape() },
@@ -799,8 +801,10 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return <DebugTools parcel={currentOrNearestParcel} scene={this.props.scene} environment={this.props.environment} />
       case 'chat':
         return <ChatOverlay scene={this.props.scene} />
+      case 'dance':
+        return <DancePane />
       case 'emote':
-        return <EmoteOverlay />
+        return <EmotePane />
       case 'settings':
         return <SettingsUI scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
       case 'womp':
@@ -898,9 +902,14 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   Settings
                 </a>
               </li>
-              <li class={active('emote')}>
-                <a href="#dance" onMouseOver={onHover('emote')} onClick={onClick('emote')}>
+              <li class={active('dance')}>
+                <a href="#dance" onMouseOver={onHover('dance')} onClick={onClick('dance')}>
                   Dance
+                </a>
+              </li>
+              <li class={active('emote')}>
+                <a href="#emote" onMouseOver={onHover('emote')} onClick={onClick('emote')}>
+                  Emote
                 </a>
               </li>
               {this.state.signedIn && (

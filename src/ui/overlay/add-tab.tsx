@@ -7,6 +7,7 @@ import { app } from '../../../web/src/state'
 import Panel, { PanelType } from '../../../web/src/components/panel'
 import { FeatureMetadata, featuresInfo, FeatureTemplate, featureTemplates, PlaceableFeatureTypes } from '../../features/_metadata'
 import { requestPointerLock } from '../../../common/helpers/ui-helpers'
+import { focusFirst, onListArrowKeys } from '../keynav'
 
 interface Props {
   parcel?: Parcel
@@ -24,6 +25,10 @@ export default class AddTab extends Component<Props, any> {
 
   get parcel() {
     return window.grid?.nearestEditableParcel()
+  }
+
+  componentDidMount() {
+    focusFirst(this.base as HTMLElement, '.add-buttons a')
   }
 
   spawn(template: FeatureTemplate) {
@@ -77,7 +82,13 @@ export default class AddTab extends Component<Props, any> {
 
     return (
       <li>
-        <a href="#" onClick={() => this.spawn({ ...featureTemplates[feature.type] })}>
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault()
+            this.spawn({ ...featureTemplates[feature.type] })
+          }}
+        >
           {feature.title}
         </a>
       </li>
@@ -89,7 +100,9 @@ export default class AddTab extends Component<Props, any> {
       <section>
         <div class={`FeatureSpawnList`}>
           <h4>Features</h4>
-          <ul className="add-buttons">{featuresInfo.filter((x) => !x.modOnly || app.state.moderator).map(this.renderFeature)}</ul>
+          <ul className="add-buttons" onKeyDown={onListArrowKeys}>
+            {featuresInfo.filter((x) => !x.modOnly || app.state.moderator).map(this.renderFeature)}
+          </ul>
         </div>
       </section>
     )

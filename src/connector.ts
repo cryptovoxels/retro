@@ -16,6 +16,8 @@ import { ConnectionState } from './utils/socket-client'
 import { Transform } from './utils/transform'
 import { signal } from '@preact/signals'
 import { decodeCoords } from '../common/helpers/utils'
+import { EmoteAnimation } from './states'
+import { danceBySlug } from './ui/interact/dances'
 
 const UPDATE_AVATAR_INTERVAL_MS = 200
 
@@ -809,6 +811,12 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       return
     }
 
+    const trimmedLower = text.trim().toLowerCase()
+    if (trimmedLower === '/e' || trimmedLower.startsWith('/e ')) {
+      this.handleEmoteCommand(text)
+      return
+    }
+
     track('chat')
     this.sendMetric(messages.Action.Chat)
 
@@ -891,6 +899,23 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       rotation: new BABYLON.Vector3(0, yaw, 0),
     })
     this.controls.setFlying(leaderFlying)
+  }
+
+  private handleEmoteCommand(text: string) {
+    const slug = text.trim().split(/\s+/)[1]?.toLowerCase()
+    if (!slug) {
+      app.showSnackbar('try /e dance', PanelType.Warning)
+      return
+    }
+    const dance = danceBySlug(slug)
+    if (!dance) {
+      app.showSnackbar(`unknown emote "${slug}"`, PanelType.Warning)
+      return
+    }
+    this.persona.popState(this.controls)
+    if (dance.animation) {
+      this.persona.setState({ state: new EmoteAnimation(dance.animation) }, this.controls)
+    }
   }
 
   private handleConga(text: string) {
