@@ -12,18 +12,39 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 
 ## what is in here
 
-- parcels, 19 routes
-- womps, 6 routes
-- avatars, 13 routes
-- collectibles, 3 routes
-- collections, 6 routes
-- wearables, 7 routes
-- islands, 3 routes
-- spaces, 3 routes
-- events, 6 routes
-- search, 1 route
+- [parcels](#parcels), 19 routes
+- [womps](#womps), 6 routes
+- [avatars](#avatars), 13 routes
+- [collectibles](#collectibles), 3 routes
+- [collections](#collections), 6 routes
+- [wearables](#wearables), 7 routes
+- [islands](#islands), 3 routes
+- [spaces](#spaces), 3 routes
+- [events](#events), 6 routes
+- [search](#search), 1 route
+- [schemas](#schemas), 22 shapes
 
 ## parcels
+
+- [`/api/parcels.json`](#get-apiparcelsjson) List parcels, or fetch a batch by id
+- [`/api/parcels/cached.json`](#get-apiparcelscachedjson) Every visible parcel
+- [`/api/parcels/summary.json`](#get-apiparcelssummaryjson) id, address, island and name for every visible parcel
+- [`/api/parcels/xyz.json`](#get-apiparcelsxyzjson) Bounds and geometry only, for every parcel
+- [`/api/parcels/map.json`](#get-apiparcelsmapjson) The map layer's parcel list
+- [`/api/parcels/search.json`](#get-apiparcelssearchjson) Search minted, non-common parcels
+- [`/api/parcels/favorites.json`](#get-apiparcelsfavoritesjson) Parcels somebody has favorited
+- [`/api/parcels/{id}.json`](#get-apiparcelsidjson) One parcel with its build
+- [`/api/parcels/{id}.vox`](#get-apiparcelsidvox) The parcel's build as a MagicaVoxel file
+- [`/api/parcels/{id}.png`](#get-apiparcelsidpng) The parcel's tile off the map renderer
+- [`/api/parcels/{id}/query`](#get-apiparcelsidquery) Re-read the parcel's owner from the contract, then return it
+- [`/api/parcels/by/{wallet}/query`](#get-apiparcelsbywalletquery) Re-read every parcel a wallet owns
+- [`/api/parcels/{id}/history.json`](#get-apiparcelsidhistoryjson) Saved versions of a parcel, newest first
+- [`/api/parcels/{id}/history-count.json`](#get-apiparcelsidhistory-countjson) How many versions a parcel has
+- [`/api/parcels/{id}/history/{version}.json`](#get-apiparcelsidhistoryversionjson) One saved version of a parcel
+- [`/api/parcels/{id}/snapshots.json`](#get-apiparcelsidsnapshotsjson) Versions the owner marked as snapshots
+- [`/api/suburbs/{suburb_id}/popular.json`](#get-apisuburbssuburb_idpopularjson) The busiest parcels in a suburb
+- [`/api/wallet/{address}/parcels.json`](#get-apiwalletaddressparcelsjson) Parcels a wallet owns
+- [`/api/wallet/{address}/contributing-parcels.json`](#get-apiwalletaddresscontributing-parcelsjson) Parcels a wallet can build on but does not own
 
 ### GET /api/parcels.json
 
@@ -31,16 +52,16 @@ List parcels, or fetch a batch by id
 
 Without `parcel_ids` this lists minted parcels and each row carries `parcel_users`, `owner`, `suburb` and `hash`. With `parcel_ids` it runs a different query whose rows are narrower (no owner avatar, no suburb, no hash) and whose `y2` is the height, not the top of the box. Ids that are not numbers are dropped rather than rejected.
 
-parameters
+**parameters**
 
 - `parcel_ids` (query) array of integer: Repeat once per parcel id.
 - `limit` (query) integer: Only read when `parcel_ids` is absent.
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `parcels` array of `ParcelSummary`
+  - `parcels` array of [`ParcelSummary`](#parcelsummary)
 
 ### GET /api/parcels/cached.json
 
@@ -48,17 +69,17 @@ Every visible parcel
 
 The whole visible world in one document, cached hard. `owner` here is a lowercased wallet string, not the avatar object the other parcel routes return.
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `parcels` array of `CachedParcel`
+  - `parcels` array of [`CachedParcel`](#cachedparcel)
 
 ### GET /api/parcels/summary.json
 
 id, address, island and name for every visible parcel
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -74,14 +95,14 @@ Bounds and geometry only, for every parcel
 
 Includes unminted and invisible parcels. `y2` is the height, not the top of the box.
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
   - `parcels` array of object
     - `id` integer
     - `height` number
-    - `geometry` `ParcelGeometry`
+    - `geometry` [`ParcelGeometry`](#parcelgeometry)
     - `x1` number
     - `x2` number
     - `y1` number
@@ -93,7 +114,7 @@ answers
 
 The map layer's parcel list
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -105,7 +126,7 @@ Search minted, non-common parcels
 
 `q` matches address, island, parcel name, owner wallet or owner avatar name. A bare wallet or a bare integer take their own code paths. Each row carries `pagination_count`, the total the filter matched.
 
-parameters
+**parameters**
 
 - `q` (query, required) string: Missing `q` is a 400.
 - `limit` (query) integer: Capped at 50.
@@ -113,12 +134,12 @@ parameters
 - `sort` (query) string, one of `id`, `name`, `height`, `island`, `distance`, defaults to `id`: Anything else falls back to `id` descending.
 - `asc` (query) string: The string `true` flips the order.
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `parcels` array of `ParcelSummary` plus object
-    - everything in `ParcelSummary`
+  - `parcels` array of [`ParcelSummary`](#parcelsummary) plus object
+    - everything in [`ParcelSummary`](#parcelsummary)
     - `pagination_count` integer or string: Total rows the filter matched, before limit.
 - `400` The lookup did not land. Some handlers send this with status 200.
 
@@ -128,7 +149,7 @@ Parcels somebody has favorited
 
 `q` matches the wallet that favorited the parcel, not the parcel itself. Empty `q` matches every wallet, so the default answer is every favorited parcel. The rows come from a join against `favorites` with no grouping, so a parcel favorited by several wallets appears once per favorite.
 
-parameters
+**parameters**
 
 - `q` (query) string: Favoriting wallet, matched with `like`. Empty matches all.
 - `limit` (query) integer: No cap. Missing means no limit.
@@ -136,11 +157,11 @@ parameters
 - `sort` (query) string, one of `id`, `name`, `height`, `island`, `suburb`, `distance`, defaults to `id`: Anything else falls back to `id` descending.
 - `asc` (query) string: The string `true` flips the order.
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `parcels` array of `ParcelSummary`
+  - `parcels` array of [`ParcelSummary`](#parcelsummary)
 
 ### GET /api/parcels/{id}.json
 
@@ -148,26 +169,26 @@ One parcel with its build
 
 The only parcel route that returns `content`, which holds the voxels, the palette, the tileset and every feature on the plot. A non-numeric id is a 400. A parcel that is neither minted nor visible is a 400 as well.
 
-parameters
+**parameters**
 
 - `id` (path, required) integer
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `parcel` `Parcel`
+  - `parcel` [`Parcel`](#parcel)
 - `400` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/parcels/{id}.vox
 
 The parcel's build as a MagicaVoxel file
 
-parameters
+**parameters**
 
 - `id` (path, required) integer
 
-answers
+**answers**
 
 - `200` `application/octet-stream`, bytes
 - `404` The lookup did not land. Some handlers send this with status 200.
@@ -176,11 +197,11 @@ answers
 
 The parcel's tile off the map renderer
 
-parameters
+**parameters**
 
 - `id` (path, required) integer
 
-answers
+**answers**
 
 - `200` `image/png`, bytes
 - `404` The lookup did not land. Some handlers send this with status 200.
@@ -191,11 +212,11 @@ Re-read the parcel's owner from the contract, then return it
 
 A read with a side effect: it asks the contract who owns the parcel and writes the answer back before answering. The `parcel` it returns is the model object, not the `/api/parcels/{id}.json` shape.
 
-parameters
+**parameters**
 
 - `id` (path, required) integer
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -208,11 +229,11 @@ Re-read every parcel a wallet owns
 
 Broken upstream, documented so nobody spends an afternoon on it. The handler parses `req.params.id`, which this route does not declare, so the parse is always NaN and every call answers 404 `{"success": false}` before it reaches the subgraph. Verified against production.
 
-parameters
+**parameters**
 
 - `wallet` (path, required) string
 
-answers
+**answers**
 
 - `404` The lookup did not land. Some handlers send this with status 200.
 
@@ -220,7 +241,7 @@ answers
 
 Saved versions of a parcel, newest first
 
-parameters
+**parameters**
 
 - `id` (path, required) integer
 - `limit` (query) integer
@@ -229,7 +250,7 @@ parameters
 - `start_date` (query) integer
 - `end_date` (query) integer
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -239,11 +260,11 @@ answers
 
 How many versions a parcel has
 
-parameters
+**parameters**
 
 - `id` (path, required) integer
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -253,12 +274,12 @@ answers
 
 One saved version of a parcel
 
-parameters
+**parameters**
 
 - `id` (path, required) integer
 - `version` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -268,12 +289,12 @@ answers
 
 Versions the owner marked as snapshots
 
-parameters
+**parameters**
 
 - `id` (path, required) integer
 - `autosave` (query) string: The string `include` folds autosaves in.
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -283,12 +304,12 @@ answers
 
 The busiest parcels in a suburb
 
-parameters
+**parameters**
 
 - `suburb_id` (path, required) integer
 - `days` (query) integer: Window in days, 7 when absent or unparseable.
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -298,11 +319,11 @@ answers
 
 Parcels a wallet owns
 
-parameters
+**parameters**
 
 - `address` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -312,11 +333,11 @@ answers
 
 Parcels a wallet can build on but does not own
 
-parameters
+**parameters**
 
 - `address` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -324,36 +345,43 @@ answers
 
 ## womps
 
+- [`/api/womps.json`](#get-apiwompsjson) The newest womps across the world
+- [`/api/womps/{id}.json`](#get-apiwompsidjson) One womp
+- [`/api/womps/{id}.jpg`](#get-apiwompsidjpg) The photograph itself, when it lives in the database
+- [`/api/womps/at/parcel/{parcelId}.json`](#get-apiwompsatparcelparcelidjson) Womps taken on one parcel
+- [`/api/womps/at/space/{spaceId}.json`](#get-apiwompsatspacespaceidjson) Womps taken in one space
+- [`/api/womps/by/{wallet}`](#get-apiwompsbywallet) Womps one citizen took
+
 ### GET /api/womps.json
 
 The newest womps across the world
 
 A womp is a photograph somebody took in world. Note that the handler reads a `kind` query parameter and then never passes it to the query, so `?kind=broadcast` does nothing.
 
-parameters
+**parameters**
 
 - `limit` (query) integer, defaults to `50`
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `womps` array of `Womp`
+  - `womps` array of [`Womp`](#womp)
 - `404` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/womps/{id}.json
 
 One womp
 
-parameters
+**parameters**
 
 - `id` (path, required) integer
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `womp` `Womp`
+  - `womp` [`Womp`](#womp)
 - `404` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/womps/{id}.jpg
@@ -362,11 +390,11 @@ The photograph itself, when it lives in the database
 
 Only womps whose bytes were uploaded to Voxels answer here. The rest are hosted elsewhere and only have `image_url`; `image_supplied` on the womp record tells you which is which.
 
-parameters
+**parameters**
 
 - `id` (path, required) integer
 
-answers
+**answers**
 
 - `200` `image/jpeg`, bytes
 - `404` The lookup did not land. Some handlers send this with status 200.
@@ -377,32 +405,32 @@ Womps taken on one parcel
 
 Reports are filtered out.
 
-parameters
+**parameters**
 
 - `parcelId` (path, required) integer
 - `limit` (query) integer, defaults to `50`
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `womps` array of `Womp`
+  - `womps` array of [`Womp`](#womp)
 - `404` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/womps/at/space/{spaceId}.json
 
 Womps taken in one space
 
-parameters
+**parameters**
 
 - `spaceId` (path, required) string, a uuid
 - `limit` (query) integer, defaults to `50`
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `womps` array of `Womp`
+  - `womps` array of [`Womp`](#womp)
 - `404` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/womps/by/{wallet}
@@ -411,33 +439,47 @@ Womps one citizen took
 
 Matches `womps.author` exactly, so the wallet has to be cased the way it was stored. Reports are filtered out.
 
-parameters
+**parameters**
 
 - `wallet` (path, required) string
 - `limit` (query) integer, defaults to `50`
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `womps` array of `Womp`
+  - `womps` array of [`Womp`](#womp)
 - `404` The lookup did not land. Some handlers send this with status 200.
 
 ## avatars
+
+- [`/api/avatars/{wallet}.json`](#get-apiavatarswalletjson) One citizen by wallet
+- [`/api/avatars/by/{nameOrWallet}.json`](#get-apiavatarsbynameorwalletjson) One citizen by name or wallet
+- [`/api/avatars/search`](#get-apiavatarssearch) Name or wallet substring match, ten at most
+- [`/api/avatars/{wallet}/assets`](#get-apiavatarswalletassets) Wearables this wallet authored
+- [`/api/avatars/{wallet}/wearables`](#get-apiavatarswalletwearables) The collectibles in this citizen's current costume
+- [`/api/avatars/{wallet}/costume.json`](#get-apiavatarswalletcostumejson) The costume this citizen is wearing
+- [`/api/avatars/{wallet}/costumes`](#get-apiavatarswalletcostumes) Every costume this citizen has saved
+- [`/api/avatars/{wallet}/score.json`](#get-apiavatarswalletscorejson) This citizen's scores
+- [`/api/costumes/{id}`](#get-apicostumesid) One costume by id
+- [`/api/avatar/{wallet}/name.json`](#get-apiavatarwalletnamejson) This citizen's display name
+- [`/api/avatar/{wallet}/names`](#get-apiavatarwalletnames) Every name this wallet holds
+- [`/api/names/exists/{name}`](#get-apinamesexistsname) Whether a name is taken
+- [`/api/avatar/owns/{chain_identifier}/{contract}/{token_id}`](#get-apiavatarownschain_identifiercontracttoken_id) Whether a wallet holds a token
 
 ### GET /api/avatars/{wallet}.json
 
 One citizen by wallet
 
-parameters
+**parameters**
 
 - `wallet` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `avatar` `Avatar`
+  - `avatar` [`Avatar`](#avatar)
 - `400` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/avatars/by/{nameOrWallet}.json
@@ -446,15 +488,15 @@ One citizen by name or wallet
 
 Both comparisons are case-insensitive.
 
-parameters
+**parameters**
 
 - `nameOrWallet` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `avatar` `Avatar`
+  - `avatar` [`Avatar`](#avatar)
 - `400` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/avatars/search
@@ -463,11 +505,11 @@ Name or wallet substring match, ten at most
 
 The odd one out: it answers with a bare array, no envelope, and an empty `q` gives `[]`.
 
-parameters
+**parameters**
 
 - `q` (query) string
 
-answers
+**answers**
 
 - `200` array of object
   - `name` string or null
@@ -479,25 +521,25 @@ Wearables this wallet authored
 
 Minted and unsuppressed only. Authorship, not ownership.
 
-parameters
+**parameters**
 
 - `wallet` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `assets` array of `Wearable`
+  - `assets` array of [`Wearable`](#wearable)
 
 ### GET /api/avatars/{wallet}/wearables
 
 The collectibles in this citizen's current costume
 
-parameters
+**parameters**
 
 - `wallet` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -507,39 +549,39 @@ answers
 
 The costume this citizen is wearing
 
-parameters
+**parameters**
 
 - `wallet` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `costume` `Costume`
+  - `costume` [`Costume`](#costume)
 
 ### GET /api/avatars/{wallet}/costumes
 
 Every costume this citizen has saved
 
-parameters
+**parameters**
 
 - `wallet` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `costumes` array of `Costume`
+  - `costumes` array of [`Costume`](#costume)
 
 ### GET /api/avatars/{wallet}/score.json
 
 This citizen's scores
 
-parameters
+**parameters**
 
 - `wallet` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -551,25 +593,25 @@ One costume by id
 
 Answers `{"success": true, "costume": null}` for an id that does not exist rather than a 404.
 
-parameters
+**parameters**
 
 - `id` (path, required) string, a uuid
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `costume` `Costume`
+  - `costume` [`Costume`](#costume)
 
 ### GET /api/avatar/{wallet}/name.json
 
 This citizen's display name
 
-parameters
+**parameters**
 
 - `wallet` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -581,11 +623,11 @@ Every name this wallet holds
 
 No `success` on the happy path, just `name` and `names`.
 
-parameters
+**parameters**
 
 - `wallet` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `name` string or null
@@ -596,11 +638,11 @@ answers
 
 Whether a name is taken
 
-parameters
+**parameters**
 
 - `name` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -612,14 +654,14 @@ Whether a wallet holds a token
 
 Rate limited to five calls per thirty seconds per client, because it costs a chain read. A missing or malformed `wallet` answers 200 with `{"success": false}`, not a 400.
 
-parameters
+**parameters**
 
 - `chain_identifier` (path, required) string, one of `eth`, `matic`
 - `contract` (path, required) string
 - `token_id` (path, required) string
 - `wallet` (query, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -629,22 +671,26 @@ answers
 
 ## collectibles
 
+- [`/api/collectibles.json`](#get-apicollectiblesjson) Search minted collectibles
+- [`/api/collectibles/{uuid}/vox`](#get-apicollectiblesuuidvox) A collectible's MagicaVoxel model
+- [`/api/collectibles/wearable/{uuid}.json`](#get-apicollectibleswearableuuidjson) One wearable by uuid
+
 ### GET /api/collectibles.json
 
 Search minted collectibles
 
-parameters
+**parameters**
 
 - `q` (query) string
 - `page` (query) integer: One-based, and one is subtracted before the query sees it.
 - `sort` (query) string, defaults to `updated_at`
 - `asc` (query) string: The string `true` flips the order.
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `collectibles` array of `Collectible`
+  - `collectibles` array of [`Collectible`](#collectible)
 
 ### GET /api/collectibles/{uuid}/vox
 
@@ -652,11 +698,11 @@ A collectible's MagicaVoxel model
 
 This is the one way to get a wearable's geometry from the wid on an avatar attachment. The name behind that wid is not resolvable: the attachment carries only the opaque uuid and the shop API is closed. The model is, so a costume can be rebuilt without ever knowing what the pieces are called.
 
-parameters
+**parameters**
 
 - `uuid` (path, required) string, a uuid
 
-answers
+**answers**
 
 - `200` `application/octet-stream`, bytes
 - `404` The lookup did not land. Some handlers send this with status 200.
@@ -665,29 +711,36 @@ answers
 
 One wearable by uuid
 
-parameters
+**parameters**
 
 - `uuid` (path, required) string, a uuid
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `wearable` `Wearable`
+  - `wearable` [`Wearable`](#wearable)
 - `400` The lookup did not land. Some handlers send this with status 200.
 
 ## collections
+
+- [`/api/helper/typeOfContract/{chain_identifier}/{contract}`](#get-apihelpertypeofcontractchain_identifiercontract) Whether a contract is ERC721 or ERC1155
+- [`/api/collections`](#get-apicollections) Wearable collections
+- [`/api/collections/{id}`](#get-apicollectionsid) One collection
+- [`/api/collections/{id}/collectibles`](#get-apicollectionsidcollectibles) Everything in a collection
+- [`/api/collections/{collection_id}/collectibles/{token_id}`](#get-apicollectionscollection_idcollectiblestoken_id) One collectible by collection id and token id
+- [`/api/collections/{chain_identifier}/{collection_address}/c/{token_id}.json`](#get-apicollectionschain_identifiercollection_addressctoken_idjson) One collectible by chain, contract and token id
 
 ### GET /api/helper/typeOfContract/{chain_identifier}/{contract}
 
 Whether a contract is ERC721 or ERC1155
 
-parameters
+**parameters**
 
 - `chain_identifier` (path, required) string, one of `eth`, `matic`
 - `contract` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -698,7 +751,7 @@ answers
 
 Wearable collections
 
-parameters
+**parameters**
 
 - `q` (query) string: Substring match on the collection name.
 - `sort` (query) string, one of `popular`, `newest`, `oldest`, defaults to `popular`
@@ -706,55 +759,55 @@ parameters
 - `page` (query) integer, defaults to `0`: Zero-based.
 - `owner` (query) string: Exact match, so the wallet has to be cased as stored.
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `collections` array of `Collection`
+  - `collections` array of [`Collection`](#collection)
 
 ### GET /api/collections/{id}
 
 One collection
 
-parameters
+**parameters**
 
 - `id` (path, required) integer
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `collection` `Collection`
+  - `collection` [`Collection`](#collection)
 - `400` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/collections/{id}/collectibles
 
 Everything in a collection
 
-parameters
+**parameters**
 
 - `id` (path, required) integer
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `collectibles` array of `Collectible`
+  - `collectibles` array of [`Collectible`](#collectible)
 
 ### GET /api/collections/{collection_id}/collectibles/{token_id}
 
 One collectible by collection id and token id
 
-parameters
+**parameters**
 
 - `collection_id` (path, required) integer
 - `token_id` (path, required) integer
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `collectible` `Collectible`
+  - `collectible` [`Collectible`](#collectible)
 - `400` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/collections/{chain_identifier}/{collection_address}/c/{token_id}.json
@@ -763,64 +816,72 @@ One collectible by chain, contract and token id
 
 An unrecognised chain identifier falls back to ethereum rather than erroring.
 
-parameters
+**parameters**
 
 - `chain_identifier` (path, required) string, one of `eth`, `matic`
 - `collection_address` (path, required) string
 - `token_id` (path, required) integer
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `collectible` `Collectible`
+  - `collectible` [`Collectible`](#collectible)
 - `400` The lookup did not land. Some handlers send this with status 200.
 
 ## wearables
+
+- [`/api/wearables/search`](#get-apiwearablessearch) Wearable name substring match, fifty at most
+- [`/api/wearables/suggest`](#get-apiwearablessuggest) Thirty wearables, the ones for a given bone first
+- [`/api/wearables/free.json`](#get-apiwearablesfreejson) Wearables anyone can put on
+- [`/api/wearables/{wearable_id}/vox`](#get-apiwearableswearable_idvox) A wearable's MagicaVoxel model, by wearable uuid
+- [`/api/wearables/{address}/{token}/vox`](#get-apiwearablesaddresstokenvox) A wearable's MagicaVoxel model, by contract and token id
+- [`/w/{hash}/{format}`](#get-whashformat) A wearable's model by content hash
+- [`/c/v2/{chain_identifier}/{collection_address}/{token_id}/{format}`](#get-cv2chain_identifiercollection_addresstoken_idformat) A wearable's model by chain, contract and token id
 
 ### GET /api/wearables/search
 
 Wearable name substring match, fifty at most
 
-parameters
+**parameters**
 
 - `q` (query) string
 
-answers
+**answers**
 
-- `200` `WearablePickList`
+- `200` [`WearablePickList`](#wearablepicklist)
 
 ### GET /api/wearables/suggest
 
 Thirty wearables, the ones for a given bone first
 
-parameters
+**parameters**
 
 - `bone` (query) string: An exact bone name sorts its wearables to the top.
 
-answers
+**answers**
 
-- `200` `WearablePickList`
+- `200` [`WearablePickList`](#wearablepicklist)
 
 ### GET /api/wearables/free.json
 
 Wearables anyone can put on
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `wearables` array of `Wearable`
+  - `wearables` array of [`Wearable`](#wearable)
 
 ### GET /api/wearables/{wearable_id}/vox
 
 A wearable's MagicaVoxel model, by wearable uuid
 
-parameters
+**parameters**
 
 - `wearable_id` (path, required) string, a uuid
 
-answers
+**answers**
 
 - `200` `application/octet-stream`, bytes
 - `404` The lookup did not land. Some handlers send this with status 200.
@@ -831,12 +892,12 @@ A wearable's MagicaVoxel model, by contract and token id
 
 Two-segment sibling of the route above. Express matches whichever arity the request has, so a single segment goes to `{wearable_id}` and two go here. The address is matched case-insensitively against the collection.
 
-parameters
+**parameters**
 
 - `address` (path, required) string
 - `token` (path, required) integer
 
-answers
+**answers**
 
 - `200` `application/octet-stream`, bytes
 - `404` The lookup did not land. Some handlers send this with status 200.
@@ -847,12 +908,12 @@ A wearable's model by content hash
 
 `format` has to be `vox` or `.vox`; every other value is a 404. The hash has to be longer than 39 characters or the lookup is skipped.
 
-parameters
+**parameters**
 
 - `hash` (path, required) string
 - `format` (path, required) string, one of `vox`, `.vox`
 
-answers
+**answers**
 
 - `200` `application/octet-stream`, bytes
 - `404` The lookup did not land. Some handlers send this with status 200.
@@ -863,14 +924,14 @@ A wearable's model by chain, contract and token id
 
 Same handler as `/w/{hash}/{format}`. `token_id` is read as hex when it looks like hex and as decimal otherwise.
 
-parameters
+**parameters**
 
 - `chain_identifier` (path, required) string, one of `eth`, `matic`
 - `collection_address` (path, required) string
 - `token_id` (path, required) string
 - `format` (path, required) string, one of `vox`, `.vox`
 
-answers
+**answers**
 
 - `200` `application/octet-stream`, bytes
 - `400` The lookup did not land. Some handlers send this with status 200.
@@ -878,27 +939,31 @@ answers
 
 ## islands
 
+- [`/api/islands.json`](#get-apiislandsjson) Every island with its shoreline
+- [`/api/islands-metadata.json`](#get-apiislands-metadatajson) Island names and positions
+- [`/api/islands/{slug}.json`](#get-apiislandsslugjson) One island and every parcel on it
+
 ### GET /api/islands.json
 
 Every island with its shoreline
 
 The heavy one: it carries the shore polygon plus the holes and lakes cut out of it. Use `/api/islands-metadata.json` if you only need names and positions.
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `islands` array of `Island`
+  - `islands` array of [`Island`](#island)
 
 ### GET /api/islands-metadata.json
 
 Island names and positions
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `islands` array of `IslandMetadata`
+  - `islands` array of [`IslandMetadata`](#islandmetadata)
 
 ### GET /api/islands/{slug}.json
 
@@ -906,22 +971,26 @@ One island and every parcel on it
 
 The slug is the island name lowercased with runs of whitespace turned into single hyphens, so `Origin City` is `origin-city`. `parcels` holds whole property rows.
 
-parameters
+**parameters**
 
 - `slug` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
   - `island` object
     - `id` integer
     - `name` string
-    - `position` `GeoJsonPoint`
+    - `position` [`GeoJsonPoint`](#geojsonpoint)
     - `parcels` array of object
 - `400` The lookup did not land. Some handlers send this with status 200.
 
 ## spaces
+
+- [`/api/spaces.json`](#get-apispacesjson) Browsable spaces
+- [`/api/spaces/{id}.json`](#get-apispacesidjson) One space with its content
+- [`/api/wallet/{address}/spaces.json`](#get-apiwalletaddressspacesjson) Spaces a wallet owns
 
 ### GET /api/spaces.json
 
@@ -929,11 +998,11 @@ Browsable spaces
 
 A space is a build that is not pinned to a parcel. Womps can be taken in one.
 
-parameters
+**parameters**
 
 - `page` (query) integer, defaults to `1`: One-based.
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -945,11 +1014,11 @@ One space with its content
 
 A malformed uuid throws inside the handler and comes back as a 400.
 
-parameters
+**parameters**
 
 - `id` (path, required) string, a uuid
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -960,12 +1029,12 @@ answers
 
 Spaces a wallet owns
 
-parameters
+**parameters**
 
 - `address` (path, required) string
 - `page` (query) integer, defaults to `1`: One-based.
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -973,48 +1042,55 @@ answers
 
 ## events
 
+- [`/api/events.json`](#get-apieventsjson) Events people have put on their parcels
+- [`/api/events/on.json`](#get-apieventsonjson) Events happening now or soon
+- [`/api/events/on/{limit}/{page}.json`](#get-apieventsonlimitpagejson) Paged version of the above
+- [`/api/events/{id}.json`](#get-apieventsidjson) One event
+- [`/api/parcels/{id}/event.json`](#get-apiparcelsideventjson) The event on a parcel
+- [`/api/parcels/{id}/events/history.json`](#get-apiparcelsideventshistoryjson) Events a parcel has already held
+
 ### GET /api/events.json
 
 Events people have put on their parcels
 
-answers
+**answers**
 
-- `200` `EventList`
+- `200` [`EventList`](#eventlist)
 
 ### GET /api/events/on.json
 
 Events happening now or soon
 
-parameters
+**parameters**
 
 - `live` (query) string: The string `true` narrows this to what is on right now.
 
-answers
+**answers**
 
-- `200` `EventList`
+- `200` [`EventList`](#eventlist)
 
 ### GET /api/events/on/{limit}/{page}.json
 
 Paged version of the above
 
-parameters
+**parameters**
 
 - `limit` (path, required) integer: Three when it will not parse.
 - `page` (path, required) integer: Zero-based.
 
-answers
+**answers**
 
-- `200` `EventList`
+- `200` [`EventList`](#eventlist)
 
 ### GET /api/events/{id}.json
 
 One event
 
-parameters
+**parameters**
 
 - `id` (path, required) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -1025,11 +1101,11 @@ answers
 
 The event on a parcel
 
-parameters
+**parameters**
 
 - `id` (path, required) integer
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
@@ -1040,15 +1116,17 @@ answers
 
 Events a parcel has already held
 
-parameters
+**parameters**
 
 - `id` (path, required) integer
 
-answers
+**answers**
 
-- `200` `EventList`
+- `200` [`EventList`](#eventlist)
 
 ## search
+
+- [`/api/search`](#get-apisearch) Full text search across the world
 
 ### GET /api/search
 
@@ -1056,15 +1134,15 @@ Full text search across the world
 
 Reads a materialised view that mixes parcels, wearables and the rest, so `type` tells you what each hit is. Fifty results, no paging: `limit` and `page` are fixed in the handler. `q` is lowercased, stripped of percent signs and cut to eighty characters. An empty `q` returns an empty list with `success: true`.
 
-parameters
+**parameters**
 
 - `q` (query) string
 
-answers
+**answers**
 
 - `200` object
   - `success` boolean
-  - `results` array of `SearchResult`
+  - `results` array of [`SearchResult`](#searchresult)
 
 ## schemas
 
@@ -1123,7 +1201,7 @@ The build. Only `/api/parcels/{id}.json` returns this.
   Each cell is a packed integer. The low five bits are the tile index into the tileset atlas, a 4x4 grid of material textures, so a cell of 0 is empty air. Bits 5 to 7 index `palette`. Bit 15 is set on solid voxels and the mesher ignores it.
 - `palette` array of string or null: Eight hex colours the builder tints the atlas materials with. Null when the builder never touched them, and a missing entry falls back to the default for that slot.
 - `tileset` string or null or boolean: Path to a custom atlas image, relative to the Voxels image host, or null and false for the built-in one.
-- `features` array of `Feature` or null
+- `features` array of [`Feature`](#feature) or null
 - `scripting` string or boolean or null
 - `lightmap_url` string or null
 - `brightness` number or null
@@ -1137,9 +1215,9 @@ Something hung on the plot: an image, screen, sign, text, light, portal, spawn p
 
 - `type` string
 - `uuid` string: Missing on some old features.
-- `position` `Vec3`: Parcel-local metres. x and z are measured from the MIDDLE of the plot, not a corner, so they go negative. y is measured up from the floor.
-- `rotation` `Vec3`: Radians, composed yaw, pitch, roll. Degrees are what a wearable attachment uses, not this.
-- `scale` `Vec3`: For a flat feature such as an image, the rectangle's width and height in metres.
+- `position` [`Vec3`](#vec3): Parcel-local metres. x and z are measured from the MIDDLE of the plot, not a corner, so they go negative. y is measured up from the floor.
+- `rotation` [`Vec3`](#vec3): Radians, composed yaw, pitch, roll. Degrees are what a wearable attachment uses, not this.
+- `scale` [`Vec3`](#vec3): For a flat feature such as an image, the rectangle's width and height in metres.
 - `groupId` string or null: The uuid of a `group` feature. Nesting is by reference, not by embedding: the array is flat and a group can name another group as its parent, so walk the chain to get a feature's world transform.
 - `url` string or array of string or object or null: A string, a one-element array or an object with a `url` key, depending on the feature's age.
 - `collidable` boolean
@@ -1159,7 +1237,7 @@ Either a three-element array or an object with x, y and z.
 
 One parcel with its build. What `/api/parcels/{id}.json` returns.
 
-- everything in `ParcelBounds`
+- everything in [`ParcelBounds`](#parcelbounds)
 - `id` integer
 - `token` integer or null
 - `name` string or null
@@ -1169,10 +1247,10 @@ One parcel with its build. What `/api/parcels/{id}.json` returns.
 - `island` string
 - `suburb` string or null
 - `kind` string, one of `plot`, `inner`, `outer`, `unit`, `basement`, `asset`
-- `geometry` `ParcelGeometry`
-- `owner` `AvatarRef`
-- `parcel_users` array of `AvatarRef` or null
-- `content` `ParcelContent`
+- `geometry` [`ParcelGeometry`](#parcelgeometry)
+- `owner` [`AvatarRef`](#avatarref)
+- `parcel_users` array of [`AvatarRef`](#avatarref) or null
+- `content` [`ParcelContent`](#parcelcontent)
 - `settings` object or null
 - `lightmap_url` string or null
 - `traffic_visits` integer
@@ -1188,15 +1266,15 @@ One parcel with its build. What `/api/parcels/{id}.json` returns.
 
 A row from the parcel list routes. No `content`.
 
-- everything in `ParcelBounds`
+- everything in [`ParcelBounds`](#parcelbounds)
 - `id` integer
 - `name` string or null
 - `label` string or null
 - `address` string or null
 - `island` string
 - `suburb` string or null
-- `geometry` `ParcelGeometry`
-- `owner` `AvatarRef`
+- `geometry` [`ParcelGeometry`](#parcelgeometry)
+- `owner` [`AvatarRef`](#avatarref)
 - `parcel_users` array of object or null
 - `hash` string or null
 - `lightmap_url` string or null
@@ -1209,14 +1287,14 @@ A row from the parcel list routes. No `content`.
 
 A row from `/api/parcels/cached.json`.
 
-- everything in `ParcelBounds`
+- everything in [`ParcelBounds`](#parcelbounds)
 - `id` integer
 - `name` string or null
 - `address` string or null
 - `island` string
 - `suburb` string or null
 - `kind` string
-- `geometry` `ParcelGeometry`
+- `geometry` [`ParcelGeometry`](#parcelgeometry)
 - `owner` string: A lowercased wallet, not an avatar object.
 - `parcel_users` array of object
   - `wallet` string
@@ -1235,7 +1313,7 @@ A row from `/api/parcels/cached.json`.
 A photograph somebody took in world.
 
 - `id` integer
-- `author` `AvatarRef`
+- `author` [`AvatarRef`](#avatarref)
 - `content` string: The caption.
 - `coords` string: Where the shot was taken, in the same string the play URL uses, for example `SW@3558E,2017S,3U`: heading, then east/west, north/south and an optional height above ground.
 - `parcel_id` integer or null
@@ -1263,7 +1341,7 @@ A citizen.
 - `moderator` boolean
 - `settings` object or null
 - `costume_id` string or null
-- `costume` `Costume`
+- `costume` [`Costume`](#costume)
 - `home_id` integer or null
 - `created_at` string or null: Pacific/Auckland, not UTC.
 - `last_online` string or null: Pacific/Auckland, not UTC.
@@ -1283,7 +1361,7 @@ A wearable collectible.
 - `id` string, a uuid: The wid. This is what `/api/collectibles/{uuid}/vox` takes.
 - `name` string or null
 - `description` string or null
-- `author` `AvatarRef`
+- `author` [`AvatarRef`](#avatarref)
 - `token_id` integer or null: Null until the wearable is minted.
 - `collection_id` integer or null
 - `collection_name` string or null
@@ -1316,7 +1394,7 @@ The trimmed shape the wearable pickers use.
 
 A minted wearable, as the collectible routes return it.
 
-- everything in `Wearable`
+- everything in [`Wearable`](#wearable)
 
 ### Collection
 
@@ -1345,7 +1423,7 @@ A wearable collection.
 - `geometry` object: The shoreline, as GeoJSON.
 - `holes_geometry_json` object or null: Land cut out of the island.
 - `lakes_geometry_json` object or null
-- `position` `GeoJsonPoint`
+- `position` [`GeoJsonPoint`](#geojsonpoint)
 - `content` object or null
 
 ### IslandMetadata
@@ -1353,7 +1431,7 @@ A wearable collection.
 - `id` integer
 - `name` string
 - `other_name` string or null
-- `position` `GeoJsonPoint`
+- `position` [`GeoJsonPoint`](#geojsonpoint)
 
 ### SearchResult
 

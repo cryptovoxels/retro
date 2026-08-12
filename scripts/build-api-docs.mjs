@@ -55,17 +55,31 @@ const blurbs = {
   search: 'One query across parcels, wearables, collections and citizens.',
 }
 
-function refName(ref) {
-  return ref.split('/').pop()
+// GitHub's heading slugs, so a link works both here and on the rendered page:
+// lowercase, drop punctuation but keep hyphens and underscores, spaces to
+// hyphens. Underscores matter, {chain_identifier} is in eight route headings.
+// web/src/api-doc.tsx repeats this rule to put ids on the headings micromark
+// renders, and the check at the bottom of this file stops the two drifting.
+function slug(text) {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9 _-]/g, '')
+    .replace(/ /g, '-')
 }
 
 function code(v) {
   return '`' + String(v) + '`'
 }
 
+// A $ref reads as the schema's name, linked to its entry under ## schemas.
+function refLink(ref) {
+  const name = ref.split('/').pop()
+  return `[${code(name)}](#${slug(name)})`
+}
+
 function typeOf(schema) {
   if (!schema) return 'anything'
-  if (schema.$ref) return code(refName(schema.$ref))
+  if (schema.$ref) return refLink(schema.$ref)
   if (schema.format === 'binary') return 'bytes'
   if (schema.oneOf) return schema.oneOf.map(typeOf).join(' or ')
   if (schema.allOf) return schema.allOf.map(typeOf).join(' plus ')
@@ -104,7 +118,7 @@ function fields(schema, indent = '', lines = []) {
   if (!schema) return lines
   if (schema.allOf) {
     for (const part of schema.allOf) {
-      if (part.$ref) lines.push(`${indent}- everything in ${code(refName(part.$ref))}`)
+      if (part.$ref) lines.push(`${indent}- everything in ${refLink(part.$ref)}`)
       else fields(part, indent, lines)
     }
     return lines
@@ -162,12 +176,12 @@ function renderOperation(path, op) {
   for (const p of paragraphs(op.description)) out.push(p, '')
 
   if (op.parameters?.length) {
-    out.push('parameters', '')
+    out.push('**parameters**', '')
     for (const p of op.parameters) out.push(renderParam(p))
     out.push('')
   }
 
-  out.push('answers', '')
+  out.push('**answers**', '')
   for (const [status, response] of Object.entries(op.responses ?? {})) out.push(...renderResponse(status, response))
   out.push('')
   return out
@@ -186,11 +200,16 @@ md.push(`Base url is ${code(base)}. Everything here is a GET and none of it need
 md.push(`Generated from ${code('server/openapi.yaml')} by ${code('npm run docs:api')}. Edit the spec, not this page.`, '')
 
 md.push('## what is in here', '')
-for (const [tag, ops] of byTag) md.push(`- ${tag}, ${ops.length} route${ops.length === 1 ? '' : 's'}`)
+for (const [tag, ops] of byTag) md.push(`- [${tag}](#${slug(tag)}), ${ops.length} route${ops.length === 1 ? '' : 's'}`)
+// schemas is the one section nothing else links to from up here
+md.push(`- [schemas](#${slug('schemas')}), ${Object.keys(spec.components.schemas).length} shapes`)
 md.push('')
 
 for (const [tag, ops] of byTag) {
   md.push(`## ${tag}`, '')
+  // Jump list for the tag: the route, and what you would find there.
+  for (const [path, op] of ops) md.push(`- [${code(path)}](#${slug('GET ' + path)})${op.summary ? ` ${op.summary}` : ''}`)
+  md.push('')
   for (const [path, op] of ops) md.push(...renderOperation(path, op))
 }
 
@@ -202,13 +221,32 @@ for (const [name, schema] of Object.entries(spec.components.schemas)) {
   md.push(...fields(schema), '')
 }
 
-writeFileSync(
-  mdPath,
+const doc =
   md
     .join('\n')
     .replace(/\n{3,}/g, '\n\n')
-    .trimEnd() + '\n',
-)
+    .trimEnd() + '\n'
+
+// Every link above was slugged by hand, so check each one lands on a heading
+// this file also wrote, and that no two headings claim the same anchor. A dead
+// anchor is worse than no anchor, so stop rather than write the page.
+const anchors = new Set()
+const twice = []
+for (const line of doc.split('\n')) {
+  const heading = /^#{1,6} (.+)$/.exec(line)
+  if (!heading) continue
+  const id = slug(heading[1])
+  if (anchors.has(id)) twice.push(id)
+  anchors.add(id)
+}
+const dead = [...doc.matchAll(/\]\(#([^)]+)\)/g)].map((m) => m[1]).filter((id) => !anchors.has(id))
+if (dead.length || twice.length) {
+  if (dead.length) console.error(`[docs:api] ${dead.length} links point at nothing: ${[...new Set(dead)].join(', ')}`)
+  if (twice.length) console.error(`[docs:api] ${twice.length} headings share an anchor: ${[...new Set(twice)].join(', ')}`)
+  process.exit(1)
+}
+
+writeFileSync(mdPath, doc)
 
 const total = Object.keys(spec.paths).length
 const llms = [
@@ -235,4 +273,5 @@ llms.push('')
 
 writeFileSync(llmsPath, llms.join('\n'))
 
-console.log(`[docs:api] ${total} routes, ${Object.keys(spec.components.schemas).length} schemas -> API.md, llms.txt`)
+const linked = [...doc.matchAll(/\]\(#/g)].length
+console.log(`[docs:api] ${total} routes, ${Object.keys(spec.components.schemas).length} schemas, ${anchors.size} anchors, ${linked} links to them -> API.md, llms.txt`)
