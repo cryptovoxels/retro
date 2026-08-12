@@ -144,6 +144,8 @@ type UserInterfaceState = {
   dragging?: boolean
   voice?: 'off' | 'live' | 'muted'
   voiceEnabled: boolean
+  /** new public womp since last time Explore was opened */
+  newWomp: boolean
 }
 
 export default class UserInterface extends Component<UserInterfaceProps, UserInterfaceState> {
@@ -170,6 +172,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   presenceUuids = new Set<string>()
   chatLastReadAt = Date.now()
   chatListDispose?: () => void
+  wompPollTimer: ReturnType<typeof setInterval> | null = null
+  latestWompId = 0
 
   constructor(props: UserInterfaceProps) {
     super(props)
@@ -199,6 +203,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       onlineCount: 0,
       chatEnabled: chatSettings.enabled,
       voiceEnabled: voiceSettings.enabled,
+      newWomp: false,
     }
   }
 
@@ -333,6 +338,52 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       messageList.value
       this.forceUpdate()
     })
+
+    // teach Explore: badge when a new public womp lands while you're in world
+    void this.pollNewWomp()
+    this.wompPollTimer = setInterval(() => void this.pollNewWomp(), 45_000)
+  }
+
+  private static WOMP_SEEN_KEY = 'voxels-explore-last-womp'
+
+  private readSeenWompId() {
+    try {
+      return parseInt(localStorage.getItem(UserInterface.WOMP_SEEN_KEY) || '0', 10) || 0
+    } catch {
+      return 0
+    }
+  }
+
+  private writeSeenWompId(id: number) {
+    try {
+      localStorage.setItem(UserInterface.WOMP_SEEN_KEY, String(id))
+    } catch {}
+  }
+
+  private pollNewWomp = async () => {
+    try {
+      const r = await fetch('/api/womps.json?limit=1')
+      const d = await r.json()
+      const id = d?.womps?.[0]?.id
+      if (!id || typeof id !== 'number') return
+      this.latestWompId = id
+      const seen = this.readSeenWompId()
+      if (!seen) {
+        // first run: baseline so we don't badge the whole archive
+        this.writeSeenWompId(id)
+        return
+      }
+      if (id > seen && !this.state.newWomp) this.setState({ newWomp: true })
+    } catch {}
+  }
+
+  private markWompsSeen = () => {
+    if (this.latestWompId) this.writeSeenWompId(this.latestWompId)
+    else {
+      const seen = this.readSeenWompId()
+      if (seen) this.writeSeenWompId(seen)
+    }
+    if (this.state.newWomp) this.setState({ newWomp: false })
   }
 
   componentDidUpdate(_prevProps: UserInterfaceProps, prevState: UserInterfaceState) {
@@ -341,6 +392,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     }
     if (prevState.pane !== this.state.pane || prevState.feature?.uuid !== this.state.feature?.uuid) {
       uiAsideTick.value++
+    }
+    if (this.state.pane === 'explorer' && prevState.pane !== 'explorer') {
+      this.markWompsSeen()
     }
   }
 
@@ -362,6 +416,10 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   componentWillUnmount() {
     this.presenceEs?.close()
     this.presenceEs = null
+    if (this.wompPollTimer) {
+      clearInterval(this.wompPollTimer)
+      this.wompPollTimer = null
+    }
     app.removeListener(AppEvent.Change, this.onAppChange)
     document.removeEventListener('pointerlockchange', this.onPointerLockChange)
     chatSettings.removeEventListener('changed', this.onChatSettingsChange)
@@ -892,8 +950,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                 </li>
               )}
               <li class={active('explorer')}>
-                <a href="#explorer" onMouseOver={onHover('explorer')} onClick={onClick('explorer')}>
-                  Explore
+                <a href="#explorer" onMouseOver={onHover('explorer')} onClick={onClick('explorer')} title={this.state.newWomp ? 'new womp - open Explore' : 'Explore'}>
+                  E{this.state.newWomp ? <span class="explore-new-dot" aria-label="new womp" /> : null}xplore
                 </a>
               </li>
 
