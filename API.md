@@ -227,7 +227,7 @@ A read with a side effect: it asks the contract who owns the parcel and writes t
 
 Re-read every parcel a wallet owns
 
-Broken upstream, documented so nobody spends an afternoon on it. The handler parses `req.params.id`, which this route does not declare, so the parse is always NaN and every call answers 404 `{"success": false}` before it reaches the subgraph. Verified against production.
+Reads the subgraph for every parcel the wallet owns, then re-queries the contract for each one as a just-to-make-sure step. Answers `{"success": false}` when the subgraph is unreachable or returns nothing, on the theory that an owner seeing no parcels is worse than an owner seeing a stale list.
 
 **parameters**
 
@@ -356,11 +356,12 @@ Parcels a wallet can build on but does not own
 
 The newest womps across the world
 
-A womp is a photograph somebody took in world. Note that the handler reads a `kind` query parameter and then never passes it to the query, so `?kind=broadcast` does nothing.
+A womp is a photograph somebody took in world. The feed carries the `public` and `broadcast` kinds; `profile` womps, which their author kept off the public feed, and `report` womps are not listed here.
 
 **parameters**
 
 - `limit` (query) integer, defaults to `50`
+- `kind` (query) string, one of `broadcast`: The only accepted value is `broadcast`, which narrows the feed to broadcasts. Anything else is ignored and you get both kinds.
 
 **answers**
 
@@ -1339,6 +1340,7 @@ A citizen.
 - `social_link_1` string or null
 - `social_link_2` string or null
 - `moderator` boolean
+- `type` string or null, one of `woody`, `vidda`, `zuck`, `bnolan`, `null`: Which body the citizen wears. Everything but `woody` is deprecated and you are unlikely to meet one.
 - `settings` object or null
 - `costume_id` string or null
 - `costume` [`Costume`](#costume)
@@ -1353,6 +1355,9 @@ What a citizen is wearing. `attachments` name a bone and a wearable; an attachme
 - `id` string, a uuid
 - `name` string or null
 - `attachments` array of object
+- `wallet` string or null: Whose costume it is.
+- `skin` string or null: The body texture as an SVG document, inline, not a url. Runs to tens of kilobytes, so a caller that only wants the attachments pays for this too.
+- `default_color` string or null: Hex, the colour worn where nothing covers the body.
 
 ### Wearable
 
