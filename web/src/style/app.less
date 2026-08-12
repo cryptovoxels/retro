@@ -802,14 +802,16 @@ button.hamburger {
   }
 }
 
-// home: the world bleeds to the viewport edges like /play, so the floating
-// menu button sits over the canvas. the sidebar X routes to /play proper.
-main:has(.columns.home) {
+// home + parcel pages: the world bleeds to the viewport edges like /play, so the
+// floating menu button sits over the canvas. the sidebar X routes to /play proper.
+main:has(.columns.home),
+main:has(.columns.parcel-page) {
   max-width: none;
   padding: 0;
 }
 
-.columns.home {
+.columns.home,
+.columns.parcel-page {
   gap: 0;
 
   > article {
@@ -852,7 +854,8 @@ main:has(.columns.home) {
     }
   }
 
-  .columns.home > aside {
+  .columns.home > aside,
+  .columns.parcel-page > aside {
     height: auto;
   }
 }
