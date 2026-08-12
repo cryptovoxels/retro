@@ -26,6 +26,7 @@ import Parcel from './parcel'
 import {
   selectCurrentOrNearestParcel,
   selectNearestEditableParcel,
+  nearestEditableParcel,
   selectSelectedFeature,
   selectCheckedFeatures,
   selectedFeature,
@@ -172,6 +173,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   presenceUuids = new Set<string>()
   chatLastReadAt = Date.now()
   chatListDispose?: () => void
+  parcelEditDispose?: () => void
   wompPollTimer: ReturnType<typeof setInterval> | null = null
   latestWompId = 0
 
@@ -339,6 +341,12 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       this.forceUpdate()
     })
 
+    // show/hide Add/Edit/etc as you walk onto parcels you can or can't edit
+    this.parcelEditDispose = effect(() => {
+      nearestEditableParcel.value
+      this.forceUpdate()
+    })
+
     // teach Explore: badge when a new public womp lands while you're in world
     void this.pollNewWomp()
     this.wompPollTimer = setInterval(() => void this.pollNewWomp(), 45_000)
@@ -425,6 +433,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     chatSettings.removeEventListener('changed', this.onChatSettingsChange)
     voiceSettings.removeEventListener('changed', this.onVoiceSettingsChange)
     this.chatListDispose?.()
+    this.parcelEditDispose?.()
     // dispose the keyboard handler too - it attaches keydown/keyup on `document` in addKeyboardHandlers,
     // and without this each unmount (e.g. womp preview -> /play, every page hop) leaks a live handler.
     // They accumulate and re-fire shortcuts N times, so camera toggles (C perspective, F fly) cancel out.
@@ -970,30 +979,30 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   Emote
                 </a>
               </li>
-              {this.state.signedIn && (
+              {this.state.signedIn && canEdit && (
                 <>
-                  <li class={active('add', !canEdit)}>
+                  <li class={active('add')}>
                     <a title="Add things to your thing" href="#add" onMouseOver={onHover('add')} onClick={onClick('add')} accessKey="a">
                       Add
                     </a>
                   </li>
-                  <li class={active('parcelSnapshots', !canEdit)}>
+                  <li class={active('parcelSnapshots')}>
                     <a href="#snapshots" onMouseOver={onHover('parcelSnapshots')} onClick={onClick('parcelSnapshots')}>
                       Shots
                     </a>
                   </li>
-                  <li class={active('edit', !canEdit)}>
+                  <li class={active('edit')}>
                     <a href="#edit" onMouseOver={onHover('edit')} onClick={onClick('edit')}>
                       Edit
                     </a>
                   </li>
-                  <li class={active('voxels', !canEdit)}>
+                  <li class={active('voxels')}>
                     <a href="#voxels" onMouseOver={onHover('voxels')} onClick={onClick('voxels')}>
                       Voxels
                     </a>
                   </li>
 
-                  <li class={active('bake', !canEdit)}>
+                  <li class={active('bake')}>
                     <a href="#bake" onMouseOver={onHover('bake')} accessKey="b" onClick={onClick('bake')}>
                       <kbd>B</kbd>ake
                     </a>
