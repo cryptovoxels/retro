@@ -26,6 +26,7 @@ import Parcel from './parcel'
 import {
   selectCurrentOrNearestParcel,
   selectNearestEditableParcel,
+  nearestEditableParcel,
   selectSelectedFeature,
   selectCheckedFeatures,
   selectedFeature,
@@ -144,6 +145,8 @@ type UserInterfaceState = {
   dragging?: boolean
   voice?: 'off' | 'live' | 'muted'
   voiceEnabled: boolean
+  /** new public womp since last time Explore was opened */
+  newWomp: boolean
 }
 
 export default class UserInterface extends Component<UserInterfaceProps, UserInterfaceState> {
@@ -170,6 +173,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   presenceUuids = new Set<string>()
   chatLastReadAt = Date.now()
   chatListDispose?: () => void
+  parcelEditDispose?: () => void
+  wompPollTimer: ReturnType<typeof setInterval> | null = null
+  latestWompId = 0
 
   constructor(props: UserInterfaceProps) {
     super(props)
@@ -199,6 +205,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       onlineCount: 0,
       chatEnabled: chatSettings.enabled,
       voiceEnabled: voiceSettings.enabled,
+      newWomp: false,
     }
   }
 
@@ -333,6 +340,58 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       messageList.value
       this.forceUpdate()
     })
+
+    // show/hide Add/Edit/etc as you walk onto parcels you can or can't edit
+    this.parcelEditDispose = effect(() => {
+      nearestEditableParcel.value
+      this.forceUpdate()
+    })
+
+    // teach Explore: badge when a new public womp lands while you're in world
+    void this.pollNewWomp()
+    this.wompPollTimer = setInterval(() => void this.pollNewWomp(), 45_000)
+  }
+
+  private static WOMP_SEEN_KEY = 'voxels-explore-last-womp'
+
+  private readSeenWompId() {
+    try {
+      return parseInt(localStorage.getItem(UserInterface.WOMP_SEEN_KEY) || '0', 10) || 0
+    } catch {
+      return 0
+    }
+  }
+
+  private writeSeenWompId(id: number) {
+    try {
+      localStorage.setItem(UserInterface.WOMP_SEEN_KEY, String(id))
+    } catch {}
+  }
+
+  private pollNewWomp = async () => {
+    try {
+      const r = await fetch('/api/womps.json?limit=1')
+      const d = await r.json()
+      const id = d?.womps?.[0]?.id
+      if (!id || typeof id !== 'number') return
+      this.latestWompId = id
+      const seen = this.readSeenWompId()
+      if (!seen) {
+        // first run: baseline so we don't badge the whole archive
+        this.writeSeenWompId(id)
+        return
+      }
+      if (id > seen && !this.state.newWomp) this.setState({ newWomp: true })
+    } catch {}
+  }
+
+  private markWompsSeen = () => {
+    if (this.latestWompId) this.writeSeenWompId(this.latestWompId)
+    else {
+      const seen = this.readSeenWompId()
+      if (seen) this.writeSeenWompId(seen)
+    }
+    if (this.state.newWomp) this.setState({ newWomp: false })
   }
 
   componentDidUpdate(_prevProps: UserInterfaceProps, prevState: UserInterfaceState) {
@@ -341,6 +400,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     }
     if (prevState.pane !== this.state.pane || prevState.feature?.uuid !== this.state.feature?.uuid) {
       uiAsideTick.value++
+    }
+    if (this.state.pane === 'explorer' && prevState.pane !== 'explorer') {
+      this.markWompsSeen()
     }
   }
 
@@ -362,11 +424,16 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   componentWillUnmount() {
     this.presenceEs?.close()
     this.presenceEs = null
+    if (this.wompPollTimer) {
+      clearInterval(this.wompPollTimer)
+      this.wompPollTimer = null
+    }
     app.removeListener(AppEvent.Change, this.onAppChange)
     document.removeEventListener('pointerlockchange', this.onPointerLockChange)
     chatSettings.removeEventListener('changed', this.onChatSettingsChange)
     voiceSettings.removeEventListener('changed', this.onVoiceSettingsChange)
     this.chatListDispose?.()
+    this.parcelEditDispose?.()
     // dispose the keyboard handler too - it attaches keydown/keyup on `document` in addKeyboardHandlers,
     // and without this each unmount (e.g. womp preview -> /play, every page hop) leaks a live handler.
     // They accumulate and re-fire shortcuts N times, so camera toggles (C perspective, F fly) cancel out.
@@ -892,8 +959,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                 </li>
               )}
               <li class={active('explorer')}>
-                <a href="#explorer" onMouseOver={onHover('explorer')} onClick={onClick('explorer')}>
-                  Explore
+                <a href="#explorer" onMouseOver={onHover('explorer')} onClick={onClick('explorer')} title={this.state.newWomp ? 'new womp - open Explore' : 'Explore'}>
+                  E{this.state.newWomp ? <span class="explore-new-dot" aria-label="new womp" /> : null}xplore
                 </a>
               </li>
 
@@ -912,30 +979,30 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   Emote
                 </a>
               </li>
-              {this.state.signedIn && (
+              {this.state.signedIn && canEdit && (
                 <>
-                  <li class={active('add', !canEdit)}>
+                  <li class={active('add')}>
                     <a title="Add things to your thing" href="#add" onMouseOver={onHover('add')} onClick={onClick('add')} accessKey="a">
                       Add
                     </a>
                   </li>
-                  <li class={active('parcelSnapshots', !canEdit)}>
+                  <li class={active('parcelSnapshots')}>
                     <a href="#snapshots" onMouseOver={onHover('parcelSnapshots')} onClick={onClick('parcelSnapshots')}>
                       Shots
                     </a>
                   </li>
-                  <li class={active('edit', !canEdit)}>
+                  <li class={active('edit')}>
                     <a href="#edit" onMouseOver={onHover('edit')} onClick={onClick('edit')}>
                       Edit
                     </a>
                   </li>
-                  <li class={active('voxels', !canEdit)}>
+                  <li class={active('voxels')}>
                     <a href="#voxels" onMouseOver={onHover('voxels')} onClick={onClick('voxels')}>
                       Voxels
                     </a>
                   </li>
 
-                  <li class={active('bake', !canEdit)}>
+                  <li class={active('bake')}>
                     <a href="#bake" onMouseOver={onHover('bake')} accessKey="b" onClick={onClick('bake')}>
                       <kbd>B</kbd>ake
                     </a>
