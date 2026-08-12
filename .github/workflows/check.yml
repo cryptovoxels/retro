@@ -30,8 +30,31 @@ jobs:
           npx tsc --noEmit --project tsconfig.precommit.json >/tmp/tsc.log 2>&1 & a=$!
           npx prettier --check . >/tmp/fmt.log 2>&1 & b=$!
           pnpm test >/tmp/test.log 2>&1 & c=$!
-          wait $a; ra=$?; wait $b; rb=$?; wait $c; rc=$?
-          cat /tmp/tsc.log /tmp/fmt.log /tmp/test.log
+
+          # The step runs under bash -e, so a bare `wait` on a failed gate ends
+          # the step right there and the logs below never print. Keep the code.
+          ra=0; wait $a || ra=$?
+          rb=0; wait $b || rb=$?
+          rc=0; wait $c || rc=$?
+
+          # A gate that passed folds away. One that failed prints open, names
+          # itself in the run summary, and annotates the pull request.
+          report() {
+            if [ "$2" = 0 ]; then
+              echo "::group::$1 passed"
+              cat "$3"
+              echo "::endgroup::"
+              echo "- $1 passed" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::error::$1 failed (exit $2)"
+              cat "$3"
+              echo "- $1 FAILED (exit $2), see the $1 output in the check job" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          }
+          report tsc "$ra" /tmp/tsc.log
+          report prettier "$rb" /tmp/fmt.log
+          report test "$rc" /tmp/test.log
+
           exit $(( ra | rb | rc ))
 
       # AGENTS.md: CI must stay under 60s or it may get deleted
