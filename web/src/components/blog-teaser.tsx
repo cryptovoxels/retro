@@ -27,11 +27,11 @@ export default function BlogTeaser({ onOpen }: { onOpen?: (slug: string) => void
 
   return (
     <>
-      <h3>Blog</h3>
+      <h3>Updates</h3>
       {posts.length ? (
         <table>
           <tbody>
-            {posts.map((p) => (
+            {posts.slice(0, 7).map((p) => (
               <tr key={p.slug}>
                 <td>
                   {onOpen ? (
@@ -57,6 +57,11 @@ export default function BlogTeaser({ onOpen }: { onOpen?: (slug: string) => void
         </table>
       ) : (
         <p>nothing yet</p>
+      )}
+      {posts.length > 0 && (
+        <p>
+          <a href="/blog">View the blog</a>
+        </p>
       )}
     </>
   )
