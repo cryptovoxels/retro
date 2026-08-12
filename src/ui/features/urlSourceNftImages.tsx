@@ -84,7 +84,7 @@ export class UrlSourceNftImages extends UrlSourceComponent<UrlSourceNftImagesPro
         </dd>
         <URLTab urlTab={this.state.urlTab} url={this.state.url} setURL={this.updateUrl.bind(this)}>
           <div>
-            <small>Copy the Asset URL from OpenSea.</small>
+            <small>Paste an OpenSea item URL, or a CAIP-19 id.</small>
             {this.state.url && (
               <button title="Force refresh of Opensea Data" onClick={() => this.refreshNFT()}>
                 {this.state.loading ? 'Refreshing...' : 'Refresh'}

@@ -29,6 +29,9 @@ export default class WebHeader extends Component<Props, State> {
               <Link href="/behaviours">Behaviours</Link>
             </li>
             <li>
+              <Link href="/art">Art</Link>
+            </li>
+            <li>
               <a href="https://discord.gg/3RSCZGr3fr">Discord</a>
             </li>
             <li>

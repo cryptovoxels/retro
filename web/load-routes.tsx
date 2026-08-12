@@ -1,4 +1,5 @@
 import ApiDoc from './src/api-doc'
+import ArtDoc from './src/art-doc'
 import Avatar from './src/avatar'
 import BehavioursDoc from './src/behaviours-doc'
 import Conduct from './src/conduct'
@@ -57,6 +58,14 @@ export default function loadRoutes(app: Express) {
 
   app.get('/BEHAVIOURS.md', cache(duration), (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'BEHAVIOURS.md'))
+  })
+
+  app.get('/art', cache(duration), (req, res) => {
+    res.send(renderPage(<ArtDoc />))
+  })
+
+  app.get('/ART.md', cache(false), (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'ART.md'))
   })
 
   app.get('/api', cache(duration), (req, res) => {

@@ -26,7 +26,7 @@ export class UrlSourceVideos extends UrlSourceComponent<UrlSourceVideosProps, Ur
   }
 
   get isOpenseaNFT() {
-    return !!this.tempUrl?.match(/(https?:\/\/(.+?\.)?opensea\.io(\/[A-Za-z0-9\-._~:\/?#\[\]@!$&'()*+,;=]*)?)/gi) && !this.tempUrl.match(/storage.opensea/gi)
+    return !!this.tempUrl && !!readOpenseaUrl(this.tempUrl)
   }
 
   get hasAnimation() {

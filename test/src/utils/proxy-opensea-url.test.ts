@@ -43,6 +43,28 @@ describe('readOpenseaUrl', () => {
   it('returns null for unsupported chain slugs', () => {
     expect(readOpenseaUrl(`https://opensea.io/assets/arbitrum/${SAMPLE}/1`)).toBeNull()
   })
+
+  it('parses CAIP-19 ids', () => {
+    expect(readOpenseaUrl(`eip155:1/erc721:${SAMPLE}/1`)).toEqual({
+      contract: SAMPLE,
+      token: '1',
+      chain: 1,
+    })
+    expect(readOpenseaUrl(`eip155:8453/erc721:${SAMPLE}/2699`)).toEqual({
+      contract: SAMPLE,
+      token: '2699',
+      chain: OPENSEA_BASE_CHAIN_ID,
+    })
+    expect(readOpenseaUrl(`eip155:137/erc1155:${SAMPLE}/9`)).toEqual({
+      contract: SAMPLE,
+      token: '9',
+      chain: 137,
+    })
+  })
+
+  it('returns null for CAIP-19 on unsupported chains', () => {
+    expect(readOpenseaUrl(`eip155:42161/erc721:${SAMPLE}/1`)).toBeNull()
+  })
 })
 
 describe('openseaAssetsChainSlug', () => {
