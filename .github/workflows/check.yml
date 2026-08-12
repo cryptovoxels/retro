@@ -12,6 +12,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
+      - run: echo "t0=$(date +%s)" >> "$GITHUB_ENV"
+
       - uses: actions/checkout@v7
 
       - uses: pnpm/action-setup@v6
@@ -27,3 +29,11 @@ jobs:
       - run: npx tsc --noEmit --project tsconfig.precommit.json
 
       - run: npx prettier --check .
+
+      # AGENTS.md: CI must stay under 60s or it may get deleted
+      - if: always()
+        run: |
+          s=$(( $(date +%s) - t0 ))
+          if [ "$s" -gt 60 ]; then
+            echo "::warning::Warning, CI test took $((s / 60)):$(printf '%02d' $((s % 60))), ben may arbitrarily delete CI (see agents.md)"
+          fi
