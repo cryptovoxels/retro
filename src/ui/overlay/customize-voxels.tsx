@@ -448,17 +448,7 @@ export default class CustomizeVoxels extends Component<Props, State> {
   }
 }
 
-export const TintColorInput = ({
-  idx,
-  color,
-  setColor,
-  onPick,
-}: {
-  idx: number
-  color: string
-  setColor: (id: number, col: string) => void
-  onPick?: (e: MouseEvent) => void
-}) => {
+export const TintColorInput = ({ idx, color, setColor, onPick }: { idx: number; color: string; setColor: (id: number, col: string) => void; onPick?: (e: MouseEvent) => void }) => {
   return <input className="tint" type="color" onClick={onPick} onInput={(e) => setColor(idx, e.currentTarget.value)} value={color} />
 }
 
