@@ -227,7 +227,7 @@ A read with a side effect: it asks the contract who owns the parcel and writes t
 
 Re-read every parcel a wallet owns
 
-Broken upstream, documented so nobody spends an afternoon on it. The handler parses `req.params.id`, which this route does not declare, so the parse is always NaN and every call answers 404 `{"success": false}` before it reaches the subgraph. Verified against production.
+Reads the subgraph for every parcel the wallet owns, then re-queries the contract for each one as a just-to-make-sure step. Answers `{"success": false}` when the subgraph is unreachable or returns nothing, on the theory that an owner seeing no parcels is worse than an owner seeing a stale list.
 
 **parameters**
 
@@ -356,11 +356,12 @@ Parcels a wallet can build on but does not own
 
 The newest womps across the world
 
-A womp is a photograph somebody took in world. Note that the handler reads a `kind` query parameter and then never passes it to the query, so `?kind=broadcast` does nothing.
+A womp is a photograph somebody took in world. The feed carries the `public` and `broadcast` kinds; `profile` womps, which their author kept off the public feed, and `report` womps are not listed here.
 
 **parameters**
 
 - `limit` (query) integer, defaults to `50`
+- `kind` (query) string, one of `broadcast`: The only accepted value is `broadcast`, which narrows the feed to broadcasts. Anything else is ignored and you get both kinds.
 
 **answers**
 
@@ -696,7 +697,7 @@ Search minted collectibles
 
 A collectible's MagicaVoxel model
 
-This is the one way to get a wearable's geometry from the wid on an avatar attachment. The name behind that wid is not resolvable: the attachment carries only the opaque uuid and the shop API is closed. The model is, so a costume can be rebuilt without ever knowing what the pieces are called.
+The geometry behind the wid on an avatar attachment, which is all an attachment carries besides its bone and transform. For what the piece is called, who made it and which collection it belongs to, put the same wid through `/api/collectibles/wearable/{uuid}.json`.
 
 **parameters**
 
