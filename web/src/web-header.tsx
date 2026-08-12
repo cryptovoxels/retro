@@ -248,6 +248,7 @@ export default class WebHeader extends Component<Props, State> {
               <A to="/radio">Radio</A>
               <A to="/conduct">Conduct</A>
               <A to="/behaviours">Behaviours</A>
+              <A to="/art">Art</A>
               <A to="/api">API</A>
               <A to="/privacy">Privacy</A>
               <A to="/terms">Terms</A>

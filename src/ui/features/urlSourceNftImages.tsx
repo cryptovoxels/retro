@@ -55,17 +55,6 @@ export class UrlSourceNftImages extends UrlSourceComponent<UrlSourceNftImagesPro
     this.setState({ loading: false, collections })
   }
 
-  // only refresh a single NFT
-  async refreshNFT() {
-    this.setState({ loading: true }, () => {
-      this.props.feature.forceRefresh()
-      //for the sake of UX
-      setTimeout(() => {
-        this.setState({ loading: false })
-      }, 1500)
-    })
-  }
-
   render() {
     return (
       <>
@@ -84,12 +73,9 @@ export class UrlSourceNftImages extends UrlSourceComponent<UrlSourceNftImagesPro
         </dd>
         <URLTab urlTab={this.state.urlTab} url={this.state.url} setURL={this.updateUrl.bind(this)}>
           <div>
-            <small>Copy the Asset URL from OpenSea.</small>
-            {this.state.url && (
-              <button title="Force refresh of Opensea Data" onClick={() => this.refreshNFT()}>
-                {this.state.loading ? 'Refreshing...' : 'Refresh'}
-              </button>
-            )}
+            <small>
+              <a href="/art" target="_blank">Paste an ART url</a>
+            </small>
           </div>
         </URLTab>
         <CollectionsTab urlTab={this.state.urlTab} setURL={this.setUrl.bind(this)} collection={this.state.collections} loading={this.state.loading} refreshVault={this.updateCollections.bind(this)} />

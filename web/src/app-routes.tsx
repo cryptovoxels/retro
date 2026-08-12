@@ -7,6 +7,7 @@ import Asset from './asset'
 import Assets from './assets'
 import AssetsNew from './assets-new'
 import ApiDoc from './api-doc'
+import ArtDoc from './art-doc'
 import BehavioursDoc from './behaviours-doc'
 import Blog from './blog'
 import PostPage from './post'
@@ -57,6 +58,7 @@ const components: Record<string, ComponentType<any>> = {
   privacy: Privacy,
   conduct: Conduct,
   behaviours: BehavioursDoc,
+  art: ArtDoc,
   apiDoc: ApiDoc,
   logout: Logout,
   notFound: NotFound,

@@ -7,6 +7,7 @@ import config from '../../common/config'
 import { isStringHex } from '../../common/helpers/utils'
 import { AlchemyNFTAPIWithMetadata, AlchemyNFTWithMetadata } from '../../common/messages/api-alchemy'
 import { OpenSeaNftModelV2, OpenSeaNFTV2Extended } from '../../common/messages/api-opensea'
+import { openseaAssetsChainSlug } from '../../common/helpers/nft-url'
 import cache from '../cache'
 import { requireAdmin } from '../lib/helpers'
 import log from '../lib/logger'
@@ -64,7 +65,7 @@ export default function ExternalsController(db: Db, passport: PassportStatic, ap
       return res.status(400).json({ success: false })
     }
     const contract = contractRaw.toLowerCase()
-    const chainSlug = chain_id === 137 ? 'matic' : chain_id === 8453 ? 'base' : 'ethereum'
+    const chainSlug = openseaAssetsChainSlug(chain_id)
 
     const respond = (immutable: any, mutable: any) => {
       res.json({ success: true, ...immutable, ...mutable, chain: chainSlug })

@@ -1,16 +1,9 @@
 import { OpenSeaNftModelDetailedV2, OpenSeaNftModelDetailedV2Extended, TraitRecord } from '../../common/messages/api-opensea'
-import { isAddress } from 'ethers'
-import { isValidUrl } from '../../common/helpers/utils'
+import { OPENSEA_BASE_CHAIN_ID, openseaAssetsChainSlug, readNftUrl } from '../../common/helpers/nft-url'
 
-/** Base mainnet (OpenSea chain slug `base`). */
-export const OPENSEA_BASE_CHAIN_ID = 8453
+export { OPENSEA_BASE_CHAIN_ID, openseaAssetsChainSlug, readNftUrl }
 
-/** OpenSea `/assets/<slug>/...` path segment for permalinks and metadata. */
-export function openseaAssetsChainSlug(chain_id: number): 'ethereum' | 'matic' | 'base' {
-  if (chain_id === 137) return 'matic'
-  if (chain_id === OPENSEA_BASE_CHAIN_ID) return 'base'
-  return 'ethereum'
-}
+export const readOpenseaUrl = readNftUrl
 
 function legacyAssetSchemaName(chain_id: number, token_standard?: string | null): string {
   const ts = (token_standard || '').toLowerCase()
@@ -103,56 +96,4 @@ function mapOpenseaV2ToNFTMetadata(data: OpenSeaNftModelDetailedV2 & { total_sup
     rarity: data.rarity,
     ...(data.total_supply != null ? { total_supply: data.total_supply } : {}),
   } as OpenSeaNftModelDetailedV2Extended & { total_supply?: number }
-}
-
-// Helper function to read OpenSea URLs (ethereum, polygon/matic, base)
-export const readOpenseaUrl = (url: string): { contract: string; token: string; chain: number } | null => {
-  if (!isValidUrl(url)) {
-    return null
-  }
-  let pathname: string
-  try {
-    pathname = new URL(url).pathname
-  } catch {
-    return null
-  }
-  const parts = pathname.split('/').filter(Boolean)
-  // /item/<chain>/<contract>/<token> (current), /assets/<chain>/<contract>/<token>,
-  // or /assets/<contract>/<token> (legacy ethereum)
-  if ((parts[0] !== 'assets' && parts[0] !== 'item') || parts.length < 3) {
-    return null
-  }
-
-  if (parts.length === 3) {
-    const contract = parts[1]
-    const token = parts[2]
-    if (!isAddress(contract) || !token) {
-      return null
-    }
-    return { contract, token, chain: 1 }
-  }
-
-  const chainSlug = parts[1]
-  const contract = parts[2]
-  const token = parts[3]
-  if (!isAddress(contract) || !token) {
-    return null
-  }
-
-  let chain: number
-  switch (chainSlug) {
-    case 'ethereum':
-      chain = 1
-      break
-    case 'matic':
-    case 'polygon':
-      chain = 137
-      break
-    case 'base':
-      chain = OPENSEA_BASE_CHAIN_ID
-      break
-    default:
-      return null
-  }
-  return { contract, token, chain }
 }

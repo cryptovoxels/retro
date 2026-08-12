@@ -1,5 +1,4 @@
 import { throttle } from 'lodash'
-import { isValidUrl } from '../../common/helpers/utils'
 import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { ImageMode, NftImageRecord } from '../../common/messages/feature'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
@@ -293,7 +292,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     }
     const nftInfo = this.nftInfo
 
-    if (!nftInfo || !isValidUrl(this.url)) {
+    if (!nftInfo) {
       // if we have a URL but the NFTinfo is bad, show error image
       return `${process.env.ASSET_PATH}/images/error-URL_is_invalid.png`
     }

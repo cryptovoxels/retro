@@ -8,19 +8,6 @@ export default class Conduct extends Component<any, any> {
         <Head title={`Code of Conduct`} />
         <h2>Voxels Code of Conduct</h2>
         <aside>
-          <h4>Table of contents</h4>
-          <ol>
-            <li value="1">Concerning all Voxels related social services</li>
-            <li value="2">
-              In-world specific
-              <ol type="a">
-                <li value="1">Parcel Builds</li>
-                <li value="2">Womps (in world bookmarks)</li>
-              </ol>
-            </li>
-            <li value="3">Wearables specific</li>
-            <li value="4">Future changes to Code of Conduct</li>
-          </ol>
           <div>
             <img src="/images/excellent.webp" width="200" />
             <p>
