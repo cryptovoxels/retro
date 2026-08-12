@@ -23,6 +23,19 @@
 
 * run `pnpm run precommit`and fix the errors before committing.
 
+## CI
+
+`.github/workflows/check.yml` runs tsc and prettier on every PR. Before adding
+anything to it:
+
+1. it must not slow down development
+2. it must be insanely fast, 60 seconds or less
+3. it must not be subjective (no code complexity analysis)
+4. bonus: it must speed up the workflow for all devs and reviewers
+
+Measure the job before you propose it. Anything that makes CI slower may get
+backed out.
+
 ## UI and "zinestyle" naming things
 
 * direct over fluffy
