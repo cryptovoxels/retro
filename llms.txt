@@ -1,0 +1,22 @@
+# Voxels public read API
+
+> 67 read-only GET routes on https://www.voxels.com, covering parcels, womps, avatars, collectibles, collections, wearables, islands, spaces, events, search. No key, no sign-in. Handlers answer {"success": true, "<field>": ...}, where the field is plural for a list and singular for one record, and {"success": false} when the lookup misses.
+
+## docs
+
+- [API reference](https://www.voxels.com/api): every route, its parameters and the shape it answers with.
+- [OpenAPI spec](https://www.voxels.com/openapi.yaml): the same thing as OpenAPI 3.1, if you would rather generate a client.
+- [Behaviours](https://www.voxels.com/behaviours): the Lua scripts you attach to a feature inside a parcel.
+
+## endpoints
+
+- [parcels](https://www.voxels.com/api/parcels.json): 19 routes. Land. Bounds, owners, sales, and the build with its voxels and features.
+- [womps](https://www.voxels.com/api/womps.json): 6 routes. Photographs taken in world, with their captions, coordinates and pictures.
+- [avatars](https://www.voxels.com/api/avatars/search): 13 routes. Citizens: names, wallets, home parcel and the costume they are wearing.
+- [collectibles](https://www.voxels.com/api/collectibles.json): 3 routes. Minted wearables, including the MagicaVoxel model behind one.
+- [collections](https://www.voxels.com/api/collections): 6 routes. Wearable collections and the wearables inside them.
+- [wearables](https://www.voxels.com/api/wearables/search): 7 routes. Wearables by id or by contract, and their models.
+- [islands](https://www.voxels.com/api/islands.json): 3 routes. The archipelago: shorelines, holes, lakes and where each island sits.
+- [spaces](https://www.voxels.com/api/spaces.json): 3 routes. Hosted spaces, which are worlds that are not parcels.
+- [events](https://www.voxels.com/api/events.json): 6 routes. What is on, and where.
+- [search](https://www.voxels.com/api/search): 1 route. One query across parcels, wearables, collections and citizens.
