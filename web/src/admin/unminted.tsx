@@ -127,7 +127,10 @@ export default function Unminted() {
       }
       if (txs.length) {
         setBusy(`waiting for ${txs.length} tx...`)
-        console.log('[unminted] waiting for receipts', txs.map((t) => t.tx.hash))
+        console.log(
+          '[unminted] waiting for receipts',
+          txs.map((t) => t.tx.hash),
+        )
         await Promise.all(txs.map((t) => t.tx.wait()))
         removeIds(txs.map((t) => t.id))
         console.log('[unminted] all mined')
