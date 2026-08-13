@@ -10,13 +10,16 @@ with attchmnts as (select json_array_elements(c.attachments) as a
     ::text <> 'null'
     )
    , wearables_info as (
+-- an attachment carries only bone, position, rotation, scaling and wid, and wid is
+-- wearables.id. the case guards the cast, since a costume is user written and wid is
+-- only checked for being a string (see costumes.ts), so a malformed one would throw
 SELECT
-    (a->>'wearable_id'):: integer as wearable_id, coalesce ((a->>'collection_id'):: integer, 1) as collection_id, w.issues as issues, w.name as name, (a->>'bone')::text as bone
+    w.token_id as wearable_id, w.collection_id as collection_id, w.issues as issues, w.name as name, (a->>'bone')::text as bone
 FROM attchmnts
     left JOIN
     wearables w
 on
-    (a->>'wearable_id'):: integer = w.token_id and coalesce ((a->>'collection_id'):: integer,1) = w.collection_id
+    w.id = case when a->>'wid' ~* '^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$' then (a->>'wid')::uuid end
 where w.token_id is not null
     )
 
