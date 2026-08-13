@@ -41,8 +41,6 @@ export default class PopularParcels extends Component<Props, State> {
     const r = await cachedFetch(`/api/metrics/popular`)
     const data = await r.json()
 
-    console.log(data)
-
     if (!data.ok) {
       return
     }
@@ -61,7 +59,7 @@ export default class PopularParcels extends Component<Props, State> {
   }
 
   render() {
-    const popular = this.state.metrics.slice(0, 20).map((t) => {
+    const popular = this.state.metrics.slice(0, 15).map((t) => {
       return (
         <tr>
           <td>{t.actions}</td>
