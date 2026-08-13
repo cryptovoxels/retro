@@ -43,7 +43,7 @@ export default function Unminted() {
     setSel(sel.size === rows.length ? new Set() : new Set(rows.map((p) => p.id)))
   }
 
-  function dropIds(ids: number[]) {
+  function removeIds(ids: number[]) {
     const gone = new Set(ids)
     setRows((rs) => rs.filter((p) => !gone.has(p.id)))
     setSel((s) => {
@@ -53,24 +53,23 @@ export default function Unminted() {
     })
   }
 
-  async function resync() {
-    setBusy('resyncing...')
+  async function removeAlreadyMinted() {
+    setBusy('checking chain...')
     setErr('')
     try {
-      console.log('[unminted] resync start', TEAM)
-      // local db sync (no-op for prod-proxied rows) + drop anything already on-chain from this page
+      console.log('[unminted] removeAlreadyMinted start', TEAM)
       await fetch(`/api/parcels/by/${TEAM}/query`).catch(() => {})
       const c = await parcelContract()
       const gone: number[] = []
       for (const p of rows) {
         if (await c.exists(p.id)) gone.push(p.id)
       }
-      console.log('[unminted] resync dropping on-chain', gone)
-      dropIds(gone)
-      setErr(gone.length ? `dropped ${gone.length} already on-chain from this page` : 'none on this page are on-chain yet')
+      console.log('[unminted] removing already-minted from list', gone)
+      removeIds(gone)
+      setErr(gone.length ? `removed ${gone.length} already-minted from this list` : 'none on this page are minted yet')
     } catch (e: any) {
-      console.error('[unminted] resync failed', e)
-      setErr(e?.toString() || 'resync failed')
+      console.error('[unminted] removeAlreadyMinted failed', e)
+      setErr(e?.toString() || 'check failed')
     } finally {
       setBusy('')
     }
@@ -121,16 +120,16 @@ export default function Unminted() {
       }
       console.log('[unminted] loop done', { sent: txs.length, skipped })
       // prod db is stale — yank skipped/minted rows out of the UI instead of reloading them
-      if (skipped.length) dropIds(skipped)
+      if (skipped.length) removeIds(skipped)
       if (!txs.length && skipped.length) {
-        setErr(`all ${skipped.length} already on-chain. dropped from list. pick ones that are not minted yet (try further down / next pages).`)
+        setErr(`all ${skipped.length} already minted on-chain. removed from this list.`)
         return
       }
       if (txs.length) {
         setBusy(`waiting for ${txs.length} tx...`)
         console.log('[unminted] waiting for receipts', txs.map((t) => t.tx.hash))
         await Promise.all(txs.map((t) => t.tx.wait()))
-        dropIds(txs.map((t) => t.id))
+        removeIds(txs.map((t) => t.id))
         console.log('[unminted] all mined')
       }
     } catch (e: any) {
@@ -150,8 +149,8 @@ export default function Unminted() {
         <button disabled={!!busy || !sel.size} onClick={mintSelected}>
           {busy || `mint selected (${sel.size})`}
         </button>
-        <button disabled={!!busy || !rows.length} onClick={resync}>
-          {busy === 'resyncing...' ? 'resyncing...' : 'drop already on-chain'}
+        <button disabled={!!busy || !rows.length} onClick={removeAlreadyMinted}>
+          {busy === 'checking chain...' ? 'checking chain...' : 'remove already minted'}
         </button>
       </div>
       <table>
