@@ -854,40 +854,14 @@ button.hamburger {
   }
 }
 
-// home + parcel pages: the world bleeds to the viewport edges like /play, so the
-// floating menu button sits over the canvas. the sidebar X routes to /play proper.
-main:has(.columns.home),
-main:has(.columns.parcel-page) {
-  max-width: none;
-  padding: 0;
-}
-
+// home + parcel pages: the world bleeds to the viewport edges like /play
+// (full-bleed sizing comes from the push-panel grid rules below)
 .columns.home,
 .columns.parcel-page {
   gap: 0;
 
   > article {
     padding: 0;
-  }
-
-  > aside {
-    // above the fixed embed canvas (z-index 1) so blog links get clicks
-    position: relative;
-    z-index: 3;
-    height: 100vh;
-    overflow-y: auto;
-    box-sizing: border-box;
-    padding: 0.5rem 1rem 1rem;
-
-    .sidebar-close {
-      float: right;
-      cursor: pointer;
-      background: var(--bg);
-      border: none;
-      color: var(--fg);
-      font-weight: bold;
-      padding: 0.25rem 0.5rem;
-    }
   }
 }
 
@@ -904,11 +878,6 @@ main:has(.columns.parcel-page) {
     & > aside {
       width: 100%;
     }
-  }
-
-  .columns.home > aside,
-  .columns.parcel-page > aside {
-    height: auto;
   }
 }
 
@@ -1151,93 +1120,106 @@ div.map {
 }
 
 // Push panel: world | sidebar. Site nav is a hamburger drawer (same as phone).
+// One aside (the WorldSidebar host) swaps page content and panes. Home / parcel are
+// push-panel worlds too; the grid applies before the world boots so the page sidebar
+// doesn't flash away while coords resolve.
+@world-hosts: ~':has(> .client-world), :has(> .columns.home), :has(> .columns.parcel-page)';
+
+// main sits above .client so sidebar gets clicks; punch through the world
+// cell or the empty grid slot eats pointer lock / WASD
+main:is(@{world-hosts}) {
+  position: relative;
+  z-index: 2;
+  max-width: none;
+  padding: 0;
+  height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 23rem;
+  grid-template-rows: 1fr;
+  grid-template-areas: 'world sidebar';
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.client-world,
+main > .columns.home,
+main > .columns.parcel-page {
+  grid-area: world;
+  min-width: 0;
+  min-height: 0;
+}
+
+// the page section is just the world box now - its aside lives in the WorldSidebar host
+main > .columns.home > article,
+main > .columns.parcel-page > article {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+}
+
+main:is(@{world-hosts}) > aside {
+  grid-area: sidebar;
+  position: relative;
+  z-index: 4;
+  overflow-y: auto;
+  min-width: 0;
+  min-height: 0;
+  padding: 1rem;
+  padding-top: 2rem;
+  background: var(--bg);
+  box-sizing: border-box;
+  pointer-events: auto;
+
+  .sidebar-close {
+    position: sticky;
+    top: 0;
+    float: right;
+    z-index: 5000;
+    cursor: pointer;
+    background: var(--bg);
+    border: none;
+    // same grey X as the home sidebar (--red is #03f, reads as a random blue dot)
+    color: var(--fg);
+    font-weight: bold;
+    padding: 0.25rem 0.5rem;
+    margin: -0.5rem -0.5rem 0 0;
+  }
+}
+
 body.in-world {
   overflow: hidden;
   // one left edge for ☰, Explore stack, and chat
   --play-gutter: max(1rem, env(safe-area-inset-left, 0px));
   --play-top: max(0.5rem, env(safe-area-inset-top, 0px));
 
-  // main sits above .client so sidebar gets clicks; punch through the world
-  // cell or the empty grid slot eats pointer lock / WASD
-  main:has(> .client-world) {
-    position: relative;
-    z-index: 2;
-    max-width: none;
-    padding: 0;
-    height: 100vh;
-    display: grid;
-    grid-template-columns: 1fr 23rem;
-    grid-template-rows: 1fr;
-    grid-template-areas: 'world sidebar';
-    overflow: hidden;
-    pointer-events: none;
-  }
-
   // same left edge as Explore / chat
-  main:has(> .client-world) > .site-nav-toggle {
+  main:is(@{world-hosts}) > .site-nav-toggle {
     left: var(--play-gutter);
     top: var(--play-top);
   }
-
-  .client-world {
-    grid-area: world;
-    min-width: 0;
-    min-height: 0;
-  }
-
-  main:has(> .client-world) > aside {
-    grid-area: sidebar;
-    position: relative;
-    z-index: 4;
-    overflow-y: auto;
-    min-width: 0;
-    min-height: 0;
-    padding: 1rem;
-    padding-top: 2rem;
-    background: var(--bg);
-    box-sizing: border-box;
-    pointer-events: auto;
-
-    .sidebar-close {
-      position: sticky;
-      top: 0;
-      float: right;
-      z-index: 5000;
-      cursor: pointer;
-      background: var(--bg);
-      border: none;
-      // same grey X as the home sidebar (--red is #03f, reads as a random blue dot)
-      color: var(--fg);
-      font-weight: bold;
-      padding: 0.25rem 0.5rem;
-      margin: -0.5rem -0.5rem 0 0;
-    }
-  }
 }
 
-body.in-world.sidebar-closed main:has(> .client-world),
-body.in-world main:has(> .client-world):not(:has(> aside)) {
+body.sidebar-closed main:is(@{world-hosts}),
+main:is(@{world-hosts}):not(:has(> aside)) {
   grid-template-columns: 1fr;
   grid-template-areas: 'world';
 }
 
 @media @narrow {
-  body.in-world {
-    main:has(> .client-world) {
-      grid-template-columns: 1fr;
-      grid-template-areas: 'world';
-    }
+  main:is(@{world-hosts}) {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'world';
+  }
 
-    main:has(> .client-world):has(> aside) {
-      grid-template-columns: 1fr min(23rem, 100%);
-      grid-template-areas: 'world sidebar';
-    }
+  main:is(@{world-hosts}):has(> aside) {
+    grid-template-columns: 1fr min(23rem, 100%);
+    grid-template-areas: 'world sidebar';
+  }
 
-    &.sidebar-closed main:has(> .client-world),
-    main:has(> .client-world):not(:has(> aside)) {
-      grid-template-columns: 1fr;
-      grid-template-areas: 'world';
-    }
+  body.sidebar-closed main:is(@{world-hosts}),
+  main:is(@{world-hosts}):not(:has(> aside)) {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'world';
   }
 }
 
@@ -1245,10 +1227,9 @@ aside.-closed {
   display: none;
 }
 
-// homepage / parcel embed: the pane takes the exact box of the page's own aside
-// (22rem column, same padding) so opening Explore/Settings/etc reads as the one
-// sidebar swapping content, not a second drawer sliding over it
-body.in-world main:not(:has(> .client-world)) > aside {
+// boxed-embed pages (space/asset/event): the world is a figure inside a scrolling
+// article, so the pane overlays fixed right instead of pushing
+body.in-world main:not(@{world-hosts}) > aside {
   position: fixed;
   top: 0;
   right: 0;
@@ -1275,11 +1256,16 @@ body.in-world main:not(:has(> .client-world)) > aside {
   }
 }
 
-// one sidebar at a time on home / parcel pages only - do NOT hide womp (or other
-// .columns) metadata asides; those pages own their right column
-body.in-world main:has(> aside) .columns.home > aside,
-body.in-world main:has(> aside) .columns.parcel-page > aside {
+// one sidebar at a time: while a pane is open on a boxed-embed page, hide the page's
+// own metadata aside; womp pages never get a pane (WorldSidebar skips them)
+body.in-world main:has(> aside) section.columns > aside {
   display: none;
+}
+
+// page content in the world aside keeps the .columns > aside link look
+main > aside.page-aside a {
+  color: var(--red);
+  text-decoration: underline;
 }
 
 .client-placeholder {
@@ -1972,30 +1958,29 @@ table.spaces {
 
 // Parcel / spaces page
 
-.parcel-page {
-  // pruned in the LESS collapse; without it about/map render as bare bullets
-  .sidebar-tabs {
-    display: flex;
-    gap: 1rem;
-    margin: 0 0 1rem 0;
-    padding: 0;
-    list-style: none;
+// parcel sidebar (lives in the WorldSidebar aside, not under .parcel-page)
+// pruned in the LESS collapse; without it about/map render as bare bullets
+.sidebar-tabs {
+  display: flex;
+  gap: 1rem;
+  margin: 0 0 1rem 0;
+  padding: 0;
+  list-style: none;
 
-    li {
-      cursor: pointer;
-      text-transform: lowercase;
+  li {
+    cursor: pointer;
+    text-transform: lowercase;
 
-      &.-active {
-        font-weight: bold;
-        color: var(--red);
-      }
+    &.-active {
+      font-weight: bold;
+      color: var(--red);
     }
   }
+}
 
-  .parcel-sidebar-map {
-    height: 14rem;
-    width: 100%;
-  }
+.parcel-sidebar-map {
+  height: 14rem;
+  width: 100%;
 }
 
 // Radar

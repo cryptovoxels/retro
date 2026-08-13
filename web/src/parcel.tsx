@@ -14,6 +14,7 @@ import { AvatarLink } from './components/avatar-link'
 import { ParcelMetrics as Metrics } from './components/metrics'
 import { ParcelShop } from './components/parcel-shop'
 import { getCoords, getParcelIdFromPath, naviportHere, routeWithCoords, withCoords } from './helpers/coords-nav'
+import { WorldAside } from './world-aside'
 
 export interface Props {
   parcel?: ParcelWithMintednessRecord
@@ -391,15 +392,12 @@ export default class Parcel extends Component<Props, State> {
           {head}
           <div class="client-slot" />
         </article>
-        <aside>
-          <button class="sidebar-close" title="Close - play fullscreen" onClick={() => window.connector && routeWithCoords('/play')}>
-            &times;
-          </button>
+        <WorldAside>
           <header>
             <h1>{parcelName}</h1>
           </header>
           {this.renderSidebar(islandSlug!)}
-        </aside>
+        </WorldAside>
       </section>
     )
   }
