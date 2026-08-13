@@ -6,7 +6,8 @@ import { Event } from '../../common/messages/event'
 import Head from './components/head'
 import PopularParcels from './components/popular-parcels'
 import { getClientPath } from './helpers/client-helpers'
-import { getCoords, naviportHere, routeWithCoords } from './helpers/coords-nav'
+import { getCoords, naviportHere } from './helpers/coords-nav'
+import { WorldAside } from './world-aside'
 import cachedFetch from './helpers/cached-fetch'
 import { app, AppEvent } from './state'
 import Radar from './components/radar'
@@ -150,10 +151,7 @@ export default class Explore extends Component<{}, { post: string | null }> {
           <article>
             <div class="client-slot" />
           </article>
-          <aside>
-            <button class="sidebar-close" title="Close - play fullscreen" onClick={() => window.connector && routeWithCoords('/play')}>
-              &times;
-            </button>
+          <WorldAside>
             {this.state.post ? (
               <PostPage slug={this.state.post} onBack={() => this.setState({ post: null })} />
             ) : (
@@ -168,7 +166,7 @@ export default class Explore extends Component<{}, { post: string | null }> {
                 <Classifieds limit={3} />
               </Fragment>
             )}
-          </aside>
+          </WorldAside>
         </section>
       </Fragment>
     )
