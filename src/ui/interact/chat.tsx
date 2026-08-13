@@ -10,6 +10,7 @@ import { Emotes } from '../../../common/messages/constant'
 import { avatarName } from '../../../common/messages/avatar-ref'
 import { PanelType } from '../../../web/src/components/panel'
 import { sendChat } from '../../../web/src/shard-chat'
+import { truncate } from '../../../web/src/lib/string-utils'
 import { app } from '../../../web/src/state'
 import Avatar from '../../avatar'
 import Connector, { ChatMessageRecord, messageList } from '../../connector'
@@ -195,6 +196,39 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
 
 const CONGA_CMD_PATTERN = /\/conga\b/
 const CHAT_INVITE_PATTERN = /\[\[(conga|show):([^\]]+)\]\]/gi
+const VOXELS_LINK_PATTERN = /https?:\/\/(?:www\.)?(?:voxels\.com|cryptovoxels\.com)\/\S+/gi
+
+/** Pasted voxels links become clickable: coords links teleport in place, the rest open in a new tab. */
+function VoxelsLinks({ text }: { text: string }) {
+  VOXELS_LINK_PATTERN.lastIndex = 0
+  if (!VOXELS_LINK_PATTERN.test(text)) return <>{text}</>
+  VOXELS_LINK_PATTERN.lastIndex = 0
+  const parts: JSX.Element[] = []
+  let last = 0
+  let k = 0
+  let m: RegExpExecArray | null
+  while ((m = VOXELS_LINK_PATTERN.exec(text)) !== null) {
+    if (m.index > last) parts.push(<Fragment key={k++}>{text.slice(last, m.index)}</Fragment>)
+    const url = m[0]
+    const onClick = (e: Event) => {
+      e.preventDefault()
+      // space coords don't resolve in the open world, and the chat-only page has no persona
+      if (window.persona && !url.includes('/spaces/') && /[?&]coords=/.test(url)) {
+        window.persona.teleport(url)
+      } else {
+        window.open(url, '_blank')
+      }
+    }
+    parts.push(
+      <a key={k++} href={url} onClick={onClick} style="text-decoration: underline; cursor: pointer;">
+        {truncate(url.replace(/^https?:\/\/(www\.)?/, ''), 40)}
+      </a>,
+    )
+    last = m.index + m[0].length
+  }
+  if (last < text.length) parts.push(<Fragment key={k++}>{text.slice(last)}</Fragment>)
+  return <>{parts}</>
+}
 
 function decodeChatHtmlEntities(encoded: string): string {
   const el = document.createElement('textarea')
@@ -205,7 +239,7 @@ function decodeChatHtmlEntities(encoded: string): string {
 /** Linkify /conga only (no [[conga:uuid]] tokens in this slice). */
 function SlashCongaLinks({ text }: { text: string }) {
   const match = text.match(CONGA_CMD_PATTERN)
-  if (!match) return <>{text}</>
+  if (!match) return <VoxelsLinks text={text} />
 
   const before = text.slice(0, match.index)
   const after = text.slice((match.index || 0) + match[0].length)
@@ -217,11 +251,11 @@ function SlashCongaLinks({ text }: { text: string }) {
 
   return (
     <>
-      {before}
+      <VoxelsLinks text={before} />
       <a href="#" onClick={onClick} style="color: white; text-decoration: underline; cursor: pointer;">
         /conga
       </a>
-      {after}
+      <VoxelsLinks text={after} />
     </>
   )
 }
