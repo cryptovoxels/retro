@@ -7,10 +7,9 @@ import SpaceHelper from './space-helper'
 import EditableDescription from './components/Editable/editable-description'
 import { copyTextToClipboard, ssrFriendlyDocument } from '../../common/helpers/utils'
 import WompsList from './womps-list'
-import LoadingIcon from './components/loading-icon'
 import { SpaceRecord } from '../../common/messages/space'
 import Head from './components/head'
-import { PlayButton } from './components/play-button'
+import { WorldAside } from './world-aside'
 
 export interface Props {
   space?: SpaceRecord
@@ -73,7 +72,23 @@ export default class Space extends Component<Props, State> {
   }
 
   componentDidMount() {
+    // the engine boots once per page load with the world baked in - if a different
+    // world is already running (soft nav from home/parcel), reload so this space boots
+    if (window.config && window.config.spaceId !== String(this.props.id)) {
+      location.reload()
+      return
+    }
+    this.syncVisitUrl()
     this.fetch()
+  }
+
+  // the header Play button enters this space
+  syncVisitUrl() {
+    if (this.helper) app.visitUrl.value = this.helper.visitUrl
+  }
+
+  componentWillUnmount() {
+    app.visitUrl.value = undefined
   }
 
   fetch() {
@@ -97,6 +112,7 @@ export default class Space extends Component<Props, State> {
   }
 
   componentDidUpdate(props: any) {
+    this.syncVisitUrl()
     if (props.id != this.props.id) {
       this.fetch()
     }
@@ -129,64 +145,61 @@ export default class Space extends Component<Props, State> {
 
   render() {
     const space = this.state.space
-    if (!space) {
-      return (
-        <section>
-          <LoadingIcon />
-        </section>
-      )
-    }
 
+    // same template as the parcel page: the world fills the grid cell,
+    // details live in the one WorldSidebar aside. Render the slot even
+    // while fetching so the client docks instead of falling to the mini view.
     return (
-      <section class="columns">
+      <section class="columns space-page">
         <article>
-          <EditableName value={space.name} path={this.props.path} isowner={this.isOwner} type={AssetType.Space} data={this.state.space} title="Name of this space" />
-          <Head title={this.name} description={space.description ?? `Visit this space`} url={`/spaces/${space.id}`}>
-            <script id="space-json" data-space-id={space.id} type="application/json">
-              {JSON.stringify(this.props.space)}
-            </script>
-          </Head>
-
-          <figcaption>
-            <PlayButton url={this.helper!.visitUrl} />
-          </figcaption>
-
-          <figure>
-            <div class="client-slot" />
-          </figure>
-
-          {(this.isOwner && (
-            <div>
-              <EditableDescription value={space.description} isowner={this.isOwner} type={AssetType.Space} data={this.state.space} title="Description of this space" />
-            </div>
-          )) ||
-            space.description}
-          <h3>Womps</h3>
-          <WompsList fetch={`/womps/at/space/${space.spaceId}.json`} />
+          {space && (
+            <Head title={this.name} description={space.description ?? `Visit this space`} url={`/spaces/${space.id}`}>
+              <script id="space-json" data-space-id={space.id} type="application/json">
+                {JSON.stringify(this.props.space)}
+              </script>
+            </Head>
+          )}
+          <div class="client-slot" />
         </article>
-        <aside class="push-header">
-          <dl>
-            <dt>Type</dt>
-            <dd>Space</dd>
-            <dt>Owner</dt>
-            <dd>{this.helper?.owner ? <a href={`/avatar/${this.helper.owner}`}>{this.helper.ownerName}</a> : <span>None</span>}</dd>
-            <dt>Size</dt>
-            <dd>
-              {space.width}
-              &times;
-              {space.depth}
-              {' metres'}
-            </dd>
-            <dt>Build Height</dt>
-            <dd>{space.height} meters</dd>
-            <dt>Elevation</dt>
-            <dd>
-              {0} to {space.height} meters
-            </dd>
-          </dl>
+        {space && (
+          <WorldAside>
+            <header>
+              <EditableName value={space.name} path={this.props.path} isowner={this.isOwner} type={AssetType.Space} data={this.state.space} title="Name of this space" />
+            </header>
 
-          {this.isOwner && <a href={`/spaces/${space.id}/edit`}>Edit</a>}
-        </aside>
+            <dl>
+              <dt>Type</dt>
+              <dd>Space</dd>
+              <dt>Owner</dt>
+              <dd>{this.helper?.owner ? <a href={`/avatar/${this.helper.owner}`}>{this.helper.ownerName}</a> : <span>None</span>}</dd>
+              <dt>Size</dt>
+              <dd>
+                {space.width}
+                &times;
+                {space.depth}
+                {' metres'}
+              </dd>
+              <dt>Build Height</dt>
+              <dd>{space.height} meters</dd>
+              <dt>Elevation</dt>
+              <dd>
+                {0} to {space.height} meters
+              </dd>
+            </dl>
+
+            {(this.isOwner && (
+              <div>
+                <EditableDescription value={space.description} isowner={this.isOwner} type={AssetType.Space} data={this.state.space} title="Description of this space" />
+              </div>
+            )) ||
+              space.description}
+
+            {this.isOwner && <a href={`/spaces/${space.id}/edit`}>Edit</a>}
+
+            <h3>Womps</h3>
+            <WompsList fetch={`/womps/at/space/${space.spaceId}.json`} />
+          </WorldAside>
+        )}
       </section>
     )
   }
