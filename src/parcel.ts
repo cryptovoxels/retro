@@ -1550,7 +1550,8 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       opaque.isPickable = true
       opaque.checkCollisions = opaque.getTotalVertices() !== 0
       opaque.freezeWorldMatrix()
-      this.setGlassMesh(glass, { collidable: false, pickable: false })
+      // glass is solid, same as the baked path
+      this.setGlassMesh(glass, { collidable: true, pickable: true })
       if (this.glassMesh) {
         this.glassMesh.position.set(off[0], off[1], off[2])
         this.glassMesh.freezeWorldMatrix()
