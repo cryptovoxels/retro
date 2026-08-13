@@ -47,11 +47,13 @@ export class AvatarAttachmentManager {
     if (costume) {
       this.costume_id = costume.id
       this.generateCostume(costume)
+    } else if (costumeId) {
+      // honor id even for local user - app.state.costume can be stale until loadAvatar finishes
+      await this.fetchCostume(costumeId)
     } else if (this.avatar.isUser) {
       const state = await app.getState()
       this.generateCostume(state.costume)
     } else {
-      if (costumeId) this.costume_id = costumeId
       this.fetchCostume(this.costume_id ?? undefined)
     }
   }
