@@ -11,9 +11,11 @@ import { truncate } from './lib/string-utils'
 
 type Item = { id: number; name: string | null; address: string; price: number; permalink: string }
 type Data = { floor: number; fresh: Item[]; secondary: Item[]; deals: Item[] }
-type Tab = 'fresh' | 'secondary'
+// "all" is every listing (team mints + owner resales together); "new" filters to mints.
+// one market, not us-vs-them.
+type Tab = 'all' | 'fresh'
 
-const LABELS: Record<Tab, string> = { fresh: 'new', secondary: 'used' }
+const LABELS: Record<Tab, string> = { all: 'all', fresh: 'new' }
 const CLASSIFIEDS_URL = '/api/classifieds.json'
 const eth = (n: number) => parseFloat(n.toFixed(3))
 const DETAIL_MAP_ORTHO = 200
@@ -67,7 +69,7 @@ export default function ForSale(_props: { path?: string }) {
   const initialId = selectedFromUrl()
   const [loading, setLoading] = useState(true)
   const [data, setData] = useState<Data | null>(null)
-  const [tab, setTab] = useState<Tab>('fresh')
+  const [tab, setTab] = useState<Tab>('all')
   const [usd, setUsd] = useState(false)
   const [rate, setRate] = useState(0)
   const [selectedId, setSelectedId] = useState<number | null>(initialId)
@@ -77,7 +79,7 @@ export default function ForSale(_props: { path?: string }) {
   const mapRef = useRef<WorldMap | null>(null)
 
   const showTabs = !!(data && data.fresh.length > 0 && data.secondary.length > 0)
-  const active: Tab = showTabs ? (tab === 'fresh' ? 'fresh' : 'secondary') : data?.fresh.length ? 'fresh' : 'secondary'
+  const active: Tab = showTabs ? tab : 'all'
 
   useEffect(() => {
     cachedFetch(CLASSIFIEDS_URL)
@@ -101,7 +103,8 @@ export default function ForSale(_props: { path?: string }) {
   const allItems = useMemo(() => {
     if (!data) return []
     const seen = new Set<number>()
-    return data[active]
+    const source = active === 'fresh' ? data.fresh : [...data.fresh, ...data.secondary]
+    return source
       .filter(isValid)
       .filter((i) => {
         if (seen.has(i.id)) return false
@@ -208,7 +211,7 @@ export default function ForSale(_props: { path?: string }) {
             </header>
             {showTabs && (
               <nav class="classifieds-tabs">
-                {(['fresh', 'secondary'] as Tab[]).map((t) => (
+                {(['all', 'fresh'] as Tab[]).map((t) => (
                   <button key={t} class={active === t ? 'active' : ''} onClick={() => setTab(t)}>
                     {LABELS[t]}
                   </button>
