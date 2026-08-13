@@ -154,7 +154,7 @@ export const PERSISTENT_PANES = new Set(['explorer', 'settings', 'help', 'dance'
 export const isPersistentPane = (p?: string) => !!p && PERSISTENT_PANES.has(p)
 
 export const uiAsideTick = signal(0)
-export const sidebarClosed = signal(false)
+export const sidebarClosed = signal(typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 50em)').matches)
 export const broadcastShowboxUuid = signal<string | undefined>(undefined)
 // when the local broadcast went live; the closed-sidebar "live" tab reads this for its timer
 export const broadcastLiveStartedAt = signal<number | undefined>(undefined)
