@@ -220,7 +220,7 @@ function VoxelsLinks({ text }: { text: string }) {
       }
     }
     parts.push(
-      <a key={k++} href={url} onClick={onClick} style="text-decoration: underline; cursor: pointer;">
+      <a key={k++} href={url} onClick={onClick} style="color: inherit; text-decoration: none; cursor: pointer;">
         {truncate(url.replace(/^https?:\/\/(www\.)?/, ''), 40)}
       </a>,
     )
