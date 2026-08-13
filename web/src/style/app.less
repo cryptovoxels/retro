@@ -2575,7 +2575,7 @@ table.spaces {
 @snackbarVisible: 1.5s;
 
 .SnackbarsContainer {
-  position: absolute;
+  position: fixed;
   z-index: 12001;
   min-width: 33vw;
   max-width: 95vw;
@@ -2584,10 +2584,25 @@ table.spaces {
   flex-direction: column;
   justify-content: flex-end;
 
-  left: 50%;
-  top: 0;
-  transform: translate(-50%, 0px);
+  left: @snackbarLeft;
+  bottom: @snackbarBottom;
+  transform: translate(-50%, 0);
   pointer-events: none;
+}
+
+.snackbar {
+  opacity: 0;
+  transition: opacity @snackbarFade ease;
+  pointer-events: none;
+
+  &.show {
+    opacity: 1;
+  }
+
+  &.clickable {
+    pointer-events: auto;
+    cursor: pointer;
+  }
 }
 
 /* Loading spinner */

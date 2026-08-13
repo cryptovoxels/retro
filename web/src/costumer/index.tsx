@@ -228,20 +228,27 @@ export default class Costumer extends Component<Props, State> {
       throw new Error("can't set active costume without a costumeId")
     }
 
-    const body = { costume_id }
+    const id = parseInt(costume_id, 10)
+    const name = this.costume?.name || `costume #${id}`
 
-    await fetch('/api/avatar/appearance', { ...fetchParams, method: 'POST', body: JSON.stringify(body) })
-      .then((response) => {
-        if (!response.ok) {
-          throw new Error(response.status + ' ' + response.statusText)
-        }
-        this.setState({ avatarCostumeId: parseInt(costume_id, 10) })
-        app.showSnackbar('Costume choice saved', PanelType.Info)
+    try {
+      const response = await fetch('/api/avatar/appearance', {
+        ...fetchParams,
+        method: 'POST',
+        body: JSON.stringify({ costume_id }),
       })
-      .catch((err) => {
-        app.showSnackbar('Could not set preferred costume, internal error', PanelType.Warning)
-        console.error(err)
-      })
+      if (!response.ok) {
+        throw new Error(response.status + ' ' + response.statusText)
+      }
+      this.setState({ avatarCostumeId: id })
+      app.showSnackbar(`You're wearing ${name}`, PanelType.Success, 4000)
+      await app.loadAvatar(true)
+      window.connector?.sendChangeCostume(id)
+      await window.connector?.persona?.avatar?.attachmentManager?.loadCostume(undefined, id)
+    } catch (err) {
+      app.showSnackbar('Could not wear that costume', PanelType.Warning)
+      console.error(err)
+    }
   }
 
   deleteCostume = async (id?: number) => {
