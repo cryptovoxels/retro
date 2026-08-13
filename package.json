@@ -229,7 +229,7 @@
     "@types/lodash.throttle": "^4.1.9",
     "@types/multer": "^2.0.0",
     "@types/ndarray": "^1.0.11",
-    "@types/node": "^22.12.0",
+    "@types/node": "^25.9.5",
     "@types/node-fetch": "^2.6.4",
     "@types/object-hash": "^3.0.2",
     "@types/passport": "^1.0.12",

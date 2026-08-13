@@ -6,10 +6,14 @@
   
   "features": {
     "ghcr.io/devcontainers/features/node:1": {
-      "version": "lts", 
+      // engines.node in package.json, so this follows the repo
+      "version": "25",
       "pnpmVersion": "latest"
     }
   },
+
+  // Install and seed once, so the container is ready to `pnpm run dev`
+  "postCreateCommand": "pnpm install && .devcontainer/setup-db.sh",
 
   // Set env var so psql knows which DB to connect to by default
   "containerEnv": {
