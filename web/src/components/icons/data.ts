@@ -101,6 +101,15 @@ const RAW_ICONS = {
     ###..
   `,
 
+  // speech bubble with tail
+  chat: `
+    #####
+    #...#
+    #...#
+    #####
+    .#...
+  `,
+
   // checkmark / V shape
   v: `
     .....
