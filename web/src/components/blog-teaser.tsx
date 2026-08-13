@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'preact/hooks'
 import { format } from 'timeago.js'
 import cachedFetch from '../helpers/cached-fetch'
+import Icon from './icons/icons'
 import { app, AppEvent } from '../state'
 
 type Post = { slug: string; title: string; created_at: string; replies?: number }
@@ -49,7 +50,15 @@ export default function BlogTeaser({ onOpen }: { onOpen?: (slug: string) => void
                     <a href={`/blog/${p.slug}`}>{p.title}</a>
                   )}
                 </td>
-                <td>{p.replies ? (p.replies === 1 ? '1 reply' : `${p.replies} replies`) : ''}</td>
+                <td title={p.replies ? `${p.replies} ${p.replies === 1 ? 'reply' : 'replies'}` : undefined}>
+                  {p.replies ? (
+                    <>
+                      <Icon name="chat" size={10} /> {p.replies}
+                    </>
+                  ) : (
+                    ''
+                  )}
+                </td>
                 <td>{ago(p.created_at)}</td>
               </tr>
             ))}
