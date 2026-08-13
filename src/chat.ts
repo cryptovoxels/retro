@@ -1,3 +1,4 @@
+import { isHate } from './hate'
 import { matcher } from './obscenity'
 
 const getTextWidth = (ctx: CanvasRenderingContext2D, text: string) => {
@@ -139,25 +140,31 @@ export class Bubble extends BABYLON.Mesh {
 
     ctx.beginPath()
 
-    // Draw text, blurring any obscene segments
+    // Draw text, blurring hate / obscene segments
     ctx.fillStyle = '#000000'
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    const matches = matcher.getAllMatches(this.text, true)
     const textX = WIDTH / 2 - getTextWidth(ctx, this.text) / 2
-    let cursor = 0
-    for (const m of matches) {
-      if (m.startIndex > cursor) {
-        ctx.filter = 'none'
-        ctx.fillText(this.text.slice(cursor, m.startIndex), textX + getTextWidth(ctx, this.text.slice(0, cursor)), h - 10)
-      }
+    if (isHate(this.text)) {
       ctx.filter = 'blur(3px)'
-      ctx.fillText(this.text.slice(m.startIndex, m.endIndex + 1), textX + getTextWidth(ctx, this.text.slice(0, m.startIndex)), h - 10)
-      cursor = m.endIndex + 1
-    }
-    ctx.filter = 'none'
-    if (cursor < this.text.length) {
-      ctx.fillText(this.text.slice(cursor), textX + getTextWidth(ctx, this.text.slice(0, cursor)), h - 10)
+      ctx.fillText(this.text, textX, h - 10)
+      ctx.filter = 'none'
+    } else {
+      const matches = matcher.getAllMatches(this.text, true)
+      let cursor = 0
+      for (const m of matches) {
+        if (m.startIndex > cursor) {
+          ctx.filter = 'none'
+          ctx.fillText(this.text.slice(cursor, m.startIndex), textX + getTextWidth(ctx, this.text.slice(0, cursor)), h - 10)
+        }
+        ctx.filter = 'blur(3px)'
+        ctx.fillText(this.text.slice(m.startIndex, m.endIndex + 1), textX + getTextWidth(ctx, this.text.slice(0, m.startIndex)), h - 10)
+        cursor = m.endIndex + 1
+      }
+      ctx.filter = 'none'
+      if (cursor < this.text.length) {
+        ctx.fillText(this.text.slice(cursor), textX + getTextWidth(ctx, this.text.slice(0, cursor)), h - 10)
+      }
     }
     ctx.fill()
 

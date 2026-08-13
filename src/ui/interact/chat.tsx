@@ -15,6 +15,7 @@ import Avatar from '../../avatar'
 import Connector, { ChatMessageRecord, messageList } from '../../connector'
 import GuestBook from '../../features/guest-book'
 import Persona from '../../persona'
+import { isHate } from '../../hate'
 import { matcher } from '../../obscenity'
 import { NearByPlayers } from './nearby-players'
 import { createEvent, TypedEventTarget } from '../../utils/EventEmitter'
@@ -227,6 +228,9 @@ function SlashCongaLinks({ text }: { text: string }) {
 
 const ChatText = ({ text }: { text: string }) => {
   const decoded = decodeChatHtmlEntities(text)
+  if (isHate(decoded)) {
+    return <s class="profanity">{decoded}</s>
+  }
   const matches = matcher.getAllMatches(decoded, true)
   const parts: JSX.Element[] = []
   let last = 0
