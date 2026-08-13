@@ -960,7 +960,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
               )}
               <li class={active('explorer')}>
                 <a href="#explorer" onMouseOver={onHover('explorer')} onClick={onClick('explorer')} title={this.state.newWomp ? 'new womp - open Explore' : 'Explore'}>
-                  E{this.state.newWomp ? <span class="explore-new-dot" aria-label="new womp" /> : null}xplore
+                  Explore{this.state.newWomp ? <span class="explore-new-dot" aria-label="new womp" /> : null}
                 </a>
               </li>
 
