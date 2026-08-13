@@ -9,7 +9,21 @@ import { copyTextToClipboard, ssrFriendlyDocument } from '../../common/helpers/u
 import WompsList from './womps-list'
 import { SpaceRecord } from '../../common/messages/space'
 import Head from './components/head'
+import JsonData from './components/json-data'
 import { WorldAside } from './world-aside'
+
+function spaceFastboot(space: any) {
+  const desc = { ...space, voxels: space.voxels || space.content?.voxels || '' }
+  let el = document.querySelector('script#space') as HTMLScriptElement | null
+  if (!el) {
+    el = document.createElement('script')
+    el.id = 'space'
+    el.type = 'text/json'
+    document.head.appendChild(el)
+  }
+  el.textContent = JSON.stringify(desc)
+  window.grid?.applySpaceFastboot(desc)
+}
 
 export interface Props {
   space?: SpaceRecord
@@ -79,6 +93,7 @@ export default class Space extends Component<Props, State> {
       return
     }
     this.syncVisitUrl()
+    if (this.state.space) spaceFastboot(this.state.space)
     this.fetch()
   }
 
@@ -104,10 +119,9 @@ export default class Space extends Component<Props, State> {
     fetch(url, fetchOptions())
       .then((r) => r.json())
       .then((r) => {
-        this.setState({
-          space: Object.assign({}, this.props.space, r.space, { spaceId: r.space.id }),
-          slug: r.space.slug || r.space.id,
-        })
+        const space = Object.assign({}, this.props.space, r.space, { spaceId: r.space.id })
+        this.setState({ space, slug: r.space.slug || r.space.id })
+        spaceFastboot(space)
       })
   }
 
@@ -154,9 +168,7 @@ export default class Space extends Component<Props, State> {
         <article>
           {space && (
             <Head title={this.name} description={space.description ?? `Visit this space`} url={`/spaces/${space.id}`}>
-              <script id="space-json" data-space-id={space.id} type="application/json">
-                {JSON.stringify(this.props.space)}
-              </script>
+              <JsonData id="space" data={{ ...space, voxels: space.voxels || space.content?.voxels || '' }} dataId={space.id} />
             </Head>
           )}
           <div class="client-slot" />
