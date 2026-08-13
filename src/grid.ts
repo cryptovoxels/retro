@@ -332,6 +332,28 @@ export default class Grid extends SocketClient {
     return window.draw.distance * 1.1
   }
 
+  public applySpaceFastboot(raw: any) {
+    if (this.fastbootParcel) return
+    const desc: any = { ...raw }
+    if (desc.content) Object.assign(desc, desc.content)
+    desc.x1 = -desc.width / 2
+    desc.x2 = desc.width / 2
+    desc.z1 = -desc.depth / 2
+    desc.z2 = desc.depth / 2
+
+    const p = this.loadFastboot(this.parent, desc, this)
+    if (!p) return
+
+    p.generate()
+    this.nearestParcels = [p]
+    this.refreshActiveParcels()
+    this.refreshEnteredParcel()
+
+    if (this.environment instanceof SpacesEnvironment) {
+      this.environment.applyEnvironment(desc.environment)
+    }
+  }
+
   public async loadFastbootFromHTML() {
     if (this.mesherInitPromise) await this.mesherInitPromise
 
@@ -346,11 +368,8 @@ export default class Grid extends SocketClient {
     }
 
     if (el.id === 'space') {
-      Object.assign(desc, desc.content)
-      desc.x1 = -desc.width / 2
-      desc.x2 = desc.width / 2
-      desc.z1 = -desc.depth / 2
-      desc.z2 = desc.depth / 2
+      this.applySpaceFastboot(desc)
+      return
     }
 
     const p = this.loadFastboot(this.parent, desc, this)
@@ -360,10 +379,6 @@ export default class Grid extends SocketClient {
     this.nearestParcels = [p]
     this.refreshActiveParcels()
     this.refreshEnteredParcel()
-
-    if (el.id === 'space' && this.environment instanceof SpacesEnvironment) {
-      this.environment.applyEnvironment(desc.environment)
-    }
   }
 
   public patchParcel(parcelId: number, patch: ParcelPatch) {
