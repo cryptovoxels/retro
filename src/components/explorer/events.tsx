@@ -110,7 +110,7 @@ export class CommunityEvents extends Component<any, CommunityEventsState> {
   }
 
   render() {
-    // liveOnly (Online tab): just the events happening right now, no heading or empty state when there are none
+    // liveOnly (Latest tab): just the events happening right now, no heading or empty state when there are none
     if (this.props.liveOnly) {
       if (!this.state.loaded) return null
       const live = this.eventsSortedByPlayers().filter((e) => !isInFuture(new Date(e.starts_at)))
