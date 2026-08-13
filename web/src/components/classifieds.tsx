@@ -4,12 +4,12 @@ import Toggle from './toggle'
 
 type Item = { id: number; name: string | null; address: string; price: number; permalink: string }
 type Data = { fresh: Item[]; secondary: Item[] }
-// "all" is every listing (team mints + owner resales together); "new" filters to mints.
+// "new" is the default (mints pay the bills); "all" is every listing - mints + resales together.
 // one market, not us-vs-them.
-type Tab = 'all' | 'fresh'
+type Tab = 'fresh' | 'all'
 type Sort = 'name' | 'address' | 'price'
 
-const LABELS: Record<Tab, string> = { all: 'all', fresh: 'new' }
+const LABELS: Record<Tab, string> = { fresh: 'new', all: 'all' }
 
 const combined = (data: Data) => {
   const seen = new Set<number>()
@@ -27,7 +27,7 @@ type Props = { limit?: number }
 
 export default function Classifieds({ limit }: Props) {
   const [data, setData] = useState<Data | null>(null)
-  const [tab, setTab] = useState<Tab>('all')
+  const [tab, setTab] = useState<Tab>('fresh')
   const [sort, setSort] = useState<Sort>('price')
   const [asc, setAsc] = useState(true)
   const [usd, setUsd] = useState(false)
@@ -101,7 +101,7 @@ export default function Classifieds({ limit }: Props) {
       </div>
       {showTabs && (
         <nav class="classifieds-tabs">
-          {(['all', 'fresh'] as Tab[]).map((t) => (
+          {(['fresh', 'all'] as Tab[]).map((t) => (
             <button key={t} class={active === t ? 'active' : ''} onClick={() => setTab(t)}>
               {LABELS[t]}
             </button>
