@@ -867,6 +867,10 @@ paths:
       operationId: getAvatarWornWearables
       tags: [avatars]
       summary: The collectibles in this citizen's current costume
+      description: |
+        One row per costume attachment, joined to the wearable its wid names.
+        An attachment whose wearable has no token_id is dropped, so this can
+        return fewer rows than the costume has attachments.
       parameters:
         - $ref: '#/components/parameters/Wallet'
       responses:
@@ -883,6 +887,36 @@ paths:
                     type: array
                     items:
                       type: object
+                      properties:
+                        wearable_id:
+                          type: integer
+                          description: |
+                            The token id, not the uuid, whatever the name
+                            suggests. The uuid is `wid`.
+                        wid:
+                          type: string
+                          format: uuid
+                          description: |
+                            The wearable, which is the wid the attachment
+                            carried. Pair a row back to its attachment on this
+                            rather than on `bone`, since two attachments can
+                            share a bone.
+                        collection_id:
+                          type: integer
+                        issues:
+                          type: [integer, 'null']
+                          description: The edition size.
+                        name:
+                          type: [string, 'null']
+                        bone:
+                          type: [string, 'null']
+                          description: The bone the piece hangs off.
+                        collection_name:
+                          type: [string, 'null']
+                        chain_id:
+                          type: [integer, 'null']
+                        collection_address:
+                          type: [string, 'null']
 
   /api/avatars/{wallet}/costume.json:
     get:
@@ -1120,6 +1154,8 @@ paths:
       operationId: listCollectibles
       tags: [collectibles]
       summary: Search minted collectibles
+      description: |
+        Forty rows a page, fixed in the query. There is no `limit` parameter.
       parameters:
         - name: q
           in: query
@@ -1289,12 +1325,29 @@ paths:
       operationId: listCollectiblesByCollection
       tags: [collections]
       summary: Everything in a collection
+      description: |
+        At most 256 rows a page. Unlike the other collectible routes this one
+        filters neither `suppressed` nor unminted, so hidden wearables and
+        wearables with a null `token_id` both come back.
       parameters:
         - name: id
           in: path
           required: true
           schema:
             type: integer
+        - name: page
+          in: query
+          description: Zero-based.
+          schema:
+            type: integer
+            default: 0
+        - name: limit
+          in: query
+          description: Capped at 256, which is also the default.
+          schema:
+            type: integer
+            default: 256
+            maximum: 256
       responses:
         '200':
           description: ok
@@ -2370,6 +2423,36 @@ components:
           type: array
           items:
             type: object
+            properties:
+              bone:
+                type: string
+                description: The bone the piece hangs off, `Head` or `Spine1` and so on.
+              wid:
+                type: string
+                format: uuid
+                description: |
+                  The wearable. Both `/api/collectibles/{uuid}/vox` and
+                  `/api/collectibles/wearable/{uuid}.json` take this.
+              position:
+                type: array
+                description: Three numbers, bone-local.
+                items:
+                  type: number
+              rotation:
+                type: array
+                description: |
+                  Three numbers, in degrees, applied yaw then pitch then roll.
+                  A parcel feature's rotation is in radians.
+                items:
+                  type: number
+              scaling:
+                type: array
+                description: Three numbers.
+                items:
+                  type: number
+              chain:
+                type: integer
+                description: The chain the wearable is on. Not on every attachment.
         wallet:
           type: [string, 'null']
           description: Whose costume it is.
