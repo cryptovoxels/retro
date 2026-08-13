@@ -49,7 +49,7 @@ export default function BlogTeaser({ onOpen }: { onOpen?: (slug: string) => void
                     <a href={`/blog/${p.slug}`}>{p.title}</a>
                   )}
                 </td>
-                <td>{p.replies ?? 0}</td>
+                <td>{p.replies ? (p.replies === 1 ? '1 reply' : `${p.replies} replies`) : ''}</td>
                 <td>{ago(p.created_at)}</td>
               </tr>
             ))}
