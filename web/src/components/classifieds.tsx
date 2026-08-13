@@ -4,10 +4,21 @@ import Toggle from './toggle'
 
 type Item = { id: number; name: string | null; address: string; price: number; permalink: string }
 type Data = { fresh: Item[]; secondary: Item[] }
-type Tab = 'fresh' | 'secondary'
+// "new" is the default (mints pay the bills); "all" is every listing - mints + resales together.
+// one market, not us-vs-them.
+type Tab = 'fresh' | 'all'
 type Sort = 'name' | 'address' | 'price'
 
-const LABELS: Record<Tab, string> = { fresh: 'new', secondary: 'used' }
+const LABELS: Record<Tab, string> = { fresh: 'new', all: 'all' }
+
+const combined = (data: Data) => {
+  const seen = new Set<number>()
+  return [...data.fresh, ...data.secondary].filter((i) => {
+    if (seen.has(i.id)) return false
+    seen.add(i.id)
+    return true
+  })
+}
 const URL = '/api/classifieds.json'
 const eth = (n: number) => parseFloat(n.toFixed(3))
 const name = (i: Item) => i.name || i.address || `#${i.id}`
@@ -40,7 +51,7 @@ export default function Classifieds({ limit }: Props) {
   if (!data || (!data.fresh.length && !data.secondary.length)) return null
 
   const showTabs = data.fresh.length > 0 && data.secondary.length > 0
-  const active: Tab = showTabs ? (tab === 'fresh' ? 'fresh' : 'secondary') : data.fresh.length ? 'fresh' : 'secondary'
+  const active: Tab = showTabs ? tab : 'all'
 
   const toggleSort = (field: Sort) => {
     if (sort === field) setAsc(!asc)
@@ -50,7 +61,7 @@ export default function Classifieds({ limit }: Props) {
     }
   }
 
-  const sorted = [...data[active]].sort((a, b) => {
+  const sorted = (active === 'fresh' ? [...data.fresh] : combined(data)).sort((a, b) => {
     let av: string | number
     let bv: string | number
     if (sort === 'name') {
@@ -90,7 +101,7 @@ export default function Classifieds({ limit }: Props) {
       </div>
       {showTabs && (
         <nav class="classifieds-tabs">
-          {(['fresh', 'secondary'] as Tab[]).map((t) => (
+          {(['fresh', 'all'] as Tab[]).map((t) => (
             <button key={t} class={active === t ? 'active' : ''} onClick={() => setTab(t)}>
               {LABELS[t]}
             </button>
