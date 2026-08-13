@@ -33,7 +33,9 @@ interface State {
 export class ExplorerUI extends Component<Props, State> {
   static currentElement: Element | null
   static currentTab: Tab | null = 'users'
-  static currentSubTab: ParcelsSubTab | null = 'all'
+  // null so the constructor can pick my-parcels (signed in) vs all (guest) - was hardcoded
+  // 'all', so the first Parcels click always showed the world list even when logged in
+  static currentSubTab: ParcelsSubTab | null = null
   interval: string | number | NodeJS.Timeout | undefined
   abort: AbortController | null = null
 
@@ -238,6 +240,15 @@ export class ExplorerUI extends Component<Props, State> {
         <ExplorerSearchBar autoFocus={true} scene={this.props.scene} />
 
         <ul class="inline-tabs">{mainTabs}</ul>
+        {this.state.tab === 'parcels' && (
+          <ul class="demi-tabs">
+            {this.parcelsSubTabs.map((i) => (
+              <li key={i.tab} tabIndex={0} className={this.state.subTab == i.tab ? '-active' : ''} onClick={() => this.setTab('parcels', i.tab)}>
+                {i.name}
+              </li>
+            ))}
+          </ul>
+        )}
         <div>{openTab}</div>
       </section>
     )
