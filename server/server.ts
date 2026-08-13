@@ -534,11 +534,15 @@ app.get('/api/parcels/:id.json', cache(config.isDevelopment ? false : '15 second
   res.status(400).json({ success: false })
 })
 
-app.get(
-  '/api/wallet/:address/parcels.json',
-  cache('5 seconds'),
-  createRequestHandlerForQuery(db, 'get-parcels-by-owner', 'parcels', (req) => [req.params.address]),
-)
+if (config.isDevelopment) {
+  app.get('/api/wallet/:address/parcels.json', cache(false), parcelProxy)
+} else {
+  app.get(
+    '/api/wallet/:address/parcels.json',
+    cache('5 seconds'),
+    createRequestHandlerForQuery(db, 'get-parcels-by-owner', 'parcels', (req) => [req.params.address]),
+  )
+}
 
 //Get parcels user is a contributors of
 app.get(

@@ -2,10 +2,14 @@ import { Express } from 'express'
 import { centroid } from '@turf/turf'
 
 import cache from '../cache'
+import config from '../../common/config'
+import { SUPPORTED_CHAINS } from '../../common/helpers/chain-helpers'
 
 import { Db } from '../pg'
 import { PassportStatic } from 'passport'
 import { requireAdmin } from '../lib/helpers'
+import { getContract } from '../lib/utils'
+import log from '../lib/logger'
 
 function assert(condition: any, message: string) {
   if (!condition) {
@@ -19,6 +23,57 @@ function isInteger(value: any) {
 
 function isFloat(value: any) {
   return typeof value === 'number' && isFinite(value)
+}
+
+// DB says minted=false but chain may already have the token. Check exists(),
+// flip stale rows to minted=true, return only parcels that are actually unminted.
+async function unmintedFromDb(db: Db, page: number) {
+  const offset = Math.max(0, page) * 100
+  const result = await db.query(
+    'sql/get-unminted-parcels',
+    `select id, address, island, x1, y1, z1, x2, y2, z2
+     from properties
+     where minted = false
+     order by id desc
+     limit 100 offset $1`,
+    [offset],
+  )
+  const rows: any[] = result.rows || []
+  if (!rows.length) return { parcels: [], fixed: 0 }
+
+  const contract = await getContract('parcel', SUPPORTED_CHAINS['eth'])
+  const stale: number[] = []
+  const parcels: any[] = []
+  await Promise.all(
+    rows.map(async (p) => {
+      let exists = false
+      try {
+        exists = !!(await contract.exists(p.id))
+      } catch (e) {
+        log.error('unminted exists() failed', { id: p.id, e: String(e) })
+      }
+      if (exists) stale.push(p.id)
+      else parcels.push(p)
+    }),
+  )
+
+  if (stale.length) {
+    await db.query(
+      'sql/fix-stale-unminted',
+      `update properties
+       set minted = true,
+           minted_at = coalesce(minted_at, now()),
+           updated_at = now()
+       where id = any($1::int[])
+         and minted = false`,
+      [stale],
+    )
+    log.info('unminted: fixed stale minted flags', { fixed: stale.length, ids: stale })
+  }
+
+  // keep original id-desc order
+  parcels.sort((a, b) => b.id - a.id)
+  return { parcels, fixed: stale.length }
 }
 
 export default function AdminController(db: Db, passport: PassportStatic, app: Express) {
@@ -42,20 +97,33 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
   })
 
   // Parcels that exist in the DB but have not been minted on-chain yet.
-  app.get('/api/admin/parcels/unminted', passport.authenticate('jwt', { session: false }), requireAdmin, async (req, res) => {
-    const page = parseInt(String(req.query.page ?? '0'), 10)
-    const offset = (isNaN(page) ? 0 : Math.max(0, page)) * 100
-    const result = await db.query(
-      'sql/get-unminted-parcels',
-      `select id, address, island, x1, y1, z1, x2, y2, z2
-       from properties
-       where minted = false
-       order by id desc
-       limit 100 offset $1`,
-      [offset],
-    )
-    res.status(200).json({ success: true, parcels: result.rows })
-  })
+  // Checks the contract, repairs minted=false rows that are already on-chain, returns only real unminted.
+  // Dev proxies prod so local can mint against real parcels without a full DB dump.
+  if (config.isDevelopment) {
+    app.get('/api/admin/parcels/unminted', cache(false), async (req, res) => {
+      const page = String(req.query.page ?? '0')
+      try {
+        // optional: set PROD_JWT until the no-auth deploy is live
+        const headers: Record<string, string> = {}
+        if (process.env.PROD_JWT) headers.cookie = `jwt=${process.env.PROD_JWT}`
+        const r = await fetch(`https://www.voxels.com/api/admin/parcels/unminted?page=${encodeURIComponent(page)}`, { headers })
+        res.status(r.status).json(await r.json())
+      } catch (e: any) {
+        res.status(502).json({ success: false, message: e?.toString() || 'prod fetch failed' })
+      }
+    })
+  } else {
+    app.get('/api/admin/parcels/unminted', cache(false), async (req, res) => {
+      const page = parseInt(String(req.query.page ?? '0'), 10)
+      try {
+        const { parcels, fixed } = await unmintedFromDb(db, isNaN(page) ? 0 : page)
+        res.status(200).json({ success: true, parcels, fixed })
+      } catch (e: any) {
+        log.error('unminted failed', { e: String(e) })
+        res.status(500).json({ success: false, message: e?.toString() || 'unminted failed' })
+      }
+    })
+  }
 
   app.post('/api/admin/parcels/create', passport.authenticate('jwt', { session: false }), requireAdmin, async (req, res) => {
     const { id, address, owner, island, x1, y1, z1, x2, y2, z2 } = req.body

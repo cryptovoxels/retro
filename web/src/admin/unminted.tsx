@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'preact/hooks'
-import cachedFetch, { invalidateUrl } from '../helpers/cached-fetch'
+import cachedFetch from '../helpers/cached-fetch'
 import { parcelContract, parcelSigner, sendMint, TEAM } from '../helpers/mint-parcel'
 
 type Row = { id: number; address: string; island: string; x1: number; y1: number; z1: number; x2: number; y2: number; z2: number }
@@ -17,9 +17,11 @@ export default function Unminted() {
     try {
       const r = await cachedFetch(url)
       const d = await r.json()
+      console.log('[unminted] load', { url, count: (d.parcels || []).length, success: d.success })
       setRows(d.parcels || [])
       setSel(new Set())
     } catch (e: any) {
+      console.error('[unminted] load failed', e)
       setErr(e?.toString() || 'failed to load')
     }
   }
@@ -41,14 +43,33 @@ export default function Unminted() {
     setSel(sel.size === rows.length ? new Set() : new Set(rows.map((p) => p.id)))
   }
 
+  function dropIds(ids: number[]) {
+    const gone = new Set(ids)
+    setRows((rs) => rs.filter((p) => !gone.has(p.id)))
+    setSel((s) => {
+      const next = new Set(s)
+      ids.forEach((id) => next.delete(id))
+      return next
+    })
+  }
+
   async function resync() {
     setBusy('resyncing...')
     setErr('')
     try {
-      await fetch(`/api/parcels/by/${TEAM}/query`)
-      invalidateUrl(url)
-      await load()
+      console.log('[unminted] resync start', TEAM)
+      // local db sync (no-op for prod-proxied rows) + drop anything already on-chain from this page
+      await fetch(`/api/parcels/by/${TEAM}/query`).catch(() => {})
+      const c = await parcelContract()
+      const gone: number[] = []
+      for (const p of rows) {
+        if (await c.exists(p.id)) gone.push(p.id)
+      }
+      console.log('[unminted] resync dropping on-chain', gone)
+      dropIds(gone)
+      setErr(gone.length ? `dropped ${gone.length} already on-chain from this page` : 'none on this page are on-chain yet')
     } catch (e: any) {
+      console.error('[unminted] resync failed', e)
       setErr(e?.toString() || 'resync failed')
     } finally {
       setBusy('')
@@ -57,14 +78,21 @@ export default function Unminted() {
 
   async function mintSelected() {
     const selected = rows.filter((p) => sel.has(p.id))
-    if (!selected.length) return
+    console.log('[unminted] mintSelected click', { selSize: sel.size, selected: selected.map((p) => ({ id: p.id, x1: p.x1, y1: p.y1, z1: p.z1, x2: p.x2, y2: p.y2, z2: p.z2 })) })
+    if (!selected.length) {
+      setErr('nothing selected')
+      return
+    }
     setBusy(`minting 0/${selected.length}...`)
     setErr('')
     const txs: { id: number; tx: any }[] = []
+    const skipped: number[] = []
     try {
+      console.log('[unminted] getting contract...')
       const c = await parcelContract()
       const from = (await (await parcelSigner()).getAddress()).toLowerCase()
       const owner = (await c.owner()).toLowerCase()
+      console.log('[unminted] wallet check', { from, owner, match: from === owner })
       if (from !== owner) {
         setErr(`wrong wallet: contract owner is ${owner}, you are ${from}`)
         return
@@ -72,27 +100,44 @@ export default function Unminted() {
       for (let i = 0; i < selected.length; i++) {
         const p = selected[i]
         setBusy(`minting ${i + 1}/${selected.length}...`)
-        if (await c.exists(p.id)) {
-          await fetch(`/api/parcels/${p.id}/query`)
+        console.log('[unminted] parcel', i + 1, '/', selected.length, p)
+        const exists = await c.exists(p.id)
+        console.log('[unminted] exists?', p.id, exists)
+        if (exists) {
+          console.warn('[unminted] SKIP already on-chain', p.id)
+          skipped.push(p.id)
           continue
         }
         try {
-          txs.push({ id: p.id, tx: await sendMint(c, p) })
+          console.log('[unminted] calling sendMint', p.id, '- MetaMask should pop now')
+          const tx = await sendMint(c, p)
+          console.log('[unminted] sendMint returned', p.id, tx?.hash)
+          txs.push({ id: p.id, tx })
         } catch (e: any) {
-          setErr(e?.shortMessage || e?.toString() || 'mint failed')
+          console.error('[unminted] sendMint failed', p.id, e)
+          setErr(e?.shortMessage || e?.reason || e?.toString() || 'mint failed')
           break
         }
       }
+      console.log('[unminted] loop done', { sent: txs.length, skipped })
+      // prod db is stale — yank skipped/minted rows out of the UI instead of reloading them
+      if (skipped.length) dropIds(skipped)
+      if (!txs.length && skipped.length) {
+        setErr(`all ${skipped.length} already on-chain. dropped from list. pick ones that are not minted yet (try further down / next pages).`)
+        return
+      }
       if (txs.length) {
         setBusy(`waiting for ${txs.length} tx...`)
+        console.log('[unminted] waiting for receipts', txs.map((t) => t.tx.hash))
         await Promise.all(txs.map((t) => t.tx.wait()))
-        await Promise.all(txs.map((t) => fetch(`/api/parcels/${t.id}/query`)))
+        dropIds(txs.map((t) => t.id))
+        console.log('[unminted] all mined')
       }
-      invalidateUrl(url)
-      await load()
     } catch (e: any) {
-      setErr(e?.shortMessage || e?.toString() || 'mint failed')
+      console.error('[unminted] mintSelected fatal', e)
+      setErr(e?.shortMessage || e?.reason || e?.toString() || 'mint failed')
     } finally {
+      console.log('[unminted] mintSelected finally')
       setBusy('')
     }
   }
@@ -105,8 +150,8 @@ export default function Unminted() {
         <button disabled={!!busy || !sel.size} onClick={mintSelected}>
           {busy || `mint selected (${sel.size})`}
         </button>
-        <button disabled={!!busy} onClick={resync}>
-          resync
+        <button disabled={!!busy || !rows.length} onClick={resync}>
+          {busy === 'resyncing...' ? 'resyncing...' : 'drop already on-chain'}
         </button>
       </div>
       <table>
