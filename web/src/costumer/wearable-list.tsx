@@ -1,5 +1,5 @@
 import { Component, Fragment } from 'preact'
-import { getWearableGif } from '../../src/helpers/wearable-helpers'
+import WearableIcon from '../components/wearable-icon'
 import { app } from '../../src/state'
 import { PanelType } from '../../src/components/panel'
 import { CollectiblesData, fetchUsersCollectiblesData, fetchFreeWearablesData, mergeOwnedAndFreeWearables } from '../../../common/helpers/collections-helpers'
@@ -48,7 +48,7 @@ export default class WearableList extends Component<Props, WearableListState> {
 
     return (
       <li key={wearable.id} onClick={onClick}>
-        <img width={94} height={94} src={getWearableGif(wearable)} />
+        <WearableIcon id={String(wearable.id)} title={wearable.name} />
         <address>{wearable.name}</address>
         {this.props.onPickWearable ? (
           <div class="wearable-pick-row">

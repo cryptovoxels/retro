@@ -1,6 +1,6 @@
 import { Component, JSX } from 'preact'
 import { sortBy } from 'lodash'
-import { getWearableGif } from '../../helpers/wearable-helpers'
+import WearableIcon from '../wearable-icon'
 import { findMostSimilarsInArray } from '../../utils'
 import { CollectiblesData } from '../../../../common/helpers/collections-helpers'
 import { Spinner } from '../../spinner'
@@ -79,7 +79,7 @@ export default class CollectibleSelector extends Component<Props, State> {
             }}
             title={collectible.description || ''}
           >
-            <img src={getWearableGif(collectible)} width={32} height={32} />
+            <WearableIcon id={String(collectible.id)} title={collectible.name} />
             {collectible.name}
             <br />
             <small>{collectible.description}</small>

@@ -258,27 +258,33 @@ select {
   }
 
   .wearables {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(4rem, 1fr));
+    gap: 1rem;
+    padding: 0;
 
     div.attachment {
       display: flex;
-      flex-direction: row;
-      gap: 0.5rem;
+      flex-direction: column;
+      gap: 0.25rem;
+      cursor: pointer;
 
-      cite {
-        width: 2rem;
-        height: 2rem;
-        line-height: 2rem;
-        font-size: 0.8rem;
-        overflow: hidden;
-        background: var(--hover);
-        color: var(--disabled);
+      img {
+        width: 100%;
+        aspect-ratio: 1;
+        object-fit: cover;
+        display: block;
       }
 
-      p {
-        margin: 0;
+      .loading-image {
+        width: 100%;
+        aspect-ratio: 1;
+      }
+
+      cite {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
     }
   }
@@ -296,17 +302,12 @@ select {
       flex-wrap: wrap;
       gap: 0.5rem;
 
-      li > div {
-        width: 4rem;
-        height: 4rem;
-      }
-
-      li > img {
+      li .loading-image,
+      li img {
         width: 4rem;
         height: 4rem;
         object-fit: cover;
-
-        transform: scale(1.5);
+        display: block;
       }
 
       span {
@@ -315,7 +316,6 @@ select {
         overflow: hidden;
         white-space: nowrap;
         width: 4rem;
-        font-size: 0.8rem;
       }
     }
   }
@@ -509,11 +509,24 @@ select {
   grid-template-columns: repeat(auto-fill, minmax(8rem, 1fr));
   gap: 2rem;
 
-  img {
+  img,
+  .wearable-icon,
+  .loading-image {
     max-width: 100%;
+    display: block;
+    width: 100%;
+    aspect-ratio: 1;
   }
 
-  img + p {
+  .wearable-icon img,
+  .wearable-icon .loading-image {
+    width: 100%;
+    aspect-ratio: 1;
+  }
+
+  img + p,
+  .wearable-icon + p,
+  a > p {
     margin: 0;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -5223,4 +5236,8 @@ body.in-world.mini-world {
   li {
     padding: 0.1rem 1rem;
   }
+}
+
+.wearable-icon img {
+  border-radius: 0.5rem;
 }

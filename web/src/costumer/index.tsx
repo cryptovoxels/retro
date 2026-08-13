@@ -17,6 +17,7 @@ import { pending, registerCostumerVoidBackground, setupGizmos, setupScene } from
 import { Wearable } from './wearable'
 import Redirect from '../../src/components/redirect'
 import WearableSelector from './wearable-selector'
+import WearableIcon from '../components/wearable-icon'
 import { md5 } from '../../../common/helpers/utils'
 
 if (process.env.NODE_ENV === 'development') {
@@ -679,53 +680,40 @@ export default class Costumer extends Component<Props, State> {
 
           <div class="wearables">
             {attachments.map((a, idx) => {
-              const name = a.wearable?.name ?? a.wid
-              const bone = a.bone
               const selected = idx == this.state.attachmentIdx
-
               return (
-                <>
-                  <div class="attachment">
-                    <cite class="bone">{bone}</cite>
-                    <p>
-                      {selected ? (
-                        <b>{name}</b>
-                      ) : (
-                        <a
-                          onClick={(e) => {
-                            e.preventDefault()
-                            this.setState({ attachmentIdx: idx })
-                          }}
-                          href="#"
-                        >
-                          {name}
-                        </a>
-                      )}
-                    </p>
-                    {a.wearable && (
-                      <a href={`/assets/${a.wearable.id}`} target="_blank" rel="noopener">
-                        ...
-                      </a>
-                    )}
-                  </div>
-                  {selected ? <Editor ref={this.editor} key={editorKey} attachmentIdx={idx} costume={this.costume} deleteAttachment={this.removeAttachment} updateAttachment={(a) => this.updateAttachment(idx, a)} /> : null}
-                  {selected ? (
-                    <WearableSelector
-                      attachment={a}
-                      bone={a.bone}
-                      onPick={(w) => {
-                        void this.updateAttachment(idx, {
-                          ...a,
-                          wid: w.id,
-                          wearable: { id: w.id, name: w.name },
-                        })
-                      }}
-                    />
-                  ) : null}
-                </>
+                <div key={`${a.wid}-${idx}`} class={selected ? 'attachment selected' : 'attachment'} onClick={() => this.setState({ attachmentIdx: idx })}>
+                  {a.wid ? <WearableIcon id={a.wid} title={a.wearable?.name ?? a.wid} /> : null}
+                  <cite class="bone">{a.bone}</cite>
+                </div>
               )
             })}
           </div>
+          {this.state.attachmentIdx !== null && attachments[this.state.attachmentIdx] ? (
+            <>
+              <Editor
+                ref={this.editor}
+                key={editorKey}
+                attachmentIdx={this.state.attachmentIdx}
+                costume={this.costume}
+                deleteAttachment={this.removeAttachment}
+                updateAttachment={(a) => this.updateAttachment(this.state.attachmentIdx!, a)}
+              />
+              <WearableSelector
+                attachment={attachments[this.state.attachmentIdx]}
+                bone={attachments[this.state.attachmentIdx].bone}
+                onPick={(w) => {
+                  const idx = this.state.attachmentIdx!
+                  const a = attachments[idx]
+                  void this.updateAttachment(idx, {
+                    ...a,
+                    wid: w.id,
+                    wearable: { id: w.id, name: w.name },
+                  })
+                }}
+              />
+            </>
+          ) : null}
         </aside>
       </section>
     )

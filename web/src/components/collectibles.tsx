@@ -6,9 +6,7 @@ import { SUPPORTED_CHAINS_BY_ID } from '../../../common/helpers/chain-helpers'
 import { Collection, CollectionHelper } from '../../../common/helpers/collections-helpers'
 import { ssrFriendlyDocument } from '../../../common/helpers/utils'
 import { CollectibleInfoRecord } from '../../../common/messages/feature'
-import { bucketUrl, renderUrl } from '../assets'
-import Image from './image'
-import { getWearableGif, rarityLabel } from '../helpers/wearable-helpers'
+import WearableIcon from './wearable-icon'
 import { fetchOptions } from '../utils'
 import Pagination from './pagination'
 
@@ -201,7 +199,7 @@ export default class CollectiblesComponent extends Component<Props, State> {
         return (
           <div key={w.id}>
             <a href={url}>
-              <Image type="wearable" src={bucketUrl(w.id!)} altsrc={renderUrl(w.id!)} />
+              <WearableIcon id={w.id!} title={w.name} />
               <p>{truncate(w.name, { length: 40 })}</p>
             </a>
           </div>

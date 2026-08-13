@@ -6,12 +6,10 @@ import { Collection, CollectionHelper } from '../../common/helpers/collections-h
 import { ssrFriendlyDocument } from '../../common/helpers/utils'
 import { CollectibleInfoRecord } from '../../common/messages/feature'
 import { isAddress } from 'ethers'
-import { bucketUrl, renderUrl } from './assets'
-import Image from './components/image'
+import WearableIcon from './components/wearable-icon'
 import Pagination from './components/pagination'
 import UploadButton from './components/upload-button'
 import { app, AppEvent } from './state'
-import { getWearableGif } from './helpers/wearable-helpers'
 import { AvatarLink } from './components/avatar-link'
 import { avatarName } from '../../common/messages/avatar-ref'
 
@@ -119,13 +117,12 @@ export default class CollectionPage extends Component<Props, State> {
       const url = `/collections/${this.props.id}/collectibles/${w.token_id}`
 
       const hasDescription = w.description && w.description != ''
-      const src = getWearableGif(w)
       //let price = w.offer_prices && w.offer_prices[0]
 
       return (
         <div key={w.id}>
           <a href={url}>
-            <Image type="wearable" src={bucketUrl(w.id!)} altsrc={renderUrl(w.id!)} />
+            <WearableIcon id={w.id!} title={w.name} />
             <p>{truncate(w.name, { length: 40 })}</p>
           </a>
         </div>

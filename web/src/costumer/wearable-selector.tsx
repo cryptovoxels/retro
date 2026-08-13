@@ -4,8 +4,7 @@ import { fetchUsersCollectiblesData } from '../../../common/helpers/collections-
 import { app } from '../state'
 import { Attachment } from './index'
 import { wearablesForBone } from './bone-wearables'
-import { bucketUrl, renderUrl } from '../assets'
-import Image from '../components/image'
+import WearableIcon from '../components/wearable-icon'
 
 type WearableRow = { id: string; name: string; is_free: boolean }
 type Mode = 'owned' | 'free'
@@ -131,7 +130,7 @@ export default class WearableSelector extends Component<Props, State> {
     const grid = (list: WearableRow[]) =>
       list.map((w) => (
         <li key={w.id} class={attachment.wid === w.id ? 'active' : ''} onClick={() => this.props.onPick(w)}>
-          <Image type="wearable" src={bucketUrl(w.id)} altsrc={renderUrl(w.id)} />
+          <WearableIcon id={w.id} title={w.name} />
           <span>{w.name}</span>
         </li>
       ))

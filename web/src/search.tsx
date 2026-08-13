@@ -5,9 +5,9 @@ import { route } from 'preact-router'
 import { ssrFriendlyWindow } from '../../common/helpers/utils'
 import Head from './components/head'
 import PaginationLinks from './components/pagination-links'
+import WearableIcon from './components/wearable-icon'
 import cachedFetch from './helpers/cached-fetch'
 import { track } from './helpers/umami'
-import { getWearableGif } from './helpers/wearable-helpers'
 import { Spinner } from './spinner'
 import { fetchOptions } from './utils'
 
@@ -28,12 +28,11 @@ function getUrl(type: string, id: string) {
 function Wearable(props: any) {
   const wearable = props.wearable as SearchResult
   const url = getUrl('assets', wearable.id)
-  const img = getWearableGif({ id: wearable.id, token_id: wearable.id, name: wearable.name })
 
   return (
     <div>
       <a href={url}>
-        <img src={img} class="render" />
+        <WearableIcon id={wearable.id} title={wearable.name} class="render" />
       </a>
       <p>
         <a href={url}>{wearable.name}</a>
