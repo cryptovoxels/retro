@@ -90,6 +90,7 @@ export default function Classifieds({ limit }: Props) {
     <div class="classifieds">
       <br />
       <br />
+      <h3>Shop</h3>
       <div class="classifieds-head">
         {!limit && (
           <div class="classifieds-currency">
@@ -126,6 +127,7 @@ export default function Classifieds({ limit }: Props) {
           )}
         </tbody>
       </table>
+      <a href="/shop">View shop</a>
     </div>
   )
 }
