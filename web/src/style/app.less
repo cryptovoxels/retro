@@ -1124,7 +1124,7 @@ div.map {
 // One aside (the WorldSidebar host) swaps page content and panes. Home / parcel are
 // push-panel worlds too; the grid applies before the world boots so the page sidebar
 // doesn't flash away while coords resolve.
-@world-hosts: ~':has(> .client-world), :has(> .columns.home), :has(> .columns.parcel-page)';
+@world-hosts: ~':has(> .client-world), :has(> .columns.home), :has(> .columns.parcel-page), :has(> .columns.space-page)';
 
 // main sits above .client so sidebar gets clicks; punch through the world
 // cell or the empty grid slot eats pointer lock / WASD
@@ -1144,7 +1144,8 @@ main:is(@{world-hosts}) {
 
 .client-world,
 main > .columns.home,
-main > .columns.parcel-page {
+main > .columns.parcel-page,
+main > .columns.space-page {
   grid-area: world;
   min-width: 0;
   min-height: 0;
@@ -1152,7 +1153,8 @@ main > .columns.parcel-page {
 
 // the page section is just the world box now - its aside lives in the WorldSidebar host
 main > .columns.home > article,
-main > .columns.parcel-page > article {
+main > .columns.parcel-page > article,
+main > .columns.space-page > article {
   flex: 1;
   min-width: 0;
   height: 100%;
