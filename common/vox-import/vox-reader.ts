@@ -1,7 +1,7 @@
-import * as createAOMesh from 'ao-mesher'
 import ndarray from 'ndarray'
 
 const VoxReader = require('@sh-dave/format-vox').VoxReader
+const createAOMesh = require('ao-mesher')
 
 const intensity = 0.5
 const offset = 0.4
