@@ -12,6 +12,7 @@ export type SceneConfig = BABYLON.DeepImmutableObject<{
   isMultiuser: boolean
 }>
 
+export const isScratchpad = () => (typeof document !== 'undefined' ? document.location.pathname.includes('scratchpad') : false)
 export const isSpace = () => window.config.isSpace
 export const isWorld = () => window.config.isGrid
 
@@ -31,12 +32,13 @@ export const sceneConfigFromURL = (): SceneConfig => {
   const searchParams = new URLSearchParams(document.location.search.substring(1))
 
   const spaceMatch = pathName.match(/\/(assets|spaces)\/([^/]+)(?:\/play)?$/)
-  const _isSpace = (): boolean => !!spaceMatch
+  const scratch = pathName.includes('scratchpad')
+  const _isSpace = (): boolean => !!spaceMatch || scratch
   const isBot = (): boolean => !!document.location.pathname.match(/capture/) || searchParams.get('bot') === 'true'
   const isNight = (): boolean => searchParams.get('time') === 'night'
   const wantsURL = (): boolean => !_isSpace() && !isBot()
-  const getSpaceId = (): string | null => (spaceMatch ? spaceMatch[2] : null)
-  const isMultiuser = (): boolean => searchParams.get('mp') !== 'off'
+  const getSpaceId = (): string | null => (scratch ? 'scratchpad' : spaceMatch ? spaceMatch[2] : null)
+  const isMultiuser = (): boolean => !scratch && searchParams.get('mp') !== 'off'
   const isGrid = !_isSpace()
 
   return Object.assign({}, defaultConfig, {

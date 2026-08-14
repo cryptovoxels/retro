@@ -29,6 +29,7 @@ import NftController from './controllers/nft'
 import EventsController from './controllers/parcel-events'
 import ParcelsController from './controllers/parcels'
 import PlayController from './controllers/play'
+import ScratchpadController from './controllers/scratchpad'
 import SpacesController from './controllers/spaces'
 import MetricsController from './controllers/metrics'
 import ModelsController from './controllers/models'
@@ -391,6 +392,7 @@ RadioController(db, app)
 
 // Main client controller
 PlayController(db, passport, app)
+ScratchpadController(app)
 // parcels controller
 ParcelsController(db, passport, app)
 // Avatars controller

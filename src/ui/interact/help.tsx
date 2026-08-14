@@ -1,9 +1,11 @@
 import { Component } from 'preact'
 import { onDragStart } from '../dialog'
+import { isScratchpad } from '../../scene-config'
 
 interface Props {
   onClose?: () => void
   scene: BABYLON.Scene
+  onShowScratchpadGuide?: () => void
 }
 
 export class HelpOverlay extends Component<Props> {
@@ -123,6 +125,44 @@ export class HelpOverlay extends Component<Props> {
         <p>
           <b>Right Click</b> in world to edit existing content.
         </p>
+
+        {isScratchpad() && (
+          <>
+            <h2>Scratchpad: build, delete, paint</h2>
+            <p>
+              Practice voxels here first. Press <b>B</b>, then:
+            </p>
+            <p>
+              The mouse locks while you build. Press <b>Escape</b> to release it and use the toolbelt.
+            </p>
+            <ol class="scratchpad-help-steps">
+              <li>
+                <b>Build</b> -- click one block, or drag a wall.
+              </li>
+              <li>
+                <b>Delete</b> -- shift-click or shift-drag.
+              </li>
+              <li>
+                <b>Color</b> -- Escape, then pick a swatch on the toolbelt. Or press 1-9 while building.
+              </li>
+              <li>
+                <b>Paint</b> -- ctrl-click to apply that color to a block.
+              </li>
+            </ol>
+            <h2>Once you have a parcel or space</h2>
+            <p>
+              Open <b>Add</b> or press <b>Tab</b> to browse features: signs, images, video, showboxes, portals, and the rest. Scratchpad lets you peek -- that unlocks on your land.
+            </p>
+            <p class="scratchpad-help-outro">Reload clears scratchpad. Your parcel keeps what you build.</p>
+            {this.props.onShowScratchpadGuide && (
+              <p>
+                <button type="button" class="linkish" onClick={this.props.onShowScratchpadGuide}>
+                  start over
+                </button>
+              </p>
+            )}
+          </>
+        )}
       </section>
     )
   }
