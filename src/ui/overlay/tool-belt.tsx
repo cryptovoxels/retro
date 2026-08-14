@@ -62,7 +62,8 @@ export default function VoxelToolBelt({ parcel }: Props) {
   const lockAndBuild = (next?: SelectionMode) => {
     if (!ui || !voxelTool) return
     window.connector.controls?.enterFirstPerson()
-    voxelTool.setMode(next ?? SelectionMode.Add)
+    const mode = next ?? SelectionMode.Add
+    voxelTool.setMode(mode, { fixedMode: mode !== SelectionMode.Add })
     ui.setTool(voxelTool)
     requestPointerLock()
     if (next != null) setMode(next)
