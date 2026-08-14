@@ -115,6 +115,7 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
   const [, bump] = useState(0)
   const [focused, setFocusedRaw] = useState(false)
   const box = useRef<HTMLDivElement>(null)
+  const chatRef = useRef<HTMLDivElement>(null)
   // leaving the input restarts the age-out clock so the recalled history
   // fades out instead of vanishing the moment you hit Enter
   const blurAt = useRef(0)
@@ -144,6 +145,31 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
     el.scrollTop = el.scrollHeight
   })
 
+  // sit the input on top of the keyboard; don't let safari pan the world
+  useEffect(() => {
+    if (variant !== 'overlay' || !isMobile()) return
+    const el = chatRef.current
+    if (!el) return
+    const pin = () => {
+      window.scrollTo(0, 0)
+      if (!focused) {
+        el.style.bottom = ''
+        return
+      }
+      const vv = window.visualViewport
+      const inset = vv ? Math.max(0, window.innerHeight - vv.offsetTop - vv.height) : 0
+      el.style.bottom = `${inset}px`
+    }
+    pin()
+    window.visualViewport?.addEventListener('resize', pin)
+    window.visualViewport?.addEventListener('scroll', pin)
+    return () => {
+      window.visualViewport?.removeEventListener('resize', pin)
+      window.visualViewport?.removeEventListener('scroll', pin)
+      el.style.bottom = ''
+    }
+  }, [variant, focused])
+
   const msgs = messageList.value.slice(-cap)
   const atCap = messageList.value.length >= cap
 
@@ -151,11 +177,10 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
     const now = Date.now()
     const age = (m: ChatMessageRecord) => now - Math.max(m.timestamp, blurAt.current)
     let shown = focused ? msgs : msgs.filter((m) => age(m) < CHAT_GONE_MS)
-    // small screens: last 4 lines is plenty, focused or not - the keyboard
-    // leaves no room for the full backlog
-    if (isMobile()) shown = shown.slice(-4)
+    // phones: three lines over the world; focusing the input recalls the rest
+    if (isMobile() && !focused) shown = shown.slice(-3)
     return (
-      <div class={'chat' + (className ? ' ' + className : '')} style={style}>
+      <div ref={chatRef} class={'chat' + (className ? ' ' + className : '')} style={style}>
         <div class={'chat-messages' + (atCap ? ' at-cap' : '')}>
           {shown.map((m) => (
             <p key={m.timestamp} class={!focused && age(m) > CHAT_FADE_MS ? 'faded' : undefined}>
@@ -168,9 +193,7 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
         <ChatInput
           onFocusChange={(f) => {
             setFocused(f)
-            // safari scrolls the page to keep the input above the keyboard and
-            // leaves it there - snap back to the world when done typing
-            if (!f && isMobile()) window.scrollTo(0, 0)
+            if (isMobile()) window.scrollTo(0, 0)
           }}
         />
       </div>

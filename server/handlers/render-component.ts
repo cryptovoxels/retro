@@ -42,7 +42,7 @@ export default function renderComponent(component: VNode) {
   return `<!DOCTYPE html>
 <html>
 <head>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content">
   <link rel="shortcut icon" href="/favicon.png" />
   <link rel="prefetch" href="${BABYLON_BUNDLE_URL}" as="script">
   <link href='/${currentVersion}-app.css' rel="stylesheet" />

@@ -165,9 +165,11 @@ export function viewportChangeHandler() {
   const input = document.activeElement
   const typing = input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement
 
-  // Only stretch body while the keyboard is up and a field is focused. Otherwise reset
-  // or the canvas + dpad scroll off-screen when send blurs the input.
-  if (keyboardUp && typing) {
+  const inChat = typing && input instanceof HTMLElement && !!input.closest('.chat')
+
+  // chat pins itself to the visual viewport - stretching body here pans the world
+  // out from under the input. other fields still get the stretch.
+  if (keyboardUp && typing && !inChat) {
     document.body.style.height = initialHeight + 'px'
   } else {
     resetMobileViewportLayout()
@@ -176,7 +178,9 @@ export function viewportChangeHandler() {
   // iOS fires a stream of resize events while the keyboard animates. Resizing the
   // engine mid-animation wipes the canvas to black until the next painted frame
   // (which Safari delays during the animation), so wait for the viewport to settle
-  // and resize once inside a frame.
+  // and resize once inside a frame. skip while chat is focused - that resize is
+  // the world jumping.
   window.clearTimeout(settleResizeTimer)
+  if (inChat) return
   settleResizeTimer = window.setTimeout(() => requestAnimationFrame(() => window.engine?.resize()), 150)
 }
