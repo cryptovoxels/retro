@@ -4,7 +4,7 @@ New here, or been away long enough that the keys feel rusty? This is the short v
 
 ## Practice in the scratchpad
 
-Open the [scratchpad](/scratchpad). It is a sandbox lot that does not care who you are. Reload clears it, so nothing you do there is precious.
+Open the [scratchpad](https://www.voxels.com/scratchpad). It is a sandbox lot that does not care who you are. Reload clears it, so nothing you do there is precious.
 
 The checklist will walk you through it. If you skip that, the muscle memory is:
 
