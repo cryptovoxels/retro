@@ -1215,7 +1215,9 @@ main:is(@{world-hosts}):not(:has(> aside)) {
     grid-template-areas: 'world';
   }
 
-  main:is(@{world-hosts}):has(> aside) {
+  // .-closed is display:none but still matches :has(> aside) - skip it so the
+  // world is full-bleed from the first paint on phones
+  main:is(@{world-hosts}):has(> aside:not(.-closed)) {
     grid-template-columns: 1fr min(23rem, 100%);
     grid-template-areas: 'world sidebar';
   }
