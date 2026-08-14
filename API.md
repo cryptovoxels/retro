@@ -536,6 +536,8 @@ Minted and unsuppressed only. Authorship, not ownership.
 
 The collectibles in this citizen's current costume
 
+One row per costume attachment, joined to the wearable its wid names. An attachment whose wearable has no token_id is dropped, so this can return fewer rows than the costume has attachments.
+
 **parameters**
 
 - `wallet` (path, required) string
@@ -545,6 +547,15 @@ The collectibles in this citizen's current costume
 - `200` object
   - `success` boolean
   - `wearables` array of object
+    - `wearable_id` integer: The token id, not the uuid, whatever the name suggests. The uuid is `wid`.
+    - `wid` string, a uuid: The wearable, which is the wid the attachment carried. Pair a row back to its attachment on this rather than on `bone`, since two attachments can share a bone.
+    - `collection_id` integer
+    - `issues` integer or null: The edition size.
+    - `name` string or null
+    - `bone` string or null: The bone the piece hangs off.
+    - `collection_name` string or null
+    - `chain_id` integer or null
+    - `collection_address` string or null
 
 ### GET /api/avatars/{wallet}/costume.json
 
@@ -680,6 +691,8 @@ Rate limited to five calls per thirty seconds per client, because it costs a cha
 
 Search minted collectibles
 
+Forty rows a page, fixed in the query. There is no `limit` parameter.
+
 **parameters**
 
 - `q` (query) string
@@ -785,9 +798,13 @@ One collection
 
 Everything in a collection
 
+At most 256 rows a page. Unlike the other collectible routes this one filters neither `suppressed` nor unminted, so hidden wearables and wearables with a null `token_id` both come back.
+
 **parameters**
 
 - `id` (path, required) integer
+- `page` (query) integer, defaults to `0`: Zero-based.
+- `limit` (query) integer, defaults to `256`: Capped at 256, which is also the default.
 
 **answers**
 
@@ -1355,6 +1372,12 @@ What a citizen is wearing. `attachments` name a bone and a wearable; an attachme
 - `id` string, a uuid
 - `name` string or null
 - `attachments` array of object
+  - `bone` string: The bone the piece hangs off, `Head` or `Spine1` and so on.
+  - `wid` string, a uuid: The wearable. Both `/api/collectibles/{uuid}/vox` and `/api/collectibles/wearable/{uuid}.json` take this.
+  - `position` array of number: Three numbers, bone-local.
+  - `rotation` array of number: Three numbers, in degrees, applied yaw then pitch then roll. A parcel feature's rotation is in radians.
+  - `scaling` array of number: Three numbers.
+  - `chain` integer: The chain the wearable is on. Not on every attachment.
 - `wallet` string or null: Whose costume it is.
 - `skin` string or null: The body texture as an SVG document, inline, not a url. Runs to tens of kilobytes, so a caller that only wants the attachments pays for this too.
 - `default_color` string or null: Hex, the colour worn where nothing covers the body.

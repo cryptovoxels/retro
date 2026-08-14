@@ -81,7 +81,12 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
   app.get(
     '/api/collections/:id/collectibles',
     cache('5 seconds'),
-    createRequestHandlerForQuery(db, 'collectibles/get-collectibles-by-collection', 'collectibles', (req) => [req.params.id]),
+    createRequestHandlerForQuery(db, 'collectibles/get-collectibles-by-collection', 'collectibles', (req) => {
+      const limit = parseInt(req.query.limit as string) || 256
+      const page = parseInt(req.query.page as string) || 0
+      // 256 was the old hard coded limit, so it stays the default and the ceiling
+      return [req.params.id, Math.min(Math.max(limit, 1), 256), Math.max(page, 0)]
+    }),
   )
 
   /** Empty collection for bulk .vox upload; wearables added per /api/assets/upload with collection_id. */

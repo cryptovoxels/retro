@@ -14,7 +14,7 @@ with attchmnts as (select json_array_elements(c.attachments) as a
 -- wearables.id. the case guards the cast, since a costume is user written and wid is
 -- only checked for being a string (see costumes.ts), so a malformed one would throw
 SELECT
-    w.token_id as wearable_id, w.collection_id as collection_id, w.issues as issues, w.name as name, (a->>'bone')::text as bone
+    w.token_id as wearable_id, w.id as wid, w.collection_id as collection_id, w.issues as issues, w.name as name, (a->>'bone')::text as bone
 FROM attchmnts
     left JOIN
     wearables w

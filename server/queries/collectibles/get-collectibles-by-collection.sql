@@ -15,5 +15,9 @@ from
   wearables 
 where
   collection_id = $1
-limit 
-  256;
+order by
+  wearables.id
+limit
+  $2::int
+offset
+  $3::int * $2::int;
