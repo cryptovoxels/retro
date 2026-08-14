@@ -1,18 +1,20 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
+import { effect } from '@preact/signals'
 import type Selector from '../tools/voxel'
 import { SelectionMode } from '../tools/voxel'
+import { uiPane } from '../store'
 
 const STEPS = [
-  { id: 'b', label: 'Press B', hint: 'Turns on the voxel toolbelt. The mouse locks to the world -- press Escape to free the mouse.' },
+  { id: 'b', label: 'Press B', hint: 'Turns on the voxel toolbelt. The mouse locks to the world -- press Escape to free the mouse and click the belt.' },
   { id: 'place', label: 'Place a block', hint: 'Click in the world. Drag for a wall or floor.' },
   { id: 'delete', label: 'Delete a block', hint: 'Hold shift, then click or drag.' },
-  { id: 'color', label: 'Pick a color', hint: 'Press Escape to release the mouse, then pick a swatch on the toolbelt. Or press 1-9 while building.' },
-  { id: 'paint', label: 'Paint a block', hint: 'Hold ctrl, then click a block with your color.' },
+  { id: 'color', label: 'Pick a color', hint: 'Press Escape, then click a swatch on the toolbelt. Or press 1-9 while building.' },
+  { id: 'paint', label: 'Paint a block', hint: 'Hold ctrl, then click a block with your color. Or press P on the toolbelt.' },
   {
     id: 'features',
     label: 'See the features',
-    hint: 'Press Tab or click Add in the menu to browse signs, images, video, showboxes, portals, and more. On your parcel or space you can place them for real.',
-    upsell: true,
+    hint: 'Press Tab, click + on the toolbelt, or Add in the menu. When you are done practicing, grab a parcel in the shop.',
+    shop: true,
   },
 ] as const
 
@@ -80,10 +82,14 @@ export function ScratchpadGuide({ voxelTool, onComplete }: ScratchpadGuideProps)
         markDoneRef.current('color')
       }
     })
+    const unsubPane = effect(() => {
+      if (uiPane.value === 'add') markDoneRef.current('features')
+    })
     return () => {
       onB.remove()
       onAction.remove()
       onTintTexture.remove()
+      unsubPane()
     }
   }, [voxelTool])
 
@@ -109,11 +115,9 @@ export function ScratchpadGuide({ voxelTool, onComplete }: ScratchpadGuideProps)
               {isCurrent && (
                 <>
                   <p class="hint">{step.hint}</p>
-                  {'upsell' in step && step.upsell && (
+                  {'shop' in step && step.shop && (
                     <p class="hint">
-                      <a href="https://opensea.io/collection/cryptovoxels" target="_top">
-                        get a parcel
-                      </a>
+                      <a href="/shop">get a parcel in the shop</a>
                     </p>
                   )}
                   <button type="button" class="linkish" onClick={() => skipStep(step.id)}>
@@ -137,6 +141,7 @@ export type ScratchpadGuideMiniProps = {
 export function ScratchpadGuideMini({ onGotIt, onStartOver }: ScratchpadGuideMiniProps) {
   return (
     <div class="scratchpad-guide scratchpad-guide-mini">
+      <a href="/shop">get a parcel in the shop</a>
       <button type="button" class="linkish" onClick={onGotIt}>
         Got it!
       </button>

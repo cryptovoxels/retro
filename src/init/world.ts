@@ -116,23 +116,26 @@ function initialSpawn(scene: BABYLON.Scene, grid: Grid, controls: Controls) {
     const space = grid.fastbootParcel
     const spawnFeature = space.content?.features?.find((f) => f?.type === 'spawn-point')
 
-    if (spawnFeature) {
-      const spawnPosition = Array.isArray(spawnFeature.position) ? spawnFeature.position : ([spawnFeature.position.x, spawnFeature.position.y, spawnFeature.position.z] as const)
-      const rotation = Array.isArray(spawnFeature.rotation) ? spawnFeature.rotation : ([spawnFeature.rotation.x, spawnFeature.rotation.y, spawnFeature.rotation.z] as const)
-
-      const yRotation = parseFloatOrZero(rotation[1])
-
-      const center = [(space.x2 + space.x1) / 200, (space.z2 + space.z1) / 200]
-      const roundHalf = (v: number) => Math.round(v * 2) / 2
-
-      const z = roundHalf(center[1] * 100 + parseFloatOrZero(spawnPosition[2]))
-      const x = roundHalf(center[0] * 100 + parseFloatOrZero(spawnPosition[0]))
-
-      const y = parseFloatOrZero(spawnPosition[1]) + 1.75
-
-      controls.camera.position = new BABYLON.Vector3(x, y, z)
-      controls.camera.rotation = new BABYLON.Vector3(0, yRotation, 0)
+    if (!spawnFeature) {
+      controls.camera.position = new BABYLON.Vector3(0, 2.5, 0)
+      return
     }
+
+    const spawnPosition = Array.isArray(spawnFeature.position) ? spawnFeature.position : ([spawnFeature.position.x, spawnFeature.position.y, spawnFeature.position.z] as const)
+    const rotation = Array.isArray(spawnFeature.rotation) ? spawnFeature.rotation : ([spawnFeature.rotation.x, spawnFeature.rotation.y, spawnFeature.rotation.z] as const)
+
+    const yRotation = parseFloatOrZero(rotation[1])
+
+    const center = [(space.x2 + space.x1) / 200, (space.z2 + space.z1) / 200]
+    const roundHalf = (v: number) => Math.round(v * 2) / 2
+
+    const z = roundHalf(center[1] * 100 + parseFloatOrZero(spawnPosition[2]))
+    const x = roundHalf(center[0] * 100 + parseFloatOrZero(spawnPosition[0]))
+
+    const y = parseFloatOrZero(spawnPosition[1]) + 1.75
+
+    controls.camera.position = new BABYLON.Vector3(x, y, z)
+    controls.camera.rotation = new BABYLON.Vector3(0, yRotation, 0)
   } else {
     const random_boolean = Math.random() < 0.5
     const nudgeL = 5
