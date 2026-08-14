@@ -173,6 +173,12 @@ export class ExplorerUI extends Component<Props, State> {
 
   teleportToWomp = (womp: Womp) => {
     if (!womp.coords) return
+    // scratchpad/spaces have no world grid; in-place teleport would sit on /scratchpad?coords=...
+    if (window.config.isSpace || womp.space_id) {
+      const href = womp.space_id ? `/spaces/${womp.space_id}/play?coords=${womp.coords}` : `/play?coords=${womp.coords}`
+      window.location.href = href
+      return
+    }
     window.persona.teleport(womp.coords)
     this.closeWithPointerLock()
   }
