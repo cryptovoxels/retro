@@ -279,8 +279,11 @@ export default class DesktopControls extends Controls {
       this.ctrlKey = e.ctrlKey || e.metaKey
 
       if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
-        this.crouchHeld = true
-        this.idleLook.stop()
+        // Ctrl is paint while the voxel tool is up; don't crouch over it
+        if (!window.ui?.voxelTool?.enabled.value) {
+          this.crouchHeld = true
+          this.idleLook.stop()
+        }
       }
 
       const moveKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'PageUp', 'PageDown', 'KeyV']

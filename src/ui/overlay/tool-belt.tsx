@@ -73,7 +73,6 @@ export default function VoxelToolBelt({ parcel }: Props) {
     voxelTool.tint = index
     setTint(index)
     setTintChooser(false)
-    lockAndBuild(SelectionMode.Add)
   }
 
   const selectTexture = (index: number) => {
@@ -92,17 +91,17 @@ export default function VoxelToolBelt({ parcel }: Props) {
     const j = currentTileIndex + 1
     const y = Math.floor(j / 4)
     const x = j % 4
+    const color = currentPalette[tint ?? 0]
     const style = {
       backgroundPositionX: -x * 96 - 28 + 'px',
       backgroundPositionY: -y * 96 - 28 + 'px',
       backgroundImage: `url(${tilesetUrl})`,
-      backgroundColor: currentPalette[tint ?? 0],
     }
     let tip = 'Click to select block'
     if (currentTileIndex < 10) tip += ` [${(currentTileIndex + 1) % 10}]`
 
     return (
-      <div title={tip} class={currentTileIndex === texture ? 'selected' : undefined} onClick={() => selectTexture(currentTileIndex)}>
+      <div title={tip} class={currentTileIndex === texture ? 'selected' : undefined} style={{ backgroundColor: color }} onClick={() => selectTexture(currentTileIndex)}>
         {currentTileIndex === 1 ? <img src="/images/glass.png" /> : <div style={style} />}
         {!isMobile() && currentTileIndex + 1 < 10 && <span class="keybind-help">{currentTileIndex + 1}</span>}
       </div>
@@ -133,7 +132,7 @@ export default function VoxelToolBelt({ parcel }: Props) {
         </div>
         <div class="textures">{textures}</div>
         <div ref={tintRef} class="tint-wrap">
-          <button type="button" class={'iconish' + (tintChooser ? ' selected' : '')} title="Tint" onClick={() => setTintChooser(!tintChooser)}>
+          <button type="button" class={'iconish' + (tintChooser ? ' selected' : '')} title="Tint" style={{ background: currentPalette[tint ?? 0] }} onClick={() => setTintChooser(!tintChooser)}>
             T
           </button>
           {tintChooser && (
