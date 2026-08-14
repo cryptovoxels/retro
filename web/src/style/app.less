@@ -5233,3 +5233,90 @@ body.in-world.mini-world {
 .wearable-icon img {
   border-radius: 0.5rem;
 }
+
+.scratchpad-guide {
+  position: fixed;
+  left: 12rem;
+  bottom: 7rem;
+  z-index: 600;
+  max-width: 14rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  color: var(--fg);
+
+  .scratchpad-guide-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.5rem;
+    gap: 1rem;
+  }
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    margin: 0.25rem 0;
+
+    &.done,
+    &.skipped {
+      opacity: 0.45;
+    }
+  }
+
+  .mark {
+    display: inline-block;
+    width: 1.75rem;
+    font-family: monospace;
+  }
+
+  .hint {
+    margin: 0.25rem 0 0.25rem 1.75rem;
+    opacity: 0.7;
+  }
+
+  button.linkish {
+    margin-left: 1.75rem;
+    background: none;
+    border: none;
+    color: var(--fg);
+    opacity: 0.7;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  &.scratchpad-guide-mini {
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: none;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.5rem 1rem;
+
+    button.linkish {
+      margin-left: 0;
+      color: var(--fg);
+    }
+  }
+}
+
+.scratchpad-guide-restart {
+  position: fixed;
+  left: 12rem;
+  bottom: 7rem;
+  z-index: 600;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  color: var(--fg);
+  border: none;
+  cursor: pointer;
+}

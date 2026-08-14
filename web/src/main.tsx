@@ -88,7 +88,8 @@ const Main = () => {
   const coords = new URLSearchParams(urlSearch).get('coords') || ''
   const full = isFullClientPath(currentPath)
   const spaceish = isEmbedClientPath(currentPath)
-  const showClient = !!coords || spaceish
+  const scratchpad = currentPath.split('?')[0] === '/scratchpad'
+  const showClient = !!coords || spaceish || scratchpad
   const embed = !full && showClient
 
   useEffect(() => {
@@ -127,6 +128,7 @@ const Main = () => {
             {AppRoutes()}
             <RadioPopout path="/radio" />
             <Play path="/play" />
+            <Play path="/scratchpad" />
             <Play path="/spaces/:id/play" />
             <Play path="/assets/:id/play" />
             <AccountRoutes path="/account/:path*" />

@@ -119,14 +119,7 @@ export function WorldSidebar({ coords, path, children }: Props) {
     bump((n) => n + 1)
   })
 
-  // host mounts for world pages (coords), embed pages without ?coords= (spaces/assets),
-  // and pages that declared sidebar content (home/parcel before the world boots)
-  if (!coords && !isEmbedClientPath(path) && !pageAside.value) return <>{children}</>
-
-  // womp detail page owns its .columns aside - don't stack explore/tools on top of it
-  if (path && /^\/womps\/\d+/.test(path)) return <>{children}</>
-
-  // /play etc: push panel - world slot + one aside. Client sizes to .client-world.
+  // /play /scratchpad: push panel - world slot + one aside. Client sizes to .client-world.
   if (isFullClientPath(path)) {
     return (
       <>
@@ -135,6 +128,13 @@ export function WorldSidebar({ coords, path, children }: Props) {
       </>
     )
   }
+
+  // host mounts for world pages (coords), embed pages without ?coords= (spaces/assets),
+  // and pages that declared sidebar content (home/parcel before the world boots)
+  if (!coords && !isEmbedClientPath(path) && !pageAside.value) return <>{children}</>
+
+  // womp detail page owns its .columns aside - don't stack explore/tools on top of it
+  if (path && /^\/womps\/\d+/.test(path)) return <>{children}</>
 
   // home / parcel / embed pages: page HTML stays; the one aside swaps page content and panes
   return (

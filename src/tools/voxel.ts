@@ -79,6 +79,7 @@ export default class Selector implements Tool {
   private lastParcel: Parcel | undefined = undefined
 
   onBuildToolActivate: BABYLON.Observable<void> = new BABYLON.Observable()
+  onVoxelAction: BABYLON.Observable<{ mode: SelectionMode }> = new BABYLON.Observable()
   onCurrentTextureTintUpdate: BABYLON.Observable<{ texture: number; tint: number }> = new BABYLON.Observable<{ texture: number; tint: number }>()
 
   constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, grid: Grid, controls: Controls, connector: Connector) {
@@ -379,6 +380,7 @@ export default class Selector implements Tool {
       }
 
       this.placeBlocks(this.selection.parcel, this.selection.start, this.selection.end, block)
+      this.onVoxelAction.notifyObservers({ mode: this.selection.mode })
       this.audio?.playSound('build.place')
       this.onMove(pickResult)
     }
