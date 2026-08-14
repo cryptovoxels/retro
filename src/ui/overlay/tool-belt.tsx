@@ -96,7 +96,7 @@ export default function VoxelToolBelt({ parcel }: Props) {
       backgroundPositionX: -x * 96 - 28 + 'px',
       backgroundPositionY: -y * 96 - 28 + 'px',
       backgroundImage: `url(${tilesetUrl})`,
-      backgroundColor: currentPalette[tint || 0],
+      backgroundColor: currentPalette[tint ?? 0],
     }
     let tip = 'Click to select block'
     if (currentTileIndex < 10) tip += ` [${(currentTileIndex + 1) % 10}]`

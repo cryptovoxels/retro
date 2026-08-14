@@ -660,6 +660,13 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     }
   }
 
+  openBuildToolbelt() {
+    if (!this.grid.nearestEditableParcel() && !(isScratchpad() && this.grid.fastbootParcel?.canEdit)) return
+    this.voxelTool.setMode(SelectionMode.Add)
+    this.setTool(this.voxelTool)
+    this.forceUpdate()
+  }
+
   activateVoxelTool(mode?: SelectionMode, options?: SelectionModeOptions) {
     if (!this.grid.nearestEditableParcel() && !(isScratchpad() && this.grid.fastbootParcel?.canEdit)) return
     this.setFirstPersonPerspective()
@@ -1041,6 +1048,19 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
               </li>
               {(this.state.signedIn || isScratchpad()) && canEdit && (
                 <>
+                  <li class={this.voxelTool.enabled.value ? 'active' : ''}>
+                    <a
+                      title="Build with voxels"
+                      href="#build"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        exitPointerLock()
+                        this.openBuildToolbelt()
+                      }}
+                    >
+                      Build
+                    </a>
+                  </li>
                   <li class={active('add')}>
                     <a title="Add things to your thing" href="#add" onMouseOver={onHover('add')} onClick={onClick('add')} accessKey="a">
                       Add

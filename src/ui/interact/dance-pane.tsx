@@ -3,7 +3,6 @@ import { Animations } from '../../avatar-animations'
 import Connector from '../../connector'
 import Persona from '../../persona'
 import { EmoteAnimation } from '../../states'
-import type UserInterface from '../../user-interface'
 import { focusFirst, onListArrowKeys } from '../keynav'
 import { dances } from './dances'
 
@@ -44,11 +43,6 @@ export class DancePane extends Component<any, any> {
     if (animation) {
       this.persona.setState({ state: new EmoteAnimation(animation) }, this.connector.controls)
     }
-    this.ui.refocus()
-  }
-
-  get ui(): UserInterface {
-    return window.ui!
   }
 
   render() {
