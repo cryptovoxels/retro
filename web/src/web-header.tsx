@@ -209,7 +209,11 @@ export default class WebHeader extends Component<Props, State> {
               <A to="/account">{signedIn ? 'Profile' : 'Login'}</A>
               {signedIn && <A to="/logout">Log out</A>}
               <A to="/play">Play</A>
-              <A to="/scratchpad">Scratchpad</A>
+              <li>
+                <a class={here === '/scratchpad' ? 'active' : undefined} href="/scratchpad">
+                  Scratchpad
+                </a>
+              </li>
               <A to="/map">Map</A>
               <A to="/islands">Islands</A>
               <A to="/parcels">Parcels</A>

@@ -14,7 +14,7 @@ the checklist will walk you through it. if you skip that, the muscle memory is:
 4. pick a color on the toolbelt, or press **1-9** while you are building.
 5. **ctrl-click** to paint a block with that color.
 
-**Tab** or **Add** in the menu lets you peek at signs, images, video, showboxes, portals, the rest. placing those for real happens on your parcel or space.
+**Tab**, **+** on the toolbelt, or **Add** in the menu lets you peek at signs, images, video, showboxes, portals, the rest. placing those for real happens on your parcel. when you are done, [shop for a parcel](/shop).
 
 ## hang art on the wall
 

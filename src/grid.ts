@@ -6,7 +6,7 @@ import { distanceToAABB } from './utils/boundaries'
 import Cookies from 'js-cookie'
 import { SocketClient } from './utils/socket-client'
 import { displaySuspendedMessage } from './ui/suspended-message'
-import type { NdArray } from 'ndarray'
+import ndarray, { type NdArray } from 'ndarray'
 import { GridClientMessage, GridMessage, LightMapUpdateMessage, ParcelAuthMessage, ParcelMetaMessage, ParcelScriptMessage, PatchErrorMessage, PatchMessage, PatchStateMessage, SuspendedMessage } from '../common/messages/grid'
 import { createMessageHandler } from '../common/helpers/comlink-worker'
 import { GridWorkerAPI, GridWorkerOutput, GridWorkerParcelLoaded, GridWorkerParcelUnloaded, GridWorkerQueryResponse } from './mono'
@@ -22,6 +22,7 @@ import { TypedEvent } from './utils/EventEmitter'
 import { ParcelEventMap } from './utils/parcel-event-map'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
 import { SpacesEnvironment } from './enviroments/space-environment'
+import { getFieldShape, getVoxelsFromBuffer } from '../common/voxels/helpers'
 
 const MAX_EDIT_DISTANCE = 5
 const { setInterval } = window
@@ -340,6 +341,18 @@ export default class Grid extends SocketClient {
     desc.x2 = desc.width / 2
     desc.z1 = -desc.depth / 2
     desc.z2 = desc.depth / 2
+
+    if (desc.kind === 'scratchpad' && (!desc.voxels || !String(desc.voxels).trim())) {
+      const shape = getFieldShape(desc)
+      const field = ndarray(new Uint16Array(shape[0] * shape[1] * shape[2]), shape)
+      const floor = (1 << 15) + 3
+      for (let x = 0; x < shape[0]; x++) {
+        for (let z = 0; z < shape[2]; z++) {
+          field.set(x, 0, z, floor)
+        }
+      }
+      desc.voxels = getVoxelsFromBuffer(field.data.buffer)
+    }
 
     const p = this.loadFastboot(this.parent, desc, this)
     if (!p) return

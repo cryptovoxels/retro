@@ -72,6 +72,7 @@ import { BuildTab } from './ui/overlay/build-tab/build-tab'
 import DebugTools from './ui/overlay/debug-tools'
 import EditPane from './ui/overlay/edit-pane'
 import CustomizeVoxels from './ui/overlay/customize-voxels'
+import VoxelToolBelt from './ui/overlay/tool-belt'
 import ParcelSnapshots from './ui/parcel-snapshots'
 import { SettingsUI } from './ui/settings'
 import TakeWomp from './ui/take-womp'
@@ -660,7 +661,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   activateVoxelTool(mode?: SelectionMode, options?: SelectionModeOptions) {
-    if (!this.grid.nearestEditableParcel()) return
+    if (!this.grid.nearestEditableParcel() && !(isScratchpad() && this.grid.fastbootParcel?.canEdit)) return
     this.setFirstPersonPerspective()
     if (this.connector.controls instanceof DesktopControls && !hasPointerLock()) {
       this.connector.controls.requestPointerLock()
@@ -672,7 +673,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   toggleVoxelTool() {
     if (this.activeTool !== this.voxelTool) {
-      if (!this.grid.nearestEditableParcel()) return
+      if (!this.grid.nearestEditableParcel() && !(isScratchpad() && this.grid.fastbootParcel?.canEdit)) return
       this.setFirstPersonPerspective()
       this.activateVoxelTool()
     } else {
@@ -1101,14 +1102,19 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
             {this.state.chatEnabled && !location.pathname.startsWith('/chat') && <ChatOverlay scene={this.props.scene} />}
           </aside>
 
+          {nearestEditableParcel && nearestEditableParcel.canEdit && <VoxelToolBelt parcel={nearestEditableParcel} />}
+
           {this.state.scratchpadGuideOpen && !this.state.scratchpadGuideMini && <ScratchpadGuide key={this.state.scratchpadGuideKey || 0} voxelTool={this.voxelTool} onComplete={this.celebrateScratchpadGuideComplete} />}
 
           {this.state.scratchpadGuideOpen && this.state.scratchpadGuideMini && <ScratchpadGuideMini onGotIt={this.celebrateScratchpadGuideComplete} onStartOver={this.restartScratchpadGuide} />}
 
           {!this.state.scratchpadGuideOpen && this.state.scratchpadGuideRestart && isScratchpad() && (
-            <button type="button" class="scratchpad-guide-restart linkish" onClick={this.openScratchpadGuide}>
-              start over
-            </button>
+            <div class="scratchpad-guide-restart">
+              <a href="/shop">get a parcel in the shop</a>
+              <button type="button" class="linkish" onClick={this.openScratchpadGuide}>
+                start over
+              </button>
+            </div>
           )}
 
           <BroadcastSidebarTab />
