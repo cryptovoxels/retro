@@ -1,7 +1,6 @@
 import { Component } from 'preact'
 import AllParcels from '../../../web/src/components/parcels/parcel-lists/all-parcels'
 import AllContributingParcels from '../../../web/src/components/parcels/parcel-lists/contributing-parcels'
-import AllFavoritedParcels from '../../../web/src/components/parcels/parcel-lists/favorited-parcels'
 import AllOwnedParcels from '../../../web/src/components/parcels/parcel-lists/my-parcels'
 
 interface Props {
@@ -27,11 +26,5 @@ export class AccountParcels extends ParcelsList {
         <AllContributingParcels teleportTo={this.teleportTo.bind(this)} />
       </div>
     )
-  }
-}
-
-export class FavoritesParcels extends ParcelsList {
-  render() {
-    return <AllFavoritedParcels teleportTo={this.teleportTo.bind(this)} />
   }
 }

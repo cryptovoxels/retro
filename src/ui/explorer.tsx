@@ -2,24 +2,29 @@ import { Component, ComponentChildren } from 'preact'
 import { requestPointerLockIfNoOverlays } from '../../common/helpers/ui-helpers'
 import { app, AppEvent } from '../../web/src/state'
 import { CommunityEvents } from '../components/explorer/events'
-import { AccountParcels, FavoritesParcels, ParcelsList } from '../components/explorer/parcels'
+import { AccountParcels, ParcelsList } from '../components/explorer/parcels'
 import Radar from '../../web/src/components/radar'
 import { Womp } from '../../web/src/components/womp-card'
 import WompsList from '../../web/src/womps-list'
+import BlogTeaser from '../../web/src/components/blog-teaser'
+import Classifieds from '../../web/src/components/classifieds'
+import PopularParcels from '../../web/src/components/popular-parcels'
+import PostPage from '../../web/src/post'
 import { BigMap } from './map-overlay'
 import { ExplorerSearchBar } from './search-bar'
 
 const { setInterval } = window
 
-// 'womps' is not in the tab bar - it's the "see more" view of the Online tab, back returns to users
+// 'womps' is not in the tab bar - it's the "see more" view of the Latest tab, back returns to users
 export type Tab = 'users' | 'events' | 'parcels' | 'map' | 'womps'
 
-export type ParcelsSubTab = 'my-parcels' | 'favorites' | 'all'
+export type ParcelsSubTab = 'top' | 'my-parcels' | 'all'
 
 interface Props {
   onClose?: () => void
   scene: BABYLON.Scene
   initialTab?: Tab
+  autoFocusSearch?: boolean
 }
 
 interface State {
@@ -28,12 +33,13 @@ interface State {
   signedIn?: boolean
   clients?: number
   searchQuery?: string
+  post: string | null
 }
 
 export class ExplorerUI extends Component<Props, State> {
   static currentElement: Element | null
   static currentTab: Tab | null = 'users'
-  // null so the constructor can pick my-parcels (signed in) vs all (guest) - was hardcoded
+  // null so the constructor can pick Top - was hardcoded
   // 'all', so the first Parcels click always showed the world list even when logged in
   static currentSubTab: ParcelsSubTab | null = null
   interval: string | number | NodeJS.Timeout | undefined
@@ -45,9 +51,10 @@ export class ExplorerUI extends Component<Props, State> {
     this.state = {
       // survive parent remounts (InWorldPane / WorldSidebar bump a lot)
       tab: props.initialTab ?? ExplorerUI.currentTab ?? 'users',
-      subTab: ExplorerUI.currentSubTab ?? (app.signedIn ? 'my-parcels' : 'all'),
+      subTab: ExplorerUI.currentSubTab ?? 'top',
       signedIn: app.signedIn,
       clients: 0,
+      post: null,
     }
   }
 
@@ -57,7 +64,7 @@ export class ExplorerUI extends Component<Props, State> {
    */
   get mainTabs(): Array<{ name: string; tab: Tab }> {
     const tabs: Array<{ name: string; tab: Tab }> = [
-      { name: `Online`, tab: 'users' },
+      { name: 'Latest', tab: 'users' },
       { name: 'Parcels', tab: 'parcels' },
       { name: 'Events', tab: 'events' },
       { name: 'Map', tab: 'map' },
@@ -74,8 +81,8 @@ export class ExplorerUI extends Component<Props, State> {
    */
   get parcelsSubTabs(): Array<{ name: string; tab: ParcelsSubTab }> {
     return [
+      { name: 'Top', tab: 'top' },
       { name: 'My parcels', tab: 'my-parcels' },
-      { name: 'Favorites', tab: 'favorites' },
       { name: 'All', tab: 'all' },
     ]
   }
@@ -109,9 +116,9 @@ export class ExplorerUI extends Component<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props, prevState: State) {
-    // If we're switching main tab and the previous main tab was the account tab; set the account sub-tab back to Myparcels.
+    // leaving parcels snaps the next visit back to Top
     if (prevState.tab !== this.state.tab && prevState.tab == 'parcels') {
-      this.setState({ subTab: app.signedIn ? 'my-parcels' : 'all' })
+      this.setState({ subTab: 'top' })
     }
     ExplorerUI.currentTab = this.state.tab
     ExplorerUI.currentSubTab = this.state.subTab
@@ -120,7 +127,7 @@ export class ExplorerUI extends Component<Props, State> {
   componentWillUnmount() {
     app.removeListener(AppEvent.Change, this.onAppChange)
     this.interval && clearInterval(this.interval)
-    // keep currentTab so a remount does not snap back to Online
+    // keep currentTab so a remount does not snap back to Latest
     this.abort?.abort('ABORT: quitting component')
     this.abort = null
   }
@@ -173,7 +180,7 @@ export class ExplorerUI extends Component<Props, State> {
   render() {
     // Main tab menu
     const mainTabs = this.mainTabs.map((i) => {
-      // the womps view is Online's see-more, keep that tab lit
+      // the womps view is Latest's see-more, keep that tab lit
       const active = this.state.tab == i.tab || (this.state.tab == 'womps' && i.tab == 'users')
       const className = active ? '-active' : ''
       return (
@@ -186,10 +193,10 @@ export class ExplorerUI extends Component<Props, State> {
     let openTab: ComponentChildren
     switch (this.state.tab) {
       case 'parcels':
-        if (this.state.subTab == 'my-parcels') {
+        if (this.state.subTab == 'top') {
+          openTab = <PopularParcels />
+        } else if (this.state.subTab == 'my-parcels') {
           openTab = <AccountParcels onTeleport={this.closeWithPointerLock} />
-        } else if (this.state.subTab == 'favorites') {
-          openTab = <FavoritesParcels onTeleport={this.closeWithPointerLock} />
         } else {
           openTab = <ParcelsList onTeleport={this.closeWithPointerLock} />
         }
@@ -209,6 +216,8 @@ export class ExplorerUI extends Component<Props, State> {
             <CommunityEvents liveOnly />
             <h3>Latest womps</h3>
             <WompsList numberToShow={9} ttl={600} onWompClick={this.teleportToWomp} onSeeMore={() => this.setTab('womps')} />
+            <BlogTeaser onOpen={(slug) => this.setState({ post: slug })} />
+            <Classifieds limit={3} />
           </>
         )
         break
@@ -231,13 +240,17 @@ export class ExplorerUI extends Component<Props, State> {
         break
     }
 
+    if (this.state.post) {
+      return <PostPage slug={this.state.post} onBack={() => this.setState({ post: null })} />
+    }
+
     return (
       <section data-tab={this.state.tab} class="explorer">
         <header>
           <h1>Explore</h1>
         </header>
 
-        <ExplorerSearchBar autoFocus={true} scene={this.props.scene} />
+        <ExplorerSearchBar autoFocus={this.props.autoFocusSearch !== false} scene={this.props.scene} />
 
         <ul class="inline-tabs">{mainTabs}</ul>
         {this.state.tab === 'parcels' && (

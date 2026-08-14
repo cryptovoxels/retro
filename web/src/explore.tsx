@@ -1,68 +1,14 @@
 import { Component, Fragment } from 'preact'
 import { useEffect, useState } from 'preact/hooks'
+import type { ComponentChildren } from 'preact'
 import ParcelHelper from '../../common/helpers/parcel-helper'
 import { currentVersion } from '../../common/version'
-import { Event } from '../../common/messages/event'
 import Head from './components/head'
-import PopularParcels from './components/popular-parcels'
 import { getClientPath } from './helpers/client-helpers'
 import { getCoords, naviportHere } from './helpers/coords-nav'
 import { WorldAside } from './world-aside'
 import cachedFetch from './helpers/cached-fetch'
 import { app, AppEvent } from './state'
-import Radar from './components/radar'
-import Classifieds from './components/classifieds'
-import BlogTeaser from './components/blog-teaser'
-import PostPage from './post'
-
-function countdown(ms: number) {
-  const s = Math.floor(ms / 1000)
-  const d = Math.floor(s / 86400)
-  const h = Math.floor((s % 86400) / 3600)
-  const m = Math.floor((s % 3600) / 60)
-  const sec = s % 60
-  return d > 0 ? `${d}d ${h}h ${m}m` : `${h}h ${m}m ${sec}s`
-}
-
-function EventsList() {
-  const [events, setEvents] = useState<Event[]>([])
-  const [now, setNow] = useState(Date.now())
-  useEffect(() => {
-    fetch('/api/events.json')
-      .then((r) => r.json())
-      .then((d) => setEvents(d.events || []))
-  }, [])
-  useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000)
-    return () => clearInterval(t)
-  }, [])
-  const cutoff = now - 24 * 60 * 60 * 1000
-  const visible = events.filter((e) => new Date(e.expires_at).getTime() >= cutoff)
-
-  if (visible.length === 0) return null
-
-  return (
-    <>
-      <h3>Events</h3>
-      <table class="events">
-        <tbody>
-          {visible.slice(0, 5).map((e) => {
-            const startsIn = new Date(e.starts_at).getTime() - now
-            const live = startsIn <= 0 && new Date(e.expires_at).getTime() > now
-            return (
-              <tr key={e.id}>
-                <td>
-                  <a href={`/events/${e.id}`}>{e.name}</a>
-                </td>
-                <td>{startsIn > 0 ? countdown(startsIn) : live ? 'live' : 'ended'}</td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </>
-  )
-}
 
 function busiestParcel(): Promise<number | null> {
   return new Promise((resolve) => {
@@ -118,9 +64,31 @@ async function pickFrontpageParcel() {
   naviportHere(url, id)
 }
 
-export default class Explore extends Component<{}, { post: string | null }> {
-  state = { post: null }
+function HomeExplore() {
+  const [node, setNode] = useState<ComponentChildren>(null)
+  useEffect(() => {
+    let live = true
+    let timer = 0
+    void import('../../src/ui/explorer').then(({ ExplorerUI }) => {
+      const mount = () => {
+        if (!live) return
+        if (!window.scene) {
+          timer = window.setTimeout(mount, 100)
+          return
+        }
+        setNode(<ExplorerUI scene={window.scene} autoFocusSearch={false} />)
+      }
+      mount()
+    })
+    return () => {
+      live = false
+      clearTimeout(timer)
+    }
+  }, [])
+  return <>{node}</>
+}
 
+export default class Explore extends Component<{}> {
   componentDidMount() {
     app.on(AppEvent.Logout, this.rerender)
     app.on(AppEvent.Login, this.rerender)
@@ -152,20 +120,7 @@ export default class Explore extends Component<{}, { post: string | null }> {
             <div class="client-slot" />
           </article>
           <WorldAside>
-            {this.state.post ? (
-              <PostPage slug={this.state.post} onBack={() => this.setState({ post: null })} />
-            ) : (
-              <Fragment>
-                <BlogTeaser onOpen={(slug) => this.setState({ post: slug })} />
-                <Radar />
-                <EventsList />
-
-                <h3>Popular</h3>
-                <PopularParcels />
-
-                <Classifieds limit={3} />
-              </Fragment>
-            )}
+            <HomeExplore />
           </WorldAside>
         </section>
       </Fragment>
