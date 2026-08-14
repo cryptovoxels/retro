@@ -202,7 +202,14 @@ export class ExplorerUI extends Component<Props, State> {
         }
         break
       case 'events':
-        openTab = <CommunityEvents />
+        openTab = (
+          <>
+            <p>
+              <a href="/events/new">New event</a>
+            </p>
+            <CommunityEvents />
+          </>
+        )
         break
       case 'users':
         openTab = (

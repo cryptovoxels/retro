@@ -52,9 +52,9 @@ export default function BlogTeaser({ onOpen }: { onOpen?: (slug: string) => void
                 </td>
                 <td title={p.replies ? `${p.replies} ${p.replies === 1 ? 'reply' : 'replies'}` : undefined}>
                   {p.replies ? (
-                    <>
+                    <span class="blog-replies">
                       {p.replies} <Icon name="chat" size={10} />
-                    </>
+                    </span>
                   ) : (
                     ''
                   )}
