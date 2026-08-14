@@ -1,7 +1,6 @@
 import { Component } from 'preact'
 import { Emotes } from '../../../common/messages/constant'
 import Connector from '../../connector'
-import type UserInterface from '../../user-interface'
 import { focusFirst, onGridArrowKeys } from '../keynav'
 
 export class EmotePane extends Component {
@@ -20,11 +19,6 @@ export class EmotePane extends Component {
 
   emote(emoji: string) {
     this.connector.emote(emoji)
-    this.ui.refocus()
-  }
-
-  get ui(): UserInterface {
-    return window.ui!
   }
 
   render() {

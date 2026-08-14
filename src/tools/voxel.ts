@@ -341,11 +341,8 @@ export default class Selector implements Tool {
   private lockListener = () => {
     if (!hasPointerLock()) {
       // Escaped out of the reticule: drop the ghost now instead of waiting for a mouse move.
+      // Keep the voxel tool (and toolbelt) active so you can click tint/texture then relock.
       if (this.controls.firstPersonView) this.box.visibility = 0
-
-      // Set default tool
-      window.ui?.setTool(window.ui?.defaultTool)
-
       return
     }
 

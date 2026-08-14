@@ -3681,8 +3681,8 @@ section.build-tab nav.build-main-tabs {
   left: 50%;
   transform: translateX(-50%);
   padding: 1rem;
+  max-height: 6rem;
   z-index: 10;
-  pointer-events: none;
 
   @media @narrow {
     left: 40%;
@@ -3705,7 +3705,7 @@ section.build-tab nav.build-main-tabs {
     position: relative;
     top: 6rem;
     transition: top 0.15s ease-out;
-    background: var(--surface);
+    background: var(--bg);
   }
 
   .dem-buttons {
@@ -3754,6 +3754,7 @@ section.build-tab nav.build-main-tabs {
         height: 2.5rem;
         background-size: 384px 384px;
         background-repeat: no-repeat;
+        background-blend-mode: multiply;
       }
     }
   }

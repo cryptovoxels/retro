@@ -1,4 +1,5 @@
 import { StateObservable } from '../utils/state-observable'
+import { VoxelSize } from '../../common/voxels/constants'
 import { Environment } from './environment'
 import { createEvent } from '../utils/EventEmitter'
 
@@ -43,7 +44,8 @@ export class ScratchpadEnvironment extends Environment {
     this.skybox.applyFog = false
     this.skybox.material = this.skyboxMaterial
 
-    this.ground = BABYLON.MeshBuilder.CreatePlane('space/ground', { size: 128 }, this.scene)
+    const groundSize = 128
+    this.ground = BABYLON.MeshBuilder.CreatePlane('space/ground', { size: groundSize }, this.scene)
     this.ground.parent = this.parent
     this.ground.rotate(BABYLON.Axis.X, Math.PI / 2)
     this.ground.position.y = 0.75
@@ -52,10 +54,8 @@ export class ScratchpadEnvironment extends Environment {
     this.groundStateObservable.setState('loaded')
 
     const t = new BABYLON.Texture('/textures/01-grid.png', this.scene)
-    t.uScale = 1024
-    t.vScale = 1024
-    t.uOffset = 0.5
-    t.vOffset = 0.5
+    t.uScale = groundSize / VoxelSize
+    t.vScale = groundSize / VoxelSize
 
     this.groundMaterial = new BABYLON.StandardMaterial('space/ground', this.scene)
     this.groundMaterial.diffuseTexture = t
