@@ -157,6 +157,8 @@ export class AvatarAnimations {
         const boneNode = lookup[targetedAnimationsKey.target.name]
         if (!!boneNode) {
           if (boneNode!.id.split('.')[0] == 'Clone of mixamorig:Hips') {
+            // wave.glb is Mixamo Z-up: hips ~90deg on X and y~0. Skip those tracks or you wave on your back.
+            if (anim.name === 'Wave') return
             // If its the hip bone, copy bone rotation and position (everything BUT scaling)
             if (targetedAnimationsKey.animation.targetProperty != 'scaling') {
               targetedAnimationsKey.target = boneNode
