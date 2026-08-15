@@ -655,6 +655,29 @@ header:has(nav) {
   }
 }
 
+// push mode: nav + main side by side (initial load with nav open)
+body.site-nav-push {
+  header:has(nav) {
+    transform: none;
+    pointer-events: auto;
+  }
+  main {
+    margin-left: min(16rem, 85vw);
+  }
+  // in-world grid handles its own layout - don't push
+  &.in-world main {
+    margin-left: 0;
+  }
+}
+
+// overlay mode: nav slides over content (after first close)
+body.site-nav-open:not(.site-nav-push) {
+  header:has(nav) {
+    transform: none;
+    pointer-events: auto;
+  }
+}
+
 // floating menu button (sibling of header - never clipped by drawer transform).
 // button.site-nav-toggle: outrank button.hamburger's background:none, we're over the canvas
 main > button.site-nav-toggle {

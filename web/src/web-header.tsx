@@ -10,6 +10,7 @@ import { getCoords, withCoords, routeWithCoords, notifyUrlChange } from './helpe
 import { route } from 'preact-router'
 import cachedFetch from './helpers/cached-fetch'
 import { messageList } from '../../src/connector'
+import { siteNavOpen, toggleSiteNav } from '../../src/store'
 
 type Props = {
   path: string
@@ -19,7 +20,6 @@ type Props = {
 type State = {
   searchResults: string[]
   snackbarMessage: string
-  expanded: boolean
   query: string
   blogN: number
   shopN: number
@@ -55,7 +55,6 @@ export default class WebHeader extends Component<Props, State> {
   state: State = {
     searchResults: [],
     snackbarMessage: '',
-    expanded: false,
     query: getQueryParams()?.get('q') ?? '',
     blogN: 0,
     shopN: 0,
@@ -89,9 +88,9 @@ export default class WebHeader extends Component<Props, State> {
     this.chatDispose = null
   }
 
-  componentDidUpdate(prevProps: Props, prevState: State) {
+  componentDidUpdate(prevProps: Props) {
     if (prevProps.path !== this.props.path) {
-      this.setState({ expanded: false })
+      siteNavOpen.value = false
       if (this.navPath() === '/chat') {
         markChatSeen()
         this.setState({ chatN: 0 })
@@ -148,7 +147,7 @@ export default class WebHeader extends Component<Props, State> {
     e.stopPropagation()
     e.preventDefault()
     const q = this.state.query.trim()
-    this.setState({ expanded: false })
+    siteNavOpen.value = false
     if (!q) return
     // WorldSidebar unmounts <Router> on /play, so route() never swaps the page — hard nav.
     window.location.assign(`/search?q=${encodeURIComponent(q)}`)
@@ -190,10 +189,10 @@ export default class WebHeader extends Component<Props, State> {
 
     return (
       <>
-        <button class="hamburger site-nav-toggle" type="button" aria-label={this.state.expanded ? 'Close menu' : 'Open menu'} aria-expanded={this.state.expanded} onClick={() => this.setState({ expanded: !this.state.expanded })}>
-          {this.state.expanded ? '×' : '☰'}
+        <button class="hamburger site-nav-toggle" type="button" aria-label={siteNavOpen.value ? 'Close menu' : 'Open menu'} aria-expanded={siteNavOpen.value} onClick={toggleSiteNav}>
+          {siteNavOpen.value ? 'x' : '='}
         </button>
-        <header class={this.state.expanded ? 'nav-open' : undefined}>
+        <header class={siteNavOpen.value ? 'nav-open' : undefined}>
           <nav>
             <ul>
               <li class="logo">

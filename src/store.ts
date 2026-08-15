@@ -155,6 +155,34 @@ export const isPersistentPane = (p?: string) => !!p && PERSISTENT_PANES.has(p)
 
 export const uiAsideTick = signal(0)
 export const sidebarClosed = signal(typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 50em)').matches)
+
+// site nav (hamburger menu) state
+const SITE_NAV_KEY = 'siteNavOpen'
+function loadSiteNavOpen(): boolean {
+  try {
+    const v = localStorage.getItem(SITE_NAV_KEY)
+    return v === null ? true : v === '1'
+  } catch {
+    return true
+  }
+}
+const siteNavInitial = loadSiteNavOpen()
+export const siteNavOpen = signal(siteNavInitial)
+export const siteNavPush = signal(siteNavInitial)
+
+effect(() => {
+  try {
+    localStorage.setItem(SITE_NAV_KEY, siteNavOpen.value ? '1' : '0')
+  } catch {}
+  document.body.classList.toggle('site-nav-open', siteNavOpen.value)
+  document.body.classList.toggle('site-nav-push', siteNavPush.value && siteNavOpen.value)
+})
+
+export function toggleSiteNav() {
+  if (siteNavOpen.value) siteNavPush.value = false
+  siteNavOpen.value = !siteNavOpen.value
+}
+
 export const broadcastShowboxUuid = signal<string | undefined>(undefined)
 // when the local broadcast went live; the closed-sidebar "live" tab reads this for its timer
 export const broadcastLiveStartedAt = signal<number | undefined>(undefined)
