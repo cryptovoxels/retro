@@ -128,13 +128,17 @@ export function startGateway(scene: BABYLON.Scene, controls: Controls) {
       engine.setStencilMask(0xff)
       engine.setStencilFunction(BABYLON.Engine.ALWAYS)
       engine.setStencilFunctionReference(1)
-      engine.setStencilOperation(BABYLON.Engine.KEEP, BABYLON.Engine.KEEP, BABYLON.Engine.REPLACE)
+      engine.setStencilOperationFail(BABYLON.Engine.KEEP)
+      engine.setStencilOperationDepthFail(BABYLON.Engine.KEEP)
+      engine.setStencilOperationPass(BABYLON.Engine.REPLACE)
     } else if (info.renderingGroupId === 1) {
       engine.setStencilBuffer(true)
       engine.setStencilMask(0x00)
       engine.setStencilFunction(BABYLON.Engine.EQUAL)
       engine.setStencilFunctionReference(1)
-      engine.setStencilOperation(BABYLON.Engine.KEEP, BABYLON.Engine.KEEP, BABYLON.Engine.KEEP)
+      engine.setStencilOperationFail(BABYLON.Engine.KEEP)
+      engine.setStencilOperationDepthFail(BABYLON.Engine.KEEP)
+      engine.setStencilOperationPass(BABYLON.Engine.KEEP)
     } else {
       engine.setStencilBuffer(false)
     }

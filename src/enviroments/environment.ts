@@ -51,7 +51,7 @@ export abstract class Environment extends TypedEventTarget<{
     return 1.0 // default, used in spaces
   }
 
-  get ambient() {
+  get ambient(): number {
     return wantsGateway() ? GATEWAY_AMBIENT : AMBIENT
   }
 
