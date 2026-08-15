@@ -23,6 +23,6 @@
       "module": "commonjs"
     }
   },
-  "exclude": ["render"]
+  "exclude": ["render", "renderer"]
 
 }

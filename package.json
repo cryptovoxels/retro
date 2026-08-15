@@ -69,6 +69,9 @@
     "compressor:dev": "tsx --watch compressor/src/index.ts",
     "compressor:start": "tsx compressor/src/index.ts",
     "compressor:test": "vitest run --project compressor",
+    "renderer:build-page": "node renderer/build-page.mjs",
+    "renderer:dev": "npm run renderer:build-page && tsx --watch renderer/src/index.ts",
+    "renderer:start": "npm run renderer:build-page && tsx renderer/src/index.ts",
     "world-dump:build": "node tools/world-dump/build.mjs",
     "world-dump": "node --experimental-sqlite dist/world-dump.mjs"
   },
@@ -171,6 +174,7 @@
     "pg": "8.11.1",
     "pg-boss": "^10.3.2",
     "pg-promise": "^12.2.0",
+    "playwright": "^1.62.1",
     "pluralize": "^8.0.0",
     "preact": "^10.16.0",
     "preact-markdown": "^2.1.0",

@@ -16,6 +16,7 @@ render/costumes/*
 !.env.example
 .build
 tools/world-dump/tmp/
+renderer/page/bundle.js
 **/report.html
 dist/bakes
 dist/music/unclean
