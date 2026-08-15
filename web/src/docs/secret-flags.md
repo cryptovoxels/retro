@@ -50,6 +50,12 @@ You can also specify `womp`, `emote`, `chat` or `welcome`
 
 Loads only the parcel you are in and therefore isolates your parcel from the rest of the world.
 
+## Gateway (gallery door)
+
+    &gateway=1
+
+Look through a doorway at spawn into the parcel. Sky/ocean/HUD off, one parcel, live avatars, passthrough (phone camera / Quest AR when it works). Walk through the hole to enter Play. Also works on `/parcels/:id/visit?gateway=1`.
+
 ## Mute audio
 
     &audio=off

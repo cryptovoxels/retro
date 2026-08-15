@@ -41,7 +41,7 @@ import Robots from './robots/robots'
 // Features
 import Polytext from './features/polytext'
 import { type AudioEngine } from './audio/audio-engine'
-import { isBatterySaver, isDebug, isInspect, isIOS, isMobile, wantsXR } from '../common/helpers/detector'
+import { isBatterySaver, isDebug, isInspect, isIOS, isMobile, wantsGateway, wantsXR } from '../common/helpers/detector'
 import { DragDrop } from './tools/drag-drop'
 
 // Patching animation with features from later babylon.js version
@@ -214,6 +214,7 @@ async function main() {
       disableWebGL2Support: isIOS(),
       antialias: !isMobile(),
       stencil: true,
+      alpha: wantsGateway(),
       preserveDrawingBuffer: true, // needed for screenshots (womps)
       doNotHandleContextLost: true, // we handle context lost ourselves *see below*
     },
@@ -300,7 +301,7 @@ async function main() {
   window._color = color
 
   graphic.postProcesses = new PostProcesses(scene, color, graphic)
-  graphic.postProcesses.cover()
+  if (!wantsGateway()) graphic.postProcesses.cover()
   ;(engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
   ;(engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
 
@@ -363,7 +364,7 @@ async function main() {
   // unmounts when you leave the world (instead of living on <body> forever).
   const ui: BootResult = {
     UI: UserInterface,
-    props: { scene, parent: controls.worldOffset, canvas, grid, connector, environment, enabled: !wantsXR(), minimapSettings: mapSettings ?? new MinimapSettings() },
+    props: { scene, parent: controls.worldOffset, canvas, grid, connector, environment, enabled: !wantsXR() && !wantsGateway(), minimapSettings: mapSettings ?? new MinimapSettings() },
   }
 
   if (wantsXR()) return ui

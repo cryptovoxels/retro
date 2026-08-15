@@ -1,8 +1,10 @@
+import { wantsGateway } from '../../common/helpers/detector'
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
 import { TimeOfDay } from '../utils/time-of-day'
 import { StateObservable } from '../utils/state-observable'
 
 const AMBIENT = 0.3
+const GATEWAY_AMBIENT = 0.45
 
 export abstract class Environment extends TypedEventTarget<{
   'fog-updated': void
@@ -50,15 +52,16 @@ export abstract class Environment extends TypedEventTarget<{
   }
 
   get ambient() {
-    return AMBIENT
+    return wantsGateway() ? GATEWAY_AMBIENT : AMBIENT
+  }
+
+  get fogDensity() {
+    if (wantsGateway()) return 0
+    return Math.max(3 / window.draw.distance - 0.006, 0)
   }
 
   get sunPosition() {
     return new BABYLON.Vector3(0, 1, 0)
-  }
-
-  get fogDensity() {
-    return Math.max(3 / window.draw.distance - 0.006, 0)
   }
 
   get fogColor() {

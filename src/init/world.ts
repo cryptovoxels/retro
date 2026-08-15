@@ -1,4 +1,5 @@
-import { isDebug, wantsAudio } from '../../common/helpers/detector'
+import { isDebug, wantsAudio, wantsGateway } from '../../common/helpers/detector'
+import { startGateway } from '../gateway'
 import { decodeCoords, encodeCoords } from '../../common/helpers/utils'
 import { AudioEngine } from '../audio/audio-engine'
 import Connector from '../connector'
@@ -43,6 +44,7 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
   }
 
   initialSpawn(scene, grid, controls)
+  startGateway(scene, controls)
 
   if (audio) {
     // todo make use of this abort controller
@@ -161,6 +163,7 @@ function updateNavbarWithCoords(scene: BABYLON.Scene, connector: Connector) {
 
   let oldUrl = '/'
   setInterval(() => {
+    if (wantsGateway()) return
     if (isLoaded()) {
       // Grab new searchParams
       const queryParams = new URLSearchParams(document.location.search.substring(1))

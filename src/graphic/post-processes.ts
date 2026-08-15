@@ -1,6 +1,7 @@
 import { GraphicLevels, type GraphicEngine } from './graphic-engine'
 import type { ColorGrader } from './color-grading'
 import { isLoaded, markLoaded } from '../utils/loading-done'
+import { wantsGateway } from '../../common/helpers/detector'
 
 export class PostProcesses {
   private readonly scene: BABYLON.Scene
@@ -70,7 +71,11 @@ void main(void) {
   }
 
   reveal() {
-    if (!this.coverPP || this.revealing) return
+    if (!this.coverPP) {
+      if (!isLoaded()) markLoaded()
+      return
+    }
+    if (this.revealing) return
     this.revealing = true
     if (!isLoaded()) markLoaded()
 
@@ -180,6 +185,7 @@ void main(void) {
   }
 
   changeEffects(level: GraphicLevels) {
+    if (wantsGateway()) return
     this.colorGrader.reload()
     if (this.glowLayer) {
       this.glowLayer.dispose()
