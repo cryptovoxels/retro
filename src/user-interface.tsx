@@ -917,7 +917,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   paneContent(paneId: UIPanes) {
-    const nearestEditableParcel = selectNearestEditableParcel() ?? null
+    const nearestEditableParcel = selectNearestEditableParcel() ?? (isScratchpad() ? this.grid.fastbootParcel : undefined) ?? null
     const currentOrNearestParcel = selectCurrentOrNearestParcel() ?? null
 
     switch (paneId) {
