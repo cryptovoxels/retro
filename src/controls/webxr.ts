@@ -2,6 +2,7 @@ import { Environment } from '../enviroments/environment'
 import Controls from './controls'
 import { SpacesEnvironment } from '../enviroments/space-environment'
 import { WorldEnvironment } from '../enviroments/world-environment'
+import { wantsGateway } from '../../common/helpers/detector'
 
 export default class XROverlay {
   webXR: BABYLON.WebXRDefaultExperience | null = null
@@ -41,7 +42,16 @@ export default class XROverlay {
       return
     }
 
-    await this.helper.enterXRAsync('immersive-vr', 'local-floor', undefined, multiview ? { optionalFeatures: ['layers'] } : {})
+    const xrOpts = multiview ? { optionalFeatures: ['layers'] } : {}
+    if (wantsGateway()) {
+      try {
+        await this.helper.enterXRAsync('immersive-ar', 'local-floor', undefined, xrOpts)
+      } catch {
+        await this.helper.enterXRAsync('immersive-vr', 'local-floor', undefined, xrOpts)
+      }
+    } else {
+      await this.helper.enterXRAsync('immersive-vr', 'local-floor', undefined, xrOpts)
+    }
     const featureManager = this.helper.featuresManager
 
     const camera = this.webXR.baseExperience.camera

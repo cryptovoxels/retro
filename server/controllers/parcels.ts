@@ -414,9 +414,10 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
       return `/play?coords=${heading}@${result.join(',')}`
     }
 
-    const { mode } = req.query
+    const { mode, gateway } = req.query
     let url = getSpawn()
     url += mode ? `&mode=${mode}` : ''
+    if (gateway === '1' || gateway === 'true') url += '&gateway=1'
     res.redirect(url)
   })
 
