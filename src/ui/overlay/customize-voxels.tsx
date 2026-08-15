@@ -135,7 +135,7 @@ export default class CustomizeVoxels extends Component<Props, State> {
   }
 
   onSlotClick(index: number, e: MouseEvent) {
-    if (e.shiftKey) {
+    if (e.shiftKey || index === this.state.texture) {
       this.uploadTexture(index)
       return
     }
@@ -144,8 +144,6 @@ export default class CustomizeVoxels extends Component<Props, State> {
 
   onTintClick(index: number, e: MouseEvent) {
     this.selectTint(index)
-    if (e.shiftKey) return
-    e.preventDefault()
   }
 
   uploadTexture(index: number) {
@@ -422,7 +420,7 @@ export default class CustomizeVoxels extends Component<Props, State> {
         </button>
         <h4>Voxels</h4>
         <small>
-          Click a slot to select. Shift-click or drag-and-drop to upload a <strong>voxel texture</strong>.
+          Click a slot to select. Click it again (or shift-click / drop a file) to upload a <strong>voxel texture</strong>.
         </small>
         <div className="textures">
           <input style="display: none;" type="file" class="tile-uploader" accept="image/*" />
@@ -435,7 +433,7 @@ export default class CustomizeVoxels extends Component<Props, State> {
           </div>
         )}
         <h4>Voxel tints</h4>
-        <small>Click to select. Shift-click to change.</small>
+        <small>Click a tint to change its color.</small>
         <div className="tints">
           {tintEditors}{' '}
           <button title="Click to reset the tints to default" style="float:right" onClick={() => this.resetPalette()}>

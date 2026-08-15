@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { blocks, defaultColors } from '../../../common/content/blocks'
 import { isMobile } from '../../../common/helpers/detector'
-import { requestPointerLock } from '../../../common/helpers/ui-helpers'
+import { exitPointerLock, requestPointerLock } from '../../../common/helpers/ui-helpers'
 import Parcel from '../../parcel'
 import { SelectionMode } from '../../tools/voxel'
 
@@ -141,7 +141,15 @@ export default function VoxelToolBelt({ parcel }: Props) {
               {currentPalette.map((background, index) => (
                 <button type="button" style={{ background }} onClick={() => selectTint(index)} />
               ))}
-              <button type="button" class="tint-chooser-edit" title="Edit tint colors" onClick={() => ui?.setPane('voxels')}>
+              <button
+                type="button"
+                class="tint-chooser-edit"
+                title="Edit voxel textures and tint colors"
+                onClick={() => {
+                  exitPointerLock()
+                  ui?.setPane('voxels')
+                }}
+              >
                 Edit
               </button>
             </div>
