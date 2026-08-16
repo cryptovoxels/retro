@@ -158,28 +158,36 @@ export const sidebarClosed = signal(typeof window !== 'undefined' && typeof wind
 
 // site nav (hamburger menu) state
 const SITE_NAV_KEY = 'siteNavOpen'
-function loadSiteNavOpen(): boolean {
+const siteNavNarrow = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 50em)').matches
+function loadDesktopSiteNav(): boolean {
   try {
     const v = localStorage.getItem(SITE_NAV_KEY)
-    return v === null ? true : v === '1'
-  } catch {
-    return true
-  }
+    if (v !== null) return v === '1'
+  } catch {}
+  return true
 }
-const siteNavInitial = loadSiteNavOpen()
-export const siteNavOpen = signal(siteNavInitial)
-export const siteNavPush = signal(siteNavInitial)
+export const siteNavOpen = signal(!siteNavNarrow() && loadDesktopSiteNav())
 
 effect(() => {
-  try {
-    localStorage.setItem(SITE_NAV_KEY, siteNavOpen.value ? '1' : '0')
-  } catch {}
-  document.body.classList.toggle('site-nav-open', siteNavOpen.value)
-  document.body.classList.toggle('site-nav-push', siteNavPush.value && siteNavOpen.value)
+  const open = siteNavOpen.value
+  document.body.classList.toggle('site-nav-open', open)
+  if (!siteNavNarrow()) {
+    try {
+      localStorage.setItem(SITE_NAV_KEY, open ? '1' : '0')
+    } catch {}
+  }
+  window.engine?.resize()
 })
 
+if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+  const mq = window.matchMedia('(max-width: 50em)')
+  const onNavWidth = () => {
+    siteNavOpen.value = mq.matches ? false : loadDesktopSiteNav()
+  }
+  mq.addEventListener('change', onNavWidth)
+}
+
 export function toggleSiteNav() {
-  if (siteNavOpen.value) siteNavPush.value = false
   siteNavOpen.value = !siteNavOpen.value
 }
 
