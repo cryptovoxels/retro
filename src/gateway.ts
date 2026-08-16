@@ -37,7 +37,8 @@ function showHint(text: string) {
   if (!el) {
     el = document.createElement('div')
     el.id = 'gatewayHint'
-    el.style.cssText = 'position:fixed;left:0;right:0;bottom:2rem;text-align:center;z-index:3;pointer-events:none;color:var(--fg);'
+    el.style.cssText =
+      'position:fixed;left:1rem;right:1rem;bottom:2rem;text-align:center;z-index:9999;pointer-events:none;color:var(--bg);font-size:1rem;'
     document.body.appendChild(el)
   }
   el.textContent = text
@@ -86,6 +87,7 @@ export function startPhoneVideo() {
 
   ask()
   window.addEventListener('pointerdown', ask, { capture: true })
+  showHint('allow the camera, then point at a wall and tap')
 }
 
 function enableRoomLook(camera: BABYLON.DeviceOrientationCamera) {
@@ -104,6 +106,187 @@ function enableRoomLook(camera: BABYLON.DeviceOrientationCamera) {
   }
 }
 
+function placeHole(scene: BABYLON.Scene, holePos: BABYLON.Vector3, yawOrQuat: number | BABYLON.Quaternion) {
+  const hole = BABYLON.MeshBuilder.CreatePlane(HOLE, { width: 1.2, height: 2.2 }, scene)
+  hole.position.copyFrom(holePos)
+  if (typeof yawOrQuat === 'number') hole.rotation.y = yawOrQuat
+  else hole.rotationQuaternion = yawOrQuat
+  hole.renderingGroupId = 0
+  hole.layerMask = 0x0fffffff
+  hole.isPickable = true
+  const holeMat = new BABYLON.StandardMaterial(HOLE, scene)
+  holeMat.disableColorWrite = true
+  holeMat.disableDepthWrite = true
+  holeMat.backFaceCulling = false
+  holeMat.fogEnabled = false
+  hole.material = holeMat
+  holeMesh = hole
+
+  const frame = BABYLON.MeshBuilder.CreateBox(FRAME, { width: 1.32, height: 2.32, depth: 0.06 }, scene)
+  frame.position.copyFrom(holePos)
+  if (typeof yawOrQuat === 'number') frame.rotation.y = yawOrQuat
+  else frame.rotationQuaternion = yawOrQuat.clone()
+  frame.renderingGroupId = 2
+  frame.layerMask = 0x0fffffff
+  frame.isPickable = false
+  const frameMat = new BABYLON.StandardMaterial(FRAME, scene)
+  frameMat.emissiveColor = new BABYLON.Color3(0.45, 0.45, 0.4)
+  frameMat.disableLighting = true
+  frameMat.wireframe = true
+  frameMat.fogEnabled = false
+  frame.material = frameMat
+  return { hole, frame }
+}
+
+function revealParcelThroughHole(scene: BABYLON.Scene, cam: BABYLON.Camera) {
+  scene.meshes.forEach((m) => {
+    if (isGatewayMesh(m)) return
+    m.layerMask = 0x0fffffff
+    m.renderingGroupId = 1
+  })
+  scene.onNewMeshAddedObservable.add((m) => {
+    if (isGatewayMesh(m)) return
+    m.layerMask = 0x0fffffff
+    m.renderingGroupId = 1
+  })
+  cam.layerMask = 0x0fffffff
+  setupStencilPortal(scene)
+}
+
+async function tryGatewayAR(scene: BABYLON.Scene, controls: Controls, spawnCam: BABYLON.Camera): Promise<boolean> {
+  const xrNav = navigator.xr
+  if (!xrNav?.isSessionSupported) return false
+  const supported = await xrNav.isSessionSupported('immersive-ar').catch(() => false)
+  if (!supported) return false
+
+  try {
+    spawnCam.detachControl()
+  } catch {}
+
+  spawnCam.layerMask = LAYER_PARCEL
+  scene.meshes.forEach((m) => {
+    if (!isGatewayMesh(m)) m.layerMask = LAYER_PARCEL
+  })
+  scene.onNewMeshAddedObservable.add((m) => {
+    if (!isGatewayMesh(m) && !holeMesh) m.layerMask = LAYER_PARCEL
+  })
+
+  showHint('tap to start, then tap a wall')
+
+  const worldOffset = spawnCam.parent instanceof BABYLON.TransformNode ? spawnCam.parent : null
+  let lastHit: { position: BABYLON.Vector3; rotation: BABYLON.Quaternion } | null = null
+  let placing = true
+  let openedAt = 0
+  let entered = false
+
+  const enter = async () => {
+    if (entered) return
+    entered = true
+    const helper = await scene.createDefaultXRExperienceAsync({
+      disableDefaultUI: true,
+      disableTeleportation: true,
+      outputCanvasOptions: { canvasOptions: { framebufferScaleFactor: 0.5 } },
+    } as any)
+    if (!helper?.baseExperience) throw new Error('no xr')
+
+    await helper.baseExperience.enterXRAsync('immersive-ar', 'local-floor', undefined, {
+      requiredFeatures: ['hit-test'],
+      optionalFeatures: ['dom-overlay'],
+      domOverlay: { root: document.body },
+    } as any)
+
+    const hitTest = helper.baseExperience.featuresManager.enableFeature(BABYLON.WebXRFeatureName.HIT_TEST, 'latest', {
+      disablePermanentHitTest: false,
+      enableTransientHitTest: true,
+    } as any) as any
+
+    hitTest?.onHitTestResultObservable?.add((results: any[]) => {
+      if (!results?.length) return
+      const pos = new BABYLON.Vector3()
+      const rot = new BABYLON.Quaternion()
+      const scl = new BABYLON.Vector3()
+      results[0].transformationMatrix.decompose(scl, rot, pos)
+      lastHit = { position: pos, rotation: rot }
+    })
+
+    showHint('tap a wall to open the door')
+  }
+
+  const place = () => {
+    if (!placing || !lastHit) return
+    placing = false
+    const hitPos = lastHit.position
+    const hitRot = lastHit.rotation
+    const mat = new BABYLON.Matrix()
+    hitRot.toRotationMatrix(mat)
+    const normal = BABYLON.Vector3.TransformNormal(BABYLON.Vector3.Up(), mat)
+    const cam = scene.activeCamera
+    if (cam && BABYLON.Vector3.Dot(normal, cam.globalPosition.subtract(hitPos)) < 0) normal.scaleInPlace(-1)
+
+    if (worldOffset) {
+      const spawnAbs = spawnCam.getAbsolutePosition()
+      worldOffset.position.addInPlace(hitPos.subtract(spawnAbs))
+    }
+    const { hole, frame } = placeHole(scene, hitPos, 0)
+    hole.lookAt(hitPos.add(normal))
+    frame.lookAt(hitPos.add(normal))
+    if (scene.activeCamera) revealParcelThroughHole(scene, scene.activeCamera)
+    playOpen(hole, frame)
+    hideHint()
+    openedAt = Date.now()
+  }
+
+  scene.onPointerObservable.add((info) => {
+    if (info.type !== BABYLON.PointerEventTypes.POINTERDOWN) return
+    if (!entered) {
+      enter().catch(() => {
+        entered = false
+        startPhoneVideo()
+        startWallDoor(scene, controls, spawnCam)
+      })
+      return
+    }
+    if (placing) {
+      place()
+      return
+    }
+    if (info.pickInfo?.pickedMesh === holeMesh && Date.now() - openedAt > 700) enterPlay()
+  })
+
+  return true
+}
+  const d = cam.getForwardRay().direction.clone()
+  d.y = 0
+  if (d.lengthSquared() < 0.01) d.set(0, 0, 1)
+  d.normalize()
+  return d
+}
+
+function setupStencilPortal(scene: BABYLON.Scene) {
+  scene.setRenderingAutoClearDepthStencil(0, true, true, true)
+  scene.setRenderingAutoClearDepthStencil(1, false, true, false)
+  scene.setRenderingAutoClearDepthStencil(2, false, false, false)
+
+  const engine = scene.getEngine()
+  scene.onBeforeRenderingGroupObservable.add((info) => {
+    if (info.renderingGroupId === 0) {
+      engine.setStencilBuffer(true)
+      engine.setStencilMask(0xff)
+      engine.setStencilFunction(BABYLON.Engine.ALWAYS)
+      engine.setStencilFunctionReference(1)
+      engine.setStencilOperation(BABYLON.Engine.KEEP, BABYLON.Engine.KEEP, BABYLON.Engine.REPLACE)
+    } else if (info.renderingGroupId === 1) {
+      engine.setStencilBuffer(true)
+      engine.setStencilMask(0x00)
+      engine.setStencilFunction(BABYLON.Engine.EQUAL)
+      engine.setStencilFunctionReference(1)
+      engine.setStencilOperation(BABYLON.Engine.KEEP, BABYLON.Engine.KEEP, BABYLON.Engine.KEEP)
+    } else {
+      engine.setStencilBuffer(false)
+    }
+  })
+}
+
 function lookDir(cam: BABYLON.Camera) {
   const d = cam.getForwardRay().direction.clone()
   d.y = 0
@@ -120,74 +303,69 @@ function startWallDoor(scene: BABYLON.Scene, controls: Controls, spawnCam: BABYL
 
   const frozenPos = spawnCam.position.clone()
   const frozenRot = 'rotation' in spawnCam ? (spawnCam as BABYLON.FreeCamera).rotation.clone() : new BABYLON.Vector3(0, 0, 0)
-  const parent = spawnCam.parent instanceof BABYLON.Node ? spawnCam.parent : null
+  const worldOffset = spawnCam.parent instanceof BABYLON.TransformNode ? spawnCam.parent : null
 
   spawnCam.layerMask = LAYER_PARCEL
   scene.meshes.forEach((m) => {
     if (!isGatewayMesh(m)) m.layerMask = LAYER_PARCEL
   })
-  scene.onNewMeshAddedObservable.add((m) => {
+  const meshObs = scene.onNewMeshAddedObservable.add((m) => {
     if (!isGatewayMesh(m)) m.layerMask = LAYER_PARCEL
   })
 
-  const rtt = new BABYLON.RenderTargetTexture('gateway-wall', 1024, scene, false)
-  rtt.activeCamera = spawnCam
-  rtt.renderList = scene.meshes.filter((m) => !isGatewayMesh(m))
-  scene.onNewMeshAddedObservable.add((m) => {
-    if (!isGatewayMesh(m)) rtt.renderList!.push(m)
-  })
-  scene.customRenderTargets.push(rtt)
-
   const roomCam = new BABYLON.DeviceOrientationCamera('gateway-room', frozenPos.clone(), scene)
-  if (parent) roomCam.parent = parent
+  if (worldOffset) roomCam.parent = worldOffset
   roomCam.rotation.copyFrom(frozenRot)
   roomCam.layerMask = LAYER_ROOM
   roomCam.minZ = 0.1
-  roomCam.maxZ = 40
+  roomCam.maxZ = 80
   roomCam.fov = spawnCam.fov
   scene.activeCamera = roomCam
   enableRoomLook(roomCam)
 
-  scene.onBeforeRenderObservable.add(() => {
-    spawnCam.position.copyFrom(frozenPos)
-    if ('rotation' in spawnCam) (spawnCam as BABYLON.FreeCamera).rotation.copyFrom(frozenRot)
-  })
-
-  showHint('look at a wall, then tap to open the door')
+  showHint('point at a wall, then tap')
 
   let placing = true
   let openedAt = 0
+  const readyAt = Date.now() + 600
 
   scene.onPointerObservable.add((info) => {
     if (info.type !== BABYLON.PointerEventTypes.POINTERDOWN) return
 
     if (placing) {
+      if (Date.now() < readyAt) return
       placing = false
       forward = lookDir(roomCam)
+      roomCam.setParent(null)
+      scene.onNewMeshAddedObservable.remove(meshObs)
+
+      // parcel starts at the wall so the hole is a real view into the rooms, not a sticker
+      if (worldOffset) worldOffset.position.addInPlace(forward.scale(WALL_DISTANCE))
+
       const holePos = roomCam.position.add(forward.scale(WALL_DISTANCE))
       holePos.y = roomCam.position.y - 0.4
+      const yaw = Math.atan2(forward.x, forward.z) + Math.PI
 
       const hole = BABYLON.MeshBuilder.CreatePlane(HOLE, { width: 1.2, height: 2.2 }, scene)
-      if (parent) hole.parent = parent
       hole.position.copyFrom(holePos)
-      hole.rotation.y = Math.atan2(forward.x, forward.z) + Math.PI
-      hole.layerMask = LAYER_ROOM
+      hole.rotation.y = yaw
+      hole.renderingGroupId = 0
+      hole.layerMask = 0x0fffffff
       hole.isPickable = true
       const holeMat = new BABYLON.StandardMaterial(HOLE, scene)
-      holeMat.diffuseTexture = rtt
-      holeMat.emissiveTexture = rtt
-      holeMat.disableLighting = true
+      holeMat.disableColorWrite = true
+      holeMat.disableDepthWrite = true
+      holeMat.backFaceCulling = false
       holeMat.fogEnabled = false
-      holeMat.backFaceCulling = true
       hole.material = holeMat
       holeMesh = hole
 
       const frame = BABYLON.MeshBuilder.CreateBox(FRAME, { width: 1.32, height: 2.32, depth: 0.06 }, scene)
-      if (parent) frame.parent = parent
       frame.position.copyFrom(holePos)
       frame.position.subtractInPlace(forward.scale(0.04))
-      frame.rotation.y = hole.rotation.y
-      frame.layerMask = LAYER_ROOM
+      frame.rotation.y = yaw
+      frame.renderingGroupId = 2
+      frame.layerMask = 0x0fffffff
       frame.isPickable = false
       const frameMat = new BABYLON.StandardMaterial(FRAME, scene)
       frameMat.emissiveColor = new BABYLON.Color3(0.45, 0.45, 0.4)
@@ -196,6 +374,18 @@ function startWallDoor(scene: BABYLON.Scene, controls: Controls, spawnCam: BABYL
       frameMat.fogEnabled = false
       frame.material = frameMat
 
+      scene.meshes.forEach((m) => {
+        if (isGatewayMesh(m)) return
+        m.layerMask = 0x0fffffff
+        m.renderingGroupId = 1
+      })
+      scene.onNewMeshAddedObservable.add((m) => {
+        if (isGatewayMesh(m)) return
+        m.layerMask = 0x0fffffff
+        m.renderingGroupId = 1
+      })
+      roomCam.layerMask = 0x0fffffff
+      setupStencilPortal(scene)
       playOpen(hole, frame)
       hideHint()
       openedAt = Date.now()
@@ -252,32 +442,7 @@ function startStencilDoor(scene: BABYLON.Scene, cam: BABYLON.Camera) {
     if (!isGatewayMesh(m)) m.renderingGroupId = 1
   })
 
-  scene.setRenderingAutoClearDepthStencil(0, true, true, true)
-  scene.setRenderingAutoClearDepthStencil(1, false, true, false)
-  scene.setRenderingAutoClearDepthStencil(2, false, false, false)
-
-  const engine = scene.getEngine()
-  scene.onBeforeRenderingGroupObservable.add((info) => {
-    if (info.renderingGroupId === 0) {
-      engine.setStencilBuffer(true)
-      engine.setStencilMask(0xff)
-      engine.setStencilFunction(BABYLON.Engine.ALWAYS)
-      engine.setStencilFunctionReference(1)
-      engine.setStencilOperationFail(BABYLON.Engine.KEEP)
-      engine.setStencilOperationDepthFail(BABYLON.Engine.KEEP)
-      engine.setStencilOperationPass(BABYLON.Engine.REPLACE)
-    } else if (info.renderingGroupId === 1) {
-      engine.setStencilBuffer(true)
-      engine.setStencilMask(0x00)
-      engine.setStencilFunction(BABYLON.Engine.EQUAL)
-      engine.setStencilFunctionReference(1)
-      engine.setStencilOperationFail(BABYLON.Engine.KEEP)
-      engine.setStencilOperationDepthFail(BABYLON.Engine.KEEP)
-      engine.setStencilOperationPass(BABYLON.Engine.KEEP)
-    } else {
-      engine.setStencilBuffer(false)
-    }
-  })
+  setupStencilPortal(scene)
 
   const enterObs = scene.onAfterRenderObservable.add(() => {
     if (Date.now() - bootAt < ENTER_AFTER_MS || !holeMesh || !scene.activeCamera) return
@@ -305,13 +470,16 @@ export function startGateway(scene: BABYLON.Scene, controls: Controls) {
 
   const canvas = scene.getEngine().getRenderingCanvas()
   if (canvas) canvas.style.zIndex = '1'
-  startPhoneVideo()
 
-  if (wantsPhoneCamera()) {
-    startWallDoor(scene, controls, cam)
-  } else {
-    startStencilDoor(scene, cam)
-  }
+  void tryGatewayAR(scene, controls, cam).then((ok) => {
+    if (ok) return
+    if (wantsPhoneCamera()) {
+      startPhoneVideo()
+      startWallDoor(scene, controls, cam)
+    } else {
+      startStencilDoor(scene, cam)
+    }
+  })
 
   if (!isLoaded()) markLoaded()
 }
