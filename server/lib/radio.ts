@@ -105,7 +105,7 @@ async function chat(prompt: string, temperature: number): Promise<string> {
       Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'llama-3.1-8b-instant',
+      model: 'qwen/qwen3.6-27b',
       temperature,
       messages: [{ role: 'user', content: prompt }],
     }),

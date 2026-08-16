@@ -17,7 +17,7 @@ async function parseTime(req: Request, res: Response) {
       Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'llama-3.1-8b-instant',
+      model: 'qwen/qwen3.6-27b',
       temperature: 0,
       messages: [{ role: 'user', content: prompt }],
     }),
@@ -113,7 +113,7 @@ async function behaviourAgent(req: Request, res: Response) {
         Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
       },
       body: JSON.stringify({
-        model: 'llama-3.3-70b-versatile',
+        model: 'qwen/qwen3.6-27b',
         temperature: 0.2,
         messages: [
           { role: 'system', content: BEHAVIOUR_DSL_SPEC },
