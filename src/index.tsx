@@ -66,6 +66,7 @@ import { Minimap, MinimapSettings } from './minimap'
 import { MetaMaskInpageProvider } from '@metamask/providers'
 import { currentBuildDate, currentVersion } from '../common/version'
 import { CameraSettings } from './controls/user-control-settings'
+import { startPhoneVideo } from './gateway'
 import { createGPUMemoryHUD } from './utils/memory-overlay'
 
 if (process.env.NODE_ENV === 'development') {
@@ -154,6 +155,7 @@ async function main() {
   canvas.id = 'renderCanvas'
   canvas.style.cssText = 'width: 100%; height: 100%; display: none; touch-action: none;'
   document.body.appendChild(canvas)
+  if (wantsGateway()) startPhoneVideo()
 
   canvas.addEventListener(
     'wheel',
