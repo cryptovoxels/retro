@@ -10,8 +10,6 @@ import { getCoords, withCoords, routeWithCoords, notifyUrlChange } from './helpe
 import { route } from 'preact-router'
 import cachedFetch from './helpers/cached-fetch'
 import { messageList } from '../../src/connector'
-import { siteNavOpen, toggleSiteNav } from '../../src/store'
-
 type Props = {
   path: string
   coords?: string
@@ -185,10 +183,7 @@ export default class WebHeader extends Component<Props, State> {
 
     return (
       <>
-        <button class="hamburger site-nav-toggle" type="button" aria-label={siteNavOpen.value ? 'Close menu' : 'Open menu'} aria-expanded={siteNavOpen.value} onClick={toggleSiteNav}>
-          {siteNavOpen.value ? 'x' : '='}
-        </button>
-        <header class={siteNavOpen.value ? 'nav-open' : undefined}>
+        <header>
           <nav>
             <ul>
               <li class="logo">

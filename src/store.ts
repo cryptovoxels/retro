@@ -154,42 +154,7 @@ export const PERSISTENT_PANES = new Set(['explorer', 'settings', 'help', 'dance'
 export const isPersistentPane = (p?: string) => !!p && PERSISTENT_PANES.has(p)
 
 export const uiAsideTick = signal(0)
-export const sidebarClosed = signal(typeof window !== 'undefined' && typeof window.matchMedia === 'function' && window.matchMedia('(max-width: 50em)').matches)
-
-// site nav (hamburger menu) state
-const SITE_NAV_KEY = 'siteNavOpen'
-const siteNavNarrow = () => typeof window !== 'undefined' && window.matchMedia('(max-width: 50em)').matches
-function loadDesktopSiteNav(): boolean {
-  try {
-    const v = localStorage.getItem(SITE_NAV_KEY)
-    if (v !== null) return v === '1'
-  } catch {}
-  return true
-}
-export const siteNavOpen = signal(!siteNavNarrow() && loadDesktopSiteNav())
-
-effect(() => {
-  const open = siteNavOpen.value
-  document.body.classList.toggle('site-nav-open', open)
-  if (!siteNavNarrow()) {
-    try {
-      localStorage.setItem(SITE_NAV_KEY, open ? '1' : '0')
-    } catch {}
-  }
-  window.engine?.resize()
-})
-
-if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
-  const mq = window.matchMedia('(max-width: 50em)')
-  const onNavWidth = () => {
-    siteNavOpen.value = mq.matches ? false : loadDesktopSiteNav()
-  }
-  mq.addEventListener('change', onNavWidth)
-}
-
-export function toggleSiteNav() {
-  siteNavOpen.value = !siteNavOpen.value
-}
+export const sidebarClosed = signal(false)
 
 export const broadcastShowboxUuid = signal<string | undefined>(undefined)
 // when the local broadcast went live; the closed-sidebar "live" tab reads this for its timer
