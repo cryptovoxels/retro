@@ -205,6 +205,7 @@ The parcel's tile off the map renderer
 
 - `200` `image/png`, bytes
 - `404` The lookup did not land. Some handlers send this with status 200.
+- `502` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/parcels/{id}/query
 

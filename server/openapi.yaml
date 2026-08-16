@@ -357,6 +357,8 @@ paths:
                 format: binary
         '404':
           $ref: '#/components/responses/Failure'
+        '502':
+          $ref: '#/components/responses/Failure'
 
   /api/parcels/{id}/query:
     get:
