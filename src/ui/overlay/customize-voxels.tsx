@@ -292,31 +292,58 @@ export default class CustomizeVoxels extends Component<Props, State> {
   updateTexture() {
     if (!this.props.parcel.voxelMesh) {
       console.warn('customize-voxels.updateTexture: Parcel not meshed')
+      this.setState({ uploading: false, uploadingText: '' })
       return
     }
 
     this.setState({ uploadingText: 'Updating texture...' })
-    this.dynamicTexture?.getContext().drawImage(this.canvas, 0, 0)
-    this.dynamicTexture?.update(false)
 
-    const m = this.props.parcel.voxelMesh.material as BABYLON.ShaderMaterial
-    this.dynamicTexture && m.setTexture('tileMap', this.dynamicTexture)
+    try {
+      const canvas = this.canvas
+      const ctx = this.dynamicTexture?.getContext()
+      if (!canvas || !ctx) {
+        console.error('customize-voxels.updateTexture: missing canvas')
+        this.setState({ uploading: false, uploadingText: '' })
+        return
+      }
 
-    this.save()
+      ctx.drawImage(canvas, 0, 0)
+      this.dynamicTexture?.update(false)
+
+      const m = this.props.parcel.voxelMesh.material
+      if (this.dynamicTexture && m instanceof BABYLON.ShaderMaterial) {
+        m.setTexture('tileMap', this.dynamicTexture)
+      }
+
+      this.save()
+    } catch (e) {
+      console.error('customize-voxels.updateTexture', e)
+      this.setState({ uploading: false, uploadingText: '' })
+    }
   }
 
   save() {
     if (!this.dynamicTexture) {
-      throw new Error('cant find dynamic texture')
+      console.error('customize-voxels.save: missing dynamic texture')
+      this.setState({ uploading: false, uploadingText: '' })
+      return
     }
     this.setState({ uploading: true, uploadingText: 'Saving...' })
 
     const formData = new FormData()
+    const canvas = (this.dynamicTexture.getContext() as CanvasRenderingContext2D)?.canvas
+    if (!canvas?.toBlob) {
+      console.error('customize-voxels.save: canvas.toBlob unavailable')
+      this.setState({ uploading: false, uploadingText: '' })
+      return
+    }
 
-    ;(this.dynamicTexture.getContext() as CanvasRenderingContext2D).canvas.toBlob(
+    canvas.toBlob(
       (blob) => {
         if (!blob) {
-          throw new Error('blob is null')
+          console.error('customize-voxels.save: blob is null')
+          this.setState({ uploading: false, uploadingText: '' })
+          return
         }
         formData.append(`atlas`, blob, `atlas.png`)
         this.upload(formData)
@@ -334,14 +361,19 @@ export default class CustomizeVoxels extends Component<Props, State> {
     this.controller = new AbortController()
 
     const signal = this.controller.signal
+    // img.cryptovoxels.com cert expired; IMG_URL points at the CDN which still proxies upload
+    const url = `${process.env.IMG_URL || 'https://cdn.cryptovoxels.com/node'}/upload/atlas`
 
-    fetch(`https://img.cryptovoxels.com/node/upload/atlas`, {
+    fetch(url, {
       method: 'POST',
       body: formData,
       mode: 'cors',
       signal,
     })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`upload failed: ${r.status}`)
+        return r.json()
+      })
       .then((res) => {
         this.controller = null
 
@@ -357,7 +389,10 @@ export default class CustomizeVoxels extends Component<Props, State> {
         this.forceUpdate()
       })
       .catch((e) => {
-        console.log('Error', e)
+        if (signal.aborted) return
+        console.error('customize-voxels.upload', e)
+        this.controller = null
+        this.setState({ uploading: false, uploadingText: '' })
       })
   }
 
