@@ -1,6 +1,6 @@
 import { createRequestHandlerForQuery, queryAndCallback } from '../lib/query-helpers'
 
-import cache from '../cache'
+import cache, { noCache } from '../cache'
 import config from '../../common/config'
 import proxy from 'express-http-proxy'
 import Parcel, { ParcelRef } from '../parcel'
@@ -438,12 +438,16 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
 
     // const mapParams = '?x=' + ((parcel.x2 + parcel.x1) / 200).toFixed(2) + '&y=' + (parcel.z2 + parcel.z1) / 200
     const identifier = parcel.id + '-' + parcel.address.toLowerCase().replace(/\s+/g, '_')
-    fetch(`${process.env.MAP_URL}/parcel/${identifier}.png`)
-      .then((r) => r.arrayBuffer())
-      .then((arrayBuffer) => {
-        res.set('Content-Type', 'image/png')
-        res.end(Buffer.from(arrayBuffer))
-      })
+    const r = await fetch(`${process.env.MAP_URL}/parcel/${identifier}.png`).catch(() => null)
+    if (!r || !r.ok) {
+      // The map renderer sends an HTML error page. Do not label it image/png, and
+      // do not let the 30 minute header cache it.
+      noCache(res)
+      res.status(502).send({ success: false, message: 'Parcel image is unavailable' })
+      return
+    }
+    res.set('Content-Type', 'image/png')
+    res.end(Buffer.from(await r.arrayBuffer()))
   })
 
   app.get(
