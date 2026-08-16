@@ -655,26 +655,28 @@ header:has(nav) {
   }
 }
 
-// push mode: nav + main side by side (initial load with nav open)
-body.site-nav-push {
+// desktop: nav is a push pane (world / page shrinks). phone: overlay.
+body.site-nav-open {
   header:has(nav) {
     transform: none;
     pointer-events: auto;
-  }
-  main {
-    margin-left: min(16rem, 85vw);
-  }
-  // in-world grid handles its own layout - don't push
-  &.in-world main {
-    margin-left: 0;
   }
 }
 
-// overlay mode: nav slides over content (after first close)
-body.site-nav-open:not(.site-nav-push) {
-  header:has(nav) {
-    transform: none;
-    pointer-events: auto;
+@media (min-width: 50.01em) {
+  body.site-nav-open {
+    main {
+      margin-left: min(16rem, 85vw);
+    }
+    &.in-world {
+      --play-gutter: calc(min(16rem, 85vw) + max(1rem, env(safe-area-inset-left, 0px)));
+    }
+  }
+}
+
+@media @narrow {
+  body.site-nav-open main {
+    margin-left: 0;
   }
 }
 

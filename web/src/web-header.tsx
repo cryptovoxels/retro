@@ -89,12 +89,9 @@ export default class WebHeader extends Component<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props) {
-    if (prevProps.path !== this.props.path) {
-      siteNavOpen.value = false
-      if (this.navPath() === '/chat') {
-        markChatSeen()
-        this.setState({ chatN: 0 })
-      }
+    if (prevProps.path !== this.props.path && this.navPath() === '/chat') {
+      markChatSeen()
+      this.setState({ chatN: 0 })
     }
   }
 
@@ -147,7 +144,6 @@ export default class WebHeader extends Component<Props, State> {
     e.stopPropagation()
     e.preventDefault()
     const q = this.state.query.trim()
-    siteNavOpen.value = false
     if (!q) return
     // WorldSidebar unmounts <Router> on /play, so route() never swaps the page — hard nav.
     window.location.assign(`/search?q=${encodeURIComponent(q)}`)
