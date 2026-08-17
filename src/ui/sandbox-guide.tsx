@@ -58,17 +58,6 @@ export function SandboxGuide({ voxelTool, onComplete }: SandboxGuideProps) {
     })
   }
 
-  const skipAll = () => {
-    setSteps((prev) => {
-      const next = { ...prev }
-      for (const s of SANDBOX_LEARN_STEPS) {
-        if (next[s.id] === 'pending') next[s.id] = 'skipped'
-      }
-      setTimeout(() => onCompleteRef.current(), 0)
-      return next
-    })
-  }
-
   useEffect(() => {
     const onB = voxelTool.onBuildToolActivate.add(() => markDoneRef.current('b'))
     const onAction = voxelTool.onVoxelAction.add(({ mode }) => {
@@ -97,12 +86,7 @@ export function SandboxGuide({ voxelTool, onComplete }: SandboxGuideProps) {
 
   return (
     <div class="sandbox-guide">
-      <div class="sandbox-guide-head">
-        <span>learn voxels</span>
-        <button type="button" class="linkish" onClick={skipAll}>
-          skip all
-        </button>
-      </div>
+      <h3>You found a sandbox!</h3>
       <ul>
         {SANDBOX_LEARN_STEPS.map((step) => {
           const status = steps[step.id]
