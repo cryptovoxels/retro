@@ -22,15 +22,17 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
   // Parcels
   // This API route supports a `parcels_ids` flag which can be repeated multiple times.
   app.get('/api/parcels.json', cache('5 minutes'), async (req, res) => {
-    let parcel_ids = req.query.parcel_ids ? (req.query.parcel_ids instanceof Array ? req.query.parcel_ids : [req.query.parcel_ids]) : null
+    const parcel_ids = req.query.parcel_ids ? (req.query.parcel_ids instanceof Array ? req.query.parcel_ids : [req.query.parcel_ids]) : null
     if (!parcel_ids) {
       queryAndCallback(db, 'get-parcels', 'parcels', [req.query.limit], (response) => {
         res.status(200).send(response)
       })
       return
     }
-    parcel_ids = parcel_ids.filter((id: any) => !isNaN(Number(id)))
-    let batch_queries = `select p.id,
+    // Number('') and Number('Infinity') are not NaN, so an empty or non-finite id
+    // used to reach the query as a literal and make it invalid.
+    const ids = parcel_ids.map((id: any) => Number(id)).filter((id: number) => Number.isInteger(id))
+    const batch_queries = `select p.id,
       y2 - y1 as height,
       p.island,
       p.address,
@@ -48,12 +50,10 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
       from
       properties p
       where
-      id in (
+      p.id = any($1::int[])
     `
 
-    const ids = parcel_ids.join(',')
-    batch_queries += ids + ')'
-    const r = await db.query('embedded/get-parcels-batched', batch_queries)
+    const r = await db.query('embedded/get-parcels-batched', batch_queries, [ids])
     res.status(200).send({ success: !!r.rows[0], parcels: r.rows })
   })
 
