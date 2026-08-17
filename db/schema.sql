@@ -489,6 +489,7 @@ CREATE TABLE public.properties (
     suburb_id integer,
     geometry_json json NOT NULL,
     is_common boolean DEFAULT false,
+    sandbox boolean DEFAULT false NOT NULL,
     listed_at timestamp without time zone,
     settings json DEFAULT '{}'::json NOT NULL,
     distance_to_center numeric DEFAULT 0 NOT NULL,

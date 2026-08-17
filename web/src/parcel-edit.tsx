@@ -67,7 +67,7 @@ export default function ParcelEdit(props: Props) {
       body: JSON.stringify({
         name: parcel.name,
         description: parcel.description,
-        sandbox: !!parcel.settings?.sandbox,
+        sandbox: !!parcel.sandbox,
         parcel_users: parcel.parcel_users ?? [],
       }),
     })
@@ -197,7 +197,7 @@ export default function ParcelEdit(props: Props) {
       <h3>settings</h3>
       <div class="f">
         <label>
-          <input type="checkbox" checked={!!parcel.settings?.sandbox} onChange={(e: any) => setSettings('sandbox', e.target.checked)} /> Sandbox (publicly editable)
+          <input type="checkbox" checked={!!parcel.sandbox} onChange={(e: any) => set('sandbox', e.target.checked)} /> Sandbox (publicly editable)
         </label>
       </div>
 

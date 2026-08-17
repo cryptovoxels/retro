@@ -332,3 +332,12 @@ SELECT apply_migration('nfts-table', $$
     PRIMARY KEY (chain_id, contract, token_id)
   );
 $$);
+
+SELECT apply_migration('properties-sandbox-column', $$
+  ALTER TABLE properties ADD COLUMN IF NOT EXISTS sandbox boolean NOT NULL DEFAULT false;
+  CREATE INDEX IF NOT EXISTS properties_sandbox_idx ON properties (sandbox) WHERE sandbox = true;
+  UPDATE properties SET sandbox = true
+  WHERE minted = true
+    AND island = 'Obscurity'
+    AND lower(owner) = lower('0x36F1A7f48f4e7bbda9E2d8aEEfEE639cae2604bc');
+$$);

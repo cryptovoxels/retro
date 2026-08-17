@@ -83,14 +83,6 @@ export const isTestIsland = (parcel: Parcel | ParcelRef) => {
 
   return parcel.island === 'Test Island'
 }
-// parcels owned by 0x36F1A7f48f4e7bbda9E2d8aEEfEE639cae2604bc
-export const isCampusParcels = (parcel: Parcel | ParcelRef) => {
-  if (!parcel) {
-    return false
-  }
-
-  return parcel.owner.toLowerCase() === '0x36F1A7f48f4e7bbda9E2d8aEEfEE639cae2604bc'.toLowerCase()
-}
 
 export const isShellParcel = (parcel: Parcel | ParcelRef) => {
   if (!parcel) {

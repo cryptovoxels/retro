@@ -29,6 +29,7 @@ const KEYS = [
   'parcel_users',
   'is_common',
   'settings',
+  'sandbox',
 ] as const
 
 export type UserRightRole = 'owner' | 'contributor' | 'excluded'
@@ -57,6 +58,7 @@ export default class ParcelHelper {
   distance_to_closest_common: number = undefined!
   content: ParcelContentRecord | null = null
   is_common: boolean | undefined
+  sandbox: boolean | undefined
   settings: Readonly<Partial<FullParcelRecord['settings']>> | undefined = undefined
 
   static has_geometry(obj: any): boolean {
@@ -289,7 +291,7 @@ export default class ParcelHelper {
   }
 
   get isSandbox() {
-    return this.settings?.sandbox === true
+    return this.sandbox === true
   }
 }
 

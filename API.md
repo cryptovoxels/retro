@@ -45,7 +45,7 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 - [`/api/suburbs/{suburb_id}/popular.json`](#get-apisuburbssuburb_idpopularjson) The busiest parcels in a suburb
 - [`/api/wallet/{address}/parcels.json`](#get-apiwalletaddressparcelsjson) Parcels a wallet owns
 - [`/api/wallet/{address}/contributing-parcels.json`](#get-apiwalletaddresscontributing-parcelsjson) Parcels a wallet can build on but does not own
-- [`/api/sandboxes.json`](#get-apisandboxesjson) Random sandbox parcels for learning to build
+- [`/api/sandboxes.json`](#get-apisandboxesjson) All sandbox parcels for learning to build
 
 ### GET /api/parcels.json
 
@@ -347,9 +347,9 @@ Parcels a wallet can build on but does not own
 
 ### GET /api/sandboxes.json
 
-Random sandbox parcels for learning to build
+All sandbox parcels for learning to build
 
-Up to 10 parcels with settings.sandbox. Used by /build.
+Parcels with properties.sandbox = true. Used by /build.
 
 **answers**
 

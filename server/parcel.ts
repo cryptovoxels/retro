@@ -5,6 +5,7 @@ import { HTTP2WSBaseURL, isValidUrl } from '../common/helpers/utils'
 import { ParcelKind, ParcelRecord, ParcelSettings } from '../common/messages/parcel'
 import { getBufferFromVoxels, getFieldShape } from '../common/voxels/helpers'
 import { isCommonParcel, isSecurityTeamParcel, isTestIsland } from './lib/helpers'
+import log from './lib/logger'
 import { getContract, validateTokenType } from './lib/utils'
 import { ground, white } from './parcel-builder'
 import db from './pg'
@@ -46,7 +47,8 @@ const loadQuery = () => {
       label,
       p.description,
       p.owner,
-      p.settings
+      p.settings,
+      p.sandbox
     FROM
       properties p
     left join suburbs on suburbs.id = p.suburb_id
@@ -85,6 +87,7 @@ export class ParcelRef {
   parcel_users: ParcelUser[] | null
   settings: ParcelSettings
   is_common: boolean // needed for parcel_auth
+  sandbox: boolean
 
   lightmap_url: string | null
 
@@ -101,6 +104,7 @@ export class ParcelRef {
     this.settings = row.settings
     this.lightmap_url = row.lightmap_url
     this.is_common = row.is_common
+    this.sandbox = !!row.sandbox
   }
 }
 
@@ -139,10 +143,12 @@ export abstract class AbstractParcel implements ParcelRef {
   vm: any
   is_common = false
   settings!: ParcelSettings
+  sandbox = false
 
   constructor(row: any) {
     if (row) {
       Object.assign(this, row)
+      this.sandbox = !!row.sandbox
     }
   }
 
@@ -269,6 +275,7 @@ export abstract class AbstractParcel implements ParcelRef {
       is_common: this.is_common,
       visible: this.visible,
       kind: this.kind,
+      sandbox: this.sandbox,
     }
   }
 
@@ -473,7 +480,7 @@ export abstract class AbstractParcel implements ParcelRef {
     let shouldUpdateParcelScript = false
     const settings = body.settings || {}
     if ('sandbox' in body) {
-      this.settings.sandbox = !!body.sandbox
+      this.sandbox = !!body.sandbox
       shouldUpdateMeta = true
       shouldUpdateParcelScript = true
     }
@@ -517,6 +524,10 @@ export default class Parcel extends AbstractParcel {
   public override async save(options?: ParcelSaveOptions): Promise<boolean> {
     this.cleanNullFeatures()
 
+    if (this._justGotMinted) {
+      this.sandbox = true
+    }
+
     await this.createNewParcelVersion(false, options?.snapshotName)
 
     const client = await db.connect()
@@ -537,11 +548,12 @@ export default class Parcel extends AbstractParcel {
         settings = $6,
         lightmap_url = $7,
         description = $8,
+        sandbox = $9,
         updated_at = NOW()
       WHERE
-        id = $9
+        id = $10
       `,
-        [JSON.stringify(this.content), this.owner, this.minted, this.visible || this._justGotMinted, this.name, JSON.stringify(this.settings), this.lightmap_url, this.description, this.id],
+        [JSON.stringify(this.content), this.owner, this.minted, this.visible || this._justGotMinted, this.name, JSON.stringify(this.settings), this.lightmap_url, this.description, this.sandbox, this.id],
       )
 
       await client.query('COMMIT')
@@ -607,6 +619,16 @@ export default class Parcel extends AbstractParcel {
     return this.createNewParcelVersion(true)
   }
 
+  /** Overwrite named pre-edit snapshot for sandbox sessions. Fail soft. */
+  async ensureSandboxCheckpoint() {
+    try {
+      await db.query('embedded/delete-sandbox-checkpoint', `delete from property_versions where parcel_id = $1 and snapshot_name = $2`, [this.id, SANDBOX_CHECKPOINT])
+      await this.createNewParcelVersion(true, SANDBOX_CHECKPOINT)
+    } catch (e) {
+      log.error('sandbox checkpoint failed', e)
+    }
+  }
+
   // will only create a new parcel version if isSnapshot or if the parcel hasn't been changed for 30 seconds
   // If a version record is created, its snapshot_name will be set to snapshotName, or to the parcel name if that is undefined.
   private async createNewParcelVersion(isSnapshot: boolean, snapshotName?: string) {
@@ -637,7 +659,7 @@ export default class Parcel extends AbstractParcel {
       'embedded/get-parcel-full-ref',
       `select properties.id, properties.kind, properties.name, description, island, memoized_hash as hash, owner,
       (select array_to_json(array_agg(row_to_json(t))) from (select wallet,role from parcel_users where parcel_id=properties.id) t) as parcel_users,
-       is_common, suburbs.name as suburb, settings, lightmap_url from properties
+       is_common, suburbs.name as suburb, settings, lightmap_url, sandbox from properties
        left join suburbs on suburbs.id = properties.suburb_id
        where properties.id=$1`,
       [id],
@@ -715,6 +737,7 @@ export default class Parcel extends AbstractParcel {
 }
 
 const SANDBOX = 'sandbox'
+const SANDBOX_CHECKPOINT = 'sandbox-checkpoint'
 /* icon name , list of words to search, list of words to exclude (optional)*/
 const labelSets: {
   name: string

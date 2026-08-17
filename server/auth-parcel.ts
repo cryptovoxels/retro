@@ -2,7 +2,7 @@ import { ParcelAuthResult } from '../common/messages/parcel'
 import Avatar from './avatar'
 import { getERC20Balance } from './lib/ethereum-helpers'
 import ParcelUserRight from './parcel-user-right'
-import { isCampusParcels, isCommonParcel, isCVTeam, isTestIsland } from './lib/helpers'
+import { isCommonParcel, isCVTeam, isTestIsland } from './lib/helpers'
 import { countOwnedTokens_ERC721Contract, getBalanceOfToken_ERC1155Contract, getOwnerOfToken_ERC721Contract, TokenAddress } from './lib/utils'
 import db from './pg'
 import Parcel, { ParcelAuthRef, ParcelRef } from './parcel'
@@ -11,6 +11,10 @@ import { VoxelsUser } from './user'
 import { FeatureRecord } from '../common/messages/feature'
 
 export default async function authParcel(parcel: ParcelAuthRef, user: VoxelsUser | null): Promise<ParcelAuthResult> {
+  if (parcel.sandbox === true) {
+    if (!user) return 'Sandbox'
+  }
+
   const isOwnerSuspended = await Avatar.getSuspended(parcel.owner)
 
   let wallet: string | null = null
@@ -35,8 +39,6 @@ export default async function authParcel(parcel: ParcelAuthRef, user: VoxelsUser
     parcelUser = await ParcelUserRight.loadRoleFromParcelIdAndWallet(parcel.id, wallet)
   }
 
-  const isSandbox = parcel.settings?.sandbox === true
-
   if (parcelUser?.role == 'owner') {
     return 'Owner'
   } else if (isCVTeam(wallet ?? undefined)) {
@@ -53,7 +55,7 @@ export default async function authParcel(parcel: ParcelAuthRef, user: VoxelsUser
     return canEdit ? 'Suburb' : false
   } else if (user.moderator) {
     return 'Moderator'
-  } else if (isSandbox) {
+  } else if (parcel.sandbox === true) {
     return 'Sandbox'
   } else {
     return false
@@ -71,12 +73,17 @@ export type AuthFeatureResult = AuthFeatureResultSuccess | false
 
 export async function authFeature(parcelId: number, featureUuid: string, currentParcelId: number, user: VoxelsUser | null): Promise<AuthFeatureResult> {
   const parcel = await Parcel.load(parcelId)
-  if (!parcel || !user) {
+  if (!parcel) {
     return false
   }
   const feature = parcel?.getFeatureByUuid(featureUuid)
 
   if (!feature) return false
+
+  if (!user) {
+    if (parcel.sandbox) return { moderator: false, parcel, feature }
+    return false
+  }
   if (user.moderator) {
     return { moderator: true, parcel, feature }
   }

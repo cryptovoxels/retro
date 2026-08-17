@@ -64,13 +64,14 @@ export default class AddTab extends Component<Props, any> {
   }
 
   isSelectable(type: PlaceableFeatureTypes) {
-    return (type && this.props.parcel && this.count(type) >= ParcelBudget.budget(type, this.props.parcel)) || !app.signedIn // anon user cant place features
+    const onSandbox = !!(this.props.parcel as any)?.sandbox
+    return (type && this.props.parcel && this.count(type) >= ParcelBudget.budget(type, this.props.parcel)) || (!app.signedIn && !onSandbox)
   }
 
   metaText(type: PlaceableFeatureTypes) {
     const used = this.props.parcel?.budget.count(type)
 
-    const copy = this.isNotAvailable(type) ? 'This feature is not available in sandbox' : `${used}/${this.props.parcel?.budget.remaining(type)}`
+    const copy = this.isNotAvailable(type) ? 'Not available on this parcel' : `${used}/${this.props.parcel?.budget.remaining(type)}`
     return <span class="meta">{copy}</span>
   }
 

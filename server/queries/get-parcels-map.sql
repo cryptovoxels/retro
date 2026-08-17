@@ -8,6 +8,7 @@ select properties.id as id,
        (select array_to_json(array_agg(row_to_json(t)))
         from (select wallet, role from parcel_users where parcel_id = properties.id) t) as parcel_users,
        properties.settings,
+       properties.sandbox,
        island,
        geometry_json as geometry,
        COALESCE(

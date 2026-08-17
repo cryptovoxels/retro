@@ -18,6 +18,5 @@ select properties.id as id,
        properties.z1,
        properties.z2
 from properties
-where (settings->>'sandbox') = 'true'
-order by random() limit
-  10;
+where sandbox = true
+order by name nulls last, id;

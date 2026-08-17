@@ -4,7 +4,7 @@ import { onDragStart } from '../dialog'
 interface Props {
   onClose?: () => void
   scene: BABYLON.Scene
-  onShowScratchpadGuide?: () => void
+  onShowSandboxGuide?: () => void
 }
 
 export class HelpOverlay extends Component<Props> {
@@ -19,7 +19,7 @@ export class HelpOverlay extends Component<Props> {
   }
 
   render() {
-    const showScratchpadHelp = new URLSearchParams(location.search).get('learn') === 'true'
+    const showSandboxHelp = new URLSearchParams(location.search).get('learn') === 'true'
     return (
       <section class="help-overlay">
         <h2>Help</h2>
@@ -126,7 +126,7 @@ export class HelpOverlay extends Component<Props> {
           <b>Right Click</b> in world to edit existing content.
         </p>
 
-        {showScratchpadHelp && (
+        {showSandboxHelp && (
           <>
             <h2>Learn voxels: build, delete, paint</h2>
             <p>
@@ -135,7 +135,7 @@ export class HelpOverlay extends Component<Props> {
             <p>
               The mouse locks while you build. Press <b>Escape</b> to release it and use the toolbelt.
             </p>
-            <ol class="scratchpad-help-steps">
+            <ol class="sandbox-help-steps">
               <li>
                 <b>Build</b> -- click one block, or drag a wall.
               </li>
@@ -153,12 +153,12 @@ export class HelpOverlay extends Component<Props> {
             <p>
               Open <b>Add</b> or press <b>Tab</b> to browse features: signs, images, video, showboxes, portals, and the rest.
             </p>
-            <p class="scratchpad-help-outro">
+            <p class="sandbox-help-outro">
               Pick a sandbox from <a href="/build">/build</a>, then grab a parcel in the <a href="/shop">shop</a>.
             </p>
-            {this.props.onShowScratchpadGuide && (
+            {this.props.onShowSandboxGuide && (
               <p>
-                <button type="button" class="linkish" onClick={this.props.onShowScratchpadGuide}>
+                <button type="button" class="linkish" onClick={this.props.onShowSandboxGuide}>
                   start over
                 </button>
               </p>

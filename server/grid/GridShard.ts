@@ -1,6 +1,6 @@
 import { performance } from 'perf_hooks'
 import { authFeature, authParcelByNFT } from '../auth-parcel'
-import { ParcelAuthRef } from '../parcel'
+import Parcel, { ParcelAuthRef } from '../parcel'
 import log from '../lib/logger'
 import { sendNerfLogToSlack } from '../jobs/send-slack-log'
 import {
@@ -25,6 +25,7 @@ import { VoxelsUser } from '../user'
 type StatefulGridClient = GridClient & {
   parcelSubscriptions: Set<number>
   lastSeen: number
+  sandboxCheckpoints: Set<number>
 }
 
 export default class GridShard {
@@ -119,6 +120,7 @@ export default class GridShard {
     const statefulClient: StatefulGridClient = {
       ...client,
       parcelSubscriptions: new Set(),
+      sandboxCheckpoints: new Set(),
       lastSeen: performance.now(),
     }
 
@@ -298,10 +300,17 @@ export default class GridShard {
       return
     }
 
-    if (!client.user && 'features' in msg.patch) {
+    if (!client.user && 'features' in msg.patch && !parcel.sandbox) {
       this.sendPatchError(client, msg, 'Incorrect permissions')
       log.warn('user tried to patch a parcel without correct permissions')
       return
+    }
+
+    if (parcel.sandbox && authResult === 'Sandbox' && !client.sandboxCheckpoints.has(msg.parcelId)) {
+      client.sandboxCheckpoints.add(msg.parcelId)
+      if (parcel instanceof Parcel) {
+        await parcel.ensureSandboxCheckpoint()
+      }
     }
 
     const hadLightmap = !!parcel.lightmap_url

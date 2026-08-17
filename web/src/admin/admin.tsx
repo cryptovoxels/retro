@@ -2,8 +2,9 @@ import { useState } from 'preact/hooks'
 import { app } from '../state'
 import Owned from './owned'
 import Unminted from './unminted'
+import SandboxesAdmin from './sandboxes'
 
-type Tab = 'mint' | 'list'
+type Tab = 'mint' | 'list' | 'sandbox'
 
 export default function Admin(_props: { path?: string }) {
   const [tab, setTab] = useState<Tab>('mint')
@@ -27,10 +28,14 @@ export default function Admin(_props: { path?: string }) {
         <button class={tab === 'list' ? 'active' : ''} onClick={() => setTab('list')}>
           list
         </button>
+        <button class={tab === 'sandbox' ? 'active' : ''} onClick={() => setTab('sandbox')}>
+          sandbox
+        </button>
       </nav>
 
       {tab === 'mint' && <Unminted />}
       {tab === 'list' && <Owned />}
+      {tab === 'sandbox' && <SandboxesAdmin />}
     </section>
   )
 }

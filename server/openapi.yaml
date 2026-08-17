@@ -1689,8 +1689,8 @@ paths:
     get:
       operationId: listSandboxes
       tags: [parcels]
-      summary: Random sandbox parcels for learning to build
-      description: Up to 10 parcels with settings.sandbox. Used by /build.
+      summary: All sandbox parcels for learning to build
+      description: Parcels with properties.sandbox = true. Used by /build.
       responses:
         '200':
           description: ok

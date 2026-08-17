@@ -38,7 +38,8 @@ select p.id,
        p.settings,
        p.island,
        p.kind as kind,
-       p.minted as minted
+       p.minted as minted,
+       p.sandbox as sandbox
 from properties p
          left join suburbs on suburbs.id = p.suburb_id
 where p.id = $1

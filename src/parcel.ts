@@ -378,7 +378,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   get sandbox() {
-    return !!this.settings.sandbox
+    return !!this.summary.sandbox
   }
 
   get hostedScripts() {
@@ -664,6 +664,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.parcel_users = meta.parcel_users || []
     this.settings = meta.settings || {}
     this.lightmap_url = meta.lightmap_url || null
+    ;(this.summary as any).sandbox = !!(meta as any).sandbox
   }
 
   /**

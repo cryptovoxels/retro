@@ -14,6 +14,7 @@ export interface ParcelData {
   z1: number
   z2: number
   is_common?: boolean
+  sandbox?: boolean
   settings?: any
   owner?: any
   parcel_users?: any
@@ -106,7 +107,7 @@ export class MapParcel {
   ) {
     this.data = data
     this.mother = mother
-    this.sandbox = data.settings?.sandbox ?? false
+    this.sandbox = data.sandbox ?? false
     this.isCommons = data.is_common ?? false
     this.setMesh(mother)
   }
@@ -235,7 +236,7 @@ const fetchCachedParcels = (url: string, cachebust = false): Promise<SingleParce
 
 export function pickParcelMesh(data: ParcelData, meshes: ReturnType<typeof createBaseMeshes>, wallet?: string) {
   if (data.is_common) return meshes.common
-  if (data.settings?.sandbox) return meshes.sandbox
+  if (data.sandbox) return meshes.sandbox
   if (wallet) {
     const help = getParcelHelper(data as any)
     if (help.isOwner(wallet)) return meshes.owner
