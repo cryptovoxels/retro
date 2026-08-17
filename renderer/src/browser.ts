@@ -2,7 +2,7 @@
 
 import { chromium, type Browser, type Page } from 'playwright'
 
-const HOLD_MS = 25_000
+const HOLD_MS = 60_000
 const MAX_QUEUE = 8
 const BG = '#e0e0e0'
 const SIZE = 512
@@ -19,19 +19,38 @@ export function setPageBase(url: string) {
   pageBase = url.replace(/\/$/, '')
 }
 
+/** Launch Chromium + load babylon page early so the first request is not cold. */
+export async function warmBrowser() {
+  try {
+    await ensurePage()
+    console.log('[renderer] browser warm')
+  } catch (e) {
+    console.error('[renderer] browser warm failed', e)
+  }
+}
+
 async function ensurePage() {
   if (!pageBase) throw new Error('page base not set')
   if (page && !page.isClosed()) return page
   if (!browser || !browser.isConnected()) {
     browser = await chromium.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-dev-shm-usage'],
+      args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--use-gl=swiftshader'],
     })
   }
   page = await browser.newPage()
-  await page.goto(`${pageBase}/page/index.html`, { waitUntil: 'load', timeout: 60_000 })
-  await page.waitForFunction(() => (window as any).__renderReady === true, null, { timeout: 60_000 })
+  await page.goto(`${pageBase}/page/index.html`, { waitUntil: 'load', timeout: 90_000 })
+  await page.waitForFunction(() => (window as any).__renderReady === true, null, { timeout: 90_000 })
   return page
+}
+
+async function resetPage() {
+  try {
+    await page?.close()
+  } catch {
+    // ignore
+  }
+  page = null
 }
 
 function enqueue<T>(fn: () => Promise<T>): Promise<T> {
@@ -74,20 +93,24 @@ export function renderWearable(uuid: string, vox: Buffer): Promise<Buffer> {
 
   const p = enqueue(async () => {
     const work = renderOnce(vox)
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const timeoutP = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => {
+        const err: any = new Error('render timed out')
+        err.code = 'TIMEOUT'
+        reject(err)
+      }, HOLD_MS)
+    })
+    // Prevent orphan timeout reject from becoming an unhandledRejection (process crash).
+    timeoutP.catch(() => {})
     try {
-      return await Promise.race([
-        work,
-        new Promise<never>((_, reject) => {
-          setTimeout(() => {
-            const err: any = new Error('render timed out')
-            err.code = 'TIMEOUT'
-            reject(err)
-          }, HOLD_MS)
-        }),
-      ])
-    } catch (e) {
+      return await Promise.race([work, timeoutP])
+    } catch (e: any) {
       await work.catch(() => {})
+      if (e?.code === 'TIMEOUT') await resetPage()
       throw e
+    } finally {
+      if (timer) clearTimeout(timer)
     }
   }).finally(() => {
     inflight.delete(uuid)

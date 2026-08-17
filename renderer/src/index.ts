@@ -6,7 +6,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 import { loadWearableVox } from './db'
 import { hasWearableThumb, uploadWearableThumb, wearableCdnUrl } from './s3'
-import { closeBrowser, renderWearable, setPageBase } from './browser'
+import { closeBrowser, renderWearable, setPageBase, warmBrowser } from './browser'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -73,6 +73,7 @@ app.use('/renderer/page', express.static(path.join(__dirname, '../page')))
 const server = app.listen(port, () => {
   setPageBase(`http://127.0.0.1:${port}`)
   console.log(`renderer listening on ${port}`)
+  void warmBrowser()
 })
 
 async function shutdown() {
@@ -83,3 +84,11 @@ async function shutdown() {
 
 process.on('SIGTERM', shutdown)
 process.on('SIGINT', shutdown)
+
+// Never let a stray promise kill the service (DO restarts loop).
+process.on('unhandledRejection', (err) => {
+  console.error('[renderer] unhandledRejection', err)
+})
+process.on('uncaughtException', (err) => {
+  console.error('[renderer] uncaughtException', err)
+})
