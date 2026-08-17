@@ -5,13 +5,8 @@ import express from 'express'
 import path from 'path'
 import { fileURLToPath } from 'url'
 import { loadWearableVox } from './db'
-<<<<<<< HEAD
-import { hasWearableThumb, uploadWearableThumb, wearableCdnUrl } from './s3'
-import { closeBrowser, renderWearable, setPageBase, warmBrowser } from './browser'
-=======
 import { hasWearableThumb, ugcConfigured, uploadWearableThumb, wearableCdnUrl } from './s3'
-import { closeBrowser, renderWearable, setPageBase, startBrowser } from './browser'
->>>>>>> 0157202 (Renderer: warm Chromium on boot, fix page global, serve webp without UGC.)
+import { closeBrowser, renderWearable, setPageBase, warmBrowser } from './browser'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -83,11 +78,7 @@ app.use('/renderer/page', express.static(path.join(__dirname, '../page')))
 const server = app.listen(port, () => {
   setPageBase(`http://127.0.0.1:${port}`)
   console.log(`renderer listening on ${port}`)
-<<<<<<< HEAD
   void warmBrowser()
-=======
-  void startBrowser().catch((e) => console.error('[renderer] chromium start failed', e))
->>>>>>> 0157202 (Renderer: warm Chromium on boot, fix page global, serve webp without UGC.)
 })
 
 async function shutdown() {
