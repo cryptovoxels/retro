@@ -1,7 +1,8 @@
 import { createClient } from 'redis'
 import type { Express } from 'express'
+import { tracks } from '../../common/soundtracks'
 import { Db } from '../pg'
-import { buildSchedule, clip, generateSpot, Schedule, utcDay } from '../lib/radio'
+import { buildSchedule, buildSpots, clip, generateSpot, parseChannel, RadioChannel, sampleWorldTracks, Schedule, utcDay } from '../lib/radio'
 
 const CHANNEL = 'radio:updates'
 const DAY = 86400
@@ -9,15 +10,19 @@ const WINDOW = 300 // generate spots airing within the next 5 minutes
 const PAST = 3600 // ...and backfill ones that aired in the last hour (so the list has history)
 // v2: bumping this abandons all old cached spot state (and its stale CDN audio) - fresh slate.
 const HASH = (day: number) => `radio:spots:v2:${day}`
+const WORLD_KEY = (day: number) => `radio:world:v1:${day}`
+
+type Client = { res: any; channel: RadioChannel }
 
 // Voxels Radio over SSE - same playbook as radar.ts / livekit.ts. The server
 // generates near-future DJ spots (only while someone's tuned in), stores their
 // state in redis, and republishes the whole playlist so every client gets the
 // new spot names instantly.
 export default function RadioController(db: Db, app: Express) {
-  const sseClients = new Set<any>()
+  const sseClients = new Set<Client>()
   let pub: ReturnType<typeof createClient> | null = null
   let busy = false
+  let worldBusy = false
 
   async function spotStates(day: number): Promise<Record<string, { url: string; summary: string; parcelId?: number }>> {
     if (!pub) return {}
@@ -35,9 +40,48 @@ export default function RadioController(db: Db, app: Express) {
     }
   }
 
+  async function worldTracks(day: number) {
+    if (!pub) return sampleWorldTracks(db, day)
+    try {
+      const cached = await pub.get(WORLD_KEY(day))
+      if (cached) {
+        try {
+          return JSON.parse(cached)
+        } catch {}
+      }
+      if (worldBusy) return []
+      worldBusy = true
+      try {
+        const lock = await pub.set(`radio:world:build:${day}`, '1', { NX: true, EX: 120 })
+        if (!lock) {
+          // another server building - wait briefly for cache
+          for (let i = 0; i < 20; i++) {
+            await new Promise((r) => setTimeout(r, 500))
+            const again = await pub.get(WORLD_KEY(day))
+            if (again) {
+              try {
+                return JSON.parse(again)
+              } catch {}
+            }
+          }
+          return []
+        }
+        const list = await sampleWorldTracks(db, day)
+        await pub.set(WORLD_KEY(day), JSON.stringify(list), { EX: 2 * DAY })
+        return list
+      } finally {
+        worldBusy = false
+      }
+    } catch (e: any) {
+      console.error('radio world cache', e?.toString?.() ?? e)
+      return []
+    }
+  }
+
   // deterministic schedule with generated spot urls/summaries overlaid from redis
-  async function snapshot(day: number): Promise<Schedule> {
-    const sched = buildSchedule(day)
+  async function snapshot(day: number, channel: RadioChannel): Promise<Schedule> {
+    const list = channel === 'world' ? await worldTracks(day) : tracks
+    const sched = buildSchedule(day, list.length ? list : tracks, channel)
     const states = await spotStates(day)
     for (const spot of sched.spots) {
       const st = states[spot.id]
@@ -51,10 +95,23 @@ export default function RadioController(db: Db, app: Express) {
   }
 
   async function pushSnapshot() {
-    const snap = await snapshot(utcDay())
-    const line = JSON.stringify({ type: 'snapshot', schedule: snap })
-    if (pub) pub.publish(CHANNEL, line)
-    else sseClients.forEach((r) => fan(r, line))
+    const day = utcDay()
+    for (const channel of ['soundtrack', 'world'] as RadioChannel[]) {
+      // only build world if someone is tuned to it
+      if (channel === 'world' && ![...sseClients].some((c) => c.channel === 'world')) continue
+      const snap = await snapshot(day, channel)
+      const line = JSON.stringify({ type: 'snapshot', channel, schedule: snap })
+      if (pub) pub.publish(CHANNEL, line)
+      else {
+        const data = `data: ${line}\n\n`
+        for (const c of sseClients) {
+          if (c.channel !== channel) continue
+          try {
+            c.res.write(data)
+          } catch {}
+        }
+      }
+    }
   }
 
   // generate any spots about to air; cross-server safe via a per-spot lock
@@ -64,7 +121,7 @@ export default function RadioController(db: Db, app: Express) {
     try {
       const day = utcDay()
       const now = Date.now() / 1000
-      for (const spot of buildSchedule(day).spots) {
+      for (const spot of buildSpots(day)) {
         const until = day * DAY + spot.atOffset - now
         if (until > WINDOW || until < -PAST) continue // next 5 min + last hour only
         if (await pub.hExists(HASH(day), spot.id)) continue
@@ -94,12 +151,17 @@ export default function RadioController(db: Db, app: Express) {
       pub = client
 
       sub.subscribe(CHANNEL, (msg) => {
-        const line = `data: ${msg}\n\n`
-        sseClients.forEach((r) => {
-          try {
-            r.write(line)
-          } catch {}
-        })
+        try {
+          const parsed = JSON.parse(msg)
+          const ch = parseChannel(parsed.channel)
+          const line = `data: ${msg}\n\n`
+          for (const c of sseClients) {
+            if (c.channel !== ch) continue
+            try {
+              c.res.write(line)
+            } catch {}
+          }
+        } catch {}
       })
 
       // tick while anyone's listening: top up the next spots, then rebroadcast
@@ -115,26 +177,22 @@ export default function RadioController(db: Db, app: Express) {
   })()
 
   app.get('/api/radio/live', async (req, res) => {
+    const channel = parseChannel(req.query.channel)
     res.setHeader('Content-Type', 'text/event-stream')
     res.setHeader('Cache-Control', 'no-cache')
     res.setHeader('Connection', 'keep-alive')
     res.flushHeaders()
 
-    const snap = await snapshot(utcDay())
-    res.write(`data: ${JSON.stringify({ type: 'snapshot', schedule: snap })}\n\n`)
+    const snap = await snapshot(utcDay(), channel)
+    res.write(`data: ${JSON.stringify({ type: 'snapshot', channel, schedule: snap })}\n\n`)
 
-    sseClients.add(res)
-    req.on('close', () => sseClients.delete(res))
+    const client: Client = { res, channel }
+    sseClients.add(client)
+    req.on('close', () => sseClients.delete(client))
 
     // first listener kicks generation so the next spot is ready in time
     generatePass()
       .then(() => pushSnapshot())
       .catch(() => {})
   })
-}
-
-function fan(res: any, line: string) {
-  try {
-    res.write(`data: ${line}\n\n`)
-  } catch {}
 }

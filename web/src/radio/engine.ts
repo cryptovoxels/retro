@@ -3,6 +3,8 @@ import { isIOS, isTablet } from '../../../common/helpers/detector'
 
 const appleTouch = () => isIOS() || isTablet()
 
+export type RadioChannel = 'soundtrack' | 'world'
+
 // Mirrors server/lib/radio.ts output (kept local: that lib is server-only).
 export interface Segment extends Track {
   startsAt: number
@@ -19,6 +21,7 @@ export interface Schedule {
   utcDay: number
   daySeconds: number
   musicUri: string
+  channel?: RadioChannel
   segments: Segment[]
   spots: Spot[]
 }
@@ -56,6 +59,20 @@ function num(key: string, def: number): number {
 function save(key: string, v: number) {
   try {
     localStorage.setItem(key, String(v))
+  } catch {}
+}
+
+function loadChannel(): RadioChannel {
+  try {
+    return localStorage.getItem('radio.channel') === 'world' ? 'world' : 'soundtrack'
+  } catch {
+    return 'soundtrack'
+  }
+}
+
+function saveChannel(ch: RadioChannel) {
+  try {
+    localStorage.setItem('radio.channel', ch)
   } catch {}
 }
 
@@ -153,6 +170,8 @@ export class VoxelRadioEngine {
   spotDucked = false
 
   muted = false
+  duckTitle: string | null = null
+  channel: RadioChannel = 'soundtrack'
   onAir = false
   onChange: (() => void) | null = null
 
@@ -412,6 +431,9 @@ export class VoxelRadioEngine {
   private loadSettings() {
     this.setTrackVolume(num('radio.track', 1))
     this.setSpotVolume(num('radio.spot', 1))
+    this.channel = loadChannel()
+    this.muted = num('radio.muted', 0) === 1
+    this.master.gain.value = this.muted ? 0 : 1
     this.chain = loadChain()
     this.fx = { eq: 0, wob: 0, dly: 0, chp: 0 }
     for (const id of PEDALS) this.applyPedal(id, 0)
@@ -509,6 +531,7 @@ export class VoxelRadioEngine {
   }
 
   get title() {
+    if (this.userDucked && this.duckTitle) return this.duckTitle
     return this.track ? trackTitle(this.track) : ''
   }
 
@@ -540,12 +563,34 @@ export class VoxelRadioEngine {
       window.addEventListener('pointerdown', resume, { passive: true })
       window.addEventListener('keydown', resume, { passive: true })
     }
+    this.connectLive()
+  }
 
-    this.es = new EventSource('/api/radio/live')
+  setChannel(ch: RadioChannel) {
+    if (ch === this.channel) return
+    this.channel = ch
+    saveChannel(ch)
+    this.started = false
+    this.schedule = null
+    this.played.clear()
+    this.spots.clear()
+    if (this.next) clearTimeout(this.next)
+    this.next = null
+    this.teardownTrack()
+    this.connectLive()
+    this.onChange?.()
+  }
+
+  private connectLive() {
+    this.es?.close()
+    this.es = new EventSource(`/api/radio/live?channel=${this.channel}`)
     this.es.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data)
-        if (msg.type === 'snapshot') this.applySchedule(msg.schedule)
+        if (msg.type === 'snapshot') {
+          if (msg.channel && msg.channel !== this.channel) return
+          this.applySchedule(msg.schedule)
+        }
       } catch {}
     }
   }
@@ -555,7 +600,7 @@ export class VoxelRadioEngine {
     if (!this.started) {
       this.started = true
       this.sync()
-      this.watch = setInterval(() => this.tickSpots(), 2000)
+      if (!this.watch) this.watch = setInterval(() => this.tickSpots(), 2000)
     }
     this.onChange?.()
   }
@@ -576,10 +621,12 @@ export class VoxelRadioEngine {
     this.teardownTrack()
 
     const file = !canOpus() && seg.fallback ? seg.fallback : seg.fileName
+    const base = this.schedule?.musicUri || MUSIC_URI
+    const src = seg.url || `${base}/${file}`
     const el = document.createElement('audio')
     el.crossOrigin = 'anonymous'
     el.preload = 'auto'
-    el.src = `${MUSIC_URI}/${file}`
+    el.src = src
     el.style.display = 'none'
     document.body.appendChild(el)
 
@@ -614,7 +661,7 @@ export class VoxelRadioEngine {
     el.addEventListener(
       'error',
       () => {
-        console.error('[radio] track load failed', file)
+        console.error('[radio] track load failed', src)
         this.onChange?.()
       },
       { once: true },
@@ -708,18 +755,23 @@ export class VoxelRadioEngine {
     this.duckGain.gain.setTargetAtTime(target, this.ctx.currentTime, 0.2)
   }
 
-  duck() {
+  duck(title?: string | null) {
     this.userDucked = true
+    this.duckTitle = title || null
     this.applyDuck()
+    this.onChange?.()
   }
 
   unduck() {
     this.userDucked = false
+    this.duckTitle = null
     this.applyDuck()
+    this.onChange?.()
   }
 
   toggle() {
     this.muted = !this.muted
+    save('radio.muted', this.muted ? 1 : 0)
     this.master.gain.setTargetAtTime(this.muted ? 0 : 1, this.ctx.currentTime, 0.05)
     if (!this.muted) this.wake()
     this.onChange?.()
