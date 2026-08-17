@@ -1,8 +1,8 @@
 import { Component } from 'preact'
 import ParcelHelper from '../../common/helpers/parcel-helper'
-import { SANDBOX_LEARN_STEPS } from '../../src/ui/sandbox-guide'
 import cachedFetch from './helpers/cached-fetch'
 import { loadingBox } from './components/loading-icon'
+import { getCoords, naviportHere } from './helpers/coords-nav'
 
 type SandboxRow = Partial<ConstructorParameters<typeof ParcelHelper>[0]> & { id: number; name?: string; address?: string; suburb?: string }
 
@@ -12,7 +12,7 @@ interface State {
   error: string | null
 }
 
-/** Sidebar for /build: learn copy + full sandbox list */
+/** Sidebar for /build: full sandbox list (learn checklist is in-world) */
 export default class SandboxesAside extends Component<{}, State> {
   state: State = { sandboxes: [], loading: true, error: null }
 
@@ -23,30 +23,42 @@ export default class SandboxesAside extends Component<{}, State> {
         this.setState({ sandboxes: r.sandboxes || [], loading: false, error: null })
       })
       .catch(() => this.setState({ loading: false, error: 'failed to load sandboxes' }))
+
+    window.addEventListener('urlchange', this.onUrl)
+    window.addEventListener('popstate', this.onUrl)
+  }
+
+  componentWillUnmount() {
+    window.removeEventListener('urlchange', this.onUrl)
+    window.removeEventListener('popstate', this.onUrl)
+  }
+
+  onUrl = () => this.forceUpdate()
+
+  pick = (e: Event, row: SandboxRow) => {
+    e.preventDefault()
+    const h = new ParcelHelper(row as any)
+    if (location.pathname === '/build') {
+      naviportHere(h.centerLocation)
+      return
+    }
+    location.href = `/build?coords=${h.centerLocation}`
   }
 
   render() {
     const { sandboxes, loading, error } = this.state
+    const current = getCoords()
+    const active = sandboxes.find((row) => new ParcelHelper(row as any).centerLocation === current)
+    const title = active ? active.name || active.address || `parcel ${active.id}` : 'Build'
 
     return (
       <div>
-        <h2>learn to build</h2>
-        <ol>
-          {SANDBOX_LEARN_STEPS.map((step) => (
-            <li>
-              <b>{step.label}</b>
-              <div>{step.hint}</div>
-              {'shop' in step && step.shop && (
-                <div>
-                  <a href="/shop">get a parcel in the shop</a>
-                </div>
-              )}
-            </li>
-          ))}
-        </ol>
+        <header>
+          <h1>{title}</h1>
+          <p>anyone can edit. follow the checklist in the world.</p>
+        </header>
 
         <h2>sandboxes</h2>
-        <p>anyone can edit these. pick one and start building.</p>
 
         {loading && loadingBox()}
         {error && <p>{error}</p>}
@@ -55,11 +67,14 @@ export default class SandboxesAside extends Component<{}, State> {
         <ul>
           {sandboxes.map((row) => {
             const h = new ParcelHelper(row as any)
-            const href = `/play?coords=${h.centerLocation}`
+            const coords = h.centerLocation
             const label = row.name || row.address || `parcel ${row.id}`
+            const isActive = current === coords
             return (
               <li>
-                <a href={href}>{label}</a>
+                <a href={`/build?coords=${coords}`} class={isActive ? 'active' : undefined} onClick={(e) => this.pick(e, row)}>
+                  {label}
+                </a>
                 {(row.suburb || row.address) && <span> — {[row.suburb, row.address].filter(Boolean).join(', ')}</span>}
               </li>
             )

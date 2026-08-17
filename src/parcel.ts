@@ -172,6 +172,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.geometry = record.geometry
     this.settings = record.settings || {}
 
+    this.summary = record
     this.autobuild()
 
     this.updateMeta(record)
@@ -253,7 +254,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     const r = record as ParcelRecord & { bouncerShouldAllowUser?: any }
     r.bouncerShouldAllowUser && this.parcelBouncer.handleNFTAuth(!!r.bouncerShouldAllowUser)
     delete (record as ParcelRecord & { bouncerShouldAllowUser?: boolean }).bouncerShouldAllowUser
-    this.summary = record
 
     // Use pre-computed field if provided (from grid-worker)
     if (precomputedField) {
