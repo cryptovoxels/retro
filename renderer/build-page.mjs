@@ -13,6 +13,7 @@ await esbuild.build({
   platform: 'browser',
   format: 'iife',
   target: ['chrome120'],
+  define: { global: 'globalThis' },
   logLevel: 'info',
 })
 

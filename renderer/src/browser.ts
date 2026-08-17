@@ -22,8 +22,15 @@ export function setPageBase(url: string) {
 /** Launch Chromium + load babylon page early so the first request is not cold. */
 export async function warmBrowser() {
   try {
-    await ensurePage()
-    console.log('[renderer] browser warm')
+    console.log('[renderer] ensurePage: start')
+    const p = await ensurePage()
+    const about = await p.evaluate(() => ({
+      userAgent: navigator.userAgent,
+      vendor: navigator.vendor,
+      platform: navigator.platform,
+      language: navigator.language,
+    }))
+    console.log('[renderer] chromium', browser?.version(), about)
   } catch (e) {
     console.error('[renderer] browser warm failed', e)
   }
@@ -33,14 +40,24 @@ async function ensurePage() {
   if (!pageBase) throw new Error('page base not set')
   if (page && !page.isClosed()) return page
   if (!browser || !browser.isConnected()) {
+    console.log('[renderer] ensurePage: launching chromium')
     browser = await chromium.launch({
       headless: true,
       args: ['--no-sandbox', '--disable-dev-shm-usage', '--disable-gpu', '--use-gl=swiftshader'],
     })
+    console.log('[renderer] ensurePage: launched', browser.version())
   }
   page = await browser.newPage()
-  await page.goto(`${pageBase}/page/index.html`, { waitUntil: 'load', timeout: 90_000 })
+  page.on('pageerror', (e) => console.error('[renderer] pageerror', e.message))
+  page.on('console', (m) => {
+    if (m.type() === 'error') console.error('[renderer] page', m.text())
+  })
+  const url = `${pageBase}/page/index.html`
+  console.log('[renderer] ensurePage: goto', url)
+  await page.goto(url, { waitUntil: 'load', timeout: 90_000 })
+  console.log('[renderer] ensurePage: waiting __renderReady')
   await page.waitForFunction(() => (window as any).__renderReady === true, null, { timeout: 90_000 })
+  console.log('[renderer] ensurePage: ready')
   return page
 }
 

@@ -19,6 +19,10 @@ function client() {
   })
 }
 
+export function ugcConfigured() {
+  return !!(process.env.UGC_ACCESS && process.env.UGC_SECRET)
+}
+
 export function wearableCdnUrl(uuid: string) {
   return wearableThumbUrl(uuid)
 }
