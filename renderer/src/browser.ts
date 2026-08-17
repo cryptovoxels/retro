@@ -36,9 +36,23 @@ export async function warmBrowser() {
   }
 }
 
+async function pageIsReady(p: Page) {
+  try {
+    return await p.evaluate(() => typeof (window as any).renderVoxThumb === 'function')
+  } catch {
+    return false
+  }
+}
+
 async function ensurePage() {
   if (!pageBase) throw new Error('page base not set')
-  if (page && !page.isClosed()) return page
+
+  if (page && !page.isClosed()) {
+    if (await pageIsReady(page)) return page
+    console.log('[renderer] ensurePage: cached page not ready, resetting')
+    await resetPage()
+  }
+
   if (!browser || !browser.isConnected()) {
     console.log('[renderer] ensurePage: launching chromium')
     browser = await chromium.launch({
@@ -47,18 +61,24 @@ async function ensurePage() {
     })
     console.log('[renderer] ensurePage: launched', browser.version())
   }
-  page = await browser.newPage()
-  page.on('pageerror', (e) => console.error('[renderer] pageerror', e.message))
-  page.on('console', (m) => {
-    if (m.type() === 'error') console.error('[renderer] page', m.text())
-  })
-  const url = `${pageBase}/page/index.html`
-  console.log('[renderer] ensurePage: goto', url)
-  await page.goto(url, { waitUntil: 'load', timeout: 90_000 })
-  console.log('[renderer] ensurePage: waiting __renderReady')
-  await page.waitForFunction(() => (window as any).__renderReady === true, null, { timeout: 90_000 })
-  console.log('[renderer] ensurePage: ready')
-  return page
+
+  try {
+    page = await browser.newPage()
+    page.on('pageerror', (e) => console.error('[renderer] pageerror', e.message))
+    page.on('console', (m) => {
+      if (m.type() === 'error') console.error('[renderer] page', m.text())
+    })
+    const url = `${pageBase}/page/index.html`
+    console.log('[renderer] ensurePage: goto', url)
+    await page.goto(url, { waitUntil: 'load', timeout: 90_000 })
+    console.log('[renderer] ensurePage: waiting renderVoxThumb')
+    await page.waitForFunction(() => typeof (window as any).renderVoxThumb === 'function', null, { timeout: 90_000 })
+    console.log('[renderer] ensurePage: ready')
+    return page
+  } catch (e) {
+    await resetPage()
+    throw e
+  }
 }
 
 async function resetPage() {
@@ -124,7 +144,7 @@ export function renderWearable(uuid: string, vox: Buffer): Promise<Buffer> {
       return await Promise.race([work, timeoutP])
     } catch (e: any) {
       await work.catch(() => {})
-      if (e?.code === 'TIMEOUT') await resetPage()
+      await resetPage()
       throw e
     } finally {
       if (timer) clearTimeout(timer)
