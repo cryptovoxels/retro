@@ -1685,14 +1685,12 @@ paths:
         '400':
           $ref: '#/components/responses/Failure'
 
-  /api/spaces.json:
+  /api/sandboxes.json:
     get:
-      operationId: listSpaces
-      tags: [spaces]
-      summary: Browsable spaces
-      description: A space is a build that is not pinned to a parcel. Womps can be taken in one.
-      parameters:
-        - $ref: '#/components/parameters/OneBasedPage'
+      operationId: listSandboxes
+      tags: [parcels]
+      summary: Random sandbox parcels for learning to build
+      description: Up to 10 parcels with settings.sandbox. Used by /build.
       responses:
         '200':
           description: ok
@@ -1703,7 +1701,7 @@ paths:
                 properties:
                   success:
                     type: boolean
-                  spaces:
+                  sandboxes:
                     type: array
                     items:
                       type: object
@@ -1712,8 +1710,8 @@ paths:
     get:
       operationId: getSpace
       tags: [spaces]
-      summary: One space with its content
-      description: A malformed uuid throws inside the handler and comes back as a 400.
+      summary: Archived space JSON download
+      description: Spaces are deprecated. This returns the archived content for download. A malformed uuid throws inside the handler and comes back as a 400.
       parameters:
         - name: id
           in: path
@@ -1740,7 +1738,8 @@ paths:
     get:
       operationId: getSpacesByOwner
       tags: [spaces]
-      summary: Spaces a wallet owns
+      summary: Archived spaces a wallet owns
+      description: Spaces are deprecated. List is for archive download links only.
       parameters:
         - $ref: '#/components/parameters/WalletAddress'
         - $ref: '#/components/parameters/OneBasedPage'

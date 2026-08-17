@@ -551,21 +551,15 @@ export default abstract class Controls implements IControls {
     }
 
     this.groundReady = false
-    //TODO: Instead of switching on environment type here, this logic should probably be moved into methods in SpaceEnvironment and WorldEnvironment that override an abstract Environment method
-    if (window.config.isSpace) {
-      // Spaces always contain exactly one Parcel with ID 0
-      this.floorParcels = [0]
-    } else {
-      if (!this.grid) {
-        throw new Error('invalidateGroundLoaded() called before attachEnvironment()!')
-      }
-
-      // The main thread doesn't keep a complete list of parcels, so we need to wait for the grid worker to tell us the definitive set of parcels containing the camera.
-      this.floorParcels = null
-      this.grid.queryParcelsAtPosition(this.camera.position).then((parcelIds) => {
-        this.floorParcels = parcelIds
-      })
+    if (!this.grid) {
+      throw new Error('invalidateGroundLoaded() called before attachEnvironment()!')
     }
+
+    // The main thread doesn't keep a complete list of parcels, so we need to wait for the grid worker to tell us the definitive set of parcels containing the camera.
+    this.floorParcels = null
+    this.grid.queryParcelsAtPosition(this.camera.position).then((parcelIds) => {
+      this.floorParcels = parcelIds
+    })
 
     window.environment.invalidateGroundLoaded()
   }
@@ -810,11 +804,6 @@ export default abstract class Controls implements IControls {
   }
 
   getCoords() {
-    if (window.config.isSpace) {
-      // if we're in a space, we use create coordinates based on the camera position since Spaces are centered at 0,0,0
-      return encodeCoords({ position: this.camera.position, rotation: this.camera.rotation })
-    }
-
     const coords = {
       position: this.persona.position.clone(),
       rotation: this.camera.rotation.clone(),

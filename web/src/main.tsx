@@ -14,7 +14,7 @@ import VoxelRadio from './components/voxel-radio'
 import Footer from './footer'
 import Home from './home'
 import { Client } from './client'
-import { getCoords, getParcelId, isEmbedClientPath, isFullClientPath, notifyUrlChange, syncParcelUrl } from './helpers/coords-nav'
+import { getCoords, getParcelId, isFullClientPath, notifyUrlChange, syncParcelUrl } from './helpers/coords-nav'
 import { track, trackPage } from './helpers/umami'
 import WebHeader from './web-header'
 
@@ -87,9 +87,7 @@ const Main = () => {
   const lightBroadcast = currentPath.startsWith('/golive/broadcast')
   const coords = new URLSearchParams(urlSearch).get('coords') || ''
   const full = isFullClientPath(currentPath)
-  const spaceish = isEmbedClientPath(currentPath)
-  const scratchpad = currentPath.split('?')[0] === '/scratchpad'
-  const showClient = !!coords || spaceish || scratchpad
+  const showClient = !!coords || full
   const embed = !full && showClient
 
   useEffect(() => {
@@ -128,9 +126,6 @@ const Main = () => {
             {AppRoutes()}
             <RadioPopout path="/radio" />
             <Play path="/play" />
-            <Play path="/scratchpad" />
-            <Play path="/spaces/:id/play" />
-            <Play path="/assets/:id/play" />
             <AccountRoutes path="/account/:path*" />
           </Router>
         </WorldSidebar>

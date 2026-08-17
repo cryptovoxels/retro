@@ -55,7 +55,7 @@ export default class Portal extends Feature3D<PortalRecord> {
     if (!this.description.womp) {
       return null
     }
-    return !this.description.womp.space_id ? `/play?coords=${this.description.womp.coords}` : `/spaces/${this.description.womp.space_id}/play?coords=${this.description.womp.coords}`
+    return !this.description.womp.space_id ? `/play?coords=${this.description.womp.coords}` : `/spaces/${this.description.womp.space_id}`
   }
 
   static getOutlineMesh(scene: BABYLON.Scene) {
@@ -158,11 +158,10 @@ export default class Portal extends Feature3D<PortalRecord> {
   }
 
   /**
-   * Checks if the portal will send you to space from in-world or to in-world from Spaces
-   * @returns boolean
+   * Portal womps tagged with space_id leave the world client.
    */
   isPortalToAnotherRealm(): boolean {
-    return (!!this.description.womp?.space_id && !window.config.isSpace) || (!this.description.womp?.space_id && window.config.isSpace)
+    return !!this.description.womp?.space_id
   }
 
   onClick() {

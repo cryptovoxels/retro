@@ -10,8 +10,14 @@ select properties.id as id,
        COALESCE(
          (SELECT row_to_json(sub) FROM (SELECT a.id, a.name, a.owner, a.created_at FROM avatars a WHERE lower(a.owner) = lower(properties.owner) LIMIT 1) sub),
          to_json(lower(properties.owner))
-       ) as owner
+       ) as owner,
+       properties.x1,
+       properties.x2,
+       properties.y1,
+       properties.y2,
+       properties.z1,
+       properties.z2
 from properties
-where sandbox = true
+where (settings->>'sandbox') = 'true'
 order by random() limit
   10;

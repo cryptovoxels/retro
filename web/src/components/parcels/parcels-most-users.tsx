@@ -1,7 +1,7 @@
 import { groupBy, sortBy } from 'lodash'
 import { Component } from 'preact'
 import ParcelHelper from '../../../../common/helpers/parcel-helper'
-import { fetchFromMPServer, ssrFriendlyDocument, ssrFriendlyWindow } from '../../../../common/helpers/utils'
+import { fetchFromMPServer } from '../../../../common/helpers/utils'
 import { Spinner } from '../../spinner'
 import { fetchOptions } from '../../utils'
 import Carousel from '../carousel'
@@ -98,14 +98,8 @@ export default class ParcelMostUsers extends Component<Props, State> {
   }
 
   teleport(p: ParcelHelper) {
-    const isSpace = (): boolean => !!ssrFriendlyDocument?.location.toString()?.match('/spaces')
-
     p.spawnUrl().then((url) => {
-      if (isSpace() && ssrFriendlyWindow) {
-        ssrFriendlyWindow.location.href = url
-      } else {
-        this.props.teleportTo?.(url)
-      }
+      this.props.teleportTo?.(url)
     })
   }
 

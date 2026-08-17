@@ -33,8 +33,8 @@ export function DesktopOrMobile({ children }: { children?: ComponentChildren }) 
   }
 }
 
-export function OnlyOnGridOrSpace({ scene, children }: { scene: BABYLON.Scene; children?: ComponentChildren }) {
-  if (window.config.isGrid || window.config.isSpace) {
+export function OnlyOnGrid({ scene, children }: { scene: BABYLON.Scene; children?: ComponentChildren }) {
+  if (window.config.isGrid) {
     return children as any
   } else {
     return null

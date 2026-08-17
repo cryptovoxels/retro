@@ -198,15 +198,10 @@ export default class WebHeader extends Component<Props, State> {
               </A>
               <A to="/account">{signedIn ? 'Profile' : 'Login'}</A>
               {signedIn && <A to="/logout">Log out</A>}
-              <li>
-                <a class={here === '/scratchpad' ? 'active' : undefined} href="https://www.voxels.com/scratchpad">
-                  Scratchpad
-                </a>
-              </li>
+              <A to="/build">Build</A>
               <A to="/map">Map</A>
               <A to="/islands">Islands</A>
               <A to="/parcels">Parcels</A>
-              <A to="/spaces">Spaces</A>
               <A to="/womps">Womps</A>
               <A to="/events">
                 Events

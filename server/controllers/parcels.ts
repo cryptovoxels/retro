@@ -17,6 +17,8 @@ import { isAddress } from 'ethers'
 const HEADINGS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const
 
 export default function (db: Db, passport: PassportStatic, app: Express) {
+  app.get('/api/sandboxes.json', cache('60 seconds'), createRequestHandlerForQuery(db, 'get-sandbox-parcels', 'sandboxes'))
+
   // Parcels
   // This API route supports a `parcels_ids` flag which can be repeated multiple times.
   app.get('/api/parcels.json', cache('5 minutes'), async (req, res) => {

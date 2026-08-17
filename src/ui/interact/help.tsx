@@ -1,6 +1,5 @@
 import { Component } from 'preact'
 import { onDragStart } from '../dialog'
-import { isScratchpad } from '../../scene-config'
 
 interface Props {
   onClose?: () => void
@@ -20,6 +19,7 @@ export class HelpOverlay extends Component<Props> {
   }
 
   render() {
+    const showScratchpadHelp = new URLSearchParams(location.search).get('learn') === 'true'
     return (
       <section class="help-overlay">
         <h2>Help</h2>
@@ -126,11 +126,11 @@ export class HelpOverlay extends Component<Props> {
           <b>Right Click</b> in world to edit existing content.
         </p>
 
-        {isScratchpad() && (
+        {showScratchpadHelp && (
           <>
-            <h2>Scratchpad: build, delete, paint</h2>
+            <h2>Learn voxels: build, delete, paint</h2>
             <p>
-              Practice voxels here first. Press <b>B</b>, then:
+              Practice in a sandbox first. Press <b>B</b>, then:
             </p>
             <p>
               The mouse locks while you build. Press <b>Escape</b> to release it and use the toolbelt.
@@ -149,11 +149,13 @@ export class HelpOverlay extends Component<Props> {
                 <b>Paint</b> -- ctrl-click to apply that color to a block.
               </li>
             </ol>
-            <h2>Once you have a parcel or space</h2>
+            <h2>Once you have a parcel</h2>
             <p>
-              Open <b>Add</b> or press <b>Tab</b> to browse features: signs, images, video, showboxes, portals, and the rest. Scratchpad lets you peek -- that unlocks on your land.
+              Open <b>Add</b> or press <b>Tab</b> to browse features: signs, images, video, showboxes, portals, and the rest.
             </p>
-            <p class="scratchpad-help-outro">Reload clears scratchpad. Your parcel keeps what you build.</p>
+            <p class="scratchpad-help-outro">
+              Pick a sandbox from <a href="/build">/build</a>, then grab a parcel in the <a href="/shop">shop</a>.
+            </p>
             {this.props.onShowScratchpadGuide && (
               <p>
                 <button type="button" class="linkish" onClick={this.props.onShowScratchpadGuide}>

@@ -12,14 +12,14 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 
 ## what is in here
 
-- [parcels](#parcels), 19 routes
+- [parcels](#parcels), 20 routes
 - [womps](#womps), 6 routes
 - [avatars](#avatars), 13 routes
 - [collectibles](#collectibles), 3 routes
 - [collections](#collections), 6 routes
 - [wearables](#wearables), 7 routes
 - [islands](#islands), 3 routes
-- [spaces](#spaces), 3 routes
+- [spaces](#spaces), 2 routes
 - [events](#events), 6 routes
 - [search](#search), 1 route
 - [schemas](#schemas), 22 shapes
@@ -45,6 +45,7 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 - [`/api/suburbs/{suburb_id}/popular.json`](#get-apisuburbssuburb_idpopularjson) The busiest parcels in a suburb
 - [`/api/wallet/{address}/parcels.json`](#get-apiwalletaddressparcelsjson) Parcels a wallet owns
 - [`/api/wallet/{address}/contributing-parcels.json`](#get-apiwalletaddresscontributing-parcelsjson) Parcels a wallet can build on but does not own
+- [`/api/sandboxes.json`](#get-apisandboxesjson) Random sandbox parcels for learning to build
 
 ### GET /api/parcels.json
 
@@ -343,6 +344,18 @@ Parcels a wallet can build on but does not own
 - `200` object
   - `success` boolean
   - `parcels` array of object
+
+### GET /api/sandboxes.json
+
+Random sandbox parcels for learning to build
+
+Up to 10 parcels with settings.sandbox. Used by /build.
+
+**answers**
+
+- `200` object
+  - `success` boolean
+  - `sandboxes` array of object
 
 ## womps
 
@@ -1007,31 +1020,14 @@ The slug is the island name lowercased with runs of whitespace turned into singl
 
 ## spaces
 
-- [`/api/spaces.json`](#get-apispacesjson) Browsable spaces
-- [`/api/spaces/{id}.json`](#get-apispacesidjson) One space with its content
-- [`/api/wallet/{address}/spaces.json`](#get-apiwalletaddressspacesjson) Spaces a wallet owns
-
-### GET /api/spaces.json
-
-Browsable spaces
-
-A space is a build that is not pinned to a parcel. Womps can be taken in one.
-
-**parameters**
-
-- `page` (query) integer, defaults to `1`: One-based.
-
-**answers**
-
-- `200` object
-  - `success` boolean
-  - `spaces` array of object
+- [`/api/spaces/{id}.json`](#get-apispacesidjson) Archived space JSON download
+- [`/api/wallet/{address}/spaces.json`](#get-apiwalletaddressspacesjson) Archived spaces a wallet owns
 
 ### GET /api/spaces/{id}.json
 
-One space with its content
+Archived space JSON download
 
-A malformed uuid throws inside the handler and comes back as a 400.
+Spaces are deprecated. This returns the archived content for download. A malformed uuid throws inside the handler and comes back as a 400.
 
 **parameters**
 
@@ -1046,7 +1042,9 @@ A malformed uuid throws inside the handler and comes back as a 400.
 
 ### GET /api/wallet/{address}/spaces.json
 
-Spaces a wallet owns
+Archived spaces a wallet owns
+
+Spaces are deprecated. List is for archive download links only.
 
 **parameters**
 

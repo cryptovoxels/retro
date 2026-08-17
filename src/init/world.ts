@@ -15,7 +15,7 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
   const parcelMesher = new ParcelMesher(scene)
   await parcelMesher.initialize()
 
-  const grid = new Grid(scene, controls.worldOffset, environment, window.config.spaceId ?? undefined)
+  const grid = new Grid(scene, controls.worldOffset, environment)
   if (window.config.isGrid) {
     grid.loadWorker()
   }
@@ -95,72 +95,30 @@ function initConnector(scene: BABYLON.Scene, controls: Controls, grid: Grid): Co
   return connector
 }
 
-function parseFloatOrZero(value: string | null | number): number {
-  if (!value) return 0
-  if (typeof value === 'number') return value
-
-  return parseFloat(value)
-}
-
 //Randomize initial center spawning coordinates (no more overlapping avatars) when 'coords' param is null in-world
-// For spaces, if coords is null, we look for a spawn point
-function initialSpawn(scene: BABYLON.Scene, grid: Grid, controls: Controls) {
+function initialSpawn(_scene: BABYLON.Scene, _grid: Grid, controls: Controls) {
   const searchParams = new URLSearchParams(document.location.search.substring(1))
   if (searchParams.get('coords')) {
     // Coords is not null, don't randomize spawn at center in-world
     return
   }
-  if (window.config.isSpace) {
-    // if is space, then try find a Spawn point, else the user just spawns at 0,0
-    if (!grid.fastbootParcel) {
-      return
-    }
-    const space = grid.fastbootParcel
-    const spawnFeature = space.content?.features?.find((f) => f?.type === 'spawn-point')
-
-    if (!spawnFeature) {
-      controls.camera.position = new BABYLON.Vector3(0, 2.5, 0)
-      return
-    }
-
-    const spawnPosition = Array.isArray(spawnFeature.position) ? spawnFeature.position : ([spawnFeature.position.x, spawnFeature.position.y, spawnFeature.position.z] as const)
-    const rotation = Array.isArray(spawnFeature.rotation) ? spawnFeature.rotation : ([spawnFeature.rotation.x, spawnFeature.rotation.y, spawnFeature.rotation.z] as const)
-
-    const yRotation = parseFloatOrZero(rotation[1])
-
-    const center = [(space.x2 + space.x1) / 200, (space.z2 + space.z1) / 200]
-    const roundHalf = (v: number) => Math.round(v * 2) / 2
-
-    const z = roundHalf(center[1] * 100 + parseFloatOrZero(spawnPosition[2]))
-    const x = roundHalf(center[0] * 100 + parseFloatOrZero(spawnPosition[0]))
-
-    const y = parseFloatOrZero(spawnPosition[1]) + 1.75
-
-    controls.camera.position = new BABYLON.Vector3(x, y, z)
-    controls.camera.rotation = new BABYLON.Vector3(0, yRotation, 0)
-  } else {
-    const random_boolean = Math.random() < 0.5
-    const nudgeL = 5
-    const nudgeW = 2
-    //if random_boolean is true nudge the player along the X walkway
-    let randomX = Math.random() * (nudgeL - -nudgeL) + -nudgeL
-    let randomZ = Math.random() * (nudgeW - -nudgeW) + -nudgeW
-    //if random_boolean is false nudge the player along the Z walkway
-    if (!random_boolean) {
-      randomX = Math.random() * (nudgeW - -nudgeW) + -nudgeW
-      randomZ = Math.random() * (nudgeL - -nudgeL) + -nudgeL
-    }
-
-    controls.camera.position = new BABYLON.Vector3(randomX, 2.5, randomZ)
+  const random_boolean = Math.random() < 0.5
+  const nudgeL = 5
+  const nudgeW = 2
+  //if random_boolean is true nudge the player along the X walkway
+  let randomX = Math.random() * (nudgeL - -nudgeL) + -nudgeL
+  let randomZ = Math.random() * (nudgeW - -nudgeW) + -nudgeW
+  //if random_boolean is false nudge the player along the Z walkway
+  if (!random_boolean) {
+    randomX = Math.random() * (nudgeW - -nudgeW) + -nudgeW
+    randomZ = Math.random() * (nudgeL - -nudgeL) + -nudgeL
   }
+
+  controls.camera.position = new BABYLON.Vector3(randomX, 2.5, randomZ)
 }
 
 // Show params as NESW coordinates
 function updateNavbarWithCoords(scene: BABYLON.Scene, connector: Connector) {
-  if (document.location.pathname.match(/scratchpad/)) {
-    return
-  }
-
   let oldUrl = '/'
   setInterval(() => {
     if (wantsGateway()) return

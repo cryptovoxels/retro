@@ -21,13 +21,11 @@ import { Environment } from './enviroments/environment'
 import { TypedEvent } from './utils/EventEmitter'
 import { ParcelEventMap } from './utils/parcel-event-map'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
-import { SpacesEnvironment } from './enviroments/space-environment'
-import { getFieldShape, getVoxelsFromBuffer } from '../common/voxels/helpers'
 
 const MAX_EDIT_DISTANCE = 5
 const { setInterval } = window
 
-const getGridUrl = (spaceId: string | null): string => {
+const getGridUrl = (): string => {
   let url
 
   if (process.env.GRID_SOCKET_URI) {
@@ -38,12 +36,6 @@ const getGridUrl = (spaceId: string | null): string => {
   }
 
   const queryParams: Record<string, string> = {}
-
-  if (spaceId) {
-    queryParams['space_id'] = spaceId
-  }
-
-  // or should this use the localStorage one??
 
   try {
     var jwtKey = Cookies.get('jwt')
@@ -100,8 +92,8 @@ export default class Grid extends SocketClient {
   private _nextQueryId = 0
   private mesherInitPromise: Promise<void> | undefined = undefined
 
-  constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, environment?: Environment, spaceId?: string) {
-    super('grid', () => getGridUrl(spaceId || null))
+  constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, environment: Environment) {
+    super('grid', () => getGridUrl())
     this.scene = scene
 
     if (!Grid.mesher) {
@@ -110,12 +102,7 @@ export default class Grid extends SocketClient {
     }
     // this.mesher = mesher
     this.parent = parent
-
-    if (environment) {
-      this.environment = environment
-    } else {
-      this.environment = new SpacesEnvironment(parent, scene)
-    }
+    this.environment = environment
 
     // Initialize ParcelManager event handlers
     this.parcelLoaded = (event) => {
@@ -333,55 +320,16 @@ export default class Grid extends SocketClient {
     return window.draw.distance * 1.1
   }
 
-  public applySpaceFastboot(raw: any) {
-    if (this.fastbootParcel) return
-    const desc: any = { ...raw }
-    if (desc.content) Object.assign(desc, desc.content)
-    desc.x1 = -desc.width / 2
-    desc.x2 = desc.width / 2
-    desc.z1 = -desc.depth / 2
-    desc.z2 = desc.depth / 2
-
-    if (desc.kind === 'scratchpad' && (!desc.voxels || !String(desc.voxels).trim())) {
-      const shape = getFieldShape(desc)
-      const field = ndarray(new Uint16Array(shape[0] * shape[1] * shape[2]), shape)
-      const floor = (1 << 15) + 3
-      for (let x = 0; x < shape[0]; x++) {
-        for (let z = 0; z < shape[2]; z++) {
-          field.set(x, 0, z, floor)
-        }
-      }
-      desc.voxels = getVoxelsFromBuffer(field.data.buffer)
-    }
-
-    const p = this.loadFastboot(this.parent, desc, this)
-    if (!p) return
-
-    p.generate()
-    this.nearestParcels = [p]
-    this.refreshActiveParcels()
-    this.refreshEnteredParcel()
-
-    if (this.environment instanceof SpacesEnvironment) {
-      this.environment.applyEnvironment(desc.environment)
-    }
-  }
-
   public async loadFastbootFromHTML() {
     if (this.mesherInitPromise) await this.mesherInitPromise
 
-    const el = document.querySelector('script#parcel') ?? document.querySelector('script#space')
+    const el = document.querySelector('script#parcel')
     if (!el) return
 
     let desc: any
     try {
       desc = JSON.parse(el.innerHTML)
     } catch {
-      return
-    }
-
-    if (el.id === 'space') {
-      this.applySpaceFastboot(desc)
       return
     }
 
@@ -516,9 +464,6 @@ export default class Grid extends SocketClient {
   }
 
   public getTargetParcel(): Parcel | undefined {
-    if (window.config.isSpace) {
-      return this.currentOrNearestParcel()
-    }
     if (!this.scene.activeCamera) {
       return undefined
     }
@@ -533,9 +478,6 @@ export default class Grid extends SocketClient {
 
   /** Parcel whose footprint contains the look-at hit. No nearest/5m fallback (that tagged neighbors onto the wrong lot). */
   public getLookAtParcel(): Parcel | undefined {
-    if (window.config.isSpace) {
-      return this.currentOrNearestParcel()
-    }
     if (!this.scene.activeCamera) {
       return undefined
     }

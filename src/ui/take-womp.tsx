@@ -60,7 +60,7 @@ export default class TakeWomp extends Component<Props, State> {
     this.state = {
       content: '',
       uploading: false,
-      kind: !window.config.isSpace ? WompType.Broadcast : WompType.ProfileOnly,
+      kind: WompType.Broadcast,
     }
   }
 
@@ -147,7 +147,7 @@ export default class TakeWomp extends Component<Props, State> {
       kind: this.state.kind,
       content: this.state.content,
       coords: this.props.coords,
-      parcel_id: window.config.isSpace ? null : this.props.parcel.id,
+      parcel_id: this.props.parcel.id,
       space_id: this.props.parcel.spaceId,
       image_url: uploadResult.location,
     })
@@ -209,10 +209,6 @@ export default class TakeWomp extends Component<Props, State> {
   }
 
   setKind(kind: WompType) {
-    if (window.config.isSpace && (kind == WompType.Broadcast || kind == WompType.Public)) {
-      app.showSnackbar(`Spaces don't allow Broadcast or Public womps`)
-      return
-    }
     this.setState({ kind })
   }
 
@@ -231,11 +227,10 @@ export default class TakeWomp extends Component<Props, State> {
           <form class="PermissionsRadioSelector">
             <div>
               <label>
-                <input checked={this.state.kind === WompType.Broadcast} onClick={() => this.setKind(WompType.Broadcast)} name="type" type="radio" disabled={window.config.isSpace} />
+                <input checked={this.state.kind === WompType.Broadcast} onClick={() => this.setKind(WompType.Broadcast)} name="type" type="radio" />
                 <div>
                   <strong>Public Broadcast</strong>
                   <div class="info">Display on homepage, parcel pages and your profile and notify everyone in world</div>
-                  {window.config.isSpace && <small>Not available in Spaces</small>}
                 </div>
               </label>
             </div>
@@ -244,7 +239,7 @@ export default class TakeWomp extends Component<Props, State> {
                 <input checked={this.state.kind === WompType.ProfileOnly} onClick={() => this.setKind(WompType.ProfileOnly)} name="type" type="radio" />
                 <div>
                   <strong>Profile Only</strong>
-                  <div class="info">Displays on your profile and {!window.config.isSpace ? `parcel` : `space`} page or share a link directly</div>
+                  <div class="info">Displays on your profile and parcel page or share a link directly</div>
                 </div>
               </label>
             </div>

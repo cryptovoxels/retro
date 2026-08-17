@@ -119,7 +119,7 @@ export function WorldSidebar({ coords, path, children }: Props) {
     bump((n) => n + 1)
   })
 
-  // /play /scratchpad: push panel - world slot + one aside. Client sizes to .client-world.
+  // /play: push panel - world slot + one aside. Client sizes to .client-world.
   if (isFullClientPath(path)) {
     return (
       <>

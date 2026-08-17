@@ -547,7 +547,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
   onClickLink(url: string) {
     // We have a time flag in the world link
-    if (this.isWorldLink && this.linkHasTimeFlag && !window.config.isSpace) {
+    if (this.isWorldLink && this.linkHasTimeFlag) {
       const time = this.linkHasTimeFlag
       if (window.environment && window.environment.timeOfDay !== time) {
         window.environment.timeOfDay = time
@@ -559,7 +559,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       return
     }
 
-    if (this.isWorldLink && this.linkHasCoords && !window.config.isSpace) {
+    if (this.isWorldLink && this.linkHasCoords) {
       window.persona.teleport(url)
       return
     }

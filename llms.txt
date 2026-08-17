@@ -10,13 +10,13 @@
 
 ## endpoints
 
-- [parcels](https://www.voxels.com/api/parcels.json): 19 routes. Land. Bounds, owners, sales, and the build with its voxels and features.
+- [parcels](https://www.voxels.com/api/parcels.json): 20 routes. Land. Bounds, owners, sales, and the build with its voxels and features.
 - [womps](https://www.voxels.com/api/womps.json): 6 routes. Photographs taken in world, with their captions, coordinates and pictures.
 - [avatars](https://www.voxels.com/api/avatars/search): 13 routes. Citizens: names, wallets, home parcel and the costume they are wearing.
 - [collectibles](https://www.voxels.com/api/collectibles.json): 3 routes. Minted wearables, including the MagicaVoxel model behind one.
 - [collections](https://www.voxels.com/api/collections): 6 routes. Wearable collections and the wearables inside them.
 - [wearables](https://www.voxels.com/api/wearables/search): 7 routes. Wearables by id or by contract, and their models.
 - [islands](https://www.voxels.com/api/islands.json): 3 routes. The archipelago: shorelines, holes, lakes and where each island sits.
-- [spaces](https://www.voxels.com/api/spaces.json): 3 routes. Hosted spaces, which are worlds that are not parcels.
+- [spaces](https://www.voxels.com/api/spaces/{id}.json): 2 routes. Hosted spaces, which are worlds that are not parcels.
 - [events](https://www.voxels.com/api/events.json): 6 routes. What is on, and where.
 - [search](https://www.voxels.com/api/search): 1 route. One query across parcels, wearables, collections and citizens.

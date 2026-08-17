@@ -83,7 +83,7 @@ export default class Womp extends Component<Props, State> {
   get visitUrl() {
     const coords = this.state.womp?.coords
     if (!coords) return undefined
-    return this.isSpaceWomp() ? `/spaces/${this.state.womp.space_id}/play?coords=${coords}` : `/play?coords=${coords}`
+    return this.isSpaceWomp() ? `/spaces/${this.state.womp.space_id}` : `/play?coords=${coords}`
   }
 
   syncVisitUrl() {

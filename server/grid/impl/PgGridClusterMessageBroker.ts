@@ -7,19 +7,16 @@ const PATCH_CHANNEL = 'patch'
 type PatchChannelPayload = {
   sender: string | null
   msg: LightMapUpdateMessage | PatchStateMessage | PatchMessage
-  spaceId?: string
 }
 
 const META_UPDATE_CHANNEL = 'broadcastmeta'
 type MetaUpdateChannelPayload = {
   id: number // Of parcel
-  spaceId?: string
 }
 
 const BROADCAST_SCRIPT_CHANNEL = 'broadcastscript'
 type BroadcastScriptChannelPayload = {
   id: number // Of parcel
-  spaceId?: string
 }
 
 const CHANNEL_NAMES = [PATCH_CHANNEL, META_UPDATE_CHANNEL, BROADCAST_SCRIPT_CHANNEL] as const
@@ -87,20 +84,6 @@ const createMetaUpdateNotificationArgs = (payload: MetaUpdateChannelPayload): [c
 const createScriptUpdateNotificationArgs = (payload: BroadcastScriptChannelPayload): [channelName: ChannelName, payload: ChannelPayload] => ['broadcastscript', payload]
 
 export function mapToPgNotificationArgs(message: GridClusterMessage): [channelName: ChannelName, payload: ChannelPayload] {
-  const [channelName, payload] = mapToPgNotificationArgsWithoutSpaceId(message)
-
-  const payloadWithSpaceId: ChannelPayload =
-    'spaceId' in message.payload
-      ? {
-          ...payload,
-          spaceId: message.payload.spaceId,
-        }
-      : payload
-
-  return [channelName, payloadWithSpaceId]
-}
-
-function mapToPgNotificationArgsWithoutSpaceId(message: GridClusterMessage): [channelName: ChannelName, payload: ChannelPayload] {
   switch (message.type) {
     case 'patchCreate':
       return createPatchNotificationArgs({
@@ -141,18 +124,6 @@ function mapToPgNotificationArgsWithoutSpaceId(message: GridClusterMessage): [ch
 }
 
 export function mapFromPgNotificationArgs(channel: ChannelName, payload: unknown): GridClusterMessage | null {
-  const message = mapFromPgNotificationArgsWithoutSpaceId(channel, payload)
-  if (message === null) {
-    return null
-  }
-
-  const validatedPayload = payload as ChannelPayload
-  const messageWithSpaceId: GridClusterMessage = 'spaceId' in validatedPayload ? GridClusterMessage.withSpaceId(message, validatedPayload.spaceId) : message
-
-  return messageWithSpaceId
-}
-
-function mapFromPgNotificationArgsWithoutSpaceId(channel: ChannelName, payload: unknown): GridClusterMessage | null {
   switch (channel) {
     case PATCH_CHANNEL: {
       const p = payload as PatchChannelPayload

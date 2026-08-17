@@ -336,16 +336,14 @@ class Editor extends FeatureEditor<CollectibleModel> {
 
           <Advanced>
             <FeatureID feature={this.props.feature} />
-            {!window.config.isSpace && (
-              <div className="f">
-                <label>Interactivity Options</label>
-                <label>
-                  <input checked={this.state.tryable} onInput={(e) => this.setState({ tryable: e.currentTarget.checked })} type="checkbox" />
-                  <small>Allow parcel visitors to try on collectible</small>
-                </label>
-              </div>
-            )}
-            {this.state.tryable && !window.config.isSpace && (
+            <div className="f">
+              <label>Interactivity Options</label>
+              <label>
+                <input checked={this.state.tryable} onInput={(e) => this.setState({ tryable: e.currentTarget.checked })} type="checkbox" />
+                <small>Allow parcel visitors to try on collectible</small>
+              </label>
+            </div>
+            {this.state.tryable && (
               <div className="sub-f">
                 <div className="f">
                   <label>Pop up</label>

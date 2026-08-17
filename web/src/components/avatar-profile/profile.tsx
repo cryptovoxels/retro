@@ -80,7 +80,7 @@ export default function Profile(props: Props) {
             )}
           </hgroup>
         )}
-        {isOwner && <WhatNext avatar={avatar} costumes={costumes} spaces={spaces} onSaved={refreshAvatar} />}
+        {isOwner && <WhatNext avatar={avatar} costumes={costumes} onSaved={refreshAvatar} />}
         <Parcels wallet={walletOrUUId} isOwner={isOwner} />
         <Contributor wallet={walletOrUUId} isOwner={isOwner} />
         <Spaces wallet={walletOrUUId} isOwner={isOwner} />

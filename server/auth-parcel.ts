@@ -60,24 +60,6 @@ export default async function authParcel(parcel: ParcelAuthRef, user: VoxelsUser
   }
 }
 
-export async function authSpace(space: ParcelAuthRef, user: VoxelsUser | null): Promise<ParcelAuthResult> {
-  let wallet: string | null = null
-  if (user && typeof user.wallet === 'string' && user.wallet.length === 42) {
-    wallet = user.wallet.toLowerCase()
-  }
-
-  if (space.owner.toLowerCase() == wallet) {
-    return 'Owner'
-  } else if (!!user?.moderator) {
-    return 'Moderator'
-  } else if (space.settings.sandbox === true) {
-    // anons are now able to edit sandbox
-    return 'Sandbox'
-  } else {
-    return false
-  }
-}
-
 export type AuthFeatureResultSuccess = {
   moderator: boolean
   feature?: FeatureRecord

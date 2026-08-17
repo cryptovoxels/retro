@@ -50,9 +50,8 @@ export default class ConnectionStatusUI extends Component<Props, State> {
   }
 
   private onMultiplayerConnectionStateChange = (state: ConnectionState) => {
-    if (!window.config.isSpace && !isLocal()) {
+    if (!isLocal()) {
       // We disabled the notification system for the multiplayer server after players confused it with the grid server going down
-      // We only allow it for Spaces so we can indicate if a space is full!
       state = { status: 'connected' }
     }
 
@@ -65,7 +64,7 @@ export default class ConnectionStatusUI extends Component<Props, State> {
   }
 
   private connectionStatus(gridConnectionState: ConnectionState, multiplayerConnectionState: ConnectionState): ConnectionStatus {
-    return inferConnectionStatus(gridConnectionState, multiplayerConnectionState, window.config.isSpace)
+    return inferConnectionStatus(gridConnectionState, multiplayerConnectionState)
   }
 }
 
@@ -154,14 +153,14 @@ const RECIPE_BY_STATUS: { [S in ConnectionStatus]: ConnectionStatusRecipe } = {
   },
 }
 
-function inferConnectionStatus(grid: ConnectionState, multiplayer: ConnectionState, isSpace: boolean): ConnectionStatus {
+function inferConnectionStatus(grid: ConnectionState, multiplayer: ConnectionState): ConnectionStatus {
   if (grid.status === 'disconnected' && multiplayer.status === 'disconnected') {
     return 'gridAndMultiplayerDisconnectedGeneric'
   } else if (grid.status === 'disconnected') {
     return 'gridDisconnectedGeneric'
   } else if (multiplayer.status === 'disconnected') {
     if (multiplayer.lastCloseCode === 4001) {
-      return isSpace ? 'multiplayerDisconnectedSpaceAtCapacity' : 'multiplayerDisconnectedWorldAtCapacity'
+      return 'multiplayerDisconnectedWorldAtCapacity'
     } else {
       return 'multiplayerDisconnectedGeneric'
     }
