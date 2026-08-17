@@ -40,7 +40,7 @@ paths:
         `parcel_users`, `owner`, `suburb` and `hash`. With `parcel_ids` it runs a
         different query whose rows are narrower (no owner avatar, no suburb, no
         hash) and whose `y2` is the height, not the top of the box. Ids that are
-        not numbers are dropped rather than rejected.
+        not integers are dropped rather than rejected.
       parameters:
         - name: parcel_ids
           in: query
