@@ -11,7 +11,7 @@ export type GridClusterMessageBroker = {
 
 export type GridClusterListener = (message: GridClusterMessage) => void
 
-export type GridClusterMessage = GridShardMessage & { payload: { spaceId?: string } }
+export type GridClusterMessage = GridShardMessage
 
 export namespace GridClusterMessage {
   export type PatchCreate = Extract<GridClusterMessage, { type: 'patchCreate' }>
@@ -23,14 +23,4 @@ export namespace GridClusterMessage {
   export type ScriptUpdate = Extract<GridClusterMessage, { type: 'scriptUpdate' }>
 
   export type LightmapUpdate = Extract<GridClusterMessage, { type: 'lightmapUpdate' }>
-
-  export const withSpaceId = (message: GridClusterMessage, spaceId: string | undefined): GridClusterMessage => {
-    return {
-      ...message,
-      payload: {
-        ...message.payload,
-        spaceId,
-      },
-    } as GridClusterMessage
-  }
 }

@@ -707,8 +707,7 @@ export function CollectibleTryBone(props: { feature: CollectibleModel; scene: BA
   const [skeleton, setSkeleton] = useState<BABYLON.Skeleton>(window.connector?.persona.avatar?.skeleton)
 
   if (!skeleton) {
-    const isSpace = (): boolean => !!document.location.toString()?.match('/spaces')
-    const rootURL = isSpace() ? `./models/` : `/models/`
+    const rootURL = `/models/`
     BABYLON.SceneLoader.ImportMesh(null, rootURL, 'avatar.glb', props.scene, (meshes, particleSystems, skeletons) => {
       setSkeleton(skeletons[0])
     })

@@ -75,7 +75,7 @@ export default class GuestBook extends Feature3D<GuestBookRecord> {
 
   get signatureMessage() {
     // if this changes, all signatures on this guestbook will become invalid
-    return `Sign Guestbook for ${window.config.isSpace ? 'Space ' + window.config.spaceId : 'Parcel ' + this.parcel.id}\n\n${this.signatureText}`
+    return `Sign Guestbook for Parcel ${this.parcel.id}\n\n${this.signatureText}`
   }
 
   whatIsThis() {

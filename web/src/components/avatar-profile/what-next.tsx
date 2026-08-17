@@ -1,12 +1,10 @@
 import { ApiAvatar } from '../../../../common/messages/api-avatars'
-import { SimpleSpaceRecord } from '../../../../common/messages/space'
 import { Costume } from '../../../../common/types'
 import EditAccountForm from './edit-account-form'
 
 type Props = {
   avatar?: ApiAvatar
   costumes: Costume[]
-  spaces: SimpleSpaceRecord[]
   onSaved?: (avatar: ApiAvatar) => void
 }
 
@@ -17,9 +15,7 @@ export default function WhatNext(props: Props) {
   if (props.costumes.length === 0) {
     steps.push({ label: 'create a costume', href: '/costumer' })
   }
-  if (props.spaces.length === 0) {
-    steps.push({ label: 'build your apartment', href: '/spaces/new' })
-  }
+  steps.push({ label: 'learn to build', href: '/build' })
 
   if (!needsName && steps.length === 0) return null
 

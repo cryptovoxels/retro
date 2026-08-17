@@ -837,7 +837,8 @@ button.hamburger {
 // (full-bleed sizing comes from the push-panel grid rules below)
 .columns.home,
 .columns.parcel-page,
-.columns.space-page {
+.columns.space-page,
+.columns.build-page {
   gap: 0;
 
   > article {
@@ -1113,7 +1114,7 @@ body.gateway {
 // One aside (the WorldSidebar host) swaps page content and panes. Home / parcel are
 // push-panel worlds too; the grid applies before the world boots so the page sidebar
 // doesn't flash away while coords resolve.
-@world-hosts: ~':has(> .client-world), :has(> .columns.home), :has(> .columns.parcel-page), :has(> .columns.space-page)';
+@world-hosts: ~':has(> .client-world), :has(> .columns.home), :has(> .columns.parcel-page), :has(> .columns.space-page), :has(> .columns.build-page)';
 
 // main sits above .client so sidebar gets clicks; punch through the world
 // cell or the empty grid slot eats pointer lock / WASD
@@ -1142,7 +1143,8 @@ main:is(@{world-hosts}) > header {
 .client-world,
 main > .columns.home,
 main > .columns.parcel-page,
-main > .columns.space-page {
+main > .columns.space-page,
+main > .columns.build-page {
   grid-area: world;
   grid-column: unset;
   min-width: 0;
@@ -1152,7 +1154,8 @@ main > .columns.space-page {
 // the page section is just the world box now - its aside lives in the WorldSidebar host
 main > .columns.home > article,
 main > .columns.parcel-page > article,
-main > .columns.space-page > article {
+main > .columns.space-page > article,
+main > .columns.build-page > article {
   flex: 1;
   min-width: 0;
   height: 100%;
@@ -5357,7 +5360,7 @@ body.in-world.mini-world {
   border-radius: 0.5rem;
 }
 
-.scratchpad-guide {
+.sandbox-guide {
   position: fixed;
   left: 12rem;
   bottom: 7rem;
@@ -5367,7 +5370,7 @@ body.in-world.mini-world {
   background: var(--surface);
   color: var(--fg);
 
-  .scratchpad-guide-head {
+  .sandbox-guide-head {
     display: flex;
     justify-content: space-between;
     align-items: baseline;
@@ -5416,7 +5419,7 @@ body.in-world.mini-world {
     }
   }
 
-  &.scratchpad-guide-mini {
+  &.sandbox-guide-mini {
     left: 50%;
     transform: translateX(-50%);
     max-width: none;
@@ -5432,7 +5435,7 @@ body.in-world.mini-world {
   }
 }
 
-.scratchpad-guide-restart {
+.sandbox-guide-restart {
   position: fixed;
   left: 12rem;
   bottom: 7rem;

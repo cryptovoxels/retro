@@ -1,6 +1,5 @@
 import { Environment } from '../enviroments/environment'
 import Controls from './controls'
-import { SpacesEnvironment } from '../enviroments/space-environment'
 import { WorldEnvironment } from '../enviroments/world-environment'
 import { wantsGateway } from '../../common/helpers/detector'
 
@@ -90,14 +89,10 @@ export default class XROverlay {
 
   onGroundLoaded = () => {
     // add the world colliders to the teleportation
-    if (window.environment instanceof SpacesEnvironment) {
-      if (window.environment.ground) this.addTeleportMesh(window.environment.ground)
-    } else if (window.environment instanceof WorldEnvironment) {
+    if (window.environment instanceof WorldEnvironment) {
       if (window.environment.terrain) {
         window.environment.terrain.groundMeshes.forEach((mesh) => this.addTeleportMesh(mesh))
       }
-    } else {
-      throw new Error('Unknown environment type')
     }
   }
 

@@ -96,7 +96,7 @@ export default function WompsController(db: Db, passport: PassportStatic, app: E
     if (!!womp.parcel_id) {
       res.redirect(`/play?coords=${womp.coords}`)
     } else {
-      res.redirect(`/spaces/${womp.space_id}/play?coords=${womp.coords}`)
+      res.redirect(`/spaces/${womp.space_id}`)
     }
   })
 }

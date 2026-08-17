@@ -60,6 +60,7 @@ export const MapParcelRecord = t.type(
     is_common: FullParcelRecord.props.is_common,
     suburb: FullParcelRecord.props.suburb,
     settings: FullParcelRecord.props.settings,
+    sandbox: FullParcelRecord.props.sandbox,
   },
   'MapParcelRecord',
 )

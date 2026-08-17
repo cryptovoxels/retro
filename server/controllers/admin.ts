@@ -10,6 +10,7 @@ import { PassportStatic } from 'passport'
 import { requireAdmin } from '../lib/helpers'
 import { getContract } from '../lib/utils'
 import log from '../lib/logger'
+import Parcel from '../parcel'
 
 function assert(condition: any, message: string) {
   if (!condition) {
@@ -62,6 +63,7 @@ async function unmintedFromDb(db: Db, page: number) {
       'sql/fix-stale-unminted',
       `update properties
        set minted = true,
+           sandbox = true,
            minted_at = coalesce(minted_at, now()),
            updated_at = now()
        where id = any($1::int[])
@@ -163,6 +165,52 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
       return
     }
     res.status(200).json({ success: true })
+  })
+
+  const TREASURY = '0x36F1A7f48f4e7bbda9E2d8aEEfEE639cae2604bc'
+
+  app.get('/api/admin/sandboxes/suggest', cache(false), passport.authenticate('jwt', { session: false }), requireAdmin, async (_req, res) => {
+    try {
+      const r = await db.query(
+        'sql/admin-sandbox-suggest',
+        `select id, address, name, island, sandbox
+         from properties
+         where minted = true
+           and island = 'Obscurity'
+           and lower(owner) = lower($1)
+           and sandbox = false
+         order by id
+         limit 100`,
+        [TREASURY],
+      )
+      res.json({ success: true, parcels: r.rows })
+    } catch (e: any) {
+      log.error('sandbox suggest failed', { e: String(e) })
+      res.status(500).json({ success: false })
+    }
+  })
+
+  app.post('/api/admin/parcels/:id/sandbox', passport.authenticate('jwt', { session: false }), requireAdmin, async (req, res) => {
+    const id = parseInt(req.params.id, 10)
+    if (isNaN(id)) {
+      res.status(400).json({ success: false, error: 'bad id' })
+      return
+    }
+    const sandbox = !!req.body?.sandbox
+    try {
+      const parcel = await Parcel.load(id)
+      if (!parcel) {
+        res.status(404).json({ success: false, error: 'not found' })
+        return
+      }
+      parcel.sandbox = sandbox
+      await parcel.save()
+      parcel.broadcastMeta()
+      res.json({ success: true, sandbox })
+    } catch (e: any) {
+      log.error('admin sandbox toggle failed', { e: String(e) })
+      res.status(500).json({ success: false, error: e?.toString?.() || 'failed' })
+    }
   })
 }
 

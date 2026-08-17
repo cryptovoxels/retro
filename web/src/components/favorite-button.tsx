@@ -3,7 +3,6 @@ import { app, AppEvent } from '../state'
 import { fetchOptions } from '../utils'
 import { PanelType } from './panel'
 import { invalidateUrl } from '../helpers/cached-fetch'
-import { ssrFriendlyDocument } from '../../../common/helpers/utils'
 
 type Props = {
   parcelId: number
@@ -47,11 +46,6 @@ export default class FavoriteButton extends Component<Props, State> {
   }
 
   fetch() {
-    const isSpace = (): boolean => !!ssrFriendlyDocument?.location.toString()?.match('/spaces')
-    if (isSpace()) {
-      return
-    }
-
     if (!app.signedIn) {
       return
     }

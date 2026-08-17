@@ -3,6 +3,7 @@ import { Request, Response } from 'express'
 import authParcel from '../auth-parcel'
 import log from '../lib/logger'
 import Parcel from '../parcel'
+import db from '../pg'
 import { VoxelsUserRequest } from '../user'
 
 export default async function (req: VoxelsUserRequest, res: Response) {
@@ -98,19 +99,64 @@ export async function revertParcel(req: Request, res: Response) {
   }
 
   const parcelVersionId = parseInt(req.body.parcel_version_id, 10)
+  const user = (req as VoxelsUserRequest).user || null
+  const authResult = await authParcel(parcel, user)
 
-  if (!req.user) {
+  if (authResult === 'Owner' || authResult === 'Moderator') {
+    await parcel.revert(parcelVersionId)
+    res.json({ success: true })
+    return
+  }
+
+  if (parcel.sandbox && authResult) {
+    const ok = await db.query('embedded/check-sandbox-checkpoint', `select id from property_versions where id = $1 and parcel_id = $2 and snapshot_name = 'sandbox-checkpoint' limit 1`, [parcelVersionId, parcel.id])
+    if (!ok?.rows[0]?.id) {
+      res.json({ success: false, error: 'No sandbox checkpoint' })
+      return
+    }
+    try {
+      await parcel.revert(parcelVersionId)
+      res.json({ success: true })
+    } catch (e) {
+      log.error('sandbox revert failed', e)
+      res.json({ success: false, error: 'Revert failed' })
+    }
+    return
+  }
+
+  if (!user) {
     res.json({ success: false, error: 'You do not appear to be logged in' })
     return
   }
 
-  const authResult = await authParcel(parcel, req.user)
+  res.json({ success: false, error: 'You do not appear to be the owner' })
+}
 
-  if (authResult !== 'Owner') {
-    res.json({ success: false, error: 'You do not appear to be the owner' })
+export async function sandboxRollback(req: Request, res: Response) {
+  const parcel = await Parcel.load(parseInt(req.params.id, 10))
+  if (!parcel || !parcel.sandbox) {
+    res.json({ success: false })
     return
   }
 
-  await parcel.revert(parcelVersionId)
-  res.json({ success: true })
+  const user = (req as VoxelsUserRequest).user || null
+  const authResult = await authParcel(parcel, user)
+  if (!authResult) {
+    res.json({ success: false, error: 'Incorrect permissions' })
+    return
+  }
+
+  try {
+    const r = await db.query('embedded/get-sandbox-checkpoint', `select id from property_versions where parcel_id = $1 and snapshot_name = 'sandbox-checkpoint' order by id desc limit 1`, [parcel.id])
+    const versionId = r?.rows[0]?.id
+    if (!versionId) {
+      res.json({ success: false, error: 'No checkpoint yet' })
+      return
+    }
+    await parcel.revert(versionId)
+    res.json({ success: true })
+  } catch (e) {
+    log.error('sandbox rollback failed', e)
+    res.json({ success: false })
+  }
 }

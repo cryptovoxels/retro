@@ -5,7 +5,7 @@ import 'source-map-support/register'
 import Parcel, { PARCEL_EVENT_EMITTER } from './parcel'
 
 // Import handlers
-import BuildRequestHandler, { SpaceBuildRequestHandler } from './handlers/build-parcel'
+import BuildRequestHandler from './handlers/build-parcel'
 import queryParcel, { refreshParcelsByWallet } from './handlers/query-parcel'
 import { CheckEmail, CheckNameAvailable, EmailCode, getUserInfo, SignIn } from './handlers/sign-in'
 import { PasskeyAddOptions, PasskeyAddVerify, PasskeyAvailable, PasskeyLoginOptions, PasskeyLoginVerify, PasskeyRegisterOptions, PasskeyRegisterVerify } from './handlers/passkey'
@@ -29,7 +29,6 @@ import NftController from './controllers/nft'
 import EventsController from './controllers/parcel-events'
 import ParcelsController from './controllers/parcels'
 import PlayController from './controllers/play'
-import ScratchpadController from './controllers/scratchpad'
 import SpacesController from './controllers/spaces'
 import MetricsController from './controllers/metrics'
 import ModelsController from './controllers/models'
@@ -367,7 +366,6 @@ app.put('/grid/parcels/:id', passport.authenticate(['jwt', 'anonymous'], { sessi
 
 app.post('/grid/parcels/:id/build', passport.authenticate('jwt', { session: false }), BuildRequestHandler)
 // spaces are not on the grid but I couldn't think of a better URI than /grid/...
-app.post('/grid/spaces/:id/build', passport.authenticate('jwt', { session: false }), SpaceBuildRequestHandler)
 
 AdminController(db, passport, app)
 
@@ -392,7 +390,6 @@ RadioController(db, app)
 
 // Main client controller
 PlayController(db, passport, app)
-ScratchpadController(app)
 // parcels controller
 ParcelsController(db, passport, app)
 // Avatars controller

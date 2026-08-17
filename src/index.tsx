@@ -254,7 +254,7 @@ async function main() {
   window.graphic = graphic
 
   // keeps track of how far we should render
-  const draw = new DrawDistance(graphic, sceneConfig.isSpace)
+  const draw = new DrawDistance(graphic)
   window.draw = draw
 
   // keeps track of FOV settings
@@ -330,7 +330,7 @@ async function main() {
     mapSettings = map.getSettings()
 
     if (!window.config.isBot) {
-      if (mapSettings.enabled && !window.config.isSpace) {
+      if (mapSettings.enabled) {
         mapScene = map.start(scene)
         main.setMapScene(mapScene)
       }

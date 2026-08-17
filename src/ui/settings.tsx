@@ -67,7 +67,7 @@ export class SettingsUI extends Component<Props, State> {
       graphic: this.graphicsEngine.getSettings(),
       fov: this.fov.value,
       minimap: this.minimap,
-      showMinimapSettings: !window.config.isSpace,
+      showMinimapSettings: true,
       // we reverse the value as higher values are lower sensitivities
       mouseSensitivityPercentage: toReversedPercentage(this.cameraSettings.angularSensitivity, MIN_SENSITIVITY, MAX_SENSITIVITY),
       realisticLighting: this.graphicsEngine.getSettings().realisticLighting ?? true,

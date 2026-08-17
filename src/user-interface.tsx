@@ -23,7 +23,6 @@ import type { FeatureTemplate } from './features/_metadata'
 import type Grid from './grid'
 import type { MinimapSettings } from './minimap'
 import Parcel from './parcel'
-import { isScratchpad } from './scene-config'
 import { Animations } from './avatar-animations'
 import { EmoteAnimation } from './states'
 import {
@@ -60,7 +59,7 @@ import { voiceSettings } from './voice-settings'
 import { DancePane } from './ui/interact/dance-pane'
 import { EmotePane } from './ui/interact/emote-pane'
 import { HelpOverlay } from './ui/interact/help'
-import { ScratchpadGuide, ScratchpadGuideMini } from './ui/scratchpad-guide'
+import { SandboxGuide, SandboxGuideMini } from './ui/sandbox-guide'
 import { FirstTimeInstructions } from '../web/src/components/first-time-instructions'
 import { BroadcastSidebarTab } from '../web/src/broadcast-sidebar-tab'
 import { ShowboxBroadcastPane } from '../web/src/showbox-broadcast-pane'
@@ -79,6 +78,15 @@ import TakeWomp from './ui/take-womp'
 import WompButton from './ui/womp-button'
 
 const NUMBER_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const
+
+const wantsLearnQuery = () => typeof location !== 'undefined' && new URLSearchParams(location.search).get('learn') === 'true'
+
+const isOnSandboxParcel = () => {
+  const p = selectNearestEditableParcel() ?? (typeof window !== 'undefined' ? window.grid?.nearestEditableParcel?.() : null)
+  return !!(p as any)?.sandbox
+}
+
+const wantsSandboxGuide = () => wantsLearnQuery() || isOnSandboxParcel()
 
 const Location = (props: { scene: BABYLON.Scene; signedIn: any }) => {
   const currentOrNearestParcel = selectCurrentOrNearestParcel()
@@ -145,10 +153,10 @@ type UserInterfaceState = {
   publishAsset?: FeatureTemplate | string
   /** Shown next to minimap expand; same source as Explore radar */
   onlineCount: number
-  scratchpadGuideOpen?: boolean
-  scratchpadGuideMini?: boolean
-  scratchpadGuideRestart?: boolean
-  scratchpadGuideKey?: number
+  sandboxGuideOpen?: boolean
+  sandboxGuideMini?: boolean
+  sandboxGuideRestart?: boolean
+  sandboxGuideKey?: number
   chatEnabled: boolean
   dragging?: boolean
   voice?: 'off' | 'live' | 'muted'
@@ -182,8 +190,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   chatLastReadAt = Date.now()
   chatListDispose?: () => void
   parcelEditDispose?: () => void
+  sandboxGuideParcelDispose?: () => void
+  sandboxLookDispose?: () => void
   wompPollTimer: ReturnType<typeof setInterval> | null = null
   latestWompId = 0
+  sandboxRollingBack = false
 
   constructor(props: UserInterfaceProps) {
     super(props)
@@ -263,8 +274,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     uiPane.value = 'edit'
     this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'edit', publishAsset: undefined })
     exitPointerLock()
-      // off-object drags look around while editing
-      ; (this.connector.controls as any).attachDragLook?.()
+    // off-object drags look around while editing
+    ;(this.connector.controls as any).attachDragLook?.()
   }
 
   openPublishAsset(asset: FeatureTemplate | string) {
@@ -320,7 +331,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
     // setInterval(this.updateCanEdit.bind(this), 1000)
 
-    if (this.props.minimapSettings.enabled && !window.config.isSpace) {
+    if (this.props.minimapSettings.enabled) {
       this.presenceEs = new EventSource('/api/users/live')
       this.presenceEs.onmessage = (e) => {
         try {
@@ -335,7 +346,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           } else return
           const n = this.presenceUuids.size
           if (n !== this.state.onlineCount) this.setState({ onlineCount: n })
-        } catch { }
+        } catch {}
       }
     }
 
@@ -357,9 +368,25 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     void this.pollNewWomp()
     this.wompPollTimer = setInterval(() => void this.pollNewWomp(), 45_000)
 
-    if (isScratchpad() && !isMobileMedia()) {
-      this.setState({ scratchpadGuideOpen: true, scratchpadGuideMini: false, scratchpadGuideRestart: false })
+    if ((wantsLearnQuery() || isOnSandboxParcel()) && !isMobileMedia()) {
+      this.setState({ sandboxGuideOpen: true, sandboxGuideMini: false, sandboxGuideRestart: false })
     }
+
+    this.sandboxGuideParcelDispose = effect(() => {
+      nearestEditableParcel.value
+      if (isMobileMedia()) return
+      if (!isOnSandboxParcel()) return
+      if (this.state.sandboxGuideOpen || this.state.sandboxGuideRestart) return
+      this.setState({ sandboxGuideOpen: true, sandboxGuideMini: false, sandboxGuideRestart: false })
+    })
+
+    this.sandboxLookDispose = effect(() => {
+      nearestEditableParcel.value
+      const on = isOnSandboxParcel()
+      try {
+        window._color?.setSandboxLook?.(on)
+      } catch {}
+    })
   }
 
   private static WOMP_SEEN_KEY = 'voxels-explore-last-womp'
@@ -375,7 +402,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   private writeSeenWompId(id: number) {
     try {
       localStorage.setItem(UserInterface.WOMP_SEEN_KEY, String(id))
-    } catch { }
+    } catch {}
   }
 
   private pollNewWomp = async () => {
@@ -392,7 +419,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return
       }
       if (id > seen && !this.state.newWomp) this.setState({ newWomp: true })
-    } catch { }
+    } catch {}
   }
 
   private markWompsSeen = () => {
@@ -404,38 +431,61 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     if (this.state.newWomp) this.setState({ newWomp: false })
   }
 
-  enterScratchpadGuideMini = () => {
+  enterSandboxGuideMini = () => {
     exitPointerLock()
     uiPane.value = 'add'
-    this.setState({ pane: 'add', scratchpadGuideMini: true })
+    this.setState({ pane: 'add', sandboxGuideMini: true })
   }
 
-  celebrateScratchpadGuideComplete = () => {
+  celebrateSandboxGuideComplete = () => {
     exitPointerLock()
     this.connector.emote('🔥')
     this.connector.persona.popState(this.connector.controls)
     this.connector.persona.setState({ state: new EmoteAnimation(Animations.Dance) }, this.connector.controls)
-    this.setState({ scratchpadGuideOpen: false, scratchpadGuideMini: false, scratchpadGuideRestart: true })
+    this.setState({ sandboxGuideOpen: false, sandboxGuideMini: false, sandboxGuideRestart: true })
   }
 
-  restartScratchpadGuide = () => {
+  restartSandboxGuide = () => {
     uiPane.value = undefined
     this.setState({
-      scratchpadGuideMini: false,
-      scratchpadGuideKey: (this.state.scratchpadGuideKey || 0) + 1,
+      sandboxGuideMini: false,
+      sandboxGuideKey: (this.state.sandboxGuideKey || 0) + 1,
       pane: undefined,
     })
   }
 
-  openScratchpadGuide = () => {
+  openSandboxGuide = () => {
     uiPane.value = undefined
     this.setState({
-      scratchpadGuideOpen: true,
-      scratchpadGuideMini: false,
-      scratchpadGuideRestart: false,
-      scratchpadGuideKey: (this.state.scratchpadGuideKey || 0) + 1,
+      sandboxGuideOpen: true,
+      sandboxGuideMini: false,
+      sandboxGuideRestart: false,
+      sandboxGuideKey: (this.state.sandboxGuideKey || 0) + 1,
       pane: undefined,
     })
+  }
+
+  rollBackSandbox = async () => {
+    const p = selectNearestEditableParcel()
+    if (!p?.sandbox || this.sandboxRollingBack) return
+    if (!confirm('Roll back this sandbox to how it looked when you started editing?')) return
+    this.sandboxRollingBack = true
+    try {
+      const r = await fetch(`/api/parcels/${p.id}/sandbox-rollback`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      })
+      const d = await r.json().catch(() => ({}))
+      if (!d?.success) {
+        app.showSnackbar(d?.error || 'Nothing to roll back yet', PanelType.Warning)
+      }
+    } catch {
+      app.showSnackbar('Roll back failed', PanelType.Danger)
+    } finally {
+      this.sandboxRollingBack = false
+    }
   }
 
   componentDidUpdate(_prevProps: UserInterfaceProps, prevState: UserInterfaceState) {
@@ -463,7 +513,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.setState({ voiceEnabled: true })
   }
 
-  updateCanEdit = () => { }
+  updateCanEdit = () => {}
 
   componentWillUnmount() {
     this.presenceEs?.close()
@@ -478,6 +528,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     voiceSettings.removeEventListener('changed', this.onVoiceSettingsChange)
     this.chatListDispose?.()
     this.parcelEditDispose?.()
+    this.sandboxGuideParcelDispose?.()
+    this.sandboxLookDispose?.()
+    try {
+      window._color?.setSandboxLook?.(false)
+    } catch {}
     // dispose the keyboard handler too - it attaches keydown/keyup on `document` in addKeyboardHandlers,
     // and without this each unmount (e.g. womp preview -> /play, every page hop) leaks a live handler.
     // They accumulate and re-fire shortcuts N times, so camera toggles (C perspective, F fly) cancel out.
@@ -505,7 +560,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.setState({ editor: undefined, feature: undefined, pane: undefined, publishAsset: undefined })
     // controls path avoids focus-before-lock (steals the gesture) and eats the post-unlock cooldown rejection
     const controls = this.connector.controls as any
-    controls?.requestPointerLock ? controls.requestPointerLock()?.catch?.(() => { }) : requestPointerLock()
+    controls?.requestPointerLock ? controls.requestPointerLock()?.catch?.(() => {}) : requestPointerLock()
   }
 
   get camera(): BABYLON.UniversalCamera {
@@ -567,7 +622,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         {
           code: 'Tab',
           handleEvent: (e: KeyboardEvent) => {
-            if (isScratchpad() && this.state.scratchpadGuideOpen) {
+            if (wantsSandboxGuide() && this.state.sandboxGuideOpen) {
               e.preventDefault()
               this.setPane('add')
               return
@@ -618,8 +673,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   setPane(pane: UIPanes) {
-    if (isScratchpad() && this.state.scratchpadGuideOpen && pane === 'add') {
-      this.enterScratchpadGuideMini()
+    if (wantsSandboxGuide() && this.state.sandboxGuideOpen && pane === 'add') {
+      this.enterSandboxGuideMini()
       return
     }
 
@@ -647,14 +702,14 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   openBuildToolbelt() {
-    if (!this.grid.nearestEditableParcel() && !(isScratchpad() && this.grid.fastbootParcel?.canEdit)) return
+    if (!this.grid.nearestEditableParcel()) return
     this.voxelTool.setMode(SelectionMode.Add)
     this.setTool(this.voxelTool)
     this.forceUpdate()
   }
 
   activateVoxelTool(mode?: SelectionMode, options?: SelectionModeOptions) {
-    if (!this.grid.nearestEditableParcel() && !(isScratchpad() && this.grid.fastbootParcel?.canEdit)) return
+    if (!this.grid.nearestEditableParcel()) return
     this.setFirstPersonPerspective()
     if (this.connector.controls instanceof DesktopControls && !hasPointerLock()) {
       this.connector.controls.requestPointerLock()
@@ -666,7 +721,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   toggleVoxelTool() {
     if (this.activeTool !== this.voxelTool) {
-      if (!this.grid.nearestEditableParcel() && !(isScratchpad() && this.grid.fastbootParcel?.canEdit)) return
+      if (!this.grid.nearestEditableParcel()) return
       this.setFirstPersonPerspective()
       this.activateVoxelTool()
     } else {
@@ -889,10 +944,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       return
     }
 
-    if (url.startsWith('/spaces') && url.match('/play') && url.match('coords')) {
-      const params = new URLSearchParams(url.split('?')[1])
+    if (url.startsWith('/spaces') && url.match('/play')) {
       const spaceId = url.split('/')[2]
-      window.location.href = `/spaces/${spaceId}/play?coords=${params.get('coords')}`
+      window.location.href = `/spaces/${spaceId}`
       return
     }
 
@@ -903,7 +957,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   paneContent(paneId: UIPanes) {
-    const nearestEditableParcel = selectNearestEditableParcel() ?? (isScratchpad() ? this.grid.fastbootParcel : undefined) ?? null
+    const nearestEditableParcel = selectNearestEditableParcel() ?? null
     const currentOrNearestParcel = selectCurrentOrNearestParcel() ?? null
 
     switch (paneId) {
@@ -935,7 +989,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return <TakeWomp coords={w.coords} parcel={w.parcel} image={w.image} scene={this.props.scene} onClose={closeTakeWomp} />
       }
       case 'help':
-        return <HelpOverlay scene={this.props.scene} onShowScratchpadGuide={isScratchpad() ? this.openScratchpadGuide : undefined} />
+        return <HelpOverlay scene={this.props.scene} onShowSandboxGuide={wantsSandboxGuide() ? this.openSandboxGuide : undefined} />
       case 'explorer':
         return <ExplorerUI scene={this.props.scene} initialTab={this.explorerPaneInitialTab.current!} />
       case 'bake':
@@ -1025,7 +1079,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   Emote
                 </a>
               </li>
-              {(this.state.signedIn || isScratchpad()) && canEdit && (
+              {(this.state.signedIn || wantsSandboxGuide()) && canEdit && (
                 <>
                   <li class={this.voxelTool.enabled.value ? 'active' : ''}>
                     <a
@@ -1103,14 +1157,22 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           {nearestEditableParcel && nearestEditableParcel.canEdit && <VoxelToolBelt parcel={nearestEditableParcel} />}
 
-          {this.state.scratchpadGuideOpen && !this.state.scratchpadGuideMini && <ScratchpadGuide key={this.state.scratchpadGuideKey || 0} voxelTool={this.voxelTool} onComplete={this.celebrateScratchpadGuideComplete} />}
+          {nearestEditableParcel?.sandbox && nearestEditableParcel.canEdit && (
+            <div class="sandbox-rollback">
+              <button type="button" class="linkish" onClick={this.rollBackSandbox}>
+                roll back
+              </button>
+            </div>
+          )}
 
-          {this.state.scratchpadGuideOpen && this.state.scratchpadGuideMini && <ScratchpadGuideMini onGotIt={this.celebrateScratchpadGuideComplete} onStartOver={this.restartScratchpadGuide} />}
+          {this.state.sandboxGuideOpen && !this.state.sandboxGuideMini && <SandboxGuide key={this.state.sandboxGuideKey || 0} voxelTool={this.voxelTool} onComplete={this.celebrateSandboxGuideComplete} />}
 
-          {!this.state.scratchpadGuideOpen && this.state.scratchpadGuideRestart && isScratchpad() && (
-            <div class="scratchpad-guide-restart">
+          {this.state.sandboxGuideOpen && this.state.sandboxGuideMini && <SandboxGuideMini onGotIt={this.celebrateSandboxGuideComplete} onStartOver={this.restartSandboxGuide} />}
+
+          {!this.state.sandboxGuideOpen && this.state.sandboxGuideRestart && wantsSandboxGuide() && (
+            <div class="sandbox-guide-restart">
               <a href="/shop">get a parcel in the shop</a>
-              <button type="button" class="linkish" onClick={this.openScratchpadGuide}>
+              <button type="button" class="linkish" onClick={this.openSandboxGuide}>
                 start over
               </button>
             </div>

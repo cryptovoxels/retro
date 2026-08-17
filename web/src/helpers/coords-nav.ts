@@ -7,16 +7,12 @@ export function getCoords() {
 
 export function isFullClientPath(path?: string) {
   const p = (path || (typeof location !== 'undefined' ? location.pathname : '')).split('?')[0]
-  if (p === '/play' || p === '/scratchpad') return true
-  if (/^\/spaces\/[^/]+\/play$/.test(p)) return true
-  if (/^\/assets\/\d+\/play$/.test(p)) return true
-  return false
+  return p === '/play'
 }
 
-/** space/asset detail pages that host an embedded client-slot */
-export function isEmbedClientPath(path?: string) {
-  const p = (path || (typeof location !== 'undefined' ? location.pathname : '')).split('?')[0]
-  return /^\/spaces\/[^/]+$/.test(p) || /^\/assets\/\d+$/.test(p)
+/** detail pages that host an embedded client-slot (none left after single-world) */
+export function isEmbedClientPath(_path?: string) {
+  return false
 }
 
 export function withCoords(path: string) {

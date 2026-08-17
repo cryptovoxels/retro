@@ -58,9 +58,8 @@ export class WompOverlay extends Component<Props, State> {
   }
 
   onClick = (womp: Womp) => {
-    if (window.config.isSpace) {
-      //IF we're currently in a space and we click a broadcast womp, take us in-world
-      window.ui?.openLink(`/play?coords=${womp.coords}`)
+    if (womp.space_id) {
+      window.ui?.openLink(`/spaces/${womp.space_id}`)
       return
     }
     this.teleportTo(womp.coords)

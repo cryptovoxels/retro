@@ -1,17 +1,12 @@
 import type http from 'http'
 import WebSocket, { WebSocketServer } from 'ws'
 import { ClientUUID } from '../common/clientUUID'
-import { SpaceId } from '../common/spaceId'
 import { APP_NAME } from '../constants/appName'
 import { WSCloseCodes } from '../constants/socketCloseCodes'
 import { ClientConnectionInformation } from './client'
 import { Shards } from './shards/shards'
 import type { MultiplayerServer, WsLike } from '../createServer'
 
-/**
- *  Creates the websocket server and handles validating and shuffling off the various events to the shards.
- *  The shards is where the actual game logic and state is managed.
- */
 export default function createWebsocketServer(server: MultiplayerServer, httpServer: http.Server, shards: Shards) {
   const wss = new WebSocketServer({ server: httpServer, path: '/socket' })
 
@@ -40,12 +35,10 @@ export default function createWebsocketServer(server: MultiplayerServer, httpSer
     }
 
     const clientUUID = client_uuid as ClientUUID
-    const spaceId = tryDeriveSpaceId(url)
-
     const fullUrl = url.pathname + (url.search ? url.search : '')
     const clientInfo: ClientConnectionInformation = {
       clientUUID,
-      shardID: spaceId ? { type: 'space', spaceId: spaceId.spaceId } : { type: 'world' },
+      shardID: { type: 'world' },
       url: fullUrl,
     }
 
@@ -81,7 +74,6 @@ export default function createWebsocketServer(server: MultiplayerServer, httpSer
 
     ws.on('error', (err) => {
       console.error('WebSocket error', err)
-      // ensure close handling runs
       try {
         ws.close()
       } catch {}
@@ -99,27 +91,4 @@ function toArrayBuffer(data: WebSocket.RawData): ArrayBuffer {
   }
   const buf = Buffer.isBuffer(data) ? data : Buffer.from(data)
   return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength)
-}
-
-const tryDeriveSpaceId = (url: URL): false | { spaceId: SpaceId } => {
-  // For now, very strictly check if the incoming message is for a space. In reality, this check may be too naive.
-  // Worst-case scenario, we'll just forward the message to the world server, so at least we won't break multiplayer
-  // in the world. We should really have a third state where we boot a connection that isn't for a space, or for the world.
-  // But yeah, let's not break the world while this feature is in beta.
-
-  const pathWithoutLeadingSlash = url.pathname.startsWith('/') ? url.pathname.substring(1) : url.pathname
-  const spaceIdFromPath = SpaceId.tryParse(pathWithoutLeadingSlash)
-  if (spaceIdFromPath) {
-    return { spaceId: spaceIdFromPath }
-  }
-
-  const spaceIdParam = url.searchParams.get('space_id')
-  if (spaceIdParam) {
-    const spaceIdFromParam = SpaceId.tryParse(spaceIdParam)
-    if (spaceIdFromParam) {
-      return { spaceId: spaceIdFromParam }
-    }
-  }
-
-  return false
 }

@@ -4,7 +4,7 @@ import type Selector from '../tools/voxel'
 import { SelectionMode } from '../tools/voxel'
 import { uiPane } from '../store'
 
-const STEPS = [
+export const SANDBOX_LEARN_STEPS = [
   { id: 'b', label: 'Press B', hint: 'Turns on the voxel toolbelt. The mouse locks to the world -- press Escape to free the mouse and click the belt.' },
   { id: 'place', label: 'Place a block', hint: 'Click in the world. Drag for a wall or floor.' },
   { id: 'delete', label: 'Delete a block', hint: 'Hold shift, then click or drag.' },
@@ -18,26 +18,26 @@ const STEPS = [
   },
 ] as const
 
-type StepId = (typeof STEPS)[number]['id']
+type StepId = (typeof SANDBOX_LEARN_STEPS)[number]['id']
 type StepStatus = 'pending' | 'done' | 'skipped'
 
 function initialSteps(): Record<StepId, StepStatus> {
   return { b: 'pending', place: 'pending', delete: 'pending', color: 'pending', paint: 'pending', features: 'pending' }
 }
 
-export type ScratchpadGuideProps = {
+export type SandboxGuideProps = {
   voxelTool: Selector
   onComplete: () => void
 }
 
-export function ScratchpadGuide({ voxelTool, onComplete }: ScratchpadGuideProps) {
+export function SandboxGuide({ voxelTool, onComplete }: SandboxGuideProps) {
   const [steps, setSteps] = useState(initialSteps)
   const onCompleteRef = useRef(onComplete)
   onCompleteRef.current = onComplete
   const colorBaselineRef = useRef({ texture: voxelTool.texture, tint: voxelTool.tint })
 
   const finishIfDone = (next: Record<StepId, StepStatus>) => {
-    if (STEPS.every((s) => next[s.id] !== 'pending')) {
+    if (SANDBOX_LEARN_STEPS.every((s) => next[s.id] !== 'pending')) {
       setTimeout(() => onCompleteRef.current(), 0)
     }
     return next
@@ -55,17 +55,6 @@ export function ScratchpadGuide({ voxelTool, onComplete }: ScratchpadGuideProps)
     setSteps((prev) => {
       if (prev[id] !== 'pending') return prev
       return finishIfDone({ ...prev, [id]: 'skipped' })
-    })
-  }
-
-  const skipAll = () => {
-    setSteps((prev) => {
-      const next = { ...prev }
-      for (const s of STEPS) {
-        if (next[s.id] === 'pending') next[s.id] = 'skipped'
-      }
-      setTimeout(() => onCompleteRef.current(), 0)
-      return next
     })
   }
 
@@ -93,18 +82,13 @@ export function ScratchpadGuide({ voxelTool, onComplete }: ScratchpadGuideProps)
     }
   }, [voxelTool])
 
-  const current = STEPS.find((s) => steps[s.id] === 'pending')
+  const current = SANDBOX_LEARN_STEPS.find((s) => steps[s.id] === 'pending')
 
   return (
-    <div class="scratchpad-guide">
-      <div class="scratchpad-guide-head">
-        <span>learn voxels</span>
-        <button type="button" class="linkish" onClick={skipAll}>
-          skip all
-        </button>
-      </div>
+    <div class="sandbox-guide">
+      <h3>You found a sandbox!</h3>
       <ul>
-        {STEPS.map((step) => {
+        {SANDBOX_LEARN_STEPS.map((step) => {
           const status = steps[step.id]
           const isCurrent = current?.id === step.id
           const mark = status === 'done' ? '[x]' : status === 'skipped' ? '[-]' : '[ ]'
@@ -133,14 +117,14 @@ export function ScratchpadGuide({ voxelTool, onComplete }: ScratchpadGuideProps)
   )
 }
 
-export type ScratchpadGuideMiniProps = {
+export type SandboxGuideMiniProps = {
   onGotIt: () => void
   onStartOver: () => void
 }
 
-export function ScratchpadGuideMini({ onGotIt, onStartOver }: ScratchpadGuideMiniProps) {
+export function SandboxGuideMini({ onGotIt, onStartOver }: SandboxGuideMiniProps) {
   return (
-    <div class="scratchpad-guide scratchpad-guide-mini">
+    <div class="sandbox-guide sandbox-guide-mini">
       <a href="/shop">get a parcel in the shop</a>
       <button type="button" class="linkish" onClick={onGotIt}>
         Got it!

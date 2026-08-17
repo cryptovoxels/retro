@@ -23,7 +23,8 @@ select properties.id as id,
        y2,
        properties.z1,
        properties.z2,
-       settings
+       settings,
+       sandbox
 from properties
          left join
      suburbs on suburbs.id = properties.suburb_id

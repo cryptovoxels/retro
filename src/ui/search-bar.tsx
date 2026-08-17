@@ -55,11 +55,7 @@ export abstract class SearchBar<Props extends SearchBarProps = SearchBarProps> e
 
   select(parcel: SimpleParcelRecord) {
     const h = new ParcelHelper(parcel)
-    if (window.config.isSpace) {
-      window.ui?.openLink('/play?coords=' + h.centerLocation)
-    } else {
-      h.spawnUrl().then((url) => window.persona.teleport(url))
-    }
+    h.spawnUrl().then((url) => window.persona.teleport(url))
     this.props.onSelect?.()
   }
 

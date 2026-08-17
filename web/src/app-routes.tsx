@@ -2,7 +2,6 @@ import { ComponentType } from 'preact'
 import { Route } from 'preact-router'
 import GoLive from '../account/go-live'
 import GoLiveBroadcast from '../account/go-live-broadcast'
-import NewSpace from '../account/new-space'
 import Asset from './asset'
 import Assets from './assets'
 import AssetsNew from './assets-new'
@@ -37,8 +36,7 @@ import RenderCostume from './render/costume'
 import Search from './search'
 import Shop from './shop'
 import Space from './space'
-import SpaceEdit from './space-edit'
-import Spaces from './spaces'
+import BuildPage from './build'
 import Terms from './terms'
 import Wearable from './wearable'
 import Womp from './womp'
@@ -71,10 +69,8 @@ const components: Record<string, ComponentType<any>> = {
   parcels: Parcels,
   parcel: Parcel,
   parcelEdit: ParcelEdit,
-  spaces: Spaces,
-  newSpace: NewSpace,
   space: Space,
-  spaceEdit: SpaceEdit,
+  build: BuildPage,
   islands: Islands,
   island: Island,
   map: WorldMap,

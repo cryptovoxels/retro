@@ -60,9 +60,7 @@ function constructSocketUrl(): string {
 }
 
 export default function createWWWServer(server: http.Server, shards: Shards) {
-  const clientCount = () =>
-    shards.worldShard.getShardClientCount() +
-    [...shards.spaceShards.values()].reduce((n, s) => n + s.getShardClientCount(), 0)
+  const clientCount = () => shards.worldShard.getShardClientCount()
 
   const getWorldClients = () => shards.worldShard.getClientList()
 

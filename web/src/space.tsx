@@ -1,217 +1,186 @@
 import { Component } from 'preact'
-import EditableName from './components/Editable/editable-name'
 import { fetchOptions } from './utils'
-import { app } from './state'
-import { AssetType } from './components/Editable/editable'
-import SpaceHelper from './space-helper'
-import EditableDescription from './components/Editable/editable-description'
-import { copyTextToClipboard, ssrFriendlyDocument } from '../../common/helpers/utils'
-import WompsList from './womps-list'
+import { ssrFriendlyDocument } from '../../common/helpers/utils'
 import { SpaceRecord } from '../../common/messages/space'
+import { avatarName } from '../../common/messages/avatar-ref'
 import Head from './components/head'
-import JsonData from './components/json-data'
-import { WorldAside } from './world-aside'
+import cachedFetch from './helpers/cached-fetch'
 
-function spaceFastboot(space: any) {
-  const desc = { ...space, voxels: space.voxels || space.content?.voxels || '' }
-  let el = document.querySelector('script#space') as HTMLScriptElement | null
-  if (!el) {
-    el = document.createElement('script')
-    el.id = 'space'
-    el.type = 'text/json'
-    document.head.appendChild(el)
+function featureUrl(raw: unknown): string | null {
+  if (!raw) return null
+  if (typeof raw === 'string') return raw
+  if (Array.isArray(raw) && typeof raw[0] === 'string') return raw[0]
+  if (typeof raw === 'object' && raw !== null && typeof (raw as any).url === 'string') return (raw as any).url
+  return null
+}
+
+function basename(url: string): string {
+  try {
+    const path = new URL(url, location.origin).pathname
+    const name = path.split('/').filter(Boolean).pop()
+    return name || url
+  } catch {
+    return url.split('/').filter(Boolean).pop() || url
   }
-  el.textContent = JSON.stringify(desc)
-  window.grid?.applySpaceFastboot(desc)
+}
+
+function ownerHref(owner: SpaceRecord['owner']): string | null {
+  if (!owner) return null
+  if (typeof owner === 'string') return `/avatar/${owner}`
+  if (typeof owner === 'object' && (owner as any).owner) return `/avatar/${(owner as any).owner}`
+  return null
 }
 
 export interface Props {
   space?: SpaceRecord
   path?: string
-  id?: number
+  id?: string
 }
 
 export interface State {
   space: SpaceRecord | null
-  slug?: string
   error: string | null
-  querying?: boolean
-  parcelTab?: any
 }
 
 export default class Space extends Component<Props, State> {
-  map: any
-
   constructor(props: Props) {
     super()
 
-    const d = ssrFriendlyDocument?.querySelector && ssrFriendlyDocument?.querySelector('#space-json')
+    const d = ssrFriendlyDocument?.querySelector && ssrFriendlyDocument.querySelector('#space-json')
     let space: SpaceRecord | null = null
 
-    if (d && parseInt(d!.getAttribute('data-space-id')!, 10) == props.id) {
-      space = JSON.parse(d!.getAttribute('value')!)
+    if (d && d.getAttribute('data-space-id') === String(props.id)) {
+      try {
+        space = JSON.parse(d.getAttribute('value')!)
+      } catch {
+        space = null
+      }
     } else if (props.space) {
-      space = props.space ?? null
+      space = props.space
     }
 
-    this.state = {
-      space,
-      slug: '',
-      error: null,
-      parcelTab: 'description',
-    }
-  }
-
-  get helper() {
-    if (!this.state.space) {
-      return null
-    }
-
-    return new SpaceHelper(this.state.space)
-  }
-
-  get isOwner() {
-    if (!app.signedIn) {
-      return false
-    }
-    return app.isOwner(this.state.space?.owner)
-  }
-
-  get name() {
-    return this.state.space?.name || this.state.space?.id || ''
-  }
-
-  get hasSlug() {
-    return !!this.state.space && this.state.slug !== this.state.space.id
+    this.state = { space, error: null }
   }
 
   componentDidMount() {
-    // the engine boots once per page load with the world baked in - if a different
-    // world is already running (soft nav from home/parcel), reload so this space boots
-    if (window.config && window.config.spaceId !== String(this.props.id)) {
-      location.reload()
-      return
-    }
-    this.syncVisitUrl()
-    if (this.state.space) spaceFastboot(this.state.space)
     this.fetch()
   }
 
-  // the header Play button enters this space
-  syncVisitUrl() {
-    if (this.helper) app.visitUrl.value = this.helper.visitUrl
-  }
-
-  componentWillUnmount() {
-    app.visitUrl.value = undefined
+  componentDidUpdate(prev: Props) {
+    if (prev.id != this.props.id) this.fetch()
   }
 
   fetch() {
-    let url = `${process.env.API}/spaces/${this.props.id}.json`
-
-    if (this.isOwner) {
-      // Cache bust fetching of page if you are the owner of the parcel
-      // (this owner state will be from last cache, so won't update if the parcel has just been transferred
-      // to you but it will improve experience when refreshing to make sure your changes have stuck)
-      url += `?${Date.now()}`
-    }
-
-    fetch(url, fetchOptions())
+    if (!this.props.id) return
+    cachedFetch(`/api/spaces/${this.props.id}.json`, fetchOptions())
       .then((r) => r.json())
       .then((r) => {
-        const space = Object.assign({}, this.props.space, r.space, { spaceId: r.space.id })
-        this.setState({ space, slug: r.space.slug || r.space.id })
-        spaceFastboot(space)
+        if (!r?.space) {
+          this.setState({ error: 'not found', space: null })
+          return
+        }
+        this.setState({ space: r.space, error: null })
       })
+      .catch(() => this.setState({ error: 'failed to load', space: null }))
   }
 
-  componentDidUpdate(props: any) {
-    this.syncVisitUrl()
-    if (props.id != this.props.id) {
-      this.fetch()
-    }
-  }
-
-  switchTab(tab: string) {
-    this.setState({ parcelTab: tab })
-  }
-
-  setSlug(slug: string) {
-    const s = slug
-      .replace(' ', '')
-      .replace(/[^\x00-\x7F]/g, '')
-      .replace(/#|_|<|>|\[|\]|{|}|\^|%|&|\?/g, '')
-      .toLowerCase()
-    this.setState({ slug: s })
-  }
-
-  copyToClipboard = (e: any) => {
-    copyTextToClipboard(
-      e.target.value,
-      () => {
-        app.showSnackbar('Link copied !')
-      },
-      () => {
-        app.showSnackbar('Could not copy')
-      },
-    )
+  downloadJson = () => {
+    const space = this.state.space
+    if (!space) return
+    const blob = new Blob([JSON.stringify({ space }, null, 2)], { type: 'application/json' })
+    const a = document.createElement('a')
+    const safe = (space.name || space.id || 'space').replace(/[^\w.-]+/g, '_')
+    a.href = URL.createObjectURL(blob)
+    a.download = `${safe}.json`
+    a.click()
+    URL.revokeObjectURL(a.href)
   }
 
   render() {
     const space = this.state.space
+    const features = space?.content?.features || []
+    const byType = new Map<string, typeof features>()
+    for (const f of features) {
+      const t = (f as any).type || 'unknown'
+      const list = byType.get(t) || []
+      list.push(f)
+      byType.set(t, list)
+    }
 
-    // same template as the parcel page: the world fills the grid cell,
-    // details live in the one WorldSidebar aside. Render the slot even
-    // while fetching so the client docks instead of falling to the mini view.
+    const voxels = !!(space?.content?.voxels || space?.voxels)
+    const name = space?.name || space?.id || 'space'
+    const owner = space ? avatarName(space.owner) : ''
+    const href = space ? ownerHref(space.owner) : null
+
     return (
-      <section class="columns space-page">
-        <article>
-          {space && (
-            <Head title={this.name} description={space.description ?? `Visit this space`} url={`/spaces/${space.id}`}>
-              <JsonData id="space" data={{ ...space, voxels: space.voxels || space.content?.voxels || '' }} dataId={space.id} />
-            </Head>
-          )}
-          <div class="client-slot" />
-        </article>
+      <section style={{ padding: '1rem', maxWidth: '40rem' }}>
+        {space && <Head title={name} description="spaces are deprecated" url={`/spaces/${space.id}`} />}
+
+        <h1>{name}</h1>
+        <p>spaces are deprecated</p>
+
+        {this.state.error && <p>{this.state.error}</p>}
+
         {space && (
-          <WorldAside>
-            <header>
-              <EditableName value={space.name} path={this.props.path} isowner={this.isOwner} type={AssetType.Space} data={this.state.space} title="Name of this space" />
-            </header>
+          <>
+            <p>
+              {space.width}&times;{space.height}&times;{space.depth}
+              {' · '}
+              {features.length} feature{features.length === 1 ? '' : 's'}
+              {' · '}
+              voxels {voxels ? 'yes' : 'no'}
+              {' · '}
+              owner {href ? <a href={href}>{owner}</a> : owner || 'none'}
+            </p>
 
-            <dl>
-              <dt>Type</dt>
-              <dd>Space</dd>
-              <dt>Owner</dt>
-              <dd>{this.helper?.owner ? <a href={`/avatar/${this.helper.owner}`}>{this.helper.ownerName}</a> : <span>None</span>}</dd>
-              <dt>Size</dt>
-              <dd>
-                {space.width}
-                &times;
-                {space.depth}
-                {' metres'}
-              </dd>
-              <dt>Build Height</dt>
-              <dd>{space.height} meters</dd>
-              <dt>Elevation</dt>
-              <dd>
-                {0} to {space.height} meters
-              </dd>
-            </dl>
+            {space.description && <p>{space.description}</p>}
 
-            {(this.isOwner && (
-              <div>
-                <EditableDescription value={space.description} isowner={this.isOwner} type={AssetType.Space} data={this.state.space} title="Description of this space" />
-              </div>
-            )) ||
-              space.description}
+            <p>
+              <button type="button" class="outline" onClick={this.downloadJson}>
+                download space
+              </button>{' '}
+              <a href={`/api/spaces/${space.id}.json`}>json</a>
+            </p>
 
-            {this.isOwner && <a href={`/spaces/${space.id}/edit`}>Edit</a>}
-
-            <h3>Womps</h3>
-            <WompsList fetch={`/womps/at/space/${space.spaceId}.json`} />
-          </WorldAside>
+            <h2>content</h2>
+            {features.length === 0 ? (
+              <p>no features</p>
+            ) : (
+              <ul>
+                {[...byType.entries()].map(([type, list]) => (
+                  <li>
+                    {type}
+                    <ul>
+                      {list.map((f: any, i: number) => {
+                        const urls: string[] = []
+                        const u = featureUrl(f.url)
+                        if (u) urls.push(u)
+                        if (typeof f.assetUrl === 'string' && f.assetUrl) urls.push(f.assetUrl)
+                        const label = f.description || f.uuid || f.id || `#${i + 1}`
+                        return (
+                          <li>
+                            {label}
+                            {urls.length > 0 && (
+                              <ul>
+                                {urls.map((url) => (
+                                  <li>
+                                    <a href={url}>{basename(url)}</a>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </>
         )}
+
+        {!space && !this.state.error && <p>loading…</p>}
       </section>
     )
   }

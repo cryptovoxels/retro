@@ -76,11 +76,6 @@ export default class WebTopBar extends Component<unknown, State> {
               </Link>
             </li>
             <li>
-              <Link activeClassName="active" href="/account/spaces">
-                Spaces
-              </Link>
-            </li>
-            <li>
               <Link activeClassName="active" href="/account/womps">
                 Womps
               </Link>

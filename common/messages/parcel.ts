@@ -51,7 +51,6 @@ export type tokensToEnter = t.TypeOf<typeof tokensToEnter>
 
 export const ParcelSettings = t.type({
   tokensToEnter: t.union([t.array(tokensToEnter), t.undefined]),
-  sandbox: t.union([t.boolean, t.undefined]),
   hosted_scripts: t.union([t.boolean, t.undefined]),
   script_host_url: t.union([t.string, t.undefined]),
 })
@@ -72,7 +71,7 @@ export const ParcelGeometry = t.type(
 )
 export type ParcelGeometry = t.TypeOf<typeof ParcelGeometry>
 
-export const ParcelKind = t.union([t.literal('plot'), t.literal('inner'), t.literal('outer'), t.literal('unit'), t.literal('basement'), t.literal('asset'), t.literal('scratchpad')])
+export const ParcelKind = t.union([t.literal('plot'), t.literal('inner'), t.literal('outer'), t.literal('unit'), t.literal('basement'), t.literal('asset')])
 export type ParcelKind = t.TypeOf<typeof ParcelKind>
 
 export const FullParcelRecord = t.type(
@@ -114,6 +113,7 @@ export const FullParcelRecord = t.type(
     space: t.number,
     lightmap_url: NullableStr,
     is_common: t.boolean,
+    sandbox: t.boolean,
 
     // These come from the "content" database field but have a default so are always defined
     voxels: t.string,
@@ -195,6 +195,7 @@ export const ParcelRef = t.type(
     suburb: FullParcelRecord.props.suburb,
     parcel_users: FullParcelRecord.props.parcel_users,
     is_common: FullParcelRecord.props.is_common,
+    sandbox: FullParcelRecord.props.sandbox,
     settings: FullParcelRecord.props.settings,
     lightmap_url: FullParcelRecord.props.lightmap_url,
   },
@@ -228,6 +229,7 @@ export const SimpleParcelRecord = t.type(
     distance_to_center: FullParcelRecord.props.distance_to_center,
     distance_to_ocean: FullParcelRecord.props.distance_to_ocean,
     distance_to_closest_common: FullParcelRecord.props.distance_to_closest_common,
+    sandbox: FullParcelRecord.props.sandbox,
   },
   'SimpleParcelRecord',
 )
@@ -265,6 +267,7 @@ export const SingleParcelRecord = t.type(
     palette: FullParcelRecord.props.palette,
     vox: FullParcelRecord.props.vox,
     visible: FullParcelRecord.props.visible,
+    sandbox: FullParcelRecord.props.sandbox,
   },
   'SingleParcelRecord',
 )

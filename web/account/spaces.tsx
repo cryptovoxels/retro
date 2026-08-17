@@ -1,10 +1,8 @@
 import { Component } from 'preact'
 import { SimpleSpaceRecord } from '../../common/messages/space'
+import { avatarName } from '../../common/messages/avatar-ref'
 import { loadingBox } from '../src/components/loading-icon'
-import { SpacePropertyItem } from '../src/components/property-item'
 import cachedFetch from '../src/helpers/cached-fetch'
-import SpaceHelper from '../src/space-helper'
-import { app } from '../src/state'
 import { fetchOptions } from '../src/utils'
 
 const TTL = 60
@@ -18,12 +16,11 @@ export interface Props {
 export interface State {
   spaces: SimpleSpaceRecord[]
   loading: boolean
-  creating: boolean
   showAll: boolean
 }
 
 export class Spaces extends Component<Props, State> {
-  state: State = { spaces: [], loading: false, showAll: false, creating: false }
+  state: State = { spaces: [], loading: false, showAll: false }
 
   toggleShowAll() {
     this.setState({ showAll: !this.state.showAll })
@@ -41,22 +38,15 @@ export class Spaces extends Component<Props, State> {
 
   fetch(cacheBust = false) {
     this.setState({ loading: true })
-    cacheBust && app.showSnackbar('Refreshing, this can take a few seconds...')
     cachedFetch(`${process.env.API}/wallet/${this.props.wallet}/spaces.json` + (cacheBust ? `?cb=${Date.now()}` : ''), fetchOptions(), TTL)
       .then((r) => r.json())
       .then((r: { spaces?: SimpleSpaceRecord[] }) => {
         let spaces = (r.spaces || []).sort((a, b) => (a.name > b.name ? 1 : -1))
-        // don't show other users unlisted spaces
         if (!this.props.isOwner) {
           spaces = spaces.filter((s) => s.unlisted !== true)
         }
-
         this.setState({ spaces, loading: false })
       })
-  }
-
-  toggle() {
-    this.setState({ creating: !this.state.creating })
   }
 
   render() {
@@ -66,16 +56,22 @@ export class Spaces extends Component<Props, State> {
 
     const showTheseMany = 16
     const total = this.state.spaces.length
-    const spaces = this.state.spaces.slice(0, this.state.showAll ? total : showTheseMany).map((s) => <SpacePropertyItem spaceHelper={new SpaceHelper(s)} record={s} onRemove={() => this.fetch(true)} />)
+    const spaces = this.state.spaces.slice(0, this.state.showAll ? total : showTheseMany)
 
     if (spaces.length === 0) return null
 
     return (
       <div>
         <h2>Spaces</h2>
-        <table class="spaces">
-          <tbody>{spaces}</tbody>
-        </table>
+        <p>spaces are deprecated — download the json archive.</p>
+        <ul>
+          {spaces.map((s) => (
+            <li>
+              <a href={`/spaces/${s.id}`}>{s.name || s.id}</a>
+              {s.owner && <span> — {avatarName(s.owner as any)}</span>}
+            </li>
+          ))}
+        </ul>
         {total > showTheseMany && (
           <p>
             <a
@@ -87,11 +83,6 @@ export class Spaces extends Component<Props, State> {
             >
               {this.state.showAll ? 'show less' : `see all ${total}`}
             </a>
-          </p>
-        )}
-        {!!this.props.isOwner && (
-          <p>
-            <a href="/spaces/new">Create a space</a>
           </p>
         )}
       </div>

@@ -144,7 +144,7 @@ export default class WompWall extends Feature2D<WompWallRecord> {
     const gen = ++this.paintGen
     const parcel = this.parcel
     const parcelId = parcel?.id
-    if (!parcelId || window.config?.isSpace) {
+    if (!parcelId) {
       this.tiles = Array(TILES).fill(null)
       this.womps = []
       this.paintEmpty()

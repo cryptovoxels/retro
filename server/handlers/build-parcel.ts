@@ -3,7 +3,6 @@ import authParcel from '../auth-parcel'
 import { parseQueryInt } from '../lib/query-parsing-helpers'
 import Parcel from '../parcel'
 import ParcelBuilder from '../parcel-builder'
-import Space from '../space'
 import { VoxelsUserRequest } from '../user'
 
 export default async function BuildRequestHandler(req: VoxelsUserRequest, res: Response) {
@@ -39,39 +38,6 @@ export default async function BuildRequestHandler(req: VoxelsUserRequest, res: R
   parcel.setContent(f.call(null, parcel, m))
 
   await parcel.save()
-
-  res.json({ success: true })
-}
-
-export async function SpaceBuildRequestHandler(req: VoxelsUserRequest, res: Response) {
-  if (typeof req.params.id !== 'string') {
-    res.status(404).json({ success: false })
-    return
-  }
-  const space = await Space.load(req.params.id)
-
-  if (!space) {
-    res.status(404).json({ success: false })
-    return
-  }
-
-  if (!req.user || !req.user.wallet || space.owner.toLowerCase() !== req.user.wallet.toLowerCase()) {
-    res.json({ success: false })
-    return
-  }
-
-  const funcName = req.query['function']
-  if (!funcName || typeof funcName !== 'string') {
-    res.json({ success: false, error: 'No function specified' })
-    return
-  }
-
-  const f: Function = (ParcelBuilder as any)[funcName]
-  const m = parseQueryInt(req.query.material)
-
-  space.setContent(f.call(null, space, m))
-
-  await space.save()
 
   res.json({ success: true })
 }

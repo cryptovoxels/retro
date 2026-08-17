@@ -4,7 +4,7 @@ import cache, { noCache } from '../cache'
 import config from '../../common/config'
 import proxy from 'express-http-proxy'
 import Parcel, { ParcelRef } from '../parcel'
-import { revertParcel } from '../handlers/update-parcel'
+import { revertParcel, sandboxRollback } from '../handlers/update-parcel'
 import voxExport from '../handlers/vox-export'
 import { numberOfQuarterOfDaySinceGenesis } from '../lib/utils'
 import authParcel from '../auth-parcel'
@@ -17,6 +17,8 @@ import { isAddress } from 'ethers'
 const HEADINGS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const
 
 export default function (db: Db, passport: PassportStatic, app: Express) {
+  app.get('/api/sandboxes.json', cache('60 seconds'), createRequestHandlerForQuery(db, 'get-sandbox-parcels', 'sandboxes'))
+
   // Parcels
   // This API route supports a `parcels_ids` flag which can be repeated multiple times.
   app.get('/api/parcels.json', cache('5 minutes'), async (req, res) => {
@@ -351,7 +353,8 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
     cache('5 second'),
     createRequestHandlerForQuery(db, 'parcels/get-users-rights-by-parcel', 'users', (req) => [req.params.id]),
   )
-  app.post('/api/parcels/:id/revert', passport.authenticate('jwt', { session: false }), revertParcel)
+  app.post('/api/parcels/:id/revert', passport.authenticate(['jwt', 'anonymous'], { session: false }), revertParcel)
+  app.post('/api/parcels/:id/sandbox-rollback', passport.authenticate(['jwt', 'anonymous'], { session: false }), sandboxRollback)
 
   app.get('/api/parcels/:id.vox', cache('15 seconds'), async (req, res) => {
     const parcel_id = parseInt(req.params.id, 10)

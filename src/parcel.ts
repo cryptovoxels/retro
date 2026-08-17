@@ -172,6 +172,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.geometry = record.geometry
     this.settings = record.settings || {}
 
+    this.summary = record
     this.autobuild()
 
     this.updateMeta(record)
@@ -253,7 +254,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     const r = record as ParcelRecord & { bouncerShouldAllowUser?: any }
     r.bouncerShouldAllowUser && this.parcelBouncer.handleNFTAuth(!!r.bouncerShouldAllowUser)
     delete (record as ParcelRecord & { bouncerShouldAllowUser?: boolean }).bouncerShouldAllowUser
-    this.summary = record
 
     // Use pre-computed field if provided (from grid-worker)
     if (precomputedField) {
@@ -378,7 +378,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   get sandbox() {
-    return this.kind == 'scratchpad' || this.settings.sandbox === true
+    return !!this.summary.sandbox
   }
 
   get hostedScripts() {
@@ -664,6 +664,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.parcel_users = meta.parcel_users || []
     this.settings = meta.settings || {}
     this.lightmap_url = meta.lightmap_url || null
+    ;(this.summary as any).sandbox = !!(meta as any).sandbox
   }
 
   /**
