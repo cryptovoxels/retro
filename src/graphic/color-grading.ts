@@ -69,17 +69,7 @@ void main(void) {
     }
 
     const engine = this.scene.getEngine()
-    const pp = new BABYLON.PostProcess(
-      'sandboxBorder',
-      'sandboxBorder',
-      ['screenSize', 'borderWidth'],
-      null,
-      1.0,
-      camera,
-      BABYLON.Texture.BILINEAR_SAMPLINGMODE,
-      engine,
-      false,
-    )
+    const pp = new BABYLON.PostProcess('sandboxBorder', 'sandboxBorder', ['screenSize', 'borderWidth'], null, 1.0, camera, BABYLON.Texture.BILINEAR_SAMPLINGMODE, engine, false)
     pp.onApply = (effect) => {
       effect.setFloat2('screenSize', engine.getRenderWidth(), engine.getRenderHeight())
       effect.setFloat('borderWidth', 30.0)
