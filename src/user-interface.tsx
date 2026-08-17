@@ -143,7 +143,6 @@ type UserInterfaceState = {
   editor?: FeatureEditor
   feature?: Feature
   publishAsset?: FeatureTemplate | string
-  active: boolean
   /** Shown next to minimap expand; same source as Explore radar */
   onlineCount: number
   scratchpadGuideOpen?: boolean
@@ -210,7 +209,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       signedIn: app?.signedIn ?? false,
       wallet: app?.state.wallet ?? null,
       currentOrNearestParcel: null,
-      active: false,
       onlineCount: 0,
       chatEnabled: chatSettings.enabled,
       voiceEnabled: voiceSettings.enabled,
@@ -232,7 +230,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     })
 
     if (signedIn && this.state.pane === 'login') {
-      this.setState({ pane: undefined, active: false })
+      this.setState({ pane: undefined })
     }
   }
 
@@ -263,7 +261,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     setSelectedFeature(feature)
     enterAuthoring(feature.parcel.id)
     uiPane.value = 'edit'
-    this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'edit', active: true, publishAsset: undefined })
+    this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'edit', publishAsset: undefined })
     exitPointerLock()
       // off-object drags look around while editing
       ; (this.connector.controls as any).attachDragLook?.()
@@ -271,7 +269,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   openPublishAsset(asset: FeatureTemplate | string) {
     uiPane.value = 'edit'
-    this.setState({ publishAsset: asset, pane: 'edit', active: true })
+    this.setState({ publishAsset: asset, pane: 'edit' })
     uiAsideTick.value++
     exitPointerLock()
   }
@@ -297,7 +295,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       editor: multi ? undefined : this.state.editor,
       feature: multi ? undefined : this.state.feature,
       pane: 'edit',
-      active: true,
     })
     uiAsideTick.value++
   }
@@ -307,7 +304,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     selectedFeature.value = undefined
     uiPane.value = 'edit'
     this.featureTool.unHighlight()
-    this.setState({ editor: undefined, feature: undefined, pane: 'edit', active: true })
+    this.setState({ editor: undefined, feature: undefined, pane: 'edit' })
     uiAsideTick.value++
   }
 
@@ -410,7 +407,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   enterScratchpadGuideMini = () => {
     exitPointerLock()
     uiPane.value = 'add'
-    this.setState({ pane: 'add', active: true, scratchpadGuideMini: true })
+    this.setState({ pane: 'add', scratchpadGuideMini: true })
   }
 
   celebrateScratchpadGuideComplete = () => {
@@ -427,7 +424,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       scratchpadGuideMini: false,
       scratchpadGuideKey: (this.state.scratchpadGuideKey || 0) + 1,
       pane: undefined,
-      active: false,
     })
   }
 
@@ -439,12 +435,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       scratchpadGuideRestart: false,
       scratchpadGuideKey: (this.state.scratchpadGuideKey || 0) + 1,
       pane: undefined,
-      active: false,
     })
   }
 
   componentDidUpdate(_prevProps: UserInterfaceProps, prevState: UserInterfaceState) {
-    if (!prevState.active && this.state.active) {
+    if (!prevState.pane && this.state.pane) {
       this.chatLastReadAt = Date.now()
     }
     if (prevState.pane !== this.state.pane || prevState.feature?.uuid !== this.state.feature?.uuid) {
@@ -507,7 +502,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     uiPane.value = undefined
     if (parcelId != null) exitAuthoring(parcelId)
     uiAsideTick.value++
-    this.setState({ editor: undefined, feature: undefined, pane: undefined, active: false, publishAsset: undefined })
+    this.setState({ editor: undefined, feature: undefined, pane: undefined, publishAsset: undefined })
     // controls path avoids focus-before-lock (steals the gesture) and eats the post-unlock cooldown rejection
     const controls = this.connector.controls as any
     controls?.requestPointerLock ? controls.requestPointerLock()?.catch?.(() => { }) : requestPointerLock()
@@ -521,7 +516,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     requestPointerLock()
 
     uiPane.value = undefined
-    this.setState({ active: false, pane: undefined })
+    this.setState({ pane: undefined })
   }
 
   disable() {
@@ -580,17 +575,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
             if (this.state.pane) return
 
-            if (!this.state.active) {
-              this.setPane('add')
-              return
-            }
-
-            if (document.activeElement instanceof HTMLInputElement) {
-              return
-            } else if (document.activeElement?.closest('.UserInterface')) {
-              // ignore tab if inside the nav
-              return
-            }
+            this.setPane('add')
+            return
           },
         },
       ],
@@ -654,9 +640,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     uiPane.value = pane
     // stale editor/feature poisons the add flow (tool taps early-return, click-away misfires)
     if (pane !== 'edit') {
-      this.setState({ pane: pane, active: true, editor: undefined, feature: undefined })
+      this.setState({ pane: pane, editor: undefined, feature: undefined })
     } else {
-      this.setState({ pane: pane, active: true })
+      this.setState({ pane: pane })
     }
   }
 
@@ -697,7 +683,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   closeInteractOverlay() {
     uiPane.value = undefined
     // ghost editor/feature keeps click-away + drag-look + feature tool in edit limbo
-    this.setState({ pane: undefined, active: false, editor: undefined, feature: undefined })
+    this.setState({ pane: undefined, editor: undefined, feature: undefined })
   }
 
   // the one ESC: leave fullscreen. two-step -- a locked pointer eats the
@@ -780,7 +766,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   hide() {
     uiPane.value = undefined
-    this.setState({ pane: undefined, active: false })
+    this.setState({ pane: undefined })
   }
 
   highlightFeature(feature: Feature) {
@@ -876,7 +862,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   showExplorerMap() {
     this.explorerPaneInitialTab.current = 'map'
     uiPane.value = 'explorer'
-    this.setState({ pane: 'explorer', active: true })
+    this.setState({ pane: 'explorer' })
     setTimeout(() => {
       this.explorerPaneInitialTab.current = undefined
     })
@@ -885,7 +871,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   showExplorerOnline() {
     this.explorerPaneInitialTab.current = 'users'
     uiPane.value = 'explorer'
-    this.setState({ pane: 'explorer', active: true })
+    this.setState({ pane: 'explorer' })
     setTimeout(() => {
       this.explorerPaneInitialTab.current = undefined
     })
@@ -1001,7 +987,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     const currentPane = this.state.pane
     const active = (pane: string, disabled?: boolean) => (currentPane === pane ? 'active' : disabled ? 'disabled' : '')
 
-    const unreadChat = this.state.chatEnabled && !this.state.active ? messageList.value.some((m) => m.timestamp > this.chatLastReadAt) : false
+    const unreadChat = this.state.chatEnabled && !this.state.pane ? messageList.value.some((m) => m.timestamp > this.chatLastReadAt) : false
 
     return (
       <>
@@ -1016,7 +1002,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           )}
           {isMobileMedia() && <WompButton onClick={() => this.takeWomp(this.props.scene)} />}
 
-          <aside data-active={this.state.active}>
+          <aside data-active={!!this.state.pane}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
               <li class={active('explorer')}>
                 <a href="#explorer" onMouseOver={onHover('explorer')} onClick={onClick('explorer')} title={this.state.newWomp ? 'new womp - open Explore' : 'Explore'}>
