@@ -51,6 +51,7 @@ import CostumesController from './controllers/costumes'
 import ExternalsController from './controllers/externals'
 import ModerationReportsController from './controllers/reports'
 import WompsController from './controllers/womps'
+import GhostsController from './controllers/ghosts'
 import IslandBoardController from './controllers/island-board'
 import BlogController from './controllers/blog'
 import { ingestReleaseNotes } from './blog-ingest'
@@ -399,6 +400,8 @@ AvatarsController(db, passport, app)
 CostumesController(db, passport, app)
 // Womps
 WompsController(db, passport, app)
+// Ghosts (anonymous path fragments)
+GhostsController(db, passport, app)
 
 IslandBoardController(db, passport, app)
 BlogController(db, passport, app)

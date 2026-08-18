@@ -341,3 +341,15 @@ SELECT apply_migration('properties-sandbox-column', $$
     AND island = 'Obscurity'
     AND lower(owner) = lower('0x36F1A7f48f4e7bbda9E2d8aEEfEE639cae2604bc');
 $$);
+
+SELECT apply_migration('ghosts-table', $$
+  CREATE TABLE IF NOT EXISTS ghosts (
+    id bigserial PRIMARY KEY,
+    start_parcel integer NOT NULL,
+    end_parcel integer NOT NULL,
+    type integer NOT NULL,
+    path bytea NOT NULL
+  );
+  CREATE INDEX IF NOT EXISTS ghosts_start_idx ON ghosts (start_parcel);
+  CREATE INDEX IF NOT EXISTS ghosts_end_idx ON ghosts (end_parcel);
+$$);

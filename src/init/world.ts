@@ -11,6 +11,7 @@ import { ParcelMesher } from '../parcel-mesher'
 import { createGizmos } from '../tools/gizmos'
 import { isLoaded } from '../utils/loading-done'
 import { stepPhysics } from '../physics/world'
+import { startGhosts } from '../ghosts'
 
 export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCanvasElement, controls: Controls, environment: Environment) {
   const parcelMesher = new ParcelMesher(scene)
@@ -37,6 +38,8 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
   }
 
   const connector = initConnector(scene, controls, grid)
+
+  startGhosts(scene, controls.worldOffset, grid, controls, connector)
 
   await grid.loadFastbootFromHTML()
 

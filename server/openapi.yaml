@@ -28,8 +28,42 @@ tags:
   - name: spaces
   - name: events
   - name: search
+  - name: ghosts
 
 paths:
+  /api/ghosts:
+    get:
+      operationId: listGhosts
+      tags: [ghosts]
+      summary: Random path fragments that touched a parcel
+      description: |
+        Returns up to 10 anonymous movement fragments whose start or end
+        parcel matches. Each `path` is base64 of a little-endian Float32Array
+        packed as `t,x,y,z` per sample (`t` seconds from the fragment start).
+        `type` is 0 walk, 1 conga, 2 fly, 3 drive. No identity and no created_at.
+      parameters:
+        - name: parcel
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  ghosts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Ghost'
+        '400':
+          $ref: '#/components/responses/Failure'
+
   /api/parcels.json:
     get:
       operationId: listParcels
@@ -2630,6 +2664,20 @@ components:
           type: [string, 'null']
         rank:
           type: number
+
+    Ghost:
+      type: object
+      properties:
+        start_parcel:
+          type: integer
+        end_parcel:
+          type: integer
+        type:
+          type: integer
+          description: 0 walk, 1 conga, 2 fly, 3 drive
+        path:
+          type: string
+          description: Base64 of Float32Array samples packed as t,x,y,z
 
     EventList:
       type: object
