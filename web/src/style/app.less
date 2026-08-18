@@ -1161,6 +1161,37 @@ main > .columns.build-page > article {
   height: 100%;
 }
 
+// home explore lives in the page <aside> (not WorldAside). Span world+sidebar until a
+// pane mounts as main > aside, then world-only and hide the page aside.
+main > .columns.home {
+  grid-column: 2 / 4;
+  grid-row: 1;
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  min-height: 0;
+}
+
+main > .columns.home > aside {
+  flex: 0 0 23rem;
+  width: 23rem;
+  overflow-y: auto;
+  min-height: 0;
+  padding: 1rem;
+  padding-top: 2rem;
+  background: var(--bg);
+  box-sizing: border-box;
+  pointer-events: auto;
+}
+
+main:has(> aside) > .columns.home {
+  grid-column: 2 / 3;
+}
+
+main:has(> aside) > .columns.home > aside {
+  display: none;
+}
+
 main:is(@{world-hosts}) > aside {
   grid-area: sidebar;
   grid-column: unset;

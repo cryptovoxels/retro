@@ -2,7 +2,6 @@ import { Component } from 'preact'
 import { Spinner } from '../../../web/src/spinner'
 import { app, AppEvent } from '../../../web/src/state'
 import { FeatureAssetCategory, FeatureAssetType, LibraryAsset, ScriptAssetCategory } from '../../library-asset'
-import { AssetLibrarySearchBar } from '../search-bar'
 import { AssetBrowser, NUMBER_PER_PAGE } from './asset-browser'
 import { BrowserSortingOptions } from './browser-sorting-options'
 
@@ -179,17 +178,6 @@ export class AssetLibraryBrowser extends Component<Props, State> {
     this.setState({ page })
   }
 
-  onSearch = (searchQuery?: string | null) => {
-    if (!searchQuery) return
-    this.query = searchQuery
-    if (this.state.page == 1) {
-      this.fetchAssets()
-    } else {
-      this.setState({ page: 1 })
-      // we fetch Assets after changing page automatically
-    }
-  }
-
   componentDidMount() {
     app.on(AppEvent.Change, this.onAppChange)
     if (AssetLibraryBrowser.searchResult.assets) {
@@ -250,10 +238,6 @@ export class AssetLibraryBrowser extends Component<Props, State> {
 
     return (
       <section class="asset-library">
-        <div class="searchBar">
-          <AssetLibrarySearchBar onSelect={this.close} onSearch={this.onSearch} scene={this.props.scene} />
-        </div>
-
         <BrowserSortingOptions toggleSort={this.toggleSort} {...this.state}></BrowserSortingOptions>
 
         <div class="filter-options">

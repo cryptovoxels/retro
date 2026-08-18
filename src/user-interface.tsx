@@ -1,6 +1,6 @@
 import type { Signal } from '@preact/signals'
 import { effect } from '@preact/signals'
-import { Component, createRef, Fragment } from 'preact'
+import { Component, Fragment } from 'preact'
 import { route } from 'preact-router'
 import { getCoords, withCoords } from '../web/src/helpers/coords-nav'
 import { isMobileMedia } from '../common/helpers/detector'
@@ -50,8 +50,8 @@ import { CongaJoinHintOverlay, CongaStatusOverlay } from './ui/conga-status'
 import { MaterialDebugTab } from './ui/debug/material-debug-tab'
 import { OceanDebugTab } from './ui/debug/ocean-debug-tab'
 import { PumpDebugTab } from './ui/debug/pump-debug-tab'
-import { ExplorerUI, Tab } from './ui/explorer'
 import { FeatureEditor } from './ui/features/misc'
+import { openExplore } from '../web/src/helpers/open-explore'
 import HomeButton from './ui/home-button'
 import { ChatOverlay, chatSettings } from './ui/interact/chat'
 import { voiceSettings } from './voice-settings'
@@ -113,7 +113,7 @@ export enum Mode {
   Avatar,
 }
 
-export type UIPanes = 'add' | 'edit' | 'voxels' | 'debugTool' | 'nfts' | 'chat' | 'dance' | 'emote' | 'yeet' | 'settings' | 'womp' | 'takeWomp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake' | 'broadcast'
+export type UIPanes = 'add' | 'edit' | 'voxels' | 'debugTool' | 'nfts' | 'chat' | 'dance' | 'emote' | 'yeet' | 'settings' | 'womp' | 'takeWomp' | 'help' | 'login' | 'parcelSnapshots' | 'bake' | 'broadcast'
 
 export interface Tool {
   activate: () => void
@@ -180,11 +180,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   defaultTool: Tool | null
   keyboardHandler: KeyboardHandler = undefined!
 
-  /**
-   * Only used for setting initial tab of the explorer; default undefined
-   * We use a ref here to avoid re-renders
-   */
-  explorerPaneInitialTab = createRef<Tab | undefined>()
   presenceEs: EventSource | null = null
   presenceUuids = new Set<string>()
   chatLastReadAt = Date.now()
@@ -494,9 +489,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     if (prevState.pane !== this.state.pane || prevState.feature?.uuid !== this.state.feature?.uuid) {
       uiAsideTick.value++
     }
-    if (this.state.pane === 'explorer' && prevState.pane !== 'explorer') {
-      this.markWompsSeen()
-    }
   }
 
   onChatSettingsChange = () => {
@@ -604,7 +596,14 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
             this.editFeatureIfHasLock()
           },
         },
-        { code: 'KeyX', handleEvent: () => this.deleteFeature() },
+        {
+          code: 'KeyX',
+          handleEvent: () => {
+            this.markWompsSeen()
+            openExplore()
+            exitPointerLock()
+          },
+        },
         { code: 'Backspace', handleEvent: () => this.deleteFeature() },
         { code: 'KeyM', handleEvent: () => this.editFeatureThenMove() },
         { code: 'KeyR', handleEvent: () => this.toggleRealism() },
@@ -914,24 +913,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.hide()
   }
 
-  showExplorerMap() {
-    this.explorerPaneInitialTab.current = 'map'
-    uiPane.value = 'explorer'
-    this.setState({ pane: 'explorer' })
-    setTimeout(() => {
-      this.explorerPaneInitialTab.current = undefined
-    })
-  }
-
-  showExplorerOnline() {
-    this.explorerPaneInitialTab.current = 'users'
-    uiPane.value = 'explorer'
-    this.setState({ pane: 'explorer' })
-    setTimeout(() => {
-      this.explorerPaneInitialTab.current = undefined
-    })
-  }
-
   openLink(url: string) {
     if (this.visible) {
       // suppress
@@ -992,8 +973,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       }
       case 'help':
         return <HelpOverlay scene={this.props.scene} onShowSandboxGuide={wantsSandboxGuide() ? this.openSandboxGuide : undefined} />
-      case 'explorer':
-        return <ExplorerUI scene={this.props.scene} initialTab={this.explorerPaneInitialTab.current!} />
       case 'bake':
         return <Baking parcel={nearestEditableParcel!} />
       case 'broadcast':
@@ -1060,8 +1039,17 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           <aside data-active={!!this.state.pane}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
-              <li class={active('explorer')}>
-                <a href="#explorer" onMouseOver={onHover('explorer')} onClick={onClick('explorer')} title={this.state.newWomp ? 'new womp - open Explore' : 'Explore'}>
+              <li>
+                <a
+                  href="/"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    this.markWompsSeen()
+                    openExplore()
+                    exitPointerLock()
+                  }}
+                  title={this.state.newWomp ? 'new womp - open Explore' : 'Explore'}
+                >
                   Explore{this.state.newWomp ? <span class="explore-new-dot" aria-label="new womp" /> : null}
                 </a>
               </li>

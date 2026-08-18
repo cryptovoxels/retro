@@ -1,14 +1,19 @@
 import { Component, Fragment } from 'preact'
-import { useEffect, useState } from 'preact/hooks'
-import type { ComponentChildren } from 'preact'
 import ParcelHelper from '../../common/helpers/parcel-helper'
 import { currentVersion } from '../../common/version'
+import { focusFirst, onListArrowKeys } from '../../src/ui/keynav'
 import Head from './components/head'
+import BlogTeaser from './components/blog-teaser'
+import Classifieds from './components/classifieds'
+import PopularParcels from './components/popular-parcels'
+import Radar from './components/radar'
+import type { Womp } from './components/womp-card'
 import { getClientPath } from './helpers/client-helpers'
 import { getCoords, naviportHere } from './helpers/coords-nav'
-import { WorldAside } from './world-aside'
 import cachedFetch from './helpers/cached-fetch'
+import { FOCUS_EXPLORE } from './helpers/open-explore'
 import { app, AppEvent } from './state'
+import WompsList from './womps-list'
 
 function busiestParcel(): Promise<number | null> {
   return new Promise((resolve) => {
@@ -64,28 +69,13 @@ async function pickFrontpageParcel() {
   naviportHere(url, id)
 }
 
-function HomeExplore() {
-  const [node, setNode] = useState<ComponentChildren>(null)
-  useEffect(() => {
-    let live = true
-    let timer = 0
-    void import('../../src/ui/explorer').then(({ ExplorerUI }) => {
-      const mount = () => {
-        if (!live) return
-        if (!window.scene) {
-          timer = window.setTimeout(mount, 100)
-          return
-        }
-        setNode(<ExplorerUI scene={window.scene} autoFocusSearch={false} />)
-      }
-      mount()
-    })
-    return () => {
-      live = false
-      clearTimeout(timer)
-    }
-  }, [])
-  return <>{node}</>
+function teleportToWomp(womp: Womp) {
+  if (!womp.coords) return
+  if (womp.space_id) {
+    window.location.href = `/spaces/${womp.space_id}`
+    return
+  }
+  window.persona.teleport(womp.coords)
 }
 
 export default class Explore extends Component<{}> {
@@ -93,6 +83,12 @@ export default class Explore extends Component<{}> {
     app.on(AppEvent.Logout, this.rerender)
     app.on(AppEvent.Login, this.rerender)
     void pickFrontpageParcel()
+    try {
+      if (sessionStorage.getItem(FOCUS_EXPLORE)) {
+        sessionStorage.removeItem(FOCUS_EXPLORE)
+        focusFirst('.explorer')
+      }
+    } catch { }
   }
 
   rerender = () => {
@@ -119,9 +115,15 @@ export default class Explore extends Component<{}> {
           <article>
             <div class="client-slot" />
           </article>
-          <WorldAside>
-            <HomeExplore />
-          </WorldAside>
+          <aside>
+            <section class="explorer" onKeyDown={onListArrowKeys}>
+              <Radar teleportTo={(coords) => window.persona.teleport(coords)} />
+              <h3>Popular</h3>
+              <PopularParcels />
+              <BlogTeaser />
+              <Classifieds limit={3} />
+            </section>
+          </aside>
         </section>
       </Fragment>
     )

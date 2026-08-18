@@ -6,7 +6,7 @@ import { app, AppEvent } from '../state'
 
 type Post = { slug: string; title: string; created_at: string; replies?: number }
 
-export default function BlogTeaser({ onOpen }: { onOpen?: (slug: string) => void }) {
+export default function BlogTeaser() {
   const [posts, setPosts] = useState<Post[]>([])
   const [, tick] = useState(0)
 
@@ -28,27 +28,14 @@ export default function BlogTeaser({ onOpen }: { onOpen?: (slug: string) => void
 
   return (
     <>
-      <h3>Updates</h3>
+      <h3><a href="/blog">Blog</a></h3>
       {posts.length ? (
         <table>
           <tbody>
             {posts.slice(0, 7).map((p) => (
               <tr key={p.slug}>
                 <td>
-                  {onOpen ? (
-                    <a
-                      href={`/blog/${p.slug}`}
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        onOpen(p.slug)
-                      }}
-                    >
-                      {p.title}
-                    </a>
-                  ) : (
-                    <a href={`/blog/${p.slug}`}>{p.title}</a>
-                  )}
+                  <a href={`/blog/${p.slug}`}>{p.title}</a>
                 </td>
                 <td title={p.replies ? `${p.replies} ${p.replies === 1 ? 'reply' : 'replies'}` : undefined}>
                   {p.replies ? (
@@ -65,12 +52,7 @@ export default function BlogTeaser({ onOpen }: { onOpen?: (slug: string) => void
           </tbody>
         </table>
       ) : (
-        <p>nothing yet</p>
-      )}
-      {posts.length > 0 && (
-        <p>
-          <a href="/blog">View the blog</a>
-        </p>
+        <p />
       )}
     </>
   )
