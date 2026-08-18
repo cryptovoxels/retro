@@ -985,7 +985,7 @@ const roundVector3 = (vector: BABYLON.Vector3): BABYLON.Vector3 => {
   return vector
 }
 
-const isVoxelFieldMesh = (mesh: BABYLON.AbstractMesh) => mesh.isVisible && mesh.isPickable && (mesh.name.startsWith('voxel-field/collider') || mesh.name.startsWith('voxelizer/'))
+const isVoxelFieldMesh = (mesh: BABYLON.AbstractMesh) => mesh.isVisible && mesh.isPickable && (mesh.name.startsWith('voxel-field/opaque') || mesh.name.startsWith('voxelizer/'))
 
 // to check if the normal belongs to a wall
 export const normalIsFromWall = (normal: BABYLON.Vector3): 'z' | 'x' | false => {

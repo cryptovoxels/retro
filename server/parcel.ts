@@ -6,7 +6,7 @@ import { ParcelKind, ParcelRecord, ParcelSettings } from '../common/messages/par
 import { getBufferFromVoxels, getFieldShape } from '../common/voxels/helpers'
 import { isCommonParcel, isSecurityTeamParcel, isTestIsland } from './lib/helpers'
 import log from './lib/logger'
-import { getContract, validateTokenType } from './lib/utils'
+import { getContract } from './lib/utils'
 import { ground, white } from './parcel-builder'
 import db from './pg'
 
@@ -336,10 +336,6 @@ export abstract class AbstractParcel implements ParcelRef {
     Object.assign(this, result.rows[0])
   }
 
-  get onlyTokenHoldersCanEnter() {
-    return !!this.settings.tokensToEnter?.length
-  }
-
   cleanNullFeatures() {
     if (!this.content) {
       this.content = {}
@@ -497,11 +493,6 @@ export abstract class AbstractParcel implements ParcelRef {
         this.settings.script_host_url = url
         shouldUpdateParcelScript = true
       }
-    }
-
-    if ('tokensToEnter' in settings) {
-      this.settings.tokensToEnter = settings.tokensToEnter.filter(validateTokenType).slice(0, 1)
-      shouldUpdateMeta = true
     }
 
     return { shouldUpdateMeta, shouldUpdateParcelScript }

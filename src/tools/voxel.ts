@@ -272,7 +272,7 @@ export default class Selector implements Tool {
 
   predicate(mesh: BABYLON.AbstractMesh): boolean {
     if (!(mesh.name && mesh.isVisible && mesh.isPickable)) return false
-    return mesh.name.startsWith('voxel-field/collider') || mesh.name.startsWith('voxelizer/')
+    return mesh.name.startsWith('voxel-field/opaque') || mesh.name.startsWith('voxelizer/')
   }
 
   deactivate() {

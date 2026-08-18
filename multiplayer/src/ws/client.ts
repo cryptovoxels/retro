@@ -161,6 +161,8 @@ export class Client {
         }
         break
       case messages.MessageType.point:
+      case messages.MessageType.yeet:
+      case messages.MessageType.yeetState:
       case messages.MessageType.typing:
       case messages.MessageType.voiceStateAvatar:
         if (msg.uuid === this.clientUUID) {

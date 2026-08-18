@@ -58,6 +58,7 @@ import { ChatOverlay, chatSettings } from './ui/interact/chat'
 import { voiceSettings } from './voice-settings'
 import { DancePane } from './ui/interact/dance-pane'
 import { EmotePane } from './ui/interact/emote-pane'
+import { YeetPane } from './ui/interact/yeet-pane'
 import { HelpOverlay } from './ui/interact/help'
 import { SandboxGuide, SandboxGuideMini } from './ui/sandbox-guide'
 import { FirstTimeInstructions } from '../web/src/components/first-time-instructions'
@@ -113,7 +114,7 @@ export enum Mode {
   Avatar,
 }
 
-export type UIPanes = 'add' | 'edit' | 'voxels' | 'debugTool' | 'nfts' | 'chat' | 'dance' | 'emote' | 'settings' | 'womp' | 'takeWomp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake' | 'broadcast'
+export type UIPanes = 'add' | 'edit' | 'voxels' | 'debugTool' | 'nfts' | 'chat' | 'dance' | 'emote' | 'yeet' | 'settings' | 'womp' | 'takeWomp' | 'help' | 'explorer' | 'login' | 'parcelSnapshots' | 'bake' | 'broadcast'
 
 export interface Tool {
   activate: () => void
@@ -616,6 +617,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         { code: 'KeyB', handleEvent: () => this.toggleVoxelTool() },
         { code: 'KeyG', handleEvent: () => this.setPane('dance') },
         { code: 'KeyT', handleEvent: () => this.setPane('emote') },
+        { code: 'KeyY', handleEvent: () => this.setPane('yeet') },
         { code: 'KeyZ', handleEvent: () => this.connector.controls.toggleZoom() },
         { code: 'Enter', handleEvent: this.focusChat },
         { code: 'Escape', handleEvent: () => this.onEscape() },
@@ -979,6 +981,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return <DancePane />
       case 'emote':
         return <EmotePane />
+      case 'yeet':
+        return <YeetPane />
       case 'settings':
         return <SettingsUI scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
       case 'womp':
@@ -1077,6 +1081,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
               <li class={active('emote')}>
                 <a href="#emote" onMouseOver={onHover('emote')} onClick={onClick('emote')}>
                   Emote
+                </a>
+              </li>
+              <li class={active('yeet')}>
+                <a href="#yeet" onMouseOver={onHover('yeet')} onClick={onClick('yeet')}>
+                  Yeet
                 </a>
               </li>
               {(this.state.signedIn || wantsSandboxGuide()) && canEdit && (

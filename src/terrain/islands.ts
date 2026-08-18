@@ -112,6 +112,17 @@ export class Island {
     })
     this._mesh.visibility = 1
 
+    const positions = this._mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
+    const indices = this._mesh.getIndices()
+    if (positions && indices) {
+      const { addTrimesh } = await import('../physics/world')
+      addTrimesh(`island-${this.name}`, positions instanceof Float32Array ? positions : new Float32Array(positions), indices instanceof Uint32Array ? indices : new Uint32Array(indices), {
+        x: this._mesh.position.x,
+        y: this._mesh.position.y,
+        z: this._mesh.position.z,
+      })
+    }
+
     return this._mesh
   }
 }

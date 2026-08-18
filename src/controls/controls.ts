@@ -14,6 +14,8 @@ import { hasPointerLock } from '../../common/helpers/ui-helpers'
 import { IControls } from './iControls'
 import { Animations } from '../avatar-animations'
 import { IdleLook } from './idle-look'
+import RAPIER from '@dimforge/rapier3d-compat'
+import { physics } from '../physics/world'
 
 export const CAMERA_DISTANCE = isMobile() ? 2.5 : 1.5
 export const MIN_CAMERA_DISTANCE = 0.5
@@ -319,7 +321,7 @@ export default abstract class Controls implements IControls {
   // Highlight only: isInteract features + voxel-field occlusion. Skips vox/megavox/cube/polytext.
   reticuleHighlightPredicate(mesh: BABYLON.AbstractMesh): boolean {
     if (!mesh.isPickable || !mesh.isVisible || !mesh.isEnabled()) return false
-    if (mesh.name.startsWith('voxel-field/collider') || mesh.name.startsWith('voxelizer/')) return true
+    if (mesh.name.startsWith('voxel-field/opaque') || mesh.name.startsWith('voxelizer/')) return true
     const f = (mesh as MeshExtended).feature ?? (mesh.parent as MeshExtended | null)?.feature
     return !!f?.isInteract
   }
@@ -376,17 +378,11 @@ export default abstract class Controls implements IControls {
     }
   }
 
-  isOnGround(tolerance = 0): boolean {
-    // If you're using an ArcRotateCamera you're never marked as being on the ground
-    if (!('ellipsoid' in this.camera)) {
+  isOnGround(_tolerance = 0): boolean {
+    if (!(this.camera instanceof PlayerCamera)) {
       return false
     }
-
-    const distance = this.camera.ellipsoid.y * 2 + BABYLON.Epsilon + tolerance
-    const globalPosition = this.persona.position.add(this.worldOffset.position)
-    const ray = new BABYLON.Ray(globalPosition, new BABYLON.Vector3(0, -1), distance)
-    const hit = this.scene.pickWithRay(ray, (e) => e.checkCollisions, true)
-    return hit?.hit ?? false
+    return this.camera.grounded
   }
 
   firstOrThirdPersonAdjustment() {
@@ -587,6 +583,7 @@ export default abstract class Controls implements IControls {
     if (want) {
       this.camera.ellipsoid.y = CROUCH_ELLIPSOID_Y
       this.camera.position.y -= dy
+      this.camera.rebuildCapsule()
       this.crouching = true
       if (this.movementEnabled && !this.running) {
         this.camera.speed = this.defaultSpeed * CROUCH_SPEED_MULT
@@ -595,14 +592,18 @@ export default abstract class Controls implements IControls {
     }
 
     if (!force) {
-      const origin = this.camera.globalPosition
-      const ray = new BABYLON.Ray(origin, new BABYLON.Vector3(0, 1, 0), dy + BABYLON.Epsilon)
-      const hit = this.scene.pickWithRay(ray, (e) => e.checkCollisions, true)
-      if (hit?.hit) return
+      const w = physics()
+      if (w) {
+        const origin = this.camera.position
+        const ray = new RAPIER.Ray({ x: origin.x, y: origin.y, z: origin.z }, { x: 0, y: 1, z: 0 })
+        const hit = w.castRay(ray, dy + 0.001, true)
+        if (hit) return
+      }
     }
 
     this.camera.ellipsoid.y = STAND_ELLIPSOID_Y
     this.camera.position.y += dy
+    this.camera.rebuildCapsule()
     this.crouching = false
     if (this.movementEnabled && !this.running) {
       this.camera.speed = this.defaultSpeed

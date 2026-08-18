@@ -17,6 +17,7 @@
 - **No fluff**: No "I understand" or "Certainly." No opening or closing sycophancy.
 - **Be direct**: Concise responses, thorough reasoning, simple solutions. No over-engineering.
 - **Stay grounded**: If unsure, say so. Never invent file paths or function names.
+- **Two-word functions**: Function names should have no more than two words (`voxelCollider`, `hullPoints`).
 - **User is truth**: If corrected, treat it as ground truth. User instructions always override this file.
 
 ## Committing
@@ -80,7 +81,7 @@ This is not “best practices”. This is **ship practices**.
 - **Stop allocating in hot paths**: cache/freeze singletons where it matters.
 - **Logs aren’t a lifestyle**: remove spam. Keep only high-signal logs that explain real state.
 - **Comments justify constraints**: comment only when there’s a real constraint or weirdness.
-- **Name things like a human**: plain names, not corporate nouns. `frames`, `pageHtml`, `iDoc`.
+- **Name things like a human**: plain names, not corporate nouns. `frames`, `pageHtml`, `iDoc`. Function names should have no more than two words (`voxelCollider`, `hullPoints`).
 - **Be direct**: commit messages and PR descriptions can be blunt. No marketing. No TED talk.
 
 ## The “No Resurrection” rule (maintenance reality)

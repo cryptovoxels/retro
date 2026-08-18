@@ -286,6 +286,10 @@ async function main() {
   assetsManager.useDefaultLoadingScreen = false
   assetsManager.load()
 
+  const { initPhysics } = await import('./physics/world')
+  await initPhysics()
+  scene.collisionsEnabled = false
+
   // Setup player controls and the main camera and initialise the world matrix position
   const controls = CreateControls(scene, canvas)
 
