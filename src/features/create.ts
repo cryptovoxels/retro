@@ -98,6 +98,24 @@ export const createFeature = (scene: BABYLON.Scene, parcel: Parcel, uuid: string
   }
 }
 
+/** Types we bother rendering in parcel preview / thumbs. */
+export function isRenderable(type: string | undefined | null): boolean {
+  switch (type) {
+    case 'sign':
+      return Sign.isRenderable
+    case 'collectible-model':
+      return CollectibleModel.isRenderable
+    case 'vox-model':
+      return VoxModel.isRenderable
+    case 'megavox':
+      return Megavox.isRenderable
+    case 'lantern':
+      return Lantern.isRenderable
+    default:
+      return false
+  }
+}
+
 const FEATURE_2D_AXES = [BABYLON.Axis.X, BABYLON.Axis.Z]
 const FEATURE_3D_AXES = [BABYLON.Axis.Y]
 

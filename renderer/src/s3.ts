@@ -1,11 +1,12 @@
 // ABOUTME: UGC Spaces upload/head for rendered thumbs. Same bucket as radio UGC.
 
 import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
-import { thumbKey, wearableThumbUrl } from '../../common/renderable/thumb-url'
+import { parcelThumbKey, parcelThumbUrl, thumbKey, wearableThumbUrl } from '../../common/renderable/thumb-url'
 
 const BUCKET = 'voxels-ugc'
 const REGION = 'syd1'
 const ENDPOINT = 'https://syd1.digitaloceanspaces.com'
+const WEEK_CACHE = 'public, max-age=604800'
 
 function client() {
   const accessKeyId = process.env.UGC_ACCESS || ''
@@ -25,6 +26,10 @@ export function ugcConfigured() {
 
 export function wearableCdnUrl(uuid: string) {
   return wearableThumbUrl(uuid)
+}
+
+export function parcelCdnUrl(id: number) {
+  return parcelThumbUrl(id)
 }
 
 export async function hasWearableThumb(uuid: string): Promise<boolean> {
@@ -48,4 +53,28 @@ export async function uploadWearableThumb(uuid: string, body: Buffer): Promise<s
     }),
   )
   return wearableThumbUrl(uuid)
+}
+
+export async function hasParcelThumb(id: number): Promise<boolean> {
+  try {
+    await client().send(new HeadObjectCommand({ Bucket: BUCKET, Key: parcelThumbKey(id) }))
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function uploadParcelThumb(id: number, body: Buffer): Promise<string> {
+  const key = parcelThumbKey(id)
+  await client().send(
+    new PutObjectCommand({
+      Bucket: BUCKET,
+      Key: key,
+      Body: body,
+      ContentType: 'image/webp',
+      ACL: 'public-read',
+      CacheControl: WEEK_CACHE,
+    }),
+  )
+  return parcelThumbUrl(id)
 }

@@ -7,6 +7,7 @@ import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D } from './feature'
 
 export default class Lantern extends Feature3D<LanternRecord> {
+  static isRenderable = true
   static metadata: FeatureMetadata = {
     title: 'Lantern',
     subtitle: 'rgb light source',

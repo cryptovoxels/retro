@@ -69,7 +69,7 @@
     "compressor:dev": "tsx --watch compressor/src/index.ts",
     "compressor:start": "tsx compressor/src/index.ts",
     "compressor:test": "vitest run --project compressor",
-    "renderer:build-page": "node renderer/build-page.mjs",
+    "renderer:build-page": "node renderer/build-page.mjs && webpack --config webpack/webpack-preview.config.js --mode production",
     "renderer:dev": "npm run renderer:build-page && tsx --watch renderer/src/index.ts",
     "renderer:start": "npm run renderer:build-page && tsx renderer/src/index.ts",
     "world-dump:build": "node tools/world-dump/build.mjs",

@@ -48,8 +48,8 @@ let _instance: VoxImporter | null = null
 export const voxImporter = (): VoxImporter => {
   if (!_instance) {
     _instance = new VoxImporter()
-    _instance.initialize(window.scene)
   }
+  _instance.initialize(window.scene)
   return _instance
 }
 
@@ -68,7 +68,27 @@ export class VoxImporter {
   private _scene: BABYLON.Scene | undefined
 
   initialize(scene: BABYLON.Scene) {
-    this._scene = scene
+    if (scene) this._scene = scene
+
+    // Pool first so a missing scene cannot poison the singleton.
+    /// #if RUNTIME === 'WEB'
+    if (!this.workersReady) {
+      this.workersReady = getComputePool()
+        .then((handles) => {
+          for (const h of handles) {
+            this.workers.push(h.worker)
+            this.workerCleanups.push(h.cleanup)
+            this.workerBusyCount.set(h.worker, 0)
+          }
+        })
+        .catch((error) => {
+          console.error('Failed to load vox workers:', error)
+        })
+    }
+    /// #endif
+
+    if (!scene || this.material) return
+
     this.material = new BABYLON.ShaderMaterial(
       'vox-model/vox-shader',
       scene,
@@ -86,22 +106,6 @@ export class VoxImporter {
       env.setShaderParameters(this.material, 1.8)
     }
     this.material.blockDirtyMechanism = true
-
-    // Triple slash comment with #if is for the ifdef-loader plugin: https://www.npmjs.com/package/ifdef-loader
-    // so that we can conditionally bundle code. We don't want the server spinning up this web workers.
-    /// #if RUNTIME === 'WEB'
-    this.workersReady = getComputePool()
-      .then((handles) => {
-        for (const h of handles) {
-          this.workers.push(h.worker)
-          this.workerCleanups.push(h.cleanup)
-          this.workerBusyCount.set(h.worker, 0)
-        }
-      })
-      .catch((error) => {
-        console.error('Failed to load vox workers:', error)
-      })
-    /// #endif
   }
 
   import(urlOrBuffer: string | ArrayBuffer, options: Options): Promise<BABYLON.Mesh> {

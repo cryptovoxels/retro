@@ -113,6 +113,8 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   private readonly soundSprite: BABYLON.Sound | null = null
   private readonly _parcelBouncer: ParcelBouncer
   private featuresLoaded = false
+  /** Server-side preview: skip lua + bouncer after features load. */
+  preview = false
   private entered = false
   autobuilt = false
   private bakeEventSource: EventSource | null = null
@@ -1088,6 +1090,12 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // Create features
     await this.generateFeatures()
 
+    if (this.preview) {
+      this.featuresLoaded = true
+      this.activationState = ParcelActivationState.Active
+      return
+    }
+
     // Create scripts
     if (!this.behaviours) {
       this.behaviours = new LuaBehaviours(this)
@@ -1457,7 +1465,15 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // If running without the main pump, cerate features synchronously
     if (!window.main) {
       for (let f of features) {
-        await this.createFeature(f)
+        try {
+          await this.createFeature(f)
+        } catch (e) {
+          console.error(`[parcel] createFeature ${f.type} ${f.uuid}`, e)
+        }
+      }
+      if (this.preview) {
+        this.featuresLoaded = true
+        this.activationState = ParcelActivationState.Active
       }
     } else {
       window.main?.pump.activate(this, features, this.onFeaturesLoaded)

@@ -6,6 +6,7 @@ import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
 
 export default class Sign extends Feature2D<SignRecord> {
+  static isRenderable = true
   static canvas: HTMLCanvasElement
 
   static metadata: FeatureMetadata = {

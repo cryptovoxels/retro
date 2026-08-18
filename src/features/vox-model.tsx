@@ -22,6 +22,7 @@ const cubescaleOffset = (scale: [number, number, number]) => new BABYLON.Vector3
 
 export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord = VoxModelRecord> extends Feature3D<Description> {
   static Editor: typeof Editor
+  static isRenderable = true
   static metadata: FeatureMetadata = {
     title: 'Vox Model',
     subtitle: 'small .vox model',
@@ -297,6 +298,7 @@ class Editor extends FeatureEditor<VoxModel> {
 VoxModel.Editor = Editor
 
 export class Megavox extends VoxModel<MegavoxRecord> {
+  static isRenderable = true
   static metadata: FeatureMetadata = {
     title: 'Megavox',
     subtitle: 'large .vox model',

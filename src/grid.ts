@@ -71,7 +71,7 @@ export default class Grid extends SocketClient {
   public currentIsland: string | undefined = undefined
   public parcel_events = new TypedEventTarget<{ parcel_entered: Parcel['id']; parcel_exited: Parcel['id'] }>()
   private readonly scene: BABYLON.Scene
-  private readonly environment: Environment
+  protected readonly environment: Environment
   static mesher: ParcelMesher
   private lastParcelScanAt?: number
   private nearestParcels: Array<Parcel> = []
@@ -274,7 +274,12 @@ export default class Grid extends SocketClient {
     return result
   }
 
-  private create(parent: BABYLON.TransformNode, description: ParcelRecord, grid: Grid, isFastboot: boolean, fieldBuffer?: NdArray<Uint16Array>): Parcel | undefined {
+  /** Spawn a parcel for server-side preview (no grid socket / pump). */
+  spawnPreview(description: ParcelRecord): Parcel | undefined {
+    return this.create(this.parent, description, this, false)
+  }
+
+  protected create(parent: BABYLON.TransformNode, description: ParcelRecord, grid: Grid, isFastboot: boolean, fieldBuffer?: NdArray<Uint16Array>): Parcel | undefined {
     const existing = this.parcels.get(description.id)
     if (existing) {
       return undefined
@@ -659,7 +664,7 @@ export default class Grid extends SocketClient {
     return true
   }
 
-  private addInterval(func: () => void, intervalMs: number) {
+  protected addInterval(func: () => void, intervalMs: number) {
     this.intervals.push(setInterval(func, intervalMs))
   }
 

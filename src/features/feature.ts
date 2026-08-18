@@ -81,6 +81,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   static proximityToTrigger = 1.77 //distance from feature centre to trigger animation
   static timerLength = 100 //how long (milliseconds) to be close to feature to trigger animation
   static Editor: any // todo type this
+  static isRenderable = false
   static layer: BABYLON.HighlightLayer
   static draftMaterial: BABYLON.StandardMaterial | null = null
   private static draftPulseObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null

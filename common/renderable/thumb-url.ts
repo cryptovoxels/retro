@@ -15,3 +15,22 @@ export function thumbUrl(type: string, uuid: string, ext = 'webp') {
 export function wearableThumbUrl(uuid: string) {
   return thumbUrl('wearable', uuid)
 }
+
+/** ISO week key: 2026-W07 */
+export function isoWeekTag(d = new Date()) {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  const dayNum = date.getUTCDay() || 7
+  date.setUTCDate(date.getUTCDate() + 4 - dayNum)
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1))
+  const weekNo = Math.ceil(((date.getTime() - yearStart.getTime()) / 86400000 + 1) / 7)
+  return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`
+}
+
+/** Parcel preview key: v1/parcel/{id}/{yyyy}-W{ww}.webp */
+export function parcelThumbKey(id: number | string, d = new Date()) {
+  return `${VERSION}/parcel/${id}/${isoWeekTag(d)}.webp`
+}
+
+export function parcelThumbUrl(id: number | string, d = new Date()) {
+  return `${CDN}/${parcelThumbKey(id, d)}`
+}

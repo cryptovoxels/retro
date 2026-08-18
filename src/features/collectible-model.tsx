@@ -19,6 +19,7 @@ interface CollectibleModelSharedState {
 const COLLECTIBLE_MODEL_TYPE = 'collectible-model'
 
 export default class CollectibleModel extends Feature3D<CollectibleModelRecord> {
+  static isRenderable = true
   static metadata: FeatureMetadata = {
     title: 'Collectible Model',
     subtitle: '.vox collectible',

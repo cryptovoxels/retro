@@ -17,6 +17,8 @@ render/costumes/*
 .build
 tools/world-dump/tmp/
 renderer/page/bundle.js
+renderer/page/parcel-bundle.js
+renderer/page/*.parcel-bundle.js
 **/report.html
 dist/bakes
 dist/music/unclean
@@ -55,3 +57,5 @@ world.db-shm
 world.db-wal
 /dist/poneke
 renderer/page/bundle.js
+renderer/page/parcel-bundle.js
+renderer/page/*.parcel-bundle.js

@@ -1,0 +1,25 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script src="https://www.voxels.com/babylon.min.js"></script>
+  </head>
+  <body>
+    <canvas id="c" width="1024" height="1024"></canvas>
+    <script src="./parcel-bundle.js"></script>
+    <script>
+      const id = new URLSearchParams(location.search).get('id')
+      if (id) {
+        window.__keepPreview = true
+        fetch('/v1/parcel/' + encodeURIComponent(id) + '.json')
+          .then((r) => {
+            if (!r.ok) throw new Error('json ' + r.status)
+            return r.json()
+          })
+          .then((data) => window.renderParcelPreview(data.record, data.embeds))
+          .then(() => console.log('[preview] done'))
+          .catch((e) => console.error('[preview]', e))
+      }
+    </script>
+  </body>
+</html>

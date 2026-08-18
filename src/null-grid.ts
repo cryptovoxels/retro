@@ -1,6 +1,8 @@
 import Grid from './grid'
 import { Environment } from './enviroments/environment'
 import { StateObservable } from './utils/state-observable'
+import type { ParcelRecord } from '../common/messages/parcel'
+import type Parcel from './parcel'
 
 class NullEnvironment extends Environment {
   private readonly groundState = new StateObservable<'loaded' | 'unloaded'>('loaded')
@@ -11,6 +13,15 @@ class NullEnvironment extends Environment {
 
   get groundStateObservable() {
     return this.groundState
+  }
+
+  get fogDensity() {
+    return 0
+  }
+
+  updateFog(scene: BABYLON.Scene) {
+    scene.fogMode = BABYLON.Scene.FOGMODE_NONE
+    scene.fogDensity = 0
   }
 
   invalidateGroundLoaded() {}
@@ -34,5 +45,19 @@ export class NullGrid extends Grid {
 
   get hasField() {
     return false
+  }
+
+  // Preview has no draw-distance refresh loop.
+  protected addInterval(_func: () => void, _intervalMs: number) {}
+
+  spawnPreview(record: ParcelRecord): Parcel | undefined {
+    return super.spawnPreview(record)
+  }
+
+  async preparePreview() {
+    window.environment = this.environment
+    await this.environment.load()
+    // load() sets environment clearColor; preview wants a white still.
+    if (window.scene) window.scene.clearColor = new BABYLON.Color4(1, 1, 1, 1)
   }
 }
