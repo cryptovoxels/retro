@@ -16,13 +16,15 @@ type State = {
   collectionId?: string
 }
 
+const DEFAULT_COLLECTION = '1'
+
 export class YeetPane extends Component<{}, State> {
   state: State = { collectibles: [], loading: true }
   private stop: (() => void) | null = null
 
   componentDidMount() {
     this.stop = effect(() => {
-      const id = yeetCollectionId.value
+      const id = yeetCollectionId.value || DEFAULT_COLLECTION
       if (id !== this.state.collectionId) this.fetch(id)
     })
     focusFirst(this.base as HTMLElement, '[tabindex]')
@@ -32,11 +34,7 @@ export class YeetPane extends Component<{}, State> {
     this.stop?.()
   }
 
-  async fetch(id?: string) {
-    if (!id) {
-      this.setState({ loading: false, collectibles: [], name: undefined, collectionId: undefined })
-      return
-    }
+  async fetch(id: string) {
     this.setState({ loading: true, collectionId: id })
     try {
       const p = await fetch(`/api/collections/${id}`)
@@ -60,15 +58,6 @@ export class YeetPane extends Component<{}, State> {
   }
 
   render() {
-    if (!this.state.collectionId) {
-      return (
-        <section class="yeet">
-          <h2>Yeet</h2>
-          <p>open a collection first</p>
-        </section>
-      )
-    }
-
     if (this.state.loading) {
       return (
         <section class="yeet">
