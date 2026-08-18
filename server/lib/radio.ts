@@ -1,5 +1,5 @@
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
-import { MUSIC_URI, Track, tracks } from '../../common/soundtracks'
+import { MUSIC_URI, tracks } from '../../common/soundtracks'
 import { seededShuffle } from '../../common/helpers/utils'
 import { avatarName } from '../../common/messages/avatar-ref'
 import { Db } from '../pg'
@@ -7,9 +7,6 @@ import { Db } from '../pg'
 const DAY = 86400
 const MIN_GAP = 180
 const MAX_GAP = 540 // avg 360s -> ~10 spots/hour
-const WORLD_CAP = 40
-const WORLD_SAMPLE = 80
-const WORLD_DURATION = 180 // no probing; fixed slot length in the 60-320 window
 
 const BUCKET = 'voxels-ugc'
 const REGION = 'syd1'
@@ -18,15 +15,12 @@ const ACCESS_KEY_ID = process.env.UGC_ACCESS || ''
 const CDN = 'https://ugc.crvox.com'
 
 export type SpotKind = 'en' | 'ar'
-export type RadioChannel = 'soundtrack' | 'world'
 
 export interface Segment {
   fileName: string
   fallback?: string
   duration: number
   volume?: number
-  url?: string
-  title?: string
   startsAt: number
 }
 
@@ -43,17 +37,12 @@ export interface Schedule {
   utcDay: number
   daySeconds: number
   musicUri: string
-  channel: RadioChannel
   segments: Segment[]
   spots: Spot[]
 }
 
 export function utcDay(): number {
   return Math.floor(Date.now() / 1000 / DAY)
-}
-
-export function parseChannel(v: unknown): RadioChannel {
-  return v === 'world' ? 'world' : 'soundtrack'
 }
 
 // truncate to ascii-safe summary for the playlist
@@ -70,7 +59,6 @@ function rng(seed: number) {
   }
 }
 
-// shared across channels so DJ spots land at the same wall-clock offsets
 export function buildSpots(day: number): Spot[] {
   const r = rng(day + 7)
   const spots: Spot[] = []
@@ -86,22 +74,20 @@ export function buildSpots(day: number): Spot[] {
 }
 
 // Deterministic per UTC day: same station for everyone, regenerates at midnight.
-// Empty list = empty segments (world channel must never fall back to soundtrack).
-export function buildSchedule(day: number, list: Track[] = tracks, channel: RadioChannel = 'soundtrack', musicUri = MUSIC_URI): Schedule {
+export function buildSchedule(day: number): Schedule {
+  const order = seededShuffle(tracks.slice(), day + 1)
+
   const segments: Segment[] = []
-  if (list.length) {
-    const order = seededShuffle(list.slice(), day + 1)
-    let t = 0
-    let i = 0
-    while (t < DAY) {
-      const track = order[i % order.length]
-      segments.push({ ...track, startsAt: t })
-      t += track.duration
-      i++
-    }
+  let t = 0
+  let i = 0
+  while (t < DAY) {
+    const track = order[i % order.length]
+    segments.push({ ...track, startsAt: t })
+    t += track.duration
+    i++
   }
 
-  return { utcDay: day, daySeconds: DAY, musicUri, channel, segments, spots: buildSpots(day) }
+  return { utcDay: day, daySeconds: DAY, musicUri: MUSIC_URI, segments, spots: buildSpots(day) }
 }
 
 // generate text + speech, upload wav to S3, return the url + raw text.
@@ -313,53 +299,4 @@ async function upload(id: string, audio: Buffer): Promise<string> {
   // and the CDN keeps serving it even after overwrite. New keys = pristine, can never come back.
   await s3.send(new PutObjectCommand({ Bucket: BUCKET, Key: `radio/v2/${id}.wav`, Body: audio, ContentType: 'audio/wav', ACL: 'public-read' }))
   return `${CDN}/radio/v2/${id}.wav`
-}
-
-function basenameTitle(url: string, place: string): string {
-  try {
-    const base = decodeURIComponent((url.split('?')[0].split('/').pop() || '').replace(/\.[^.]+$/, ''))
-      .replace(/[-_]+/g, ' ')
-      .trim()
-    if (base && base.length < 60) return base
-  } catch {}
-  return place || 'world'
-}
-
-export async function sampleWorldTracks(db: Db, day: number): Promise<Track[]> {
-  try {
-    // content->>'features' matches the rest of the codebase: features is sometimes a
-    // json array and sometimes a json-encoded string of an array.
-    const sql = `
-      SELECT p.id, f->>'url' AS url, coalesce(nullif(p.name, ''), p.address, 'parcel ' || p.id) AS place
-      FROM properties p,
-        jsonb_array_elements(
-          CASE
-            WHEN content IS NULL THEN '[]'::jsonb
-            WHEN jsonb_typeof(content::jsonb -> 'features') = 'array' THEN content::jsonb -> 'features'
-            WHEN content->>'features' IS NOT NULL THEN (content->>'features')::jsonb
-            ELSE '[]'::jsonb
-          END
-        ) f
-      WHERE p.content IS NOT NULL
-        AND f->>'type' = 'audio'
-        AND nullif(f->>'url', '') IS NOT NULL
-      ORDER BY md5(p.id::text || $1::text)
-      LIMIT $2
-    `
-    const res = await db.query('sql/radio/world-audio', sql, [String(day), WORLD_SAMPLE])
-    const out: Track[] = []
-    for (const r of res.rows as any[]) {
-      if (out.length >= WORLD_CAP) break
-      const url = r.url
-      if (!url) continue
-      const title = basenameTitle(url, r.place)
-      const fileName = (url.split('?')[0].split('/').pop() || `world-${r.id}`).slice(0, 120)
-      out.push({ fileName, duration: WORLD_DURATION, url, title })
-    }
-    console.log('radio world sample', { day, rows: res.rows.length, kept: out.length })
-    return out
-  } catch (e: any) {
-    console.error('radio world sample', e?.message || e?.toString?.() || e)
-    return []
-  }
 }

@@ -1,6 +1,6 @@
 import { Component } from 'preact'
 import { trackTitle } from '../../../common/soundtracks'
-import { DAY, RadioChannel, Spot, VoxelRadioEngine } from '../radio/engine'
+import { DAY, Spot, VoxelRadioEngine } from '../radio/engine'
 import { ensureRadio, getRadio, onRadioChange } from '../radio/global'
 import { truncate } from '../lib/string-utils'
 
@@ -144,11 +144,6 @@ export default class VoxelRadio extends Component<Props, State> {
     this.forceUpdate()
   }
 
-  setChannel = (ch: RadioChannel) => {
-    this.radio?.setChannel(ch)
-    this.forceUpdate()
-  }
-
   rows() {
     const r = this.radio
     const sched = r?.schedule
@@ -187,54 +182,37 @@ export default class VoxelRadio extends Component<Props, State> {
     const text = truncate(onAir ? 'dj on the mic...' : ducked ? r!.duckTitle! : r?.title || 'tuning in...', 15)
     const pct = Math.round((sec() / DAY) * 100)
     const compact = !this.props.popped
-    const channel = r?.channel ?? 'soundtrack'
     const { pl } = this.state
-
-    const tabs = (
-      <span>
-        <button type="button" onClick={() => this.setChannel('soundtrack')} disabled={channel === 'soundtrack'}>
-          soundtrack
-        </button>{' '}
-        <button type="button" onClick={() => this.setChannel('world')} disabled={channel === 'world'}>
-          world
-        </button>
-      </span>
-    )
 
     if (compact) {
       return (
-        <>
-          {tabs}
-
-          <div class="voxel-radio" onPointerDown={this.wake}>
-            <button type="button" onClick={this.transport} title={showPlay ? 'play' : 'pause'}>
-              {showPlay ? '\u25B6' : '\u23F8'}
-            </button>
-            <a href="/radio">{text}</a>
-            {r && (
-              <Knob
-                small
-                label="vol"
-                min={0}
-                max={1}
-                step={0.03}
-                value={r.trackVolume}
-                onWake={() => r.wake()}
-                onChange={(v) => {
-                  r.setTrackVolume(v)
-                  this.forceUpdate()
-                }}
-              />
-            )}
-          </div>
-        </>
+        <div class="voxel-radio" onPointerDown={this.wake}>
+          <button type="button" onClick={this.transport} title={showPlay ? 'play' : 'pause'}>
+            {showPlay ? '\u25B6' : '\u23F8'}
+          </button>
+          <a href="/radio">{text}</a>
+          {r && (
+            <Knob
+              small
+              label="vol"
+              min={0}
+              max={1}
+              step={0.03}
+              value={r.trackVolume}
+              onWake={() => r.wake()}
+              onChange={(v) => {
+                r.setTrackVolume(v)
+                this.forceUpdate()
+              }}
+            />
+          )}
+        </div>
       )
     }
 
     return (
       <div class="voxel-radio" style={{ flexDirection: 'column', alignItems: 'stretch' }} onPointerDown={this.wake}>
         <span>{onAir ? 'Radio / on air' : 'Radio'}</span>
-        {tabs}
         <span>{text}</span>
         <button type="button" onClick={this.transport} title={showPlay ? 'play' : 'stop'}>
           {showPlay ? 'play' : 'stop'}
