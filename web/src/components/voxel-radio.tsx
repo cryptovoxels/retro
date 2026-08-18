@@ -20,14 +20,14 @@ function loadPanel(key: string, def: PanelMode): PanelMode {
     const v = localStorage.getItem(`radio.panel.${key}`)
     if (v === 'open' || v === 'closed') return v
     if (v === 'shade') return 'open'
-  } catch {}
+  } catch { }
   return def
 }
 
 function savePanel(key: string, mode: PanelMode) {
   try {
     localStorage.setItem(`radio.panel.${key}`, mode)
-  } catch {}
+  } catch { }
 }
 
 const R = 13
@@ -202,28 +202,31 @@ export default class VoxelRadio extends Component<Props, State> {
 
     if (compact) {
       return (
-        <div class="voxel-radio" onPointerDown={this.wake}>
-          <button type="button" onClick={this.transport} title={showPlay ? 'play' : 'pause'}>
-            {showPlay ? '\u25B6' : '\u23F8'}
-          </button>
-          <a href="/radio">{text}</a>
+        <>
           {tabs}
-          {r && (
-            <Knob
-              small
-              label="vol"
-              min={0}
-              max={1}
-              step={0.03}
-              value={r.trackVolume}
-              onWake={() => r.wake()}
-              onChange={(v) => {
-                r.setTrackVolume(v)
-                this.forceUpdate()
-              }}
-            />
-          )}
-        </div>
+
+          <div class="voxel-radio" onPointerDown={this.wake}>
+            <button type="button" onClick={this.transport} title={showPlay ? 'play' : 'pause'}>
+              {showPlay ? '\u25B6' : '\u23F8'}
+            </button>
+            <a href="/radio">{text}</a>
+            {r && (
+              <Knob
+                small
+                label="vol"
+                min={0}
+                max={1}
+                step={0.03}
+                value={r.trackVolume}
+                onWake={() => r.wake()}
+                onChange={(v) => {
+                  r.setTrackVolume(v)
+                  this.forceUpdate()
+                }}
+              />
+            )}
+          </div>
+        </>
       )
     }
 

@@ -397,10 +397,9 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
     if (this.streaming) {
       return this.url
     } else if (this.isOpenseaNFT) {
-      const url = await this.getAssetMp3()
-      return url ? `${process.env.IMG_URL}/audio?url=${encodeURIComponent(url)}&mode=audio` : undefined
+      return (await this.getAssetMp3()) || undefined
     } else if (this.url) {
-      return `${process.env.IMG_URL}/audio?url=${encodeURIComponent(this.url)}&mode=audio`
+      return this.url
     }
   }
 

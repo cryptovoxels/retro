@@ -325,12 +325,6 @@ function basenameTitle(url: string, place: string): string {
   return place || 'world'
 }
 
-function playUrl(url: string): string {
-  const img = process.env.IMG_URL
-  if (!img) return url
-  return `${img}/audio?url=${encodeURIComponent(url)}&mode=audio`
-}
-
 export async function sampleWorldTracks(db: Db, day: number): Promise<Track[]> {
   try {
     // content->>'features' matches the rest of the codebase: features is sometimes a
@@ -360,7 +354,7 @@ export async function sampleWorldTracks(db: Db, day: number): Promise<Track[]> {
       if (!url) continue
       const title = basenameTitle(url, r.place)
       const fileName = (url.split('?')[0].split('/').pop() || `world-${r.id}`).slice(0, 120)
-      out.push({ fileName, duration: WORLD_DURATION, url: playUrl(url), title })
+      out.push({ fileName, duration: WORLD_DURATION, url, title })
     }
     console.log('radio world sample', { day, rows: res.rows.length, kept: out.length })
     return out

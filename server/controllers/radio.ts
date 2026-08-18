@@ -10,8 +10,8 @@ const WINDOW = 300 // generate spots airing within the next 5 minutes
 const PAST = 3600 // ...and backfill ones that aired in the last hour (so the list has history)
 // v2: bumping this abandons all old cached spot state (and its stale CDN audio) - fresh slate.
 const HASH = (day: number) => `radio:spots:v2:${day}`
-// v2: wipe empty [] caches from the first world-sample attempt
-const WORLD_KEY = (day: number) => `radio:world:v2:${day}`
+// v3: play media.crvox.com directly; v2 wrapped /node/audio
+const WORLD_KEY = (day: number) => `radio:world:v3:${day}`
 
 type Client = { res: any; channel: RadioChannel }
 
