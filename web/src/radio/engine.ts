@@ -607,6 +607,12 @@ export class VoxelRadioEngine {
 
   private sync() {
     if (!this.schedule) return
+    if (!this.schedule.segments.length) {
+      this.teardownTrack()
+      this.track = null
+      this.onChange?.()
+      return
+    }
     const s = sec()
     const seg = this.schedule.segments.find((g) => g.startsAt <= s && s < g.startsAt + g.duration) ?? this.schedule.segments[0]
 

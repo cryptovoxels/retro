@@ -10,7 +10,8 @@ const WINDOW = 300 // generate spots airing within the next 5 minutes
 const PAST = 3600 // ...and backfill ones that aired in the last hour (so the list has history)
 // v2: bumping this abandons all old cached spot state (and its stale CDN audio) - fresh slate.
 const HASH = (day: number) => `radio:spots:v2:${day}`
-const WORLD_KEY = (day: number) => `radio:world:v1:${day}`
+// v2: wipe empty [] caches from the first world-sample attempt
+const WORLD_KEY = (day: number) => `radio:world:v2:${day}`
 
 type Client = { res: any; channel: RadioChannel }
 
@@ -67,7 +68,8 @@ export default function RadioController(db: Db, app: Express) {
           return []
         }
         const list = await sampleWorldTracks(db, day)
-        await pub.set(WORLD_KEY(day), JSON.stringify(list), { EX: 2 * DAY })
+        // never cache empty - that locks the channel onto the soundtrack fallback for 2 days
+        if (list.length) await pub.set(WORLD_KEY(day), JSON.stringify(list), { EX: 2 * DAY })
         return list
       } finally {
         worldBusy = false
@@ -81,7 +83,7 @@ export default function RadioController(db: Db, app: Express) {
   // deterministic schedule with generated spot urls/summaries overlaid from redis
   async function snapshot(day: number, channel: RadioChannel): Promise<Schedule> {
     const list = channel === 'world' ? await worldTracks(day) : tracks
-    const sched = buildSchedule(day, list.length ? list : tracks, channel)
+    const sched = buildSchedule(day, list, channel)
     const states = await spotStates(day)
     for (const spot of sched.spots) {
       const st = states[spot.id]

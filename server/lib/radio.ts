@@ -7,10 +7,9 @@ import { Db } from '../pg'
 const DAY = 86400
 const MIN_GAP = 180
 const MAX_GAP = 540 // avg 360s -> ~10 spots/hour
-const WORLD_MIN = 60
-const WORLD_MAX = 320
 const WORLD_CAP = 40
 const WORLD_SAMPLE = 80
+const WORLD_DURATION = 180 // no probing; fixed slot length in the 60-320 window
 
 const BUCKET = 'voxels-ugc'
 const REGION = 'syd1'
@@ -87,18 +86,19 @@ export function buildSpots(day: number): Spot[] {
 }
 
 // Deterministic per UTC day: same station for everyone, regenerates at midnight.
+// Empty list = empty segments (world channel must never fall back to soundtrack).
 export function buildSchedule(day: number, list: Track[] = tracks, channel: RadioChannel = 'soundtrack', musicUri = MUSIC_URI): Schedule {
-  const pool = list.length ? list : tracks
-  const order = seededShuffle(pool.slice(), day + 1)
-
   const segments: Segment[] = []
-  let t = 0
-  let i = 0
-  while (t < DAY) {
-    const track = order[i % order.length]
-    segments.push({ ...track, startsAt: t })
-    t += track.duration
-    i++
+  if (list.length) {
+    const order = seededShuffle(list.slice(), day + 1)
+    let t = 0
+    let i = 0
+    while (t < DAY) {
+      const track = order[i % order.length]
+      segments.push({ ...track, startsAt: t })
+      t += track.duration
+      i++
+    }
   }
 
   return { utcDay: day, daySeconds: DAY, musicUri, channel, segments, spots: buildSpots(day) }
@@ -331,110 +331,41 @@ function playUrl(url: string): string {
   return `${img}/audio?url=${encodeURIComponent(url)}&mode=audio`
 }
 
-function wavDuration(buf: Buffer): number | null {
-  if (buf.length < 44 || buf.toString('ascii', 0, 4) !== 'RIFF') return null
-  const channels = buf.readUInt16LE(22)
-  const rate = buf.readUInt32LE(24)
-  const bits = buf.readUInt16LE(34)
-  let i = 12
-  while (i + 8 <= buf.length) {
-    const id = buf.toString('ascii', i, i + 4)
-    const size = buf.readUInt32LE(i + 4)
-    if (id === 'data' && channels && rate && bits) {
-      const bytesPerSec = rate * channels * (bits / 8)
-      if (!bytesPerSec) return null
-      return size / bytesPerSec
-    }
-    i += 8 + size + (size % 2)
-  }
-  return null
-}
-
-function mp3Duration(buf: Buffer): number | null {
-  // Xing / Info frame with frame count
-  const xing = buf.indexOf('Xing')
-  const info = buf.indexOf('Info')
-  const at = xing >= 0 ? xing : info
-  if (at < 0 || at + 12 > buf.length) return null
-  const flags = buf.readUInt32BE(at + 4)
-  if (!(flags & 1) || at + 12 > buf.length) return null
-  const frames = buf.readUInt32BE(at + 8)
-  // find preceding sync to get samples-per-frame (1152 for MPEG1 layer3)
-  let sync = -1
-  for (let i = Math.max(0, at - 200); i < at; i++) {
-    if (buf[i] === 0xff && (buf[i + 1] & 0xe0) === 0xe0) {
-      sync = i
-      break
-    }
-  }
-  if (sync < 0) return null
-  const ver = (buf[sync + 1] >> 3) & 3
-  const samples = ver === 3 ? 1152 : 576
-  const srTable = [
-    [44100, 48000, 32000],
-    [22050, 24000, 16000],
-    [11025, 12000, 8000],
-  ]
-  const srIdx = (buf[sync + 2] >> 2) & 3
-  const verRow = ver === 3 ? 0 : ver === 2 ? 1 : 2
-  const rate = srTable[verRow]?.[srIdx]
-  if (!rate || !frames) return null
-  return (frames * samples) / rate
-}
-
-async function probeDuration(url: string): Promise<number | null> {
-  try {
-    const ctrl = new AbortController()
-    const t = setTimeout(() => ctrl.abort(), 8000)
-    const r = await fetch(url, { headers: { Range: 'bytes=0-131071' }, signal: ctrl.signal })
-    clearTimeout(t)
-    if (!r.ok && r.status !== 206) return null
-    const buf = Buffer.from(await r.arrayBuffer())
-    const d = wavDuration(buf) ?? mp3Duration(buf)
-    if (d == null || !isFinite(d)) return null
-    return d
-  } catch {
-    return null
-  }
-}
-
 export async function sampleWorldTracks(db: Db, day: number): Promise<Track[]> {
-  let rows: { id: number; url: string; place: string }[] = []
   try {
+    // content->>'features' matches the rest of the codebase: features is sometimes a
+    // json array and sometimes a json-encoded string of an array.
     const sql = `
       SELECT p.id, f->>'url' AS url, coalesce(nullif(p.name, ''), p.address, 'parcel ' || p.id) AS place
       FROM properties p,
         jsonb_array_elements(
           CASE
+            WHEN content IS NULL THEN '[]'::jsonb
             WHEN jsonb_typeof(content::jsonb -> 'features') = 'array' THEN content::jsonb -> 'features'
+            WHEN content->>'features' IS NOT NULL THEN (content->>'features')::jsonb
             ELSE '[]'::jsonb
           END
         ) f
-      WHERE f->>'type' = 'audio'
+      WHERE p.content IS NOT NULL
+        AND f->>'type' = 'audio'
         AND nullif(f->>'url', '') IS NOT NULL
       ORDER BY md5(p.id::text || $1::text)
       LIMIT $2
     `
     const res = await db.query('sql/radio/world-audio', sql, [String(day), WORLD_SAMPLE])
-    rows = (res.rows as any[]).map((r) => ({ id: r.id, url: r.url, place: r.place }))
+    const out: Track[] = []
+    for (const r of res.rows as any[]) {
+      if (out.length >= WORLD_CAP) break
+      const url = r.url
+      if (!url) continue
+      const title = basenameTitle(url, r.place)
+      const fileName = (url.split('?')[0].split('/').pop() || `world-${r.id}`).slice(0, 120)
+      out.push({ fileName, duration: WORLD_DURATION, url: playUrl(url), title })
+    }
+    console.log('radio world sample', { day, rows: res.rows.length, kept: out.length })
+    return out
   } catch (e: any) {
-    console.error('radio world sample', e?.toString?.() ?? e)
+    console.error('radio world sample', e?.message || e?.toString?.() || e)
     return []
   }
-
-  const out: Track[] = []
-  for (let i = 0; i < rows.length && out.length < WORLD_CAP; i += 8) {
-    const batch = rows.slice(i, i + 8)
-    const probed = await Promise.all(
-      batch.map(async (r) => {
-        const duration = await probeDuration(r.url)
-        if (duration == null || duration < WORLD_MIN || duration > WORLD_MAX) return null
-        const title = basenameTitle(r.url, r.place)
-        const fileName = (r.url.split('?')[0].split('/').pop() || `world-${r.id}`).slice(0, 120)
-        return { fileName, duration: Math.round(duration), url: playUrl(r.url), title } as Track
-      }),
-    )
-    for (const t of probed) if (t) out.push(t)
-  }
-  return out
 }
