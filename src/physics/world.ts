@@ -68,5 +68,3 @@ export function removeCollider(key: string) {
 export function hasCollider(key: string) {
   return entries.has(key)
 }
-
-export { RAPIER }

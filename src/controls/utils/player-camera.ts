@@ -1,4 +1,5 @@
-import { physics, RAPIER } from '../../physics/world'
+import RAPIER from '@dimforge/rapier3d-compat'
+import { physics } from '../../physics/world'
 
 const JUMP_SPEED = 6 // m/s (was 0.1 per frame at 60fps)
 const GRAVITY = -10.8 // m/s^2 (was 0.003 per frame^2)

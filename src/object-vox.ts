@@ -1,5 +1,6 @@
 import { runCompute } from './mono-pool'
-import { physics, RAPIER } from './physics/world'
+import RAPIER from '@dimforge/rapier3d-compat'
+import { physics } from './physics/world'
 import { TransformQueue } from './utils/transform'
 import { voxImporter } from '../common/vox-import/vox-import'
 import { cameraPosition, cameraRotation } from './utils/camera'
@@ -69,9 +70,12 @@ export async function yeetWearable(wid: string) {
     return
   }
 
-  const points = await runCompute((worker) => worker.hullPoints(url))
-  const hull = points.length >= 9 ? RAPIER.ColliderDesc.convexHull(points) : RAPIER.ColliderDesc.ball(0.25)
-  if (!hull) return
+  let coords = new Int32Array(0)
+  try {
+    coords = await runCompute((worker) => worker.wearVoxels(url))
+  } catch {}
+  const desc = coords.length >= 3 ? RAPIER.ColliderDesc.voxels(coords, { x: 0.04, y: 0.04, z: 0.04 }) : RAPIER.ColliderDesc.ball(0.25)
+  if (!desc) return
 
   const eye = cameraPosition(scene)
   const rot = cameraRotation(scene)
@@ -86,7 +90,7 @@ export async function yeetWearable(wid: string) {
       .setLinvel(forward.x * 12, forward.y * 12 + 3, forward.z * 12)
       .setAngvel({ x: Math.random() * 4 - 2, y: Math.random() * 4 - 2, z: Math.random() * 4 - 2 }),
   )
-  w.createCollider(hull, body)
+  w.createCollider(desc, body)
 
   mesh.parent = window.connector?.controls?.worldOffset || null
   mesh.position.copyFrom(origin)

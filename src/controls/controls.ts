@@ -14,7 +14,8 @@ import { hasPointerLock } from '../../common/helpers/ui-helpers'
 import { IControls } from './iControls'
 import { Animations } from '../avatar-animations'
 import { IdleLook } from './idle-look'
-import { physics, RAPIER } from '../physics/world'
+import RAPIER from '@dimforge/rapier3d-compat'
+import { physics } from '../physics/world'
 
 export const CAMERA_DISTANCE = isMobile() ? 2.5 : 1.5
 export const MIN_CAMERA_DISTANCE = 0.5

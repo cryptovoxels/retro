@@ -6,7 +6,7 @@ import { loadVox, cancelJob } from './monoworker/vox'
 import { requestInstanceIdentification, requestFeatureSorting } from './monoworker/pump'
 import { setFontData, meshText } from './monoworker/polytext'
 import { gridWorker } from './monoworker/grid'
-import { voxelCollider, hullPoints } from './monoworker/physics'
+import { voxelCollider, wearVoxels } from './monoworker/physics'
 
 const api = {
   // ready probe for createComlinkWorker (importScripts can fail after new Worker)
@@ -21,7 +21,7 @@ const api = {
   setFontData,
   meshText,
   voxelCollider,
-  hullPoints,
+  wearVoxels,
   init: gridWorker.init.bind(gridWorker),
   cameraUpdate: gridWorker.cameraUpdate.bind(gridWorker),
   queryParcelsAtPosition: gridWorker.queryParcelsAtPosition.bind(gridWorker),

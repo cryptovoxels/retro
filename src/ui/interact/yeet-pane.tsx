@@ -2,7 +2,7 @@ import { Component } from 'preact'
 import { truncate } from 'lodash'
 import WearableIcon from '../../../web/src/components/wearable-icon'
 import { yeetCollectionId } from '../../store'
-import { focusFirst, onListArrowKeys } from '../keynav'
+import { focusFirst, onGridArrowKeys } from '../keynav'
 import { yeetWearable } from '../../object-vox'
 import { effect } from '@preact/signals'
 
@@ -11,7 +11,6 @@ type Collectible = { id: string; name: string; token_id?: string }
 type State = {
   name?: string
   collectibles: Collectible[]
-  selected?: string
   loading?: boolean
   collectionId?: string
 }
@@ -27,7 +26,6 @@ export class YeetPane extends Component<{}, State> {
       const id = yeetCollectionId.value || DEFAULT_COLLECTION
       if (id !== this.state.collectionId) this.fetch(id)
     })
-    focusFirst(this.base as HTMLElement, '[tabindex]')
   }
 
   componentWillUnmount() {
@@ -41,20 +39,12 @@ export class YeetPane extends Component<{}, State> {
       const { collection } = await p.json()
       const f = await fetch(`/api/collections/${id}/collectibles`)
       const { collectibles } = await f.json()
-      this.setState({ name: collection?.name, collectibles: collectibles || [], loading: false })
+      this.setState({ name: collection?.name, collectibles: collectibles || [], loading: false }, () => {
+        focusFirst(this.base as HTMLElement, '[tabindex]')
+      })
     } catch {
       this.setState({ loading: false, collectibles: [] })
     }
-  }
-
-  select(id: string) {
-    this.setState({ selected: id })
-  }
-
-  yeet = () => {
-    const wid = this.state.selected
-    if (!wid) return
-    yeetWearable(wid)
   }
 
   render() {
@@ -68,17 +58,18 @@ export class YeetPane extends Component<{}, State> {
     }
 
     return (
-      <section class="yeet" onKeyDown={onListArrowKeys}>
+      <section class="yeet" onKeyDown={onGridArrowKeys}>
         <h2>{this.state.name || 'Yeet'}</h2>
         <div class="wrap-grid">
           {this.state.collectibles.map((w) => (
             <div
               key={w.id}
-              class={this.state.selected === w.id ? '-active' : undefined}
               tabIndex={0}
-              onClick={() => this.select(w.id)}
-              onKeyDown={(e: any) => {
-                if (e.key === 'Enter') this.select(w.id)
+              draggable
+              onClick={() => yeetWearable(w.id)}
+              onDragStart={(e: DragEvent) => {
+                e.dataTransfer?.setData('text/x-yeet', w.id)
+                e.dataTransfer?.setData('text/plain', `yeet:${w.id}`)
               }}
             >
               <WearableIcon id={w.id} title={w.name} />
@@ -86,9 +77,6 @@ export class YeetPane extends Component<{}, State> {
             </div>
           ))}
         </div>
-        <button type="button" onClick={this.yeet} disabled={!this.state.selected}>
-          yeet
-        </button>
       </section>
     )
   }

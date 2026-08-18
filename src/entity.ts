@@ -3,7 +3,8 @@ import { cameraPosition } from './utils/camera'
 import { Transform, TransformQueue } from './utils/transform'
 import { AVATAR_VIEW_DISTANCE, INTERPOLATION_MAX_VELOCITY } from './constants'
 import { encodeCoords } from '../common/helpers/utils'
-import { physics, RAPIER } from './physics/world'
+import RAPIER from '@dimforge/rapier3d-compat'
+import { physics } from './physics/world'
 
 type timestamp = number
 

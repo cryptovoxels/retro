@@ -5,6 +5,7 @@ import { getImageInfo, getURlImageInfo, getVoxInfo } from '../../web/src/utils'
 import { uploadMedia, UploadMediaResult } from '../../common/helpers/upload-media'
 import { uploadVoxModelMedia } from '../utils/upload-vox-media'
 import { PanelType } from '../../web/src/components/panel'
+import { yeetWearable } from '../object-vox'
 
 const MB = 1024 * 1024
 
@@ -41,10 +42,6 @@ export class DragDrop {
   }
 
   onDragOver = (e: any) => {
-    if (!this.ui) {
-      // Can't place features without UI
-      return
-    }
     const el = e.target
 
     if (el.nodeName !== 'CANVAS') {
@@ -52,6 +49,17 @@ export class DragDrop {
     }
 
     const dataTransfer = e.dataTransfer as DataTransfer
+    const types = dataTransfer?.types ? Array.from(dataTransfer.types) : []
+    if (types.includes('text/x-yeet')) {
+      preventDefaults(e)
+      dataTransfer.dropEffect = 'copy'
+      return
+    }
+
+    if (!this.ui) {
+      // Can't place features without UI
+      return
+    }
 
     preventDefaults(e)
 
@@ -105,9 +113,6 @@ export class DragDrop {
   }
 
   onDrop = async (e: DragEvent) => {
-    if (!this.ui) {
-      return
-    }
     const el = e.target as any
     if (!el) {
       return
@@ -117,6 +122,18 @@ export class DragDrop {
     }
 
     preventDefaults(e)
+
+    const yeetId = e.dataTransfer?.getData('text/x-yeet') || ''
+    const plain = e.dataTransfer?.getData('text/plain') || ''
+    const wid = yeetId || (plain.startsWith('yeet:') ? plain.slice(5) : '')
+    if (wid) {
+      yeetWearable(wid)
+      return
+    }
+
+    if (!this.ui) {
+      return
+    }
 
     const file = e.dataTransfer?.files[0]
     let textItem
