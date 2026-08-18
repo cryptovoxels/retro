@@ -2,7 +2,7 @@ import { Component } from 'preact'
 import { Animations } from '../../avatar-animations'
 import Connector from '../../connector'
 import Persona from '../../persona'
-import { focusFirst, onListArrowKeys } from '../keynav'
+import { focusFirst, onListArrowKeys } from '../../../web/src/helpers/keynav'
 import { dances } from './dances'
 
 export class DancePane extends Component<any, any> {

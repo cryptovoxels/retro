@@ -1,5 +1,5 @@
 import { route } from 'preact-router'
-import { focusFirst } from '../../../src/ui/keynav'
+import { focusFirst } from './keynav'
 import { isFullClientPath } from './coords-nav'
 
 export const FOCUS_EXPLORE = 'focus-explore'

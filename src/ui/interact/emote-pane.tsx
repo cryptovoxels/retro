@@ -1,7 +1,7 @@
 import { Component } from 'preact'
 import { Emotes } from '../../../common/messages/constant'
 import Connector from '../../connector'
-import { focusFirst, onGridArrowKeys } from '../keynav'
+import { focusFirst, onGridArrowKeys } from '../../../web/src/helpers/keynav'
 
 export class EmotePane extends Component {
   get connector(): Connector {

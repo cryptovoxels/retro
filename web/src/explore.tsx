@@ -1,7 +1,7 @@
 import { Component, Fragment } from 'preact'
 import ParcelHelper from '../../common/helpers/parcel-helper'
 import { currentVersion } from '../../common/version'
-import { focusFirst, onListArrowKeys } from '../../src/ui/keynav'
+import { focusFirst, onListArrowKeys } from './helpers/keynav'
 import Head from './components/head'
 import BlogTeaser from './components/blog-teaser'
 import Classifieds from './components/classifieds'

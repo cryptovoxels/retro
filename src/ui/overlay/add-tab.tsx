@@ -7,7 +7,7 @@ import { app } from '../../../web/src/state'
 import Panel, { PanelType } from '../../../web/src/components/panel'
 import { FeatureMetadata, featuresInfo, FeatureTemplate, featureTemplates, PlaceableFeatureTypes } from '../../features/_metadata'
 import { requestPointerLock } from '../../../common/helpers/ui-helpers'
-import { focusFirst, onListArrowKeys } from '../keynav'
+import { focusFirst, onListArrowKeys } from '../../../web/src/helpers/keynav'
 
 interface Props {
   parcel?: Parcel

@@ -2,7 +2,7 @@ import { Component } from 'preact'
 import { truncate } from 'lodash'
 import WearableIcon from '../../../web/src/components/wearable-icon'
 import { yeetCollectionId } from '../../store'
-import { focusFirst, onGridArrowKeys } from '../keynav'
+import { focusFirst, onGridArrowKeys } from '../../../web/src/helpers/keynav'
 import { yeetWearable } from '../../object-vox'
 import { effect } from '@preact/signals'
 
