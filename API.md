@@ -22,7 +22,8 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 - [spaces](#spaces), 2 routes
 - [events](#events), 6 routes
 - [search](#search), 1 route
-- [schemas](#schemas), 22 shapes
+- [ghosts](#ghosts), 1 route
+- [schemas](#schemas), 23 shapes
 
 ## parcels
 
@@ -1161,6 +1162,27 @@ Reads a materialised view that mixes parcels, wearables and the rest, so `type` 
   - `success` boolean
   - `results` array of [`SearchResult`](#searchresult)
 
+## ghosts
+
+- [`/api/ghosts`](#get-apighosts) Random path fragments that touched a parcel
+
+### GET /api/ghosts
+
+Random path fragments that touched a parcel
+
+Returns up to 10 anonymous movement fragments whose start or end parcel matches. Each `path` is base64 of a little-endian Float32Array packed as `t,x,y,z` per sample (`t` seconds from the fragment start). `type` is 0 walk, 1 conga, 2 fly, 3 drive. No identity and no created_at.
+
+**parameters**
+
+- `parcel` (query, required) integer
+
+**answers**
+
+- `200` object
+  - `success` boolean
+  - `ghosts` array of [`Ghost`](#ghost)
+- `400` The lookup did not land. Some handlers send this with status 200.
+
 ## schemas
 
 The shapes the routes above hand back.
@@ -1468,6 +1490,13 @@ A wearable collection.
 - `description` string or null
 - `created_at` string or null
 - `rank` number
+
+### Ghost
+
+- `start_parcel` integer
+- `end_parcel` integer
+- `type` integer: 0 walk, 1 conga, 2 fly, 3 drive
+- `path` string: Base64 of Float32Array samples packed as t,x,y,z
 
 ### EventList
 
