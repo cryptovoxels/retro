@@ -33,7 +33,7 @@ import { ParcelEventMap } from './utils/parcel-event-map'
 import { GLASS_MAX_VIEW_DISTANCE } from './voxel-field'
 import { Action } from '../common/messages'
 import { addVoxels, removeCollider } from './physics/world'
-import { voxelColliderFromNdArray } from './monoworker/physics'
+import { voxelCollider } from './monoworker/physics'
 
 const isTest = process.env.NODE_ENV === 'test'
 export const UNBAKED = '/textures/03-white-square.png'
@@ -1537,7 +1537,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
         this.glassMesh.freezeWorldMatrix()
       }
       if (this.field) {
-        this.colliderVoxels = voxelColliderFromNdArray(this.field)
+        this.colliderVoxels = voxelCollider(this.field)
         this.registerPhysics()
       }
       this.isColliderEnabled = () => this.physicsRegistered
@@ -1618,7 +1618,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.setGlassMesh(glass, { collidable: true, pickable: true })
 
     if (this.field) {
-      this.colliderVoxels = voxelColliderFromNdArray(this.field)
+      this.colliderVoxels = voxelCollider(this.field)
       this.registerPhysics()
     }
     this.isColliderEnabled = () => this.physicsRegistered

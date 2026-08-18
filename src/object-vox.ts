@@ -69,7 +69,7 @@ export async function emitWearable(wid: string) {
     return
   }
 
-  const points = await runCompute((worker) => worker.hullPointsFromVox(url))
+  const points = await runCompute((worker) => worker.hullPoints(url))
   const hull = points.length >= 9 ? RAPIER.ColliderDesc.convexHull(points) : RAPIER.ColliderDesc.ball(0.25)
   if (!hull) return
 
