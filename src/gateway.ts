@@ -105,9 +105,10 @@ function muteCamera(cam: BABYLON.Camera) {
 
 function hidePlayChrome() {
   const hide = () => {
-    document.querySelectorAll('.mobile-pad, .mobile-controls-container').forEach((el) => {
+    document.querySelectorAll('.mobile-controls-container').forEach((el) => {
       ;(el as HTMLElement).style.display = 'none'
     })
+    ;(window.connector?.controls as { dpad?: { setVisible(v: boolean): void } } | undefined)?.dpad?.setVisible(false)
   }
   hide()
   setTimeout(hide, 400)

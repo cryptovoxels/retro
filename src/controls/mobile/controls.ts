@@ -1,12 +1,12 @@
 import Controls, { CAMERA_DISTANCE } from '../controls'
-import DpadControls, { toggleDpadControls } from '../../ui/mobile/dpad'
+import Dpad from './dpad'
 import PlayerCamera from '../utils/player-camera'
 import { decodeCoords } from '../../../common/helpers/utils'
 import { getCoordsFromURL } from '../../utils/helpers'
 import { createFirstPersonCamera } from '../utils/fps-camera'
 export default class MobileControls extends Controls {
   shiftKey = false
-  dpad: DpadControls | null = null
+  dpad: Dpad | null = null
   btnCameraView: HTMLElement | null = null
   btnToggleFly: HTMLElement | null = null
   btnDrive: HTMLButtonElement | null = null
@@ -34,10 +34,10 @@ export default class MobileControls extends Controls {
   addControls(camera: PlayerCamera) {
     camera.attachControl(this.canvas, true)
 
-    // Mobile overlays
-    toggleDpadControls(this).then((dpad) => {
-      this.dpad = dpad
-    })
+    // base Controls assigns this.camera after addControls; dpad needs it now
+    this.camera = camera
+    this.dpad = new Dpad(this, this.canvas)
+    this.dpad.mount()
 
     // Hide / show reticule
     this.scene.registerBeforeRender(() => {
