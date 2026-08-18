@@ -50,7 +50,6 @@ export const tokensToEnter = t.union([ERC1155TokensToEnter, ERC721TokensToEnter,
 export type tokensToEnter = t.TypeOf<typeof tokensToEnter>
 
 export const ParcelSettings = t.type({
-  tokensToEnter: t.union([t.array(tokensToEnter), t.undefined]),
   hosted_scripts: t.union([t.boolean, t.undefined]),
   script_host_url: t.union([t.string, t.undefined]),
 })

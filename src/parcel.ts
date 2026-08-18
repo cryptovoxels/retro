@@ -23,7 +23,6 @@ import { createFeature } from './features/create'
 import Feature from './features/feature'
 import type Grid from './grid'
 import { isShared } from './materials'
-import ParcelBouncer from './parcel-bouncer'
 import ParcelBudget from './parcel-budget'
 import { ParcelMesher } from './parcel-mesher'
 import LuaBehaviours from './lua/behaviours'
@@ -33,6 +32,8 @@ import { tidyVec3 } from './utils/helpers'
 import { ParcelEventMap } from './utils/parcel-event-map'
 import { GLASS_MAX_VIEW_DISTANCE } from './voxel-field'
 import { Action } from '../common/messages'
+import { addVoxels, removeCollider } from './physics/world'
+import { voxelCollider } from './monoworker/physics'
 
 const isTest = process.env.NODE_ENV === 'test'
 export const UNBAKED = '/textures/03-white-square.png'
@@ -103,7 +104,8 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   public readonly grid: Grid
   private readonly mesher: ParcelMesher
   private regeneratingFeatures = false
-  private collider: BABYLON.Mesh | undefined
+  private colliderVoxels: Int32Array | null = null
+  private physicsRegistered = false
   private activated = false
   private activationState = ParcelActivationState.Inactive
   private fieldUpdateTimeout: NodeJS.Timeout | null = null
@@ -111,7 +113,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   private readonly refreshVoxels: () => void
   readonly relight: () => void
   private readonly soundSprite: BABYLON.Sound | null = null
-  private readonly _parcelBouncer: ParcelBouncer
   private featuresLoaded = false
   /** Server-side preview: skip lua + bouncer after features load. */
   preview = false
@@ -247,16 +248,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
           parent._worldMatrix,
         )
 
-    this._parcelBouncer = new ParcelBouncer(this)
-    /**
-     * record can contain 'bouncerShouldAllowUser' which was set in play.tsx
-     * this is when the server has already done a check to know if the user is allowed inside the parcel
-     * (The case being that the user is spawning inside the parcel)
-     */
-    const r = record as ParcelRecord & { bouncerShouldAllowUser?: any }
-    r.bouncerShouldAllowUser && this.parcelBouncer.handleNFTAuth(!!r.bouncerShouldAllowUser)
-    delete (record as ParcelRecord & { bouncerShouldAllowUser?: boolean }).bouncerShouldAllowUser
-
     // Use pre-computed field if provided (from grid-worker)
     if (precomputedField) {
       // If precomputedField came from worker, it might be a plain object - reconstruct as ndarray
@@ -391,10 +382,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     return getFieldShape(this)
   }
 
-  get parcelBouncer() {
-    return this._parcelBouncer
-  }
-
   get activationStatus() {
     return this.activationState
   }
@@ -462,7 +449,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     let indicesCount = 0
     indicesCount += this.voxelMesh?.getTotalIndices() || 0
     indicesCount += this.glassMesh?.getTotalIndices() || 0
-    indicesCount += this.collider?.getTotalIndices() || 0
     let animated = 0
     let groups = 0
     let collidables = 0
@@ -975,9 +961,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // Enter
     window.connector.sendMetric(Action.Enter, this.id)
 
-    // On user enter the parcel the bouncer will kick the user if they are not allowed;
-    this.parcelBouncer.handleUser().then()
-
     // Record event to surveyor.crvox.com
     recordParcelEvent({
       parcel_id: typeof this.id == 'string' ? this.id : this.id.toString(),
@@ -1028,8 +1011,8 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
     if (this.voxelMesh) this.dispatchEvent(createEvent('MeshUnloading', this.voxelMesh))
     if (this.glassMesh) this.dispatchEvent(createEvent('MeshUnloading', this.glassMesh))
-    if (this.collider) this.dispatchEvent(createEvent('MeshUnloading', this.collider))
 
+    this.unregisterPhysics()
     this.tilesetTexture?.dispose()
     this.tilesetTexture = null
 
@@ -1040,7 +1023,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // null out disposed voxel mesh to ensure a new one is generated next time
     this.voxelMesh = undefined
     this.glassMesh = undefined
-    this.collider = undefined
+    this.colliderVoxels = null
 
     this.disconnect()
     this.deactivate()
@@ -1104,10 +1087,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // builds an empty registry and flips connected=true, so onFeaturesLoaded never
     // re-inits. Defer to onFeaturesLoaded; only init now when there's no pump (tests).
     if (!window.main) await this.behaviours.init()
-    // On fastBoot we initiate the parcelBouncer and handle the user.
-    // handleUser() generates the box around the parcel if not allowed
-
-    this.parcelBouncer.handleUser().then()
   }
 
   deactivate() {
@@ -1121,7 +1100,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
     const features = this.featuresList.slice()
 
-    this.parcelBouncer.dispose() // dispose the bouncer.
+    this.unregisterPhysics()
 
     window.main?.pump.deactivate(this, features, () => {
       this.activationState = ParcelActivationState.Inactive
@@ -1573,6 +1552,11 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
         this.glassMesh.position.set(off[0], off[1], off[2])
         this.glassMesh.freezeWorldMatrix()
       }
+      if (this.field) {
+        this.colliderVoxels = voxelCollider(this.field)
+        this.registerPhysics()
+      }
+      this.isColliderEnabled = () => this.physicsRegistered
       this.dispatchEvent(createEvent('MeshLoaded', opaque))
       return
     }
@@ -1605,24 +1589,24 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
         () => {
           if (gen !== this.voxelFieldGen) return
           // Lightmap fetch failed -- fall back to unbaked so the parcel is still visible
-          this.mesher.generate(this, null, (opaque, glass, collider) => {
+          this.mesher.generate(this, null, (opaque, glass, colliderVoxels) => {
             if (gen !== this.voxelFieldGen) {
-              this.disposeGeneratedMeshes(opaque, glass, collider)
+              this.disposeGeneratedMeshes(opaque, glass)
               return
             }
-            this.configureUnbakedVoxelFieldMeshes(opaque, glass, collider)
+            this.configureUnbakedVoxelFieldMeshes(opaque, glass, colliderVoxels)
           })
         },
       )
       return
     }
 
-    this.mesher.generate(this, null, (opaque, glass, collider) => {
+    this.mesher.generate(this, null, (opaque, glass, colliderVoxels) => {
       if (gen !== this.voxelFieldGen) {
-        this.disposeGeneratedMeshes(opaque, glass, collider)
+        this.disposeGeneratedMeshes(opaque, glass)
         return
       }
-      this.configureUnbakedVoxelFieldMeshes(opaque, glass, collider)
+      this.configureUnbakedVoxelFieldMeshes(opaque, glass, colliderVoxels)
     })
   }
 
@@ -1634,12 +1618,12 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
   }
 
-  private configureUnbakedVoxelFieldMeshes(opaque: BABYLON.Mesh, glass: BABYLON.Mesh, collider: BABYLON.Mesh) {
-    this.setVoxelMesh(opaque, { collidable: false, pickable: false })
+  private configureUnbakedVoxelFieldMeshes(opaque: BABYLON.Mesh, glass: BABYLON.Mesh, colliderVoxels: Int32Array) {
+    this.setVoxelMesh(opaque, { collidable: true, pickable: true })
     this.setGlassMesh(glass, { collidable: false, pickable: false })
-    this.setCollider(collider, { collidable: true, pickable: true })
-
-    this.isColliderEnabled = () => !!this.collider?.checkCollisions
+    this.colliderVoxels = colliderVoxels
+    this.registerPhysics()
+    this.isColliderEnabled = () => this.physicsRegistered
 
     if (this.voxelMesh) this.dispatchEvent(createEvent('MeshLoaded', this.voxelMesh))
     if (this.glassMesh) this.dispatchEvent(createEvent('MeshLoaded', this.glassMesh))
@@ -1648,11 +1632,12 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   private async configureBakedVoxelFieldMeshes(opaque: BABYLON.Mesh, glass: BABYLON.Mesh) {
     this.setVoxelMesh(opaque, { collidable: true, pickable: true })
     this.setGlassMesh(glass, { collidable: true, pickable: true })
-    this.setCollider(null)
 
-    this.collider?.dispose()
-
-    this.isColliderEnabled = () => !!this.voxelMesh?.checkCollisions
+    if (this.field) {
+      this.colliderVoxels = voxelCollider(this.field)
+      this.registerPhysics()
+    }
+    this.isColliderEnabled = () => this.physicsRegistered
     // baked parcels use a different voxel meshing system to normal parcels
     // this bypasses the normal loaded callback, so we need to manually set loaded to true here
     // without loaded = true, feature activation does not work
@@ -1660,7 +1645,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
     if (this.voxelMesh) this.dispatchEvent(createEvent('MeshLoaded', this.voxelMesh))
     if (this.glassMesh) this.dispatchEvent(createEvent('MeshLoaded', this.glassMesh))
-    if (this.collider) this.dispatchEvent(createEvent('MeshLoaded', this.collider))
   }
 
   private setField = (listOfVectors: [number, number, number][], value: number) => {
@@ -1701,20 +1685,33 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     mesh.freezeWorldMatrix()
   }
 
-  private setCollider(mesh: BABYLON.Nullable<BABYLON.Mesh>, cfg?: { collidable: boolean; pickable: boolean }) {
-    this.collider?.material?.dispose()
-    this.collider?.dispose()
-    if (!mesh) {
+  private physicsKey() {
+    return `parcel-${this.id}`
+  }
+
+  private colliderOrigin() {
+    // matches the old invisible collider mesh offset relative to parcel.transform
+    const t = this.transform.position
+    return {
+      x: t.x - this.width / 4 + 0.25,
+      y: t.y - 0.25,
+      z: t.z - this.depth / 4 + 0.25,
+    }
+  }
+
+  private registerPhysics() {
+    if (!this.colliderVoxels || this.colliderVoxels.length < 3) {
+      removeCollider(this.physicsKey())
+      this.physicsRegistered = false
       return
     }
-    this.collider = mesh
-    this.collider.metadata = 'teleportable'
-    this.collider.visibility = 0
-    this.setCommonMeshProperties(this.collider, cfg)
+    addVoxels(this.physicsKey(), this.colliderVoxels, this.colliderOrigin())
+    this.physicsRegistered = true
+  }
 
-    const offset = new BABYLON.Vector3(-this.width / 4 + 0.25, -0.25, -this.depth / 4 + 0.25)
-    this.collider.position.addInPlace(offset)
-    mesh.freezeWorldMatrix()
+  private unregisterPhysics() {
+    removeCollider(this.physicsKey())
+    this.physicsRegistered = false
   }
 
   private setCommonMeshProperties(mesh: BABYLON.Mesh, cfg?: { collidable?: boolean; pickable: boolean }) {

@@ -699,9 +699,6 @@ export default class Grid extends SocketClient {
       if ('auth' in message) {
         parcel.authFromSocket(typeof message.auth !== 'string' ? undefined : message.auth)
       }
-      if ('nftAuth' in message) {
-        parcel.parcelBouncer.handleNFTAuth(!!message.nftAuth)
-      }
     })
   }
 

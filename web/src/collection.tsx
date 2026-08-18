@@ -1,17 +1,14 @@
-import { debounce, truncate } from 'lodash'
-import pluralize from 'pluralize'
+import { truncate } from 'lodash'
 import { Component, Fragment } from 'preact'
-import { SUPPORTED_CHAINS_BY_ID } from '../../common/helpers/chain-helpers'
-import { Collection, CollectionHelper } from '../../common/helpers/collections-helpers'
-import { ssrFriendlyDocument } from '../../common/helpers/utils'
-import { CollectibleInfoRecord } from '../../common/messages/feature'
+import { Collection } from '../../common/helpers/collections-helpers'
 import { isAddress } from 'ethers'
-import WearableIcon from './components/wearable-icon'
-import Pagination from './components/pagination'
 import UploadButton from './components/upload-button'
-import { app, AppEvent } from './state'
+import { app } from './state'
 import { AvatarLink } from './components/avatar-link'
 import { avatarName } from '../../common/messages/avatar-ref'
+import { WorldAside } from './world-aside'
+import { YeetPane } from '../../src/ui/interact/yeet-pane'
+import { yeetCollectionId } from '../../src/store'
 
 export interface Props {
   path?: string
@@ -28,8 +25,6 @@ export interface State {
   asc?: boolean
   search?: string
 }
-
-const NUM_PER_PAGE = 40
 
 export default class CollectionPage extends Component<Props, State> {
   constructor(props: Props) {
@@ -79,10 +74,18 @@ export default class CollectionPage extends Component<Props, State> {
   }
 
   componentDidMount() {
+    if (this.props.id) yeetCollectionId.value = this.props.id
     this.fetch()
   }
 
+  componentWillUnmount() {
+    // leave yeetCollectionId so in-world yeet pane still has a collection
+  }
+
   componentDidUpdate(_prevProps: Props, prevState: State) {
+    if (this.props.id && this.props.id !== yeetCollectionId.value) {
+      yeetCollectionId.value = this.props.id
+    }
     if (this.state.collection?.id !== prevState.collection?.id) {
       this.fetch()
     }
@@ -98,8 +101,6 @@ export default class CollectionPage extends Component<Props, State> {
     const f = await fetch(`/api/collections/${this.props.id}/collectibles`)
     const { collectibles } = await f.json()
     this.setState({ collectibles, loading: false })
-
-    console.log(this.state)
   }
 
   refetch = async () => {
@@ -113,60 +114,23 @@ export default class CollectionPage extends Component<Props, State> {
       return <p>Loading...</p>
     }
 
-    const collectibles = this.state.collectibles?.map((w: any) => {
-      const url = `/collections/${this.props.id}/collectibles/${w.token_id}`
-
-      const hasDescription = w.description && w.description != ''
-      //let price = w.offer_prices && w.offer_prices[0]
-
-      return (
-        <div key={w.id}>
-          <a href={url}>
-            <WearableIcon id={w.id!} title={w.name} />
-            <p>{truncate(w.name, { length: 40 })}</p>
-          </a>
-        </div>
-      )
-    })
-    // Placeholder is for the sake of UX when there is only 1 wearable in the grid. (flex-box)
-    const placeholder = <div></div>
-
-    const empty = collectibles.length === 0
+    const empty = (this.state.collectibles?.length || 0) === 0
     const upload = <UploadButton targetCollectionId={this.state.collection.id} onUpload={this.refetch} />
 
     return (
       <section class="columns">
         <article>
           <h1>{this.state.collection.name}</h1>
-          {empty ? upload : <div class="wrap-grid">{collectibles}</div>}
+          {empty ? upload : <p>{this.state.collectibles.length} wearables - open Yeet in the sidebar or press Y in-world</p>}
         </article>
+
+        <WorldAside>
+          <YeetPane />
+        </WorldAside>
 
         <aside>
           {(app.isAdmin() || this.state.collection.owner?.toLowerCase() === app.wallet?.toLowerCase()) && <a href={`/collections/${this.props.id}/edit`}>Edit</a>}
           {empty ? null : upload}
-
-          <p class="description">{this.state.collection.description}</p>
-
-          <dl>
-            <dt>Author</dt>
-            <dd>
-              <AvatarLink avatar={this.state.collection.owner} />
-            </dd>
-
-            {this.publicCanSubmit && (
-              <Fragment>
-                <dt>Submissions</dt>
-                <dd>This collection accepts submissions</dd>
-              </Fragment>
-            )}
-
-            {this.isDiscontinued && (
-              <Fragment>
-                <dt>Status</dt>
-                <dd>This collection has been discontinued.</dd>
-              </Fragment>
-            )}
-          </dl>
         </aside>
       </section>
     )

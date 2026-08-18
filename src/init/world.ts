@@ -10,6 +10,7 @@ import Grid from '../grid'
 import { ParcelMesher } from '../parcel-mesher'
 import { createGizmos } from '../tools/gizmos'
 import { isLoaded } from '../utils/loading-done'
+import { stepPhysics } from '../physics/world'
 
 export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCanvasElement, controls: Controls, environment: Environment) {
   const parcelMesher = new ParcelMesher(scene)
@@ -66,6 +67,7 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
     controls.invalidateGroundLoaded()
 
     scene.onAfterRenderObservable.add(() => {
+      stepPhysics(scene.getEngine().getDeltaTime() / 1000)
       controls.refreshGravity()
       controls.refreshCrouch()
     })

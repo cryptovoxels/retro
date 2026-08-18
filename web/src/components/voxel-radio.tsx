@@ -2,6 +2,7 @@ import { Component } from 'preact'
 import { trackTitle } from '../../../common/soundtracks'
 import { DAY, RadioChannel, Spot, VoxelRadioEngine } from '../radio/engine'
 import { ensureRadio, getRadio, onRadioChange } from '../radio/global'
+import { truncate } from '../lib/string-utils'
 
 type Props = { popped?: boolean }
 type PanelMode = 'closed' | 'open'
@@ -183,7 +184,7 @@ export default class VoxelRadio extends Component<Props, State> {
     const showPlay = !r || muted || r.stalled
     const onAir = r?.onAir ?? false
     const ducked = !!r?.userDucked && !!r?.duckTitle
-    const text = onAir ? 'dj on the mic...' : ducked ? r!.duckTitle! : r?.title || 'tuning in...'
+    const text = truncate(onAir ? 'dj on the mic...' : ducked ? r!.duckTitle! : r?.title || 'tuning in...', 15)
     const pct = Math.round((sec() / DAY) * 100)
     const compact = !this.props.popped
     const channel = r?.channel ?? 'soundtrack'

@@ -52,7 +52,6 @@ export const ParcelAuthMessage = t.type(
     type: t.literal('parcel-auth'),
     parcelId: t.number,
     auth: ParcelAuthResult,
-    nftAuth: t.boolean,
   },
   'ParcelAuthMessage',
 )

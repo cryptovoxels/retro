@@ -1,4 +1,5 @@
 import type { Chunk, ChunkObserver } from './chunk-system'
+import { addTrimesh, removeCollider } from '../physics/world'
 
 export default class OceanFloor implements ChunkObserver {
   private readonly _mesh: BABYLON.Mesh
@@ -6,6 +7,8 @@ export default class OceanFloor implements ChunkObserver {
   private readonly halfSize: number
   private readonly parent: BABYLON.TransformNode
   private instances: Map<string, BABYLON.InstancedMesh> = new Map()
+  private floorVerts: Float32Array | null = null
+  private floorIndices: Uint32Array | null = null
 
   constructor(size: number, scene: BABYLON.Scene, parent: BABYLON.TransformNode) {
     this.size = size
@@ -29,6 +32,13 @@ export default class OceanFloor implements ChunkObserver {
     this._mesh.parent = parent
     this._mesh.receiveShadows = true
     this.parent = parent
+
+    const positions = this._mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
+    const indices = this._mesh.getIndices()
+    if (positions && indices) {
+      this.floorVerts = positions instanceof Float32Array ? positions : new Float32Array(positions)
+      this.floorIndices = indices instanceof Uint32Array ? indices : new Uint32Array(indices)
+    }
   }
 
   get mesh(): BABYLON.Mesh {
@@ -41,6 +51,9 @@ export default class OceanFloor implements ChunkObserver {
     i.position.y = -6
     i.position.z = this.size * y + this.halfSize
     i.parent = this.parent
+    if (this.floorVerts && this.floorIndices) {
+      addTrimesh(`ocean-floor-${x}-${y}`, this.floorVerts, this.floorIndices, { x: i.position.x, y: i.position.y, z: i.position.z })
+    }
     return i
   }
 
@@ -60,6 +73,7 @@ export default class OceanFloor implements ChunkObserver {
     const key = `${chunk.gridX}_${chunk.gridZ}`
     const instance = this.instances.get(key)
     if (instance) {
+      removeCollider(`ocean-floor-${chunk.gridX}-${chunk.gridZ}`)
       instance.dispose()
       this.instances.delete(key)
     }

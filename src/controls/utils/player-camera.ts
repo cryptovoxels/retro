@@ -1,16 +1,21 @@
-const FRAME_DURATION_AT_60_FPS = 1000 / 60 // ms
+import RAPIER from '@dimforge/rapier3d-compat'
+import { physics } from '../../physics/world'
 
-// FreeCamera + custom jump/fall via inertiaVector
+const JUMP_SPEED = 6 // m/s (was 0.1 per frame at 60fps)
+const GRAVITY = -10.8 // m/s^2 (was 0.003 per frame^2)
+
+// FreeCamera + rapier kinematic character controller
 export default class PlayerCamera extends BABYLON.FreeCamera {
   inertiaVector = new BABYLON.Vector3(0, 0, 0)
   doubleJump = true // available until spent mid-air
-  private collider: BABYLON.Collider = undefined!
-  private old = BABYLON.Vector3.Zero()
-  private diff = BABYLON.Vector3.Zero()
-  private next = BABYLON.Vector3.Zero()
   private idlePos = BABYLON.Vector3.Zero()
   private idleBase = BABYLON.Quaternion.Identity()
   private idleApplied = false
+  private body: any = null
+  private collider: any = null
+  private controller: any = null
+  private verticalVel = 0
+  grounded = false
 
   constructor(name: string, position: BABYLON.Vector3, scene?: BABYLON.Scene, setActiveOnSceneIfNoneActive = true) {
     super(name, position, scene, setActiveOnSceneIfNoneActive)
@@ -21,14 +26,46 @@ export default class PlayerCamera extends BABYLON.FreeCamera {
     if (keyboard) this.inputs.remove(keyboard)
   }
 
+  // capsule center sits ellipsoid.y below the camera eye (plus the old ellipsoidOffset)
+  private bodyYFromCamera() {
+    return this.position.y - this.ellipsoid.y + this.ellipsoidOffset.y
+  }
+
+  private cameraYFromBody(bodyY: number) {
+    return bodyY + this.ellipsoid.y - this.ellipsoidOffset.y
+  }
+
+  ensurePhysics() {
+    const w = physics()
+    if (!w || this.controller) return
+    const halfH = Math.max(0.05, this.ellipsoid.y - this.ellipsoid.x)
+    const bodyDesc = RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(this.position.x, this.bodyYFromCamera(), this.position.z)
+    this.body = w.createRigidBody(bodyDesc)
+    const colDesc = RAPIER.ColliderDesc.capsule(halfH, this.ellipsoid.x)
+    this.collider = w.createCollider(colDesc, this.body)
+    this.controller = w.createCharacterController(0.01)
+    this.controller.enableAutostep(0.5, 0.2, true)
+    this.controller.enableSnapToGround(0.3)
+    this.controller.setMaxSlopeClimbAngle((50 * Math.PI) / 180)
+  }
+
+  rebuildCapsule() {
+    const w = physics()
+    if (!w || !this.body) return
+    if (this.collider) w.removeCollider(this.collider, true)
+    const halfH = Math.max(0.05, this.ellipsoid.y - this.ellipsoid.x)
+    this.collider = w.createCollider(RAPIER.ColliderDesc.capsule(halfH, this.ellipsoid.x), this.body)
+  }
+
   jump() {
-    if (this.inertiaVector.y === 0) {
-      this.inertiaVector.y = 0.1
+    if (this.grounded || this.verticalVel === 0) {
+      this.verticalVel = JUMP_SPEED
+      this.grounded = false
       return
     }
     if (this.doubleJump) {
       this.doubleJump = false
-      this.inertiaVector.y = 0.1
+      this.verticalVel = JUMP_SPEED
     }
   }
 
@@ -59,67 +96,46 @@ export default class PlayerCamera extends BABYLON.FreeCamera {
   }
 
   _collideWithWorld(displacement: BABYLON.Vector3): void {
-    let globalPosition: BABYLON.Vector3
-
-    if (this.parent) {
-      globalPosition = BABYLON.Vector3.TransformCoordinates(this.position, this.parent.getWorldMatrix())
-    } else {
-      globalPosition = this.position
+    this.ensurePhysics()
+    if (!this.controller || !this.collider || !this.body) {
+      this.position.addInPlace(displacement)
+      return
     }
 
-    globalPosition.subtractFromFloatsToRef(0, this.ellipsoid.y, 0, this.old)
-    this.old.addInPlace(this.ellipsoidOffset)
+    const dt = this.getEngine().getDeltaTime() / 1000 || 1 / 60
 
-    const coordinator = this.getScene().collisionCoordinator
-    if (!this.collider) {
-      this.collider = coordinator.createCollider()
-    }
+    // keep body glued to the camera before querying (teleports / fly / etc)
+    this.body.setTranslation({ x: this.position.x, y: this.bodyYFromCamera(), z: this.position.z }, true)
 
-    this.collider._radius = this.ellipsoid
-    this.collider.collisionMask = this.collisionMask
-
-    let actualDisplacement = displacement
+    let dx = displacement.x
+    let dy = displacement.y
+    let dz = displacement.z
 
     if (this.applyGravity) {
-      actualDisplacement = displacement.clone()
-
-      let inertiaVectorY = this.inertiaVector.y
-
-      // falling: factor in render time so fall speed isn't affected by frame rate
-      if (inertiaVectorY < 0) {
-        const currentFPSMultipleOfTargetFPS = FRAME_DURATION_AT_60_FPS / this.getEngine().getDeltaTime()
-        inertiaVectorY = inertiaVectorY / currentFPSMultipleOfTargetFPS
-      }
-
-      actualDisplacement.y = inertiaVectorY - 0.01
+      this.verticalVel += GRAVITY * dt
+      dy = this.verticalVel * dt
+    } else {
+      this.verticalVel = 0
     }
 
-    coordinator.getNewPosition(this.old, actualDisplacement, this.collider, 3, null, this.onHit, this.uniqueId)
+    this.controller.computeColliderMovement(this.collider, { x: dx, y: dy, z: dz })
+    const mov = this.controller.computedMovement()
+    const t = this.body.translation()
+    const next = { x: t.x + mov.x, y: t.y + mov.y, z: t.z + mov.z }
+    this.body.setNextKinematicTranslation(next)
+    this.position.set(next.x, this.cameraYFromBody(next.y), next.z)
+
+    this.grounded = !!this.controller.computedGrounded()
+    if (this.grounded) {
+      this.verticalVel = 0
+      this.inertiaVector.y = 0
+      this.doubleJump = true
+    } else {
+      this.inertiaVector.y = this.verticalVel
+    }
   }
 
   getClassName(): string {
     return 'PlayerCamera'
-  }
-
-  private onHit = (_collisionId: number, newPosition: BABYLON.Vector3, collidedMesh: BABYLON.Nullable<BABYLON.AbstractMesh> = null) => {
-    const EPSILON = 0.001
-    const airborne = Math.abs(newPosition.y - this.old.y) > EPSILON
-
-    if (airborne) {
-      this.inertiaVector.y -= 0.003
-    } else {
-      this.inertiaVector.y = 0
-      this.doubleJump = true
-    }
-
-    this.next.copyFrom(newPosition)
-    this.next.subtractToRef(this.old, this.diff)
-
-    if (this.diff.length() > BABYLON.Engine.CollisionsEpsilon) {
-      this.position.addInPlace(this.diff)
-      if (this.onCollide && collidedMesh) {
-        this.onCollide(collidedMesh)
-      }
-    }
   }
 }

@@ -1,5 +1,4 @@
 import { ethers, AlchemyProvider, Interface } from 'ethers'
-import { tokensToEnter } from '../../common/messages/parcel'
 import log from './logger'
 // import { Alchemy, Network } from 'alchemy-sdk' // REMOVED: Alchemy SDK no longer used
 import { maticChain, SUPPORTED_CHAINS } from '../../common/helpers/chain-helpers'
@@ -241,18 +240,4 @@ export const getTypeOfContract = async (address: string, chain = 1): Promise<'er
     return 'erc20'
   }
   return null
-}
-
-export const validateTokenType = (token: tokensToEnter): boolean => {
-  if (!token.address || !ethers.isAddress(token.address)) {
-    return false
-  }
-  if (!token.chain || typeof token.chain !== 'number') {
-    return false
-  }
-  if (token.type == 'erc1155' && !token.tokenId) {
-    return false
-  }
-
-  return true
 }
