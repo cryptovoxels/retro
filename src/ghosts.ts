@@ -17,7 +17,10 @@ export type GhostTypeId = (typeof GhostType)[keyof typeof GhostType]
 const SAMPLE_MS = 200
 const MOVE_EPS = 0.15
 const IDLE_CAP_S = 10
+const SPAWN_GATE_M = 1
 const TELEPORT_M = 20
+const MIN_PATH_M = 5
+const MIN_PARCELS = 2
 const MAX_SAMPLES = 240
 const MAX_SPAN_S = 90
 const MAX_GHOSTS = 10
@@ -50,6 +53,16 @@ function packSamples(samples: Sample[]): Float32Array {
     out[o + 3] = s.z
   }
   return out
+}
+
+function pathLength(blob: Sample[]): number {
+  let d = 0
+  for (let i = 1; i < blob.length; i++) {
+    const a = blob[i - 1]
+    const b = blob[i]
+    d += Math.hypot(b.x - a.x, b.y - a.y, b.z - a.z)
+  }
+  return d
 }
 
 function unpackPath(b64: string): Float32Array | null {
@@ -94,8 +107,8 @@ export function startGhosts(scene: BABYLON.Scene, parent: BABYLON.TransformNode,
   let blobType: GhostTypeId | null = null
   let blobStartMs = 0
   let lastPos: BABYLON.Vector3 | null = null
+  let gatePos: BABYLON.Vector3 | null = null
   let idleSinceMs: number | null = null
-  let pausedForIdle = false
   let lastSampleAt = 0
   let fetchAt = Date.now() + 5000 + Math.random() * 5000
   let lastFetchParcel: number | null = null
@@ -109,17 +122,23 @@ export function startGhosts(scene: BABYLON.Scene, parent: BABYLON.TransformNode,
     blobStartMs = Date.now()
     lastPos = null
     idleSinceMs = null
-    pausedForIdle = false
   }
 
-  const distinctParcels = () => {
+  const disarm = (pos: BABYLON.Vector3) => {
+    resetBlob(null)
+    gatePos = pos.clone()
+  }
+
+  const distinctParcels = (blob: Sample[] = samples) => {
     const set = new Set<number>()
-    for (const s of samples) set.add(s.parcel)
+    for (const s of blob) set.add(s.parcel)
     return set
   }
 
   const postBlob = (blob: Sample[], type: GhostTypeId) => {
     if (blob.length < 2) return
+    if (distinctParcels(blob).size < MIN_PARCELS) return
+    if (pathLength(blob) < MIN_PATH_M) return
     const startParcel = blob[0].parcel
     const endParcel = blob[blob.length - 1].parcel
     const packed = packSamples(blob)
@@ -140,7 +159,11 @@ export function startGhosts(scene: BABYLON.Scene, parent: BABYLON.TransformNode,
 
   const flush = (keepCurrent: boolean) => {
     if (blobType == null || samples.length < 2) {
-      resetBlob(keepCurrent ? locomotionType(controls, connector) : null)
+      if (keepCurrent) {
+        resetBlob(locomotionType(controls, connector))
+      } else {
+        resetBlob(null)
+      }
       return
     }
     const type = blobType
@@ -171,7 +194,13 @@ export function startGhosts(scene: BABYLON.Scene, parent: BABYLON.TransformNode,
 
     const type = locomotionType(controls, connector)
 
+    if (gatePos == null) {
+      gatePos = pos.clone()
+      return
+    }
+
     if (blobType == null) {
+      if (BABYLON.Vector3.Distance(pos, gatePos) < SPAWN_GATE_M) return
       resetBlob(type)
       samples.push({ t: 0, x: pos.x, y: pos.y, z: pos.z, parcel })
       lastPos = pos.clone()
@@ -186,25 +215,21 @@ export function startGhosts(scene: BABYLON.Scene, parent: BABYLON.TransformNode,
     if (lastPos) {
       const dist = BABYLON.Vector3.Distance(pos, lastPos)
       if (dist > TELEPORT_M) {
-        flush(true)
+        flush(false)
+        disarm(pos)
         return
       }
 
       if (dist < MOVE_EPS) {
         if (idleSinceMs == null) idleSinceMs = now
-        const idleS = (now - idleSinceMs) / 1000
-        if (!pausedForIdle && idleS >= IDLE_CAP_S) {
-          const t = (now - blobStartMs) / 1000
-          samples.push({ t, x: lastPos.x, y: lastPos.y, z: lastPos.z, parcel })
-          pausedForIdle = true
+        if ((now - idleSinceMs) / 1000 >= IDLE_CAP_S) {
+          flush(false)
+          disarm(pos)
         }
         return
       }
 
-      if (pausedForIdle || idleSinceMs != null) {
-        idleSinceMs = null
-        pausedForIdle = false
-      }
+      idleSinceMs = null
     }
 
     const t = (now - blobStartMs) / 1000
@@ -225,6 +250,7 @@ export function startGhosts(scene: BABYLON.Scene, parent: BABYLON.TransformNode,
     const g = playing.get(id)
     if (!g) return
     try {
+      g.avatar.emote('👻')
       g.avatar.disposeLocal()
     } catch {}
     playing.delete(id)

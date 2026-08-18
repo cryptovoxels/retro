@@ -803,7 +803,7 @@ export default class Avatar extends Entity {
       return
     }
     this.lastTeleportAt = Date.now()
-    this.emote('✨', absolutePosition)
+    this.emote(soundName === 'avatar.leave' ? '💀' : '✨', absolutePosition)
     // play the leave sound from the position we are teleporting from
     const connectionDuration = Avatar.connector.connectedAt ? Date.now() - Avatar.connector.connectedAt.getTime() : 0
     if (connectionDuration > 5e3 && this.distanceFromCamera < SOUND_DISTANCE) {
