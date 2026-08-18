@@ -7,8 +7,8 @@ import { app } from './state'
 import { AvatarLink } from './components/avatar-link'
 import { avatarName } from '../../common/messages/avatar-ref'
 import { WorldAside } from './world-aside'
-import { EmitPane } from '../../src/ui/interact/emit-pane'
-import { emitCollectionId } from '../../src/store'
+import { YeetPane } from '../../src/ui/interact/yeet-pane'
+import { yeetCollectionId } from '../../src/store'
 
 export interface Props {
   path?: string
@@ -74,17 +74,17 @@ export default class CollectionPage extends Component<Props, State> {
   }
 
   componentDidMount() {
-    if (this.props.id) emitCollectionId.value = this.props.id
+    if (this.props.id) yeetCollectionId.value = this.props.id
     this.fetch()
   }
 
   componentWillUnmount() {
-    // leave emitCollectionId so in-world emit pane still has a collection
+    // leave yeetCollectionId so in-world yeet pane still has a collection
   }
 
   componentDidUpdate(_prevProps: Props, prevState: State) {
-    if (this.props.id && this.props.id !== emitCollectionId.value) {
-      emitCollectionId.value = this.props.id
+    if (this.props.id && this.props.id !== yeetCollectionId.value) {
+      yeetCollectionId.value = this.props.id
     }
     if (this.state.collection?.id !== prevState.collection?.id) {
       this.fetch()
@@ -121,11 +121,11 @@ export default class CollectionPage extends Component<Props, State> {
       <section class="columns">
         <article>
           <h1>{this.state.collection.name}</h1>
-          {empty ? upload : <p>{this.state.collectibles.length} wearables - open Emit in the sidebar or press Y in-world</p>}
+          {empty ? upload : <p>{this.state.collectibles.length} wearables - open Yeet in the sidebar or press Y in-world</p>}
         </article>
 
         <WorldAside>
-          <EmitPane />
+          <YeetPane />
         </WorldAside>
 
         <aside>

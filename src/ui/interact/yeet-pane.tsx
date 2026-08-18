@@ -1,9 +1,9 @@
 import { Component } from 'preact'
 import { truncate } from 'lodash'
 import WearableIcon from '../../../web/src/components/wearable-icon'
-import { emitCollectionId } from '../../store'
+import { yeetCollectionId } from '../../store'
 import { focusFirst, onListArrowKeys } from '../keynav'
-import { emitWearable } from '../../object-vox'
+import { yeetWearable } from '../../object-vox'
 import { effect } from '@preact/signals'
 
 type Collectible = { id: string; name: string; token_id?: string }
@@ -16,13 +16,13 @@ type State = {
   collectionId?: string
 }
 
-export class EmitPane extends Component<{}, State> {
+export class YeetPane extends Component<{}, State> {
   state: State = { collectibles: [], loading: true }
   private stop: (() => void) | null = null
 
   componentDidMount() {
     this.stop = effect(() => {
-      const id = emitCollectionId.value
+      const id = yeetCollectionId.value
       if (id !== this.state.collectionId) this.fetch(id)
     })
     focusFirst(this.base as HTMLElement, '[tabindex]')
@@ -53,17 +53,17 @@ export class EmitPane extends Component<{}, State> {
     this.setState({ selected: id })
   }
 
-  emit = () => {
+  yeet = () => {
     const wid = this.state.selected
     if (!wid) return
-    emitWearable(wid)
+    yeetWearable(wid)
   }
 
   render() {
     if (!this.state.collectionId) {
       return (
-        <section class="emit">
-          <h2>Emit</h2>
+        <section class="yeet">
+          <h2>Yeet</h2>
           <p>open a collection first</p>
         </section>
       )
@@ -71,16 +71,16 @@ export class EmitPane extends Component<{}, State> {
 
     if (this.state.loading) {
       return (
-        <section class="emit">
-          <h2>Emit</h2>
+        <section class="yeet">
+          <h2>Yeet</h2>
           <p>Loading...</p>
         </section>
       )
     }
 
     return (
-      <section class="emit" onKeyDown={onListArrowKeys}>
-        <h2>{this.state.name || 'Emit'}</h2>
+      <section class="yeet" onKeyDown={onListArrowKeys}>
+        <h2>{this.state.name || 'Yeet'}</h2>
         <div class="wrap-grid">
           {this.state.collectibles.map((w) => (
             <div
@@ -97,8 +97,8 @@ export class EmitPane extends Component<{}, State> {
             </div>
           ))}
         </div>
-        <button type="button" onClick={this.emit} disabled={!this.state.selected}>
-          emit
+        <button type="button" onClick={this.yeet} disabled={!this.state.selected}>
+          yeet
         </button>
       </section>
     )

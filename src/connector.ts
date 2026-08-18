@@ -18,7 +18,7 @@ import { signal } from '@preact/signals'
 import { decodeCoords } from '../common/helpers/utils'
 import { EmoteAnimation } from './states'
 import { danceBySlug } from './ui/interact/dances'
-import { disposeEmitsForUuid, onRemoteEmit, onRemoteEmitState } from './object-vox'
+import { disposeYeetsForUuid, onRemoteYeet, onRemoteYeetState } from './object-vox'
 
 const UPDATE_AVATAR_INTERVAL_MS = 200
 
@@ -486,22 +486,22 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     this.lazyAvatarDisposer.cancelDisposal(message.uuid)
 
     this.disposeAvatar(message.uuid)
-    disposeEmitsForUuid(message.uuid)
+    disposeYeetsForUuid(message.uuid)
   }
 
-  sendEmit(payload: { id: string; wid: string; position: [number, number, number]; orientation: [number, number, number, number] }) {
+  sendYeet(payload: { id: string; wid: string; position: [number, number, number]; orientation: [number, number, number, number] }) {
     if (this.connectionState.status !== 'connected') return
     this.send({
-      type: MessageType.emit,
+      type: MessageType.yeet,
       uuid: Connector.clientUUID,
       ...payload,
     })
   }
 
-  sendEmitState(objects: any[]) {
+  sendYeetState(objects: any[]) {
     if (this.connectionState.status !== 'connected') return
     this.send({
-      type: MessageType.emitState,
+      type: MessageType.yeetState,
       uuid: Connector.clientUUID,
       objects,
     })
@@ -728,11 +728,11 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       case messages.MessageType.behaviourSignal:
         this.onBehaviourSignal(msg)
         break
-      case messages.MessageType.emit:
-        onRemoteEmit(msg)
+      case messages.MessageType.yeet:
+        onRemoteYeet(msg)
         break
-      case messages.MessageType.emitState:
-        onRemoteEmitState(msg)
+      case messages.MessageType.yeetState:
+        onRemoteYeetState(msg)
         break
       case messages.MessageType.loginComplete:
       case messages.MessageType.point:

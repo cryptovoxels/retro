@@ -26,7 +26,7 @@ const locals = new Map<string, LocalObj>()
 const remotes = new Map<string, RemoteObj>()
 let seq = 0
 let hooked = false
-let emitInterval: any = null
+let yeetInterval: any = null
 
 function ensureHooks(scene: BABYLON.Scene) {
   if (hooked) return
@@ -55,7 +55,7 @@ function clientUUID() {
   return window.connector?.persona?.uuid || 'local'
 }
 
-export async function emitWearable(wid: string) {
+export async function yeetWearable(wid: string) {
   const scene = window.scene
   const w = physics()
   if (!scene || !w) return
@@ -95,19 +95,19 @@ export async function emitWearable(wid: string) {
   const id = `${clientUUID()}-${++seq}`
   locals.set(id, { id, wid, mesh, body, owned: true })
 
-  window.connector?.sendEmit?.({
+  window.connector?.sendYeet?.({
     id,
     wid,
     position: [origin.x, origin.y, origin.z],
     orientation: [mesh.rotationQuaternion.x, mesh.rotationQuaternion.y, mesh.rotationQuaternion.z, mesh.rotationQuaternion.w],
   })
 
-  startEmitState()
+  startYeetState()
 }
 
-function startEmitState() {
-  if (emitInterval) return
-  emitInterval = setInterval(() => {
+function startYeetState() {
+  if (yeetInterval) return
+  yeetInterval = setInterval(() => {
     if (!locals.size) return
     const objects: any[] = []
     for (const o of locals.values()) {
@@ -115,11 +115,11 @@ function startEmitState() {
       const r = o.body.rotation()
       objects.push([o.id, t.x, t.y, t.z, r.x, r.y, r.z, r.w])
     }
-    window.connector?.sendEmitState?.(objects)
+    window.connector?.sendYeetState?.(objects)
   }, 200)
 }
 
-export async function onRemoteEmit(msg: { uuid: string; id: string; wid: string; position: [number, number, number]; orientation: [number, number, number, number] }) {
+export async function onRemoteYeet(msg: { uuid: string; id: string; wid: string; position: [number, number, number]; orientation: [number, number, number, number] }) {
   if (msg.uuid === clientUUID()) return
   if (locals.has(msg.id) || remotes.has(msg.id)) return
   const scene = window.scene
@@ -160,7 +160,7 @@ export async function onRemoteEmit(msg: { uuid: string; id: string; wid: string;
   })
 }
 
-export function onRemoteEmitState(msg: { uuid: string; objects: any[] }) {
+export function onRemoteYeetState(msg: { uuid: string; objects: any[] }) {
   if (msg.uuid === clientUUID()) return
   const now = Date.now()
   for (const row of msg.objects || []) {
@@ -176,7 +176,7 @@ export function onRemoteEmitState(msg: { uuid: string; objects: any[] }) {
   }
 }
 
-export function disposeEmitsForUuid(uuid: string) {
+export function disposeYeetsForUuid(uuid: string) {
   for (const [id, o] of remotes) {
     if (!id.startsWith(uuid)) continue
     o.mesh?.dispose()
