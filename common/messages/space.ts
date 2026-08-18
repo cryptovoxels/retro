@@ -21,7 +21,7 @@ export const SpaceRecord = t.type(
     slug: NullableStr,
     memoized_hash: t.string,
     state: t.null,
-    parcel_id: t.null,
+    parcel_id: t.union([t.number, t.null]),
     created_at: t.null, // seems to be all null in db 😔
     updated_at: NullableStr, // seems to mostly be set, but also some nulls?
     visits: t.number,

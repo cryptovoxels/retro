@@ -128,7 +128,7 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
   }
 
   app.post('/api/admin/parcels/create', passport.authenticate('jwt', { session: false }), requireAdmin, async (req, res) => {
-    const { id, address, owner, island, x1, y1, z1, x2, y2, z2 } = req.body
+    const { id, address, owner, island, x1, y1, z1, x2, y2, z2, spaceId } = req.body
 
     // console.log(JSON.stringify(req.body, null, 2))
 
@@ -137,14 +137,22 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
       assert(typeof address === 'string', 'Invalid address')
       assert(isInteger(id), 'Invalid id')
       assert(typeof island === 'string', 'Invalid island')
-      assert(typeof owner === 'string', 'Invalid owner')
+      if (spaceId != null) {
+        assert(typeof spaceId === 'string', 'Invalid spaceId')
+      } else {
+        assert(typeof owner === 'string', 'Invalid owner')
+      }
     } catch (e: any) {
       res.status(400).json({ success: false, message: e.message })
       return
     }
 
     try {
-      await createParcelRow(db, { id, address, owner, island, x1, y1, z1, x2, y2, z2 })
+      if (spaceId) {
+        await createParcelFromSpace(db, { id, address, island, x1, y1, z1, x2, y2, z2, spaceId })
+      } else {
+        await createParcelRow(db, { id, address, owner, island, x1, y1, z1, x2, y2, z2 })
+      }
     } catch (e: any) {
       console.log(e)
       res.status(500).json({ success: false, message: e.message })
@@ -214,8 +222,7 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
   })
 }
 
-async function createParcelRow(db: Db, p: { id: number; address: string; owner: string; island: string; x1: number; y1: number; z1: number; x2: number; y2: number; z2: number }) {
-  const { id, address, owner, island, x1, y1, z1, x2, y2, z2 } = p
+function parcelGeometry(x1: number, y1: number, z1: number, x2: number, y2: number, z2: number) {
   const minX = Math.min(x1, x2)
   const maxX = Math.max(x1, x2)
   const minZ = Math.min(z1, z2)
@@ -232,6 +239,12 @@ async function createParcelRow(db: Db, p: { id: number; address: string; owner: 
     [minX, minZ],
   ]
   const geometry_json = JSON.stringify({ type: 'Polygon', crs: { type: 'name', properties: { name: 'EPSG:3857' } }, coordinates: [ring] })
+  return { y1, y2, x1c, x2c, z1c, z2c, geometry_json }
+}
+
+async function createParcelRow(db: Db, p: { id: number; address: string; owner: string; island: string; x1: number; y1: number; z1: number; x2: number; y2: number; z2: number }) {
+  const { id, address, owner, island } = p
+  const g = parcelGeometry(p.x1, p.y1, p.z1, p.x2, p.y2, p.z2)
   const settings = '{}'
   await db.query(
     'sql/create-parcel',
@@ -242,8 +255,35 @@ async function createParcelRow(db: Db, p: { id: number; address: string; owner: 
         ($1, $2, $3, $4::float8, $5::float8, $6::jsonb, $7::float8, $8::float8, $9::float8, $10::float8, cube(ARRAY[$7::float8,$4::float8,$9::float8], ARRAY[$8::float8,$5::float8,$10::float8]), true, $11, 'plot', $12::jsonb, false)
       ON CONFLICT (id) DO NOTHING
     `,
-    [id, address, owner, y1, y2, geometry_json, x1c, x2c, z1c, z2c, island, settings],
+    [id, address, owner, g.y1, g.y2, g.geometry_json, g.x1c, g.x2c, g.z1c, g.z2c, island, settings],
   )
+}
+
+async function createParcelFromSpace(db: Db, p: { id: number; address: string; island: string; x1: number; y1: number; z1: number; x2: number; y2: number; z2: number; spaceId: string }) {
+  const spaceResult = await db.query('sql/admin-space-for-parcel', `select id, name, owner, content, description, settings, lightmap_url, height, parcel_id from spaces where id = $1`, [p.spaceId])
+  const space = spaceResult.rows[0]
+  if (!space) throw new Error('space not found')
+  if (space.parcel_id) throw new Error('space already has a parcel')
+  if (!space.owner || typeof space.owner !== 'string') throw new Error('space has no owner')
+
+  const y2 = p.y2 ?? space.height ?? 0
+  const g = parcelGeometry(p.x1, p.y1, p.z1, p.x2, y2, p.z2)
+  const settings = JSON.stringify(space.settings || {})
+  const content = JSON.stringify(space.content || {})
+
+  await db.query(
+    'sql/create-parcel-from-space',
+    `
+      INSERT INTO
+        properties (id, address, owner, name, description, content, lightmap_url, y1, y2, geometry_json, x1, x2, z1, z2, bounds, visible, island, kind, settings, minted)
+      VALUES
+        ($1, $2, $3, $4, $5, $6::jsonb, $7, $8::float8, $9::float8, $10::jsonb, $11::float8, $12::float8, $13::float8, $14::float8, cube(ARRAY[$11::float8,$8::float8,$13::float8], ARRAY[$12::float8,$9::float8,$14::float8]), true, $15, 'plot', $16::jsonb, false)
+      ON CONFLICT (id) DO NOTHING
+    `,
+    [p.id, p.address, space.owner, space.name, space.description, content, space.lightmap_url, g.y1, g.y2, g.geometry_json, g.x1c, g.x2c, g.z1c, g.z2c, p.island, settings],
+  )
+
+  await db.query('sql/link-space-parcel', `update spaces set parcel_id = $1 where id = $2 and parcel_id is null`, [p.id, p.spaceId])
 }
 
 async function upsertIsland(db: Db, name: string, geometry: any, content: any) {
@@ -254,15 +294,16 @@ async function upsertIsland(db: Db, name: string, geometry: any, content: any) {
   } catch {
     // todo: invalid geometry from the designer
   }
+  const emptyMulti = JSON.stringify({ type: 'MultiPolygon', coordinates: [] })
   await db.query(
     'sql/upsert-island',
     `
       WITH upsert AS (
         UPDATE islands SET geometry_json = $2::jsonb, position_json = $4::jsonb, content = $3 WHERE name = $1 RETURNING *
       )
-      INSERT INTO islands (name, geometry_json, content, position_json)
-      SELECT $1, $2::jsonb, $3, $4::jsonb WHERE NOT EXISTS (SELECT 1 FROM upsert);
+      INSERT INTO islands (name, geometry_json, content, position_json, holes_geometry_json, lakes_geometry_json)
+      SELECT $1, $2::jsonb, $3, $4::jsonb, $5::jsonb, $5::jsonb WHERE NOT EXISTS (SELECT 1 FROM upsert);
     `,
-    [name, geomStr, content, position_json],
+    [name, geomStr, content, position_json, emptyMulti],
   )
 }

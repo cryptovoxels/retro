@@ -947,8 +947,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     }
 
     if (url.startsWith('/spaces') && url.match('/play')) {
-      const spaceId = url.split('/')[2]
-      window.location.href = `/spaces/${spaceId}`
+      window.location.href = '/spaces'
       return
     }
 

@@ -256,6 +256,10 @@ export default function loadRoutes(app: Express) {
     res.redirect('/')
   })
 
+  app.get('/spaces/:id/play', (_req, res) => {
+    res.redirect('/spaces')
+  })
+
   app.get('/spaces/:id', cache('1 minute'), passport.authenticate(['jwt', 'anonymous'], { session: false }), (req, res) => {
     if (!req.params.id || !isValidUUID(req.params.id)) {
       return res.status(404).json({ success: false, message: 'space not found' })

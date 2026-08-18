@@ -125,6 +125,7 @@ export interface Props {
 
 type ProspectiveParcel = ParcelMeta & {
   mesh?: BABYLON.Mesh
+  spaceId?: string
 }
 
 export interface State {
@@ -135,6 +136,8 @@ export interface State {
   d: number
   name: string
   center: vec2
+  addSpaceId: string
+  busy: boolean
 }
 
 export default class IslandsAdmin extends Component<Props, State> {
@@ -156,6 +159,8 @@ export default class IslandsAdmin extends Component<Props, State> {
       d: 8,
       name: '',
       center: [11.14, -5.61],
+      addSpaceId: '',
+      busy: false,
     }
   }
 
@@ -163,6 +168,75 @@ export default class IslandsAdmin extends Component<Props, State> {
     this.createScene()
     this.regenerate()
     this.fetch()
+    this.loadSpacesFromQuery()
+  }
+
+  private spaceIdsFromQuery(): string[] {
+    if (typeof location === 'undefined') return []
+    const params = new URLSearchParams(location.search)
+    return params.getAll('id').filter(Boolean)
+  }
+
+  async loadSpacesFromQuery() {
+    const ids = this.spaceIdsFromQuery()
+    if (!ids.length) return
+    await this.loadSpaces(ids, true)
+  }
+
+  async loadSpaces(ids: string[], replace: boolean) {
+    const spaces: any[] = []
+    for (const id of ids) {
+      try {
+        const r = await fetch(`/api/spaces/${id}.json`)
+        const j = await r.json()
+        if (j?.space) spaces.push(j.space)
+      } catch {
+        // todo: surface load failure
+      }
+    }
+    if (!spaces.length) return
+
+    const gap = 4
+    const existing = replace ? [] : this.state.parcels.filter((p) => p.spaceId)
+    let x = existing.length ? Math.max(...existing.map((p) => p.x2)) + gap : 0
+    const parcels: ProspectiveParcel[] = spaces.map((space, i) => {
+      const w = Number(space.width) || 8
+      const h = Number(space.height) || 8
+      const d = Number(space.depth) || 8
+      const parcel: ProspectiveParcel = {
+        id: existing.length + i + 1,
+        spaceId: space.id,
+        x1: x,
+        y1: 0,
+        z1: 0,
+        x2: x + w,
+        y2: h,
+        z2: d,
+      }
+      x += w + gap
+      return parcel
+    })
+
+    const firstName = String(spaces[0].name || 'space').slice(0, 24)
+    const name = replace || !this.state.name ? `${firstName} island` : this.state.name
+
+    this.setState({
+      parcels: [...existing, ...parcels],
+      name,
+    })
+    setTimeout(() => this.regenerate(), 100)
+  }
+
+  addSpace = async (e: any) => {
+    e.preventDefault()
+    const id = this.state.addSpaceId.trim()
+    if (!id) return
+    if (this.state.parcels.some((p) => p.spaceId === id)) {
+      app.showSnackbar('space already loaded')
+      return
+    }
+    await this.loadSpaces([id], false)
+    this.setState({ addSpaceId: '' })
   }
 
   async fetch() {
@@ -454,6 +528,68 @@ export default class IslandsAdmin extends Component<Props, State> {
       x2: parcel.x2 * scale + this.state.center[0],
       y2: parcel.y2,
       z2: parcel.z2 * scale + this.state.center[1],
+      spaceId: parcel.spaceId,
+    }
+  }
+
+  private playCoords(payload: { x1: number; z1: number; x2: number; z2: number }) {
+    const cx = Math.round(((payload.x1 + payload.x2) / 2) * 100)
+    const cz = Math.round(((payload.z1 + payload.z2) / 2) * 100)
+    const e = cx < 0 ? `${Math.abs(cx)}W` : `${cx}E`
+    const n = cz < 0 ? `${Math.abs(cz)}S` : `${cz}N`
+    return `${e},${n}`
+  }
+
+  onAddToWorld = async (e: any) => {
+    e.preventDefault()
+    if (this.state.busy) return
+    const spaceParcels = this.state.parcels.filter((p) => p.spaceId)
+    if (!spaceParcels.length) {
+      app.showSnackbar('load a space first')
+      return
+    }
+    if (!this.state.name) {
+      app.showSnackbar('name the island')
+      return
+    }
+
+    this.setState({ busy: true })
+    try {
+      var { field } = getIslandField(this.state.parcels)
+      const voxels = getVoxelsFromBuffer(field.data)
+      const content = { voxels }
+      const geometry = this.getIslandGeometry()
+
+      const islandRes = await fetch('/api/admin/islands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: this.state.name, geometry, content }),
+      })
+      if (!islandRes.ok) throw new Error('island save failed')
+
+      let firstPayload: ReturnType<IslandsAdmin['parcelPayload']> | null = null
+      for (const parcel of spaceParcels) {
+        const payload = this.parcelPayload(parcel)
+        if (!firstPayload) firstPayload = payload
+        const r = await fetch('/api/admin/parcels/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+        const j = await r.json().catch(() => ({}))
+        if (!r.ok || !j.success) throw new Error(j.message || 'parcel create failed')
+      }
+
+      if (firstPayload) {
+        window.location.href = `/play?coords=${this.playCoords(firstPayload)}`
+        return
+      }
+      app.showSnackbar('added to world')
+    } catch (err: any) {
+      console.error(err)
+      app.showSnackbar(err?.message || 'add to world failed')
+    } finally {
+      this.setState({ busy: false })
     }
   }
 
@@ -598,11 +734,12 @@ export default class IslandsAdmin extends Component<Props, State> {
 
   render() {
     const center = this.state.center.map((c) => c.toFixed(2)).join(',')
+    const hasSpaces = this.state.parcels.some((p) => p.spaceId)
     return (
       <section class="island-admin columns">
         <header>
           <h1>Island Builder</h1>
-          <p>Propose new islands for approval.</p>
+          <p>{hasSpaces ? 'migrate spaces into the world.' : 'Propose new islands for approval.'}</p>
         </header>
 
         <article>
@@ -638,11 +775,24 @@ export default class IslandsAdmin extends Component<Props, State> {
               <input type="text" value={center} onChange={(e: any) => this.setState({ center: e.target.value.split(',').map(Number) })} />
             </div>
 
+            <div class="f">
+              <label>Add space</label>
+              <input type="text" value={this.state.addSpaceId} placeholder="space uuid" onChange={(e: any) => this.setState({ addSpaceId: e.target.value })} />
+              <button type="button" onClick={this.addSpace}>
+                add
+              </button>
+            </div>
+
             <h5>Location</h5>
 
             <div class="island-map" ref={this.mapRef} />
 
             <button onClick={this.onSave}>Save</button>
+            {hasSpaces && (
+              <button type="button" onClick={this.onAddToWorld} disabled={this.state.busy}>
+                {this.state.busy ? 'adding…' : 'add to world'}
+              </button>
+            )}
           </form>
           <h3>Parcels</h3>
 
@@ -666,6 +816,7 @@ export default class IslandsAdmin extends Component<Props, State> {
                   <tr key={parcel.id}>
                     <td>
                       <a href={`/parcels/${parcel.id}`}>{parcel.id}</a>
+                      {parcel.spaceId ? ` · space` : ''}
                     </td>
                     <td>{`${parcel.x1},${parcel.y1},${parcel.z1}`}</td>
                     <td>{`${parcel.x2 - parcel.x1},${parcel.y2 - parcel.y1},${parcel.z2 - parcel.z1}`}</td>
