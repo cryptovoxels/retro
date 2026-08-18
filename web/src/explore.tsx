@@ -88,7 +88,7 @@ export default class Explore extends Component<{}> {
         sessionStorage.removeItem(FOCUS_EXPLORE)
         focusFirst('.explorer')
       }
-    } catch { }
+    } catch {}
   }
 
   rerender = () => {

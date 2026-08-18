@@ -28,7 +28,9 @@ export default function BlogTeaser() {
 
   return (
     <>
-      <h3><a href="/blog">Blog</a></h3>
+      <h3>
+        <a href="/blog">Blog</a>
+      </h3>
       {posts.length ? (
         <table>
           <tbody>
