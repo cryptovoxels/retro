@@ -3,6 +3,7 @@ import { createEvent, TypedEventTarget } from './utils/EventEmitter'
 import { isMobile } from '../common/helpers/detector'
 import { SingleParcelRecord } from '../common/messages/parcel'
 import { app, AppEvent } from '../web/src/state'
+import { cameraPosition } from './utils/camera'
 import { distanceEnable, fetchAllParcels, fetchContributingParcels, fetchIslands, fetchOwnerParcels, Island, MapParcel, OCEAN, createBaseMeshes, createMaterial, pickParcelMesh } from './voxels-map'
 
 // the map will be sized to be this width of the whole browser window
@@ -122,9 +123,10 @@ export class Minimap {
     this.onBeforeRender = playerScene.onAfterRenderObservable.add(() => {
       if (playerScene.activeCamera instanceof BABYLON.TargetCamera) {
         const activePlayerCamera = playerScene.activeCamera
-        this.playerMesh.position.copyFrom(activePlayerCamera.position)
-        this.camera.position.x = activePlayerCamera.position.x
-        this.camera.position.z = activePlayerCamera.position.z
+        const pos = cameraPosition(playerScene)
+        this.playerMesh.position.copyFrom(pos)
+        this.camera.position.x = pos.x
+        this.camera.position.z = pos.z
 
         this.playerMesh.rotation.y = activePlayerCamera.rotation.y
         if (this.settings.rotate) {

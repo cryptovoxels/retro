@@ -58,13 +58,10 @@ export class FootstepSounds {
     this.playStep(isRunning, absolutePosition)
   }
 
-  hitGround(fallenHeight: any) {
+  land(speed: number) {
     if (!this.footStepsSupported || !this.footstepsSprite) return
 
-    // sets a max height to 3 to cap the noise it fall will make
-    fallenHeight = Math.min(fallenHeight, 3)
-
-    // don't make sound if fallen height is less than one block
+    const fallenHeight = Math.min((speed * speed) / (2 * 10.8), 3)
     if (fallenHeight < VoxelSize) return
 
     // debounce footsteps

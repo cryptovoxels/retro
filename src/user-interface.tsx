@@ -24,7 +24,6 @@ import type Grid from './grid'
 import type { MinimapSettings } from './minimap'
 import Parcel from './parcel'
 import { Animations } from './avatar-animations'
-import { EmoteAnimation } from './states'
 import {
   selectCurrentOrNearestParcel,
   selectNearestEditableParcel,
@@ -441,8 +440,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   celebrateSandboxGuideComplete = () => {
     exitPointerLock()
     this.connector.emote('🔥')
-    this.connector.persona.popState(this.connector.controls)
-    this.connector.persona.setState({ state: new EmoteAnimation(Animations.Dance) }, this.connector.controls)
+    this.connector.persona.playEmote(Animations.Dance)
     this.setState({ sandboxGuideOpen: false, sandboxGuideMini: false, sandboxGuideRestart: true })
   }
 

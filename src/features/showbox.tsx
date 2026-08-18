@@ -35,7 +35,6 @@ import { PanelType } from '../../web/src/components/panel'
 import { messageList, type ChatMessageRecord } from '../connector'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { Animations } from '../avatar-animations'
-import { EmoteAnimation, Idle } from '../states'
 import { cameraPosition, cameraRotation, setCameraRotation } from '../utils/camera'
 import { emote as emoteParticles } from '../utils/emote'
 import { AudioBus } from '../audio/audio-engine'
@@ -1025,8 +1024,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     anims.forEach((anim, i) => {
       setTimeout(() => {
         if (this.disposed) return
-        persona.popState(controls)
-        persona.setState({ state: new EmoteAnimation(anim) }, controls)
+        persona.playEmote(anim)
       }, i * gapMs)
     })
   }
@@ -4016,9 +4014,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       const persona = window.persona
       const controls = window.connector?.controls
       if (!persona || !controls) return
-      persona.popState(controls)
-      if (anim) persona.setState({ state: new EmoteAnimation(anim) }, controls)
-      else persona.setState({ state: new Idle() }, controls)
+      persona.playEmote(anim)
     }
     DOCK_DANCES.forEach((d) => {
       const b = document.createElement('button')

@@ -69,7 +69,6 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
     scene.onAfterRenderObservable.add(() => {
       stepPhysics(scene.getEngine().getDeltaTime() / 1000)
       controls.refreshGravity()
-      controls.refreshCrouch()
     })
 
     // start the environment load loop (which will load water on demand)
@@ -116,7 +115,7 @@ function initialSpawn(_scene: BABYLON.Scene, _grid: Grid, controls: Controls) {
     randomZ = Math.random() * (nudgeL - -nudgeL) + -nudgeL
   }
 
-  controls.camera.position = new BABYLON.Vector3(randomX, 2.5, randomZ)
+  controls.camera.player.set(randomX, 2.5, randomZ)
 }
 
 // Show params as NESW coordinates

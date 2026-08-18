@@ -14,7 +14,6 @@ export const createScene = (engine: BABYLON.Engine): BABYLON.Scene => {
   scene.actionManager = new BABYLON.ActionManager(scene)
   scene.autoClear = false
   scene.autoClearDepthAndStencil = false
-  scene.collisionsEnabled = true
 
   if (isMobile()) {
     overrideClearCachedVertexData(scene)

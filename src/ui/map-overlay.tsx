@@ -6,6 +6,7 @@ import { mapEventMarkerPopup, mapParcelPopup, mapTeleportPopup } from '../../web
 import { app, AppEvent } from '../../web/src/state'
 import ParcelEvent from '../../web/src/helpers/event'
 import { MapMarker, PAGE_ORTHO, VoxelsMap } from '../voxels-map'
+import { cameraPosition } from '../utils/camera'
 
 const AVATAR_UPDATE_INTERVAL = 3000
 
@@ -178,9 +179,10 @@ export default class MapOverlayUI {
     const camera = this.scene.activeCamera
     if (!camera || !this.map) return
 
+    const pos = cameraPosition(this.scene)
     this.locationMarker = this.map.addMarker({
-      x: camera.position.x,
-      z: camera.position.z,
+      x: pos.x,
+      z: pos.z,
       className: 'map-you-arrow',
       title: 'You are here!',
     })
@@ -189,7 +191,8 @@ export default class MapOverlayUI {
     this.locationTimer = setInterval(() => {
       const cam = this.scene.activeCamera
       if (!cam || !this.locationMarker) return
-      this.locationMarker.setPos(cam.position.x, cam.position.z)
+      const p = cameraPosition(this.scene)
+      this.locationMarker.setPos(p.x, p.z)
       this.locationMarker.setRotation(playerHeadingDeg(cam))
     }, 500)
   }

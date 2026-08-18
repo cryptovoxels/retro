@@ -16,7 +16,6 @@ import { ConnectionState } from './utils/socket-client'
 import { Transform } from './utils/transform'
 import { signal } from '@preact/signals'
 import { decodeCoords } from '../common/helpers/utils'
-import { EmoteAnimation } from './states'
 import { danceBySlug } from './ui/interact/dances'
 import { disposeYeetsForUuid, onRemoteYeet, onRemoteYeetState } from './object-vox'
 
@@ -931,10 +930,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       app.showSnackbar(`unknown emote "${slug}"`, PanelType.Warning)
       return
     }
-    this.persona.popState(this.controls)
-    if (dance.animation) {
-      this.persona.setState({ state: new EmoteAnimation(dance.animation) }, this.controls)
-    }
+    this.persona.playEmote(dance.animation)
   }
 
   private handleConga(text: string) {

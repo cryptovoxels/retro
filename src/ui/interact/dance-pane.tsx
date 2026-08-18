@@ -2,7 +2,6 @@ import { Component } from 'preact'
 import { Animations } from '../../avatar-animations'
 import Connector from '../../connector'
 import Persona from '../../persona'
-import { EmoteAnimation } from '../../states'
 import { focusFirst, onListArrowKeys } from '../keynav'
 import { dances } from './dances'
 
@@ -37,12 +36,8 @@ export class DancePane extends Component<any, any> {
   }
 
   playAnimation(animation: Animations | null) {
-    this.setState({ animation })
-    // remove last EmoteAnimation
-    this.persona.popState(this.connector.controls)
-    if (animation) {
-      this.persona.setState({ state: new EmoteAnimation(animation) }, this.connector.controls)
-    }
+    if (animation != null && animation === this.persona.emote) this.persona.playEmote(null)
+    else this.persona.playEmote(animation)
   }
 
   render() {

@@ -186,6 +186,7 @@ export abstract class Entity {
   }
 
   private ensurePhysicsCapsule() {
+    if ((this as any).isUser) return
     const w = physics()
     if (!w || this.physicsBody) return
     this.physicsBody = w.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(this._position.x, this._position.y + 0.85, this._position.z))

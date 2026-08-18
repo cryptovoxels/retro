@@ -13,18 +13,14 @@ import type { Environment } from '../enviroments/environment'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
 import { IControls } from './iControls'
 import { Animations } from '../avatar-animations'
-import { IdleLook } from './idle-look'
-import RAPIER from '@dimforge/rapier3d-compat'
-import { physics } from '../physics/world'
 
 export const CAMERA_DISTANCE = isMobile() ? 2.5 : 1.5
 export const MIN_CAMERA_DISTANCE = 0.5
 export const MAX_CAMERA_DISTANCE = 10
+const ISO_DISTANCE = 4
+const ISO_PITCH = 0.75 // look down at the avatar, isometric-ish
 const CAMERA_EASE_OUT = 1.4
 const SWIM_LEVEL = -2
-const STAND_ELLIPSOID_Y = 0.85
-const CROUCH_ELLIPSOID_Y = 0.4
-const CROUCH_SPEED_MULT = 0.5
 
 /** Meters behind the person in front (each hop of the snake). */
 const CONGA_FOLLOW_DISTANCE = 1.35
@@ -81,18 +77,9 @@ const easeCamera = (current: number, target: number, easingSpeed = CAMERA_EASE_O
 const MIN_CAMERA_DISTANCE_FOR_SELF_AVATAR = 0.2
 
 export default abstract class Controls implements IControls {
-  camera: PlayerCamera | BABYLON.ArcRotateCamera = undefined!
-  // initialCameraPos:
-  // this allows us to do camera transformation for 1st/3rd view and still keeping the
-  // Controls to move the camera. The trick is to cache the camera position before rendering
-  // the 3rd person view so that we can reset the camera position after the rendering for control
-  // purposes. If we manage to change the controls to move the Persona, we wont need to do this
-  // hack.
-  initialCameraPos: BABYLON.Vector3 | null = null
-  facingForward = true
+  camera: PlayerCamera = undefined!
   hasGamepad = false
   flying = false
-  jumping = false
   swimming = false
   cameraDistance = 0
   targetCameraDistance: number = CAMERA_DISTANCE
@@ -108,9 +95,6 @@ export default abstract class Controls implements IControls {
   movementEnabled = true
   shiftKey = false
   ctrlKey = false
-  crouching = false
-  /** Desktop Control key held — not meta/Cmd. */
-  crouchHeld = false
   firstPersonView = true
   walkRunAnimation: BABYLON.Animatable | null = null
   /** mobile dpad sets this; also used as drive steer while in a vehicle */
@@ -120,7 +104,7 @@ export default abstract class Controls implements IControls {
   // Only setting position is supported, not rotation or scale.
   worldOffset: BABYLON.TransformNode
 
-  grounded = true
+  islandsReady = true
 
   congaTarget: Avatar | null = null
   /** Leader's inConga can arrive a few ticks late over multiplayer. */
@@ -131,6 +115,7 @@ export default abstract class Controls implements IControls {
   private congaGroupBlend = 0
   /** Flying mode before joining conga; restored in stopConga. */
   private congaFlyingRestore: boolean | null = null
+  private wasAirborne = false
 
   // --- driveable megavox ---
   vehicleFeature: import('../features/vox-model').Megavox | null = null
@@ -164,12 +149,10 @@ export default abstract class Controls implements IControls {
   }
 
   MAX_PICK_DISTANCE = 20
-  gravityDisabledOverride: boolean | null = null
   audioContext: AudioContext = undefined!
-  idleLook: IdleLook
   private cameraZoomed = false
   // Gravity stays off until parcel colliders underfoot exist. See refreshGravity().
-  groundReady = true
+  floorReady = true
   private floorParcels: number[] | null = null // null = waiting for parcel ids
 
   constructor(
@@ -177,7 +160,6 @@ export default abstract class Controls implements IControls {
     protected canvas: HTMLCanvasElement,
   ) {
     this.user = window.user
-    this.idleLook = new IdleLook(this, this.scene)
 
     this.worldOffset = new BABYLON.TransformNode('avatar/worldOffset', this.scene)
 
@@ -211,31 +193,13 @@ export default abstract class Controls implements IControls {
     }
 
     this.scene.onBeforeRenderObservable.add(() => {
-      if (this.initialCameraPos) {
-        console.warn('this.initialCameraPos already set in onBeforeRenderObservable(). suspected logic error')
-      }
-      if (this.idleLook.active) {
-        this.idleLook.tick(this.scene.getEngine().getDeltaTime() / 1000)
-      }
       this.updateConga()
       this.updateVehicle()
+      this.cancelFly()
       // let persona update its position from the camera, since we are steering the camera
       this.persona.update(cameraPosition(this.scene), cameraRotation(this.scene), this)
       this.swimming = this.persona.isSwimming(SWIM_LEVEL) ?? this.swimming
-      // store the position before we do camera adjustment in perspectiveAdjustment
-      this.initialCameraPos = this.camera.position.clone()
-      // adjust camera for 1st / 3rd person view
       this.firstOrThirdPersonAdjustment()
-    })
-
-    this.scene.onAfterRenderObservable.add(() => {
-      if (this.initialCameraPos) {
-        // we have rendered, possibly with the camera in 3rd person view, set it back to how it was before adjustement
-        this.camera.position = this.initialCameraPos
-        this.initialCameraPos = null
-      } else {
-        console.warn('resetCamera() called without an this.initialCameraPos. suspected logic error')
-      }
     })
 
     // Seriously limit pick checking on mouse moves
@@ -291,31 +255,17 @@ export default abstract class Controls implements IControls {
     const cam = this.camera
     if (!cam) return null
 
-    const saved = cam.position.clone()
-    try {
-      // Only third person needs to move the pick camera back to match the rendered view.
-      // First person picks with the live camera (same path as the working unlocked pick),
-      // so the ray starts at the true eye, not the persona origin.
-      if (!this.firstPersonView && this.persona) {
-        const q = BABYLON.Quaternion.RotationYawPitchRoll(cam.rotation.y, cam.rotation.x, cam.rotation.z)
-        const back = new BABYLON.Vector3(0, 0, -1).rotateByQuaternionToRef(q, new BABYLON.Vector3())
-        cam.position.copyFrom(this.persona.position.add(back.scale(this.cameraDistance)))
-      }
+    const predicate = predicateOverride ?? (useMovePredicate ? this.scene.pointerMovePredicate : undefined)
+    const engine = this.scene.getEngine()
+    // scene.pick wants CSS pixels; getRenderWidth is device pixels. Convert via the hardware
+    // scaling level (set to 1/dpr) or the reticule center is off by dpr on hi-dpi screens.
+    const scaling = engine.getHardwareScalingLevel()
+    const px = x ?? (engine.getRenderWidth() * scaling) / 2
+    const py = y ?? (engine.getRenderHeight() * scaling) / 2
+    const pick = this.scene.pick(px, py, predicate, false, cam)
 
-      const predicate = predicateOverride ?? (useMovePredicate ? this.scene.pointerMovePredicate : undefined)
-      const engine = this.scene.getEngine()
-      // scene.pick wants CSS pixels; getRenderWidth is device pixels. Convert via the hardware
-      // scaling level (set to 1/dpr) or the reticule center is off by dpr on hi-dpi screens.
-      const scaling = engine.getHardwareScalingLevel()
-      const px = x ?? (engine.getRenderWidth() * scaling) / 2
-      const py = y ?? (engine.getRenderHeight() * scaling) / 2
-      const pick = this.scene.pick(px, py, predicate, false, cam)
-
-      if (pick?.pickedPoint) pick.pickedPoint = pick.pickedPoint.subtract(this.worldOffset.position)
-      return pick ?? null
-    } finally {
-      cam.position.copyFrom(saved)
-    }
+    if (pick?.pickedPoint) pick.pickedPoint = pick.pickedPoint.subtract(this.worldOffset.position)
+    return pick ?? null
   }
 
   // Highlight only: isInteract features + voxel-field occlusion. Skips vox/megavox/cube/polytext.
@@ -378,37 +328,34 @@ export default abstract class Controls implements IControls {
     }
   }
 
-  isOnGround(_tolerance = 0): boolean {
-    if (!(this.camera instanceof PlayerCamera)) {
-      return false
+  cancelFly() {
+    const grounded = this.camera.motion.grounded
+    if (!this.flying) {
+      this.wasAirborne = false
+      return
     }
-    return this.camera.grounded
+    if (!grounded) this.wasAirborne = true
+    else if (this.wasAirborne) {
+      this.setFlying(false)
+      this.wasAirborne = false
+    }
   }
 
   firstOrThirdPersonAdjustment() {
-    // build a vector projected backwards from the avatar away from the look-direction
-    const cameraQuat = BABYLON.Quaternion.RotationYawPitchRoll(this.camera.rotation.y, this.camera.rotation.x, this.camera.rotation.z)
-    const backwards = new BABYLON.Vector3(0, 0, -1).rotateByQuaternionToRef(cameraQuat, new BABYLON.Vector3())
-
     if (this.firstPersonView) {
       this.cameraDistance = easeCamera(this.cameraDistance, 0)
-      if (this.cameraDistance <= 0) {
-        this.persona.firstPersonView = this.firstPersonView
-      }
+      if (this.cameraDistance <= 0) this.persona.firstPersonView = true
     } else {
       this.cameraDistance = easeCamera(this.cameraDistance, this.targetCameraDistance)
     }
-
-    // place camera
-    this.camera.position.copyFrom(this.persona.position.add(backwards.scale(this.cameraDistance)))
-
-    // Show/hide the avatar
+    this.camera.distance = this.cameraDistance
+    this.camera.place()
     this.showSelfAvatar ? this.persona.avatar?.show() : this.persona.avatar?.hide()
   }
 
-  abstract createCamera(): PlayerCamera | BABYLON.ArcRotateCamera
+  abstract createCamera(): PlayerCamera
 
-  abstract addControls(camera: PlayerCamera | BABYLON.ArcRotateCamera): void
+  abstract addControls(camera: PlayerCamera): void
 
   enableMovement() {
     this.camera.speed = this.running ? this.runSpeed : this.defaultSpeed
@@ -446,7 +393,7 @@ export default abstract class Controls implements IControls {
     if (this.movementEnabled) {
       const fps = 60
       const duration = 13
-      const target = this.crouching ? this.defaultSpeed * CROUCH_SPEED_MULT : this.defaultSpeed
+      const target = this.defaultSpeed
       this.walkRunAnimation?.stop()
       this.walkRunAnimation = BABYLON.Animation.CreateAndStartAnimation('walk-to-run', this.camera, 'speed', fps, duration, this.camera.speed, target, undefined, WALK_TO_RUN_EASE)
       this.walkRunAnimation!.loopAnimation = false
@@ -532,7 +479,8 @@ export default abstract class Controls implements IControls {
   }
 
   setFlying(value: boolean) {
-    if (!value) this.groundReady = true
+    if (!value) this.floorReady = true
+    if (value && !this.flying) this.camera.hop()
     this.flying = value
   }
 
@@ -546,14 +494,14 @@ export default abstract class Controls implements IControls {
       throw new Error('invalidateGroundLoaded() called before attachEnvironment()!')
     }
 
-    this.groundReady = false
+    this.floorReady = false
     if (!this.grid) {
       throw new Error('invalidateGroundLoaded() called before attachEnvironment()!')
     }
 
     // The main thread doesn't keep a complete list of parcels, so we need to wait for the grid worker to tell us the definitive set of parcels containing the camera.
     this.floorParcels = null
-    this.grid.queryParcelsAtPosition(this.camera.position).then((parcelIds) => {
+    this.grid.queryParcelsAtPosition(this.camera.player).then((parcelIds) => {
       this.floorParcels = parcelIds
     })
 
@@ -562,84 +510,27 @@ export default abstract class Controls implements IControls {
 
   // this is called by the render loop in index.ts
   refreshGravity() {
-    if (this.camera instanceof PlayerCamera) {
-      // To avoid falling into the abyss, or through the floor of a second-floor parcel, gravity stays off at least until:
-      // 1. All islands have been meshed (this.grounded === true), and
-      // 2. Every parcel containing the camera position has a collider (this.groundReady).
-      if (!this.groundReady && this.floorParcels && this.floorParcels.every((id) => this.grid?.getByID(id)?.isColliderEnabled())) {
-        this.groundReady = true
-        this.floorParcels = null
-      }
-      this.camera.applyGravity = !this.flying && !this.swimming && this.grounded && isLoaded() && !this.gravityDisabledOverride && this.groundReady
+    // To avoid falling into the abyss, or through the floor of a second-floor parcel, gravity stays off at least until:
+    // 1. All islands have been meshed (this.islandsReady === true), and
+    // 2. Every parcel containing the camera position has a collider (this.floorReady).
+    if (!this.floorReady && this.floorParcels && this.floorParcels.every((id) => this.grid?.getByID(id)?.isColliderEnabled())) {
+      this.floorReady = true
+      this.floorParcels = null
     }
+    this.camera.gravity = !this.flying && !this.swimming && this.islandsReady && this.floorReady && isLoaded()
   }
 
-  setCrouching(want: boolean, force = false) {
-    if (!(this.camera instanceof PlayerCamera)) return
-    if (want === this.crouching) return
-
-    const dy = STAND_ELLIPSOID_Y - CROUCH_ELLIPSOID_Y
-
-    if (want) {
-      this.camera.ellipsoid.y = CROUCH_ELLIPSOID_Y
-      this.camera.position.y -= dy
-      this.camera.rebuildCapsule()
-      this.crouching = true
-      if (this.movementEnabled && !this.running) {
-        this.camera.speed = this.defaultSpeed * CROUCH_SPEED_MULT
-      }
-      return
-    }
-
-    if (!force) {
-      const w = physics()
-      if (w) {
-        const origin = this.camera.position
-        const ray = new RAPIER.Ray({ x: origin.x, y: origin.y, z: origin.z }, { x: 0, y: 1, z: 0 })
-        const hit = w.castRay(ray, dy + 0.001, true)
-        if (hit) return
-      }
-    }
-
-    this.camera.ellipsoid.y = STAND_ELLIPSOID_Y
-    this.camera.position.y += dy
-    this.camera.rebuildCapsule()
-    this.crouching = false
-    if (this.movementEnabled && !this.running) {
-      this.camera.speed = this.defaultSpeed
-    }
-  }
-
-  refreshCrouch() {
-    if (!(this.camera instanceof PlayerCamera)) return
-    if (this.flying || this.swimming) {
-      if (this.crouching) this.setCrouching(false, true)
-      return
-    }
-    if (this.crouchHeld) this.setCrouching(true)
-    else if (this.crouching) this.setCrouching(false)
-  }
-
-  // Disables gravity until ground is detected underneath the avatar
-
-  disableGravity() {
-    console.debug('disabling gravity')
-    this.gravityDisabledOverride = true
-  }
-
-  enableGravity() {
-    console.debug('enabling gravity')
-    this.gravityDisabledOverride = null
+  setNoclip(on: boolean) {
+    this.camera.noclip = on
   }
 
   togglePerspective() {
     if (this.firstPersonView) {
-      this.enterThirdPerson()
+      this.enterThirdPerson(ISO_DISTANCE)
+      this.snapIso()
     } else {
       this.enterFirstPerson()
     }
-
-    this.persona.setIdleFirstPerson(this.firstPersonView)
   }
 
   enterThirdPerson(startingDistance = CAMERA_DISTANCE) {
@@ -667,7 +558,18 @@ export default abstract class Controls implements IControls {
       this.toggleZoom()
     }
     this.firstPersonView = true
+    this.camera.rotation.x = 0
     return true
+  }
+
+  private snapIso() {
+    const step = Math.PI / 2
+    const off = Math.PI / 4
+    const y = Math.round((this.camera.rotation.y - off) / step) * step + off
+    this.camera.rotation.x = ISO_PITCH
+    this.camera.rotation.y = y
+    this.camera.cameraRotation.set(0, 0)
+    if (this.persona) this.persona.rotation.y = y
   }
 
   startConga(target: Avatar) {
@@ -758,14 +660,14 @@ export default abstract class Controls implements IControls {
       right.normalize()
     }
 
-    const dir = target.position.subtract(this.camera.position)
+    const dir = target.position.subtract(this.camera.player)
     dir.y = 0
     const gapHz = dir.length()
-    const gap3 = BABYLON.Vector3.Distance(target.position, this.camera.position)
+    const gap3 = BABYLON.Vector3.Distance(target.position, this.camera.player)
     if (leaderFlying ? gap3 > 30 : gapHz > 30) {
       const tp = target.position.subtract(forward.scale(CONGA_FOLLOW_DISTANCE))
       if (!leaderFlying) {
-        tp.y = this.camera.position.y
+        tp.y = this.camera.player.y
       }
       this.persona.teleportNoHistory({ position: tp })
       return
@@ -789,10 +691,10 @@ export default abstract class Controls implements IControls {
     const lateral = congaLateralSlot(this.connector.persona.uuid) * CONGA_LATERAL_PER_SLOT * g
     const desired = target.position.subtract(forward.scale(backDist)).add(right.scale(lateral))
     if (!leaderFlying) {
-      desired.y = this.camera.position.y
+      desired.y = this.camera.player.y
     }
 
-    let pull = desired.subtract(this.camera.position)
+    let pull = desired.subtract(this.camera.player)
     if (!leaderFlying) {
       pull.y = 0
     }
@@ -801,7 +703,7 @@ export default abstract class Controls implements IControls {
 
     pull.normalize()
     const step = Math.min(1, deltaTime * (3 + pullLen * 1.8))
-    this.camera.position.addInPlace(pull.scale(Math.min(pullLen, pullLen * step)))
+    this.camera.player.addInPlace(pull.scale(Math.min(pullLen, pullLen * step)))
   }
 
   getCoords() {
@@ -833,11 +735,11 @@ export default abstract class Controls implements IControls {
   }
 
   protected _handleGroundUnloaded() {
-    this.grounded = false
+    this.islandsReady = false
   }
 
   protected _handleGroundLoaded() {
-    this.grounded = true
+    this.islandsReady = true
   }
 
   // --- driveable megavox ---
@@ -900,10 +802,7 @@ export default abstract class Controls implements IControls {
     this.vehicleFlyingRestore = this.flying
     this.vehicleSeatOffset = this.readDriveSeatOffset(car)
     this.vehicleSeatMode = false
-    this.disableGravity()
-    if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
-      ;(this.scene.activeCamera as any).checkCollisions = false
-    }
+    this.setNoclip(true)
     this.disableMovement()
     // features freeze their world matrix after setCommon - thaw so drive pose updates show up
     car.mesh?.unfreezeWorldMatrix()
@@ -1003,10 +902,7 @@ export default abstract class Controls implements IControls {
         this.grid?.unloadIfBeyondDraw?.(car.parcel)
       } catch {}
     }
-    this.enableGravity()
-    if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
-      ;(this.scene.activeCamera as any).checkCollisions = true
-    }
+    this.setNoclip(false)
     this.enableMovement()
     if (this.vehicleFlyingRestore !== null) {
       this.setFlying(this.vehicleFlyingRestore)
@@ -1109,11 +1005,8 @@ export default abstract class Controls implements IControls {
     // stale lock: if we think we drive but state says otherwise
     if (car.driverUuid && car.driverUuid !== this.persona.uuid) {
       this.vehicleFeature = null
-      this.enableGravity()
+      this.setNoclip(false)
       this.enableMovement()
-      if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
-        ;(this.scene.activeCamera as any).checkCollisions = true
-      }
       this.refreshMobileDriveChrome?.()
       return
     }
@@ -1195,8 +1088,8 @@ export default abstract class Controls implements IControls {
       const [ox, oy, oz] = this.vehicleSeatOffset
       this.vehicleSeatLocal.copyFromFloats(ox, oy, oz)
       BABYLON.Vector3.TransformCoordinatesToRef(this.vehicleSeatLocal, car.mesh.getWorldMatrix(), this.vehicleSeatWorld)
-      this.camera.position.copyFrom(this.vehicleSeatWorld)
-      this.camera.position.subtractInPlace(this.worldOffset.position)
+      this.camera.player.copyFrom(this.vehicleSeatWorld)
+      this.camera.player.subtractInPlace(this.worldOffset.position)
       // mouse owns look (pitch + yaw); car facing is separate via getVehicleDriveYaw
     }
 

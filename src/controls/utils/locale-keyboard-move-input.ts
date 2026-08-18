@@ -27,6 +27,10 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
   public keysRight: string[] = []
   public keysRotateLeft: string[] = []
   public keysRotateRight: string[] = []
+  /** third person: W/S along this yaw (world XZ), not the camera look */
+  public alongYaw: (() => number) | null = null
+  /** third person: A/D turn the body, not the camera */
+  public onTurn: ((delta: number) => void) | null = null
 
   /**
    * Defines the pointer angular sensibility  along the X and Y axis or how fast is the camera rotating.
@@ -152,10 +156,39 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
   public checkInputs(): void {
     if (this._onKeyboardObserver) {
       const camera = this.camera
+      const yaw = this.alongYaw?.()
       // Keyboard
       for (let index = 0; index < this._keys.length; index++) {
         const keyCode = this._keys[index]
         const speed = camera._computeLocalCameraSpeed()
+
+        if (this.keysRotateLeft.indexOf(keyCode) !== -1) {
+          if (this.onTurn) this.onTurn(-this._getLocalRotation())
+          else camera.cameraRotation.y -= this._getLocalRotation()
+          continue
+        }
+        if (this.keysRotateRight.indexOf(keyCode) !== -1) {
+          if (this.onTurn) this.onTurn(this._getLocalRotation())
+          else camera.cameraRotation.y += this._getLocalRotation()
+          continue
+        }
+
+        if (yaw != null && this.keysUp.indexOf(keyCode) !== -1) {
+          camera.cameraDirection.addInPlaceFromFloats(Math.sin(yaw) * speed, 0, Math.cos(yaw) * speed)
+          continue
+        }
+        if (yaw != null && this.keysDown.indexOf(keyCode) !== -1) {
+          camera.cameraDirection.addInPlaceFromFloats(-Math.sin(yaw) * speed, 0, -Math.cos(yaw) * speed)
+          continue
+        }
+        if (yaw != null && this.keysUpward.indexOf(keyCode) !== -1) {
+          camera.cameraDirection.y += speed
+          continue
+        }
+        if (yaw != null && this.keysDownward.indexOf(keyCode) !== -1) {
+          camera.cameraDirection.y -= speed
+          continue
+        }
 
         if (this.keysLeft.indexOf(keyCode) !== -1) {
           camera._localDirection.copyFromFloats(-speed, 0, 0)
@@ -169,12 +202,8 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
           camera._localDirection.copyFromFloats(0, speed, 0)
         } else if (this.keysDownward.indexOf(keyCode) !== -1) {
           camera._localDirection.copyFromFloats(0, -speed, 0)
-        } else if (this.keysRotateLeft.indexOf(keyCode) !== -1) {
-          camera._localDirection.copyFromFloats(0, 0, 0)
-          camera.cameraRotation.y -= this._getLocalRotation()
-        } else if (this.keysRotateRight.indexOf(keyCode) !== -1) {
-          camera._localDirection.copyFromFloats(0, 0, 0)
-          camera.cameraRotation.y += this._getLocalRotation()
+        } else {
+          continue
         }
 
         if (camera.getScene().useRightHandedSystem) {

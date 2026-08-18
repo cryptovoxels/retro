@@ -4,15 +4,14 @@ import Controls from './controls/controls'
 import { CAMERA_HEIGHT, coords, decodeCoords, encodeCoords } from '../common/helpers/utils'
 import Connector from './connector'
 import { Animations, isCongaSyncedDance } from './avatar-animations'
-import * as States from './states'
 import { app, AppEvent } from '../web/src/state'
 import { track } from '../web/src/helpers/umami'
 import Avatar, { LoadUserAvatar } from './avatar'
 import { decodeCoordsFromURL } from './utils/helpers'
-import { wantsXR } from '../common/helpers/detector'
 import { Action, AvatarIdentity } from '../common/messages'
-import { cameraPosition, cameraRotation, setCameraPosition, setCameraRotation } from './utils/camera'
+import { cameraRotation, setCameraPosition, setCameraRotation } from './utils/camera'
 import VoiceChat from './voice-chat'
+import { WALK_HZ } from './controls/utils/player-camera'
 
 const identityEquals = (a: AvatarIdentity, b: AvatarIdentity) => a.wallet === b.wallet && a.name === b.name
 const identityFromUser = (user: User): AvatarIdentity => ({ wallet: user.wallet, name: user.name })
@@ -28,12 +27,10 @@ export default class Persona {
   avatarSignature: AvatarIdentity | null = null
   voiceChat = new VoiceChat(this)
   onAnimationChanged: BABYLON.Observable<Animations> = new BABYLON.Observable()
-  private facingForward: boolean
-  // this is in theory a pushdown automata, eg. https://gameprogrammingpatterns.com/state.html#pushdown-automata
-  private state: States.CharacterState[] = [new States.Idle()]
+  emote: Animations | null = null
+  private stepping = false
   private readonly scene: BABYLON.Scene
   private readonly parent: BABYLON.TransformNode
-  private readonly wantsXR: boolean
 
   constructor(
     scene: BABYLON.Scene,
@@ -49,12 +46,10 @@ export default class Persona {
     this.position = BABYLON.Vector3.Zero()
     this.rotation = new BABYLON.Vector3(0, 0, 0)
     this._animation = Animations.Idle
-    this.facingForward = true
     this.firstPersonView = true
     window.persona = this
 
     this.user = window.user
-    this.wantsXR = wantsXR() // Cache it
 
     const loadAvatar = debounce(async () => {
       const avatarSignature = identityFromUser(this.user)
@@ -90,10 +85,6 @@ export default class Persona {
         this.avatar.attachmentManager?.loadCostume()
       }
     })
-
-    setTimeout(() => {
-      this.controls.idleLook?.start()
-    }, 1000)
   }
 
   private _animation: Animations
@@ -120,14 +111,7 @@ export default class Persona {
   }
 
   get orientation(): [number, number, number, number] {
-    const rotation = this.rotation.clone()
-
-    // Spin avatar around to face the other way
-    if (!this.facingForward) {
-      rotation.y += Math.PI
-    }
-
-    const orientation = rotation.toQuaternion()
+    const orientation = this.rotation.toQuaternion()
     return [orientation.x, orientation.y, orientation.z, orientation.w]
   }
 
@@ -136,12 +120,6 @@ export default class Persona {
   }
 
   // teleports a user without adding the previous location to the browser. Might be good for moving players
-
-  isMoving() {
-    // car motion moves the camera every frame - don't treat that as walking
-    if (this.controls.vehicleFeature) return false
-    return !cameraPosition(this.scene).equalsWithEpsilon(this.position, this.wantsXR ? 0.05 : 0.02)
-  }
 
   naviport(value: string) {
     const coords = decodeCoords(value)
@@ -202,8 +180,6 @@ export default class Persona {
     // clear out previous grounded and wait for new ground to load so that we don't fall before parcel has loaded
     this.controls.invalidateGroundLoaded()
 
-    this.controls.idleLook?.start()
-
     // cached dest already meshed — no MeshLoaded; lift after one frame so grey still reads
     if (window.grid?.currentOrNearestParcel()?.voxelMesh) {
       this.scene.onBeforeRenderObservable.addOnce(() => {
@@ -214,44 +190,35 @@ export default class Persona {
     setTimeout(() => window.graphic?.postProcesses?.reveal(), 3e3)
   }
 
-  popState(controls: Controls) {
-    if (this.state.length == 1) {
-      console.warn('refusing to remove last persona.state')
-      return
+  playEmote(animation: Animations | null) {
+    this.emote = animation
+    if (animation != null) {
+      this.animation = animation
+      this.connector.sendMetric(Action.Dance)
     }
-    this.state.pop()?.exit(this, controls)
-    this.state[this.state.length - 1].enter(this, controls)
   }
 
-  // replace top most state in the state stack and runs the 'enter' and 'exit' actions
-  // if newState is true then we pop the last state on the stack, returns the number
-  // state changes that happened
-  setState(transition: States.Transition | void, controls: Controls): boolean {
-    if (!transition) {
-      return false
-    }
-    transition.state ? this.state.push(transition.state) : this.state.pop()?.exit(this, controls)
-    this.state[this.state.length - 1].enter(this, controls)
-    return true
+  private pickClip(controls: Controls) {
+    const m = controls.camera.motion
+    if (controls.vehicleFeature) return Animations.Sitting
+    if (this.emote != null) return this.emote
+    if (!m.grounded && !controls.camera.gravity) return Animations.Floating
+    if (m.hz > WALK_HZ) return Animations.Walk
+    return Animations.Idle
   }
 
   update(position: BABYLON.Vector3, rotation: BABYLON.Vector3, controls: Controls) {
-    const newStates = this.state[this.state.length - 1].handleControls(this, controls)
-    this.setState(newStates, controls)
-
-    this.state[this.state.length - 1].update(this, controls)
+    const m = controls.camera.motion
+    const clip = this.pickClip(controls)
+    if (clip !== this._animation) this.animation = clip
 
     this.position.copyFrom(position)
-    this.rotation.x = rotation.x
 
-    // spin the avatar around when walking backwards (but only in 3rd person view)
-    this.facingForward = this.firstPersonView || controls.facingForward
-    // if in third person mode, only set avatar direction when walking (so that the avatar isn't following the camera direction)
     const driveYaw = controls.getVehicleDriveYaw?.() ?? null
     if (driveYaw != null) {
       // seated: face the car nose, not the orbiting camera
       this.rotation.y = driveYaw
-    } else if (this.firstPersonView || this.state[this.state.length - 1] instanceof States.Moving) {
+    } else if (this.firstPersonView) {
       this.rotation.y = rotation.y
     }
 
@@ -263,10 +230,21 @@ export default class Persona {
       }
     }
 
-    // driving: stay seated (isMoving is false, but Idle would still set Walk off)
     if (controls.vehicleFeature) {
       this._animation = Animations.Sitting
     }
+
+    const stepping = this._animation === Animations.Walk && m.grounded
+    if (stepping !== this.stepping) {
+      this.stepping = stepping
+      if (stepping) this.audio?.footstepSounds?.walk()
+      else this.audio?.footstepSounds?.noStep()
+    }
+
+    if (m.impact > 0) this.audio?.footstepSounds?.land(m.impact)
+
+    if (controls.flying && m.hz > WALK_HZ) this.audio?.flySound?.start()
+    else this.audio?.flySound?.stop()
 
     //Directly call move avatar function to move current user avatar
     if (this.avatar?.isLoaded()) {
@@ -288,12 +266,5 @@ export default class Persona {
     }
     // no change
     return undefined
-  }
-
-  setIdleFirstPerson(value: boolean) {
-    const rootState = this.state[0]
-    if (rootState instanceof States.Idle) {
-      rootState.firstPersonView = value
-    }
   }
 }

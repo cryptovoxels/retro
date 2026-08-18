@@ -1,4 +1,4 @@
-import Controls, { featureFromPick, MAX_CAMERA_DISTANCE, MIN_CAMERA_DISTANCE } from '../controls'
+import Controls, { CAMERA_DISTANCE, featureFromPick, MAX_CAMERA_DISTANCE, MIN_CAMERA_DISTANCE } from '../controls'
 
 import PlayerCamera from '../utils/player-camera'
 import { LocaleKeyboardMoveInput } from '../utils/locale-keyboard-move-input'
@@ -41,8 +41,45 @@ export default class DesktopControls extends Controls {
   override setFlying(value: boolean) {
     super.setFlying(value)
     if (this.keyboardInput) {
-      this.keyboardInput.keysUpward = value ? ['PageUp', 'Space'] : []
+      this.keyboardInput.keysUpward = value ? ['PageUp'] : []
       this.keyboardInput.keysDownward = value ? ['PageDown', 'KeyV'] : []
+    }
+  }
+
+  override enterThirdPerson(startingDistance = CAMERA_DISTANCE) {
+    const entered = super.enterThirdPerson(startingDistance)
+    this.bindKeys()
+    return entered
+  }
+
+  override enterFirstPerson() {
+    const entered = super.enterFirstPerson()
+    this.bindKeys()
+    return entered
+  }
+
+  private bindKeys() {
+    const kb = this.keyboardInput
+    if (!kb) return
+    const turn = ['ArrowLeft', 'KeyA']
+    const other = ['ArrowRight', 'KeyD']
+    if (this.firstPersonView) {
+      kb.keysLeft = turn
+      kb.keysRight = other
+      kb.keysRotateLeft = []
+      kb.keysRotateRight = []
+      kb.alongYaw = null
+      kb.onTurn = null
+    } else {
+      kb.keysLeft = []
+      kb.keysRight = []
+      kb.keysRotateLeft = turn
+      kb.keysRotateRight = other
+      kb.rotationSpeed = 1.5
+      kb.alongYaw = () => this.persona.rotation.y
+      kb.onTurn = (d) => {
+        this.persona.rotation.y += d
+      }
     }
   }
 
@@ -66,7 +103,7 @@ export default class DesktopControls extends Controls {
   }
 
   onPointerLockChange() {
-    const cam = this.camera as PlayerCamera | undefined
+    const cam = this.camera
     if (!cam?.inputs) return
 
     const canvas = this.scene.getEngine().getRenderingCanvas()
@@ -80,8 +117,6 @@ export default class DesktopControls extends Controls {
 
     const mouse = cam.inputs.attached['mouse'] as BABYLON.FreeCameraMouseInput | undefined
     if (locked) {
-      // lerp out — don't abort/snap
-      this.idleLook.stop()
       // Babylon FreeCameraMouseInput stacks observers on every attach; never attach twice
       if (!this.mouseLookAttached) {
         mouse?.attachControl(true)
@@ -96,13 +131,12 @@ export default class DesktopControls extends Controls {
         this.mouseLookAttached = false
       }
       this.resetControls()
-      this.idleLook.start()
     }
   }
 
   // unlocked entry into the editor (tree click) — locked entry keeps the input from lock time
   attachDragLook() {
-    const mouse = (this.camera as PlayerCamera | undefined)?.inputs?.attached['mouse'] as BABYLON.FreeCameraMouseInput | undefined
+    const mouse = this.camera.inputs?.attached['mouse'] as BABYLON.FreeCameraMouseInput | undefined
     if (mouse && !this.mouseLookAttached) {
       mouse.attachControl(true)
       this.mouseLookAttached = true
@@ -117,8 +151,6 @@ export default class DesktopControls extends Controls {
   resetControls() {
     this.shiftKey = false
     this.ctrlKey = false
-    this.crouchHeld = false
-    this.setCrouching(false, true)
     this.walk()
     this.keyboardInput?.reset()
   }
@@ -136,8 +168,6 @@ export default class DesktopControls extends Controls {
     if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 0 && !hasPointerLock() && !eventData.event.shiftKey) {
       // selected feature: free mouse for face-drag / gizmos. don't steal into pointer lock.
       if (!authoring) {
-        // start lerp-out on the click itself so it doesn't snap when lock fires
-        this.idleLook.stop()
         this.nerfClick = true
         this.requestPointerLock()?.catch(() => {})
         return
@@ -263,12 +293,13 @@ export default class DesktopControls extends Controls {
   addKeyboardControls(camera: BABYLON.Camera) {
     this.keyboardInput = new LocaleKeyboardMoveInput({
       keysUp: ['ArrowUp', 'KeyW'],
-      keysUpward: this.flying ? ['PageUp', 'Space'] : [],
+      keysUpward: this.flying ? ['PageUp'] : [],
       keysDown: ['ArrowDown', 'KeyS'],
       keysDownward: this.flying ? ['PageDown', 'KeyV'] : [],
       keysLeft: ['ArrowLeft', 'KeyA'],
       keysRight: ['ArrowRight', 'KeyD'],
     })
+    this.bindKeys()
     camera.inputs.add(this.keyboardInput)
 
     this.canvas.addEventListener('keydown', (e: KeyboardEvent) => {
@@ -277,17 +308,8 @@ export default class DesktopControls extends Controls {
       this.shiftKey = e.shiftKey
       this.ctrlKey = e.ctrlKey || e.metaKey
 
-      if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
-        // Ctrl is paint while the voxel tool is up; don't crouch over it
-        if (!window.ui?.voxelTool?.enabled.value) {
-          this.crouchHeld = true
-          this.idleLook.stop()
-        }
-      }
-
       const moveKeys = ['KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Space', 'PageUp', 'PageDown', 'KeyV']
       if (moveKeys.includes(e.code)) {
-        this.idleLook.stop()
         // walking with a free cursor fades the sidebar too; hover brings it back
         document.body.classList.add('walking')
       }
@@ -296,6 +318,8 @@ export default class DesktopControls extends Controls {
       if (this.congaTarget && congaCancelKeys.includes(e.code)) {
         this.stopConga()
       }
+
+      if (e.code === 'Space') this.camera.jump()
 
       if (e.code === 'KeyE') {
         // stop bubble so document KeyE (edit feature) does not toggle us straight back out / open the editor
@@ -325,12 +349,7 @@ export default class DesktopControls extends Controls {
         this.walk()
       }
 
-      if ((e.code === 'KeyS' || e.code === 'ArrowDown') && !this.firstPersonView) {
-        this.facingForward = false
-      }
-
       if (e.code === 'KeyW' || e.code === 'ArrowUp') {
-        this.facingForward = true
         if (hasPointerLock() && location.pathname === '/parcels' && new URLSearchParams(location.search).get('parcel')) {
           app.emit(AppEvent.Exploring)
         }
@@ -341,33 +360,10 @@ export default class DesktopControls extends Controls {
       this.shiftKey = e.shiftKey
       this.ctrlKey = e.ctrlKey || e.metaKey
 
-      if (e.code === 'ControlLeft' || e.code === 'ControlRight') {
-        this.crouchHeld = e.ctrlKey
-      }
-
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
         this.walk()
       }
     })
-
-    this.scene.actionManager.registerAction(
-      new BABYLON.ExecuteCodeAction(
-        {
-          trigger: BABYLON.ActionManager.OnKeyDownTrigger,
-          parameter: ' ',
-        },
-        () => (this.jumping = true),
-      ),
-    )
-    this.scene.actionManager.registerAction(
-      new BABYLON.ExecuteCodeAction(
-        {
-          trigger: BABYLON.ActionManager.OnKeyUpTrigger,
-          parameter: ' ',
-        },
-        () => (this.jumping = false),
-      ),
-    )
   }
 
   addGamepadControls(camera: PlayerCamera) {

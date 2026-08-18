@@ -42,7 +42,6 @@ export default class DpadControls extends Component<any, any> {
 
     if (Math.hypot(x, y) > TAP_THRESHOLD) this.moved = true
 
-    this.controls.facingForward = y < 0
     this.controls.direction?.set((x / half) * SPEED, 0, (y / half) * -1 * SPEED)
 
     // nub is 33% of the box, so cap its visual offset to keep it inside the box (speed unchanged)

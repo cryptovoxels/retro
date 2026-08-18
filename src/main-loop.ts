@@ -2,6 +2,7 @@ import FPSStats from './utils/fps-stats'
 import { throttle } from 'lodash'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
 import { FeaturePump } from './pump/feature-pump'
+import { cameraPosition } from './utils/camera'
 
 export type LOOP_STATE = 'running' | 'paused'
 export default class MainLoop extends TypedEventTarget<Record<LOOP_STATE, void>> {
@@ -62,10 +63,10 @@ export default class MainLoop extends TypedEventTarget<Record<LOOP_STATE, void>>
     this.engine.runRenderLoop(() => {
       FPSStats.end()
 
-      if (this.scene?.activeCamera?.position) {
+      if (this.scene?.activeCamera) {
         const camera = this.scene.activeCamera
         const forwardRay = camera.getForwardRay()
-        this._pump.setCameraPosition(camera.position, forwardRay.direction)
+        this._pump.setCameraPosition(cameraPosition(this.scene), forwardRay.direction)
       }
 
       this.scene?.render()

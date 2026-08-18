@@ -5,7 +5,6 @@ import { Position, Scale, Rotation } from '../../web/src/components/editor'
 import { PoseBallRecord } from '../../common/messages/feature'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Animations, AnimationYOffset } from '../avatar-animations'
-import { EmoteAnimation, Idle } from '../states'
 
 export default class PoseBall extends Feature3D<PoseBallRecord> {
   public static metadata: FeatureMetadata = {
@@ -21,7 +20,7 @@ export default class PoseBall extends Feature3D<PoseBallRecord> {
     animation: 'sitting',
   }
 
-  private currentAnimation?: EmoteAnimation
+  private posed = false
 
   public override toString = () => '[pose-ball]'
 
@@ -72,10 +71,7 @@ export default class PoseBall extends Feature3D<PoseBallRecord> {
     const animation = Number(this.description.pose)
 
     if (PoseBall.activePoses === 0) {
-      this.connector.controls.disableGravity()
-      if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
-        this.scene.activeCamera.checkCollisions = false
-      }
+      this.connector.controls.setNoclip(true)
     }
 
     PoseBall.activePoses++
@@ -88,9 +84,8 @@ export default class PoseBall extends Feature3D<PoseBallRecord> {
     position.y += this.scale.y / 2
     setCameraPosition(this.scene, position)
 
-    this.currentAnimation = new EmoteAnimation(animation)
-
-    window.persona.setState({ state: this.currentAnimation }, this.connector.controls)
+    this.posed = true
+    window.persona.playEmote(animation)
 
     this.observer = this.scene.onAfterRenderObservable.add(() => {
       if (!this.avatar) return
@@ -107,25 +102,21 @@ export default class PoseBall extends Feature3D<PoseBallRecord> {
   }
 
   unpose() {
-    if (!this.currentAnimation) return
+    if (!this.posed) return
 
     if (this.observer) {
       this.scene.onAfterRenderObservable.remove(this.observer)
       this.observer = undefined
     }
 
-    window.persona.setState({ state: new Idle() }, this.connector.controls)
+    window.persona.playEmote(null)
 
-    this.currentAnimation = undefined
+    this.posed = false
 
     PoseBall.activePoses--
 
     if (PoseBall.activePoses === 0) {
-      this.connector.controls.enableGravity()
-
-      if (this.scene.activeCamera && 'checkCollisions' in this.scene.activeCamera) {
-        this.scene.activeCamera.checkCollisions = true
-      }
+      this.connector.controls.setNoclip(false)
     }
   }
 }

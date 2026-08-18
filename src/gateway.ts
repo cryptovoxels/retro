@@ -367,7 +367,7 @@ export function startGateway(scene: BABYLON.Scene, controls: Controls) {
   scene.autoClearDepthAndStencil = true
   scene.clearColor = new BABYLON.Color4(0, 0, 0, 0)
   scene.imageProcessingConfiguration.applyByPostProcess = false
-  controls.gravityDisabledOverride = true
+  controls.setNoclip(true)
 
   const canvas = scene.getEngine().getRenderingCanvas()
   if (canvas) canvas.style.zIndex = '1'
