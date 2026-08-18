@@ -3,8 +3,6 @@ import { isIOS, isTablet } from '../../../common/helpers/detector'
 
 const appleTouch = () => isIOS() || isTablet()
 
-export type RadioChannel = 'soundtrack' | 'world'
-
 // Mirrors server/lib/radio.ts output (kept local: that lib is server-only).
 export interface Segment extends Track {
   startsAt: number
@@ -21,7 +19,6 @@ export interface Schedule {
   utcDay: number
   daySeconds: number
   musicUri: string
-  channel?: RadioChannel
   segments: Segment[]
   spots: Spot[]
 }
@@ -59,20 +56,6 @@ function num(key: string, def: number): number {
 function save(key: string, v: number) {
   try {
     localStorage.setItem(key, String(v))
-  } catch {}
-}
-
-function loadChannel(): RadioChannel {
-  try {
-    return localStorage.getItem('radio.channel') === 'world' ? 'world' : 'soundtrack'
-  } catch {
-    return 'soundtrack'
-  }
-}
-
-function saveChannel(ch: RadioChannel) {
-  try {
-    localStorage.setItem('radio.channel', ch)
   } catch {}
 }
 
@@ -171,7 +154,6 @@ export class VoxelRadioEngine {
 
   muted = false
   duckTitle: string | null = null
-  channel: RadioChannel = 'soundtrack'
   onAir = false
   onChange: (() => void) | null = null
 
@@ -431,7 +413,6 @@ export class VoxelRadioEngine {
   private loadSettings() {
     this.setTrackVolume(num('radio.track', 1))
     this.setSpotVolume(num('radio.spot', 1))
-    this.channel = loadChannel()
     this.muted = num('radio.muted', 0) === 1
     this.master.gain.value = this.muted ? 0 : 1
     this.chain = loadChain()
@@ -563,34 +544,12 @@ export class VoxelRadioEngine {
       window.addEventListener('pointerdown', resume, { passive: true })
       window.addEventListener('keydown', resume, { passive: true })
     }
-    this.connectLive()
-  }
 
-  setChannel(ch: RadioChannel) {
-    if (ch === this.channel) return
-    this.channel = ch
-    saveChannel(ch)
-    this.started = false
-    this.schedule = null
-    this.played.clear()
-    this.spots.clear()
-    if (this.next) clearTimeout(this.next)
-    this.next = null
-    this.teardownTrack()
-    this.connectLive()
-    this.onChange?.()
-  }
-
-  private connectLive() {
-    this.es?.close()
-    this.es = new EventSource(`/api/radio/live?channel=${this.channel}`)
+    this.es = new EventSource('/api/radio/live')
     this.es.onmessage = (e) => {
       try {
         const msg = JSON.parse(e.data)
-        if (msg.type === 'snapshot') {
-          if (msg.channel && msg.channel !== this.channel) return
-          this.applySchedule(msg.schedule)
-        }
+        if (msg.type === 'snapshot') this.applySchedule(msg.schedule)
       } catch {}
     }
   }
@@ -600,19 +559,13 @@ export class VoxelRadioEngine {
     if (!this.started) {
       this.started = true
       this.sync()
-      if (!this.watch) this.watch = setInterval(() => this.tickSpots(), 2000)
+      this.watch = setInterval(() => this.tickSpots(), 2000)
     }
     this.onChange?.()
   }
 
   private sync() {
     if (!this.schedule) return
-    if (!this.schedule.segments.length) {
-      this.teardownTrack()
-      this.track = null
-      this.onChange?.()
-      return
-    }
     const s = sec()
     const seg = this.schedule.segments.find((g) => g.startsAt <= s && s < g.startsAt + g.duration) ?? this.schedule.segments[0]
 
@@ -627,12 +580,10 @@ export class VoxelRadioEngine {
     this.teardownTrack()
 
     const file = !canOpus() && seg.fallback ? seg.fallback : seg.fileName
-    const base = this.schedule?.musicUri || MUSIC_URI
-    const src = seg.url || `${base}/${file}`
     const el = document.createElement('audio')
     el.crossOrigin = 'anonymous'
     el.preload = 'auto'
-    el.src = src
+    el.src = `${MUSIC_URI}/${file}`
     el.style.display = 'none'
     document.body.appendChild(el)
 
@@ -667,7 +618,7 @@ export class VoxelRadioEngine {
     el.addEventListener(
       'error',
       () => {
-        console.error('[radio] track load failed', src)
+        console.error('[radio] track load failed', file)
         this.onChange?.()
       },
       { once: true },
