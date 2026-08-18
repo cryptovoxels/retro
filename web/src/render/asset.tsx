@@ -52,7 +52,6 @@ const blankSpace: ParcelRecord = {
   visible: true,
   features: [],
   settings: {
-    tokensToEnter: [],
     hosted_scripts: false,
     script_host_url: undefined,
   },

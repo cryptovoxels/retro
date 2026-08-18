@@ -1,6 +1,3 @@
-// ABOUTME: The monoworker - one worker, many feature modules exposed over minimal Comlink.
-// ABOUTME: Add a worker = import its pure module and add one line to the api object below.
-
 import * as Comlink from 'comlink'
 import { bakeLightmap } from './monoworker/lightmap'
 import { processVoxelisation } from './monoworker/voxel'
@@ -9,6 +6,7 @@ import { loadVox, cancelJob } from './monoworker/vox'
 import { requestInstanceIdentification, requestFeatureSorting } from './monoworker/pump'
 import { setFontData, meshText } from './monoworker/polytext'
 import { gridWorker } from './monoworker/grid'
+import { voxelColliderFromField, voxelColliderFromNdArray, hullPointsFromVox } from './monoworker/physics'
 
 const api = {
   // ready probe for createComlinkWorker (importScripts can fail after new Worker)
@@ -22,6 +20,9 @@ const api = {
   requestFeatureSorting,
   setFontData,
   meshText,
+  voxelColliderFromField,
+  voxelColliderFromNdArray,
+  hullPointsFromVox,
   init: gridWorker.init.bind(gridWorker),
   cameraUpdate: gridWorker.cameraUpdate.bind(gridWorker),
   queryParcelsAtPosition: gridWorker.queryParcelsAtPosition.bind(gridWorker),

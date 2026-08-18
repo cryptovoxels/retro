@@ -1,15 +1,9 @@
 import type Parcel from './parcel'
 import { getFieldShape } from '../common/voxels/helpers'
 import type { ParcelMesher } from './parcel-mesher'
-// import aoMeshVertexShader from './shaders/ao-mesh.vsh'
-// import aoMeshPixelShader from './shaders/ao-mesh.fsh'
 import { createGlassMaterial, createVoxelMaterial } from './materials'
 import { defaultColors } from '../common/content/blocks'
 import { runCompute } from './mono-pool'
-
-// Vertex-based ambient occlusion Shader
-// BABYLON.Effect.ShadersStore['aoMeshVertexShader'] = aoMeshVertexShader
-// BABYLON.Effect.ShadersStore['aoMeshPixelShader'] = aoMeshPixelShader
 
 export interface VoxelisationJob {
   renderJob: number
@@ -31,9 +25,7 @@ export interface RawVoxelizedMeshData {
   glassPositions: Float32Array
   glassIndices: Uint32Array
   glassNormals: Float32Array
-  colliderPositions: Float32Array
-  colliderIndices: Uint32Array
-  colliderNormals: Float32Array
+  colliderVoxels: Int32Array
 }
 
 export const GLASS_MAX_VIEW_DISTANCE = 64
@@ -41,7 +33,7 @@ export const GLASS_MAX_VIEW_DISTANCE = 64
 export class VoxelField {
   private readonly scene: BABYLON.Scene
   private readonly mesher: ParcelMesher
-  private jobs: Record<number, (opaque: BABYLON.Mesh, glass: BABYLON.Mesh, collider: BABYLON.Mesh) => void> = {}
+  private jobs: Record<number, (opaque: BABYLON.Mesh, glass: BABYLON.Mesh, colliderVoxels: Int32Array) => void> = {}
   private renderJob = 0
 
   constructor(scene: BABYLON.Scene, mesher: ParcelMesher) {
@@ -53,7 +45,7 @@ export class VoxelField {
     // No message listener needed with Comlink - direct method calls
   }
 
-  generate(parcel: Parcel, data: RawVoxelizedMeshData | null, callback: (opaque: BABYLON.Mesh, glass: BABYLON.Mesh, collider: BABYLON.Mesh) => void) {
+  generate(parcel: Parcel, data: RawVoxelizedMeshData | null, callback: (opaque: BABYLON.Mesh, glass: BABYLON.Mesh, colliderVoxels: Int32Array) => void) {
     // apply loading material
     if (!VoxelField.loadingMaterial) {
       VoxelField.loadingMaterial = this.createLoadingMaterial()
@@ -65,10 +57,6 @@ export class VoxelField {
     const glassMesh = new BABYLON.Mesh(`voxel-field/glass-${parcel.id}`, this.scene)
     glassMesh.setEnabled(false)
     glassMesh.material = createGlassMaterial(this.scene, {})
-
-    const colliderMesh = new BABYLON.Mesh(`voxel-field/collider-${parcel.id}`, this.scene)
-    colliderMesh.setEnabled(false)
-    colliderMesh.visibility = 0
 
     // console.log('generate voxel material for parcel', parcel.id, parcel.tileset, parcel.tilesetTexture, parcel.needsCustomMaterial())
     if (parcel.voxelMesh && parcel.needsCustomMaterial()) {
@@ -86,8 +74,8 @@ export class VoxelField {
     this.setVoxelMaterial(parcel, opaqueMesh)
     // we already got the data from somewhere, we don't need to call a worker
     if (data) {
-      this.applyData(data, opaqueMesh, glassMesh, colliderMesh)
-      callback(opaqueMesh, glassMesh, colliderMesh)
+      this.applyData(data, opaqueMesh, glassMesh)
+      callback(opaqueMesh, glassMesh, data.colliderVoxels || new Int32Array(0))
       return
     }
 
@@ -110,8 +98,8 @@ export class VoxelField {
       .then((result) => {
         const jobCallback = this.jobs[result.renderJob]
         if (jobCallback) {
-          this.applyData(result, opaqueMesh, glassMesh, colliderMesh)
-          jobCallback(opaqueMesh, glassMesh, colliderMesh)
+          this.applyData(result, opaqueMesh, glassMesh)
+          jobCallback(opaqueMesh, glassMesh, result.colliderVoxels || new Int32Array(0))
           delete this.jobs[result.renderJob]
         }
       })
@@ -119,7 +107,7 @@ export class VoxelField {
         console.error('Voxel generation failed:', error)
         const jobCallback = this.jobs[renderJob]
         if (jobCallback) {
-          jobCallback(opaqueMesh, glassMesh, colliderMesh)
+          jobCallback(opaqueMesh, glassMesh, new Int32Array(0))
           delete this.jobs[renderJob]
         }
       })
@@ -160,8 +148,8 @@ export class VoxelField {
     return createVoxelMaterial(`voxel-field/parcel_${parcel.id}`, this.scene, texture, palette || undefined, 1.5, 128, 4.0)
   }
 
-  private applyData(data: RawVoxelizedMeshData, opaqueMesh: BABYLON.Mesh, glassMesh: BABYLON.Mesh, colliderMesh: BABYLON.Mesh) {
-    const { opaquePositions, opaqueIndices, opaqueNormals, ambientOcclusion, opaqueTextureIndices, glassPositions, glassIndices, glassNormals, colliderPositions, colliderIndices, colliderNormals } = data
+  private applyData(data: RawVoxelizedMeshData, opaqueMesh: BABYLON.Mesh, glassMesh: BABYLON.Mesh) {
+    const { opaquePositions, opaqueIndices, opaqueNormals, ambientOcclusion, opaqueTextureIndices, glassPositions, glassIndices, glassNormals } = data
     if (opaquePositions.length > 0) {
       this.applyVertexDataToMesh(opaquePositions, opaqueIndices, opaqueMesh, opaqueNormals)
       opaqueMesh.setVerticesData('block', opaqueTextureIndices, false, 1)
@@ -169,9 +157,6 @@ export class VoxelField {
     }
     if (glassPositions.length > 0) {
       this.applyVertexDataToMesh(glassPositions, glassIndices, glassMesh, glassNormals)
-    }
-    if (colliderPositions.length > 0) {
-      this.applyVertexDataToMesh(colliderPositions, colliderIndices, colliderMesh, colliderNormals)
     }
   }
 

@@ -18,6 +18,7 @@ import { signal } from '@preact/signals'
 import { decodeCoords } from '../common/helpers/utils'
 import { EmoteAnimation } from './states'
 import { danceBySlug } from './ui/interact/dances'
+import { disposeEmitsForUuid, onRemoteEmit, onRemoteEmitState } from './object-vox'
 
 const UPDATE_AVATAR_INTERVAL_MS = 200
 
@@ -485,6 +486,25 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     this.lazyAvatarDisposer.cancelDisposal(message.uuid)
 
     this.disposeAvatar(message.uuid)
+    disposeEmitsForUuid(message.uuid)
+  }
+
+  sendEmit(payload: { id: string; wid: string; position: [number, number, number]; orientation: [number, number, number, number] }) {
+    if (this.connectionState.status !== 'connected') return
+    this.send({
+      type: MessageType.emit,
+      uuid: Connector.clientUUID,
+      ...payload,
+    })
+  }
+
+  sendEmitState(objects: any[]) {
+    if (this.connectionState.status !== 'connected') return
+    this.send({
+      type: MessageType.emitState,
+      uuid: Connector.clientUUID,
+      objects,
+    })
   }
 
   onWorldState(message: messages.WorldStateMessage) {
@@ -707,6 +727,12 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
         break
       case messages.MessageType.behaviourSignal:
         this.onBehaviourSignal(msg)
+        break
+      case messages.MessageType.emit:
+        onRemoteEmit(msg)
+        break
+      case messages.MessageType.emitState:
+        onRemoteEmitState(msg)
         break
       case messages.MessageType.loginComplete:
       case messages.MessageType.point:

@@ -11,7 +11,7 @@ export function createFirstPersonCamera(scene: BABYLON.Scene, coords: coords): P
     camera.maxZ = e.detail * 2.0
   })
 
-  camera.checkCollisions = true
+  camera.checkCollisions = false
   camera.ellipsoid = new BABYLON.Vector3(0.25, 0.85, 0.25)
 
   // we default to no gravity and enable it once world has loaded

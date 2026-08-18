@@ -1,5 +1,5 @@
 import { performance } from 'perf_hooks'
-import { authFeature, authParcelByNFT } from '../auth-parcel'
+import { authFeature } from '../auth-parcel'
 import Parcel, { ParcelAuthRef } from '../parcel'
 import log from '../lib/logger'
 import { sendNerfLogToSlack } from '../jobs/send-slack-log'
@@ -279,7 +279,6 @@ export default class GridShard {
       type: 'parcel-auth',
       parcelId: parcel.id,
       auth,
-      nftAuth: auth && auth !== 'Sandbox' ? true : await authParcelByNFT(parcel, client.user),
     }
     client.send(parcelAuthMsg)
   }

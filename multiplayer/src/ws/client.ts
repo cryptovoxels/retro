@@ -161,6 +161,8 @@ export class Client {
         }
         break
       case messages.MessageType.point:
+      case messages.MessageType.emit:
+      case messages.MessageType.emitState:
       case messages.MessageType.typing:
       case messages.MessageType.voiceStateAvatar:
         if (msg.uuid === this.clientUUID) {

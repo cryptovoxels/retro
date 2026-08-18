@@ -56,8 +56,8 @@ export class DragDrop {
     preventDefaults(e)
 
     this.pickInfo = this.scene.pick(e['clientX'], e['clientY'], (mesh) => {
-      // only allow parcel block collider to be picked by drag and drop
-      return mesh.isVisible && mesh.isPickable && mesh.checkCollisions && (mesh.name.startsWith('voxel-field/collider') || mesh.name.startsWith('voxelizer/'))
+      // only allow parcel voxel surfaces to be picked by drag and drop
+      return mesh.isVisible && mesh.isPickable && (mesh.name.startsWith('voxel-field/opaque') || mesh.name.startsWith('voxelizer/'))
     })!
     // Since the new z-fighting PR we have to offset the picking position by the worldOffset.
     const offset = window.persona.controls.worldOffset.position

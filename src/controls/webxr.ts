@@ -103,7 +103,7 @@ export default class XROverlay {
 
     const camera = this.webXR.baseExperience.camera
 
-    const pickResult = this.scene.pickWithRay(new BABYLON.Ray(positionInWorld.add(this.controls.worldOffset.position), new BABYLON.Vector3(0, -1, 0), 5), (e) => e.checkCollisions)
+    const pickResult = this.scene.pickWithRay(new BABYLON.Ray(positionInWorld.add(this.controls.worldOffset.position), new BABYLON.Vector3(0, -1, 0), 5), (e) => this.teleportableMeshes.has(e))
     if (!pickResult?.hit || !pickResult.pickedPoint) {
       return
     }
@@ -113,8 +113,6 @@ export default class XROverlay {
   }
 
   addTeleportMesh(mesh: BABYLON.AbstractMesh) {
-    if (!mesh.checkCollisions) return
-
     this.teleportableMeshes.add(mesh)
     if (this.xrTeleportation) {
       this.xrTeleportation.addFloorMesh(mesh)
@@ -122,8 +120,6 @@ export default class XROverlay {
   }
 
   removeTeleportMesh(mesh: BABYLON.AbstractMesh) {
-    if (!mesh.checkCollisions) return
-
     this.teleportableMeshes.delete(mesh)
     if (this.xrTeleportation) {
       this.xrTeleportation.removeFloorMesh(mesh)

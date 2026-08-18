@@ -3,20 +3,6 @@ import type { NdArray } from 'ndarray'
 import { oversizedField } from '../../common/voxels/helpers'
 import { VoxelSize } from './constants'
 
-const greedyMesher = require('greedy-mesher')({
-  extraArgs: 2,
-  order: [2, 1, 0],
-  merge: () => true,
-  append: (x1: number, y1: number, z1: number, x2: number, y2: number, z2: number, val: any, result: MesherOutput) => {
-    result.push([
-      [x1, y1, z1],
-      [x2, y2, z2],
-    ])
-  },
-})
-
-type MesherOutput = [[x1: number, y1: number, z1: number], [x2: number, y2: number, z2: number]][]
-
 export { VoxelSize }
 
 type MeshData = {
@@ -28,9 +14,6 @@ type MeshData = {
   glassPositions: Float32Array
   glassIndices: Uint32Array
   glassNormals: Float32Array
-  colliderPositions: Float32Array
-  colliderIndices: Uint32Array
-  colliderNormals: Float32Array
 }
 
 // The 0.25 is to make the boxes aligned on the 0, 0.5 and 1 in each
@@ -53,35 +36,21 @@ const cx = c
 const cy = c + 1
 const cz = c + 2
 
-// Compute normal from three vertices using cross product
-// For voxel geometry, normals are axis-aligned (+/-1 on one axis, 0 on others)
-function computeNormal(ax: number, ay: number, az: number, bx: number, by: number, bz: number, cx: number, cy: number, cz: number): [number, number, number] {
-  // Edge vectors
-  const e1x = bx - ax
-  const e1y = by - ay
-  const e1z = bz - az
-  const e2x = cx - ax
-  const e2y = cy - ay
-  const e2z = cz - az
-
-  // Cross product: e1 × e2
-  let nx = e1y * e2z - e1z * e2y
-  let ny = e1z * e2x - e1x * e2z
-  let nz = e1x * e2y - e1y * e2x
-
-  // Normalize
-  const length = Math.sqrt(nx * nx + ny * ny + nz * nz)
-  if (length > 0) {
-    nx /= length
-    ny /= length
-    nz /= length
-  }
-
-  return [nx, ny, nz]
+function computeNormal(pax: number, pay: number, paz: number, pbx: number, pby: number, pbz: number, pcx: number, pcy: number, pcz: number): [number, number, number] {
+  const ux = pbx - pax
+  const uy = pby - pay
+  const uz = pbz - paz
+  const vx = pcx - pax
+  const vy = pcy - pay
+  const vz = pcz - paz
+  const nx = uy * vz - uz * vy
+  const ny = uz * vx - ux * vz
+  const nz = ux * vy - uy * vx
+  const len = Math.sqrt(nx * nx + ny * ny + nz * nz) || 1
+  return [nx / len, ny / len, nz / len]
 }
 
-export function setVoxelData(data: Uint8Array, i: number, positions: number[], normals: number[], indices: number[], indexCount: number): number {
-  // Extract positions
+export function setVoxelData(data: Uint8Array, i: number, positions: number[], normals: number[], indices: number[], indexCount: number) {
   const pax = fx(data[ax + i] * VoxelSize)
   const pay = fy(data[ay + i] * VoxelSize)
   const paz = fz(data[az + i] * VoxelSize)
@@ -96,7 +65,6 @@ export function setVoxelData(data: Uint8Array, i: number, positions: number[], n
   positions.push(pbx, pby, pbz)
   positions.push(pcx, pcy, pcz)
 
-  // Compute normal for this triangle (same normal for all 3 vertices of voxel face)
   const [nx, ny, nz] = computeNormal(pax, pay, paz, pbx, pby, pbz, pcx, pcy, pcz)
   normals.push(nx, ny, nz)
   normals.push(nx, ny, nz)
@@ -124,10 +92,6 @@ export default function mesher(shape: [number, number, number], field: NdArray<U
   const opaqueIndices: number[] = []
   let opaqueIndexCount = 0
 
-  const colliderPositions: number[] = []
-  const colliderNormals: number[] = []
-  const colliderIndices: number[] = []
-
   if (vertData) {
     for (let i = 0; i < vertData.length; i += 8 * 3) {
       const textureIndex = vertData[i + 7]
@@ -144,51 +108,6 @@ export default function mesher(shape: [number, number, number], field: NdArray<U
     console.debug('createAOMesh returned null - corrupted or invalid voxel data')
   }
 
-  // Create the collision mesh
-  const greedyResult: MesherOutput = []
-  greedyMesher(field, greedyResult)
-  let i = 0
-  greedyResult.forEach(([min, max]): void => {
-    let [z1, y1, x1] = min
-    let [z2, y2, x2] = max
-    x1 *= VoxelSize
-    y1 *= VoxelSize
-    z1 *= VoxelSize
-    x2 *= VoxelSize
-    y2 *= VoxelSize
-    z2 *= VoxelSize
-    // front face (normal: 0, 0, -1)
-    colliderPositions.push(x1, y1, z1, x2, y1, z1, x2, y2, z1, x1, y2, z1)
-    colliderNormals.push(0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1)
-    colliderIndices.push(i, i + 1, i + 3, i + 1, i + 2, i + 3)
-    i += 4
-    // back face (normal: 0, 0, 1)
-    colliderPositions.push(x1, y1, z2, x2, y1, z2, x2, y2, z2, x1, y2, z2)
-    colliderNormals.push(0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1)
-    colliderIndices.push(i, i + 3, i + 1, i + 1, i + 3, i + 2)
-    i += 4
-    // left face (normal: -1, 0, 0)
-    colliderPositions.push(x1, y1, z1, x1, y1, z2, x1, y2, z2, x1, y2, z1)
-    colliderNormals.push(-1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0, 0)
-    colliderIndices.push(i, i + 3, i + 1, i + 1, i + 3, i + 2)
-    i += 4
-    // right face (normal: 1, 0, 0)
-    colliderPositions.push(x2, y1, z1, x2, y1, z2, x2, y2, z2, x2, y2, z1)
-    colliderNormals.push(1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0)
-    colliderIndices.push(i, i + 1, i + 3, i + 1, i + 2, i + 3)
-    i += 4
-    // bottom face (normal: 0, -1, 0)
-    colliderPositions.push(x1, y1, z1, x1, y1, z2, x2, y1, z2, x2, y1, z1)
-    colliderNormals.push(0, -1, 0, 0, -1, 0, 0, -1, 0, 0, -1, 0)
-    colliderIndices.push(i, i + 1, i + 3, i + 1, i + 2, i + 3)
-    i += 4
-    // top face (normal: 0, 1, 0)
-    colliderPositions.push(x1, y2, z1, x1, y2, z2, x2, y2, z2, x2, y2, z1)
-    colliderNormals.push(0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0)
-    colliderIndices.push(i, i + 3, i + 1, i + 1, i + 3, i + 2)
-    i += 4
-  })
-
   return {
     opaquePositions: new Float32Array(opaquePositions),
     opaqueIndices: new Uint32Array(opaqueIndices),
@@ -198,17 +117,11 @@ export default function mesher(shape: [number, number, number], field: NdArray<U
     glassPositions: new Float32Array(glassPositions),
     glassIndices: new Uint32Array(glassIndices),
     glassNormals: new Float32Array(glassNormals),
-    colliderPositions: new Float32Array(colliderPositions),
-    colliderIndices: new Uint32Array(colliderIndices),
-    colliderNormals: new Float32Array(colliderNormals),
   }
 }
 
 // Can be used for more efficient cross-thread transfer when calling postMessage()
 export const transferableItemsForMesh = (md: MeshData) => [
-  md.colliderIndices.buffer,
-  md.colliderPositions.buffer,
-  md.colliderNormals.buffer,
   md.glassIndices.buffer,
   md.glassPositions.buffer,
   md.glassNormals.buffer,

@@ -1,6 +1,7 @@
 import type { CompletedRawVoxelizedMeshData, VoxelisationJob } from '../voxel-field'
 import parcelMesher from '../../common/voxels/mesher'
 import { getBufferFromVoxels } from '../../common/voxels/helpers'
+import { voxelColliderFromNdArray } from './physics'
 
 const WHITE_BLOCK = (1 << 15) + 3
 
@@ -20,12 +21,11 @@ export async function processVoxelisation(data: VoxelisationJob): Promise<Comple
         glassPositions: new Float32Array(0),
         glassIndices: new Uint32Array(0),
         glassNormals: new Float32Array(0),
-        colliderPositions: new Float32Array(0),
-        colliderIndices: new Uint32Array(0),
-        colliderNormals: new Float32Array(0),
+        colliderVoxels: new Int32Array(0),
       }
     }
-    return Object.assign({ renderJob: data.renderJob }, parcelMesher(data.fieldShape, voxelBuffer, textureId))
+    const mesh = parcelMesher(data.fieldShape, voxelBuffer, textureId)
+    return Object.assign({ renderJob: data.renderJob, colliderVoxels: voxelColliderFromNdArray(voxelBuffer) }, mesh)
   }
   throw new Error('No voxel buffer generated for renderJob ' + data.renderJob)
 }

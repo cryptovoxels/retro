@@ -31,7 +31,7 @@ export class ParcelMesher {
     await Promise.all([this.voxelField.initialize(), this.bakedVoxelField.initialize()])
   }
 
-  generate(parcel: Parcel, data: RawVoxelizedMeshData | null, callback: (opaque: BABYLON.Mesh, glass: BABYLON.Mesh, collider: BABYLON.Mesh) => void) {
+  generate(parcel: Parcel, data: RawVoxelizedMeshData | null, callback: (opaque: BABYLON.Mesh, glass: BABYLON.Mesh, colliderVoxels: Int32Array) => void) {
     return this.voxelField.generate(parcel, data, callback)
   }
 

@@ -3,6 +3,7 @@ import { cameraPosition } from './utils/camera'
 import { Transform, TransformQueue } from './utils/transform'
 import { AVATAR_VIEW_DISTANCE, INTERPOLATION_MAX_VELOCITY } from './constants'
 import { encodeCoords } from '../common/helpers/utils'
+import { physics, RAPIER } from './physics/world'
 
 type timestamp = number
 
@@ -19,6 +20,8 @@ export abstract class Entity {
   protected startAnimation: Animations = Animations.Idle
   protected state: 'disposed' | 'loading' | 'loaded' = 'disposed'
   protected onBeforeRenderObservable: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> | null = null
+  private physicsBody: any = null
+  private physicsCollider: any = null
 
   animationOverride: Animations | null = null
 
@@ -171,6 +174,7 @@ export abstract class Entity {
   protected loadFinished() {
     this.onBeforeRenderObservable = this.scene.onBeforeRenderObservable.add(this.update.bind(this))
     this.state = 'loaded'
+    this.ensurePhysicsCapsule()
     // will trigger hooks, orient the mesh and trigger some sort of dirty on the mesh(es)
     this.move({
       position: this._position,
@@ -178,6 +182,18 @@ export abstract class Entity {
       animation: this.animation?.state || this.startAnimation,
       timestamp: Date.now(),
     })
+  }
+
+  private ensurePhysicsCapsule() {
+    const w = physics()
+    if (!w || this.physicsBody) return
+    this.physicsBody = w.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(this._position.x, this._position.y + 0.85, this._position.z))
+    this.physicsCollider = w.createCollider(RAPIER.ColliderDesc.capsule(0.6, 0.25), this.physicsBody)
+  }
+
+  private syncPhysicsCapsule() {
+    if (!this.physicsBody) return
+    this.physicsBody.setNextKinematicTranslation({ x: this._position.x, y: this._position.y + 0.85, z: this._position.z })
   }
 
   protected dispose() {
@@ -190,6 +206,13 @@ export abstract class Entity {
     if (this.transformQueue) {
       this.transformQueue.clear(0)
       this.transformQueue = null
+    }
+    const w = physics()
+    if (w && this.physicsBody) {
+      if (this.physicsCollider) w.removeCollider(this.physicsCollider, true)
+      w.removeRigidBody(this.physicsBody)
+      this.physicsBody = null
+      this.physicsCollider = null
     }
     this.animation?.dispose()
     this.animation = null
@@ -209,6 +232,7 @@ export abstract class Entity {
     const previous = this.getTransform()
     this.setTransform(t)
     this.node.computeWorldMatrix(true)
+    this.syncPhysicsCapsule()
     this.onAfterUpdate(previous)
   }
 
