@@ -10,11 +10,8 @@ import Grid from '../grid'
 import { ParcelMesher } from '../parcel-mesher'
 import { createGizmos } from '../tools/gizmos'
 import { isLoaded } from '../utils/loading-done'
-<<<<<<< HEAD
 import { stepPhysics } from '../physics/world'
-=======
 import { startGhosts } from '../ghosts'
->>>>>>> e91a55f (Add anonymous ghost path fragments.)
 
 export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCanvasElement, controls: Controls, environment: Environment) {
   const parcelMesher = new ParcelMesher(scene)
