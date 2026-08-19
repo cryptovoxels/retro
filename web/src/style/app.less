@@ -660,8 +660,21 @@ header:has(nav) {
     pointer-events: auto;
   }
 
+  // header is a fixed overlay on phone - don't leave an empty grid column
   main {
     padding: 2.5rem 1rem 1rem;
+    grid-template-columns: 1fr;
+
+    > header {
+      grid-column: 1;
+      width: 0;
+      min-width: 0;
+      overflow: visible;
+    }
+
+    > :not(header) {
+      grid-column: 1;
+    }
   }
 }
 
@@ -1284,6 +1297,36 @@ body.sidebar-closed main:is(@{world-hosts}),
 main:is(@{world-hosts}):not(:has(> aside)) {
   grid-template-columns: auto 1fr;
   grid-template-areas: 'header world';
+}
+
+@media @narrow {
+  main:is(@{world-hosts}) {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'world';
+  }
+
+  main:is(@{world-hosts}) > header {
+    grid-area: unset;
+    width: 0;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  main > .columns.home,
+  main:has(> aside) > .columns.home {
+    grid-column: 1;
+  }
+
+  body.sidebar-closed main:is(@{world-hosts}),
+  main:is(@{world-hosts}):not(:has(> aside)) {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'world';
+  }
+
+  main:is(@{world-hosts}):has(> aside:not(.-closed)) {
+    grid-template-columns: 1fr min(23rem, 100%);
+    grid-template-areas: 'world sidebar';
+  }
 }
 
 aside.-closed {
