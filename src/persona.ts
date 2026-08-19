@@ -144,18 +144,19 @@ export default class Persona {
     track('teleport')
     this.teleportNoHistory(coords)
 
-    // Push the DESTINATION into history. Use oldPushState so the monkey-patched
-    // pushState in main.tsx does not fire urlchange/naviport with the pre-teleport
-    // URL (that race snapped hyperlink teleports back near the clicked graphic).
-    const encoded = encodeCoords(coords)
-    const queryParams = new URLSearchParams(location.search)
-    queryParams.set('coords', encoded)
-    const params = queryParams.toString().replace('%40', '@').replace(/%2C/g, ',')
-    const href = params ? `${location.pathname}?${params}` : location.pathname
-    const currentParcel = this.connector.currentOrNearestParcel()
-    const name = currentParcel?.name || currentParcel?.address || encoded
-    const push = (history as any).oldPushState?.bind(history) ?? history.pushState.bind(history)
-    push(encoded, name, href)
+    // coords only ride /play share links. elsewhere the engine stays put and the
+    // router owns the URL (/parcels/:id via Exploring).
+    if (location.pathname.split('?')[0] === '/play') {
+      const encoded = encodeCoords(coords)
+      const queryParams = new URLSearchParams(location.search)
+      queryParams.set('coords', encoded)
+      const params = queryParams.toString().replace('%40', '@').replace(/%2C/g, ',')
+      const href = params ? `${location.pathname}?${params}` : location.pathname
+      const currentParcel = this.connector.currentOrNearestParcel()
+      const name = currentParcel?.name || currentParcel?.address || encoded
+      const push = (history as any).oldPushState?.bind(history) ?? history.pushState.bind(history)
+      push(encoded, name, href)
+    }
 
     this.connector.sendMetric(Action.Teleport)
   }

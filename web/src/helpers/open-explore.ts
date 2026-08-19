@@ -1,6 +1,5 @@
 import { route } from 'preact-router'
 import { focusFirst } from './keynav'
-import { isFullClientPath } from './coords-nav'
 
 export const FOCUS_EXPLORE = 'focus-explore'
 
@@ -12,10 +11,5 @@ export function openExplore() {
   try {
     sessionStorage.setItem(FOCUS_EXPLORE, '1')
   } catch {}
-  // WorldSidebar unmounts <Router> on /play, so route() never swaps the page
-  if (isFullClientPath(location.pathname)) {
-    window.location.assign('/')
-    return
-  }
   route('/')
 }

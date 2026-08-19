@@ -9,7 +9,7 @@ import PopularParcels from './components/popular-parcels'
 import Radar from './components/radar'
 import type { Womp } from './components/womp-card'
 import { getClientPath } from './helpers/client-helpers'
-import { getCoords, naviportHere } from './helpers/coords-nav'
+import { naviportHere } from './helpers/coords-nav'
 import cachedFetch from './helpers/cached-fetch'
 import { FOCUS_EXPLORE } from './helpers/open-explore'
 import { app, AppEvent } from './state'
@@ -62,11 +62,11 @@ async function popularParcel(): Promise<number | null> {
 }
 
 async function pickFrontpageParcel() {
-  if (getCoords()) return
+  if (window.grid?.currentParcel()) return
   const id = (await busiestParcel()) ?? (await popularParcel())
   if (!id) return
   const url = await new ParcelHelper({ id }).spawnUrl()
-  naviportHere(url, id)
+  naviportHere(url)
 }
 
 function teleportToWomp(womp: Womp) {
@@ -111,19 +111,12 @@ export default class Explore extends Component<{}> {
           </Fragment>
         </Head>
 
-        <section class="columns home">
-          <article>
-            <div class="client-slot" />
-          </article>
-          <aside>
-            <section class="explorer" onKeyDown={onListArrowKeys}>
-              <Radar teleportTo={(coords) => window.persona.teleport(coords)} />
-              <h3>Popular</h3>
-              <PopularParcels />
-              <BlogTeaser />
-              <Classifieds limit={3} />
-            </section>
-          </aside>
+        <section class="explorer" onKeyDown={onListArrowKeys}>
+          <Radar teleportTo={naviportHere} />
+          <h3>Popular</h3>
+          <PopularParcels />
+          <BlogTeaser />
+          <Classifieds limit={3} />
         </section>
       </Fragment>
     )

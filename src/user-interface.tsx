@@ -2,7 +2,7 @@ import type { Signal } from '@preact/signals'
 import { effect } from '@preact/signals'
 import { Component, Fragment } from 'preact'
 import { route } from 'preact-router'
-import { getCoords, withCoords } from '../web/src/helpers/coords-nav'
+import { isPlayPath } from '../web/src/helpers/coords-nav'
 import { isMobileMedia } from '../common/helpers/detector'
 import { exitPointerLock, hasPointerLock, requestPointerLock } from '../common/helpers/ui-helpers'
 import { onBeginUpload, onCompleteUpload, onFailUpload } from '../common/helpers/upload-media'
@@ -752,9 +752,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       return
     }
     if (document.pointerLockElement) return
-    if (!location.pathname.endsWith('/play') && !getCoords()) return
+    if (!isPlayPath()) return
     const id = this.grid?.currentParcel()?.id
-    route(id ? withCoords(`/parcels/${id}`) : '/parcels')
+    route(id ? `/parcels/${id}` : '/parcels')
   }
 
   focusChat = (e: KeyboardEvent) => {
@@ -762,7 +762,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
     exitPointerLock()
 
-    const input = document.querySelector('.UserInterface div.chat input') as HTMLInputElement
+    const input = document.querySelector('.canvasdom div.chat input') as HTMLInputElement
 
     if (!input) {
       return
@@ -1016,7 +1016,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       this.setState({ hover: undefined })
     }
 
-    const classes = `UserInterface parent-overlay toolbar-div`
     const canEdit = app.isAdmin() || (nearestEditableParcel ? nearestEditableParcel.canEdit : false)
 
     const currentPane = this.state.pane
@@ -1026,8 +1025,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
     return (
       <>
-        <FirstTimeInstructions />
-        <div class={classes}>
+        <div class="canvasdom">
+          <FirstTimeInstructions />
           <Snackbar />
 
           {!isMobileMedia() && (
@@ -1183,6 +1182,15 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           <CongaJoinHintOverlay />
           <CongaStatusOverlay />
         </div>
+
+        {currentPane && (
+          <div class={currentPane === 'broadcast' ? 'ui-pane -broadcast' : 'ui-pane'}>
+            <button type="button" class="sidebar-close" title="close" onClick={() => this.closeInteractOverlay()}>
+              &times;
+            </button>
+            {this.paneContent(currentPane)}
+          </div>
+        )}
       </>
     )
   }

@@ -4,7 +4,7 @@ import { blocks } from '../../common/content/blocks'
 import { Login } from './auth/login'
 import SelectUser from './components/select-user'
 import cachedFetch, { invalidateUrl } from './helpers/cached-fetch'
-import { routeWithCoords, withCoords } from './helpers/coords-nav'
+import { route } from 'preact-router'
 import { app } from './state'
 
 type ParcelUser = { wallet: string; role: string }
@@ -73,12 +73,12 @@ export default function ParcelEdit(props: Props) {
     })
     setSaving(false)
     await invalidateUrl(`/api/parcels/${props.id}.json`, true)
-    routeWithCoords(`/parcels/${props.id}`)
+    route(`/parcels/${props.id}`)
   }
 
   function back(e?: Event) {
     e?.preventDefault()
-    routeWithCoords(`/parcels/${props.id}`)
+    route(`/parcels/${props.id}`)
   }
 
   async function build(fn: string) {
@@ -174,7 +174,7 @@ export default function ParcelEdit(props: Props) {
   const title = (
     <hgroup>
       <h1>
-        <a href={withCoords(`/parcels/${props.id}`)} onClick={back}>
+        <a href={`/parcels/${props.id}`} onClick={back}>
           {parcel.name || parcel.address}
         </a>{' '}
         / edit

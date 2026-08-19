@@ -14,7 +14,7 @@ import VoxelRadio from './components/voxel-radio'
 import Footer from './footer'
 import Home from './home'
 import { Client } from './client'
-import { getCoords, getParcelId, isFullClientPath, notifyUrlChange, syncParcelUrl } from './helpers/coords-nav'
+import { isPlayPath, notifyUrlChange } from './helpers/coords-nav'
 import { track, trackPage } from './helpers/umami'
 import WebHeader from './web-header'
 
@@ -22,7 +22,6 @@ import { useEffect, useState } from 'preact/hooks'
 import { JSXInternal } from 'preact/src/jsx'
 import { ensureRadio } from './radio/global'
 import { app, AppEvent } from './state'
-import { WorldSidebar } from './world-sidebar'
 import { AppRoutes } from './app-routes'
 import { applyTheme } from '../../common/helpers/theme'
 
@@ -76,7 +75,7 @@ const Main = () => {
     trackPage(path)
     if (path === '/shop') track('visit_shop')
 
-    setCurrentPath(e.url)
+    setCurrentPath(path)
     setUrlSearch(location.search)
 
     app.send({ type: 'navigate', data: e.url })
@@ -86,9 +85,7 @@ const Main = () => {
   const [urlSearch, setUrlSearch] = useState(location.search)
   const lightBroadcast = currentPath.startsWith('/golive/broadcast')
   const coords = new URLSearchParams(urlSearch).get('coords') || ''
-  const full = isFullClientPath(currentPath)
-  const showClient = !!coords || full
-  const embed = !full && showClient
+  const play = isPlayPath(currentPath)
 
   useEffect(() => {
     ensureRadio()
@@ -104,35 +101,23 @@ const Main = () => {
     }
   }, [])
 
-  useEffect(() => {
-    const onExploring = () => {
-      if (location.pathname !== '/parcels') return
-      const id = getParcelId()
-      const c = getCoords()
-      if (!id || !c) return
-      syncParcelUrl(id)
-    }
-    app.on(AppEvent.Exploring, onExploring)
-    return () => app.removeListener(AppEvent.Exploring, onExploring)
-  }, [])
-
   return (
     <MainApp>
-      <main class={lightBroadcast ? 'showbox-light-shell' : ''}>
-        {!lightBroadcast && <WebHeader path={currentPath} coords={coords} />}
+      <main class={[lightBroadcast ? 'showbox-light-shell' : '', play ? '-play' : ''].filter(Boolean).join(' ') || undefined}>
+        {!lightBroadcast && <WebHeader path={currentPath} />}
 
-        <WorldSidebar coords={coords} path={currentPath}>
+        <Client coords={coords} path={currentPath} />
+
+        <div class={play ? 'page -play' : 'page'}>
           <Router onChange={handleRoute}>
             {AppRoutes()}
             <RadioPopout path="/radio" />
             <Play path="/play" />
             <AccountRoutes path="/account/:path*" />
           </Router>
-        </WorldSidebar>
-        {!lightBroadcast && !showClient && <Footer />}
+          {!lightBroadcast && !play && <Footer />}
+        </div>
       </main>
-
-      {showClient && <Client coords={coords} mode={embed ? 'embed' : 'full'} path={currentPath} />}
 
       <Snackbar />
     </MainApp>
@@ -149,13 +134,7 @@ function RadioPopout(_props: { path?: string }) {
 }
 
 function Play(_props: { path?: string }) {
-  // WorldSidebar owns the in-world pane on /play. Don't render a second copy under the aside.
-  if (getCoords()) return null
-  return (
-    <section>
-      <p>add coords to play</p>
-    </section>
-  )
+  return null
 }
 
 function hydrate(vnode: JSXInternal.Element, parent: HTMLElement) {

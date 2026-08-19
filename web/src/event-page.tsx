@@ -107,10 +107,6 @@ export default class EventPage extends Component<Props, State> {
             )}
           </figcaption>
 
-          <figure class="shortie">
-            <div class="client-slot" />
-          </figure>
-
           <div>{this.state.event.description}</div>
         </article>
 

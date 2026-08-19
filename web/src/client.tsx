@@ -1,19 +1,18 @@
 import { Component, createRef } from 'preact'
-import { route } from 'preact-router'
+import ParcelHelper from '../../common/helpers/parcel-helper'
 import { canUseDom } from '../../common/helpers/utils'
 import { wantsNoUI } from '../../common/helpers/detector'
-import { getCoords, notifyUrlChange, syncParcelUrl, routeWithCoords } from './helpers/coords-nav'
 import type { BootResult } from '../../src'
+import cachedFetch from './helpers/cached-fetch'
+import { getCoords, getParcelIdFromPath, syncParcelUrl } from './helpers/coords-nav'
+import { app, AppEvent } from './state'
 
 function boot(): Promise<BootResult> {
   return import(/* webpackMode: "eager" */ '../../src').then((m) => m.bootEngine())
 }
 
-type Mode = 'full' | 'embed'
-
 type FrameProps = {
   coords: string
-  mode: Mode
   path?: string
 }
 
@@ -23,183 +22,90 @@ export class Client extends Component<FrameProps, FrameState> {
   root = createRef<HTMLDivElement>()
   box = createRef<HTMLDivElement>()
   observer: ResizeObserver | null = null
-  watch: ReturnType<typeof setInterval> | null = null
-  fit: (() => void) | null = null
 
   componentDidMount() {
-    if (!canUseDom) {
-      return
-    }
-    // editor/sidebar CSS is gated on this; set it as soon as the world client mounts,
-    // not only after canvas adopt (which can early-return and leave the class off)
+    if (!canUseDom) return
     document.body.classList.add('in-world')
     void boot().then((ui) => {
       this.setState({ ui })
       this.adopt()
     })
+    app.on(AppEvent.Exploring, this.onExplore)
   }
 
-  componentDidUpdate(previousProps: Readonly<FrameProps>): void {
-    if (previousProps.coords !== this.props.coords && this.props.coords) {
-      this.naviport()
-    }
-    // path change (home -> profile) keeps embed mode but swaps slot; always re-fit
-    if (this.props.mode === 'embed' || previousProps.mode !== this.props.mode || previousProps.path !== this.props.path) {
-      this.track()
-    }
+  componentDidUpdate(prev: Readonly<FrameProps>) {
+    if (prev.coords !== this.props.coords && this.props.coords) this.naviport()
+    const id = getParcelIdFromPath(this.props.path)
+    const prevId = getParcelIdFromPath(prev.path)
+    if (id && id !== prevId) this.gotoParcel(id)
+    window.engine?.resize()
   }
 
   componentWillUnmount() {
-    this.untrack()
-    if (this.watch) clearInterval(this.watch)
-    this.watch = null
-    document.body.classList.remove('mini-world')
-
-    const canvas = document.getElementById('renderCanvas')
-    if (canvas && this.box.current?.contains(canvas)) {
-      canvas.style.display = 'none'
-      document.body.appendChild(canvas)
-    }
-
+    this.observer?.disconnect()
+    app.removeListener(AppEvent.Exploring, this.onExplore)
     document.body.classList.remove('in-world')
+  }
+
+  private onExplore = () => {
+    const id = window.grid?.currentParcel()?.id
+    if (id) syncParcelUrl(id)
   }
 
   private adopt() {
     const canvas = document.getElementById('renderCanvas')
     const box = this.box.current
-    if (!canvas || !box) {
-      return
-    }
+    if (!canvas || !box) return
 
     box.appendChild(canvas)
     canvas.style.display = 'block'
-    document.body.classList.add('in-world')
-    this.syncCoordsUrl()
-    this.track()
-    // .client-world may land in the same frame as mount; re-fit once the push slot exists
-    requestAnimationFrame(() => this.track())
     this.naviport()
-
-    if (this.watch) clearInterval(this.watch)
-    this.watch = setInterval(() => {
-      if (!getCoords()) return
-      const m = location.pathname.match(/^\/parcels\/(\d+)$/)
-      if (!m) return
-      const id = window.grid?.currentParcel()?.id
-      if (id && id !== parseInt(m[1], 10)) syncParcelUrl(id)
-    }, 200)
+    const id = getParcelIdFromPath(this.props.path)
+    if (id) this.gotoParcel(id)
+    this.watchSize()
   }
 
-  private untrack() {
+  private watchSize() {
     this.observer?.disconnect()
-    this.observer = null
-    if (this.fit) {
-      window.removeEventListener('scroll', this.fit, true)
-      this.fit = null
-    }
-  }
-
-  private track() {
-    this.untrack()
-
     const root = this.root.current
     if (!root) return
-
-    // full: .client-world; embed: .client-slot; else #mini-client dock
-    const preferred = this.props.mode === 'full' ? '.client-world' : '.client-slot'
-    let slot = document.querySelector(preferred) as HTMLElement | null
-    const mini = !slot
-    if (!slot) slot = document.querySelector('#mini-client') as HTMLElement | null
-
-    // show the dock BEFORE measuring - #mini-client is 0x0 while display:none
-    document.body.classList.toggle('mini-world', !!slot && mini)
-
-    if (!slot) {
-      document.body.classList.remove('mini-world')
-      if (this.props.mode === 'full') {
-        root.style.position = 'fixed'
-        root.style.top = '0'
-        root.style.left = '0'
-        root.style.right = '0'
-        root.style.bottom = '0'
-        root.style.width = ''
-        root.style.height = ''
-        window.engine?.resize()
-      }
-      return
-    }
-
-    const fit = () => {
-      const r = slot!.getBoundingClientRect()
-      if (mini && (r.width < 2 || r.height < 2)) return
-      // fixed + viewport rect so the canvas tracks the push-panel slot as the sidebar opens/closes
-      root.style.position = 'fixed'
-      root.style.top = `${r.top}px`
-      root.style.left = `${r.left}px`
-      root.style.width = `${Math.max(0, r.width)}px`
-      root.style.height = `${Math.max(0, r.height)}px`
-      root.style.right = 'auto'
-      root.style.bottom = 'auto'
-
-      if (mini) {
-        root.classList.add('mini')
-        root.title = 'Click to play fullscreen'
-      } else {
-        root.classList.remove('mini')
-        root.title = ''
-      }
-
-      window.engine?.resize()
-    }
-
-    this.fit = fit
-    fit()
-    // dock just flipped to display:block - remeasure after layout
-    if (mini) requestAnimationFrame(fit)
-    this.observer = new ResizeObserver(fit)
-    this.observer.observe(slot)
-    window.addEventListener('scroll', fit, true)
+    this.observer = new ResizeObserver(() => window.engine?.resize())
+    this.observer.observe(root)
   }
 
-  private syncCoordsUrl() {
-    const c = this.props.coords
-    if (!c || getCoords()) {
-      return
-    }
-    const u = new URL(location.href)
-    u.searchParams.set('coords', c)
-    route(u.pathname + u.search, true)
-    notifyUrlChange()
+  private gotoParcel(id: number) {
+    if (window.grid?.currentParcel()?.id === id) return
+    void cachedFetch(`/api/parcels/${id}.json`)
+      .then((r) => r.json())
+      .then((d) => {
+        if (window.grid?.currentParcel()?.id === id) return
+        const c = d.parcel ? new ParcelHelper(d.parcel).spawnCoords : ''
+        if (c) window.persona?.naviport(c)
+      })
+      .catch(() => {})
   }
 
   private naviport() {
-    const coords = this.props.coords
-    if (!coords) {
-      return
-    }
+    const coords = this.props.coords || getCoords()
+    if (!coords) return
     void boot().then(() => {
       try {
         window.persona?.naviport(coords)
       } catch (e) {
-        console.error('[great-merge] naviport failed', e)
+        console.error(e)
       }
     })
-  }
-
-  private onRootClick = () => {
-    // fixed canvas covers #mini-client, so expand has to live on the client root
-    if (!this.root.current?.classList.contains('mini')) return
-    if (!window.connector) return
-    routeWithCoords('/play')
   }
 
   render() {
     const ui = this.state.ui
     return (
-      <div class={`client -${this.props.mode}`} ref={this.root} onClick={this.onRootClick}>
-        <div class="client-canvas" ref={this.box} />
+      <>
+        <div class="client" ref={this.root}>
+          <div class="client-canvas" ref={this.box} />
+        </div>
         {ui && !wantsNoUI() && <ui.UI {...ui.props} />}
-      </div>
+      </>
     )
   }
 }

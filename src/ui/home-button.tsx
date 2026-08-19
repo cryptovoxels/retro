@@ -12,8 +12,7 @@ export default function HomeButton(props: Props) {
     if (!location.pathname.endsWith('/play')) return // off theatre: let href="/" go home
     e.preventDefault()
     const id = props.grid?.currentParcel()?.id
-    const coords = new URLSearchParams(location.search).get('coords') || ''
-    route(id ? `/parcels/${id}?coords=${coords}` : '/parcels')
+    route(id ? `/parcels/${id}` : '/parcels')
   }
 
   return (

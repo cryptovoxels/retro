@@ -14,8 +14,8 @@ import { fetchOptions } from './utils'
 import { AvatarLink } from './components/avatar-link'
 import { ParcelMetrics as Metrics } from './components/metrics'
 import { ParcelShop } from './components/parcel-shop'
-import { getCoords, getParcelIdFromPath, naviportHere, routeWithCoords, withCoords } from './helpers/coords-nav'
-import { WorldAside } from './world-aside'
+import { getParcelIdFromPath } from './helpers/coords-nav'
+import { route } from 'preact-router'
 
 export interface Props {
   parcel?: ParcelWithMintednessRecord
@@ -120,13 +120,6 @@ export default class Parcel extends Component<Props, State> {
     this.abort = null
   }
 
-  ensureCoords() {
-    if (getCoords()) return
-    const c = this.helper?.spawnCoords
-    if (!c) return
-    naviportHere(c)
-  }
-
   componentDidMount() {
     this.syncVisitUrl()
     void this.fetch(this.props.id!)
@@ -140,7 +133,6 @@ export default class Parcel extends Component<Props, State> {
 
   componentDidUpdate(prevProps: Props, prevState: State) {
     this.syncVisitUrl()
-    this.ensureCoords()
     if (this.props.id != this.state.parcelId) {
       void this.fetch(this.props.id!)
     }
@@ -295,10 +287,10 @@ export default class Parcel extends Component<Props, State> {
 
         {this.isOwner && (
           <a
-            href={withCoords(`/parcels/${this.state.parcelId}/edit`)}
+            href={`/parcels/${this.state.parcelId}/edit`}
             onClick={(e) => {
               e.preventDefault()
-              routeWithCoords(`/parcels/${this.state.parcelId}/edit`)
+              route(`/parcels/${this.state.parcelId}/edit`)
             }}
           >
             Edit
@@ -387,17 +379,12 @@ export default class Parcel extends Component<Props, State> {
     const head = <Head title={parcelName} description={parcelDesc} url={`/parcels/${this.state.parcelId}`} imageURL={ogImage} />
 
     return (
-      <section class="columns parcel-page">
-        <article>
-          {head}
-          <div class="client-slot" />
-        </article>
-        <WorldAside>
-          <header>
-            <h1>{parcelName}</h1>
-          </header>
-          {this.renderSidebar(islandSlug!)}
-        </WorldAside>
+      <section class="parcel-page">
+        {head}
+        <header>
+          <h1>{parcelName}</h1>
+        </header>
+        {this.renderSidebar(islandSlug!)}
       </section>
     )
   }

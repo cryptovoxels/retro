@@ -81,48 +81,7 @@ export default function Profile(props: Props) {
           </hgroup>
         )}
         {isOwner && <WhatNext avatar={avatar} costumes={costumes} onSaved={refreshAvatar} />}
-        <Parcels wallet={walletOrUUId} isOwner={isOwner} />
-        <Contributor wallet={walletOrUUId} isOwner={isOwner} />
-        <Spaces wallet={walletOrUUId} isOwner={isOwner} />
 
-        {collections.length > 0 && (
-          <>
-            <h2>Collections</h2>
-            <table>
-              <tbody>
-                {collections.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <a href={`/collections/${c.id}`}>{c.name}</a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-
-        {costumes.length > 0 && (
-          <>
-            <h2>Costumes</h2>
-            <table>
-              <tbody>
-                {costumes.map((c) => (
-                  <tr key={c.id}>
-                    <td>
-                      <a href={`/costumer/${c.id}`}>{c.name}</a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </>
-        )}
-
-        <WompsList title="Womps" numberToShow={20} collapsed={false} ttl={60} fetch={`/womps/by/${walletOrUUId}`} />
-      </article>
-
-      <aside>
         {avatar?.description && <p>{avatar.description}</p>}
 
         <dl>
@@ -169,7 +128,47 @@ export default function Profile(props: Props) {
           <dt>Joined</dt>
           <dd>{avatar?.created_at ? format(avatar.created_at) : 'The mists of time'}</dd>
         </dl>
-      </aside>
+
+        <Parcels wallet={walletOrUUId} isOwner={isOwner} />
+        <Contributor wallet={walletOrUUId} isOwner={isOwner} />
+        <Spaces wallet={walletOrUUId} isOwner={isOwner} />
+
+        {collections.length > 0 && (
+          <>
+            <h2>Collections</h2>
+            <table>
+              <tbody>
+                {collections.map((c) => (
+                  <tr key={c.id}>
+                    <td>
+                      <a href={`/collections/${c.id}`}>{c.name}</a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        {costumes.length > 0 && (
+          <>
+            <h2>Costumes</h2>
+            <table>
+              <tbody>
+                {costumes.map((c) => (
+                  <tr key={c.id}>
+                    <td>
+                      <a href={`/costumer/${c.id}`}>{c.name}</a>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </>
+        )}
+
+        <WompsList title="Womps" numberToShow={20} collapsed={false} ttl={60} fetch={`/womps/by/${walletOrUUId}`} />
+      </article>
     </section>
   )
 }
