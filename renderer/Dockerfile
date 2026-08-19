@@ -14,6 +14,8 @@ RUN corepack enable && corepack prepare pnpm@9.15.4 --activate \
 COPY common/ ./common/
 COPY src/ ./src/
 COPY web/src/ ./web/src/
+COPY web/types.ts ./web/types.ts
+COPY vendor/ ./vendor/
 COPY webpack/ ./webpack/
 COPY renderer/ ./renderer/
 COPY tsconfig.json tsconfig.prod.json ./
