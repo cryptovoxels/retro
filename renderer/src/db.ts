@@ -65,3 +65,43 @@ export async function loadParcelRecord(id: number): Promise<Record<string, unkno
     height: (row.y2 ?? 0) - (row.y1 ?? 0),
   }
 }
+
+export type LotRect = { id: number; x1: number; x2: number; z1: number; z2: number }
+
+/** Nearby visible lots for ground outlines. Self included. */
+export async function loadLots(record: Record<string, unknown>): Promise<LotRect[]> {
+  const x1 = Number(record.x1)
+  const x2 = Number(record.x2)
+  const z1 = Number(record.z1)
+  const z2 = Number(record.z2)
+  const w = Math.max(x2 - x1, 4) + 16
+  const d = Math.max(z2 - z1, 4) + 16
+  const r = await pool.query<LotRect>(
+    `select id, x1, x2, z1, z2 from properties
+     where visible = true and x2 > $1 and x1 < $2 and z2 > $3 and z1 < $4
+     limit 200`,
+    [x1 - w, x2 + w, z1 - d, z2 + d],
+  )
+  return r.rows
+}
+
+let islandCache: any[] | null = null
+
+/** Archipelago shoreline data for the preview minimap. Cached for the process. */
+export async function loadIslands(): Promise<any[]> {
+  if (islandCache) return islandCache
+  const r = await pool.query(
+    `select id, name, texture,
+            holes_geometry_json, lakes_geometry_json,
+            geometry_json as geometry
+     from islands
+     order by id asc`,
+  )
+  islandCache = r.rows.map((row: any) => {
+    if (!['Scarcity', 'Flora', 'Andromeda'].includes(row.name)) {
+      row.holes_geometry_json = undefined
+    }
+    return row
+  })
+  return islandCache
+}

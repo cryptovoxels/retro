@@ -1,6 +1,7 @@
 // ABOUTME: One Chromium + serial queue. Injects vox/parcel JSON; page never fetches models from DB.
 
 import { chromium, type Browser, type Page } from 'playwright'
+import { loadIslands, loadLots } from './db'
 import { embedUrls, parcelPreviewUrls } from './embed'
 
 const HOLD_MS = 60_000
@@ -189,14 +190,15 @@ async function renderParcelOnce(record: Record<string, unknown>): Promise<Buffer
       ;(window as any).__keepPreview = true
     })
   }
-  const embeds = await embedUrls(parcelPreviewUrls(record))
+  const [embeds, lots, islands] = await Promise.all([embedUrls(parcelPreviewUrls(record)), loadLots(record), loadIslands()])
+  const world = { lots, islands }
   const webpB64 = await p.evaluate(
-    async ({ rec, embeds }) => {
+    async ({ rec, embeds, world }) => {
       const fn = (window as any).renderParcelPreview
       if (typeof fn !== 'function') throw new Error('renderParcelPreview missing')
-      return fn(rec, embeds)
+      return fn(rec, embeds, world)
     },
-    { rec: record, embeds },
+    { rec: record, embeds, world },
   )
   if (typeof webpB64 !== 'string' || !webpB64) throw new Error('empty render')
   // Parcel scene is heavy; reset unless headed so you can inspect the live page.

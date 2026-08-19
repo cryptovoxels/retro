@@ -4,7 +4,7 @@ import './bootstrap'
 import express from 'express'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { loadParcelRecord, loadWearableVox } from './db'
+import { loadIslands, loadLots, loadParcelRecord, loadWearableVox } from './db'
 import { embedUrls, parcelPreviewUrls } from './embed'
 import { hasParcelThumb, hasWearableThumb, parcelCdnUrl, ugcConfigured, uploadParcelThumb, uploadWearableThumb, wearableCdnUrl } from './s3'
 import { closeBrowser, renderParcel, renderWearable, setPageBase, warmBrowser } from './browser'
@@ -75,8 +75,8 @@ function mountRoutes(r: express.Router | express.Express) {
         res.status(404).end('not found')
         return
       }
-      const embeds = await embedUrls(parcelPreviewUrls(record))
-      res.json({ record, embeds })
+      const [embeds, lots, islands] = await Promise.all([embedUrls(parcelPreviewUrls(record)), loadLots(record), loadIslands()])
+      res.json({ record, embeds, world: { lots, islands } })
     } catch (e) {
       console.error('[renderer] parcel json', id, e)
       res.status(500).end('db failed')
@@ -158,6 +158,8 @@ app.use('/renderer/textures', proxyTextures)
 
 app.use('/page', express.static(path.join(__dirname, '../page')))
 app.use('/renderer/page', express.static(path.join(__dirname, '../page')))
+app.use('/vendor', express.static(path.join(__dirname, '../../dist/vendor')))
+app.use('/renderer/vendor', express.static(path.join(__dirname, '../../dist/vendor')))
 
 const server = app.listen(port, () => {
   setPageBase(`http://127.0.0.1:${port}`)

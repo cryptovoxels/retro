@@ -44,7 +44,7 @@ export class NullGrid extends Grid {
   }
 
   get hasField() {
-    return false
+    return true
   }
 
   // Preview has no draw-distance refresh loop.
@@ -57,7 +57,5 @@ export class NullGrid extends Grid {
   async preparePreview() {
     window.environment = this.environment
     await this.environment.load()
-    // load() sets environment clearColor; preview wants a white still.
-    if (window.scene) window.scene.clearColor = new BABYLON.Color4(1, 1, 1, 1)
   }
 }

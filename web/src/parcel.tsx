@@ -1,6 +1,7 @@
 import { Component, Fragment, createRef } from 'preact'
 import { format } from 'timeago.js'
 import ParcelHelper from '../../common/helpers/parcel-helper'
+import { parcelRendererUrl } from '../../common/renderable/thumb-url'
 import { canUseDom } from '../../common/helpers/utils'
 import { FullParcelRecord, NearbyParcelRecord, ParcelWithMintednessRecord } from '../../common/messages/parcel'
 import type { VoxelsMap } from './helpers/load-voxels-map'
@@ -373,8 +374,7 @@ export default class Parcel extends Component<Props, State> {
     const parcelName = this.state.parcel.name ?? this.state.parcel.address ?? `Parcel #${this.state.parcelId}`
     const location = [this.state.parcel.address, this.state.parcel.suburb, this.state.parcel.island].filter(Boolean).join(', ')
     const parcelDesc = this.state.parcel.description || (location ? `${location}. The permanent exhibit of crypto art across thousands of galleries in an endlessly evolving world.` : '')
-    const slug = this.state.parcel.address?.toLowerCase().replace(/ /g, '-') ?? ''
-    const ogImage = slug ? `https://map.voxels.com/parcel/${this.state.parcelId}-${slug}.png` : undefined
+    const ogImage = parcelRendererUrl(this.state.parcelId)
 
     const head = <Head title={parcelName} description={parcelDesc} url={`/parcels/${this.state.parcelId}`} imageURL={ogImage} />
 

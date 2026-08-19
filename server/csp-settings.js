@@ -9,7 +9,7 @@ const csp = require('helmet-csp')
 const crvoxAll = '*.crvox.com'
 
 // no need to specify voxels.com as it will be allowed by 'self'
-const voxels = ['cryptovoxels.com', '*.cryptovoxels.com', 'mapping-yhsgv.ondigitalocean.app']
+const voxels = ['cryptovoxels.com', '*.cryptovoxels.com']
 
 /**
  * Set reportOnly to true to only report violations without blocking them (useful for testing)
@@ -24,7 +24,7 @@ module.exports = (reportOnly) =>
       // also used to allow untrusted.cryptovoxels.com to server scripts to www
       frameAncestors: ["'self'", 'https:'],
       // Only from self and cdn
-      defaultSrc: ["'self'", '*.seadn.io', 'discordapp.com', 'controllers.babylonjs.com', 'www.youtube.com', 'blob:', crvoxAll, ...voxels],
+      defaultSrc: ["'self'", '*.seadn.io', 'controllers.babylonjs.com', 'blob:', crvoxAll, ...voxels],
 
       // Need unsafe-eval for turf
       // Need unsafe-inline for metamask on firefox :(
@@ -35,7 +35,7 @@ module.exports = (reportOnly) =>
       styleSrc: ["'self'", "'unsafe-inline'", ...voxels],
       mediaSrc: ['*', 'blob:'],
       imgSrc: ['data:', 'blob:', '*', '*.seadn.io'],
-      objectSrc: ["'self'", ...voxels, 'discordapp.com', crvoxAll],
+      objectSrc: ["'self'", ...voxels, crvoxAll],
       connectSrc: [
         '*', // whitelist all urls for grid server
         "'self'",

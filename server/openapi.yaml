@@ -378,20 +378,16 @@ paths:
     get:
       operationId: getParcelImage
       tags: [parcels]
-      summary: The parcel's tile off the map renderer
+      summary: Redirect to the parcel preview renderer
+      description: |
+        302 to `/renderer/v1/parcel/{id}.webp`, which renders on demand then
+        redirects to the CDN thumb when UGC storage is configured.
       parameters:
         - $ref: '#/components/parameters/ParcelId'
       responses:
-        '200':
-          description: ok
-          content:
-            image/png:
-              schema:
-                type: string
-                format: binary
+        '302':
+          description: Redirect to the webp preview
         '404':
-          $ref: '#/components/responses/Failure'
-        '502':
           $ref: '#/components/responses/Failure'
 
   /api/parcels/{id}/query:

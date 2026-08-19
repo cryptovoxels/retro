@@ -425,32 +425,13 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
   })
 
   app.get('/api/parcels/:id.jpg', async (req, res) => res.redirect(301, '/api/parcels/' + req.params.id + '.png'))
-  // Get image of the parcel
   app.get('/api/parcels/:id.png', cache('30 minutes'), async (req, res) => {
     const id = Number(req.params.id)
     if (isNaN(id)) {
-      res.status(404).send({ success: false, message: 'Womp not found' })
+      res.status(404).send({ success: false, message: 'Parcel not found' })
       return
     }
-    const parcel = await Parcel.loadXYZ(id)
-
-    if (!parcel) {
-      res.status(404).send({ success: false, message: 'Womp not found' })
-      return
-    }
-
-    // const mapParams = '?x=' + ((parcel.x2 + parcel.x1) / 200).toFixed(2) + '&y=' + (parcel.z2 + parcel.z1) / 200
-    const identifier = parcel.id + '-' + parcel.address.toLowerCase().replace(/\s+/g, '_')
-    const r = await fetch(`${process.env.MAP_URL}/parcel/${identifier}.png`).catch(() => null)
-    if (!r || !r.ok) {
-      // The map renderer sends an HTML error page. Do not label it image/png, and
-      // do not let the 30 minute header cache it.
-      noCache(res)
-      res.status(502).send({ success: false, message: 'Parcel image is unavailable' })
-      return
-    }
-    res.set('Content-Type', 'image/png')
-    res.end(Buffer.from(await r.arrayBuffer()))
+    res.redirect(302, `/renderer/v1/parcel/${id}.webp`)
   })
 
   app.get(

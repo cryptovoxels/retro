@@ -36,7 +36,7 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 - [`/api/parcels/favorites.json`](#get-apiparcelsfavoritesjson) Parcels somebody has favorited
 - [`/api/parcels/{id}.json`](#get-apiparcelsidjson) One parcel with its build
 - [`/api/parcels/{id}.vox`](#get-apiparcelsidvox) The parcel's build as a MagicaVoxel file
-- [`/api/parcels/{id}.png`](#get-apiparcelsidpng) The parcel's tile off the map renderer
+- [`/api/parcels/{id}.png`](#get-apiparcelsidpng) Redirect to the parcel preview renderer
 - [`/api/parcels/{id}/query`](#get-apiparcelsidquery) Re-read the parcel's owner from the contract, then return it
 - [`/api/parcels/by/{wallet}/query`](#get-apiparcelsbywalletquery) Re-read every parcel a wallet owns
 - [`/api/parcels/{id}/history.json`](#get-apiparcelsidhistoryjson) Saved versions of a parcel, newest first
@@ -197,7 +197,9 @@ The parcel's build as a MagicaVoxel file
 
 ### GET /api/parcels/{id}.png
 
-The parcel's tile off the map renderer
+Redirect to the parcel preview renderer
+
+302 to `/renderer/v1/parcel/{id}.webp`, which renders on demand then redirects to the CDN thumb when UGC storage is configured.
 
 **parameters**
 
@@ -205,9 +207,8 @@ The parcel's tile off the map renderer
 
 **answers**
 
-- `200` `image/png`, bytes
+- `302` Redirect to the webp preview
 - `404` The lookup did not land. Some handlers send this with status 200.
-- `502` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/parcels/{id}/query
 
