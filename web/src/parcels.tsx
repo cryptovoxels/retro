@@ -10,7 +10,6 @@ import cachedFetch from './helpers/cached-fetch'
 import parse from './helpers/parse'
 import { Spinner } from './spinner'
 import { app } from './state'
-import { naviportHere } from './helpers/coords-nav'
 import { parcelCache } from './store/index'
 import { fetchOptions } from './utils'
 
@@ -19,30 +18,17 @@ const limit = 50 // limit on server is 50 so can't go any higher than that..
 type TableRowProps = {
   record: SimpleParcelRecord
   helper: ParcelHelper
-  teleport?: boolean
   selected?: boolean
 }
 
 const TableRow = (props: TableRowProps) => {
   const href = '/parcels/' + props.record.id
 
-  const onClick = (e: MouseEvent) => {
-    if (!props.teleport || e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return
-    e.preventDefault()
-    e.stopPropagation()
-    props.helper.spawnUrl().then((url) => naviportHere(url, props.record.id))
-  }
-
-  const link = (text: string) =>
-    props.teleport ? (
-      <a href="#" onClick={onClick}>
-        {text}
-      </a>
-    ) : (
-      <Link activeClassName="active" href={href}>
-        {text}
-      </Link>
-    )
+  const link = (text: string) => (
+    <Link activeClassName="active" href={href}>
+      {text}
+    </Link>
+  )
 
   return (
     <tr class={props.selected ? '-selected' : ''}>
@@ -197,7 +183,7 @@ export default class Parcels extends Component<Props, State> {
     if (!this.state.loading && !this.state.parcels) {
       view = <div>No parcels found</div>
     } else {
-      const parcels = this.state.parcels.map((p: any) => <TableRow key={p.id} record={p} helper={new ParcelHelper(p)} teleport={false} selected={false} />)
+      const parcels = this.state.parcels.map((p: any) => <TableRow key={p.id} record={p} helper={new ParcelHelper(p)} selected={false} />)
 
       view = (
         <table class="parcels-table">

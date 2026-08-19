@@ -7,7 +7,7 @@ import cachedFetch from '../src/helpers/cached-fetch'
 import { wompCache } from './store/index'
 import { AvatarLink } from './components/avatar-link'
 import { avatarName } from '../../common/messages/avatar-ref'
-import { getCoords, naviportHere } from './helpers/coords-nav'
+import { naviportHere } from './helpers/coords-nav'
 import { app } from './state'
 
 const TTL = 60
@@ -73,7 +73,6 @@ export default class Womp extends Component<Props, State> {
   }
 
   ensureCoords() {
-    if (getCoords()) return
     const c = this.state.womp?.coords
     if (!c) return
     naviportHere(c)

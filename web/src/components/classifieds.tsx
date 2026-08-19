@@ -117,7 +117,7 @@ export default function Classifieds({ limit }: Props) {
             items.map((i) => (
               <tr key={i.id}>
                 <td>
-                  <a href={`/shop?parcel=${i.id}`}>{name(i)}</a>
+                  <a href={`/parcels/${i.id}`}>{name(i)}</a>
                 </td>
                 <td>{fmt(i.price)}</td>
               </tr>

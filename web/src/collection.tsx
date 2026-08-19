@@ -6,7 +6,6 @@ import UploadButton from './components/upload-button'
 import { app } from './state'
 import { AvatarLink } from './components/avatar-link'
 import { avatarName } from '../../common/messages/avatar-ref'
-import { WorldAside } from './world-aside'
 import { YeetPane } from '../../src/ui/interact/yeet-pane'
 import { yeetCollectionId } from '../../src/store'
 
@@ -124,11 +123,8 @@ export default class CollectionPage extends Component<Props, State> {
           {empty ? upload : <p>{this.state.collectibles.length} wearables - open Yeet in the sidebar or press Y in-world</p>}
         </article>
 
-        <WorldAside>
-          <YeetPane />
-        </WorldAside>
-
         <aside>
+          <YeetPane />
           {(app.isAdmin() || this.state.collection.owner?.toLowerCase() === app.wallet?.toLowerCase()) && <a href={`/collections/${this.props.id}/edit`}>Edit</a>}
           {empty ? null : upload}
         </aside>

@@ -40,13 +40,6 @@ export default class Radar extends Component<Props, { users: Map<string, User> }
     this.es?.close()
   }
 
-  onParcelClick = (e: MouseEvent, parcelId: number) => {
-    if (!this.props.teleportTo) return
-    e.preventDefault()
-    const info = getParcel(parcelId).value
-    new ParcelHelper(info ?? { id: parcelId }).spawnUrl().then((url) => this.props.teleportTo?.(url))
-  }
-
   onUserClick = (e: MouseEvent, uuid: string, parcelId: number | null) => {
     if (!this.props.teleportTo) return
     e.preventDefault()
@@ -79,13 +72,7 @@ export default class Radar extends Component<Props, { users: Map<string, User> }
             const label = info?.name || info?.address || (parcelId ? `parcel ${parcelId}` : 'somewhere')
             return (
               <li key={parcelId ?? 'none'}>
-                {parcelId ? (
-                  <a href={`/parcels/${parcelId}`} onClick={(e) => this.onParcelClick(e, parcelId)}>
-                    {label}
-                  </a>
-                ) : (
-                  <span>{label}</span>
-                )}
+                {parcelId ? <a href={`/parcels/${parcelId}`}>{label}</a> : <span>{label}</span>}
                 <ul>
                   {users.map(({ uuid, avatar }) => (
                     <li key={uuid}>

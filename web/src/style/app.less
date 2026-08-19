@@ -659,10 +659,6 @@ header:has(nav) {
     transform: none;
     pointer-events: auto;
   }
-
-  main {
-    padding: 2.5rem 1rem 1rem;
-  }
 }
 
 main > button.site-nav-toggle {
@@ -795,17 +791,92 @@ header nav img.logo {
 }
 
 main {
-  max-width: 2000px;
-  margin: 0 auto;
+  max-width: none;
+  margin: 0;
+  padding: 0;
+  height: 100vh;
   display: grid;
-  grid-template-columns: auto 1fr;
+  grid-template-columns: auto 1fr 23rem;
+  grid-template-rows: 1fr;
+  overflow: hidden;
 
-  > header {
+  > header,
+  > .site-nav-toggle {
     grid-column: 1;
+    grid-row: 1;
   }
 
-  > :not(header) {
+  > .client,
+  > .canvasdom {
     grid-column: 2;
+    grid-row: 1;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  > .canvasdom {
+    position: relative;
+  }
+
+  > .page,
+  > .ui-pane {
+    grid-column: 3;
+    grid-row: 1;
+    min-width: 0;
+    overflow-y: auto;
+    padding: 1rem;
+    background: var(--bg);
+  }
+
+  // pane takes the column; page steps aside
+  &:has(> .ui-pane) > .page {
+    display: none;
+  }
+
+  // /play: no page, full bleed - until a pane opens, then it pushes
+  &.-play {
+    grid-template-columns: auto 1fr;
+
+    > .page {
+      display: none;
+    }
+  }
+
+  &.-play:has(> .ui-pane) {
+    grid-template-columns: auto 1fr 23rem;
+  }
+}
+
+@media @narrow {
+  main {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr 40%;
+
+    > header,
+    > .site-nav-toggle {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    > .client,
+    > .canvasdom {
+      grid-column: 1;
+      grid-row: 1;
+    }
+
+    > .page,
+    > .ui-pane {
+      grid-column: 1;
+      grid-row: 2;
+    }
+
+    &.-play {
+      grid-template-rows: 1fr;
+    }
+
+    &.-play:has(> .ui-pane) {
+      grid-template-rows: 1fr 40%;
+    }
   }
 }
 
@@ -985,7 +1056,6 @@ button.hamburger {
 
 iframe,
 canvas,
-.client-slot,
 div.map {
   width: 100%;
   height: 80vh;
@@ -1113,14 +1183,11 @@ div.map {
   }
 }
 
-.client-slot {
-  width: 100%;
-  height: 100vh;
-}
-
 .client {
-  // keep the world under main/aside so the push panel receives clicks (close X, map, etc.)
-  z-index: 1;
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
 
   .client-canvas,
   canvas {
@@ -1131,16 +1198,6 @@ div.map {
   .client-canvas {
     position: absolute;
     inset: 0;
-  }
-
-  // sized by JS to .client-world (push panel); fallback full-bleed if no slot
-  &.-full {
-    position: fixed;
-    // no inset:0 — that fights left/width from fit() and can stretch over the sidebar
-  }
-
-  &.-embed {
-    position: absolute;
   }
 }
 
@@ -1154,99 +1211,13 @@ body.gateway {
   }
 }
 
-// Push panel: header | world | sidebar. Client tracks .client-world.
-// One aside (the WorldSidebar host) swaps page content and panes. Home / parcel are
-// push-panel worlds too; the grid applies before the world boots so the page sidebar
-// doesn't flash away while coords resolve.
-@world-hosts: ~':has(> .client-world), :has(> .columns.home), :has(> .columns.parcel-page), :has(> .columns.space-page), :has(> .columns.build-page)';
-
-// main sits above .client so sidebar gets clicks; punch through the world
-// cell or the empty grid slot eats pointer lock / WASD
-main:is(@{world-hosts}) {
-  position: relative;
-  z-index: 2;
-  max-width: none;
-  padding: 0;
-  height: 100vh;
-  display: grid;
-  grid-template-columns: auto 1fr 23rem;
-  grid-template-rows: 1fr;
-  grid-template-areas: 'header world sidebar';
+body.in-world {
   overflow: hidden;
-  pointer-events: none;
+  --play-gutter: max(1rem, env(safe-area-inset-left, 0px));
+  --play-top: max(0.5rem, env(safe-area-inset-top, 0px));
 }
 
-main:is(@{world-hosts}) > header {
-  grid-area: header;
-  grid-column: unset;
-  position: relative;
-  z-index: 5;
-  pointer-events: auto;
-}
-
-.client-world,
-main > .columns.home,
-main > .columns.parcel-page,
-main > .columns.space-page,
-main > .columns.build-page {
-  grid-area: world;
-  grid-column: unset;
-  min-width: 0;
-  min-height: 0;
-}
-
-// the page section is just the world box now - its aside lives in the WorldSidebar host
-main > .columns.home > article,
-main > .columns.parcel-page > article,
-main > .columns.space-page > article,
-main > .columns.build-page > article {
-  flex: 1;
-  min-width: 0;
-  height: 100%;
-}
-
-// home explore lives in the page <aside> (not WorldAside). Span world+sidebar until a
-// pane mounts as main > aside, then world-only and hide the page aside.
-main > .columns.home {
-  grid-column: 2 / 4;
-  grid-row: 1;
-  display: flex;
-  align-items: stretch;
-  height: 100%;
-  min-height: 0;
-}
-
-main > .columns.home > aside {
-  flex: 0 0 23rem;
-  width: 23rem;
-  overflow-y: auto;
-  min-height: 0;
-  padding: 1rem;
-  padding-top: 2rem;
-  background: var(--bg);
-  box-sizing: border-box;
-  pointer-events: auto;
-}
-
-main:has(> aside) > .columns.home {
-  grid-column: 2 / 3;
-}
-
-main:has(> aside) > .columns.home > aside {
-  display: none;
-}
-
-main:is(@{world-hosts}) > aside {
-  grid-area: sidebar;
-  grid-column: unset;
-  position: relative;
-  z-index: 4;
-  overflow-y: auto;
-  min-width: 0;
-  min-height: 0;
-  padding: 1rem;
-  padding-top: 2rem;
-  background: var(--bg);
+.ui-pane {
   box-sizing: border-box;
   pointer-events: auto;
 
@@ -1258,77 +1229,11 @@ main:is(@{world-hosts}) > aside {
     cursor: pointer;
     background: var(--bg);
     border: none;
-    // same grey X as the home sidebar (--red is #03f, reads as a random blue dot)
     color: var(--fg);
     font-weight: bold;
     padding: 0.25rem 0.5rem;
     margin: -0.5rem -0.5rem 0 0;
   }
-}
-
-body.in-world {
-  overflow: hidden;
-  // one left edge for Explore stack and chat
-  --play-gutter: max(1rem, env(safe-area-inset-left, 0px));
-  --play-top: max(0.5rem, env(safe-area-inset-top, 0px));
-
-  @media @narrow {
-    main:is(@{world-hosts}) > .site-nav-toggle {
-      left: var(--play-gutter);
-      top: var(--play-top);
-    }
-  }
-}
-
-body.sidebar-closed main:is(@{world-hosts}),
-main:is(@{world-hosts}):not(:has(> aside)) {
-  grid-template-columns: auto 1fr;
-  grid-template-areas: 'header world';
-}
-
-aside.-closed {
-  display: none;
-}
-
-// boxed-embed pages (space/asset/event): the world is a figure inside a scrolling
-// article, so the pane overlays fixed right instead of pushing
-body.in-world main:not(@{world-hosts}) > aside {
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  width: 22rem;
-  z-index: 4;
-  overflow-y: auto;
-  padding: 0.5rem 1rem 1rem;
-  background: var(--bg);
-  box-sizing: border-box;
-
-  .sidebar-close {
-    position: sticky;
-    top: 0;
-    float: right;
-    z-index: 5000;
-    cursor: pointer;
-    background: var(--bg);
-    border: none;
-    // same grey X as the home sidebar (--red is #03f, reads as a random blue dot)
-    color: var(--fg);
-    font-weight: bold;
-    padding: 0.25rem 0.5rem;
-  }
-}
-
-// one sidebar at a time: while a pane is open on a boxed-embed page, hide the page's
-// own metadata aside; womp pages never get a pane (WorldSidebar skips them)
-body.in-world main:has(> aside) section.columns > aside {
-  display: none;
-}
-
-// page content in the world aside keeps the .columns > aside link look
-main > aside.page-aside a {
-  color: var(--red);
-  text-decoration: underline;
 }
 
 .client-placeholder {
@@ -1338,11 +1243,10 @@ main > aside.page-aside a {
 }
 
 // We fullscreen <body> (not the canvas) so the in-world UI overlay stays visible.
-// But on a parcel page the canvas box is still boxed inside the article column, so
-// pin it to cover the whole viewport while fullscreen, or you get a small centered
-// canvas with a cropped field of view.
 body:fullscreen .client,
 body:-webkit-full-screen .client,
+body:fullscreen .canvasdom,
+body:-webkit-full-screen .canvasdom,
 body:fullscreen .client-placeholder,
 body:-webkit-full-screen .client-placeholder {
   position: fixed;
@@ -1352,25 +1256,9 @@ body:-webkit-full-screen .client-placeholder {
   z-index: 1;
 }
 
-// Fullscreen: broadcast controls slide in from the right; canvas stays full viewport.
-body:fullscreen.in-world main > aside.-broadcast-open,
-body:-webkit-full-screen.in-world main > aside.-broadcast-open {
-  display: block;
-  position: fixed;
-  top: 0;
-  right: 0;
-  bottom: 0;
+body:fullscreen.in-world .ui-pane.-broadcast,
+body:-webkit-full-screen.in-world .ui-pane.-broadcast {
   width: min(360px, 36vw);
-  z-index: 4;
-  overflow-y: auto;
-  padding: 1rem;
-  background: var(--bg);
-}
-
-// closing collapses the dock even in fullscreen; the live tab brings it back
-body:fullscreen main > aside.-broadcast-open.-closed,
-body:-webkit-full-screen main > aside.-broadcast-open.-closed {
-  display: none;
 }
 
 .showbox-broadcast-mount {
@@ -2029,7 +1917,7 @@ table.spaces {
 
 // Parcel / spaces page
 
-// parcel sidebar (lives in the WorldSidebar aside, not under .parcel-page)
+// parcel sidebar
 // pruned in the LESS collapse; without it about/map render as bare bullets
 .sidebar-tabs {
   display: flex;
@@ -2871,7 +2759,11 @@ button.iconish {
 
 // left in-world chrome (Fullscreen / Explore / Settings / Dance / Info / …).
 // pruned when LESS collapsed; without it the links sit unstyled in the canvas.
-.UserInterface aside {
+.canvasdom {
+  pointer-events: none;
+}
+
+.canvasdom aside {
   width: 8rem;
   position: absolute;
   top: 0;
@@ -2955,7 +2847,7 @@ button.iconish {
 }
 
 // walking fades the sidebar so the world gets the screen; mouse over the column brings it back
-body.walking .UserInterface aside > ul.ui-sidebar {
+body.walking .canvasdom aside > ul.ui-sidebar {
   opacity: 0;
 
   &:hover {
@@ -2966,12 +2858,12 @@ body.walking .UserInterface aside > ul.ui-sidebar {
 // the aside is the single scroll container in split view; inner pane sections
 // must not make a second one (that was the double-scrollbar). pin headers with
 // position: sticky instead of a nested scroller.
-main > aside section {
+.ui-pane section {
   overflow: visible;
   padding: 0.5rem;
 }
 
-.UserInterface dialog .baking textarea {
+.ui-pane .baking textarea {
   width: 100%;
   background: transparent;
   height: 80vh;
@@ -2979,7 +2871,7 @@ main > aside section {
 }
 
 /* Chat */
-.UserInterface div.chat {
+.canvasdom div.chat {
   position: absolute;
   // clear iOS home indicator / mobile browser bottom chrome
   bottom: calc(0.5rem + env(safe-area-inset-bottom, 0px));
@@ -3063,7 +2955,7 @@ main > aside section {
     --chatbar: 6rem;
   }
 
-  .UserInterface div.chat {
+  .canvasdom div.chat {
     bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
     left: var(--play-gutter, 1rem);
   }
@@ -3128,7 +3020,7 @@ main > aside section {
   }
 }
 
-.UserInterface aside .EmoteList ul {
+.ui-pane .EmoteList ul {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
   gap: 0.5rem;
@@ -3143,7 +3035,7 @@ main > aside section {
   }
 }
 
-.UserInterface aside .AnimateList ul {
+.ui-pane .AnimateList ul {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -3597,7 +3489,7 @@ dialog.editor {
   }
 }
 
-main > aside section.settings {
+.ui-pane section.settings {
   dl.props {
     margin: 0;
     padding: 0;
@@ -3626,8 +3518,8 @@ main > aside section.settings {
 
 // toolbar class is enough - don't depend on main>aside chain for button chrome
 .editor-toolbar ul.toolbar,
-main > aside .editor ul.toolbar,
-.UserInterface dialog ul.toolbar {
+.ui-pane .editor ul.toolbar,
+dialog ul.toolbar {
   margin-bottom: 10px;
   padding-left: 0;
   display: flex;
@@ -3705,7 +3597,7 @@ section.build-tab nav.build-main-tabs {
 }
 
 /* Login */
-.UserInterface section.login {
+.ui-pane section.login {
   padding: 1rem;
 
   img {
@@ -3713,7 +3605,7 @@ section.build-tab nav.build-main-tabs {
   }
 }
 
-.UserInterface aside .login a.button {
+.ui-pane .login a.button {
   position: relative;
   color: var(--bg);
   padding: 0.5rem 1rem;
@@ -4272,8 +4164,8 @@ section.build-tab nav.build-main-tabs {
 
 // these panes set overflow-x: hidden, which per spec forces overflow-y to auto and
 // makes a second scrollbar; the aside is the only scroller in split view
-main > aside .editor,
-main > aside section.settings {
+.ui-pane .editor,
+.ui-pane section.settings {
   overflow: visible;
 
   .scrollContainer {
@@ -5329,56 +5221,6 @@ main:has(.worldmap) {
   border-radius: 1rem;
   padding: 0.2rem 0.5rem;
   box-shadow: 3px 3px 3px rgba(0, 0, 0, 0.2);
-}
-
-.mini-client-dock {
-  display: none;
-  position: fixed;
-  left: 1rem;
-  bottom: 1rem;
-  z-index: 40;
-  width: 12rem;
-
-  .mini-close {
-    position: absolute;
-    top: 0;
-    right: 0;
-    z-index: 2;
-    translate: 40% -40%;
-    cursor: pointer;
-    background: var(--bg);
-    border: none;
-    color: var(--fg);
-    font-weight: bold;
-    padding: 0.15rem 0.45rem;
-    pointer-events: auto;
-  }
-
-  // no background - the dock sits above the canvas (z 40 vs 1) for clicks,
-  // an opaque bg here paints over the world and the mini view looks blank
-  #mini-client {
-    height: 7rem;
-    cursor: pointer;
-  }
-}
-
-// Client toggles body.mini-world when parking on #mini-client (must be visible before measure)
-body.mini-world .mini-client-dock {
-  display: block;
-}
-
-// parked on a normal page - let the profile/blog scroll; in-world overflow:hidden was clipping it
-body.in-world.mini-world {
-  overflow: auto;
-}
-
-.mini {
-  cursor: pointer;
-
-  .UserInterface,
-  dialog.first-time {
-    display: none;
-  }
 }
 
 .voxels-map {

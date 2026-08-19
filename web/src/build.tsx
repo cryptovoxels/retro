@@ -3,8 +3,7 @@ import ParcelHelper from '../../common/helpers/parcel-helper'
 import Head from './components/head'
 import { loadingBox } from './components/loading-icon'
 import cachedFetch from './helpers/cached-fetch'
-import { getCoords, naviportHere } from './helpers/coords-nav'
-import { WorldAside } from './world-aside'
+import { naviportHere } from './helpers/coords-nav'
 import SandboxesAside from './sandboxes'
 
 type SandboxRow = Partial<ConstructorParameters<typeof ParcelHelper>[0]> & { id: number; name?: string; address?: string }
@@ -15,7 +14,7 @@ interface State {
   first: SandboxRow | null
 }
 
-/** /build: embed first sandbox + sidebar list. Learn checklist lives in-world. */
+/** /build: sandbox list. Learn checklist lives in-world. */
 export default class BuildPage extends Component<{}, State> {
   state: State = { loading: true, error: null, first: null }
 
@@ -29,27 +28,25 @@ export default class BuildPage extends Component<{}, State> {
       .catch(() => this.setState({ loading: false, error: 'failed to load sandboxes' }))
   }
 
+  sent = false
+
   componentDidUpdate() {
     const { first } = this.state
-    if (!first || getCoords()) return
+    if (!first || this.sent) return
+    if (window.grid?.currentParcel()?.id === first.id) return
+    this.sent = true
     naviportHere(new ParcelHelper(first as any).centerLocation)
   }
 
   render() {
-    const { loading, error, first } = this.state
+    const { loading, error } = this.state
 
     return (
-      <section class="columns build-page">
+      <section>
         <Head title="Build" description="Learn voxels in a sandbox, then get a parcel in the shop." url="/build" />
-        <article>
-          {loading && loadingBox()}
-          {error && <p>{error}</p>}
-          {!loading && !error && !first && <p>no sandboxes right now</p>}
-          {first && <div class="client-slot" />}
-        </article>
-        <WorldAside>
-          <SandboxesAside />
-        </WorldAside>
+        {loading && loadingBox()}
+        {error && <p>{error}</p>}
+        {!loading && !error && <SandboxesAside />}
       </section>
     )
   }

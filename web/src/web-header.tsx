@@ -6,14 +6,12 @@ import { PanelType } from './components/panel'
 import { app, AppEvent } from './state'
 import { CubeIcon } from './components/icons/icons'
 import VoxelRadio from './components/voxel-radio'
-import { getCoords, withCoords, routeWithCoords, notifyUrlChange } from './helpers/coords-nav'
 import { route } from 'preact-router'
 import cachedFetch from './helpers/cached-fetch'
 import { messageList } from '../../src/connector'
 import { siteNavOpen, toggleSiteNav } from '../../src/store'
 type Props = {
   path: string
-  coords?: string
 }
 
 type State = {
@@ -156,38 +154,17 @@ export default class WebHeader extends Component<Props, State> {
     e.preventDefault()
     const q = this.state.query.trim()
     if (!q) return
-    // WorldSidebar unmounts <Router> on /play, so route() never swaps the page — hard nav.
-    window.location.assign(`/search?q=${encodeURIComponent(q)}`)
-  }
-
-  onMiniClick = () => {
-    if (!window.connector) return
-    routeWithCoords('/play')
-  }
-
-  onMiniClose = (e: Event) => {
-    e.preventDefault()
-    e.stopPropagation()
-    const u = new URL(location.href)
-    u.searchParams.delete('coords')
-    u.searchParams.delete('parcel')
-    route(u.pathname + u.search)
-    notifyUrlChange()
+    route(`/search?q=${encodeURIComponent(q)}`)
   }
 
   render() {
     const signedIn = app.signedIn
     const admin = app.isAdmin()
-    const wallet = app.wallet
-    const coords = this.props.coords || getCoords()
     const here = this.navPath()
-    const href = (p: string) => (coords ? withCoords(p) : p)
     const { blogN, shopN, eventsN, chatN } = this.state
-    // header sits outside <Router>, and ?coords= breaks preact-router's exec match —
-    // so activeClassName alone is flaky. class= from pathname is the source of truth.
     const A = ({ to, children }: { to: string; children: any }) => (
       <li>
-        <Link activeClassName="active" class={here === to ? 'active' : undefined} href={href(to)} path={to}>
+        <Link activeClassName="active" class={here === to ? 'active' : undefined} href={to} path={to}>
           {children}
         </Link>
       </li>
@@ -268,13 +245,6 @@ export default class WebHeader extends Component<Props, State> {
             </ul>
           </nav>
         </header>
-        {/* parked world when you leave /play with coords still in the URL - click expands, X drops coords */}
-        <div class="mini-client-dock">
-          <button type="button" class="mini-close" title="Close world" onClick={this.onMiniClose}>
-            &times;
-          </button>
-          <div id="mini-client" onClick={this.onMiniClick} />
-        </div>
       </>
     )
   }

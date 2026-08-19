@@ -151,9 +151,7 @@ export default class Asset extends Component<Props, State> {
         <article>
           <h1>{this.state.asset.name}</h1>
           <figure class="shortie">
-            {this.asset ? (
-              <div class="client-slot" />
-            ) : (
+            {this.asset ? null : (
               <canvas
                 ref={(c) => {
                   this.canvas = c

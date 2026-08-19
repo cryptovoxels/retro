@@ -1,30 +1,11 @@
-import { route } from 'preact-router'
-
 export function getCoords() {
   if (typeof location === 'undefined') return ''
   return new URLSearchParams(location.search).get('coords') || ''
 }
 
-export function isFullClientPath(path?: string) {
+export function isPlayPath(path?: string) {
   const p = (path || (typeof location !== 'undefined' ? location.pathname : '')).split('?')[0]
   return p === '/play'
-}
-
-/** detail pages that host an embedded client-slot (none left after single-world) */
-export function isEmbedClientPath(_path?: string) {
-  return false
-}
-
-export function withCoords(path: string) {
-  const c = getCoords()
-  if (!c) return path
-  const u = new URL(path, location.origin)
-  u.searchParams.set('coords', c)
-  return u.pathname + u.search
-}
-
-export function routeWithCoords(path: string) {
-  route(withCoords(path))
 }
 
 export function notifyUrlChange() {
@@ -35,17 +16,9 @@ export function notifyParcelChange() {
   window.dispatchEvent(new Event('parcelchange'))
 }
 
-export function getParcelId() {
-  if (typeof location === 'undefined') return null
-  const p = new URLSearchParams(location.search).get('parcel')
-  if (!p) return null
-  const id = parseInt(p, 10)
-  return Number.isFinite(id) ? id : null
-}
-
-export function getParcelIdFromPath(): number | null {
-  if (typeof location === 'undefined') return null
-  const m = location.pathname.match(/^\/parcels\/(\d+)$/)
+export function getParcelIdFromPath(path?: string): number | null {
+  const p = (path || (typeof location !== 'undefined' ? location.pathname : '')).split('?')[0]
+  const m = p.match(/^\/parcels\/(\d+)$/)
   if (!m) return null
   const id = parseInt(m[1], 10)
   return Number.isFinite(id) ? id : null
@@ -53,15 +26,13 @@ export function getParcelIdFromPath(): number | null {
 
 export function syncParcelUrl(id: number) {
   if (typeof location === 'undefined') return
+  if (!/^\/parcels\/\d+$/.test(location.pathname.split('?')[0])) return
   if (getParcelIdFromPath() === id) return
-  const u = new URL(location.href)
-  u.pathname = `/parcels/${id}`
-  u.searchParams.delete('parcel')
-  history.replaceState(null, '', u.pathname + u.search)
+  history.replaceState(null, '', `/parcels/${id}`)
   notifyParcelChange()
 }
 
-export function naviportHere(urlOrCoords: string, parcelId?: number) {
+export function naviportHere(urlOrCoords: string) {
   let c = urlOrCoords
   if (urlOrCoords.includes('coords=')) {
     try {
@@ -71,9 +42,9 @@ export function naviportHere(urlOrCoords: string, parcelId?: number) {
     }
   }
   if (!c) return
-  const u = new URL(location.href)
-  u.searchParams.set('coords', c)
-  if (parcelId) u.searchParams.set('parcel', String(parcelId))
-  history.replaceState(null, '', u.pathname + u.search)
-  notifyUrlChange()
+  try {
+    window.persona?.naviport(c)
+  } catch (e) {
+    console.error(e)
+  }
 }
