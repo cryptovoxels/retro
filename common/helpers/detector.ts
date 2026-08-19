@@ -191,8 +191,12 @@ export const debugPumpEnabled = (): boolean => {
   return searchParams.get('debug_pump') === 'true'
 }
 
+let mainThread = false
+export function setMainThread() {
+  mainThread = true
+}
 export const forceMainThreadWorkers = (): boolean => {
-  return isEmbedded()
+  return mainThread || isEmbedded()
 }
 
 // Embedded mode is used to render a parcel in an iframe
