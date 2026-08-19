@@ -19,6 +19,7 @@ COPY vendor/ ./vendor/
 COPY webpack/ ./webpack/
 COPY renderer/ ./renderer/
 COPY tsconfig.json tsconfig.prod.json ./
+COPY dist/vendor/library-6.11.2.min.js ./dist/vendor/
 
 # .env.production is gitignored; write the public CDN hosts webpack inlines.
 RUN printf '%s\n' \
