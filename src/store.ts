@@ -158,6 +158,24 @@ export const yeetCollectionId = signal<string | undefined>(undefined)
 export const uiAsideTick = signal(0)
 export const sidebarClosed = signal(false)
 
+// phone: closed overlay. desktop ignores this (left column stays).
+export const siteNavOpen = signal(false)
+
+effect(() => {
+  document.body.classList.toggle('site-nav-open', siteNavOpen.value)
+  window.engine?.resize()
+})
+
+if (typeof window !== 'undefined' && typeof window.matchMedia === 'function') {
+  window.matchMedia('(max-width: 50em)').addEventListener('change', (e) => {
+    if (e.matches) siteNavOpen.value = false
+  })
+}
+
+export function toggleSiteNav() {
+  siteNavOpen.value = !siteNavOpen.value
+}
+
 export const broadcastShowboxUuid = signal<string | undefined>(undefined)
 // when the local broadcast went live; the closed-sidebar "live" tab reads this for its timer
 export const broadcastLiveStartedAt = signal<number | undefined>(undefined)

@@ -10,6 +10,7 @@ import { getCoords, withCoords, routeWithCoords, notifyUrlChange } from './helpe
 import { route } from 'preact-router'
 import cachedFetch from './helpers/cached-fetch'
 import { messageList } from '../../src/connector'
+import { siteNavOpen, toggleSiteNav } from '../../src/store'
 type Props = {
   path: string
   coords?: string
@@ -47,6 +48,15 @@ function markChatSeen() {
   try {
     localStorage.setItem(CHAT_LAST_SEEN, String(Date.now()))
   } catch {}
+}
+
+function SiteNavToggle() {
+  const open = siteNavOpen.value
+  return (
+    <button class="hamburger site-nav-toggle" type="button" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={toggleSiteNav}>
+      {open ? 'x' : '='}
+    </button>
+  )
 }
 
 export default class WebHeader extends Component<Props, State> {
@@ -87,9 +97,12 @@ export default class WebHeader extends Component<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props) {
-    if (prevProps.path !== this.props.path && this.navPath() === '/chat') {
-      markChatSeen()
-      this.setState({ chatN: 0 })
+    if (prevProps.path !== this.props.path) {
+      if (typeof window !== 'undefined' && window.matchMedia('(max-width: 50em)').matches) siteNavOpen.value = false
+      if (this.navPath() === '/chat') {
+        markChatSeen()
+        this.setState({ chatN: 0 })
+      }
     }
   }
 
@@ -183,6 +196,7 @@ export default class WebHeader extends Component<Props, State> {
 
     return (
       <>
+        <SiteNavToggle />
         <header>
           <nav>
             <ul>
