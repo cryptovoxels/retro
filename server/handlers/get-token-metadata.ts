@@ -1,3 +1,4 @@
+import { parcelRendererUrl } from '../../common/renderable/thumb-url'
 import { noCache } from '../cache'
 import Parcel from '../parcel'
 import { queryAndCallback } from '../lib/query-helpers'
@@ -54,13 +55,7 @@ export default function getTokenMetadata(req: Request, res: Response) {
       }
     }
 
-    const getMapUrl = (parcel: Parcel): string => {
-      // const mapParams = '?x=' + ((parcel.x2 + parcel.x1) / 200).toFixed(2) + '&y=' + (parcel.z2 + parcel.z1) / 200
-      const slug = parcel.address.toLowerCase().replace(/ /g, '-')
-      return `https://map.voxels.com/parcel/${parcel.id}-${slug}.png`
-    }
-
-    const image = getMapUrl(parcel)
+    const image = parcelRendererUrl(parcel.id)
 
     return {
       name: parcel.address,

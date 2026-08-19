@@ -34,3 +34,8 @@ export function parcelThumbKey(id: number | string, d = new Date()) {
 export function parcelThumbUrl(id: number | string, d = new Date()) {
   return `${CDN}/${parcelThumbKey(id, d)}`
 }
+
+/** Live renderer URL (302 to CDN once baked). */
+export function parcelRendererUrl(id: number | string) {
+  return `https://www.voxels.com/renderer/v1/parcel/${id}.webp`
+}
