@@ -1,7 +1,6 @@
 import { Vec3Description } from '../../common/messages/feature'
 import Feature from '../features/feature'
 import Group from '../features/group'
-import { IYoutubePlayer } from '../features/youtube'
 import { setSelectedFeature } from '../store'
 import { createEvent } from '../utils/EventEmitter'
 import { axisNames3D, limitAbsoluteValue, round, XYZ } from '../utils/helpers'
@@ -323,17 +322,6 @@ const onDragObservableHandler = (gizmo: BABYLON.IGizmo) => () => {
 
   if (feature.type === 'group') {
     feature.refreshWorldMatrix()
-  }
-
-  if (feature.type === 'youtube') {
-    const f = feature as Feature & { player: IYoutubePlayer | null } //youtube player
-    if (f.player) {
-      if (gizmo instanceof BABYLON.AxisDragGizmo || gizmo instanceof BABYLON.AxisScaleGizmo) {
-        f.player.refreshPosition()
-      } else {
-        f.player.refreshRotation()
-      }
-    }
   }
 
   updateHighlight()
