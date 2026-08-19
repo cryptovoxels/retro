@@ -128,6 +128,48 @@ function mountRoutes(r: express.Router | express.Express) {
   r.get('/v1/parcel/:id.webp', (req, res) => serveParcelThumb(req, res, 'webp'))
   r.get('/v1/parcel/:id.png', (req, res) => serveParcelThumb(req, res, 'png'))
 
+  r.get('/v1/parcel/:id.html', async (req, res) => {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id <= 0) {
+      res.status(400).end('bad id')
+      return
+    }
+    try {
+      const record = await loadParcelRecord(id)
+      if (!record) {
+        res.status(404).end('not found')
+        return
+      }
+    } catch (e) {
+      console.error('[renderer] parcel html', id, e)
+      res.status(500).end('db failed')
+      return
+    }
+    const prefix = req.originalUrl.includes('/renderer/') ? '/renderer' : ''
+    res.type('html').status(200).send(`<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <style>html,body,#c{margin:0;width:100%;height:100%;overflow:hidden;display:block}</style>
+    <script src="${prefix}/vendor/library-6.11.2.min.js"></script>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <script src="${prefix}/page/parcel-bundle.js"></script>
+    <script>
+      fetch(location.pathname.replace(/\\.html$/, '.json'))
+        .then((r) => {
+          if (!r.ok) throw new Error('json ' + r.status)
+          return r.json()
+        })
+        .then((data) => window.orbitParcelPreview(data.record, data.embeds, data.world))
+        .catch((e) => console.error('[orbit]', e))
+    </script>
+  </body>
+</html>`)
+  })
+
   r.get('/', (_req, res) => {
     res.status(200).end('vox renderer')
   })

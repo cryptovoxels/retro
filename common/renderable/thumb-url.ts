@@ -39,3 +39,8 @@ export function parcelThumbUrl(id: number | string, ext = 'webp', d = new Date()
 export function parcelRendererUrl(id: number | string) {
   return `https://www.voxels.com/renderer/v1/parcel/${id}.png`
 }
+
+/** Live orbit page for OpenSea animation_url. */
+export function parcelOrbitUrl(id: number | string) {
+  return `https://www.voxels.com/renderer/v1/parcel/${id}.html`
+}

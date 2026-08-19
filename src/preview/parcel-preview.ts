@@ -88,6 +88,41 @@ function stubWindow() {
   }
 }
 
+function stubStorage() {
+  try {
+    const testKey = '__test__'
+    window.localStorage.setItem(testKey, '1')
+    window.localStorage.removeItem(testKey)
+  } catch {
+    Object.defineProperty(window, 'localStorage', {
+      value: {
+        getItem: () => null,
+        setItem: () => {},
+        removeItem: () => {},
+        clear: () => {},
+        key: () => null,
+        length: 0,
+      },
+      configurable: true,
+    })
+    Object.defineProperty(window, 'sessionStorage', { value: undefined, configurable: true })
+    Object.defineProperty(window, 'indexedDB', { value: undefined, configurable: true })
+    Object.defineProperty(navigator, 'storage', { value: {}, configurable: true })
+  }
+}
+
+function sizeCanvas(canvas: HTMLCanvasElement, orbit: boolean) {
+  if (!orbit) {
+    canvas.width = SIZE
+    canvas.height = SIZE
+    return
+  }
+  canvas.style.width = '100%'
+  canvas.style.height = '100%'
+  canvas.width = canvas.clientWidth || window.innerWidth || SIZE
+  canvas.height = canvas.clientHeight || window.innerHeight || SIZE
+}
+
 function zoomCamera(cam: BABYLON.ArcRotateCamera, record: ParcelRecord) {
   // Frame the lot, not scene.getWorldExtends() - parcels live at map coords, not origin.
   const cx = (record.x1 + record.x2) / 2
@@ -335,15 +370,24 @@ function makeMinimap(engine: BABYLON.Engine, record: ParcelRecord, islands: any[
   return mini
 }
 
-async function renderOnce(record: ParcelRecord, embeds?: Record<string, string>, world?: PreviewWorld, type = 'image/webp'): Promise<ArrayBuffer> {
+type PreviewLive = {
+  canvas: HTMLCanvasElement
+  engine: BABYLON.Engine
+  scene: BABYLON.Scene
+  camera: BABYLON.ArcRotateCamera
+  mini?: BABYLON.Scene
+  parcel: any
+}
+
+async function buildPreview(record: ParcelRecord, embeds: Record<string, string> | undefined, world: PreviewWorld | undefined, orbit: boolean): Promise<PreviewLive> {
   stubWindow()
+  if (orbit) stubStorage()
   if (!(globalThis as any).BABYLON) throw new Error('BABYLON missing')
   installEmbeds(embeds)
 
   const canvas = document.getElementById('c') as HTMLCanvasElement | null
   if (!canvas) throw new Error('no canvas')
-  canvas.width = SIZE
-  canvas.height = SIZE
+  sizeCanvas(canvas, orbit)
 
   const engine = new BABYLON.Engine(canvas, true)
   const scene = new BABYLON.Scene(engine)
@@ -375,34 +419,38 @@ async function renderOnce(record: ParcelRecord, embeds?: Record<string, string>,
   if (!parcel) throw new Error('spawnPreview failed')
   parcel.preview = true
 
-  let mini: BABYLON.Scene | undefined
+  await parcel.generate()
+  await parcel.activate()
+  await scene.whenReadyAsync()
+  zoomCamera(camera, bare)
+  // environment.load() and later hooks leave clearColor transparent -> white webp.
+  scene.clearColor = new BABYLON.Color4(OCEAN.r, OCEAN.g, OCEAN.b, 1)
+  const mini = world?.islands?.length ? makeMinimap(engine, bare, world.islands) : undefined
+  return { canvas, engine, scene, camera, mini, parcel }
+}
+
+async function renderOnce(record: ParcelRecord, embeds?: Record<string, string>, world?: PreviewWorld, type = 'image/webp'): Promise<ArrayBuffer> {
+  const live = await buildPreview(record, embeds, world, false)
   try {
-    await parcel.generate()
-    await parcel.activate()
-    await scene.whenReadyAsync()
-    zoomCamera(camera, bare)
-    // environment.load() and later hooks leave clearColor transparent -> white webp.
-    scene.clearColor = new BABYLON.Color4(OCEAN.r, OCEAN.g, OCEAN.b, 1)
-    if (world?.islands?.length) mini = makeMinimap(engine, bare, world.islands)
     // Twice so GUI DynamicTexture uploads before capture.
-    scene.render()
-    scene.render()
-    mini?.render()
+    live.scene.render()
+    live.scene.render()
+    live.mini?.render()
     const quality = type === 'image/png' ? 0.8 : 0.9
-    return await blobFromCanvas(canvas, type, quality)
+    return await blobFromCanvas(live.canvas, type, quality)
   } finally {
     if (!(window as any).__keepPreview) {
       try {
-        parcel.unload()
+        live.parcel.unload()
       } catch {
         // ignore
       }
       try {
-        mini?.dispose()
+        live.mini?.dispose()
       } catch {
         // ignore
       }
-      engine.dispose()
+      live.engine.dispose()
       ;(Grid as any).mesher = undefined
     }
   }
@@ -413,5 +461,19 @@ async function renderParcelPreview(record: ParcelRecord, embeds?: Record<string,
   return bufToB64(bytes)
 }
 
+async function orbitParcelPreview(record: ParcelRecord, embeds?: Record<string, string>, world?: PreviewWorld): Promise<void> {
+  const live = await buildPreview(record, embeds, world, true)
+  live.engine.runRenderLoop(() => {
+    live.camera.alpha += live.engine.getDeltaTime() / 1000
+    live.scene.render()
+    live.mini?.render()
+  })
+  window.addEventListener('resize', () => {
+    sizeCanvas(live.canvas, true)
+    live.engine.resize()
+  })
+}
+
 ;(window as any).renderParcelPreview = renderParcelPreview
+;(window as any).orbitParcelPreview = orbitParcelPreview
 ;(window as any).__parcelRenderReady = true
