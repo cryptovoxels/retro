@@ -660,16 +660,13 @@ header:has(nav) {
     pointer-events: auto;
   }
 
-  // header is a fixed overlay on phone - don't leave an empty grid column
+  // header is a fixed overlay on phone - remove it from the grid entirely
   main {
     padding: 2.5rem 1rem 1rem;
     grid-template-columns: 1fr;
 
     > header {
-      grid-column: 1;
-      width: 0;
-      min-width: 0;
-      overflow: visible;
+      display: contents;
     }
 
     > :not(header) {
@@ -1306,10 +1303,7 @@ main:is(@{world-hosts}):not(:has(> aside)) {
   }
 
   main:is(@{world-hosts}) > header {
-    grid-area: unset;
-    width: 0;
-    min-width: 0;
-    overflow: visible;
+    display: contents;
   }
 
   main > .columns.home,
