@@ -145,18 +145,18 @@ function mountRoutes(r: express.Router | express.Express) {
       res.status(500).end('db failed')
       return
     }
-    const prefix = req.originalUrl.includes('/renderer/') ? '/renderer' : ''
+    // Ingress strips /renderer before Express sees the path; assets still live under /renderer.
     res.type('html').status(200).send(`<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <style>html,body,#c{margin:0;width:100%;height:100%;overflow:hidden;display:block}</style>
-    <script src="${prefix}/vendor/library-6.11.2.min.js"></script>
+    <script src="/renderer/vendor/library-6.11.2.min.js"></script>
   </head>
   <body>
     <canvas id="c"></canvas>
-    <script src="${prefix}/page/parcel-bundle.js"></script>
+    <script src="/renderer/page/parcel-bundle.js"></script>
     <script>
       fetch(location.pathname.replace(/\\.html$/, '.json'))
         .then((r) => {
