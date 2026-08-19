@@ -26,16 +26,16 @@ export function isoWeekTag(d = new Date()) {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`
 }
 
-/** Parcel preview key: v1/parcel/{id}/{yyyy}-W{ww}.webp */
-export function parcelThumbKey(id: number | string, d = new Date()) {
-  return `${VERSION}/parcel/${id}/${isoWeekTag(d)}.webp`
+/** Parcel preview key: v1/parcel/{id}/{yyyy}-W{ww}.{ext} */
+export function parcelThumbKey(id: number | string, ext = 'webp', d = new Date()) {
+  return `${VERSION}/parcel/${id}/${isoWeekTag(d)}.${ext}`
 }
 
-export function parcelThumbUrl(id: number | string, d = new Date()) {
-  return `${CDN}/${parcelThumbKey(id, d)}`
+export function parcelThumbUrl(id: number | string, ext = 'webp', d = new Date()) {
+  return `${CDN}/${parcelThumbKey(id, ext, d)}`
 }
 
-/** Live renderer URL (302 to CDN once baked). */
+/** Live renderer URL (302 to CDN once baked). OpenSea wants png, not webp. */
 export function parcelRendererUrl(id: number | string) {
-  return `https://www.voxels.com/renderer/v1/parcel/${id}.webp`
+  return `https://www.voxels.com/renderer/v1/parcel/${id}.png`
 }

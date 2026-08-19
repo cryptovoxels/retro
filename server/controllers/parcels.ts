@@ -431,7 +431,7 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
       res.status(404).send({ success: false, message: 'Parcel not found' })
       return
     }
-    res.redirect(302, `/renderer/v1/parcel/${id}.webp`)
+    res.redirect(302, `/renderer/v1/parcel/${id}.png`)
   })
 
   app.get(

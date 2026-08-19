@@ -199,7 +199,7 @@ The parcel's build as a MagicaVoxel file
 
 Redirect to the parcel preview renderer
 
-302 to `/renderer/v1/parcel/{id}.webp`, which renders on demand then redirects to the CDN thumb when UGC storage is configured.
+302 to `/renderer/v1/parcel/{id}.png`, which renders on demand then redirects to the CDN thumb when UGC storage is configured.
 
 **parameters**
 
@@ -207,7 +207,7 @@ Redirect to the parcel preview renderer
 
 **answers**
 
-- `302` Redirect to the webp preview
+- `302` Redirect to the png preview
 - `404` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/parcels/{id}/query

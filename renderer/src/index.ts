@@ -1,4 +1,4 @@
-// ABOUTME: Wearable + parcel thumb renderer - GET holds until webp ready, then 302 to CDN (or 503 Retry-After).
+// ABOUTME: Wearable + parcel thumb renderer - GET holds until webp/png ready, then 302 to CDN (or 503 Retry-After).
 
 import './bootstrap'
 import express from 'express'
@@ -83,18 +83,19 @@ function mountRoutes(r: express.Router | express.Express) {
     }
   })
 
-  r.get('/v1/parcel/:id.webp', async (req, res) => {
+  async function serveParcelThumb(req: express.Request, res: express.Response, ext: 'webp' | 'png') {
     const id = Number(req.params.id)
     if (!Number.isInteger(id) || id <= 0) {
       res.status(400).end('bad id')
       return
     }
 
-    const cdn = parcelCdnUrl(id)
+    const mime = ext === 'png' ? 'image/png' : 'image/webp'
+    const cdn = parcelCdnUrl(id, ext)
     const ugc = ugcConfigured()
 
     try {
-      if (ugc && (await hasParcelThumb(id))) {
+      if (ugc && (await hasParcelThumb(id, ext))) {
         res.redirect(302, cdn)
         return
       }
@@ -105,12 +106,12 @@ function mountRoutes(r: express.Router | express.Express) {
         return
       }
 
-      const webp = await renderParcel(id, record)
+      const bytes = await renderParcel(id, record, mime)
       if (!ugc) {
-        res.type('image/webp').status(200).send(webp)
+        res.type(mime).status(200).send(bytes)
         return
       }
-      await uploadParcelThumb(id, webp)
+      await uploadParcelThumb(id, bytes, ext)
       res.redirect(302, cdn)
     } catch (e: any) {
       const code = e?.code
@@ -122,7 +123,10 @@ function mountRoutes(r: express.Router | express.Express) {
       console.error('[renderer] parcel', id, e)
       res.status(500).end('render failed')
     }
-  })
+  }
+
+  r.get('/v1/parcel/:id.webp', (req, res) => serveParcelThumb(req, res, 'webp'))
+  r.get('/v1/parcel/:id.png', (req, res) => serveParcelThumb(req, res, 'png'))
 
   r.get('/', (_req, res) => {
     res.status(200).end('vox renderer')

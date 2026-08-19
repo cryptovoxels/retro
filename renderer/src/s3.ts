@@ -28,8 +28,8 @@ export function wearableCdnUrl(uuid: string) {
   return wearableThumbUrl(uuid)
 }
 
-export function parcelCdnUrl(id: number) {
-  return parcelThumbUrl(id)
+export function parcelCdnUrl(id: number, ext = 'webp') {
+  return parcelThumbUrl(id, ext)
 }
 
 export async function hasWearableThumb(uuid: string): Promise<boolean> {
@@ -55,26 +55,26 @@ export async function uploadWearableThumb(uuid: string, body: Buffer): Promise<s
   return wearableThumbUrl(uuid)
 }
 
-export async function hasParcelThumb(id: number): Promise<boolean> {
+export async function hasParcelThumb(id: number, ext = 'webp'): Promise<boolean> {
   try {
-    await client().send(new HeadObjectCommand({ Bucket: BUCKET, Key: parcelThumbKey(id) }))
+    await client().send(new HeadObjectCommand({ Bucket: BUCKET, Key: parcelThumbKey(id, ext) }))
     return true
   } catch {
     return false
   }
 }
 
-export async function uploadParcelThumb(id: number, body: Buffer): Promise<string> {
-  const key = parcelThumbKey(id)
+export async function uploadParcelThumb(id: number, body: Buffer, ext = 'webp'): Promise<string> {
+  const key = parcelThumbKey(id, ext)
   await client().send(
     new PutObjectCommand({
       Bucket: BUCKET,
       Key: key,
       Body: body,
-      ContentType: 'image/webp',
+      ContentType: ext === 'png' ? 'image/png' : 'image/webp',
       ACL: 'public-read',
       CacheControl: WEEK_CACHE,
     }),
   )
-  return parcelThumbUrl(id)
+  return parcelThumbUrl(id, ext)
 }

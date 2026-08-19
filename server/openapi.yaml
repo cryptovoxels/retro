@@ -380,13 +380,13 @@ paths:
       tags: [parcels]
       summary: Redirect to the parcel preview renderer
       description: |
-        302 to `/renderer/v1/parcel/{id}.webp`, which renders on demand then
+        302 to `/renderer/v1/parcel/{id}.png`, which renders on demand then
         redirects to the CDN thumb when UGC storage is configured.
       parameters:
         - $ref: '#/components/parameters/ParcelId'
       responses:
         '302':
-          description: Redirect to the webp preview
+          description: Redirect to the png preview
         '404':
           $ref: '#/components/responses/Failure'
 

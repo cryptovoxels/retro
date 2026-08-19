@@ -183,7 +183,7 @@ async function renderWearableOnce(vox: Buffer): Promise<Buffer> {
   return Buffer.from(webpB64, 'base64')
 }
 
-async function renderParcelOnce(record: Record<string, unknown>): Promise<Buffer> {
+async function renderParcelOnce(record: Record<string, unknown>, type: string): Promise<Buffer> {
   const p = await ensurePage('parcel')
   if (HEADED) {
     await p.evaluate(() => {
@@ -192,18 +192,18 @@ async function renderParcelOnce(record: Record<string, unknown>): Promise<Buffer
   }
   const [embeds, lots, islands] = await Promise.all([embedUrls(parcelPreviewUrls(record)), loadLots(record), loadIslands()])
   const world = { lots, islands }
-  const webpB64 = await p.evaluate(
-    async ({ rec, embeds, world }) => {
+  const imgB64 = await p.evaluate(
+    async ({ rec, embeds, world, type }) => {
       const fn = (window as any).renderParcelPreview
       if (typeof fn !== 'function') throw new Error('renderParcelPreview missing')
-      return fn(rec, embeds, world)
+      return fn(rec, embeds, world, type)
     },
-    { rec: record, embeds, world },
+    { rec: record, embeds, world, type },
   )
-  if (typeof webpB64 !== 'string' || !webpB64) throw new Error('empty render')
+  if (typeof imgB64 !== 'string' || !imgB64) throw new Error('empty render')
   // Parcel scene is heavy; reset unless headed so you can inspect the live page.
   if (!HEADED) await resetPage()
-  return Buffer.from(webpB64, 'base64')
+  return Buffer.from(imgB64, 'base64')
 }
 
 /** Render vox bytes to webp. Dedupes by uuid. Throws err.code BUSY | TIMEOUT. */
@@ -220,13 +220,13 @@ export function renderWearable(uuid: string, vox: Buffer): Promise<Buffer> {
   return p
 }
 
-/** Render parcel record to webp. Dedupes by id. Throws err.code BUSY | TIMEOUT. */
-export function renderParcel(id: number, record: Record<string, unknown>): Promise<Buffer> {
-  const key = `p:${id}`
+/** Render parcel record to webp/png. Dedupes by id+type. Throws err.code BUSY | TIMEOUT. */
+export function renderParcel(id: number, record: Record<string, unknown>, type = 'image/webp'): Promise<Buffer> {
+  const key = `p:${id}:${type}`
   const existing = inflight.get(key)
   if (existing) return existing
 
-  const p = enqueue(async () => withTimeout(renderParcelOnce(record), PARCEL_HOLD_MS)).finally(() => {
+  const p = enqueue(async () => withTimeout(renderParcelOnce(record, type), PARCEL_HOLD_MS)).finally(() => {
     inflight.delete(key)
   })
 

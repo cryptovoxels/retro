@@ -105,9 +105,9 @@ function zoomCamera(cam: BABYLON.ArcRotateCamera, record: ParcelRecord) {
   cam.radius = orthoSize * 6
 }
 
-async function blobFromCanvas(canvas: HTMLCanvasElement): Promise<ArrayBuffer> {
+async function blobFromCanvas(canvas: HTMLCanvasElement, type = 'image/webp', quality = 0.9): Promise<ArrayBuffer> {
   const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), 'image/webp', 0.9)
+    canvas.toBlob((b) => (b ? resolve(b) : reject(new Error('toBlob failed'))), type, quality)
   })
   return blob.arrayBuffer()
 }
@@ -335,7 +335,7 @@ function makeMinimap(engine: BABYLON.Engine, record: ParcelRecord, islands: any[
   return mini
 }
 
-async function renderOnce(record: ParcelRecord, embeds?: Record<string, string>, world?: PreviewWorld): Promise<ArrayBuffer> {
+async function renderOnce(record: ParcelRecord, embeds?: Record<string, string>, world?: PreviewWorld, type = 'image/webp'): Promise<ArrayBuffer> {
   stubWindow()
   if (!(globalThis as any).BABYLON) throw new Error('BABYLON missing')
   installEmbeds(embeds)
@@ -388,7 +388,8 @@ async function renderOnce(record: ParcelRecord, embeds?: Record<string, string>,
     scene.render()
     scene.render()
     mini?.render()
-    return await blobFromCanvas(canvas)
+    const quality = type === 'image/png' ? 0.8 : 0.9
+    return await blobFromCanvas(canvas, type, quality)
   } finally {
     if (!(window as any).__keepPreview) {
       try {
@@ -407,8 +408,8 @@ async function renderOnce(record: ParcelRecord, embeds?: Record<string, string>,
   }
 }
 
-async function renderParcelPreview(record: ParcelRecord, embeds?: Record<string, string>, world?: PreviewWorld): Promise<string> {
-  const bytes = await renderOnce(record, embeds, world)
+async function renderParcelPreview(record: ParcelRecord, embeds?: Record<string, string>, world?: PreviewWorld, type = 'image/webp'): Promise<string> {
+  const bytes = await renderOnce(record, embeds, world, type)
   return bufToB64(bytes)
 }
 
