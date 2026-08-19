@@ -157,10 +157,12 @@ function subgridUv(mesh: BABYLON.Mesh) {
 
 function makeOcean(scene: BABYLON.Scene, record: ParcelRecord) {
   const { w, d, cx, cz } = groundSize(record)
-  const ocean = BABYLON.MeshBuilder.CreateBox('preview-ocean', { width: w * 2, height: 1, depth: d * 2 }, scene)
+  // Huge slab so the ortho frustum is always over water even for big lots.
+  const ocean = BABYLON.MeshBuilder.CreateBox('preview-ocean', { width: Math.max(w * 4, 500), height: 1, depth: Math.max(d * 4, 500) }, scene)
   ocean.position.set(cx, record.y1 - 1.5, cz)
   ocean.material = createMaterial('preview-ocean', scene, OCEAN.r, OCEAN.g, OCEAN.b)
   ocean.isPickable = false
+  ocean.receiveShadows = false
 }
 
 function islandHoles(multipolygon: any) {
@@ -379,6 +381,8 @@ async function renderOnce(record: ParcelRecord, embeds?: Record<string, string>,
     await parcel.activate()
     await scene.whenReadyAsync()
     zoomCamera(camera, bare)
+    // environment.load() and later hooks leave clearColor transparent -> white webp.
+    scene.clearColor = new BABYLON.Color4(OCEAN.r, OCEAN.g, OCEAN.b, 1)
     if (world?.islands?.length) mini = makeMinimap(engine, bare, world.islands)
     // Twice so GUI DynamicTexture uploads before capture.
     scene.render()
