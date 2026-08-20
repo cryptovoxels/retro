@@ -1524,13 +1524,33 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     uiAsideTick.value++
     this.applySidebarDockStyles(panel)
     broadcastDockEl.el = panel
+    let frames = 0
     const attach = () => {
+      if (!this.broadcastPanel || this.broadcastPanel !== panel) return
       const mount = document.getElementById('showbox-broadcast-mount')
-      if (!mount) {
-        requestAnimationFrame(attach)
+      if (mount) {
+        mount.appendChild(panel)
         return
       }
-      mount.appendChild(panel)
+      // ui=off / pane never mounted - don't spin forever, float over the world
+      if (++frames > 90) {
+        this.broadcastPanelSidebar = false
+        Object.assign(panel.style, {
+          position: 'fixed',
+          zIndex: '999999',
+          top: '12px',
+          right: '12px',
+          left: 'auto',
+          bottom: 'auto',
+          transform: 'none',
+          width: '340px',
+          maxHeight: 'calc(100vh - 24px)',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
+        })
+        document.body.appendChild(panel)
+        return
+      }
+      requestAnimationFrame(attach)
     }
     attach()
   }
