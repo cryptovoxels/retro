@@ -100,10 +100,20 @@ export default class MobileControls extends Controls {
       _cameraTransformMatrix: BABYLON.Matrix
     }
 
-    if (this.direction) {
-      camera._localDirection.copyFrom(this.direction)
+    if (!this.direction || this.direction.lengthSquared() === 0) return
+
+    // third person iso is pitched down; full view-matrix forward walks into the ground
+    if (!this.firstPersonView) {
+      const yaw = camera.rotation.y
+      const lx = this.direction.x
+      const lz = this.direction.z
+      const s = Math.sin(yaw)
+      const c = Math.cos(yaw)
+      camera.cameraDirection.addInPlaceFromFloats(lx * c + lz * s, this.direction.y, -lx * s + lz * c)
+      return
     }
 
+    camera._localDirection.copyFrom(this.direction)
     camera.getViewMatrix().invertToRef(camera._cameraTransformMatrix)
     BABYLON.Vector3.TransformNormalToRef(camera._localDirection, camera._cameraTransformMatrix, camera._transformedDirection)
     camera.cameraDirection.addInPlace(camera._transformedDirection)

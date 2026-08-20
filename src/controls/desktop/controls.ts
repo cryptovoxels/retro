@@ -63,23 +63,18 @@ export default class DesktopControls extends Controls {
     if (!kb) return
     const turn = ['ArrowLeft', 'KeyA']
     const other = ['ArrowRight', 'KeyD']
+    // W/S always follow look yaw (horizontal). Third person keeps A/D as strafe too —
+    // body-turn Diablo walk made "look then walk" go the wrong way.
+    kb.keysLeft = turn
+    kb.keysRight = other
+    kb.keysRotateLeft = []
+    kb.keysRotateRight = []
+    kb.onTurn = null
     if (this.firstPersonView) {
-      kb.keysLeft = turn
-      kb.keysRight = other
-      kb.keysRotateLeft = []
-      kb.keysRotateRight = []
       kb.alongYaw = null
-      kb.onTurn = null
     } else {
-      kb.keysLeft = []
-      kb.keysRight = []
-      kb.keysRotateLeft = turn
-      kb.keysRotateRight = other
-      kb.rotationSpeed = 1.5
-      kb.alongYaw = () => this.persona.rotation.y
-      kb.onTurn = (d) => {
-        this.persona.rotation.y += d
-      }
+      // iso pitch would walk you into the ground if we used the full view matrix
+      kb.alongYaw = () => this.camera.rotation.y
     }
   }
 
