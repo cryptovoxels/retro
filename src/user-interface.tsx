@@ -66,6 +66,7 @@ import { SandboxGuide, SandboxGuideMini } from './ui/sandbox-guide'
 import { FirstTimeInstructions } from '../web/src/components/first-time-instructions'
 import { BroadcastSidebarTab } from '../web/src/broadcast-sidebar-tab'
 import { ShowboxBroadcastPane } from '../web/src/showbox-broadcast-pane'
+import { SidebarClose } from '../web/src/sidebar-close'
 import { WompOverlay } from './ui/interact/womps'
 import MobileButtons from './ui/mobile/buttons'
 import OpenLink from './ui/open-link'
@@ -1217,9 +1218,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
         {currentPane && (
           <div class={['ui-pane', currentPane === 'broadcast' ? '-broadcast' : '', sidebarClosed.value ? '-closed' : ''].filter(Boolean).join(' ')}>
-            <button type="button" class="sidebar-close" title="close" onClick={() => this.closeInteractOverlay()}>
-              &times;
-            </button>
+            <SidebarClose onClick={() => this.closeInteractOverlay()} />
             {this.paneContent(currentPane)}
           </div>
         )}
