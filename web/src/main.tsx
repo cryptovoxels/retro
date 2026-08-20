@@ -5,7 +5,7 @@ if (process.env.NODE_ENV === 'development') {
   require('preact/debug')
 }
 import { Component, render } from 'preact'
-import { Route, Router, route, type RouterOnChangeArgs } from 'preact-router'
+import { Route, Router, type RouterOnChangeArgs } from 'preact-router'
 
 import EditAccount from '../account/edit'
 import { Login } from './auth/login'
@@ -14,9 +14,10 @@ import VoxelRadio from './components/voxel-radio'
 import Footer from './footer'
 import Home from './home'
 import { Client } from './client'
-import { isPlayPath, getCoords, notifyUrlChange } from './helpers/coords-nav'
+import { isPlayPath, notifyUrlChange } from './helpers/coords-nav'
 import { track, trackPage } from './helpers/umami'
 import WebHeader from './web-header'
+import { SidebarClose, closePageSidebar } from './sidebar-close'
 
 import { useEffect, useState } from 'preact/hooks'
 import { JSXInternal } from 'preact/src/jsx'
@@ -109,19 +110,7 @@ const Main = () => {
         <Client coords={coords} path={currentPath} />
 
         <div class={play ? 'page -play' : 'page'}>
-          {!play && !lightBroadcast && (
-            <button
-              type="button"
-              class="sidebar-close"
-              title="close"
-              onClick={() => {
-                const c = coords || getCoords()
-                route(c ? `/play?coords=${encodeURIComponent(c)}` : '/play')
-              }}
-            >
-              &times;
-            </button>
-          )}
+          {!play && !lightBroadcast && <SidebarClose onClick={closePageSidebar} />}
           <Router onChange={handleRoute}>
             {AppRoutes()}
             <RadioPopout path="/radio" />
