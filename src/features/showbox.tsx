@@ -22,7 +22,7 @@ import { VideoFxProcessor, FX_PALETTES, FX_DEFAULT_PALETTE, VIDEO_FX, type FxAud
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { duckRadio, setRadioBroadcasting, unduckRadio } from '../../web/src/radio/global'
-import { broadcastDockEl, broadcastLiveStartedAt, broadcastShowboxUuid, closeBroadcastSidebar, uiAsideTick, uiPane } from '../store'
+import { broadcastDockEl, broadcastLiveStartedAt, broadcastShowboxUuid, closeBroadcastSidebar, sidebarClosed, uiAsideTick, uiPane } from '../store'
 import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
 import { cohostPaneRects, MAX_COHOST_PANES } from '../../common/helpers/cohost-panes'
 import { encodeCoords } from '../../common/helpers/utils'
@@ -1519,6 +1519,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     this.broadcastPanelSidebar = true
     broadcastShowboxUuid.value = this.uuid
+    sidebarClosed.value = false
     uiPane.value = 'broadcast'
     uiAsideTick.value++
     this.applySidebarDockStyles(panel)
