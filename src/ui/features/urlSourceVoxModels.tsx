@@ -1,18 +1,18 @@
-import { MegavoxRecord, VoxModelRecord } from '../../../common/messages/feature'
+import { MegavoxRecord, RideRecord, VoxModelRecord } from '../../../common/messages/feature'
 import { fetchOptions } from '../../../web/src/utils'
 import CategorizedItemsComponent from '../../components/item-by-categories'
 import PublicVoxelLibrary from '../../components/voxmodels-by-category'
-import VoxModel, { Megavox } from '../../features/vox-model'
+import VoxModel, { Megavox, Ride } from '../../features/vox-model'
 import { uploadVoxModelMedia } from '../../utils/upload-vox-media'
 import { NO_PARCEL_FOUND } from './misc'
 import { UrlSourceComponent, UrlSourceComponentProps, UrlSourceComponentState } from './urlSourceComponent'
 
 export type UrlSourceVoxModelsProps = UrlSourceComponentProps & {
-  feature: Megavox | VoxModel<VoxModelRecord>
+  feature: Megavox | Ride | VoxModel<VoxModelRecord>
   scene: BABYLON.Scene
 }
 type UrlSourceVoxModelsState = UrlSourceComponentState & {
-  type: VoxModelRecord['type'] | MegavoxRecord['type']
+  type: VoxModelRecord['type'] | MegavoxRecord['type'] | RideRecord['type']
   library: any
 }
 
@@ -30,6 +30,11 @@ export class UrlSourceVoxModels extends UrlSourceComponent<UrlSourceVoxModelsPro
 
   get isMegavox() {
     return this.state.type === 'megavox'
+  }
+
+  /** rides and megavox share the large upload size limit */
+  get allowLargeVox() {
+    return this.state.type === 'megavox' || this.state.type === 'ride'
   }
 
   get library() {
@@ -118,7 +123,7 @@ export class UrlSourceVoxModels extends UrlSourceComponent<UrlSourceVoxModelsPro
   private async _handleVoxFileUpload(file: FileList | null) {
     const result =
       file && file[0]
-        ? await uploadVoxModelMedia(file[0], this.props.feature.type === 'megavox', this.props.scene)
+        ? await uploadVoxModelMedia(file[0], this.allowLargeVox, this.props.scene)
         : {
             success: false as const,
             error: 'Could not upload the file. Make sure it is a supported file type.',

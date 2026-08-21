@@ -19,7 +19,7 @@ import TextInput from './text-input'
 import SliderInput from './slider-input'
 import Video from './video'
 import VidScreen from './vid-screen'
-import VoxModel, { Megavox } from './vox-model'
+import VoxModel, { Megavox, Ride } from './vox-model'
 import Showbox from './showbox'
 import Youtube from './youtube'
 import GuestBook from './guest-book'
@@ -69,6 +69,8 @@ export const createFeature = (scene: BABYLON.Scene, parcel: Parcel, uuid: string
       return new VoxModel(scene, parcel, uuid, description)
     case 'megavox':
       return new Megavox(scene, parcel, uuid, description)
+    case 'ride':
+      return new Ride(scene, parcel, uuid, description)
     case 'particles':
       return new ParticleSystem(scene, parcel, uuid, description)
     case 'boombox':
@@ -109,6 +111,8 @@ export function isRenderable(type: string | undefined | null): boolean {
       return VoxModel.isRenderable
     case 'megavox':
       return Megavox.isRenderable
+    case 'ride':
+      return Ride.isRenderable
     case 'lantern':
       return Lantern.isRenderable
     default:
@@ -127,6 +131,7 @@ export const getAxes = (type?: FeatureType) => {
     case 'vox-model':
     case 'collectible-model':
     case 'megavox':
+    case 'ride':
     case 'boombox':
     case 'cube':
     case 'portal':
