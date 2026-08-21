@@ -54,9 +54,7 @@ async function main() {
 
   const client = await pool.connect()
   try {
-    const { rows } = await client.query<{ id: number; content: any }>(
-      `select id, content from properties where content is not null and content::text like '%"driveable"%'`,
-    )
+    const { rows } = await client.query<{ id: number; content: any }>(`select id, content from properties where content is not null and content::text like '%"driveable"%'`)
 
     console.log(`Found ${rows.length} parcels with driveable in content`)
 
