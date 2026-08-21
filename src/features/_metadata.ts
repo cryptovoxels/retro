@@ -7,7 +7,7 @@ import WompWall from './womp-wall'
 import PoseBall from './pose-ball'
 import Image from './image'
 import Lantern from './lantern'
-import VoxModel, { Megavox } from './vox-model'
+import VoxModel, { Megavox, Ride } from './vox-model'
 import NftImage from './nft-image'
 import CollectibleModel from './collectible-model'
 import ParticleSystem from './particle-system'
@@ -37,6 +37,7 @@ export const featuresInfo: FeatureMetadata[] = [
   Image.metadata,
   Lantern.metadata,
   Megavox.metadata,
+  Ride.metadata,
   NftImage.metadata,
   CollectibleModel.metadata,
   ParticleSystem.metadata,
@@ -63,6 +64,7 @@ export const featureTemplates: Record<PlaceableFeatureTypes, FeatureTemplate> = 
   'vox-model': VoxModel.template,
   cube: Cube.template,
   megavox: Megavox.template,
+  ride: Ride.template,
   lantern: Lantern.template,
   boombox: Boombox.template,
   showbox: Showbox.template,

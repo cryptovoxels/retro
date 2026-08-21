@@ -117,8 +117,8 @@ export default abstract class Controls implements IControls {
   private congaFlyingRestore: boolean | null = null
   private wasAirborne = false
 
-  // --- driveable megavox ---
-  vehicleFeature: import('../features/vox-model').Megavox | null = null
+  // --- ride ---
+  vehicleFeature: import('../features/vox-model').Ride | null = null
   private vehicleHoverY = 0
   private vehicleLastDryPos: BABYLON.Vector3 | null = null
   private vehicleLastDryRot: BABYLON.Vector3 | null = null
@@ -127,12 +127,12 @@ export default abstract class Controls implements IControls {
   private vehicleLastStateAt = 0
   private vehicleNearbyAt = 0
   private vehicleHintEl: HTMLDivElement | null = null
-  vehicleNearby: import('../features/vox-model').Megavox | null = null
+  vehicleNearby: import('../features/vox-model').Ride | null = null
   /** mobile / shared: -1..1 forward and turn while driving */
   vehicleSteer = { forward: 0, turn: 0 }
   /** visitor-only facing nudge when they can't save driveYawOffset */
   private vehicleFacingNudge = 0
-  /** working seat offset while seated (local to megavox); flushed to driveSeatOffset when editable */
+  /** working seat offset while seated (local to ride); flushed to driveSeatOffset when editable */
   private vehicleSeatOffset: [number, number, number] = [0, 1.2, 0]
   /** G toggles: drive keys move the seat instead of the car (owners only) */
   private vehicleSeatMode = false
@@ -742,24 +742,24 @@ export default abstract class Controls implements IControls {
     this.islandsReady = true
   }
 
-  // --- driveable megavox ---
+  // --- ride ---
 
-  findNearbyDriveable(): import('../features/vox-model').Megavox | null {
+  findNearbyDriveable(): import('../features/vox-model').Ride | null {
     const grid = this.grid
     if (!grid) return null
     // persona is world/grid; mesh absolute / bb is scene-absolute (includes worldOffset)
     const me = this.persona.position.add(this.worldOffset.position)
-    let best: import('../features/vox-model').Megavox | null = null
+    let best: import('../features/vox-model').Ride | null = null
     let bestD = Infinity
-    // distance to the mesh surface (not the pivot) - megavox cars are often wider than 4m
+    // distance to the mesh surface (not the pivot) - rides are often wider than 4m
     const reachSq = 2.5 * 2.5
     const parcels = this.grid.parcels
     if (!parcels) return null
     for (const parcel of parcels.values()) {
       for (const f of parcel.featuresList || []) {
-        if (f?.type !== 'megavox') continue
-        const m = f as import('../features/vox-model').Megavox
-        if (!m.isDriveable || !m.mesh) continue
+        if (f?.type !== 'ride') continue
+        const m = f as import('../features/vox-model').Ride
+        if (!m.mesh) continue
         const bb = m.boundingBox
         let d: number
         if (bb) {
@@ -788,8 +788,8 @@ export default abstract class Controls implements IControls {
     if (car) this.enterVehicle(car)
   }
 
-  /** enter a specific car (E key path and the floating Drive button both land here) */
-  enterVehicle(car: import('../features/vox-model').Megavox) {
+  /** enter a specific ride (E key path and the floating Drive button both land here) */
+  enterVehicle(car: import('../features/vox-model').Ride) {
     if (this.vehicleFeature) return
     if (this.congaTarget) this.stopConga()
     if (car.driverUuid && car.driverUuid !== this.persona.uuid) return
@@ -817,7 +817,7 @@ export default abstract class Controls implements IControls {
     this.refreshMobileDriveChrome?.()
   }
 
-  private driveHint(car: import('../features/vox-model').Megavox): string {
+  private driveHint(car: import('../features/vox-model').Ride): string {
     const fly = car.isFlyable ? ' · Space/V climb' : ''
     const seat = car.parcel.canEdit ? ' · G seat' : ''
     return `T turn facing · C camera · E exit${fly}${seat}`
@@ -836,7 +836,7 @@ export default abstract class Controls implements IControls {
     }
   }
 
-  private readDriveSeatOffset(car: import('../features/vox-model').Megavox): [number, number, number] {
+  private readDriveSeatOffset(car: import('../features/vox-model').Ride): [number, number, number] {
     const o = (car.description as { driveSeatOffset?: number[] }).driveSeatOffset
     if (Array.isArray(o) && o.length >= 3) {
       return [Number(o[0]) || 0, Number(o[1]) || 0, Number(o[2]) || 0]
@@ -851,7 +851,7 @@ export default abstract class Controls implements IControls {
     car.set({ driveSeatOffset: [o[0], o[1], o[2]] } as any)
   }
 
-  /** While seated: nudge which way is "forward" (W + look). Saves on the megavox if you can edit. */
+  /** While seated: nudge which way is "forward" (W + look). Saves on the ride if you can edit. */
   nudgeDriveFacing(delta = Math.PI / 2) {
     const car = this.vehicleFeature
     if (!car) return
@@ -874,7 +874,7 @@ export default abstract class Controls implements IControls {
     return this.driveFacingYaw(this.vehicleFeature)
   }
 
-  private driveFacingYaw(car: import('../features/vox-model').Megavox): number {
+  private driveFacingYaw(car: import('../features/vox-model').Ride): number {
     // default +PI = vox local -Z; driveYawOffset / nudge for seated adjustments
     const saved = Number((car.description as { driveYawOffset?: number }).driveYawOffset) || 0
     return (car.mesh?.rotation.y ?? 0) + Math.PI + saved + this.vehicleFacingNudge

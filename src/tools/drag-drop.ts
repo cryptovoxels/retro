@@ -267,8 +267,8 @@ export class DragDrop {
 
     let result: UploadMediaResult
     try {
-      if (featureTemplate.type === 'vox-model' || featureTemplate.type === 'megavox') {
-        result = await uploadVoxModelMedia(file, featureTemplate.type === 'megavox', this.scene)
+      if (featureTemplate.type === 'vox-model' || featureTemplate.type === 'megavox' || featureTemplate.type === 'ride') {
+        result = await uploadVoxModelMedia(file, featureTemplate.type === 'megavox' || featureTemplate.type === 'ride', this.scene)
       } else {
         result = await uploadMedia(file)
       }

@@ -225,7 +225,7 @@ export default class Avatar extends Entity {
   private findHomeDriveable(payload: import('../common/messages').AvatarVehiclePayload) {
     try {
       const parcel = window.grid?.parcels?.get?.(payload.homeParcelId) || [...(window.grid?.parcels?.values?.() || [])].find((p: any) => p.id === payload.homeParcelId)
-      return parcel?.featuresList?.find((x: any) => x?.uuid === payload.featureUuid && x?.type === 'megavox') as any
+      return parcel?.featuresList?.find((x: any) => x?.uuid === payload.featureUuid && x?.type === 'ride') as any
     } catch {
       return null
     }
