@@ -42,6 +42,9 @@ import {
   sidebarClosed,
   pendingWomp,
   closeTakeWomp,
+  broadcastLiveStartedAt,
+  broadcastShowboxUuid,
+  closeBroadcastSidebar,
 } from './store'
 import FeatureTool from './tools/feature'
 import VoxelTool, { SelectionMode, SelectionModeOptions } from './tools/voxel'
@@ -63,6 +66,7 @@ import { SandboxGuide, SandboxGuideMini } from './ui/sandbox-guide'
 import { FirstTimeInstructions } from '../web/src/components/first-time-instructions'
 import { BroadcastSidebarTab } from '../web/src/broadcast-sidebar-tab'
 import { ShowboxBroadcastPane } from '../web/src/showbox-broadcast-pane'
+import { SidebarClose } from '../web/src/sidebar-close'
 import { WompOverlay } from './ui/interact/womps'
 import MobileButtons from './ui/mobile/buttons'
 import OpenLink from './ui/open-link'
@@ -185,6 +189,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   chatLastReadAt = Date.now()
   chatListDispose?: () => void
   parcelEditDispose?: () => void
+  uiPaneDispose?: () => void
   sandboxGuideParcelDispose?: () => void
   sandboxLookDispose?: () => void
   wompPollTimer: ReturnType<typeof setInterval> | null = null
@@ -347,6 +352,16 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
     chatSettings.addEventListener('changed', this.onChatSettingsChange)
     voiceSettings.addEventListener('changed', this.onVoiceSettingsChange)
+
+    // showbox attachBroadcastPanel only flips the signal; keep this.state.pane in sync so .ui-pane mounts
+    this.uiPaneDispose = effect(() => {
+      const p = uiPane.value as UIPanes | undefined
+      sidebarClosed.value
+      document.body.classList.toggle('sidebar-closed', sidebarClosed.value)
+      if (p !== this.state.pane) this.setState({ pane: p })
+      else this.forceUpdate()
+      window.engine?.resize()
+    })
 
     this.chatListDispose = effect(() => {
       messageList.value
@@ -519,6 +534,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     voiceSettings.removeEventListener('changed', this.onVoiceSettingsChange)
     this.chatListDispose?.()
     this.parcelEditDispose?.()
+    this.uiPaneDispose?.()
     this.sandboxGuideParcelDispose?.()
     this.sandboxLookDispose?.()
     try {
@@ -735,6 +751,23 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   closeInteractOverlay() {
+    // live showbox: collapse to the pulsing edge tab, keep the dock mounted
+    if (uiPane.value === 'broadcast' && broadcastLiveStartedAt.value) {
+      sidebarClosed.value = true
+      return
+    }
+    if (uiPane.value === 'broadcast') {
+      const uuid = broadcastShowboxUuid.value
+      const feature = uuid ? (selectCurrentOrNearestParcel() || selectNearestEditableParcel())?.getFeatureByUuid(uuid) : undefined
+      if (feature && typeof (feature as any).dismissBroadcastPanel === 'function') {
+        ;(feature as any).dismissBroadcastPanel()
+        ;(feature as any).clearBroadcastDockUi?.()
+      } else {
+        closeBroadcastSidebar()
+      }
+      this.setState({ pane: undefined, editor: undefined, feature: undefined })
+      return
+    }
     uiPane.value = undefined
     // ghost editor/feature keeps click-away + drag-look + feature tool in edit limbo
     this.setState({ pane: undefined, editor: undefined, feature: undefined })
@@ -1204,10 +1237,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         </div>
 
         {currentPane && (
-          <div class={currentPane === 'broadcast' ? 'ui-pane -broadcast' : 'ui-pane'}>
-            <button type="button" class="sidebar-close" title="close" onClick={() => this.closeInteractOverlay()}>
-              &times;
-            </button>
+          <div class={['ui-pane', currentPane === 'broadcast' ? '-broadcast' : '', sidebarClosed.value ? '-closed' : ''].filter(Boolean).join(' ')}>
+            <SidebarClose onClick={() => this.closeInteractOverlay()} />
             {this.paneContent(currentPane)}
           </div>
         )}

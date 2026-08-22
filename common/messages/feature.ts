@@ -504,24 +504,34 @@ export const MegavoxRecord = t.intersection(
     t.type({
       type: t.literal('megavox'),
     }),
-    t.partial(
-      {
-        // hop in with E / Drive and cruise; auto-enables collidable in the editor
-        driveable: t.boolean,
-        // Space/V climb while seated (hovercraft); ignored unless driveable
-        flyable: t.boolean,
-        // extra radians on top of the default vox -Z facing (T while seated nudges this)
-        driveYawOffset: t.number,
-        // local seat offset from megavox pivot; default [0, 1.2, 0]
-        driveSeatOffset: t.tuple([t.number, t.number, t.number]),
-      },
-      'megavoxfields',
-    ),
   ],
   'MegavoxRecord',
 )
 
 export type MegavoxRecord = t.TypeOf<typeof MegavoxRecord>
+
+export const RideRecord = t.intersection(
+  [
+    VoxCommonRecord,
+    t.type({
+      type: t.literal('ride'),
+    }),
+    t.partial(
+      {
+        // Space/V climb while seated (hovercraft)
+        flyable: t.boolean,
+        // extra radians on top of the default vox -Z facing (T while seated nudges this)
+        driveYawOffset: t.number,
+        // local seat offset from ride pivot; default [0, 1.2, 0]
+        driveSeatOffset: t.tuple([t.number, t.number, t.number]),
+      },
+      'ridefields',
+    ),
+  ],
+  'RideRecord',
+)
+
+export type RideRecord = t.TypeOf<typeof RideRecord>
 
 export const ParticlesRecord = t.intersection(
   [
@@ -794,6 +804,7 @@ export const FeatureRecord = t.union(
     ButtonRecord,
     VoxModelRecord,
     MegavoxRecord,
+    RideRecord,
     ParticlesRecord,
     BoomboxRecord,
     TextInputRecord,

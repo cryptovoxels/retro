@@ -826,8 +826,12 @@ main {
     background: var(--bg);
   }
 
+  > .ui-pane.-closed {
+    display: none;
+  }
+
   // pane takes the column; page steps aside
-  &:has(> .ui-pane)>.page {
+  &:has(> .ui-pane:not(.-closed)) > .page {
     display: none;
   }
 
@@ -840,7 +844,7 @@ main {
     }
   }
 
-  &.-play:has(> .ui-pane) {
+  &.-play:has(> .ui-pane:not(.-closed)) {
     grid-template-columns: auto 1fr 23rem;
   }
 }
@@ -872,7 +876,7 @@ main {
       grid-template-rows: 1fr;
     }
 
-    &.-play:has(> .ui-pane) {
+    &.-play:has(> .ui-pane:not(.-closed)) {
       grid-template-rows: 1fr 40%;
     }
   }
@@ -1215,23 +1219,31 @@ body.in-world {
   --play-top: max(0.5rem, env(safe-area-inset-top, 0px));
 }
 
-.ui-pane {
+.ui-pane,
+.page {
   box-sizing: border-box;
   pointer-events: auto;
+}
 
-  .sidebar-close {
-    position: sticky;
-    top: 0;
-    float: right;
-    z-index: 5000;
-    cursor: pointer;
-    background: var(--bg);
-    border: none;
-    color: var(--fg);
-    font-weight: bold;
-    padding: 0.25rem 0.5rem;
-    margin: -0.5rem -0.5rem 0 0;
-  }
+// sticky top strip so the X stays put while the column scrolls
+.sidebar-chrome {
+  position: sticky;
+  top: 0;
+  z-index: 5000;
+  display: flex;
+  justify-content: flex-end;
+  background: var(--bg);
+  margin: -1rem -1rem 0.5rem;
+  padding: 0.25rem 0.5rem;
+}
+
+.sidebar-close {
+  cursor: pointer;
+  background: var(--bg);
+  border: none;
+  color: var(--fg);
+  font-weight: bold;
+  padding: 0.25rem 0.5rem;
 }
 
 .client-placeholder {

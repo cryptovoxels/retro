@@ -17,7 +17,7 @@ function kindFromFeature(type: string, field: string): Kind | null {
   if (type === 'image' || type === 'nft-image' || type === 'cube') return 'image'
   if (type === 'video') return 'video'
   if (type === 'audio') return 'audio'
-  if (type === 'vox-model' || type === 'megavox' || type === 'vox') return 'vox'
+  if (type === 'vox-model' || type === 'megavox' || type === 'ride' || type === 'vox') return 'vox'
   if (type === 'particle-system') return 'image'
   // generic url on unknown types - treat as image if looks like media
   if (field === 'url') return 'image'

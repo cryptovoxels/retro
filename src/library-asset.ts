@@ -73,6 +73,7 @@ export enum FeatureAssetType {
   VidScreen = 'vid-screen',
   Sign = 'sign',
   Megavox = 'megavox',
+  Ride = 'ride',
   SpawnPoint = 'spawn-point',
   Video = 'video',
   Portal = 'portal',

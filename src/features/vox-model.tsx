@@ -1,5 +1,5 @@
 import Config from '../../common/config'
-import { MegavoxRecord, VoxModelRecord } from '../../common/messages/feature'
+import { MegavoxRecord, RideRecord, VoxModelRecord } from '../../common/messages/feature'
 import { Options as VoxImportOptions, voxImporter } from '../../common/vox-import/vox-import'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import Panel from '../../web/src/components/panel'
@@ -20,7 +20,7 @@ const CUBESCALE_SCALE_FACTOR_RECIPROCAL_VECTOR = new BABYLON.Vector3(CUBESCALE_S
 
 const cubescaleOffset = (scale: [number, number, number]) => new BABYLON.Vector3(CUBESCALE_MULTIPLIER_X * scale[0], 0, CUBESCALE_MULTIPLIER_Y * scale[2])
 
-export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord = VoxModelRecord> extends Feature3D<Description> {
+export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord | RideRecord = VoxModelRecord> extends Feature3D<Description> {
   static Editor: typeof Editor
   static isRenderable = true
   static metadata: FeatureMetadata = {
@@ -124,7 +124,7 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     let url: string
 
     if (this.url && isURL(this.url)) {
-      url = Config.voxModelURL(this.url, this.parcel, this.type)
+      url = Config.voxModelURL(this.url, this.parcel, this.type === 'ride' ? 'megavox' : this.type)
     } else {
       url = `${process.env.ASSET_PATH}/models/vox-five.vox`
     }
@@ -313,6 +313,37 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     flipX: true,
   }
 
+  protected override _voxImportParams(): VoxImportOptions {
+    return { ...super._voxImportParams(), sizeHint: this.scale, megavox: true }
+  }
+
+  override whatIsThis() {
+    return (
+      <label>
+        A large .vox model (megavox).
+      </label>
+    )
+  }
+}
+
+Megavox.Editor = Editor
+
+export class Ride extends VoxModel<RideRecord> {
+  static isRenderable = true
+  static metadata: FeatureMetadata = {
+    title: 'Ride',
+    subtitle: 'driveable .vox (car, hover, animal)',
+    type: 'ride',
+    image: '/icons/megavox.png',
+  }
+
+  static template: FeatureTemplate = {
+    type: 'ride',
+    scale: [0.5, 0.5, 0.5],
+    url: '',
+    flipX: true,
+  }
+
   // live drive state (ephemeral) - not written to the parcel feature record every frame
   driverUuid: string | null = null
   emptySince: number | null = null
@@ -323,10 +354,10 @@ export class Megavox extends VoxModel<MegavoxRecord> {
   private driveGui: ActionGui | null = null
   private driveTrigger: FeatureTrigger | null = null
 
-  // click target above the car (like collectible try-on): walk close, tap Drive
   protected override afterGenerate() {
+    ;(this.description as any).collidable = true
     super.afterGenerate()
-    if (this.isDriveable && !this.driveTrigger) {
+    if (!this.driveTrigger) {
       this.driveTrigger = { proximityToTrigger: 7, onTrigger: () => this.showDriveGui(), onUnTrigger: () => this.hideDriveGui() }
       this.addTrigger(this.driveTrigger)
     }
@@ -334,8 +365,7 @@ export class Megavox extends VoxModel<MegavoxRecord> {
 
   private showDriveGui() {
     if (this.driveGui || !this.mesh) return
-    if (!this.isDriveable || this.driverUuid) return
-    // float over the roof, not inside the model
+    if (this.driverUuid) return
     const top = this.mesh.getBoundingInfo().boundingBox.maximumWorld.y - this.mesh.absolutePosition.y
     const gui = new ActionGui(this, { position: new BABYLON.Vector3(0, top + 0.6, 0) })
     gui.addButton('Drive', {
@@ -352,17 +382,12 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     this.driveGui = null
   }
 
-  // Needed by VoxModel.generate()
   protected override _voxImportParams(): VoxImportOptions {
     return { ...super._voxImportParams(), sizeHint: this.scale, megavox: true }
   }
 
-  get isDriveable() {
-    return !!this.description.driveable
-  }
-
   get isFlyable() {
-    return !!this.description.driveable && !!this.description.flyable
+    return !!this.description.flyable
   }
 
   get isDriven() {
@@ -372,13 +397,12 @@ export class Megavox extends VoxModel<MegavoxRecord> {
   override whatIsThis() {
     return (
       <label>
-        A large .vox model (megavox). Check <em>driveable</em> to let anyone hop in with E / Drive and cruise the island. Seated owners press <em>G</em> to adjust the seat, <em>T</em> to turn facing 90 degrees. Check <em>flyable</em> for
-        hovercrafts (Space / V to climb).
+        A rideable .vox (car, hovercraft, animal). Anyone can hop in with E / Drive. Seated owners press <em>G</em> to adjust the seat, <em>T</em> to turn facing. Check <em>flyable</em> for hover (Space / V to climb).
       </label>
     )
   }
 
-  // remotes see the avatar vehicle ghost — do not drag the lot mesh (that shears/stretches it).
+  // remotes see the avatar vehicle ghost - do not drag the lot mesh (that shears/stretches it).
   // local driver keeps the real mesh.
   setParkedVisible(visible: boolean) {
     this.parkedVisible = visible
@@ -389,7 +413,6 @@ export class Megavox extends VoxModel<MegavoxRecord> {
 
   applyDrivePose(position: [number, number, number], rotation: [number, number, number]) {
     if (!this.mesh) return
-    // stay unfrozen while posing — freeze+update was shearing the car for bystanders
     if (this.mesh.isWorldMatrixFrozen) this.mesh.unfreezeWorldMatrix()
     if (this.mesh.rotationQuaternion) this.mesh.rotationQuaternion = null
     this.mesh.position.fromArray(position)
@@ -431,11 +454,9 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     this.setParkedVisible(true)
     if (this.driveTrigger?.triggered) this.showDriveGui()
     this.broadcastDriveState()
-    // far from the lot → come back soon; nearby abandon → give them a minute
     this.scheduleEmptyRecall(this.distanceFromParkSq() > 16 * 16 ? 8_000 : EMPTY_RECALL_MS)
   }
 
-  /** true if the mesh is meaningfully away from the saved park spot */
   isAwayFromPark() {
     return this.distanceFromParkSq() > 4
   }
@@ -453,7 +474,6 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     } catch {}
     this.setParkedVisible(true)
     this.broadcastDriveState({ recall: true, position: pos, rotation: rot, driverUuid: null, emptySince: null })
-    // kick local driver if they were in this car
     const controls = window.connector?.controls as any
     if (controls?.vehicleFeature === this) controls.stopVehicle?.()
   }
@@ -471,7 +491,6 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     const c = window.connector
     if (!c) return false
     if (uuid === c.persona?.uuid) return c.controls?.vehicleFeature === this
-    // far drivers leave avatar range but keep the 120ms drive-state heartbeat - trust it
     if (Date.now() - this.lastDriveStateAt < STALE_DRIVER_MS) return true
     return c.avatarsByUuid?.has(uuid) ?? false
   }
@@ -499,10 +518,7 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     this.staleDriverTimer = setTimeout(() => {
       this.staleDriverTimer = null
       if (!this.driverUuid) return
-      // still alive (fresh heartbeat / avatar in range): keep watching, don't drop the watchdog -
-      // a snapshot on parcel load fakes a fresh heartbeat and used to strand claimed cars forever
       if (this.isDriverPresent(this.driverUuid)) return this.scheduleStaleDriverCheck()
-      // driver left the shard without releasing - unhide and snap home
       this.recallToPark()
     }, STALE_DRIVER_MS)
   }
@@ -514,9 +530,8 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     }
   }
 
-  /** stranded far from the lot, or overdue empty timer (e.g. after reload) */
   private maybeRecoverAbandoned() {
-    if (!this.isDriveable || !this.mesh) return
+    if (!this.mesh) return
     if (this.driverUuid) {
       if (!this.isDriverPresent(this.driverUuid)) this.scheduleStaleDriverCheck()
       return
@@ -546,8 +561,6 @@ export class Megavox extends VoxModel<MegavoxRecord> {
       }
       if (next) {
         this.clearEmptyRecall()
-        // watchdog stays armed while claimed. every heartbeat re-arms it (120ms cadence, never
-        // fires for a live driver); when the driver vanishes the last timer recalls the car
         this.scheduleStaleDriverCheck()
       } else if (state.emptySince) {
         this.scheduleEmptyRecall(this.isAwayFromPark() ? 8_000 : EMPTY_RECALL_MS)
@@ -558,14 +571,11 @@ export class Megavox extends VoxModel<MegavoxRecord> {
         this.applyDrivePose(state.position as [number, number, number], state.rotation as [number, number, number])
       }
     }
-    // while someone else drives, leave the lot mesh on the park spot (hidden). remotes see the avatar vehicle ghost —
-    // applying drive pose here sheared/stretched meshes for bystanders.
     this.maybeRecoverAbandoned()
   }
 
   override dispose() {
-    // unloading mid-recall kills the timer and strands the pose in shard state — snap home first
-    if (this.isDriveable && this.mesh && (!this.driverUuid || !this.isDriverPresent(this.driverUuid!)) && this.isAwayFromPark()) {
+    if (this.mesh && (!this.driverUuid || !this.isDriverPresent(this.driverUuid!)) && this.isAwayFromPark()) {
       try {
         const pos = (this.description.position as [number, number, number]) || [0, 0, 0]
         const rot = (this.description.rotation as [number, number, number]) || [0, 0, 0]
@@ -584,32 +594,26 @@ export class Megavox extends VoxModel<MegavoxRecord> {
 const EMPTY_RECALL_MS = 30_000
 const STALE_DRIVER_MS = 15_000
 
-Megavox.Editor = class MegavoxEditor extends Editor {
+Ride.Editor = class RideEditor extends Editor {
   constructor(props: FeatureEditorProps<VoxModel>) {
     super(props)
     this.state = {
       ...this.state,
-      driveable: !!(props.feature.description as any).driveable,
       flyable: !!(props.feature.description as any).flyable,
+      collidable: true,
     }
   }
 
   componentDidUpdate() {
-    const patch: any = {
+    this.merge({
       link: this.state.link,
       cubescale: this.state.cubescale,
-      collidable: this.state.collidable,
-    }
-    if (this.state.type === 'megavox') {
-      patch.driveable = !!this.state.driveable
-      patch.flyable = !!this.state.driveable && !!this.state.flyable
-      if (this.state.driveable) patch.collidable = true
-    }
-    this.merge(patch)
+      collidable: true,
+      flyable: !!this.state.flyable,
+    } as any)
   }
 
   render() {
-    const isMega = this.state.type === 'megavox'
     return (
       <section>
         <Toolbar feature={this.props.feature} scene={this.props.scene} />
@@ -629,70 +633,32 @@ Megavox.Editor = class MegavoxEditor extends Editor {
             <FeatureID feature={this.props.feature} />
             <Hyperlink feature={this.props.feature} />
 
-            {this.state.type === 'vox-model' && (
-              <>
-                <dt>scale to grid</dt>
-                <dd>
-                  <input type="checkbox" name="cubescale" onChange={(e) => this.setState({ cubescale: e.currentTarget.checked })} checked={this.state.cubescale} />
-                </dd>
-              </>
-            )}
+            <dt>flyable</dt>
+            <dd>
+              <input type="checkbox" name="flyable" checked={!!this.state.flyable} onChange={(e) => this.setState({ flyable: e.currentTarget.checked })} />
+              <small> hovercraft mode - Space / PageUp climb, V / PageDown dive.</small>
+            </dd>
+            <dd class="full">
+              <small>
+                seated? press <em>G</em> to adjust where you sit - saves for everyone. <em>T</em> flips facing.
+              </small>
+            </dd>
+            <dd class="full">
+              <button
+                type="button"
+                onClick={() => {
+                  ;(this.props.feature as any).recallToPark?.()
+                }}
+              >
+                bring back
+              </button>
+              <small> reset to the saved park spot (kicks a driver if needed).</small>
+            </dd>
 
-            {isMega && (
-              <>
-                <dt>driveable</dt>
-                <dd>
-                  <input
-                    type="checkbox"
-                    name="driveable"
-                    checked={!!this.state.driveable}
-                    onChange={(e) => {
-                      const driveable = e.currentTarget.checked
-                      this.setState({ driveable, collidable: driveable ? true : this.state.collidable, flyable: driveable ? this.state.flyable : false })
-                    }}
-                  />
-                  <small> anyone can hop in with E / Drive.</small>
-                </dd>
-                {!!this.state.driveable && (
-                  <>
-                    <dt>flyable</dt>
-                    <dd>
-                      <input type="checkbox" name="flyable" checked={!!this.state.flyable} onChange={(e) => this.setState({ flyable: e.currentTarget.checked })} />
-                      <small> hovercraft mode - Space / PageUp climb, V / PageDown dive.</small>
-                    </dd>
-                    <dd class="full">
-                      <small>
-                        seated? press <em>G</em> to adjust where you sit - saves for everyone. <em>T</em> flips facing.
-                      </small>
-                    </dd>
-                    <dd class="full">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          ;(this.props.feature as any).recallToPark?.()
-                        }}
-                      >
-                        bring back
-                      </button>
-                      <small> reset to the saved park spot (kicks a driver if needed).</small>
-                    </dd>
-                  </>
-                )}
-              </>
-            )}
-
-            <>
-              <dt>Enable Collision</dt>
-              <dd>
-                <input
-                  type="checkbox"
-                  name="collidable"
-                  disabled={isMega && !!this.state.driveable}
-                  onChange={(e) => this.setState({ collidable: e.currentTarget.checked })}
-                  checked={this.state.collidable || (isMega && !!this.state.driveable)}
-                />
-              </dd>
-            </>
+            <dt>Enable Collision</dt>
+            <dd>
+              <input type="checkbox" name="collidable" disabled checked />
+            </dd>
 
             <Behaviours feature={this.props.feature} />
           </Advanced>

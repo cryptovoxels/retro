@@ -22,7 +22,7 @@ import { VideoFxProcessor, FX_PALETTES, FX_DEFAULT_PALETTE, VIDEO_FX, type FxAud
 import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQuery, showboxHostPlayCoordsFromRecord, showboxHostPlayQuery } from '../../common/helpers/parcel-helper'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { duckRadio, setRadioBroadcasting, unduckRadio } from '../../web/src/radio/global'
-import { broadcastDockEl, broadcastLiveStartedAt, broadcastShowboxUuid, closeBroadcastSidebar, uiAsideTick, uiPane } from '../store'
+import { broadcastDockEl, broadcastLiveStartedAt, broadcastShowboxUuid, closeBroadcastSidebar, sidebarClosed, uiAsideTick, uiPane } from '../store'
 import { consumeGuestFreshFromUrl, maybeRefreshGuestJwt } from '../../common/helpers/guest-pass-client'
 import { cohostPaneRects, MAX_COHOST_PANES } from '../../common/helpers/cohost-panes'
 import { encodeCoords } from '../../common/helpers/utils'
@@ -1519,17 +1519,38 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
     this.broadcastPanelSidebar = true
     broadcastShowboxUuid.value = this.uuid
+    sidebarClosed.value = false
     uiPane.value = 'broadcast'
     uiAsideTick.value++
     this.applySidebarDockStyles(panel)
     broadcastDockEl.el = panel
+    let frames = 0
     const attach = () => {
+      if (!this.broadcastPanel || this.broadcastPanel !== panel) return
       const mount = document.getElementById('showbox-broadcast-mount')
-      if (!mount) {
-        requestAnimationFrame(attach)
+      if (mount) {
+        mount.appendChild(panel)
         return
       }
-      mount.appendChild(panel)
+      // ui=off / pane never mounted - don't spin forever, float over the world
+      if (++frames > 90) {
+        this.broadcastPanelSidebar = false
+        Object.assign(panel.style, {
+          position: 'fixed',
+          zIndex: '999999',
+          top: '12px',
+          right: '12px',
+          left: 'auto',
+          bottom: 'auto',
+          transform: 'none',
+          width: '340px',
+          maxHeight: 'calc(100vh - 24px)',
+          boxShadow: '0 4px 24px rgba(0,0,0,0.6)',
+        })
+        document.body.appendChild(panel)
+        return
+      }
+      requestAnimationFrame(attach)
     }
     attach()
   }
