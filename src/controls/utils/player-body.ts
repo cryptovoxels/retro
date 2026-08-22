@@ -9,8 +9,8 @@ const HALF = 0.6
 const DROP = (EYE - HEAD) / 2 // eye above the capsule centre, 0.75
 const BURIED = RAPIER.QueryFilterFlags.EXCLUDE_KINEMATIC | RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC | RAPIER.QueryFilterFlags.EXCLUDE_SENSORS
 
-const unchanged = (a: Vec3, b: Vec3, epsilon = 0.001) => Math.abs(a.x - b.x) < epsilon && Math.abs(a.y - b.y) < epsilon && Math.abs(a.z - b.z) < epsilon;
-const nonzero = (v: Vec3, epsilon = 0.001) => Math.abs(v.x) > epsilon || Math.abs(v.y) > epsilon || Math.abs(v.z) > epsilon;
+const unchanged = (a: Vec3, b: Vec3, epsilon = 0.001) => Math.abs(a.x - b.x) < epsilon && Math.abs(a.y - b.y) < epsilon && Math.abs(a.z - b.z) < epsilon
+const nonzero = (v: Vec3, epsilon = 0.001) => Math.abs(v.x) > epsilon || Math.abs(v.y) > epsilon || Math.abs(v.z) > epsilon
 
 // tuning, metres per second
 export const WALK = 2.78 // was defaultSpeed 0.88
@@ -51,8 +51,8 @@ export default class PlayerBody {
     this.collider = w.createCollider(RAPIER.ColliderDesc.cylinder(HALF, RADIUS), this.body)
     this.controller = w.createCharacterController(0.01)
     this.controller.enableAutostep(1, 0.1, false)
-    this.controller.setSlideEnabled(true);
-    this.controller.setMinSlopeSlideAngle(0.01);
+    this.controller.setSlideEnabled(true)
+    this.controller.setMinSlopeSlideAngle(0.01)
     // this.controller.enableSnapToGround(0.5)
     // this.controller.setMaxSlopeClimbAngle((50 * Math.PI) / 180)
     this.ready = true
@@ -84,18 +84,18 @@ export default class PlayerBody {
   }
 
   private yeet() {
-    const t = this.body.translation();
-    this.body.setTranslation({ x: t.x, y: t.y + 2, z: t.z }, true);
-    this.position.set(t.x, t.y + 2, t.z);
+    const t = this.body.translation()
+    this.body.setTranslation({ x: t.x, y: t.y + 2, z: t.z }, true)
+    this.position.set(t.x, t.y + 2, t.z)
     this.grounded = false
     this.vel = JUMP_SPEED
   }
 
-  private stuck = 0;
+  private stuck = 0
 
   /** move is unitless direction; speed is m/s; dt is seconds */
   step(move: BABYLON.Vector3, dt: number): void {
-    console.log('stuck', this.stuck);
+    console.log('stuck', this.stuck)
 
     this.scratch.copyFrom(move).scaleInPlace(this.speed * dt)
     const d = this.scratch
@@ -125,15 +125,15 @@ export default class PlayerBody {
     const next = { x: at.x + stepped.x, y: at.y + stepped.y, z: at.z + stepped.z }
 
     if (nonzero(move) && unchanged(next, this.body.translation())) {
-      this.stuck += dt;
+      this.stuck += dt
     } else {
-      this.stuck = 0;
+      this.stuck = 0
     }
 
     if (this.stuck > 0.5) {
       console.log('yeet')
       this.yeet()
-      this.stuck = 0;
+      this.stuck = 0
       return
     }
 
