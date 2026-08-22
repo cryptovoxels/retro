@@ -7,10 +7,17 @@ import { SUPPORTED_CHAINS } from '../../common/helpers/chain-helpers'
 
 import { Db } from '../pg'
 import { PassportStatic } from 'passport'
-import { requireAdmin } from '../lib/helpers'
+import { requireAdmin, isValidUUID } from '../lib/helpers'
 import { getContract } from '../lib/utils'
 import log from '../lib/logger'
 import Parcel from '../parcel'
+import { VoxelsUserRequest } from '../user'
+
+const SPACE_IMPORT_ID_MIN = 69000
+const SPACE_IMPORT_ID_MAX = 69420
+// far ocean dump spot; each free id steps east by 5 degrees (500m)
+const SPACE_IMPORT_ORIGIN: [number, number] = [40, 40]
+const SPACE_IMPORT_STEP = 5
 
 function assert(condition: any, message: string) {
   if (!condition) {
@@ -35,6 +42,7 @@ async function unmintedFromDb(db: Db, page: number) {
     `select id, address, island, x1, y1, z1, x2, y2, z2
      from properties
      where minted = false
+       and space_id is null
      order by id desc
      limit 100 offset $1`,
     [offset],
@@ -167,6 +175,122 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
     res.status(200).json({ success: true })
   })
 
+  // Mint a space onto the map as a temporary unminted parcel + island
+  app.post('/api/admin/islands/import', passport.authenticate('jwt', { session: false }), requireAdmin, async (req: VoxelsUserRequest, res) => {
+    const spaceId = typeof req.body?.space_id === 'string' ? req.body.space_id : typeof req.body?.space === 'string' ? req.body.space : null
+    if (!spaceId || !isValidUUID(spaceId)) {
+      res.status(400).json({ success: false, message: 'invalid space id' })
+      return
+    }
+
+    const wallet = req.user?.wallet
+    if (!wallet) {
+      res.status(401).json({ success: false, message: 'no wallet' })
+      return
+    }
+
+    try {
+      const existing = await db.query(
+        'sql/space-import-existing',
+        `select s.id, s.parcel_id, s.name, s.width, s.height, s.depth, s.description, s.content,
+                p.id as property_id
+         from spaces s
+         left join properties p on p.id = s.parcel_id
+         where s.id = $1`,
+        [spaceId],
+      )
+      const space = existing.rows[0]
+      if (!space) {
+        res.status(404).json({ success: false, message: 'space not found' })
+        return
+      }
+
+      if (space.parcel_id && space.property_id) {
+        res.status(200).json({ success: true, parcel_id: space.parcel_id, existing: true })
+        return
+      }
+
+      const free = await db.query(
+        'sql/space-import-free-id',
+        `select gs as id
+         from generate_series($1, $2) gs
+         where not exists (select 1 from properties where id = gs)
+         order by gs
+         limit 1`,
+        [SPACE_IMPORT_ID_MIN, SPACE_IMPORT_ID_MAX],
+      )
+      const id = free.rows[0]?.id
+      if (!id) {
+        res.status(400).json({ success: false, message: 'no free ids in 69000-69420' })
+        return
+      }
+
+      const width = Number(space.width) || 8
+      const height = Number(space.height) || 8
+      const depth = Number(space.depth) || 8
+      const slot = id - SPACE_IMPORT_ID_MIN
+      const ox = SPACE_IMPORT_ORIGIN[0] + slot * SPACE_IMPORT_STEP
+      const oz = SPACE_IMPORT_ORIGIN[1]
+      const halfW = width / 200
+      const halfD = depth / 200
+      const x1 = ox - halfW
+      const x2 = ox + halfW
+      const z1 = oz - halfD
+      const z2 = oz + halfD
+      const y1 = 0
+      const y2 = height
+
+      let islandName = (space.name && String(space.name).trim()) || `space-${id}`
+      const nameTaken = await db.query('sql/space-import-island-exists', `select 1 from islands where name = $1 limit 1`, [islandName])
+      if (nameTaken.rows[0]) islandName = `${islandName} ${id}`
+
+      const ring = [
+        [x1, z1],
+        [x1, z2],
+        [x2, z2],
+        [x2, z1],
+        [x1, z1],
+      ]
+      const geometry = { type: 'Polygon', crs: { type: 'name', properties: { name: 'EPSG:3857' } }, coordinates: [ring] }
+
+      await upsertIsland(db, islandName, geometry, {})
+      await createParcelRow(db, {
+        id,
+        address: `1 ${islandName}`,
+        owner: wallet,
+        island: islandName,
+        x1,
+        y1,
+        z1,
+        x2,
+        y2,
+        z2,
+      })
+
+      await db.query(
+        'sql/space-import-fill',
+        `update properties
+         set content = $2::json,
+             name = $3,
+             description = $4,
+             space_id = $5,
+             expires_at = now() + interval '7 days',
+             visible = true,
+             minted = false,
+             updated_at = now()
+         where id = $1`,
+        [id, JSON.stringify(space.content || {}), space.name || islandName, space.description || null, spaceId],
+      )
+
+      await db.query('sql/space-import-link', `update spaces set parcel_id = $2 where id = $1`, [spaceId, id])
+
+      res.status(200).json({ success: true, parcel_id: id, island: islandName, existing: false })
+    } catch (e: any) {
+      log.error('space import failed', { e: String(e) })
+      res.status(500).json({ success: false, message: e?.toString?.() || 'failed' })
+    }
+  })
+
   const TREASURY = '0x36F1A7f48f4e7bbda9E2d8aEEfEE639cae2604bc'
 
   app.get('/api/admin/sandboxes/suggest', cache(false), passport.authenticate('jwt', { session: false }), requireAdmin, async (_req, res) => {
@@ -260,8 +384,8 @@ async function upsertIsland(db: Db, name: string, geometry: any, content: any) {
       WITH upsert AS (
         UPDATE islands SET geometry_json = $2::jsonb, position_json = $4::jsonb, content = $3 WHERE name = $1 RETURNING *
       )
-      INSERT INTO islands (name, geometry_json, content, position_json)
-      SELECT $1, $2::jsonb, $3, $4::jsonb WHERE NOT EXISTS (SELECT 1 FROM upsert);
+      INSERT INTO islands (name, geometry_json, content, position_json, holes_geometry_json, lakes_geometry_json)
+      SELECT $1, $2::jsonb, $3, $4::jsonb, '{}'::jsonb, '{}'::jsonb WHERE NOT EXISTS (SELECT 1 FROM upsert);
     `,
     [name, geomStr, content, position_json],
   )

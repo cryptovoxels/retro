@@ -76,14 +76,6 @@ export const isCommonParcel = (parcel: Parcel | ParcelRef) => {
   return !!parcel.is_common
 }
 
-export const isTestIsland = (parcel: Parcel | ParcelRef) => {
-  if (!parcel) {
-    return false
-  }
-
-  return parcel.island === 'Test Island'
-}
-
 export const isShellParcel = (parcel: Parcel | ParcelRef) => {
   if (!parcel) {
     return false

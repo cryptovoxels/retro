@@ -262,7 +262,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   get needsMint() {
-    return this.id >= 9100
+    return this.id >= 9100 && (this.id < 69000 || this.id > 69420)
   }
 
   async requestMint() {

@@ -27,6 +27,4 @@ select properties.id,
        lower(owner) as owner
 from properties
 where lower(owner) = lower($1)
-  AND minted = true
-  and is_common <> true
 order by ID asc;

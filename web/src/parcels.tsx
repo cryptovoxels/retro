@@ -30,6 +30,8 @@ const TableRow = (props: TableRowProps) => {
     </Link>
   )
 
+  const expires = props.record.expires_at ? new Date(props.record.expires_at).toLocaleDateString() : null
+
   return (
     <tr class={props.selected ? '-selected' : ''}>
       <td>{props.record.id}</td>
@@ -45,6 +47,15 @@ const TableRow = (props: TableRowProps) => {
             {link(props.record.address ?? '')}
             <br />
             <small>{props.record.island}</small>
+          </>
+        )}
+        {props.record.space_id && (
+          <>
+            <br />
+            <small>
+              from space
+              {expires ? `, expires on ${expires}` : ''}
+            </small>
           </>
         )}
       </td>

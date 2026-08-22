@@ -33,6 +33,7 @@ export const routes: RouteDef[] = [
   { path: '/parcels/:id/:section', component: 'parcel' },
   { path: '/parcels/:id/edit', component: 'parcelEdit' },
   { path: '/spaces/:id', component: 'space', server: false },
+  { path: '/island/import', component: 'islandImport', server: false },
   { path: '/build', component: 'build' },
   { path: '/islands', component: 'islands' },
   { path: '/islands/:slug', component: 'island', server: '/islands/:id' },

@@ -500,13 +500,15 @@ CREATE TABLE public.properties (
     x2 integer,
     z1 integer,
     z2 integer,
-    bounds public.cube
+    bounds public.cube,
+    space_id uuid,
+    expires_at timestamp with time zone
 );
 CREATE MATERIALIZED VIEW public.mv_property_counts AS
  SELECT lower(owner) AS lower_owner,
     count(id) AS parcel_count
    FROM public.properties
-  WHERE ((minted = true) AND (island <> 'Test Island'::text))
+  WHERE (minted = true)
   GROUP BY (lower(owner))
   WITH NO DATA;
 CREATE TABLE public.spaces (

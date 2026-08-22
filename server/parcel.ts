@@ -4,7 +4,7 @@ import { ParcelUser } from '../common/helpers/parcel-helper'
 import { HTTP2WSBaseURL, isValidUrl } from '../common/helpers/utils'
 import { ParcelKind, ParcelRecord, ParcelSettings } from '../common/messages/parcel'
 import { getBufferFromVoxels, getFieldShape } from '../common/voxels/helpers'
-import { isCommonParcel, isSecurityTeamParcel, isTestIsland } from './lib/helpers'
+import { isSecurityTeamParcel } from './lib/helpers'
 import log from './lib/logger'
 import { getContract } from './lib/utils'
 import { ground, white } from './parcel-builder'
@@ -320,7 +320,7 @@ export abstract class AbstractParcel implements ParcelRef {
       this.minted = true
       if (!isSecurityTeamParcel(this)) this.owner = await contract.ownerOf(this.id)
     } else {
-      this.minted = isCommonParcel(this) || isTestIsland(this)
+      this.minted = false
     }
     await this.save()
     return this

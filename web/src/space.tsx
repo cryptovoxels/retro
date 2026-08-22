@@ -5,6 +5,7 @@ import { SpaceRecord } from '../../common/messages/space'
 import { avatarName } from '../../common/messages/avatar-ref'
 import Head from './components/head'
 import cachedFetch from './helpers/cached-fetch'
+import { app } from './state'
 
 function featureUrl(raw: unknown): string | null {
   if (!raw) return null
@@ -139,7 +140,7 @@ export default class Space extends Component<Props, State> {
               <button type="button" class="outline" onClick={this.downloadJson}>
                 download space
               </button>{' '}
-              <a href={`/api/spaces/${space.id}.json`}>json</a>
+              {space.parcel_id ? <a href={`/parcels/${space.parcel_id}`}>this space is now here</a> : app.isAdmin() ? <a href={`/island/import?space=${space.id}`}>add to map</a> : null} <a href={`/api/spaces/${space.id}.json`}>json</a>
             </p>
 
             <h2>content</h2>

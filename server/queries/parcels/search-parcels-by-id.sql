@@ -20,11 +20,13 @@ select properties.id as id,
        y2 - y1 as y2,
        properties.z1,
        properties.z2,
-       memoized_hash as hash
+       memoized_hash as hash,
+       properties.minted as minted,
+       properties.space_id as space_id,
+       properties.expires_at as expires_at
 from properties
          left join suburbs on suburbs.id = properties.suburb_id
-where (minted OR is_common)
-  AND (properties.id = $1 or address ILIKE '%'|| $1::text ||'%')
+where (properties.id = $1 or address ILIKE '%'|| $1::text ||'%')
 order by (CASE WHEN ($4::text = 'id' AND $5::boolean) THEN properties.id::varchar::int END) ASC,
          (CASE WHEN ($4::text = 'id' AND NOT $5::boolean) THEN properties.id::varchar::int END) DESC,
          (CASE WHEN ($4::text = 'name' AND $5::boolean) THEN properties.name::varchar END) ASC,

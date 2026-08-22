@@ -353,3 +353,21 @@ SELECT apply_migration('ghosts-table', $$
   CREATE INDEX IF NOT EXISTS ghosts_start_idx ON ghosts (start_parcel);
   CREATE INDEX IF NOT EXISTS ghosts_end_idx ON ghosts (end_parcel);
 $$);
+
+SELECT apply_migration('properties-space-import', $$
+  ALTER TABLE properties ADD COLUMN IF NOT EXISTS space_id uuid;
+  ALTER TABLE properties ADD COLUMN IF NOT EXISTS expires_at timestamptz;
+
+  -- nuke Test Island and anything hanging off its parcels
+  DELETE FROM parcel_users WHERE parcel_id IN (SELECT id FROM properties WHERE island = 'Test Island');
+  DELETE FROM property_versions WHERE parcel_id IN (SELECT id FROM properties WHERE island = 'Test Island');
+  DELETE FROM favorites WHERE token_id IN (SELECT id FROM properties WHERE island = 'Test Island');
+  DELETE FROM womps WHERE parcel_id IN (SELECT id FROM properties WHERE island = 'Test Island');
+  DELETE FROM traffic WHERE parcel_id IN (SELECT id FROM properties WHERE island = 'Test Island');
+  DELETE FROM parcel_events WHERE parcel_id IN (SELECT id FROM properties WHERE island = 'Test Island');
+  DELETE FROM island_posts WHERE island = 'Test Island' OR parcel_id IN (SELECT id FROM properties WHERE island = 'Test Island');
+  DELETE FROM guest_passes WHERE parcel_id IN (SELECT id FROM properties WHERE island = 'Test Island');
+  DELETE FROM jobs WHERE parcel_id IN (SELECT id FROM properties WHERE island = 'Test Island');
+  DELETE FROM properties WHERE island = 'Test Island';
+  DELETE FROM islands WHERE name = 'Test Island';
+$$);

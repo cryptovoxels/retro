@@ -21,8 +21,10 @@ select properties.id as id,
        y2 - y1 as y2,
        properties.z1,
        properties.z2,
-       (listed_at >= (NOW() - interval '4 days')) ::boolean as on_sale
+       (listed_at >= (NOW() - interval '4 days')) ::boolean as on_sale,
+       properties.minted as minted,
+       properties.space_id as space_id,
+       properties.expires_at as expires_at
 from properties
          left join suburbs on properties.suburb_id = suburbs.id
-where minted = true
 order by ID asc;

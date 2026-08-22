@@ -1,6 +1,6 @@
 import Avatar from './avatar'
 import ParcelUserRight from './parcel-user-right'
-import { isCommonParcel, isCVTeam, isTestIsland } from './lib/helpers'
+import { isCommonParcel, isCVTeam } from './lib/helpers'
 import db from './pg'
 import Parcel, { ParcelAuthRef, ParcelRef } from './parcel'
 import { ethers } from 'ethers'

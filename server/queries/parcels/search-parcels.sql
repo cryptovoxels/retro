@@ -21,14 +21,15 @@ select properties.id as id,
        properties.z1,
        properties.z2,
        memoized_hash as hash,
+       properties.minted as minted,
+       properties.space_id as space_id,
+       properties.expires_at as expires_at,
        count(*) OVER() AS pagination_count
 from properties
          left join
      avatars on lower(avatars.owner) = lower(properties.owner)
          left join suburbs on suburbs.id = properties.suburb_id
-where (is_common <> true)
-  and (minted = true)
-  and (
+where (
     address ILIKE $1 
   or 
     properties.island ILIKE $1 

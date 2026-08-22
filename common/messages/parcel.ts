@@ -205,31 +205,38 @@ export type ParcelRef = t.TypeOf<typeof ParcelRef>
 /**
  * Data provided in cached parcels
  */
-export const SimpleParcelRecord = t.type(
-  {
-    id: FullParcelRecord.props.id,
-    owner: FullParcelRecord.props.owner,
-    name: FullParcelRecord.props.name,
-    hash: FullParcelRecord.props.hash,
-    kind: FullParcelRecord.props.kind,
-    island: FullParcelRecord.props.island,
-    suburb: FullParcelRecord.props.suburb,
-    parcel_users: FullParcelRecord.props.parcel_users,
-    lightmap_url: FullParcelRecord.props.lightmap_url,
-    x1: FullParcelRecord.props.x1,
-    x2: FullParcelRecord.props.x2,
-    y1: FullParcelRecord.props.y1,
-    y2: FullParcelRecord.props.y2,
-    z1: FullParcelRecord.props.z1,
-    z2: FullParcelRecord.props.z2,
-    address: FullParcelRecord.props.address,
-    geometry: FullParcelRecord.props.geometry,
-    height: FullParcelRecord.props.height,
-    distance_to_center: FullParcelRecord.props.distance_to_center,
-    distance_to_ocean: FullParcelRecord.props.distance_to_ocean,
-    distance_to_closest_common: FullParcelRecord.props.distance_to_closest_common,
-    sandbox: FullParcelRecord.props.sandbox,
-  },
+export const SimpleParcelRecord = t.intersection(
+  [
+    t.type({
+      id: FullParcelRecord.props.id,
+      owner: FullParcelRecord.props.owner,
+      name: FullParcelRecord.props.name,
+      hash: FullParcelRecord.props.hash,
+      kind: FullParcelRecord.props.kind,
+      island: FullParcelRecord.props.island,
+      suburb: FullParcelRecord.props.suburb,
+      parcel_users: FullParcelRecord.props.parcel_users,
+      lightmap_url: FullParcelRecord.props.lightmap_url,
+      x1: FullParcelRecord.props.x1,
+      x2: FullParcelRecord.props.x2,
+      y1: FullParcelRecord.props.y1,
+      y2: FullParcelRecord.props.y2,
+      z1: FullParcelRecord.props.z1,
+      z2: FullParcelRecord.props.z2,
+      address: FullParcelRecord.props.address,
+      geometry: FullParcelRecord.props.geometry,
+      height: FullParcelRecord.props.height,
+      distance_to_center: FullParcelRecord.props.distance_to_center,
+      distance_to_ocean: FullParcelRecord.props.distance_to_ocean,
+      distance_to_closest_common: FullParcelRecord.props.distance_to_closest_common,
+      sandbox: FullParcelRecord.props.sandbox,
+    }),
+    t.partial({
+      minted: t.boolean,
+      space_id: t.union([t.string, t.null]),
+      expires_at: t.union([t.string, t.null]),
+    }),
+  ],
   'SimpleParcelRecord',
 )
 export type SimpleParcelRecord = t.TypeOf<typeof SimpleParcelRecord>
