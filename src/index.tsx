@@ -15,9 +15,9 @@ try {
   Object.defineProperty(window, 'localStorage', {
     value: {
       getItem: () => null,
-      setItem: () => {},
-      removeItem: () => {},
-      clear: () => {},
+      setItem: () => { },
+      removeItem: () => { },
+      clear: () => { },
       key: () => null,
       length: 0,
     },
@@ -305,8 +305,8 @@ async function main() {
 
   graphic.postProcesses = new PostProcesses(scene, color, graphic)
   if (!wantsGateway()) graphic.postProcesses.cover()
-  ;(engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
-  ;(engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
+    ; (engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
+    ; (engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
 
   // not related to a parcel or space
   const { environment } = await createEnvironment(scene, controls.worldOffset)
