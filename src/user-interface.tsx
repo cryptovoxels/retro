@@ -562,9 +562,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.featureTool.selection.feature = undefined // or X/Backspace later deletes the invisible last selection
     this.setTool(this.defaultTool)
     uiPane.value = undefined
+    // a live broadcast re-homes the pane (store effect); drop to the live tab, don't desync state
+    if (uiPane.value === 'broadcast') sidebarClosed.value = true
     if (parcelId != null) exitAuthoring(parcelId)
     uiAsideTick.value++
-    this.setState({ editor: undefined, feature: undefined, pane: undefined, publishAsset: undefined })
+    this.setState({ editor: undefined, feature: undefined, pane: uiPane.value as UIPanes | undefined, publishAsset: undefined })
     // controls path avoids focus-before-lock (steals the gesture) and eats the post-unlock cooldown rejection
     const controls = this.connector.controls as any
     controls?.requestPointerLock ? controls.requestPointerLock()?.catch?.(() => {}) : requestPointerLock()
@@ -578,7 +580,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     requestPointerLock()
 
     uiPane.value = undefined
-    this.setState({ pane: undefined })
+    if (uiPane.value === 'broadcast') sidebarClosed.value = true
+    this.setState({ pane: uiPane.value as UIPanes | undefined })
   }
 
   disable() {
@@ -853,7 +856,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   hide() {
     uiPane.value = undefined
-    this.setState({ pane: undefined })
+    if (uiPane.value === 'broadcast') sidebarClosed.value = true
+    this.setState({ pane: uiPane.value as UIPanes | undefined })
   }
 
   highlightFeature(feature: Feature) {
