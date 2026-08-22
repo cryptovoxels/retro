@@ -1,8 +1,7 @@
 import { Request, Response } from 'express'
 import { ChainIdentifier, getChainIdByName, SUPPORTED_CHAINS } from '../../common/helpers/chain-helpers'
 import cache from '../cache'
-import { createRequestHandlerForQuery, queryAndCallback } from '../lib/query-helpers'
-import { parseQueryInt } from '../lib/query-parsing-helpers'
+import { createRequestHandlerForQuery } from '../lib/query-helpers'
 import { Db } from '../pg'
 
 export default function (db: Db, passport: any, app: any) {
@@ -103,110 +102,4 @@ export default function (db: Db, passport: any, app: any) {
     cache('60 seconds'),
     createRequestHandlerForQuery(db, 'collectibles/get-wearable-by-uuid', 'wearable', (req) => [req.params.uuid]),
   )
-  //Collection submissions
-
-  app.post('/api/collections/collectibles/review.json', passport.authenticate('jwt', { session: false }), async (req: Request, res: Response) => {
-    const limit = parseQueryInt(req.query.limit, 50)
-
-    let q = await db.query(
-      'embedded/count-collectibles-by-collection',
-      `
-        select count(id) as total from wearables w where w.token_id is null and suppressed = false and w.collection_id = $1
-        `,
-      [req.body.collection_id],
-    )
-
-    const r = !!q.rows && q.rows[0]
-
-    if (!r) {
-      res.status(200).send({ success: false })
-      return
-    }
-
-    if (!r.total) {
-      res.status(200).send({ success: true, collectibles: [], total: 0 })
-      return
-    }
-
-    q = await db.query(
-      'embedded/get-wearables-by-collection-paged',
-      `
-    select
-      w.*,
-      COALESCE(
-        (SELECT row_to_json(sub) FROM (SELECT a.id, a.name, a.owner, a.created_at FROM avatars a WHERE lower(a.owner) = lower(w.author) LIMIT 1) sub),
-        to_json(w.author)
-      ) as author
-    from
-      wearables w
-    where
-      w.token_id is null and suppressed = false and w.collection_id = $1
-      limit
-      $2
-      offset
-      coalesce(($2::integer * $3::integer),0);
-    `,
-      [req.body.collection_id, limit, parseQueryInt(req.query.page, 0)],
-    )
-    const response = !!q.rows && (q.rows as any[])
-
-    if (!response) {
-      res.status(200).send({ success: false })
-      return
-    }
-
-    res.status(200).send({ success: true, collectibles: response, total: r.total })
-  })
-
-  app.post('/api/collections/collectibles/review/:wallet.json', passport.authenticate('jwt', { session: false }), async (req: Request, res: Response) => {
-    const limit = parseQueryInt(req.query.limit, 50)
-
-    let q = await db.query(
-      'embedded/get-collectibles-by-wallet',
-      `
-        select count(id) as total from wearables w where w.token_id is null and suppressed = false and w.collection_id = $1 and lower(w.author) = lower($2);
-        `,
-      [req.body.collection_id, req.params.wallet],
-    )
-
-    const r = !!q.rows && q.rows[0]
-
-    if (!r) {
-      res.status(200).send({ success: false })
-      return
-    }
-
-    if (!r.total) {
-      res.status(200).send({ success: true, collectibles: [], total: 0 })
-      return
-    }
-
-    q = await db.query(
-      'embedded/get-wearables-by-wallet-2',
-      `
-    select
-      w.*,
-      COALESCE(
-        (SELECT row_to_json(sub) FROM (SELECT a.id, a.name, a.owner, a.created_at FROM avatars a WHERE lower(a.owner) = lower(w.author) LIMIT 1) sub),
-        to_json(w.author)
-      ) as author
-    from
-      wearables w
-    where
-      w.token_id is null and suppressed = false and w.collection_id = $1 and lower(w.author) = lower($2)
-      limit
-      $3
-      offset
-      coalesce(($3::integer * $4::integer),0);
-    `,
-      [req.body.collection_id, req.params.wallet, limit, parseQueryInt(req.query.page, 0)],
-    )
-    const response = !!q.rows && q.rows
-
-    if (!response) {
-      res.status(200).send({ success: false })
-      return
-    }
-    res.status(200).send({ success: true, collectibles: response, total: r.total })
-  })
 }

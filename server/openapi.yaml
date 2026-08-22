@@ -4,10 +4,11 @@ info:
   title: Voxels public read API
   version: '1.0.0'
   description: |
-    The read-only part of the Voxels API. Everything here is unauthenticated GET.
+    The public Voxels API. Most of this is unauthenticated GET.
 
-    Write routes, sign-in, admin, moderation, livekit, radio, metrics, guest
-    passes and the internal /grid/* routes are deliberately not described.
+    Write routes for collection create / deploy / mint writeback are documented
+    here. Sign-in, admin, moderation, livekit, radio, metrics, guest passes and
+    the internal /grid/* routes are deliberately not described.
 
     Most handlers answer with an envelope: `{"success": true, "<field>": ...}`,
     where `<field>` is plural for a list and singular for one record. A failed
@@ -875,8 +876,11 @@ paths:
     get:
       operationId: getAvatarAssets
       tags: [avatars]
-      summary: Wearables this wallet authored
-      description: Minted and unsuppressed only. Authorship, not ownership.
+      summary: Wearables this wallet can wear or authored
+      description: |
+        Merge of (1) Alchemy holdings on known collection contracts,
+        (2) `is_free` wearables, (3) wearables this wallet authored including
+        unminted drafts. Dedupe by collection_id + token_id (drafts by uuid).
       parameters:
         - $ref: '#/components/parameters/Wallet'
       responses:
@@ -1325,6 +1329,39 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Collection'
+    post:
+      operationId: createCollection
+      tags: [collections]
+      summary: Create a collection (parcel owners only)
+      description: |
+        JWT required. Caller must own a minted parcel. Creates an undeployed
+        Polygon ERC1155 collection row (`chainid` 137, `address` null).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  collection_id:
+                    type: integer
+        '403':
+          $ref: '#/components/responses/Failure'
 
   /api/collections/{id}:
     get:
@@ -1350,6 +1387,127 @@ paths:
                   collection:
                     $ref: '#/components/schemas/Collection'
         '400':
+          $ref: '#/components/responses/Failure'
+    put:
+      operationId: updateCollection
+      tags: [collections]
+      summary: Edit collection name and description
+      description: JWT required. Collection owner only. Name and description only.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                description:
+                  type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '403':
+          $ref: '#/components/responses/Failure'
+
+  /api/collections/{id}/deployed:
+    post:
+      operationId: stampCollectionDeployed
+      tags: [collections]
+      summary: Stamp the on-chain contract address after MetaMask deploy
+      description: |
+        JWT required. Collection owner only. `address` must still be null.
+        Called after `launchCollection` on the Polygon factory succeeds.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [address]
+              properties:
+                address:
+                  type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  address:
+                    type: string
+        '403':
+          $ref: '#/components/responses/Failure'
+
+  /api/wearables/{uuid}/minted:
+    post:
+      operationId: stampWearableMinted
+      tags: [wearables]
+      summary: Stamp token_id after MetaMask mint
+      description: |
+        JWT required. Wearable author or collection owner. Wearable must still
+        have null `token_id` and its collection must have an address. `issues`
+        is the edition count from the form (1-9). No on-chain verify in v1.
+      parameters:
+        - name: uuid
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token_id, issues]
+              properties:
+                token_id:
+                  type: integer
+                issues:
+                  type: integer
+                  minimum: 1
+                  maximum: 9
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  token_id:
+                    type: integer
+                  issues:
+                    type: integer
+        '403':
           $ref: '#/components/responses/Failure'
 
   /api/collections/{id}/collectibles:

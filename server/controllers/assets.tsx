@@ -18,7 +18,6 @@ import log from '../lib/logger'
 import { createRequestHandlerForQuery, queryAndCallback } from '../lib/query-helpers'
 import { parseQueryInt } from '../lib/query-parsing-helpers'
 import LibraryAsset from '../library-asset'
-import Collection from '../collection'
 import { Db, pgp } from '../pg'
 import { VoxelsUserRequest } from '../user'
 import Wearable, { WearableCategory } from '../wearable'
@@ -163,12 +162,17 @@ export default function AssetLibraryController(db: Db, passport: PassportStatic,
     let wearable: any
 
     if (ext === '.vox' && collectionId) {
+      const owned = await db.query('sql/owns-collection', `select id from collections where id=$1 and lower(owner)=lower($2) limit 1`, [collectionId, wallet])
+      if (!owned.rows[0]) {
+        res.status(403).json({ success: false, error: 'Not collection owner' })
+        return
+      }
+
       const baseName = path.basename(req.file.originalname, ext)
       const w = new Wearable({
         name: baseName || req.file.originalname,
         description: '',
         author: wallet,
-        issues: 100000,
         data: new Uint8Array(req.file.buffer),
         collection_id: collectionId,
         category: WearableCategory.Accessory,
@@ -181,8 +185,9 @@ export default function AssetLibraryController(db: Db, passport: PassportStatic,
         return
       }
 
-      if (wr.success) {
-        await w.generateTokenId()
+      if (!wr.success) {
+        res.status(400).json({ success: false, error: wr.message || 'Could not create wearable' })
+        return
       }
 
       wearable = {

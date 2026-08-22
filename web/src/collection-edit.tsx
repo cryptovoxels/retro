@@ -2,6 +2,7 @@ import { useEffect, useState } from 'preact/hooks'
 import { route } from 'preact-router'
 import { Login } from './auth/login'
 import { app } from './state'
+import { fetchOptions } from './utils'
 
 interface Props {
   path?: string
@@ -13,6 +14,7 @@ export default function CollectionEdit(props: Props) {
 
   const [col, setCol] = useState<any>(null)
   const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     fetch(`/api/collections/${props.id}`)
@@ -22,14 +24,20 @@ export default function CollectionEdit(props: Props) {
 
   async function submit(e: Event) {
     e.preventDefault()
+    if (!col?.name?.trim()) return
     setSaving(true)
-    await fetch(`/api/collections/${props.id}`, {
+    setError(null)
+    const r = await fetch(`/api/collections/${props.id}`, {
+      ...fetchOptions(),
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify(col),
-    })
+      body: JSON.stringify({ name: col.name.trim(), description: col.description || '' }),
+    }).then((x) => x.json())
     setSaving(false)
+    if (!r.success) {
+      setError(r.message || 'Error')
+      return
+    }
     route(`/collections/${props.id}`)
   }
 
@@ -38,6 +46,11 @@ export default function CollectionEdit(props: Props) {
   }
 
   if (!col) return <p>Loading...</p>
+
+  const isOwner = col.owner?.toLowerCase() === app.wallet?.toLowerCase()
+  if (!isOwner && !app.isAdmin()) {
+    return <p>not the owner</p>
+  }
 
   return (
     <section class="columns">
@@ -50,18 +63,18 @@ export default function CollectionEdit(props: Props) {
         <form onSubmit={submit}>
           <div class="f">
             <label>Name</label>
-            <input type="text" value={col.name} onInput={(e: any) => set('name', e.target.value)} />
+            <input type="text" value={col.name || ''} onInput={(e: any) => set('name', e.target.value)} />
           </div>
           <div class="f">
             <label>Description</label>
-            <textarea value={col.description} onInput={(e: any) => set('description', e.target.value)} rows={5} />
+            <textarea value={col.description || ''} onInput={(e: any) => set('description', e.target.value)} rows={5} />
           </div>
-          <button type="submit" disabled={saving}>
+          {error && <p>{error}</p>}
+          <button type="submit" disabled={saving || !col.name?.trim()}>
             {saving ? 'Saving...' : 'Save'}
           </button>
         </form>
       </article>
-      <aside>{/* <button onClick={onDelete}>Delete</button> */}</aside>
     </section>
   )
 }

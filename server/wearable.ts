@@ -59,23 +59,6 @@ export default class Wearable extends Collectible {
   }
 
   /**
-   * Mark an off-chain wearable as "accepted" or "fake minted"
-   */
-  async generateTokenId(): Promise<{ success: boolean; token_id?: number; message?: string }> {
-    const r = await db.query(
-      'embedded/update-off-chain-wearable-token',
-      `
-      with new_id as (
-        select coalesce(max(token_id),0)+1 as value from wearables where collection_id = $2 and token_id is not null
-      )
-      update wearables set token_id=new_id.value, updated_at=now() from new_id where id=$1 returning token_id`,
-      [this.id, this.collection_id],
-    )
-    const token_id = r.rows && r.rows[0].token_id
-    this.token_id = token_id
-    return { success: !!token_id, token_id, ...(!token_id && { message: '❌ Something went wrong while saving your collectible.' }) }
-  }
-  /**
    * Set rejected_at of a wearable given collection_id and id (uuid)
    */
   async setCustomAttributes() {

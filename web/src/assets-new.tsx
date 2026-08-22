@@ -8,7 +8,7 @@ export default function AssetsNew({ path }: { path?: string }) {
     <section>
       <hgroup>
         <h1>Upload Asset</h1>
-        <p>Drop .vox files here. Two or more files also open a new collection with wearables.</p>
+        <p>Drop .vox files here. To mint wearables, create a collection first.</p>
       </hgroup>
 
       <article>
