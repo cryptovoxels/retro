@@ -7,7 +7,6 @@ CREATE TABLE IF NOT EXISTS parcels (
   name         TEXT,
   address      TEXT,
   island       TEXT,
-  lightmap_url TEXT,
   content      TEXT NOT NULL,
   done         INTEGER NOT NULL DEFAULT 0
 );

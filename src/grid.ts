@@ -7,16 +7,15 @@ import Cookies from 'js-cookie'
 import { SocketClient } from './utils/socket-client'
 import { displaySuspendedMessage } from './ui/suspended-message'
 import ndarray, { type NdArray } from 'ndarray'
-import { GridClientMessage, GridMessage, LightMapUpdateMessage, ParcelAuthMessage, ParcelMetaMessage, ParcelScriptMessage, PatchErrorMessage, PatchMessage, PatchStateMessage, SuspendedMessage } from '../common/messages/grid'
+import { GridClientMessage, GridMessage, ParcelAuthMessage, ParcelMetaMessage, ParcelScriptMessage, PatchErrorMessage, PatchMessage, PatchStateMessage, SuspendedMessage } from '../common/messages/grid'
 import { createMessageHandler } from '../common/helpers/comlink-worker'
 import { GridWorkerAPI, GridWorkerOutput, GridWorkerParcelLoaded, GridWorkerParcelUnloaded, GridWorkerQueryResponse } from './mono'
 import { getGridMono } from './mono-pool'
 import { app, AppEvent } from '../web/src/state'
-import { LightmapStatus, ParcelPatch, ParcelRecord } from '../common/messages/parcel'
+import { ParcelPatch, ParcelRecord } from '../common/messages/parcel'
 import { GraphicLevels } from './graphic/graphic-engine'
 import { PanelType } from '../web/src/components/panel'
 import { DeferredPromise } from 'p-defer'
-import { ParcelMesher } from './parcel-mesher'
 import { Environment } from './enviroments/environment'
 import { TypedEvent } from './utils/EventEmitter'
 import { ParcelEventMap } from './utils/parcel-event-map'
@@ -72,7 +71,6 @@ export default class Grid extends SocketClient {
   public parcel_events = new TypedEventTarget<{ parcel_entered: Parcel['id']; parcel_exited: Parcel['id'] }>()
   private readonly scene: BABYLON.Scene
   protected readonly environment: Environment
-  static mesher: ParcelMesher
   private lastParcelScanAt?: number
   private nearestParcels: Array<Parcel> = []
   //@todo: refactor the whole system to be more consistent btw onEnter,onNearby,onExit
@@ -90,17 +88,10 @@ export default class Grid extends SocketClient {
   private intervals: number[] = []
   private _queryJobs = new Map<number, DeferredPromise<number[]>>()
   private _nextQueryId = 0
-  private mesherInitPromise: Promise<void> | undefined = undefined
 
   constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, environment: Environment) {
     super('grid', () => getGridUrl())
     this.scene = scene
-
-    if (!Grid.mesher) {
-      Grid.mesher = new ParcelMesher(scene)
-      this.mesherInitPromise = Grid.mesher.initialize()
-    }
-    // this.mesher = mesher
     this.parent = parent
     this.environment = environment
 
@@ -117,13 +108,11 @@ export default class Grid extends SocketClient {
     }
 
     this.isolateMode = wantsIsolate()
-    // listen for graphics level changes, and regen baked parcels on change
+    // listen for graphics level changes
     window.graphic?.addEventListener(
       'settingsChanged',
       throttle(
         async () => {
-          // graphics levels have changed, so we need to refresh all baked parcels
-          // prioritising the current parcel
           const current = this.currentOrNearestParcel()
 
           current?.generate()
@@ -284,7 +273,7 @@ export default class Grid extends SocketClient {
     if (existing) {
       return undefined
     }
-    const p = new Parcel(this.scene, parent, description, grid, Grid.mesher, isFastboot, fieldBuffer)
+    const p = new Parcel(this.scene, parent, description, grid, isFastboot, fieldBuffer)
     p.addEventListener('MeshLoaded', this.parcelLoaded, { passive: true })
     p.addEventListener('MeshUnloading', this.parcelUnloaded, { passive: true })
     this.parcels.set(p.id, p)
@@ -326,8 +315,6 @@ export default class Grid extends SocketClient {
   }
 
   public async loadFastbootFromHTML() {
-    if (this.mesherInitPromise) await this.mesherInitPromise
-
     const el = document.querySelector('script#parcel')
     if (!el) return
 
@@ -613,9 +600,6 @@ export default class Grid extends SocketClient {
       case 'patch-state':
         this.handleStatePatch(message)
         break
-      case 'lightmap-status':
-        this.handleParcelLightmapStatus(message)
-        break
       case 'suspended':
         this.handleSuspended(message)
         break
@@ -717,19 +701,6 @@ export default class Grid extends SocketClient {
     void message
   }
 
-  private handleParcelLightmapStatus(message: LightMapUpdateMessage) {
-    this.withParcel(message.parcelId, (parcel) => {
-      this.updateParcelLightmapStatus(parcel, message.lightmap_url)
-    })
-  }
-
-  updateParcelLightmapStatus(parcel: Parcel, lightmap_url: string | null) {
-    parcel.lightmapUpdateObservable.notifyObservers(lightmap_url)
-    if (lightmap_url === null) {
-      parcel.lightmap_url = null
-      parcel.generateVoxelField() // regenerate voxel field to clear lightmap UVs
-    }
-  }
   private handleSuspended(message: SuspendedMessage) {
     // squeeze interface toggle here
     displaySuspendedMessage(message)

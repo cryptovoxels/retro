@@ -1,4 +1,4 @@
-import { LightMapUpdateMessage, PatchMessage, PatchStateMessage } from '../../../common/messages/grid'
+import { PatchMessage, PatchStateMessage } from '../../../common/messages/grid'
 import log from '../../lib/logger'
 import db from '../../pg'
 import { GridClusterListener, GridClusterMessage, GridClusterMessageBroker } from '../GridClusterMessageBroker'
@@ -6,7 +6,7 @@ import { GridClusterListener, GridClusterMessage, GridClusterMessageBroker } fro
 const PATCH_CHANNEL = 'patch'
 type PatchChannelPayload = {
   sender: string | null
-  msg: LightMapUpdateMessage | PatchStateMessage | PatchMessage
+  msg: PatchStateMessage | PatchMessage
 }
 
 const META_UPDATE_CHANNEL = 'broadcastmeta'
@@ -103,15 +103,6 @@ export function mapToPgNotificationArgs(message: GridClusterMessage): [channelNa
           patch: message.payload.patch,
         },
       })
-    case 'lightmapUpdate':
-      return createPatchNotificationArgs({
-        sender: null,
-        msg: {
-          type: 'lightmap-status',
-          parcelId: message.payload.parcelId,
-          lightmap_url: message.payload.lightmap_url,
-        },
-      })
     case 'metaUpdate':
       return createMetaUpdateNotificationArgs({
         id: message.payload.parcelId,
@@ -144,14 +135,6 @@ export function mapFromPgNotificationArgs(channel: ChannelName, payload: unknown
               parcelId: p.msg.parcelId,
               patch: p.msg.patch,
               sender: p.sender!,
-            },
-          }
-        case 'lightmap-status':
-          return {
-            type: 'lightmapUpdate',
-            payload: {
-              parcelId: p.msg.parcelId,
-              lightmap_url: p.msg.lightmap_url,
             },
           }
       }

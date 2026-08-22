@@ -70,7 +70,6 @@ import { SidebarClose } from '../web/src/sidebar-close'
 import { WompOverlay } from './ui/interact/womps'
 import MobileButtons from './ui/mobile/buttons'
 import OpenLink from './ui/open-link'
-import Baking from './ui/overlay/baking'
 import { BuildTab } from './ui/overlay/build-tab/build-tab'
 import DebugTools from './ui/overlay/debug-tools'
 import EditPane from './ui/overlay/edit-pane'
@@ -117,7 +116,7 @@ export enum Mode {
   Avatar,
 }
 
-export type UIPanes = 'add' | 'edit' | 'voxels' | 'debugTool' | 'nfts' | 'chat' | 'dance' | 'emote' | 'yeet' | 'settings' | 'womp' | 'takeWomp' | 'help' | 'login' | 'parcelSnapshots' | 'bake' | 'broadcast'
+export type UIPanes = 'add' | 'edit' | 'voxels' | 'debugTool' | 'nfts' | 'chat' | 'dance' | 'emote' | 'yeet' | 'settings' | 'womp' | 'takeWomp' | 'help' | 'login' | 'parcelSnapshots' | 'broadcast'
 
 export interface Tool {
   activate: () => void
@@ -590,12 +589,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.setState({ enabled: false })
   }
 
-  toggleRealism() {
-    const g = window.graphic.getSettings()
-    g.realisticLighting = !g.realisticLighting
-    window.graphic.setSettings(g)
-  }
-
   addKeyboardHandlers() {
     // TODO: handle babylon input selected
 
@@ -627,7 +620,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         },
         { code: 'Backspace', handleEvent: () => this.deleteFeature() },
         { code: 'KeyM', handleEvent: () => this.editFeatureThenMove() },
-        { code: 'KeyR', handleEvent: () => this.toggleRealism() },
         { code: 'KeyP', handleEvent: () => this.takeWomp(this.props.scene) },
         { code: 'KeyI', handleEvent: () => this.activateInspectorIfHasLock() },
         { code: 'KeyF', handleEvent: () => this.connector.controls.toggleFlying() },
@@ -1012,8 +1004,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       }
       case 'help':
         return <HelpOverlay scene={this.props.scene} onShowSandboxGuide={wantsSandboxGuide() ? this.openSandboxGuide : undefined} />
-      case 'bake':
-        return <Baking parcel={nearestEditableParcel!} />
       case 'broadcast':
         return <ShowboxBroadcastPane />
       default:
@@ -1172,12 +1162,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   <li class={active('voxels')}>
                     <a href="#voxels" onMouseOver={onHover('voxels')} onClick={onClick('voxels')}>
                       Voxels
-                    </a>
-                  </li>
-
-                  <li class={active('bake')}>
-                    <a href="#bake" onMouseOver={onHover('bake')} accessKey="b" onClick={onClick('bake')}>
-                      <kbd>B</kbd>ake
                     </a>
                   </li>
                 </>

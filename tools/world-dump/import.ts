@@ -12,8 +12,8 @@ export async function importNdjson(db: DatabaseSync, ndjsonPath: string): Promis
 
   const e = env()
   const insertParcel = db.prepare(`
-    INSERT OR IGNORE INTO parcels (id, name, address, island, lightmap_url, content, done)
-    VALUES (?, ?, ?, ?, ?, ?, 0)
+    INSERT OR IGNORE INTO parcels (id, name, address, island, content, done)
+    VALUES (?, ?, ?, ?, ?, 0)
   `)
   const insertAsset = db.prepare(`
     INSERT OR IGNORE INTO assets (parcel_id, field, kind, raw_url, url, status)
@@ -62,7 +62,7 @@ export async function importNdjson(db: DatabaseSync, ndjsonPath: string): Promis
       }
     }
     const content = JSON.stringify(contentObj)
-    insertParcel.run(parcel.id, parcel.name ?? null, parcel.address ?? null, parcel.island ?? null, parcel.lightmap_url ?? null, content)
+    insertParcel.run(parcel.id, parcel.name ?? null, parcel.address ?? null, parcel.island ?? null, content)
     parcels++
 
     const refs = extractAssets({ ...parcel, content: contentObj }, e)

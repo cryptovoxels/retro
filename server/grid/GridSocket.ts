@@ -6,7 +6,7 @@ import { GridClientMessage } from '../../common/messages/grid'
 import Avatar from '../avatar'
 import authParcelFn from '../auth-parcel'
 import { named } from '../lib/logger'
-import Parcel, { AbstractParcel, LightmapStatus, ParcelAuthRef } from '../parcel'
+import Parcel, { ParcelAuthRef } from '../parcel'
 import { VoxelsUser } from '../user'
 import { GridClient } from './GridClient'
 import { GridClusterMessage, GridClusterMessageBroker } from './GridClusterMessageBroker'
@@ -48,8 +48,6 @@ export default class GridSocket {
       (p, f) => this.worldGetFeature(p, f),
       (id) => this.worldGetState(id),
       (m) => this.worldPublishShardMessage(m),
-      GridSocket.noopLightmap,
-      GridSocket.noopLightmap,
       (p, u) => this.worldAuthParcel(p, u),
     )
 
@@ -149,8 +147,6 @@ export default class GridSocket {
     }, 2000)
   }
 
-  private static async noopLightmap(_parcelId: number): Promise<void> {}
-
   private worldGetParcel(parcelId: number) {
     return Parcel.loadRef(parcelId)
   }
@@ -203,8 +199,6 @@ export default class GridSocket {
   removeClientsByWallet(wallet: string) {
     this.worldGridShard.removeClientsByWallet(wallet)
   }
-
-  async updateAndSendLightmapStatus(_spaceId: string | null, _parcel: AbstractParcel, _status: LightmapStatus): Promise<void> {}
 }
 
 function tryParse(data: string): GridClientMessage | null {

@@ -51,10 +51,6 @@ export function extractAssets(parcel: any, e: Env = env()): AssetRef[] {
     })
   }
 
-  if (parcel.lightmap_url) {
-    add('lightmap_url', 'lightmap', parcel.lightmap_url)
-  }
-
   const content = typeof parcel.content === 'string' ? JSON.parse(parcel.content) : parcel.content
   if (!content) return out
 

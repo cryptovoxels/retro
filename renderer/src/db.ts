@@ -35,7 +35,7 @@ export async function loadParcelRecord(id: number): Promise<Record<string, unkno
   const r = await pool.query(
     `select id, name, label, address, description, kind, island, suburb_id,
             x1, x2, y1, y2, z1, z2, geometry_json as geometry,
-            lightmap_url, content, settings, sandbox, is_common, visible,
+            content, settings, sandbox, is_common, visible,
             (select name from suburbs where suburbs.id = properties.suburb_id) as suburb
      from properties where id = $1 limit 1`,
     [id],

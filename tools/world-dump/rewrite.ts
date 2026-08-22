@@ -2,13 +2,8 @@ import type { DatabaseSync } from 'node:sqlite'
 import { Kind, env, Env, ResolveOpts } from './resolve'
 import { buildTryUrls } from './try-urls'
 
-/** Patch a parcel field path like content.features[2].url or lightmap_url */
+/** Patch a parcel field path like content.features[2].url */
 export function patchField(parcel: any, field: string, value: string): void {
-  if (field === 'lightmap_url') {
-    parcel.lightmap_url = value
-    return
-  }
-
   if (field === 'content.tileset') {
     if (!parcel.content) parcel.content = {}
     if (typeof parcel.content === 'string') parcel.content = JSON.parse(parcel.content)
@@ -31,11 +26,10 @@ export function patchField(parcel: any, field: string, value: string): void {
 }
 
 export function rewriteParcelAsset(db: DatabaseSync, parcelId: number, field: string, hash: string): void {
-  const row = db.prepare('SELECT lightmap_url, content FROM parcels WHERE id = ?').get(parcelId) as { lightmap_url: string | null; content: string } | undefined
+  const row = db.prepare('SELECT content FROM parcels WHERE id = ?').get(parcelId) as { content: string } | undefined
   if (!row) return
 
   const parcel: any = {
-    lightmap_url: row.lightmap_url,
     content: JSON.parse(row.content),
   }
 
@@ -43,9 +37,8 @@ export function rewriteParcelAsset(db: DatabaseSync, parcelId: number, field: st
   patchField(parcel, field, voxelsUrl)
 
   const contentStr = JSON.stringify(parcel.content)
-  const lightmap = field === 'lightmap_url' ? voxelsUrl : parcel.lightmap_url
 
-  db.prepare('UPDATE parcels SET content = ?, lightmap_url = ? WHERE id = ?').run(contentStr, lightmap, parcelId)
+  db.prepare('UPDATE parcels SET content = ? WHERE id = ?').run(contentStr, parcelId)
 }
 
 export function markParcelDoneIfReady(db: DatabaseSync, parcelId: number): void {

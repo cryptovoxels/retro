@@ -24,19 +24,16 @@ import Feature from './features/feature'
 import type Grid from './grid'
 import { isShared } from './materials'
 import ParcelBudget from './parcel-budget'
-import { ParcelMesher } from './parcel-mesher'
 import LuaBehaviours from './lua/behaviours'
 import { FeaturePump } from './pump/feature-pump'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
 import { tidyVec3 } from './utils/helpers'
 import { ParcelEventMap } from './utils/parcel-event-map'
-import { GLASS_MAX_VIEW_DISTANCE } from './voxel-field'
 import { Action } from '../common/messages'
 import { addVoxels, removeCollider } from './physics/world'
 import { voxelCollider } from './monoworker/physics'
 
 const isTest = process.env.NODE_ENV === 'test'
-export const UNBAKED = '/textures/03-white-square.png'
 
 const NEARBY = isTest ? 92 : 64
 
@@ -78,7 +75,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   content: Partial<ParcelRecord> = {}
   readonly parentNode: BABYLON.TransformNode
   readonly budget: ParcelBudget
-  readonly lightmapUpdateObservable: BABYLON.Observable<string | null> = new BABYLON.Observable()
   socketAuth: string | undefined
   label: string | undefined
   featuresActive?: boolean // Are features active for this parcel? IE are we displaying features? May be in generation.
@@ -102,7 +98,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   readonly hardFeatureBounds: BABYLON.BoundingBox // Bounding box beyond the parcel bounds. Max distance from parcel bounds that a feature can be moved to.
   readonly exteriorBounds: BABYLON.BoundingBox
   public readonly grid: Grid
-  private readonly mesher: ParcelMesher
   private regeneratingFeatures = false
   private colliderVoxels: Int32Array | null = null
   private physicsRegistered = false
@@ -118,10 +113,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   preview = false
   private entered = false
   autobuilt = false
-  private bakeEventSource: EventSource | null = null
   tilesetTexture: BABYLON.Texture | null = null
-
-  lightmap_url: string | null = null
 
   get areFeaturesLoaded() {
     return this.featuresLoaded
@@ -134,7 +126,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       spaceId?: string
     },
     grid: Grid,
-    mesher?: ParcelMesher,
     isFastboot = false,
     precomputedField?: NdArray<Uint16Array>,
   ) {
@@ -145,14 +136,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
     this.parentNode = parent
     this.grid = grid
-
-    if (mesher) {
-      this.mesher = mesher
-    } else {
-      this.mesher = new ParcelMesher(scene)
-      // Initialize but don't block constructor - generation will check if ready
-      this.mesher.initialize().catch((err) => console.error('Failed to initialize parcel mesher:', err))
-    }
     this.isFastboot = isFastboot
 
     this.id = record.id
@@ -169,7 +152,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.palette = record.palette || undefined
     this.brightness = record.brightness || 1
     this.features = record.features || []
-    this.lightmap_url = record.lightmap_url || null
     this.parcel_users = record.parcel_users || []
     this.voxels = record.voxels
     this.geometry = record.geometry
@@ -514,134 +496,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     Object.assign(this.summary, { features })
   }
 
-  get isBaked() {
-    return this.lightmap_url != null && this.lightmap_url != UNBAKED
-  }
-
-  async requestBake(logger?: (message: string) => void) {
-    const BAKER_URL = 'https://bake.voxels.com'
-
-    if (!this.canEdit) {
-      logger?.('You cannot bake this parcel')
-      return
-    }
-
-    this.updateLightmapUrl(null)
-
-    this.generateVoxelField()
-
-    await this.summarize()
-
-    // logger('Summary generated...')
-
-    const parcel = this.summary
-
-    try {
-      // Start the baking process and get SSE stream
-      const response = await fetch(`${BAKER_URL}/bake/${this.id}/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Accept: 'text/event-stream',
-        },
-        body: JSON.stringify({ parcel }),
-      })
-
-      if (!response.ok) {
-        logger?.('Failed to start bake')
-        return
-      }
-
-      // Check if the response is actually an SSE stream
-      const contentType = response.headers.get('content-type')
-      if (!contentType || !contentType.includes('text/event-stream')) {
-        logger?.('Response is not an SSE stream')
-        return
-      }
-
-      logger?.('Baking started, listening for progress...')
-
-      // Handle the SSE stream from fetch response
-      const reader = response.body?.getReader()
-      const decoder = new TextDecoder()
-
-      if (!reader) {
-        logger?.('No response body')
-        return
-      }
-
-      let buffer = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-
-        if (done) break
-
-        buffer += decoder.decode(value, { stream: true })
-        const lines = buffer.split('\n')
-        buffer = lines.pop() || '' // Keep incomplete line in buffer
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            try {
-              const data = JSON.parse(line.slice(6))
-              logger?.(data.message || 'Processing...')
-
-              if (data.imagePath) {
-                this.handleBakeComplete(BAKER_URL + data.imagePath, logger)
-                return
-              }
-            } catch (error) {
-              logger?.(`Error parsing SSE data: ${error}`)
-            }
-          }
-        }
-      }
-    } catch (error) {
-      logger?.(`Failed to start baking: ${error}`)
-      // this.updateLightmapStatus('Failed')
-    }
-  }
-
-  async unbake(regenerate = true) {
-    if (!this.isBaked) return
-    this.grid.patchParcel(this.id, { lightmap_url: null })
-    this.updateLightmapUrl(null)
-    if (regenerate) {
-      this.generateVoxelField()
-    }
-  }
-
-  private async handleBakeComplete(imagePath: string, logger?: (message: string) => void) {
-    // this.updateLightmapStatus('Baked')
-    logger?.('Bake complete')
-
-    if (!imagePath) {
-      logger?.('No image path received from bake completion')
-      return
-    }
-
-    // const imageUrl = `${BAKER_URL}${imagePath}`
-    logger?.('Regenerating mesh')
-
-    this.grid.patchParcel(this.id, { lightmap_url: imagePath })
-    this.updateLightmapUrl(imagePath)
-    this.activateBakedMaterial(logger)
-  }
-
-  private activateBakedMaterial(logger?: (message: string) => void) {
-    const texture = new BABYLON.Texture(this.lightmap_url, this.scene, false, false, BABYLON.Texture.BILINEAR_SAMPLINGMODE, () => {
-      this.mesher.generateBaked(this, this.configureBakedVoxelFieldMeshes.bind(this), texture)
-      logger?.('Bake applied')
-    })
-  }
-
-  updateLightmapUrl(lightmap_url: string | null) {
-    // receive new lightmap status from server
-    this.lightmap_url = lightmap_url
-    this.lightmapUpdateObservable.notifyObservers(lightmap_url)
-  }
-
   updateMeta(meta: ParcelRef) {
     this.name = meta.name || undefined
     this.description = meta.description || undefined
@@ -651,7 +505,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.owner = meta.owner && typeof meta.owner === 'object' ? (meta.owner as any).owner : (meta.owner ?? '')
     this.parcel_users = meta.parcel_users || []
     this.settings = meta.settings || {}
-    this.lightmap_url = meta.lightmap_url || null
     ;(this.summary as any).sandbox = !!(meta as any).sandbox
   }
 
@@ -728,16 +581,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       this.brightness = patch.brightness
       this.refreshBrightness()
     }
-
-    if ('lightmap_url' in patch) {
-      this.updateLightmapUrl(patch.lightmap_url || null)
-      // If voxels were also in the patch, refreshVoxels() -> generateVoxelField()
-      // will already rebuild the baked mesh. Avoid double-triggering a second
-      // baked generation in parallel -- they race on setVoxelMesh().
-      if (this.isBaked && !patch.voxels) {
-        this.activateBakedMaterial()
-      }
-    }
   }
 
   receiveStatePatch(patch: Record<string, Partial<FeatureRecord>>) {
@@ -772,7 +615,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
     if (this.glassMesh) {
       this.glassMesh.removeLODLevel(null)
-      this.glassMesh.addLODLevel(Math.min(distance, GLASS_MAX_VIEW_DISTANCE), null)
+      this.glassMesh.addLODLevel(distance, null)
     }
   }
 
@@ -880,7 +723,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       return
     }
 
-    this.mesher.resetTileSet(this)
+    this.refreshVoxels()
   }
 
   loadField() {
@@ -1060,14 +903,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       await this.awaitVoxelMesh()
     }
 
-    if (this.voxelMesh && !this.isBaked && !window.graphic?.realisticLighting) {
-      // Load tileset for unbaked parcels. Baked parcels already have the lightmap
-      // shader material applied by setLightBakedMaterial; stomping it here applies
-      // the unbaked shader to a mesh missing the `ambientOcclusion` attribute, which
-      // makes vColorValue 0 and the whole parcel render black.
-      this.mesher.setVoxelMaterial(this, this.voxelMesh)
-    }
-
     this.activated = true
 
     // Create features
@@ -1114,24 +949,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     return true
   }
 
-  // Needed because baked and unbaked parcels have different ways of determining this.
   public isColliderEnabled = () => false
-
-  // async populateVoxelFieldFromGridWorker(data: MeshData | null) {
-  //   if (!this.loading) {
-  //     // parcel has been unloaded before meshed finished
-  //     // or worst case, mesh arrived before loaded task
-  //     console.debug(`Parcel ${this.id} received mesh when not in loading state, discarding`)
-  //     return
-  //   }
-  //   if (this.lightmap_status !== 'Baked' || this.disableLightmaps) {
-  //     // accept the grid-workers mesh only if we don't have an active lightmap
-  //     this.mesher.generate(this, data, this.configureUnbakedVoxelFieldMeshes.bind(this))
-  //     this.loaded = true
-  //   } else if (!this.loaded) {
-  //     await this.generate()
-  //   }
-  // }
 
   set(listOfVectors: [x: number, y: number, z: number][], value: number) {
     if (!this.field) {
@@ -1140,13 +958,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
 
     this.setField(listOfVectors, value)
-
-    // todo - construct a perceptive hash of the lightmap coordinates and compare it to the current lightmap
-    //   eg changing a walls block value does not invalidate the lightmap
-    // const invalidatesLightmap = true
-
-    // Removes lightmap real good
-    this.unbake(false)
 
     if (this.fieldUpdateTimeout) {
       clearTimeout(this.fieldUpdateTimeout)
@@ -1518,96 +1329,49 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       return
     }
 
+    if (!this.field) {
+      this.loadField()
+    }
+    if (!this.field) return
+
     const gen = ++this.voxelFieldGen
 
-    if (window.graphic?.realisticLighting && this.field) {
-      const live = this.featuresList?.filter((f) => f.type === 'lantern').map((f) => f.description) ?? []
-      const lanterns = (live.length ? live : this.features.filter((f) => f?.type === 'lantern')) as LanternRecord[]
+    const live = this.featuresList?.filter((f) => f.type === 'lantern').map((f) => f.description) ?? []
+    const lanterns = (live.length ? live : this.features.filter((f) => f?.type === 'lantern')) as LanternRecord[]
 
-      // Y matches setVoxelMesh so voxel.ts pick/place math is correct
-      const off: [number, number, number] = [-this.width / 4 + 0.25, -0.75 + this.ZFightingNudge, -this.depth / 4 + 0.25]
-      const pending = !!(this.tileset && !this.tilesetTexture)
-      const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id, this.paletteColors, this.tilesetTexture ?? (pending ? createWhiteTexture(this.scene) : undefined))
-      if (pending) {
-        const mat = opaque.material as BABYLON.StandardMaterial
-        const tex = new BABYLON.Texture(process.env.IMG_HOST + '/' + this.tileset!.slice(1), this.scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, () => {
-          this.tilesetTexture = tex
-          if (opaque.material === mat) mat.diffuseTexture = tex
-        })
-      }
-      if (gen !== this.voxelFieldGen) {
-        this.disposeGeneratedMeshes(opaque, glass)
-        return
-      }
-      this.voxelMesh?.dispose()
-      this.voxelMesh = opaque
-      opaque.parent = this.transform
-      opaque.position.set(off[0], off[1], off[2])
-      opaque.isPickable = true
-      opaque.checkCollisions = opaque.getTotalVertices() !== 0
-      opaque.freezeWorldMatrix()
-      // glass is solid, same as the baked path
-      this.setGlassMesh(glass, { collidable: true, pickable: true })
-      if (this.glassMesh) {
-        this.glassMesh.position.set(off[0], off[1], off[2])
-        this.glassMesh.freezeWorldMatrix()
-      }
-      if (this.field) {
-        this.colliderVoxels = voxelCollider(this.field)
-        this.registerPhysics()
-      }
-      this.isColliderEnabled = () => this.physicsRegistered
-      this.dispatchEvent(createEvent('MeshLoaded', opaque))
+    // Y matches setVoxelMesh so voxel.ts pick/place math is correct
+    const off: [number, number, number] = [-this.width / 4 + 0.25, -0.75 + this.ZFightingNudge, -this.depth / 4 + 0.25]
+    const pending = !!(this.tileset && !this.tilesetTexture)
+    const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id, this.paletteColors, this.tilesetTexture ?? (pending ? createWhiteTexture(this.scene) : undefined))
+    if (pending) {
+      const mat = opaque.material as BABYLON.StandardMaterial
+      const tex = new BABYLON.Texture(process.env.IMG_HOST + '/' + this.tileset!.slice(1), this.scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, () => {
+        this.tilesetTexture = tex
+        if (opaque.material === mat) mat.diffuseTexture = tex
+      })
+    }
+    if (gen !== this.voxelFieldGen) {
+      this.disposeGeneratedMeshes(opaque, glass)
       return
     }
-
-    // Baked parcels use a different worker + mesh topology than unbaked.
-    // Running both in parallel races on setVoxelMesh() and can leave the parcel
-    // displaying the loser's mesh (black / untextured / wrong tint).
-    if (this.lightmap_url && this.isBaked) {
-      const url = this.lightmap_url
-      const texture = new BABYLON.Texture(
-        url,
-        this.scene,
-        false,
-        false,
-        BABYLON.Texture.BILINEAR_SAMPLINGMODE,
-        () => {
-          if (gen !== this.voxelFieldGen) return
-          this.mesher.generateBaked(
-            this,
-            (opaque, glass) => {
-              if (gen !== this.voxelFieldGen) {
-                this.disposeGeneratedMeshes(opaque, glass)
-                return
-              }
-              this.configureBakedVoxelFieldMeshes(opaque, glass)
-            },
-            texture,
-          )
-        },
-        () => {
-          if (gen !== this.voxelFieldGen) return
-          // Lightmap fetch failed -- fall back to unbaked so the parcel is still visible
-          this.mesher.generate(this, null, (opaque, glass, colliderVoxels) => {
-            if (gen !== this.voxelFieldGen) {
-              this.disposeGeneratedMeshes(opaque, glass)
-              return
-            }
-            this.configureUnbakedVoxelFieldMeshes(opaque, glass, colliderVoxels)
-          })
-        },
-      )
-      return
+    this.voxelMesh?.dispose()
+    this.voxelMesh = opaque
+    opaque.parent = this.transform
+    opaque.position.set(off[0], off[1], off[2])
+    opaque.isPickable = true
+    opaque.checkCollisions = opaque.getTotalVertices() !== 0
+    opaque.freezeWorldMatrix()
+    this.setGlassMesh(glass, { collidable: true, pickable: true })
+    if (this.glassMesh) {
+      this.glassMesh.position.set(off[0], off[1], off[2])
+      this.glassMesh.freezeWorldMatrix()
     }
-
-    this.mesher.generate(this, null, (opaque, glass, colliderVoxels) => {
-      if (gen !== this.voxelFieldGen) {
-        this.disposeGeneratedMeshes(opaque, glass)
-        return
-      }
-      this.configureUnbakedVoxelFieldMeshes(opaque, glass, colliderVoxels)
-    })
+    if (this.field) {
+      this.colliderVoxels = voxelCollider(this.field)
+      this.registerPhysics()
+    }
+    this.isColliderEnabled = () => this.physicsRegistered
+    this.dispatchEvent(createEvent('MeshLoaded', opaque))
   }
 
   private disposeGeneratedMeshes(...meshes: (BABYLON.Mesh | null | undefined)[]) {
@@ -1616,35 +1380,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       if (mesh.material && !isShared(mesh.material)) mesh.material.dispose()
       mesh.dispose()
     }
-  }
-
-  private configureUnbakedVoxelFieldMeshes(opaque: BABYLON.Mesh, glass: BABYLON.Mesh, colliderVoxels: Int32Array) {
-    this.setVoxelMesh(opaque, { collidable: true, pickable: true })
-    this.setGlassMesh(glass, { collidable: false, pickable: false })
-    this.colliderVoxels = colliderVoxels
-    this.registerPhysics()
-    this.isColliderEnabled = () => this.physicsRegistered
-
-    if (this.voxelMesh) this.dispatchEvent(createEvent('MeshLoaded', this.voxelMesh))
-    if (this.glassMesh) this.dispatchEvent(createEvent('MeshLoaded', this.glassMesh))
-  }
-
-  private async configureBakedVoxelFieldMeshes(opaque: BABYLON.Mesh, glass: BABYLON.Mesh) {
-    this.setVoxelMesh(opaque, { collidable: true, pickable: true })
-    this.setGlassMesh(glass, { collidable: true, pickable: true })
-
-    if (this.field) {
-      this.colliderVoxels = voxelCollider(this.field)
-      this.registerPhysics()
-    }
-    this.isColliderEnabled = () => this.physicsRegistered
-    // baked parcels use a different voxel meshing system to normal parcels
-    // this bypasses the normal loaded callback, so we need to manually set loaded to true here
-    // without loaded = true, feature activation does not work
-    this.loaded = true
-
-    if (this.voxelMesh) this.dispatchEvent(createEvent('MeshLoaded', this.voxelMesh))
-    if (this.glassMesh) this.dispatchEvent(createEvent('MeshLoaded', this.glassMesh))
   }
 
   private setField = (listOfVectors: [number, number, number][], value: number) => {

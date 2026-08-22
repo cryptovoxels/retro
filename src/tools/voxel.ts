@@ -7,8 +7,6 @@ import { User } from '../user'
 import { AudioEngine } from '../audio/audio-engine'
 import type { Tool } from '../user-interface'
 import { signal } from '@preact/signals'
-import VertexShader from '../shaders/ao-mesh.vsh'
-import FragmentShader from '../shaders/ao-mesh.fsh'
 import { createGlassMaterial } from '../materials/glass'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
 import { track } from '../../web/src/helpers/umami'
@@ -72,7 +70,7 @@ export default class Selector implements Tool {
   clickAction: any
   atlasTexture: BABYLON.Texture
   glassTexture: BABYLON.Texture
-  voxelMaterial: BABYLON.ShaderMaterial
+  voxelMaterial: BABYLON.StandardMaterial
   glassMaterial: BABYLON.Material
 
   lastOnMovePickResult: BABYLON.PickingInfo | undefined = undefined
@@ -95,46 +93,14 @@ export default class Selector implements Tool {
     this.box.parent = this.parent
     this.box.isPickable = false
 
-    // Add custom vertex attributes for voxel shader compatibility
-    // CreateBox produces 24 vertices (4 per face × 6 faces)
-    const vertexCount = this.box.getTotalVertices()
-    const blockData = new Float32Array(vertexCount).fill(0)
-    const aoData = new Float32Array(vertexCount).fill(255)
-    this.box.setVerticesData('block', blockData, true, 1)
-    this.box.setVerticesData('ambientOcclusion', aoData, false, 1)
-
-    // Load the atlas texture
     this.atlasTexture = new BABYLON.Texture('/textures/atlas-ao.png', scene)
-    // Load glass texture (kept for potential future use)
     this.glassTexture = new BABYLON.Texture('/images/glass.png', scene)
 
-    // Create ShaderMaterial using the same voxel shader for consistent UV handling
-    const material = new BABYLON.ShaderMaterial(
-      'tools/voxel/selector',
-      scene,
-      { vertexSource: VertexShader, fragmentSource: FragmentShader },
-      {
-        attributes: ['position', 'normal', 'block', 'ambientOcclusion'],
-        uniforms: ['worldViewProjection', 'tileSize', 'tileCount', 'brightness', 'ambient', 'lightDirection', 'fogDensity', 'fogColor', 'palette', 'alpha'],
-        samplers: ['tileMap'],
-        defines: ['#define IMAGEPROCESSINGPOSTPROCESS'],
-      },
-    )
-
-    material.setTexture('tileMap', this.atlasTexture)
-    material.setFloat('tileSize', 128)
-    material.setFloat('tileCount', 4.0)
-    material.setFloat('alpha', 0.85)
-    material.alphaMode = BABYLON.Engine.ALPHA_COMBINE
-    material.needAlphaBlending = () => true
-    material.setColor3Array(
-      'palette',
-      defaultColors.map((c) => BABYLON.Color3.FromHexString(c)),
-    )
-    window.environment?.setShaderParameters(material, 1.5)
-
-    // Block dirty mechanism to prevent unnecessary shader recompilation
-    material.blockDirtyMechanism = true
+    const material = new BABYLON.StandardMaterial('tools/voxel/selector', scene)
+    material.diffuseTexture = this.atlasTexture
+    material.alpha = 0.85
+    material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
+    material.backFaceCulling = false
 
     this.voxelMaterial = material
     this.glassMaterial = createGlassMaterial(scene as any, { name: 'ghost-block' })
@@ -167,14 +133,7 @@ export default class Selector implements Tool {
 
   private setTextureOffset(value: number) {
     const tint = this.selection.tint ?? 0
-    // Tool slot 0 -> atlas 1; block value encodes: textureIndex + (tintIndex * 32)
-    const blockValue = value + 1 + tint * 32
 
-    const vertexCount = this.box.getTotalVertices()
-    const blockData = new Float32Array(vertexCount).fill(blockValue)
-    this.box.updateVerticesData('block', blockData)
-
-    // Glass (texture index 1) uses a special transparent material for accurate preview
     if (value === 1) {
       const palette = this.selection.parcel?.palette || defaultColors
       const hex = palette[tint] || defaultColors[0]
@@ -204,8 +163,8 @@ export default class Selector implements Tool {
   }
 
   private async updateMaterialForParcel(parcel: Parcel): Promise<void> {
-    const texture = parcel.tilesetTexture || Grid.mesher.defaultTileset
-    this.voxelMaterial.setTexture('tileMap', texture)
+    const texture = parcel.tilesetTexture || this.atlasTexture
+    this.voxelMaterial.diffuseTexture = texture
     this.atlasTexture = texture
     this.updatePaletteColor()
   }
@@ -213,7 +172,8 @@ export default class Selector implements Tool {
   private updatePaletteColor(): void {
     const parcel = this.selection.parcel
     const palette = parcel?.paletteColors || defaultColors.map((c) => BABYLON.Color3.FromHexString(c))
-    this.voxelMaterial.setColor3Array('palette', palette)
+    const tint = this.selection.tint ?? 0
+    this.voxelMaterial.diffuseColor = palette[tint] || palette[0]
     this.setTextureOffset(this.texture)
   }
 
@@ -456,7 +416,7 @@ export default class Selector implements Tool {
     }
 
     // Remove mode shows the target block fainter so you can see it's going to be deleted.
-    this.voxelMaterial.setFloat('alpha', this.selection.mode === SelectionMode.Remove ? 0.3 : 0.85)
+    this.voxelMaterial.alpha = this.selection.mode === SelectionMode.Remove ? 0.3 : 0.85
 
     const a = this.voxelToWorldSpace(this.selection.start, this.selection.parcel)
     if (a) {

@@ -11,9 +11,6 @@ import { avatarRefCodec } from './avatar-ref'
 export const ParcelAuthResult = t.union([t.literal('Owner'), t.literal('Collaborator'), t.literal('Sandbox'), t.literal('Moderator'), t.literal('Suburb'), t.literal(false)])
 export type ParcelAuthResult = t.TypeOf<typeof ParcelAuthResult>
 
-export const LightmapStatus = t.union([t.literal('None'), t.literal('Requested'), t.literal('Baking'), t.literal('Baked'), t.literal('Failed'), t.literal('HashMismatch')])
-export type LightmapStatus = t.TypeOf<typeof LightmapStatus>
-
 const ERC20TokensToEnter = t.type(
   {
     address: t.string,

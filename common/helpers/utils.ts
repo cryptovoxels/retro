@@ -344,12 +344,6 @@ export const shorterWallet = (wallet: string, maxChars = 10) => {
   return result.join('')
 }
 
-//TODO: REMOVE THIS EVENTUALLY (replace all appearances with "jobs"). Only needed while devs potentially need to run
-// multiple different versions of the baker code ("lightmapper" repo) in the same DB without them stepping on each other.
-// Tight regex to prevent SQL injection since this string is template-substituted directly into SQL query strings.
-// export const JOBS_TABLE_NAME = 'jobs'
-export const JOBS_TABLE_NAME = process.env.JOBS_TABLE_NAME !== undefined && process.env.JOBS_TABLE_NAME.match(/^jobs[a-z0-9_]*$/) ? process.env.JOBS_TABLE_NAME : 'jobs'
-
 // For working with Express query parameters like req.query.foo, which may be a string, a QueryString.ParsedQ, or an array
 // of either, when you expect just a single string parameter value.
 export const firstStringParam = <T>(param: T): string | undefined => {

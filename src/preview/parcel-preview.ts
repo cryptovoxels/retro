@@ -79,7 +79,6 @@ function stubWindow() {
     removeEventListener: noop,
   }
   ;(window as any).graphic = {
-    realisticLighting: true,
     getSettings: () => ({ level: 1 }),
     postProcesses: { reveal: noop },
     addEventListener: noop,
@@ -400,15 +399,13 @@ async function buildPreview(record: ParcelRecord, embeds: Record<string, string>
   camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
   camera.minZ = 0.01
 
-  // No features - constant time. Voxel bake only.
+  // No features - constant time.
   const bare = { ...record, features: [] }
   makeOcean(scene, bare)
   makeIslands(scene, bare, world?.islands || [])
   makeLotOutlines(scene, bare, world?.lots || [])
   makeLabels(scene, bare)
 
-  // Fresh mesher per render - static Grid.mesher is tied to a scene.
-  ;(Grid as any).mesher = undefined
   window.scene = scene
   const grid = new NullGrid(scene)
   await grid.preparePreview()
@@ -416,7 +413,6 @@ async function buildPreview(record: ParcelRecord, embeds: Record<string, string>
   scene.clearColor = OCEAN.clone()
   if (scene.lights[0]) scene.lights[0].intensity = 0.5
   await getComputePool()
-  await Grid.mesher.initialize()
 
   const parcel = grid.spawnPreview(bare)
   if (!parcel) throw new Error('spawnPreview failed')

@@ -1,7 +1,5 @@
 import * as Comlink from 'comlink'
 import { bakeLightmap } from './monoworker/lightmap'
-import { processVoxelisation } from './monoworker/voxel'
-import { processJob } from './monoworker/baked'
 import { loadVox, cancelJob } from './monoworker/vox'
 import { requestInstanceIdentification, requestFeatureSorting } from './monoworker/pump'
 import { setFontData, meshText } from './monoworker/polytext'
@@ -12,8 +10,6 @@ const api = {
   // ready probe for createComlinkWorker (importScripts can fail after new Worker)
   ping: () => true as const,
   bakeLightmap,
-  processVoxelisation,
-  processJob,
   loadVox,
   cancelJob,
   requestInstanceIdentification,

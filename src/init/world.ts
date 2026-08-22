@@ -7,16 +7,12 @@ import type Controls from '../controls/controls'
 import PlayerCamera from '../controls/utils/player-camera'
 import { Environment } from '../enviroments/environment'
 import Grid from '../grid'
-import { ParcelMesher } from '../parcel-mesher'
 import { createGizmos } from '../tools/gizmos'
 import { isLoaded } from '../utils/loading-done'
 import { stepPhysics } from '../physics/world'
 import { startGhosts } from '../ghosts'
 
 export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCanvasElement, controls: Controls, environment: Environment) {
-  const parcelMesher = new ParcelMesher(scene)
-  await parcelMesher.initialize()
-
   const grid = new Grid(scene, controls.worldOffset, environment)
   if (window.config.isGrid) {
     grid.loadWorker()

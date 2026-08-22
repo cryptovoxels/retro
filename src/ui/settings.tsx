@@ -50,7 +50,6 @@ interface State {
   minimap: MinimapSettings
   showMinimapSettings: boolean
   mouseSensitivityPercentage: number
-  realisticLighting: boolean
   voiceEnabled: boolean
   voiceDeviceId: string
   voicePitch: number
@@ -70,7 +69,6 @@ export class SettingsUI extends Component<Props, State> {
       showMinimapSettings: true,
       // we reverse the value as higher values are lower sensitivities
       mouseSensitivityPercentage: toReversedPercentage(this.cameraSettings.angularSensitivity, MIN_SENSITIVITY, MAX_SENSITIVITY),
-      realisticLighting: this.graphicsEngine.getSettings().realisticLighting ?? true,
       voiceEnabled: voiceSettings.enabled,
       voiceDeviceId: voiceSettings.deviceId,
       voicePitch: voiceSettings.pitch,
@@ -259,13 +257,6 @@ export class SettingsUI extends Component<Props, State> {
     this.setState({ darkMode: inputElement.checked })
   }
 
-  onRealisticLightingChange(el: HTMLInputElement) {
-    const g = this.state.graphic
-    g.realisticLighting = el.checked
-    this.setState({ graphic: g, realisticLighting: el.checked })
-    this.sendGraphicsSettings()
-  }
-
   sendGraphicsSettings() {
     this.graphicsEngine.setSettings(this.state.graphic)
   }
@@ -291,11 +282,6 @@ export class SettingsUI extends Component<Props, State> {
                 </dd>
               </>
             )}
-
-            <dt>Realistic lighting</dt>
-            <dd>
-              <input type="checkbox" checked={this.state.realisticLighting} onChange={(e) => this.onRealisticLightingChange(e.target as HTMLInputElement)} />
-            </dd>
           </dl>
         </section>
 

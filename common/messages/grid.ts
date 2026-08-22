@@ -5,7 +5,7 @@
 
 import * as t from 'io-ts'
 import { FeatureRecord } from './feature'
-import { LightmapStatus, ParcelAuthResult, ParcelRecord, ParcelRef, SimpleParcelRecord } from './parcel'
+import { ParcelAuthResult, ParcelRecord, ParcelRef, SimpleParcelRecord } from './parcel'
 
 /**
  * Parcels used by the grid worker - either the Simple parcels, or the Simple Parcle with the single parcel addeed
@@ -57,16 +57,6 @@ export const ParcelAuthMessage = t.type(
 )
 
 export type ParcelAuthMessage = t.TypeOf<typeof ParcelAuthMessage>
-
-export const LightMapUpdateMessage = t.type(
-  {
-    type: t.literal('lightmap-status'),
-    parcelId: t.number,
-    lightmap_url: t.union([t.string, t.null]),
-  },
-  'LightMapUpdateMessage',
-)
-export type LightMapUpdateMessage = t.TypeOf<typeof LightMapUpdateMessage>
 
 export const SuspendedMessage = t.type(
   {
@@ -134,25 +124,10 @@ export const DeleteFeatureMessage = t.type(
 )
 export type DeleteFeatureMessage = t.TypeOf<typeof DeleteFeatureMessage>
 
-export const LightmapActionMessage = t.intersection(
-  [
-    t.type({
-      type: t.literal('lightmap-action'),
-      parcelId: t.number,
-    }),
-    t.partial({
-      requestBake: t.boolean,
-      cancelBake: t.boolean,
-    }),
-  ],
-  'LightmapActionMessage',
-)
-export type LightmapActionMessage = t.TypeOf<typeof LightmapActionMessage>
-
 // Grid Messages sent server->client
-export const GridMessage = t.union([PatchMessage, PatchErrorMessage, ParcelAuthMessage, PatchStateMessage, LightMapUpdateMessage, SuspendedMessage, ParcelMetaMessage, ParcelScriptMessage, PongMessage])
+export const GridMessage = t.union([PatchMessage, PatchErrorMessage, ParcelAuthMessage, PatchStateMessage, SuspendedMessage, ParcelMetaMessage, ParcelScriptMessage, PongMessage])
 export type GridMessage = t.TypeOf<typeof GridMessage>
 
 // Grid Messages sent client->server
-export const GridClientMessage = t.union([PatchMessage, SubscriptionMessage, DeleteFeatureMessage, PatchStateMessage, LightmapActionMessage, PingMessage])
+export const GridClientMessage = t.union([PatchMessage, SubscriptionMessage, DeleteFeatureMessage, PatchStateMessage, PingMessage])
 export type GridClientMessage = t.TypeOf<typeof GridClientMessage>
