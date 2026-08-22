@@ -45,7 +45,7 @@ class MainApp extends Component {
   }
 }
 
-;(history as any)['oldPushState'] = history.pushState
+; (history as any)['oldPushState'] = history.pushState
 history.pushState = function () {
   const url = arguments && arguments[2]
   const previousPath = document.location.pathname
@@ -55,7 +55,7 @@ history.pushState = function () {
     path = url.replace(/\?.+/, '')
   }
 
-  ;(history as any)['oldPushState'].apply(this, arguments as any)
+  ; (history as any)['oldPushState'].apply(this, arguments as any)
 
   notifyUrlChange()
 
@@ -117,7 +117,6 @@ const Main = () => {
             <Play path="/play" />
             <AccountRoutes path="/account/:path*" />
           </Router>
-          {!lightBroadcast && !play && <Footer />}
         </div>
       </main>
 
