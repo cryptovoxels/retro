@@ -2,12 +2,11 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { physics } from '../../physics/world'
 import { VoxelSize } from '../../../common/voxels/constants'
 
-const RADIUS = 0.25
+const RADIUS = 0.2
 const EYE = 1.6 // eye height above the feet
 const HEAD = 0.1 // skull above the eyes
-const HALF = (EYE + HEAD) / 2 - RADIUS // capsule half height, 0.6
+const HALF = 0.6
 const DROP = (EYE - HEAD) / 2 // eye above the capsule centre, 0.75
-const LIFT_MAX = 40
 const BURIED = RAPIER.QueryFilterFlags.EXCLUDE_KINEMATIC | RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC | RAPIER.QueryFilterFlags.EXCLUDE_SENSORS
 
 // tuning, metres per second
@@ -47,10 +46,10 @@ export default class PlayerBody {
     if (!w) return false
     this.body = w.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(this.position.x, this.position.y - DROP, this.position.z))
     this.collider = w.createCollider(RAPIER.ColliderDesc.capsule(HALF, RADIUS), this.body)
-    this.controller = w.createCharacterController(0.01)
-    this.controller.enableAutostep(VoxelSize + 0.1, 0.2, true)
-    this.controller.enableSnapToGround(0.3)
-    this.controller.setMaxSlopeClimbAngle((50 * Math.PI) / 180)
+    this.controller = w.createCharacterController(0.02)
+    // this.controller.enableAutostep(0.2, 0.3, false)
+    // this.controller.enableSnapToGround(0.1)
+    // this.controller.setMaxSlopeClimbAngle((50 * Math.PI) / 180)
     this.ready = true
     return true
   }
@@ -70,25 +69,6 @@ export default class PlayerBody {
   hop() {
     this.vel = HOP_SPEED
     this.grounded = false
-  }
-
-  private liftFree() {
-    const w = physics()
-    if (!w) return
-    const rot = this.body.rotation()
-    const shape = this.collider.shape
-    let lifts = 0
-    while (lifts < LIFT_MAX) {
-      const at = this.body.translation()
-      if (!w.intersectionWithShape(at, rot, shape, BURIED, undefined, this.collider, this.body)) break
-      this.position.y += VoxelSize
-      this.body.setTranslation({ x: this.position.x, y: this.position.y - DROP, z: this.position.z }, true)
-      lifts++
-    }
-    if (lifts) {
-      this.vel = JUMP_SPEED
-      this.grounded = false
-    }
   }
 
   private writeMotion(hz: number, impact: number) {
@@ -112,10 +92,6 @@ export default class PlayerBody {
 
     // teleports and seat snaps move position behind our back: resync before querying
     this.body.setTranslation({ x: this.position.x, y: this.position.y - DROP, z: this.position.z }, true)
-    this.liftFree()
-
-    if (this.vel > 0) this.controller.disableSnapToGround()
-    else this.controller.enableSnapToGround(0.3)
 
     if (this.gravity) this.vel += GRAVITY * dt
     else if (this.vel > 0) {
@@ -128,14 +104,6 @@ export default class PlayerBody {
     const dy = this.gravity ? this.vel * dt : d.y + this.vel * dt
     this.controller.computeColliderMovement(this.collider, { x: d.x, y: dy, z: d.z })
     let stepped = this.controller.computedMovement()
-    const wantHz = d.x * d.x + d.z * d.z
-    const gotHz = stepped.x * stepped.x + stepped.z * stepped.z
-    // voxel KCC autostep misses 0.5m cubes; try one voxel up if the wall ate the walk
-    if (this.vel <= 0 && wantHz > 1e-8 && gotHz < wantHz * 0.01) {
-      this.controller.computeColliderMovement(this.collider, { x: d.x, y: dy + VoxelSize + 0.02, z: d.z })
-      const retry = this.controller.computedMovement()
-      if (retry.x * retry.x + retry.z * retry.z > gotHz) stepped = retry
-    }
     const at = this.body.translation()
     const next = { x: at.x + stepped.x, y: at.y + stepped.y, z: at.z + stepped.z }
     this.body.setNextKinematicTranslation(next)
