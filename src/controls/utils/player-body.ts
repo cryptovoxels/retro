@@ -1,13 +1,16 @@
 import RAPIER from '@dimforge/rapier3d-compat'
 import { physics } from '../../physics/world'
 import { VoxelSize } from '../../../common/voxels/constants'
-
-const RADIUS = 0.202
-const EYE = 1.75 // eye height above the feet
+import { Vec3 } from '../../physics/world'
+const RADIUS = 0.2
+const EYE = 1.65 // eye height above the feet
 const HEAD = 0.1 // skull above the eyes
-const HALF = 0.8
+const HALF = 0.6
 const DROP = (EYE - HEAD) / 2 // eye above the capsule centre, 0.75
 const BURIED = RAPIER.QueryFilterFlags.EXCLUDE_KINEMATIC | RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC | RAPIER.QueryFilterFlags.EXCLUDE_SENSORS
+
+const unchanged = (a: Vec3, b: Vec3, epsilon = 0.001) => Math.abs(a.x - b.x) < epsilon && Math.abs(a.y - b.y) < epsilon && Math.abs(a.z - b.z) < epsilon;
+const nonzero = (v: Vec3, epsilon = 0.001) => Math.abs(v.x) > epsilon || Math.abs(v.y) > epsilon || Math.abs(v.z) > epsilon;
 
 // tuning, metres per second
 export const WALK = 2.78 // was defaultSpeed 0.88
@@ -46,9 +49,11 @@ export default class PlayerBody {
     if (!w) return false
     this.body = w.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(this.position.x, this.position.y - DROP, this.position.z))
     this.collider = w.createCollider(RAPIER.ColliderDesc.cylinder(HALF, RADIUS), this.body)
-    this.controller = w.createCharacterController(0.02)
+    this.controller = w.createCharacterController(0.01)
     this.controller.enableAutostep(1, 0.1, false)
-    this.controller.enableSnapToGround(0.5)
+    this.controller.setSlideEnabled(true);
+    this.controller.setMinSlopeSlideAngle(0.01);
+    // this.controller.enableSnapToGround(0.5)
     // this.controller.setMaxSlopeClimbAngle((50 * Math.PI) / 180)
     this.ready = true
     return true
@@ -78,8 +83,20 @@ export default class PlayerBody {
     this.motion.impact = impact
   }
 
+  private yeet() {
+    const t = this.body.translation();
+    this.body.setTranslation({ x: t.x, y: t.y + 2, z: t.z }, true);
+    this.position.set(t.x, t.y + 2, t.z);
+    this.grounded = false
+    this.vel = JUMP_SPEED
+  }
+
+  private stuck = 0;
+
   /** move is unitless direction; speed is m/s; dt is seconds */
   step(move: BABYLON.Vector3, dt: number): void {
+    console.log('stuck', this.stuck);
+
     this.scratch.copyFrom(move).scaleInPlace(this.speed * dt)
     const d = this.scratch
 
@@ -106,6 +123,20 @@ export default class PlayerBody {
     let stepped = this.controller.computedMovement()
     const at = this.body.translation()
     const next = { x: at.x + stepped.x, y: at.y + stepped.y, z: at.z + stepped.z }
+
+    if (nonzero(move) && unchanged(next, this.body.translation())) {
+      this.stuck += dt;
+    } else {
+      this.stuck = 0;
+    }
+
+    if (this.stuck > 0.5) {
+      console.log('yeet')
+      this.yeet()
+      this.stuck = 0;
+      return
+    }
+
     this.body.setNextKinematicTranslation(next)
     this.position.set(next.x, next.y + DROP, next.z)
 
