@@ -318,11 +318,7 @@ export class Megavox extends VoxModel<MegavoxRecord> {
   }
 
   override whatIsThis() {
-    return (
-      <label>
-        A large .vox model (megavox).
-      </label>
-    )
+    return <label>A large .vox model (megavox).</label>
   }
 }
 

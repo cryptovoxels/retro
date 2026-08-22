@@ -67,8 +67,15 @@ export const createFeature = (scene: BABYLON.Scene, parcel: Parcel, uuid: string
       return new Button(scene, parcel, uuid, description)
     case 'vox-model':
       return new VoxModel(scene, parcel, uuid, description)
-    case 'megavox':
+    case 'megavox': {
+      // unmigrated driveables (old DB rows, snapshots, library assets) still say megavox
+      const desc = description as any
+      if (desc.driveable) {
+        const { driveable: _d, ...rest } = desc
+        return new Ride(scene, parcel, uuid, { ...rest, type: 'ride', collidable: true })
+      }
       return new Megavox(scene, parcel, uuid, description)
+    }
     case 'ride':
       return new Ride(scene, parcel, uuid, description)
     case 'particles':
