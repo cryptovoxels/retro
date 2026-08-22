@@ -16,8 +16,13 @@ export default function PlayController(db: Db, passport: PassportStatic, app: Ex
       if (m) {
         const x = m[2] === 'W' ? -Number(m[1]) : Number(m[1])
         const z = m[4] === 'S' ? -Number(m[3]) : Number(m[3])
-        const r = await db.query('embedded/opensea-play-redirect', `select id from properties where x1 <= $1 and $1 <= x2 and z1 <= $2 and $2 <= z2 limit 1`, [x, z])
-        if (r.rows[0]) return res.redirect(302, `/renderer/v1/parcel/${r.rows[0].id}.html`)
+        // x1..z2 are int4, so a coordinate past that range makes the statement
+        // invalid, and express does not catch the rejection: the response never
+        // ends and the request sits until the gateway gives up 25 seconds later.
+        if (Math.abs(x) <= 2147483647 && Math.abs(z) <= 2147483647) {
+          const r = await db.query('embedded/opensea-play-redirect', `select id from properties where x1 <= $1 and $1 <= x2 and z1 <= $2 and $2 <= z2 limit 1`, [x, z])
+          if (r.rows[0]) return res.redirect(302, `/renderer/v1/parcel/${r.rows[0].id}.html`)
+        }
       }
     }
 
