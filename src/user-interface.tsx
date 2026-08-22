@@ -357,6 +357,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.uiPaneDispose = effect(() => {
       const p = uiPane.value as UIPanes | undefined
       sidebarClosed.value
+      broadcastShowboxUuid.value
+      broadcastLiveStartedAt.value
       document.body.classList.toggle('sidebar-closed', sidebarClosed.value)
       if (p !== this.state.pane) this.setState({ pane: p })
       else this.forceUpdate()
@@ -1085,6 +1087,13 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           <aside data-active={!!this.state.pane}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
+              {!!broadcastShowboxUuid.value && (
+                <li class={active('broadcast')}>
+                  <a href="#broadcast" title="Broadcast" onClick={onClick('broadcast')}>
+                    Live
+                  </a>
+                </li>
+              )}
               <li>
                 <a href="#" title="Theatre" onClick={this.enterTheatre}>
                   Theatre
