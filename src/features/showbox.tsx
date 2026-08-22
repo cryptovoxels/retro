@@ -1509,6 +1509,10 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       maxWidth: 'none',
       maxHeight: 'none',
       boxShadow: 'none',
+      // sidebar already pads and paints the column - don't stack the old overlay chrome
+      padding: '0',
+      background: 'transparent',
+      color: 'inherit',
     })
   }
 
