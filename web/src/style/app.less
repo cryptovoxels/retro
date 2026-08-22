@@ -90,8 +90,8 @@ h3,
 h4,
 h5,
 h6 {
+  font-family: 'arial rounded mt bold', sans-serif;
   font-weight: 700;
-  font-family: sans-serif;
   margin: 0 0 0.5rem;
 }
 
@@ -5390,8 +5390,17 @@ body.theatre-mode {
       display: none;
     }
 
-    &>.page {
-      display: none;
+    &>.page,
+    &>.ui-pane {
+      grid-column: unset;
+      grid-row: unset;
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      width: 22rem;
+      bottom: 1rem;
+      border-radius: 2rem;
+      box-shadow: 3px 3px 1rem rgba(0, 0, 0, 0.2);
     }
   }
 }
