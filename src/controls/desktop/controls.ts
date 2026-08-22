@@ -164,7 +164,7 @@ export default class DesktopControls extends Controls {
       // selected feature: free mouse for face-drag / gizmos. don't steal into pointer lock.
       if (!authoring) {
         this.nerfClick = true
-        this.requestPointerLock()?.catch(() => {})
+        this.requestPointerLock()?.catch(() => { })
         return
       }
     }
@@ -373,18 +373,18 @@ export default class DesktopControls extends Controls {
       console.log('Gamepad detected')
       if ((gamepad as any)['onButtonDownObservable']) {
         this.hasGamepad = gamepadManager.gamepads.some((g) => g.isConnected)
-        ;(gamepad as any)['onButtonDownObservable'].add((buttonId: any) => {
-          const button = this.getGamepadButton(gamepad, buttonId)
-          if (button) {
-            this.onGamepadButton(button, true)
-          }
-        })
-        ;(gamepad as any)['onButtonUpObservable'].add((buttonId: any) => {
-          const button = this.getGamepadButton(gamepad, buttonId)
-          if (button) {
-            this.onGamepadButton(button, false)
-          }
-        })
+          ; (gamepad as any)['onButtonDownObservable'].add((buttonId: any) => {
+            const button = this.getGamepadButton(gamepad, buttonId)
+            if (button) {
+              this.onGamepadButton(button, true)
+            }
+          })
+          ; (gamepad as any)['onButtonUpObservable'].add((buttonId: any) => {
+            const button = this.getGamepadButton(gamepad, buttonId)
+            if (button) {
+              this.onGamepadButton(button, false)
+            }
+          })
       }
     })
 
@@ -441,7 +441,7 @@ export default class DesktopControls extends Controls {
       unmountComponentAtNode(element)
       element.remove()
     })
-    ;(window as any).engine?.setBlur?.(false)
+      ; (window as any).engine?.setBlur?.(false)
 
     // don't focus() before lock — steals the user gesture, forces a second click
     const maybePromise: unknown = this.canvas.requestPointerLock()

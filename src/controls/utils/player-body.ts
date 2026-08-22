@@ -2,8 +2,8 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { physics } from '../../physics/world'
 import { VoxelSize } from '../../../common/voxels/constants'
 
-const RADIUS = 0.1
-const EYE = 1.6 // eye height above the feet
+const RADIUS = 0.202
+const EYE = 1.75 // eye height above the feet
 const HEAD = 0.1 // skull above the eyes
 const HALF = 0.8
 const DROP = (EYE - HEAD) / 2 // eye above the capsule centre, 0.75
@@ -45,10 +45,10 @@ export default class PlayerBody {
     const w = physics()
     if (!w) return false
     this.body = w.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(this.position.x, this.position.y - DROP, this.position.z))
-    this.collider = w.createCollider(RAPIER.ColliderDesc.capsule(HALF, RADIUS), this.body)
+    this.collider = w.createCollider(RAPIER.ColliderDesc.cylinder(HALF, RADIUS), this.body)
     this.controller = w.createCharacterController(0.02)
     this.controller.enableAutostep(1, 0.1, false)
-    // this.controller.enableSnapToGround(0.5)
+    this.controller.enableSnapToGround(0.5)
     // this.controller.setMaxSlopeClimbAngle((50 * Math.PI) / 180)
     this.ready = true
     return true
