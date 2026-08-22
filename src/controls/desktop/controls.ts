@@ -294,6 +294,7 @@ export default class DesktopControls extends Controls {
       keysLeft: ['ArrowLeft', 'KeyA'],
       keysRight: ['ArrowRight', 'KeyD'],
     })
+    this.keyboardInput.move = this.move
     this.bindKeys()
     camera.inputs.add(this.keyboardInput)
 
@@ -314,7 +315,7 @@ export default class DesktopControls extends Controls {
         this.stopConga()
       }
 
-      if (e.code === 'Space') this.camera.jump()
+      if (e.code === 'Space') this.body.jump()
 
       if (e.code === 'KeyE') {
         // stop bubble so document KeyE (edit feature) does not toggle us straight back out / open the editor
@@ -397,9 +398,7 @@ export default class DesktopControls extends Controls {
       if (pressed) this.toggleRun()
     } else if (button === 'Cross' || button === 'A') {
       if (pressed) {
-        if ('jump' in this.camera) {
-          this.camera.jump()
-        }
+        this.body.jump()
       }
     } else if (button === 'Circle' || button === 'B') {
       if (pressed) this.toggleFlying()

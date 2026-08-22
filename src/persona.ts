@@ -11,7 +11,7 @@ import { decodeCoordsFromURL } from './utils/helpers'
 import { Action, AvatarIdentity } from '../common/messages'
 import { cameraRotation, setCameraPosition, setCameraRotation } from './utils/camera'
 import VoiceChat from './voice-chat'
-import { WALK_HZ } from './controls/utils/player-camera'
+import { WALK_HZ } from './controls/utils/player-body'
 
 const identityEquals = (a: AvatarIdentity, b: AvatarIdentity) => a.wallet === b.wallet && a.name === b.name
 const identityFromUser = (user: User): AvatarIdentity => ({ wallet: user.wallet, name: user.name })
@@ -200,16 +200,16 @@ export default class Persona {
   }
 
   private pickClip(controls: Controls) {
-    const m = controls.camera.motion
+    const m = controls.body.motion
     if (controls.vehicleFeature) return Animations.Sitting
     if (this.emote != null) return this.emote
-    if (!m.grounded && !controls.camera.gravity) return Animations.Floating
+    if (!m.grounded && !controls.body.gravity) return Animations.Floating
     if (m.hz > WALK_HZ) return Animations.Walk
     return Animations.Idle
   }
 
   update(position: BABYLON.Vector3, rotation: BABYLON.Vector3, controls: Controls) {
-    const m = controls.camera.motion
+    const m = controls.body.motion
     const clip = this.pickClip(controls)
     if (clip !== this._animation) this.animation = clip
 

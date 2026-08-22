@@ -5,6 +5,7 @@ import { encodeCoords } from '../../common/helpers/utils'
 import type Grid from '../grid'
 import Connector from '../connector'
 import PlayerCamera from './utils/player-camera'
+import PlayerBody, { WALK, RUN } from './utils/player-body'
 import { isLoaded } from '../utils/loading-done'
 import Feature, { MeshExtended } from '../features/feature'
 import Avatar from '../avatar'
@@ -78,6 +79,9 @@ const MIN_CAMERA_DISTANCE_FOR_SELF_AVATAR = 0.2
 
 export default abstract class Controls implements IControls {
   camera: PlayerCamera = undefined!
+  body: PlayerBody = undefined!
+  /** unitless direction; inputs write, body.step scales by speed * dt */
+  move = BABYLON.Vector3.Zero()
   hasGamepad = false
   flying = false
   swimming = false
@@ -89,8 +93,8 @@ export default abstract class Controls implements IControls {
   private chromaAmount = 0
   private reticuleSpinT = 0
   user: User
-  defaultSpeed = 0.88
-  runSpeed = 4.0
+  defaultSpeed = WALK
+  runSpeed = RUN
   running = false
   movementEnabled = true
   shiftKey = false
@@ -175,6 +179,11 @@ export default abstract class Controls implements IControls {
     this.scene.activeCamera = camera
     camera.parent = this.worldOffset
 
+    this.body = new PlayerBody()
+    this.body.position.copyFrom(camera.position)
+    camera.body = this.body
+    camera.place()
+
     // Enable feature clicking
     this.scene.onPointerObservable.add(this.featureClickHandler.bind(this))
 
@@ -193,10 +202,18 @@ export default abstract class Controls implements IControls {
     }
 
     this.scene.onBeforeRenderObservable.add(() => {
+      const dt = this.scene.getEngine().getDeltaTime() / 1000 || 1 / 60
+      // stock babylon gamepad writes cameraDirection as stick * dt; fold into unitless move
+      if (this.camera.cameraDirection.lengthSquared() > 0) {
+        this.move.addInPlace(this.camera.cameraDirection.scaleInPlace(1 / dt))
+        this.camera.cameraDirection.setAll(0)
+      }
+      this.body.step(this.move, dt)
+      this.move.setAll(0)
       this.updateConga()
       this.updateVehicle()
       this.cancelFly()
-      // let persona update its position from the camera, since we are steering the camera
+      // let persona update its position from the body
       this.persona.update(cameraPosition(this.scene), cameraRotation(this.scene), this)
       this.swimming = this.persona.isSwimming(SWIM_LEVEL) ?? this.swimming
       this.firstOrThirdPersonAdjustment()
@@ -329,7 +346,7 @@ export default abstract class Controls implements IControls {
   }
 
   cancelFly() {
-    const grounded = this.camera.motion.grounded
+    const grounded = this.body.motion.grounded
     if (!this.flying) {
       this.wasAirborne = false
       return
@@ -358,12 +375,12 @@ export default abstract class Controls implements IControls {
   abstract addControls(camera: PlayerCamera): void
 
   enableMovement() {
-    this.camera.speed = this.running ? this.runSpeed : this.defaultSpeed
+    this.body.speed = this.running ? this.runSpeed : this.defaultSpeed
     this.movementEnabled = true
   }
 
   disableMovement() {
-    this.camera.speed = 0
+    this.body.speed = 0
     this.movementEnabled = false
   }
 
@@ -382,7 +399,7 @@ export default abstract class Controls implements IControls {
       const fps = 60
       const duration = 10
       this.walkRunAnimation?.stop()
-      this.walkRunAnimation = BABYLON.Animation.CreateAndStartAnimation('walk-to-run', this.camera, 'speed', fps, duration, this.camera.speed, this.runSpeed, undefined, WALK_TO_RUN_EASE)
+      this.walkRunAnimation = BABYLON.Animation.CreateAndStartAnimation('walk-to-run', this.body, 'speed', fps, duration, this.body.speed, this.runSpeed, undefined, WALK_TO_RUN_EASE, undefined, this.scene)
       this.walkRunAnimation!.loopAnimation = false
     }
   }
@@ -395,7 +412,7 @@ export default abstract class Controls implements IControls {
       const duration = 13
       const target = this.defaultSpeed
       this.walkRunAnimation?.stop()
-      this.walkRunAnimation = BABYLON.Animation.CreateAndStartAnimation('walk-to-run', this.camera, 'speed', fps, duration, this.camera.speed, target, undefined, WALK_TO_RUN_EASE)
+      this.walkRunAnimation = BABYLON.Animation.CreateAndStartAnimation('walk-to-run', this.body, 'speed', fps, duration, this.body.speed, target, undefined, WALK_TO_RUN_EASE, undefined, this.scene)
       this.walkRunAnimation!.loopAnimation = false
     }
   }
@@ -480,7 +497,7 @@ export default abstract class Controls implements IControls {
 
   setFlying(value: boolean) {
     if (!value) this.floorReady = true
-    if (value && !this.flying) this.camera.hop()
+    if (value && !this.flying) this.body.hop()
     this.flying = value
   }
 
@@ -501,7 +518,7 @@ export default abstract class Controls implements IControls {
 
     // The main thread doesn't keep a complete list of parcels, so we need to wait for the grid worker to tell us the definitive set of parcels containing the camera.
     this.floorParcels = null
-    this.grid.queryParcelsAtPosition(this.camera.player).then((parcelIds) => {
+    this.grid.queryParcelsAtPosition(this.body.position).then((parcelIds) => {
       this.floorParcels = parcelIds
     })
 
@@ -517,11 +534,11 @@ export default abstract class Controls implements IControls {
       this.floorReady = true
       this.floorParcels = null
     }
-    this.camera.gravity = !this.flying && !this.swimming && this.islandsReady && this.floorReady && isLoaded()
+    this.body.gravity = !this.flying && !this.swimming && this.islandsReady && this.floorReady && isLoaded()
   }
 
   setNoclip(on: boolean) {
-    this.camera.noclip = on
+    this.body.noclip = on
   }
 
   togglePerspective() {
@@ -660,14 +677,14 @@ export default abstract class Controls implements IControls {
       right.normalize()
     }
 
-    const dir = target.position.subtract(this.camera.player)
+    const dir = target.position.subtract(this.body.position)
     dir.y = 0
     const gapHz = dir.length()
-    const gap3 = BABYLON.Vector3.Distance(target.position, this.camera.player)
+    const gap3 = BABYLON.Vector3.Distance(target.position, this.body.position)
     if (leaderFlying ? gap3 > 30 : gapHz > 30) {
       const tp = target.position.subtract(forward.scale(CONGA_FOLLOW_DISTANCE))
       if (!leaderFlying) {
-        tp.y = this.camera.player.y
+        tp.y = this.body.position.y
       }
       this.persona.teleportNoHistory({ position: tp })
       return
@@ -691,10 +708,10 @@ export default abstract class Controls implements IControls {
     const lateral = congaLateralSlot(this.connector.persona.uuid) * CONGA_LATERAL_PER_SLOT * g
     const desired = target.position.subtract(forward.scale(backDist)).add(right.scale(lateral))
     if (!leaderFlying) {
-      desired.y = this.camera.player.y
+      desired.y = this.body.position.y
     }
 
-    let pull = desired.subtract(this.camera.player)
+    let pull = desired.subtract(this.body.position)
     if (!leaderFlying) {
       pull.y = 0
     }
@@ -703,7 +720,7 @@ export default abstract class Controls implements IControls {
 
     pull.normalize()
     const step = Math.min(1, deltaTime * (3 + pullLen * 1.8))
-    this.camera.player.addInPlace(pull.scale(Math.min(pullLen, pullLen * step)))
+    this.body.position.addInPlace(pull.scale(Math.min(pullLen, pullLen * step)))
   }
 
   getCoords() {
@@ -1088,8 +1105,8 @@ export default abstract class Controls implements IControls {
       const [ox, oy, oz] = this.vehicleSeatOffset
       this.vehicleSeatLocal.copyFromFloats(ox, oy, oz)
       BABYLON.Vector3.TransformCoordinatesToRef(this.vehicleSeatLocal, car.mesh.getWorldMatrix(), this.vehicleSeatWorld)
-      this.camera.player.copyFrom(this.vehicleSeatWorld)
-      this.camera.player.subtractInPlace(this.worldOffset.position)
+      this.body.position.copyFrom(this.vehicleSeatWorld)
+      this.body.position.subtractInPlace(this.worldOffset.position)
       // mouse owns look (pitch + yaw); car facing is separate via getVehicleDriveYaw
     }
 

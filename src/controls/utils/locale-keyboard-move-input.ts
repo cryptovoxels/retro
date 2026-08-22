@@ -1,5 +1,6 @@
 // forked from BABYLON.FreeCameraKeyboardMoveInput with `keyCode` replaced with `code` for correct international keyboard handling
 // https://github.com/BabylonJS/Babylon.js/blob/c843dcbc3875e9eee184152a10b857f7af9f4993/src/Cameras/Inputs/freeCameraKeyboardMoveInput.ts
+// writes unitless direction into Controls.move; PlayerBody scales by speed * dt
 
 interface LocaleKeyboardMoveInputOptions {
   keysUp?: string[]
@@ -11,6 +12,10 @@ interface LocaleKeyboardMoveInputOptions {
   keysRotateLeft?: string[]
   keysRotateRight?: string[]
 }
+
+const localDir = BABYLON.Vector3.Zero()
+const worldDir = BABYLON.Vector3.Zero()
+const viewInv = BABYLON.Matrix.Identity()
 
 export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.FreeCamera> {
   /**
@@ -31,6 +36,8 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
   public alongYaw: (() => number) | null = null
   /** third person: A/D turn the body, not the camera */
   public onTurn: ((delta: number) => void) | null = null
+  /** unitless direction accumulator owned by Controls */
+  public move: BABYLON.Vector3 = undefined!
 
   /**
    * Defines the pointer angular sensibility  along the X and Y axis or how fast is the camera rotating.
@@ -154,66 +161,63 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
    * This is a dynamically created lambda to avoid the performance penalty of looping for inputs in the render loop.
    */
   public checkInputs(): void {
-    if (this._onKeyboardObserver) {
-      const camera = this.camera
-      const yaw = this.alongYaw?.()
-      // Keyboard
-      for (let index = 0; index < this._keys.length; index++) {
-        const keyCode = this._keys[index]
-        const speed = camera._computeLocalCameraSpeed()
+    if (!this._onKeyboardObserver || !this.move) return
+    const camera = this.camera
+    const yaw = this.alongYaw?.()
+    for (let index = 0; index < this._keys.length; index++) {
+      const keyCode = this._keys[index]
 
-        if (this.keysRotateLeft.indexOf(keyCode) !== -1) {
-          if (this.onTurn) this.onTurn(-this._getLocalRotation())
-          else camera.cameraRotation.y -= this._getLocalRotation()
-          continue
-        }
-        if (this.keysRotateRight.indexOf(keyCode) !== -1) {
-          if (this.onTurn) this.onTurn(this._getLocalRotation())
-          else camera.cameraRotation.y += this._getLocalRotation()
-          continue
-        }
-
-        if (yaw != null && this.keysUp.indexOf(keyCode) !== -1) {
-          camera.cameraDirection.addInPlaceFromFloats(Math.sin(yaw) * speed, 0, Math.cos(yaw) * speed)
-          continue
-        }
-        if (yaw != null && this.keysDown.indexOf(keyCode) !== -1) {
-          camera.cameraDirection.addInPlaceFromFloats(-Math.sin(yaw) * speed, 0, -Math.cos(yaw) * speed)
-          continue
-        }
-        if (yaw != null && this.keysUpward.indexOf(keyCode) !== -1) {
-          camera.cameraDirection.y += speed
-          continue
-        }
-        if (yaw != null && this.keysDownward.indexOf(keyCode) !== -1) {
-          camera.cameraDirection.y -= speed
-          continue
-        }
-
-        if (this.keysLeft.indexOf(keyCode) !== -1) {
-          camera._localDirection.copyFromFloats(-speed, 0, 0)
-        } else if (this.keysUp.indexOf(keyCode) !== -1) {
-          camera._localDirection.copyFromFloats(0, 0, speed)
-        } else if (this.keysRight.indexOf(keyCode) !== -1) {
-          camera._localDirection.copyFromFloats(speed, 0, 0)
-        } else if (this.keysDown.indexOf(keyCode) !== -1) {
-          camera._localDirection.copyFromFloats(0, 0, -speed)
-        } else if (this.keysUpward.indexOf(keyCode) !== -1) {
-          camera._localDirection.copyFromFloats(0, speed, 0)
-        } else if (this.keysDownward.indexOf(keyCode) !== -1) {
-          camera._localDirection.copyFromFloats(0, -speed, 0)
-        } else {
-          continue
-        }
-
-        if (camera.getScene().useRightHandedSystem) {
-          camera._localDirection.z *= -1
-        }
-
-        camera.getViewMatrix().invertToRef(camera._cameraTransformMatrix)
-        BABYLON.Vector3.TransformNormalToRef(camera._localDirection, camera._cameraTransformMatrix, camera._transformedDirection)
-        camera.cameraDirection.addInPlace(camera._transformedDirection)
+      if (this.keysRotateLeft.indexOf(keyCode) !== -1) {
+        if (this.onTurn) this.onTurn(-this._getLocalRotation())
+        else camera.cameraRotation.y -= this._getLocalRotation()
+        continue
       }
+      if (this.keysRotateRight.indexOf(keyCode) !== -1) {
+        if (this.onTurn) this.onTurn(this._getLocalRotation())
+        else camera.cameraRotation.y += this._getLocalRotation()
+        continue
+      }
+
+      if (yaw != null && this.keysUp.indexOf(keyCode) !== -1) {
+        this.move.addInPlaceFromFloats(Math.sin(yaw), 0, Math.cos(yaw))
+        continue
+      }
+      if (yaw != null && this.keysDown.indexOf(keyCode) !== -1) {
+        this.move.addInPlaceFromFloats(-Math.sin(yaw), 0, -Math.cos(yaw))
+        continue
+      }
+      if (yaw != null && this.keysUpward.indexOf(keyCode) !== -1) {
+        this.move.y += 1
+        continue
+      }
+      if (yaw != null && this.keysDownward.indexOf(keyCode) !== -1) {
+        this.move.y -= 1
+        continue
+      }
+
+      if (this.keysLeft.indexOf(keyCode) !== -1) {
+        localDir.copyFromFloats(-1, 0, 0)
+      } else if (this.keysUp.indexOf(keyCode) !== -1) {
+        localDir.copyFromFloats(0, 0, 1)
+      } else if (this.keysRight.indexOf(keyCode) !== -1) {
+        localDir.copyFromFloats(1, 0, 0)
+      } else if (this.keysDown.indexOf(keyCode) !== -1) {
+        localDir.copyFromFloats(0, 0, -1)
+      } else if (this.keysUpward.indexOf(keyCode) !== -1) {
+        localDir.copyFromFloats(0, 1, 0)
+      } else if (this.keysDownward.indexOf(keyCode) !== -1) {
+        localDir.copyFromFloats(0, -1, 0)
+      } else {
+        continue
+      }
+
+      if (camera.getScene().useRightHandedSystem) {
+        localDir.z *= -1
+      }
+
+      camera.getViewMatrix().invertToRef(viewInv)
+      BABYLON.Vector3.TransformNormalToRef(localDir, viewInv, worldDir)
+      this.move.addInPlace(worldDir)
     }
   }
 

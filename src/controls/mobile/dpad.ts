@@ -1,7 +1,6 @@
 import { isTablet } from '../../../common/helpers/detector'
 import MobileControls from './controls'
 
-const SPEED = 0.15
 const TAP_THRESHOLD = 8
 const DEPTH = 0.35
 const PAD_FRAC = 0.4 // was 40vw
@@ -62,7 +61,7 @@ export default class Dpad {
     this.controls.direction.set(0, 0, 0)
     this.nub.position.set(0, 0, 0.001)
 
-    if (!this.moved) (this.controls.camera as any)?.jump?.()
+    if (!this.moved) this.controls.body.jump()
     e.preventDefault()
     e.stopImmediatePropagation()
   }
@@ -200,7 +199,7 @@ export default class Dpad {
 
     if (Math.hypot(x, y) > TAP_THRESHOLD) this.moved = true
 
-    this.controls.direction.set((x / half) * SPEED, 0, (y / half) * -1 * SPEED)
+    this.controls.direction.set(x / half, 0, (y / half) * -1)
 
     // nub is 33% of the box; cap visual offset so it stays inside
     const vis = half * 0.67

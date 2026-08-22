@@ -118,7 +118,7 @@ function initialSpawn(_scene: BABYLON.Scene, _grid: Grid, controls: Controls) {
     randomZ = Math.random() * (nudgeL - -nudgeL) + -nudgeL
   }
 
-  controls.camera.player.set(randomX, 2.5, randomZ)
+  controls.body.position.set(randomX, 2.5, randomZ)
 }
 
 // Show params as NESW coordinates

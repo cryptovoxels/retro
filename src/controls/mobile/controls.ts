@@ -4,6 +4,12 @@ import PlayerCamera from '../utils/player-camera'
 import { decodeCoords } from '../../../common/helpers/utils'
 import { getCoordsFromURL } from '../../utils/helpers'
 import { createFirstPersonCamera } from '../utils/fps-camera'
+import { WALK } from '../utils/player-body'
+
+const localDir = BABYLON.Vector3.Zero()
+const worldDir = BABYLON.Vector3.Zero()
+const viewInv = BABYLON.Matrix.Identity()
+
 export default class MobileControls extends Controls {
   shiftKey = false
   dpad: Dpad | null = null
@@ -13,7 +19,7 @@ export default class MobileControls extends Controls {
 
   constructor(scene: BABYLON.Scene, canvas: HTMLCanvasElement) {
     super(scene, canvas)
-    this.defaultSpeed = 0.25
+    this.defaultSpeed = 9 // was SPEED 0.15/frame at 60fps; dial down after feel-check
   }
 
   createCamera() {
@@ -91,36 +97,22 @@ export default class MobileControls extends Controls {
   }
 
   walking() {
-    // while driving, dpad feeds updateVehicle via this.direction - do not also walk the camera
+    // while driving, dpad feeds updateVehicle via this.direction - do not also walk the body
     if (this.vehicleFeature) return
 
-    const camera = this.camera as PlayerCamera & {
-      _localDirection: BABYLON.Vector3
-      _transformedDirection: BABYLON.Vector3
-      _cameraTransformMatrix: BABYLON.Matrix
+    if (this.direction) {
+      localDir.copyFrom(this.direction)
+    } else {
+      localDir.setAll(0)
     }
 
-    if (!this.direction || this.direction.lengthSquared() === 0) return
-
-    // third person iso is pitched down; full view-matrix forward walks into the ground
-    if (!this.firstPersonView) {
-      const yaw = camera.rotation.y
-      const lx = this.direction.x
-      const lz = this.direction.z
-      const s = Math.sin(yaw)
-      const c = Math.cos(yaw)
-      camera.cameraDirection.addInPlaceFromFloats(lx * c + lz * s, this.direction.y, -lx * s + lz * c)
-      return
-    }
-
-    camera._localDirection.copyFrom(this.direction)
-    camera.getViewMatrix().invertToRef(camera._cameraTransformMatrix)
-    BABYLON.Vector3.TransformNormalToRef(camera._localDirection, camera._cameraTransformMatrix, camera._transformedDirection)
-    camera.cameraDirection.addInPlace(camera._transformedDirection)
+    this.camera.getViewMatrix().invertToRef(viewInv)
+    BABYLON.Vector3.TransformNormalToRef(localDir, viewInv, worldDir)
+    this.move.addInPlace(worldDir)
   }
 
   enableMovement() {
-    this.camera.speed = this.defaultSpeed
+    this.body.speed = this.defaultSpeed || WALK
     this.movementEnabled = true
   }
 }
