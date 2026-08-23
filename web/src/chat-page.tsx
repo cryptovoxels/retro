@@ -115,7 +115,7 @@ export function ChatPage(_props: { path?: string }) {
           }
           return next
         })
-      } catch {}
+      } catch { }
     }
     return () => es.close()
   }, [])
@@ -132,39 +132,14 @@ export function ChatPage(_props: { path?: string }) {
       <h1>chat</h1>
       <div class="chat-body">
         <ChatPanel cap={1000} variant="page" />
-        <aside class="chat-online">
-          <h2>users online</h2>
-          {places.length === 0 ? (
-            <p>nobody here</p>
-          ) : (
-            <ul class="radar">
-              {places.map((place) => (
-                <li key={place.parcel ?? 'chat'}>
-                  {place.parcel != null ? <a href={`/parcels/${place.parcel}`}>{placeLabel(place.parcel)}</a> : <span>{placeLabel(null)}</span>}
-                  <ul>
-                    {place.named.map((avatar, i) => (
-                      <li key={avatarWallet(avatar) || avatarName(avatar) || i}>
-                        <AvatarLink avatar={avatar} />
-                      </li>
-                    ))}
-                    {place.anons > 0 && (
-                      <li>
-                        {place.anons} anon{place.anons === 1 ? '' : 's'}
-                      </li>
-                    )}
-                  </ul>
-                </li>
-              ))}
-            </ul>
-          )}
-          <div class="chat-times">
-            {TIMES.map(({ label, timeZone }) => (
-              <div key={label}>
-                {label}: {formatClock(now, timeZone)}
-              </div>
-            ))}
-          </div>
-        </aside>
+
+        <ul class="chat-times">
+          {TIMES.map(({ label, timeZone }) => (
+            <li key={label}>
+              {label}: {formatClock(now, timeZone)}
+            </li>
+          ))}
+        </ul>
       </div>
     </section>
   )
