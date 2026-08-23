@@ -1,12 +1,12 @@
 # Voxels public read API
 
-The read-only part of the Voxels API. Everything here is unauthenticated GET.
+The public Voxels API. Most of this is unauthenticated GET.
 
-Write routes, sign-in, admin, moderation, livekit, radio, metrics, guest passes and the internal /grid/* routes are deliberately not described.
+Write routes for collection create / deploy / mint writeback are documented here. Sign-in, admin, moderation, livekit, radio, metrics, guest passes and the internal /grid/* routes are deliberately not described.
 
 Most handlers answer with an envelope: `{"success": true, "<field>": ...}`, where `<field>` is plural for a list and singular for one record. A failed lookup answers `{"success": false}`, usually with status 400 and sometimes with 200, so check the flag rather than the status.
 
-Base url is `https://www.voxels.com`. Everything here is a GET and none of it needs a key.
+Base url is `https://www.voxels.com`. Most routes are unauthenticated GETs; write routes need a session.
 
 Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not this page.
 
@@ -16,8 +16,8 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 - [womps](#womps), 6 routes
 - [avatars](#avatars), 13 routes
 - [collectibles](#collectibles), 3 routes
-- [collections](#collections), 6 routes
-- [wearables](#wearables), 7 routes
+- [collections](#collections), 9 routes
+- [wearables](#wearables), 8 routes
 - [islands](#islands), 3 routes
 - [spaces](#spaces), 2 routes
 - [events](#events), 6 routes
@@ -27,26 +27,26 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 
 ## parcels
 
-- [`/api/parcels.json`](#get-apiparcelsjson) List parcels, or fetch a batch by id
-- [`/api/parcels/cached.json`](#get-apiparcelscachedjson) Every visible parcel
-- [`/api/parcels/summary.json`](#get-apiparcelssummaryjson) id, address, island and name for every visible parcel
-- [`/api/parcels/xyz.json`](#get-apiparcelsxyzjson) Bounds and geometry only, for every parcel
-- [`/api/parcels/map.json`](#get-apiparcelsmapjson) The map layer's parcel list
-- [`/api/parcels/search.json`](#get-apiparcelssearchjson) Search minted, non-common parcels
-- [`/api/parcels/favorites.json`](#get-apiparcelsfavoritesjson) Parcels somebody has favorited
-- [`/api/parcels/{id}.json`](#get-apiparcelsidjson) One parcel with its build
-- [`/api/parcels/{id}.vox`](#get-apiparcelsidvox) The parcel's build as a MagicaVoxel file
-- [`/api/parcels/{id}.png`](#get-apiparcelsidpng) Redirect to the parcel preview renderer
-- [`/api/parcels/{id}/query`](#get-apiparcelsidquery) Re-read the parcel's owner from the contract, then return it
-- [`/api/parcels/by/{wallet}/query`](#get-apiparcelsbywalletquery) Re-read every parcel a wallet owns
-- [`/api/parcels/{id}/history.json`](#get-apiparcelsidhistoryjson) Saved versions of a parcel, newest first
-- [`/api/parcels/{id}/history-count.json`](#get-apiparcelsidhistory-countjson) How many versions a parcel has
-- [`/api/parcels/{id}/history/{version}.json`](#get-apiparcelsidhistoryversionjson) One saved version of a parcel
-- [`/api/parcels/{id}/snapshots.json`](#get-apiparcelsidsnapshotsjson) Versions the owner marked as snapshots
-- [`/api/suburbs/{suburb_id}/popular.json`](#get-apisuburbssuburb_idpopularjson) The busiest parcels in a suburb
-- [`/api/wallet/{address}/parcels.json`](#get-apiwalletaddressparcelsjson) Parcels a wallet owns
-- [`/api/wallet/{address}/contributing-parcels.json`](#get-apiwalletaddresscontributing-parcelsjson) Parcels a wallet can build on but does not own
-- [`/api/sandboxes.json`](#get-apisandboxesjson) All sandbox parcels for learning to build
+- [`GET /api/parcels.json`](#get-apiparcelsjson) List parcels, or fetch a batch by id
+- [`GET /api/parcels/cached.json`](#get-apiparcelscachedjson) Every visible parcel
+- [`GET /api/parcels/summary.json`](#get-apiparcelssummaryjson) id, address, island and name for every visible parcel
+- [`GET /api/parcels/xyz.json`](#get-apiparcelsxyzjson) Bounds and geometry only, for every parcel
+- [`GET /api/parcels/map.json`](#get-apiparcelsmapjson) The map layer's parcel list
+- [`GET /api/parcels/search.json`](#get-apiparcelssearchjson) Search minted, non-common parcels
+- [`GET /api/parcels/favorites.json`](#get-apiparcelsfavoritesjson) Parcels somebody has favorited
+- [`GET /api/parcels/{id}.json`](#get-apiparcelsidjson) One parcel with its build
+- [`GET /api/parcels/{id}.vox`](#get-apiparcelsidvox) The parcel's build as a MagicaVoxel file
+- [`GET /api/parcels/{id}.png`](#get-apiparcelsidpng) Redirect to the parcel preview renderer
+- [`GET /api/parcels/{id}/query`](#get-apiparcelsidquery) Re-read the parcel's owner from the contract, then return it
+- [`GET /api/parcels/by/{wallet}/query`](#get-apiparcelsbywalletquery) Re-read every parcel a wallet owns
+- [`GET /api/parcels/{id}/history.json`](#get-apiparcelsidhistoryjson) Saved versions of a parcel, newest first
+- [`GET /api/parcels/{id}/history-count.json`](#get-apiparcelsidhistory-countjson) How many versions a parcel has
+- [`GET /api/parcels/{id}/history/{version}.json`](#get-apiparcelsidhistoryversionjson) One saved version of a parcel
+- [`GET /api/parcels/{id}/snapshots.json`](#get-apiparcelsidsnapshotsjson) Versions the owner marked as snapshots
+- [`GET /api/suburbs/{suburb_id}/popular.json`](#get-apisuburbssuburb_idpopularjson) The busiest parcels in a suburb
+- [`GET /api/wallet/{address}/parcels.json`](#get-apiwalletaddressparcelsjson) Parcels a wallet owns
+- [`GET /api/wallet/{address}/contributing-parcels.json`](#get-apiwalletaddresscontributing-parcelsjson) Parcels a wallet can build on but does not own
+- [`GET /api/sandboxes.json`](#get-apisandboxesjson) All sandbox parcels for learning to build
 
 ### GET /api/parcels.json
 
@@ -361,12 +361,12 @@ Parcels with properties.sandbox = true. Used by /build.
 
 ## womps
 
-- [`/api/womps.json`](#get-apiwompsjson) The newest womps across the world
-- [`/api/womps/{id}.json`](#get-apiwompsidjson) One womp
-- [`/api/womps/{id}.jpg`](#get-apiwompsidjpg) The photograph itself, when it lives in the database
-- [`/api/womps/at/parcel/{parcelId}.json`](#get-apiwompsatparcelparcelidjson) Womps taken on one parcel
-- [`/api/womps/at/space/{spaceId}.json`](#get-apiwompsatspacespaceidjson) Womps taken in one space
-- [`/api/womps/by/{wallet}`](#get-apiwompsbywallet) Womps one citizen took
+- [`GET /api/womps.json`](#get-apiwompsjson) The newest womps across the world
+- [`GET /api/womps/{id}.json`](#get-apiwompsidjson) One womp
+- [`GET /api/womps/{id}.jpg`](#get-apiwompsidjpg) The photograph itself, when it lives in the database
+- [`GET /api/womps/at/parcel/{parcelId}.json`](#get-apiwompsatparcelparcelidjson) Womps taken on one parcel
+- [`GET /api/womps/at/space/{spaceId}.json`](#get-apiwompsatspacespaceidjson) Womps taken in one space
+- [`GET /api/womps/by/{wallet}`](#get-apiwompsbywallet) Womps one citizen took
 
 ### GET /api/womps.json
 
@@ -470,19 +470,19 @@ Matches `womps.author` exactly, so the wallet has to be cased the way it was sto
 
 ## avatars
 
-- [`/api/avatars/{wallet}.json`](#get-apiavatarswalletjson) One citizen by wallet
-- [`/api/avatars/by/{nameOrWallet}.json`](#get-apiavatarsbynameorwalletjson) One citizen by name or wallet
-- [`/api/avatars/search`](#get-apiavatarssearch) Name or wallet substring match, ten at most
-- [`/api/avatars/{wallet}/assets`](#get-apiavatarswalletassets) Wearables this wallet authored
-- [`/api/avatars/{wallet}/wearables`](#get-apiavatarswalletwearables) The collectibles in this citizen's current costume
-- [`/api/avatars/{wallet}/costume.json`](#get-apiavatarswalletcostumejson) The costume this citizen is wearing
-- [`/api/avatars/{wallet}/costumes`](#get-apiavatarswalletcostumes) Every costume this citizen has saved
-- [`/api/avatars/{wallet}/score.json`](#get-apiavatarswalletscorejson) This citizen's scores
-- [`/api/costumes/{id}`](#get-apicostumesid) One costume by id
-- [`/api/avatar/{wallet}/name.json`](#get-apiavatarwalletnamejson) This citizen's display name
-- [`/api/avatar/{wallet}/names`](#get-apiavatarwalletnames) Every name this wallet holds
-- [`/api/names/exists/{name}`](#get-apinamesexistsname) Whether a name is taken
-- [`/api/avatar/owns/{chain_identifier}/{contract}/{token_id}`](#get-apiavatarownschain_identifiercontracttoken_id) Whether a wallet holds a token
+- [`GET /api/avatars/{wallet}.json`](#get-apiavatarswalletjson) One citizen by wallet
+- [`GET /api/avatars/by/{nameOrWallet}.json`](#get-apiavatarsbynameorwalletjson) One citizen by name or wallet
+- [`GET /api/avatars/search`](#get-apiavatarssearch) Name or wallet substring match, ten at most
+- [`GET /api/avatars/{wallet}/assets`](#get-apiavatarswalletassets) Wearables this wallet can wear or authored
+- [`GET /api/avatars/{wallet}/wearables`](#get-apiavatarswalletwearables) The collectibles in this citizen's current costume
+- [`GET /api/avatars/{wallet}/costume.json`](#get-apiavatarswalletcostumejson) The costume this citizen is wearing
+- [`GET /api/avatars/{wallet}/costumes`](#get-apiavatarswalletcostumes) Every costume this citizen has saved
+- [`GET /api/avatars/{wallet}/score.json`](#get-apiavatarswalletscorejson) This citizen's scores
+- [`GET /api/costumes/{id}`](#get-apicostumesid) One costume by id
+- [`GET /api/avatar/{wallet}/name.json`](#get-apiavatarwalletnamejson) This citizen's display name
+- [`GET /api/avatar/{wallet}/names`](#get-apiavatarwalletnames) Every name this wallet holds
+- [`GET /api/names/exists/{name}`](#get-apinamesexistsname) Whether a name is taken
+- [`GET /api/avatar/owns/{chain_identifier}/{contract}/{token_id}`](#get-apiavatarownschain_identifiercontracttoken_id) Whether a wallet holds a token
 
 ### GET /api/avatars/{wallet}.json
 
@@ -534,9 +534,9 @@ The odd one out: it answers with a bare array, no envelope, and an empty `q` giv
 
 ### GET /api/avatars/{wallet}/assets
 
-Wearables this wallet authored
+Wearables this wallet can wear or authored
 
-Minted and unsuppressed only. Authorship, not ownership.
+Merge of (1) Alchemy holdings on known collection contracts, (2) `is_free` wearables, (3) wearables this wallet authored including unminted drafts. Dedupe by collection_id + token_id (drafts by uuid).
 
 **parameters**
 
@@ -699,9 +699,9 @@ Rate limited to five calls per thirty seconds per client, because it costs a cha
 
 ## collectibles
 
-- [`/api/collectibles.json`](#get-apicollectiblesjson) Search minted collectibles
-- [`/api/collectibles/{uuid}/vox`](#get-apicollectiblesuuidvox) A collectible's MagicaVoxel model
-- [`/api/collectibles/wearable/{uuid}.json`](#get-apicollectibleswearableuuidjson) One wearable by uuid
+- [`GET /api/collectibles.json`](#get-apicollectiblesjson) Search minted collectibles
+- [`GET /api/collectibles/{uuid}/vox`](#get-apicollectiblesuuidvox) A collectible's MagicaVoxel model
+- [`GET /api/collectibles/wearable/{uuid}.json`](#get-apicollectibleswearableuuidjson) One wearable by uuid
 
 ### GET /api/collectibles.json
 
@@ -754,12 +754,15 @@ One wearable by uuid
 
 ## collections
 
-- [`/api/helper/typeOfContract/{chain_identifier}/{contract}`](#get-apihelpertypeofcontractchain_identifiercontract) Whether a contract is ERC721 or ERC1155
-- [`/api/collections`](#get-apicollections) Wearable collections
-- [`/api/collections/{id}`](#get-apicollectionsid) One collection
-- [`/api/collections/{id}/collectibles`](#get-apicollectionsidcollectibles) Everything in a collection
-- [`/api/collections/{collection_id}/collectibles/{token_id}`](#get-apicollectionscollection_idcollectiblestoken_id) One collectible by collection id and token id
-- [`/api/collections/{chain_identifier}/{collection_address}/c/{token_id}.json`](#get-apicollectionschain_identifiercollection_addressctoken_idjson) One collectible by chain, contract and token id
+- [`GET /api/helper/typeOfContract/{chain_identifier}/{contract}`](#get-apihelpertypeofcontractchain_identifiercontract) Whether a contract is ERC721 or ERC1155
+- [`GET /api/collections`](#get-apicollections) Wearable collections
+- [`POST /api/collections`](#post-apicollections) Create a collection (parcel owners only)
+- [`GET /api/collections/{id}`](#get-apicollectionsid) One collection
+- [`PUT /api/collections/{id}`](#put-apicollectionsid) Edit collection name and description
+- [`POST /api/collections/{id}/deployed`](#post-apicollectionsiddeployed) Stamp the on-chain contract address after MetaMask deploy
+- [`GET /api/collections/{id}/collectibles`](#get-apicollectionsidcollectibles) Everything in a collection
+- [`GET /api/collections/{collection_id}/collectibles/{token_id}`](#get-apicollectionscollection_idcollectiblestoken_id) One collectible by collection id and token id
+- [`GET /api/collections/{chain_identifier}/{collection_address}/c/{token_id}.json`](#get-apicollectionschain_identifiercollection_addressctoken_idjson) One collectible by chain, contract and token id
 
 ### GET /api/helper/typeOfContract/{chain_identifier}/{contract}
 
@@ -795,6 +798,25 @@ Wearable collections
   - `success` boolean
   - `collections` array of [`Collection`](#collection)
 
+### POST /api/collections
+
+Create a collection (parcel owners only)
+
+JWT required. Caller must own a minted parcel. Creates an undeployed Polygon ERC1155 collection row (`chainid` 137, `address` null).
+
+**body**
+
+- `application/json` object
+  - `name` string
+  - `description` string
+
+**answers**
+
+- `200` object
+  - `success` boolean
+  - `collection_id` integer
+- `403` The lookup did not land. Some handlers send this with status 200.
+
 ### GET /api/collections/{id}
 
 One collection
@@ -809,6 +831,50 @@ One collection
   - `success` boolean
   - `collection` [`Collection`](#collection)
 - `400` The lookup did not land. Some handlers send this with status 200.
+
+### PUT /api/collections/{id}
+
+Edit collection name and description
+
+JWT required. Collection owner only. Name and description only.
+
+**parameters**
+
+- `id` (path, required) integer
+
+**body**
+
+- `application/json` object
+  - `name` string
+  - `description` string
+
+**answers**
+
+- `200` object
+  - `success` boolean
+- `403` The lookup did not land. Some handlers send this with status 200.
+
+### POST /api/collections/{id}/deployed
+
+Stamp the on-chain contract address after MetaMask deploy
+
+JWT required. Collection owner only. `address` must still be null. Called after `launchCollection` on the Polygon factory succeeds.
+
+**parameters**
+
+- `id` (path, required) integer
+
+**body**
+
+- `application/json` object
+  - `address` string
+
+**answers**
+
+- `200` object
+  - `success` boolean
+  - `address` string
+- `403` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/collections/{id}/collectibles
 
@@ -865,13 +931,38 @@ An unrecognised chain identifier falls back to ethereum rather than erroring.
 
 ## wearables
 
-- [`/api/wearables/search`](#get-apiwearablessearch) Wearable name substring match, fifty at most
-- [`/api/wearables/suggest`](#get-apiwearablessuggest) Thirty wearables, the ones for a given bone first
-- [`/api/wearables/free.json`](#get-apiwearablesfreejson) Wearables anyone can put on
-- [`/api/wearables/{wearable_id}/vox`](#get-apiwearableswearable_idvox) A wearable's MagicaVoxel model, by wearable uuid
-- [`/api/wearables/{address}/{token}/vox`](#get-apiwearablesaddresstokenvox) A wearable's MagicaVoxel model, by contract and token id
-- [`/w/{hash}/{format}`](#get-whashformat) A wearable's model by content hash
-- [`/c/v2/{chain_identifier}/{collection_address}/{token_id}/{format}`](#get-cv2chain_identifiercollection_addresstoken_idformat) A wearable's model by chain, contract and token id
+- [`POST /api/wearables/{uuid}/minted`](#post-apiwearablesuuidminted) Stamp token_id after MetaMask mint
+- [`GET /api/wearables/search`](#get-apiwearablessearch) Wearable name substring match, fifty at most
+- [`GET /api/wearables/suggest`](#get-apiwearablessuggest) Thirty wearables, the ones for a given bone first
+- [`GET /api/wearables/free.json`](#get-apiwearablesfreejson) Wearables anyone can put on
+- [`GET /api/wearables/{wearable_id}/vox`](#get-apiwearableswearable_idvox) A wearable's MagicaVoxel model, by wearable uuid
+- [`GET /api/wearables/{address}/{token}/vox`](#get-apiwearablesaddresstokenvox) A wearable's MagicaVoxel model, by contract and token id
+- [`GET /w/{hash}/{format}`](#get-whashformat) A wearable's model by content hash
+- [`GET /c/v2/{chain_identifier}/{collection_address}/{token_id}/{format}`](#get-cv2chain_identifiercollection_addresstoken_idformat) A wearable's model by chain, contract and token id
+
+### POST /api/wearables/{uuid}/minted
+
+Stamp token_id after MetaMask mint
+
+JWT required. Wearable author or collection owner. Wearable must still have null `token_id` and its collection must have an address. `issues` is the edition count from the form (1-9). No on-chain verify in v1.
+
+**parameters**
+
+- `uuid` (path, required) string, a uuid
+
+**body**
+
+- `application/json` object
+  - `token_id` integer
+  - `issues` integer
+
+**answers**
+
+- `200` object
+  - `success` boolean
+  - `token_id` integer
+  - `issues` integer
+- `403` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/wearables/search
 
@@ -973,9 +1064,9 @@ Same handler as `/w/{hash}/{format}`. `token_id` is read as hex when it looks li
 
 ## islands
 
-- [`/api/islands.json`](#get-apiislandsjson) Every island with its shoreline
-- [`/api/islands-metadata.json`](#get-apiislands-metadatajson) Island names and positions
-- [`/api/islands/{slug}.json`](#get-apiislandsslugjson) One island and every parcel on it
+- [`GET /api/islands.json`](#get-apiislandsjson) Every island with its shoreline
+- [`GET /api/islands-metadata.json`](#get-apiislands-metadatajson) Island names and positions
+- [`GET /api/islands/{slug}.json`](#get-apiislandsslugjson) One island and every parcel on it
 
 ### GET /api/islands.json
 
@@ -1022,8 +1113,8 @@ The slug is the island name lowercased with runs of whitespace turned into singl
 
 ## spaces
 
-- [`/api/spaces/{id}.json`](#get-apispacesidjson) Archived space JSON download
-- [`/api/wallet/{address}/spaces.json`](#get-apiwalletaddressspacesjson) Archived spaces a wallet owns
+- [`GET /api/spaces/{id}.json`](#get-apispacesidjson) Archived space JSON download
+- [`GET /api/wallet/{address}/spaces.json`](#get-apiwalletaddressspacesjson) Archived spaces a wallet owns
 
 ### GET /api/spaces/{id}.json
 
@@ -1061,12 +1152,12 @@ Spaces are deprecated. List is for archive download links only.
 
 ## events
 
-- [`/api/events.json`](#get-apieventsjson) Events people have put on their parcels
-- [`/api/events/on.json`](#get-apieventsonjson) Events happening now or soon
-- [`/api/events/on/{limit}/{page}.json`](#get-apieventsonlimitpagejson) Paged version of the above
-- [`/api/events/{id}.json`](#get-apieventsidjson) One event
-- [`/api/parcels/{id}/event.json`](#get-apiparcelsideventjson) The event on a parcel
-- [`/api/parcels/{id}/events/history.json`](#get-apiparcelsideventshistoryjson) Events a parcel has already held
+- [`GET /api/events.json`](#get-apieventsjson) Events people have put on their parcels
+- [`GET /api/events/on.json`](#get-apieventsonjson) Events happening now or soon
+- [`GET /api/events/on/{limit}/{page}.json`](#get-apieventsonlimitpagejson) Paged version of the above
+- [`GET /api/events/{id}.json`](#get-apieventsidjson) One event
+- [`GET /api/parcels/{id}/event.json`](#get-apiparcelsideventjson) The event on a parcel
+- [`GET /api/parcels/{id}/events/history.json`](#get-apiparcelsideventshistoryjson) Events a parcel has already held
 
 ### GET /api/events.json
 
@@ -1145,7 +1236,7 @@ Events a parcel has already held
 
 ## search
 
-- [`/api/search`](#get-apisearch) Full text search across the world
+- [`GET /api/search`](#get-apisearch) Full text search across the world
 
 ### GET /api/search
 
@@ -1165,7 +1256,7 @@ Reads a materialised view that mixes parcels, wearables and the rest, so `type` 
 
 ## ghosts
 
-- [`/api/ghosts`](#get-apighosts) Random path fragments that touched a parcel
+- [`GET /api/ghosts`](#get-apighosts) Random path fragments that touched a parcel
 
 ### GET /api/ghosts
 

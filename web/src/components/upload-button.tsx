@@ -39,14 +39,13 @@ const uploadAsset = async (file: File, collectionId: number | null): Promise<Upl
   return await f.json()
 }
 
-type Props = { collection?: boolean; targetCollectionId?: number | null; onUpload?: () => void }
+type Props = { targetCollectionId?: number | null; onUpload?: () => void }
 
-export default function UploadButton({ collection, targetCollectionId, onUpload }: Props) {
+export default function UploadButton({ targetCollectionId, onUpload }: Props) {
   const [uploads, setUploads] = useState<Row[]>([])
   const [dragActive, setDragActive] = useState(false)
   const inFlightRef = useRef(0)
   const nextIdRef = useRef(0)
-  const successSeenRef = useRef(false)
 
   const queueFiles = useCallback(
     async (input: FileList | File[] | null | undefined) => {
@@ -60,25 +59,8 @@ export default function UploadButton({ collection, targetCollectionId, onUpload 
         return
       }
 
-      const existingId = targetCollectionId != null && targetCollectionId > 0 ? targetCollectionId : null
-      const wantPack = !existingId && (!!collection || vox.length >= 2)
-      let packId: number | null = existingId
-      if (!packId && wantPack) {
-        const r = await fetch('/api/collections/upload-pack', {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: '{}',
-        })
-        const j = (await r.json().catch(() => ({}))) as { success?: boolean; collection_id?: number; message?: string }
-        if (!r.ok || !j.success || j.collection_id == null) {
-          if (app.showSnackbar) {
-            app.showSnackbar(j.message || 'Could not create upload collection', PanelType.Warning)
-          }
-          return
-        }
-        packId = Number(j.collection_id)
-      }
+      // Collection wearables only from a collection page. Elsewhere: asset upload only.
+      const packId = targetCollectionId != null && targetCollectionId > 0 ? targetCollectionId : null
 
       const rows: Row[] = vox.map((file) => ({ id: ++nextIdRef.current, file }))
       inFlightRef.current += rows.length
@@ -86,13 +68,6 @@ export default function UploadButton({ collection, targetCollectionId, onUpload 
 
       for (const row of rows) {
         uploadAsset(row.file, packId).then((result) => {
-          if (result.success) {
-            successSeenRef.current = true
-
-            // Notify the parent that the upload is complete
-            onUpload?.()
-          }
-
           setUploads((prev) => prev.map((r) => (r.id === row.id ? { ...r, result } : r)))
 
           inFlightRef.current--
@@ -107,7 +82,7 @@ export default function UploadButton({ collection, targetCollectionId, onUpload 
         })
       }
     },
-    [collection, targetCollectionId],
+    [targetCollectionId, onUpload],
   )
 
   const onInputChange = (e: Event) => {
@@ -115,8 +90,6 @@ export default function UploadButton({ collection, targetCollectionId, onUpload 
     queueFiles(t.files)
     t.value = ''
   }
-
-  const userId = app.state.wallet?.toLowerCase()
 
   return (
     <div class="upload-button">

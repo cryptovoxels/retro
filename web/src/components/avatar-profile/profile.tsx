@@ -25,7 +25,7 @@ type Props = {
 
 export default function Profile(props: Props) {
   const [avatar, setAvatar] = useState<ApiAvatar | undefined>(undefined)
-  const [wearables, setWearables] = useState(0)
+  const [wearables, setWearables] = useState<any[]>([])
   const [costumes, setCostumes] = useState<Costume[]>([])
   const [collections, setCollections] = useState<{ id: number; name: string }[]>([])
   const [spaces, setSpaces] = useState<SimpleSpaceRecord[]>([])
@@ -38,7 +38,7 @@ export default function Profile(props: Props) {
     cachedFetch(`/api/avatars/${walletOrUUId}/costumes`)
       .then((r) => r.json())
       .then((data) => setCostumes(data.costumes ?? []))
-    fetchUsersCollectibles(walletOrUUId).then((results) => setWearables(results.length))
+    fetchUsersCollectibles(walletOrUUId).then((results) => setWearables(results || []))
     cachedFetch(`/api/collections?owner=${walletOrUUId}&limit=50`)
       .then((r) => r.json())
       .then((data) => setCollections(data.collections ?? []))
@@ -101,7 +101,7 @@ export default function Profile(props: Props) {
           )}
 
           <dt>Wearables</dt>
-          <dd>{isOwner ? <a href="/account/collectibles">{wearables}</a> : wearables}</dd>
+          <dd>{wearables.length}</dd>
 
           {avatar?.social_link_1 && (
             <>
@@ -132,6 +132,28 @@ export default function Profile(props: Props) {
         <Parcels wallet={walletOrUUId} isOwner={isOwner} />
         <Contributor wallet={walletOrUUId} isOwner={isOwner} />
         <Spaces wallet={walletOrUUId} isOwner={isOwner} />
+
+        {wearables.length > 0 && (
+          <>
+            <h2>Wearables</h2>
+            <table>
+              <tbody>
+                {wearables.map((w) => {
+                  const label = w.is_free ? 'free' : w.token_id == null ? 'draft' : 'owned'
+                  const href = w.token_id != null && w.collection_id ? `/collections/${w.collection_id}/collectibles/${w.token_id}` : w.collection_id ? `/collections/${w.collection_id}` : null
+                  return (
+                    <tr key={w.id || `${w.collection_id}:${w.token_id}`}>
+                      <td>{href ? <a href={href}>{w.name || `#${w.token_id}`}</a> : w.name || 'untitled'}</td>
+                      <td>
+                        <small>{label}</small>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </>
+        )}
 
         {collections.length > 0 && (
           <>

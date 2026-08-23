@@ -31,8 +31,13 @@ export default function AvatarsController(db: Db, passport: PassportStatic, app:
 
   app.get('/api/avatars/:wallet/assets', cache('5 seconds'), async (req, res) => {
     const wallet = req.params.wallet
-    const result = await db.query(
-      'sql/avatar/assets',
+    if (!wallet) {
+      res.status(400).json({ success: false, assets: [] })
+      return
+    }
+
+    const authored = await db.query(
+      'sql/avatar/assets-authored',
       `
       select
         w.id,
@@ -52,20 +57,171 @@ export default function AvatarsController(db: Db, passport: PassportStatic, app:
         w.category,
         w.default_bone,
         w.default_settings,
+        w.is_free,
         c.address as collection_address,
         c.chainid as chain_id,
-        c.name as collection_name
+        c.name as collection_name,
+        1 as quantity
       from
         wearables w
       left join
         collections c on c.id = w.collection_id
       where
-        w.author ILIKE $1
-        and w.token_id is not null
+        lower(w.author) = lower($1)
         and w.suppressed is not true`,
       [wallet],
     )
-    res.status(200).json({ success: true, assets: result.rows })
+
+    const free = await db.query(
+      'sql/avatar/assets-free',
+      `
+      select
+        w.id,
+        w.name,
+        w.description,
+        w.author,
+        w.issues,
+        w.token_id,
+        w.created_at,
+        w.updated_at,
+        w.hash,
+        w.rejected_at,
+        w.offer_prices,
+        w.collection_id,
+        w.custom_attributes,
+        w.suppressed,
+        w.category,
+        w.default_bone,
+        w.default_settings,
+        w.is_free,
+        c.address as collection_address,
+        c.chainid as chain_id,
+        c.name as collection_name,
+        1 as quantity
+      from
+        wearables w
+      join
+        collections c on c.id = w.collection_id
+      where
+        w.is_free = true
+        and w.suppressed is not true
+        and w.token_id is not null`,
+      [],
+    )
+
+    const contracts = await db.query('sql/avatar/collection-addresses', `select address, chainid from collections where address is not null`, [])
+
+    const byChain: Record<number, string[]> = { 1: [], 137: [] }
+    for (const row of contracts.rows) {
+      const chain = Number(row.chainid) || 1
+      if (chain !== 1 && chain !== 137) continue
+      if (typeof row.address === 'string' && ethers.isAddress(row.address)) {
+        byChain[chain].push(row.address.toLowerCase())
+      }
+    }
+
+    const alchemyOwned: any[] = []
+    if (ethers.isAddress(wallet)) {
+      for (const chain of [1, 137] as const) {
+        const addrs = byChain[chain]
+        if (!addrs.length) continue
+        const key = chain === 1 ? process.env.ALCHEMY_ETH_API_KEY : process.env.ALCHEMY_MATIC_API_KEY
+        if (!key) continue
+        const host = chain === 1 ? 'eth-mainnet' : 'polygon-mainnet'
+        // Alchemy caps contractAddresses at 45 per request
+        for (let i = 0; i < addrs.length; i += 45) {
+          const batch = addrs.slice(i, i + 45)
+          const params = new URLSearchParams({ owner: wallet, withMetadata: 'false' })
+          for (const a of batch) params.append('contractAddresses[]', a)
+          try {
+            const p = await fetch(`https://${host}.g.alchemy.com/v2/${key}/getNFTs/?${params}`)
+            const j = (await p.json()) as { ownedNfts?: any[] }
+            for (const nft of j.ownedNfts || []) {
+              const contract = (nft.contract?.address || '').toLowerCase()
+              const tokenIdRaw = nft.id?.tokenId ?? nft.tokenId
+              let tokenId = NaN
+              if (typeof tokenIdRaw === 'string') {
+                tokenId = tokenIdRaw.startsWith('0x') ? parseInt(tokenIdRaw, 16) : parseInt(tokenIdRaw, 16)
+              } else {
+                tokenId = Number(tokenIdRaw)
+              }
+              if (!contract || isNaN(tokenId)) continue
+              const qty = parseInt(String(nft.balance ?? '1'), 10) || 1
+              alchemyOwned.push({ contract, tokenId, quantity: qty, chain })
+            }
+          } catch {
+            // fail soft - authored + free still return
+          }
+        }
+      }
+    }
+
+    const joined: any[] = []
+    if (alchemyOwned.length) {
+      // Join one query: all wearables with an address
+      const minted = await db.query(
+        'sql/avatar/assets-by-contracts',
+        `
+        select
+          w.id,
+          w.name,
+          w.description,
+          w.author,
+          w.issues,
+          w.token_id,
+          w.created_at,
+          w.updated_at,
+          w.hash,
+          w.rejected_at,
+          w.offer_prices,
+          w.collection_id,
+          w.custom_attributes,
+          w.suppressed,
+          w.category,
+          w.default_bone,
+          w.default_settings,
+          w.is_free,
+          c.address as collection_address,
+          c.chainid as chain_id,
+          c.name as collection_name
+        from wearables w
+        join collections c on c.id = w.collection_id
+        where w.token_id is not null
+          and w.suppressed is not true
+          and c.address is not null
+        `,
+        [],
+      )
+      const lookup = new Map<string, any>()
+      for (const row of minted.rows) {
+        lookup.set(`${String(row.collection_address).toLowerCase()}:${row.token_id}`, row)
+      }
+      for (const o of alchemyOwned) {
+        const row = lookup.get(`${o.contract}:${o.tokenId}`)
+        if (row) joined.push({ ...row, quantity: o.quantity })
+      }
+    }
+
+    const byKey = new Map<string, any>()
+    const put = (row: any) => {
+      const key = row.token_id == null ? `draft:${row.id}` : `${row.collection_id}:${row.token_id}`
+      const prev = byKey.get(key)
+      if (!prev) {
+        byKey.set(key, { ...row, quantity: row.quantity ?? 1 })
+        return
+      }
+      byKey.set(key, {
+        ...prev,
+        ...row,
+        quantity: Math.max(prev.quantity ?? 1, row.quantity ?? 1),
+        is_free: !!(prev.is_free || row.is_free),
+      })
+    }
+    for (const row of free.rows) put(row)
+    for (const row of joined) put(row)
+    for (const row of authored.rows) put(row)
+
+    res.status(200).json({ success: true, assets: [...byKey.values()] })
   })
 
   app.get('/api/wearables/free.json', cache('60 seconds'), async (_req, res) => {

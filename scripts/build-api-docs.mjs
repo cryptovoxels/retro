@@ -170,8 +170,8 @@ function renderResponse(status, response) {
   return [`- ${code(status)} ${typeOf(media.schema)}`, ...shape]
 }
 
-function renderOperation(path, op) {
-  const out = [`### GET ${path}`, '']
+function renderOperation(method, path, op) {
+  const out = [`### ${method.toUpperCase()} ${path}`, '']
   if (op.summary) out.push(op.summary, '')
   for (const p of paragraphs(op.description)) out.push(p, '')
 
@@ -181,36 +181,58 @@ function renderOperation(path, op) {
     out.push('')
   }
 
+  if (op.requestBody) {
+    const body = resolve(op.requestBody)
+    const [mediaType, media] = Object.entries(body.content ?? {})[0] ?? []
+    if (media) {
+      out.push('**body**', '')
+      out.push(`- ${code(mediaType || 'application/json')} ${typeOf(media.schema)}`)
+      if (!media.schema.$ref) out.push(...fields(media.schema, '  '))
+      out.push('')
+    }
+  }
+
   out.push('**answers**', '')
   for (const [status, response] of Object.entries(op.responses ?? {})) out.push(...renderResponse(status, response))
   out.push('')
   return out
 }
 
+const METHODS = ['get', 'post', 'put', 'patch', 'delete']
 const byTag = new Map(spec.tags.map((t) => [t.name, []]))
 for (const [path, item] of Object.entries(spec.paths)) {
-  const tag = item.get.tags[0]
-  if (!byTag.has(tag)) byTag.set(tag, [])
-  byTag.get(tag).push([path, item.get])
+  for (const method of METHODS) {
+    const op = item[method]
+    if (!op) continue
+    const tag = op.tags?.[0] || 'misc'
+    if (!byTag.has(tag)) byTag.set(tag, [])
+    byTag.get(tag).push([method, path, op])
+  }
 }
 
 const md = [`# ${spec.info.title}`, '']
 for (const p of paragraphs(spec.info.description)) md.push(p, '')
-md.push(`Base url is ${code(base)}. Everything here is a GET and none of it needs a key.`, '')
+md.push(`Base url is ${code(base)}. Most routes are unauthenticated GETs; write routes need a session.`, '')
 md.push(`Generated from ${code('server/openapi.yaml')} by ${code('npm run docs:api')}. Edit the spec, not this page.`, '')
 
 md.push('## what is in here', '')
-for (const [tag, ops] of byTag) md.push(`- [${tag}](#${slug(tag)}), ${ops.length} route${ops.length === 1 ? '' : 's'}`)
+for (const [tag, ops] of byTag) {
+  if (!ops.length) continue
+  md.push(`- [${tag}](#${slug(tag)}), ${ops.length} route${ops.length === 1 ? '' : 's'}`)
+}
 // schemas is the one section nothing else links to from up here
 md.push(`- [schemas](#${slug('schemas')}), ${Object.keys(spec.components.schemas).length} shapes`)
 md.push('')
 
 for (const [tag, ops] of byTag) {
+  if (!ops.length) continue
   md.push(`## ${tag}`, '')
   // Jump list for the tag: the route, and what you would find there.
-  for (const [path, op] of ops) md.push(`- [${code(path)}](#${slug('GET ' + path)})${op.summary ? ` ${op.summary}` : ''}`)
+  for (const [method, path, op] of ops) {
+    md.push(`- [${code(method.toUpperCase() + ' ' + path)}](#${slug(method.toUpperCase() + ' ' + path)})${op.summary ? ` ${op.summary}` : ''}`)
+  }
   md.push('')
-  for (const [path, op] of ops) md.push(...renderOperation(path, op))
+  for (const [method, path, op] of ops) md.push(...renderOperation(method, path, op))
 }
 
 md.push('## schemas', '')
@@ -252,7 +274,7 @@ const total = Object.keys(spec.paths).length
 const llms = [
   `# ${spec.info.title}`,
   '',
-  `> ${total} read-only GET routes on ${base}, covering ${[...byTag.keys()].join(', ')}. No key, no sign-in. Handlers answer {"success": true, "<field>": ...}, where the field is plural for a list and singular for one record, and {"success": false} when the lookup misses.`,
+  `> ${total} routes on ${base}, covering ${[...byTag.keys()].filter((t) => byTag.get(t).length).join(', ')}. Most are unauthenticated GET. Handlers answer {"success": true, "<field>": ...}, where the field is plural for a list and singular for one record, and {"success": false} when the lookup misses.`,
   '',
   '## docs',
   '',
@@ -264,9 +286,10 @@ const llms = [
   '',
 ]
 for (const [tag, ops] of byTag) {
+  if (!ops.length) continue
   const detail = blurbs[tag] ? ` ${blurbs[tag]}` : ''
   // Link a route you can actually call, so skip the ones with {placeholders}.
-  const example = (ops.find(([path]) => !path.includes('{')) ?? ops[0])[0]
+  const example = (ops.find(([, path]) => !path.includes('{')) ?? ops[0])[1]
   llms.push(`- [${tag}](${base}${example}): ${ops.length} route${ops.length === 1 ? '' : 's'}.${detail}`)
 }
 llms.push('')

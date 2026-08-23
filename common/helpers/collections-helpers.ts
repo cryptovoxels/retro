@@ -86,6 +86,7 @@ export async function fetchUsersCollectiblesData(wallet: string | undefined, cac
   const results: CollectiblesData[] = []
 
   for (const item of userItems) {
+    if (item.token_id == null) continue
     results.push({
       id: item.id,
       token_id: item.token_id ?? 0,
@@ -96,13 +97,13 @@ export async function fetchUsersCollectiblesData(wallet: string | undefined, cac
       author: null,
       hash: item.hash ?? '',
       suppressed: item.suppressed ?? false,
-      chain_id: parseInt(item.chain_id),
+      chain_id: parseInt(String(item.chain_id ?? '1'), 10),
       collection_address: item.collection_address,
       collection_name: null,
-      gif: config.wearablePreviewURL(item.token_id?.toString() ?? '0', `Mock Item #${item.token_id}`),
+      gif: config.wearablePreviewURL(item.id, item.name ?? `Item #${item.token_id}`),
       quantity: item.quantity ?? 0,
       default_bone: typeof (item as any).default_bone == 'string' && (item as any).default_bone ? (item as any).default_bone : undefined,
-      is_free: false,
+      is_free: !!(item as any).is_free,
     })
   }
 

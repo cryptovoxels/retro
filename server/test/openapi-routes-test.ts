@@ -33,18 +33,34 @@ const routes = () => {
   return found
 }
 
-// top-level keys of the paths: block. no yaml parser is installed and this does not need one
+// top-level keys of the paths: block that have a get: method.
+// write-only paths are allowed in the yaml but this test only guards GET docs.
 const yamlPaths = () => {
   const paths = new Set<string>()
   let inPaths = false
+  let current: string | null = null
+  let currentHasGet = false
+  const flush = () => {
+    if (current && currentHasGet) paths.add(current)
+    current = null
+    currentHasGet = false
+  }
   for (const line of readFileSync(join(SERVER, 'openapi.yaml'), 'utf8').split('\n')) {
     if (/^paths:\s*$/.test(line)) inPaths = true
-    else if (inPaths && /^\S/.test(line)) break
-    else if (inPaths) {
+    else if (inPaths && /^\S/.test(line)) {
+      flush()
+      break
+    } else if (inPaths) {
       const m = /^ {2}(\/\S*):\s*$/.exec(line)
-      if (m) paths.add(m[1])
+      if (m) {
+        flush()
+        current = m[1]
+        continue
+      }
+      if (current && /^ {4}get:\s*$/.test(line)) currentHasGet = true
     }
   }
+  flush()
   return paths
 }
 

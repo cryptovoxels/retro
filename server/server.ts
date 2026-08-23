@@ -58,7 +58,6 @@ import { ingestReleaseNotes } from './blog-ingest'
 import createGridSocket from './grid/createGridSocket'
 import { searchAndReturn } from './handlers/search'
 import { EthereumListener } from './jobs/ethereum-listener'
-import cleanCollections from './jobs/remove-collections'
 import truncateMetrics from './jobs/truncate-metrics'
 import log from './lib/logger'
 import { createRequestHandlerForQuery, query } from './lib/query-helpers'
@@ -615,12 +614,6 @@ const start = () => {
 
 const master = () => {
   log.info(`master() running on DYNO=${process.env.DYNO} PORT=${port}`) //TODO: Remove
-
-  //clean collections with no addresses every day at start up and once per day
-  setTimeout(() => {
-    setInterval(() => cleanCollections(), 1000 * 60 * 60 * 24)
-    cleanCollections()
-  }, 1000)
 
   // truncate the next-to-be-reused metrics table once per day
   setTimeout(() => {

@@ -48,18 +48,3 @@ export function blobToImage(blob: any) {
   }
   return url
 }
-
-export async function removeCollection(collection_id: number): Promise<any> {
-  const body = { id: collection_id }
-  const p = await fetch(`${process.env.API}/collections/remove`, {
-    method: 'put',
-    credentials: 'include',
-    headers: {
-      Accept: 'application/json',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
-  })
-  const r = await p.json()
-  return { success: !!r.success }
-}
