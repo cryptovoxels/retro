@@ -46,6 +46,7 @@ export enum MessageType {
   // Thrown wearable objects (client-simulated, relayed)
   yeet = 67,
   yeetState = 68,
+  nerf = 69,
 
   // Lua behaviour state sync (parallel to grid; ephemeral, parcel-scoped)
   behaviourState = 70,
@@ -226,6 +227,16 @@ export type YeetStateMessage = {
   objects: any[]
 }
 export const YeetStateEncoder = encoderCreator<YeetStateMessage>()
+
+export type NerfMessage = {
+  type: MessageType.nerf
+  uuid: string
+  yeetId: string
+  kind: 'avatar' | 'field'
+  target?: string
+  position: [number, number, number]
+}
+export const NerfEncoder = encoderCreator<NerfMessage>()
 
 export type CreateAvatarMessage = {
   type: MessageType.createAvatar
@@ -588,7 +599,7 @@ export namespace Message {
   /**
    * A type of message that is used for maintaining state by the client and the server.
    */
-  type StateRelayMessage = NewCostumeMessage | TypingMessage | ChatMessage | VoiceStateMessage | AvatarEmoteMessage | PointMessage | YeetMessage | YeetStateMessage | BehaviourStateMessage | BehaviourSignalMessage
+  type StateRelayMessage = NewCostumeMessage | TypingMessage | ChatMessage | VoiceStateMessage | AvatarEmoteMessage | PointMessage | YeetMessage | YeetStateMessage | NerfMessage | BehaviourStateMessage | BehaviourSignalMessage
 
   /**
    * A type of message that is sent by a client to update the avatar's state in-world.
@@ -606,6 +617,7 @@ export namespace Message {
     [MessageType.point]: null,
     [MessageType.yeet]: null,
     [MessageType.yeetState]: null,
+    [MessageType.nerf]: null,
     [MessageType.behaviourState]: null,
     [MessageType.behaviourSignal]: null,
   })
@@ -630,6 +642,7 @@ export namespace Message {
     [MessageType.point]: null,
     [MessageType.yeet]: null,
     [MessageType.yeetState]: null,
+    [MessageType.nerf]: null,
     [MessageType.behaviourState]: null,
     [MessageType.behaviourSignal]: null,
   })

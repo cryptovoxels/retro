@@ -1,4 +1,4 @@
-export type Kind = 'image' | 'video' | 'preview' | 'audio' | 'vox' | 'tileset' | 'lightmap'
+export type Kind = 'image' | 'video' | 'preview' | 'audio' | 'vox' | 'tileset'
 
 export type Env = {
   baseUrl: string

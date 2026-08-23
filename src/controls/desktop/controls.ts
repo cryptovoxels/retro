@@ -29,7 +29,6 @@ export default class DesktopControls extends Controls {
   createCamera() {
     const coords = decodeCoordsFromURL()
     const camera = createFirstPersonCamera(this.scene, coords)
-    this.resetWorldOffset(coords.position)
 
     if (coords && coords.rotation) {
       camera['rotation'].y = coords?.rotation.y || 0
@@ -151,18 +150,17 @@ export default class DesktopControls extends Controls {
   }
 
   desktopClicks(eventData: BABYLON.PointerInfo, eventState: BABYLON.EventState) {
-    // selected feature: leave pickInfo in world space for gizmos / face-drag.
-    // otherwise convert to persona space for click handlers below.
     const authoring = !!window.ui?.state?.feature
-    if (!authoring && eventData.pickInfo?.pickedPoint) {
-      eventData.pickInfo.pickedPoint = eventData.pickInfo.pickedPoint.subtract(this.worldOffset.position)
-    }
 
     const btn = eventData.event.button
 
     if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 0 && !hasPointerLock() && !eventData.event.shiftKey) {
       // selected feature: free mouse for face-drag / gizmos. don't steal into pointer lock.
       if (!authoring) {
+        // ActionGui (Drive / try-on / guestbook): lock mid-press moves the cursor to
+        // screen center so POINTERUP never lands on the button
+        const meshName = eventData.pickInfo?.pickedMesh?.name || ''
+        if (meshName.startsWith('feature/basicGui/')) return
         this.nerfClick = true
         this.requestPointerLock()?.catch(() => {})
         return
@@ -294,6 +292,7 @@ export default class DesktopControls extends Controls {
       keysLeft: ['ArrowLeft', 'KeyA'],
       keysRight: ['ArrowRight', 'KeyD'],
     })
+    this.keyboardInput.move = this.move
     this.bindKeys()
     camera.inputs.add(this.keyboardInput)
 
@@ -314,7 +313,7 @@ export default class DesktopControls extends Controls {
         this.stopConga()
       }
 
-      if (e.code === 'Space') this.camera.jump()
+      if (e.code === 'Space') this.body.jump()
 
       if (e.code === 'KeyE') {
         // stop bubble so document KeyE (edit feature) does not toggle us straight back out / open the editor
@@ -397,9 +396,7 @@ export default class DesktopControls extends Controls {
       if (pressed) this.toggleRun()
     } else if (button === 'Cross' || button === 'A') {
       if (pressed) {
-        if ('jump' in this.camera) {
-          this.camera.jump()
-        }
+        this.body.jump()
       }
     } else if (button === 'Circle' || button === 'B') {
       if (pressed) this.toggleFlying()

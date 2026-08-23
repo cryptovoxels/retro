@@ -11,10 +11,8 @@ const BLEED_MARGIN = 2
 const PAGE_ORTHO = 2000
 
 // Fixme cant import from the src bundle
-import aoMeshVertexShader from '../../../src/shaders/ao-mesh.vsh'
+import { aoMeshPixelShader, aoMeshVertexShader } from './ao-mesh-shaders'
 BABYLON.Effect.ShadersStore['aoMeshVertexShader'] = aoMeshVertexShader
-
-import aoMeshPixelShader from '../../../src/shaders/ao-mesh.fsh'
 BABYLON.Effect.ShadersStore['aoMeshPixelShader'] = aoMeshPixelShader
 
 // Mesher

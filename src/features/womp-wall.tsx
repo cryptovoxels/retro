@@ -233,11 +233,8 @@ export default class WompWall extends Feature2D<WompWallRecord> {
     const uv = pick.getTextureCoordinates()
     if (uv) return tileIndexFromUv(uv.x, uv.y)
 
-    // fallback: pick points are in grid space (worldOffset already subtracted)
     if (!this.mesh || !pick.pickedPoint) return -1
-    const offset = window.persona?.controls?.worldOffset?.position
     const world = pick.pickedPoint.clone()
-    if (offset) world.addInPlace(offset)
     const local = BABYLON.Vector3.TransformCoordinates(world, BABYLON.Matrix.Invert(this.mesh.getWorldMatrix()))
     return tileIndexFromUv(local.x + 0.5, local.y + 0.5)
   }

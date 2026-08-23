@@ -36,7 +36,7 @@ export function validatorFor(kind: Kind): Validator {
   if (kind === 'vox') return isVox
   if (kind === 'audio') return isMp3
   if (kind === 'video') return isMp4
-  // image | preview | tileset | lightmap
+  // image | preview | tileset
   return (b) => isPng(b) || isJpeg(b) || isGif(b) || isWebP(b)
 }
 

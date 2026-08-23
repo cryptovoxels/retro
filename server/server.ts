@@ -279,7 +279,10 @@ if (config.isDevelopment) {
         if (!origin || origin.match(/null/i) || origin.match(/localhost/) || origin.match(/cryptovoxels/) || origin.match(/crvox/) || origin.match(/voxels/)) {
           callback(null, true)
         } else {
-          callback(new Error(`Origin '${origin}' is not allowed by CORS rules`))
+          // Deny the header, do not fail the request. Handing cors an Error
+          // sends it to next(err), so an origin we do not allow gets a 500
+          // instead of a normal response the browser then blocks itself.
+          callback(null, false)
         }
       },
     }),

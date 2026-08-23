@@ -154,6 +154,7 @@ export const PERSISTENT_PANES = new Set(['settings', 'help', 'dance', 'emote', '
 export const isPersistentPane = (p?: string) => !!p && PERSISTENT_PANES.has(p)
 
 export const yeetCollectionId = signal<string | undefined>(undefined)
+export const equippedWid = signal<string | undefined>(undefined)
 
 export const uiAsideTick = signal(0)
 export const sidebarClosed = signal(false)

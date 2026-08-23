@@ -7,7 +7,6 @@ import {
   DeleteFeatureMessage,
   GridClientMessage,
   GridMessage,
-  LightmapActionMessage,
   ParcelAuthMessage,
   ParcelMetaMessage,
   ParcelScriptMessage,
@@ -38,8 +37,6 @@ export default class GridShard {
     private getFeature: (parcel: ParcelAuthRef, featureId: string) => Promise<unknown | null>,
     private getState: (parcelId: number) => Promise<Record<string, unknown> | null>,
     private publishShardMessage: (message: GridShardMessage) => Promise<void>,
-    private startLightmapBake: (parcelId: number) => Promise<void>,
-    private cancelLightmapBake: (parcelId: number) => Promise<void>,
     private authParcel: (parcel: ParcelAuthRef, user: VoxelsUser | null) => Promise<ParcelAuthResult>,
   ) {}
 
@@ -61,13 +58,6 @@ export default class GridShard {
           type: 'patch-state',
           parcelId: message.payload.parcelId,
           patch: message.payload.patch,
-        })
-        break
-      case 'lightmapUpdate':
-        this.broadcastGridMessage(message.payload.parcelId, null, {
-          type: 'lightmap-status',
-          parcelId: message.payload.parcelId,
-          lightmap_url: message.payload.lightmap_url,
         })
         break
       case 'metaUpdate':
@@ -105,9 +95,6 @@ export default class GridShard {
         break
       case 'ping':
         statefulClient.send({ type: 'pong' })
-        break
-      case 'lightmap-action':
-        // this.handleLightmap(statefulClient, message)
         break
       default: {
         const n: never = message
@@ -256,12 +243,6 @@ export default class GridShard {
         const subscribedClientsForParcel = previousSubscribedClientsForParcel.add(client.id)
         this.clientsByParcelId.set(parcel.id, subscribedClientsForParcel)
 
-        client.send({
-          type: 'lightmap-status',
-          parcelId: parcel.id,
-          lightmap_url: parcel.lightmap_url,
-        })
-
         this.sendAuth(parcel, client)
 
         sendParcelState(client, parcel.id, (await this.getState(parcel.id)) || {})
@@ -312,8 +293,6 @@ export default class GridShard {
       }
     }
 
-    const hadLightmap = !!parcel.lightmap_url
-
     this.publishShardMessage({
       type: 'patchCreate',
       payload: {
@@ -322,10 +301,6 @@ export default class GridShard {
         sender: client.id,
       },
     })
-
-    if (hadLightmap) {
-      this.sendLightmapStatusUpdate(msg.parcelId, null)
-    }
   }
 
   private async handleDeleteFeature(client: StatefulGridClient, msg: DeleteFeatureMessage) {
@@ -393,33 +368,6 @@ export default class GridShard {
         },
       })
     }
-  }
-
-  private async handleLightmap(client: StatefulGridClient, msg: LightmapActionMessage) {
-    const parcel = await this.getParcel(msg.parcelId)
-    if (!parcel) {
-      return
-    }
-    const authResult = await this.authParcel(parcel, client.user)
-
-    if (authResult) {
-      await (msg.requestBake ? this.startLightmapBake(msg.parcelId) : this.cancelLightmapBake(msg.parcelId))
-      const newParcel = await this.getParcel(msg.parcelId)
-      if (!newParcel) {
-        return
-      }
-      this.sendLightmapStatusUpdate(msg.parcelId, newParcel.lightmap_url)
-    }
-  }
-
-  private sendLightmapStatusUpdate(parcelId: number, lightmap_url: string | null) {
-    return this.publishShardMessage({
-      type: 'lightmapUpdate',
-      payload: {
-        parcelId,
-        lightmap_url,
-      },
-    })
   }
 
   private broadcastGridMessage(parcelId: number, sender: string | null, msg: GridMessage) {

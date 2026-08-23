@@ -160,9 +160,5 @@ export function buildTryUrls(kind: Kind, raw: string, e: Env = env(), opts: Reso
     push(urls, `${e.imgUrl}/audio?url=${encodeURIComponent(u)}&mode=audio`)
   }
 
-  if (kind === 'lightmap') {
-    // already pushed u
-  }
-
   return urls
 }

@@ -19,8 +19,8 @@ export class WorldEnvironment extends Environment {
   private _isUnderwater: boolean | null = null
   private _groundStateObservable: StateObservable<'loaded' | 'unloaded'> | undefined
 
-  constructor(parent: BABYLON.TransformNode, scene: BABYLON.Scene) {
-    super(parent, scene)
+  constructor(scene: BABYLON.Scene) {
+    super(scene)
   }
 
   public override get groundStateObservable(): StateObservable<'loaded' | 'unloaded'> {
@@ -98,7 +98,7 @@ export class WorldEnvironment extends Environment {
 
     this.skybox = new Skybox(this.scene)
 
-    const terrain = new Terrain(this.scene, this.parent, [this.skybox])
+    const terrain = new Terrain(this.scene, [this.skybox])
     this.terrain = terrain
     this._groundStateObservable = terrain.islandsStateObservable
     this._invalidateGroundLoaded = () => terrain.invalidateIslandsLoaded()

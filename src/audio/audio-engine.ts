@@ -184,7 +184,7 @@ export class AudioEngine {
     if (!sound || (limitPlaybackRate && Date.now() < nextPlayAllowedAt)) return
 
     if (worldPosition) {
-      sound.setPosition(this.connector.controls.worldToAbsolutePosition(worldPosition))
+      sound.setPosition(worldPosition)
     }
 
     // Add some jitter to stop sound waves being summed and sounding crappy

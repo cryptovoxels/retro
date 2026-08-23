@@ -23,7 +23,6 @@ export function voxelCollider(shapeOrField: [number, number, number] | NdArray<U
 
   const [sx, sy, sz] = shapeOrField
   const out: number[] = []
-  // ndarray default stride for shape [sx,sy,sz] is [sy*sz, sz, 1] - z fastest
   let i = 0
   for (let x = 0; x < sx; x++) {
     for (let y = 0; y < sy; y++) {
@@ -33,6 +32,48 @@ export function voxelCollider(shapeOrField: [number, number, number] | NdArray<U
     }
   }
   return new Int32Array(out)
+}
+
+function gridDims(size: { x: number; y: number; z: number }, shift: number) {
+  const m = 1 << shift
+  return {
+    gx: (size.x + m - 1) >> shift,
+    gy: (size.y + m - 1) >> shift,
+    gz: (size.z + m - 1) >> shift,
+  }
+}
+
+function localCoord(x: number, y: number, z: number, gx: number, gy: number, gz: number) {
+  return [x - Math.floor(gx / 2), z - Math.floor(gz / 2), Math.floor(gy / 2) - y]
+}
+
+function downsampleBuf(buf: ArrayBuffer, shift: number): Promise<Int32Array> {
+  return new Promise((resolve) => {
+    VoxReader.read(buf, (vox: any, errstr: string | null) => {
+      if (errstr || !vox?.models?.[0]) return resolve(empty)
+      const size = vox.sizes[0]
+      const { gx, gy, gz } = gridDims(size, shift)
+      const occ = new Uint8Array(gx * gy * gz)
+      const at = (x: number, y: number, z: number) => x + y * gx + z * gx * gy
+      vox.models[0].forEach((row: any) => {
+        const x = row.x >> shift
+        const y = row.y >> shift
+        const z = row.z >> shift
+        if (x < 0 || y < 0 || z < 0 || x >= gx || y >= gy || z >= gz) return
+        occ[at(x, y, z)] = 1
+      })
+      const out: number[] = []
+      for (let x = 0; x < gx; x++) {
+        for (let y = 0; y < gy; y++) {
+          for (let z = 0; z < gz; z++) {
+            if (!occ[at(x, y, z)]) continue
+            out.push(...localCoord(x, y, z, gx, gy, gz))
+          }
+        }
+      }
+      resolve(out.length ? new Int32Array(out) : empty)
+    })
+  })
 }
 
 /** 16^3 occupancy from a wearable .vox. Any filled 2x2x2 of the 32^3 source is one cell. */
@@ -45,28 +86,5 @@ export async function wearVoxels(url: string): Promise<Int32Array> {
   } catch {
     return empty
   }
-
-  return new Promise((resolve) => {
-    VoxReader.read(buf, (vox: any, errstr: string | null) => {
-      if (errstr || !vox?.models?.[0]) return resolve(empty)
-      const occ = new Uint8Array(16 * 16 * 16)
-      vox.models[0].forEach((row: any) => {
-        const x = row.x >> 1
-        const y = row.y >> 1
-        const z = row.z >> 1
-        if (x > 15 || y > 15 || z > 15 || x < 0 || y < 0 || z < 0) return
-        occ[x + y * 16 + z * 256] = 1
-      })
-      const out: number[] = []
-      for (let x = 0; x < 16; x++) {
-        for (let y = 0; y < 16; y++) {
-          for (let z = 0; z < 16; z++) {
-            if (!occ[x + y * 16 + z * 256]) continue
-            out.push(x - 8, z, 7 - y)
-          }
-        }
-      }
-      resolve(out.length ? new Int32Array(out) : empty)
-    })
-  })
+  return downsampleBuf(buf, 1)
 }

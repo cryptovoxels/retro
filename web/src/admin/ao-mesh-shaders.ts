@@ -1,4 +1,37 @@
-precision highp float;
+// Admin island preview still uses the legacy ao-mesh shader.
+export const aoMeshVertexShader = `attribute vec3 position;
+attribute vec3 normal;
+attribute float block;
+attribute float ambientOcclusion;
+
+uniform mat4 worldViewProjection;
+uniform float tileCount;
+uniform vec3 palette[16];
+
+varying vec3  vNormal;
+varying float vFogDistance;
+varying vec2  vTileCoord;
+varying vec2  vTexCoord;
+varying float vAmbientOcclusion;
+varying vec3 vColorValue;
+
+void main() {
+    vFogDistance = (worldViewProjection * vec4(position, 1.0)).z;
+    vAmbientOcclusion = ambientOcclusion / 255.0;
+    vNormal = normal;
+    vTexCoord = vec2(dot(position * 2.0, vec3(normal.y-normal.z, 0, normal.x)),
+    dot(position * 2.0, vec3(0, -abs(normal.x+normal.z), normal.y)));
+    float textureIndex = mod(float(block), 32.0);
+    int colorIndex = int(mod(floor(float(block) / 32.0), 8.0));
+    vColorValue = palette[colorIndex];
+    float tx    = textureIndex / tileCount;
+    vTileCoord.y = floor(tx);
+    vTileCoord.x = fract(tx) * tileCount;
+    gl_Position = worldViewProjection * vec4(position, 1.0);
+}
+`
+
+export const aoMeshPixelShader = `precision highp float;
 
 uniform float tileSize;
 uniform sampler2D tileMap;
@@ -59,9 +92,6 @@ void main() {
         discard;
     }
 
-    // NOTE: Palette is applied twice (here and in line 64) for backward compatibility.
-    // This creates a squared palette effect (color * palette^2) that has been part
-    // of the visual style for years. Removing it would change how all existing parcels look.
     color.xyz *= vColorValue;
 
     float light = clamp(dot(vNormal, lightDirection) * 1.5 * brightness, 0.4 * brightness, 1.0);
@@ -73,4 +103,4 @@ void main() {
 
     #include<imageProcessingCompatibility>
 }
-  
+`

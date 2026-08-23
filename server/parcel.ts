@@ -73,8 +73,6 @@ class ParcelEventEmitterInternal extends EventEmitter implements ParcelEventEmit
 
 export const PARCEL_EVENT_EMITTER: ParcelEventEmitter = new ParcelEventEmitterInternal()
 
-export type LightmapStatus = 'None' | 'Requested' | 'Baking' | 'Baked' | 'Failed' | 'HashMismatch'
-
 export class ParcelRef {
   id: number
   name: string
@@ -560,34 +558,6 @@ export default class Parcel extends AbstractParcel {
 
     return true
   }
-
-  // public override async requestBake() {
-  //   // queue up new job
-  //   await db.query(
-  //     'embedded/insert-parcel-bake-job',
-  //     `
-  //     insert into
-  //       ${JOBS_TABLE_NAME} (parcel_id, type, created_at)
-  //     values
-  //       ($1, 'bake', now())
-  //   `,
-  //     [this.id],
-  //   )
-  // }
-
-  // public override async cancelBake() {
-  //   // remove previously queued jobs
-  //   await db.query(
-  //     'embedded/delete-parcel-bake-job',
-  //     `
-  //     delete from
-  //       ${JOBS_TABLE_NAME}
-  //     where
-  //       type = 'bake' and parcel_id = $1
-  //   `,
-  //     [this.id],
-  //   )
-  // }
 
   public async refreshListedAt(): Promise<boolean> {
     if (!this.id) {

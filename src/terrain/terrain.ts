@@ -11,26 +11,22 @@ export class Terrain {
   public islandsStateObservable: StateObservable<'loaded' | 'unloaded'>
   public invalidateIslandsLoaded: () => void
   private readonly _scene: BABYLON.Scene
-  private readonly _parent: BABYLON.TransformNode
-
   private readonly _islands: Islands
   private readonly _oceanFloor: OceanFloor
-
   private _ocean: Ocean
   private readonly _chunkSystem: ChunkSystem
   private _islandsHasLoaded = false
   private _loadRange: number
 
-  constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, skyboxes: any[]) {
+  constructor(scene: BABYLON.Scene, skyboxes: any[]) {
     this._scene = scene
-    this._parent = parent
     this._loadRange = Math.ceil((window.draw.distance * 1.414 + CHUNK_SIZE / 2) / CHUNK_SIZE)
 
-    this._islands = new Islands(scene, parent)
+    this._islands = new Islands(scene)
     this.islandsStateObservable = this._islands.islandsStateObservable
     this.invalidateIslandsLoaded = () => this._islands.invalidateIslandsLoaded()
 
-    this._oceanFloor = new OceanFloor(CHUNK_SIZE, scene, parent)
+    this._oceanFloor = new OceanFloor(CHUNK_SIZE, scene)
 
     // Extract meshes from skyboxes for reflection
     const skyboxMeshes: BABYLON.Mesh[] = []
@@ -47,7 +43,7 @@ export class Terrain {
         skyboxMeshes.push(skybox.moon)
       }
     }
-    this._ocean = new Ocean(CHUNK_SIZE, scene, parent, skyboxMeshes)
+    this._ocean = new Ocean(CHUNK_SIZE, scene, skyboxMeshes)
 
     this._chunkSystem = new ChunkSystem(CHUNK_SIZE)
     this._chunkSystem.addObserver(this._oceanFloor)

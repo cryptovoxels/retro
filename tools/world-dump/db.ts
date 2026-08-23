@@ -12,7 +12,6 @@ CREATE TABLE IF NOT EXISTS parcels (
   name         TEXT,
   address      TEXT,
   island       TEXT,
-  lightmap_url TEXT,
   content      TEXT NOT NULL,
   done         INTEGER NOT NULL DEFAULT 0
 );
@@ -59,7 +58,6 @@ export type ParcelRow = {
   name: string | null
   address: string | null
   island: string | null
-  lightmap_url: string | null
   content: string
   done: number
 }

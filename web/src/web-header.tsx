@@ -242,6 +242,11 @@ export default class WebHeader extends Component<Props, State> {
                   </form>
                 </div>
               </li>
+
+              <li>
+                <br />
+                <small>&copy; 2018-2026</small>
+              </li>
             </ul>
           </nav>
         </header>

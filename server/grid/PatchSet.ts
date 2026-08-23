@@ -62,12 +62,6 @@ export class PatchSet {
             parcel.content.features = []
           }
 
-          // Lightmap-only patch: just persist the URL, don't invalidate it
-          if ('lightmap_url' in patch && typeof patch.lightmap_url === 'string') {
-            parcel.lightmap_url = patch.lightmap_url
-            return
-          }
-
           if ('features' in patch && typeof patch.features === 'object' && patch.features) {
             Object.entries(patch.features).forEach(([uuid, value]) => {
               const feature = parcel.getFeatureByUuid(uuid)
@@ -125,9 +119,6 @@ export class PatchSet {
           if ('brightness' in patch && typeof patch.brightness === 'number') {
             parcel.content.brightness = patch.brightness
           }
-
-          // Content changed -- old lightmap is stale
-          parcel.lightmap_url = null
 
           // If shouldUpdateParcelScript is already true, no need to re-update it.
           shouldUpdateParcelScript = shouldUpdateParcelScript ? shouldUpdateParcelScript : hasScript(patch)

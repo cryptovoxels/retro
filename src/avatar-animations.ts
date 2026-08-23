@@ -119,7 +119,7 @@ export class AvatarAnimations {
     // direction and that would allow running speed and walking/running backwards. Ideally animation stride length
     // would be another scaling factor
     if (this.state === Animations.Walk) {
-      speedRatio = 2.0 // handcrafted number that doesnt look too crap at the moment
+      speedRatio = 1.0 // handcrafted number that doesnt look too crap at the moment
     }
     let loop = true
 

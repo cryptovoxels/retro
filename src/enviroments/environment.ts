@@ -13,10 +13,7 @@ export abstract class Environment extends TypedEventTarget<{
 }> {
   public ambientLight?: BABYLON.HemisphericLight
 
-  protected constructor(
-    public parent: BABYLON.TransformNode,
-    protected readonly scene: BABYLON.Scene,
-  ) {
+  protected constructor(protected readonly scene: BABYLON.Scene) {
     super()
     this._timeOfDay = window.config.isNight ? TimeOfDay.Night : TimeOfDay.Day
   }

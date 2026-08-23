@@ -14,46 +14,6 @@ export function aabbDistance(p: Vec3, min: Vec3, max: Vec3): number {
   return Math.sqrt(dx * dx + dy * dy + dz * dz)
 }
 
-export function computeNormals(positions: number[], indices: number[]): number[] {
-  const normals = new Array<number>(positions.length).fill(0)
-
-  for (let i = 0; i < indices.length; i += 3) {
-    const i0 = indices[i] * 3
-    const i1 = indices[i + 1] * 3
-    const i2 = indices[i + 2] * 3
-
-    const ax = positions[i1] - positions[i0]
-    const ay = positions[i1 + 1] - positions[i0 + 1]
-    const az = positions[i1 + 2] - positions[i0 + 2]
-    const bx = positions[i2] - positions[i0]
-    const by = positions[i2 + 1] - positions[i0 + 1]
-    const bz = positions[i2 + 2] - positions[i0 + 2]
-
-    const nx = ay * bz - az * by
-    const ny = az * bx - ax * bz
-    const nz = ax * by - ay * bx
-
-    normals[i0] += nx
-    normals[i0 + 1] += ny
-    normals[i0 + 2] += nz
-    normals[i1] += nx
-    normals[i1 + 1] += ny
-    normals[i1 + 2] += nz
-    normals[i2] += nx
-    normals[i2 + 1] += ny
-    normals[i2 + 2] += nz
-  }
-
-  for (let i = 0; i < normals.length; i += 3) {
-    const len = Math.sqrt(normals[i] * normals[i] + normals[i + 1] * normals[i + 1] + normals[i + 2] * normals[i + 2]) || 1
-    normals[i] /= len
-    normals[i + 1] /= len
-    normals[i + 2] /= len
-  }
-
-  return normals
-}
-
 function transformPoint(positions: number[], i: number, m: Float32Array) {
   const x = positions[i]
   const y = positions[i + 1]

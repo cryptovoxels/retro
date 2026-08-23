@@ -24,6 +24,11 @@ export function createFirstPersonCamera(scene: BABYLON.Scene, coords: coords): P
   // Inertia is gross with pointerlock
   camera.inertia = 0
 
+  // nothing reads camera.speed for walk now; set so stock gamepad input's
+  // cameraDirection comes back as raw stick deflection * dt
+  // (babylon: speed * sqrt(10) * dt * 50)
+  camera.speed = 1 / (50 * Math.sqrt(10))
+
   // sensitivity
   camera.angularSensibility = window.cameraSettings.angularSensitivity
   window.cameraSettings.addEventListener(

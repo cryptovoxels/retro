@@ -47,14 +47,13 @@ async function main() {
   }
 
   if (cmd === 'export') {
-    const rows = db.prepare(`SELECT id, name, address, island, lightmap_url, content FROM parcels ORDER BY id`).all() as any[]
+    const rows = db.prepare(`SELECT id, name, address, island, content FROM parcels ORDER BY id`).all() as any[]
     for (const r of rows) {
       const obj = {
         id: r.id,
         name: r.name,
         address: r.address,
         island: r.island,
-        lightmap_url: r.lightmap_url,
         content: JSON.parse(r.content),
       }
       process.stdout.write(JSON.stringify(obj) + '\n')

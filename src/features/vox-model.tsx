@@ -161,10 +161,11 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   // }
 
   public override onClick(e: FeatureEvent) {
-    // console.log('onClick', e)
-    // console.log('behaviours', this.behaviours)
     if (this.behaviours) {
       this.behaviours.dispatch(this.uuid, 'click', e)
+    }
+    if (this.isLink && this.description.link) {
+      this.onClickLink(this.description.link)
     }
   }
 
@@ -318,11 +319,7 @@ export class Megavox extends VoxModel<MegavoxRecord> {
   }
 
   override whatIsThis() {
-    return (
-      <label>
-        A large .vox model (megavox).
-      </label>
-    )
+    return <label>A large .vox model (megavox).</label>
   }
 }
 

@@ -90,8 +90,8 @@ h3,
 h4,
 h5,
 h6 {
+  font-family: 'arial rounded mt bold', sans-serif;
   font-weight: 700;
-  font-family: sans-serif;
   margin: 0 0 0.5rem;
 }
 
@@ -816,6 +816,9 @@ main {
 
   > .canvasdom {
     position: relative;
+    z-index: 2;
+    width: 100%;
+    height: 100%;
   }
 
   > .page,
@@ -936,7 +939,7 @@ button.hamburger {
   }
 
   & > aside {
-    width: 22rem;
+    width: 18rem;
     padding: 0.5rem 0.5rem 1rem 0;
 
     a {
@@ -1189,6 +1192,7 @@ div.map {
 
 .client {
   position: relative;
+  z-index: 1;
   min-width: 0;
   min-height: 0;
   height: 100%;
@@ -1229,23 +1233,28 @@ body.in-world {
 
 // sticky top strip so the X stays put while the column scrolls
 .sidebar-chrome {
-  position: sticky;
-  top: 0;
+  position: absolute;
+  top: 1rem;
+  right: 0.5rem;
   z-index: 5000;
-  display: flex;
-  justify-content: flex-end;
-  background: var(--bg);
-  margin: -1rem -1rem 0.5rem;
-  padding: 0.25rem 0.5rem;
-}
 
-.sidebar-close {
-  cursor: pointer;
-  background: var(--bg);
-  border: none;
-  color: var(--fg);
-  font-weight: bold;
-  padding: 0.25rem 0.5rem;
+  button {
+    background: none;
+    border: none;
+    font-family: 'arial rounded mt bold';
+    font-size: 32px;
+    height: 32px;
+    width: 32px;
+    line-height: 32px;
+    display: block;
+    padding: 0;
+    border-radius: 4rem;
+
+    &:hover {
+      background: #ccc;
+      color: white;
+    }
+  }
 }
 
 .client-placeholder {
@@ -1284,7 +1293,8 @@ body:-webkit-full-screen.in-world .ui-pane.-broadcast {
   right: 0;
   top: 50%;
   transform: translateY(-50%);
-  z-index: 5;
+  z-index: 20;
+  pointer-events: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -2875,13 +2885,6 @@ body.walking .canvasdom aside > ul.ui-sidebar {
   padding: 0.5rem;
 }
 
-.ui-pane .baking textarea {
-  width: 100%;
-  background: transparent;
-  height: 80vh;
-  border: none;
-}
-
 /* Chat */
 .canvasdom div.chat {
   position: absolute;
@@ -3164,15 +3167,9 @@ dialog.editor {
     }
   }
 
-  .info,
-  .bake-parcel {
+  .info {
     padding: 16px 0 2px 8px;
     position: relative;
-  }
-
-  .bake-parcel p.error {
-    margin-top: 5px;
-    color: #ffa9a9;
   }
 
   .upload-url {
@@ -4262,6 +4259,7 @@ button.TakeWompButton {
   color: var(--fg);
   padding: 0.5rem 1rem;
   cursor: pointer;
+  pointer-events: auto;
   z-index: 1000;
 }
 
@@ -5195,6 +5193,7 @@ div.css-icon {
   top: 0;
   right: 0;
   z-index: 1000;
+  pointer-events: auto;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -5207,15 +5206,80 @@ div.css-icon {
   }
 }
 
-// map is full-bleed like home / play
+// map / shop: the babylon map is the world. hide the 3d client and let .page fill.
 main:has(.worldmap) {
   padding: 0;
   max-width: none;
+  grid-template-columns: auto 1fr;
+
+  > .client,
+  > .canvasdom {
+    display: none;
+  }
+
+  > .page {
+    grid-column: 2;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
+
+    .sidebar-chrome {
+      margin: 0;
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: transparent;
+    }
+  }
+}
+
+@media @narrow {
+  main:has(.worldmap) {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+
+    > .page {
+      grid-row: 1;
+    }
+  }
 }
 
 .worldmap {
-  height: 100vh;
+  height: 100%;
   position: relative;
+}
+
+.columns.for-sale {
+  height: 100%;
+  gap: 0;
+  align-items: stretch;
+
+  > article {
+    padding: 0;
+    min-width: 0;
+    height: 100%;
+  }
+
+  > aside {
+    width: 23rem;
+    overflow-y: auto;
+    padding: 1rem;
+    background: var(--bg);
+  }
+}
+
+@media @narrow {
+  .columns.for-sale {
+    > article {
+      flex: 1;
+      min-height: 0;
+    }
+
+    > aside {
+      width: 100%;
+      flex: 0 0 40%;
+    }
+  }
 }
 
 // clear the fixed hamburger (same ~3.5rem offset as the play sidebar pills)
@@ -5233,10 +5297,6 @@ main:has(.worldmap) {
   border-radius: 1rem;
   padding: 0.2rem 0.5rem;
   box-shadow: 3px 3px 3px rgba(0, 0, 0, 0.2);
-}
-
-.voxels-map {
-  border-radius: 1rem;
 }
 
 // explore sidebar tabs (pruned out of client.less by mistake - without flex they
@@ -5368,5 +5428,44 @@ main:has(.worldmap) {
     cursor: pointer;
     padding: 0;
     text-decoration: underline;
+  }
+}
+
+.fullscreen-button {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0 1rem;
+  line-height: 2rem;
+  z-index: 1000;
+
+  border-radius: 1rem;
+
+  &:hover {
+    background-color: var(--red);
+    cursor: pointer;
+  }
+}
+
+body.theatre-mode {
+  main {
+    grid-template-columns: 0 1fr 0;
+
+    & > header {
+      display: none;
+    }
+
+    & > .page,
+    & > .ui-pane {
+      grid-column: unset;
+      grid-row: unset;
+      position: fixed;
+      top: 1rem;
+      right: 1rem;
+      width: 18rem;
+      bottom: 1rem;
+      border-radius: 2rem;
+      box-shadow: 3px 3px 1rem rgba(0, 0, 0, 0.2);
+    }
   }
 }

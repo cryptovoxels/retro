@@ -11,7 +11,6 @@ export enum GraphicLevels {
 
 export interface GraphicSettings {
   level: GraphicLevels
-  realisticLighting?: boolean
 }
 
 export class GraphicEngine extends TypedEventTarget<{
@@ -19,7 +18,6 @@ export class GraphicEngine extends TypedEventTarget<{
 }> {
   private readonly engine: BABYLON.Engine
   #level: GraphicLevels
-  #realisticLighting: boolean
   public postProcesses?: PostProcesses
 
   constructor(engine: BABYLON.Engine) {
@@ -28,15 +26,10 @@ export class GraphicEngine extends TypedEventTarget<{
 
     // Default to ultra low graphics level until we're confident we can increase the quality
     this.#level = GraphicLevels.Medium
-    this.#realisticLighting = true
   }
 
   get level() {
     return this.#level
-  }
-
-  get realisticLighting() {
-    return this.#realisticLighting
   }
 
   private get devicePixelRatio() {
@@ -65,7 +58,6 @@ export class GraphicEngine extends TypedEventTarget<{
     }
 
     this.#level = level
-    if (settings.realisticLighting !== undefined) this.#realisticLighting = settings.realisticLighting
 
     window.localStorage.setItem('graphicSettings', JSON.stringify(this.getSettings()))
     this.refresh()
@@ -80,7 +72,6 @@ export class GraphicEngine extends TypedEventTarget<{
   getSettings(): GraphicSettings {
     return {
       level: this.#level,
-      realisticLighting: this.#realisticLighting,
     }
   }
 

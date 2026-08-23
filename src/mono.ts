@@ -11,5 +11,4 @@ export async function getMonoWorker(): Promise<Mono> {
 
 export type { Mono }
 export type { GridWorkerAPI, GridWorkerOutput, GridWorkerParcelLoaded, GridWorkerParcelUnloaded, GridWorkerQueryResponse } from './monoworker/grid'
-export type { BakedVoxelizedMesh, BakedVoxelizerJobType, ParcelVoxels, BakedVoxelizerWorkerOutput } from './monoworker/baked'
 export type { FontData, PolytextRenderJobResult } from './monoworker/polytext'

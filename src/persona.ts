@@ -11,7 +11,7 @@ import { decodeCoordsFromURL } from './utils/helpers'
 import { Action, AvatarIdentity } from '../common/messages'
 import { cameraRotation, setCameraPosition, setCameraRotation } from './utils/camera'
 import VoiceChat from './voice-chat'
-import { WALK_HZ } from './controls/utils/player-camera'
+import { WALK_HZ } from './controls/utils/player-body'
 
 const identityEquals = (a: AvatarIdentity, b: AvatarIdentity) => a.wallet === b.wallet && a.name === b.name
 const identityFromUser = (user: User): AvatarIdentity => ({ wallet: user.wallet, name: user.name })
@@ -30,17 +30,14 @@ export default class Persona {
   emote: Animations | null = null
   private stepping = false
   private readonly scene: BABYLON.Scene
-  private readonly parent: BABYLON.TransformNode
 
   constructor(
     scene: BABYLON.Scene,
-    parent: BABYLON.TransformNode,
     connector: Connector,
     controls: Controls,
     public readonly uuid: string,
   ) {
     this.scene = scene
-    this.parent = parent
     this.controls = controls
     this.connector = connector
     this.position = BABYLON.Vector3.Zero()
@@ -56,7 +53,7 @@ export default class Persona {
 
       if (this.avatarSignature === null || !identityEquals(avatarSignature, this.avatarSignature)) {
         this.avatarSignature = avatarSignature
-        const avatar = await LoadUserAvatar(this.scene, this.parent, this.uuid, { name: this.user.name, wallet: this.user.wallet })
+        const avatar = await LoadUserAvatar(this.scene, this.uuid, { name: this.user.name, wallet: this.user.wallet })
 
         // Check that the signature captured in scope is the same as the one stored on the instance. This means
         // `loadAvatar` was not called again in the time between asynchronously loaded the avatar and now.
@@ -115,10 +112,6 @@ export default class Persona {
     return [orientation.x, orientation.y, orientation.z, orientation.w]
   }
 
-  get absolutePosition() {
-    return this.controls.worldOffset.position.add(this.position)
-  }
-
   // teleports a user without adding the previous location to the browser. Might be good for moving players
 
   naviport(value: string) {
@@ -167,7 +160,6 @@ export default class Persona {
     window.graphic?.postProcesses?.cover()
     this.audio?.playSound('persona.teleport')
 
-    this.controls.resetWorldOffset(coords.position)
     setCameraPosition(this.scene, coords.position)
 
     if (coords.rotation) {
@@ -200,16 +192,16 @@ export default class Persona {
   }
 
   private pickClip(controls: Controls) {
-    const m = controls.camera.motion
+    const m = controls.body.motion
     if (controls.vehicleFeature) return Animations.Sitting
     if (this.emote != null) return this.emote
-    if (!m.grounded && !controls.camera.gravity) return Animations.Floating
+    if (!m.grounded && !controls.body.gravity) return Animations.Floating
     if (m.hz > WALK_HZ) return Animations.Walk
     return Animations.Idle
   }
 
   update(position: BABYLON.Vector3, rotation: BABYLON.Vector3, controls: Controls) {
-    const m = controls.camera.motion
+    const m = controls.body.motion
     const clip = this.pickClip(controls)
     if (clip !== this._animation) this.animation = clip
 

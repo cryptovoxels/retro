@@ -17,6 +17,11 @@ const ASSET_ORIGIN = process.env.ASSET_PATH || 'https://www.voxels.com'
 const app = express()
 const port = process.env.PORT || '8080'
 
+app.use((_req, res, next) => {
+  res.set('access-control-allow-origin', '*')
+  next()
+})
+
 function mountRoutes(r: express.Router | express.Express) {
   r.get('/health', (_req, res) => {
     res.status(200).end('up')
@@ -151,11 +156,16 @@ function mountRoutes(r: express.Router | express.Express) {
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <style>html,body,#c{margin:0;width:100%;height:100%;overflow:hidden;display:block}</style>
+    <style>
+    body{
+    font-family: sans-serif; font-size: 22px; font-weight: bold;}
+    html,body,#c{margin:0;width:100%;height:100%;overflow:hidden;display:block}
+    </style>
     <script src="/renderer/vendor/library-6.11.2.min.js"></script>
   </head>
   <body>
     <canvas id="c"></canvas>
+    <script src="/renderer/page/stub-storage.js"></script>
     <script src="/renderer/page/parcel-bundle.js"></script>
     <script>
       fetch(location.pathname.replace(/\\.html$/, '.json'))

@@ -21,6 +21,4 @@ export namespace GridClusterMessage {
   export type MetaUpdate = Extract<GridClusterMessage, { type: 'metaUpdate' }>
 
   export type ScriptUpdate = Extract<GridClusterMessage, { type: 'scriptUpdate' }>
-
-  export type LightmapUpdate = Extract<GridClusterMessage, { type: 'lightmapUpdate' }>
 }

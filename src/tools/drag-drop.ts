@@ -5,7 +5,6 @@ import { getImageInfo, getURlImageInfo, getVoxInfo } from '../../web/src/utils'
 import { uploadMedia, UploadMediaResult } from '../../common/helpers/upload-media'
 import { uploadVoxModelMedia } from '../utils/upload-vox-media'
 import { PanelType } from '../../web/src/components/panel'
-import { yeetWearable } from '../object-vox'
 
 const MB = 1024 * 1024
 
@@ -49,12 +48,6 @@ export class DragDrop {
     }
 
     const dataTransfer = e.dataTransfer as DataTransfer
-    const types = dataTransfer?.types ? Array.from(dataTransfer.types) : []
-    if (types.includes('text/x-yeet')) {
-      preventDefaults(e)
-      dataTransfer.dropEffect = 'copy'
-      return
-    }
 
     if (!this.ui) {
       // Can't place features without UI
@@ -67,10 +60,6 @@ export class DragDrop {
       // only allow parcel voxel surfaces to be picked by drag and drop
       return mesh.isVisible && mesh.isPickable && (mesh.name.startsWith('voxel-field/opaque') || mesh.name.startsWith('voxelizer/'))
     })!
-    // Since the new z-fighting PR we have to offset the picking position by the worldOffset.
-    const offset = window.persona.controls.worldOffset.position
-    this.pickInfo.pickedPoint?.addInPlaceFromFloats(-offset.x, offset.y, -offset.z)
-
     if (!dataTransfer.items.length) {
       return
     }
@@ -122,14 +111,6 @@ export class DragDrop {
     }
 
     preventDefaults(e)
-
-    const yeetId = e.dataTransfer?.getData('text/x-yeet') || ''
-    const plain = e.dataTransfer?.getData('text/plain') || ''
-    const wid = yeetId || (plain.startsWith('yeet:') ? plain.slice(5) : '')
-    if (wid) {
-      yeetWearable(wid)
-      return
-    }
 
     if (!this.ui) {
       return

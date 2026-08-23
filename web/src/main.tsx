@@ -117,7 +117,6 @@ const Main = () => {
             <Play path="/play" />
             <AccountRoutes path="/account/:path*" />
           </Router>
-          {!lightBroadcast && !play && <Footer />}
         </div>
       </main>
 

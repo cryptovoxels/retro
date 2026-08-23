@@ -81,7 +81,7 @@ const centreOfPositions = (positions: Array<Array<number>>): BABYLON.Vector3 => 
 
 export default class FeatureTool implements Tool {
   scene: BABYLON.Scene
-  parent: BABYLON.TransformNode
+  parent: BABYLON.Nullable<BABYLON.TransformNode>
   grid: Grid
   selection: Selection
   secondarySelection: Record<string, BABYLON.AbstractMesh>
@@ -107,7 +107,7 @@ export default class FeatureTool implements Tool {
 
   constructor(
     scene: BABYLON.Scene,
-    parent: BABYLON.TransformNode,
+    parent: BABYLON.Nullable<BABYLON.TransformNode>,
     grid: Grid,
     controls: Controls,
     connector: Connector,
@@ -202,7 +202,7 @@ export default class FeatureTool implements Tool {
     secondarySelector.material = this.secondarySelectionMaterial
     secondarySelector.visibility = 1
 
-    secondarySelector.position.copyFrom(boundingBox.centerWorld.subtract(this.parent.position))
+    secondarySelector.position.copyFrom(boundingBox.centerWorld.subtract(this.parent?.position || BABYLON.Vector3.Zero()))
 
     secondarySelector.scaling
       .copyFrom(boundingBox.maximumWorld)

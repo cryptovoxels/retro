@@ -27,7 +27,7 @@ export default class Lantern extends Feature3D<LanternRecord> {
   }
 
   whatIsThis() {
-    return <label>The lantern emits light of the selected color and intensity. For it to work you need to activate baking.</label>
+    return <label>The lantern emits light of the selected color and intensity.</label>
   }
 
   generate() {

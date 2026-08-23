@@ -1,6 +1,4 @@
-import { LightmapStatus } from '../../common/messages/parcel'
-
-export type GridShardMessage = GridShardMessage.PatchCreate | GridShardMessage.PatchStateCreate | GridShardMessage.MetaUpdate | GridShardMessage.ScriptUpdate | GridShardMessage.LightmapUpdate
+export type GridShardMessage = GridShardMessage.PatchCreate | GridShardMessage.PatchStateCreate | GridShardMessage.MetaUpdate | GridShardMessage.ScriptUpdate
 
 export namespace GridShardMessage {
   export type PatchCreate = {
@@ -36,14 +34,6 @@ export namespace GridShardMessage {
     type: 'scriptUpdate'
     payload: {
       parcelId: number
-    }
-  }
-
-  export type LightmapUpdate = {
-    type: 'lightmapUpdate'
-    payload: {
-      parcelId: number
-      lightmap_url: string | null
     }
   }
 }

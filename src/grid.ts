@@ -7,16 +7,15 @@ import Cookies from 'js-cookie'
 import { SocketClient } from './utils/socket-client'
 import { displaySuspendedMessage } from './ui/suspended-message'
 import ndarray, { type NdArray } from 'ndarray'
-import { GridClientMessage, GridMessage, LightMapUpdateMessage, ParcelAuthMessage, ParcelMetaMessage, ParcelScriptMessage, PatchErrorMessage, PatchMessage, PatchStateMessage, SuspendedMessage } from '../common/messages/grid'
+import { GridClientMessage, GridMessage, ParcelAuthMessage, ParcelMetaMessage, ParcelScriptMessage, PatchErrorMessage, PatchMessage, PatchStateMessage, SuspendedMessage } from '../common/messages/grid'
 import { createMessageHandler } from '../common/helpers/comlink-worker'
 import { GridWorkerAPI, GridWorkerOutput, GridWorkerParcelLoaded, GridWorkerParcelUnloaded, GridWorkerQueryResponse } from './mono'
 import { getGridMono } from './mono-pool'
 import { app, AppEvent } from '../web/src/state'
-import { LightmapStatus, ParcelPatch, ParcelRecord } from '../common/messages/parcel'
+import { ParcelPatch, ParcelRecord } from '../common/messages/parcel'
 import { GraphicLevels } from './graphic/graphic-engine'
 import { PanelType } from '../web/src/components/panel'
 import { DeferredPromise } from 'p-defer'
-import { ParcelMesher } from './parcel-mesher'
 import { Environment } from './enviroments/environment'
 import { TypedEvent } from './utils/EventEmitter'
 import { ParcelEventMap } from './utils/parcel-event-map'
@@ -67,12 +66,10 @@ export default class Grid extends SocketClient {
 
   public enteredParcel: Parcel | undefined = undefined
   public priorParcel: Parcel | undefined = undefined
-  public parent: BABYLON.TransformNode
   public currentIsland: string | undefined = undefined
   public parcel_events = new TypedEventTarget<{ parcel_entered: Parcel['id']; parcel_exited: Parcel['id'] }>()
   private readonly scene: BABYLON.Scene
   protected readonly environment: Environment
-  static mesher: ParcelMesher
   private lastParcelScanAt?: number
   private nearestParcels: Array<Parcel> = []
   //@todo: refactor the whole system to be more consistent btw onEnter,onNearby,onExit
@@ -90,18 +87,10 @@ export default class Grid extends SocketClient {
   private intervals: number[] = []
   private _queryJobs = new Map<number, DeferredPromise<number[]>>()
   private _nextQueryId = 0
-  private mesherInitPromise: Promise<void> | undefined = undefined
 
-  constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, environment: Environment) {
+  constructor(scene: BABYLON.Scene, environment: Environment) {
     super('grid', () => getGridUrl())
     this.scene = scene
-
-    if (!Grid.mesher) {
-      Grid.mesher = new ParcelMesher(scene)
-      this.mesherInitPromise = Grid.mesher.initialize()
-    }
-    // this.mesher = mesher
-    this.parent = parent
     this.environment = environment
 
     // Initialize ParcelManager event handlers
@@ -117,13 +106,11 @@ export default class Grid extends SocketClient {
     }
 
     this.isolateMode = wantsIsolate()
-    // listen for graphics level changes, and regen baked parcels on change
+    // listen for graphics level changes
     window.graphic?.addEventListener(
       'settingsChanged',
       throttle(
         async () => {
-          // graphics levels have changed, so we need to refresh all baked parcels
-          // prioritising the current parcel
           const current = this.currentOrNearestParcel()
 
           current?.generate()
@@ -194,12 +181,12 @@ export default class Grid extends SocketClient {
     return this.parcels.size
   }
 
-  load(parent: BABYLON.TransformNode, description: ParcelRecord, grid: Grid, fieldBuffer?: NdArray<Uint16Array>): Parcel | undefined {
-    return this.create(parent, description, grid, false, fieldBuffer)
+  load(description: ParcelRecord, grid: Grid, fieldBuffer?: NdArray<Uint16Array>): Parcel | undefined {
+    return this.create(description, grid, false, fieldBuffer)
   }
 
-  loadFastboot(parent: BABYLON.TransformNode, description: ParcelRecord, grid: Grid): Parcel | undefined {
-    const p = this.create(parent, description, grid, true)
+  loadFastboot(description: ParcelRecord, grid: Grid): Parcel | undefined {
+    const p = this.create(description, grid, true)
     if (p) this.fastbootParcel = p
     return p
   }
@@ -276,15 +263,15 @@ export default class Grid extends SocketClient {
 
   /** Spawn a parcel for server-side preview (no grid socket / pump). */
   spawnPreview(description: ParcelRecord): Parcel | undefined {
-    return this.create(this.parent, description, this, false)
+    return this.create(description, this, false)
   }
 
-  protected create(parent: BABYLON.TransformNode, description: ParcelRecord, grid: Grid, isFastboot: boolean, fieldBuffer?: NdArray<Uint16Array>): Parcel | undefined {
+  protected create(description: ParcelRecord, grid: Grid, isFastboot: boolean, fieldBuffer?: NdArray<Uint16Array>): Parcel | undefined {
     const existing = this.parcels.get(description.id)
     if (existing) {
       return undefined
     }
-    const p = new Parcel(this.scene, parent, description, grid, Grid.mesher, isFastboot, fieldBuffer)
+    const p = new Parcel(this.scene, null, description, grid, isFastboot, fieldBuffer)
     p.addEventListener('MeshLoaded', this.parcelLoaded, { passive: true })
     p.addEventListener('MeshUnloading', this.parcelUnloaded, { passive: true })
     this.parcels.set(p.id, p)
@@ -326,8 +313,6 @@ export default class Grid extends SocketClient {
   }
 
   public async loadFastbootFromHTML() {
-    if (this.mesherInitPromise) await this.mesherInitPromise
-
     const el = document.querySelector('script#parcel')
     if (!el) return
 
@@ -338,7 +323,7 @@ export default class Grid extends SocketClient {
       return
     }
 
-    const p = this.loadFastboot(this.parent, desc, this)
+    const p = this.loadFastboot(desc, this)
     if (!p) return
 
     p.generate()
@@ -491,9 +476,7 @@ export default class Grid extends SocketClient {
     const pickInfo = this.scene.pickWithRay(ray)
     if (!pickInfo?.pickedPoint) return undefined
 
-    // pick is world; contains() is grid
-    const origin = this.parent?.position
-    const p = origin ? pickInfo.pickedPoint.subtract(origin) : pickInfo.pickedPoint
+    const p = pickInfo.pickedPoint
     let best: Parcel | undefined
     for (const parcel of this.nearestParcels) {
       if (!parcel.contains(p)) continue
@@ -613,9 +596,6 @@ export default class Grid extends SocketClient {
       case 'patch-state':
         this.handleStatePatch(message)
         break
-      case 'lightmap-status':
-        this.handleParcelLightmapStatus(message)
-        break
       case 'suspended':
         this.handleSuspended(message)
         break
@@ -717,19 +697,6 @@ export default class Grid extends SocketClient {
     void message
   }
 
-  private handleParcelLightmapStatus(message: LightMapUpdateMessage) {
-    this.withParcel(message.parcelId, (parcel) => {
-      this.updateParcelLightmapStatus(parcel, message.lightmap_url)
-    })
-  }
-
-  updateParcelLightmapStatus(parcel: Parcel, lightmap_url: string | null) {
-    parcel.lightmapUpdateObservable.notifyObservers(lightmap_url)
-    if (lightmap_url === null) {
-      parcel.lightmap_url = null
-      parcel.generateVoxelField() // regenerate voxel field to clear lightmap UVs
-    }
-  }
   private handleSuspended(message: SuspendedMessage) {
     // squeeze interface toggle here
     displaySuspendedMessage(message)
@@ -885,16 +852,7 @@ export default class Grid extends SocketClient {
       // Calculate frustum planes from the transform matrix (camera space)
       const frustumPlanes = BABYLON.Frustum.GetPlanes(transformMatrix)
 
-      // Get the world offset to transform from camera space to world space
-      const worldOffset = this.parent.position
-
-      // Transform frustum planes from camera space to world space
-      // For plane equation ax + by + cz + d = 0, translating by offset (ox, oy, oz):
-      // New d = d + normal.dot(offset)
-      return frustumPlanes.map((plane) => {
-        const newD = plane.d + (plane.normal.x * worldOffset.x + plane.normal.y * worldOffset.y + plane.normal.z * worldOffset.z)
-        return [plane.normal.x, plane.normal.y, plane.normal.z, newD]
-      })
+      return frustumPlanes.map((plane) => [plane.normal.x, plane.normal.y, plane.normal.z, plane.d])
     } catch (e) {
       // Fallback if frustum calculation fails
       return undefined
@@ -907,7 +865,7 @@ export default class Grid extends SocketClient {
     if (this.fastbootParcel && parcelDescription.id === this.fastbootParcel.id) {
       p = this.fastbootParcel
     } else {
-      p = this.load(this.parent, parcelDescription, this, fieldBuffer)
+      p = this.load(parcelDescription, this, fieldBuffer)
     }
 
     if (!p) {

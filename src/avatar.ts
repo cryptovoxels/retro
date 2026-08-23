@@ -65,8 +65,8 @@ export default class Avatar extends Entity {
   private remoteFly?: RemoteFlySound
   private remoteStepAt = 0
 
-  constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, joined: number, uuid: string, description: AvatarRecord, isUser = false) {
-    super(scene, parent, joined)
+  constructor(scene: BABYLON.Scene, joined: number, uuid: string, description: AvatarRecord, isUser = false) {
+    super(scene, null, joined)
     this._uuid = uuid
     this._description = description
     if (isUser) {
@@ -280,7 +280,7 @@ export default class Avatar extends Entity {
         return Math.min(64, v)
       }
       mesh.scaling.set(clamp(payload.scale[0]), clamp(payload.scale[1]), clamp(payload.scale[2]))
-      // sibling of avatar under worldOffset (assign parent — setParent preserve-world shears scale)
+      // sibling of avatar at scene root (assign parent — setParent preserve-world shears scale)
       const root = this.node.parent
       mesh.parent = root
       this.syncVehicleMeshPose()
@@ -1122,14 +1122,14 @@ export default class Avatar extends Entity {
 }
 
 // factory function to set up and create a avatar representing other players
-export async function LoadAvatar(scene: BABYLON.Scene, parent: BABYLON.TransformNode, joined: number, uuid: string, description: AvatarRecord): Promise<Avatar> {
+export async function LoadAvatar(scene: BABYLON.Scene, joined: number, uuid: string, description: AvatarRecord): Promise<Avatar> {
   await Avatar.ensureRootAvatar(scene)
-  return new Avatar(scene, parent, joined, uuid, description)
+  return new Avatar(scene, joined, uuid, description)
 }
 
-export async function LoadUserAvatar(scene: BABYLON.Scene, parent: BABYLON.TransformNode, uuid: string, description: AvatarRecord): Promise<Avatar> {
+export async function LoadUserAvatar(scene: BABYLON.Scene, uuid: string, description: AvatarRecord): Promise<Avatar> {
   await Avatar.ensureRootAvatar(scene)
-  return new Avatar(scene, parent, Date.now(), uuid, description, true)
+  return new Avatar(scene, Date.now(), uuid, description, true)
 }
 
 function loadAvatarContainer(scene: BABYLON.Scene, avatarFile: string): Promise<BABYLON.AssetContainer> {

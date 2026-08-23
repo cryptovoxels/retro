@@ -20,7 +20,6 @@ renderer/page/bundle.js
 renderer/page/parcel-bundle.js
 renderer/page/*.parcel-bundle.js
 **/report.html
-dist/bakes
 dist/music/unclean
 cryptovoxels.sql
 server/bundle_server.js
