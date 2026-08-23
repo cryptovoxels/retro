@@ -527,7 +527,10 @@ const parcelProxy = proxy('https://www.voxels.com', {
 
 app.get('/api/parcels/:id.json', cache(config.isDevelopment ? false : '15 seconds'), passport.authenticate(['jwt', 'anonymous'], { session: false }), async (req, res, next) => {
   const id = parseInt(req.params.id, 10)
-  if (isNaN(id)) return res.status(400).json({ success: false })
+  // Parcel ids are int4, so one past that range makes the statement invalid.
+  // Express does not catch the rejection, so nothing ends the response and the
+  // request sits until the gateway gives up 25 seconds later.
+  if (isNaN(id) || id < 1 || id > 2147483647) return res.status(400).json({ success: false })
 
   const result = await query(db, 'get-parcel', 'parcel', [id, isOwner(req)])
   if (result.success) return res.status(200).json(result)
