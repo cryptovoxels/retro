@@ -139,7 +139,7 @@ export function ghostSegmentHit(from: BABYLON.Vector3, to: BABYLON.Vector3): { g
   return null
 }
 
-export function startGhosts(scene: BABYLON.Scene, parent: BABYLON.TransformNode, grid: Grid, controls: Controls, connector: Connector) {
+export function startGhosts(scene: BABYLON.Scene, grid: Grid, controls: Controls, connector: Connector) {
   if (window.config.isBot) return
 
   let samples: Sample[] = []
@@ -294,7 +294,7 @@ export function startGhosts(scene: BABYLON.Scene, parent: BABYLON.TransformNode,
     const id = uuid()
     let avatar: Avatar
     try {
-      avatar = await LoadAvatar(scene, parent, 0, id, { name: 'anon', wallet: null })
+      avatar = await LoadAvatar(scene, 0, id, { name: 'anon', wallet: null })
       await avatar.load()
     } catch {
       return

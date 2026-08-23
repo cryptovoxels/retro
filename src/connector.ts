@@ -91,7 +91,6 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   multiplayerClient!: WebSocket
   private lazyAvatarDisposer = createLazyDisposer<string>(AVATAR_DISPOSE_DELAY_MS, ({ item: avatarUuid }) => this.disposeAvatar(avatarUuid))
   private readonly scene: BABYLON.Scene
-  private readonly parent: BABYLON.TransformNode
   grid: Grid
   private nearbyAvatarsToSelfCached: { avatars: Readonly<Avatar[]>; timestamp: number } | null = null
   private congaJoinHintSuppressedUntil = 0
@@ -101,14 +100,13 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
 
   updateAvatarInterval: any
 
-  constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, grid: Grid, controls: Controls) {
+  constructor(scene: BABYLON.Scene, grid: Grid, controls: Controls) {
     super()
     this.scene = scene
-    this.parent = parent
     this.grid = grid
     this.controls = controls
 
-    this.persona = new Persona(scene, parent, this, controls, Connector.clientUUID)
+    this.persona = new Persona(scene, this, controls, Connector.clientUUID)
     window.connector = this
 
     // reconnect to socket when login state changes
@@ -463,7 +461,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     // this is dangermouse casting, these things aren't the same but the avatar code must handle it, I don't want to fuk with it right now
     const avatarRecord = message.description as unknown as AvatarRecord
 
-    const avatar = await LoadAvatar(this.scene, this.parent, joined, message.uuid, avatarRecord)
+    const avatar = await LoadAvatar(this.scene, joined, message.uuid, avatarRecord)
     // a position-only anon placeholder may have landed while we awaited the mesh; this identity is authoritative
     this._avatarsByUuid.get(message.uuid)?.disposeLocal()
     this._avatarsByUuid.set(message.uuid, avatar)
@@ -558,7 +556,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       // received update for unknown avatar, will load a partial
       this.lazyAvatarDisposer.cancelDisposal(message.uuid)
 
-      const placeholder = await LoadAvatar(this.scene, this.parent, Date.now(), message.uuid, { name: '', wallet: null })
+      const placeholder = await LoadAvatar(this.scene, Date.now(), message.uuid, { name: '', wallet: null })
 
       // a join/createAvatar carrying the real identity (name+wallet+costume) may have landed while we awaited
       // the mesh load; if so, don't clobber it with this anon placeholder
@@ -1052,7 +1050,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     // once get avatar by UUID api is live we can get the full avatar info here
     // in mean time we just create a dummy avatar and assume that mp will send us the full avatar info soon
 
-    const avatar = await LoadAvatar(this.scene, this.parent, Date.now(), uuid, { name: name, wallet: null })
+    const avatar = await LoadAvatar(this.scene, Date.now(), uuid, { name: name, wallet: null })
 
     this._avatarsByUuid.set(uuid, avatar)
     this.dispatchEvent(createEvent('avatar_joined', uuid))

@@ -60,10 +60,6 @@ export class DragDrop {
       // only allow parcel voxel surfaces to be picked by drag and drop
       return mesh.isVisible && mesh.isPickable && (mesh.name.startsWith('voxel-field/opaque') || mesh.name.startsWith('voxelizer/'))
     })!
-    // Since the new z-fighting PR we have to offset the picking position by the worldOffset.
-    const offset = window.persona.controls.worldOffset.position
-    this.pickInfo.pickedPoint?.addInPlaceFromFloats(-offset.x, offset.y, -offset.z)
-
     if (!dataTransfer.items.length) {
       return
     }

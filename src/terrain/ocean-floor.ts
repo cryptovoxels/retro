@@ -5,10 +5,9 @@ export default class OceanFloor implements ChunkObserver {
   private readonly _mesh: BABYLON.Mesh
   private readonly size: number
   private readonly halfSize: number
-  private readonly parent: BABYLON.TransformNode
   private instances: Map<string, BABYLON.InstancedMesh> = new Map()
 
-  constructor(size: number, scene: BABYLON.Scene, parent: BABYLON.TransformNode) {
+  constructor(size: number, scene: BABYLON.Scene) {
     this.size = size
     this.halfSize = size * 0.5
 
@@ -27,9 +26,7 @@ export default class OceanFloor implements ChunkObserver {
     this._mesh.checkCollisions = true
     this._mesh.position.set(this.halfSize, -1024, this.halfSize)
     this._mesh.setEnabled(false) // instanced, dont need to render the original mesh
-    this._mesh.parent = parent
     this._mesh.receiveShadows = true
-    this.parent = parent
   }
 
   get mesh(): BABYLON.Mesh {
@@ -41,7 +38,6 @@ export default class OceanFloor implements ChunkObserver {
     i.position.x = this.size * x + this.halfSize
     i.position.y = -6
     i.position.z = this.size * y + this.halfSize
-    i.parent = this.parent
     const hy = 0.5
     addCuboid(`ocean-floor-${x}-${y}`, { x: this.halfSize, y: hy, z: this.halfSize }, { x: i.position.x, y: i.position.y - hy, z: i.position.z })
     return i

@@ -48,18 +48,12 @@ function clientUUID() {
   return window.connector?.persona?.uuid || 'local'
 }
 
-function worldOffset() {
-  return window.connector?.controls?.worldOffset?.position
-}
-
 function burstWorld(pos: BABYLON.Vector3) {
   const scene = window.scene
-  const offset = worldOffset()
   if (!scene) return
-  const world = offset ? pos.add(offset) : pos
-  emote('💥', world, scene)
-  emote('🔥', world, scene)
-  emote('✨', world, scene)
+  emote('💥', pos, scene)
+  emote('🔥', pos, scene)
+  emote('✨', pos, scene)
 }
 
 function respawn() {
@@ -69,12 +63,6 @@ function respawn() {
   const sp = parcel.featuresList.find((f: any) => f.type === 'spawn-point')
   const pos = sp ? sp.absolutePosition.clone() : parcel.transform.position.clone()
   window.persona?.teleportNoHistory({ position: pos })
-}
-
-function personaFromWorld(pos: { x: number; y: number; z: number }) {
-  const offset = worldOffset()
-  const p = new BABYLON.Vector3(pos.x, pos.y, pos.z)
-  return offset ? p.subtract(offset) : p
 }
 
 function carveCrater(parcelId: string, center: BABYLON.Vector3) {
@@ -98,6 +86,8 @@ function carveCrater(parcelId: string, center: BABYLON.Vector3) {
 }
 
 function nerfAt(pos: BABYLON.Vector3, yeetId: string, kind: NerfMessage['kind'], target?: string) {
+  console.log('nerfAt', `${pos.x},${pos.y},${pos.z}`)
+
   disposeYeet(yeetId)
   burstWorld(pos)
   window.connector?.sendNerf?.({
@@ -115,7 +105,7 @@ function resolveHit(hit: ContactHit) {
   if (!local || local.nerfed) return
 
   local.nerfed = true
-  const pos = personaFromWorld(hit.pos)
+  const pos = new BABYLON.Vector3(hit.pos.x, hit.pos.y, hit.pos.z)
   const normal = new BABYLON.Vector3(hit.normal.x, hit.normal.y, hit.normal.z)
 
   if (hit.other.tag === 'avatar') {
@@ -123,9 +113,9 @@ function resolveHit(hit: ContactHit) {
     return
   }
   if (hit.other.tag === 'parcel') {
-    // const carveCenter = pos.subtract(normal.scale(0.25))
-    // console.log('carve!', carveCenter)
-    // carveCrater(hit.other.id, carveCenter)
+    const carveCenter = pos.subtract(normal.scale(0.25))
+    console.log('carve!', carveCenter)
+    carveCrater(hit.other.id, carveCenter)
     nerfAt(pos, hit.yeetId, 'field', hit.other.id)
     return
   }
@@ -145,20 +135,17 @@ function syncAvatars() {
 }
 
 function ghostHits() {
-  const offset = worldOffset()
-  if (!offset) return
   for (const o of locals.values()) {
     if (o.nerfed) continue
     const t = o.body.translation()
     const pos = new BABYLON.Vector3(t.x, t.y, t.z)
-    const from = o.lastPos.add(offset)
-    const to = pos.add(offset)
+    const from = o.lastPos
+    const to = pos
     const ghost = ghostSegmentHit(from, to)
     if (!ghost) continue
     o.nerfed = true
-    const p = ghost.point.subtract(offset)
     disposeGhost(ghost.ghostId)
-    nerfAt(p, o.id, 'field')
+    nerfAt(ghost.point, o.id, 'field')
   }
 }
 
@@ -270,7 +257,6 @@ export async function yeetWearable(wid: string) {
   body.setLinvel({ x: forward.x * 12, y: forward.y * 12 + 3, z: forward.z * 12 }, true)
   body.setAngvel({ x: Math.random() * 4 - 2, y: Math.random() * 4 - 2, z: Math.random() * 4 - 2 }, true)
 
-  mesh.parent = window.connector?.controls?.worldOffset || null
   mesh.position.copyFrom(origin)
   if (!mesh.rotationQuaternion) mesh.rotationQuaternion = BABYLON.Quaternion.Identity()
 
@@ -367,7 +353,6 @@ export async function onRemoteYeet(msg: { uuid: string; id: string; wid: string;
     mesh.dispose()
     return
   }
-  mesh.parent = window.connector?.controls?.worldOffset || null
   mesh.position.fromArray(msg.position)
   mesh.rotationQuaternion = new BABYLON.Quaternion(msg.orientation[0], msg.orientation[1], msg.orientation[2], msg.orientation[3])
   remote.mesh = mesh

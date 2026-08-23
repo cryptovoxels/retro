@@ -14,7 +14,7 @@ import { startGhosts } from '../ghosts'
 import { startYeet } from '../yeetable'
 
 export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCanvasElement, controls: Controls, environment: Environment) {
-  const grid = new Grid(scene, controls.worldOffset, environment)
+  const grid = new Grid(scene, environment)
   if (window.config.isGrid) {
     grid.loadWorker()
   }
@@ -36,7 +36,7 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
 
   const connector = initConnector(scene, controls, grid)
 
-  startGhosts(scene, controls.worldOffset, grid, controls, connector)
+  startGhosts(scene, grid, controls, connector)
   startYeet(scene, controls, canvas)
 
   await grid.loadFastbootFromHTML()
@@ -90,7 +90,7 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
 }
 
 function initConnector(scene: BABYLON.Scene, controls: Controls, grid: Grid): Connector {
-  const connector = new Connector(scene, controls.worldOffset, grid, controls)
+  const connector = new Connector(scene, grid, controls)
   if (window.config.isMultiuser) {
     connector.connect()
   }

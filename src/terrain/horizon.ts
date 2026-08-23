@@ -21,7 +21,7 @@ export default class Horizon {
     material.blockDirtyMechanism = true
     this.material = material
 
-    // Not under the worldOffset but doesn't need to be as it's infiniteDistance
+    // infiniteDistance — no scene parent needed
     const mesh = BABYLON.MeshBuilder.CreateSphere('skybox/horizon', { segments: 16, diameter: 1 }, scene)
 
     const updateHorizonScale = (drawDistance: number) => {

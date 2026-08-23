@@ -1,6 +1,5 @@
 import { isDesktop, isMobile, wantsNoUI } from '../../common/helpers/detector'
 import { User } from '../user'
-import { decodeCoordsFromURL } from '../utils/helpers'
 import { encodeCoords } from '../../common/helpers/utils'
 import type Grid from '../grid'
 import Connector from '../connector'
@@ -104,10 +103,6 @@ export default abstract class Controls implements IControls {
   /** mobile dpad sets this; also used as drive steer while in a vehicle */
   direction: BABYLON.Vector3 = new BABYLON.Vector3()
 
-  // Transformation of world coordinates to a smaller absolute coordinates near the player, to avoid floating-point precision issues when visiting far-off island
-  // Only setting position is supported, not rotation or scale.
-  worldOffset: BABYLON.TransformNode
-
   islandsReady = true
 
   congaTarget: Avatar | null = null
@@ -165,19 +160,12 @@ export default abstract class Controls implements IControls {
   ) {
     this.user = window.user
 
-    this.worldOffset = new BABYLON.TransformNode('avatar/worldOffset', this.scene)
-
-    // ensure world offset is set, otherwise risk of race condition
-    const coords = decodeCoordsFromURL()
-    this.worldOffset.position.set(-coords.position.x, 0, -coords.position.z)
-
     // Add input system specific controls and cameras
     const camera = this.createCamera()
     this.addControls(camera)
 
     this.camera = camera
     this.scene.activeCamera = camera
-    camera.parent = this.worldOffset
 
     this.body = new PlayerBody()
     this.body.position.copyFrom(camera.position)
@@ -281,7 +269,6 @@ export default abstract class Controls implements IControls {
     const py = y ?? (engine.getRenderHeight() * scaling) / 2
     const pick = this.scene.pick(px, py, predicate, false, cam)
 
-    if (pick?.pickedPoint) pick.pickedPoint = pick.pickedPoint.subtract(this.worldOffset.position)
     return pick ?? null
   }
 
@@ -415,32 +402,6 @@ export default abstract class Controls implements IControls {
       this.walkRunAnimation = BABYLON.Animation.CreateAndStartAnimation('walk-to-run', this.body, 'speed', fps, duration, this.body.speed, target, undefined, WALK_TO_RUN_EASE, undefined, this.scene)
       this.walkRunAnimation!.loopAnimation = false
     }
-  }
-
-  resetWorldOffset(position: BABYLON.Vector3) {
-    this.worldOffset.position.set(-position.x, 0, -position.z)
-
-    const refreshRecursive = (mesh: BABYLON.TransformNode) => {
-      mesh.markAsDirty('position')
-      if (mesh.isWorldMatrixFrozen) {
-        mesh.freezeWorldMatrix()
-      } else {
-        mesh.computeWorldMatrix()
-      }
-
-      // Thaw and refreeze any frozen world-matrices, as the global offset effects them
-      mesh.getChildren().forEach((child) => {
-        if (child instanceof BABYLON.TransformNode) {
-          refreshRecursive(child)
-        }
-      })
-    }
-
-    refreshRecursive(this.worldOffset)
-  }
-
-  worldToAbsolutePosition(worldPosition: BABYLON.Vector3) {
-    return this.worldOffset.absolutePosition.add(worldPosition)
   }
 
   setActiveReticule(active = false) {
@@ -764,8 +725,7 @@ export default abstract class Controls implements IControls {
   findNearbyDriveable(): import('../features/vox-model').Ride | null {
     const grid = this.grid
     if (!grid) return null
-    // persona is world/grid; mesh absolute / bb is scene-absolute (includes worldOffset)
-    const me = this.persona.position.add(this.worldOffset.position)
+    const me = this.persona.position
     let best: import('../features/vox-model').Ride | null = null
     let bestD = Infinity
     // distance to the mesh surface (not the pivot) - rides are often wider than 4m
@@ -1106,7 +1066,6 @@ export default abstract class Controls implements IControls {
       this.vehicleSeatLocal.copyFromFloats(ox, oy, oz)
       BABYLON.Vector3.TransformCoordinatesToRef(this.vehicleSeatLocal, car.mesh.getWorldMatrix(), this.vehicleSeatWorld)
       this.body.position.copyFrom(this.vehicleSeatWorld)
-      this.body.position.subtractInPlace(this.worldOffset.position)
       // mouse owns look (pitch + yaw); car facing is separate via getVehicleDriveYaw
     }
 

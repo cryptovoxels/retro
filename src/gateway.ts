@@ -193,12 +193,12 @@ function revealParcelThroughHole(scene: BABYLON.Scene, cam: BABYLON.Camera) {
   setupStencilPortal(scene)
 }
 
-function openDoorInFront(scene: BABYLON.Scene, roomCam: BABYLON.Camera, worldOffset: BABYLON.TransformNode | null, meshObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.AbstractMesh>>) {
+function openDoorInFront(scene: BABYLON.Scene, roomCam: BABYLON.Camera, meshObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.AbstractMesh>>) {
   if (holeMesh) return
   forward = lookDir(roomCam)
   ;(roomCam as any).setParent(null)
   if (meshObs) scene.onNewMeshAddedObservable.remove(meshObs)
-  if (worldOffset) worldOffset.position.addInPlace(forward.scale(WALL_DISTANCE))
+  roomCam.position.subtractInPlace(forward.scale(WALL_DISTANCE))
 
   const holePos = roomCam.position.add(forward.scale(WALL_DISTANCE))
   holePos.y = roomCam.position.y - 0.4
@@ -224,7 +224,6 @@ async function tryGatewayAR(scene: BABYLON.Scene, controls: Controls, spawnCam: 
 
   showHint('tap to look through the phone')
 
-  const worldOffset = spawnCam.parent instanceof BABYLON.TransformNode ? spawnCam.parent : null
   let entered = false
 
   const enter = async () => {
@@ -261,7 +260,7 @@ async function tryGatewayAR(scene: BABYLON.Scene, controls: Controls, spawnCam: 
       const normal = BABYLON.Vector3.TransformNormal(BABYLON.Vector3.Up(), mat)
       const cam = scene.activeCamera
       if (cam && BABYLON.Vector3.Dot(normal, cam.globalPosition.subtract(pos)) < 0) normal.scaleInPlace(-1)
-      if (worldOffset) worldOffset.position.addInPlace(pos.subtract(spawnCam.globalPosition))
+      if (cam) cam.position.addInPlace(spawnCam.position.subtract(pos))
       const { hole, frame } = placeHole(scene, pos, 0)
       hole.lookAt(pos.add(normal))
       frame.lookAt(pos.add(normal))
@@ -291,7 +290,6 @@ function startWallDoor(scene: BABYLON.Scene, controls: Controls, spawnCam: BABYL
 
   const frozenPos = spawnCam.position.clone()
   const frozenRot = 'rotation' in spawnCam ? (spawnCam as BABYLON.FreeCamera).rotation.clone() : new BABYLON.Vector3(0, 0, 0)
-  const worldOffset = spawnCam.parent instanceof BABYLON.TransformNode ? spawnCam.parent : null
 
   spawnCam.layerMask = LAYER_PARCEL
   scene.meshes.forEach((m) => {
@@ -302,7 +300,6 @@ function startWallDoor(scene: BABYLON.Scene, controls: Controls, spawnCam: BABYL
   })
 
   const roomCam = new BABYLON.DeviceOrientationCamera('gateway-room', frozenPos.clone(), scene)
-  if (worldOffset) roomCam.parent = worldOffset
   roomCam.rotation.copyFrom(frozenRot)
   roomCam.layerMask = LAYER_ROOM
   roomCam.minZ = 0.1
@@ -316,7 +313,7 @@ function startWallDoor(scene: BABYLON.Scene, controls: Controls, spawnCam: BABYL
 
   // door is already open; you find it by pointing
   scene.onAfterRenderObservable.addOnce(() => {
-    openDoorInFront(scene, roomCam, worldOffset, meshObs)
+    openDoorInFront(scene, roomCam, meshObs)
   })
 }
 

@@ -91,10 +91,9 @@ export class Island {
     return BABYLON.BoundingBox.Intersects(this._mesh.getBoundingInfo().boundingBox as BABYLON.DeepImmutableObject<BABYLON.BoundingBox>, boundingInfo.boundingBox as BABYLON.DeepImmutableObject<BABYLON.BoundingBox>)
   }
 
-  async render(parent: BABYLON.TransformNode): Promise<BABYLON.Mesh> {
+  async render(): Promise<BABYLON.Mesh> {
     this._mesh.position.y = 0.75 - 0.01 // 0.01 = the nudge epsilon
     this._mesh.checkCollisions = true
-    this._mesh.parent = parent
 
     const width = this._mesh.getBoundingInfo().maximum.x - this._mesh.getBoundingInfo().minimum.x
     const depth = this._mesh.getBoundingInfo().maximum.z - this._mesh.getBoundingInfo().minimum.z
@@ -124,15 +123,13 @@ export class Island {
 
 export default class Islands {
   scene: BABYLON.Scene
-  parent: BABYLON.TransformNode
   islands: Island[] = []
 
   public islandsStateObservable = new StateObservable<'loaded' | 'unloaded'>('unloaded')
   private _fetchCompleted = false
 
-  constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode) {
+  constructor(scene: BABYLON.Scene) {
     this.scene = scene
-    this.parent = parent
   }
 
   async load(): Promise<void> {
@@ -145,7 +142,7 @@ export default class Islands {
       this.islands = data.islands.map((i: IslandRecord) => new Island(this, i))
     }
 
-    await Promise.all(this.islands.map((i) => i.render(this.parent)))
+    await Promise.all(this.islands.map((i) => i.render()))
     this._fetchCompleted = true // Wait until setVisibility() to notify observers
   }
 

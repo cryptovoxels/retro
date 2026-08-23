@@ -4,10 +4,7 @@ export function cameraPosition(scene: BABYLON.Scene): BABYLON.Vector3 {
   if (!scene.activeCamera) return BABYLON.Vector3.Zero()
   if (scene.activeCamera instanceof PlayerCamera) return scene.activeCamera.body.position
   if (scene.activeCamera instanceof BABYLON.ArcRotateCamera) return scene.activeCamera.target
-  if (scene.activeCamera instanceof BABYLON.WebXRCamera) {
-    const offset = window.environment ? window.environment.parent.position : BABYLON.Vector3.Zero()
-    return scene.activeCamera.position.subtract(offset)
-  }
+  if (scene.activeCamera instanceof BABYLON.WebXRCamera) return scene.activeCamera.position
   return scene.activeCamera.position
 }
 
@@ -22,8 +19,7 @@ export function setCameraPosition(scene: BABYLON.Scene, position: BABYLON.Vector
     return
   }
   if (scene.activeCamera instanceof BABYLON.WebXRCamera) {
-    const offset = window.environment ? window.environment.parent.position : BABYLON.Vector3.Zero()
-    scene.activeCamera.position = position.add(offset)
+    scene.activeCamera.position = position
     return
   }
   scene.activeCamera.position = position

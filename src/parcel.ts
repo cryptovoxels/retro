@@ -121,7 +121,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
   constructor(
     scene: BABYLON.Scene,
-    parent: BABYLON.TransformNode,
+    parent: BABYLON.Nullable<BABYLON.TransformNode>,
     record: ParcelRecord & {
       spaceId?: string
     },
@@ -131,10 +131,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   ) {
     super()
     this.scene = scene
-    if (parent.parent) {
+    if (parent?.parent) {
       throw new Error('parcel: Constructing with a non-root parent node unsupported - coordinate translation assumptions will break')
     }
-    this.parentNode = parent
+    this.parentNode = parent ?? new BABYLON.TransformNode(`parcel/${record.id}/root`, scene)
     this.grid = grid
     this.isFastboot = isFastboot
 
@@ -191,7 +191,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.transform.position.copyFrom(this.boundingBox.center)
     this.transform.position.y = this.min.y
 
-    this.transform.parent = parent
+    this.transform.parent = null
 
     // Used to work out which parcel meshes belong to (in feature tool editor)
     this.transform['parcel'] = this
@@ -204,17 +204,17 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // this.sandbox is set via `updateMeta()` above
     this.featureBounds = this.sandbox
       ? this.boundingBox
-      : new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), parent._worldMatrix)
+      : new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), this.parentNode._worldMatrix)
 
     const hardFeatureBound = 25
 
     // in sandbox, set hardBoundingbox to be the featureBounds
     this.hardFeatureBounds = this.sandbox
-      ? new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), parent._worldMatrix)
+      ? new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), this.parentNode._worldMatrix)
       : new BABYLON.BoundingBox(
           new BABYLON.Vector3(this.x1 - hardFeatureBound, this.y1 - hardFeatureBound, this.z1 - hardFeatureBound),
           new BABYLON.Vector3(this.x2 + hardFeatureBound, this.y2 + hardFeatureBound, this.z2 + hardFeatureBound),
-          parent._worldMatrix,
+          this.parentNode._worldMatrix,
         )
 
     // fix parcel offset, but leave enough for exterior signage
@@ -227,7 +227,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       : new BABYLON.BoundingBox(
           new BABYLON.Vector3(this.x1 + offset - grace, this.y1 + offset - grace, this.z1 + offset - grace),
           new BABYLON.Vector3(this.x2 + offset + grace, this.y2 + offset + grace, this.z2 + offset + grace),
-          parent._worldMatrix,
+          this.parentNode._worldMatrix,
         )
 
     // Use pre-computed field if provided (from grid-worker)
@@ -380,18 +380,8 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     return this._boundingBox
   }
 
-  // the standalone bounding boxes cache their world vectors from the parent matrix at
-  // construction, and a teleport moves the parcels' parent (resetWorldOffset) without them -
-  // every world-space bounds check was then shifted by the teleport distance. call this before
-  // comparing any of the boxes in world space; it no-ops until the offset actually changes.
-  private boundsWorldOffset: BABYLON.Vector3 | null = null
-  syncWorldBounds() {
-    if (this.boundsWorldOffset?.equalsWithEpsilon(this.parentNode.position, 0.001)) return
-    this.boundsWorldOffset = this.parentNode.position.clone()
-    for (const box of [this.boundingBox, this.featureBounds, this.hardFeatureBounds, this.exteriorBounds]) {
-      box.reConstruct(box.minimum, box.maximum, this.parentNode._worldMatrix)
-    }
-  }
+  // the standalone bounding boxes cache their world vectors from the parent matrix at construction.
+  syncWorldBounds() {}
 
   get width() {
     return (this.x2 - this.x1) / VoxelSize
@@ -1074,9 +1064,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
   /**
    * Tests that a point is in this strict parcel bounds (in grid coordinates).
-   * Compared in grid space on purpose: the cached BoundingBox's world vectors are computed once,
-   * so every teleport (resetWorldOffset moves the parcels' parent) left them stale and shifted
-   * containment by the teleport distance - current-parcel detection went wrong until reload.
+   * Compared in grid space on purpose: the cached BoundingBox's world vectors are computed once at load.
    */
   contains(pointInGrid: BABYLON.Vector3): boolean {
     return pointInGrid.x >= this.x1 && pointInGrid.x <= this.x2 && pointInGrid.y >= this.y1 && pointInGrid.y <= this.y2 && pointInGrid.z >= this.z1 && pointInGrid.z <= this.z2
