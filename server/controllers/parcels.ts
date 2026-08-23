@@ -358,7 +358,9 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
 
   app.get('/api/parcels/:id.vox', cache('15 seconds'), async (req, res) => {
     const parcel_id = parseInt(req.params.id, 10)
-    if (isNaN(parcel_id)) {
+    // Ids past int4 make the lookup invalid, and an uncaught rejection here
+    // never ends the response: the request hangs until the gateway times out.
+    if (isNaN(parcel_id) || parcel_id < 1 || parcel_id > 2147483647) {
       res.status(404).json({ success: false })
       return
     }
@@ -375,7 +377,9 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
   // Route to allow users to share their parcels without using ?coords=
   app.get('/parcels/:id/visit', cache('15 seconds'), async (req, res) => {
     const id = Number(req.params.id)
-    if (isNaN(id)) {
+    // Number keeps the fraction that parseInt drops, so this one also has to
+    // reject 1.5 before it reaches the same int4 lookup.
+    if (!Number.isInteger(id) || id < 1 || id > 2147483647) {
       res.redirect('/')
       return
     }

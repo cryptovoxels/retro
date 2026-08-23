@@ -44,7 +44,9 @@ export default function WompsController(db: Db, passport: PassportStatic, app: E
 
   app.get('/api/womps/:id.jpg', cache('immutable'), async (req, res) => {
     const wompId = parseInt(req.params.id, 10)
-    if (isNaN(wompId)) {
+    // womps.id is int4, and this handler has no catch, so an id past that range
+    // leaves the request hanging rather than answering.
+    if (isNaN(wompId) || wompId < 1 || wompId > 2147483647) {
       noCache(res)
       return res.status(404).send({ success: false, message: 'Womp not found' })
     }
