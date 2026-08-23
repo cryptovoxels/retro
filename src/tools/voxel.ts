@@ -53,7 +53,7 @@ export type SelectionModeOptions = {
 
 export default class Selector implements Tool {
   scene: BABYLON.Scene
-  parent: BABYLON.TransformNode
+  parent: BABYLON.Nullable<BABYLON.TransformNode>
   box: BABYLON.Mesh
   grid: Grid
   selection: Selection
@@ -80,7 +80,7 @@ export default class Selector implements Tool {
   onVoxelAction: BABYLON.Observable<{ mode: SelectionMode }> = new BABYLON.Observable()
   onCurrentTextureTintUpdate: BABYLON.Observable<{ texture: number; tint: number }> = new BABYLON.Observable<{ texture: number; tint: number }>()
 
-  constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, grid: Grid, controls: Controls, connector: Connector) {
+  constructor(scene: BABYLON.Scene, parent: BABYLON.Nullable<BABYLON.TransformNode>, grid: Grid, controls: Controls, connector: Connector) {
     this.scene = scene
     this.grid = grid
     this.controls = controls

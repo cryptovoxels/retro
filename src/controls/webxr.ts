@@ -103,12 +103,12 @@ export default class XROverlay {
 
     const camera = this.webXR.baseExperience.camera
 
-    const pickResult = this.scene.pickWithRay(new BABYLON.Ray(positionInWorld.add(this.controls.worldOffset.position), new BABYLON.Vector3(0, -1, 0), 5), (e) => this.teleportableMeshes.has(e))
+    const pickResult = this.scene.pickWithRay(new BABYLON.Ray(positionInWorld, new BABYLON.Vector3(0, -1, 0), 5), (e) => this.teleportableMeshes.has(e))
     if (!pickResult?.hit || !pickResult.pickedPoint) {
       return
     }
 
-    const pickPositionInWorld = pickResult.pickedPoint.subtract(this.controls.worldOffset.position)
+    const pickPositionInWorld = pickResult.pickedPoint
     camera.position.y = pickPositionInWorld.y + camera.realWorldHeight
   }
 

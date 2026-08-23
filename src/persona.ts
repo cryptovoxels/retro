@@ -30,17 +30,14 @@ export default class Persona {
   emote: Animations | null = null
   private stepping = false
   private readonly scene: BABYLON.Scene
-  private readonly parent: BABYLON.TransformNode
 
   constructor(
     scene: BABYLON.Scene,
-    parent: BABYLON.TransformNode,
     connector: Connector,
     controls: Controls,
     public readonly uuid: string,
   ) {
     this.scene = scene
-    this.parent = parent
     this.controls = controls
     this.connector = connector
     this.position = BABYLON.Vector3.Zero()
@@ -56,7 +53,7 @@ export default class Persona {
 
       if (this.avatarSignature === null || !identityEquals(avatarSignature, this.avatarSignature)) {
         this.avatarSignature = avatarSignature
-        const avatar = await LoadUserAvatar(this.scene, this.parent, this.uuid, { name: this.user.name, wallet: this.user.wallet })
+        const avatar = await LoadUserAvatar(this.scene, this.uuid, { name: this.user.name, wallet: this.user.wallet })
 
         // Check that the signature captured in scope is the same as the one stored on the instance. This means
         // `loadAvatar` was not called again in the time between asynchronously loaded the avatar and now.
@@ -115,10 +112,6 @@ export default class Persona {
     return [orientation.x, orientation.y, orientation.z, orientation.w]
   }
 
-  get absolutePosition() {
-    return this.controls.worldOffset.position.add(this.position)
-  }
-
   // teleports a user without adding the previous location to the browser. Might be good for moving players
 
   naviport(value: string) {
@@ -167,7 +160,6 @@ export default class Persona {
     window.graphic?.postProcesses?.cover()
     this.audio?.playSound('persona.teleport')
 
-    this.controls.resetWorldOffset(coords.position)
     setCameraPosition(this.scene, coords.position)
 
     if (coords.rotation) {

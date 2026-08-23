@@ -7,8 +7,8 @@ import type Parcel from './parcel'
 class NullEnvironment extends Environment {
   private readonly groundState = new StateObservable<'loaded' | 'unloaded'>('loaded')
 
-  constructor(parent: BABYLON.TransformNode, scene: BABYLON.Scene) {
-    super(parent, scene)
+  constructor(scene: BABYLON.Scene) {
+    super(scene)
   }
 
   get groundStateObservable() {
@@ -35,8 +35,7 @@ class NullEnvironment extends Environment {
 
 export class NullGrid extends Grid {
   constructor(scene: BABYLON.Scene) {
-    const parent = new BABYLON.TransformNode('parcel/parent', scene)
-    super(scene, parent, new NullEnvironment(parent, scene))
+    super(scene, new NullEnvironment(scene))
   }
 
   get seeksConnection() {

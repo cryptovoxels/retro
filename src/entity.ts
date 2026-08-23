@@ -22,7 +22,7 @@ export abstract class Entity {
 
   animationOverride: Animations | null = null
 
-  protected constructor(scene: BABYLON.Scene, parent: BABYLON.TransformNode, joined: timestamp) {
+  protected constructor(scene: BABYLON.Scene, parent: BABYLON.Nullable<BABYLON.TransformNode>, joined: timestamp) {
     this.scene = scene
     this.node = new BABYLON.TransformNode('entity', this.scene)
     this.node.setParent(parent)

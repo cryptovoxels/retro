@@ -309,7 +309,7 @@ async function main() {
   ;(engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
 
   // not related to a parcel or space
-  const { environment } = await createEnvironment(scene, controls.worldOffset)
+  const { environment } = await createEnvironment(scene)
   // Give the Controls a chance to observe things in the Environment
   controls.attachEnvironment(environment)
 
@@ -367,7 +367,7 @@ async function main() {
   // unmounts when you leave the world (instead of living on <body> forever).
   const ui: BootResult = {
     UI: UserInterface,
-    props: { scene, parent: controls.worldOffset, canvas, grid, connector, environment, enabled: !wantsXR() && !wantsGateway(), minimapSettings: mapSettings ?? new MinimapSettings() },
+    props: { scene, canvas, grid, connector, environment, enabled: !wantsXR() && !wantsGateway(), minimapSettings: mapSettings ?? new MinimapSettings() },
   }
 
   if (wantsXR()) return ui

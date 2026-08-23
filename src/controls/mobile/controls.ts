@@ -25,7 +25,6 @@ export default class MobileControls extends Controls {
   createCamera() {
     const coords = decodeCoords(getCoordsFromURL())
     const camera = createFirstPersonCamera(this.scene, coords)
-    this.resetWorldOffset(coords.position)
 
     if (coords && coords.rotation) {
       camera['rotation'].y = coords?.rotation.y || 0

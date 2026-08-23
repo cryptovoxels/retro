@@ -126,7 +126,6 @@ export interface Tool {
 
 export interface UserInterfaceProps {
   scene: BABYLON.Scene
-  parent: BABYLON.TransformNode
   canvas: HTMLCanvasElement
   grid: Grid
   connector: Connector
@@ -205,8 +204,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.grid = props.grid
     this.environment = props.environment
 
-    this.voxelTool = new VoxelTool(this.props.scene, props.parent, props.grid, this.connector.controls, props.connector)
-    this.featureTool = new FeatureTool(this.props.scene, props.parent, props.grid, this.connector.controls, props.connector, createFeature)
+    this.voxelTool = new VoxelTool(this.props.scene, null, props.grid, this.connector.controls, props.connector)
+    this.featureTool = new FeatureTool(this.props.scene, null, props.grid, this.connector.controls, props.connector, createFeature)
     this.defaultTool = null
     window.ui = this
 

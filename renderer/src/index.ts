@@ -160,14 +160,11 @@ function mountRoutes(r: express.Router | express.Express) {
     body{
     font-family: sans-serif; font-size: 22px; font-weight: bold;}
     html,body,#c{margin:0;width:100%;height:100%;overflow:hidden;display:block}
-    a#play{position: fixed; bottom: 2rem; left: 2rem; background: black; color: white; border-radius: 4rem; padding: 1rem 2rem; text-transform: upperacse;}
-    a#play:hover{background: linear-gradient(#333,black);}
     </style>
     <script src="/renderer/vendor/library-6.11.2.min.js"></script>
   </head>
   <body>
     <canvas id="c"></canvas>
-    <a id="play" href="${ASSET_ORIGIN}/parcels/${id}" target="_blank" rel="noopener">Play Now</a>
     <script src="/renderer/page/stub-storage.js"></script>
     <script src="/renderer/page/parcel-bundle.js"></script>
     <script>

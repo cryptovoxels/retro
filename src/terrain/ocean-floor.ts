@@ -1,16 +1,13 @@
 import type { Chunk, ChunkObserver } from './chunk-system'
-import { addTrimesh, removeCollider } from '../physics/world'
+import { addCuboid, removeCollider } from '../physics/world'
 
 export default class OceanFloor implements ChunkObserver {
   private readonly _mesh: BABYLON.Mesh
   private readonly size: number
   private readonly halfSize: number
-  private readonly parent: BABYLON.TransformNode
   private instances: Map<string, BABYLON.InstancedMesh> = new Map()
-  private floorVerts: Float32Array | null = null
-  private floorIndices: Uint32Array | null = null
 
-  constructor(size: number, scene: BABYLON.Scene, parent: BABYLON.TransformNode) {
+  constructor(size: number, scene: BABYLON.Scene) {
     this.size = size
     this.halfSize = size * 0.5
 
@@ -29,16 +26,7 @@ export default class OceanFloor implements ChunkObserver {
     this._mesh.checkCollisions = true
     this._mesh.position.set(this.halfSize, -1024, this.halfSize)
     this._mesh.setEnabled(false) // instanced, dont need to render the original mesh
-    this._mesh.parent = parent
     this._mesh.receiveShadows = true
-    this.parent = parent
-
-    const positions = this._mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
-    const indices = this._mesh.getIndices()
-    if (positions && indices) {
-      this.floorVerts = positions instanceof Float32Array ? positions : new Float32Array(positions)
-      this.floorIndices = indices instanceof Uint32Array ? indices : new Uint32Array(indices)
-    }
   }
 
   get mesh(): BABYLON.Mesh {
@@ -50,10 +38,8 @@ export default class OceanFloor implements ChunkObserver {
     i.position.x = this.size * x + this.halfSize
     i.position.y = -6
     i.position.z = this.size * y + this.halfSize
-    i.parent = this.parent
-    if (this.floorVerts && this.floorIndices) {
-      addTrimesh(`ocean-floor-${x}-${y}`, this.floorVerts, this.floorIndices, { x: i.position.x, y: i.position.y, z: i.position.z })
-    }
+    const hy = 0.5
+    addCuboid(`ocean-floor-${x}-${y}`, { x: this.halfSize, y: hy, z: this.halfSize }, { x: i.position.x, y: i.position.y - hy, z: i.position.z })
     return i
   }
 

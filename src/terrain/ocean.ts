@@ -24,7 +24,6 @@ export class Ocean implements ChunkObserver {
 
   private readonly size: number
   private readonly halfSize: number
-  private readonly parent: BABYLON.TransformNode
   private readonly scene: BABYLON.Scene
   private readonly mesh: BABYLON.Mesh
   private readonly materials: { reflection: ReflectiveWater; simple: SimpleWater }
@@ -42,7 +41,7 @@ export class Ocean implements ChunkObserver {
   private baseReflectionMeshes: BABYLON.AbstractMesh[] = []
   private reflectionMeshes: BABYLON.AbstractMesh[] = []
 
-  constructor(size: number, scene: BABYLON.Scene, parent: BABYLON.TransformNode, reflectionMeshes: BABYLON.AbstractMesh[] = []) {
+  constructor(size: number, scene: BABYLON.Scene, reflectionMeshes: BABYLON.AbstractMesh[] = []) {
     this.size = size
     this.halfSize = size * 0.5
     this.scene = scene
@@ -52,8 +51,6 @@ export class Ocean implements ChunkObserver {
     this.mesh.checkCollisions = false
     this.mesh.position.set(-99999, -99999, -99999)
     this.mesh.setEnabled(false)
-    this.mesh.parent = parent
-    this.parent = parent
 
     this.materials = {
       simple: new SimpleWater(scene),
@@ -74,7 +71,6 @@ export class Ocean implements ChunkObserver {
     i.position.x = this.size * x + this.halfSize
     i.position.y = OCEAN_HEIGHT_OFFSET
     i.position.z = this.size * y + this.halfSize
-    i.parent = this.parent
     return i
   }
 
@@ -503,7 +499,6 @@ export class Ocean implements ChunkObserver {
 
   private configureMeshProperties(mesh: BABYLON.Mesh, heightOverride?: number): void {
     mesh.material = this.mesh.material
-    mesh.parent = this.parent
     mesh.checkCollisions = false
     const yPosition = heightOverride !== undefined ? heightOverride : OCEAN_HEIGHT_OFFSET
     mesh.position.set(mesh.position.x, yPosition, mesh.position.z)

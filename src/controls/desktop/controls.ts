@@ -29,7 +29,6 @@ export default class DesktopControls extends Controls {
   createCamera() {
     const coords = decodeCoordsFromURL()
     const camera = createFirstPersonCamera(this.scene, coords)
-    this.resetWorldOffset(coords.position)
 
     if (coords && coords.rotation) {
       camera['rotation'].y = coords?.rotation.y || 0
@@ -151,12 +150,7 @@ export default class DesktopControls extends Controls {
   }
 
   desktopClicks(eventData: BABYLON.PointerInfo, eventState: BABYLON.EventState) {
-    // selected feature: leave pickInfo in world space for gizmos / face-drag.
-    // otherwise convert to persona space for click handlers below.
     const authoring = !!window.ui?.state?.feature
-    if (!authoring && eventData.pickInfo?.pickedPoint) {
-      eventData.pickInfo.pickedPoint = eventData.pickInfo.pickedPoint.subtract(this.worldOffset.position)
-    }
 
     const btn = eventData.event.button
 

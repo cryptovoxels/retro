@@ -94,9 +94,6 @@ export default class DebugTools extends Component<Props, State> {
     const parcel = this.grid.currentOrNearestParcel()
     if (parent == 'parcel' && parcel) {
       m.parent = parcel.transform
-    } else {
-      const controls = this.connector.controls
-      m.parent = controls.worldOffset
     }
     m.position = position
     console.log('Mesh Created at ', position)
