@@ -157,6 +157,10 @@ export default class DesktopControls extends Controls {
     if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 0 && !hasPointerLock() && !eventData.event.shiftKey) {
       // selected feature: free mouse for face-drag / gizmos. don't steal into pointer lock.
       if (!authoring) {
+        // ActionGui (Drive / try-on / guestbook): lock mid-press moves the cursor to
+        // screen center so POINTERUP never lands on the button
+        const meshName = eventData.pickInfo?.pickedMesh?.name || ''
+        if (meshName.startsWith('feature/basicGui/')) return
         this.nerfClick = true
         this.requestPointerLock()?.catch(() => {})
         return
