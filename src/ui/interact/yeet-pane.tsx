@@ -1,9 +1,8 @@
 import { Component } from 'preact'
 import { truncate } from 'lodash'
 import WearableIcon from '../../../web/src/components/wearable-icon'
-import { yeetCollectionId } from '../../store'
+import { equippedWid, yeetCollectionId } from '../../store'
 import { focusFirst, onGridArrowKeys } from '../../../web/src/helpers/keynav'
-import { yeetWearable } from '../../object-vox'
 import { effect } from '@preact/signals'
 
 type Collectible = { id: string; name: string; token_id?: string }
@@ -60,16 +59,14 @@ export class YeetPane extends Component<{}, State> {
     return (
       <section class="yeet" onKeyDown={onGridArrowKeys}>
         <h2>{this.state.name || 'Yeet'}</h2>
+        <p>equip a wearable to yeet</p>
         <div class="wrap-grid">
           {this.state.collectibles.map((w) => (
             <div
               key={w.id}
               tabIndex={0}
-              draggable
-              onClick={() => yeetWearable(w.id)}
-              onDragStart={(e: DragEvent) => {
-                e.dataTransfer?.setData('text/x-yeet', w.id)
-                e.dataTransfer?.setData('text/plain', `yeet:${w.id}`)
+              onClick={() => {
+                equippedWid.value = equippedWid.value === w.id ? undefined : w.id
               }}
             >
               <WearableIcon id={w.id} title={w.name} />

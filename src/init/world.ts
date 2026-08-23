@@ -11,6 +11,7 @@ import { createGizmos } from '../tools/gizmos'
 import { isLoaded } from '../utils/loading-done'
 import { stepPhysics } from '../physics/world'
 import { startGhosts } from '../ghosts'
+import { startYeet } from '../yeetable'
 
 export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCanvasElement, controls: Controls, environment: Environment) {
   const grid = new Grid(scene, controls.worldOffset, environment)
@@ -36,6 +37,7 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
   const connector = initConnector(scene, controls, grid)
 
   startGhosts(scene, controls.worldOffset, grid, controls, connector)
+  startYeet(scene, controls, canvas)
 
   await grid.loadFastbootFromHTML()
 

@@ -2,6 +2,7 @@ import { IslandRecord, MultiPolygonGeometry } from '../../common/messages/api-is
 import { StateObservable } from '../utils/state-observable'
 import { createIslandMaterial } from '../materials'
 import { pointInPolygon } from '../utils/polygon-utils'
+import { addCuboid } from '../physics/world'
 
 export class Island {
   list: Islands
@@ -112,16 +113,10 @@ export class Island {
     })
     this._mesh.visibility = 1
 
-    const positions = this._mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
-    const indices = this._mesh.getIndices()
-    if (positions && indices) {
-      const { addTrimesh } = await import('../physics/world')
-      addTrimesh(`island-${this.name}`, positions instanceof Float32Array ? positions : new Float32Array(positions), indices instanceof Uint32Array ? indices : new Uint32Array(indices), {
-        x: this._mesh.position.x,
-        y: this._mesh.position.y,
-        z: this._mesh.position.z,
-      })
-    }
+    // nerfed collider: one cube for the whole island bounds. good enough to walk on and yeet at.
+    const bb = this._mesh.getBoundingInfo().boundingBox
+    const c = bb.center.add(this._mesh.position)
+    addCuboid(`island-${this.name}`, { x: bb.extendSize.x, y: bb.extendSize.y, z: bb.extendSize.z }, { x: c.x, y: c.y, z: c.z })
 
     return this._mesh
   }

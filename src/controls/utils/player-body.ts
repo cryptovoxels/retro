@@ -1,13 +1,10 @@
 import RAPIER from '@dimforge/rapier3d-compat'
-import { physics } from '../../physics/world'
-import { VoxelSize } from '../../../common/voxels/constants'
-import { Vec3 } from '../../physics/world'
+import { physics, PLAYER_QUERY, Vec3 } from '../../physics/world'
 const RADIUS = 0.2
 const EYE = 1.65 // eye height above the feet
 const HEAD = 0.1 // skull above the eyes
 const HALF = 0.6
 const DROP = (EYE - HEAD) / 2 // eye above the capsule centre, 0.75
-const BURIED = RAPIER.QueryFilterFlags.EXCLUDE_KINEMATIC | RAPIER.QueryFilterFlags.EXCLUDE_DYNAMIC | RAPIER.QueryFilterFlags.EXCLUDE_SENSORS
 
 const unchanged = (a: Vec3, b: Vec3, epsilon = 0.001) => Math.abs(a.x - b.x) < epsilon && Math.abs(a.y - b.y) < epsilon && Math.abs(a.z - b.z) < epsilon
 const nonzero = (v: Vec3, epsilon = 0.001) => Math.abs(v.x) > epsilon || Math.abs(v.y) > epsilon || Math.abs(v.z) > epsilon
@@ -95,8 +92,6 @@ export default class PlayerBody {
 
   /** move is unitless direction; speed is m/s; dt is seconds */
   step(move: BABYLON.Vector3, dt: number): void {
-    console.log('stuck', this.stuck)
-
     this.scratch.copyFrom(move).scaleInPlace(this.speed * dt)
     const d = this.scratch
 
@@ -119,7 +114,7 @@ export default class PlayerBody {
     }
 
     const dy = this.gravity ? this.vel * dt : d.y + this.vel * dt
-    this.controller.computeColliderMovement(this.collider, { x: d.x, y: dy, z: d.z })
+    this.controller.computeColliderMovement(this.collider, { x: d.x, y: dy, z: d.z }, undefined, PLAYER_QUERY)
     let stepped = this.controller.computedMovement()
     const at = this.body.translation()
     const next = { x: at.x + stepped.x, y: at.y + stepped.y, z: at.z + stepped.z }
@@ -131,7 +126,6 @@ export default class PlayerBody {
     }
 
     if (this.stuck > 0.5) {
-      console.log('yeet')
       this.yeet()
       this.stuck = 0
       return

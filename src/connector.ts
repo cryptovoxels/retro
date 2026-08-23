@@ -17,7 +17,7 @@ import { Transform } from './utils/transform'
 import { signal } from '@preact/signals'
 import { decodeCoords } from '../common/helpers/utils'
 import { danceBySlug } from './ui/interact/dances'
-import { disposeYeetsForUuid, onRemoteYeet, onRemoteYeetState } from './object-vox'
+import { disposeAvatarPhysics, disposeYeetsForUuid, onRemoteNerf, onRemoteYeet, onRemoteYeetState } from './yeetable'
 
 const UPDATE_AVATAR_INTERVAL_MS = 200
 
@@ -506,6 +506,15 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     })
   }
 
+  sendNerf(payload: { yeetId: string; kind: messages.NerfMessage['kind']; target?: string; position: [number, number, number] }) {
+    if (this.connectionState.status !== 'connected') return
+    this.send({
+      type: MessageType.nerf,
+      uuid: Connector.clientUUID,
+      ...payload,
+    })
+  }
+
   onWorldState(message: messages.WorldStateMessage) {
     message.avatars.forEach((msg) => this.onMoveAvatar(msg))
   }
@@ -732,6 +741,9 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
         break
       case messages.MessageType.yeetState:
         onRemoteYeetState(msg)
+        break
+      case messages.MessageType.nerf:
+        onRemoteNerf(msg)
         break
       case messages.MessageType.loginComplete:
       case messages.MessageType.point:
@@ -1052,7 +1064,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     const avatar = this._avatarsByUuid.get(uuid)
     if (avatar) {
       this._avatarsByUuid.delete(uuid)
-
+      disposeAvatarPhysics(uuid)
       avatar.disposeLocalAndRemote()
     }
   }

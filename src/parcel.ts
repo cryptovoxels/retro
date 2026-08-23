@@ -951,6 +951,12 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
   public isColliderEnabled = () => false
 
+  carve(voxels: [number, number, number][]) {
+    if (!this.field || !voxels.length) return
+    this.setField(voxels, 0)
+    this.refreshVoxels()
+  }
+
   set(listOfVectors: [x: number, y: number, z: number][], value: number) {
     if (!this.field) {
       // this might not be loaded because the user has just logged in

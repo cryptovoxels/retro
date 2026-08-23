@@ -86,7 +86,7 @@ function animationFor(type: GhostTypeId, speed: number): Animations {
   return Animations.Idle
 }
 
-function applyGhostLook(avatar: Avatar) {
+function applyGhostLook(avatar: Avatar, ghostId: string) {
   avatar.nametag = false
   const m = avatar.material
   if (!m) return
@@ -96,7 +96,47 @@ function applyGhostLook(avatar: Avatar) {
   m.alpha = 0.35
   m.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
   const collider = (avatar as any).collider
-  if (collider) collider.isPickable = false
+  if (collider) {
+    collider.isPickable = false
+    collider.metadata = { ...collider.metadata, ghostId }
+  }
+}
+
+const playing = new Map<string, { avatar: Avatar; disposeAt: number }>()
+
+export function disposeGhost(id: string) {
+  const g = playing.get(id)
+  if (!g) return
+  try {
+    g.avatar.emote('👻')
+    g.avatar.disposeLocal()
+  } catch {}
+  playing.delete(id)
+}
+
+function segmentSphere(from: BABYLON.Vector3, to: BABYLON.Vector3, center: BABYLON.Vector3, radius: number): BABYLON.Vector3 | null {
+  const d = to.clone().subtract(from)
+  const f = from.clone().subtract(center)
+  const a = BABYLON.Vector3.Dot(d, d)
+  if (a < 1e-8) return null
+  const b = 2 * BABYLON.Vector3.Dot(f, d)
+  const c = BABYLON.Vector3.Dot(f, f) - radius * radius
+  let disc = b * b - 4 * a * c
+  if (disc < 0) return null
+  disc = Math.sqrt(disc)
+  const t = (-b - disc) / (2 * a)
+  if (t < 0 || t > 1) return null
+  return from.add(d.scale(t))
+}
+
+export function ghostSegmentHit(from: BABYLON.Vector3, to: BABYLON.Vector3): { ghostId: string; point: BABYLON.Vector3 } | null {
+  for (const [id, g] of playing) {
+    const collider = (g.avatar as any).collider as BABYLON.Mesh | undefined
+    if (!collider) continue
+    const hit = segmentSphere(from, to, collider.getAbsolutePosition(), 0.9)
+    if (hit) return { ghostId: id, point: hit }
+  }
+  return null
 }
 
 export function startGhosts(scene: BABYLON.Scene, parent: BABYLON.TransformNode, grid: Grid, controls: Controls, connector: Connector) {
@@ -112,8 +152,6 @@ export function startGhosts(scene: BABYLON.Scene, parent: BABYLON.TransformNode,
   let lastSampleAt = 0
   let fetchAt = Date.now() + 5000 + Math.random() * 5000
   let lastFetchParcel: number | null = null
-
-  const playing = new Map<string, { avatar: Avatar; disposeAt: number }>()
 
   const resetBlob = (type: GhostTypeId | null) => {
     samples = []
@@ -246,16 +284,6 @@ export function startGhosts(scene: BABYLON.Scene, parent: BABYLON.TransformNode,
     }
   }
 
-  const disposeGhost = (id: string) => {
-    const g = playing.get(id)
-    if (!g) return
-    try {
-      g.avatar.emote('👻')
-      g.avatar.disposeLocal()
-    } catch {}
-    playing.delete(id)
-  }
-
   const playGhost = async (row: GhostRow) => {
     if (playing.size >= MAX_GHOSTS) return
     const path = unpackPath(row.path)
@@ -276,7 +304,7 @@ export function startGhosts(scene: BABYLON.Scene, parent: BABYLON.TransformNode,
       return
     }
 
-    applyGhostLook(avatar)
+    applyGhostLook(avatar, id)
 
     const type = (row.type | 0) as GhostTypeId
     const startWall = Date.now()
