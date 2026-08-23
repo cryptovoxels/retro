@@ -88,6 +88,7 @@ function animationFor(type: GhostTypeId, speed: number): Animations {
 
 function applyGhostLook(avatar: Avatar) {
   avatar.nametag = false
+  avatar.disposeSilhouette()
   const m = avatar.material
   if (!m) return
   m.diffuseColor.set(0.25, 0.95, 0.35)

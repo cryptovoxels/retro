@@ -13,6 +13,7 @@ import type Parcel from './parcel'
 import { emote } from './utils/emote'
 import { Transform } from './utils/transform'
 import { Bubble } from './chat'
+import { registerXray, unregisterXray, XRAY_MASK } from './xray'
 
 const ANONYMOUS_NAME = 'anon'
 const DEFAULT_SKIN_SVG =
@@ -29,6 +30,13 @@ export type AvatarRecord = import('../common/messages').AvatarIdentity
 const AVATAR_HEIGHT = 1.6
 const AVATAR_NAME_OFFSET = 0.5
 
+export function avatarGroup(mesh: BABYLON.AbstractMesh, id = 3) {
+  mesh.renderingGroupId = id
+  mesh.getChildMeshes().forEach((m) => {
+    m.renderingGroupId = id
+  })
+}
+
 // distance in meters from camera that we play sounds for this avatar
 const SOUND_DISTANCE = 20
 
@@ -37,7 +45,6 @@ export default class Avatar extends Entity {
   private static awaitingRootAvatarLoading: (() => void)[] = []
   private static rootAvatarLoadState = LoadState.None
   private static silhouetteMaterial: BABYLON.StandardMaterial | null = null
-  private static silhouetteGroupReady = false
   skeleton: BABYLON.Skeleton | null = null
   private readonly _description: AvatarRecord
   private readonly _uuid: string
@@ -270,6 +277,7 @@ export default class Avatar extends Entity {
       this._vehicleMesh?.dispose()
       this._vehicleMesh = mesh
       mesh.isPickable = false
+      avatarGroup(mesh)
       mesh.checkCollisions = false
       mesh.rotationQuaternion = null
       mesh.setEnabled(true)
@@ -330,23 +338,16 @@ export default class Avatar extends Entity {
     })
   }
 
-  // flat white, 50% alpha, depth GREATER: only draws where the body is behind walls
+  // flat white mask for x-ray pass
   private static ensureSilhouetteMaterial(scene: BABYLON.Scene): BABYLON.StandardMaterial {
     if (!Avatar.silhouetteMaterial) {
       const mat = new BABYLON.StandardMaterial('avatar/silhouette', scene)
       mat.disableLighting = true
       mat.emissiveColor = new BABYLON.Color3(1, 1, 1)
       mat.diffuseColor = BABYLON.Color3.Black()
-      mat.alpha = 0.5
-      mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
-      mat.disableDepthWrite = true
-      mat.depthFunction = BABYLON.Constants.GREATER
+      mat.alpha = 1
       mat.freeze()
       Avatar.silhouetteMaterial = mat
-    }
-    if (!Avatar.silhouetteGroupReady) {
-      scene.setRenderingAutoClearDepthStencil(2, false, false, false)
-      Avatar.silhouetteGroupReady = true
     }
     return Avatar.silhouetteMaterial
   }
@@ -628,6 +629,7 @@ export default class Avatar extends Entity {
     mesh.position.set(0, -AVATAR_NAME_OFFSET - 0.28, 0) // sit just above the nameplate
     mesh.attachToBone(this.neckBone, this._avatarMesh)
     mesh.addLODLevel(AVATAR_VIEW_DISTANCE, null)
+    avatarGroup(mesh)
 
     const mat = new BABYLON.StandardMaterial('avatar/voice', this.scene)
     mat.blockDirtyMechanism = true
@@ -639,6 +641,13 @@ export default class Avatar extends Entity {
     mat.sideOrientation = BABYLON.Mesh.DOUBLESIDE // visible from any angle, like the nameplate
     mesh.material = mat
     this.voiceMesh = mesh
+  }
+
+  disposeSilhouette() {
+    if (!this.silhouetteMesh) return
+    unregisterXray(this.silhouetteMesh)
+    this.silhouetteMesh.dispose()
+    this.silhouetteMesh = null
   }
 
   /**
@@ -662,8 +671,7 @@ export default class Avatar extends Entity {
     this._avatarMesh = null
     this.armatureMesh?.dispose()
     this.armatureMesh = null
-    this.silhouetteMesh?.dispose()
-    this.silhouetteMesh = null
+    this.disposeSilhouette()
     this.skeleton?.dispose()
     this.skeleton = null
     this.collider?.dispose()
@@ -907,6 +915,9 @@ export default class Avatar extends Entity {
     }
     this._material.blockDirtyMechanism = true
 
+    avatarGroup(this._avatarMesh)
+    avatarGroup(this.armatureMesh)
+
     if (!this.isUser) {
       this.collider = BABYLON.MeshBuilder.CreateSphere(
         `avatar/collider`,
@@ -932,18 +943,17 @@ export default class Avatar extends Entity {
     this.armatureMesh.skeleton = this.skeleton
     this.animation?.copy(this.skeleton)
 
-    if (!this.isUser) {
-      const sil = this.armatureMesh.clone(`avatar/silhouette/${this._uuid}`, null) as BABYLON.Mesh
-      sil.isPickable = false
-      sil.renderOutline = false
-      sil.metadata = { isAvatarPart: true }
-      sil.skeleton = this.skeleton
-      sil.material = Avatar.ensureSilhouetteMaterial(this.scene)
-      sil.renderingGroupId = 2
-      sil.setParent(this.node)
-      sil.addLODLevel(AVATAR_VIEW_DISTANCE, null)
-      this.silhouetteMesh = sil
-    }
+    const sil = this.armatureMesh.clone(`avatar/silhouette/${this._uuid}`, null) as BABYLON.Mesh
+    sil.isPickable = false
+    sil.renderOutline = false
+    sil.metadata = { isAvatarPart: true }
+    sil.skeleton = this.skeleton
+    sil.material = Avatar.ensureSilhouetteMaterial(this.scene)
+    sil.layerMask = XRAY_MASK
+    sil.setParent(this.node)
+    sil.addLODLevel(AVATAR_VIEW_DISTANCE, null)
+    registerXray(sil)
+    this.silhouetteMesh = sil
 
     const t = this.skeleton?.getBoneIndexByName('mixamorig:Head')
     this.neckBone = this.skeleton.bones[t]
@@ -1031,6 +1041,7 @@ export default class Avatar extends Entity {
     this.nameMesh.position.set(0, -AVATAR_NAME_OFFSET, 0)
     if (this.neckBone && this._avatarMesh) this.nameMesh.attachToBone(this.neckBone, this._avatarMesh)
     this.nameMesh.addLODLevel(AVATAR_VIEW_DISTANCE, null)
+    avatarGroup(this.nameMesh)
 
     const material = new BABYLON.StandardMaterial('avatar/name', this.scene)
     material.blockDirtyMechanism = true

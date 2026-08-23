@@ -2,6 +2,7 @@ import { Costume, CostumeAttachment } from '../common/messages/costumes'
 import { app } from '../web/src/state'
 import { voxImporter } from '../common/vox-import/vox-import'
 import type Avatar from './avatar'
+import { avatarGroup } from './avatar'
 
 export interface AttachmentWithMesh extends CostumeAttachment {
   mesh?: BABYLON.Mesh
@@ -148,6 +149,7 @@ export class AvatarAttachmentManager {
     }
 
     mesh.addLODLevel(this.avatarViewDistance, null)
+    avatarGroup(mesh)
 
     const position = new BABYLON.Vector3(attachment.position[0], attachment.position[1], attachment.position[2])
     mesh.position.copyFrom(position)
