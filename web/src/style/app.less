@@ -5208,15 +5208,80 @@ div.css-icon {
   }
 }
 
-// map is full-bleed like home / play
+// map / shop: the babylon map is the world. hide the 3d client and let .page fill.
 main:has(.worldmap) {
   padding: 0;
   max-width: none;
+  grid-template-columns: auto 1fr;
+
+  > .client,
+  > .canvasdom {
+    display: none;
+  }
+
+  > .page {
+    grid-column: 2;
+    padding: 0;
+    overflow: hidden;
+    background: transparent;
+
+    .sidebar-chrome {
+      margin: 0;
+      position: absolute;
+      top: 0;
+      right: 0;
+      background: transparent;
+    }
+  }
+}
+
+@media @narrow {
+  main:has(.worldmap) {
+    grid-template-columns: 1fr;
+    grid-template-rows: 1fr;
+
+    > .page {
+      grid-row: 1;
+    }
+  }
 }
 
 .worldmap {
-  height: 100vh;
+  height: 100%;
   position: relative;
+}
+
+.columns.for-sale {
+  height: 100%;
+  gap: 0;
+  align-items: stretch;
+
+  > article {
+    padding: 0;
+    min-width: 0;
+    height: 100%;
+  }
+
+  > aside {
+    width: 23rem;
+    overflow-y: auto;
+    padding: 1rem;
+    background: var(--bg);
+  }
+}
+
+@media @narrow {
+  .columns.for-sale {
+    > article {
+      flex: 1;
+      min-height: 0;
+    }
+
+    > aside {
+      width: 100%;
+      flex: 0 0 40%;
+    }
+  }
 }
 
 // clear the fixed hamburger (same ~3.5rem offset as the play sidebar pills)
@@ -5234,10 +5299,6 @@ main:has(.worldmap) {
   border-radius: 1rem;
   padding: 0.2rem 0.5rem;
   box-shadow: 3px 3px 3px rgba(0, 0, 0, 0.2);
-}
-
-.voxels-map {
-  border-radius: 1rem;
 }
 
 // explore sidebar tabs (pruned out of client.less by mistake - without flex they
