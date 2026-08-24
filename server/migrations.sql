@@ -353,3 +353,7 @@ SELECT apply_migration('ghosts-table', $$
   CREATE INDEX IF NOT EXISTS ghosts_start_idx ON ghosts (start_parcel);
   CREATE INDEX IF NOT EXISTS ghosts_end_idx ON ghosts (end_parcel);
 $$);
+
+SELECT apply_migration('chat-moderated-at', $$
+  ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS moderated_at timestamptz;
+$$);

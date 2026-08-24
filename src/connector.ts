@@ -61,6 +61,8 @@ const AVATAR_TIMEOUT_MS = 5 * 60 * 1000 // If we haven't seen an avatar in 5 min
 const AVATAR_DISPOSE_DELAY_MS = 10_000
 
 export type ChatMessageRecord = Readonly<{
+  id?: string
+  moderated?: boolean
   avatar: Avatar['uuid'] | undefined
   avatarRef?: AvatarRef
   text: string
@@ -790,7 +792,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   onChat(message: messages.ChatMessage) {
     const avatar = this._avatarsByUuid.get(message.uuid)
     avatar?.addChat(message.text)
-    this.addChat(message.text, avatar, message.avatar)
+    this.addChat(message.text, avatar, message.avatar, message.id, message.moderated)
   }
 
   onEmoteMessage(message: messages.AvatarEmoteMessage) {
@@ -994,9 +996,11 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     }
   }
 
-  private addChat(message: string, avatar: Avatar | undefined, avatarRef?: AvatarRef) {
+  private addChat(message: string, avatar: Avatar | undefined, avatarRef?: AvatarRef, id?: string, moderated?: boolean) {
     const list = messageList.value.slice()
     list.push({
+      id,
+      moderated,
       avatar: avatar?.uuid,
       avatarRef,
       text: message,

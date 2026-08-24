@@ -130,17 +130,15 @@ export function ChatPage(_props: { path?: string }) {
   return (
     <section class="chat-page">
       <h1>chat</h1>
-      <div class="chat-body">
-        <ChatPanel cap={1000} variant="page" />
+      <ChatPanel cap={1000} variant="page" />
 
-        <ul class="chat-times">
-          {TIMES.map(({ label, timeZone }) => (
-            <li key={label}>
-              {label}: {formatClock(now, timeZone)}
-            </li>
-          ))}
-        </ul>
-      </div>
+      <ul class="chat-times">
+        {TIMES.map(({ label, timeZone }) => (
+          <li key={label}>
+            {label}: {formatClock(now, timeZone)}
+          </li>
+        ))}
+      </ul>
     </section>
   )
 }

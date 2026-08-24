@@ -48,14 +48,6 @@ const TableRow = (props: TableRowProps) => {
           </>
         )}
       </td>
-      <td>
-        {props.helper.width} &times; {props.helper.depth}
-        <small> cm</small>
-      </td>
-      <td>
-        {props.record.height}
-        <small>m</small>
-      </td>
     </tr>
   )
 }
@@ -190,10 +182,6 @@ export default class Parcels extends Component<Props, State> {
           <tr>
             <th>#</th>
             <th onClick={() => this.toggleSort('id')}>Address</th>
-            <th title="Ground footprint (width x depth in cm)">Footprint</th>
-            <th onClick={() => this.toggleSort('height')} title="Building height limit">
-              Height
-            </th>
           </tr>
           {parcels}
         </table>

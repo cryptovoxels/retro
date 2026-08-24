@@ -199,6 +199,7 @@ export type ChatMessage = {
   uuid: string // sender client uuid
   text: string
   avatar?: AvatarRef
+  moderated?: boolean
 }
 
 export const ChatEncoder = encoderCreator<ChatMessage>()

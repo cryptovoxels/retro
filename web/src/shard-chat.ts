@@ -35,10 +35,10 @@ function entityDecode(str: string) {
 }
 
 /** Feed ChatPanel when the world connector is not mounted (/chat without coords). */
-function pushMessageList(text: string, avatarRef?: AvatarRef) {
+function pushMessageList(text: string, avatarRef?: AvatarRef, id?: string, moderated?: boolean) {
   if ((window as any).connector) return
   const list = messageList.value.slice()
-  list.push({ avatar: undefined, avatarRef: avatarRef ?? 'anon', text, timestamp: Date.now() })
+  list.push({ id, moderated, avatar: undefined, avatarRef: avatarRef ?? 'anon', text, timestamp: Date.now() })
   while (list.length > 1000) list.shift()
   messageList.value = list
 }
@@ -89,7 +89,7 @@ export function connectShardChat() {
       const text = entityDecode(m.text)
       const who = chatLineName(m.avatar)
       chatMessages.value = [...chatMessages.value, { text, uuid: m.uuid, who }]
-      pushMessageList(text, m.avatar ?? who)
+      pushMessageList(text, m.avatar ?? who, m.id, m.moderated)
     } catch {}
   }
 

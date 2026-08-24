@@ -111,6 +111,29 @@ function chatName(m: ChatMessageRecord) {
 const CHAT_FADE_MS = 15000
 const CHAT_GONE_MS = 18000
 
+async function nerfChat(id: string) {
+  const res = await fetch(`/api/admin/chat/${id}/nerf`, { method: 'POST', credentials: 'include' })
+  if (!res.ok) return
+  const list = messageList.value.slice()
+  const i = list.findIndex((m) => m.id === id)
+  if (i < 0) return
+  list[i] = { ...list[i], moderated: true }
+  messageList.value = list
+}
+
+function ChatLineBody({ m }: { m: ChatMessageRecord }) {
+  return (
+    <>
+      <span class="chat-who">{chatName(m)}</span>
+      {': '}
+      <ChatText text={m.text} moderated={m.moderated} />
+      {app.isAdmin() && m.id && !m.moderated && (
+        <button type="button" onClick={() => nerfChat(m.id!)}>nerf</button>
+      )}
+    </>
+  )
+}
+
 export function ChatPanel({ cap, variant = 'page', class: className, style }: { cap: number; variant?: 'overlay' | 'page'; class?: string; style?: string }) {
   const [, bump] = useState(0)
   const [focused, setFocusedRaw] = useState(false)
@@ -183,10 +206,8 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
       <div ref={chatRef} class={'chat' + (className ? ' ' + className : '')} style={style}>
         <div class={'chat-messages' + (atCap ? ' at-cap' : '')}>
           {shown.map((m) => (
-            <p key={m.timestamp} class={!focused && age(m) > CHAT_FADE_MS ? 'faded' : undefined}>
-              <span class="chat-who">{chatName(m)}</span>
-              {': '}
-              <ChatText text={m.text} />
+            <p key={m.id || m.timestamp} class={!focused && age(m) > CHAT_FADE_MS ? 'faded' : undefined}>
+              <ChatLineBody m={m} />
             </p>
           ))}
         </div>
@@ -204,11 +225,14 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
     <div class={'chat-panel' + (className ? ' ' + className : '')} style={style}>
       <div ref={box} class={'chat-messages' + (atCap ? ' at-cap' : '')}>
         {msgs.map((m, i) => (
-          <div class="chat-line" key={i}>
+          <div class="chat-line" key={m.id || i}>
             <span class="chat-who">{chatName(m)}</span>
             <span class="chat-text">
-              <ChatText text={m.text} />
+              <ChatText text={m.text} moderated={m.moderated} />
             </span>
+            {app.isAdmin() && m.id && !m.moderated && (
+              <button type="button" onClick={() => nerfChat(m.id!)}>nerf</button>
+            )}
           </div>
         ))}
       </div>
@@ -283,8 +307,11 @@ function SlashCongaLinks({ text }: { text: string }) {
   )
 }
 
-const ChatText = ({ text }: { text: string }) => {
+const ChatText = ({ text, moderated }: { text: string; moderated?: boolean }) => {
   const decoded = decodeChatHtmlEntities(text)
+  if (moderated) {
+    return <s class="profanity">{decoded}</s>
+  }
   if (isHate(decoded)) {
     return <s class="profanity">{decoded}</s>
   }

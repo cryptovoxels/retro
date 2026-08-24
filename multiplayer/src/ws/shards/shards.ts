@@ -41,9 +41,9 @@ export default async function createShards(
   const worldShard = new Shard('world', null, publish, connection, jwtSecret, onRadarEvent)
 
   try {
-    const { rows } = await connection.query<{ id: string; uuid: string; text: string; avatar: unknown }>(
+    const { rows } = await connection.query<{ id: string; uuid: string; text: string; avatar: unknown; moderated_at: string | null }>(
       'chat/load-recent',
-      `SELECT id, uuid, text, avatar FROM chat_messages ORDER BY created_at DESC LIMIT 1000`,
+      `SELECT id, uuid, text, avatar, moderated_at FROM chat_messages ORDER BY created_at DESC LIMIT 1000`,
     )
     for (const row of rows.reverse()) {
       worldShard.recentChat.push({
@@ -52,6 +52,7 @@ export default async function createShards(
         uuid: row.uuid,
         text: row.text,
         avatar: (row.avatar as any) ?? undefined,
+        moderated: row.moderated_at != null,
       })
     }
   } catch (err) {

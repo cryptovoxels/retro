@@ -16,6 +16,7 @@ const ttl = 300
 interface SearchResult {
   id: string
   name: string
+  address?: string
   description: string
   type: string
   created_at: string
@@ -46,14 +47,13 @@ function Parcel(props: any) {
   const url = getUrl('parcels', parcel.id)
 
   return (
-    <div>
-      <a href={url}>
-        <code>Parcel</code>
-      </a>
-      <p>
+    <tr>
+      <td>{parcel.id}</td>
+      <td>
         <a href={url}>{parcel.name}</a>
-      </p>
-    </div>
+        <small>{parcel.address}</small>
+      </td>
+    </tr>
   )
 }
 
@@ -250,7 +250,7 @@ export default class Search extends Component<Props, State> {
 
         <PaginationLinks path="/search" total={this.state.total} page={this.state.page} limit={100} description={description} queryParams={this.queryParams} />
 
-        <div class="search">{this.state.loading ? <div /> : results}</div>
+        <table class="search">{this.state.loading ? <div /> : results}</table>
       </section>
     )
   }

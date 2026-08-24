@@ -212,6 +212,25 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
       res.status(500).json({ success: false, error: e?.toString?.() || 'failed' })
     }
   })
+
+  app.post('/api/admin/chat/:id/nerf', passport.authenticate('jwt', { session: false }), requireAdmin, async (req, res) => {
+    const id = req.params.id
+    if (!id) {
+      res.status(400).json({ success: false })
+      return
+    }
+    try {
+      const r = await db.query('admin/chat-nerf', `UPDATE chat_messages SET moderated_at = now() WHERE id = $1`, [id])
+      if (!r.rowCount) {
+        res.status(404).json({ success: false })
+        return
+      }
+      res.json({ success: true })
+    } catch (e: any) {
+      log.error('chat nerf failed', { e: String(e) })
+      res.status(500).json({ success: false })
+    }
+  })
 }
 
 async function createParcelRow(db: Db, p: { id: number; address: string; owner: string; island: string; x1: number; y1: number; z1: number; x2: number; y2: number; z2: number }) {
