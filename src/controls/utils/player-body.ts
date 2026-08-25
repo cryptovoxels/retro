@@ -101,14 +101,10 @@ export default class PlayerBody {
 
     const n = this.controller.numComputedCollisions()
 
-    if (n > 0) {
-      this.vel.y = 0
-    } else if (this.gravity) {
-      // if (Math.abs(stepped.y) < 0.1 * dt) {
-      //   this.vel.y = 0
-      // } else {
+    if (n == 0 && this.gravity) {
       this.vel.y += GRAVITY * dt
-      // }
+    } else {
+      this.vel.y = 0
     }
 
     this.body.setNextKinematicTranslation(next)

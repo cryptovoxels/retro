@@ -191,11 +191,13 @@ export default abstract class Controls implements IControls {
 
     this.scene.onBeforeRenderObservable.add(() => {
       const dt = this.scene.getEngine().getDeltaTime() / 1000 || 1 / 60
+
       // stock babylon gamepad writes cameraDirection as stick * dt; fold into unitless move
       if (this.camera.cameraDirection.lengthSquared() > 0) {
         this.move.addInPlace(this.camera.cameraDirection.scaleInPlace(1 / dt))
         this.camera.cameraDirection.setAll(0)
       }
+
       this.body.gravity = !this.flying
       this.body.step(this.move, dt)
       this.move.setAll(0)

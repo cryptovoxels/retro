@@ -5,8 +5,6 @@
 interface LocaleKeyboardMoveInputOptions {
   keysUp?: string[]
   keysDown?: string[]
-  keysUpward?: string[]
-  keysDownward?: string[]
   keysLeft?: string[]
   keysRight?: string[]
   keysRotateLeft?: string[]
@@ -25,9 +23,7 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
   public camera: BABYLON.FreeCamera
 
   public keysUp: string[] = []
-  public keysUpward: string[] = []
   public keysDown: string[] = []
-  public keysDownward: string[] = []
   public keysLeft: string[] = []
   public keysRight: string[] = []
   public keysRotateLeft: string[] = []
@@ -93,8 +89,6 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
             this.keysDown.indexOf(evt.code) !== -1 ||
             this.keysLeft.indexOf(evt.code) !== -1 ||
             this.keysRight.indexOf(evt.code) !== -1 ||
-            this.keysUpward.indexOf(evt.code) !== -1 ||
-            this.keysDownward.indexOf(evt.code) !== -1 ||
             this.keysRotateLeft.indexOf(evt.code) !== -1 ||
             this.keysRotateRight.indexOf(evt.code) !== -1
           ) {
@@ -113,8 +107,6 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
             this.keysDown.indexOf(evt.code) !== -1 ||
             this.keysLeft.indexOf(evt.code) !== -1 ||
             this.keysRight.indexOf(evt.code) !== -1 ||
-            this.keysUpward.indexOf(evt.code) !== -1 ||
-            this.keysDownward.indexOf(evt.code) !== -1 ||
             this.keysRotateLeft.indexOf(evt.code) !== -1 ||
             this.keysRotateRight.indexOf(evt.code) !== -1
           ) {
@@ -186,14 +178,6 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
         this.move.addInPlaceFromFloats(-Math.sin(yaw), 0, -Math.cos(yaw))
         continue
       }
-      if (yaw != null && this.keysUpward.indexOf(keyCode) !== -1) {
-        this.move.y += 1
-        continue
-      }
-      if (yaw != null && this.keysDownward.indexOf(keyCode) !== -1) {
-        this.move.y -= 1
-        continue
-      }
 
       if (this.keysLeft.indexOf(keyCode) !== -1) {
         localDir.copyFromFloats(-1, 0, 0)
@@ -203,10 +187,6 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
         localDir.copyFromFloats(1, 0, 0)
       } else if (this.keysDown.indexOf(keyCode) !== -1) {
         localDir.copyFromFloats(0, 0, -1)
-      } else if (this.keysUpward.indexOf(keyCode) !== -1) {
-        localDir.copyFromFloats(0, 1, 0)
-      } else if (this.keysDownward.indexOf(keyCode) !== -1) {
-        localDir.copyFromFloats(0, -1, 0)
       } else {
         continue
       }
