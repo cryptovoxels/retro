@@ -54,12 +54,6 @@ export class HelpOverlay extends Component<Props> {
               <span>C</span> Switch camera
             </li>
             <li>
-              <span>PgUp</span> Fly Up
-            </li>
-            <li>
-              <span>PgDn</span> Fly Down
-            </li>
-            <li>
               <span>G</span> Dance
             </li>
             <li>
