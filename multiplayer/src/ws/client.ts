@@ -254,9 +254,11 @@ export class Client {
     const ts = Date.now()
     let result
     try {
-      result = await this.connection.query('embedded/get-avatar', `SELECT * FROM avatars WHERE lower(owner)=lower($1) LIMIT 1;`, [
-        wallet,
-      ])
+      result = await this.connection.query(
+        'embedded/get-avatar',
+        `SELECT * FROM avatars WHERE lower(owner)=lower($1) LIMIT 1;`,
+        [wallet],
+      )
     } catch (err) {
       console.error(`wallet query error (${(Date.now() - ts) / 1000}sec): ${err}`, this.whois())
       result = null

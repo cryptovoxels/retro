@@ -75,6 +75,7 @@ export default class Selector implements Tool {
 
   lastOnMovePickResult: BABYLON.PickingInfo | undefined = undefined
   private lastParcel: Parcel | undefined = undefined
+  private pointerObs: BABYLON.Observer<BABYLON.PointerInfo> | null = null
 
   onBuildToolActivate: BABYLON.Observable<void> = new BABYLON.Observable()
   onVoxelAction: BABYLON.Observable<{ mode: SelectionMode }> = new BABYLON.Observable()
@@ -205,6 +206,8 @@ export default class Selector implements Tool {
   }
 
   activate() {
+    if (this.pointerObs) return
+
     this.pointerPredicateCache = {
       pointerUp: this.scene.pointerUpPredicate,
       pointerDown: this.scene.pointerDownPredicate,
@@ -217,7 +220,7 @@ export default class Selector implements Tool {
 
     this.enabled.value = true
 
-    this.scene.onPointerObservable.add(this.onPointerObservable)
+    this.pointerObs = this.scene.onPointerObservable.add(this.onPointerObservable)
     document.addEventListener('pointerlockchange', this.lockListener)
     this.lockListener()
 
@@ -249,7 +252,10 @@ export default class Selector implements Tool {
     this.box.visibility = 0
     this.box.scaling.set(1, 1, 1)
     document.removeEventListener('pointerlockchange', this.lockListener)
-    this.scene.onPointerObservable.removeCallback(this.onPointerObservable)
+    if (this.pointerObs) {
+      this.scene.onPointerObservable.remove(this.pointerObs)
+      this.pointerObs = null
+    }
   }
 
   async placeBlocks(parcel: Parcel, a: BABYLON.Vector3, b: BABYLON.Vector3, block: number) {

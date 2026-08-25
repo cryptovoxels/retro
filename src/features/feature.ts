@@ -144,7 +144,13 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   get mostParent(): Feature {
-    return this.group ? this.group.mostParent : this
+    const seen = new Set<string>()
+    let f: Feature = this
+    while (f.group && !seen.has(f.uuid)) {
+      seen.add(f.uuid)
+      f = f.group
+    }
+    return f
   }
 
   get isInCurrentParcel() {
@@ -508,7 +514,6 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       ui.setFirstPersonPerspective()
       ui.featureTool.setMode('edit')
       ui.setTool(ui.featureTool)
-      ui.featureTool.nextMode = null
       ui.openEditor((this.constructor as any).Editor, this)
       ui.featureTool.highlightFeature(this)
     }

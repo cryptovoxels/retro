@@ -239,31 +239,23 @@ export function Toolbar(props: { feature: Feature; scene: BABYLON.Scene }) {
   }
 
   return (
-    <div class="editor-toolbar">
-      <div class="help">{props.feature.whatIsThis()}</div>
-      <ul className="toolbar">
-        <li>
-          <button class="replicate" onClick={onClone}>
-            Duplicate
-          </button>
-        </li>
-        <li>
-          <button class="move" onClick={onMove}>
-            Move
-          </button>
-        </li>
-        <li>
-          <button class="delete" onClick={onDelete}>
-            Delete
-          </button>
-        </li>
-        {app.signedIn && showShareToLibrary() && (
-          <li>
-            <button onClick={onShare}>Share</button>
-          </li>
-        )}
-      </ul>
-    </div>
+    <ul class="toolbar">
+      <li>
+        <button class="replicate" onClick={onClone}>
+          Copy
+        </button>
+      </li>
+      <li>
+        <button class="move" onClick={onMove}>
+          Move
+        </button>
+      </li>
+      <li>
+        <button class="delete" onClick={onDelete}>
+          Delete
+        </button>
+      </li>
+    </ul>
   )
 }
 

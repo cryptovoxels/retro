@@ -18,15 +18,10 @@ import { User } from '../user'
 import type { Tool } from '../user-interface'
 import { distanceToAABB } from '../utils/boundaries'
 import { getTransformVectorsRelativeToNode } from '../utils/feature'
-import { bboxCompletelyWithin } from '../utils/helpers'
 import { cameraPosition } from '../utils/camera'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
 import { isFlatWallFeature } from './flat-wall'
 
-type AABB = {
-  min: BABYLON.Vector3
-  max: BABYLON.Vector3
-}
 const OVERSIZE = 0.01
 const highlightScale = new BABYLON.Vector3()
 const highlightRot = new BABYLON.Quaternion()
@@ -37,17 +32,9 @@ const SELECTION_COLORS = {
     fill: new BABYLON.Color3(0, 0.5, 1),
     edges: new BABYLON.Color4(0, 0.5, 1, 0.9),
   },
-  near: {
-    fill: new BABYLON.Color3(0.8, 0.5, 0),
-    edges: new BABYLON.Color4(0.8, 0.5, 0, 0.9),
-  },
-  outside: {
-    fill: new BABYLON.Color3(1, 0.1, 0.1),
-    edges: new BABYLON.Color4(1, 0, 0, 0.9),
-  },
 }
 
-export type FeatureSelectionMode = 'inspect' | 'edit' | 'add' | 'move' | 'copy'
+export type FeatureSelectionMode = 'inspect' | 'edit' | 'add' | 'move'
 
 interface Selection {
   position?: BABYLON.Vector3
@@ -100,7 +87,7 @@ export default class FeatureTool implements Tool {
   clickAction: any
   selector: BABYLON.Mesh
 
-  nextMode: FeatureSelectionMode | null = null
+  private pointerObs: BABYLON.Observer<BABYLON.PointerInfo> | null = null
 
   onFeatureAdded: BABYLON.Observable<void> = new BABYLON.Observable()
   featureLoadingMaterial: BABYLON.StandardMaterial = null!
@@ -167,7 +154,6 @@ export default class FeatureTool implements Tool {
   setSecondarySelection = (features: Array<MeshedFeature>) => {
     this.disposeIrrelevantSecondarySelectors(features)
     this.createMissingSecondarySelectors(features)
-    this.refreshBounds()
   }
 
   disposeIrrelevantSecondarySelectors = (features: Array<MeshedFeature>) => {
@@ -215,18 +201,6 @@ export default class FeatureTool implements Tool {
 
   setMode = (mode: FeatureSelectionMode) => {
     this.selection.mode = mode
-  }
-
-  setModeCopy = (feature: MeshedFeature) => {
-    const featureTemplate = undefined // no point creating template here, setModeAdd will do it
-    const axes = getAxes(feature.type)
-
-    // FIXME FUCK ME THIS IS GROSS
-    setTimeout(() => {
-      this.setModeAdd(feature)
-    }, 50)
-
-    this.selection = { mode: 'copy', featureTemplate, axes, feature }
   }
 
   setModeAdd = (featureOrFeatureTemplate: MeshedFeature | FeatureTemplate) => {
@@ -321,11 +295,10 @@ export default class FeatureTool implements Tool {
   }
 
   activate() {
-    // make sure it was already deactivated
-    this.deactivate()
+    if (this.pointerObs) return
 
     const mode = this.selection.mode
-    if (mode === 'add' || mode === 'move' || mode === 'copy') {
+    if (mode === 'add' || mode === 'move') {
       this.scene.pointerMovePredicate = isVoxelFieldMesh
     } else {
       this.scene.pointerMovePredicate = (mesh: BABYLON.AbstractMesh) => !!this.meshParcel(mesh) || mesh.name === 'avatar/collider'
@@ -333,7 +306,7 @@ export default class FeatureTool implements Tool {
 
     this.enabled.value = true
 
-    this.scene.onPointerObservable.add(this.onPointerObservable)
+    this.pointerObs = this.scene.onPointerObservable.add(this.onPointerObservable)
     document.addEventListener('pointerlockchange', this.lockListener)
     this.lockListener()
   }
@@ -342,7 +315,10 @@ export default class FeatureTool implements Tool {
     this.enabled.value = false
 
     document.removeEventListener('pointerlockchange', this.lockListener)
-    this.scene.onPointerObservable.removeCallback(this.onPointerObservable)
+    if (this.pointerObs) {
+      this.scene.onPointerObservable.remove(this.pointerObs)
+      this.pointerObs = null
+    }
     this.scene.pointerMovePredicate = this.controls.defaultPointerMovePredicate
     this.unHighlight()
 
@@ -449,7 +425,6 @@ export default class FeatureTool implements Tool {
           })
         }
         this.selector.computeWorldMatrix()
-        this.refreshBounds()
       })
       .catch((err) => {
         console.error('Error generating premature feature:', err)
@@ -514,47 +489,6 @@ export default class FeatureTool implements Tool {
     if (feature) {
       const parcel = feature.parcel
       Object.assign(this.selection, { feature, parcel })
-    }
-    if (this.nextMode === 'move') {
-      this.deactivate()
-
-      setTimeout(() => {
-        if (!this.selection.feature) {
-          throw new Error(`(editFeature) can't call move without a feature`)
-        }
-        this.setModeMove(this.selection.feature)
-        this.activate()
-        this.nextMode = null
-      }, 150)
-      return
-    }
-
-    if (this.nextMode === 'copy') {
-      this.deactivate()
-      if (!this.selection.feature) {
-        app.showSnackbar('No feature selected', PanelType.Danger)
-        return
-      }
-
-      // Checks the budget limit for all features inside the feature (and group if it's a group)
-      const budgetCheck = this.selection.feature.parcel.budget.hasBudgetForFeature(this.selection.feature)
-
-      if (!budgetCheck.pass) {
-        // Show all the feature types that reached limit
-        const failedTypes = budgetCheck.types.filter((t) => !t.pass).map((t) => t.type)
-        app.showSnackbar(`Limit reached for ${budgetCheck.types.length > 1 ? failedTypes.join(', ') : 'this feature'}.`, PanelType.Danger)
-        return
-      }
-
-      setTimeout(() => {
-        if (!this.selection.feature) {
-          throw new Error(`(editFeature) can't copy without a feature`)
-        }
-        this.setModeAdd(this.selection.feature)
-        this.activate()
-        this.nextMode = null
-      }, 150)
-      return
     }
 
     if (this.selection.feature!.parcel?.canEdit) {
@@ -702,61 +636,6 @@ export default class FeatureTool implements Tool {
     this.selector.visibility = 1
   }
 
-  /**
-   * Update the color of of the selection highlight based on whether it's in/near/out of parcel bounds
-   */
-  refreshBounds() {
-    // Colour the feature as per the current feature's parcel if there is one (move will show a feature as red if you drag to another parcel)
-    // But if there isn't one (add/replicate) then just show use the selected parcel
-    const parcel = this.selection.feature?.parcel || this.selection.parcel
-    if (!parcel) {
-      return
-    }
-
-    // The world matrix may be out of date, leading to heisenbugs
-    this.selector.computeWorldMatrix()
-    const objBounds: BABYLON.BoundingBox = this.selector.getBoundingInfo().boundingBox
-
-    if (bboxCompletelyWithin(parcel.boundingBox, objBounds)) {
-      this.updateSelectorsStyling(SELECTION_COLORS.inside)
-    } else if (bboxCompletelyWithin(parcel.featureBounds, objBounds)) {
-      this.updateSelectorsStyling(SELECTION_COLORS.near)
-    } else {
-      this.updateSelectorsStyling(SELECTION_COLORS.outside)
-    }
-  }
-
-  updateSelectorsStyling = (selectionColors: any) => {
-    // const { fill, edges } = selectionColors
-    // const selectorMaterial = this.selector.material as BABYLON.StandardMaterial
-    // // selectorMaterial.emissiveColor = fill
-    // this.selector.edgesColor = edges
-    // this.secondarySelectionMaterial.emissiveColor = fill
-    // Object.values(this.secondarySelection).forEach((mesh: BABYLON.AbstractMesh) => {
-    //   mesh.edgesColor = edges
-    // })
-  }
-
-  private computeWorldAABB(mesh: BABYLON.AbstractMesh): AABB {
-    const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
-    if (!positions) {
-      throw new Error('Mesh has no vertex positions')
-    }
-
-    const worldMatrix = mesh.getWorldMatrix()
-    const transformed = new BABYLON.Vector3()
-    var min = new BABYLON.Vector3(Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY, Number.POSITIVE_INFINITY)
-    var max = new BABYLON.Vector3(Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY, Number.NEGATIVE_INFINITY)
-
-    for (let i = 0; i < positions.length; i += 3) {
-      BABYLON.Vector3.TransformCoordinatesFromFloatsToRef(positions[i], positions[i + 1], positions[i + 2], worldMatrix, transformed)
-      min.minimizeInPlace(transformed)
-      max.maximizeInPlace(transformed)
-    }
-
-    return { min, max }
-  }
-
   updateHighlight(mesh?: BABYLON.AbstractMesh) {
     const feature = this.selection.feature
     const target = mesh ?? (feature?.mesh instanceof BABYLON.AbstractMesh ? feature.mesh : undefined)
@@ -772,7 +651,6 @@ export default class FeatureTool implements Tool {
       this.selector.rotationQuaternion.copyFrom(highlightRot)
       this.selector.scaling.set(Math.abs(highlightScale.x) + OVERSIZE, Math.abs(highlightScale.y) + OVERSIZE, Math.max(Math.abs(highlightScale.z) + OVERSIZE, 0.05))
       this.highlight()
-      this.refreshBounds()
       return
     }
 
@@ -791,7 +669,6 @@ export default class FeatureTool implements Tool {
 
     this.selector.rotation.set(0, 0, 0)
     this.highlight()
-    this.refreshBounds()
   }
 
   highlightFeature(feature: MeshedFeature, mesh?: BABYLON.AbstractMesh) {
@@ -890,21 +767,12 @@ export default class FeatureTool implements Tool {
         feature = (mesh.parent as AbstractMeshExtended)['feature'] ?? null
       }
 
-      // if feature is inside a group, select that instead
-      if (feature?.group) {
-        feature = feature.group
-        while (!!feature.group) {
-          // We climb up the ladder of groups to select to bigDaddy group ( the root parent)
-          feature = feature.group
-        }
-      }
-
       if (!feature) {
         this.unHighlight()
         return false
       }
 
-      this.highlightFeature(feature.mostParent)
+      this.highlightFeature(feature)
 
       return true
     } else if (this.selection.mode === 'move') {
@@ -930,7 +798,6 @@ export default class FeatureTool implements Tool {
       this.selector.position.copyFrom(selectorCenter)
       this.spawnPoint = spawnPoint
       this.selector.visibility = 1
-      this.refreshBounds()
 
       return true
     } else if (this.selection.mode === 'add') {
@@ -965,8 +832,6 @@ export default class FeatureTool implements Tool {
       this.spawnRotation = rotation
 
       this.selector.visibility = 1
-
-      this.refreshBounds()
 
       Object.assign(this.selection, { parcel })
 

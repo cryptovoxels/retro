@@ -183,7 +183,7 @@ export default class DebugTools extends Component<Props, State> {
       <section className="debug-tools-overlay">
         <h2>{`Debug tools`}</h2>
 
-        <div className="scrollContainer">
+        <div>
           <p>A moderator tool for easier debugging.</p>
           <section className="overlay-parcel-info-content">
             <div>

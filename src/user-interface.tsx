@@ -74,7 +74,6 @@ import { BuildTab } from './ui/overlay/build-tab/build-tab'
 import DebugTools from './ui/overlay/debug-tools'
 import EditPane from './ui/overlay/edit-pane'
 import CustomizeVoxels from './ui/overlay/customize-voxels'
-import VoxelToolBelt from './ui/overlay/tool-belt'
 import ParcelSnapshots from './ui/parcel-snapshots'
 import { SettingsUI } from './ui/settings'
 import TakeWomp from './ui/take-womp'
@@ -618,7 +617,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           },
         },
         { code: 'Backspace', handleEvent: () => this.deleteFeature() },
-        { code: 'KeyM', handleEvent: () => this.editFeatureThenMove() },
         { code: 'KeyP', handleEvent: () => this.takeWomp(this.props.scene) },
         { code: 'KeyI', handleEvent: () => this.activateInspectorIfHasLock() },
         { code: 'KeyF', handleEvent: () => this.connector.controls.toggleFlying() },
@@ -807,16 +805,10 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   setTool(tool: Tool | null) {
-    if ((this.activeTool && !this.activeTool.enabled.value) || this.activeTool !== tool) {
-      if (this.activeTool) {
-        this.activeTool.deactivate()
-        this.activeTool = null
-      }
-      if (tool) {
-        tool.activate()
-        this.activeTool = tool
-      }
-    }
+    if (this.activeTool === tool) return
+    this.activeTool?.deactivate()
+    tool?.activate()
+    this.activeTool = tool
   }
 
   deactivateTools() {
@@ -858,7 +850,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.featureTool.setMode('edit')
     this.setTool(this.featureTool)
     this.featureTool.highlightFeature(feature)
-    this.featureTool.nextMode = null
   }
 
   deleteFeature() {
@@ -884,7 +875,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.setFirstPersonPerspective()
     this.featureTool.setMode('edit')
     this.setTool(this.featureTool)
-    this.featureTool.nextMode = null
 
     if (feature) {
       this.featureTool.highlightFeature(feature)
@@ -892,26 +882,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     } else {
       this.hide()
     }
-  }
-
-  editFeatureThenMove() {
-    if (!this.grid.nearestEditableParcel()) return
-
-    this.setFirstPersonPerspective()
-    this.featureTool.setMode('edit')
-    this.featureTool.nextMode = 'move'
-    this.setTool(this.featureTool)
-    this.hide()
-  }
-
-  editFeatureThenCopy() {
-    if (!this.grid.nearestEditableParcel()) return
-
-    this.setFirstPersonPerspective()
-    this.featureTool.setMode('edit')
-    this.setTool(this.featureTool)
-    this.featureTool.nextMode = 'copy'
-    this.hide()
   }
 
   copyFeature(feature: Feature) {
@@ -931,7 +901,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     }
 
     this.setFirstPersonPerspective()
-    this.featureTool.setModeCopy(feature)
+    this.featureTool.setModeAdd(feature)
     this.setTool(this.featureTool)
     this.hide()
   }
@@ -1197,8 +1167,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
             {this.state.chatEnabled && !location.pathname.startsWith('/chat') && <ChatOverlay scene={this.props.scene} />}
           </aside>
-
-          {nearestEditableParcel && nearestEditableParcel.canEdit && <VoxelToolBelt parcel={nearestEditableParcel} />}
 
           {nearestEditableParcel?.sandbox && nearestEditableParcel.canEdit && (
             <div class="sandbox-rollback">

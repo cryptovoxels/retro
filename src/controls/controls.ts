@@ -317,8 +317,7 @@ export default abstract class Controls implements IControls {
     if (!pickInfo) return
 
     const picked = featureFromPick(pickInfo)
-    const feature = picked?.mostParent
-    if (feature?.onContextClick()) return
+    if (picked?.onContextClick()) return
 
     if (pickInfo.pickedMesh && pickInfo.pickedMesh.metadata?.avatar instanceof Avatar) {
       const avatar: Avatar = pickInfo.pickedMesh.metadata.avatar

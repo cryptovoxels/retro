@@ -1,13 +1,12 @@
 import { Vec3Description } from '../../common/messages/feature'
 import Feature from '../features/feature'
-import Group from '../features/group'
 import { setSelectedFeature } from '../store'
 import { createEvent } from '../utils/EventEmitter'
-import { axisNames3D, limitAbsoluteValue, round, XYZ } from '../utils/helpers'
+import { limitAbsoluteValue, round } from '../utils/helpers'
 import { isFlatWallFeature } from './flat-wall'
 
 let utilLayer = undefined as BABYLON.UtilityLayerRenderer | undefined
-const gizmos: (BABYLON.AxisDragGizmo | BABYLON.RotationGizmo | BABYLON.AxisScaleGizmo)[] = []
+const gizmos: BABYLON.AxisDragGizmo[] = []
 // This is to allow reverting the position if the new position set by gizmo is not allowed (outside hard limit)
 let initialPosition: BABYLON.Vector3
 let initialFeaturePosition: BABYLON.Vector3
@@ -28,29 +27,12 @@ let windowDragDocPointerUp: (() => void) | null = null
 let windowDragFrame: PlaneFrame | null = null
 let windowDragGrabU = 0
 let windowDragGrabV = 0
-let snapPeers: Feature[] = []
-let snapGuideU: BABYLON.LinesMesh | null = null
-let snapGuideV: BABYLON.LinesMesh | null = null
-let snapAltHeld = false
-const snapAltKeyDown = (e: KeyboardEvent) => {
-  if (e.key === 'Alt') snapAltHeld = true
-}
-const snapAltKeyUp = (e: KeyboardEvent) => {
-  if (e.key === 'Alt') snapAltHeld = false
-}
 // showbox corner-resize handles (custom; the native BoundingBoxGizmo floated off the parcel-parented mesh)
 let activeHandles: ResizeHandleSet | null = null
 
 type AxisLabel = 'X' | 'Y' | 'Z'
 
-// same-plane edge/center snap while face-dragging a showbox
-const SNAP_THRESH = 0.08 // meters — soft magnet distance
-const SNAP_PLANE_DOT = 0.98 // normals must mostly agree
-const SNAP_PLANE_DEPTH = 0.25 // how far off the wall still counts as "same plane"
-const SNAP_GUIDE_PAD = 0.4 // extend faint guides past the aligned edges
-
 type PlaneFrame = { origin: BABYLON.Vector3; axisX: BABYLON.Vector3; axisY: BABYLON.Vector3; normal: BABYLON.Vector3 }
-type PlaneBounds = { minU: number; maxU: number; minV: number; maxV: number }
 
 const planeFrameFromMesh = (mesh: BABYLON.AbstractMesh): PlaneFrame => {
   const W = mesh.computeWorldMatrix(true)
@@ -59,171 +41,6 @@ const planeFrameFromMesh = (mesh: BABYLON.AbstractMesh): PlaneFrame => {
     axisX: BABYLON.Vector3.TransformNormal(BABYLON.Axis.X, W).normalize(),
     axisY: BABYLON.Vector3.TransformNormal(BABYLON.Axis.Y, W).normalize(),
     normal: BABYLON.Vector3.TransformNormal(BABYLON.Axis.Z, W).normalize(),
-  }
-}
-
-const planeBoundsOfMesh = (mesh: BABYLON.AbstractMesh, frame: PlaneFrame): PlaneBounds | null => {
-  const bb = mesh.getBoundingInfo()?.boundingBox
-  if (!bb) return null
-  let minU = Infinity
-  let maxU = -Infinity
-  let minV = Infinity
-  let maxV = -Infinity
-  for (const p of bb.vectorsWorld) {
-    const d = p.subtract(frame.origin)
-    const u = BABYLON.Vector3.Dot(d, frame.axisX)
-    const v = BABYLON.Vector3.Dot(d, frame.axisY)
-    if (u < minU) minU = u
-    if (u > maxU) maxU = u
-    if (v < minV) minV = v
-    if (v > maxV) maxV = v
-  }
-  if (!isFinite(minU)) return null
-  return { minU, maxU, minV, maxV }
-}
-
-const collectSnapPeers = (feature: Feature, frame: PlaneFrame): Feature[] => {
-  // flat wall art only — snapping to every megavox/group on the lot made magnets too dense / flaky
-  const peers: Feature[] = []
-  for (const f of feature.parcel.featuresList) {
-    if (!f || f.uuid === feature.uuid || !f.mesh) continue
-    if (!isFlatWallFeature(f)) continue
-    const m = f.mesh as BABYLON.AbstractMesh
-    const other = planeFrameFromMesh(m)
-    if (Math.abs(BABYLON.Vector3.Dot(frame.normal, other.normal)) < SNAP_PLANE_DOT) continue
-    const depth = Math.abs(BABYLON.Vector3.Dot(other.origin.subtract(frame.origin), frame.normal))
-    if (depth > SNAP_PLANE_DEPTH) continue
-    peers.push(f)
-  }
-  return peers
-}
-
-const ensureSnapGuides = (layer: BABYLON.UtilityLayerRenderer) => {
-  const scene = layer.utilityLayerScene
-  if (!snapGuideU) {
-    snapGuideU = BABYLON.MeshBuilder.CreateLines('feature/snap-guide-u', { points: [new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0, 0.01, 0)], updatable: true }, scene)
-    snapGuideU.color = BABYLON.Color3.FromHexString('#6af')
-    snapGuideU.alpha = 0.35
-    snapGuideU.isPickable = false
-  }
-  if (!snapGuideV) {
-    snapGuideV = BABYLON.MeshBuilder.CreateLines('feature/snap-guide-v', { points: [new BABYLON.Vector3(0, 0, 0), new BABYLON.Vector3(0.01, 0, 0)], updatable: true }, scene)
-    snapGuideV.color = BABYLON.Color3.FromHexString('#6af')
-    snapGuideV.alpha = 0.35
-    snapGuideV.isPickable = false
-  }
-  snapGuideU.setEnabled(false)
-  snapGuideV.setEnabled(false)
-}
-
-const setSnapGuide = (guide: BABYLON.LinesMesh | null, a: BABYLON.Vector3, b: BABYLON.Vector3) => {
-  if (!guide) return
-  try {
-    BABYLON.MeshBuilder.CreateLines(guide.name, { points: [a, b], instance: guide })
-    guide.setEnabled(true)
-  } catch {
-    guide.setEnabled(false)
-  }
-}
-
-const clearSnapGuides = () => {
-  try {
-    snapGuideU?.setEnabled(false)
-    snapGuideV?.setEnabled(false)
-  } catch {}
-}
-
-/** Soft-snap mesh on its plane to peer edges/centers; draw faint guides. Hold Alt to snap — free drag is the default. */
-const applyPlaneSnap = (feature: Feature, mesh: BABYLON.Mesh) => {
-  try {
-    clearSnapGuides()
-    if (!snapAltHeld || !snapPeers.length || !utilLayer) return
-
-    const frame = planeFrameFromMesh(mesh)
-    const mine = planeBoundsOfMesh(mesh, frame)
-    if (!mine) return
-
-    const myCenterU = (mine.minU + mine.maxU) * 0.5
-    const myCenterV = (mine.minV + mine.maxV) * 0.5
-    const myUs = [mine.minU, mine.maxU, myCenterU]
-    const myVs = [mine.minV, mine.maxV, myCenterV]
-
-    let bestDu = 0
-    let bestDuAbs = SNAP_THRESH
-    let bestDv = 0
-    let bestDvAbs = SNAP_THRESH
-    let guideU: { u: number; minV: number; maxV: number } | null = null
-    let guideV: { v: number; minU: number; maxU: number } | null = null
-
-    for (const peer of snapPeers) {
-      const peerMesh = peer.mesh as BABYLON.AbstractMesh | undefined
-      if (!peerMesh) continue
-      const theirs = planeBoundsOfMesh(peerMesh, frame)
-      if (!theirs) continue
-      const theirCenterU = (theirs.minU + theirs.maxU) * 0.5
-      const theirCenterV = (theirs.minV + theirs.maxV) * 0.5
-      const theirUs = [theirs.minU, theirs.maxU, theirCenterU]
-      const theirVs = [theirs.minV, theirs.maxV, theirCenterV]
-
-      for (const mu of myUs) {
-        for (const tu of theirUs) {
-          const d = tu - mu
-          const a = Math.abs(d)
-          if (a < bestDuAbs) {
-            bestDuAbs = a
-            bestDu = d
-            guideU = { u: tu, minV: Math.min(mine.minV, theirs.minV) - SNAP_GUIDE_PAD, maxV: Math.max(mine.maxV, theirs.maxV) + SNAP_GUIDE_PAD }
-          }
-        }
-      }
-      for (const mv of myVs) {
-        for (const tv of theirVs) {
-          const d = tv - mv
-          const a = Math.abs(d)
-          if (a < bestDvAbs) {
-            bestDvAbs = a
-            bestDv = d
-            guideV = { v: tv, minU: Math.min(mine.minU, theirs.minU) - SNAP_GUIDE_PAD, maxU: Math.max(mine.maxU, theirs.maxU) + SNAP_GUIDE_PAD }
-          }
-        }
-      }
-    }
-
-    if (bestDuAbs >= SNAP_THRESH) {
-      bestDu = 0
-      guideU = null
-    }
-    if (bestDvAbs >= SNAP_THRESH) {
-      bestDv = 0
-      guideV = null
-    }
-    if (!guideU && !guideV) return
-
-    if (bestDu || bestDv) {
-      const shiftWorld = frame.axisX.scale(bestDu).add(frame.axisY.scale(bestDv))
-      if (!isFinite(shiftWorld.x + shiftWorld.y + shiftWorld.z)) return
-      const parent = mesh.parent as BABYLON.TransformNode | null
-      if (parent) {
-        const inv = parent.getWorldMatrix().clone().invert()
-        mesh.position.addInPlace(BABYLON.Vector3.TransformNormal(shiftWorld, inv))
-      } else {
-        mesh.position.addInPlace(shiftWorld)
-      }
-      mesh.computeWorldMatrix(true)
-    }
-
-    if (guideU) {
-      const a = frame.origin.add(frame.axisX.scale(guideU.u)).add(frame.axisY.scale(guideU.minV))
-      const b = frame.origin.add(frame.axisX.scale(guideU.u)).add(frame.axisY.scale(guideU.maxV))
-      setSnapGuide(snapGuideU, a, b)
-    }
-    if (guideV) {
-      const a = frame.origin.add(frame.axisY.scale(guideV.v)).add(frame.axisX.scale(guideV.minU))
-      const b = frame.origin.add(frame.axisY.scale(guideV.v)).add(frame.axisX.scale(guideV.maxU))
-      setSnapGuide(snapGuideV, a, b)
-    }
-  } catch {
-    clearSnapGuides()
   }
 }
 
@@ -240,8 +57,6 @@ export const createGizmos = (scene: BABYLON.Scene) => {
   utilLayer = utilLayer || new BABYLON.UtilityLayerRenderer(scene)
 
   gizmos.push(...createAxisDragGizmos())
-  // gizmos.push(...createAxisScaleGizmos()) // showboxes now resize via custom corner handles; nothing else uses scale arrows
-  // gizmos.push(createRotationGizmo())
 
   return gizmos
 }
@@ -256,11 +71,8 @@ const createAxisDragGizmos = () => {
 
   return axes.map((a) => {
     const gizmo = new BABYLON.AxisDragGizmo(a.axis, a.color, utilLayer, undefined, 4)
-    gizmo.snapDistance = 0.01
+    gizmo.snapDistance = 0.05
     gizmo.scaleRatio = 1.5
-    // gizmo.customRotationQuaternion = BABYLON.Quaternion.FromEulerAngles(0, 0, 0)
-    // gizmo.coordinatesMode = BABYLON.GizmoCoordinatesMode.World
-    // gizmo.anchorPoint = BABYLON.GizmoAnchorPoint.Pivot
     gizmo.coloredMaterial.alpha = a.alpha
     gizmo.updateGizmoRotationToMatchAttachedMesh = false
     gizmo.isEnabled = false
@@ -277,16 +89,17 @@ const addOnAxisDragBehavior = (gizmo: BABYLON.AxisDragGizmo, axes: AxisLabel) =>
   gizmo.dragBehavior.onDragStartObservable.add(onAxisStartDrag(gizmo))
   gizmo.dragBehavior.onDragObservable.add(onDragObservableHandler(gizmo))
   gizmo.dragBehavior.onDragEndObservable.add(onAxisDragEnd(gizmo, axes))
-  // gizmo.dragBehavior.onDragStartObservable.add(onAxisStartDrag(gizmo))
-  // Generic observables
   gizmo.dragBehavior.onDragStartObservable.add(GenericOnDragStart(gizmo))
   gizmo.dragBehavior.onDragEndObservable.add(GenericOnDragEnd(gizmo))
 }
 
+const gizmoTransform = (gizmo: BABYLON.Gizmo): BABYLON.TransformNode | null => (gizmo.attachedMesh as BABYLON.TransformNode | null) ?? (gizmo.attachedNode as BABYLON.TransformNode | null)
+
 const onAxisStartDrag = (gizmo: BABYLON.Gizmo) => () => {
   const feature = getFeature(gizmo)
-  if (!feature) return
-  initialPosition = gizmo.attachedMesh!.position.clone()
+  const mesh = gizmoTransform(gizmo)
+  if (!feature || !mesh) return
+  initialPosition = mesh.position.clone()
   initialFeaturePosition = feature.position.clone()
 }
 
@@ -294,20 +107,20 @@ const onAxisDragEnd = (gizmo: BABYLON.AxisDragGizmo, axis: AxisLabel) => () => {
   const feature = getFeature(gizmo)
   if (!feature) return
 
-  const mesh = gizmo.attachedMesh
+  const mesh = gizmoTransform(gizmo)
   if (!mesh) return
 
   // flat wall features: local-depth Z; mesh.position can change on all axes when rotated - persist full delta
   if (isFlatWallFeature(feature)) {
     const position = initialFeaturePosition.clone().add(mesh.position.subtract(initialPosition))
-    feature.set({ position: roundNumberArray(position.asArray(), 4) as Vec3Description })
+    feature.set({ position: snapArray(position.asArray()) as Vec3Description })
   } else {
     const delta = mesh.position.clone().subtract(initialPosition)
     const position = feature.position.clone()
     if (axis === 'X') position.x += delta.x
     else if (axis === 'Y') position.y += delta.y
     else if (axis === 'Z') position.z += delta.z
-    feature.set({ position: roundNumberArray(position.asArray(), 4) as Vec3Description })
+    feature.set({ position: snapArray(position.asArray()) as Vec3Description })
   }
 
   feature.dispatchEvent(createEvent('dragged', true))
@@ -327,74 +140,6 @@ const onDragObservableHandler = (gizmo: BABYLON.IGizmo) => () => {
   updateHighlight()
 }
 
-// create scale gizmos
-const createAxisScaleGizmos = () => {
-  return [BABYLON.Axis.X, BABYLON.Axis.Y, BABYLON.Axis.Z].map((axis) => {
-    const gizmo = new BABYLON.AxisScaleGizmo(axis, BABYLON.Color3.FromHexString('#e6635a'), utilLayer, undefined, 1)
-    gizmo.isEnabled = false
-    gizmo.scaleRatio = 1.6
-
-    // save which axis the gizmo is working on
-    // we'll need this when locking aspect ratio
-    const axisName = axisNames3D.find((axisName: XYZ) => {
-      return axis[axisName]
-    })
-    gizmo._rootMesh.metadata = { axisName }
-
-    addOnAxisScaleBehavior(gizmo)
-    return gizmo
-  })
-}
-// scale gizmos onDrag
-const addOnAxisScaleBehavior = (gizmo: BABYLON.AxisScaleGizmo) => {
-  gizmo.dragBehavior.onDragObservable.add(onAxisScaleDrag(gizmo))
-  gizmo.dragBehavior.onDragEndObservable.add(onAxisScaleDragEnd(gizmo))
-
-  // Generic observables
-  gizmo.dragBehavior.onDragStartObservable.add(GenericOnDragStart(gizmo))
-  gizmo.dragBehavior.onDragEndObservable.add(GenericOnDragEnd(gizmo))
-}
-
-const onAxisScaleDrag = (gizmo: BABYLON.AxisScaleGizmo) => () => {
-  const feature = getFeature(gizmo)
-  if (!feature) return
-
-  if (feature.type === 'group') {
-    enforceLockedAspectRatio(feature as Group, gizmo._rootMesh.metadata.axisName)
-  }
-  onDragObservableHandler(gizmo)()
-}
-
-const enforceLockedAspectRatio = (group: Group, draggedAxisName: XYZ) => {
-  if (!group.mesh) throw new Error('Group has no mesh')
-
-  const newScaleVale = group.mesh.scaling[draggedAxisName]
-  for (const axisName of group.scaleAxes()) {
-    if (axisName === draggedAxisName) continue
-    group.mesh.scaling[axisName] = newScaleVale
-  }
-}
-
-const onAxisScaleDragEnd = (gizmo: BABYLON.AxisScaleGizmo) => () => {
-  const feature = getFeature(gizmo)
-  if (!feature) return
-
-  onAxisScaleDrag(gizmo) // ensure that aspect ratio is 1 before we preserve state
-
-  setScale(feature)
-  // trigger preact rerender
-  setSelectedFeature(feature)
-}
-
-const setScale = (feature: Feature) => {
-  if (!feature.mesh) {
-    return
-  }
-  let scale = feature.mesh.scaling
-  scale = limitVector3AbsoluteValues(scale.clone(), 50)
-  feature.set({ scale: roundNumberArray(scale.asArray(), 4) as Vec3Description })
-}
-
 const limitVector3AbsoluteValues = (vector3: BABYLON.Vector3, maximumAbsoluteValue: number): BABYLON.Vector3 => {
   vector3.x = limitAbsoluteValue(vector3.x, maximumAbsoluteValue)
   vector3.y = limitAbsoluteValue(vector3.y, maximumAbsoluteValue)
@@ -402,51 +147,12 @@ const limitVector3AbsoluteValues = (vector3: BABYLON.Vector3, maximumAbsoluteVal
   return vector3
 }
 
-const createRotationGizmo = () => {
-  const rotationGizmo = new BABYLON.RotationGizmo(utilLayer, undefined, undefined, 2)
-  const ringsScaling = new BABYLON.Vector3(0.6, 0.6, 0.6)
-  rotationGizmo.updateGizmoRotationToMatchAttachedMesh = false
-
-  const gizmos = [rotationGizmo.xGizmo, rotationGizmo.yGizmo, rotationGizmo.zGizmo]
-  gizmos.forEach((gizmo) => {
-    gizmo.dragBehavior.onDragObservable.add(onDragObservableHandler(gizmo))
-    // @ts-expect-error hackery poking at the internals of gizmo
-    gizmo._gizmoMesh.scaling = ringsScaling.clone() // make rotation gizmo appear larger than is standard
-  })
-
-  rotationGizmo.onDragEndObservable.add(onRotationDragStart(rotationGizmo))
-  rotationGizmo.onDragEndObservable.add(onRotationDragEnd(rotationGizmo))
-  return rotationGizmo
-}
-
-const onRotationDragStart = (gizmo: BABYLON.RotationGizmo) => () => {
-  const feature = getFeature(gizmo)
-  if (feature?.mesh) {
-    // if the scaling is non-uniform, there is no mathematical way babylonjs can rotate the gizmo to align to the mesh,
-    // so in that case we align the rotation gizmo with the world axis.
-    gizmo.updateGizmoRotationToMatchAttachedMesh = Math.abs(feature.scale.x - feature.scale.y) <= BABYLON.Epsilon && Math.abs(feature.scale.x - feature.scale.z) <= BABYLON.Epsilon
-  }
-
-  GenericOnDragStart(gizmo)
-}
-
-const onRotationDragEnd = (gizmo: BABYLON.RotationGizmo) => () => {
-  const feature = getFeature(gizmo)
-  if (!feature?.mesh) return
-
-  feature.set({ rotation: roundNumberArray(feature.mesh.rotation.asArray(), 4) as Vec3Description })
-  // trigger preact rerender
-
-  setSelectedFeature(feature)
-  GenericOnDragEnd(gizmo)
-}
-
 const clearGizmo = (gizmo: BABYLON.Gizmo) => {
   gizmo.attachedMesh = null
   gizmo.attachedNode = null
-  if (gizmo instanceof BABYLON.AxisDragGizmo || gizmo instanceof BABYLON.AxisScaleGizmo) {
+  if (gizmo instanceof BABYLON.AxisDragGizmo) {
     gizmo.isEnabled = false
-    if (gizmo instanceof BABYLON.AxisDragGizmo) gizmo.updateGizmoRotationToMatchAttachedMesh = false
+    gizmo.updateGizmoRotationToMatchAttachedMesh = false
   }
 }
 
@@ -470,9 +176,9 @@ export const bindGizmosToFeature = (feature: Feature) => {
 }
 
 const bindGizmoToFeature = (gizmo: BABYLON.Gizmo, feature: Feature) => {
-  // flat wall: skip scale arrows and X/Y drag; keep Z for depth along the screen normal
+  // flat wall: skip X/Y drag; keep Z for depth along the screen normal
   if (isFlatWallFeature(feature)) {
-    if (gizmo instanceof BABYLON.AxisScaleGizmo || (gizmo instanceof BABYLON.AxisDragGizmo && axisLabelOf(gizmo) !== 'Z')) {
+    if (gizmo instanceof BABYLON.AxisDragGizmo && axisLabelOf(gizmo) !== 'Z') {
       clearGizmo(gizmo)
       return
     }
@@ -488,7 +194,7 @@ const bindGizmoToFeature = (gizmo: BABYLON.Gizmo, feature: Feature) => {
     }
   }
 
-  if (gizmo instanceof BABYLON.AxisDragGizmo || gizmo instanceof BABYLON.AxisScaleGizmo) {
+  if (gizmo instanceof BABYLON.AxisDragGizmo) {
     gizmo.isEnabled = true
     // depth must follow the screen facing, not world Z (wall screens are rotated)
     if (isFlatWallFeature(feature) && gizmo instanceof BABYLON.AxisDragGizmo) {
@@ -536,6 +242,18 @@ export const rebindGizmos = (feature: Feature) => {
 }
 
 const roundNumberArray = (array: number[], dp: number) => array.map((i: number) => round(i, dp))
+
+const SNAP = 0.05
+const snapArray = (a: number[]) => a.map((v) => round(Math.round(v / SNAP) * SNAP, 2))
+
+export const pointerOverGizmo = (scene: BABYLON.Scene): boolean => {
+  if (utilLayer?.utilityLayerScene.pick(scene.pointerX, scene.pointerY)?.hit) return true
+  if (windowDragMesh) {
+    const p = scene.pick(scene.pointerX, scene.pointerY, (m) => m === windowDragMesh)
+    if (p?.hit) return true
+  }
+  return false
+}
 
 /**
  * Generic observable on drag start;
@@ -596,17 +314,12 @@ const setMeshWorldPositionOnPlane = (mesh: BABYLON.Mesh, worldPos: BABYLON.Vecto
 }
 
 const finishWindowDrag = (feature: Feature, mesh: BABYLON.Mesh, canvas: HTMLCanvasElement | null) => {
-  clearSnapGuides()
-  snapPeers = []
   windowDragFrame = null
-  document.removeEventListener('keydown', snapAltKeyDown)
-  document.removeEventListener('keyup', snapAltKeyUp)
   if (windowDragDocPointerUp) {
     document.removeEventListener('pointerup', windowDragDocPointerUp)
     windowDragDocPointerUp = null
   }
   if (utilLayer) utilLayer.pickingEnabled = true
-  snapAltHeld = false
   const wasDrag = windowDragActive && windowDragMoved
   windowDragActive = false
   if (!wasDrag) {
@@ -618,7 +331,7 @@ const finishWindowDrag = (feature: Feature, mesh: BABYLON.Mesh, canvas: HTMLCanv
   if (canvas) canvas.style.cursor = ''
   if (windowDragFeatureStart && windowDragMeshStart) {
     const position = windowDragFeatureStart.add(mesh.position.subtract(windowDragMeshStart))
-    feature.set({ position: roundNumberArray(position.asArray(), 4) as Vec3Description })
+    feature.set({ position: snapArray(position.asArray()) as Vec3Description })
     feature.dispatchEvent(createEvent('dragged', true))
     setSelectedFeature(feature)
   }
@@ -693,18 +406,13 @@ const attachWindowDrag = (feature: Feature) => {
       windowDragMeshWorldStart = mesh.getAbsolutePosition().clone()
       windowDragMoved = false
       windowDragActive = true
-      snapAltHeld = false
-      document.addEventListener('keydown', snapAltKeyDown)
-      document.addEventListener('keyup', snapAltKeyUp)
       windowDragDocPointerUp = onDocPointerUp
       document.addEventListener('pointerup', onDocPointerUp)
       if (utilLayer) {
         // gizmo layer swallows MOVEs its scene picks — the Z collider covers the face center,
         // so a center grab froze mid-drag. It has no business picking while we own the gesture.
         utilLayer.pickingEnabled = false
-        ensureSnapGuides(utilLayer)
       }
-      snapPeers = collectSnapPeers(feature, frame)
       // we own the gesture: gizmo layer and desktop clicks both skip this down
       info.skipOnPointerObservable = true
     },
@@ -740,7 +448,6 @@ const attachWindowDrag = (feature: Feature) => {
       if (windowDragMoved) {
         const worldPos = worldStart.add(frame.axisX.scale(du)).add(frame.axisY.scale(dv))
         setMeshWorldPositionOnPlane(mesh, worldPos)
-        applyPlaneSnap(feature, mesh)
         if (canvas) canvas.style.cursor = 'move'
         updateHighlight()
       }
@@ -759,12 +466,8 @@ const attachWindowDrag = (feature: Feature) => {
 }
 
 const detachWindowDrag = () => {
-  clearSnapGuides()
-  snapPeers = []
   windowDragFrame = null
   windowDragActive = false
-  document.removeEventListener('keydown', snapAltKeyDown)
-  document.removeEventListener('keyup', snapAltKeyUp)
   if (windowDragDocPointerUp) {
     document.removeEventListener('pointerup', windowDragDocPointerUp)
     windowDragDocPointerUp = null
@@ -1015,8 +718,8 @@ class ResizeHandleSet {
       const scale = limitVector3AbsoluteValues(featureScaleStart.add(mesh.scaling.subtract(meshScaleStart)), 50)
       const position = featurePosStart.add(mesh.position.subtract(meshPosStart))
       feature.set({
-        scale: roundNumberArray(scale.asArray(), 2) as Vec3Description,
-        position: roundNumberArray(position.asArray(), 2) as Vec3Description,
+        scale: snapArray(scale.asArray()) as Vec3Description,
+        position: snapArray(position.asArray()) as Vec3Description,
       })
       feature.refreshWorldMatrix()
       if (feature.isAnimated) feature.startAnimation(false)
