@@ -216,7 +216,7 @@ export class DragDrop {
       url: json.content.url,
     }
 
-    this.ui.activeTool = this.ui.featureTool
+    this.ui.setTool(this.ui.featureTool)
     await this.ui.featureTool.spawn(this.pickInfo, featureTemplate)
   }
 
@@ -271,9 +271,7 @@ export class DragDrop {
       // can't spawn without UI
       return
     }
-    this.ui.activeTool = this.ui.featureTool
-
-    featureTemplate = Object.assign({}, featureTemplate, { url: result.location })
+    this.ui.setTool(this.ui.featureTool)
     this.ui.featureTool.spawn(this.pickInfo, featureTemplate)
   }
 }

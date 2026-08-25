@@ -13,7 +13,8 @@ export function inspectFeature(feature: Feature) {
 
   const { el, close: baseClose } = openDialog('inspect-feature pointer-lock-close overlay')
 
-  ui.activeTool = ui.featureTool // needed to make it unHighlight once closed
+  ui.featureTool.setMode('inspect')
+  ui.setTool(ui.featureTool)
   ui.featureTool.highlightFeature(feature, feature.mesh as BABYLON.AbstractMesh | undefined)
 
   const isModerator = window.user.moderator
