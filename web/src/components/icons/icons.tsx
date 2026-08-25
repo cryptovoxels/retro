@@ -30,7 +30,7 @@ function cubeBoxes(n: name) {
       const col = i % 5
       const row = Math.floor(i / 5)
       boxes.push(
-        <div class="box" style={{ left: `calc(var(--size) * ${col + 1})`, top: `calc(var(--size) * ${row})` }} key={i}>
+        <div class="box" style={{ left: `calc(var(--size) * ${col + 0.5})`, top: `calc(var(--size) * ${row})` }} key={i}>
           <div class="face-N" />
           <div class="face-E" />
           <div class="face-S" />
