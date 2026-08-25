@@ -767,22 +767,12 @@ export default class FeatureTool implements Tool {
         feature = (mesh.parent as AbstractMeshExtended)['feature'] ?? null
       }
 
-      // if feature is inside a group, select that instead
-      if (feature?.group) {
-        feature = feature.group
-        const seen = new Set<string>()
-        while (feature.group && !seen.has(feature.uuid)) {
-          seen.add(feature.uuid)
-          feature = feature.group
-        }
-      }
-
       if (!feature) {
         this.unHighlight()
         return false
       }
 
-      this.highlightFeature(feature.mostParent)
+      this.highlightFeature(feature)
 
       return true
     } else if (this.selection.mode === 'move') {

@@ -239,7 +239,7 @@ export function Toolbar(props: { feature: Feature; scene: BABYLON.Scene }) {
   }
 
   return (
-    <ul class="editor-toolbar">
+    <ul class="toolbar">
       <li>
         <button class="replicate" onClick={onClone}>
           Copy
@@ -655,10 +655,10 @@ export function CollectibleTryScale(props: { feature: CollectibleModel }) {
 
     const newState = axesToUpdate.reduce((accumulator, axis) => {
       if (axis === axisChanged) {
-        ; (accumulator as any)[axis] = parsedValue
+        ;(accumulator as any)[axis] = parsedValue
       } else if ((scaleValues as any)[axisChanged] !== 0) {
         const aspectRatio = (scaleValues as any)[axis] / (scaleValues as any)[axisChanged]
-          ; (accumulator as any)[axis] = round(parsedValue * aspectRatio, 6)
+        ;(accumulator as any)[axis] = round(parsedValue * aspectRatio, 6)
       }
       return accumulator
     }, {}) as any

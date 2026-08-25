@@ -71,7 +71,7 @@ const createAxisDragGizmos = () => {
 
   return axes.map((a) => {
     const gizmo = new BABYLON.AxisDragGizmo(a.axis, a.color, utilLayer, undefined, 4)
-    gizmo.snapDistance = 0.01
+    gizmo.snapDistance = 0.05
     gizmo.scaleRatio = 1.5
     gizmo.coloredMaterial.alpha = a.alpha
     gizmo.updateGizmoRotationToMatchAttachedMesh = false
@@ -113,14 +113,14 @@ const onAxisDragEnd = (gizmo: BABYLON.AxisDragGizmo, axis: AxisLabel) => () => {
   // flat wall features: local-depth Z; mesh.position can change on all axes when rotated - persist full delta
   if (isFlatWallFeature(feature)) {
     const position = initialFeaturePosition.clone().add(mesh.position.subtract(initialPosition))
-    feature.set({ position: roundNumberArray(position.asArray(), 4) as Vec3Description })
+    feature.set({ position: snapArray(position.asArray()) as Vec3Description })
   } else {
     const delta = mesh.position.clone().subtract(initialPosition)
     const position = feature.position.clone()
     if (axis === 'X') position.x += delta.x
     else if (axis === 'Y') position.y += delta.y
     else if (axis === 'Z') position.z += delta.z
-    feature.set({ position: roundNumberArray(position.asArray(), 4) as Vec3Description })
+    feature.set({ position: snapArray(position.asArray()) as Vec3Description })
   }
 
   feature.dispatchEvent(createEvent('dragged', true))
@@ -243,6 +243,18 @@ export const rebindGizmos = (feature: Feature) => {
 
 const roundNumberArray = (array: number[], dp: number) => array.map((i: number) => round(i, dp))
 
+const SNAP = 0.05
+const snapArray = (a: number[]) => a.map((v) => round(Math.round(v / SNAP) * SNAP, 2))
+
+export const pointerOverGizmo = (scene: BABYLON.Scene): boolean => {
+  if (utilLayer?.utilityLayerScene.pick(scene.pointerX, scene.pointerY)?.hit) return true
+  if (windowDragMesh) {
+    const p = scene.pick(scene.pointerX, scene.pointerY, (m) => m === windowDragMesh)
+    if (p?.hit) return true
+  }
+  return false
+}
+
 /**
  * Generic observable on drag start;
  * @param gizmo The gizmo
@@ -319,7 +331,7 @@ const finishWindowDrag = (feature: Feature, mesh: BABYLON.Mesh, canvas: HTMLCanv
   if (canvas) canvas.style.cursor = ''
   if (windowDragFeatureStart && windowDragMeshStart) {
     const position = windowDragFeatureStart.add(mesh.position.subtract(windowDragMeshStart))
-    feature.set({ position: roundNumberArray(position.asArray(), 4) as Vec3Description })
+    feature.set({ position: snapArray(position.asArray()) as Vec3Description })
     feature.dispatchEvent(createEvent('dragged', true))
     setSelectedFeature(feature)
   }
@@ -706,8 +718,8 @@ class ResizeHandleSet {
       const scale = limitVector3AbsoluteValues(featureScaleStart.add(mesh.scaling.subtract(meshScaleStart)), 50)
       const position = featurePosStart.add(mesh.position.subtract(meshPosStart))
       feature.set({
-        scale: roundNumberArray(scale.asArray(), 2) as Vec3Description,
-        position: roundNumberArray(position.asArray(), 2) as Vec3Description,
+        scale: snapArray(scale.asArray()) as Vec3Description,
+        position: snapArray(position.asArray()) as Vec3Description,
       })
       feature.refreshWorldMatrix()
       if (feature.isAnimated) feature.startAnimation(false)

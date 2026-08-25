@@ -9,6 +9,7 @@ import { decodeCoordsFromURL } from '../../utils/helpers'
 import { hasPointerLock, isFastviewBlocking } from '../../../common/helpers/ui-helpers'
 import { uiPane } from '../../store'
 import { app, AppEvent } from '../../../web/src/state'
+import { pointerOverGizmo } from '../../tools/gizmos'
 const POINTER_WHEEL_MULTIPLIER = 0.001
 export default class DesktopControls extends Controls {
   keyboardInput?: LocaleKeyboardMoveInput
@@ -147,10 +148,15 @@ export default class DesktopControls extends Controls {
     const btn = eventData.event.button
 
     if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 0 && !hasPointerLock() && !eventData.event.shiftKey) {
-      // selected feature: free mouse for face-drag / gizmos. don't steal into pointer lock.
+      const editMode = window.ui?.featureTool?.selection?.mode === 'edit' && window.ui?.activeTool === window.ui?.featureTool
+      if (editMode) {
+        if (pointerOverGizmo(this.scene)) return
+        window.ui?.closeWithPointerLock()
+        return
+      }
+      // ActionGui (Drive / try-on / guestbook): lock mid-press moves the cursor to
+      // screen center so POINTERUP never lands on the button
       if (!authoring) {
-        // ActionGui (Drive / try-on / guestbook): lock mid-press moves the cursor to
-        // screen center so POINTERUP never lands on the button
         const meshName = eventData.pickInfo?.pickedMesh?.name || ''
         if (meshName.startsWith('feature/basicGui/')) return
         this.nerfClick = true
@@ -188,8 +194,7 @@ export default class DesktopControls extends Controls {
         const editPaneOpen = !hasPointerLock() && !window.ui?.state?.dragging && (uiPane.value === 'edit' || window.ui?.state?.pane === 'edit' || !!window.ui?.state?.editor || !!window.ui?.state?.feature)
         if (btn === 0 && editPaneOpen) {
           const selected = window.ui?.state?.feature
-          // compare roots — right-click selects the group root, raw pick returns the child
-          const picked = featureFromPick(eventData.pickInfo)?.mostParent
+          const picked = featureFromPick(eventData.pickInfo)
           // same-object tap (incl. the click that ends a drag) keeps selection; empty / other exits
           if (selected && picked?.uuid === selected.uuid) break
           if (picked?.parcel?.canEdit) {

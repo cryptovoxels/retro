@@ -326,9 +326,9 @@ function visualizeParcelBoundingBoxes(parcel: Parcel, scene: BABYLON.Scene): [BA
   m.material = new BABYLON.StandardMaterial('parcel/blocked', parcel.scene) //Parcel.noNFTShaderMaterial as BABYLON.ShaderMaterial
   m.material.backFaceCulling = false
   m.position = new BABYLON.Vector3(0, height / 2, 0)
-    ; (m.material as any).diffuseColor = BABYLON.Color3.Green()
-    ; (m.material as any).emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.7)
-    ; (m.material as any).alpha = 0.5
+  ;(m.material as any).diffuseColor = BABYLON.Color3.Green()
+  ;(m.material as any).emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.7)
+  ;(m.material as any).alpha = 0.5
   m.material.blockDirtyMechanism = true
   meshes.push(m)
 
@@ -340,9 +340,9 @@ function visualizeParcelBoundingBoxes(parcel: Parcel, scene: BABYLON.Scene): [BA
   mm.parent = parcel.transform
   mm.position = new BABYLON.Vector3(0, height / 2, 0)
   mm.material = new BABYLON.StandardMaterial('parcel/blocked/blue', parcel.scene) //Parcel.noNFTShaderMaterial as BABYLON.ShaderMaterial
-    ; (mm.material as any).diffuseColor = BABYLON.Color3.Blue()
-    ; (mm.material as any).emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.7)
-    ; (mm.material as any).alpha = 0.5
+  ;(mm.material as any).diffuseColor = BABYLON.Color3.Blue()
+  ;(mm.material as any).emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.7)
+  ;(mm.material as any).alpha = 0.5
   mm.material.blockDirtyMechanism = true
   meshes.push(mm)
 
@@ -354,9 +354,9 @@ function visualizeParcelBoundingBoxes(parcel: Parcel, scene: BABYLON.Scene): [BA
   mmm.parent = parcel.transform
   mmm.position = new BABYLON.Vector3(0, height / 2, 0)
   mmm.material = new BABYLON.StandardMaterial('parcel/blocked/blue', parcel.scene) //Parcel.noNFTShaderMaterial as BABYLON.ShaderMaterial
-    ; (mmm.material as any).diffuseColor = BABYLON.Color3.Red()
-    ; (mmm.material as any).emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.7)
-    ; (mmm.material as any).alpha = 0.5
+  ;(mmm.material as any).diffuseColor = BABYLON.Color3.Red()
+  ;(mmm.material as any).emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.7)
+  ;(mmm.material as any).alpha = 0.5
   mmm.material.blockDirtyMechanism = true
   meshes.push(mmm)
   return meshes
