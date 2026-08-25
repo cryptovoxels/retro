@@ -140,9 +140,6 @@ importers:
       dotenv-webpack:
         specifier: ^8.0.1
         version: 8.1.1(webpack@5.105.4)
-      earcut:
-        specifier: ^3.0.2
-        version: 3.0.2
       esbuild:
         specifier: ^0.27.4
         version: 0.27.4
@@ -251,9 +248,6 @@ importers:
       luaparse:
         specifier: ^0.3.1
         version: 0.3.1
-      martinez-polygon-clipping:
-        specifier: ^0.7.4
-        version: 0.7.4
       md5:
         specifier: ^2.3.0
         version: 2.3.0
@@ -454,9 +448,6 @@ importers:
       '@types/d3-contour':
         specifier: ^3.0.6
         version: 3.0.6
-      '@types/earcut':
-        specifier: ^3.0.0
-        version: 3.0.0
       '@types/express':
         specifier: ^4.17.17
         version: 4.17.25
@@ -2279,9 +2270,6 @@ packages:
   '@types/deep-eql@4.0.2':
     resolution: {integrity: sha512-c9h9dVVMigMPc4bwTvC5dxqtqJZwQPePsWjPlpSOnojbor6pGqdk541lfA7AqFQr5pB1BRdq0juY9db81BwyFw==}
 
-  '@types/earcut@3.0.0':
-    resolution: {integrity: sha512-k/9fOUGO39yd2sCjrbAJvGDEQvRwRnQIZlBz43roGwUZo5SHAmyVvSFyaVVZkicRVCaDXPKlbxrUcBuJoSWunQ==}
-
   '@types/emscripten@1.39.10':
     resolution: {integrity: sha512-TB/6hBkYQJxsZHSqyeuO1Jt0AB/bW6G7rHt9g7lML7SOF6lbgcHvw/Lr+69iqN0qxgXLhWKScAon73JNnptuDw==}
 
@@ -3406,9 +3394,6 @@ packages:
   earcut@2.2.4:
     resolution: {integrity: sha512-/pjZsA1b4RPHbeWZQn66SWS8nZZWLQQ23oE3Eam7aroEFGEvwKAsJfZ9ytiEMycfzXWpca4FA9QIOehf7PocBQ==}
 
-  earcut@3.0.2:
-    resolution: {integrity: sha512-X7hshQbLyMJ/3RPhyObLARM2sNxxmRALLKx1+NVFFnQ9gKzmCrxm9+uLIAdBcvc8FNLpctqlQ2V6AE92Ol9UDQ==}
-
   eastasianwidth@0.2.0:
     resolution: {integrity: sha512-I88TYZWc9XiYHRQ4/3c5rjjfgkjhLyW2luGIheGERbNQ6OY7yTybanSpDXZa8y7VUP9YmDcYa+eyq4ca7iLqWA==}
 
@@ -4500,9 +4485,6 @@ packages:
     engines: {node: '>= 12'}
     hasBin: true
 
-  martinez-polygon-clipping@0.7.4:
-    resolution: {integrity: sha512-jBEwrKtA0jTagUZj2bnmb4Yg2s4KnJGRePStgI7bAVjtcipKiF39R4LZ2V/UT61jMYWrTcBhPazexeqd6JAVtw==}
-
   math-intrinsics@1.1.0:
     resolution: {integrity: sha512-/IXtbwEk5HTPyEwyKX6hGkYXxM9nbj64B+ilVJnC/R6B0pH5G4V3b0pVbL7DBj4tkhBAppbQUlf6F6Xl9LHu1g==}
     engines: {node: '>= 0.4'}
@@ -5344,9 +5326,6 @@ packages:
     resolution: {integrity: sha512-g6QUff04oZpHs0eG5p83rFLhHeV00ug/Yf9nZM6fLeUrPguBTkTQOdpAWWspMh55TZfVQDPaN3NQJfbVRAxdIw==}
     engines: {iojs: '>=1.0.0', node: '>=0.10.0'}
 
-  robust-predicates@2.0.4:
-    resolution: {integrity: sha512-l4NwboJM74Ilm4VKfbAtFeGq7aEjWL+5kVFcmgFA2MrdnQWx9iE/tUGvxY5HyMI7o/WpSIUFLbC5fbeaHgSCYg==}
-
   robust-predicates@3.0.3:
     resolution: {integrity: sha512-NS3levdsRIUOmiJ8FZWCP7LG3QpJyrs/TE0Zpf1yvZu8cAJJ6QMW92H1c7kWpdIHo8RvmLxN/o2JXTKHp74lUA==}
 
@@ -5606,9 +5585,6 @@ packages:
     resolution: {integrity: sha512-ktgNAQ1X9x1A3IMChM6XBDeVjhGPbLgPQ8aEzGOaUIhZTnLeJSBApvi3gXT789hee6h73N3jOeWkXDwoPbYT/A==}
     engines: {node: '>=18.0.0'}
 
-  splaytree@0.1.4:
-    resolution: {integrity: sha512-D50hKrjZgBzqD3FT2Ek53f2dcDLAQT8SSGrzj3vidNH5ISRgceeGVJ2dQIthKOuayqFXfFjXheHNo4bbt9LhRQ==}
-
   splaytree@3.2.3:
     resolution: {integrity: sha512-7OXrNWzy6CK+r7Ch9OLPBDTKfB6XlWHjX4P0RU5B3IgFuWPeYN0XtRtlexGRjgbQxpfaUve6jTAwBGWuGntz/w==}
     engines: {node: '>=18.20 || >=20'}
@@ -5854,9 +5830,6 @@ packages:
   tinypool@1.1.1:
     resolution: {integrity: sha512-Zba82s87IFq9A9XmjiX5uZA/ARWDrB03OHlq+Vw1fSdt0I+4/Kutwy8BP4Y/y/aORMo61FQ0vIb5j44vSo5Pkg==}
     engines: {node: ^18.0.0 || >=20.0.0}
-
-  tinyqueue@1.2.3:
-    resolution: {integrity: sha512-Qz9RgWuO9l8lT+Y9xvbzhPT2efIUIFd69N7eF7tJ9lnQl0iLj1M7peK7IoUGZL9DJHw9XftqLreccfxcQgYLxA==}
 
   tinyqueue@3.0.0:
     resolution: {integrity: sha512-gRa9gwYU3ECmQYv3lslts5hxuIa90veaEcxDYuu3QGOIAEM2mOZkVHp48ANJuu1CURtRdHKUBY5Lm1tHV+sD4g==}
@@ -8936,8 +8909,6 @@ snapshots:
 
   '@types/deep-eql@4.0.2': {}
 
-  '@types/earcut@3.0.0': {}
-
   '@types/emscripten@1.39.10': {}
 
   '@types/eslint-scope@3.7.7':
@@ -10150,8 +10121,6 @@ snapshots:
   duplexer@0.1.2: {}
 
   earcut@2.2.4: {}
-
-  earcut@3.0.2: {}
 
   eastasianwidth@0.2.0: {}
 
@@ -11489,12 +11458,6 @@ snapshots:
 
   marked@4.3.0: {}
 
-  martinez-polygon-clipping@0.7.4:
-    dependencies:
-      robust-predicates: 2.0.4
-      splaytree: 0.1.4
-      tinyqueue: 1.2.3
-
   math-intrinsics@1.1.0: {}
 
   md5@2.3.0:
@@ -12409,8 +12372,6 @@ snapshots:
 
   reusify@1.1.0: {}
 
-  robust-predicates@2.0.4: {}
-
   robust-predicates@3.0.3: {}
 
   rollup@4.60.1:
@@ -12764,8 +12725,6 @@ snapshots:
 
   spex@4.1.0: {}
 
-  splaytree@0.1.4: {}
-
   splaytree@3.2.3: {}
 
   split-require@3.1.2:
@@ -13046,8 +13005,6 @@ snapshots:
       picomatch: 4.0.4
 
   tinypool@1.1.1: {}
-
-  tinyqueue@1.2.3: {}
 
   tinyqueue@3.0.0: {}
 

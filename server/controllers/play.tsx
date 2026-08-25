@@ -1,8 +1,6 @@
 import { h } from 'preact'
-import JsonData from '../../web/src/components/json-data'
 import cache from '../cache'
 import renderComponent from '../handlers/render-component'
-import { Islands } from '../islands'
 import { Db } from '../pg'
 import { PassportStatic } from 'passport'
 import { Express } from 'express'
@@ -26,13 +24,10 @@ export default function PlayController(db: Db, passport: PassportStatic, app: Ex
       }
     }
 
-    const islands = await Islands.fetch()
-
     const windowTitle = isProduction ? 'Voxels' : '⚙️ Voxels local'
     const head = (
       <head>
         <title>{windowTitle}</title>
-        <JsonData id="islands" data={islands} />
       </head>
     )
 

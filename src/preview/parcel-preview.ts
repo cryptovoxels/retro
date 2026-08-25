@@ -5,7 +5,7 @@ import type { ParcelRecord } from '../../common/messages/parcel'
 import Grid from '../grid'
 import { getComputePool } from '../mono-pool'
 import { NullGrid } from '../null-grid'
-import { Island, OCEAN, createMaterial } from '../voxels-map'
+import { OCEAN, createMaterial } from '../voxels-map'
 
 setMainThread()
 
@@ -354,9 +354,20 @@ function makeMinimap(engine: BABYLON.Engine, record: ParcelRecord, islands: any[
   islandMat.freeze()
   for (const desc of islands) {
     try {
-      const island = new Island(mini, root, desc)
-      island.setMaterial(islandMat)
-      island.setEnabled(true)
+      const rings = desc?.geometry?.coordinates
+      if (!Array.isArray(rings) || !rings[0]) continue
+      const shape = rings[0].map((c: any) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
+      const pt = new BABYLON.PolygonMeshBuilder('mini-island/' + desc.name, shape, mini)
+      let holes = islandHoles(desc.lakes_geometry_json)
+      if (desc.holes_geometry_json && ['Scarcity', 'Flora', 'Andromeda'].includes(desc.name)) {
+        holes = holes.concat(islandHoles(desc.holes_geometry_json))
+      }
+      holes.forEach((hole: BABYLON.Vector2[]) => pt.addHole(hole))
+      const mesh = pt.build(false, 0.05)
+      mesh.position.y = 0.75
+      mesh.material = islandMat
+      mesh.parent = root
+      mesh.isPickable = false
     } catch (e) {
       console.error('[preview] island', desc?.name, e)
     }

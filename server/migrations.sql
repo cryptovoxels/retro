@@ -357,3 +357,10 @@ $$);
 SELECT apply_migration('chat-moderated-at', $$
   ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS moderated_at timestamptz;
 $$);
+
+SELECT apply_migration('terrains-table', $$
+  CREATE TABLE IF NOT EXISTS terrains (
+    position cube NOT NULL PRIMARY KEY,
+    data bytea NOT NULL
+  );
+$$);

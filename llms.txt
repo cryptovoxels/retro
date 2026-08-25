@@ -1,6 +1,6 @@
 # Voxels public read API
 
-> 70 routes on https://www.voxels.com, covering parcels, womps, avatars, collectibles, collections, wearables, islands, spaces, events, search, ghosts. Most are unauthenticated GET. Handlers answer {"success": true, "<field>": ...}, where the field is plural for a list and singular for one record, and {"success": false} when the lookup misses.
+> 72 routes on https://www.voxels.com, covering parcels, womps, avatars, collectibles, collections, wearables, islands, terrain, spaces, events, search, ghosts. Most are unauthenticated GET. Handlers answer {"success": true, "<field>": ...}, where the field is plural for a list and singular for one record, and {"success": false} when the lookup misses.
 
 ## docs
 
@@ -17,6 +17,7 @@
 - [collections](https://www.voxels.com/api/collections): 9 routes. Wearable collections and the wearables inside them.
 - [wearables](https://www.voxels.com/api/wearables/search): 8 routes. Wearables by id or by contract, and their models.
 - [islands](https://www.voxels.com/api/islands.json): 3 routes. The archipelago: shorelines, holes, lakes and where each island sits.
+- [terrain](https://www.voxels.com/api/terrain/index.json): 2 routes.
 - [spaces](https://www.voxels.com/api/spaces/{id}.json): 2 routes. Hosted spaces, which are worlds that are not parcels.
 - [events](https://www.voxels.com/api/events.json): 6 routes. What is on, and where.
 - [search](https://www.voxels.com/api/search): 1 route. One query across parcels, wearables, collections and citizens.

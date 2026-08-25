@@ -2,7 +2,7 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { VoxelSize } from '../../common/voxels/constants'
 
 export type Vec3 = { x: number; y: number; z: number }
-export type ColliderTag = 'parcel' | 'island' | 'ocean' | 'avatar' | 'yeet'
+export type ColliderTag = 'parcel' | 'island' | 'ocean' | 'avatar' | 'yeet' | 'terrain'
 
 export const GROUP_TARGET = (0x0002 << 16) | 0x0004
 export const GROUP_YEET = (0x0004 << 16) | 0xffff
@@ -38,6 +38,7 @@ function tagFromKey(key: string): ColliderTag {
   if (key.startsWith('parcel-')) return 'parcel'
   if (key.startsWith('island-')) return 'island'
   if (key.startsWith('ocean-')) return 'ocean'
+  if (key.startsWith('terrain-')) return 'terrain'
   if (key.startsWith('avatar-')) return 'avatar'
   if (key.startsWith('yeet-')) return 'yeet'
   return 'parcel'

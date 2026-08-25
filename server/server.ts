@@ -519,6 +519,23 @@ app.get(
   createRequestHandlerForQuery(db, 'get-island', 'island', (req) => [req.params.slug]),
 )
 
+app.get('/api/terrain/index.json', cache('60 seconds', true), createRequestHandlerForQuery(db, 'get-terrain-index', 'chunks'))
+app.get('/api/terrain/:x/:y/:z.bin', cache('60 seconds'), async (req, res) => {
+  const x = parseInt(req.params.x, 10)
+  const y = parseInt(req.params.y, 10)
+  const z = parseInt(req.params.z, 10)
+  if (![x, y, z].every((n) => Number.isFinite(n))) return res.status(400).end()
+  try {
+    const result = await db.query('embedded/get-terrain-chunk', `select data from terrains where position = cube(array[$1::float8, $2::float8, $3::float8])`, [x, y, z])
+    if (!result.rows[0]) return res.status(404).end()
+    res.setHeader('Content-Type', 'application/octet-stream')
+    res.send(result.rows[0].data)
+  } catch (e) {
+    console.error(e)
+    res.status(500).end()
+  }
+})
+
 app.get('/api/parcels/cached.json', cache('60 seconds', true), createRequestHandlerForQuery(db, 'get-parcels-cached', 'parcels'))
 
 const parcelProxy = proxy('https://www.voxels.com', {

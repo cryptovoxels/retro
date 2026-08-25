@@ -13,6 +13,7 @@ import Snackbar from '../web/src/components/snackbar'
 import Toggle from '../web/src/components/toggle'
 import { app, AppEvent } from '../web/src/state'
 import { KeyboardHandler } from './components/keyboard-handler'
+import { toggleWires } from './physics/debug'
 import { OnlyMobile } from './components/utils'
 import Connector, { messageList } from './connector'
 import DesktopControls from './controls/desktop/controls'
@@ -620,6 +621,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         { code: 'Backspace', handleEvent: () => this.deleteFeature() },
         { code: 'KeyM', handleEvent: () => this.editFeatureThenMove() },
         { code: 'KeyP', handleEvent: () => this.takeWomp(this.props.scene) },
+        { code: 'Comma', handleEvent: () => toggleWires(this.props.scene) },
         { code: 'KeyI', handleEvent: () => this.activateInspectorIfHasLock() },
         { code: 'KeyF', handleEvent: () => this.connector.controls.toggleFlying() },
         { code: 'KeyC', handleEvent: () => this.connector.controls.togglePerspective() },

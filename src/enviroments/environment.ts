@@ -69,8 +69,6 @@ export abstract class Environment extends TypedEventTarget<{
     return new BABYLON.Color4(0, 0, 0, 0)
   }
 
-  public abstract invalidateGroundLoaded(): void
-
   async load() {
     window.environment = this
     this.scene.clearColor = this.clearColor

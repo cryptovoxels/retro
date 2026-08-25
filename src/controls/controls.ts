@@ -150,9 +150,6 @@ export default abstract class Controls implements IControls {
   MAX_PICK_DISTANCE = 20
   audioContext: AudioContext = undefined!
   private cameraZoomed = false
-  // Gravity stays off until parcel colliders underfoot exist. See refreshGravity().
-  floorReady = true
-  private floorParcels: number[] | null = null // null = waiting for parcel ids
 
   constructor(
     protected scene: BABYLON.Scene,
@@ -200,7 +197,6 @@ export default abstract class Controls implements IControls {
       this.move.setAll(0)
       this.updateConga()
       this.updateVehicle()
-      this.cancelFly()
       // let persona update its position from the body
       this.persona.update(cameraPosition(this.scene), cameraRotation(this.scene), this)
       this.swimming = this.persona.isSwimming(SWIM_LEVEL) ?? this.swimming
@@ -332,19 +328,6 @@ export default abstract class Controls implements IControls {
     }
   }
 
-  cancelFly() {
-    const grounded = this.body.motion.grounded
-    if (!this.flying) {
-      this.wasAirborne = false
-      return
-    }
-    if (!grounded) this.wasAirborne = true
-    else if (this.wasAirborne) {
-      this.setFlying(false)
-      this.wasAirborne = false
-    }
-  }
-
   firstOrThirdPersonAdjustment() {
     if (this.firstPersonView) {
       this.cameraDistance = easeCamera(this.cameraDistance, 0)
@@ -457,8 +440,6 @@ export default abstract class Controls implements IControls {
   }
 
   setFlying(value: boolean) {
-    if (!value) this.floorReady = true
-    if (value && !this.flying) this.body.hop()
     this.flying = value
   }
 
@@ -466,36 +447,9 @@ export default abstract class Controls implements IControls {
     this.setFlying(!this.flying)
   }
 
-  // called on spawn and teleport
-  public invalidateGroundLoaded() {
-    if (!window.environment) {
-      throw new Error('invalidateGroundLoaded() called before attachEnvironment()!')
-    }
-
-    this.floorReady = false
-    if (!this.grid) {
-      throw new Error('invalidateGroundLoaded() called before attachEnvironment()!')
-    }
-
-    // The main thread doesn't keep a complete list of parcels, so we need to wait for the grid worker to tell us the definitive set of parcels containing the camera.
-    this.floorParcels = null
-    this.grid.queryParcelsAtPosition(this.body.position).then((parcelIds) => {
-      this.floorParcels = parcelIds
-    })
-
-    window.environment.invalidateGroundLoaded()
-  }
-
   // this is called by the render loop in index.ts
   refreshGravity() {
-    // To avoid falling into the abyss, or through the floor of a second-floor parcel, gravity stays off at least until:
-    // 1. All islands have been meshed (this.islandsReady === true), and
-    // 2. Every parcel containing the camera position has a collider (this.floorReady).
-    if (!this.floorReady && this.floorParcels && this.floorParcels.every((id) => this.grid?.getByID(id)?.isColliderEnabled())) {
-      this.floorReady = true
-      this.floorParcels = null
-    }
-    this.body.gravity = !this.flying && !this.swimming && this.islandsReady && this.floorReady && isLoaded()
+    this.body.gravity = !this.flying && !this.swimming && isLoaded()
   }
 
   setNoclip(on: boolean) {
@@ -871,13 +825,13 @@ export default abstract class Controls implements IControls {
         // left far from the lot: snap home now. unloading the parcel would kill the recall timer and strand it.
         if (car.isAwayFromPark()) car.recallToPark()
         else car.releaseDriver(this.persona.uuid)
-      } catch {}
+      } catch { }
       try {
         car.mesh?.freezeWorldMatrix()
-      } catch {}
+      } catch { }
       try {
         this.grid?.unloadIfBeyondDraw?.(car.parcel)
-      } catch {}
+      } catch { }
     }
     this.setNoclip(false)
     this.enableMovement()

@@ -63,10 +63,6 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
   }
 
   if (!window.config.isBot) {
-    // wait for ground to load before applying gravity
-    // stops us from falling through collidable mega vox (etc) before they have loaded
-    controls.invalidateGroundLoaded()
-
     scene.onAfterRenderObservable.add(() => {
       stepPhysics(scene.getEngine().getDeltaTime() / 1000)
       controls.refreshGravity()

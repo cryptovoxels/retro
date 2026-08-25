@@ -26,6 +26,7 @@ tags:
   - name: collections
   - name: wearables
   - name: islands
+  - name: terrain
   - name: spaces
   - name: events
   - name: search
@@ -1792,11 +1793,10 @@ paths:
     get:
       operationId: listIslands
       tags: [islands]
-      summary: Every island with its shoreline
+      summary: Island names and positions
       description: |
-        The heavy one: it carries the shore polygon plus the holes and lakes cut
-        out of it. Use `/api/islands-metadata.json` if you only need names and
-        positions.
+        Metadata only. Terrain geometry lives in `/api/terrain`. Use
+        `/api/islands-metadata.json` for the same shape without content.
       responses:
         '200':
           description: ok
@@ -1811,6 +1811,71 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/Island'
+
+  /api/terrain/index.json:
+    get:
+      operationId: listTerrainChunks
+      tags: [terrain]
+      summary: Positions of stored terrain chunks
+      description: |
+        Chunks not listed here are pure ocean and are generated locally.
+        Each entry is `{x,y,z}` in chunk space (64 voxels / 32 world units).
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  chunks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        x:
+                          type: integer
+                        y:
+                          type: integer
+                        z:
+                          type: integer
+
+  /api/terrain/{x}/{y}/{z}.bin:
+    get:
+      operationId: getTerrainChunk
+      tags: [terrain]
+      summary: One deflated terrain chunk
+      description: |
+        Raw zlib-deflated `Uint8Array` of 64^3 tile ids. Short cache; the
+        voxelizer re-runs in production. 404 means generate locally.
+      parameters:
+        - name: x
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: y
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: z
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: deflated chunk bytes
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: chunk not stored (generate locally)
 
   /api/islands-metadata.json:
     get:
@@ -2776,14 +2841,6 @@ components:
           type: string
         texture:
           type: [string, 'null']
-        geometry:
-          type: object
-          description: The shoreline, as GeoJSON.
-        holes_geometry_json:
-          type: [object, 'null']
-          description: Land cut out of the island.
-        lakes_geometry_json:
-          type: [object, 'null']
         position:
           $ref: '#/components/schemas/GeoJsonPoint'
         content:

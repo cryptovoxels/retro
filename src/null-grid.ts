@@ -24,13 +24,11 @@ class NullEnvironment extends Environment {
     scene.fogDensity = 0
   }
 
-  invalidateGroundLoaded() {}
+  update() { }
 
-  update() {}
+  parcelMeshesAdded(_meshes: BABYLON.Mesh[]) { }
 
-  parcelMeshesAdded(_meshes: BABYLON.Mesh[]) {}
-
-  parcelMeshesRemoved(_meshes: BABYLON.Mesh[]) {}
+  parcelMeshesRemoved(_meshes: BABYLON.Mesh[]) { }
 }
 
 export class NullGrid extends Grid {
@@ -47,7 +45,7 @@ export class NullGrid extends Grid {
   }
 
   // Preview has no draw-distance refresh loop.
-  protected addInterval(_func: () => void, _intervalMs: number) {}
+  protected addInterval(_func: () => void, _intervalMs: number) { }
 
   spawnPreview(record: ParcelRecord): Parcel | undefined {
     return super.spawnPreview(record)

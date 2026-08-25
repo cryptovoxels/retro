@@ -19,6 +19,7 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 - [collections](#collections), 9 routes
 - [wearables](#wearables), 8 routes
 - [islands](#islands), 3 routes
+- [terrain](#terrain), 2 routes
 - [spaces](#spaces), 2 routes
 - [events](#events), 6 routes
 - [search](#search), 1 route
@@ -1064,15 +1065,15 @@ Same handler as `/w/{hash}/{format}`. `token_id` is read as hex when it looks li
 
 ## islands
 
-- [`GET /api/islands.json`](#get-apiislandsjson) Every island with its shoreline
+- [`GET /api/islands.json`](#get-apiislandsjson) Island names and positions
 - [`GET /api/islands-metadata.json`](#get-apiislands-metadatajson) Island names and positions
 - [`GET /api/islands/{slug}.json`](#get-apiislandsslugjson) One island and every parcel on it
 
 ### GET /api/islands.json
 
-Every island with its shoreline
+Island names and positions
 
-The heavy one: it carries the shore polygon plus the holes and lakes cut out of it. Use `/api/islands-metadata.json` if you only need names and positions.
+Metadata only. Terrain geometry lives in `/api/terrain`. Use `/api/islands-metadata.json` for the same shape without content.
 
 **answers**
 
@@ -1110,6 +1111,43 @@ The slug is the island name lowercased with runs of whitespace turned into singl
     - `position` [`GeoJsonPoint`](#geojsonpoint)
     - `parcels` array of object
 - `400` The lookup did not land. Some handlers send this with status 200.
+
+## terrain
+
+- [`GET /api/terrain/index.json`](#get-apiterrainindexjson) Positions of stored terrain chunks
+- [`GET /api/terrain/{x}/{y}/{z}.bin`](#get-apiterrainxyzbin) One deflated terrain chunk
+
+### GET /api/terrain/index.json
+
+Positions of stored terrain chunks
+
+Chunks not listed here are pure ocean and are generated locally. Each entry is `{x,y,z}` in chunk space (64 voxels / 32 world units).
+
+**answers**
+
+- `200` object
+  - `success` boolean
+  - `chunks` array of object
+    - `x` integer
+    - `y` integer
+    - `z` integer
+
+### GET /api/terrain/{x}/{y}/{z}.bin
+
+One deflated terrain chunk
+
+Raw zlib-deflated `Uint8Array` of 64^3 tile ids. Short cache; the voxelizer re-runs in production. 404 means generate locally.
+
+**parameters**
+
+- `x` (path, required) integer
+- `y` (path, required) integer
+- `z` (path, required) integer
+
+**answers**
+
+- `200` `application/octet-stream`, bytes
+- `404` chunk not stored (generate locally)
 
 ## spaces
 
@@ -1561,9 +1599,6 @@ A wearable collection.
 - `id` integer
 - `name` string
 - `texture` string or null
-- `geometry` object: The shoreline, as GeoJSON.
-- `holes_geometry_json` object or null: Land cut out of the island.
-- `lakes_geometry_json` object or null
 - `position` [`GeoJsonPoint`](#geojsonpoint)
 - `content` object or null
 

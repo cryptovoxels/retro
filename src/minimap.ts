@@ -4,12 +4,12 @@ import { isMobile } from '../common/helpers/detector'
 import { SingleParcelRecord } from '../common/messages/parcel'
 import { app, AppEvent } from '../web/src/state'
 import { cameraPosition } from './utils/camera'
-import { distanceEnable, fetchAllParcels, fetchContributingParcels, fetchIslands, fetchOwnerParcels, Island, MapParcel, OCEAN, createBaseMeshes, createMaterial, pickParcelMesh } from './voxels-map'
+import { distanceEnable, fetchAllParcels, fetchContributingParcels, fetchOwnerParcels, MapParcel, OCEAN, createBaseMeshes, createMaterial, pickParcelMesh, loadIslands, type Island } from './voxels-map'
 
 // the map will be sized to be this width of the whole browser window
 const MAP_SCREEN_SIZE = 0.15
 
-export { Island } from './voxels-map'
+export type { Island } from './voxels-map'
 
 export class Minimap {
   private readonly settings: MinimapSettings
@@ -27,7 +27,6 @@ export class Minimap {
   private onBeforeRender: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> | undefined
 
   private meshes: ReturnType<typeof createBaseMeshes>
-  private islandContent: any
 
   constructor(engine: BABYLON.Engine, connector: Connector) {
     this.engine = engine
@@ -205,16 +204,7 @@ export class Minimap {
   }
 
   private async loadIslands() {
-    const rootNode = new BABYLON.TransformNode('map_islands', this.scene)
-    const islandMaterial = new BABYLON.StandardMaterial('map-island', this.scene)
-    islandMaterial.disableLighting = true
-    islandMaterial.emissiveColor.set(0.2, 0.2, 0.2)
-    islandMaterial.freeze()
-    if (!this.islandContent) {
-      this.islandContent = await fetchIslands()
-    }
-    this.islands = this.islandContent.islands.map((desc: any) => new Island(this.scene, rootNode, desc))
-    this.islands.forEach((i) => i.setMaterial(islandMaterial))
+    this.islands = await loadIslands(this.scene, new BABYLON.TransformNode('map_islands', this.scene), true, false)
   }
 
   private unloadIslands() {
@@ -224,30 +214,11 @@ export class Minimap {
 
   private async loadParcels() {
     this.parcels = []
-    return fetchAllParcels().then((parcels) => {
-      this.parcels = parcels?.filter((p) => p.visible).map((p) => new MapParcel(this.scene, p, this.getMesh(p)))
-      return this.loadWalletParcels()
-    })
-  }
+    let parcels = await fetchAllParcels()
 
-  private async loadWalletParcels() {
-    if (!app.state.wallet) return
-    const o = fetchOwnerParcels(app.state.wallet).then((parcels) => {
-      parcels.forEach((owned) => {
-        const e = this.parcels.find((p) => p.id === owned.id)
-        if (!e) return console.error(`owned parcel #${owned.id} not found`)
-        e.setMesh(this.meshes.owner)
-      })
-    })
-    const c = fetchContributingParcels(app.state.wallet).then((parcels) => {
-      parcels.forEach((contributor) => {
-        const e = this.parcels.find((p) => p.id === contributor.id)
-        if (!e) return console.error(`contributor parcel #${contributor.id} not found`)
-        e.setMesh(this.meshes.contributor)
-      })
-    })
-
-    await Promise.all([o, c])
+    for (const p of parcels) {
+      this.parcels.push(new MapParcel(this.scene, p, this.getMesh(p)))
+    }
   }
 
   private unloadParcels() {

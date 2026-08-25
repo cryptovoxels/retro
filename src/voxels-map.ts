@@ -1,6 +1,7 @@
 import { ExponentialBackoff, handleAll, retry } from 'cockatiel'
 import { getParcelHelper } from '../common/helpers/parcel-helper'
 import { SingleParcelRecord } from '../common/messages/parcel'
+import { loadTerrainMap, type TerrainMapMesh } from './terrain/terrain-map'
 
 const retryPolicy = retry(handleAll, { backoff: new ExponentialBackoff(), maxAttempts: 5 })
 
@@ -25,73 +26,7 @@ export interface ParcelData {
   label?: string | null
 }
 
-export class Island {
-  public readonly center: BABYLON.Vector3
-  public readonly radius: number
-  private readonly _mesh: BABYLON.Mesh
-
-  constructor(
-    private scene: BABYLON.Scene,
-    private parent: BABYLON.TransformNode,
-    private desc: any,
-  ) {
-    const shape = this.desc.geometry.coordinates[0].map((c: any) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
-    const pt = new BABYLON.PolygonMeshBuilder('island/' + this.desc.name, shape, this.scene)
-    const makeHoles = (multipolygon: any) => {
-      const nudge = 0.25
-      return multipolygon.coordinates.map((p: any) => p[0].map((c: any) => new BABYLON.Vector2(c[0] * 100 + nudge, c[1] * 100 + nudge)))
-    }
-    let holes = makeHoles(this.desc.lakes_geometry_json)
-    if (this.desc.holes_geometry_json && this.hasBasements()) {
-      holes = holes.concat(makeHoles(this.desc.holes_geometry_json))
-    }
-    holes.forEach((hole: BABYLON.Vector2[]) => pt.addHole(hole))
-
-    const meshes = [pt.build(false, 0.05)]
-
-    if (this.desc.id >= 40) {
-      for (const s of this.desc.geometry.coordinates.slice(1)) {
-        const shape = s.map((c: any) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
-        const pt = new BABYLON.PolygonMeshBuilder('island/' + this.desc.name, shape, this.scene)
-        meshes.push(pt.build(false, 0.05))
-      }
-    }
-
-    this._mesh = BABYLON.Mesh.MergeMeshes(meshes, true)!
-    this._mesh.position.y = 0.75 - 0.01
-    this._mesh.isEnabled(false)
-    speedOptimize(this._mesh)
-
-    this.center = this._mesh.getBoundingInfo().boundingSphere.centerWorld.clone()
-    this.radius = this._mesh.getBoundingInfo().boundingSphere.radiusWorld
-  }
-
-  setMaterial(material: BABYLON.Material) {
-    this._mesh.material = material
-  }
-
-  dispose() {
-    this._mesh?.dispose(false, true)
-  }
-
-  distanceEnable(playerPos: BABYLON.Vector3, loadingDistance: number) {
-    const pos = playerPos.clone()
-    pos.y = 0
-    const a = this.radius + loadingDistance
-    const isVisible = pos.subtract(this.center).lengthSquared() < a * a
-    if (this._mesh.isEnabled() !== isVisible) {
-      this._mesh.setEnabled(isVisible)
-    }
-  }
-
-  setEnabled(on: boolean) {
-    this._mesh.setEnabled(on)
-  }
-
-  private hasBasements() {
-    return ['Scarcity', 'Flora', 'Andromeda'].includes(this.desc.name)
-  }
-}
+export type Island = TerrainMapMesh
 
 export class MapParcel {
   readonly sandbox: boolean
@@ -185,30 +120,13 @@ const createPMesh = (name: string, scene: BABYLON.Scene, r: number, g: number, b
   return pMesh
 }
 
-let islandCache: any
-
 export async function fetchIslands() {
-  if (islandCache) return islandCache
-  const response = await retryPolicy.execute(() => fetch(`${process.env.ASSET_PATH || ''}/api/islands.json`))
-  islandCache = await response.json()
-  return islandCache
+  // legacy name - maps now load terrain chunks, not geojson
+  return { islands: [] }
 }
 
 export async function loadIslands(scene: BABYLON.Scene, parent?: BABYLON.TransformNode, cull = false, bright = false) {
-  const root = parent ?? new BABYLON.TransformNode('map_islands', scene)
-  const islandMaterial = new BABYLON.StandardMaterial('map-island', scene)
-  islandMaterial.disableLighting = true
-  const g = bright ? 0.9 : 0.2
-  islandMaterial.emissiveColor.set(g, g, g)
-  if (bright) islandMaterial.backFaceCulling = false
-  islandMaterial.freeze()
-  const content = await fetchIslands()
-  const islands = content.islands.map((desc: any) => new Island(scene, root, desc))
-  islands.forEach((i: Island) => {
-    i.setMaterial(islandMaterial)
-    if (!cull) i.setEnabled(true)
-  })
-  return islands as Island[]
+  return loadTerrainMap(scene, parent, bright, cull)
 }
 
 export const fetchAllParcels = (cachebust = false): Promise<SingleParcelRecord[]> => fetchCachedParcels(`/api/parcels/cached.json`, cachebust)
@@ -285,7 +203,7 @@ export class VoxelsMap {
   private engine: BABYLON.Engine
   private scene: BABYLON.Scene
   private camera: BABYLON.FreeCamera
-  private islands: Island[] = []
+  private islands: TerrainMapMesh[] = []
   private parcels: MapParcel[] = []
   private rows: ParcelData[] = []
   private meshes?: ReturnType<typeof createBaseMeshes>

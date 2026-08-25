@@ -1,107 +1,56 @@
-import OceanFloor from './ocean-floor'
-import Islands from './islands'
 import { isLoaded } from '../utils/loading-done'
 import { StateObservable } from '../utils/state-observable'
-import { Ocean } from './ocean'
-import { ChunkSystem } from './chunk-system'
-
-const CHUNK_SIZE = 48
+import TerrainChunks from './terrain-chunks'
 
 export class Terrain {
   public islandsStateObservable: StateObservable<'loaded' | 'unloaded'>
   public invalidateIslandsLoaded: () => void
   private readonly _scene: BABYLON.Scene
-  private readonly _islands: Islands
-  private readonly _oceanFloor: OceanFloor
-  private _ocean: Ocean
-  private readonly _chunkSystem: ChunkSystem
-  private _islandsHasLoaded = false
-  private _loadRange: number
+  private readonly _chunks: TerrainChunks
+  private _hasLoaded = false
 
-  constructor(scene: BABYLON.Scene, skyboxes: any[]) {
+  constructor(scene: BABYLON.Scene, _skyboxes: any[]) {
     this._scene = scene
-    this._loadRange = Math.ceil((window.draw.distance * 1.414 + CHUNK_SIZE / 2) / CHUNK_SIZE)
-
-    this._islands = new Islands(scene)
-    this.islandsStateObservable = this._islands.islandsStateObservable
-    this.invalidateIslandsLoaded = () => this._islands.invalidateIslandsLoaded()
-
-    this._oceanFloor = new OceanFloor(CHUNK_SIZE, scene)
-
-    // Extract meshes from skyboxes for reflection
-    const skyboxMeshes: BABYLON.Mesh[] = []
-    for (const skybox of skyboxes) {
-      // Skybox has .mesh property
-      if (skybox.mesh) {
-        skyboxMeshes.push(skybox.mesh)
-      }
-      // Nightsky has separate starfield and moon meshes
-      if (skybox.starfield) {
-        skyboxMeshes.push(skybox.starfield)
-      }
-      if (skybox.moon) {
-        skyboxMeshes.push(skybox.moon)
-      }
-    }
-    this._ocean = new Ocean(CHUNK_SIZE, scene, skyboxMeshes)
-
-    this._chunkSystem = new ChunkSystem(CHUNK_SIZE)
-    this._chunkSystem.addObserver(this._oceanFloor)
-    this._chunkSystem.addObserver(this._ocean)
-
-    window.draw.addEventListener('distance-changed', (e) => {
-      const newViewDistance = e.detail
-      this._loadRange = Math.ceil((newViewDistance * 1.414 + CHUNK_SIZE / 2) / CHUNK_SIZE)
-    })
+    this._chunks = new TerrainChunks(scene)
+    this.islandsStateObservable = this._chunks.islandsStateObservable
+    this.invalidateIslandsLoaded = () => this._chunks.invalidateIslandsLoaded()
   }
 
   get groundMeshes() {
-    if (!this._islandsHasLoaded) {
-      return []
-    }
-    return this._islands.allMeshes()
-  }
-
-  get islands() {
-    return this._islands
-  }
-
-  get oceanFloor() {
-    return this._oceanFloor
+    if (!this._hasLoaded) return []
+    return this._chunks.groundMeshes
   }
 
   update() {
     const cam = this._scene.activeCamera
-    if (!cam || !this._islandsHasLoaded || !isLoaded()) {
-      return
-    }
+    if (!cam || !this._hasLoaded || !isLoaded()) return
 
     if (this._scene.getFrameId() % 30 === 0) {
-      this._islands.setVisibility(cam, 96)
-      this._chunkSystem.updateChunksAroundPosition({ x: cam.position.x, z: cam.position.z }, this._loadRange)
+      this._chunks.updateAround(cam.position.x, cam.position.z)
     }
   }
 
   async load() {
-    await this._islands.load()
-    this._ocean.setIslands(this._islands)
-    this._islandsHasLoaded = true
-    this._islands.allMeshes().forEach((mesh) => this._ocean.addReflection(mesh))
+    const cam = this._scene.activeCamera
+    const wx = cam?.position.x ?? 0
+    const wz = cam?.position.z ?? 0
+    await this._chunks.load(wx, wz)
+    this._hasLoaded = true
   }
 
-  addReflectionMesh(mesh: BABYLON.Mesh) {
-    this._ocean.addReflection(mesh)
-  }
-
-  removeReflectionMesh(mesh: BABYLON.Mesh) {
-    this._ocean.removeReflection(mesh)
-  }
+  // no-ops: water reflections died with ocean.ts
+  addReflectionMesh(_mesh: BABYLON.Mesh) {}
+  removeReflectionMesh(_mesh: BABYLON.Mesh) {}
 
   hasWaterMeshAt(x: number, z: number) {
-    return this._ocean.hasWaterMeshAt(x, z)
+    return this._chunks.hasWaterAt(x, 0, z)
   }
 
-  getIsland(point: BABYLON.Vector2) {
-    return this._islands.getIsland(point)
+  hasLandAt(x: number, z: number) {
+    return this._chunks.hasLandAt(x, z)
+  }
+
+  hasWaterAt(x: number, y: number, z: number) {
+    return this._chunks.hasWaterAt(x, y, z)
   }
 }

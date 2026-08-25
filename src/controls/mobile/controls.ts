@@ -74,6 +74,7 @@ export default class MobileControls extends Controls {
 
   override setFlying(value: boolean) {
     super.setFlying(value)
+
     if (!!this.btnToggleFly) {
       this.btnToggleFly.innerHTML = this.flying ? 'Walk' : 'Fly'
     }

@@ -37,14 +37,6 @@ export default class DesktopControls extends Controls {
     return camera
   }
 
-  override setFlying(value: boolean) {
-    super.setFlying(value)
-    if (this.keyboardInput) {
-      this.keyboardInput.keysUpward = value ? ['PageUp'] : []
-      this.keyboardInput.keysDownward = value ? ['PageDown', 'KeyV'] : []
-    }
-  }
-
   override enterThirdPerson(startingDistance = CAMERA_DISTANCE) {
     const entered = super.enterThirdPerson(startingDistance)
     this.bindKeys()
@@ -162,7 +154,7 @@ export default class DesktopControls extends Controls {
         const meshName = eventData.pickInfo?.pickedMesh?.name || ''
         if (meshName.startsWith('feature/basicGui/')) return
         this.nerfClick = true
-        this.requestPointerLock()?.catch(() => {})
+        this.requestPointerLock()?.catch(() => { })
         return
       }
     }
@@ -286,9 +278,7 @@ export default class DesktopControls extends Controls {
   addKeyboardControls(camera: BABYLON.Camera) {
     this.keyboardInput = new LocaleKeyboardMoveInput({
       keysUp: ['ArrowUp', 'KeyW'],
-      keysUpward: this.flying ? ['PageUp'] : [],
       keysDown: ['ArrowDown', 'KeyS'],
-      keysDownward: this.flying ? ['PageDown', 'KeyV'] : [],
       keysLeft: ['ArrowLeft', 'KeyA'],
       keysRight: ['ArrowRight', 'KeyD'],
     })
@@ -371,18 +361,18 @@ export default class DesktopControls extends Controls {
       console.log('Gamepad detected')
       if ((gamepad as any)['onButtonDownObservable']) {
         this.hasGamepad = gamepadManager.gamepads.some((g) => g.isConnected)
-        ;(gamepad as any)['onButtonDownObservable'].add((buttonId: any) => {
-          const button = this.getGamepadButton(gamepad, buttonId)
-          if (button) {
-            this.onGamepadButton(button, true)
-          }
-        })
-        ;(gamepad as any)['onButtonUpObservable'].add((buttonId: any) => {
-          const button = this.getGamepadButton(gamepad, buttonId)
-          if (button) {
-            this.onGamepadButton(button, false)
-          }
-        })
+          ; (gamepad as any)['onButtonDownObservable'].add((buttonId: any) => {
+            const button = this.getGamepadButton(gamepad, buttonId)
+            if (button) {
+              this.onGamepadButton(button, true)
+            }
+          })
+          ; (gamepad as any)['onButtonUpObservable'].add((buttonId: any) => {
+            const button = this.getGamepadButton(gamepad, buttonId)
+            if (button) {
+              this.onGamepadButton(button, false)
+            }
+          })
       }
     })
 
@@ -439,7 +429,7 @@ export default class DesktopControls extends Controls {
       unmountComponentAtNode(element)
       element.remove()
     })
-    ;(window as any).engine?.setBlur?.(false)
+      ; (window as any).engine?.setBlur?.(false)
 
     // don't focus() before lock — steals the user gesture, forces a second click
     const maybePromise: unknown = this.canvas.requestPointerLock()

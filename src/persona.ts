@@ -170,9 +170,6 @@ export default class Persona {
     // make sure we see the features of new area immediately (otherwise we have to wait up to 5 seconds)
     this.connector.refreshNearestParcels()
 
-    // clear out previous grounded and wait for new ground to load so that we don't fall before parcel has loaded
-    this.controls.invalidateGroundLoaded()
-
     // cached dest already meshed — no MeshLoaded; lift after one frame so grey still reads
     if (window.grid?.currentOrNearestParcel()?.voxelMesh) {
       this.scene.onBeforeRenderObservable.addOnce(() => {

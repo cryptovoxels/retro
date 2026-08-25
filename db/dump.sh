@@ -1,20 +1,20 @@
 #!/bin/bash
 
 # Usage:
-#   ./dump.sh              # data only (safe for prod)
-#   ./dump.sh --yolo       # also dumps schema into import.sql + schema.sql
+#   ./dump.sh                    # dumps the default island (Poneke)
+#   ./dump.sh "Origin City"      # dumps the named island
 #
 # Set DATABASE_URL to point at a different db, e.g.:
-#   DATABASE_URL=postgresql://user:pass@host/dbname ./dump.sh
+#   DATABASE_URL=postgresql://user:pass@host/dbname ./dump.sh "Origin City"
 
 DB="${DATABASE_URL:-voxels}"
 OUTPUT_FILE="import.sql"
-ISLAND_NAME="Poneke"
+ISLAND_NAME="${1:-Poneke}"
 
 # Enforce read-only on every connection - safe to point at prod
 export PGOPTIONS='--default-transaction-read-only=on'
 
-echo "-- Generating Poneke Dev Fixture (db=$DB) --"
+echo "-- Generating $ISLAND_NAME Dev Fixture (db=$DB) --"
 
 cat <<EOF > $OUTPUT_FILE
 -- Enable required extensions
@@ -48,6 +48,7 @@ dump_table() {
 }
 
 dump_table "islands" "SELECT * FROM islands"
+dump_table "terrains" "SELECT * FROM terrains"
 dump_table "properties" "SELECT * FROM properties WHERE island = '$ISLAND_NAME'"
 dump_table "womps" "SELECT w.* FROM womps w JOIN properties p ON w.parcel_id = p.id WHERE p.island = '$ISLAND_NAME'"
 
