@@ -74,6 +74,7 @@ import { BuildTab } from './ui/overlay/build-tab/build-tab'
 import DebugTools from './ui/overlay/debug-tools'
 import EditPane from './ui/overlay/edit-pane'
 import CustomizeVoxels from './ui/overlay/customize-voxels'
+import { NftBrowser } from './ui/overlay/nft-browser'
 import ParcelSnapshots from './ui/parcel-snapshots'
 import { SettingsUI } from './ui/settings'
 import TakeWomp from './ui/take-womp'
@@ -944,6 +945,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     switch (paneId) {
       case 'add':
         return <BuildTab parcel={nearestEditableParcel || undefined} scene={this.props.scene} />
+      case 'nfts':
+        return <NftBrowser />
       case 'edit':
         return <EditPane parcel={nearestEditableParcel} scene={this.props.scene} feature={this.state.feature} editor={this.state.editor} publishAsset={this.state.publishAsset} onClosePublish={this.closePublishAsset} />
       case 'voxels':
@@ -1116,6 +1119,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   <li class={active('add')}>
                     <a title="Add things to your thing" href="#add" onMouseOver={onHover('add')} onClick={onClick('add')} accessKey="a">
                       Add
+                    </a>
+                  </li>
+                  <li class={active('nfts')}>
+                    <a href="#nfts" onClick={onClick('nfts')}>
+                      NFTs
                     </a>
                   </li>
                   <li class={active('parcelSnapshots')}>
