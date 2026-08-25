@@ -24,7 +24,7 @@ export default class PlayerBody {
   motion: Motion = { hz: 0, vy: 0, impact: 0 }
   /** vehicles, pose balls, gateway: move straight, skip the world (implies no gravity) */
   noclip = false
-  gravity = false
+  flying = true
   speed = WALK
   private body: RAPIER.RigidBody = undefined!
   private collider: RAPIER.Collider = undefined!
@@ -88,8 +88,13 @@ export default class PlayerBody {
 
     // console.log(this.vel.y)
 
-    // const dy = this.gravity ? this.vel * dt : d.y + this.vel * dt
-    this.controller.computeColliderMovement(this.collider, { x: d.x, y: this.vel.y * dt, z: d.z }, undefined, PLAYER_QUERY)
+    let y = d.y
+
+    if (!this.flying) {
+      y += this.vel.y * dt
+    }
+
+    this.controller.computeColliderMovement(this.collider, { x: d.x, y: y, z: d.z }, undefined, PLAYER_QUERY)
     let stepped = this.controller.computedMovement()
     const at = this.body.translation()
     const next = { x: at.x + stepped.x, y: at.y + stepped.y, z: at.z + stepped.z }
@@ -101,7 +106,7 @@ export default class PlayerBody {
 
     const n = this.controller.numComputedCollisions()
 
-    if (n == 0 && this.gravity) {
+    if (n == 0 && !this.flying) {
       this.vel.y += GRAVITY * dt
     } else {
       this.vel.y = 0

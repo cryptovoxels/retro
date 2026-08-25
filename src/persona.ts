@@ -195,7 +195,7 @@ export default class Persona {
     const m = controls.body.motion
     if (controls.vehicleFeature) return Animations.Sitting
     if (this.emote != null) return this.emote
-    if (!m.grounded && !controls.body.gravity) return Animations.Floating
+    if (!m.grounded && !controls.body.flying) return Animations.Floating
     if (m.hz > WALK_HZ) return Animations.Walk
     return Animations.Idle
   }

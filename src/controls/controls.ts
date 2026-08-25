@@ -198,7 +198,7 @@ export default abstract class Controls implements IControls {
         this.camera.cameraDirection.setAll(0)
       }
 
-      this.body.gravity = !this.flying
+      this.body.flying = this.flying
       this.body.step(this.move, dt)
       this.move.setAll(0)
       this.updateConga()
