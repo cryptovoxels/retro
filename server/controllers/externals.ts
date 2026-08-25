@@ -8,7 +8,7 @@ import { isStringHex } from '../../common/helpers/utils'
 import { AlchemyNFTAPIWithMetadata, AlchemyNFTWithMetadata } from '../../common/messages/api-alchemy'
 import { OpenSeaNftModelV2, OpenSeaNFTV2Extended } from '../../common/messages/api-opensea'
 import { openseaAssetsChainSlug } from '../../common/helpers/nft-url'
-import cache from '../cache'
+import cache, { noCache } from '../cache'
 import { requireAdmin } from '../lib/helpers'
 import log from '../lib/logger'
 import { parseQueryInt } from '../lib/query-parsing-helpers'
@@ -62,6 +62,7 @@ export default function ExternalsController(db: Db, passport: PassportStatic, ap
     const token = typeof req.query.token === 'string' ? req.query.token : ''
     const chain_id = typeof req.query.chain_id === 'string' ? parseInt(req.query.chain_id, 10) : 1
     if (!ethers.isAddress(contractRaw) || !token || !Number.isFinite(chain_id)) {
+      noCache(res)
       return res.status(400).json({ success: false })
     }
     const contract = contractRaw.toLowerCase()
@@ -79,6 +80,7 @@ export default function ExternalsController(db: Db, passport: PassportStatic, ap
 
       const apiKey = process.env.OPENSEA_APIKEY
       if (!apiKey) {
+        noCache(res)
         return res.status(503).json({ success: false })
       }
 
@@ -86,11 +88,14 @@ export default function ExternalsController(db: Db, passport: PassportStatic, ap
       const r = await fetch(url, { method: 'GET', headers: { 'X-API-KEY': apiKey } })
       if (!r.ok) {
         log.info('opensea nft fetch failed', { status: r.status, contract, token, chain_id })
+        // A rate limit or a blip from OpenSea must not be pinned by the 60 second header.
+        noCache(res)
         return res.status(502).json({ success: false })
       }
       const body: any = await r.json().catch(() => null)
       const nft = body?.nft || body
       if (!nft?.identifier || !nft?.contract) {
+        noCache(res)
         return res.status(502).json({ success: false })
       }
 
@@ -138,6 +143,7 @@ export default function ExternalsController(db: Db, passport: PassportStatic, ap
       return respond(row?.immutable || immutable, row?.mutable || mutable)
     } catch (e) {
       log.error('opensea nft endpoint failed', { e: String(e) })
+      noCache(res)
       return res.status(502).json({ success: false })
     }
   })
