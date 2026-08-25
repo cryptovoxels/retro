@@ -74,6 +74,7 @@ export const featureTemplates: Record<PlaceableFeatureTypes, FeatureTemplate> = 
   'text-input': TextInput.template,
   'slider-input': SliderInput.template,
   polytext: Polytext.template,
+  'polytext-v2': Polytext.template,
   'pose-ball': PoseBall.template,
   portal: Portal.template,
   richtext: Richtext.template,
@@ -85,7 +86,7 @@ export const featureTemplates: Record<PlaceableFeatureTypes, FeatureTemplate> = 
 }
 
 // these are the features that can be placed by the user
-export type PlaceableFeatureTypes = Exclude<FeatureType, 'animation-platform' | 'script' | 'polytext-v2' | 'vox' | 'screen' | 'poap-dispenser'>
+export type PlaceableFeatureTypes = Exclude<FeatureType, 'animation-platform' | 'script' | 'vox' | 'screen' | 'poap-dispenser'>
 
 // Used to display info about the Feature in the add tab
 export type FeatureMetadata = {

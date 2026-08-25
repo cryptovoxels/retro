@@ -2,7 +2,6 @@ import * as Comlink from 'comlink'
 import { bakeLightmap } from './monoworker/lightmap'
 import { loadVox, cancelJob } from './monoworker/vox'
 import { requestInstanceIdentification, requestFeatureSorting } from './monoworker/pump'
-import { setFontData, meshText } from './monoworker/polytext'
 import { gridWorker } from './monoworker/grid'
 import { voxelCollider, wearVoxels } from './monoworker/physics'
 
@@ -14,8 +13,6 @@ const api = {
   cancelJob,
   requestInstanceIdentification,
   requestFeatureSorting,
-  setFontData,
-  meshText,
   voxelCollider,
   wearVoxels,
   init: gridWorker.init.bind(gridWorker),

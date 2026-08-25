@@ -39,7 +39,6 @@ import Connector from './connector'
 import Robots from './robots/robots'
 
 // Features
-import Polytext from './features/polytext'
 import { type AudioEngine } from './audio/audio-engine'
 import { isBatterySaver, isDebug, isInspect, isIOS, isMobile, wantsGateway, wantsXR } from '../common/helpers/detector'
 import { DragDrop } from './tools/drag-drop'
@@ -162,15 +161,6 @@ async function main() {
     },
     { passive: false },
   )
-
-  try {
-    var r = await fetch(process.env.ASSET_PATH + '/acknowtt.json')
-    var font = await r.json()
-    Polytext.Load()
-    Polytext.setWorkerData(font)
-  } catch (e) {
-    console.log('Sandboxed iframe, no assets')
-  }
 
   if (isDebug()) {
     toggleFPSStats()

@@ -416,14 +416,12 @@ export const PolytextRecord = t.intersection(
   [
     FeatureCommon,
     t.type({
-      type: t.literal('polytext'),
+      type: t.union([t.literal('polytext'), t.literal('polytext-v2')]),
     }),
     t.partial(
       {
         text: t.string,
         color: t.string,
-        specularColor: t.tuple([t.number, t.number, t.number]),
-        edges: t.boolean,
       },
       TYPE_SPECIFIC,
     ),
@@ -431,28 +429,6 @@ export const PolytextRecord = t.intersection(
   'PolytextRecord',
 )
 export type PolytextRecord = t.TypeOf<typeof PolytextRecord>
-
-export const PolytextV2Record = t.intersection(
-  [
-    FeatureCommon,
-    t.type({
-      type: t.literal('polytext-v2'),
-    }),
-    t.partial(
-      {
-        text: t.string,
-        color: t.string,
-        emissiveColor: t.string,
-        collidable: t.union([t.undefined, t.boolean]),
-        specularColor: t.union([t.string, t.tuple([t.number, t.number, t.number])]),
-        edges: t.boolean,
-      },
-      TYPE_SPECIFIC,
-    ),
-  ],
-  'PolytextRecord',
-)
-export type PolytextV2Record = t.TypeOf<typeof PolytextV2Record>
 
 export const ButtonRecord = t.intersection(
   [
@@ -800,7 +776,6 @@ export const FeatureRecord = t.union(
     CollectibleModelRecord,
     AudioRecord,
     PolytextRecord,
-    PolytextV2Record,
     ButtonRecord,
     VoxModelRecord,
     MegavoxRecord,
@@ -828,7 +803,7 @@ export type FeatureRecord = t.TypeOf<typeof FeatureRecord>
 
 export type FeatureType = FeatureRecord['type']
 
-type NonMeshedFeatureType = GroupRecord['type'] | PolytextRecord['type'] | PolytextV2Record['type']
+type NonMeshedFeatureType = GroupRecord['type'] | PolytextRecord['type']
 
 type MeshedFeatureType = Exclude<FeatureType, NonMeshedFeatureType>
 
