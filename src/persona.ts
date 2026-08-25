@@ -195,7 +195,7 @@ export default class Persona {
     const m = controls.body.motion
     if (controls.vehicleFeature) return Animations.Sitting
     if (this.emote != null) return this.emote
-    if (!m.grounded && !controls.body.flying) return Animations.Floating
+    if (controls.body.flying) return Animations.Floating
     if (m.hz > WALK_HZ) return Animations.Walk
     return Animations.Idle
   }
@@ -227,7 +227,7 @@ export default class Persona {
       this._animation = Animations.Sitting
     }
 
-    const stepping = this._animation === Animations.Walk && m.grounded
+    const stepping = this._animation === Animations.Walk
     if (stepping !== this.stepping) {
       this.stepping = stepping
       if (stepping) this.audio?.footstepSounds?.walk()

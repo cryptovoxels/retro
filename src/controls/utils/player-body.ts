@@ -17,7 +17,7 @@ export const HOP_SPEED = 3
 export const GRAVITY = -9.8
 export const WALK_HZ = 0.15
 
-export type Motion = { hz: number; vy: number; grounded: boolean; impact: number }
+export type Motion = { hz: number; vy: number; impact: number }
 
 export default class PlayerBody {
   position = BABYLON.Vector3.Zero()
