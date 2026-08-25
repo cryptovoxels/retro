@@ -756,7 +756,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
   public abstract generate(): Promise<void>
 
-  generateDraft(): void {}
+  generateDraft(): void { }
 
   disposeBasicGui() {
     if (this.basicGui) {
@@ -1012,7 +1012,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     return this.stripMeshAdjustments(getTransformVectorsRelativeToNode(this.mesh, node))
   }
 
-  protected applyMeshTransformAdjustments() {}
+  protected applyMeshTransformAdjustments() { }
 
   protected stripMeshAdjustments(tv: transformVectors): transformVectors {
     return tv

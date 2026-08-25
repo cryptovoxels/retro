@@ -472,8 +472,7 @@ select {
   }
 }
 
-.classifieds {
-}
+.classifieds {}
 
 .toggle {
   width: 2.5rem;
@@ -502,8 +501,7 @@ select {
   }
 }
 
-.voice-toggle {
-}
+.voice-toggle {}
 
 .wrap-grid {
   display: grid;
@@ -525,9 +523,9 @@ select {
     aspect-ratio: 1;
   }
 
-  img + p,
-  .wearable-icon + p,
-  a > p {
+  img+p,
+  .wearable-icon+p,
+  a>p {
     margin: 0;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -661,12 +659,12 @@ header:has(nav) {
   }
 }
 
-main > button.site-nav-toggle {
+main>button.site-nav-toggle {
   display: none;
 }
 
 @media @narrow {
-  main > button.site-nav-toggle {
+  main>button.site-nav-toggle {
     display: block;
     position: fixed;
     left: max(1rem, env(safe-area-inset-left, 0px));
@@ -702,7 +700,7 @@ header nav {
     color: var(--fg);
   }
 
-  li > a {
+  li>a {
     display: block;
     padding: 0 1rem;
     border-bottom: var(--border);
@@ -800,29 +798,29 @@ main {
   grid-template-rows: 1fr;
   overflow: hidden;
 
-  > header,
-  > .site-nav-toggle {
+  >header,
+  >.site-nav-toggle {
     grid-column: 1;
     grid-row: 1;
   }
 
-  > .client,
-  > .canvasdom {
+  >.client,
+  >.canvasdom {
     grid-column: 2;
     grid-row: 1;
     min-width: 0;
     min-height: 0;
   }
 
-  > .canvasdom {
+  >.canvasdom {
     position: relative;
     z-index: 2;
     width: 100%;
     height: 100%;
   }
 
-  > .page,
-  > .ui-pane {
+  >.page,
+  >.ui-pane {
     grid-column: 3;
     grid-row: 1;
     min-width: 0;
@@ -831,12 +829,12 @@ main {
     background: var(--bg);
   }
 
-  > .ui-pane.-closed {
+  >.ui-pane.-closed {
     display: none;
   }
 
   // pane takes the column; page steps aside
-  &:has(> .ui-pane:not(.-closed)) > .page {
+  &:has(> .ui-pane:not(.-closed))>.page {
     display: none;
   }
 
@@ -844,7 +842,7 @@ main {
   &.-play {
     grid-template-columns: auto 1fr;
 
-    > .page {
+    >.page {
       display: none;
     }
   }
@@ -859,20 +857,20 @@ main {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr 40%;
 
-    > header,
-    > .site-nav-toggle {
+    >header,
+    >.site-nav-toggle {
       grid-column: 1;
       grid-row: 1;
     }
 
-    > .client,
-    > .canvasdom {
+    >.client,
+    >.canvasdom {
       grid-column: 1;
       grid-row: 1;
     }
 
-    > .page,
-    > .ui-pane {
+    >.page,
+    >.ui-pane {
       grid-column: 1;
       grid-row: 2;
     }
@@ -926,19 +924,19 @@ button.hamburger {
   align-items: start;
   gap: 0.5rem 1rem;
 
-  & > nav {
+  &>nav {
     margin-top: 4rem;
     overflow: hidden;
     max-width: 10rem;
     transition: max-width 200ms ease-in-out;
   }
 
-  & > article {
+  &>article {
     flex: 1;
     padding: 0.5rem 0;
   }
 
-  & > aside {
+  &>aside {
     width: 18rem;
     padding: 0.5rem 0.5rem 1rem 0;
 
@@ -963,7 +961,7 @@ button.hamburger {
 .columns.build-page {
   gap: 0;
 
-  > article {
+  >article {
     padding: 0;
   }
 }
@@ -977,8 +975,8 @@ button.hamburger {
   .columns {
     flex-direction: column;
 
-    & > article,
-    & > aside {
+    &>article,
+    &>aside {
       width: 100%;
     }
   }
@@ -1305,6 +1303,7 @@ body:-webkit-full-screen.in-world .ui-pane.-broadcast {
 }
 
 @keyframes showbox-live-pulse {
+
   0%,
   100% {
     opacity: 1;
@@ -1402,7 +1401,7 @@ body.done-loading {
 
 // Figcaption
 
-figcaption + figure {
+figcaption+figure {
   margin-top: -2rem;
 }
 
@@ -1431,8 +1430,7 @@ figcaption {
 
 // Mode buttons show full words on desktop, single letters on mobile
 
-@media @narrow {
-}
+@media @narrow {}
 
 // Definition list
 
@@ -1598,6 +1596,7 @@ div.f {
 }
 
 .island-admin {
+
   article,
   aside {
     width: 40vw;
@@ -1789,7 +1788,7 @@ hgroup {
     margin: 1rem 0 0 0;
   }
 
-  h1 + p {
+  h1+p {
     margin-top: -0.5rem;
   }
 }
@@ -1863,7 +1862,7 @@ p.empty {
       margin: 0;
       padding: 0;
 
-      & > a {
+      &>a {
         display: block;
 
         // truncate
@@ -1898,11 +1897,9 @@ menu.context {
     cursor: pointer;
   }
 
-  li:hover {
-  }
+  li:hover {}
 
-  li:hover {
-  }
+  li:hover {}
 }
 
 // Parcels / spaces table
@@ -1948,6 +1945,7 @@ table.spaces {
 // Radar
 
 .radar {
+
   &,
   ul,
   li {
@@ -1961,7 +1959,7 @@ table.spaces {
     list-style-type: '>';
   }
 
-  & > li {
+  &>li {
     margin-bottom: 1rem;
     list-style: none;
   }
@@ -1977,7 +1975,7 @@ table.spaces {
     margin: 0 0 0.35rem;
   }
 
-  .radar > li {
+  .radar>li {
     margin-bottom: 0.35rem;
   }
 
@@ -2083,6 +2081,7 @@ table.spaces {
   }
 
   &.showbox-dock-live.showbox-dock-chat-focus {
+
     .showbox-dock-live-tools,
     .showbox-dock-link-btn,
     .showbox-dock-footer,
@@ -2187,6 +2186,7 @@ table.spaces {
 }
 
 @keyframes showbox-live-pulse {
+
   0%,
   100% {
     opacity: 1;
@@ -2417,8 +2417,10 @@ table.spaces {
 
 // global web button:hover sticks on mobile after tap
 .showbox-dock {
+
   .showbox-dock-link-btn,
   .showbox-dock-cancel {
+
     &:hover,
     &:focus,
     &:active {
@@ -2429,6 +2431,7 @@ table.spaces {
   }
 
   .showbox-dock-viewer-count {
+
     &:hover,
     &:focus,
     &:active {
@@ -2442,6 +2445,7 @@ table.spaces {
   .showbox-dock-share-main,
   .showbox-dock-share-pick,
   .showbox-dock-go:not(.stop) {
+
     &:hover,
     &:focus,
     &:active {
@@ -2452,6 +2456,7 @@ table.spaces {
   }
 
   .showbox-dock-go.stop {
+
     &:hover,
     &:focus,
     &:active {
@@ -2463,6 +2468,7 @@ table.spaces {
 
   .showbox-dock-chat-reply button,
   .showbox-dock-share-row button {
+
     &:hover,
     &:focus,
     &:active {
@@ -2473,6 +2479,7 @@ table.spaces {
   }
 
   .showbox-dock-share-menu button {
+
     &:hover,
     &:focus,
     &:active {
@@ -2506,13 +2513,13 @@ table.spaces {
       display: flex;
       gap: 0.5rem;
 
-      > div {
+      >div {
         display: block;
         overflow: hidden;
         text-overflow: ellipsis;
       }
 
-      > div,
+      >div,
       input[type='text'] {
         flex: 1;
       }
@@ -2734,6 +2741,7 @@ body.x-in-world {
   }
 
   .client {
+
     p,
     li,
     ul,
@@ -2775,7 +2783,7 @@ button.iconish {
   z-index: 2;
   pointer-events: none;
 
-  & > ul.ui-sidebar {
+  &>ul.ui-sidebar {
     // punch through empty column so 3D ActionGui (try on / guestbook) gets clicks
     pointer-events: none;
     transition: opacity 0.5s;
@@ -2795,7 +2803,7 @@ button.iconish {
     }
 
     li,
-    > u {
+    >u {
       pointer-events: auto;
       list-style: none;
       margin: 0;
@@ -2840,8 +2848,9 @@ button.iconish {
     }
   }
 
-  @media screen and (max-width: 799px), screen and (max-height: 449px) {
-    &[data-active='false'] > ul.ui-sidebar {
+  @media screen and (max-width: 799px),
+  screen and (max-height: 449px) {
+    &[data-active='false']>ul.ui-sidebar {
       transform: translateX(-100%);
       visibility: hidden;
       pointer-events: none;
@@ -2850,7 +2859,7 @@ button.iconish {
 }
 
 // walking fades the sidebar so the world gets the screen; mouse over the column brings it back
-body.walking .canvasdom aside > ul.ui-sidebar {
+body.walking .canvasdom aside>ul.ui-sidebar {
   opacity: 0;
 
   &:hover {
@@ -2976,7 +2985,7 @@ body.walking .canvasdom aside > ul.ui-sidebar {
       text-align: left;
       width: 100%;
 
-      > i {
+      >i {
         margin-right: 5px;
       }
 
@@ -3066,20 +3075,22 @@ dialog.editor {
   }
 
   .editor-toolbar {
+    margin: 0;
+    padding: 0;
     margin-bottom: 0.5rem;
+    gap: 0;
 
-    ul.toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      list-style: none;
+    display: flex;
+    flex-direction: row;
+
+    button {
       margin: 0;
-      padding: 0;
-      gap: 2px;
+      border: none;
     }
-  }
 
-  .scrollContainer {
-    overflow-x: hidden;
+    li {
+      list-style: none;
+    }
   }
 
   textarea,
@@ -3087,8 +3098,7 @@ dialog.editor {
     cursor: pointer;
   }
 
-  button {
-  }
+  button {}
 
   button.asset-library {
     width: 100%;
@@ -3161,7 +3171,7 @@ dialog.editor {
     text-shadow: 1px 1px 1px var(--bg);
   }
 
-  .textures + p {
+  .textures+p {
     margin: 16px 0 0 12px;
 
     small {
@@ -3240,7 +3250,7 @@ dialog.editor {
         padding: 0.2rem 0;
       }
 
-      > input[type='checkbox'] {
+      >input[type='checkbox'] {
         flex: 0 0 auto;
         margin: 0 4px;
         align-self: center;
@@ -3257,7 +3267,7 @@ dialog.editor {
         display: contents;
       }
 
-      > label,
+      >label,
       label:first-child {
         font-size: 0.85em;
         padding: 4px 6px;
@@ -3267,10 +3277,10 @@ dialog.editor {
         align-self: center;
       }
 
-      > input,
-      > select,
-      > textarea,
-      > button {
+      >input,
+      >select,
+      >textarea,
+      >button {
         grid-column: 2;
         padding: 4px 6px;
         align-self: center;
@@ -3279,13 +3289,13 @@ dialog.editor {
         background: transparent;
       }
 
-      > div:not(.sub-f),
-      > .button-tabs,
+      >div:not(.sub-f),
+      >.button-tabs,
       form label {
         grid-column: 1 / -1;
       }
 
-      > select ~ * {
+      >select~* {
         grid-column: 1 / -1;
       }
 
@@ -3302,14 +3312,14 @@ dialog.editor {
       display: grid;
       grid-template-columns: 38% 1fr;
 
-      > label {
+      >label {
         font-size: 0.85em;
         padding: 4px 6px;
         margin: 0;
         align-self: center;
       }
 
-      > small {
+      >small {
         margin: 0;
         padding: 4px 6px;
         align-self: center;
@@ -3317,7 +3327,7 @@ dialog.editor {
 
       .behaviour-row,
       .behaviour-add,
-      > .f {
+      >.f {
         grid-column: 1 / -1;
       }
     }
@@ -3376,7 +3386,7 @@ dialog.editor {
       margin-top: 10px;
     }
 
-    input[type='checkbox'] + small {
+    input[type='checkbox']+small {
       display: inline;
     }
 
@@ -3385,12 +3395,13 @@ dialog.editor {
       margin: 5px 0;
     }
 
-    select + div {
+    select+div {
       margin-top: 4px;
     }
   }
 
   .f.fs {
+
     input[type='number'],
     input.number {
       width: 83px;
@@ -3433,7 +3444,7 @@ dialog.editor {
     justify-content: space-around;
     text-align: center;
 
-    div > small > button {
+    div>small>button {
       margin-right: 0;
     }
   }
@@ -3470,11 +3481,9 @@ dialog.editor {
       input[type='text'],
       input[type='number'],
       input[type='range'],
-      textarea {
-      }
+      textarea {}
 
-      textarea {
-      }
+      textarea {}
     }
   }
 }
@@ -3556,7 +3565,7 @@ section.build-tab nav.build-main-tabs {
 }
 
 .FeatureSpawnList {
-  > header {
+  >header {
     display: flex;
     align-items: center;
     margin-bottom: 5px;
@@ -3620,7 +3629,7 @@ section.build-tab nav.build-main-tabs {
     flex-wrap: wrap;
     margin-top: 5px;
 
-    > div {
+    >div {
       margin: 3px;
       cursor: pointer;
 
@@ -3659,7 +3668,7 @@ section.build-tab nav.build-main-tabs {
   div.tints {
     margin-top: 10px;
 
-    > span {
+    >span {
       display: inline-block;
       margin-right: 3px;
       cursor: pointer;
@@ -3746,8 +3755,8 @@ section.build-tab nav.build-main-tabs {
 .SortingOptions {
   margin: 5px 4px;
 
-  > a,
-  > button {
+  >a,
+  >button {
     padding: 4px 8px;
     text-decoration: none;
     font: inherit;
@@ -3774,8 +3783,8 @@ section.build-tab nav.build-main-tabs {
     }
   }
 
-  > a.categories,
-  > a.types {
+  >a.categories,
+  >a.types {
     padding: 4px 0;
 
     select {
@@ -3797,17 +3806,17 @@ section.build-tab nav.build-main-tabs {
   &.-small {
     height: 100%;
 
-    > *:nth-child(2) {
+    >*:nth-child(2) {
       flex-grow: 1;
     }
 
-    > img {
+    >img {
       width: 140px;
       height: 140px;
     }
   }
 
-  &.-large > img {
+  &.-large>img {
     width: 180px;
     height: 180px;
   }
@@ -3817,7 +3826,7 @@ section.build-tab nav.build-main-tabs {
     margin: 0 5px 0 0;
   }
 
-  > img {
+  >img {
     width: 180px;
     height: 180px;
     background-color: var(--line);
@@ -3825,17 +3834,17 @@ section.build-tab nav.build-main-tabs {
     margin-bottom: 5px;
   }
 
-  > div.loading-image,
-  > div.broken-image {
+  >div.loading-image,
+  >div.broken-image {
     width: 100%;
 
-    > img {
+    >img {
       display: block;
       margin: auto;
     }
   }
 
-  > div.broken-image {
+  >div.broken-image {
     height: 100%;
     filter: grayscale();
   }
@@ -3889,7 +3898,7 @@ section.build-tab nav.build-main-tabs {
       flex: 1;
     }
 
-    div + div {
+    div+div {
       margin-left: 4px;
     }
   }
@@ -3907,11 +3916,9 @@ section.build-tab nav.build-main-tabs {
     gap: 10px;
     margin: 10px;
 
-    img {
-    }
+    img {}
 
-    img {
-    }
+    img {}
 
     div.asset-card-container {
       position: relative;
@@ -3964,7 +3971,7 @@ section.build-tab nav.build-main-tabs {
       margin: 0;
       padding: 0;
 
-      &.selected > a {
+      &.selected>a {
         color: unset;
         font-weight: bold;
         text-decoration: none;
@@ -3990,18 +3997,13 @@ section.build-tab nav.build-main-tabs {
   min-height: 0;
   overflow: visible;
 
-  > section {
+  >section {
     display: flex;
     flex-direction: column;
     height: 100%;
     min-height: 0;
   }
 
-  .scrollContainer {
-    flex: 1;
-    min-height: 0;
-    overflow: visible;
-  }
 }
 
 .edit-pane-inspector {
@@ -4019,9 +4021,6 @@ section.build-tab nav.build-main-tabs {
 .ui-pane section.settings {
   overflow: visible;
 
-  .scrollContainer {
-    overflow: visible;
-  }
 }
 
 .inspector.overlay {
@@ -4121,14 +4120,14 @@ section.take-womp {
   }
 }
 
-form.PermissionsRadioSelector > div {
+form.PermissionsRadioSelector>div {
   margin: 10px 0;
 
-  > label {
+  >label {
     cursor: pointer;
     display: flex;
 
-    > div {
+    >div {
       margin-left: 5px;
       flex: 1;
 
@@ -4149,11 +4148,11 @@ form.PermissionsRadioSelector > div {
   .colos {
     display: flex;
 
-    & > ul {
+    &>ul {
       flex: 1;
     }
 
-    & > ul:last-child {
+    &>ul:last-child {
       padding-left: 8px;
     }
   }
@@ -4186,7 +4185,7 @@ form.PermissionsRadioSelector > div {
       margin-top: 1rem;
     }
 
-    u + p {
+    u+p {
       display: inline-block;
       margin: 0;
     }
@@ -4195,6 +4194,7 @@ form.PermissionsRadioSelector > div {
 
 /* debug tools (and leftover overlay sections) */
 .parcel-information-overlay {
+
   h2,
   h3,
   h4,
@@ -4220,7 +4220,7 @@ form.PermissionsRadioSelector > div {
     margin: 5px 0 5px 7px;
   }
 
-  .actions > li {
+  .actions>li {
     margin: 5px 0 2px 2px;
 
     a {
@@ -4242,7 +4242,7 @@ form.PermissionsRadioSelector > div {
     padding: 8px;
     margin: 2px 2px 10px;
 
-    > * {
+    >* {
       margin-bottom: 8px;
     }
 
@@ -4361,6 +4361,7 @@ form.PermissionsRadioSelector > div {
     user-select: text;
 
     table {
+
       th,
       td {
         text-align: left;
@@ -4496,7 +4497,7 @@ div.mobile-buttons {
     height: @size;
     margin: 1rem;
 
-    & > button.hex-button {
+    &>button.hex-button {
       position: relative;
       padding: 0;
       margin: 0 0.5rem 0 0;
@@ -4575,11 +4576,9 @@ dialog {
     }
   }
 
-  &.-fixed {
-  }
+  &.-fixed {}
 
-  &.-fixed {
-  }
+  &.-fixed {}
 
   iframe {
     background: #eee;
@@ -4587,6 +4586,7 @@ dialog {
 }
 
 .ParcelAdminWindow .OverlayHighlightContent {
+
   input[type='text'],
   textarea {
     flex: 2;
@@ -4819,7 +4819,7 @@ dialog.nft-view {
     }
   }
 
-  li + li {
+  li+li {
     margin-top: 3px;
   }
 
@@ -4836,8 +4836,7 @@ dialog.nft-view {
     user-select: text;
   }
 
-  button {
-  }
+  button {}
 
   ul {
     margin: 0 0 0 15px;
@@ -4853,7 +4852,7 @@ dialog.nft-view {
     top: 0;
   }
 
-  & > a:hover {
+  &>a:hover {
     background: none !important;
   }
 }
@@ -4984,6 +4983,7 @@ button[accesskey] {
 
 /* Map marker css icons */
 div.css-icon {
+
   div.party,
   div.exhibition {
     height: 18px;
@@ -5042,7 +5042,7 @@ div.css-icon {
   gap: 0.5rem;
   padding: 0.5rem 1rem;
 
-  > button:not(.womp-button) {
+  >button:not(.womp-button) {
     background: transparent;
     border: none;
   }
@@ -5054,12 +5054,12 @@ main:has(.worldmap) {
   max-width: none;
   grid-template-columns: auto 1fr;
 
-  > .client,
-  > .canvasdom {
+  >.client,
+  >.canvasdom {
     display: none;
   }
 
-  > .page {
+  >.page {
     grid-column: 2;
     padding: 0;
     overflow: hidden;
@@ -5080,7 +5080,7 @@ main:has(.worldmap) {
     grid-template-columns: 1fr;
     grid-template-rows: 1fr;
 
-    > .page {
+    >.page {
       grid-row: 1;
     }
   }
@@ -5096,13 +5096,13 @@ main:has(.worldmap) {
   gap: 0;
   align-items: stretch;
 
-  > article {
+  >article {
     padding: 0;
     min-width: 0;
     height: 100%;
   }
 
-  > aside {
+  >aside {
     width: 23rem;
     overflow-y: auto;
     padding: 1rem;
@@ -5112,12 +5112,12 @@ main:has(.worldmap) {
 
 @media @narrow {
   .columns.for-sale {
-    > article {
+    >article {
       flex: 1;
       min-height: 0;
     }
 
-    > aside {
+    >aside {
       width: 100%;
       flex: 0 0 40%;
     }
@@ -5293,12 +5293,12 @@ body.theatre-mode {
   main {
     grid-template-columns: 0 1fr 0;
 
-    & > header {
+    &>header {
       display: none;
     }
 
-    & > .page,
-    & > .ui-pane {
+    &>.page,
+    &>.ui-pane {
       grid-column: unset;
       grid-row: unset;
       position: fixed;

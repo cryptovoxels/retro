@@ -239,31 +239,23 @@ export function Toolbar(props: { feature: Feature; scene: BABYLON.Scene }) {
   }
 
   return (
-    <div class="editor-toolbar">
-      <div class="help">{props.feature.whatIsThis()}</div>
-      <ul className="toolbar">
-        <li>
-          <button class="replicate" onClick={onClone}>
-            Duplicate
-          </button>
-        </li>
-        <li>
-          <button class="move" onClick={onMove}>
-            Move
-          </button>
-        </li>
-        <li>
-          <button class="delete" onClick={onDelete}>
-            Delete
-          </button>
-        </li>
-        {app.signedIn && showShareToLibrary() && (
-          <li>
-            <button onClick={onShare}>Share</button>
-          </li>
-        )}
-      </ul>
-    </div>
+    <ul class="editor-toolbar">
+      <li>
+        <button class="replicate" onClick={onClone}>
+          Copy
+        </button>
+      </li>
+      <li>
+        <button class="move" onClick={onMove}>
+          Move
+        </button>
+      </li>
+      <li>
+        <button class="delete" onClick={onDelete}>
+          Delete
+        </button>
+      </li>
+    </ul>
   )
 }
 
@@ -663,10 +655,10 @@ export function CollectibleTryScale(props: { feature: CollectibleModel }) {
 
     const newState = axesToUpdate.reduce((accumulator, axis) => {
       if (axis === axisChanged) {
-        ;(accumulator as any)[axis] = parsedValue
+        ; (accumulator as any)[axis] = parsedValue
       } else if ((scaleValues as any)[axisChanged] !== 0) {
         const aspectRatio = (scaleValues as any)[axis] / (scaleValues as any)[axisChanged]
-        ;(accumulator as any)[axis] = round(parsedValue * aspectRatio, 6)
+          ; (accumulator as any)[axis] = round(parsedValue * aspectRatio, 6)
       }
       return accumulator
     }, {}) as any

@@ -99,29 +99,25 @@ export default class ParcelSnapshots extends Component<Props, State> {
       <section className="parcel-states">
         <h2>Snapshots</h2>
 
-        <div className="scrollContainer">
-          <div className="overlay-header">
-            <p>Parcels are automatically saved every edit. Snapshots are user-selected states of your parcel that you can chose to come back to later.</p>
+        <p>Parcels are automatically saved every edit. Snapshots are user-selected states of your parcel that you can chose to come back to later.</p>
 
-            {!this.state.takingSnapshot ? (
-              <div>
-                <button name="snapshot" title="Take a snapshot of this parcel's version" id="snapshot" onClick={() => this.takeSnapshot()}>
-                  Take snapshot
-                </button>
-                <button onClick={() => this.refresh()}>Refresh</button>
-                <p style={{ margin: '0' }}>
-                  <small>Only owners can take Snapshots</small>
-                  <br />
-                  <small>Autosaves are available for one hour, use a snapshot if you want to keep your changes.</small>
-                </p>
-              </div>
-            ) : (
-              'Saving snapshot...'
-            )}
+        {!this.state.takingSnapshot ? (
+          <div>
+            <button name="snapshot" title="Take a snapshot of this parcel's version" id="snapshot" onClick={() => this.takeSnapshot()}>
+              Take snapshot
+            </button>
+            <button onClick={() => this.refresh()}>Refresh</button>
+            <p style={{ margin: '0' }}>
+              <small>Only owners can take Snapshots</small>
+              <br />
+              <small>Autosaves are available for one hour, use a snapshot if you want to keep your changes.</small>
+            </p>
           </div>
-          <p>Snapshots for {this.state.parcel?.address}:</p>
-          <ul className="unordered-list">{this.state.loading ? 'Loading...' : parcelSnapshots.length > 0 ? parcelSnapshots : 'No snapshots.'}</ul>
-        </div>
+        ) : (
+          'Saving snapshot...'
+        )}
+        <p>Snapshots for {this.state.parcel?.address}:</p>
+        <ul className="unordered-list">{this.state.loading ? 'Loading...' : parcelSnapshots.length > 0 ? parcelSnapshots : 'No snapshots.'}</ul>
       </section>
     )
   }
