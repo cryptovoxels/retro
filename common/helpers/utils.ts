@@ -1,3 +1,13 @@
+// one retry, 1s wait. for load-bearing fetches only, everything else fails soft.
+export async function retryOnce<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn()
+  } catch {
+    await new Promise((r) => setTimeout(r, 1000))
+    return fn()
+  }
+}
+
 export const simpleHash = (data: string): string => {
   let hash = 2166136261
   for (let i = 0; i < data.length; i++) {

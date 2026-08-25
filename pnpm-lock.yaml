@@ -98,9 +98,6 @@ importers:
       buffer-image-size:
         specifier: ^0.6.4
         version: 0.6.4
-      cockatiel:
-        specifier: ^3.1.1
-        version: 3.2.1
       color-hash:
         specifier: ^2.0.2
         version: 2.0.2
@@ -3027,10 +3024,6 @@ packages:
   cluster-key-slot@1.1.2:
     resolution: {integrity: sha512-RMr0FhtfXemyinomL4hrWcYJxmX6deFdCxpJzhDttxgO1+bcCnkk+9drydLVDmAMG7NE6aN/fl4F7ucU/90gAA==}
     engines: {node: '>=0.10.0'}
-
-  cockatiel@3.2.1:
-    resolution: {integrity: sha512-gfrHV6ZPkquExvMh9IOkKsBzNDk6sDuZ6DdBGUBkvFnTCqCxzpuq48RySgP0AnaqQkw2zynOFj9yly6T1Q2G5Q==}
-    engines: {node: '>=16'}
 
   color-convert@1.9.3:
     resolution: {integrity: sha512-QfAUtd+vFdAtFQcC8CCyYt1fYWxSqAiK2cSD6zDB8N3cpsEBAvRxp9zOGg6G/SHHJYAT88/az/IuDGALsNVbGg==}
@@ -9774,8 +9767,6 @@ snapshots:
       shallow-clone: 3.0.1
 
   cluster-key-slot@1.1.2: {}
-
-  cockatiel@3.2.1: {}
 
   color-convert@1.9.3:
     dependencies:

@@ -3,14 +3,10 @@ import type { CachedParcelsMessage } from '../../common/messages/api-parcels'
 import { type BBox, RBush3D } from 'rbush-3d'
 import type { FetchOptions } from '../../web/src/utils'
 import pDefer from 'p-defer'
-import { ExponentialBackoff, handleAll, retry } from 'cockatiel'
+import { retryOnce } from '../../common/helpers/utils'
 import { LoadState, GridWorkerParcel } from '../grid-worker-parcel'
 import type { NdArray } from 'ndarray'
 import { vec3, type Vec3 } from './math'
-
-// Create a retry policy that'll try whatever function with a randomized exponential backoff.
-// to be used by fetch!
-const retryPolicy = retry(handleAll, { backoff: new ExponentialBackoff() })
 
 export type CameraUpdateMessage = {
   type: 'camera'
@@ -121,7 +117,7 @@ class GridWorker implements GridWorkerAPI {
     if (this.loadFinished) throw new Error('GridWorker already loaded')
     // this is very high priority since the world depends on this loading
     const opts: FetchOptions = { priority: 'high' }
-    await retryPolicy.execute(async () => {
+    await retryOnce(async () => {
       const res = await fetch(process.env.ASSET_PATH + `/api/parcels/cached.json`, opts)
       if (!res.ok) throw res
       const response = (await res.json()) as CachedParcelsMessage

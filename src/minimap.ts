@@ -224,30 +224,9 @@ export class Minimap {
 
   private async loadParcels() {
     this.parcels = []
-    return fetchAllParcels().then((parcels) => {
-      this.parcels = parcels?.filter((p) => p.visible).map((p) => new MapParcel(this.scene, p, this.getMesh(p)))
-      return this.loadWalletParcels()
-    })
-  }
 
-  private async loadWalletParcels() {
-    if (!app.state.wallet) return
-    const o = fetchOwnerParcels(app.state.wallet).then((parcels) => {
-      parcels.forEach((owned) => {
-        const e = this.parcels.find((p) => p.id === owned.id)
-        if (!e) return console.error(`owned parcel #${owned.id} not found`)
-        e.setMesh(this.meshes.owner)
-      })
-    })
-    const c = fetchContributingParcels(app.state.wallet).then((parcels) => {
-      parcels.forEach((contributor) => {
-        const e = this.parcels.find((p) => p.id === contributor.id)
-        if (!e) return console.error(`contributor parcel #${contributor.id} not found`)
-        e.setMesh(this.meshes.contributor)
-      })
-    })
-
-    await Promise.all([o, c])
+    const parcels = await fetchAllParcels()
+    this.parcels = parcels.map((p) => new MapParcel(this.scene, p, this.getMesh(p)))
   }
 
   private unloadParcels() {

@@ -1,17 +1,13 @@
-import { ExponentialBackoff, handleAll, retry } from 'cockatiel'
 import type { NdArray } from 'ndarray'
 import type { ApiParcelMessage } from '../common/messages/api-parcels'
 import { GridWorkerParcelRecord } from '../common/messages/grid'
+import { retryOnce } from '../common/helpers/utils'
 import { isCompleteParcelRecord } from '../common/messages/parcel'
 import { getBufferFromVoxels, getFieldShape } from '../common/voxels/helpers'
 import type { FetchOptions } from '../web/src/utils'
 import type { GridWorkerOutput } from './monoworker/grid'
 import { aabbDistance, vec3, type Vec3 } from './monoworker/math'
 // Removed meshing imports - meshing now handled on main thread
-
-// Create a retry policy that'll try whatever function with a randomized exponential backoff.
-// to be used by fetch!
-const retryPolicy = retry(handleAll, { backoff: new ExponentialBackoff() })
 
 export enum LoadState {
   None,
@@ -127,13 +123,11 @@ export class GridWorkerParcel {
       return this.handleFetchSuccess(response)
     } catch {
       if (abortController.signal.aborted) return false
-      const fallbackResult = await retryPolicy
-        .execute(async () => {
-          const res = await this.fetchJson(url, abortController.signal, priority)
-          const response = (await res.json()) as ApiParcelMessage
-          return this.handleFetchSuccess(response)
-        }, abortController.signal)
-        .catch(() => null)
+      const fallbackResult = await retryOnce(async () => {
+        const res = await this.fetchJson(url, abortController.signal, priority)
+        const response = (await res.json()) as ApiParcelMessage
+        return this.handleFetchSuccess(response)
+      }).catch(() => null)
       return fallbackResult !== null ? fallbackResult : false
     }
   }

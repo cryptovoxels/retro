@@ -1,8 +1,5 @@
-import { ExponentialBackoff, handleAll, retry } from 'cockatiel'
 import { getParcelHelper } from '../common/helpers/parcel-helper'
 import { SingleParcelRecord } from '../common/messages/parcel'
-
-const retryPolicy = retry(handleAll, { backoff: new ExponentialBackoff(), maxAttempts: 5 })
 
 export const OCEAN = new BABYLON.Color4(0.19, 0.44, 0.54, 1)
 
@@ -189,7 +186,7 @@ let islandCache: any
 
 export async function fetchIslands() {
   if (islandCache) return islandCache
-  const response = await retryPolicy.execute(() => fetch(`${process.env.ASSET_PATH || ''}/api/islands.json`))
+  const response = await fetch(`${process.env.ASSET_PATH || ''}/api/islands.json`)
   islandCache = await response.json()
   return islandCache
 }
@@ -216,7 +213,7 @@ export const fetchOwnerParcels = (wallet: string, cachebust = false): Promise<Si
 export const fetchContributingParcels = (wallet: string, cachebust = false): Promise<SingleParcelRecord[]> => fetchCachedParcels(`/api/wallet/${wallet}/contributing-parcels.json`, cachebust)
 
 export async function fetchMapParcels() {
-  const r = await retryPolicy.execute(() => fetch(`${process.env.API || '/api'}/parcels/map.json`, { credentials: 'include' }).then((res) => res.json()))
+  const r = await fetch(`${process.env.API || '/api'}/parcels/map.json`, { credentials: 'include' }).then((res) => res.json())
   return (r.parcels || []) as ParcelData[]
 }
 
@@ -225,8 +222,8 @@ const fetchCachedParcels = (url: string, cachebust = false): Promise<SingleParce
   return new Promise((resolve) => {
     if (!cachebust && Array.isArray(parcelCache[url])) return resolve(parcelCache[url])
     if (cachebust) url += `cb=${Date.now()}`
-    retryPolicy
-      .execute(() => fetch(url, { credentials: 'include' }).then((r) => r.json()))
+    fetch(url, { credentials: 'include' })
+      .then((r) => r.json())
       .then((data) => {
         parcelCache[url] = data.parcels
         resolve(parcelCache[url])

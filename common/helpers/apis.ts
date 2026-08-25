@@ -1,18 +1,13 @@
-import { ExponentialBackoff, handleAll, retry } from 'cockatiel'
 import { parseUnits } from 'ethers'
 import type { AlchemyNFTWithMetadata } from '../messages/api-alchemy'
-// Create a retry policy that'll try whatever function we execute 2 times with a randomized exponential backoff.
-const retryPolicy = retry(handleAll, { maxAttempts: 2, backoff: new ExponentialBackoff() })
 
-export const fetchJSON = (url: string, init: RequestInit): Promise<Record<string, any>> => {
-  return retryPolicy.execute(async () => {
-    const p = await fetch(url, init)
-    if (p.ok) {
-      return p.json()
-    } else {
-      throw new Error(`${p.status} ${p.statusText}`)
-    }
-  })
+export const fetchJSON = async (url: string, init: RequestInit): Promise<Record<string, any>> => {
+  const p = await fetch(url, init)
+  if (p.ok) {
+    return p.json()
+  } else {
+    throw new Error(`${p.status} ${p.statusText}`)
+  }
 }
 
 export type tokenBasicInfo = {

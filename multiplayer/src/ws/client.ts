@@ -1,4 +1,3 @@
-import { ExponentialBackoff, handleAll, retry } from 'cockatiel'
 import he from 'he'
 import { jwtVerify } from 'jose'
 import { v7 as uuidv7 } from 'uuid'
@@ -12,8 +11,6 @@ import type { WsLike } from '../createServer'
 import type { Shard } from './shards/shard'
 import { toBuffer } from '../utility/toBuffer'
 import { md5 } from '../../../common/helpers/utils'
-
-const retryPolicy = retry(handleAll, { maxAttempts: 3, backoff: new ExponentialBackoff() })
 
 const isVec3 = (v: any) => Array.isArray(v) && v.length === 3 && v.every((x: any) => typeof x === 'number')
 
@@ -257,11 +254,9 @@ export class Client {
     const ts = Date.now()
     let result
     try {
-      result = await retryPolicy.execute(() =>
-        this.connection.query('embedded/get-avatar', `SELECT * FROM avatars WHERE lower(owner)=lower($1) LIMIT 1;`, [
-          wallet,
-        ]),
-      )
+      result = await this.connection.query('embedded/get-avatar', `SELECT * FROM avatars WHERE lower(owner)=lower($1) LIMIT 1;`, [
+        wallet,
+      ])
     } catch (err) {
       console.error(`wallet query error (${(Date.now() - ts) / 1000}sec): ${err}`, this.whois())
       result = null
@@ -269,12 +264,10 @@ export class Client {
 
     let banResult = null
     try {
-      banResult = await retryPolicy.execute(() =>
-        this.connection.query(
-          'embedded/get-banned-user',
-          `select * from banned_users where lower(wallet)=lower($1) and expires_at>now() limit 1;`,
-          [wallet],
-        ),
+      banResult = await this.connection.query(
+        'embedded/get-banned-user',
+        `select * from banned_users where lower(wallet)=lower($1) and expires_at>now() limit 1;`,
+        [wallet],
       )
     } catch (err) {
       console.error(`banned_users query error (${(Date.now() - ts) / 1000}sec): ${err}`, this.whois())
