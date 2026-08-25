@@ -37,14 +37,6 @@ export default class DesktopControls extends Controls {
     return camera
   }
 
-  override setFlying(value: boolean) {
-    super.setFlying(value)
-    if (this.keyboardInput) {
-      this.keyboardInput.keysUpward = value ? ['PageUp'] : []
-      this.keyboardInput.keysDownward = value ? ['PageDown', 'KeyV'] : []
-    }
-  }
-
   override enterThirdPerson(startingDistance = CAMERA_DISTANCE) {
     const entered = super.enterThirdPerson(startingDistance)
     this.bindKeys()
@@ -286,9 +278,7 @@ export default class DesktopControls extends Controls {
   addKeyboardControls(camera: BABYLON.Camera) {
     this.keyboardInput = new LocaleKeyboardMoveInput({
       keysUp: ['ArrowUp', 'KeyW'],
-      keysUpward: this.flying ? ['PageUp'] : [],
       keysDown: ['ArrowDown', 'KeyS'],
-      keysDownward: this.flying ? ['PageDown', 'KeyV'] : [],
       keysLeft: ['ArrowLeft', 'KeyA'],
       keysRight: ['ArrowRight', 'KeyD'],
     })

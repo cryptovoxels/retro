@@ -69,7 +69,6 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
 
     scene.onAfterRenderObservable.add(() => {
       stepPhysics(scene.getEngine().getDeltaTime() / 1000)
-      controls.refreshGravity()
     })
 
     // start the environment load loop (which will load water on demand)
