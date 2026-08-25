@@ -2689,7 +2689,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
     material.diffuseTexture = tex
     material.backFaceCulling = false
-    material.zOffset = -4
+    material.zOffset = -5
     material.specularColor.set(0, 0, 0)
     material.emissiveColor.set(1, 1, 1)
     material.blockDirtyMechanism = true
@@ -2892,7 +2892,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
     material.diffuseTexture = tex
     material.backFaceCulling = false
-    material.zOffset = -4
+    material.zOffset = -5
     material.specularColor.set(0, 0, 0)
     material.emissiveColor.set(1, 1, 1)
     material.blockDirtyMechanism = true
@@ -2922,7 +2922,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
     material.diffuseTexture = tex
     material.backFaceCulling = false
-    material.zOffset = -4
+    material.zOffset = -5
     material.specularColor.set(0, 0, 0)
     material.emissiveColor.set(1, 1, 1)
     material.blockDirtyMechanism = true
@@ -3202,7 +3202,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       const mat = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
       mat.diffuseTexture = tex
       mat.backFaceCulling = false
-      mat.zOffset = -4
+      mat.zOffset = -5
       mat.specularColor.set(0, 0, 0)
       mat.emissiveColor.set(1, 1, 1)
       mat.blockDirtyMechanism = true

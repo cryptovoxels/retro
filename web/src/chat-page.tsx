@@ -115,7 +115,7 @@ export function ChatPage(_props: { path?: string }) {
           }
           return next
         })
-      } catch { }
+      } catch {}
     }
     return () => es.close()
   }, [])

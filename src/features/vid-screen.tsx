@@ -124,7 +124,7 @@ export default class VidScreen extends Feature2D<VidScreenRecord> {
 
     const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
     material.diffuseTexture = texture
-    material.zOffset = -0.1
+    material.zOffset = -5
     material.specularColor.fromArray(this.description.specularColor || [1, 1, 1])
 
     const plane = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)

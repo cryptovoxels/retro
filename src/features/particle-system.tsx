@@ -59,7 +59,7 @@ export default class ParticleSystem extends Feature3D<ParticlesRecord> {
     material.specularColor.set(0, 0, 0)
     material.emissiveColor.set(1, 0, 1)
     material.backFaceCulling = false
-    material.zOffset = -7
+    material.zOffset = -5
 
     const plane = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
     plane.material = material

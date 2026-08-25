@@ -95,7 +95,7 @@ export default class WompWall extends Feature2D<WompWallRecord> {
     material.emissiveColor.set(1, 1, 1)
     material.diffuseTexture = this.dynamicTexture
     material.backFaceCulling = false
-    material.zOffset = -1
+    material.zOffset = -5
 
     const old = this.mesh.material
     this.mesh.material = material

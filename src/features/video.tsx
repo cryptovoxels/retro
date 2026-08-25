@@ -177,7 +177,7 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
     material.alpha = 0.999
 
     // move the zOffset so that videos are behind the loader which is 4
-    material.zOffset = -3
+    material.zOffset = -5
     material.specularColor.set(0, 0, 0)
     material.emissiveColor.set(1, 1, 1)
 

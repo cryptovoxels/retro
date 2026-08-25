@@ -37,11 +37,10 @@ export async function searchAndReturn(req: Request, res: Response) {
     $2
   OFFSET 
     $3;
-  `;
+  `
 
   //  Refresh when you need to pick up new/updated rows:
   //    REFRESH MATERIALIZED VIEW CONCURRENTLY search_corpus;
-
 
   let results = []
 

@@ -349,7 +349,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     material.emissiveColor.fromArray(new Array(3).fill(defaultIntensity))
 
     material.backFaceCulling = false
-    material.zOffset = -2
+    material.zOffset = -5
     material.diffuseTexture = texture
 
     if (!(this.mesh instanceof BABYLON.Mesh)) {

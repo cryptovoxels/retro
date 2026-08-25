@@ -134,7 +134,7 @@ export default class Image extends Feature2D<ImageRecord> {
     material.emissiveColor.set(1, 1, 1)
     material.diffuseTexture = texture
     material.backFaceCulling = false
-    material.zOffset = -1
+    material.zOffset = -5
 
     if (!(this.mesh instanceof BABYLON.Mesh)) {
       this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)

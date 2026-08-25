@@ -1054,6 +1054,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       // In Babylon 5.5.6, a fix to computeWorldMatrix introduced something that broke the way we deal with nudges and z-fighting;
       // So now we have to always mark the mesh as dirty :/
       this.mesh.markAsDirty()
+
       // Behaviour of nudging before 8.10.0, where the nudge is impacted by the scale. This affects placements and parcels have been designed on the assumption
       // that it exists. In a bugfix to 8.10.0, we've restored the legacy behaviour for 3D artifacts but not 2D.
       if (this.legacyNudge() !== null) {
@@ -1167,7 +1168,7 @@ export abstract class Feature2D<Description extends MeshedFeatureRecord> extends
   }
 
   nudge(): number | null {
-    return -0.002
+    return -0.005
   }
 
   legacyNudge(): number | null {

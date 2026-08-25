@@ -41,7 +41,13 @@ export default async function createShards(
   const worldShard = new Shard('world', null, publish, connection, jwtSecret, onRadarEvent)
 
   try {
-    const { rows } = await connection.query<{ id: string; uuid: string; text: string; avatar: unknown; moderated_at: string | null }>(
+    const { rows } = await connection.query<{
+      id: string
+      uuid: string
+      text: string
+      avatar: unknown
+      moderated_at: string | null
+    }>(
       'chat/load-recent',
       `SELECT id, uuid, text, avatar, moderated_at FROM chat_messages ORDER BY created_at DESC LIMIT 1000`,
     )

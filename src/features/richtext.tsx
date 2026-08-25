@@ -40,7 +40,7 @@ export default class Richtext extends Feature2D<RichTextRecord> {
     const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
     material.alpha = 0.999
 
-    material.zOffset = -16
+    material.zOffset = -5
     material.specularColor.set(0, 0, 0)
     material.emissiveColor.set(1, 1, 1)
     material.backFaceCulling = false

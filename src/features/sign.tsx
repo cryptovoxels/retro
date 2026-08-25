@@ -86,7 +86,7 @@ export default class Sign extends Feature2D<SignRecord> {
     material.diffuseColor.set(1, 1, 1)
     material.diffuseTexture = dynamicTexture
     material.alpha = 0.999
-    material.zOffset = -8
+    material.zOffset = -5
     material.specularColor.set(0, 0, 0)
     material.emissiveColor.set(1, 1, 1)
     material.backFaceCulling = false

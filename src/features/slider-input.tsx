@@ -40,7 +40,7 @@ export default class SliderInput extends Feature2D<SliderInputRecord> {
 
     material.specularColor.fromArray(this.description.specularColor || [1, 1, 1])
 
-    material.zOffset = -6
+    material.zOffset = -5
     material.blockDirtyMechanism = true
     plane.material = material
 

@@ -128,7 +128,9 @@ function ChatLineBody({ m }: { m: ChatMessageRecord }) {
       {': '}
       <ChatText text={m.text} moderated={m.moderated} />
       {app.isAdmin() && m.id && !m.moderated && (
-        <button type="button" onClick={() => nerfChat(m.id!)}>nerf</button>
+        <button type="button" onClick={() => nerfChat(m.id!)}>
+          nerf
+        </button>
       )}
     </>
   )
@@ -231,7 +233,9 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
               <ChatText text={m.text} moderated={m.moderated} />
             </span>
             {app.isAdmin() && m.id && !m.moderated && (
-              <button type="button" onClick={() => nerfChat(m.id!)}>nerf</button>
+              <button type="button" onClick={() => nerfChat(m.id!)}>
+                nerf
+              </button>
             )}
           </div>
         ))}
