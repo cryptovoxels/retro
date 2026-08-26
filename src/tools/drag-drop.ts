@@ -3,7 +3,6 @@ import { app } from '../../web/src/state'
 import { getImageInfo, getURlImageInfo, getVoxInfo } from '../../web/src/utils'
 
 import { uploadMedia, UploadMediaResult } from '../../common/helpers/upload-media'
-import { uploadVoxModelMedia } from '../utils/upload-vox-media'
 import { PanelType } from '../../web/src/components/panel'
 
 const MB = 1024 * 1024
@@ -248,11 +247,7 @@ export class DragDrop {
 
     let result: UploadMediaResult
     try {
-      if (featureTemplate.type === 'vox-model' || featureTemplate.type === 'megavox' || featureTemplate.type === 'ride') {
-        result = await uploadVoxModelMedia(file, featureTemplate.type === 'megavox' || featureTemplate.type === 'ride', this.scene)
-      } else {
-        result = await uploadMedia(file)
-      }
+      result = await uploadMedia(file)
     } catch (ex) {
       result = {
         success: false,
@@ -266,6 +261,8 @@ export class DragDrop {
       this.ui?.featureTool.deactivate()
       return
     }
+
+    featureTemplate.url = result.location
 
     if (!this.ui) {
       // can't spawn without UI

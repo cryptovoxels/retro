@@ -12,7 +12,7 @@ import { inspectFeature } from '../ui/inspect-feature'
 import { enterAuthoring } from '../store'
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
 import { getTransformVectorsRelativeToNode } from '../utils/feature'
-import { axisNames2D, axisNames3D, bboxCompletelyWithin, tidyURL, tidyVec3, XYZ } from '../utils/helpers'
+import { axisNames2D, axisNames3D, bboxCompletelyWithin, resolveUgc, tidyURL, tidyVec3, XYZ } from '../utils/helpers'
 import { TimeOfDay } from '../utils/time-of-day'
 import Group from './group'
 import { boundingBoxOfMesh } from './utils/bounding-box'
@@ -281,7 +281,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   get url() {
-    return tidyURL(this.description.url)
+    return resolveUgc(tidyURL(this.description.url))
   }
 
   get tidyPosition(): [number, number, number] {

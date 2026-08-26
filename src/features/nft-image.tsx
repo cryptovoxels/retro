@@ -9,7 +9,7 @@ import nftFrameColorsShaderColors from '../shaders/nft-frame-colors.fsh'
 import nftVertexShader from '../shaders/nft.vsh'
 import { fetchTexture } from '../textures/textures'
 import { rebindGizmos } from '../tools/gizmos'
-import { Advanced, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UrlSourceNftImages } from '../ui/features'
+import { Advanced, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, SourceInput } from '../ui/features'
 import OpenseaAssetHelper from '../ui/gui/opensea-asset-helper'
 import showNftView from '../ui/html-ui/nft-view'
 import { tidyFloat } from '../utils/helpers'
@@ -544,7 +544,7 @@ class Editor extends FeatureEditor<NftImage> {
           <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
           <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <UrlSourceNftImages feature={this.props.feature} handleStateChange={this.onUrlChange} />
+          <SourceInput feature={this.props.feature} accept="nft" handleStateChange={this.onUrlChange} />
 
           <Advanced>
             <FeatureID feature={this.props.feature} />

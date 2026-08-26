@@ -295,7 +295,7 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
 
   // Route to edit snapshot attributes (just name atm)
   app.put('/api/parcels/snapshot', passport.authenticate('jwt', { session: false }), async (req, res) => {
-    const { version, name, ipfs_hash } = req.body
+    const { version, name } = req.body
 
     if (!version) {
       res.status(200).send({ success: false })
@@ -303,13 +303,7 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
     }
     let r
     if (name) {
-      // Set name of snapshot
       r = await db.query('embedded/update-property-version-snapshot_name', `update property_versions set snapshot_name = $1,updated_at=now() where id = $2 returning id`, [name, version.id])
-    }
-
-    if (ipfs_hash) {
-      // Set ipfs_hash of snapshot
-      r = await db.query('embedded/update-property-version-snapshot_ipfs_hash', `update property_versions set ipfs_hash = $1,updated_at=now() where id = $2 returning id`, [ipfs_hash, version.id])
     }
 
     if (!r) {

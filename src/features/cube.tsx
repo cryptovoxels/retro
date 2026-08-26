@@ -1,7 +1,7 @@
 import { CubeRecord } from '../../common/messages/feature'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { fetchTexture } from '../textures/textures'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SpecularColorSetting, Toolbar, UrlSourceImages } from '../ui/features'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SpecularColorSetting, Toolbar, SourceInput } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, MeshExtended } from './feature'
 
@@ -138,7 +138,7 @@ class Editor extends FeatureEditor<Cube> {
           <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
           <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <UrlSourceImages feature={this.props.feature} />
+          <SourceInput feature={this.props.feature} accept="image" />
 
           <Advanced>
             <FeatureID feature={this.props.feature} />

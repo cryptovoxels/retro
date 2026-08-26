@@ -3,7 +3,7 @@ import { voxFromFill } from '../../common/voxels/vox-from-fill'
 import { Position, Rotation, Scale, EditorProps } from '../../web/src/components/editor'
 import { AudioBus } from '../audio/audio-engine'
 import { fetchTexture } from '../textures/textures'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UrlSourcePortalWomp } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, SourceInput } from '../ui/features'
 import PortalTeleportGUI from '../ui/gui/portal-gui'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, FeatureTrigger } from './feature'
@@ -333,7 +333,7 @@ class Editor extends FeatureEditor<Portal> {
             <label>To a functional portal, select a womp.</label>
           </div>
 
-          <UrlSourcePortalWomp feature={this.props.feature} />
+          <SourceInput feature={this.props.feature} accept="womp" />
 
           <div className="f">
             <label>Portal sound</label>

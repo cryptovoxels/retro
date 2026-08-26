@@ -1,16 +1,13 @@
-import { md5 } from './utils'
 import { app } from '../../web/src/state'
-import config from '../config'
-export const MEDIA_UPLOAD_ENDPOINT = config.media_upload_endpoint
-export const PROXY_IPFS_ENDPOINT = config.proxy_base_url + '/ipfs/upload'
+import { generateFileName, ugcKey, UploadMediaType } from './ugc-upload-keys'
 
-// AWS does not have folders but this helps set a "folder" in the bucket
-// This is so we can better organize the bucket.
-type UploadMediaType = 'parcel-content' | /*  default; is the user's wallet folder*/ 'womps' | /* Will be uploaded in wallet/womps/... */ 'assetlibrary'
+export type { UploadMediaType } from './ugc-upload-keys'
+export { generateFileName, ugcKey } from './ugc-upload-keys'
 
 export const onBeginUpload: BABYLON.Observable<File> = new BABYLON.Observable()
 export const onCompleteUpload: BABYLON.Observable<File> = new BABYLON.Observable()
 export const onFailUpload: BABYLON.Observable<File> = new BABYLON.Observable()
+
 export type UploadMediaResult =
   | {
       success: true
@@ -21,143 +18,137 @@ export type UploadMediaResult =
       error: string
     }
 
-type UploadIPFSResult = UploadMediaResult & { hash: string; service_used: string }
+const uploaded = new Set<string>()
 
-export function _arrayBufferToBase64(buffer: ArrayBuffer) {
-  let binary = ''
-  const bytes = new Uint8Array(buffer)
-  const len = bytes.byteLength
-  for (let i = 0; i < len; i++) {
-    binary += String.fromCharCode(bytes[i])
-  }
-  return window.btoa(binary)
+async function prepare(file: File, mediaType: UploadMediaType) {
+  const wallet = app.state.wallet
+  if (!wallet) throw new Error('cant upload missing wallet')
+  const name = await generateFileName(file, mediaType, wallet)
+  return { key: ugcKey(wallet, mediaType, name), name }
 }
 
-export const getFileNameNoExtension = (filenameWithExtension: string) => {
-  const a = filenameWithExtension.split('.')
-  let name = a.splice(0, a.length - 1).join('.')
-  if (!/^[\u0000-\u007f]*$/.test(name)) {
-    //Chinese characters are non-ascii characters and will fail;
-    name = encodeURIComponent(name)
+async function requestPresign(name: string, file: File, mediaType: UploadMediaType) {
+  const res = await fetch('/api/ugc/presign', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name,
+      contentType: file.type || 'application/octet-stream',
+      contentLength: file.size,
+      mediaType,
+    }),
+  })
+  const data = await res.json()
+  if (!data.success) {
+    return { success: false as const, error: data.error || 'presign failed' }
   }
-  return name
-}
-/**
- * Obtain the extension of dataURL Base64; Only valid for images
- * @param dataURI
- * @returns
- */
-export const getExtensionFromDatarUrl = (dataURI: string) => {
-  if (!dataURI) {
-    return 'jpg'
+  return {
+    success: true as const,
+    exists: !!data.exists,
+    uploadUrl: data.uploadUrl as string | undefined,
+    key: data.key as string,
   }
-  if (!dataURI.match('image')) {
-    return 'jpg'
-  }
-  return dataURI.split(',')[0].split(':')[1].split(';')[0].split('/')[1]
-}
-
-const stableHash = md5
-
-export const generateFileName = async (file: File, mediaType: UploadMediaType = 'parcel-content') => {
-  const regex = /(?:\.([^.]+))?$/
-
-  const ext = regex.exec(file.name)
-  const arrayBufferStr = _arrayBufferToBase64(await file.arrayBuffer())
-
-  const hashedContent = stableHash(arrayBufferStr) || Date.now()
-  // The client should send a hashed file name that contains:
-  // - originalFilename (so user quickly knows what the asset is)
-  // - wallet of the user
-  // - "folder" of where the file goes
-  // - type of content (see typeOfMedia above)
-  // - hashed content of the file
-
-  const hash = stableHash(app.state.wallet?.toLowerCase() + '/' + mediaType + '/' + hashedContent)
-  if (!ext) {
-    // We have no extension, this won't cause a problem cause the media server will just reject the request
-    return getFileNameNoExtension(file.name) + '_' + hash
-  }
-  return getFileNameNoExtension(file.name) + '_' + hash + '.' + ext[1]
 }
 
-/**
- * For (mega)vox models, use uploadVoxModelMedia() instead, to enforce triangle limits. See the explanation there.
- * @param file
- * @param mediaType
- * @returns
- */
 export async function uploadMedia(file: File, mediaType: UploadMediaType = 'parcel-content'): Promise<UploadMediaResult> {
-  if (!app.state.key) {
-    throw new Error('cant upload missing key')
-  }
-
   onBeginUpload.notifyObservers(file)
-  const formData = new FormData()
-  const name = await generateFileName(file, mediaType)
-  formData.append('media', file, name)
-
-  const headers: Record<string, string> = {
-    'x-cryptovoxels-auth': app.state.key,
-    'x-file-name': name,
-  }
-
-  if (mediaType !== 'parcel-content') headers['x-cryptovoxels-upload-type'] = mediaType
-
-  let result: UploadMediaResult
   try {
-    const response = await fetch(MEDIA_UPLOAD_ENDPOINT, {
-      mode: 'cors',
-      method: 'POST',
-      headers: headers,
-      body: formData,
+    const { name, key } = await prepare(file, mediaType)
+    const location = `ugc://${key}`
+
+    if (uploaded.has(key)) {
+      onCompleteUpload.notifyObservers(file)
+      return { success: true, location }
+    }
+
+    const presigned = await requestPresign(name, file, mediaType)
+    if (!presigned.success) {
+      onFailUpload.notifyObservers(file)
+      return presigned
+    }
+
+    if (presigned.exists) {
+      uploaded.add(key)
+      onCompleteUpload.notifyObservers(file)
+      return { success: true, location }
+    }
+
+    const put = await fetch(presigned.uploadUrl!, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': file.type || 'application/octet-stream',
+        'x-amz-acl': 'public-read',
+      },
+      body: file,
     })
-    result = await response.json()
+
+    if (!put.ok) {
+      onFailUpload.notifyObservers(file)
+      return { success: false, error: 'upload failed' }
+    }
+
+    uploaded.add(key)
+    onCompleteUpload.notifyObservers(file)
+    return { success: true, location }
   } catch (ex) {
     onFailUpload.notifyObservers(file)
     throw ex
   }
-
-  onCompleteUpload.notifyObservers(file)
-  return result
 }
 
-export function convertDataURItoJPGFile(dataURI: string, fileName: string = 'image_' + Date.now() + '.jpg'): File {
-  // convert base64 to raw binary data held in a string
-  // doesn't handle URLEncoded DataURIs - see SO answer #6850276 for code that does this
-  const byteString = atob(dataURI.split(',')[1])
+export async function uploadWithProgress(file: File, onProgress: (pct: number) => void, mediaType: UploadMediaType = 'parcel-content'): Promise<UploadMediaResult> {
+  onBeginUpload.notifyObservers(file)
 
-  // separate out the mime component
-  const mimeString = dataURI.split(',')[0].split(':')[1].split(';')[0]
-  // write the bytes of the string to an ArrayBuffer
-  const ab = new ArrayBuffer(byteString.length)
+  try {
+    const { name, key } = await prepare(file, mediaType)
+    const location = `ugc://${key}`
 
-  const ia = new Uint8Array(ab)
-  for (let i = 0; i < byteString.length; i++) {
-    ia[i] = byteString.charCodeAt(i)
+    if (uploaded.has(key)) {
+      onProgress(100)
+      onCompleteUpload.notifyObservers(file)
+      return { success: true, location }
+    }
+
+    const presigned = await requestPresign(name, file, mediaType)
+    if (!presigned.success) {
+      onFailUpload.notifyObservers(file)
+      return presigned
+    }
+
+    if (presigned.exists) {
+      uploaded.add(key)
+      onProgress(100)
+      onCompleteUpload.notifyObservers(file)
+      return { success: true, location }
+    }
+
+    return new Promise((resolve) => {
+      const xhr = new XMLHttpRequest()
+      xhr.open('PUT', presigned.uploadUrl!)
+      xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream')
+      xhr.setRequestHeader('x-amz-acl', 'public-read')
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))
+      }
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          uploaded.add(key)
+          onCompleteUpload.notifyObservers(file)
+          resolve({ success: true, location })
+        } else {
+          onFailUpload.notifyObservers(file)
+          resolve({ success: false, error: 'upload failed' })
+        }
+      }
+      xhr.onerror = () => {
+        onFailUpload.notifyObservers(file)
+        resolve({ success: false, error: 'upload failed' })
+      }
+      xhr.send(file)
+    })
+  } catch (ex) {
+    onFailUpload.notifyObservers(file)
+    throw ex
   }
-  // write the ArrayBuffer to a blob, and you're done
-  const blob = new File([ia], fileName, { type: mimeString, lastModified: Date.now() })
-
-  console.debug(`input data size: ${dataURI.length} Blob.size: ${blob.size}`)
-  return blob
-}
-
-export async function uploadMediaToIPFS(file: File): Promise<UploadIPFSResult> {
-  const formData = new FormData()
-
-  formData.append('media', file, file.name)
-  const response = await fetch(PROXY_IPFS_ENDPOINT, {
-    mode: 'cors',
-    method: 'POST',
-    headers: { 'x-cryptovoxels-auth': app.state.key! },
-    body: formData,
-  })
-
-  return await response.json()
-}
-
-export async function uploadJSONToIPFS(json: Record<string, any>) {
-  const f = new File([JSON.stringify(json)], stableHash(JSON.stringify(json)) + '.json', { type: 'text/plain' })
-  return await uploadMediaToIPFS(f)
 }

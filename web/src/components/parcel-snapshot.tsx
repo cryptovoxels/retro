@@ -1,11 +1,8 @@
 import { isEqual, omit } from 'lodash'
-import { Component, Fragment } from 'preact'
+import { Component } from 'preact'
 import { format } from 'timeago.js'
-import config from '../../../common/config'
 import ParcelHelper from '../../../common/helpers/parcel-helper'
-import { uploadJSONToIPFS } from '../../../common/helpers/upload-media'
 import type { ApiStatusResponse } from '../../../common/messages/api-parcels'
-import { saveSnapshot } from '../helpers/save-helper'
 import { app } from '../state'
 import { AssetType } from './Editable/editable'
 import EditableName from './Editable/editable-name'
@@ -40,11 +37,9 @@ interface State {
   percentageBuilt?: number
   countFeatures?: number
   saving?: boolean
-  uploading?: boolean
   remove?: boolean
   isAutosave?: boolean
   parcel?: any
-  ipfsHash?: string
 }
 
 export default class ParcelSnapshot extends Component<Props, State> {
@@ -54,11 +49,9 @@ export default class ParcelSnapshot extends Component<Props, State> {
     super(props)
     this.state = {
       saving: false,
-      uploading: false,
       remove: false,
       parcel: props.parcel,
       isAutosave: !props.version.is_snapshot,
-      ipfsHash: props.version.ipfs_hash,
     }
   }
 
@@ -95,29 +88,6 @@ export default class ParcelSnapshot extends Component<Props, State> {
     return new Promise((resolve) => {
       this.setState(state, resolve)
     })
-  }
-
-  uploadToIPFS = async () => {
-    this.setStateAsync({ uploading: true })
-    const body = {
-      id: this.props.version.id,
-      parcel_id: this.props.version.parcel_id,
-      content: this.props.version.content,
-      name: this.props.version.name,
-    }
-
-    const upload = await uploadJSONToIPFS(body)
-
-    if (upload && upload.hash) {
-      const v = Object.assign({}, { version: { id: this.props.version.id } }, { ipfs_hash: upload.hash })
-      const p = await saveSnapshot(v)
-
-      if (p.success) {
-        app.showSnackbar('Uploaded version to IPFS!')
-      }
-      this.setState({ ipfsHash: upload.hash })
-    }
-    this.setStateAsync({ uploading: false })
   }
 
   async componentDidMount() {
@@ -240,7 +210,7 @@ export default class ParcelSnapshot extends Component<Props, State> {
     return isEqual(versionContent, parcelContent)
   }
 
-  render({}: any, { uploading }: State) {
+  render() {
     if (!this.state.snapshot_name) {
       return <li></li>
     }
@@ -278,18 +248,10 @@ export default class ParcelSnapshot extends Component<Props, State> {
           <small>
             {format(this.props.version.created_at || Date.now().toString())} - {this.state.countFeatures} features - {!!this.state.percentageBuilt && `${(this.state.percentageBuilt * 100).toFixed(2)}% voxels built `}
             {!this.state.isAutosave && (
-              <Fragment>
-                - <a onClick={() => this.remove()}>Remove</a> -{' '}
-                {!!this.state.ipfsHash ? (
-                  <a href={`${config.proxy_base_url}/ipfs/${this.state.ipfsHash}`} target="_blank" title="Click to see on IPFS">
-                    On IPFS
-                  </a>
-                ) : !!uploading ? (
-                  <a>Loading ...</a>
-                ) : (
-                  <a onClick={() => this.uploadToIPFS()}>Upload to IPFS</a>
-                )}
-              </Fragment>
+              <>
+                {' '}
+                - <a onClick={() => this.remove()}>Remove</a>
+              </>
             )}
           </small>
         </div>

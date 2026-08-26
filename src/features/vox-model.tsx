@@ -4,7 +4,7 @@ import { Options as VoxImportOptions, voxImporter } from '../../common/vox-impor
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import Panel from '../../web/src/components/panel'
 import { rebindGizmos } from '../tools/gizmos'
-import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, Toolbar, UrlSourceVoxModels } from '../ui/features'
+import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, Toolbar, SourceInput } from '../ui/features'
 import { isURL } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import Feature, { Feature3D, FeatureEvent, FeatureTrigger, MeshExtended, transformVectors } from './feature'
@@ -263,7 +263,7 @@ class Editor extends FeatureEditor<VoxModel> {
               <Panel type="danger">{this.importError}</Panel>
             </dd>
           )}
-          <UrlSourceVoxModels feature={this.props.feature} scene={this.props.scene} />
+          <SourceInput feature={this.props.feature} accept="vox" />
 
           <Advanced>
             <Animation feature={this.props.feature} />
@@ -623,7 +623,7 @@ Ride.Editor = class RideEditor extends Editor {
               <Panel type="danger">{this.importError}</Panel>
             </dd>
           )}
-          <UrlSourceVoxModels feature={this.props.feature} scene={this.props.scene} />
+          <SourceInput feature={this.props.feature} accept="vox" />
 
           <Advanced>
             <Animation feature={this.props.feature} />

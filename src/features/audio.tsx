@@ -4,7 +4,7 @@ import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { AudioRecord } from '../../common/messages/feature'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { AudioBus, SoundParams } from '../audio/audio-engine'
-import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UrlSourceAudio } from '../ui/features'
+import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, SourceInput } from '../ui/features'
 import OpenLink from '../ui/open-link'
 import { opensea, readOpenseaUrl } from '../utils/proxy'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
@@ -632,9 +632,9 @@ class Editor extends FeatureEditor<Audio> {
           <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
           <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <UrlSourceAudio feature={this.props.feature}>
+          <SourceInput feature={this.props.feature} accept="mp3">
             {this.state.streaming ? <small>Url Must be begin with 'https://' as streaming is enabled</small> : <small>MP3s up to 10 minutes long are supported. Opensea audio NFTs are accepted.</small>}
-          </UrlSourceAudio>
+          </SourceInput>
 
           <Advanced>
             <FeatureID feature={this.props.feature} />

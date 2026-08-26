@@ -1,7 +1,7 @@
 import { voxImporter } from '../../common/vox-import/vox-import'
 import type { FeatureTrigger } from './feature'
 import { Feature3D } from './feature'
-import { Advanced, Animation, CollectibleTryBone, CollectibleTryPosition, CollectibleTryRotation, CollectibleTryScale, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, UrlSourceCollectibleModels } from '../ui/features'
+import { Advanced, Animation, CollectibleTryBone, CollectibleTryPosition, CollectibleTryRotation, CollectibleTryScale, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, SourceInput } from '../ui/features'
 import showCollectibleHTMLUi from '../ui/html-ui/collectible-ui'
 import { app } from '../../web/src/state'
 import { CollectibleInfoRecord, CollectibleModelRecord } from '../../common/messages/feature'
@@ -38,7 +38,7 @@ export default class CollectibleModel extends Feature3D<CollectibleModelRecord> 
   ActionGui: ActionGui | null = null
 
   get collectible(): CollectibleInfoRecord | undefined {
-    // collectible props is set via UrlSourceCollectibleModels in Editor.
+    // collectible props is set via SourceInput in Editor.
     return this.description.collectible
   }
 
@@ -333,7 +333,7 @@ class Editor extends FeatureEditor<CollectibleModel> {
           <Scale feature={this.props.feature} key={this.props.feature.scale.toString()} />
           <Rotation feature={this.props.feature} key={this.props.feature.rotation.toString()} />
 
-          <UrlSourceCollectibleModels feature={this.props.feature} />
+          <SourceInput feature={this.props.feature} accept="collectible" />
 
           <Advanced>
             <FeatureID feature={this.props.feature} />

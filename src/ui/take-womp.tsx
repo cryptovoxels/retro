@@ -1,6 +1,6 @@
 import { Component } from 'preact'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
-import { convertDataURItoJPGFile, uploadMedia } from '../../common/helpers/upload-media'
+import { uploadMedia } from '../../common/helpers/upload-media'
 import { PanelType } from '../../web/src/components/panel'
 import { track } from '../../web/src/helpers/umami'
 import { app } from '../../web/src/state'
@@ -8,6 +8,7 @@ import { wompFlash } from '../graphic/womp-flash'
 import { MinimapSettings } from '../minimap'
 import type Parcel from '../parcel'
 import { pendingWomp, sidebarClosed, uiAsideTick, uiPane } from '../store'
+import { resolveUgc } from '../utils/helpers'
 
 interface Props {
   onClose?: () => void
@@ -134,7 +135,8 @@ export default class TakeWomp extends Component<Props, State> {
   async post() {
     this.setState({ uploading: true })
 
-    const imageFile = convertDataURItoJPGFile(this.props.image, `${'womp_' + Date.now() + '.jpg'}`)
+    const blob = await (await fetch(this.props.image)).blob()
+    const imageFile = new File([blob], `womp_${Date.now()}.jpg`, { type: 'image/jpeg' })
     const uploadResult = await uploadMedia(imageFile, 'womps')
 
     if (!uploadResult.success) {
@@ -149,7 +151,7 @@ export default class TakeWomp extends Component<Props, State> {
       coords: this.props.coords,
       parcel_id: this.props.parcel.id,
       space_id: this.props.parcel.spaceId,
-      image_url: uploadResult.location,
+      image_url: resolveUgc(uploadResult.location),
     })
 
     fetch('/api/womps/create', {
@@ -170,7 +172,7 @@ export default class TakeWomp extends Component<Props, State> {
         }
         if (r.success) {
           if (this.state.kind === WompType.BugReport) {
-            await this.postReport(uploadResult.location)
+            await this.postReport(resolveUgc(uploadResult.location)!)
           }
         }
         this.setState({ uploading: false })

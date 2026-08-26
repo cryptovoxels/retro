@@ -20,13 +20,6 @@ type VoxDataWithCollider = VoxDataWithoutCollider & VoxDataColliderInfo
 
 export type VoxData = VoxDataWithCollider | VoxDataWithoutCollider
 
-export class TriangleLimitExceededError extends Error {
-  constructor(nTriangles: number, maxTriangles: number) {
-    super(`${nTriangles} triangles in vox model mesh exceeds limit of ${maxTriangles}`)
-    this.name = 'TriangleLimitExceededError'
-  }
-}
-
 interface Callback {
   (x: VoxData | Error): void
 }
@@ -95,7 +88,7 @@ function hashTableLookUp(bucketData: Uint32Array, wrapMask: number, key_a: numbe
   }
 }
 
-export const voxReader = (buffer: ArrayBuffer, renderJob: any, flipX: boolean, megavox: boolean, maxTriangles: number, dryRun: boolean, wantCollider: boolean, callback: Callback) => {
+export const voxReader = (buffer: ArrayBuffer, renderJob: any, flipX: boolean, megavox: boolean, wantCollider: boolean, callback: Callback) => {
   // console.log('voxReader processing...')
 
   VoxReader.read(buffer, (vox: any, errstr: string | null) => {
@@ -137,27 +130,6 @@ export const voxReader = (buffer: ArrayBuffer, renderJob: any, flipX: boolean, m
 
     // startTime = performance.now()
     let vertData: Uint8Array = createAOMesh(field)
-
-    if (vertData.length > maxTriangles * 3 * 8) {
-      const err = new TriangleLimitExceededError(vertData.length / 3 / 8, maxTriangles)
-      return callback(err)
-    }
-
-    if (dryRun) {
-      // Caller just wanted to check we meet the triangle threshold
-      return callback({
-        positions: new Float32Array(),
-        indices: new Uint16Array(),
-        colors: new Float32Array(),
-        size: [0, 0, 0],
-        ...(wantCollider
-          ? {
-              colliderPositions: [],
-              colliderIndices: [],
-            }
-          : {}),
-      })
-    }
 
     // console.log('vox-reader.ts: createAOMesh() took ' + (performance.now() - startTime) + ' ms.')
 

@@ -1,4 +1,4 @@
-import { TriangleLimitExceededError, voxReader } from '../../common/vox-import/vox-reader'
+import { voxReader } from '../../common/vox-import/vox-reader'
 import type { JobRecord } from '../../common/vox-import/vox-import'
 
 const cancelledJobs = new Set<number>()
@@ -28,7 +28,7 @@ async function loadVoxUrl(url: string): Promise<ArrayBuffer> {
     .then((r) => r!.arrayBuffer())
 }
 
-export async function loadVox({ renderJob, flipX, megavox, maxTriangles, dryRun, wantCollider, timeoutMs, ...urlOrBuffer }: JobRecord): Promise<any> {
+export async function loadVox({ renderJob, flipX, megavox, wantCollider, timeoutMs, ...urlOrBuffer }: JobRecord): Promise<any> {
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(() => reject(new Error(`Job ${renderJob} timed out after ${timeoutMs}ms`)), timeoutMs)
   })
@@ -41,13 +41,9 @@ export async function loadVox({ renderJob, flipX, megavox, maxTriangles, dryRun,
     }
 
     return new Promise((resolve, reject) => {
-      voxReader(data, renderJob, flipX, megavox, maxTriangles, dryRun, wantCollider, (data) => {
+      voxReader(data, renderJob, flipX, megavox, wantCollider, (data) => {
         if (cancelledJobs.has(renderJob)) {
           return resolve({ renderJob, cancelled: true })
-        }
-
-        if (data instanceof TriangleLimitExceededError) {
-          return reject(data)
         }
 
         if (data instanceof Error) {

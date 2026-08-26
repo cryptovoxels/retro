@@ -1,5 +1,5 @@
 import * as test from 'tape'
-import { voxReader, TriangleLimitExceededError } from '../common/vox-import/vox-reader'
+import { voxReader } from '../common/vox-import/vox-reader'
 import * as path from 'path'
 import * as fs from 'fs'
 
@@ -13,7 +13,7 @@ test('loading vox with one voxel', (t) => {
 
   const buffer = fs.readFileSync(path.join(__dirname, 'fixtures', 'single_voxel.vox'))
 
-  voxReader(buffer, renderJob, flipX, megavox, 1000000, false, false, (res) => {
+  voxReader(buffer, renderJob, flipX, megavox, false, (res) => {
     if (res instanceof Error) {
       t.fail(`Did not expect error: '${res.toString()}'`)
       t.end()
@@ -36,7 +36,7 @@ test('loading 2_voxels_same_mat.vox', (t) => {
 
   const buffer = fs.readFileSync(path.join(__dirname, 'fixtures', '2_voxels_same_mat.vox'))
 
-  voxReader(buffer, renderJob, flipX, megavox, 1000000, false, false, (res) => {
+  voxReader(buffer, renderJob, flipX, megavox, false, (res) => {
     if (res instanceof Error) {
       t.fail(`Did not expect error: '${res.toString()}'`)
       t.end()
@@ -62,7 +62,7 @@ test('loading 2_voxels_same_mat.vox', (t) => {
 
   const buffer = fs.readFileSync(path.join(__dirname, 'fixtures', '2_voxels_diff_mats.vox'))
 
-  voxReader(buffer, renderJob, flipX, megavox, 1000000, false, false, (res) => {
+  voxReader(buffer, renderJob, flipX, megavox, false, (res) => {
     if (res instanceof Error) {
       t.fail(`Did not expect error: '${res.toString()}'`)
       t.end()
@@ -85,7 +85,7 @@ test('loading small vox', (t) => {
 
   const buffer = fs.readFileSync(path.join(__dirname, 'fixtures', 'green_cube.vox'))
 
-  voxReader(buffer, renderJob, flipX, megavox, 1000000, false, false, (res) => {
+  voxReader(buffer, renderJob, flipX, megavox, false, (res) => {
     if (res instanceof Error) {
       t.fail(`Did not expect error: '${res.toString()}'`)
       t.end()
@@ -110,7 +110,7 @@ test('loading mega vox', (t) => {
 
   const buffer = fs.readFileSync(path.join(__dirname, 'fixtures', 'mega.vox'))
 
-  voxReader(buffer, renderJob, flipX, megavox, 1000000, false, false, (res) => {
+  voxReader(buffer, renderJob, flipX, megavox, false, (res) => {
     if (res instanceof Error) {
       t.fail(`Did not expect error: '${res.toString()}'`)
       t.end()
@@ -137,7 +137,7 @@ test('loading menger vox', (t) => {
 
   const buffer = fs.readFileSync(path.join(__dirname, 'fixtures', 'menger.vox'))
 
-  voxReader(buffer, renderJob, flipX, megavox, 1000000, false, false, (res) => {
+  voxReader(buffer, renderJob, flipX, megavox, false, (res) => {
     if (res instanceof Error) {
       t.fail(`Did not expect error: '${res.toString()}'`)
       t.end()
@@ -148,22 +148,6 @@ test('loading menger vox', (t) => {
     t.equals(res.indices instanceof Uint32Array, true, 'indices are Uint32Array')
     t.equals(res.colors.length / 4, 321302, 'colors len matches')
     t.same(res.size, [81, 81, 81], 'size matches 126x126x126')
-    t.end()
-  })
-})
-
-test('loading a vox that exceeds triangle limit', (t) => {
-  const renderJob = 1
-  const flipX = false //opt
-  const megavox = true //opt
-
-  const buffer = fs.readFileSync(path.join(__dirname, 'fixtures', 'menger.vox'))
-
-  voxReader(buffer, renderJob, flipX, megavox, 10, true, false, (res) => {
-    if (!(res instanceof TriangleLimitExceededError)) {
-      // We expect this failure
-      t.fail('Expected TriangleLimitExceededError')
-    }
     t.end()
   })
 })

@@ -46,6 +46,7 @@ import rateLimit from 'express-rate-limit'
 import expressStaticGzip from 'express-static-gzip'
 import { Strategy as AnonymousStrategy } from 'passport-anonymous'
 import AssetLibraryController from './controllers/assets'
+import UgcController from './controllers/ugc'
 import AvatarsController from './controllers/avatars'
 import CostumesController from './controllers/costumes'
 import ExternalsController from './controllers/externals'
@@ -420,6 +421,7 @@ EventsController(db, passport, app)
 FavoritesController(db, passport, app)
 // Asset library controller:
 AssetLibraryController(db, passport, app)
+UgcController(passport, app)
 // Reports Controller
 ModerationReportsController(db, passport, app)
 // Externals API Controller

@@ -98,6 +98,11 @@ export const tidyURL = (urlCandidate: any): string | undefined => {
   return undefined
 }
 
+export const resolveUgc = (url?: string) => {
+  if (!url) return url
+  return url.startsWith('ugc://') ? 'https://ugc.crvox.com/' + url.slice(6) : url
+}
+
 /**
  * Returns true if the second bounding box is completely within the first, in absolute coordinates
  */

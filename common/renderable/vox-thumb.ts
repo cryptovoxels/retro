@@ -45,8 +45,6 @@ async function meshFromBuffer(scene: BABYLON.Scene, buf: ArrayBuffer): Promise<B
     buffer: buf.slice(0),
     flipX: true,
     megavox: false,
-    maxTriangles: 1_000_000,
-    dryRun: false,
     wantCollider: false,
     timeoutMs: 10000,
   })
