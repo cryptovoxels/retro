@@ -96,6 +96,7 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   }
 
   private applyImportedMesh(imported: Mesh) {
+    console.log('applyImportedMesh')
     if (this.mesh) {
       removeFromScene(this.scene, this.mesh)
       disposeMeshGpu(this.mesh)
@@ -104,13 +105,13 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     addToScene(this.scene, imported)
     this.mesh.pickable = true
     this.mesh.name = this.uniqueEntityName('mesh')
-    ;(this.mesh as any).id = this.mesh.name
+      ; (this.mesh as any).id = this.mesh.name
     this.afterGenerate()
   }
 
   public override async generate() {
-    this.generateDraft()
-    void this.loadContent()
+    // this.generateDraft()
+    await this.loadContent()
   }
 
   private async loadContent() {
@@ -121,24 +122,11 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     } else {
       url = `${process.env.ASSET_PATH}/models/vox-five.vox`
     }
-    let mesh: Mesh
-    try {
-      mesh = await voxImporter().import(url, this._voxImportParams())
-      this._importError = null
-      this.refreshErrorMessage()
-    } catch (e) {
-      this._importError = typeof e === 'string' ? e : ((e as Error | null)?.message ?? 'Unknown error')
-      if (e instanceof Error && e.message === 'Aborted') {
-        // ignore abort errors
-        return
-      } else {
-        console.warn(e)
-      }
-      if (this.disposed || this.abortController.signal.aborted) return
-      await this.onError()
-      this.refreshErrorMessage()
-      return
-    }
+
+    console.log(`importing ${url}`)
+    let mesh: Mesh = await voxImporter().import(url, this._voxImportParams())
+
+    console.log(`got ${url}`)
 
     if (this.disposed || this.abortController.signal.aborted) {
       removeFromScene(this.scene, mesh)
@@ -339,7 +327,7 @@ export class Ride extends VoxModel<RideRecord> {
   private driveTrigger: FeatureTrigger | null = null
 
   protected override afterGenerate() {
-    ;(this.description as any).collidable = true
+    ; (this.description as any).collidable = true
     super.afterGenerate()
     if (!this.driveTrigger) {
       this.driveTrigger = { proximityToTrigger: 7, onTrigger: () => this.showDriveGui(), onUnTrigger: () => this.hideDriveGui() }
@@ -455,7 +443,7 @@ export class Ride extends VoxModel<RideRecord> {
     this.applyDrivePose(pos, rot)
     try {
       this.mesh?.freezeWorldMatrix()
-    } catch {}
+    } catch { }
     this.setParkedVisible(true)
     this.broadcastDriveState({ recall: true, position: pos, rotation: rot, driverUuid: null, emptySince: null })
     const controls = window.connector?.controls as any
@@ -541,7 +529,7 @@ export class Ride extends VoxModel<RideRecord> {
       if (next) this.hideDriveGui()
       else if (this.driveTrigger?.triggered) this.showDriveGui()
       if (wasUs && next && next !== window.connector?.persona?.uuid) {
-        ;(window.connector?.controls as any)?.stopVehicle?.()
+        ; (window.connector?.controls as any)?.stopVehicle?.()
       }
       if (next) {
         this.clearEmptyRecall()
@@ -566,7 +554,7 @@ export class Ride extends VoxModel<RideRecord> {
         this.driverUuid = null
         this.emptySince = null
         this.broadcastDriveState({ recall: true, position: pos, rotation: rot, driverUuid: null, emptySince: null })
-      } catch {}
+      } catch { }
     }
     this.clearEmptyRecall()
     this.clearStaleDriverCheck()
@@ -631,7 +619,7 @@ Ride.Editor = class RideEditor extends Editor {
               <button
                 type="button"
                 onClick={() => {
-                  ;(this.props.feature as any).recallToPark?.()
+                  ; (this.props.feature as any).recallToPark?.()
                 }}
               >
                 bring back

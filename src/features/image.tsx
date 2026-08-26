@@ -22,7 +22,6 @@ export default class Image extends Feature2D<ImageRecord> {
     scale: [1, 1, 0],
     url: '',
   }
-  loaded = false
 
   get transparencyMode() {
     if (this.description.transparent === true) {
@@ -87,35 +86,20 @@ export default class Image extends Feature2D<ImageRecord> {
     this.addEvents()
   }
 
-  generateDraft() {
-    if (this.disposed) return
-    this.mesh = featurePlane(this.scene, this.uniqueEntityName('mesh'))
-    rebindGizmos(this)
-    this.mesh.material = Feature.getDraftMaterial(this.scene)
-    this.setCommon()
-  }
-
   async generate(): Promise<void> {
-    this.loaded = false
-    this.generateDraft()
-    void this.loadContent()
+    await this.loadContent()
   }
 
   private async loadContent() {
-    try {
-      const texture = await fetchTexture(this.scene, this.textureURL, this.abortController.signal, {
-        transparent: !!this.description.transparent,
-        stretch: !!this.description.stretch,
-        pixelated: this.description.pixelated,
-      })
-      if (this.disposed || this.abortController.signal.aborted) {
-        return
-      }
-      this.renderImage(texture)
-      this.loaded = true
-    } catch {
-      // aborted or failed: leave draft
+    const texture = await fetchTexture(this.scene, this.textureURL, this.abortController.signal, {
+      transparent: !!this.description.transparent,
+      stretch: !!this.description.stretch,
+      pixelated: this.description.pixelated,
+    })
+    if (this.disposed || this.abortController.signal.aborted) {
+      return
     }
+    this.renderImage(texture)
   }
 
   renderImage(texture: Texture2D): Mesh | null {
@@ -145,7 +129,7 @@ export default class Image extends Feature2D<ImageRecord> {
     }
 
     this.mesh.material = material
-    ;(this.mesh as any).visibility = tidyFloat(this.description.opacity, 1)
+      ; (this.mesh as any).visibility = tidyFloat(this.description.opacity, 1)
 
     setTextureProperties(this, texture, material, this.mesh)
 
@@ -337,6 +321,6 @@ export function setTextureProperties(
   }
 
   if (options.transparencyMode === TransparencyMode.Background) {
-    ;(mesh as any).alphaIndex = 10
+    ; (mesh as any).alphaIndex = 10
   }
 }
