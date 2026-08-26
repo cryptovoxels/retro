@@ -74,8 +74,8 @@ export default class PlayerBody {
 
   /** move is unitless direction; speed is m/s; dt is seconds */
   step(move: BABYLON.Vector3, dt: number): void {
-    this.scratch.copyFrom(move).scaleInPlace(this.speed * dt)
     const d = this.scratch
+    d.copyFrom(move).scaleInPlace(this.speed * dt)
 
     if (this.noclip || !this.setup()) {
       this.position.addInPlace(d)
@@ -88,10 +88,10 @@ export default class PlayerBody {
 
     // console.log(this.vel.y)
 
-    let y = d.y
-
-    if (!this.flying) {
-      y += this.vel.y * dt
+    if (this.flying) {
+      var y = d.y
+    } else {
+      var y = this.vel.y * dt
     }
 
     this.controller.computeColliderMovement(this.collider, { x: d.x, y: y, z: d.z }, undefined, PLAYER_QUERY)
