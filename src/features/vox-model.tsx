@@ -84,10 +84,6 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     return tv
   }
 
-  public override afterSetCommon = () => {
-    this.refreshCollidable()
-  }
-
   generateDraft() {
     if (this.disposed) return
     if (!(this.mesh instanceof BABYLON.Mesh)) {
@@ -108,7 +104,6 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
       imported.dispose()
     }
     this.mesh.isPickable = true
-    this.mesh.checkCollisions = false
     this.mesh.name = this.uniqueEntityName('mesh')
     this.mesh.id = this.mesh.name
     this.mesh.refreshBoundingInfo()
@@ -205,18 +200,11 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     }
   }
 
-  private refreshCollidable() {
-    if (this.mesh) {
-      this.mesh.checkCollisions = this.withinBounds && !!this.description.collidable
-    }
-  }
-
   protected afterGenerate() {
     this.setCommon()
     this.addScriptTriggers()
     this.addEvents()
     this.addAnimation()
-    this.refreshCollidable()
   }
 }
 

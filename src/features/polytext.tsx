@@ -77,12 +77,6 @@ export default class Polytext extends NonMeshedFeature<PolytextDescription> {
     return <label>Show customized 3d text! </label>
   }
 
-  refreshCollidable() {
-    if (this.mesh && this.mesh.getChildMeshes()[0]) {
-      this.mesh.getChildMeshes()[0].checkCollisions = this.withinBounds && !!(this.description as PolytextV2Record).collidable
-    }
-  }
-
   generate() {
     const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
     material.diffuseColor.set(1, 1, 1)
@@ -139,7 +133,6 @@ export default class Polytext extends NonMeshedFeature<PolytextDescription> {
             vertexData.applyToMesh(mesh)
 
             mesh.isPickable = true
-            mesh.checkCollisions = this.withinBounds && !!desc.collidable
             mesh.material = material
 
             if (this.description.edges) {
@@ -189,7 +182,6 @@ export default class Polytext extends NonMeshedFeature<PolytextDescription> {
 
     this.setCommon()
     this.addAnimation()
-    this.refreshCollidable()
 
     return Promise.resolve()
   }
@@ -200,10 +192,6 @@ export default class Polytext extends NonMeshedFeature<PolytextDescription> {
       this.light = undefined
     }
     super._dispose()
-  }
-
-  afterSetCommon = () => {
-    this.refreshCollidable()
   }
 }
 

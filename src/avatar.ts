@@ -270,7 +270,6 @@ export default class Avatar extends Entity {
       this._vehicleMesh?.dispose()
       this._vehicleMesh = mesh
       mesh.isPickable = false
-      mesh.checkCollisions = false
       mesh.rotationQuaternion = null
       mesh.setEnabled(true)
       mesh.isVisible = true

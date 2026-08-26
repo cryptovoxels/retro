@@ -423,7 +423,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     indicesCount += this.glassMesh?.getTotalIndices() || 0
     let animated = 0
     let groups = 0
-    let collidables = 0
 
     this.featuresList.forEach((f) => {
       if (f.isAnimated) animated++
@@ -431,16 +430,12 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       if (f.mesh instanceof BABYLON.AbstractMesh && !f.mesh.isAnInstance) {
         indicesCount += f.mesh?.getTotalIndices() || 0
       }
-      if (f.mesh instanceof BABYLON.AbstractMesh && f.mesh.checkCollisions) {
-        collidables++
-      }
     })
 
     return {
       triangles: indicesCount / 3,
       animated: animated,
       groups: groups,
-      collidables: collidables,
       features: {
         active: this.featuresList.length,
         total: this.features.length,
@@ -1353,9 +1348,8 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     opaque.parent = this.transform
     opaque.position.set(off[0], off[1], off[2])
     opaque.isPickable = true
-    opaque.checkCollisions = opaque.getTotalVertices() !== 0
     opaque.freezeWorldMatrix()
-    this.setGlassMesh(glass, { collidable: true, pickable: true })
+    this.setGlassMesh(glass, { pickable: true })
     if (this.glassMesh) {
       this.glassMesh.position.set(off[0], off[1], off[2])
       this.glassMesh.freezeWorldMatrix()
@@ -1384,7 +1378,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
   }
 
-  private setVoxelMesh(mesh: BABYLON.Nullable<BABYLON.Mesh>, cfg?: { collidable: boolean; pickable: boolean }) {
+  private setVoxelMesh(mesh: BABYLON.Nullable<BABYLON.Mesh>, cfg?: { pickable: boolean }) {
     // Don't dispose cached/shared materials - they're used by other parcels
     if (this.voxelMesh?.material && !isShared(this.voxelMesh.material)) {
       this.voxelMesh.material.dispose()
@@ -1399,7 +1393,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     mesh.freezeWorldMatrix()
   }
 
-  private setGlassMesh(mesh: BABYLON.Nullable<BABYLON.Mesh>, cfg?: { collidable: boolean; pickable: boolean }) {
+  private setGlassMesh(mesh: BABYLON.Nullable<BABYLON.Mesh>, cfg?: { pickable: boolean }) {
     // Don't dispose cached/shared materials - they're used by other parcels
     if (this.glassMesh?.material && !isShared(this.glassMesh.material)) {
       this.glassMesh.material.dispose()
@@ -1443,9 +1437,8 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.physicsRegistered = false
   }
 
-  private setCommonMeshProperties(mesh: BABYLON.Mesh, cfg?: { collidable?: boolean; pickable: boolean }) {
+  private setCommonMeshProperties(mesh: BABYLON.Mesh, cfg?: { pickable: boolean }) {
     mesh.parent = this.transform
-    mesh.checkCollisions = !!cfg?.collidable && mesh.getTotalVertices() !== 0
     mesh.isPickable = cfg?.pickable || false
     mesh.setEnabled(true)
   }

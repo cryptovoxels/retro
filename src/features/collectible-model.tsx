@@ -121,9 +121,6 @@ export default class CollectibleModel extends Feature3D<CollectibleModelRecord> 
     this.mesh = mesh
     this.mesh.isPickable = true
 
-    // this is set later by refreshCollisions
-    this.mesh.checkCollisions = false
-
     this.mesh.name = 'feature/collectible-model'
     this.mesh.id = this.uniqueEntityName('mesh')
     this.afterGenerate()

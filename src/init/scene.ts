@@ -1,6 +1,3 @@
-import { isMobile } from '../../common/helpers/detector'
-import { overrideClearCachedVertexData } from '../vendor/clear-cached-patch'
-
 export const createScene = (engine: BABYLON.Engine): BABYLON.Scene => {
   const scene = new BABYLON.Scene(engine, {
     useMaterialMeshMap: true,
@@ -14,10 +11,6 @@ export const createScene = (engine: BABYLON.Engine): BABYLON.Scene => {
   scene.actionManager = new BABYLON.ActionManager(scene)
   scene.autoClear = false
   scene.autoClearDepthAndStencil = false
-
-  if (isMobile()) {
-    overrideClearCachedVertexData(scene)
-  }
 
   return scene
 }

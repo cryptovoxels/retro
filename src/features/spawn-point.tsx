@@ -47,7 +47,6 @@ export default class SpawnPoint extends Feature3D<SpawnPointRecord> {
       this.refreshVisible()
       this.meshInside.parent = this.mesh
       this.meshInside.position = BABYLON.Vector3.Zero()
-      this.meshInside.checkCollisions = false
       this.matInside = this.meshInside.material as BABYLON.StandardMaterial
 
       const scale = 1

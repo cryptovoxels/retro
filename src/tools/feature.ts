@@ -119,7 +119,6 @@ export default class FeatureTool implements Tool {
     this.selector.edgesWidth = 0.5
     this.selector.edgesColor = SELECTION_COLORS.inside.edges
     this.selector.isPickable = false
-    this.selector.checkCollisions = false
 
     const selectorMaterial = new BABYLON.StandardMaterial('feature/feature', this.scene)
     selectorMaterial.alpha = 0
@@ -184,7 +183,6 @@ export default class FeatureTool implements Tool {
     secondarySelector.edgesWidth = 0.3
     secondarySelector.edgesColor = SELECTION_COLORS.inside.edges
     secondarySelector.isPickable = false
-    secondarySelector.checkCollisions = false
     secondarySelector.material = this.secondarySelectionMaterial
     secondarySelector.visibility = 1
 
@@ -238,7 +236,6 @@ export default class FeatureTool implements Tool {
     this.spawnFeatureLoadingMesh = BABYLON.MeshBuilder.CreateBox('feature/spawnFeatureLoadingMesh', { size: 1 }, this.scene)
     this.spawnFeatureLoadingMesh.isVisible = false
     this.spawnFeatureLoadingMesh.isPickable = false
-    this.spawnFeatureLoadingMesh.checkCollisions = false
 
     this.featureLoadingMaterial = new BABYLON.StandardMaterial('feature/featureLoading', this.scene)
     this.featureLoadingMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.8)

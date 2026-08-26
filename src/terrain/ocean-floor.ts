@@ -23,7 +23,6 @@ export default class OceanFloor implements ChunkObserver {
 
     this._mesh = BABYLON.MeshBuilder.CreateGround('ocean_floor_original', { width: this.size, height: this.size, subdivisions: 1 }, scene)
     this._mesh.material = oceanFloorMaterial
-    this._mesh.checkCollisions = true
     this._mesh.position.set(this.halfSize, -1024, this.halfSize)
     this._mesh.setEnabled(false) // instanced, dont need to render the original mesh
     this._mesh.receiveShadows = true

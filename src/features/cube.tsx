@@ -30,12 +30,6 @@ export default class Cube extends Feature3D<CubeRecord> {
     }
   }
 
-  refreshCollidable() {
-    if (this.mesh) {
-      this.mesh.checkCollisions = this.withinBounds && !!this.description.collidable
-    }
-  }
-
   whatIsThis() {
     return <label>This is a simple cube that can be textured or colored. </label>
   }
@@ -57,10 +51,6 @@ export default class Cube extends Feature3D<CubeRecord> {
     this.createMaterial(texture)
 
     this.afterGenerate()
-  }
-
-  afterSetCommon = () => {
-    this.refreshCollidable()
   }
 
   async generateInstance(root: Cube) {

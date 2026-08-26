@@ -34,7 +34,6 @@ export class Minimap {
     this.connector = connector
     this.scene = new BABYLON.Scene(engine)
     this.scene.performancePriority = BABYLON.ScenePerformancePriority.BackwardCompatible
-    this.scene.collisionsEnabled = false
 
     this.scene.skipPointerMovePicking = true
     this.scene.skipPointerDownPicking = true

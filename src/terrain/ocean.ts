@@ -48,7 +48,6 @@ export class Ocean implements ChunkObserver {
 
     // set up the instance template
     this.mesh = BABYLON.MeshBuilder.CreateGround('ocean_original', { width: this.size, height: this.size, subdivisions: 1 }, scene)
-    this.mesh.checkCollisions = false
     this.mesh.position.set(-99999, -99999, -99999)
     this.mesh.setEnabled(false)
 
@@ -499,7 +498,6 @@ export class Ocean implements ChunkObserver {
 
   private configureMeshProperties(mesh: BABYLON.Mesh, heightOverride?: number): void {
     mesh.material = this.mesh.material
-    mesh.checkCollisions = false
     const yPosition = heightOverride !== undefined ? heightOverride : OCEAN_HEIGHT_OFFSET
     mesh.position.set(mesh.position.x, yPosition, mesh.position.z)
     mesh.setEnabled(true)

@@ -111,7 +111,6 @@ export class VoxImporter {
       const mesh = new BABYLON.Mesh('utils/vox-box', this._scene ?? window.scene)
       mesh.material = this.material
       mesh.isPickable = true
-      mesh.checkCollisions = false
 
       const renderJob = Number(this.jobIndex)
       this.jobIndex++
@@ -145,7 +144,6 @@ export class VoxImporter {
         d.colors = colors
         d.applyToMesh(mesh)
 
-        mesh.checkCollisions = false
         mesh.refreshBoundingInfo()
 
         resolve(mesh)

@@ -93,7 +93,6 @@ export class Island {
 
   async render(): Promise<BABYLON.Mesh> {
     this._mesh.position.y = 0.75 - 0.01 // 0.01 = the nudge epsilon
-    this._mesh.checkCollisions = true
 
     const width = this._mesh.getBoundingInfo().maximum.x - this._mesh.getBoundingInfo().minimum.x
     const depth = this._mesh.getBoundingInfo().maximum.z - this._mesh.getBoundingInfo().minimum.z
