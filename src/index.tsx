@@ -3,7 +3,7 @@
  * a bunch of stuff that causes a SecurityException
  */
 
-import { createEngine, EngineContext, Mesh, resizeEngine, SceneContext } from '@babylonjs/lite'
+import { createEngine, EngineContext, Mesh, enableStandardVertexColors, registerScene, resizeEngine, SceneContext } from '@babylonjs/lite'
 
 try {
   const testKey = '__test__'
@@ -322,6 +322,8 @@ async function main() {
   }
 
   if (!window.config.isBot) {
+    enableStandardVertexColors()
+    await registerScene(scene)
     main.start()
   }
 

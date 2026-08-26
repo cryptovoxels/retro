@@ -2,6 +2,7 @@ import { FeatureRecord, SortableFeature, WorkerTiming, WorkerOperationType, Inst
 import { getGridMono } from '../mono-pool'
 import type { Mono } from '../mono'
 import { Vec3 } from '@babylonjs/lite'
+import { vecAsArray } from '../utils/vec3-compat'
 
 interface WorkerStats {
   pendingRequests: number
@@ -66,10 +67,12 @@ export class PumpWorkerManager {
   }
 
   private serializeCameraVectors(position: Vec3, direction: Vec3): { position: [number, number, number]; direction: [number, number, number] } {
-    return {
-      position: [position.x, position.y, position.z],
-      direction: [direction.x, direction.y, direction.z],
-    }
+    const p = vecAsArray(position)
+    let d = vecAsArray(direction)
+    const len = Math.hypot(d[0], d[1], d[2])
+    if (!Number.isFinite(len) || len < 1e-6) d = [0, 0, 1]
+    else d = [d[0] / len, d[1] / len, d[2] / len]
+    return { position: p, direction: d }
   }
 
   private serializeInstanceRelations(instanceRelations: ParcelInstanceRelations): InstanceRelation[] {

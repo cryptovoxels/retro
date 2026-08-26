@@ -1376,14 +1376,14 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
     this.voxelMesh?.dispose()
     this.voxelMesh = opaque
-    opaque.parent = this.transform
-    opaque.position.set(off[0], off[1], off[2])
+    // todo(lite): parent to transform node
+    this.setMeshPos(opaque, off)
     opaque.isPickable = true
-    opaque.freezeWorldMatrix()
+    ;(opaque as any).freezeWorldMatrix?.()
     this.setGlassMesh(glass, { pickable: true })
     if (this.glassMesh) {
-      this.glassMesh.position.set(off[0], off[1], off[2])
-      this.glassMesh.freezeWorldMatrix()
+      this.setMeshPos(this.glassMesh, off)
+      ;(this.glassMesh as any).freezeWorldMatrix?.()
     }
     if (this.field) {
       this.colliderVoxels = voxelCollider(this.field)
@@ -1409,6 +1409,16 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
   }
 
+  private setMeshPos(mesh: Mesh, off: [number, number, number]) {
+    const p = mesh.position as any
+    if (p.set) p.set(off[0], off[1], off[2])
+    else {
+      p[0] = off[0]
+      p[1] = off[1]
+      p[2] = off[2]
+    }
+  }
+
   private setVoxelMesh(mesh: (Mesh | null), cfg?: { pickable: boolean }) {
     // Don't dispose cached/shared materials - they're used by other parcels
     if (this.voxelMesh?.material && !isShared(this.voxelMesh.material)) {
@@ -1420,8 +1430,8 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
     this.voxelMesh = mesh
     this.setCommonMeshProperties(this.voxelMesh, cfg)
-    this.voxelMesh.position.set(-this.width / 4, -(1 + this.ZFightingNudge), -this.depth / 4)
-    mesh.freezeWorldMatrix()
+    this.setMeshPos(this.voxelMesh, [-this.width / 4, -(1 + this.ZFightingNudge), -this.depth / 4])
+    ;(mesh as any).freezeWorldMatrix?.()
   }
 
   private setGlassMesh(mesh: (Mesh | null), cfg?: { pickable: boolean }) {
@@ -1435,8 +1445,8 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
     this.glassMesh = mesh
     this.setCommonMeshProperties(this.glassMesh, cfg)
-    this.glassMesh.position.set(-this.width / 4, -(1 + this.ZFightingNudge), -this.depth / 4)
-    mesh.freezeWorldMatrix()
+    this.setMeshPos(this.glassMesh, [-this.width / 4, -(1 + this.ZFightingNudge), -this.depth / 4])
+    ;(mesh as any).freezeWorldMatrix?.()
   }
 
   private physicsKey() {

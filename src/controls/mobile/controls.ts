@@ -7,9 +7,10 @@ import { createFirstPersonCamera } from '../utils/fps-camera'
 import { WALK } from '../utils/player-body'
 import { SceneContext } from '@babylonjs/lite'
 import { mat4, vec3 } from 'wgpu-matrix'
+import { patchVec3 } from '../../utils/vec3-compat'
 
-const localDir = vec3.create()
-const worldDir = vec3.create()
+const localDir = patchVec3(vec3.create())
+const worldDir = patchVec3(vec3.create())
 const viewInv = mat4.identity()
 
 export default class MobileControls extends Controls {

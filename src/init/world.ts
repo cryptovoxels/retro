@@ -7,7 +7,7 @@ import type Controls from '../controls/controls'
 import { Environment } from '../enviroments/environment'
 import Grid from '../grid'
 import { createGizmos } from '../tools/gizmos'
-import { cameraRotation } from '../utils/camera'
+import { cameraPosition, cameraRotation } from '../utils/camera'
 import { isLoaded } from '../utils/loading-done'
 import { stepPhysics } from '../physics/world'
 import { startGhosts } from '../ghosts'
@@ -129,7 +129,7 @@ function updateNavbarWithCoords(scene: SceneContext, connector: Connector) {
       const queryParams = new URLSearchParams(document.location.search.substring(1))
 
       const coords = {
-        position: connector.persona.position.clone(),
+        position: cameraPosition(scene),
         rotation: cameraRotation(scene),
       }
 

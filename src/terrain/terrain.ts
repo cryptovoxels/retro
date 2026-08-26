@@ -78,8 +78,11 @@ export class Terrain {
     }
 
     if (this._scene.getFrameId() % 30 === 0) {
+      const p = cam.position as any
+      const x = p.x ?? p[0] ?? 0
+      const z = p.z ?? p[2] ?? 0
       this._islands.setVisibility(cam, 96)
-      this._chunkSystem.updateChunksAroundPosition({ x: cam.position.x, z: cam.position.z }, this._loadRange)
+      this._chunkSystem.updateChunksAroundPosition({ x, z }, this._loadRange)
     }
   }
 

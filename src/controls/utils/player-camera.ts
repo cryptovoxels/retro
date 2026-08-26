@@ -3,6 +3,7 @@ import { physics } from '../../physics/world'
 import type PlayerBody from './player-body'
 import { addToScene, attachFreeControl, createFreeCamera, FreeCamera, SceneContext, Vec3 } from '@babylonjs/lite'
 import { attachForwardRay } from '../../utils/camera'
+import { patchVec3 } from '../../utils/vec3-compat'
 import { quat, vec3 } from 'wgpu-matrix'
 
 const ORBIT_MARGIN = 0.3
@@ -75,9 +76,12 @@ export default class PlayerCamera {
   constructor(name: string, position: Vec3, scene?: SceneContext, setActiveOnSceneIfNoneActive = true) {
     if (!scene) throw new Error('PlayerCamera needs a scene')
     this.scene = scene
-    const pos = vec3.clone(position as any)
+    const p = position as any
+    const pos = vec3.fromValues(p?.[0] ?? p?.x ?? 0, p?.[1] ?? p?.y ?? 0, p?.[2] ?? p?.z ?? 0)
     const target = vec3.add(pos, vec3.fromValues(0, 0, 1))
     this.cam = createFreeCamera(pos as any, target as any)
+    patchVec3(this.cam.position as any)
+    patchVec3(this.cam.target as any)
     this.cam.name = name
     attachForwardRay(this.cam)
     addToScene(scene, this.cam)

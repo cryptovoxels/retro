@@ -34,10 +34,15 @@ function bjsVec(v: Vec3) {
 }
 
 export function cameraForwardRay(cam: FreeCamera, length = 1) {
-  const origin = vec3.clone(cam.position as any)
+  const p = cam.position as any
+  const t = cam.target as any
+  const origin = vec3.fromValues(p[0] ?? p.x ?? 0, p[1] ?? p.y ?? 0, p[2] ?? p.z ?? 0)
   const direction = vec3.create()
-  vec3.subtract(cam.target as any, cam.position as any, direction)
-  vec3.normalize(direction, direction)
+  if (t) {
+    vec3.subtract(vec3.fromValues(t[0] ?? t.x ?? 0, t[1] ?? t.y ?? 0, t[2] ?? t.z ?? 0), origin, direction)
+    vec3.normalize(direction, direction)
+  }
+  if (!Number.isFinite(direction[0])) vec3.set(0, 0, 1, direction)
   if (length !== 1) vec3.scale(length, direction, direction)
   return { origin: bjsVec(origin), direction: bjsVec(direction) }
 }

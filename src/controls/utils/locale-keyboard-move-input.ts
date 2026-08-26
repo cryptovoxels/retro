@@ -1,5 +1,6 @@
 import { EngineContext, FreeCamera, SceneContext, Vec3 } from '@babylonjs/lite'
 import { mat4, vec3 } from 'wgpu-matrix'
+import { patchVec3 } from '../../utils/vec3-compat'
 // forked from BABYLON.FreeCameraKeyboardMoveInput with `keyCode` replaced with `code` for correct international keyboard handling
 // https://github.com/BabylonJS/Babylon.js/blob/c843dcbc3875e9eee184152a10b857f7af9f4993/src/Cameras/Inputs/freeCameraKeyboardMoveInput.ts
 // writes unitless direction into Controls.move; PlayerBody scales by speed * dt
@@ -13,8 +14,8 @@ interface LocaleKeyboardMoveInputOptions {
   keysRotateRight?: string[]
 }
 
-const localDir = vec3.create()
-const worldDir = vec3.create()
+const localDir = patchVec3(vec3.create())
+const worldDir = patchVec3(vec3.create())
 const viewInv = mat4.identity()
 
 export class LocaleKeyboardMoveInput /* todo(lite): implements BABYLON.ICameraInput<BABYLON.FreeCamera> */ {

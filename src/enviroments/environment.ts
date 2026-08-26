@@ -68,7 +68,8 @@ export abstract class Environment extends TypedEventTarget<{
   }
 
   get clearColor() {
-    return ([0, 0, 0, 0] as Color4)
+    const c = this.fogColor
+    return [c[0], c[1], c[2], 1] as Color4
   }
 
   public abstract invalidateGroundLoaded(): void

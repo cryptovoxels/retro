@@ -1,6 +1,7 @@
 import type Feature from '../features/feature'
 import type Parcel from '../parcel'
 import { tidyVec3 } from '../utils/helpers'
+import { patchVec3 } from '../utils/vec3-compat'
 import { PumpWorkerManager } from './pump-worker-manager'
 import type { FeatureRecord, LoadItem, LoadOrderItem, ParcelInstanceRelations, SortableFeature, WorkerOperationType } from './types'
 import { SceneContext, Vec3 } from '@babylonjs/lite'
@@ -40,10 +41,10 @@ export class FeaturePump {
 
   private deactivationQueue: PendingDeactivation[] = []
 
-  private cameraPosition: Vec3 = vec3.create()
-  private cameraDirection: Vec3 = (undefined as any /* todo(lite): BABYLON.Vector3.Forward() */)
-  private lastSortPosition: Vec3 = vec3.create()
-  private lastSortDirection: Vec3 = (undefined as any /* todo(lite): BABYLON.Vector3.Forward() */)
+  private cameraPosition: Vec3 = patchVec3(vec3.create())
+  private cameraDirection: Vec3 = patchVec3(vec3.fromValues(0, 0, 1))
+  private lastSortPosition: Vec3 = patchVec3(vec3.create())
+  private lastSortDirection: Vec3 = patchVec3(vec3.fromValues(0, 0, 1))
   private currentParcel: Parcel | undefined = undefined
   private needsSorting = false
 
@@ -180,12 +181,17 @@ export class FeaturePump {
    * @param direction Camera look direction (will be normalized internally if needed)
    */
   public setCameraPosition(position: Vec3, direction: Vec3): void {
-    const directionChanged = this.calculateDirectionAlignment(this.lastSortDirection, direction) < 0.99
+    const dir = patchVec3(vec3.create())
+    dir[0] = direction[0] ?? (direction as any).x ?? 0
+    dir[1] = direction[1] ?? (direction as any).y ?? 0
+    dir[2] = direction[2] ?? (direction as any).z ?? 1
+
+    const directionChanged = this.calculateDirectionAlignment(this.lastSortDirection, dir) < 0.99
     const positionChanged = vec3.distance(position, this.lastSortPosition) > 1.0
     const cameraChanged = positionChanged || directionChanged
 
     this.cameraPosition.copyFrom(position)
-    this.cameraDirection.copyFrom(direction)
+    this.cameraDirection.copyFrom(dir)
 
     // Re-sort current visual queue if camera changed and queue has pending features
     if (this.loadQueue.length > 0 && cameraChanged) {
@@ -608,17 +614,15 @@ export class FeaturePump {
    * Returns 1.0 if either vector is invalid (zero length).
    */
   private calculateDirectionAlignment(directionA: Vec3, directionB: Vec3): number {
-    // Calculate vector lengths
-    const lengthA = directionA.length()
-    const lengthB = directionB.length()
+    const lengthA = vec3.length(directionA)
+    const lengthB = vec3.length(directionB)
 
     if (lengthA === 0 || lengthB === 0) {
-      return 1.0 // Treat invalid directions as unchanged
+      return 1.0
     }
 
-    // Normalize vectors and calculate dot product
-    const normalizedA = directionA.normalizeToNew()
-    const normalizedB = directionB.normalizeToNew()
+    const normalizedA = vec3.normalize(vec3.clone(directionA))
+    const normalizedB = vec3.normalize(vec3.clone(directionB))
 
     return vec3.dot(normalizedA, normalizedB)
   }
@@ -680,7 +684,6 @@ export class FeaturePump {
       })
       .catch((error) => {
         console.warn('FeaturePump: Async sorting failed, sorting skipped:', error)
-        throw error // Re-throw to let caller handle state
       })
       .finally(() => {
         this._stats.currentBusyOperations = ''

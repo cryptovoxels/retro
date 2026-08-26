@@ -149,30 +149,41 @@ export interface coords {
 
 const headings = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW', 'N']
 
+function vecAxis(v: BABYLON.Vector3, axis: 'x' | 'y' | 'z') {
+  const a = v as any
+  const i = axis === 'x' ? 0 : axis === 'y' ? 1 : 2
+  const n = a[i] ?? a[axis]
+  return Number.isFinite(n) ? n : 0
+}
+
 /**
  * Converts encoded coordinates such as 45W,253N, to a position object
  * @param {string} coords the coordinates, eg: 45W,253N,
  * @returns {coords} Position object {position:{x,y,z},rotation:{x,y,z}}
  */
 export const decodeCoords = (coords: string | null): coords => {
-  const result = new BABYLON.Vector3(0, CAMERA_HEIGHT, 0)
-  const rotation = new BABYLON.Vector3(0, 0, 0)
+  const result = { x: 0, y: CAMERA_HEIGHT, z: 0 } as BABYLON.Vector3
+  const rotation = { x: 0, y: 0, z: 0 } as BABYLON.Vector3
 
   if (coords) {
     const terms = coords.split(/[,@]/)
 
     terms.forEach((t) => {
       if (t.match(/\dU$/) || t.match(/\dF$/)) {
-        // F is legacy; treat as height only
-        result.y = parseFloat(t) + CAMERA_HEIGHT
+        const n = parseFloat(t)
+        if (Number.isFinite(n)) result.y = n + CAMERA_HEIGHT
       } else if (t.match(/\dN$/)) {
-        result.z = parseFloat(t)
+        const n = parseFloat(t)
+        if (Number.isFinite(n)) result.z = n
       } else if (t.match(/\dS$/)) {
-        result.z = -parseFloat(t)
+        const n = parseFloat(t)
+        if (Number.isFinite(n)) result.z = -n
       } else if (t.match(/\dE$/)) {
-        result.x = parseFloat(t)
+        const n = parseFloat(t)
+        if (Number.isFinite(n)) result.x = n
       } else if (t.match(/\dW$/)) {
-        result.x = -parseFloat(t)
+        const n = parseFloat(t)
+        if (Number.isFinite(n)) result.x = -n
       } else if (t.match(/^[NESW]{1,2}$/)) {
         rotation.y = (headings.indexOf(t) * 45 * Math.PI) / 180
       }
@@ -187,9 +198,9 @@ export const decodeCoords = (coords: string | null): coords => {
  * @returns {string} coordinates
  */
 export const encodeCoords = (coords: coords): string => {
-  let { x, z } = coords.position.floor()
-
-  let y = Math.round(coords.position.y - CAMERA_HEIGHT)
+  let x = Math.floor(vecAxis(coords.position, 'x'))
+  let z = Math.floor(vecAxis(coords.position, 'z'))
+  let y = Math.round(vecAxis(coords.position, 'y') - CAMERA_HEIGHT)
 
   const result = []
 
@@ -214,7 +225,7 @@ export const encodeCoords = (coords: coords): string => {
   let heading
 
   if (coords.rotation) {
-    let r = (coords.rotation.y * 180) / Math.PI
+    let r = (vecAxis(coords.rotation, 'y') * 180) / Math.PI
 
     while (r < 0) {
       r += 360

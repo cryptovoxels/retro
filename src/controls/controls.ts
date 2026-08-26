@@ -9,6 +9,7 @@ import { isLoaded } from '../utils/loading-done'
 import Feature, { MeshExtended } from '../features/feature'
 import Avatar from '../avatar'
 import { cameraPosition, cameraRotation } from '../utils/camera'
+import { patchVec3 } from '../utils/vec3-compat'
 import type { Environment } from '../enviroments/environment'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
 import { IControls } from './iControls'
@@ -81,7 +82,7 @@ export default abstract class Controls implements IControls {
   camera: PlayerCamera = undefined!
   body: PlayerBody = undefined!
   /** unitless direction; inputs write, body.step scales by speed * dt */
-  move = vec3.create()
+  move = patchVec3(vec3.create())
   hasGamepad = false
   flying = false
   swimming = false
