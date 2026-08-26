@@ -25,7 +25,7 @@ export default class Polytext extends NonMeshedFeature<PolytextDescription> {
   static template: FeatureTemplate = {
     type: 'polytext',
     scale: [0.2, 0.2, 0.2],
-    rotate: [0, Math.PI / 2, 0],
+    rotate: [0, 0, 0],
     text: 'Text',
   }
 
