@@ -9,7 +9,8 @@ import { isURL } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import Feature, { Feature3D, FeatureEvent, FeatureTrigger, MeshExtended, transformVectors } from './feature'
 import ActionGui from '../ui/gui/action-button-gui'
-import { Mesh } from '@babylonjs/lite'
+import { Mesh, addToScene, disposeMeshGpu, removeFromScene } from '@babylonjs/lite'
+import { featureBox } from '../utils/feature-mesh'
 import { vec3 } from 'wgpu-matrix'
 
 // used when "Scale To Grid" is enabled
@@ -88,27 +89,22 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
 
   generateDraft() {
     if (this.disposed) return
-    if (!((false /* todo(lite): this.mesh instanceof BABYLON.Mesh */))) {
-      this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
-      rebindGizmos(this)
-    }
+    this.mesh = featureBox(this.scene, this.uniqueEntityName('mesh'))
+    rebindGizmos(this)
     this.mesh.material = Feature.getDraftMaterial(this.scene)
     this.setCommon()
   }
 
   private applyImportedMesh(imported: Mesh) {
-    if (!((false /* todo(lite): this.mesh instanceof BABYLON.Mesh */))) {
-      this.mesh = imported
-    } else {
-      (undefined as any /* todo(lite): BABYLON.VertexData.ExtractFromMesh(imported).applyToMesh(this.mesh) */)
-      this.mesh.material = imported.material
-      imported.material = null
-      imported.dispose()
+    if (this.mesh) {
+      removeFromScene(this.scene, this.mesh)
+      disposeMeshGpu(this.mesh)
     }
-    this.mesh.isPickable = true
+    this.mesh = imported
+    addToScene(this.scene, imported)
+    this.mesh.pickable = true
     this.mesh.name = this.uniqueEntityName('mesh')
-    this.mesh.id = this.mesh.name
-    this.mesh.refreshBoundingInfo()
+    ;(this.mesh as any).id = this.mesh.name
     this.afterGenerate()
   }
 
@@ -145,7 +141,8 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     }
 
     if (this.disposed || this.abortController.signal.aborted) {
-      mesh.dispose()
+      removeFromScene(this.scene, mesh)
+      disposeMeshGpu(mesh)
       return
     }
 

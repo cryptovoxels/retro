@@ -16,7 +16,7 @@ import { axisNames2D, axisNames3D, bboxCompletelyWithin, resolveUgc, tidyURL, ti
 import { TimeOfDay } from '../utils/time-of-day'
 import Group from './group'
 import { boundingBoxOfMesh } from './utils/bounding-box'
-import { Mesh, PickingInfo, SceneContext, StandardMaterialProps, TransformNode, Vec3, onBeforeRender } from '@babylonjs/lite'
+import { Mesh, PickingInfo, SceneContext, StandardMaterialProps, TransformNode, Vec3, addToScene, createStandardMaterial, onBeforeRender } from '@babylonjs/lite'
 import { vec3 } from 'wgpu-matrix'
 
 /**
@@ -90,16 +90,16 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
   static getDraftMaterial(scene: SceneContext): StandardMaterialProps {
     if (!Feature.draftMaterial) {
-      const m = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('feature-draft', scene) */)
-      m.specularColor.set(0, 0, 0)
-      m.diffuseColor.set(0.4, 0.4, 0.4)
-      m.emissiveColor.set(0.4, 0.4, 0.4)
+      const m = createStandardMaterial()
+      m.specularColor = [0, 0, 0]
+      m.diffuseColor = [0.4, 0.4, 0.4]
+      m.emissiveColor = [0.4, 0.4, 0.4]
       m.backFaceCulling = false
       Feature.draftMaterial = m
       Feature.draftPulseObs = onBeforeRender(scene, () => {
         const g = 0.4 + 0.1 * Math.sin(Date.now() * 0.003)
-        m.diffuseColor.set(g, g, g)
-        m.emissiveColor.set(g, g, g)
+        m.diffuseColor = [g, g, g]
+        m.emissiveColor = [g, g, g]
       })
     }
     return Feature.draftMaterial
@@ -973,6 +973,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     const keys = validKeys.map((k: validFrame) => ({ frame: k.frame, value: (undefined as any /* todo(lite): BABYLON.Vector3.FromArray(k.value).addInPlace(offset) */) }))
 
     this.animation = (undefined as any /* todo(lite): new BABYLON.Animation('feature/animation', this.description.animation.destination, 30, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE) */)
+    if (!this.animation?.setKeys) return
     this.animation.setKeys(keys)
 
     const easingDescription = this.description.animation.easing
@@ -1040,74 +1041,48 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       return
     }
 
-    // Create parent
-    if (!this.parent) {
-      this.parent = (undefined as any /* todo(lite): new BABYLON.TransformNode('feature/parent', this.scene) */)
+    if (!this.mesh) return
+
+    const group = this.groupId && this.parcel.getFeatureByUuid(this.groupId)
+    const px = this.position[0]
+    const py = this.position[1]
+    const pz = this.position[2]
+    const sx = this.scale[0] || EPSILON
+    const sy = this.scale[1] || EPSILON
+    const sz = this.scale[2] || EPSILON
+
+    if (group?.mesh) {
+      this.mesh.parent = group.mesh as any
+      this.mesh.position.set(px, py, pz)
+    } else {
+      this.mesh.parent = null
+      const tp = this.parcel.transform.position as any
+      const tx = tp[0] ?? tp.x ?? 0
+      const ty = tp[1] ?? tp.y ?? 0
+      const tz = tp[2] ?? tp.z ?? 0
+      this.mesh.position.set(tx + px, ty + py, tz + pz)
     }
 
-    // this.parent business is only used by nft-image- since nft-image has two separate meshes
-    // refactor nft-image to merge the meshes so that we don't need to make this special consideration
-    this.parent.position.copyFrom(this.position)
-    this.parent.rotation.copyFrom(this.rotation)
+    this.mesh.rotation.set(this.rotation[0], this.rotation[1], this.rotation[2])
+    this.mesh.scaling.set(sx, sy, sz)
+    this.applyMeshTransformAdjustments()
+    addToScene(this.scene, this.mesh)
 
-    if (this.mesh) {
-      // Set parent
-      const group1 = this.groupId && this.parcel.getFeatureByUuid(this.groupId)
-      this.mesh.setParent(group1 && group1.mesh ? group1.mesh : this.parcel.transform)
+    const clickableMesh = this.mesh as AbstractMeshExtended
+    clickableMesh.feature = this
+    clickableMesh.parcel = this.parcel
+    clickableMesh.pickable = true
+    ;(clickableMesh as any).isPickable = true
 
-      this.mesh.scaling.set(this.scale.x || EPSILON, this.scale.y || EPSILON, this.scale.z || EPSILON)
-      this.mesh.position.copyFrom(this.position)
-      this.mesh.rotation.copyFrom(this.rotation)
-      // In Babylon 5.5.6, a fix to computeWorldMatrix introduced something that broke the way we deal with nudges and z-fighting;
-      // So now we have to always mark the mesh as dirty :/
-      this.mesh.markAsDirty()
+    if (!this.mesh.metadata) {
+      this.mesh.metadata = {}
+    }
 
-      // Behaviour of nudging before 8.10.0, where the nudge is impacted by the scale. This affects placements and parcels have been designed on the assumption
-      // that it exists. In a bugfix to 8.10.0, we've restored the legacy behaviour for 3D artifacts but not 2D.
-      if (this.legacyNudge() !== null) {
-        // Extrude from the face a leetle
-        this.mesh.translate(vec3.fromValues(0, 0, 1), <number>this.legacyNudge(), (undefined as any /* todo(lite): BABYLON.Space.LOCAL */))
-      } else if (this.nudge() !== null) {
-        let scaledNudge = <number>this.nudge() / this.mesh.scaling.z
-        // Test point - follow the nudging 5x the distance and check that it doesn't end up in a voxel
-        const testPoint = this.localTranslationInParcelSpace(vec3.fromValues(0, 0, scaledNudge * 5))
-
-        // If there is a voxel value then we have nudged the centrepoint into a solid voxel, reverse the nudge
-        const voxelValue = this.parcel.voxelValueFromPositionInParcel(testPoint) || 0
-        if (voxelValue !== 0) {
-          scaledNudge *= -1
-        }
-
-        // Extrude from the face a leetle - nudge is multiplied by scaling.z in world coordinates so needs to have the scaling factored in
-        this.mesh.translate(vec3.fromValues(0, 0, 1), scaledNudge, (undefined as any /* todo(lite): BABYLON.Space.LOCAL */))
-
-        // Make x & y slightly bigger so that boxes made from nudged flat surfaces still touch corners
-        if (this.nudge() !== null) {
-          const nudgeGrowth = Math.abs(<number>this.nudge()) * 2
-          this.mesh.scaling.addInPlaceFromFloats(nudgeGrowth, nudgeGrowth, 0)
-        }
-      }
-
-      this.applyMeshTransformAdjustments()
-
-      // TODO FIX THIS SHIT
-      const clickableMesh = this.mesh as AbstractMeshExtended
-      clickableMesh.feature = this
-      clickableMesh.parcel = this.parcel
-      clickableMesh.isPickable = true
-
-      this.parent.parent = this.mesh.parent
-
-      if (!this.mesh.metadata) {
-        this.mesh.metadata = {}
-      }
-
-      if (this.shouldBeInteractive()) {
-        const abstractMesh: AbstractMeshExtended = this.mesh as AbstractMeshExtended
-        if (!((false /* todo(lite): abstractMesh instanceof BABYLON.InstancedMesh */))) abstractMesh.enablePointerMoveEvents = true
-        this.mesh.metadata.captureMoveEvents = true
-        this.mesh.metadata.isInteractive = true
-      }
+    if (this.shouldBeInteractive()) {
+      const abstractMesh: AbstractMeshExtended = this.mesh as AbstractMeshExtended
+      if (!((false /* todo(lite): abstractMesh instanceof BABYLON.InstancedMesh */))) abstractMesh.enablePointerMoveEvents = true
+      this.mesh.metadata.captureMoveEvents = true
+      this.mesh.metadata.isInteractive = true
     }
 
     if (this.afterSetCommon) {

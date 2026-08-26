@@ -1,11 +1,13 @@
-import VoxVertexShader from './vox.vsh'
-import VoxPixelShader from './vox.fsh'
 import type { VoxData } from './vox-reader'
 import { getComputePool } from '../../src/mono-pool'
 import type { Mono } from '../../src/mono'
-
-BABYLON.Effect.ShadersStore['VoxVertexShader'] = VoxVertexShader
-BABYLON.Effect.ShadersStore['VoxPixelShader'] = VoxPixelShader
+import {
+  Mesh,
+  SceneContext,
+  StandardMaterialProps,
+  createMeshFromData,
+  createStandardMaterial,
+} from '@babylonjs/lite'
 
 type JobRecordCommon = {
   wantCollider: boolean
@@ -30,10 +32,10 @@ export type JobRecord = UrlJobRecord | BufferJobRecord
 type JobsManager = { [x: number]: (data: { renderJob: number } & (VoxData | { error: any })) => void }
 
 export interface Options {
-  wantCollider?: boolean // default false
-  invertX?: boolean // default false
+  wantCollider?: boolean
+  invertX?: boolean
   megavox?: boolean
-  sizeHint?: BABYLON.Vector3
+  sizeHint?: { toArray?: (out: number[]) => void } | number[]
   signal: AbortSignal
   colorMap?: Record<number, [number, number, number]>
 }
@@ -47,24 +49,67 @@ export const voxImporter = (): VoxImporter => {
   return _instance
 }
 
+function meshNormals(positions: Float32Array, indices: Uint32Array): Float32Array {
+  const normals = new Float32Array(positions.length)
+  for (let i = 0; i < indices.length; i += 3) {
+    const ia = indices[i] * 3
+    const ib = indices[i + 1] * 3
+    const ic = indices[i + 2] * 3
+    const ax = positions[ia]
+    const ay = positions[ia + 1]
+    const az = positions[ia + 2]
+    const bx = positions[ib] - ax
+    const by = positions[ib + 1] - ay
+    const bz = positions[ib + 2] - az
+    const cx = positions[ic] - ax
+    const cy = positions[ic + 1] - ay
+    const cz = positions[ic + 2] - az
+    const nx = by * cz - bz * cy
+    const ny = bz * cx - bx * cz
+    const nz = bx * cy - by * cx
+    normals[ia] += nx
+    normals[ia + 1] += ny
+    normals[ia + 2] += nz
+    normals[ib] += nx
+    normals[ib + 1] += ny
+    normals[ib + 2] += nz
+    normals[ic] += nx
+    normals[ic + 1] += ny
+    normals[ic + 2] += nz
+  }
+  for (let i = 0; i < normals.length; i += 3) {
+    const len = Math.hypot(normals[i], normals[i + 1], normals[i + 2]) || 1
+    normals[i] /= len
+    normals[i + 1] /= len
+    normals[i + 2] /= len
+  }
+  return normals
+}
+
+function voxMaterial(): StandardMaterialProps {
+  const m = createStandardMaterial()
+  m.diffuseColor = [1, 1, 1]
+  m.specularColor = [0.1, 0.1, 0.1]
+  m.specularPower = 16
+  return m
+}
+
 export class VoxImporter {
-  private static readonly WORKER_COUNT = 4
   private static readonly JOB_TIMEOUT_MS = 5000
 
   private jobs: JobsManager = {}
   private jobWorkerMap: Map<number, Mono> = new Map()
   private workerBusyCount: Map<Mono, number> = new Map()
   private jobIndex = 0
-  private material: BABYLON.Material | null = null
+  private material: StandardMaterialProps | null = null
   private workers: Mono[] = []
   private workerCleanups: (() => void)[] = []
   private workersReady: Promise<void> | null = null
-  private _scene: BABYLON.Scene | undefined
+  private _scene: SceneContext | undefined
 
-  initialize(scene: BABYLON.Scene) {
+  initialize(scene: SceneContext) {
     if (scene) this._scene = scene
 
-    // Pool first so a missing scene cannot poison the singleton.
     /// #if RUNTIME === 'WEB'
     if (!this.workersReady) {
       this.workersReady = getComputePool()
@@ -82,37 +127,18 @@ export class VoxImporter {
     /// #endif
 
     if (!scene || this.material) return
-
-    this.material = new BABYLON.ShaderMaterial(
-      'vox-model/vox-shader',
-      scene,
-      { vertex: 'Vox', fragment: 'Vox' },
-      {
-        attributes: ['position', 'color'],
-        uniforms: ['world', 'worldViewProjection', 'view', 'projection', 'cameraPosition', 'brightness', 'ambient', 'lightDirection', 'fogColor', 'fogDensity'],
-        defines: ['#define IMAGEPROCESSINGPOSTPROCESS'],
-      },
-    )
-
-    const env = window.environment
-    if (env && this.material instanceof BABYLON.ShaderMaterial) {
-      this.material.setVector3('vLight', env.sunPosition || new BABYLON.Vector3(0.577, 0.577, -0.577).normalize())
-      env.setShaderParameters(this.material, 1.8)
-    }
-    this.material.blockDirtyMechanism = true
+    this.material = voxMaterial()
   }
 
-  import(urlOrBuffer: string | ArrayBuffer, options: Options): Promise<BABYLON.Mesh> {
+  import(urlOrBuffer: string | ArrayBuffer, options: Options): Promise<Mesh> {
     return new Promise((resolve, reject) => {
+      const scene = this._scene ?? window.scene
       if (!this.material) {
         console.error('VoxImport.material missing')
       }
       if (options.signal?.aborted) {
         return reject('Aborted')
       }
-      const mesh = new BABYLON.Mesh('utils/vox-box', this._scene ?? window.scene)
-      mesh.material = this.material
-      mesh.isPickable = true
 
       const renderJob = Number(this.jobIndex)
       this.jobIndex++
@@ -120,7 +146,6 @@ export class VoxImporter {
       if (options.signal) {
         options.signal.addEventListener('abort', () => {
           this.cancelJob(renderJob)
-          mesh.dispose()
           return reject(new Error('Aborted'))
         })
       }
@@ -129,32 +154,32 @@ export class VoxImporter {
         this.cleanupJob(renderJob)
 
         if ('error' in data) {
-          mesh.dispose()
           return reject(data.error)
         }
 
         if (options.signal?.aborted) {
-          mesh.dispose()
           return reject(new Error('Aborted'))
         }
 
         const { positions, indices, colors } = data as VoxData
-
-        const d = new BABYLON.VertexData()
-        d.positions = positions
-        d.indices = indices
-        d.colors = colors
-        d.applyToMesh(mesh)
-
-        mesh.refreshBoundingInfo()
-
+        const idx = indices instanceof Uint32Array ? indices : new Uint32Array(indices)
+        const normals = meshNormals(positions, idx)
+        const mesh = createMeshFromData(scene.surface.engine, 'utils/vox-box', positions, normals, idx, undefined, undefined, undefined, colors)
+        mesh.material = this.material!
+        mesh.pickable = true
         resolve(mesh)
       }
 
       const sizeHint = [1, 1, 1]
-
-      if (options && 'sizeHint' in options) {
-        options.sizeHint?.toArray(sizeHint)
+      if (options?.sizeHint) {
+        const hint = options.sizeHint as any
+        if (typeof hint.toArray === 'function') {
+          hint.toArray(sizeHint)
+        } else if (Array.isArray(hint)) {
+          sizeHint[0] = hint[0] ?? 1
+          sizeHint[1] = hint[1] ?? 1
+          sizeHint[2] = hint[2] ?? 1
+        }
       }
 
       const voxJob: JobRecord = {
@@ -171,7 +196,6 @@ export class VoxImporter {
       const run = async () => {
         if (this.workersReady) await this.workersReady
         if (this.workers.length === 0) {
-          mesh.dispose()
           return reject(new Error('No workers available'))
         }
         const worker = this.getFreeWorker()
@@ -208,14 +232,12 @@ export class VoxImporter {
       throw new Error('No workers available')
     }
 
-    // Initialize busy counts for new workers
     for (const worker of this.workers) {
       if (!this.workerBusyCount.has(worker)) {
         this.workerBusyCount.set(worker, 0)
       }
     }
 
-    // Find worker with least active jobs
     let leastBusyWorker = this.workers[0]
     let minJobs = this.workerBusyCount.get(leastBusyWorker) || 0
 
@@ -227,26 +249,22 @@ export class VoxImporter {
       }
     }
 
-    // Increment busy count
     this.workerBusyCount.set(leastBusyWorker, minJobs + 1)
     return leastBusyWorker
   }
 
   private cleanupJob(renderJob: number) {
-    // Decrement worker busy count
     const worker = this.jobWorkerMap.get(renderJob)
     if (worker && this.workerBusyCount.has(worker)) {
       const currentCount = this.workerBusyCount.get(worker) || 0
       this.workerBusyCount.set(worker, Math.max(0, currentCount - 1))
     }
 
-    // Remove worker mapping and job
     this.jobWorkerMap.delete(renderJob)
     delete this.jobs[renderJob]
   }
 
   private cancelJob(renderJob: number) {
-    // Send cancellation message to the worker handling this job
     const worker = this.jobWorkerMap.get(renderJob)
     if (worker) {
       worker.cancelJob(renderJob)
@@ -254,9 +272,6 @@ export class VoxImporter {
     this.cleanupJob(renderJob)
   }
 
-  /**
-   * Get current worker load statistics for debugging
-   */
   public getWorkerStats() {
     const stats = this.workers.map((worker, index) => ({
       workerIndex: index,
@@ -271,17 +286,14 @@ export class VoxImporter {
   }
 
   public terminate() {
-    // Cancel all pending jobs
     for (const renderJob of Object.keys(this.jobs)) {
       this.cancelJob(Number(renderJob))
     }
 
-    // Clear all maps
     this.jobs = {}
     this.jobWorkerMap.clear()
     this.workerBusyCount.clear()
 
-    // Terminate workers
     this.workerCleanups.forEach((cleanup) => cleanup())
     this.workers = []
     this.workerCleanups = []

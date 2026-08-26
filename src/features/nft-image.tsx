@@ -19,7 +19,8 @@ import Feature, { Feature2D, TransparencyMode } from './feature'
 import { setTextureProperties } from './image'
 import NFTFrame from './utils/nft-frame'
 import { Action } from '../../common/messages'
-import { Mesh, SceneContext, Texture2D } from '@babylonjs/lite'
+import { Mesh, SceneContext, StandardMaterialProps, Texture2D, createStandardMaterial } from '@babylonjs/lite'
+import { featurePlane } from '../utils/feature-mesh'
 
 export function arrayBufferToDataURL(buf: ArrayBuffer, mime = 'application/octet-stream'): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -123,10 +124,8 @@ export default class NftImage extends Feature2D<NftImageRecord> {
 
   generateDraft() {
     if (this.disposed) return
-    if (!((false /* todo(lite): this.mesh instanceof BABYLON.Mesh */))) {
-      this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
-      rebindGizmos(this)
-    }
+    this.mesh = featurePlane(this.scene, this.uniqueEntityName('mesh'))
+    rebindGizmos(this)
     this.mesh.material = Feature.getDraftMaterial(this.scene)
     this.setCommon()
   }
@@ -276,11 +275,10 @@ export default class NftImage extends Feature2D<NftImageRecord> {
           texture.dispose()
           return resolve()
         }
-        texture.hasAlpha = false
         this.renderImage(texture)
         this.loaded = true
-      } catch {
-        // aborted or failed: leave draft
+      } catch (e) {
+        console.warn('[nft-image] load failed', url, e)
       }
       resolve()
     })
@@ -295,7 +293,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
 
     if (!nftInfo) {
       // if we have a URL but the NFTinfo is bad, show error image
-      return `${process.env.ASSET_PATH}/images/error-URL_is_invalid.png`
+      return `${process.env.ASSET_PATH || ''}/images/error-URL_is_invalid.png`
     }
 
     if (!this.forceUpdate && this.asset && this.assetHelper && this.asset.token_id === nftInfo.token && this.asset.asset_contract.address === nftInfo.contract) {
@@ -310,7 +308,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     // console.log('data', data)
 
     if (!data || !('asset_contract' in data)) {
-      return `${process.env.ASSET_PATH}/images/error-could_not_fetch_nft.png`
+      return `${process.env.ASSET_PATH || ''}/images/error-could_not_fetch_nft.png`
     }
 
     this.asset = data
@@ -335,32 +333,26 @@ export default class NftImage extends Feature2D<NftImageRecord> {
   renderImage(texture: Texture2D): Mesh | null {
     if (this.disposed) return null
 
-    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
-    material.specularColor.set(0, 0, 0)
-    material.diffuseColor.set(1, 1, 1)
-
-    // Emissive color is a custom property that's a user-input
-    let defaultIntensity = 1 // emissiveColor intensity
-    // Previously, nft-images did not have an emissiveColor making them dark. 0.01 is the equivalent of no emissiveColor
-    // Because we now introduce it, I set the new default of emissiveColor to be 0.5 instead of no emissiveColor
+    let defaultIntensity = 1
     if (!this.deprecatedSince('7.18.11')) {
       defaultIntensity = tidyFloat(this.description.emissiveColorIntensity, 0.5)
     }
 
-    material.emissiveColor.fromArray(new Array(3).fill(defaultIntensity))
-
+    const material = createStandardMaterial()
+    material.specularColor = [0, 0, 0]
+    material.diffuseColor = [1, 1, 1]
+    material.emissiveColor = [defaultIntensity, defaultIntensity, defaultIntensity]
     material.backFaceCulling = false
-    material.zOffset = -5
     material.diffuseTexture = texture
 
-    if (!((false /* todo(lite): this.mesh instanceof BABYLON.Mesh */))) {
-      this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
+    if (!this.mesh) {
+      this.mesh = featurePlane(this.scene, this.uniqueEntityName('mesh'))
       rebindGizmos(this)
     } else {
       const old = this.mesh.material
       this.mesh.material = null
-      if ((false /* todo(lite): old instanceof BABYLON.StandardMaterial */) && old !== Feature.draftMaterial && old.getBindedMeshes().length <= 1) {
-        old.dispose(false, true)
+      if (old && old !== Feature.draftMaterial) {
+        old.dispose?.()
       }
     }
 

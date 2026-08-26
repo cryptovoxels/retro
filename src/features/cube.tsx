@@ -4,6 +4,8 @@ import { fetchTexture } from '../textures/textures'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, SpecularColorSetting, Toolbar, SourceInput } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, MeshExtended } from './feature'
+import { createStandardMaterial } from '@babylonjs/lite'
+import { featureBox, hexRgb } from '../utils/feature-mesh'
 
 export default class Cube extends Feature3D<CubeRecord> {
   static metadata: FeatureMetadata = {
@@ -35,8 +37,8 @@ export default class Cube extends Feature3D<CubeRecord> {
   }
 
   async generate() {
-    this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
-    this.mesh.isPickable = true
+    this.mesh = featureBox(this.scene, this.uniqueEntityName('mesh'))
+    this.mesh.pickable = true
 
     // handle no-texture case
     if (!this.textureURL) {
@@ -82,11 +84,10 @@ export default class Cube extends Feature3D<CubeRecord> {
     if (this.mesh.material) {
       this.mesh.material.dispose()
     }
-    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
-
-    material.specularColor.fromArray(this.description.specularColor || [1, 1, 1])
+    const material = createStandardMaterial()
+    material.specularColor = (this.description.specularColor as [number, number, number]) || [1, 1, 1]
     if (this.description.color) {
-      material.diffuseColor = (undefined as any /* todo(lite): BABYLON.Color3.FromHexString(this.description.color) */)
+      material.diffuseColor = hexRgb(this.description.color)
     }
     if (texture) {
       material.diffuseTexture = texture

@@ -4,6 +4,8 @@ import { Advanced, Animation, BlendMode, FeatureEditor, FeatureEditorProps, Feat
 import { tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
+import { createDynamicTexture, createStandardMaterial, updateDynamicTexture } from '@babylonjs/lite'
+import { featurePlane } from '../utils/feature-mesh'
 
 export default class Sign extends Feature2D<SignRecord> {
   static isRenderable = true
@@ -55,21 +57,19 @@ export default class Sign extends Feature2D<SignRecord> {
     Sign.canvas.width = width
     Sign.canvas.height = height
 
-    // Make a dynamic texture
-    const dynamicTexture = (undefined as any /* todo(lite): new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), Sign.canvas, this.scene, true) */)
-    dynamicTexture.hasAlpha = false
+    const dynamicTexture = createDynamicTexture(this.scene.surface.engine, width, height, { srgb: true })
 
-    const ctx = dynamicTexture.getContext() as CanvasRenderingContext2D // typeCast needed.
+    const ctx = Sign.canvas.getContext('2d')
+    if (!ctx) return Promise.resolve()
 
-    const planeSize = dynamicTexture.getSize()
     ctx.textAlign = 'center'
     ctx.font = `${this.fontSize}px 'Helvetica Neue', sans-serif`
     ctx.fillStyle = this.background
-    ctx.fillRect(0, 0, planeSize.width, height)
+    ctx.fillRect(0, 0, width, height)
 
     ctx.fillStyle = this.color
     if (text) {
-      ctx.fillText(text, planeSize.width / 2, height / 2 + 10)
+      ctx.fillText(text, width / 2, height / 2 + 10)
     }
 
     if (this.isLink && text) {
@@ -77,27 +77,24 @@ export default class Sign extends Feature2D<SignRecord> {
       ctx.fillRect(width / 2 - w * 128, 90, w * 128 * 4, 4)
     }
 
-    dynamicTexture.update(true)
+    updateDynamicTexture(this.scene.surface.engine, dynamicTexture, Sign.canvas)
 
-    const plane = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
+    const plane = featurePlane(this.scene, this.uniqueEntityName('mesh'))
 
-    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
-
-    material.diffuseColor.set(1, 1, 1)
+    const material = createStandardMaterial()
+    material.diffuseColor = [1, 1, 1]
     material.diffuseTexture = dynamicTexture
     material.alpha = 0.999
-    material.zOffset = -5
-    material.specularColor.set(0, 0, 0)
-    material.emissiveColor.set(1, 1, 1)
+    material.specularColor = [0, 0, 0]
+    material.emissiveColor = [1, 1, 1]
     material.backFaceCulling = false
-    material.freeze()
 
     if (this.blendMode === 'Multiply') {
-      material.alphaMode = (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_MULTIPLY */)
+      // todo(lite): alpha blend modes
     } else if (this.blendMode === 'Screen') {
-      material.alphaMode = (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_SCREENMODE */)
+      // todo(lite): alpha blend modes
     } else {
-      material.emissiveColor.set(0, 0, 0)
+      material.emissiveColor = [0, 0, 0]
     }
 
     material.blockDirtyMechanism = true

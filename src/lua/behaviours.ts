@@ -213,7 +213,7 @@ export default class LuaBehaviours {
       state: inst.state,
       position,
       rotation,
-      visible: feature.mesh?.isEnabled() ?? true,
+      visible: feature.mesh?.visible !== false,
       animate: (name: string, ms: number) => this.handleAnimate(inst, name, ms),
       emit: (signal: string, data?: unknown) => this.handleEmit(inst, signal, data),
     })
@@ -247,8 +247,8 @@ export default class LuaBehaviours {
       }
     }
     if (typeof self.visible === 'boolean' && feature.mesh) {
-      const cur = feature.mesh.isEnabled()
-      if (self.visible !== cur) feature.mesh.setEnabled(self.visible)
+      const cur = feature.mesh.visible !== false
+      if (self.visible !== cur) feature.mesh.visible = self.visible
     }
   }
 

@@ -21,7 +21,7 @@ import { getGpuTextureFormat } from './gpu'
 import { buildCachedTextureUrl } from './bucket'
 import { Metadata, metadataFromResponse } from './metadata-cache'
 import { registerAnimation } from './animation'
-import { EngineContext, SceneContext, Texture2D } from '@babylonjs/lite'
+import { EngineContext, SceneContext, Texture2D, createSolidTexture2D, loadKtx2Texture2D, loadKtxTexture2D, loadTexture2D } from '@babylonjs/lite'
 
 type TextureData = {
   buffer: ArrayBuffer
@@ -53,10 +53,7 @@ export async function fetchTexture(scene: SceneContext, srcURL: string | null, s
   }
 
   try {
-    const texture = await fetchAndCreateTexture(scene, urls.cachedUrl, urls.compressorUrl, signal, { flipY, mipmaps })
-    if (pixelated) {
-      texture.updateSamplingMode(1)
-    }
+    const texture = await fetchAndCreateTexture(scene, urls.cachedUrl, urls.compressorUrl, signal, { flipY, mipmaps, pixelated })
     return texture
   } catch (err) {
     return await fetchNoImageTexture(scene)
@@ -65,29 +62,24 @@ export async function fetchTexture(scene: SceneContext, srcURL: string | null, s
 
 export async function fetchAtlasTexture(scene: SceneContext): Promise<Texture2D> {
   try {
-    return await fetchAndCreateTexture(scene, '/textures/atlas-ao' + getGpuTextureFormat())
+    return await loadTex(scene.surface.engine, '/textures/atlas-ao' + getGpuTextureFormat(), texOpts(true, true, false))
   } catch (err) {
     console.error('Error loading default atlas texture', err)
-    return (undefined as any /* todo(lite): new BABYLON.Texture(null, scene) */)
+    return fetchNoImageTexture(scene)
   }
 }
 
 export async function fetchNoImageTexture(scene: SceneContext): Promise<Texture2D> {
-  return new Promise((resolve, reject) => {
-    const texture: Texture2D = (undefined as any /* todo(lite): new BABYLON.Texture(
-      process.env.ASSET_PATH + '/images/' + 'no-image' + getGpuTextureFormat(),
-      scene,
-      false,
-      true,
-      BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
-      () => setTimeout(() => resolve(texture), 2),
-      reject,
-    ) */)
-  })
+  const png = `${process.env.ASSET_PATH}/images/no-image.png`
+  try {
+    return await loadTexture2D(scene.surface.engine, png, { srgb: true })
+  } catch {
+    return loadTexture2D(scene.surface.engine, png)
+  }
 }
 
 export function createWhiteTexture(scene: SceneContext): Texture2D {
-  return (undefined as any /* todo(lite): new BABYLON.Texture('data:image/gif;base64,R0lGODlhAQABAPAAAP///wAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==', scene, true, false, BABYLON.Texture.NEAREST_SAMPLINGMODE) */)
+  return createSolidTexture2D(scene.surface.engine, 1, 1, 1, 1)
 }
 
 /**
@@ -155,28 +147,58 @@ function getTextureUrls(srcURL: string | null, transparent: boolean, stretch: bo
   return { cachedUrl, compressorUrl }
 }
 
-async function fetchAndCreateTexture(scene: SceneContext, url: string, backupURL?: string, signal?: AbortSignal, options: Pick<TextureOptions, 'flipY' | 'mipmaps'> = {}): Promise<Texture2D> {
-  const { flipY = true, mipmaps = true } = options
+async function fetchAndCreateTexture(
+  scene: SceneContext,
+  url: string,
+  backupURL?: string,
+  signal?: AbortSignal,
+  options: Pick<TextureOptions, 'flipY' | 'mipmaps' | 'pixelated'> = {},
+): Promise<Texture2D> {
+  const { flipY = true, mipmaps = true, pixelated = false } = options
+  const engine = scene.surface.engine
+  const opts = texOpts(flipY, mipmaps, pixelated)
 
-  const data = await fetchWithFallback(url, backupURL, signal)
-  const texture = await createTexture(scene, url, data.buffer, flipY, mipmaps)
-
-  if (data?.metadata?.frames > 1) {
-    registerAnimation(data.metadata, texture)
-  }
-
-  return texture
-}
-
-async function fetchWithFallback(url: string, backupURL: string | undefined, signal: AbortSignal | undefined): Promise<TextureData> {
   try {
-    return await deduplicateFetch(url, signal)
+    const texture = await loadTex(engine, url, opts, signal)
+    const data = await deduplicateFetch(url, signal).catch(() => null)
+    if (data?.metadata?.frames && data.metadata.frames > 1) {
+      registerAnimation(data.metadata, texture)
+    }
+    return texture
   } catch (err) {
     if (signal?.aborted || !backupURL) {
       throw err
     }
-    return await deduplicateFetch(backupURL, signal)
+    const texture = await loadTex(engine, backupURL, opts, signal)
+    const data = await deduplicateFetch(backupURL, signal).catch(() => null)
+    if (data?.metadata?.frames && data.metadata.frames > 1) {
+      registerAnimation(data.metadata, texture)
+    }
+    return texture
   }
+}
+
+function texOpts(flipY: boolean, mipmaps: boolean, pixelated: boolean) {
+  return {
+    invertY: flipY,
+    mipMaps: mipmaps,
+    srgb: true,
+    minFilter: (pixelated ? 'nearest' : 'linear') as GPUFilterMode,
+    magFilter: (pixelated ? 'nearest' : 'linear') as GPUFilterMode,
+  }
+}
+
+async function loadTex(engine: EngineContext, url: string, opts: ReturnType<typeof texOpts>, signal?: AbortSignal): Promise<Texture2D> {
+  if (signal?.aborted) {
+    throw new DOMException('Aborted', 'AbortError')
+  }
+  if (/\.ktx2(\?|$)/i.test(url)) {
+    return loadKtx2Texture2D(engine, url, true)
+  }
+  if (/\.ktx(\?|$)/i.test(url)) {
+    return loadKtxTexture2D(engine, url, [], opts)
+  }
+  return loadTexture2D(engine, url, opts)
 }
 
 async function deduplicateFetch(url: string, signal?: AbortSignal): Promise<TextureData> {
@@ -206,8 +228,3 @@ async function fetchTextureData(url: string, signal?: AbortSignal): Promise<Text
   }
 }
 
-async function createTexture(scene: SceneContext | EngineContext | null, url: string, buffer: ArrayBuffer, flipY: boolean, mipmaps: boolean): Promise<Texture2D> {
-  const texture = (undefined as any /* todo(lite): new BABYLON.Texture(`data:${url}`, scene, !mipmaps, flipY, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, undefined, undefined, buffer, true) */)
-  await new Promise((resolve) => setTimeout(resolve, 2))
-  return texture
-}

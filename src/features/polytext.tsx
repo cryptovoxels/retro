@@ -4,7 +4,8 @@ import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/sr
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, MeshExtended } from './feature'
-import { Color3, Mesh } from '@babylonjs/lite'
+import { Color3, Mesh, addToScene } from '@babylonjs/lite'
+import { hexRgb } from '../utils/feature-mesh'
 
 const LETTER_SPACING = 0.5
 const SCALE = 5.0
@@ -12,14 +13,14 @@ const ALPHABET_RED = 217
 const ALPHABET_GREEN = 226
 const ALPHABET_BLUE = 236
 
-function buildColorMap(diffuse: Color3): Record<number, [number, number, number]> {
-  const r = Math.round(diffuse.r * 255)
-  const g = Math.round(diffuse.g * 255)
-  const b = Math.round(diffuse.b * 255)
+function buildColorMap(diffuse: [number, number, number]): Record<number, [number, number, number]> {
+  const r = Math.round(diffuse[0] * 255)
+  const g = Math.round(diffuse[1] * 255)
+  const b = Math.round(diffuse[2] * 255)
   return {
-    [ALPHABET_RED]: [r, g, b],
-    [ALPHABET_GREEN]: [Math.round(r * 0.5), Math.round(g * 0.5), Math.round(b * 0.5)],
-    [ALPHABET_BLUE]: [Math.round(r * 0.2), Math.round(g * 0.2), Math.round(b * 0.2)],
+    [ALPHABET_RED]: [r / 255, g / 255, b / 255],
+    [ALPHABET_GREEN]: [(r * 0.5) / 255, (g * 0.5) / 255, (b * 0.5) / 255],
+    [ALPHABET_BLUE]: [(r * 0.2) / 255, (g * 0.2) / 255, (b * 0.2) / 255],
   }
 }
 
@@ -47,8 +48,7 @@ export default class Polytext extends Feature3D<PolytextRecord> {
 
   async generate() {
     const text = (this.description.text || '').slice(0, 24).toLowerCase()
-    const diffuse = (undefined as any /* todo(lite): BABYLON.Color3.FromHexString(this.description.color || '#ffffff') */)
-    const colorMap = buildColorMap(diffuse)
+    const colorMap = buildColorMap(hexRgb(this.description.color || '#ffffff'))
     const letters: Mesh[] = []
     let x = ((text.length + 1) * LETTER_SPACING * SCALE) / -2
 
@@ -60,26 +60,20 @@ export default class Polytext extends Feature3D<PolytextRecord> {
       }
 
       try {
-        const mesh = await voxImporter().import(`${process.env.ASSET_PATH}/alphabet/${ch}.vox`, {
+        const mesh = await voxImporter().import(`${process.env.ASSET_PATH || ''}/alphabet/${ch}.vox`, {
           signal: this.abortController.signal,
           colorMap,
         })
         if (this.disposed) {
-          mesh.dispose()
-          letters.forEach((m) => m.dispose())
           return
         }
 
-        // Bake scale, rotation, centerline, and letter spacing into vertices
-        mesh.rotation.y = Math.PI / 2
+        mesh.rotation.set(0, Math.PI / 2, 0)
         mesh.scaling.set(SCALE, SCALE, SCALE)
-        mesh.position.y = (LETTER_SPACING * SCALE) / 2
-        mesh.position.z = x
-        mesh.bakeCurrentTransformIntoVertices()
+        mesh.position.set(0, (LETTER_SPACING * SCALE) / 2, x)
         letters.push(mesh)
       } catch (e) {
         if (e instanceof Error && e.message === 'Aborted') {
-          letters.forEach((m) => m.dispose())
           return
         }
         console.warn('[Polytext] Failed to load letter:', ch, e)
@@ -87,17 +81,17 @@ export default class Polytext extends Feature3D<PolytextRecord> {
     }
 
     if (!letters.length || this.disposed) {
-      letters.forEach((m) => m.dispose())
       return
     }
 
-    const merged = (undefined as any /* todo(lite): BABYLON.Mesh.MergeMeshes(letters, true) */)
-    if (!merged) {
-      return
+    const root = letters[0]
+    addToScene(this.scene, root)
+    for (let i = 1; i < letters.length; i++) {
+      letters[i].parent = root
     }
 
-    this.mesh = merged
-    this.mesh.isPickable = true
+    this.mesh = root as MeshExtended
+    this.mesh.pickable = true
 
     this.setCommon()
     this.addAnimation()
