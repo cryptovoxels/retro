@@ -45,22 +45,14 @@ export function NftBrowser() {
           : nfts.length === 0
             ? 'no nfts found'
             : nfts
-              .filter((n) => n.image_url)
-              .map((nft) => (
-                <div>
-                  <img
-                    key={nft.permalink}
-                    draggable
-                    onDragStart={drag(nft)}
-                    onClick={() => place(nft)}
-                    src={imageUrlViaProxy(nft.image_url!, 96)}
-                    title={nft.name}
-                    alt={nft.name}
-                  />
-                  <span>{truncate(nft.name, 50)}</span>
-                  <cite>{truncate(nft.collection, 50)}</cite>
-                </div>
-              ))}
+                .filter((n) => n.image_url)
+                .map((nft) => (
+                  <div>
+                    <img key={nft.permalink} draggable onDragStart={drag(nft)} onClick={() => place(nft)} src={imageUrlViaProxy(nft.image_url!, 96)} title={nft.name} alt={nft.name} />
+                    <span>{truncate(nft.name, 50)}</span>
+                    <cite>{truncate(nft.collection, 50)}</cite>
+                  </div>
+                ))}
       </div>
     </div>
   )
