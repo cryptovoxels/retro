@@ -14,6 +14,7 @@ type JobRecordCommon = {
   megavox: boolean
   sizeHint?: Array<number>
   timeoutMs: number
+  colorMap?: Record<number, [number, number, number]>
 }
 
 type UrlJobRecord = JobRecordCommon & {
@@ -34,6 +35,7 @@ export interface Options {
   megavox?: boolean
   sizeHint?: BABYLON.Vector3
   signal: AbortSignal
+  colorMap?: Record<number, [number, number, number]>
 }
 
 let _instance: VoxImporter | null = null
@@ -163,6 +165,7 @@ export class VoxImporter {
         sizeHint,
         wantCollider: false,
         timeoutMs: VoxImporter.JOB_TIMEOUT_MS,
+        colorMap: options.colorMap,
       }
       /// #if RUNTIME === 'WEB'
       const run = async () => {
