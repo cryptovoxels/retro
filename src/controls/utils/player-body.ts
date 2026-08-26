@@ -76,6 +76,8 @@ export default class PlayerBody {
 
   /** move is unitless direction; speed is m/s; dt is seconds */
   step(move: Vec3, dt: number): void {
+    console.log(move)
+
     // Smooth acceleration and deceleration
     const t = 1 - Math.exp(-10 * dt)
     this.vel.x += (move.x * this.speed - this.vel.x) * t

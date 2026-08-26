@@ -3,7 +3,6 @@ import { physics } from '../../physics/world'
 import type PlayerBody from './player-body'
 import { addToScene, createFreeCamera, FreeCamera, SceneContext, Vec3 } from '@babylonjs/lite'
 import { attachForwardRay } from '../../utils/camera'
-import { patchVec3 } from '../../utils/vec3-compat'
 import { quat, vec3 } from 'wgpu-matrix'
 
 const ORBIT_MARGIN = 0.3
@@ -89,8 +88,6 @@ export default class PlayerCamera {
     const pos = vec3.fromValues(p?.[0] ?? p?.x ?? 0, p?.[1] ?? p?.y ?? 0, p?.[2] ?? p?.z ?? 0)
     const target = vec3.add(pos, vec3.fromValues(0, 0, 1))
     this.cam = createFreeCamera(pos as any, target as any)
-    patchVec3(this.cam.position as any)
-    patchVec3(this.cam.target as any)
     this.cam.name = name
     attachForwardRay(this.cam)
     addToScene(scene, this.cam)
@@ -208,11 +205,17 @@ export default class PlayerCamera {
   }
 
   place() {
+    const bp = this.body.position as any
+    const bx = bp.x ?? bp[0] ?? 0
+    const by = bp.y ?? bp[1] ?? 0
+    const bz = bp.z ?? bp[2] ?? 0
+
     if (this.distance <= 0) {
-      this.position.copyFrom(this.body.position as any)
+      this.cam.position.set(bx, by, bz)
       this.syncTarget()
       return
     }
+
     const q = quat.fromEuler(this._rotation.y, this._rotation.x, this._rotation.z, 'yxz')
     vec3.set(0, 0, -1, this.back)
     vec3.transformQuat(this.back, q, this.back)
@@ -223,9 +226,8 @@ export default class PlayerCamera {
       const hit = w.castRay(new RAPIER.Ray(this.body.position, this.back), dist + ORBIT_MARGIN, true, undefined, undefined, undefined, this.body.blocker)
       if (hit) dist = Math.max(0, hit.timeOfImpact - ORBIT_MARGIN)
     }
-    vec3.copy(this.body.position as any, this.position as any)
-    vec3.scale(dist, this.back, this.back)
-    vec3.add(this.position as any, this.back, this.position as any)
+
+    this.cam.position.set(bx + this.back[0] * dist, by + this.back[1] * dist, bz + this.back[2] * dist)
     this.syncTarget()
   }
 
