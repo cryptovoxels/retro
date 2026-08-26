@@ -54,7 +54,6 @@ export async function searchAndReturn(req: Request, res: Response) {
     const queryResult = await db.query<any>(queryConfig)
     results = queryResult.rows
   } catch (err: any) {
-
     if (err.toString().match(/not been populated/)) {
       pgp.query(`REFRESH MATERIALIZED VIEW search_corpus;`)
     }

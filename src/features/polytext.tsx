@@ -3,7 +3,7 @@ import { voxImporter } from '../../common/vox-import/vox-import'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
-import { MeshExtended, NonMeshedFeature } from './feature'
+import { Feature3D, MeshExtended } from './feature'
 
 const LETTER_SPACING = 0.5
 const SCALE = 5.0
@@ -22,7 +22,7 @@ function buildColorMap(diffuse: BABYLON.Color3): Record<number, [number, number,
   }
 }
 
-export default class Polytext extends NonMeshedFeature<PolytextRecord> {
+export default class Polytext extends Feature3D<PolytextRecord> {
   static metadata: FeatureMetadata = {
     title: 'Polytext',
     subtitle: '3d text',
@@ -45,13 +45,11 @@ export default class Polytext extends NonMeshedFeature<PolytextRecord> {
   }
 
   async generate() {
-    const parent = new BABYLON.TransformNode(this.uniqueEntityName('parent'), this.scene)
-    this.mesh = parent as MeshExtended
-
     const text = (this.description.text || '').slice(0, 24).toLowerCase()
     const diffuse = BABYLON.Color3.FromHexString(this.description.color || '#ffffff')
     const colorMap = buildColorMap(diffuse)
-    let x = (text.length + 1) * LETTER_SPACING * SCALE / -2
+    const letters: BABYLON.Mesh[] = []
+    let x = ((text.length + 1) * LETTER_SPACING * SCALE) / -2
 
     for (const ch of text) {
       x += LETTER_SPACING * SCALE
@@ -65,27 +63,40 @@ export default class Polytext extends NonMeshedFeature<PolytextRecord> {
           signal: this.abortController.signal,
           colorMap,
         })
-        if (parent.isDisposed()) {
+        if (this.disposed) {
           mesh.dispose()
+          letters.forEach((m) => m.dispose())
           return
         }
 
-        // Bake scale rotation and centerline
+        // Bake scale, rotation, centerline, and letter spacing into vertices
         mesh.rotation.y = Math.PI / 2
         mesh.scaling.set(SCALE, SCALE, SCALE)
-        mesh.position.y = LETTER_SPACING * SCALE / 2
-        mesh.bakeCurrentTransformIntoVertices()
-
-        // Set position manually
-        mesh.setParent(parent)
+        mesh.position.y = (LETTER_SPACING * SCALE) / 2
         mesh.position.z = x
-
-        mesh.isPickable = true
+        mesh.bakeCurrentTransformIntoVertices()
+        letters.push(mesh)
       } catch (e) {
-        if (e instanceof Error && e.message === 'Aborted') return
+        if (e instanceof Error && e.message === 'Aborted') {
+          letters.forEach((m) => m.dispose())
+          return
+        }
         console.warn('[Polytext] Failed to load letter:', ch, e)
       }
     }
+
+    if (!letters.length || this.disposed) {
+      letters.forEach((m) => m.dispose())
+      return
+    }
+
+    const merged = BABYLON.Mesh.MergeMeshes(letters, true)
+    if (!merged) {
+      return
+    }
+
+    this.mesh = merged
+    this.mesh.isPickable = true
 
     this.setCommon()
     this.addAnimation()

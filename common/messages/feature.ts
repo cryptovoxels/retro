@@ -803,7 +803,7 @@ export type FeatureRecord = t.TypeOf<typeof FeatureRecord>
 
 export type FeatureType = FeatureRecord['type']
 
-type NonMeshedFeatureType = GroupRecord['type'] | PolytextRecord['type']
+type NonMeshedFeatureType = GroupRecord['type']
 
 type MeshedFeatureType = Exclude<FeatureType, NonMeshedFeatureType>
 
