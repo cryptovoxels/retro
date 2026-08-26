@@ -21,23 +21,25 @@ import { getTransformVectorsRelativeToNode } from '../utils/feature'
 import { cameraPosition } from '../utils/camera'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
 import { isFlatWallFeature } from './flat-wall'
+import { Color3, Color4, Mesh, PickingInfo, SceneContext, StandardMaterialProps, TransformNode, Vec2, Vec3 } from '@babylonjs/lite'
+import { quat, vec3 } from 'wgpu-matrix'
 
 const OVERSIZE = 0.01
-const highlightScale = new BABYLON.Vector3()
-const highlightRot = new BABYLON.Quaternion()
-const highlightPos = new BABYLON.Vector3()
+const highlightScale = vec3.create()
+const highlightRot = quat.identity()
+const highlightPos = vec3.create()
 
 const SELECTION_COLORS = {
   inside: {
-    fill: new BABYLON.Color3(0, 0.5, 1),
-    edges: new BABYLON.Color4(0, 0.5, 1, 0.9),
+    fill: ([0, 0.5, 1] as Color3),
+    edges: ([0, 0.5, 1, 0.9] as Color4),
   },
 }
 
 export type FeatureSelectionMode = 'inspect' | 'edit' | 'add' | 'move'
 
 interface Selection {
-  position?: BABYLON.Vector3
+  position?: Vec3
   feature?: MeshedFeature
   featureTemplate?: FeatureTemplate
   parcel?: Parcel
@@ -45,7 +47,7 @@ interface Selection {
   axes?: Array<BABYLON.Vector3>
 }
 
-const centreOfPositions = (positions: Array<Array<number>>): BABYLON.Vector3 => {
+const centreOfPositions = (positions: Array<Array<number>>): Vec3 => {
   const p =
     positions.length === 1
       ? positions[0]
@@ -63,38 +65,38 @@ const centreOfPositions = (positions: Array<Array<number>>): BABYLON.Vector3 => 
             return (Math.max(...coordinateCollection) + Math.min(...coordinateCollection)) / 2
           })
 
-  return new BABYLON.Vector3(...p)
+  return vec3.fromValues(...p)
 }
 
 export default class FeatureTool implements Tool {
-  scene: BABYLON.Scene
-  parent: BABYLON.Nullable<BABYLON.TransformNode>
+  scene: SceneContext
+  parent: (TransformNode | null)
   grid: Grid
   selection: Selection
   secondarySelection: Record<string, BABYLON.AbstractMesh>
 
-  secondarySelectionMaterial: BABYLON.StandardMaterial
+  secondarySelectionMaterial: StandardMaterialProps
   enabled = signal(false)
   connector: Connector
   controls: Controls
   user: User
 
-  spawnPoint: BABYLON.Vector3 = BABYLON.Vector3.Zero()
-  spawnRotation: BABYLON.Vector3 = BABYLON.Vector3.Zero()
-  lastPick: BABYLON.PickingInfo | null = null
-  spawnFeatureLoadingMesh: BABYLON.Mesh | null = null
+  spawnPoint: Vec3 = vec3.create()
+  spawnRotation: Vec3 = vec3.create()
+  lastPick: PickingInfo | null = null
+  spawnFeatureLoadingMesh: Mesh | null = null
   overrideOnClick: (() => void) | undefined = undefined
   clickAction: any
-  selector: BABYLON.Mesh
+  selector: Mesh
 
-  private pointerObs: BABYLON.Observer<BABYLON.PointerInfo> | null = null
+  private pointerObs: any | null = null
 
-  onFeatureAdded: BABYLON.Observable<void> = new BABYLON.Observable()
-  featureLoadingMaterial: BABYLON.StandardMaterial = null!
+  onFeatureAdded: any = (undefined as any /* todo(lite): new BABYLON.Observable() */)
+  featureLoadingMaterial: StandardMaterialProps = null!
 
   constructor(
-    scene: BABYLON.Scene,
-    parent: BABYLON.Nullable<BABYLON.TransformNode>,
+    scene: SceneContext,
+    parent: (TransformNode | null),
     grid: Grid,
     controls: Controls,
     connector: Connector,
@@ -113,14 +115,14 @@ export default class FeatureTool implements Tool {
     // No default block
     this.selection = {}
 
-    this.selector = BABYLON.MeshBuilder.CreateBox('feature/selector', { size: 1 }, this.scene)
+    this.selector = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox('feature/selector', { size: 1 }, this.scene) */)
     // this.selector.parent = parent
     this.selector.enableEdgesRendering()
     this.selector.edgesWidth = 0.5
     this.selector.edgesColor = SELECTION_COLORS.inside.edges
     this.selector.isPickable = false
 
-    const selectorMaterial = new BABYLON.StandardMaterial('feature/feature', this.scene)
+    const selectorMaterial = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('feature/feature', this.scene) */)
     selectorMaterial.alpha = 0
 
     this.selector.material = selectorMaterial
@@ -129,7 +131,7 @@ export default class FeatureTool implements Tool {
     this.createFeatureLoadingMesh()
 
     this.secondarySelection = {}
-    this.secondarySelectionMaterial = new BABYLON.StandardMaterial('feature/feature', this.scene)
+    this.secondarySelectionMaterial = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('feature/feature', this.scene) */)
     this.secondarySelectionMaterial.emissiveColor = SELECTION_COLORS.inside.fill
     this.secondarySelectionMaterial.alpha = 0.2
     this.secondarySelectionMaterial.blockDirtyMechanism = true
@@ -177,7 +179,7 @@ export default class FeatureTool implements Tool {
     const boundingBox = feature.boundingBox
     if (!boundingBox) return
 
-    const secondarySelector = BABYLON.MeshBuilder.CreateBox(`feature/secondary-selector-${feature.uuid}`, { size: 1 }, this.scene)
+    const secondarySelector = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox(`feature/secondary-selector-${feature.uuid}`, { size: 1 }, this.scene) */)
     secondarySelector.parent = this.parent
     secondarySelector.enableEdgesRendering()
     secondarySelector.edgesWidth = 0.3
@@ -186,12 +188,12 @@ export default class FeatureTool implements Tool {
     secondarySelector.material = this.secondarySelectionMaterial
     secondarySelector.visibility = 1
 
-    secondarySelector.position.copyFrom(boundingBox.centerWorld.subtract(this.parent?.position || BABYLON.Vector3.Zero()))
+    secondarySelector.position.copyFrom(boundingBox.centerWorld.subtract(this.parent?.position || vec3.create()))
 
     secondarySelector.scaling
       .copyFrom(boundingBox.maximumWorld)
       .subtractInPlace(boundingBox.minimumWorld)
-      .addInPlace(new BABYLON.Vector3(OVERSIZE, OVERSIZE, OVERSIZE))
+      .addInPlace(vec3.fromValues(OVERSIZE, OVERSIZE, OVERSIZE))
 
     secondarySelector.rotation.set(0, 0, 0)
     this.secondarySelection[feature.uuid] = secondarySelector
@@ -233,12 +235,12 @@ export default class FeatureTool implements Tool {
    * while the prematureFeature is loading
    */
   private createFeatureLoadingMesh() {
-    this.spawnFeatureLoadingMesh = BABYLON.MeshBuilder.CreateBox('feature/spawnFeatureLoadingMesh', { size: 1 }, this.scene)
+    this.spawnFeatureLoadingMesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox('feature/spawnFeatureLoadingMesh', { size: 1 }, this.scene) */)
     this.spawnFeatureLoadingMesh.isVisible = false
     this.spawnFeatureLoadingMesh.isPickable = false
 
-    this.featureLoadingMaterial = new BABYLON.StandardMaterial('feature/featureLoading', this.scene)
-    this.featureLoadingMaterial.diffuseColor = new BABYLON.Color3(0.8, 0.8, 0.8)
+    this.featureLoadingMaterial = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('feature/featureLoading', this.scene) */)
+    this.featureLoadingMaterial.diffuseColor = ([0.8, 0.8, 0.8] as Color3)
     this.featureLoadingMaterial.emissiveColor = SELECTION_COLORS.inside.fill
     this.featureLoadingMaterial.alpha = 0.5
     this.spawnFeatureLoadingMesh.material = this.featureLoadingMaterial
@@ -246,10 +248,10 @@ export default class FeatureTool implements Tool {
     /**
      * Callback dedicated to animating the spawn feature loading mesh (when we're loading the prematureFeature)
      */
-    const onAfterRenderAnimatePulse = (mesh: BABYLON.Mesh) => {
+    const onAfterRenderAnimatePulse = (mesh: Mesh) => {
       if (mesh && mesh.isVisible) {
         // Simple pulsating effect
-        ;(mesh.material as BABYLON.StandardMaterial).diffuseColor = new BABYLON.Color3(0.5, 0.5, 0.5).scale(0.5 + 0.5 * Math.abs(Math.sin(Date.now() * 0.003)))
+        ;(mesh.material as StandardMaterialProps).diffuseColor = (undefined as any /* todo(lite): new BABYLON.Color3(0.5, 0.5, 0.5).scale(0.5 + 0.5 * Math.abs(Math.sin(Date.now() * 0.003))) */)
       }
     }
 
@@ -265,7 +267,7 @@ export default class FeatureTool implements Tool {
     this.selection = { mode: 'move', featureTemplate: undefined, axes, feature }
   }
 
-  onPointerObservable(eventData: BABYLON.PointerInfo) {
+  onPointerObservable(eventData: any) {
     // sidebar feature editor owns the mouse (face-drag / corners / click-away). if we keep
     // handling taps here, POINTERTAP after every drag attempt runs onLeftClick -> deactivate()
     // and face-drag feels randomly dead until you re-open the editor enough times.
@@ -273,14 +275,14 @@ export default class FeatureTool implements Tool {
 
     const pick = this.controls.pickForPointer(eventData.pickInfo) ?? null
     switch (eventData.type) {
-      case BABYLON.PointerEventTypes.POINTERTAP:
+      case (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERTAP */):
         // Left-click only
         if (eventData.event.button === 0) {
           this.onLeftClick(eventData.event, pick)
         }
         break
 
-      case BABYLON.PointerEventTypes.POINTERMOVE:
+      case (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERMOVE */):
         this.onMove(eventData.event, pick)
     }
   }
@@ -298,7 +300,7 @@ export default class FeatureTool implements Tool {
     if (mode === 'add' || mode === 'move') {
       this.scene.pointerMovePredicate = isVoxelFieldMesh
     } else {
-      this.scene.pointerMovePredicate = (mesh: BABYLON.AbstractMesh) => !!this.meshParcel(mesh) || mesh.name === 'avatar/collider'
+      this.scene.pointerMovePredicate = (mesh: Mesh) => !!this.meshParcel(mesh) || mesh.name === 'avatar/collider'
     }
 
     this.enabled.value = true
@@ -362,7 +364,7 @@ export default class FeatureTool implements Tool {
    * Return the avatar of the given mesh, if it is an avatar
    * @param mesh Return
    */
-  meshAvatar(mesh: BABYLON.AbstractMesh): Avatar | undefined {
+  meshAvatar(mesh: Mesh): Avatar | undefined {
     if (mesh && mesh.metadata?.avatar instanceof Avatar) {
       return mesh.metadata.avatar
     }
@@ -375,7 +377,7 @@ export default class FeatureTool implements Tool {
         return ap ? ap.subtract(feature.parcel.transform.absolutePosition).asArray() : feature.tidyPosition
       }),
     )
-    this.spawnRotation = new BABYLON.Vector3(0, 0, 0)
+    this.spawnRotation = vec3.fromValues(0, 0, 0)
 
     const group = (await this.addFeature(Group.template)) as Group
     group.addChildren(features)
@@ -495,7 +497,7 @@ export default class FeatureTool implements Tool {
     }
   }
 
-  onLeftClick(e: BABYLON.IMouseEvent, pickResult: BABYLON.PickingInfo | null) {
+  onLeftClick(e: any, pickResult: PickingInfo | null) {
     if (!pickResult) return
     // pickResult pick point is null after voxel edit!
 
@@ -532,7 +534,7 @@ export default class FeatureTool implements Tool {
     }
   }
 
-  onMove(_e: BABYLON.IMouseEvent, pickResult: BABYLON.PickingInfo | null) {
+  onMove(_e: any, pickResult: PickingInfo | null) {
     if (!pickResult) {
       return
     }
@@ -633,9 +635,9 @@ export default class FeatureTool implements Tool {
     this.selector.visibility = 1
   }
 
-  updateHighlight(mesh?: BABYLON.AbstractMesh) {
+  updateHighlight(mesh?: Mesh) {
     const feature = this.selection.feature
-    const target = mesh ?? (feature?.mesh instanceof BABYLON.AbstractMesh ? feature.mesh : undefined)
+    const target = mesh ?? ((false /* todo(lite): feature?.mesh instanceof BABYLON.AbstractMesh */) ? feature.mesh : undefined)
 
     // flat wall features are thin rotated planes - world AABB floats off the screen.
     // match the mesh world pose; force a visible Z so scale.z=0 still outlines.
@@ -644,7 +646,7 @@ export default class FeatureTool implements Tool {
       wm.decompose(highlightScale, highlightRot, highlightPos)
       this.selector.parent = null!
       this.selector.position.copyFrom(highlightPos)
-      if (!this.selector.rotationQuaternion) this.selector.rotationQuaternion = new BABYLON.Quaternion()
+      if (!this.selector.rotationQuaternion) this.selector.rotationQuaternion = quat.identity()
       this.selector.rotationQuaternion.copyFrom(highlightRot)
       this.selector.scaling.set(Math.abs(highlightScale.x) + OVERSIZE, Math.abs(highlightScale.y) + OVERSIZE, Math.max(Math.abs(highlightScale.z) + OVERSIZE, 0.05))
       this.highlight()
@@ -662,19 +664,19 @@ export default class FeatureTool implements Tool {
     this.selector.scaling
       .copyFrom(boundingBox.maximumWorld)
       .subtractInPlace(boundingBox.minimumWorld)
-      .addInPlace(new BABYLON.Vector3(OVERSIZE, OVERSIZE, OVERSIZE))
+      .addInPlace(vec3.fromValues(OVERSIZE, OVERSIZE, OVERSIZE))
 
     this.selector.rotation.set(0, 0, 0)
     this.highlight()
   }
 
-  highlightFeature(feature: MeshedFeature, mesh?: BABYLON.AbstractMesh) {
+  highlightFeature(feature: MeshedFeature, mesh?: Mesh) {
     const parcel = feature.parcel
     Object.assign(this.selection, { parcel, feature })
-    this.updateHighlight(feature.mesh instanceof BABYLON.AbstractMesh ? feature.mesh : undefined)
+    this.updateHighlight((false /* todo(lite): feature.mesh instanceof BABYLON.AbstractMesh */) ? feature.mesh : undefined)
   }
 
-  spawnPlaceholder(info: BABYLON.PickingInfo, featureTemplate: any) {
+  spawnPlaceholder(info: PickingInfo, featureTemplate: any) {
     this.deactivate()
 
     this.selection = {
@@ -687,7 +689,7 @@ export default class FeatureTool implements Tool {
     }
   }
 
-  spawn(info: BABYLON.PickingInfo, featureTemplate?: any): Promise<Feature> | null {
+  spawn(info: PickingInfo, featureTemplate?: any): Promise<Feature> | null {
     // debugger
 
     this.selection = {
@@ -707,7 +709,7 @@ export default class FeatureTool implements Tool {
     return this.addFeature(this.selection.featureTemplate)
   }
 
-  updateSelectorAndSpawnPoint(pickResult: BABYLON.PickingInfo): boolean {
+  updateSelectorAndSpawnPoint(pickResult: PickingInfo): boolean {
     const pickedNormal = pickResult.getNormal()
     const pickedPoint = pickResult.pickedPoint
     if (!pickResult || !pickedPoint) {
@@ -816,7 +818,7 @@ export default class FeatureTool implements Tool {
       }
 
       const scale = featureScale()
-      const scaleVec = new BABYLON.Vector3(scale[0], scale[1], scale[2])
+      const scaleVec = vec3.fromValues(scale[0], scale[1], scale[2])
       const bounds = bb ? { min: bb.minimum, max: bb.maximum } : localBoundsForTemplate(this.selection.featureTemplate.type, scale)
       const { spawnPoint, selectorCenter } = placementFromPick(pickedPointRounded, pickedNormal, rotation, bounds.min, bounds.max, scaleVec, parcel.transform.position)
 
@@ -838,7 +840,7 @@ export default class FeatureTool implements Tool {
   }
 }
 
-const roundVector3 = (vector: BABYLON.Vector3): BABYLON.Vector3 => {
+const roundVector3 = (vector: Vec3): Vec3 => {
   const roundingFunction = (value: any) => Math.round(value * 4) / 4
   vector.x = roundingFunction(vector.x)
   vector.y = roundingFunction(vector.y)
@@ -847,44 +849,44 @@ const roundVector3 = (vector: BABYLON.Vector3): BABYLON.Vector3 => {
   return vector
 }
 
-const isVoxelFieldMesh = (mesh: BABYLON.AbstractMesh) => mesh.isVisible && mesh.isPickable && (mesh.name.startsWith('voxel-field/opaque') || mesh.name.startsWith('voxelizer/'))
+const isVoxelFieldMesh = (mesh: Mesh) => mesh.isVisible && mesh.isPickable && (mesh.name.startsWith('voxel-field/opaque') || mesh.name.startsWith('voxelizer/'))
 
 // to check if the normal belongs to a wall
-export const normalIsFromWall = (normal: BABYLON.Vector3): 'z' | 'x' | false => {
+export const normalIsFromWall = (normal: Vec3): 'z' | 'x' | false => {
   return !!Math.abs(normal.z) ? 'z' : !!Math.abs(normal.x) ? 'x' : false
 }
 
 const HALF = Math.PI / 2
 
 // 2D screens on floor/ceiling: stand upright, yaw toward the camera (snapped to 90deg)
-const getPseudoBillboardRotation = (pickedPoint: BABYLON.Vector3, camPos: BABYLON.Vector3): BABYLON.Vector3 => {
-  const a = new BABYLON.Vector2(pickedPoint.x, pickedPoint.z)
-  const b = new BABYLON.Vector2(camPos.x, camPos.z)
-  let yaw = Math.PI * 0.5 - BABYLON.Angle.BetweenTwoPoints(b, a).radians()
+const getPseudoBillboardRotation = (pickedPoint: Vec3, camPos: Vec3): Vec3 => {
+  const a = ({ x: pickedPoint.x, y: pickedPoint.z } as Vec2)
+  const b = ({ x: camPos.x, y: camPos.z } as Vec2)
+  let yaw = Math.PI * 0.5 - (undefined as any /* todo(lite): BABYLON.Angle.BetweenTwoPoints(b, a).radians() */)
   const granularity = Math.PI / 2
   yaw = Math.round(yaw / granularity) * granularity
-  return new BABYLON.Vector3(0, yaw, 0)
+  return vec3.fromValues(0, yaw, 0)
 }
 
-const getPlacementRotation = (normal: BABYLON.Vector3, is3D: boolean, pickPoint?: BABYLON.Vector3, camPos?: BABYLON.Vector3): BABYLON.Vector3 => {
+const getPlacementRotation = (normal: Vec3, is3D: boolean, pickPoint?: Vec3, camPos?: Vec3): Vec3 => {
   if (Math.abs(normal.y) > 0) {
     if (is3D) {
-      return normal.y > 0 ? new BABYLON.Vector3(0, 0, 0) : new BABYLON.Vector3(0, 0, Math.PI)
+      return normal.y > 0 ? vec3.fromValues(0, 0, 0) : vec3.fromValues(0, 0, Math.PI)
     }
     // showbox/image/video etc - never lay flat on the floor (invisible zero-depth plane)
     if (pickPoint && camPos) return getPseudoBillboardRotation(pickPoint, camPos)
-    return BABYLON.Vector3.Zero()
+    return vec3.create()
   }
   if (Math.abs(normal.x) > 0) {
     if (is3D) {
-      return new BABYLON.Vector3(0, 0, normal.x > 0 ? -HALF : HALF)
+      return vec3.fromValues(0, 0, normal.x > 0 ? -HALF : HALF)
     }
-    return new BABYLON.Vector3(0, normal.x > 0 ? -HALF : HALF, 0)
+    return vec3.fromValues(0, normal.x > 0 ? -HALF : HALF, 0)
   }
   if (is3D) {
-    return new BABYLON.Vector3(normal.z > 0 ? HALF : -HALF, 0, 0)
+    return vec3.fromValues(normal.z > 0 ? HALF : -HALF, 0, 0)
   }
-  return new BABYLON.Vector3(0, normal.z > 0 ? Math.PI : 0, 0)
+  return vec3.fromValues(0, normal.z > 0 ? Math.PI : 0, 0)
 }
 
 const localBoundsForTemplate = (type: FeatureTemplate['type'], scale: number[]) => {
@@ -892,54 +894,54 @@ const localBoundsForTemplate = (type: FeatureTemplate['type'], scale: number[]) 
   const is3D = getAxes(type).length === 1
   if (is3D) {
     return {
-      min: new BABYLON.Vector3(-sx / 2, 0, -sz / 2),
-      max: new BABYLON.Vector3(sx / 2, sy, sz / 2),
+      min: vec3.fromValues(-sx / 2, 0, -sz / 2),
+      max: vec3.fromValues(sx / 2, sy, sz / 2),
     }
   }
   return {
-    min: new BABYLON.Vector3(-sx / 2, -sy / 2, 0),
-    max: new BABYLON.Vector3(sx / 2, sy / 2, 0),
+    min: vec3.fromValues(-sx / 2, -sy / 2, 0),
+    max: vec3.fromValues(sx / 2, sy / 2, 0),
   }
 }
 
 const placementFromPick = (
-  pickPointWorld: BABYLON.Vector3,
-  surfaceNormal: BABYLON.Vector3,
-  rotation: BABYLON.Vector3,
-  localMin: BABYLON.Vector3,
-  localMax: BABYLON.Vector3,
-  scale: BABYLON.Vector3,
-  parcelPos: BABYLON.Vector3,
-): { spawnPoint: BABYLON.Vector3; selectorCenter: BABYLON.Vector3 } => {
-  const rotMat = BABYLON.Matrix.RotationYawPitchRoll(rotation.y, rotation.x, rotation.z)
-  const scaleMat = BABYLON.Matrix.Scaling(scale.x, scale.y, scale.z)
+  pickPointWorld: Vec3,
+  surfaceNormal: Vec3,
+  rotation: Vec3,
+  localMin: Vec3,
+  localMax: Vec3,
+  scale: Vec3,
+  parcelPos: Vec3,
+): { spawnPoint: Vec3; selectorCenter: Vec3 } => {
+  const rotMat = (undefined as any /* todo(lite): BABYLON.Matrix.RotationYawPitchRoll(rotation.y, rotation.x, rotation.z) */)
+  const scaleMat = (undefined as any /* todo(lite): BABYLON.Matrix.Scaling(scale.x, scale.y, scale.z) */)
   const mat = rotMat.multiply(scaleMat)
   const mid = (a: number, b: number) => (a + b) / 2
 
   const faces = [
-    { center: new BABYLON.Vector3(mid(localMin.x, localMax.x), localMin.y, mid(localMin.z, localMax.z)), outward: new BABYLON.Vector3(0, -1, 0) },
-    { center: new BABYLON.Vector3(mid(localMin.x, localMax.x), localMax.y, mid(localMin.z, localMax.z)), outward: new BABYLON.Vector3(0, 1, 0) },
-    { center: new BABYLON.Vector3(localMin.x, mid(localMin.y, localMax.y), mid(localMin.z, localMax.z)), outward: new BABYLON.Vector3(-1, 0, 0) },
-    { center: new BABYLON.Vector3(localMax.x, mid(localMin.y, localMax.y), mid(localMin.z, localMax.z)), outward: new BABYLON.Vector3(1, 0, 0) },
-    { center: new BABYLON.Vector3(mid(localMin.x, localMax.x), mid(localMin.y, localMax.y), localMin.z), outward: new BABYLON.Vector3(0, 0, -1) },
-    { center: new BABYLON.Vector3(mid(localMin.x, localMax.x), mid(localMin.y, localMax.y), localMax.z), outward: new BABYLON.Vector3(0, 0, 1) },
+    { center: vec3.fromValues(mid(localMin.x, localMax.x), localMin.y, mid(localMin.z, localMax.z)), outward: vec3.fromValues(0, -1, 0) },
+    { center: vec3.fromValues(mid(localMin.x, localMax.x), localMax.y, mid(localMin.z, localMax.z)), outward: vec3.fromValues(0, 1, 0) },
+    { center: vec3.fromValues(localMin.x, mid(localMin.y, localMax.y), mid(localMin.z, localMax.z)), outward: vec3.fromValues(-1, 0, 0) },
+    { center: vec3.fromValues(localMax.x, mid(localMin.y, localMax.y), mid(localMin.z, localMax.z)), outward: vec3.fromValues(1, 0, 0) },
+    { center: vec3.fromValues(mid(localMin.x, localMax.x), mid(localMin.y, localMax.y), localMin.z), outward: vec3.fromValues(0, 0, -1) },
+    { center: vec3.fromValues(mid(localMin.x, localMax.x), mid(localMin.y, localMax.y), localMax.z), outward: vec3.fromValues(0, 0, 1) },
   ]
 
   const inward = surfaceNormal.scale(-1)
   let bestDot = -Infinity
   let contactLocal = faces[0].center
   for (const face of faces) {
-    const outwardWorld = BABYLON.Vector3.TransformNormal(face.outward, rotMat).normalize()
-    const dot = BABYLON.Vector3.Dot(outwardWorld, inward)
+    const outwardWorld = (undefined as any /* todo(lite): BABYLON.Vector3.TransformNormal(face.outward, rotMat).normalize() */)
+    const dot = vec3.dot(outwardWorld, inward)
     if (dot > bestDot) {
       bestDot = dot
       contactLocal = face.center
     }
   }
 
-  const contactOffset = BABYLON.Vector3.TransformCoordinates(contactLocal, mat)
+  const contactOffset = (undefined as any /* todo(lite): BABYLON.Vector3.TransformCoordinates(contactLocal, mat) */)
   const bboxCenterLocal = localMin.add(localMax).scale(0.5)
-  const centerOffset = BABYLON.Vector3.TransformCoordinates(bboxCenterLocal, mat)
+  const centerOffset = (undefined as any /* todo(lite): BABYLON.Vector3.TransformCoordinates(bboxCenterLocal, mat) */)
   const pivotWorld = pickPointWorld.subtract(contactOffset)
 
   return {
@@ -948,7 +950,7 @@ const placementFromPick = (
   }
 }
 //Returns null or an array of the actual scale of the feature
-const getAccurateScaleGivenBoundingBox = (featureTemplate: FeatureTemplate, BB: BABYLON.BoundingBox | null) => {
+const getAccurateScaleGivenBoundingBox = (featureTemplate: FeatureTemplate, BB: any | null) => {
   if (!BB) {
     return null
   }

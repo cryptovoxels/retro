@@ -1,4 +1,5 @@
 import type { ColorGrader } from './color-grading'
+import { SceneContext, onBeforeRender } from '@babylonjs/lite'
 
 declare global {
   interface Window {
@@ -8,7 +9,7 @@ declare global {
 
 let flashing = false
 
-export function wompFlash(scene: BABYLON.Scene) {
+export function wompFlash(scene: SceneContext) {
   const color = window._color
   if (!color || flashing) return
 
@@ -20,7 +21,7 @@ export function wompFlash(scene: BABYLON.Scene) {
   pp.exposure = peak
 
   let elapsed = 0
-  const obs = scene.onBeforeRenderObservable.add(() => {
+  const obs = onBeforeRender(scene, () => {
     elapsed += scene.getEngine().getDeltaTime()
     if (elapsed < 40) return
 

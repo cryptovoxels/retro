@@ -13,6 +13,8 @@ import type Parcel from './parcel'
 import { emote } from './utils/emote'
 import { Transform } from './utils/transform'
 import { Bubble } from './chat'
+import { AssetContainer, Color3, DynamicTexture2D, Mesh, SceneContext, StandardMaterialProps, TransformNode, Vec3 } from '@babylonjs/lite'
+import { quat, vec3 } from 'wgpu-matrix'
 
 const ANONYMOUS_NAME = 'anon'
 const DEFAULT_SKIN_SVG =
@@ -33,21 +35,21 @@ const AVATAR_NAME_OFFSET = 0.5
 const SOUND_DISTANCE = 20
 
 export default class Avatar extends Entity {
-  private static woody: BABYLON.AssetContainer | undefined
+  private static woody: AssetContainer | undefined
   private static awaitingRootAvatarLoading: (() => void)[] = []
   private static rootAvatarLoadState = LoadState.None
-  private static silhouetteMaterial: BABYLON.StandardMaterial | null = null
+  private static silhouetteMaterial: StandardMaterialProps | null = null
   private static silhouetteGroupReady = false
-  skeleton: BABYLON.Skeleton | null = null
+  skeleton: any | null = null
   private readonly _description: AvatarRecord
   private readonly _uuid: string
-  private armatureMesh: BABYLON.Mesh | null = null
-  private silhouetteMesh: BABYLON.Mesh | null = null
-  private neckBone: BABYLON.Bone | undefined
-  private nameMesh: BABYLON.Mesh | null = null
-  private nameTexture: BABYLON.DynamicTexture | null = null
-  private voiceMesh: BABYLON.Mesh | null = null
-  private voiceTexture: BABYLON.DynamicTexture | null = null
+  private armatureMesh: Mesh | null = null
+  private silhouetteMesh: Mesh | null = null
+  private neckBone: any | undefined
+  private nameMesh: Mesh | null = null
+  private nameTexture: DynamicTexture2D | null = null
+  private voiceMesh: Mesh | null = null
+  private voiceTexture: DynamicTexture2D | null = null
   private collider: MeshExtended | undefined
   private _bubble: Bubble | null = null
   private clearBubbleTimer: NodeJS.Timeout | undefined
@@ -59,13 +61,13 @@ export default class Avatar extends Entity {
   private _congaFollowsUuid: string | null = null
   /** Remote drive visual: temporary megavox mesh under this avatar while they drive. */
   private _vehicle: import('../common/messages').AvatarVehiclePayload | null = null
-  private _vehicleMesh: BABYLON.AbstractMesh | null = null
+  private _vehicleMesh: Mesh | null = null
   private _vehicleLoadKey: string | null = null
   private _vehicleLoadGen = 0
   private remoteFly?: RemoteFlySound
   private remoteStepAt = 0
 
-  constructor(scene: BABYLON.Scene, joined: number, uuid: string, description: AvatarRecord, isUser = false) {
+  constructor(scene: SceneContext, joined: number, uuid: string, description: AvatarRecord, isUser = false) {
     super(scene, null, joined)
     this._uuid = uuid
     this._description = description
@@ -137,15 +139,15 @@ export default class Avatar extends Entity {
     return this._description
   }
 
-  private _avatarMesh: BABYLON.Mesh | null = null
+  private _avatarMesh: Mesh | null = null
 
-  get avatarMesh(): BABYLON.Mesh | null {
+  get avatarMesh(): Mesh | null {
     return this._avatarMesh
   }
 
-  private _material: BABYLON.StandardMaterial | null = null
+  private _material: StandardMaterialProps | null = null
 
-  get material(): BABYLON.StandardMaterial | null {
+  get material(): StandardMaterialProps | null {
     return this._material
   }
 
@@ -316,7 +318,7 @@ export default class Avatar extends Entity {
     return window.main
   }
 
-  static ensureRootAvatar(scene: BABYLON.Scene): Promise<void> {
+  static ensureRootAvatar(scene: SceneContext): Promise<void> {
     return new Promise((resolve) => {
       if (Avatar.rootAvatarLoadState === LoadState.Loaded) {
         resolve()
@@ -330,16 +332,16 @@ export default class Avatar extends Entity {
   }
 
   // flat white, 50% alpha, depth GREATER: only draws where the body is behind walls
-  private static ensureSilhouetteMaterial(scene: BABYLON.Scene): BABYLON.StandardMaterial {
+  private static ensureSilhouetteMaterial(scene: SceneContext): StandardMaterialProps {
     if (!Avatar.silhouetteMaterial) {
-      const mat = new BABYLON.StandardMaterial('avatar/silhouette', scene)
+      const mat = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('avatar/silhouette', scene) */)
       mat.disableLighting = true
-      mat.emissiveColor = new BABYLON.Color3(1, 1, 1)
-      mat.diffuseColor = BABYLON.Color3.Black()
+      mat.emissiveColor = ([1, 1, 1] as Color3)
+      mat.diffuseColor = ([0, 0, 0] as Color3)
       mat.alpha = 0.5
-      mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
+      mat.transparencyMode = (undefined as any /* todo(lite): BABYLON.Material.MATERIAL_ALPHABLEND */)
       mat.disableDepthWrite = true
-      mat.depthFunction = BABYLON.Constants.GREATER
+      mat.depthFunction = (undefined as any /* todo(lite): BABYLON.Constants.GREATER */)
       mat.freeze()
       Avatar.silhouetteMaterial = mat
     }
@@ -350,7 +352,7 @@ export default class Avatar extends Entity {
     return Avatar.silhouetteMaterial
   }
 
-  private static async loadRootAvatar(scene: BABYLON.Scene) {
+  private static async loadRootAvatar(scene: SceneContext) {
     if (Avatar.rootAvatarLoadState !== LoadState.None) return
     Avatar.rootAvatarLoadState = LoadState.Loading
 
@@ -422,7 +424,7 @@ export default class Avatar extends Entity {
     }
 
     if (!this.collider.actionManager) {
-      this.collider.actionManager = new BABYLON.ActionManager(this.scene)
+      this.collider.actionManager = (undefined as any /* todo(lite): new BABYLON.ActionManager(this.scene) */)
     }
 
     this.collider.cvOnLeftClick = (_pickingInfo) => {
@@ -451,7 +453,7 @@ export default class Avatar extends Entity {
       const encodedData = 'data:image/svg+xml;base64,' + window.btoa(svg || DEFAULT_SKIN_SVG)
 
       // SVGs need unique names otherwise texture could refer to the wrong SVG
-      const texture = BABYLON.Texture.LoadFromDataString('svg' + this._uuid, encodedData, this.scene, false, false, false)
+      const texture = (undefined as any /* todo(lite): BABYLON.Texture.LoadFromDataString('svg' + this._uuid, encodedData, this.scene, false, false, false) */)
       this._material.diffuseTexture = texture
       texture.hasAlpha = true
     }
@@ -493,7 +495,7 @@ export default class Avatar extends Entity {
    * @param {boolean} [playSound] should a sound be played
    * @returns {void} void
    */
-  emote(emoji: string, position: BABYLON.Vector3 | null = null, playSound = false) {
+  emote(emoji: string, position: Vec3 | null = null, playSound = false) {
     if (!this.isLoaded()) {
       return
     }
@@ -504,7 +506,7 @@ export default class Avatar extends Entity {
     }
 
     const origin = position || this.node.absolutePosition
-    origin.subtractInPlace(new BABYLON.Vector3(0, 0.3, 0))
+    origin.subtractInPlace(vec3.fromValues(0, 0.3, 0))
 
     const nicerLooking = Avatar.connector.getNearbyAvatarsToSelf().length <= 50
     emote(emoji, origin, this.scene, nicerLooking)
@@ -515,7 +517,7 @@ export default class Avatar extends Entity {
     return true
   }
 
-  private _mutedColors: { diffuse: BABYLON.Color3; emissive: BABYLON.Color3 } | null = null
+  private _mutedColors: { diffuse: Color3; emissive: Color3 } | null = null
 
   // muted = red body + stripped wearables ("muted red anon"), fully reversible with no re-fetch
   setMuted(b: boolean) {
@@ -592,7 +594,7 @@ export default class Avatar extends Entity {
     const mesh = this.voiceMesh
     if (!mesh) return
     mesh.setEnabled(true)
-    const mat = mesh.material as BABYLON.StandardMaterial | null
+    const mat = mesh.material as StandardMaterialProps | null
     if (mat) {
       if (state === 'muted') mat.emissiveColor.set(1, 0.25, 0.25)
       else if (state === 'speaking') mat.emissiveColor.set(0.25, 1, 0.4)
@@ -605,7 +607,7 @@ export default class Avatar extends Entity {
 
   private makeVoiceMesh() {
     if (this.voiceMesh || !this.neckBone || !this._avatarMesh) return
-    const tex = new BABYLON.DynamicTexture('avatar/voice', { width: 128, height: 128 }, this.scene, true)
+    const tex = (undefined as any /* todo(lite): new BABYLON.DynamicTexture('avatar/voice', { width: 128, height: 128 }, this.scene, true) */)
     tex.hasAlpha = true
     const ctx = tex.getContext()
     if (ctx) {
@@ -621,21 +623,21 @@ export default class Avatar extends Entity {
     tex.update()
     this.voiceTexture = tex
 
-    const mesh = BABYLON.MeshBuilder.CreatePlane('avatar/voice', { size: 0.3 }, this.scene)
-    mesh.billboardMode = BABYLON.Mesh.BILLBOARDMODE_Y
+    const mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane('avatar/voice', { size: 0.3 }, this.scene) */)
+    mesh.billboardMode = (undefined as any /* todo(lite): BABYLON.Mesh.BILLBOARDMODE_Y */)
     mesh.metadata = { isAvatarPart: true }
     mesh.position.set(0, -AVATAR_NAME_OFFSET - 0.28, 0) // sit just above the nameplate
     mesh.attachToBone(this.neckBone, this._avatarMesh)
     mesh.addLODLevel(AVATAR_VIEW_DISTANCE, null)
 
-    const mat = new BABYLON.StandardMaterial('avatar/voice', this.scene)
+    const mat = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('avatar/voice', this.scene) */)
     mat.blockDirtyMechanism = true
     mat.emissiveTexture = tex
     mat.opacityTexture = tex
-    mat.diffuseColor = new BABYLON.Color3(0, 0, 0)
-    mat.specularColor = new BABYLON.Color3(0, 0, 0)
+    mat.diffuseColor = ([0, 0, 0] as Color3)
+    mat.specularColor = ([0, 0, 0] as Color3)
     mat.disableLighting = true
-    mat.sideOrientation = BABYLON.Mesh.DOUBLESIDE // visible from any angle, like the nameplate
+    mat.sideOrientation = (undefined as any /* todo(lite): BABYLON.Mesh.DOUBLESIDE */) // visible from any angle, like the nameplate
     mesh.material = mat
     this.voiceMesh = mesh
   }
@@ -691,7 +693,7 @@ export default class Avatar extends Entity {
    * Set parent for the avatar (used by pose balls)
    * @param {BABYLON.TransformNode} parent the parent node
    */
-  setParent(parent: BABYLON.TransformNode): void {
+  setParent(parent: TransformNode): void {
     this.node.setParent(parent)
   }
 
@@ -711,18 +713,18 @@ export default class Avatar extends Entity {
     // the body doesnt pitch or lean
     this.node.rotation.set(0, this.orientation.y, 0)
     // but the head pitches
-    this.neckBone?.getTransformNode()?.rotationQuaternion?.copyFrom(BABYLON.Quaternion.FromEulerAngles(this._orientation.x, 0, 0))
+    this.neckBone?.getTransformNode()?.rotationQuaternion?.copyFrom(quat.fromEuler(this._orientation.x, 0, 0, 'yxz') /* todo(lite): verify euler order */)
   }
 
   // is used before eg. position is changed so that we can compare coming changes
   protected onBeforeUpdate(next: Readonly<Transform>) {
-    if (BABYLON.Vector3.DistanceSquared(this.position, next.position) > 16 * 16) {
+    if (vec3.distanceSq(this.position, next.position) > 16 * 16) {
       this.teleportFX(this.absolutePosition, 'avatar.leave')
     }
   }
 
   protected onAfterUpdate(previous: Readonly<Transform>) {
-    const sqrDistance = BABYLON.Vector3.DistanceSquared(this.position, previous.position)
+    const sqrDistance = vec3.distanceSq(this.position, previous.position)
     if (sqrDistance > 16 * 16 && !this.isUser) {
       this.teleportFX(this.absolutePosition, 'avatar.arrive')
     }
@@ -774,7 +776,7 @@ export default class Avatar extends Entity {
     this.remoteFly?.stop()
   }
 
-  private useTeleportEffects(position: BABYLON.Vector3) {
+  private useTeleportEffects(position: Vec3) {
     if (!this.isLoaded()) {
       return false
     }
@@ -797,7 +799,7 @@ export default class Avatar extends Entity {
     return Date.now() - this.lastTeleportAt >= 2000
   }
 
-  private teleportFX(absolutePosition: BABYLON.Vector3, soundName: 'avatar.arrive' | 'avatar.leave') {
+  private teleportFX(absolutePosition: Vec3, soundName: 'avatar.arrive' | 'avatar.leave') {
     if (!this.useTeleportEffects(absolutePosition)) {
       return
     }
@@ -871,7 +873,7 @@ export default class Avatar extends Entity {
 
     const entries = container.instantiateModelsToScene(() => 'mesh', false)
 
-    this._avatarMesh = entries.rootNodes[0] as BABYLON.Mesh
+    this._avatarMesh = entries.rootNodes[0] as Mesh
     this._avatarMesh.isPickable = false
     this._avatarMesh.getChildMeshes().forEach((m) => {
       // This is to make sure we can still click on stuff when in other avatars than Woody
@@ -881,11 +883,11 @@ export default class Avatar extends Entity {
     this._avatarMesh.metadata = { isAvatarPart: true }
     this._avatarMesh.setParent(this.node)
 
-    this.armatureMesh = this._avatarMesh.getChildMeshes()[0] as BABYLON.Mesh
+    this.armatureMesh = this._avatarMesh.getChildMeshes()[0] as Mesh
     this.armatureMesh.isPickable = false
     this.armatureMesh.metadata = { isAvatarPart: true }
 
-    this._material = new BABYLON.StandardMaterial('avatar', this.scene)
+    this._material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('avatar', this.scene) */)
     this._material.id = 'matAvatar' + this._uuid
     this.armatureMesh.material = this._material
 
@@ -896,7 +898,7 @@ export default class Avatar extends Entity {
       // this._material.disableLighting = true
       this._material.specularPower = 1000
 
-      this.armatureMesh.outlineColor = new BABYLON.Color3(0.05, 0.05, 0.05)
+      this.armatureMesh.outlineColor = ([0.05, 0.05, 0.05] as Color3)
       this.armatureMesh.outlineWidth = 0.02
       this.armatureMesh.renderOutline = true
     } else {
@@ -907,7 +909,7 @@ export default class Avatar extends Entity {
     this._material.blockDirtyMechanism = true
 
     if (!this.isUser) {
-      this.collider = BABYLON.MeshBuilder.CreateSphere(
+      this.collider = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateSphere(
         `avatar/collider`,
         {
           segments: 4,
@@ -916,7 +918,7 @@ export default class Avatar extends Entity {
           diameterZ: 0.5,
         },
         this.scene,
-      )
+      ) */)
       this.collider.isPickable = true
       this.collider.visibility = 0
       this.collider.metadata = { avatar: this, isAvatarPart: true, captureMoveEvents: true }
@@ -932,7 +934,7 @@ export default class Avatar extends Entity {
     this.animation?.copy(this.skeleton)
 
     if (!this.isUser) {
-      const sil = this.armatureMesh.clone(`avatar/silhouette/${this._uuid}`, null) as BABYLON.Mesh
+      const sil = this.armatureMesh.clone(`avatar/silhouette/${this._uuid}`, null) as Mesh
       sil.isPickable = false
       sil.renderOutline = false
       sil.metadata = { isAvatarPart: true }
@@ -999,7 +1001,7 @@ export default class Avatar extends Entity {
     }
 
     // Make a dynamic texture
-    const nameTexture = new BABYLON.DynamicTexture(
+    const nameTexture = (undefined as any /* todo(lite): new BABYLON.DynamicTexture(
       'avatar/name-bubble',
       {
         width: 512,
@@ -1007,12 +1009,12 @@ export default class Avatar extends Entity {
       },
       this.scene,
       true,
-    )
+    ) */)
     nameTexture.hasAlpha = true
     this.nameTexture = nameTexture
     this.redrawName()
 
-    this.nameMesh = BABYLON.MeshBuilder.CreatePlane(
+    this.nameMesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(
       'avatar/name',
       {
         width: 1,
@@ -1020,8 +1022,8 @@ export default class Avatar extends Entity {
         sideOrientation: BABYLON.Mesh.FRONTSIDE,
       },
       this.scene,
-    )
-    this.nameMesh.billboardMode = BABYLON.Mesh.BILLBOARDMODE_Y
+    ) */)
+    this.nameMesh.billboardMode = (undefined as any /* todo(lite): BABYLON.Mesh.BILLBOARDMODE_Y */)
     this.nameMesh.metadata = { isAvatarPart: true }
 
     const s = 0.9
@@ -1031,13 +1033,13 @@ export default class Avatar extends Entity {
     if (this.neckBone && this._avatarMesh) this.nameMesh.attachToBone(this.neckBone, this._avatarMesh)
     this.nameMesh.addLODLevel(AVATAR_VIEW_DISTANCE, null)
 
-    const material = new BABYLON.StandardMaterial('avatar/name', this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('avatar/name', this.scene) */)
     material.blockDirtyMechanism = true
     material.diffuseTexture = nameTexture
     material.emissiveTexture = nameTexture
     material.opacityTexture = nameTexture
-    material.specularColor = new BABYLON.Color3(0, 0, 0)
-    material.sideOrientation = BABYLON.Mesh.DOUBLESIDE
+    material.specularColor = ([0, 0, 0] as Color3)
+    material.sideOrientation = (undefined as any /* todo(lite): BABYLON.Mesh.DOUBLESIDE */)
     material.alpha = 0.9
     this.nameMesh.material = material
   }
@@ -1121,25 +1123,25 @@ export default class Avatar extends Entity {
 }
 
 // factory function to set up and create a avatar representing other players
-export async function LoadAvatar(scene: BABYLON.Scene, joined: number, uuid: string, description: AvatarRecord): Promise<Avatar> {
+export async function LoadAvatar(scene: SceneContext, joined: number, uuid: string, description: AvatarRecord): Promise<Avatar> {
   await Avatar.ensureRootAvatar(scene)
   return new Avatar(scene, joined, uuid, description)
 }
 
-export async function LoadUserAvatar(scene: BABYLON.Scene, uuid: string, description: AvatarRecord): Promise<Avatar> {
+export async function LoadUserAvatar(scene: SceneContext, uuid: string, description: AvatarRecord): Promise<Avatar> {
   await Avatar.ensureRootAvatar(scene)
   return new Avatar(scene, Date.now(), uuid, description, true)
 }
 
-function loadAvatarContainer(scene: BABYLON.Scene, avatarFile: string): Promise<BABYLON.AssetContainer> {
+function loadAvatarContainer(scene: SceneContext, avatarFile: string): Promise<BABYLON.AssetContainer> {
   return new Promise((resolve, reject) => {
-    BABYLON.SceneLoader.LoadAssetContainer(
+    (undefined as any /* todo(lite): BABYLON.SceneLoader.LoadAssetContainer(
       `/models/`,
       avatarFile,
       scene,
       (c) => resolve(c),
       null,
       (s, msg) => reject(msg),
-    )
+    ) */)
   })
 }

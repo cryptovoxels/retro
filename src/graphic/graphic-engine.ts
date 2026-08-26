@@ -1,6 +1,7 @@
 import { isBatterySaver } from '../../common/helpers/detector'
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
 import type { PostProcesses } from './post-processes'
+import { EngineContext } from '@babylonjs/lite'
 
 export enum GraphicLevels {
   Low = 0,
@@ -16,11 +17,11 @@ export interface GraphicSettings {
 export class GraphicEngine extends TypedEventTarget<{
   settingsChanged: { level: GraphicLevels }
 }> {
-  private readonly engine: BABYLON.Engine
+  private readonly engine: EngineContext
   #level: GraphicLevels
   public postProcesses?: PostProcesses
 
-  constructor(engine: BABYLON.Engine) {
+  constructor(engine: EngineContext) {
     super()
     this.engine = engine
 

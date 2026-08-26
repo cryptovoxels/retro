@@ -1,6 +1,7 @@
 import { isBatterySaver } from '../../common/helpers/detector'
 import { loadSample } from '../utils/helpers'
 import { SpatialAudio } from './spatial-audio'
+import { SceneContext, Vec3 } from '@babylonjs/lite'
 
 export class FlySound {
   destination: AudioNode
@@ -41,7 +42,7 @@ export class FlySound {
 }
 
 export class RemoteFlySound {
-  scene: BABYLON.Scene
+  scene: SceneContext
   effectsOut: GainNode
   audioContext: AudioContext
   buffer: AudioBuffer | null
@@ -49,7 +50,7 @@ export class RemoteFlySound {
   gain: GainNode
   spatial: SpatialAudio | null = null
 
-  constructor(scene: BABYLON.Scene, effectsOut: GainNode, buffer: AudioBuffer | null) {
+  constructor(scene: SceneContext, effectsOut: GainNode, buffer: AudioBuffer | null) {
     this.scene = scene
     this.effectsOut = effectsOut
     this.audioContext = effectsOut.context as AudioContext
@@ -58,7 +59,7 @@ export class RemoteFlySound {
     this.gain.gain.value = 0.4
   }
 
-  start(absolutePosition: BABYLON.Vector3) {
+  start(absolutePosition: Vec3) {
     if (!this.buffer) return
     if (!this.spatial) {
       this.spatial = new SpatialAudio('avatar/fly', this.scene, this.gain, absolutePosition.clone())
@@ -75,7 +76,7 @@ export class RemoteFlySound {
     this.source.start()
   }
 
-  setPosition(absolutePosition: BABYLON.Vector3) {
+  setPosition(absolutePosition: Vec3) {
     this.spatial?.setPosition(absolutePosition)
   }
 

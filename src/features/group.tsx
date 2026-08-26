@@ -4,9 +4,10 @@ import { FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/fea
 import { FeatureTemplate } from './_metadata'
 import Feature, { MeshExtended, NonMeshedFeature, transformVectors } from './feature'
 import { boundingBoxesOfFeatures, boundingBoxOfBoundingBoxes } from './utils/bounding-box'
+import { Mesh } from '@babylonjs/lite'
 
 const getTransformArrays = (
-  mesh: BABYLON.AbstractMesh | transformVectors,
+  mesh: Mesh | transformVectors,
 ): {
   position: [number, number, number]
   rotation: [number, number, number]
@@ -33,7 +34,7 @@ export default class Group extends NonMeshedFeature<GroupRecord> {
     return this.parcel.featuresList.filter((feature) => feature?.groupId === this.uuid)
   }
 
-  get boundingBox(): BABYLON.BoundingBox | null {
+  get boundingBox(): any | null {
     const boundingBoxes = boundingBoxesOfFeatures(this.children)
     if (boundingBoxes.length) {
       return boundingBoxOfBoundingBoxes(boundingBoxes)
@@ -65,7 +66,7 @@ export default class Group extends NonMeshedFeature<GroupRecord> {
 
   generate() {
     //@todo: Fix type casting here;
-    this.mesh = new BABYLON.TransformNode('feature/parent', this.scene) as MeshExtended
+    this.mesh = (undefined as any /* todo(lite): new BABYLON.TransformNode('feature/parent', this.scene) as MeshExtended */)
     this.afterGenerate()
     return Promise.resolve()
   }

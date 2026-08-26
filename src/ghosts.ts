@@ -4,6 +4,8 @@ import Avatar, { LoadAvatar } from './avatar'
 import type Connector from './connector'
 import type Controls from './controls/controls'
 import type Grid from './grid'
+import { Mesh, SceneContext, Vec3, onBeforeRender } from '@babylonjs/lite'
+import { quat, vec3 } from 'wgpu-matrix'
 
 export const GhostType = {
   walk: 0,
@@ -94,7 +96,7 @@ function applyGhostLook(avatar: Avatar, ghostId: string) {
   m.emissiveColor.set(0.08, 0.35, 0.12)
   m.specularColor.set(0.1, 0.2, 0.1)
   m.alpha = 0.35
-  m.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
+  m.transparencyMode = (undefined as any /* todo(lite): BABYLON.Material.MATERIAL_ALPHABLEND */)
   const collider = (avatar as any).collider
   if (collider) {
     collider.isPickable = false
@@ -114,13 +116,13 @@ export function disposeGhost(id: string) {
   playing.delete(id)
 }
 
-function segmentSphere(from: BABYLON.Vector3, to: BABYLON.Vector3, center: BABYLON.Vector3, radius: number): BABYLON.Vector3 | null {
+function segmentSphere(from: Vec3, to: Vec3, center: Vec3, radius: number): Vec3 | null {
   const d = to.clone().subtract(from)
   const f = from.clone().subtract(center)
-  const a = BABYLON.Vector3.Dot(d, d)
+  const a = vec3.dot(d, d)
   if (a < 1e-8) return null
-  const b = 2 * BABYLON.Vector3.Dot(f, d)
-  const c = BABYLON.Vector3.Dot(f, f) - radius * radius
+  const b = 2 * vec3.dot(f, d)
+  const c = vec3.dot(f, f) - radius * radius
   let disc = b * b - 4 * a * c
   if (disc < 0) return null
   disc = Math.sqrt(disc)
@@ -129,9 +131,9 @@ function segmentSphere(from: BABYLON.Vector3, to: BABYLON.Vector3, center: BABYL
   return from.add(d.scale(t))
 }
 
-export function ghostSegmentHit(from: BABYLON.Vector3, to: BABYLON.Vector3): { ghostId: string; point: BABYLON.Vector3 } | null {
+export function ghostSegmentHit(from: Vec3, to: Vec3): { ghostId: string; point: Vec3 } | null {
   for (const [id, g] of playing) {
-    const collider = (g.avatar as any).collider as BABYLON.Mesh | undefined
+    const collider = (g.avatar as any).collider as Mesh | undefined
     if (!collider) continue
     const hit = segmentSphere(from, to, collider.getAbsolutePosition(), 0.9)
     if (hit) return { ghostId: id, point: hit }
@@ -139,15 +141,15 @@ export function ghostSegmentHit(from: BABYLON.Vector3, to: BABYLON.Vector3): { g
   return null
 }
 
-export function startGhosts(scene: BABYLON.Scene, grid: Grid, controls: Controls, connector: Connector) {
+export function startGhosts(scene: SceneContext, grid: Grid, controls: Controls, connector: Connector) {
   if (window.config.isBot) return
 
   let samples: Sample[] = []
   let parcelBudget = Math.random() < 0.5 ? 2 : 3
   let blobType: GhostTypeId | null = null
   let blobStartMs = 0
-  let lastPos: BABYLON.Vector3 | null = null
-  let gatePos: BABYLON.Vector3 | null = null
+  let lastPos: Vec3 | null = null
+  let gatePos: Vec3 | null = null
   let idleSinceMs: number | null = null
   let lastSampleAt = 0
   let fetchAt = Date.now() + 5000 + Math.random() * 5000
@@ -162,7 +164,7 @@ export function startGhosts(scene: BABYLON.Scene, grid: Grid, controls: Controls
     idleSinceMs = null
   }
 
-  const disarm = (pos: BABYLON.Vector3) => {
+  const disarm = (pos: Vec3) => {
     resetBlob(null)
     gatePos = pos.clone()
   }
@@ -238,7 +240,7 @@ export function startGhosts(scene: BABYLON.Scene, grid: Grid, controls: Controls
     }
 
     if (blobType == null) {
-      if (BABYLON.Vector3.Distance(pos, gatePos) < SPAWN_GATE_M) return
+      if (vec3.distance(pos, gatePos) < SPAWN_GATE_M) return
       resetBlob(type)
       samples.push({ t: 0, x: pos.x, y: pos.y, z: pos.z, parcel })
       lastPos = pos.clone()
@@ -251,7 +253,7 @@ export function startGhosts(scene: BABYLON.Scene, grid: Grid, controls: Controls
     }
 
     if (lastPos) {
-      const dist = BABYLON.Vector3.Distance(pos, lastPos)
+      const dist = vec3.distance(pos, lastPos)
       if (dist > TELEPORT_M) {
         flush(false)
         disarm(pos)
@@ -332,8 +334,8 @@ export function startGhosts(scene: BABYLON.Scene, grid: Grid, controls: Controls
       const speed = i + 1 < n ? Math.hypot(dx, path[(i + 1) * STRIDE + 2] - y, dz) / Math.max(0.001, path[(i + 1) * STRIDE] - t) : 0
       const yaw = Math.atan2(dx, dz)
       avatar.move({
-        position: new BABYLON.Vector3(x, y, z),
-        orientation: BABYLON.Quaternion.FromEulerAngles(0, yaw, 0),
+        position: vec3.fromValues(x, y, z),
+        orientation: quat.fromEuler(0, yaw, 0, 'yxz') /* todo(lite): verify euler order */,
         animation: animationFor(type, speed),
         timestamp: startWall + (t - t0) * 1000,
       })
@@ -362,7 +364,7 @@ export function startGhosts(scene: BABYLON.Scene, grid: Grid, controls: Controls
     fetchAt = Date.now() + 500 + Math.random() * 1500
   })
 
-  scene.onBeforeRenderObservable.add(() => {
+  onBeforeRender(scene, () => {
     try {
       sample()
     } catch {}

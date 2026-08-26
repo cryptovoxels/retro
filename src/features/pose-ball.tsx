@@ -5,6 +5,8 @@ import { Position, Scale, Rotation } from '../../web/src/components/editor'
 import { PoseBallRecord } from '../../common/messages/feature'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Animations, AnimationYOffset } from '../avatar-animations'
+import { StandardMaterialProps } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 export default class PoseBall extends Feature3D<PoseBallRecord> {
   public static metadata: FeatureMetadata = {
@@ -30,15 +32,15 @@ export default class PoseBall extends Feature3D<PoseBallRecord> {
     return <label>A pose ball that allows players to sit or pose in different animations.</label>
   }
 
-  static material: BABYLON.StandardMaterial | undefined
+  static material: StandardMaterialProps | undefined
 
   public override async generate() {
-    this.mesh = BABYLON.MeshBuilder.CreateSphere(this.uniqueEntityName('mesh'), { diameter: 1, segments: 12 }, this.scene)
+    this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateSphere(this.uniqueEntityName('mesh'), { diameter: 1, segments: 12 }, this.scene) */)
     this.mesh.isPickable = true
 
     if (!PoseBall.material) {
-      const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
-      material.emissiveColor = BABYLON.Color3.FromHexString('#606060')
+      const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
+      material.emissiveColor = (undefined as any /* todo(lite): BABYLON.Color3.FromHexString('#606060') */)
       material.disableLighting = true
       material.alpha = 0.5
       material.backFaceCulling = true
@@ -62,7 +64,7 @@ export default class PoseBall extends Feature3D<PoseBallRecord> {
   // helps to keep track when to disable/enable gravity and collision detection
   private static activePoses = 0
 
-  private observer?: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>>
+  private observer?: (any | null)
 
   private pose() {
     if (!this.avatar) return
@@ -90,7 +92,7 @@ export default class PoseBall extends Feature3D<PoseBallRecord> {
     this.observer = this.scene.onAfterRenderObservable.add(() => {
       if (!this.avatar) return
       // unpose the avatar if it moves more than 2 meters away from the pose ball
-      const sqrDist = BABYLON.Vector3.DistanceSquared(this.avatar?.position, this.positionInGrid)
+      const sqrDist = vec3.distanceSq(this.avatar?.position, this.positionInGrid)
       if (sqrDist > 2 * 2) {
         this.unpose()
       }

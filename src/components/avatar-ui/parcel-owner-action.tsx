@@ -3,10 +3,11 @@ import ParcelHelper from '../../../common/helpers/parcel-helper'
 import { app } from '../../../web/src/state'
 import type Avatar from '../../avatar'
 import type Grid from '../../grid'
+import { SceneContext } from '@babylonjs/lite'
 
 interface Props {
   avatar: Avatar
-  scene: BABYLON.Scene
+  scene: SceneContext
 }
 
 export default class ParcelOwnerActions extends Component<Props> {

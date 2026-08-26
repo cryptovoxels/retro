@@ -66,6 +66,7 @@ import { MetaMaskInpageProvider } from '@metamask/providers'
 import { currentBuildDate, currentVersion } from '../common/version'
 import { CameraSettings } from './controls/user-control-settings'
 import { createGPUMemoryHUD } from './utils/memory-overlay'
+import { EngineContext, Mesh, SceneContext } from '@babylonjs/lite'
 
 if (process.env.NODE_ENV === 'development') {
   require('preact/debug')
@@ -92,8 +93,8 @@ declare global {
 
     voxels: Voxels
 
-    engine: BABYLON.Engine
-    scene: BABYLON.Scene
+    engine: EngineContext
+    scene: SceneContext
     config: SceneConfig
     graphic: GraphicEngine
     draw: DrawDistance
@@ -101,8 +102,8 @@ declare global {
     cameraSettings: CameraSettings
     environment: Environment | undefined
 
-    nameMesh: BABYLON.Mesh
-    skyMat: BABYLON.GradientMaterial
+    nameMesh: Mesh
+    skyMat: any
 
     // Settings that that might not be set - typed with | undefined to ensure that these are handled
     _audio: AudioEngine | undefined
@@ -138,7 +139,7 @@ async function main() {
 
   // if the inspector breaks, try downloading the correct version into `/dist/vendor` like this:
   // `wget https://unpkg.com/babylonjs-inspector@6.11.2/babylon.inspector.bundle.js`
-  BABYLON.DebugLayer.InspectorURL = '/vendor/babylon.inspector.bundle.js'
+  (undefined as any /* todo(lite): BABYLON.DebugLayer.InspectorURL = '/vendor/babylon.inspector.bundle.js' */)
 
   // Initialise user singleton
   window.user = new User()
@@ -189,15 +190,15 @@ async function main() {
   }
 
   // Don't use babylon spinner
-  BABYLON.SceneLoader.ShowLoadingScreen = false
+  (undefined as any /* todo(lite): BABYLON.SceneLoader.ShowLoadingScreen = false */)
 
   // Tried by randomly exploring around origin
-  BABYLON.Engine.CollisionsEpsilon = 0.001
+  (undefined as any /* todo(lite): BABYLON.Engine.CollisionsEpsilon = 0.001 */)
 
   /**
    * First we create the main babylon engine that is global for every scene we are using
    */
-  const engine = new BABYLON.Engine(
+  const engine = (undefined as any /* todo(lite): new BABYLON.Engine(
     canvas,
     false,
     {
@@ -209,7 +210,7 @@ async function main() {
       doNotHandleContextLost: true, // we handle context lost ourselves *see below*
     },
     false,
-  )
+  ) */)
   // reload page on context lost, rather than trying to recover (which requires lots of extra memory)
   engine.onContextLostObservable.add(() => {
     console.log('context lost')
@@ -232,7 +233,7 @@ async function main() {
   engine.enterFullscreen = (requestPointerLock: boolean) => {
     if (!engine.isFullscreen) {
       engine['_pointerLockRequested'] = requestPointerLock
-      BABYLON.Engine._RequestFullscreen(document.body)
+      (undefined as any /* todo(lite): BABYLON.Engine._RequestFullscreen(document.body) */)
     }
   }
 
@@ -272,7 +273,7 @@ async function main() {
   window.main = main
   main.setScene(scene)
 
-  const assetsManager = new BABYLON.AssetsManager(scene)
+  const assetsManager = (undefined as any /* todo(lite): new BABYLON.AssetsManager(scene) */)
   assetsManager.useDefaultLoadingScreen = false
   assetsManager.load()
 
@@ -314,7 +315,7 @@ async function main() {
 
   let map: Minimap | null = null
   let mapSettings: MinimapSettings | null = null
-  let mapScene: BABYLON.Scene | null = null
+  let mapScene: SceneContext | null = null
 
   // minimap is never shown on mobile (enabled getter returns false) but the constructor
   // still allocates a Scene, camera, meshes and PostProcess -- skip it entirely
@@ -372,7 +373,7 @@ async function main() {
 
   return ui
 
-  async function toggleBabylonInspector(scene: BABYLON.Scene | null) {
+  async function toggleBabylonInspector(scene: SceneContext | null) {
     // show babylonjs built in scene explorer
     // https://doc.babylonjs.com/features/playground_debuglayer
 

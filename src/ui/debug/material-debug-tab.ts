@@ -3,38 +3,39 @@
 
 import type { IDebugTab } from './base-debug'
 import { getCacheStats } from '../../materials'
+import { SceneContext } from '@babylonjs/lite'
 
 export class MaterialDebugTab implements IDebugTab {
   readonly name = 'Material Debug'
 
-  private scene: BABYLON.Scene
-  private statsText: BABYLON.GUI.TextBlock | null = null
+  private scene: SceneContext
+  private statsText: any | null = null
   private drawCallsHistory: number[] = []
   private lastDrawCallCount = 0
   private readonly MAX_HISTORY_SIZE = 60 // Keep 60 frames of history (about 1 second at 60fps)
-  private sceneInstrumentation: BABYLON.SceneInstrumentation
+  private sceneInstrumentation: any
 
-  constructor(scene: BABYLON.Scene) {
+  constructor(scene: SceneContext) {
     this.scene = scene
-    this.sceneInstrumentation = new BABYLON.SceneInstrumentation(scene)
+    this.sceneInstrumentation = (undefined as any /* todo(lite): new BABYLON.SceneInstrumentation(scene) */)
     this.sceneInstrumentation.captureFrameTime = true
     this.sceneInstrumentation.captureRenderTime = true
     this.sceneInstrumentation.captureInterFrameTime = true
   }
 
-  createContent(): BABYLON.GUI.Control {
+  createContent(): any {
     // Create main container
-    const container = new BABYLON.GUI.Rectangle('materialDebugContainer')
+    const container = (undefined as any /* todo(lite): new BABYLON.GUI.Rectangle('materialDebugContainer') */)
     container.color = 'transparent'
     container.thickness = 0
 
     // Create stats text block
-    this.statsText = new BABYLON.GUI.TextBlock('materialStats', 'Loading material statistics...')
+    this.statsText = (undefined as any /* todo(lite): new BABYLON.GUI.TextBlock('materialStats', 'Loading material statistics...') */)
     this.statsText.color = '#cccccc'
     this.statsText.fontSize = 12
     this.statsText.fontFamily = 'Consolas, monospace'
-    this.statsText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT
-    this.statsText.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP
+    this.statsText.textHorizontalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT */)
+    this.statsText.textVerticalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP */)
     this.statsText.paddingTopInPixels = 10
     this.statsText.paddingLeftInPixels = 15
 

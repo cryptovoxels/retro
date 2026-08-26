@@ -1,9 +1,11 @@
 import { Animations } from '../avatar-animations'
+import { Quat, Vec3 } from '@babylonjs/lite'
+import { quat, vec3 } from 'wgpu-matrix'
 
 export interface Transform {
   timestamp: number
-  position: BABYLON.Vector3
-  orientation: BABYLON.Quaternion
+  position: Vec3
+  orientation: Quat
   animation: Animations
 }
 
@@ -16,8 +18,8 @@ export class TransformQueue {
 
   private current: Transform = {
     animation: 0,
-    position: BABYLON.Vector3.Zero(),
-    orientation: BABYLON.Quaternion.Zero(),
+    position: vec3.create(),
+    orientation: quat.create(),
     timestamp: 0,
   }
   // a queue with the transform sorted with the oldest client_ts at a higher index (front loaded)
@@ -84,7 +86,7 @@ export class TransformQueue {
     }
 
     if (this.maxVelocity > 0) {
-      const distance = BABYLON.Vector3.Distance(current.position, to.position)
+      const distance = vec3.distance(current.position, to.position)
       // meter per second
       const velocity = distance / this.interpolationTickSec
       // check if the avatar needs to be placed directly because it's teleporting or being so badly behind
@@ -106,8 +108,8 @@ export class TransformQueue {
       return current
     }
 
-    t.orientation = BABYLON.Quaternion.Slerp(current.orientation, to.orientation, ratio)
-    t.position = BABYLON.Vector3.Lerp(current.position, to.position, ratio)
+    t.orientation = quat.slerp(current.orientation, to.orientation, ratio)
+    t.position = vec3.lerp(current.position, to.position, ratio)
     return t
   }
 

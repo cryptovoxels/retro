@@ -96,7 +96,7 @@ export default class VidScreen extends Feature2D<VidScreenRecord> {
     type: 'vid-screen',
     scale: [1, 1, 0],
   }
-  texture: BABYLON.RawTexture | null = null
+  texture: any | null = null
   running = false
 
   renderStatic() {
@@ -118,16 +118,16 @@ export default class VidScreen extends Feature2D<VidScreenRecord> {
     const img = new Uint8Array(64 * 64 * 64 * 3)
 
     // Make a dynamic texture
-    const texture = BABYLON.RawTexture.CreateRGBTexture(img, 64, 64, this.scene, false, true, BABYLON.Texture.NEAREST_SAMPLINGMODE)
+    const texture = (undefined as any /* todo(lite): BABYLON.RawTexture.CreateRGBTexture(img, 64, 64, this.scene, false, true, BABYLON.Texture.NEAREST_SAMPLINGMODE) */)
     this.texture = texture
     this.renderStatic()
 
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     material.diffuseTexture = texture
     material.zOffset = -5
     material.specularColor.fromArray(this.description.specularColor || [1, 1, 1])
 
-    const plane = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    const plane = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
     plane.material = material
     this.mesh = plane
     this.setCommon()

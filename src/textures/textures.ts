@@ -21,6 +21,7 @@ import { getGpuTextureFormat } from './gpu'
 import { buildCachedTextureUrl } from './bucket'
 import { Metadata, metadataFromResponse } from './metadata-cache'
 import { registerAnimation } from './animation'
+import { EngineContext, SceneContext, Texture2D } from '@babylonjs/lite'
 
 type TextureData = {
   buffer: ArrayBuffer
@@ -43,7 +44,7 @@ type TextureUrls = {
 // Prevent multiple parallel requests for the same URL
 const currentFetches = new Map<string, Promise<TextureData>>()
 
-export async function fetchTexture(scene: BABYLON.Scene, srcURL: string | null, signal: AbortSignal, options: TextureOptions = {}): Promise<BABYLON.Texture> {
+export async function fetchTexture(scene: SceneContext, srcURL: string | null, signal: AbortSignal, options: TextureOptions = {}): Promise<BABYLON.Texture> {
   const { transparent = false, stretch = true, pixelated = false, flipY = true, mipmaps = true } = options
 
   const urls = getTextureUrls(srcURL, transparent, stretch)
@@ -62,18 +63,18 @@ export async function fetchTexture(scene: BABYLON.Scene, srcURL: string | null, 
   }
 }
 
-export async function fetchAtlasTexture(scene: BABYLON.Scene): Promise<BABYLON.Texture> {
+export async function fetchAtlasTexture(scene: SceneContext): Promise<BABYLON.Texture> {
   try {
     return await fetchAndCreateTexture(scene, '/textures/atlas-ao' + getGpuTextureFormat())
   } catch (err) {
     console.error('Error loading default atlas texture', err)
-    return new BABYLON.Texture(null, scene)
+    return (undefined as any /* todo(lite): new BABYLON.Texture(null, scene) */)
   }
 }
 
-export async function fetchNoImageTexture(scene: BABYLON.Scene): Promise<BABYLON.Texture> {
+export async function fetchNoImageTexture(scene: SceneContext): Promise<BABYLON.Texture> {
   return new Promise((resolve, reject) => {
-    const texture: BABYLON.Texture = new BABYLON.Texture(
+    const texture: Texture2D = (undefined as any /* todo(lite): new BABYLON.Texture(
       process.env.ASSET_PATH + '/images/' + 'no-image' + getGpuTextureFormat(),
       scene,
       false,
@@ -81,12 +82,12 @@ export async function fetchNoImageTexture(scene: BABYLON.Scene): Promise<BABYLON
       BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
       () => setTimeout(() => resolve(texture), 2),
       reject,
-    )
+    ) */)
   })
 }
 
-export function createWhiteTexture(scene: BABYLON.Scene): BABYLON.Texture {
-  return new BABYLON.Texture('data:image/gif;base64,R0lGODlhAQABAPAAAP///wAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==', scene, true, false, BABYLON.Texture.NEAREST_SAMPLINGMODE)
+export function createWhiteTexture(scene: SceneContext): Texture2D {
+  return (undefined as any /* todo(lite): new BABYLON.Texture('data:image/gif;base64,R0lGODlhAQABAPAAAP///wAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==', scene, true, false, BABYLON.Texture.NEAREST_SAMPLINGMODE) */)
 }
 
 /**
@@ -154,7 +155,7 @@ function getTextureUrls(srcURL: string | null, transparent: boolean, stretch: bo
   return { cachedUrl, compressorUrl }
 }
 
-async function fetchAndCreateTexture(scene: BABYLON.Scene, url: string, backupURL?: string, signal?: AbortSignal, options: Pick<TextureOptions, 'flipY' | 'mipmaps'> = {}): Promise<BABYLON.Texture> {
+async function fetchAndCreateTexture(scene: SceneContext, url: string, backupURL?: string, signal?: AbortSignal, options: Pick<TextureOptions, 'flipY' | 'mipmaps'> = {}): Promise<BABYLON.Texture> {
   const { flipY = true, mipmaps = true } = options
 
   const data = await fetchWithFallback(url, backupURL, signal)
@@ -205,8 +206,8 @@ async function fetchTextureData(url: string, signal?: AbortSignal): Promise<Text
   }
 }
 
-async function createTexture(scene: BABYLON.Scene | BABYLON.ThinEngine | null, url: string, buffer: ArrayBuffer, flipY: boolean, mipmaps: boolean): Promise<BABYLON.Texture> {
-  const texture = new BABYLON.Texture(`data:${url}`, scene, !mipmaps, flipY, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, undefined, undefined, buffer, true)
+async function createTexture(scene: SceneContext | EngineContext | null, url: string, buffer: ArrayBuffer, flipY: boolean, mipmaps: boolean): Promise<BABYLON.Texture> {
+  const texture = (undefined as any /* todo(lite): new BABYLON.Texture(`data:${url}`, scene, !mipmaps, flipY, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, undefined, undefined, buffer, true) */)
   await new Promise((resolve) => setTimeout(resolve, 2))
   return texture
 }

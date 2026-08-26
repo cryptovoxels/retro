@@ -4,6 +4,8 @@ import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Tool
 import { tidyColor3, tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D } from './feature'
+import { Color4, Mesh } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 const clamp = (v: number, min: number, max: number) => {
   return Math.min(Math.max(v, min), max)
@@ -25,7 +27,7 @@ export default class ParticleSystem extends Feature3D<ParticlesRecord> {
     opacityDead: 0.0,
     gravity: 9.81,
   }
-  particleSystem: BABYLON.ParticleSystem | null = null
+  particleSystem: any | null = null
 
   get emitRate() {
     return this.description.emitRate || 100
@@ -55,13 +57,13 @@ export default class ParticleSystem extends Feature3D<ParticlesRecord> {
   async generate() {
     if (this.disposed) throw new Error('disposed')
 
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     material.specularColor.set(0, 0, 0)
     material.emissiveColor.set(1, 0, 1)
     material.backFaceCulling = false
     material.zOffset = -5
 
-    const plane = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    const plane = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
     plane.material = material
     plane.visibility = this._showTarget ? 1 : 0
 
@@ -73,42 +75,42 @@ export default class ParticleSystem extends Feature3D<ParticlesRecord> {
     if (this.deprecatedSince('5.7.0')) {
       this.mesh.rotation.x = Math.PI / 2
     }
-    this.mesh.translate(BABYLON.Axis.Z, -0.1, BABYLON.Space.LOCAL)
+    this.mesh.translate(vec3.fromValues(0, 0, 1), -0.1, (undefined as any /* todo(lite): BABYLON.Space.LOCAL */))
 
     await this.createParticleSystem(this.mesh)
     this.refreshWorldMatrix()
   }
 
-  async createParticleSystem(plane: BABYLON.AbstractMesh) {
-    this.particleSystem = new BABYLON.ParticleSystem('feature/particle-system', 200, this.scene)
+  async createParticleSystem(plane: Mesh) {
+    this.particleSystem = (undefined as any /* todo(lite): new BABYLON.ParticleSystem('feature/particle-system', 200, this.scene) */)
 
     const url = this.url ? `${process.env.IMG_URL}/img?url=${encodeURIComponent(this.url)}&passthrough=true` : process.env.ASSET_PATH + '/textures/diamond.png'
 
     // Texture of each particle
-    this.particleSystem.particleTexture = new BABYLON.Texture(url, this.scene)
+    this.particleSystem.particleTexture = (undefined as any /* todo(lite): new BABYLON.Texture(url, this.scene) */)
     if (this.disposed) throw new Error('disposed')
 
     // Where the particles come from
     this.particleSystem.emitter = plane // the starting object, the emitter
-    this.particleSystem.minEmitBox = new BABYLON.Vector3(-0.5, 0, -0.5) // Starting all from
-    this.particleSystem.maxEmitBox = new BABYLON.Vector3(0.5, 0, 0.5) // To...
+    this.particleSystem.minEmitBox = vec3.fromValues(-0.5, 0, -0.5) // Starting all from
+    this.particleSystem.maxEmitBox = vec3.fromValues(0.5, 0, 0.5) // To...
 
     // Colors of particles
     if (!this.description.url) {
       try {
-        this.particleSystem.color1 = BABYLON.Color4.FromColor3(tidyColor3(this.description.color1, '#808080'), 1)
+        this.particleSystem.color1 = (undefined as any /* todo(lite): BABYLON.Color4.FromColor3(tidyColor3(this.description.color1, '#808080'), 1) */)
 
-        this.particleSystem.color2 = BABYLON.Color4.FromColor3(tidyColor3(this.description.color2, '#333333'), 1)
+        this.particleSystem.color2 = (undefined as any /* todo(lite): BABYLON.Color4.FromColor3(tidyColor3(this.description.color2, '#333333'), 1) */)
       } catch (e) {
-        this.particleSystem.color1 = new BABYLON.Color4(1, 0, 0, 1)
-        this.particleSystem.color2 = new BABYLON.Color4(1, 0, 0, 1)
+        this.particleSystem.color1 = ([1, 0, 0, 1] as Color4)
+        this.particleSystem.color2 = ([1, 0, 0, 1] as Color4)
       }
     }
 
     try {
-      this.particleSystem.colorDead = BABYLON.Color4.FromColor3(BABYLON.Color3.FromHexString(this.description.colorDead || '#000033'), clamp(tidyFloat(this.description.opacityDead, 0.0), 0, 1))
+      this.particleSystem.colorDead = (undefined as any /* todo(lite): BABYLON.Color4.FromColor3(BABYLON.Color3.FromHexString(this.description.colorDead || '#000033'), clamp(tidyFloat(this.description.opacityDead, 0.0), 0, 1)) */)
     } catch (e) {
-      this.particleSystem.colorDead = new BABYLON.Color4(1, 0, 0, 1)
+      this.particleSystem.colorDead = ([1, 0, 0, 1] as Color4)
     }
 
     // Size of each particle (random between...
@@ -121,7 +123,7 @@ export default class ParticleSystem extends Feature3D<ParticlesRecord> {
 
     // Emission rate
     this.particleSystem.emitRate = this.emitRate
-    this.particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_STANDARD
+    this.particleSystem.blendMode = (undefined as any /* todo(lite): BABYLON.ParticleSystem.BLENDMODE_STANDARD */)
 
     let gravity = 9.81
     try {
@@ -129,11 +131,11 @@ export default class ParticleSystem extends Feature3D<ParticlesRecord> {
     } catch (e) {}
 
     // Set the gravity of all particles
-    this.particleSystem.gravity = new BABYLON.Vector3(0, -gravity, 0)
+    this.particleSystem.gravity = vec3.fromValues(0, -gravity, 0)
 
     // Direction of each particle after it has been emitted
-    this.particleSystem.direction1 = new BABYLON.Vector3(-0.2, 0, -10)
-    this.particleSystem.direction2 = new BABYLON.Vector3(0, 0.2, -10)
+    this.particleSystem.direction1 = vec3.fromValues(-0.2, 0, -10)
+    this.particleSystem.direction2 = vec3.fromValues(0, 0.2, -10)
 
     // Angular speed, in radians
     this.particleSystem.minAngularSpeed = 5

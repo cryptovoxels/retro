@@ -29,8 +29,10 @@ import { FeatureRecord, FeatureType, YoutubeRecord } from '../../common/messages
 import Parcel from '../parcel'
 import { Unhandled } from './unhandled'
 import { featureTemplates } from './_metadata'
+import { SceneContext } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
-export const createFeature = (scene: BABYLON.Scene, parcel: Parcel, uuid: string, description: FeatureRecord): Feature => {
+export const createFeature = (scene: SceneContext, parcel: Parcel, uuid: string, description: FeatureRecord): Feature => {
   switch (description.type) {
     case 'sign':
       return new Sign(scene, parcel, uuid, description)
@@ -127,8 +129,8 @@ export function isRenderable(type: string | undefined | null): boolean {
   }
 }
 
-const FEATURE_2D_AXES = [BABYLON.Axis.X, BABYLON.Axis.Z]
-const FEATURE_3D_AXES = [BABYLON.Axis.Y]
+const FEATURE_2D_AXES = [vec3.fromValues(1, 0, 0), vec3.fromValues(0, 0, 1)]
+const FEATURE_3D_AXES = [vec3.fromValues(0, 1, 0)]
 
 export const getAxes = (type?: FeatureType) => {
   switch (type) {

@@ -5,6 +5,8 @@ import { SingleParcelRecord } from '../common/messages/parcel'
 import { app, AppEvent } from '../web/src/state'
 import { cameraPosition } from './utils/camera'
 import { distanceEnable, fetchAllParcels, fetchContributingParcels, fetchIslands, fetchOwnerParcels, Island, MapParcel, OCEAN, createBaseMeshes, createMaterial, pickParcelMesh } from './voxels-map'
+import { EngineContext, FreeCamera, Mesh, SceneContext, onBeforeRender } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 // the map will be sized to be this width of the whole browser window
 const MAP_SCREEN_SIZE = 0.15
@@ -14,26 +16,26 @@ export { Island } from './voxels-map'
 export class Minimap {
   private readonly settings: MinimapSettings
 
-  private readonly engine: BABYLON.Engine
-  private readonly scene: BABYLON.Scene
-  private readonly camera: BABYLON.FreeCamera
+  private readonly engine: EngineContext
+  private readonly scene: SceneContext
+  private readonly camera: FreeCamera
   private islands: Island[] = []
   private parcels: MapParcel[] = []
 
-  private readonly playerMesh: BABYLON.Mesh
+  private readonly playerMesh: Mesh
   private readonly connector: Connector
-  private otherPlayerMesh: BABYLON.Mesh
-  private otherPlayers = new Map<string, BABYLON.AbstractMesh>()
-  private onBeforeRender: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> | undefined
+  private otherPlayerMesh: Mesh
+  private otherPlayers = new Map<string, Mesh>()
+  private onBeforeRender: (any | null) | undefined
 
   private meshes: ReturnType<typeof createBaseMeshes>
   private islandContent: any
 
-  constructor(engine: BABYLON.Engine, connector: Connector) {
+  constructor(engine: EngineContext, connector: Connector) {
     this.engine = engine
     this.connector = connector
-    this.scene = new BABYLON.Scene(engine)
-    this.scene.performancePriority = BABYLON.ScenePerformancePriority.BackwardCompatible
+    this.scene = (undefined as any /* todo(lite): new BABYLON.Scene(engine) */)
+    this.scene.performancePriority = (undefined as any /* todo(lite): BABYLON.ScenePerformancePriority.BackwardCompatible */)
 
     this.scene.skipPointerMovePicking = true
     this.scene.skipPointerDownPicking = true
@@ -43,14 +45,14 @@ export class Minimap {
     this.scene.clearColor = OCEAN
     this.scene.autoClear = false
 
-    this.camera = new BABYLON.FreeCamera('map_camera', new BABYLON.Vector3(0, 100, 0), this.scene)
-    this.camera.setTarget(new BABYLON.Vector3(0.0, 0.0, 0.0))
-    this.camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
+    this.camera = (undefined as any /* todo(lite): new BABYLON.FreeCamera('map_camera', new BABYLON.Vector3(0, 100, 0), this.scene) */)
+    this.camera.setTarget(vec3.fromValues(0.0, 0.0, 0.0))
+    this.camera.mode = (undefined as any /* todo(lite): BABYLON.Camera.ORTHOGRAPHIC_CAMERA */)
 
-    this.camera.viewport = new BABYLON.Viewport(0.9, 0.9, 0.1, 0.1)
+    this.camera.viewport = (undefined as any /* todo(lite): new BABYLON.Viewport(0.9, 0.9, 0.1, 0.1) */)
     this.syncAspectRatio()
 
-    const ppp = new BABYLON.PassPostProcess('pass', 1, this.camera)
+    const ppp = (undefined as any /* todo(lite): new BABYLON.PassPostProcess('pass', 1, this.camera) */)
     ppp.samples = engine.getCaps().maxMSAASamples
 
     this.playerMesh = this.createTriangleMesh('map_player')
@@ -89,7 +91,7 @@ export class Minimap {
     this.camera.orthoBottom = -this.size / 2
   }
 
-  isClickWithinViewport(event: BABYLON.IMouseEvent) {
+  isClickWithinViewport(event: any) {
     const canvas = this.scene.getEngine().getRenderingCanvas()
     if (!canvas) return false
     const rect = canvas.getBoundingClientRect()
@@ -113,14 +115,14 @@ export class Minimap {
     this.loadParcels()
   }
 
-  public start(playerScene: BABYLON.Scene) {
+  public start(playerScene: SceneContext) {
     this.stop()
     this.setMapZoomLevel()
 
     this.loadIslandsAndParcels()
 
     this.onBeforeRender = playerScene.onAfterRenderObservable.add(() => {
-      if (playerScene.activeCamera instanceof BABYLON.TargetCamera) {
+      if ((false /* todo(lite): playerScene.activeCamera instanceof BABYLON.TargetCamera */)) {
         const activePlayerCamera = playerScene.activeCamera
         const pos = cameraPosition(playerScene)
         this.playerMesh.position.copyFrom(pos)
@@ -147,8 +149,8 @@ export class Minimap {
           m.freezeWorldMatrix()
           this.otherPlayers.set(uuid, m)
         }
-        const dist = BABYLON.Vector3.DistanceSquared(m.position, avatar.position)
-        const rot = BABYLON.Vector3.DistanceSquared(m.rotation, avatar.orientation)
+        const dist = vec3.distanceSq(m.position, avatar.position)
+        const rot = vec3.distanceSq(m.rotation, avatar.orientation)
         if (dist > 0.2 || rot > 0.2) {
           m.position.copyFrom(avatar.position)
           m.rotation.y = avatar.orientation.y
@@ -194,18 +196,18 @@ export class Minimap {
   }
 
   private createTriangleMesh(name: string) {
-    const vertexData = new BABYLON.VertexData()
+    const vertexData = (undefined as any /* todo(lite): new BABYLON.VertexData() */)
     vertexData.positions = [-0, 1, 1, -1, 1, -1, 1, 1, -1]
     vertexData.indices = [0, 1, 2]
-    const m = new BABYLON.Mesh(name, this.scene)
+    const m = (undefined as any /* todo(lite): new BABYLON.Mesh(name, this.scene) */)
     vertexData.applyToMesh(m)
     m.convertToUnIndexedMesh()
     return m
   }
 
   private async loadIslands() {
-    const rootNode = new BABYLON.TransformNode('map_islands', this.scene)
-    const islandMaterial = new BABYLON.StandardMaterial('map-island', this.scene)
+    const rootNode = (undefined as any /* todo(lite): new BABYLON.TransformNode('map_islands', this.scene) */)
+    const islandMaterial = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('map-island', this.scene) */)
     islandMaterial.disableLighting = true
     islandMaterial.emissiveColor.set(0.2, 0.2, 0.2)
     islandMaterial.freeze()

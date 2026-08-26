@@ -12,6 +12,7 @@ import { opensea, readOpenseaUrl } from '../utils/proxy'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
 import { audioFadeInAndPlay, audioFadeOutAndStop, AudioFeature, AUTOPLAY_FADE_TIME } from './utils/audio'
+import { StandardMaterialProps } from '@babylonjs/lite'
 
 const DEFAULT_VOLUME = 0.7
 const MAX_VOLUME = 1
@@ -29,7 +30,7 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
     url: '',
   }
   playing = false
-  videoTexture: BABYLON.VideoTexture | null = null
+  videoTexture: any | null = null
   hasBeenGeneratedAtLeastOnce = false // First generate has been called? Feature has loaded but it having a mesh is not guaranteed
   autoStopTimeout: NodeJS.Timeout | null = null
   spatialAudio: SpatialAudio | null = null
@@ -130,10 +131,10 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
       throw new Error('Video displayPreview: No mesh to display new texture')
     }
     try {
-      const material = this.mesh.material as BABYLON.StandardMaterial
-      const texture = new BABYLON.Texture(this.previewUrl, this.scene, false, true, BABYLON.Texture.BILINEAR_SAMPLINGMODE, () => {
+      const material = this.mesh.material as StandardMaterialProps
+      const texture = (undefined as any /* todo(lite): new BABYLON.Texture(this.previewUrl, this.scene, false, true, BABYLON.Texture.BILINEAR_SAMPLINGMODE, () => {
         material.diffuseTexture = texture
-      })
+      }) */)
       texture.hasAlpha = false
       material.diffuseTexture = texture
     } catch (e) {
@@ -173,7 +174,7 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
       this.spatialAudio = null
     }
 
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     material.alpha = 0.999
 
     // move the zOffset so that videos are behind the loader which is 4
@@ -182,18 +183,18 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
     material.emissiveColor.set(1, 1, 1)
 
     if (this.blendMode === 'Multiply') {
-      material.alphaMode = BABYLON.Engine.ALPHA_MULTIPLY
+      material.alphaMode = (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_MULTIPLY */)
     } else if (this.blendMode === 'Screen') {
-      material.alphaMode = BABYLON.Engine.ALPHA_SCREENMODE
+      material.alphaMode = (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_SCREENMODE */)
     } else {
-      material.alphaMode = BABYLON.Engine.ALPHA_COMBINE
+      material.alphaMode = (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_COMBINE */)
       // since this image has no transparency, turn off unnecessary alpha blending
       // https://doc.babylonjs.com/how_to/how_to_use_blend_modes#how-to-use-blend-modes
       material.alpha = 1
     }
     material.blockDirtyMechanism = true
 
-    const plane = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    const plane = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
     plane.material = material
     this.mesh = plane
     this.mesh.onAfterWorldMatrixUpdateObservable.add(this.updateAfterWorldOffsetChange)
@@ -380,7 +381,7 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
     video.src = u
 
     let started = false
-    const mediaSource = BABYLON.Engine.audioEngine?.audioContext?.createMediaElementSource(video)
+    const mediaSource = (undefined as any /* todo(lite): BABYLON.Engine.audioEngine?.audioContext?.createMediaElementSource(video) */)
 
     if (mediaSource && this.hasAudio && this.audio) {
       this.spatialAudio = this.audio.createSpatialAudio({
@@ -423,14 +424,14 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
     }
 
     // this automatically calls video.play()
-    this.videoTexture = new BABYLON.VideoTexture(this.uniqueEntityName('texture'), video, this.scene, true)
+    this.videoTexture = (undefined as any /* todo(lite): new BABYLON.VideoTexture(this.uniqueEntityName('texture'), video, this.scene, true) */)
     this.playing = true
     this.videoTexture.anisotropicFilteringLevel = 2
     // Defaults to True. loop initiates in the 'ended' eventListener
     video.loop = false
     this.setCurrentVideoTime(this.startAt)
 
-    const material = this.mesh.material as BABYLON.StandardMaterial
+    const material = this.mesh.material as StandardMaterialProps
     const mesh = this.mesh
 
     // A fake user interaction used to unmute the video if it was muted to allow autoplay

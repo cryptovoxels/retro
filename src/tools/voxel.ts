@@ -10,6 +10,7 @@ import { signal } from '@preact/signals'
 import { createGlassMaterial } from '../materials/glass'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
 import { track } from '../../web/src/helpers/umami'
+import { Material, Mesh, PickingInfo, SceneContext, StandardMaterialProps, Texture2D, TransformNode, Vec3 } from '@babylonjs/lite'
 
 /*
  * Fixme - this needs some refactoring around selection mode and selection
@@ -22,13 +23,13 @@ export enum SelectionMode {
 }
 
 interface VoxelPickingInfo {
-  position: BABYLON.Vector3
+  position: Vec3
   parcel: Parcel
 }
 
 interface Selection {
-  start?: BABYLON.Vector3
-  end?: BABYLON.Vector3
+  start?: Vec3
+  end?: Vec3
   parcel?: Parcel
   mode: SelectionMode
   fixedMode?: boolean
@@ -41,8 +42,8 @@ interface Selection {
 let lastBlockEdit = 0 // leading-edge throttle: fire once, then ignore for 60s
 
 export type SelectionModeOptions = {
-  start?: BABYLON.Vector3
-  end?: BABYLON.Vector3
+  start?: Vec3
+  end?: Vec3
   parcel?: Parcel
   fixedMode?: boolean
   model?: any
@@ -52,9 +53,9 @@ export type SelectionModeOptions = {
 }
 
 export default class Selector implements Tool {
-  scene: BABYLON.Scene
-  parent: BABYLON.Nullable<BABYLON.TransformNode>
-  box: BABYLON.Mesh
+  scene: SceneContext
+  parent: (TransformNode | null)
+  box: Mesh
   grid: Grid
   selection: Selection
   enabled = signal(false)
@@ -63,25 +64,25 @@ export default class Selector implements Tool {
   user: User
   mousedown = false
   pointerPredicateCache: {
-    pointerUp: (mesh: BABYLON.AbstractMesh) => boolean
-    pointerDown: (mesh: BABYLON.AbstractMesh) => boolean
+    pointerUp: (mesh: Mesh) => boolean
+    pointerDown: (mesh: Mesh) => boolean
   } | null = null
 
   clickAction: any
-  atlasTexture: BABYLON.Texture
-  glassTexture: BABYLON.Texture
-  voxelMaterial: BABYLON.StandardMaterial
-  glassMaterial: BABYLON.Material
+  atlasTexture: Texture2D
+  glassTexture: Texture2D
+  voxelMaterial: StandardMaterialProps
+  glassMaterial: Material
 
-  lastOnMovePickResult: BABYLON.PickingInfo | undefined = undefined
+  lastOnMovePickResult: PickingInfo | undefined = undefined
   private lastParcel: Parcel | undefined = undefined
-  private pointerObs: BABYLON.Observer<BABYLON.PointerInfo> | null = null
+  private pointerObs: any | null = null
 
-  onBuildToolActivate: BABYLON.Observable<void> = new BABYLON.Observable()
-  onVoxelAction: BABYLON.Observable<{ mode: SelectionMode }> = new BABYLON.Observable()
-  onCurrentTextureTintUpdate: BABYLON.Observable<{ texture: number; tint: number }> = new BABYLON.Observable<{ texture: number; tint: number }>()
+  onBuildToolActivate: any = (undefined as any /* todo(lite): new BABYLON.Observable() */)
+  onVoxelAction: any = (undefined as any /* todo(lite): new BABYLON.Observable() */)
+  onCurrentTextureTintUpdate: any = (undefined as any /* todo(lite): new BABYLON.Observable<{ texture: number; tint: number }>() */)
 
-  constructor(scene: BABYLON.Scene, parent: BABYLON.Nullable<BABYLON.TransformNode>, grid: Grid, controls: Controls, connector: Connector) {
+  constructor(scene: SceneContext, parent: (TransformNode | null), grid: Grid, controls: Controls, connector: Connector) {
     this.scene = scene
     this.grid = grid
     this.controls = controls
@@ -90,17 +91,17 @@ export default class Selector implements Tool {
     this.parent = parent
 
     // Selection box
-    this.box = BABYLON.MeshBuilder.CreateBox('tools/voxel/selector', { size: 0.51 }, scene)
+    this.box = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox('tools/voxel/selector', { size: 0.51 }, scene) */)
     this.box.parent = this.parent
     this.box.isPickable = false
 
-    this.atlasTexture = new BABYLON.Texture('/textures/atlas-ao.png', scene)
-    this.glassTexture = new BABYLON.Texture('/images/glass.png', scene)
+    this.atlasTexture = (undefined as any /* todo(lite): new BABYLON.Texture('/textures/atlas-ao.png', scene) */)
+    this.glassTexture = (undefined as any /* todo(lite): new BABYLON.Texture('/images/glass.png', scene) */)
 
-    const material = new BABYLON.StandardMaterial('tools/voxel/selector', scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('tools/voxel/selector', scene) */)
     material.diffuseTexture = this.atlasTexture
     material.alpha = 0.85
-    material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
+    material.transparencyMode = (undefined as any /* todo(lite): BABYLON.Material.MATERIAL_ALPHABLEND */)
     material.backFaceCulling = false
 
     this.voxelMaterial = material
@@ -172,7 +173,7 @@ export default class Selector implements Tool {
 
   private updatePaletteColor(): void {
     const parcel = this.selection.parcel
-    const palette = parcel?.paletteColors || defaultColors.map((c) => BABYLON.Color3.FromHexString(c))
+    const palette = parcel?.paletteColors || defaultColors.map((c) => (undefined as any /* todo(lite): BABYLON.Color3.FromHexString(c) */))
     const tint = this.selection.tint ?? 0
     this.voxelMaterial.diffuseColor = palette[tint] || palette[0]
     this.setTextureOffset(this.texture)
@@ -233,7 +234,7 @@ export default class Selector implements Tool {
     this.updatePaletteColor()
   }
 
-  predicate(mesh: BABYLON.AbstractMesh): boolean {
+  predicate(mesh: Mesh): boolean {
     if (!(mesh.name && mesh.isVisible && mesh.isPickable)) return false
     return mesh.name.startsWith('voxel-field/opaque') || mesh.name.startsWith('voxelizer/')
   }
@@ -258,7 +259,7 @@ export default class Selector implements Tool {
     }
   }
 
-  async placeBlocks(parcel: Parcel, a: BABYLON.Vector3, b: BABYLON.Vector3, block: number) {
+  async placeBlocks(parcel: Parcel, a: Vec3, b: Vec3, block: number) {
     const now = Date.now()
     if (now - lastBlockEdit >= 60_000) {
       lastBlockEdit = now
@@ -279,18 +280,18 @@ export default class Selector implements Tool {
     parcel.set(voxelsPatch, block)
   }
 
-  onPointerObservable(eventData: BABYLON.PointerInfo) {
+  onPointerObservable(eventData: any) {
     const pickInfo = this.controls.pickForPointer(eventData.pickInfo)
     if (!pickInfo) return
     switch (eventData.type) {
-      case BABYLON.PointerEventTypes.POINTERDOWN:
+      case (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERDOWN */):
         // Left-click only
         if (eventData.event.button === 0) {
           this.onLeftPointerDown(eventData.event, pickInfo)
         }
         break
 
-      case BABYLON.PointerEventTypes.POINTERUP:
+      case (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERUP */):
         // console.log('pointerup!?', eventData.event)
         // Left-click only
         if (eventData.event.button === 0) {
@@ -298,7 +299,7 @@ export default class Selector implements Tool {
         }
         break
 
-      case BABYLON.PointerEventTypes.POINTERMOVE:
+      case (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERMOVE */):
         this.onMove(pickInfo)
         break
     }
@@ -316,7 +317,7 @@ export default class Selector implements Tool {
     if (pick) this.onMove(pick)
   }
 
-  async onLeftPointerDown(e: BABYLON.IMouseEvent, pickResult: BABYLON.PickingInfo) {
+  async onLeftPointerDown(e: any, pickResult: PickingInfo) {
     this.audio?.playSound('build.extend')
 
     this.selection.start = undefined
@@ -328,7 +329,7 @@ export default class Selector implements Tool {
     this.mousedown = true
   }
 
-  async onLeftPointerUp(e: BABYLON.IMouseEvent, pickResult: BABYLON.PickingInfo) {
+  async onLeftPointerUp(e: any, pickResult: PickingInfo) {
     if (this.selection.start && this.selection.parcel) {
       let block: number
 
@@ -356,7 +357,7 @@ export default class Selector implements Tool {
     return this.selection.start.y === this.selection.end.y || this.selection.start.x === this.selection.end.x || this.selection.start.z === this.selection.end.z
   }
 
-  onMove(pickResult?: BABYLON.PickingInfo) {
+  onMove(pickResult?: PickingInfo) {
     // Preseve last selected element so that onMove() can be re-triggered to refresh editor display
     if (pickResult === undefined) {
       pickResult = this.lastOnMovePickResult
@@ -449,7 +450,7 @@ export default class Selector implements Tool {
     }
   }
 
-  getBounds(a: BABYLON.Vector3, b: BABYLON.Vector3): BABYLON.BoundingBox {
+  getBounds(a: Vec3, b: Vec3): any {
     const x1 = Math.min(a.x, b.x)
     const x2 = Math.max(a.x, b.x)
     const y1 = Math.min(a.y, b.y)
@@ -457,10 +458,10 @@ export default class Selector implements Tool {
     const z1 = Math.min(a.z, b.z)
     const z2 = Math.max(a.z, b.z)
 
-    return new BABYLON.BoundingBox(new BABYLON.Vector3(x1, y1, z1), new BABYLON.Vector3(x2, y2, z2))
+    return (undefined as any /* todo(lite): new BABYLON.BoundingBox(new BABYLON.Vector3(x1, y1, z1), new BABYLON.Vector3(x2, y2, z2)) */)
   }
 
-  private applyPointerMode(e?: BABYLON.IMouseEvent) {
+  private applyPointerMode(e?: any) {
     if (this.selection.fixedMode) return
     const shift = e?.shiftKey ?? this.controls.shiftKey
     const ctrl = e?.ctrlKey ?? e?.metaKey ?? this.controls.ctrlKey
@@ -473,7 +474,7 @@ export default class Selector implements Tool {
     }
   }
 
-  getVoxelCenter(pickResult: BABYLON.PickingInfo, mode: SelectionMode): BABYLON.Vector3 | null {
+  getVoxelCenter(pickResult: PickingInfo, mode: SelectionMode): Vec3 | null {
     if (!pickResult || !pickResult.pickedPoint || !pickResult.getNormal()) {
       return null
     }
@@ -494,9 +495,9 @@ export default class Selector implements Tool {
   // getParcel may match multiple parcels (because I suck
   // at maths, so we need to find the one whereupon this
   // is a valid voxel coordinate)
-  pickVoxel(v: BABYLON.Vector3, normal: BABYLON.Nullable<BABYLON.Vector3> | undefined): VoxelPickingInfo | undefined {
+  pickVoxel(v: Vec3, normal: (Vec3 | null) | undefined): VoxelPickingInfo | undefined {
     let parcel = null
-    let position: BABYLON.Vector3 | null = null
+    let position: Vec3 | null = null
 
     this.user.getParcels(v).forEach((p) => {
       if (!p.voxelMesh) {
@@ -534,7 +535,7 @@ export default class Selector implements Tool {
     return { position, parcel }
   }
 
-  voxelToWorldSpace(position: BABYLON.Vector3, parcel: Parcel): BABYLON.Vector3 | undefined {
+  voxelToWorldSpace(position: Vec3, parcel: Parcel): Vec3 | undefined {
     if (!parcel.voxelMesh) {
       console.warn('voxelToWorldSpace: Parcel not meshed')
       return undefined

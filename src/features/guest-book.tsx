@@ -11,6 +11,7 @@ import { toggleGuestBookUi } from '../ui/guest-book-ui'
 import ActionGui from '../ui/gui/action-button-gui'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D } from './feature'
+import { vec3 } from 'wgpu-matrix'
 
 export async function signMessage(wallet: string, message: string): Promise<string | null> {
   const currentProvider = provider.provider
@@ -38,7 +39,7 @@ interface GuestBookSharedState {
 }
 
 export default class GuestBook extends Feature3D<GuestBookRecord> {
-  static signGuestbookSound: BABYLON.Sound | null = null
+  static signGuestbookSound: any | null = null
   static metadata: FeatureMetadata = {
     title: 'Guest Book',
     subtitle: 'visitors leave a note',
@@ -135,7 +136,7 @@ export default class GuestBook extends Feature3D<GuestBookRecord> {
 
     this.hideGui()
 
-    this.avatar?.emote('🌟', this.positionInGrid.subtract(new BABYLON.Vector3(0, 1, 0)))
+    this.avatar?.emote('🌟', this.positionInGrid.subtract(vec3.fromValues(0, 1, 0)))
     if (GuestBook.signGuestbookSound) {
       GuestBook.signGuestbookSound.setPosition(this.absolutePosition)
       GuestBook.signGuestbookSound.play()

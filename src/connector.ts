@@ -18,6 +18,8 @@ import { signal } from '@preact/signals'
 import { decodeCoords } from '../common/helpers/utils'
 import { danceBySlug } from './ui/interact/dances'
 import { disposeAvatarPhysics, disposeYeetsForUuid, onRemoteNerf, onRemoteYeet, onRemoteYeetState } from './yeetable'
+import { SceneContext, Vec3 } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 const UPDATE_AVATAR_INTERVAL_MS = 200
 
@@ -81,7 +83,7 @@ export function clearChatView() {
 export const congaFollowUiRev = signal(0)
 
 export default class Connector extends TypedEventTarget<{ avatar_joined: string }> {
-  readonly onConnectionStateChanged: BABYLON.Observable<ConnectionState> = new BABYLON.Observable()
+  readonly onConnectionStateChanged: any = (undefined as any /* todo(lite): new BABYLON.Observable() */)
   loadNearbyAvatarsInterval: NodeJS.Timeout | null = null
   controls: Controls
   connectedAt: Date | undefined
@@ -92,7 +94,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   currentParcelId: number | undefined
   multiplayerClient!: WebSocket
   private lazyAvatarDisposer = createLazyDisposer<string>(AVATAR_DISPOSE_DELAY_MS, ({ item: avatarUuid }) => this.disposeAvatar(avatarUuid))
-  private readonly scene: BABYLON.Scene
+  private readonly scene: SceneContext
   grid: Grid
   private nearbyAvatarsToSelfCached: { avatars: Readonly<Avatar[]>; timestamp: number } | null = null
   private congaJoinHintSuppressedUntil = 0
@@ -102,7 +104,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
 
   updateAvatarInterval: any
 
-  constructor(scene: BABYLON.Scene, grid: Grid, controls: Controls) {
+  constructor(scene: SceneContext, grid: Grid, controls: Controls) {
     super()
     this.scene = scene
     this.grid = grid
@@ -401,7 +403,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     return best
   }
 
-  getNearbyAvatars(position: BABYLON.Vector3, maxDistance: number, includeSelf = true): Array<Avatar> {
+  getNearbyAvatars(position: Vec3, maxDistance: number, includeSelf = true): Array<Avatar> {
     const result: Avatar[] = []
     for (const avatar of this.avatars) {
       if (avatar.getDistanceFrom(position) < maxDistance) {
@@ -574,8 +576,8 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     }
 
     avatar.move({
-      position: BABYLON.Vector3.FromArray(message.position),
-      orientation: BABYLON.Quaternion.FromArray(message.orientation),
+      position: vec3.clone(message.position as any),
+      orientation: (undefined as any /* todo(lite): BABYLON.Quaternion.FromArray(message.orientation) */),
       animation: message.animation,
       timestamp: Date.now(),
     })
@@ -909,7 +911,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       return
     }
     const from = this.persona.avatar?.position ?? this.persona.position
-    const dist = BABYLON.Vector3.Distance(from, target.position)
+    const dist = vec3.distance(from, target.position)
     if (dist > CONGA_REMOTE_JOIN_TELEPORT_METERS) {
       this.teleportNearCongaTarget(target)
     }
@@ -920,13 +922,13 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   private teleportNearCongaTarget(target: Avatar) {
     if (!target.hasPosition) return
     const yaw = target.orientation.y
-    const forward = new BABYLON.Vector3(Math.sin(yaw), 0, Math.cos(yaw))
+    const forward = vec3.fromValues(Math.sin(yaw), 0, Math.cos(yaw))
     const pos = target.position.subtract(forward.scale(2.5))
     pos.y = target.position.y + 0.15
     const leaderFlying = target.getTransform().animation === Animations.Floating
     this.persona.teleportNoHistory({
       position: pos,
-      rotation: new BABYLON.Vector3(0, yaw, 0),
+      rotation: vec3.fromValues(0, yaw, 0),
     })
     this.controls.setFlying(leaderFlying)
   }
@@ -971,7 +973,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
 
     if (target) {
       const from = this.persona.avatar?.position ?? this.persona.position
-      const dist = BABYLON.Vector3.Distance(from, target.position)
+      const dist = vec3.distance(from, target.position)
       if (args.length > 0 && dist > CONGA_REMOTE_JOIN_TELEPORT_METERS) {
         this.teleportNearCongaTarget(target)
       }

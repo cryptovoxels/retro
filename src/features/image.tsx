@@ -7,6 +7,7 @@ import { Advanced, Animation, BlendMode, FeatureEditor, FeatureEditorProps, Feat
 import { tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import Feature, { Feature2D, MeshExtended, TransparencyMode } from './feature'
+import { Mesh, StandardMaterialProps, Texture2D } from '@babylonjs/lite'
 
 export default class Image extends Feature2D<ImageRecord> {
   static metadata: FeatureMetadata = {
@@ -87,8 +88,8 @@ export default class Image extends Feature2D<ImageRecord> {
 
   generateDraft() {
     if (this.disposed) return
-    if (!(this.mesh instanceof BABYLON.Mesh)) {
-      this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    if (!((false /* todo(lite): this.mesh instanceof BABYLON.Mesh */))) {
+      this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
       rebindGizmos(this)
     }
     this.mesh.material = Feature.getDraftMaterial(this.scene)
@@ -120,7 +121,7 @@ export default class Image extends Feature2D<ImageRecord> {
     }
   }
 
-  renderImage(texture: BABYLON.Texture): BABYLON.Mesh | null {
+  renderImage(texture: Texture2D): Mesh | null {
     if (this.disposed) return null
 
     if (this.description.uScale && this.description.vScale) {
@@ -128,7 +129,7 @@ export default class Image extends Feature2D<ImageRecord> {
       texture.vScale = parseFloat(this.description.vScale.toString())
     }
 
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     material.specularColor.set(0, 0, 0)
     material.diffuseColor.set(1, 1, 1)
     material.emissiveColor.set(1, 1, 1)
@@ -136,13 +137,13 @@ export default class Image extends Feature2D<ImageRecord> {
     material.backFaceCulling = false
     material.zOffset = -5
 
-    if (!(this.mesh instanceof BABYLON.Mesh)) {
-      this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    if (!((false /* todo(lite): this.mesh instanceof BABYLON.Mesh */))) {
+      this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
       rebindGizmos(this)
     } else {
       const old = this.mesh.material
       this.mesh.material = null
-      if (old instanceof BABYLON.StandardMaterial && old !== Feature.draftMaterial && old.getBindedMeshes().length <= 1) {
+      if ((false /* todo(lite): old instanceof BABYLON.StandardMaterial */) && old !== Feature.draftMaterial && old.getBindedMeshes().length <= 1) {
         old.dispose(false, true)
       }
     }
@@ -307,39 +308,39 @@ export function setTextureProperties(
     transparencyMode: TransparencyMode
     wrapMode?: WrapMode
   },
-  tex: BABYLON.Texture,
-  mat: BABYLON.StandardMaterial,
-  mesh: BABYLON.Mesh,
+  tex: Texture2D,
+  mat: StandardMaterialProps,
+  mesh: Mesh,
 ) {
   switch (options.wrapMode) {
     // good for transparent images with alpha, to remove borders
     case 'Clamp':
-      tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE
-      tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE
+      tex.wrapU = (undefined as any /* todo(lite): BABYLON.Texture.CLAMP_ADDRESSMODE */)
+      tex.wrapV = (undefined as any /* todo(lite): BABYLON.Texture.CLAMP_ADDRESSMODE */)
       break
     case 'Mirror':
-      tex.wrapU = BABYLON.Texture.MIRROR_ADDRESSMODE
-      tex.wrapV = BABYLON.Texture.MIRROR_ADDRESSMODE
+      tex.wrapU = (undefined as any /* todo(lite): BABYLON.Texture.MIRROR_ADDRESSMODE */)
+      tex.wrapV = (undefined as any /* todo(lite): BABYLON.Texture.MIRROR_ADDRESSMODE */)
       break
     default:
-      tex.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE
-      tex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE
+      tex.wrapU = (undefined as any /* todo(lite): BABYLON.Texture.WRAP_ADDRESSMODE */)
+      tex.wrapV = (undefined as any /* todo(lite): BABYLON.Texture.WRAP_ADDRESSMODE */)
   }
 
   mat.alpha = 0.999
 
   if (options.blendMode === 'Multiply') {
-    mat.alphaMode = BABYLON.Engine.ALPHA_MULTIPLY
+    mat.alphaMode = (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_MULTIPLY */)
     return
   }
 
   if (options.blendMode === 'Screen') {
-    mat.alphaMode = BABYLON.Engine.ALPHA_SCREENMODE
+    mat.alphaMode = (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_SCREENMODE */)
     return
   }
 
   // COMBINE and the various transparency options
-  mat.alphaMode = BABYLON.Engine.ALPHA_COMBINE
+  mat.alphaMode = (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_COMBINE */)
 
   // since this image has no transparency, turn off unnecessary alpha blending to speed up rendering
   // https://doc.babylonjs.com/how_to/how_to_use_blend_modes#how-to-use-blend-modes
@@ -356,7 +357,7 @@ export function setTextureProperties(
 
   // special transparency options to help with layer ordering of large meshes
   if (options.transparencyMode === TransparencyMode.AlphaTest) {
-    mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHATEST
+    mat.transparencyMode = (undefined as any /* todo(lite): BABYLON.Material.MATERIAL_ALPHATEST */)
     return
   }
 

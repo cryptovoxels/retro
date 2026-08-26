@@ -1,4 +1,4 @@
-import 'babylonjs' // BABYLON
+// import 'babylonjs' // BABYLON - removed, server doesn't need 3D engine
 import { EventEmitter } from 'events'
 import { ParcelUser } from '../common/helpers/parcel-helper'
 import { HTTP2WSBaseURL, isValidUrl } from '../common/helpers/utils'

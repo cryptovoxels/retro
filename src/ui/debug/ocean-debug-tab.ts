@@ -2,30 +2,31 @@
 // ABOUTME: Shows real-time ocean stats including instances, custom meshes, chunk processing status
 
 import type { IDebugTab } from './base-debug'
+import { SceneContext } from '@babylonjs/lite'
 
 export class OceanDebugTab implements IDebugTab {
   readonly name = 'Ocean Debug'
 
-  private scene: BABYLON.Scene
-  private statsText: BABYLON.GUI.TextBlock | null = null
+  private scene: SceneContext
+  private statsText: any | null = null
 
-  constructor(scene: BABYLON.Scene) {
+  constructor(scene: SceneContext) {
     this.scene = scene
   }
 
-  createContent(): BABYLON.GUI.Control {
+  createContent(): any {
     // Create main container
-    const container = new BABYLON.GUI.Rectangle('oceanDebugContainer')
+    const container = (undefined as any /* todo(lite): new BABYLON.GUI.Rectangle('oceanDebugContainer') */)
     container.color = 'transparent'
     container.thickness = 0
 
     // Create stats text block
-    this.statsText = new BABYLON.GUI.TextBlock('oceanStats', 'Loading ocean statistics...')
+    this.statsText = (undefined as any /* todo(lite): new BABYLON.GUI.TextBlock('oceanStats', 'Loading ocean statistics...') */)
     this.statsText.color = '#cccccc'
     this.statsText.fontSize = 12
     this.statsText.fontFamily = 'Consolas, monospace'
-    this.statsText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT
-    this.statsText.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP
+    this.statsText.textHorizontalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT */)
+    this.statsText.textVerticalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP */)
     this.statsText.paddingTopInPixels = 10
     this.statsText.paddingLeftInPixels = 15
 

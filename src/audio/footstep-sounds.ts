@@ -2,13 +2,14 @@ import { isBatterySaver } from '../../common/helpers/detector'
 import { VoxelSize } from '../../common/voxels/mesher'
 import { loadSample } from '../utils/helpers'
 import { SpatialAudio } from './spatial-audio'
+import { SceneContext, Vec3 } from '@babylonjs/lite'
 
 const WALK_DELAY = 490
 const RUN_DELAY = 300
 
 export class FootstepSounds {
   destination: AudioNode
-  scene: BABYLON.Scene | null
+  scene: SceneContext | null
   effectsOut: GainNode | null
   footStepsSupported: boolean
   lastStepAt: number = Date.now()
@@ -17,7 +18,7 @@ export class FootstepSounds {
   footstepsSprite: AudioBuffer
   _stepLoop: () => void
 
-  constructor(destination: AudioNode, scene?: BABYLON.Scene, effectsOut?: GainNode) {
+  constructor(destination: AudioNode, scene?: SceneContext, effectsOut?: GainNode) {
     this.destination = destination
     this.scene = scene ?? null
     this.effectsOut = effectsOut ?? null
@@ -53,7 +54,7 @@ export class FootstepSounds {
     clearTimeout(this.stepTimeout)
   }
 
-  playSpatialStep(absolutePosition: BABYLON.Vector3, isRunning: boolean) {
+  playSpatialStep(absolutePosition: Vec3, isRunning: boolean) {
     if (!this.footStepsSupported || !this.footstepsSprite || !this.scene || !this.effectsOut) return
     this.playStep(isRunning, absolutePosition)
   }
@@ -104,7 +105,7 @@ export class FootstepSounds {
     this._stepLoop()
   }
 
-  private playStep(isRunning: boolean, absolutePosition?: BABYLON.Vector3) {
+  private playStep(isRunning: boolean, absolutePosition?: Vec3) {
     if (!this.footStepsSupported || !this.footstepsSprite) return
 
     // debounce local footsteps only

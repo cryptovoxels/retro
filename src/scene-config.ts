@@ -1,14 +1,6 @@
 import { wantsAudio } from '../common/helpers/detector'
 
-export type SceneConfig = BABYLON.DeepImmutableObject<{
-  isGrid: true
-  isBot: boolean
-  coords?: string
-  isNight: boolean
-  wantsAudio?: boolean
-  wantsURL: boolean
-  isMultiuser: boolean
-}>
+export type SceneConfig = any
 
 export const isWorld = () => true
 

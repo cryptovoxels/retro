@@ -95,7 +95,7 @@ export class BoomboxBroadcast extends Component<Props, State> {
   }
 
   get audioContext(): AudioContext | null {
-    return BABYLON.Engine.audioEngine?.audioContext ?? null
+    return (undefined as any /* todo(lite): BABYLON.Engine.audioEngine?.audioContext */) ?? null
   }
 
   setMonitor(value: boolean) {

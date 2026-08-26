@@ -6,6 +6,8 @@ import Grid from '../grid'
 import { getComputePool } from '../mono-pool'
 import { NullGrid } from '../null-grid'
 import { Island, OCEAN, createMaterial } from '../voxels-map'
+import { ArcRotateCamera, Color4, EngineContext, Mesh, SceneContext, Vec2 } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 setMainThread()
 
@@ -46,7 +48,7 @@ function installEmbeds(embeds: Record<string, string> | undefined) {
     return origFetch(input as any, init)
   }) as typeof fetch
 
-  const tools = (BABYLON as any).Tools
+  const tools = (undefined as any /* todo(lite): (BABYLON as any).Tools */)
   if (tools?.LoadImage) {
     const origLoad = tools.LoadImage.bind(tools)
     tools.LoadImage = function (input: any, onload: any, onerror: any, ...rest: any[]) {
@@ -125,7 +127,7 @@ function sizeCanvas(canvas: HTMLCanvasElement, orbit: boolean) {
   canvas.height = canvas.clientHeight || window.innerHeight || SIZE
 }
 
-function zoomCamera(cam: BABYLON.ArcRotateCamera, record: ParcelRecord) {
+function zoomCamera(cam: ArcRotateCamera, record: ParcelRecord) {
   // Frame the lot, not scene.getWorldExtends() - parcels live at map coords, not origin.
   const cx = (record.x1 + record.x2) / 2
   const cy = (record.y1 + record.y2) / 2
@@ -133,7 +135,7 @@ function zoomCamera(cam: BABYLON.ArcRotateCamera, record: ParcelRecord) {
   cam.alpha = Math.PI / 4
   cam.beta = Math.acos(1 / Math.sqrt(3))
   cam.target.set(cx, cy, cz)
-  cam.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
+  cam.mode = (undefined as any /* todo(lite): BABYLON.Camera.ORTHOGRAPHIC_CAMERA */)
   const orthoSize = Math.max(record.x2 - record.x1, record.z2 - record.z1, record.y2 - record.y1, 8) * 0.9
   cam.orthoLeft = -orthoSize
   cam.orthoRight = orthoSize
@@ -167,12 +169,12 @@ function groundSize(record: ParcelRecord) {
   return { w, d, cx, cz }
 }
 
-function subgridMaterial(scene: BABYLON.Scene) {
+function subgridMaterial(scene: SceneContext) {
   const assetPath = process.env.ASSET_PATH || 'https://www.voxels.com'
-  const tex = new BABYLON.Texture(assetPath + '/textures/subgrid.png', scene)
-  tex.wrapU = BABYLON.Texture.WRAP_ADDRESSMODE
-  tex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE
-  const mat = new BABYLON.StandardMaterial('preview-subgrid', scene)
+  const tex = (undefined as any /* todo(lite): new BABYLON.Texture(assetPath + '/textures/subgrid.png', scene) */)
+  tex.wrapU = (undefined as any /* todo(lite): BABYLON.Texture.WRAP_ADDRESSMODE */)
+  tex.wrapV = (undefined as any /* todo(lite): BABYLON.Texture.WRAP_ADDRESSMODE */)
+  const mat = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('preview-subgrid', scene) */)
   mat.disableLighting = true
   mat.emissiveColor.set(0.5, 0.5, 0.5)
   mat.emissiveTexture = tex
@@ -181,21 +183,21 @@ function subgridMaterial(scene: BABYLON.Scene) {
   return mat
 }
 
-function subgridUv(mesh: BABYLON.Mesh) {
-  const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
+function subgridUv(mesh: Mesh) {
+  const positions = mesh.getVerticesData((undefined as any /* todo(lite): BABYLON.VertexBuffer.PositionKind */))
   if (!positions) return
   const uvs = new Float32Array((positions.length / 3) * 2)
   for (let i = 0, j = 0; i < positions.length; i += 3, j += 2) {
     uvs[j] = positions[i] / 2
     uvs[j + 1] = positions[i + 2] / 2
   }
-  mesh.setVerticesData(BABYLON.VertexBuffer.UVKind, uvs)
+  mesh.setVerticesData((undefined as any /* todo(lite): BABYLON.VertexBuffer.UVKind */), uvs)
 }
 
-function makeOcean(scene: BABYLON.Scene, record: ParcelRecord) {
+function makeOcean(scene: SceneContext, record: ParcelRecord) {
   const { w, d, cx, cz } = groundSize(record)
   // Huge slab so the ortho frustum is always over water even for big lots.
-  const ocean = BABYLON.MeshBuilder.CreateBox('preview-ocean', { width: Math.max(w * 4, 500), height: 1, depth: Math.max(d * 4, 500) }, scene)
+  const ocean = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox('preview-ocean', { width: Math.max(w * 4, 500), height: 1, depth: Math.max(d * 4, 500) }, scene) */)
   ocean.position.set(cx, record.y1 - 1.5, cz)
   ocean.material = createMaterial('preview-ocean', scene, OCEAN.r, OCEAN.g, OCEAN.b)
   ocean.isPickable = false
@@ -205,13 +207,13 @@ function makeOcean(scene: BABYLON.Scene, record: ParcelRecord) {
 function islandHoles(multipolygon: any) {
   const nudge = 0.25
   if (!multipolygon?.coordinates) return []
-  return multipolygon.coordinates.map((p: any) => p[0].map((c: any) => new BABYLON.Vector2(c[0] * 100 + nudge, c[1] * 100 + nudge)))
+  return multipolygon.coordinates.map((p: any) => p[0].map((c: any) => ({ x: c[0] * 100 + nudge, y: c[1] * 100 + nudge } as Vec2)))
 }
 
-function makeIslands(scene: BABYLON.Scene, record: ParcelRecord, islands: any[]) {
+function makeIslands(scene: SceneContext, record: ParcelRecord, islands: any[]) {
   if (!islands.length) return
   const mat = subgridMaterial(scene)
-  const root = new BABYLON.TransformNode('preview-islands', scene)
+  const root = (undefined as any /* todo(lite): new BABYLON.TransformNode('preview-islands', scene) */)
   // PolygonMeshBuilder extrudes in -Y from y=0; top of 1m slab at record.y1.
   root.position.y = record.y1
 
@@ -219,21 +221,21 @@ function makeIslands(scene: BABYLON.Scene, record: ParcelRecord, islands: any[])
     try {
       const rings = desc?.geometry?.coordinates
       if (!Array.isArray(rings) || !rings[0]) continue
-      const shape = rings[0].map((c: any) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
-      const pt = new BABYLON.PolygonMeshBuilder('island/' + desc.name, shape, scene)
+      const shape = rings[0].map((c: any) => ({ x: c[0] * 100, y: c[1] * 100 } as Vec2)).reverse()
+      const pt = (undefined as any /* todo(lite): new BABYLON.PolygonMeshBuilder('island/' + desc.name, shape, scene) */)
       let holes = islandHoles(desc.lakes_geometry_json)
       if (desc.holes_geometry_json && ['Scarcity', 'Flora', 'Andromeda'].includes(desc.name)) {
         holes = holes.concat(islandHoles(desc.holes_geometry_json))
       }
-      holes.forEach((hole: BABYLON.Vector2[]) => pt.addHole(hole))
+      holes.forEach((hole: Vec2[]) => pt.addHole(hole))
       const meshes = [pt.build(false, 1)]
       if (desc.id >= 40) {
         for (const s of rings.slice(1)) {
-          const extra = s.map((c: any) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
-          meshes.push(new BABYLON.PolygonMeshBuilder('island/' + desc.name, extra, scene).build(false, 1))
+          const extra = s.map((c: any) => ({ x: c[0] * 100, y: c[1] * 100 } as Vec2)).reverse()
+          meshes.push((undefined as any /* todo(lite): new BABYLON.PolygonMeshBuilder('island/' + desc.name, extra, scene).build(false, 1) */))
         }
       }
-      const mesh = BABYLON.Mesh.MergeMeshes(meshes, true)
+      const mesh = (undefined as any /* todo(lite): BABYLON.Mesh.MergeMeshes(meshes, true) */)
       if (!mesh) continue
       mesh.parent = root
       subgridUv(mesh)
@@ -245,7 +247,7 @@ function makeIslands(scene: BABYLON.Scene, record: ParcelRecord, islands: any[])
   }
 }
 
-function makeLotOutlines(scene: BABYLON.Scene, record: ParcelRecord, lots: LotRect[]) {
+function makeLotOutlines(scene: SceneContext, record: ParcelRecord, lots: LotRect[]) {
   if (!lots.length) return
   // Thin raised edges - no opaque plane to hide the ocean/island stack.
   const y = record.y1 + 0.02
@@ -264,7 +266,7 @@ function makeLotOutlines(scene: BABYLON.Scene, record: ParcelRecord, lots: LotRe
       { width: t, depth: d, x: lot.x2 - t / 2, z: cz },
     ]
     for (const e of edges) {
-      const box = BABYLON.MeshBuilder.CreateBox('lot-edge', { width: e.width, height: h, depth: e.depth }, scene)
+      const box = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox('lot-edge', { width: e.width, height: h, depth: e.depth }, scene) */)
       box.position.set(e.x, y + h / 2, e.z)
       box.material = mat
       box.isPickable = false
@@ -272,17 +274,17 @@ function makeLotOutlines(scene: BABYLON.Scene, record: ParcelRecord, lots: LotRe
   }
 }
 
-function makeLabels(scene: BABYLON.Scene, record: ParcelRecord) {
-  if (!(BABYLON as any).GUI) return
-  const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('tile', true, scene)
+function makeLabels(scene: SceneContext, record: ParcelRecord) {
+  if (!(undefined as any /* todo(lite): (BABYLON as any).GUI */)) return
+  const ui = (undefined as any /* todo(lite): BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('tile', true, scene) */)
   const label = (text: string, size: number, color: string, top: number) => {
     if (!text) return
-    const t = new BABYLON.GUI.TextBlock('', text)
+    const t = (undefined as any /* todo(lite): new BABYLON.GUI.TextBlock('', text) */)
     t.resizeToFit = true
     t.fontSize = size
     t.color = color
-    t.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT
-    t.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP
+    t.horizontalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT */)
+    t.verticalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP */)
     t.paddingLeft = '28px'
     t.paddingTop = `${top}px`
     ui.addControl(t)
@@ -321,33 +323,33 @@ function islandBounds(islands: any[]) {
   return { cx, cz, span }
 }
 
-function makeMinimap(engine: BABYLON.Engine, record: ParcelRecord, islands: any[]) {
-  const mini = new BABYLON.Scene(engine)
+function makeMinimap(engine: EngineContext, record: ParcelRecord, islands: any[]) {
+  const mini = (undefined as any /* todo(lite): new BABYLON.Scene(engine) */)
   mini.autoClear = false
   mini.skipPointerMovePicking = true
   mini.skipPointerDownPicking = true
   mini.skipPointerUpPicking = true
 
   const { cx, cz, span } = islandBounds(islands)
-  const cam = new BABYLON.FreeCamera('preview-mini', new BABYLON.Vector3(cx, 100, cz), mini)
-  cam.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
-  cam.setTarget(new BABYLON.Vector3(cx, 0, cz))
+  const cam = (undefined as any /* todo(lite): new BABYLON.FreeCamera('preview-mini', new BABYLON.Vector3(cx, 100, cz), mini) */)
+  cam.mode = (undefined as any /* todo(lite): BABYLON.Camera.ORTHOGRAPHIC_CAMERA */)
+  cam.setTarget(vec3.fromValues(cx, 0, cz))
   cam.rotation.y = 0
   const half = span / 2
   cam.orthoLeft = -half
   cam.orthoRight = half
   cam.orthoTop = half
   cam.orthoBottom = -half
-  cam.viewport = new BABYLON.Viewport(1 - (MINI + MINI_INSET) / SIZE, MINI_INSET / SIZE, MINI / SIZE, MINI / SIZE)
+  cam.viewport = (undefined as any /* todo(lite): new BABYLON.Viewport(1 - (MINI + MINI_INSET) / SIZE, MINI_INSET / SIZE, MINI / SIZE, MINI / SIZE) */)
   mini.activeCamera = cam
 
-  const ocean = BABYLON.MeshBuilder.CreateGround('preview-ocean', { width: span * 2, height: span * 2 }, mini)
+  const ocean = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateGround('preview-ocean', { width: span * 2, height: span * 2 }, mini) */)
   ocean.position.set(cx, -1, cz)
   ocean.material = createMaterial('preview-ocean', mini, OCEAN.r, OCEAN.g, OCEAN.b)
   ocean.isPickable = false
 
-  const root = new BABYLON.TransformNode('preview-islands', mini)
-  const islandMat = new BABYLON.StandardMaterial('preview-island', mini)
+  const root = (undefined as any /* todo(lite): new BABYLON.TransformNode('preview-islands', mini) */)
+  const islandMat = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('preview-island', mini) */)
   islandMat.disableLighting = true
   islandMat.emissiveColor.set(0.9, 0.9, 0.9)
   islandMat.backFaceCulling = false
@@ -363,7 +365,7 @@ function makeMinimap(engine: BABYLON.Engine, record: ParcelRecord, islands: any[
   }
 
   const markerSize = Math.max(span * 0.02, 8)
-  const marker = BABYLON.MeshBuilder.CreatePlane('preview-marker', { width: markerSize, height: markerSize }, mini)
+  const marker = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane('preview-marker', { width: markerSize, height: markerSize }, mini) */)
   marker.rotation.x = Math.PI / 2
   marker.position.set((record.x1 + record.x2) / 2, 2, (record.z1 + record.z2) / 2)
   marker.material = createMaterial('preview-marker', mini, 0.98, 0.36, 0.14)
@@ -374,10 +376,10 @@ function makeMinimap(engine: BABYLON.Engine, record: ParcelRecord, islands: any[
 
 type PreviewLive = {
   canvas: HTMLCanvasElement
-  engine: BABYLON.Engine
-  scene: BABYLON.Scene
-  camera: BABYLON.ArcRotateCamera
-  mini?: BABYLON.Scene
+  engine: EngineContext
+  scene: SceneContext
+  camera: ArcRotateCamera
+  mini?: SceneContext
   parcel: any
 }
 
@@ -391,12 +393,12 @@ async function buildPreview(record: ParcelRecord, embeds: Record<string, string>
   if (!canvas) throw new Error('no canvas')
   sizeCanvas(canvas, orbit)
 
-  const engine = new BABYLON.Engine(canvas, true)
-  const scene = new BABYLON.Scene(engine)
+  const engine = (undefined as any /* todo(lite): new BABYLON.Engine(canvas, true) */)
+  const scene = (undefined as any /* todo(lite): new BABYLON.Scene(engine) */)
   scene.clearColor = OCEAN.clone()
 
-  const camera = new BABYLON.ArcRotateCamera('preview', Math.PI / 4, Math.acos(1 / Math.sqrt(3)), 8, BABYLON.Vector3.Zero(), scene)
-  camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
+  const camera = (undefined as any /* todo(lite): new BABYLON.ArcRotateCamera('preview', Math.PI / 4, Math.acos(1 / Math.sqrt(3)), 8, BABYLON.Vector3.Zero(), scene) */)
+  camera.mode = (undefined as any /* todo(lite): BABYLON.Camera.ORTHOGRAPHIC_CAMERA */)
   camera.minZ = 0.01
 
   // No features - constant time.
@@ -423,7 +425,7 @@ async function buildPreview(record: ParcelRecord, embeds: Record<string, string>
   await scene.whenReadyAsync()
   zoomCamera(camera, bare)
   // environment.load() and later hooks leave clearColor transparent -> white webp.
-  scene.clearColor = new BABYLON.Color4(OCEAN.r, OCEAN.g, OCEAN.b, 1)
+  scene.clearColor = ([OCEAN.r, OCEAN.g, OCEAN.b, 1] as Color4)
   const mini = world?.islands?.length ? makeMinimap(engine, bare, world.islands) : undefined
   return { canvas, engine, scene, camera, mini, parcel }
 }

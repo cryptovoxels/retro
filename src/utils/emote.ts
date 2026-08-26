@@ -1,3 +1,4 @@
+import { Color3, DynamicTexture2D, SceneContext, Vec3 } from '@babylonjs/lite'
 const emojiSize = 0.2
 
 const gravity = -0.001
@@ -9,14 +10,14 @@ const minSpeed = 0.01 // meters per frame
 const positionRadius = 0.3 // how wide circle around the position to randomly spawn particles (horisontally, like a hula hoop)
 const maxLifetime = 2 * 60 // lifetime in frames
 
-export const emote = (emoji: string, position: BABYLON.Vector3, scene: BABYLON.Scene, nicerLooking = true) => {
+export const emote = (emoji: string, position: Vec3, scene: SceneContext, nicerLooking = true) => {
   if (!scene || scene.isDisposed) return
 
-  const system = new BABYLON.SolidParticleSystem('avatar/emote-' + Date.now(), scene)
+  const system = (undefined as any /* todo(lite): new BABYLON.SolidParticleSystem('avatar/emote-' + Date.now(), scene) */)
 
-  const particleCount = BABYLON.Scalar.RandomRange(1, 25)
+  const particleCount = (undefined as any /* todo(lite): BABYLON.Scalar.RandomRange(1, 25) */)
 
-  const plane = BABYLON.MeshBuilder.CreatePlane('avatar/emote-plane-' + Date.now(), { width: emojiSize, height: emojiSize }, scene)
+  const plane = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane('avatar/emote-plane-' + Date.now(), { width: emojiSize, height: emojiSize }, scene) */)
   system.addShape(plane, particleCount)
   plane.dispose()
   const mesh = system.buildMesh()
@@ -54,25 +55,25 @@ export const emote = (emoji: string, position: BABYLON.Vector3, scene: BABYLON.S
   })
 }
 
-function initParticle(startPosition: BABYLON.Vector3, particle: BABYLON.SolidParticle) {
-  const scale = BABYLON.Scalar.RandomRange(0.5, 1)
+function initParticle(startPosition: Vec3, particle: any) {
+  const scale = (undefined as any /* todo(lite): BABYLON.Scalar.RandomRange(0.5, 1) */)
   particle.scale.x *= scale
   particle.scale.y *= scale
   particle.scale.z *= scale
 
-  const velocity = BABYLON.Scalar.RandomRange(minSpeed, maxSpeed)
+  const velocity = (undefined as any /* todo(lite): BABYLON.Scalar.RandomRange(minSpeed, maxSpeed) */)
   const angle = Math.random() * Math.PI * 2
-  particle.velocity = new BABYLON.Vector3(Math.cos(angle), 3, Math.sin(angle)).normalize().scale(velocity)
+  particle.velocity = (undefined as any /* todo(lite): new BABYLON.Vector3(Math.cos(angle), 3, Math.sin(angle)).normalize().scale(velocity) */)
 
   const posAngle = Math.random() * Math.PI * 2
   particle.position.x = startPosition.x + Math.sin(posAngle) * positionRadius
   particle.position.y = startPosition.y
   particle.position.z = startPosition.z + Math.cos(posAngle) * positionRadius
 
-  particle.props = { lifetime: BABYLON.Scalar.RandomRange(0.1 * maxLifetime, maxLifetime), time: Date.now() }
+  particle.props = { lifetime: (undefined as any /* todo(lite): BABYLON.Scalar.RandomRange(0.1 * maxLifetime, maxLifetime) */), time: Date.now() }
 }
 
-function updateParticle(particle: BABYLON.SolidParticle): BABYLON.SolidParticle {
+function updateParticle(particle: any): any {
   if (particle.props.lifetime < 1) {
     particle.isVisible = false
     return particle
@@ -113,10 +114,10 @@ function updateParticle(particle: BABYLON.SolidParticle): BABYLON.SolidParticle 
   return particle
 }
 
-function createMaterial(scene: BABYLON.Scene, texture: BABYLON.DynamicTexture) {
-  const mat = new BABYLON.StandardMaterial('avatar/emote-material-' + Date.now(), scene)
-  mat.ambientColor = new BABYLON.Color3(1, 1, 1)
-  mat.specularColor = new BABYLON.Color3(0, 0, 0)
+function createMaterial(scene: SceneContext, texture: DynamicTexture2D) {
+  const mat = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('avatar/emote-material-' + Date.now(), scene) */)
+  mat.ambientColor = ([1, 1, 1] as Color3)
+  mat.specularColor = ([0, 0, 0] as Color3)
   mat.emissiveTexture = texture
   mat.diffuseTexture = texture
   mat.blockDirtyMechanism = true
@@ -124,8 +125,8 @@ function createMaterial(scene: BABYLON.Scene, texture: BABYLON.DynamicTexture) {
   return mat
 }
 
-function createTexture(scene: BABYLON.Scene, emoji: string, textureSize: number): BABYLON.DynamicTexture {
-  const dynamicTexture = new BABYLON.DynamicTexture(
+function createTexture(scene: SceneContext, emoji: string, textureSize: number): DynamicTexture2D {
+  const dynamicTexture = (undefined as any /* todo(lite): new BABYLON.DynamicTexture(
     'avatar/emoji-' + Date.now(),
     {
       width: textureSize,
@@ -133,7 +134,7 @@ function createTexture(scene: BABYLON.Scene, emoji: string, textureSize: number)
     },
     scene,
     false,
-  )
+  ) */)
   const ctx = dynamicTexture.getContext()
   const size = 12
   const font_type = 'sans-serif'

@@ -1,17 +1,19 @@
 import fragShader from './simpleocean.fragment.fx'
 import vertShader from './simpleocean.vertex.fx'
+import { Color3, Color4, DirectionalLight, LightBase, SceneContext, ShaderMaterial } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
-BABYLON.Effect.ShadersStore['simpleoceanVertexShader'] = vertShader
-BABYLON.Effect.ShadersStore['simpleoceanFragmentShader'] = fragShader
+(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['simpleoceanVertexShader'] = vertShader */)
+(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['simpleoceanFragmentShader'] = fragShader */)
 
 export class SimpleWater {
-  private material: BABYLON.ShaderMaterial
-  private scene: BABYLON.Scene
+  private material: ShaderMaterial
+  private scene: SceneContext
 
-  constructor(scene: BABYLON.Scene) {
+  constructor(scene: SceneContext) {
     this.scene = scene
 
-    this.material = new BABYLON.ShaderMaterial(
+    this.material = (undefined as any /* todo(lite): new BABYLON.ShaderMaterial(
       'simpleocean',
       scene,
       { vertex: 'simpleocean', fragment: 'simpleocean' },
@@ -23,7 +25,7 @@ export class SimpleWater {
         needAlphaTesting: false,
         defines: ['#define IMAGEPROCESSINGPOSTPROCESS'],
       },
-    )
+    ) */)
 
     if (this.scene.fogEnabled) {
       this.material.setDefine('FOG', true)
@@ -37,7 +39,7 @@ export class SimpleWater {
   }
 
   private setupMaterialProperties(): void {
-    this.material.setVector3('diffuseColor', new BABYLON.Vector3(0, 0.4, 0.7))
+    this.material.setVector3('diffuseColor', vec3.fromValues(0, 0.4, 0.7))
     this.material.setFloat('sunSpecularPower', 8.0)
     this.material.backFaceCulling = true
   }
@@ -52,31 +54,31 @@ export class SimpleWater {
     }
 
     if (this.scene.activeCamera) {
-      effect.setVector4('vEyePosition', new BABYLON.Vector4(this.scene.activeCamera.globalPosition.x, this.scene.activeCamera.globalPosition.y, this.scene.activeCamera.globalPosition.z, 1.0))
+      effect.setVector4('vEyePosition', (undefined as any /* todo(lite): new BABYLON.Vector4(this.scene.activeCamera.globalPosition.x, this.scene.activeCamera.globalPosition.y, this.scene.activeCamera.globalPosition.z, 1.0) */))
     }
 
     this.updateLightingUniforms(effect)
   }
 
-  private updateLightingUniforms(effect: BABYLON.Effect): void {
+  private updateLightingUniforms(effect: any): void {
     this.initializeLightUniforms(effect)
     this.configureSunLighting(effect)
     this.configureSceneLights(effect)
   }
 
-  private initializeLightUniforms(effect: BABYLON.Effect): void {
+  private initializeLightUniforms(effect: any): void {
     for (let i = 0; i < 4; i++) {
-      effect.setVector3(`vLightData${i}`, BABYLON.Vector3.Zero())
-      effect.setDirectColor4(`vLightDiffuse${i}`, new BABYLON.Color4(0, 0, 0, 1))
-      effect.setDirectColor4(`vLightSpecular${i}`, new BABYLON.Color4(0, 0, 0, 1))
+      effect.setVector3(`vLightData${i}`, vec3.create())
+      effect.setDirectColor4(`vLightDiffuse${i}`, ([0, 0, 0, 1] as Color4))
+      effect.setDirectColor4(`vLightSpecular${i}`, ([0, 0, 0, 1] as Color4))
     }
 
-    effect.setVector3('sunDirection', BABYLON.Vector3.Zero())
-    effect.setColor3('sunColor', new BABYLON.Color3(0, 0, 0))
+    effect.setVector3('sunDirection', vec3.create())
+    effect.setColor3('sunColor', ([0, 0, 0] as Color3))
     effect.setFloat('sunSpecularPower', 1024.0)
   }
 
-  private configureSunLighting(effect: BABYLON.Effect): void {
+  private configureSunLighting(effect: any): void {
     const sunLight = this.findSunLight()
 
     if (sunLight) {
@@ -85,7 +87,7 @@ export class SimpleWater {
     }
   }
 
-  private configureSceneLights(effect: BABYLON.Effect): void {
+  private configureSceneLights(effect: any): void {
     const enabledLights = this.scene.lights.filter((light) => light.isEnabled()).slice(0, 4)
 
     enabledLights.forEach((light, index) => {
@@ -94,24 +96,24 @@ export class SimpleWater {
     })
   }
 
-  private findSunLight(): BABYLON.DirectionalLight | null {
-    return (this.scene.lights.find((light) => light instanceof BABYLON.DirectionalLight && light.isEnabled()) as BABYLON.DirectionalLight) || null
+  private findSunLight(): DirectionalLight | null {
+    return (this.scene.lights.find((light) => (false /* todo(lite): light instanceof BABYLON.DirectionalLight */) && light.isEnabled()) as DirectionalLight) || null
   }
 
-  private setLightData(effect: BABYLON.Effect, light: BABYLON.Light, index: number): void {
-    if (light instanceof BABYLON.DirectionalLight || light instanceof BABYLON.SpotLight || light instanceof BABYLON.HemisphericLight) {
+  private setLightData(effect: any, light: LightBase, index: number): void {
+    if ((false /* todo(lite): light instanceof BABYLON.DirectionalLight */) || (false /* todo(lite): light instanceof BABYLON.SpotLight */) || (false /* todo(lite): light instanceof BABYLON.HemisphericLight */)) {
       effect.setVector3(`vLightData${index}`, (light as any).direction)
-    } else if (light instanceof BABYLON.PointLight) {
+    } else if ((false /* todo(lite): light instanceof BABYLON.PointLight */)) {
       effect.setVector3(`vLightData${index}`, light.position)
     }
   }
 
-  private setLightColors(effect: BABYLON.Effect, light: BABYLON.Light, index: number): void {
-    effect.setDirectColor4(`vLightDiffuse${index}`, new BABYLON.Color4(light.diffuse.r * light.intensity, light.diffuse.g * light.intensity, light.diffuse.b * light.intensity, 1.0))
-    effect.setDirectColor4(`vLightSpecular${index}`, new BABYLON.Color4(light.specular.r * light.intensity, light.specular.g * light.intensity, light.specular.b * light.intensity, 1.0))
+  private setLightColors(effect: any, light: LightBase, index: number): void {
+    effect.setDirectColor4(`vLightDiffuse${index}`, ([light.diffuse.r * light.intensity, light.diffuse.g * light.intensity, light.diffuse.b * light.intensity, 1.0] as Color4))
+    effect.setDirectColor4(`vLightSpecular${index}`, ([light.specular.r * light.intensity, light.specular.g * light.intensity, light.specular.b * light.intensity, 1.0] as Color4))
   }
 
-  getMaterial(): BABYLON.ShaderMaterial {
+  getMaterial(): ShaderMaterial {
     return this.material
   }
 

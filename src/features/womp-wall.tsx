@@ -8,6 +8,8 @@ import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import Feature, { Feature2D, FeatureEvent, MeshExtended } from './feature'
 import showWompView from '../ui/html-ui/womp-view'
 import { tileIndexFromUv, WOMP_WALL_COLS as COLS, WOMP_WALL_GAP as GAP, WOMP_WALL_HEADER_FRAC as HEADER_FRAC, WOMP_WALL_ROWS as ROWS, WOMP_WALL_TILES as TILES } from './womp-wall-hit'
+import { DynamicTexture2D, PickingInfo } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 const TEX_W = 768
 const TEX_H = 512
@@ -38,9 +40,9 @@ export default class WompWall extends Feature2D<WompWallRecord> {
 
   private tiles: Array<WallWomp | null> = Array(TILES).fill(null)
   private womps: WallWomp[] = []
-  private lastPick: BABYLON.PickingInfo | null = null
+  private lastPick: PickingInfo | null = null
   private refreshTimer: ReturnType<typeof setTimeout> | null = null
-  private dynamicTexture: BABYLON.DynamicTexture | null = null
+  private dynamicTexture: DynamicTexture2D | null = null
   private paintGen = 0
 
   get isInteract() {
@@ -61,8 +63,8 @@ export default class WompWall extends Feature2D<WompWallRecord> {
 
   generateDraft() {
     if (this.disposed) return
-    if (!(this.mesh instanceof BABYLON.Mesh)) {
-      this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) as MeshExtended
+    if (!((false /* todo(lite): this.mesh instanceof BABYLON.Mesh */))) {
+      this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) as MeshExtended */)
       rebindGizmos(this)
     }
     this.mesh.material = Feature.getDraftMaterial(this.scene)
@@ -79,17 +81,17 @@ export default class WompWall extends Feature2D<WompWallRecord> {
 
   private ensureBoard() {
     if (this.disposed) return
-    if (!(this.mesh instanceof BABYLON.Mesh)) {
-      this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) as MeshExtended
+    if (!((false /* todo(lite): this.mesh instanceof BABYLON.Mesh */))) {
+      this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) as MeshExtended */)
       rebindGizmos(this)
     }
 
     if (!this.dynamicTexture) {
-      this.dynamicTexture = new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), { width: TEX_W, height: TEX_H }, this.scene, false)
+      this.dynamicTexture = (undefined as any /* todo(lite): new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), { width: TEX_W, height: TEX_H }, this.scene, false) */)
       this.dynamicTexture.hasAlpha = false
     }
 
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     material.specularColor.set(0, 0, 0)
     material.diffuseColor.set(1, 1, 1)
     material.emissiveColor.set(1, 1, 1)
@@ -99,7 +101,7 @@ export default class WompWall extends Feature2D<WompWallRecord> {
 
     const old = this.mesh.material
     this.mesh.material = material
-    if (old instanceof BABYLON.StandardMaterial && old !== Feature.draftMaterial && old.getBindedMeshes().length <= 1) {
+    if ((false /* todo(lite): old instanceof BABYLON.StandardMaterial */) && old !== Feature.draftMaterial && old.getBindedMeshes().length <= 1) {
       old.dispose(false, false)
     }
 
@@ -208,10 +210,10 @@ export default class WompWall extends Feature2D<WompWallRecord> {
     const m = mesh || this.mesh
     if (!m) return
 
-    m.cvOnLeftClick = (pickInfo: BABYLON.PickingInfo | null | undefined) => {
+    m.cvOnLeftClick = (pickInfo: PickingInfo | null | undefined) => {
       this.lastPick = pickInfo || null
-      const point: BABYLON.FloatArray = []
-      const normal: BABYLON.FloatArray = []
+      const point: any = []
+      const normal: any = []
       if (pickInfo?.pickedPoint) {
         pickInfo.pickedPoint.subtract(this.parcel.transform.position).toArray(point)
         pickInfo.getNormal()?.toArray(normal)
@@ -228,14 +230,14 @@ export default class WompWall extends Feature2D<WompWallRecord> {
     showWompView(womp, this.womps)
   }
 
-  private tileIndexFromPick(pick: BABYLON.PickingInfo | null): number {
+  private tileIndexFromPick(pick: PickingInfo | null): number {
     if (!pick) return -1
     const uv = pick.getTextureCoordinates()
     if (uv) return tileIndexFromUv(uv.x, uv.y)
 
     if (!this.mesh || !pick.pickedPoint) return -1
     const world = pick.pickedPoint.clone()
-    const local = BABYLON.Vector3.TransformCoordinates(world, BABYLON.Matrix.Invert(this.mesh.getWorldMatrix()))
+    const local = (undefined as any /* todo(lite): BABYLON.Vector3.TransformCoordinates(world, BABYLON.Matrix.Invert(this.mesh.getWorldMatrix())) */)
     return tileIndexFromUv(local.x + 0.5, local.y + 0.5)
   }
 
@@ -257,7 +259,7 @@ function wompTakenOnParcel(w: WallWomp, parcel: Parcel): boolean {
   const { position } = decodeCoords(w.coords)
   // feet must be on this lot; clamp y so towers / CAMERA_HEIGHT don't fail contains()
   const midY = (parcel.y1 + parcel.y2) / 2
-  return parcel.contains(new BABYLON.Vector3(position.x, midY, position.z))
+  return parcel.contains(vec3.fromValues(position.x, midY, position.z))
 }
 
 function cellRect(index: number): { x: number; y: number; w: number; h: number } {

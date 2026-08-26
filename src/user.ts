@@ -1,5 +1,6 @@
 import type Parcel from './parcel'
 import { app } from '../web/src/state'
+import { Vec3 } from '@babylonjs/lite'
 
 const ANONYMOUS_NAME = 'anon'
 
@@ -42,10 +43,10 @@ export class User {
   /**
    * Get the parcels intersecting with the given point (in grid coordinates)
    */
-  getParcels(pointInGrid: BABYLON.Vector3): Array<Parcel> {
-    BABYLON.TmpVectors.Vector3[0].copyFrom(pointInGrid)
+  getParcels(pointInGrid: Vec3): Array<Parcel> {
+    (undefined as any /* todo(lite): BABYLON.TmpVectors.Vector3[0].copyFrom(pointInGrid) */)
     // Nudge up or else the pointInGrid is too LOW.
-    BABYLON.TmpVectors.Vector3[0].addInPlaceFromFloats(0, 0.5, 0)
-    return this.parcels.filter((p) => p.exteriorBounds.intersectsPoint(BABYLON.TmpVectors.Vector3[0]))
+    (undefined as any /* todo(lite): BABYLON.TmpVectors.Vector3[0].addInPlaceFromFloats(0, 0.5, 0) */)
+    return this.parcels.filter((p) => p.exteriorBounds.intersectsPoint((undefined as any /* todo(lite): BABYLON.TmpVectors.Vector3[0] */)))
   }
 }

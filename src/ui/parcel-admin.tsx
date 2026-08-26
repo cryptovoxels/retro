@@ -2,11 +2,12 @@ import { Component, render } from 'preact'
 import { unmountComponentAtNode } from 'preact/compat'
 import { openDialog, requestPointerLockIfNoOverlays } from '../../common/helpers/ui-helpers'
 import { ParcelRecord } from '../../common/messages/parcel'
+import { SceneContext } from '@babylonjs/lite'
 
 interface Props {
   parcel: ParcelRecord
   onClose?: () => void
-  scene: BABYLON.Scene
+  scene: SceneContext
 }
 
 export class ParcelAdminOverlay extends Component<Props> {
@@ -55,7 +56,7 @@ export class ParcelAdminOverlay extends Component<Props> {
   }
 }
 
-export function toggleParcelAdminOverlay(parcel: ParcelRecord, scene: BABYLON.Scene, onClose?: () => void) {
+export function toggleParcelAdminOverlay(parcel: ParcelRecord, scene: SceneContext, onClose?: () => void) {
   if (ParcelAdminOverlay.currentElement?.parentElement) {
     unmountComponentAtNode(ParcelAdminOverlay.currentElement)
     ParcelAdminOverlay.currentElement.remove()

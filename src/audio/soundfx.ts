@@ -2,8 +2,8 @@ const SOUNDS_URL = process.env.SOUNDS_URL!
 
 interface SoundInfo {
   url: string
-  options: BABYLON.ISoundOptions
-  sound?: BABYLON.Sound
+  options: any
+  sound?: any
 }
 
 // avatar sounds come from other players and should be spatial

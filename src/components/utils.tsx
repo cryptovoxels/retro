@@ -1,5 +1,6 @@
 import { ComponentChildren } from 'preact'
 import { isDesktop, isMobile } from '../../common/helpers/detector'
+import { SceneContext } from '@babylonjs/lite'
 
 export function ViewOnCondition({ condition, children }: { condition: boolean; children?: ComponentChildren }) {
   if (condition) {
@@ -33,7 +34,7 @@ export function DesktopOrMobile({ children }: { children?: ComponentChildren }) 
   }
 }
 
-export function OnlyOnGrid({ scene, children }: { scene: BABYLON.Scene; children?: ComponentChildren }) {
+export function OnlyOnGrid({ scene, children }: { scene: SceneContext; children?: ComponentChildren }) {
   if (window.config.isGrid) {
     return children as any
   } else {

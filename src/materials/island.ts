@@ -1,17 +1,18 @@
 import { cacheMaterial, generateCacheKey, getCachedMaterial } from './cache'
+import { Material, SceneContext, Texture2D } from '@babylonjs/lite'
 
 export interface IslandMaterialConfig {
   name: string
-  texture: BABYLON.Texture
+  texture: Texture2D
 }
 
-export function createIslandMaterial(scene: BABYLON.Scene, config: IslandMaterialConfig): BABYLON.Material {
+export function createIslandMaterial(scene: SceneContext, config: IslandMaterialConfig): Material {
   const cacheKey = generateCacheKey('island', { name: config.name })
 
   const cached = getCachedMaterial(cacheKey)
   if (cached) return cached
 
-  const material = new BABYLON.StandardMaterial(`island/${config.name}`, scene)
+  const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(`island/${config.name}`, scene) */)
 
   // Standard material colors
   // material.emissiveColor.set(0.7, 0.7, 0.7)

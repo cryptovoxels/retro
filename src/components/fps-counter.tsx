@@ -1,4 +1,5 @@
 import { Component } from 'preact'
+import { SceneContext } from '@babylonjs/lite'
 
 const { setInterval } = window
 
@@ -7,7 +8,7 @@ THIS IS NOT THE FPS COUNTER IN THE TOP LEFT CORNER IN DEBUG MODE.
 */
 
 type Props = {
-  scene: BABYLON.Scene
+  scene: SceneContext
 }
 
 export default class FPSCounter extends Component<Props, any> {

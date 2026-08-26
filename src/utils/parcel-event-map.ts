@@ -1,1 +1,2 @@
-export type ParcelEventMap = { MeshLoaded: BABYLON.Mesh; MeshUnloading: BABYLON.Mesh }
+import { Mesh } from '@babylonjs/lite'
+export type ParcelEventMap = { MeshLoaded: Mesh; MeshUnloading: Mesh }

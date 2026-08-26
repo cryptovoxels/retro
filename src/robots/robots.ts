@@ -1,17 +1,19 @@
+import { Quat, SceneContext, TransformNode, Vec3 } from '@babylonjs/lite'
+import { quat, vec3 } from 'wgpu-matrix'
 type WalkNode = {
-  position: BABYLON.Vector3
-  rotation: BABYLON.Quaternion
+  position: Vec3
+  rotation: Quat
 }
 
 class Robot {
-  private parent: BABYLON.TransformNode
+  private parent: TransformNode
   private path: WalkNode[] = []
 
   constructor(
-    private scene: BABYLON.Scene,
-    loader: BABYLON.ISceneLoaderAsyncResult,
+    private scene: SceneContext,
+    loader: any,
   ) {
-    this.parent = new BABYLON.TransformNode('robot', this.scene)
+    this.parent = (undefined as any /* todo(lite): new BABYLON.TransformNode('robot', this.scene) */)
     // Random size
     // const s = Math.random() + 0.5
     // const t = Math.random() * 0.2 + 0.9
@@ -32,8 +34,8 @@ class Robot {
     // Play animation
     group.play(true)
 
-    const position = new BABYLON.Vector3(0, 1, 0)
-    const rotation = BABYLON.Quaternion.FromEulerAngles(0, Math.PI / 4, 0)
+    const position = vec3.fromValues(0, 1, 0)
+    const rotation = quat.fromEuler(0, Math.PI / 4, 0, 'yxz') /* todo(lite): verify euler order */
 
     this.parent.position = position
     this.parent.rotationQuaternion = rotation
@@ -65,10 +67,10 @@ class Robot {
 
       // Cardinal directions
       const i = Math.floor(Math.random() * 4.0)
-      const rotation = BABYLON.Quaternion.FromEulerAngles(0, (Math.PI / 2) * i, 0)
+      const rotation = quat.fromEuler(0, (Math.PI / 2) * i, 0, 'yxz') /* todo(lite): verify euler order */
 
       // Walk 5m in a random direction
-      const d = new BABYLON.Vector3(0, 0, 5).applyRotationQuaternion(rotation)
+      const d = (undefined as any /* todo(lite): new BABYLON.Vector3(0, 0, 5).applyRotationQuaternion(rotation) */)
       const position = source.clone().add(d)
 
       this.addNode({ position, rotation })
@@ -88,7 +90,7 @@ class Robot {
     // At 100fps
     const duration = 500
 
-    const animation = new BABYLON.Animation('walk', 'position', 100, BABYLON.Animation.ANIMATIONTYPE_VECTOR3)
+    const animation = (undefined as any /* todo(lite): new BABYLON.Animation('walk', 'position', 100, BABYLON.Animation.ANIMATIONTYPE_VECTOR3) */)
     animation.setKeys([
       {
         frame: 0,
@@ -124,12 +126,12 @@ class Robot {
 }
 
 export default class Robots {
-  private scene: BABYLON.Scene
+  private scene: SceneContext
   disabled = true
-  import: BABYLON.ISceneLoaderAsyncResult | null = null
+  import: any | null = null
   robots: Robot[] = []
 
-  constructor(scene: BABYLON.Scene) {
+  constructor(scene: SceneContext) {
     this.scene = scene
   }
 
@@ -146,7 +148,7 @@ export default class Robots {
 
     if (!this.import) {
       // Import GLTF
-      this.import = await BABYLON.SceneLoader.ImportMeshAsync(null, '/models/animations/standard-walk.glb', undefined, this.scene)
+      this.import = await (undefined as any /* todo(lite): BABYLON.SceneLoader.ImportMeshAsync(null, '/models/animations/standard-walk.glb', undefined, this.scene) */)
     }
   }
 

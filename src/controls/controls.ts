@@ -13,6 +13,8 @@ import type { Environment } from '../enviroments/environment'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
 import { IControls } from './iControls'
 import { Animations } from '../avatar-animations'
+import { Color3, Mesh, PickingInfo, SceneContext, TransformNode, Vec3, onBeforeRender } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 export const CAMERA_DISTANCE = isMobile() ? 2.5 : 1.5
 export const MIN_CAMERA_DISTANCE = 0.5
@@ -39,10 +41,10 @@ function congaLateralSlot(uuid: string): number {
   return (((h % 7) + 7) % 7) - 3
 }
 
-const WALK_TO_RUN_EASE = new BABYLON.SineEase()
-WALK_TO_RUN_EASE.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEIN)
-const RUN_TO_WALK_EASE = new BABYLON.SineEase()
-RUN_TO_WALK_EASE.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEOUT)
+const WALK_TO_RUN_EASE = (undefined as any /* todo(lite): new BABYLON.SineEase() */)
+WALK_TO_RUN_EASE.setEasingMode((undefined as any /* todo(lite): BABYLON.EasingFunction.EASINGMODE_EASEIN */))
+const RUN_TO_WALK_EASE = (undefined as any /* todo(lite): new BABYLON.SineEase() */)
+RUN_TO_WALK_EASE.setEasingMode((undefined as any /* todo(lite): BABYLON.EasingFunction.EASINGMODE_EASEOUT */))
 
 /**
  * Get the next value of easing the current number to the target number
@@ -80,14 +82,14 @@ export default abstract class Controls implements IControls {
   camera: PlayerCamera = undefined!
   body: PlayerBody = undefined!
   /** unitless direction; inputs write, body.step scales by speed * dt */
-  move = BABYLON.Vector3.Zero()
+  move = vec3.create()
   hasGamepad = false
   flying = false
   swimming = false
   cameraDistance = 0
   targetCameraDistance: number = CAMERA_DISTANCE
-  reticuleRoot: BABYLON.TransformNode
-  reticuleChannels: BABYLON.Mesh[]
+  reticuleRoot: TransformNode
+  reticuleChannels: Mesh[]
   reticuleActive = false
   private chromaAmount = 0
   private reticuleSpinT = 0
@@ -99,9 +101,9 @@ export default abstract class Controls implements IControls {
   shiftKey = false
   ctrlKey = false
   firstPersonView = true
-  walkRunAnimation: BABYLON.Animatable | null = null
+  walkRunAnimation: any | null = null
   /** mobile dpad sets this; also used as drive steer while in a vehicle */
-  direction: BABYLON.Vector3 = new BABYLON.Vector3()
+  direction: Vec3 = vec3.create()
 
   islandsReady = true
 
@@ -110,7 +112,7 @@ export default abstract class Controls implements IControls {
   private congaSyncGraceUntil = 0
   private congaSawLeaderInConga = false
   /** Track movement of person in front; when still, blend toward arc / group layout. */
-  private congaTargetPrevPos: BABYLON.Vector3 | null = null
+  private congaTargetPrevPos: Vec3 | null = null
   private congaGroupBlend = 0
   /** Flying mode before joining conga; restored in stopConga. */
   private congaFlyingRestore: boolean | null = null
@@ -119,8 +121,8 @@ export default abstract class Controls implements IControls {
   // --- ride ---
   vehicleFeature: import('../features/vox-model').Ride | null = null
   private vehicleHoverY = 0
-  private vehicleLastDryPos: BABYLON.Vector3 | null = null
-  private vehicleLastDryRot: BABYLON.Vector3 | null = null
+  private vehicleLastDryPos: Vec3 | null = null
+  private vehicleLastDryRot: Vec3 | null = null
   private vehicleWasFirstPerson = true
   private vehicleFlyingRestore: boolean | null = null
   private vehicleLastStateAt = 0
@@ -135,8 +137,8 @@ export default abstract class Controls implements IControls {
   private vehicleSeatOffset: [number, number, number] = [0, 1.2, 0]
   /** G toggles: drive keys move the seat instead of the car (owners only) */
   private vehicleSeatMode = false
-  private vehicleSeatLocal = new BABYLON.Vector3()
-  private vehicleSeatWorld = new BABYLON.Vector3()
+  private vehicleSeatLocal = vec3.create()
+  private vehicleSeatWorld = vec3.create()
   /** document-level WASD - Babylon camera keyboard often misses keys while speed is 0 / no canvas focus */
   private driveHeld = new Set<string>()
   private onDriveKeyDown = (e: KeyboardEvent) => {
@@ -155,7 +157,7 @@ export default abstract class Controls implements IControls {
   private floorParcels: number[] | null = null // null = waiting for parcel ids
 
   constructor(
-    protected scene: BABYLON.Scene,
+    protected scene: SceneContext,
     protected canvas: HTMLCanvasElement,
   ) {
     this.user = window.user
@@ -184,12 +186,12 @@ export default abstract class Controls implements IControls {
     this.reticuleRoot.parent = this.camera
 
     if (isDesktop() && !wantsNoUI()) {
-      this.scene.onBeforeRenderObservable.add(() => {
+      onBeforeRender(this.scene, () => {
         this.tickReticuleSpin()
       })
     }
 
-    this.scene.onBeforeRenderObservable.add(() => {
+    onBeforeRender(this.scene, () => {
       const dt = this.scene.getEngine().getDeltaTime() / 1000 || 1 / 60
 
       // stock babylon gamepad writes cameraDirection as stick * dt; fold into unitless move
@@ -244,7 +246,7 @@ export default abstract class Controls implements IControls {
         return
       }
       this.cameraZoomed = !this.cameraZoomed
-      BABYLON.Animation.CreateAndStartAnimation('fov anim', camera, 'fov', 120, 15, camera.fov, target, 0)
+      (undefined as any /* todo(lite): BABYLON.Animation.CreateAndStartAnimation('fov anim', camera, 'fov', 120, 15, camera.fov, target, 0) */)
     }
 
     if (!this.cameraZoomed) {
@@ -258,7 +260,7 @@ export default abstract class Controls implements IControls {
   // Ben's reticule pick (1c4cec3) used scene.pick() without pointerMovePredicate, so build-mode
   // picks hit avatar/features instead of voxel colliders. Tools pass useMovePredicate=true;
   // context menu / locked click use unpredicated center ray when no tool is active.
-  pickAtView(x?: number, y?: number, useMovePredicate = false, predicateOverride?: (mesh: BABYLON.AbstractMesh) => boolean): BABYLON.PickingInfo | null {
+  pickAtView(x?: number, y?: number, useMovePredicate = false, predicateOverride?: (mesh: Mesh) => boolean): PickingInfo | null {
     const cam = this.camera
     if (!cam) return null
 
@@ -275,7 +277,7 @@ export default abstract class Controls implements IControls {
   }
 
   // Highlight only: isInteract features + voxel-field occlusion. Skips vox/megavox/cube/polytext.
-  reticuleHighlightPredicate(mesh: BABYLON.AbstractMesh): boolean {
+  reticuleHighlightPredicate(mesh: Mesh): boolean {
     if (!mesh.isPickable || !mesh.isVisible || !mesh.isEnabled()) return false
     if (mesh.name.startsWith('voxel-field/opaque') || mesh.name.startsWith('voxelizer/')) return true
     const f = (mesh as MeshExtended).feature ?? (mesh.parent as MeshExtended | null)?.feature
@@ -286,7 +288,7 @@ export default abstract class Controls implements IControls {
     return this.pickAtView(undefined, undefined, !!window.ui?.activeTool)
   }
 
-  pickForPointer(pickInfo?: BABYLON.PickingInfo | null) {
+  pickForPointer(pickInfo?: PickingInfo | null) {
     if (hasPointerLock()) {
       return this.pickAtView(undefined, undefined, true)
     }
@@ -296,7 +298,7 @@ export default abstract class Controls implements IControls {
     return pickInfo ?? null
   }
 
-  lockedLeftClick(pickInfo?: BABYLON.PickingInfo | null) {
+  lockedLeftClick(pickInfo?: PickingInfo | null) {
     if (!pickInfo) return
     if (window.ui?.visible || window.ui?.activeTool) return
     const distance = pickInfo.distance || Infinity
@@ -306,14 +308,14 @@ export default abstract class Controls implements IControls {
     if (handler) handler(pickInfo)
   }
 
-  featureClickHandler(eventData: BABYLON.PointerInfo) {
+  featureClickHandler(eventData: any) {
     if (isDesktop()) return
-    if (eventData.event.button === 0 && eventData.type === BABYLON.PointerEventTypes.POINTERPICK) {
+    if (eventData.event.button === 0 && eventData.type === (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERPICK */)) {
       this.lockedLeftClick(eventData.pickInfo)
     }
   }
 
-  handleContextClick(pickInfo?: BABYLON.PickingInfo | null) {
+  handleContextClick(pickInfo?: PickingInfo | null) {
     if (!pickInfo) return
 
     const picked = featureFromPick(pickInfo)
@@ -374,7 +376,7 @@ export default abstract class Controls implements IControls {
       const fps = 60
       const duration = 10
       this.walkRunAnimation?.stop()
-      this.walkRunAnimation = BABYLON.Animation.CreateAndStartAnimation('walk-to-run', this.body, 'speed', fps, duration, this.body.speed, this.runSpeed, undefined, WALK_TO_RUN_EASE, undefined, this.scene)
+      this.walkRunAnimation = (undefined as any /* todo(lite): BABYLON.Animation.CreateAndStartAnimation('walk-to-run', this.body, 'speed', fps, duration, this.body.speed, this.runSpeed, undefined, WALK_TO_RUN_EASE, undefined, this.scene) */)
       this.walkRunAnimation!.loopAnimation = false
     }
   }
@@ -387,7 +389,7 @@ export default abstract class Controls implements IControls {
       const duration = 13
       const target = this.defaultSpeed
       this.walkRunAnimation?.stop()
-      this.walkRunAnimation = BABYLON.Animation.CreateAndStartAnimation('walk-to-run', this.body, 'speed', fps, duration, this.body.speed, target, undefined, WALK_TO_RUN_EASE, undefined, this.scene)
+      this.walkRunAnimation = (undefined as any /* todo(lite): BABYLON.Animation.CreateAndStartAnimation('walk-to-run', this.body, 'speed', fps, duration, this.body.speed, target, undefined, WALK_TO_RUN_EASE, undefined, this.scene) */)
       this.walkRunAnimation!.loopAnimation = false
     }
   }
@@ -605,10 +607,10 @@ export default abstract class Controls implements IControls {
     // match leader's facing direction
     this.camera.rotation.y = target.orientation.y
 
-    const forward = new BABYLON.Vector3(Math.sin(target.orientation.y), 0, Math.cos(target.orientation.y))
-    let right = BABYLON.Vector3.Cross(BABYLON.Vector3.Up(), forward)
+    const forward = vec3.fromValues(Math.sin(target.orientation.y), 0, Math.cos(target.orientation.y))
+    let right = vec3.cross(vec3.fromValues(0, 1, 0), forward)
     if (right.lengthSquared() < 1e-10) {
-      right = new BABYLON.Vector3(1, 0, 0)
+      right = vec3.fromValues(1, 0, 0)
     } else {
       right.normalize()
     }
@@ -616,7 +618,7 @@ export default abstract class Controls implements IControls {
     const dir = target.position.subtract(this.body.position)
     dir.y = 0
     const gapHz = dir.length()
-    const gap3 = BABYLON.Vector3.Distance(target.position, this.body.position)
+    const gap3 = vec3.distance(target.position, this.body.position)
     if (leaderFlying ? gap3 > 30 : gapHz > 30) {
       const tp = target.position.subtract(forward.scale(CONGA_FOLLOW_DISTANCE))
       if (!leaderFlying) {
@@ -630,7 +632,7 @@ export default abstract class Controls implements IControls {
 
     const prev = this.congaTargetPrevPos
     if (prev) {
-      const targetMoved = BABYLON.Vector3.Distance(target.position, prev) > 0.022
+      const targetMoved = vec3.distance(target.position, prev) > 0.022
       if (targetMoved) {
         this.congaGroupBlend = Math.max(0, this.congaGroupBlend - deltaTime * 4)
       } else {
@@ -673,7 +675,7 @@ export default abstract class Controls implements IControls {
    * Default implementation allows only sliders.
    * This can be overridden, e.g. in tools/voxel.ts and tools/feature.ts
    */
-  defaultPointerMovePredicate(mesh: BABYLON.AbstractMesh): boolean {
+  defaultPointerMovePredicate(mesh: Mesh): boolean {
     // CV custom additional check
     return (
       !!mesh.metadata?.captureMoveEvents &&
@@ -715,12 +717,12 @@ export default abstract class Controls implements IControls {
         const bb = m.boundingBox
         let d: number
         if (bb) {
-          const closest = BABYLON.Vector3.Clamp(me, bb.minimumWorld, bb.maximumWorld)
-          d = BABYLON.Vector3.DistanceSquared(me, closest)
+          const closest = (undefined as any /* todo(lite): BABYLON.Vector3.Clamp(me, bb.minimumWorld, bb.maximumWorld) */)
+          d = vec3.distanceSq(me, closest)
         } else {
           const p = m.absolutePosition
           if (!p) continue
-          d = BABYLON.Vector3.DistanceSquared(me, p)
+          d = vec3.distanceSq(me, p)
         }
         if (d < reachSq && d < bestD) {
           bestD = d
@@ -1039,7 +1041,7 @@ export default abstract class Controls implements IControls {
     if (car.mesh) {
       const [ox, oy, oz] = this.vehicleSeatOffset
       this.vehicleSeatLocal.copyFromFloats(ox, oy, oz)
-      BABYLON.Vector3.TransformCoordinatesToRef(this.vehicleSeatLocal, car.mesh.getWorldMatrix(), this.vehicleSeatWorld)
+      (undefined as any /* todo(lite): BABYLON.Vector3.TransformCoordinatesToRef(this.vehicleSeatLocal, car.mesh.getWorldMatrix(), this.vehicleSeatWorld) */)
       this.body.position.copyFrom(this.vehicleSeatWorld)
       // mouse owns look (pitch + yaw); car facing is separate via getVehicleDriveYaw
     }
@@ -1052,11 +1054,11 @@ export default abstract class Controls implements IControls {
   }
 }
 
-function generateReticule(scene: BABYLON.Scene) {
+function generateReticule(scene: SceneContext) {
   const w = 128
-  const utilLayer = new BABYLON.UtilityLayerRenderer(scene)
+  const utilLayer = (undefined as any /* todo(lite): new BABYLON.UtilityLayerRenderer(scene) */)
   const utilScene = utilLayer.utilityLayerScene
-  const texture = new BABYLON.DynamicTexture('reticule', w, scene, false)
+  const texture = (undefined as any /* todo(lite): new BABYLON.DynamicTexture('reticule', w, scene, false) */)
   texture.hasAlpha = true
 
   const ctx = <CanvasRenderingContext2D>texture.getContext()
@@ -1089,25 +1091,25 @@ function generateReticule(scene: BABYLON.Scene) {
   ctx.stroke()
   texture.update()
 
-  const root = new BABYLON.TransformNode('reticule', utilScene)
+  const root = (undefined as any /* todo(lite): new BABYLON.TransformNode('reticule', utilScene) */)
   root.position.set(0, 0, 0.2)
 
-  const colors: [string, BABYLON.Color3][] = [
-    ['r', new BABYLON.Color3(1, 0.15, 0.15)],
-    ['g', new BABYLON.Color3(0.15, 1, 0.15)],
-    ['b', new BABYLON.Color3(0.15, 0.4, 1)],
+  const colors: [string, Color3][] = [
+    ['r', ([1, 0.15, 0.15] as Color3)],
+    ['g', ([0.15, 1, 0.15] as Color3)],
+    ['b', ([0.15, 0.4, 1] as Color3)],
   ]
 
   const channels = colors.map(([suffix, color]) => {
-    const material = new BABYLON.StandardMaterial(`reticule_${suffix}`, utilScene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(`reticule_${suffix}`, utilScene) */)
     material.diffuseTexture = texture
     material.opacityTexture = texture
     material.emissiveColor.copyFrom(color)
     material.disableLighting = true
-    material.alphaMode = BABYLON.Engine.ALPHA_ADD
+    material.alphaMode = (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_ADD */)
     material.disableDepthWrite = true
 
-    const mesh = BABYLON.MeshBuilder.CreatePlane(`reticule_${suffix}`, { size: 0.04 }, utilScene)
+    const mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(`reticule_${suffix}`, { size: 0.04 }, utilScene) */)
     mesh.material = material
     mesh.parent = root
     mesh.isPickable = false
@@ -1118,7 +1120,7 @@ function generateReticule(scene: BABYLON.Scene) {
   return { root, channels }
 }
 
-export function featureFromPick(pickInfo?: BABYLON.PickingInfo | null): Feature | null {
+export function featureFromPick(pickInfo?: PickingInfo | null): Feature | null {
   const mesh = pickInfo?.pickedMesh as MeshExtended | null
   if (!mesh) return null
   if (mesh.feature) return mesh.feature

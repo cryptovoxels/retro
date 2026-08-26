@@ -3,10 +3,11 @@ import AddTab from '../add-tab'
 import { AssetLibraryBrowser } from '../../asset-library/asset-library'
 import Parcel from '../../../parcel'
 import { BuildTabNavTabs, MainTabs } from './build-tab.tabs'
+import { SceneContext } from '@babylonjs/lite'
 
 interface Props {
   parcel?: Parcel
-  scene: BABYLON.Scene
+  scene: SceneContext
 }
 export const BuildTab = ({ scene, parcel }: Props) => {
   const [currentTab, setCurrentTab] = useState<BuildTabNavTabs>('add')

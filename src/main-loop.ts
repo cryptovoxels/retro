@@ -3,17 +3,18 @@ import { throttle } from 'lodash'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
 import { FeaturePump } from './pump/feature-pump'
 import { cameraPosition } from './utils/camera'
+import { EngineContext, SceneContext } from '@babylonjs/lite'
 
 export type LOOP_STATE = 'running' | 'paused'
 export default class MainLoop extends TypedEventTarget<Record<LOOP_STATE, void>> {
   paused = false
   filter = 'blur(25px) saturate(0%) brightness(1.4)'
 
-  scene?: BABYLON.Scene
-  mapScene?: BABYLON.Scene
+  scene?: SceneContext
+  mapScene?: SceneContext
 
   constructor(
-    private engine: BABYLON.Engine,
+    private engine: EngineContext,
     private _pump: FeaturePump,
   ) {
     super()
@@ -27,7 +28,7 @@ export default class MainLoop extends TypedEventTarget<Record<LOOP_STATE, void>>
     return document.querySelector('canvas#renderCanvas') as unknown as HTMLCanvasElement
   }
 
-  setScene(scene: BABYLON.Scene) {
+  setScene(scene: SceneContext) {
     this.scene = scene
   }
 
@@ -35,7 +36,7 @@ export default class MainLoop extends TypedEventTarget<Record<LOOP_STATE, void>>
     this.mapScene = undefined
   }
 
-  setMapScene(scene: BABYLON.Scene) {
+  setMapScene(scene: SceneContext) {
     this.mapScene = scene
   }
 

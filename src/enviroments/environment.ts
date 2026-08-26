@@ -2,18 +2,20 @@ import { wantsGateway } from '../../common/helpers/detector'
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
 import { TimeOfDay } from '../utils/time-of-day'
 import { StateObservable } from '../utils/state-observable'
+import { Color3, Color4, HemisphericLight, Mesh, SceneContext, ShaderMaterial } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 const AMBIENT = 0.3
 const GATEWAY_AMBIENT = 0.45
 
-export abstract class Environment extends TypedEventTarget<{
+export abstract class Environment extends (Object as any) /* todo(lite): extends TypedEventTarget<{
   'fog-updated': void
   'parcel-collider-added': BABYLON.AbstractMesh
   'parcel-collider-removed': BABYLON.AbstractMesh
-}> {
-  public ambientLight?: BABYLON.HemisphericLight
+}> */ {
+  public ambientLight?: HemisphericLight
 
-  protected constructor(protected readonly scene: BABYLON.Scene) {
+  protected constructor(protected readonly scene: SceneContext) {
     super()
     this._timeOfDay = window.config.isNight ? TimeOfDay.Night : TimeOfDay.Day
   }
@@ -58,15 +60,15 @@ export abstract class Environment extends TypedEventTarget<{
   }
 
   get sunPosition() {
-    return new BABYLON.Vector3(0, 1, 0)
+    return vec3.fromValues(0, 1, 0)
   }
 
   get fogColor() {
-    return new BABYLON.Color3(0.95, 0.95, 0.95)
+    return ([0.95, 0.95, 0.95] as Color3)
   }
 
   get clearColor() {
-    return new BABYLON.Color4(0, 0, 0, 0)
+    return ([0, 0, 0, 0] as Color4)
   }
 
   public abstract invalidateGroundLoaded(): void
@@ -76,9 +78,9 @@ export abstract class Environment extends TypedEventTarget<{
     this.scene.clearColor = this.clearColor
     this.updateFog(this.scene)
 
-    this.ambientLight = new BABYLON.HemisphericLight('sun', this.sunPosition, this.scene)
+    this.ambientLight = (undefined as any /* todo(lite): new BABYLON.HemisphericLight('sun', this.sunPosition, this.scene) */)
     this.ambientLight.intensity = this.brightness
-    this.ambientLight.groundColor = new BABYLON.Color3(this.ambient, this.ambient, this.ambient)
+    this.ambientLight.groundColor = ([this.ambient, this.ambient, this.ambient] as Color3)
 
     window.draw.addEventListener('distance-changed', () => {
       this.updateFog(this.scene)
@@ -89,8 +91,8 @@ export abstract class Environment extends TypedEventTarget<{
     })
   }
 
-  updateFog(scene: BABYLON.Scene) {
-    scene.fogMode = BABYLON.Scene.FOGMODE_EXP2
+  updateFog(scene: SceneContext) {
+    scene.fogMode = (undefined as any /* todo(lite): BABYLON.Scene.FOGMODE_EXP2 */)
     scene.fogDensity = this.fogDensity
     scene.fogColor = this.fogColor
     this.dispatchEvent(createEvent('fog-updated', undefined))
@@ -98,22 +100,22 @@ export abstract class Environment extends TypedEventTarget<{
 
   abstract update(): void
 
-  setShaderParameters(mat: BABYLON.ShaderMaterial, brightnessCorrection = 1.0) {
+  setShaderParameters(mat: ShaderMaterial, brightnessCorrection = 1.0) {
     mat.setFloat('brightness', this.brightness * brightnessCorrection)
     this.setShaderEnvironmentGlobals(mat)
   }
 
   /** Updates all props that come from the environment */
-  updateShaderProperties(mat: BABYLON.ShaderMaterial) {
+  updateShaderProperties(mat: ShaderMaterial) {
     this.setShaderEnvironmentGlobals(mat)
     mat.markDirty()
   }
 
-  abstract parcelMeshesAdded(meshes: BABYLON.Mesh[]): void
+  abstract parcelMeshesAdded(meshes: Mesh[]): void
 
-  abstract parcelMeshesRemoved(meshes: BABYLON.Mesh[]): void
+  abstract parcelMeshesRemoved(meshes: Mesh[]): void
 
-  private setShaderEnvironmentGlobals(mat: BABYLON.ShaderMaterial) {
+  private setShaderEnvironmentGlobals(mat: ShaderMaterial) {
     mat.setFloat('ambient', this.ambient)
     mat.setVector3('lightDirection', this.sunPosition)
     mat.setFloat('fogDensity', this.fogDensity)

@@ -3,11 +3,12 @@ import { Environment } from './enviroments/environment'
 import { StateObservable } from './utils/state-observable'
 import type { ParcelRecord } from '../common/messages/parcel'
 import type Parcel from './parcel'
+import { Mesh, SceneContext } from '@babylonjs/lite'
 
 class NullEnvironment extends Environment {
   private readonly groundState = new StateObservable<'loaded' | 'unloaded'>('loaded')
 
-  constructor(scene: BABYLON.Scene) {
+  constructor(scene: SceneContext) {
     super(scene)
   }
 
@@ -19,8 +20,8 @@ class NullEnvironment extends Environment {
     return 0
   }
 
-  updateFog(scene: BABYLON.Scene) {
-    scene.fogMode = BABYLON.Scene.FOGMODE_NONE
+  updateFog(scene: SceneContext) {
+    scene.fogMode = (undefined as any /* todo(lite): BABYLON.Scene.FOGMODE_NONE */)
     scene.fogDensity = 0
   }
 
@@ -28,13 +29,13 @@ class NullEnvironment extends Environment {
 
   update() {}
 
-  parcelMeshesAdded(_meshes: BABYLON.Mesh[]) {}
+  parcelMeshesAdded(_meshes: Mesh[]) {}
 
-  parcelMeshesRemoved(_meshes: BABYLON.Mesh[]) {}
+  parcelMeshesRemoved(_meshes: Mesh[]) {}
 }
 
 export class NullGrid extends Grid {
-  constructor(scene: BABYLON.Scene) {
+  constructor(scene: SceneContext) {
     super(scene, new NullEnvironment(scene))
   }
 

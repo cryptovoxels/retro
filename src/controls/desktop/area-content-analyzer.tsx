@@ -7,10 +7,11 @@ import type Parcel from '../../parcel'
 import FPSCounter from '../../components/fps-counter'
 import type Feature from '../../features/feature'
 import { FeatureRecord } from '../../../common/messages/feature'
+import { SceneContext } from '@babylonjs/lite'
 
 interface Props {
   onClose?: (e: MouseEvent) => void
-  scene: BABYLON.Scene
+  scene: SceneContext
 }
 
 type State = {
@@ -287,7 +288,7 @@ export class AreaContentAnalyzer extends Component<Props, State> {
   }
 }
 
-export function showAreaContentAnalyzeUI(scene: BABYLON.Scene) {
+export function showAreaContentAnalyzeUI(scene: SceneContext) {
   if (!!AreaContentAnalyzer.currentElement) {
     unmountComponentAtNode(AreaContentAnalyzer.currentElement) // unmount the component
     AreaContentAnalyzer.currentElement = null!

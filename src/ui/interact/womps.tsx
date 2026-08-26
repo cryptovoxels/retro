@@ -6,10 +6,11 @@ import Connector from '../../connector'
 import { MinimapSettings } from '../../minimap'
 import Persona from '../../persona'
 import TakeWomp from '../take-womp'
+import { SceneContext } from '@babylonjs/lite'
 
 interface Props {
   onClose?: () => void
-  scene: BABYLON.Scene
+  scene: SceneContext
   minimapSettings: MinimapSettings
 }
 

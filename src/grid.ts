@@ -20,6 +20,8 @@ import { Environment } from './enviroments/environment'
 import { TypedEvent } from './utils/EventEmitter'
 import { ParcelEventMap } from './utils/parcel-event-map'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
+import { SceneContext, Vec3 } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 const MAX_EDIT_DISTANCE = 5
 const { setInterval } = window
@@ -68,7 +70,7 @@ export default class Grid extends SocketClient {
   public priorParcel: Parcel | undefined = undefined
   public currentIsland: string | undefined = undefined
   public parcel_events = new TypedEventTarget<{ parcel_entered: Parcel['id']; parcel_exited: Parcel['id'] }>()
-  private readonly scene: BABYLON.Scene
+  private readonly scene: SceneContext
   protected readonly environment: Environment
   private lastParcelScanAt?: number
   private nearestParcels: Array<Parcel> = []
@@ -88,7 +90,7 @@ export default class Grid extends SocketClient {
   private _queryJobs = new Map<number, DeferredPromise<number[]>>()
   private _nextQueryId = 0
 
-  constructor(scene: BABYLON.Scene, environment: Environment) {
+  constructor(scene: SceneContext, environment: Environment) {
     super('grid', () => getGridUrl())
     this.scene = scene
     this.environment = environment
@@ -485,7 +487,7 @@ export default class Grid extends SocketClient {
     return best
   }
 
-  public getNearest(count: number, point?: BABYLON.Vector3): Array<Parcel> {
+  public getNearest(count: number, point?: Vec3): Array<Parcel> {
     const target = point ?? this.getCameraPosition()
 
     // to make tower activation work better, treat parcels on the same y plane as closer (using yMultiplier)
@@ -496,7 +498,7 @@ export default class Grid extends SocketClient {
   }
 
   // Calls out to the worker. Returns a promise to an array of parcel IDs, since multiple parcels can contain a point.
-  public queryParcelsAtPosition(pos: BABYLON.Vector3): Promise<number[]> {
+  public queryParcelsAtPosition(pos: Vec3): Promise<number[]> {
     // Wait for worker to be ready if it's not yet
     const workerPromise = this._workerReadyPromise || Promise.resolve()
 
@@ -827,16 +829,16 @@ export default class Grid extends SocketClient {
     this.activeParcelPool = newPool
   }
 
-  private getPointInFrontOfCamera(distance: number): BABYLON.Vector3 {
+  private getPointInFrontOfCamera(distance: number): Vec3 {
     if (!this.scene.activeCamera) {
       console.info('[grid] No camera found for grid#getPointInFrontOfCamera')
-      return BABYLON.Vector3.Zero()
+      return vec3.create()
     }
     const forwardRay = this.scene.activeCamera.getForwardRay()
     return forwardRay.origin.add(forwardRay.direction.multiplyByFloats(distance, 0, distance))
   }
 
-  private getCameraPosition(): BABYLON.Vector3 {
+  private getCameraPosition(): Vec3 {
     return cameraPosition(this.scene)
   }
 
@@ -850,7 +852,7 @@ export default class Grid extends SocketClient {
       const transformMatrix = this.scene.activeCamera.getTransformationMatrix()
 
       // Calculate frustum planes from the transform matrix (camera space)
-      const frustumPlanes = BABYLON.Frustum.GetPlanes(transformMatrix)
+      const frustumPlanes = (undefined as any /* todo(lite): BABYLON.Frustum.GetPlanes(transformMatrix) */)
 
       return frustumPlanes.map((plane) => [plane.normal.x, plane.normal.y, plane.normal.z, plane.d])
     } catch (e) {

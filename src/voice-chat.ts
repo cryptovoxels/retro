@@ -6,6 +6,8 @@ import { AudioBus } from './audio/audio-engine'
 import { wantsAudio } from '../common/helpers/detector'
 import { showboxAudioConstraints } from '../common/helpers/showbox-audio-constraints'
 import { voiceSettings } from './voice-settings'
+import { onBeforeRender } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 const LIVEKIT_URL = 'https://voxels-7pvk06qt.livekit.cloud'
 const JOIN_RADIUS = 200
@@ -24,7 +26,7 @@ export default class VoiceChat {
   muted = false
   mutedUuids = new Set<string>()
   voices = new Map<string, Voice>()
-  follow: BABYLON.Observer<BABYLON.Scene> | null = null
+  follow: any | null = null
   private lastIndicatorTick = 0
   private customMic: LocalAudioTrack | null = null
   private rawStream: MediaStream | null = null
@@ -204,7 +206,7 @@ export default class VoiceChat {
       return
     }
 
-    const ctx = BABYLON.Engine.audioEngine?.audioContext
+    const ctx = (undefined as any /* todo(lite): BABYLON.Engine.audioEngine?.audioContext */)
     if (!ctx) {
       await this.room.localParticipant.setMicrophoneEnabled(true, this.micConstraints())
       return
@@ -269,14 +271,14 @@ export default class VoiceChat {
 
     let spatial: SpatialAudio | null = null
     try {
-      const node = BABYLON.Engine.audioEngine?.audioContext?.createMediaElementSource(el)
+      const node = (undefined as any /* todo(lite): BABYLON.Engine.audioEngine?.audioContext?.createMediaElementSource(el) */)
       if (node && this.audio) {
         const a = window.connector?.findAvatar(uuid) as Avatar | undefined
         spatial = this.audio.createSpatialAudio({
           name: 'voice/' + uuid,
           outputBus: AudioBus.Parcel,
           audioNode: node,
-          absolutePosition: (a?.absolutePosition ?? BABYLON.Vector3.Zero()).clone(),
+          absolutePosition: (a?.absolutePosition ?? vec3.create()).clone(),
           rolloffFactor: 2,
         })
         spatial.volume = this.mutedUuids.has(uuid) ? 0 : 1
@@ -307,7 +309,7 @@ export default class VoiceChat {
     if (this.follow) return
     const scene = this.audio?.scene
     if (!scene) return
-    this.follow = scene.onBeforeRenderObservable.add(() => {
+    this.follow = onBeforeRender(scene, () => {
       for (const [uuid, v] of this.voices) {
         if (!v.spatial) continue
         const a = window.connector?.findAvatar(uuid) as Avatar | undefined

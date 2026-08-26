@@ -1,5 +1,6 @@
 import { isTablet } from '../../../common/helpers/detector'
 import MobileControls from './controls'
+import { Mesh, TransformNode } from '@babylonjs/lite'
 
 const TAP_THRESHOLD = 8
 const DEPTH = 0.35
@@ -19,16 +20,16 @@ function chatbarPx() {
 export default class Dpad {
   private controls: MobileControls
   private canvas: HTMLCanvasElement
-  private layer: BABYLON.UtilityLayerRenderer = undefined!
-  private root: BABYLON.TransformNode = undefined!
-  private pad: BABYLON.Mesh = undefined!
-  private nub: BABYLON.Mesh = undefined!
+  private layer: any = undefined!
+  private root: TransformNode = undefined!
+  private pad: Mesh = undefined!
+  private nub: Mesh = undefined!
   private worldSize = 0
   private rect = { left: 0, top: 0, size: 0 }
   private activeId: number | null = null
   private moved = false
   private visible = true
-  private resizeObs: BABYLON.Observer<BABYLON.Engine> | null = null
+  private resizeObs: any | null = null
 
   private onStart = (e: TouchEvent) => {
     if (!this.visible || this.activeId !== null) return
@@ -73,36 +74,36 @@ export default class Dpad {
 
   mount() {
     const scene = this.controls.camera.getScene()
-    this.layer = new BABYLON.UtilityLayerRenderer(scene)
+    this.layer = (undefined as any /* todo(lite): new BABYLON.UtilityLayerRenderer(scene) */)
     const util = this.layer.utilityLayerScene
 
-    const padMat = new BABYLON.StandardMaterial('dpad-pad', util)
+    const padMat = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('dpad-pad', util) */)
     padMat.diffuseColor.set(0.5, 0.5, 0.5)
     padMat.emissiveColor.set(0.5, 0.5, 0.5)
     padMat.specularColor.set(0, 0, 0)
     padMat.disableLighting = true
     padMat.alpha = 0.3
-    padMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
+    padMat.transparencyMode = (undefined as any /* todo(lite): BABYLON.Material.MATERIAL_ALPHABLEND */)
     padMat.disableDepthWrite = true
     padMat.freeze()
 
-    const nubMat = new BABYLON.StandardMaterial('dpad-nub', util)
+    const nubMat = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('dpad-nub', util) */)
     nubMat.diffuseColor.set(0.5, 0.5, 0.5)
     nubMat.emissiveColor.set(0.5, 0.5, 0.5)
     nubMat.specularColor.set(0, 0, 0)
     nubMat.disableLighting = true
     nubMat.alpha = 0.6
-    nubMat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
+    nubMat.transparencyMode = (undefined as any /* todo(lite): BABYLON.Material.MATERIAL_ALPHABLEND */)
     nubMat.disableDepthWrite = true
     nubMat.freeze()
 
-    this.root = new BABYLON.TransformNode('dpad', util)
-    this.pad = BABYLON.MeshBuilder.CreatePlane('dpad-pad', { size: 1 }, util)
+    this.root = (undefined as any /* todo(lite): new BABYLON.TransformNode('dpad', util) */)
+    this.pad = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane('dpad-pad', { size: 1 }, util) */)
     this.pad.material = padMat
     this.pad.parent = this.root
     this.pad.isPickable = false
 
-    this.nub = BABYLON.MeshBuilder.CreatePlane('dpad-nub', { size: 1 }, util)
+    this.nub = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane('dpad-nub', { size: 1 }, util) */)
     this.nub.material = nubMat
     this.nub.parent = this.root
     this.nub.isPickable = false

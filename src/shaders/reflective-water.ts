@@ -5,9 +5,11 @@ import fragShader from './waterreflection.fragment.fx'
 import vertShader from './waterreflection.vertex.fx'
 import { OCEAN_HEIGHT_OFFSET } from '../constants'
 import { WATER_COLOR } from '../enviroments/world-environment-constants'
+import { Color4, Mat4, Mesh, SceneContext, ShaderMaterial, Texture2D, Vec3 } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
-BABYLON.Effect.ShadersStore['waterreflectionVertexShader'] = vertShader
-BABYLON.Effect.ShadersStore['waterreflectionFragmentShader'] = fragShader
+(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['waterreflectionVertexShader'] = vertShader */)
+(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['waterreflectionFragmentShader'] = fragShader */)
 
 interface WaterReflectionMaterialOptions {
   renderTargetSize?: number
@@ -21,19 +23,19 @@ interface WaterReflectionMaterialOptions {
 }
 
 export class ReflectiveWater {
-  private material: BABYLON.ShaderMaterial
-  private scene: BABYLON.Scene
-  private waterColor: BABYLON.Vector3
-  private waterColor2: BABYLON.Vector3
+  private material: ShaderMaterial
+  private scene: SceneContext
+  private waterColor: Vec3
+  private waterColor2: Vec3
   private chunkSize: number
 
-  private reflectionTexture!: BABYLON.MirrorTexture
-  private renderTargets = new BABYLON.SmartArray<BABYLON.RenderTargetTexture>(16)
+  private reflectionTexture!: any
+  private renderTargets = (undefined as any /* todo(lite): new BABYLON.SmartArray<BABYLON.RenderTargetTexture>(16) */)
 
   private colorBlendFactor: number
   private colorBlendFactor2: number
 
-  private bumpTexture!: BABYLON.Texture
+  private bumpTexture!: Texture2D
   private bumpHeight: number
   private windForce: number
   private windHeading: number
@@ -41,16 +43,16 @@ export class ReflectiveWater {
   private lastTime = 0
   private lastDeltaTime = 0
 
-  private reflectionMatrix: BABYLON.Matrix = BABYLON.Matrix.Zero()
-  private waterPlane: BABYLON.Plane
+  private reflectionMatrix: Mat4 = (undefined as any /* todo(lite): BABYLON.Matrix.Zero() */)
+  private waterPlane: any
 
-  private reflectionMeshSet = new Set<BABYLON.AbstractMesh>()
+  private reflectionMeshSet = new Set<Mesh>()
 
-  constructor(scene: BABYLON.Scene, options: WaterReflectionMaterialOptions = {}) {
+  constructor(scene: SceneContext, options: WaterReflectionMaterialOptions = {}) {
     this.scene = scene
     this.chunkSize = options.chunkSize || 48 // Default to 48 like current terrain
-    this.waterColor = BABYLON.Vector3.FromArray(WATER_COLOR.asArray())
-    this.waterColor2 = new BABYLON.Vector3(WATER_COLOR.r * 0.7, WATER_COLOR.g * 0.9 + 0.15, WATER_COLOR.b * 0.8 + 0.2)
+    this.waterColor = vec3.clone(WATER_COLOR.asArray() as any)
+    this.waterColor2 = vec3.fromValues(WATER_COLOR.r * 0.7, WATER_COLOR.g * 0.9 + 0.15, WATER_COLOR.b * 0.8 + 0.2)
     this.colorBlendFactor = options.colorBlendFactor || 0.5 // Current ocean.ts default
     this.colorBlendFactor2 = options.colorBlendFactor2 || 0.2 // Current ocean.ts default
     this.bumpHeight = options.bumpHeight || 0.5 // Current ocean.ts default
@@ -58,13 +60,13 @@ export class ReflectiveWater {
     this.windHeading = options.windHeading || 0.1 // Current ocean.ts default
     this.waveLength = options.waveLength || 2.0 // Current ocean.ts default
 
-    this.waterPlane = BABYLON.Plane.FromPositionAndNormal(new BABYLON.Vector3(0, OCEAN_HEIGHT_OFFSET, 0), new BABYLON.Vector3(0, 1, 0))
+    this.waterPlane = (undefined as any /* todo(lite): BABYLON.Plane.FromPositionAndNormal(new BABYLON.Vector3(0, OCEAN_HEIGHT_OFFSET, 0), new BABYLON.Vector3(0, 1, 0)) */)
 
     this.createBumpTexture()
 
     this.createRenderTargets(options.renderTargetSize || 512)
 
-    this.material = new BABYLON.ShaderMaterial(
+    this.material = (undefined as any /* todo(lite): new BABYLON.ShaderMaterial(
       'waterreflection',
       scene,
       { vertex: 'waterreflection', fragment: 'waterreflection' },
@@ -97,7 +99,7 @@ export class ReflectiveWater {
         needAlphaTesting: false,
         defines: ['#define IMAGEPROCESSINGPOSTPROCESS', '#define SPECULARTERM'],
       },
-    )
+    ) */)
 
     if (this.scene.fogEnabled) {
       this.material.setDefine('FOG', true)
@@ -105,31 +107,31 @@ export class ReflectiveWater {
 
     this.setupMaterialProperties()
 
-    this.material.getRenderTargetTextures = (): BABYLON.SmartArray<BABYLON.RenderTargetTexture> => {
+    this.material.getRenderTargetTextures = (): any => {
       this.renderTargets.reset()
-      this.renderTargets.push(this.reflectionTexture as BABYLON.RenderTargetTexture)
+      this.renderTargets.push(this.reflectionTexture as any)
       return this.renderTargets
     }
 
-    this.material.onBind = (mesh: BABYLON.AbstractMesh) => {
+    this.material.onBind = (mesh: Mesh) => {
       this.updateUniforms()
       this.bindLights(mesh)
     }
   }
 
   private createRenderTargets(requestedSize: number): void {
-    this.reflectionTexture = new BABYLON.MirrorTexture('waterReflection', requestedSize, this.scene, false)
-    this.reflectionTexture.wrapU = BABYLON.Constants.TEXTURE_MIRROR_ADDRESSMODE
-    this.reflectionTexture.wrapV = BABYLON.Constants.TEXTURE_MIRROR_ADDRESSMODE
+    this.reflectionTexture = (undefined as any /* todo(lite): new BABYLON.MirrorTexture('waterReflection', requestedSize, this.scene, false) */)
+    this.reflectionTexture.wrapU = (undefined as any /* todo(lite): BABYLON.Constants.TEXTURE_MIRROR_ADDRESSMODE */)
+    this.reflectionTexture.wrapV = (undefined as any /* todo(lite): BABYLON.Constants.TEXTURE_MIRROR_ADDRESSMODE */)
     this.reflectionTexture.ignoreCameraViewport = true
-    this.reflectionTexture.mirrorPlane = new BABYLON.Plane(0, -1, 0, OCEAN_HEIGHT_OFFSET)
+    this.reflectionTexture.mirrorPlane = (undefined as any /* todo(lite): new BABYLON.Plane(0, -1, 0, OCEAN_HEIGHT_OFFSET) */)
     this.reflectionTexture.renderList = []
     this.reflectionTexture.refreshRate = 1
     this.scene.customRenderTargets.push(this.reflectionTexture)
   }
 
   private createBumpTexture(): void {
-    this.bumpTexture = new BABYLON.Texture('/textures/waterbump.png', this.scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE)
+    this.bumpTexture = (undefined as any /* todo(lite): new BABYLON.Texture('/textures/waterbump.png', this.scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE) */)
     this.bumpTexture.anisotropicFilteringLevel = 2
 
     const baseScale = this.chunkSize / 3
@@ -142,14 +144,14 @@ export class ReflectiveWater {
   }
 
   private setupMaterialProperties(): void {
-    this.material.setColor4('waterColor', new BABYLON.Color4(this.waterColor.x, this.waterColor.y, this.waterColor.z, 1.0))
-    this.material.setColor4('waterColor2', new BABYLON.Color4(this.waterColor2.x, this.waterColor2.y, this.waterColor2.z, 1.0))
+    this.material.setColor4('waterColor', ([this.waterColor.x, this.waterColor.y, this.waterColor.z, 1.0] as Color4))
+    this.material.setColor4('waterColor2', ([this.waterColor2.x, this.waterColor2.y, this.waterColor2.z, 1.0] as Color4))
     this.material.setFloat('colorBlendFactor', this.colorBlendFactor)
     this.material.setFloat('colorBlendFactor2', this.colorBlendFactor2)
     this.material.setFloat('bumpHeight', this.bumpHeight)
 
-    this.material.setColor4('vDiffuseColor', new BABYLON.Color4(1, 1, 1, 0.95))
-    this.material.setColor4('vSpecularColor', new BABYLON.Color4(0, 0, 0, 64.0))
+    this.material.setColor4('vDiffuseColor', ([1, 1, 1, 0.95] as Color4))
+    this.material.setColor4('vSpecularColor', ([0, 0, 0, 64.0] as Color4))
     this.material.setFloat('windForce', this.windForce)
     this.material.setFloat('windHeading', this.windHeading)
     this.material.setFloat('waveLength', this.waveLength)
@@ -171,10 +173,10 @@ export class ReflectiveWater {
     }
 
     if (this.scene.activeCamera) {
-      effect.setVector4('vEyePosition', new BABYLON.Vector4(this.scene.activeCamera.globalPosition.x, this.scene.activeCamera.globalPosition.y, this.scene.activeCamera.globalPosition.z, 1.0))
+      effect.setVector4('vEyePosition', (undefined as any /* todo(lite): new BABYLON.Vector4(this.scene.activeCamera.globalPosition.x, this.scene.activeCamera.globalPosition.y, this.scene.activeCamera.globalPosition.z, 1.0) */))
     }
 
-    BABYLON.Matrix.ReflectionToRef(this.waterPlane, this.reflectionMatrix)
+    (undefined as any /* todo(lite): BABYLON.Matrix.ReflectionToRef(this.waterPlane, this.reflectionMatrix) */)
     const reflectionWorldViewProjection = this.reflectionMatrix.multiply(this.scene.getViewMatrix()).multiply(this.scene.getProjectionMatrix())
 
     effect.setMatrix('worldReflectionViewProjection', reflectionWorldViewProjection)
@@ -187,16 +189,16 @@ export class ReflectiveWater {
     effect.setFloat('time', this.lastTime / 100000)
   }
 
-  private bindLights(mesh: BABYLON.AbstractMesh): void {
+  private bindLights(mesh: Mesh): void {
     const effect = this.material.getEffect()
     if (!effect) return
 
     if (this.scene.lightsEnabled) {
-      BABYLON.MaterialHelper.BindLights(this.scene, mesh, effect, { SPECULARTERM: true } as any, 4)
+      (undefined as any /* todo(lite): BABYLON.MaterialHelper.BindLights(this.scene, mesh, effect, { SPECULARTERM: true } as any, 4) */)
     }
   }
 
-  addToReflectionList(mesh: BABYLON.AbstractMesh): void {
+  addToReflectionList(mesh: Mesh): void {
     if (!this.reflectionMeshSet.has(mesh)) {
       this.reflectionMeshSet.add(mesh)
       if (this.reflectionTexture.renderList) {
@@ -205,7 +207,7 @@ export class ReflectiveWater {
     }
   }
 
-  removeFromRenderList(mesh: BABYLON.AbstractMesh): void {
+  removeFromRenderList(mesh: Mesh): void {
     if (this.reflectionMeshSet.delete(mesh) && this.reflectionTexture.renderList) {
       const reflectionIndex = this.reflectionTexture.renderList.indexOf(mesh)
       if (reflectionIndex !== -1) {
@@ -221,12 +223,12 @@ export class ReflectiveWater {
     }
   }
 
-  getMaterial(): BABYLON.ShaderMaterial {
+  getMaterial(): ShaderMaterial {
     return this.material
   }
 
   dispose(): void {
-    const reflectionIndex = this.scene.customRenderTargets.indexOf(this.reflectionTexture as BABYLON.RenderTargetTexture)
+    const reflectionIndex = this.scene.customRenderTargets.indexOf(this.reflectionTexture as any)
     if (reflectionIndex !== -1) {
       this.scene.customRenderTargets.splice(reflectionIndex, 1)
     }

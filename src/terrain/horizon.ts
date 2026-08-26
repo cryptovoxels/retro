@@ -1,11 +1,12 @@
 import { HorizonMaterial } from '../shaders/horizon'
+import { Color3, Mesh, SceneContext } from '@babylonjs/lite'
 
 // Horizon makes sure that the ground terrain and the skybox has a gradient fog blending them together
 export default class Horizon {
-  private mesh: BABYLON.Mesh
-  private material: BABYLON.GradientMaterial
+  private mesh: Mesh
+  private material: any
 
-  constructor(scene: BABYLON.Scene) {
+  constructor(scene: SceneContext) {
     const material = new HorizonMaterial('skybox/horizon', scene)
     material.fogEnabled = true
 
@@ -22,7 +23,7 @@ export default class Horizon {
     this.material = material
 
     // infiniteDistance — no scene parent needed
-    const mesh = BABYLON.MeshBuilder.CreateSphere('skybox/horizon', { segments: 16, diameter: 1 }, scene)
+    const mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateSphere('skybox/horizon', { segments: 16, diameter: 1 }, scene) */)
 
     const updateHorizonScale = (drawDistance: number) => {
       // just needs to be a tad smaller than the skybox so it can 'draw' in-front off it
@@ -39,12 +40,12 @@ export default class Horizon {
     this.mesh = mesh
   }
 
-  update(horizonAlphaMode: number, fogColor: BABYLON.Color3) {
+  update(horizonAlphaMode: number, fogColor: Color3) {
     if (this.material.alphaMode === horizonAlphaMode && this.material.topColor.equals(fogColor)) {
       return
     }
     this.material.unfreeze()
-    if (horizonAlphaMode === BABYLON.Engine.ALPHA_DISABLE) {
+    if (horizonAlphaMode === (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_DISABLE */)) {
       this.material.topColorAlpha = 1.0
     } else {
       this.material.topColorAlpha = 0.0
@@ -56,7 +57,7 @@ export default class Horizon {
     this.material.freeze()
   }
 
-  getMesh(): BABYLON.Mesh {
+  getMesh(): Mesh {
     return this.mesh
   }
 

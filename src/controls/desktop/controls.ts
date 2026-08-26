@@ -10,6 +10,7 @@ import { hasPointerLock, isFastviewBlocking } from '../../../common/helpers/ui-h
 import { uiPane } from '../../store'
 import { app, AppEvent } from '../../../web/src/state'
 import { pointerOverGizmo } from '../../tools/gizmos'
+import { Camera, SceneContext } from '@babylonjs/lite'
 const POINTER_WHEEL_MULTIPLIER = 0.001
 export default class DesktopControls extends Controls {
   keyboardInput?: LocaleKeyboardMoveInput
@@ -17,7 +18,7 @@ export default class DesktopControls extends Controls {
   private nerfClick = false
   private mouseLookAttached = false
 
-  constructor(scene: BABYLON.Scene, canvas: HTMLCanvasElement) {
+  constructor(scene: SceneContext, canvas: HTMLCanvasElement) {
     super(scene, canvas)
 
     scene.skipPointerUpPicking = false
@@ -102,7 +103,7 @@ export default class DesktopControls extends Controls {
     this.scene.preventDefaultOnPointerDown = locked
     this.scene.preventDefaultOnPointerUp = locked
 
-    const mouse = cam.inputs.attached['mouse'] as BABYLON.FreeCameraMouseInput | undefined
+    const mouse = cam.inputs.attached['mouse'] as any | undefined
     if (locked) {
       // Babylon FreeCameraMouseInput stacks observers on every attach; never attach twice
       if (!this.mouseLookAttached) {
@@ -123,7 +124,7 @@ export default class DesktopControls extends Controls {
 
   // unlocked entry into the editor (tree click) — locked entry keeps the input from lock time
   attachDragLook() {
-    const mouse = this.camera.inputs?.attached['mouse'] as BABYLON.FreeCameraMouseInput | undefined
+    const mouse = this.camera.inputs?.attached['mouse'] as any | undefined
     if (mouse && !this.mouseLookAttached) {
       mouse.attachControl(true)
       this.mouseLookAttached = true
@@ -142,12 +143,12 @@ export default class DesktopControls extends Controls {
     this.keyboardInput?.reset()
   }
 
-  desktopClicks(eventData: BABYLON.PointerInfo, eventState: BABYLON.EventState) {
+  desktopClicks(eventData: any, eventState: any) {
     const authoring = !!window.ui?.state?.feature
 
     const btn = eventData.event.button
 
-    if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 0 && !hasPointerLock() && !eventData.event.shiftKey) {
+    if (eventData.type === (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERDOWN */) && btn === 0 && !hasPointerLock() && !eventData.event.shiftKey) {
       const editMode = window.ui?.featureTool?.selection?.mode === 'edit' && window.ui?.activeTool === window.ui?.featureTool
       if (editMode) {
         if (pointerOverGizmo(this.scene)) return
@@ -166,11 +167,11 @@ export default class DesktopControls extends Controls {
     }
 
     switch (eventData.type) {
-      case BABYLON.PointerEventTypes.POINTERWHEEL:
+      case (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERWHEEL */):
         this.handlePointerWheel((<any>eventData.event).deltaY)
         break
 
-      case BABYLON.PointerEventTypes.POINTERTAP:
+      case (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERTAP */):
         if (btn === 1) {
           this.togglePerspective()
           break
@@ -222,7 +223,7 @@ export default class DesktopControls extends Controls {
         }
         break
 
-      case BABYLON.PointerEventTypes.POINTERMOVE:
+      case (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERMOVE */):
         const pick = hasPointerLock() ? this.pickAtView(undefined, undefined, false, (m) => this.reticuleHighlightPredicate(m)) : eventData.pickInfo
         const feature = featureFromPick(pick)
         const distance = pick?.distance || Infinity
@@ -232,7 +233,7 @@ export default class DesktopControls extends Controls {
   }
 
   private muteHintEl: HTMLDivElement | null = null
-  private updateMuteHint(eventData: BABYLON.PointerInfo) {
+  private updateMuteHint(eventData: any) {
     const avatar = eventData.pickInfo?.pickedMesh?.metadata?.avatar as { uuid: string } | undefined
     const vc = window.persona?.voiceChat
     const near = (eventData.pickInfo?.distance ?? Infinity) < this.MAX_PICK_DISTANCE
@@ -280,7 +281,7 @@ export default class DesktopControls extends Controls {
     }
   }
 
-  addKeyboardControls(camera: BABYLON.Camera) {
+  addKeyboardControls(camera: Camera) {
     this.keyboardInput = new LocaleKeyboardMoveInput({
       keysUp: ['ArrowUp', 'KeyW'],
       keysDown: ['ArrowDown', 'KeyS'],
@@ -357,11 +358,11 @@ export default class DesktopControls extends Controls {
 
   addGamepadControls(camera: PlayerCamera) {
     camera.inputs.addGamepad()
-    const gamepad = <BABYLON.FreeCameraGamepadInput>camera.inputs.attached['gamepad']
+    const gamepad = <any>camera.inputs.attached['gamepad']
 
     gamepad.gamepadAngularSensibility = 40
 
-    const gamepadManager = new BABYLON.GamepadManager(this.scene)
+    const gamepadManager = (undefined as any /* todo(lite): new BABYLON.GamepadManager(this.scene) */)
     gamepadManager.onGamepadConnectedObservable.add((gamepad) => {
       console.log('Gamepad detected')
       if ((gamepad as any)['onButtonDownObservable']) {
@@ -422,10 +423,10 @@ export default class DesktopControls extends Controls {
   }
 
   getGamepadButton(gamepad: any, button: any) {
-    if (gamepad instanceof BABYLON.DualShockPad) {
-      return BABYLON.DualShockButton[button]
-    } else if (gamepad instanceof BABYLON.Xbox360Pad) {
-      return BABYLON.Xbox360Button[button]
+    if ((false /* todo(lite): gamepad instanceof BABYLON.DualShockPad */)) {
+      return (undefined as any /* todo(lite): BABYLON.DualShockButton[button] */)
+    } else if ((false /* todo(lite): gamepad instanceof BABYLON.Xbox360Pad */)) {
+      return (undefined as any /* todo(lite): BABYLON.Xbox360Button[button] */)
     }
   }
 

@@ -9,10 +9,11 @@ import { PanelType } from '../../web/src/components/panel'
 import { app, AppEvent } from '../../web/src/state'
 import GuestBook from '../features/guest-book'
 import type Parcel from '../parcel'
+import { SceneContext } from '@babylonjs/lite'
 interface Props {
   onClose?: (e: MouseEvent) => void
   guestBook: GuestBook
-  scene: BABYLON.Scene
+  scene: SceneContext
 }
 
 interface State {
@@ -171,7 +172,7 @@ export class GuestBookUi extends Component<Props, State> {
   }
 }
 
-export function toggleGuestBookUi(guestBook: GuestBook, scene: BABYLON.Scene) {
+export function toggleGuestBookUi(guestBook: GuestBook, scene: SceneContext) {
   if (GuestBookUi.currentElement) {
     unmountComponentAtNode(GuestBookUi.currentElement)
     GuestBookUi.currentElement.remove()
@@ -192,7 +193,7 @@ export function toggleGuestBookUi(guestBook: GuestBook, scene: BABYLON.Scene) {
   }
 }
 
-function Signers(props: { wallets: string[]; currentParcel: () => Parcel | undefined; cleanBook: () => void; scene: BABYLON.Scene }) {
+function Signers(props: { wallets: string[]; currentParcel: () => Parcel | undefined; cleanBook: () => void; scene: SceneContext }) {
   const { wallets, currentParcel, cleanBook } = props
 
   const names = GuestBookUi.namesByWallet
@@ -238,7 +239,7 @@ function Signers(props: { wallets: string[]; currentParcel: () => Parcel | undef
   )
 }
 
-function WalletBox(props: { wallet: string; username?: string; children?: ComponentChildren; scene: BABYLON.Scene }) {
+function WalletBox(props: { wallet: string; username?: string; children?: ComponentChildren; scene: SceneContext }) {
   const { wallet, username } = props
   const connector = window.connector
 

@@ -1,20 +1,21 @@
+import { SceneContext } from '@babylonjs/lite'
 // ABOUTME: Base interfaces and classes for tabbed debug UI system
 // ABOUTME: Provides common tab management and keyboard navigation functionality
 
 export interface IDebugTab {
   readonly name: string
 
-  createContent(): BABYLON.GUI.Control
+  createContent(): any
   updateContent(): void
   dispose(): void
 }
 
 export class DebugUI {
-  private scene: BABYLON.Scene
-  private advancedTexture: BABYLON.GUI.AdvancedDynamicTexture | null = null
-  private panel: BABYLON.GUI.Rectangle | null = null
-  private tabHeader: BABYLON.GUI.TextBlock | null = null
-  private contentArea: BABYLON.GUI.Rectangle | null = null
+  private scene: SceneContext
+  private advancedTexture: any | null = null
+  private panel: any | null = null
+  private tabHeader: any | null = null
+  private contentArea: any | null = null
   private isVisible = false
   private updateInterval: number | null = null
   private tabs: IDebugTab[] = []
@@ -24,7 +25,7 @@ export class DebugUI {
   private static readonly STORAGE_KEY_VISIBLE = 'debug-ui-visible'
   private static readonly STORAGE_KEY_TAB = 'debug-ui-current-tab'
 
-  constructor(scene: BABYLON.Scene) {
+  constructor(scene: SceneContext) {
     this.scene = scene
     this.loadState()
   }
@@ -76,36 +77,36 @@ export class DebugUI {
 
   private createUI(): void {
     // Create fullscreen UI
-    this.advancedTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('DebugUI', true, this.scene)
+    this.advancedTexture = (undefined as any /* todo(lite): BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('DebugUI', true, this.scene) */)
 
     // Create main panel that fills the left side
-    this.panel = new BABYLON.GUI.Rectangle('debugPanel')
+    this.panel = (undefined as any /* todo(lite): new BABYLON.GUI.Rectangle('debugPanel') */)
     this.panel.widthInPixels = 340
     this.panel.height = '95%'
     this.panel.cornerRadius = 0
     this.panel.color = '#FF69B4'
     this.panel.thickness = 1
     this.panel.background = '#000000dd'
-    this.panel.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT
-    this.panel.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP
+    this.panel.horizontalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT */)
+    this.panel.verticalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP */)
     this.panel.topInPixels = 4
     this.panel.leftInPixels = 4
 
     this.advancedTexture.addControl(this.panel)
 
     // Create tab header
-    this.tabHeader = new BABYLON.GUI.TextBlock('tabHeader', 'Debug')
+    this.tabHeader = (undefined as any /* todo(lite): new BABYLON.GUI.TextBlock('tabHeader', 'Debug') */)
     this.tabHeader.color = '#ffffff'
     this.tabHeader.fontSize = 18
     this.tabHeader.fontWeight = 'bold'
     this.tabHeader.heightInPixels = 30
-    this.tabHeader.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP
+    this.tabHeader.verticalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP */)
     this.tabHeader.topInPixels = 10
 
     this.panel.addControl(this.tabHeader)
 
     // Create content area
-    this.contentArea = new BABYLON.GUI.Rectangle('contentArea')
+    this.contentArea = (undefined as any /* todo(lite): new BABYLON.GUI.Rectangle('contentArea') */)
     this.contentArea.color = 'transparent'
     this.contentArea.thickness = 0
     this.contentArea.paddingTopInPixels = 50
@@ -114,11 +115,11 @@ export class DebugUI {
     this.panel.addControl(this.contentArea)
 
     // Create close instruction
-    const instruction = new BABYLON.GUI.TextBlock('instruction', 'press Ctrl+` to close, Ctrl+1-9 to switch tabs')
+    const instruction = (undefined as any /* todo(lite): new BABYLON.GUI.TextBlock('instruction', 'press Ctrl+` to close, Ctrl+1-9 to switch tabs') */)
     instruction.color = '#888888'
     instruction.fontSize = 12
     instruction.heightInPixels = 20
-    instruction.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM
+    instruction.verticalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.VERTICAL_ALIGNMENT_BOTTOM */)
     instruction.topInPixels = -10
 
     this.panel.addControl(instruction)

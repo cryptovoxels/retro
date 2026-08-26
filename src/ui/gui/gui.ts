@@ -1,5 +1,6 @@
 import Feature from '../../features/feature'
 import { cameraPosition } from '../../utils/camera'
+import { Mesh, SceneContext, TransformNode, Vec3 } from '@babylonjs/lite'
 
 type guiControlsType = 'button' | 'text'
 
@@ -12,7 +13,7 @@ export interface guiControls {
   height?: string | number
   positionInGrid?: [number, number]
   /* overrides the onClick if present for buttons */
-  onClick?: (eventData: BABYLON.GUI.Vector2WithInfo, eventState: BABYLON.EventState) => void
+  onClick?: (eventData: any, eventState: any) => void
 }
 
 export interface guiControlsOptions {
@@ -20,11 +21,11 @@ export interface guiControlsOptions {
   text?: string
   fontSizePx?: string // only on text
   height?: string | number
-  onClick?: (eventData: BABYLON.GUI.Vector2WithInfo, eventState: BABYLON.EventState) => void // only on buttons
+  onClick?: (eventData: any, eventState: any) => void // only on buttons
 }
 
 export type FeatureBasicGUIOptions = {
-  position?: BABYLON.Vector3
+  position?: Vec3
   listOfControls?: guiControls[]
   billBoardMode?: number
   textureWidth?: number
@@ -36,16 +37,16 @@ export type FeatureBasicGUIOptions = {
 }
 
 export default class FeatureBasicGUI {
-  scene: BABYLON.Scene
+  scene: SceneContext
   feature: Feature
-  plane: BABYLON.Mesh = null!
-  advancedDynamicTexture: BABYLON.GUI.AdvancedDynamicTexture
-  grid: BABYLON.GUI.Grid
-  parent: BABYLON.TransformNode
+  plane: Mesh = null!
+  advancedDynamicTexture: any
+  grid: any
+  parent: TransformNode
   listOfControls: guiControls[] = []
   _billboardMode: number
   uuid: string
-  _options?: FeatureBasicGUIOptions = { listOfControls: [], billBoardMode: BABYLON.Mesh.BILLBOARDMODE_Y }
+  _options?: FeatureBasicGUIOptions = { listOfControls: [], billBoardMode: (undefined as any /* todo(lite): BABYLON.Mesh.BILLBOARDMODE_Y */) }
 
   constructor(feature: Feature, uuid: string, options?: FeatureBasicGUIOptions) {
     this.feature = feature
@@ -57,7 +58,7 @@ export default class FeatureBasicGUI {
     // Setup
     this._options = options
     this.listOfControls = options?.listOfControls || []
-    this._billboardMode = options?.billBoardMode || BABYLON.Mesh.BILLBOARDMODE_Y
+    this._billboardMode = options?.billBoardMode || (undefined as any /* todo(lite): BABYLON.Mesh.BILLBOARDMODE_Y */)
   }
 
   get textureSizeFromOptions() {
@@ -94,10 +95,10 @@ export default class FeatureBasicGUI {
   }
 
   billBoardMode() {
-    if (this._billboardMode == BABYLON.Mesh.BILLBOARDMODE_Y || this._billboardMode == BABYLON.Mesh.BILLBOARDMODE_NONE) {
+    if (this._billboardMode == (undefined as any /* todo(lite): BABYLON.Mesh.BILLBOARDMODE_Y */) || this._billboardMode == (undefined as any /* todo(lite): BABYLON.Mesh.BILLBOARDMODE_NONE */)) {
       return this._billboardMode
     }
-    return BABYLON.Mesh.BILLBOARDMODE_Y
+    return (undefined as any /* todo(lite): BABYLON.Mesh.BILLBOARDMODE_Y */)
   }
 
   generate() {
@@ -108,23 +109,23 @@ export default class FeatureBasicGUI {
       return
     }
     // Create plane mesh
-    this.plane = BABYLON.MeshBuilder.CreatePlane(
+    this.plane = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(
       `feature/basicGui/${this.feature.type}`,
       {
         ...this.planeSizeFromOptions,
         sideOrientation: BABYLON.Mesh.FRONTSIDE,
       },
       scene,
-    )
+    ) */)
     this.plane.billboardMode = this.billBoardMode()
     // Create parent transformNode
-    this.parent = new BABYLON.TransformNode('feature/basicGui/parent', scene)
+    this.parent = (undefined as any /* todo(lite): new BABYLON.TransformNode('feature/basicGui/parent', scene) */)
 
     this.parent.position = featureMesh.getAbsolutePosition()
 
     this.plane.setParent(this.parent)
 
-    if (this.billBoardMode() == BABYLON.Mesh.BILLBOARDMODE_NONE) {
+    if (this.billBoardMode() == (undefined as any /* todo(lite): BABYLON.Mesh.BILLBOARDMODE_NONE */)) {
       const camPos = cameraPosition(this.scene)
       const p = this.parent.position
       const angle = Math.atan2(p.z - camPos.z, p.x - camPos.x)
@@ -136,7 +137,7 @@ export default class FeatureBasicGUI {
     this.plane.scaling.set(s, s, s)
 
     // handle positioning of the GUI
-    if (!this._options?.position || !(this._options?.position instanceof BABYLON.Vector3)) {
+    if (!this._options?.position || !((false /* todo(lite): this._options?.position instanceof BABYLON.Vector3 */))) {
       const position_y = featureMesh.scaling.y / 2 + 0.15 + (this.listOfControls.length * (this._options?.rowDefinition ? 0.1 + 0.05 * this._options?.rowDefinition : 0.1)) / 2 // Add an offset to make it fit nicely
       this.plane.position.set(0, position_y, 0)
     } else {
@@ -145,7 +146,7 @@ export default class FeatureBasicGUI {
     }
 
     // GUI
-    const advancedDynamicTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(this.plane, ...this.textureSizeFromOptions)
+    const advancedDynamicTexture = (undefined as any /* todo(lite): BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(this.plane, ...this.textureSizeFromOptions) */)
     advancedDynamicTexture.hasAlpha = true
     this.advancedDynamicTexture = advancedDynamicTexture
 
@@ -156,7 +157,7 @@ export default class FeatureBasicGUI {
 
   generateGrid() {
     // Create grid for the GUI
-    this.grid = new BABYLON.GUI.Grid()
+    this.grid = (undefined as any /* todo(lite): new BABYLON.GUI.Grid() */)
     this.advancedDynamicTexture.addControl(this.grid)
 
     let numberOfRows = 0
@@ -265,7 +266,7 @@ export default class FeatureBasicGUI {
     const minimumFontSize = 18
     const maximumFontSize = 40
 
-    const textBlock = new BABYLON.GUI.TextBlock()
+    const textBlock = (undefined as any /* todo(lite): new BABYLON.GUI.TextBlock() */)
     textBlock.text = control.text || ''
 
     const calculatedSize = Math.floor(this.textureSizeFromOptions[0] / ratio)
@@ -283,7 +284,7 @@ export default class FeatureBasicGUI {
     const textBlock = this.createText(control)
 
     // Create button
-    const button = BABYLON.GUI.Button.CreateSimpleButton(control!.id || '', text || '')
+    const button = (undefined as any /* todo(lite): BABYLON.GUI.Button.CreateSimpleButton(control!.id || '', text || '') */)
     button.width = textBlock.width
     button.height = textBlock.height
     button.fontSize = textBlock.fontSize

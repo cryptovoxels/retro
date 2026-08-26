@@ -8,8 +8,10 @@ import { BoomboxBroadcast, BroadcastStatus, openBoomboxBroadcastUI } from '../ui
 import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D } from './feature'
+import { Color4 } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
-const BOOMBOX_SCALE = BABYLON.Vector3.One()
+const BOOMBOX_SCALE = vec3.fromValues(1, 1, 1)
 
 interface BoomBoxSharedState {
   avatarId: string | null
@@ -28,10 +30,10 @@ export default class Boombox extends Feature3D<BoomboxRecord> {
     scale: [1, 1, 1],
   }
   broadcastingAvatar: Avatar | null = null
-  onAvatarChangeObservable: BABYLON.Observable<Avatar> = new BABYLON.Observable()
+  onAvatarChangeObservable: any = (undefined as any /* todo(lite): new BABYLON.Observable() */)
   status: BroadcastStatus = BroadcastStatus.offline
-  particleSystem: BABYLON.ParticleSystem | null = null
-  sound: BABYLON.Sound | null = null
+  particleSystem: any | null = null
+  sound: any | null = null
   lastPlaybackUrl: string | null = null
   interval: NodeJS.Timeout | null = null
   sharedState: BoomBoxSharedState | undefined = undefined
@@ -67,7 +69,7 @@ export default class Boombox extends Feature3D<BoomboxRecord> {
   }
 
   get audioContext(): AudioContext | null {
-    return BABYLON.Engine.audioEngine?.audioContext ?? null
+    return (undefined as any /* todo(lite): BABYLON.Engine.audioEngine?.audioContext */) ?? null
   }
 
   async generate() {
@@ -259,10 +261,10 @@ export default class Boombox extends Feature3D<BoomboxRecord> {
       return
     }
     this.stopEmit()
-    const particleSystem = (this.particleSystem = new BABYLON.ParticleSystem('feature/boombox/emit-' + Math.round(Math.random() * 1000), 200, this.scene))
+    const particleSystem = (this.particleSystem = (undefined as any /* todo(lite): new BABYLON.ParticleSystem('feature/boombox/emit-' + Math.round(Math.random() * 1000), 200, this.scene) */))
 
     //Texture of each particle
-    const t = new BABYLON.DynamicTexture('feature/boombox/emoji', { width: 64, height: 64 }, this.scene, true)
+    const t = (undefined as any /* todo(lite): new BABYLON.DynamicTexture('feature/boombox/emoji', { width: 64, height: 64 }, this.scene, true) */)
     const ctx = t.getContext()
 
     ctx.font = '32px sans-serif'
@@ -273,13 +275,13 @@ export default class Boombox extends Feature3D<BoomboxRecord> {
 
     // Where the particles come from
     particleSystem.emitter = this.mesh
-    particleSystem.minEmitBox = new BABYLON.Vector3(0, 0.3, 0) // Starting all from
-    particleSystem.maxEmitBox = new BABYLON.Vector3(0, 0, 0) // To...
+    particleSystem.minEmitBox = vec3.fromValues(0, 0.3, 0) // Starting all from
+    particleSystem.maxEmitBox = vec3.fromValues(0, 0, 0) // To...
 
     // Colors of all particles
-    particleSystem.color1 = new BABYLON.Color4(1, 1, 1, 1)
-    particleSystem.color2 = new BABYLON.Color4(1, 1, 1, 1)
-    particleSystem.colorDead = new BABYLON.Color4(1, 1, 1, 0)
+    particleSystem.color1 = ([1, 1, 1, 1] as Color4)
+    particleSystem.color2 = ([1, 1, 1, 1] as Color4)
+    particleSystem.colorDead = ([1, 1, 1, 0] as Color4)
 
     // Size of each particle (random between...
     particleSystem.minSize = 0.1
@@ -293,14 +295,14 @@ export default class Boombox extends Feature3D<BoomboxRecord> {
     particleSystem.emitRate = 30
 
     // Blend mode : BLENDMODE_ONEONE, or BLENDMODE_STANDARD
-    particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD
+    particleSystem.blendMode = (undefined as any /* todo(lite): BABYLON.ParticleSystem.BLENDMODE_ADD */)
 
     // Set the gravity of all particles
-    particleSystem.gravity = new BABYLON.Vector3(0, 3, 0)
+    particleSystem.gravity = vec3.fromValues(0, 3, 0)
 
     // Direction of each particle after it has been emitted
-    particleSystem.direction1 = new BABYLON.Vector3(-2, 0, -2)
-    particleSystem.direction2 = new BABYLON.Vector3(2, 0, 2)
+    particleSystem.direction1 = vec3.fromValues(-2, 0, -2)
+    particleSystem.direction2 = vec3.fromValues(2, 0, 2)
 
     // Angular speed, in radians
     particleSystem.minAngularSpeed = 0

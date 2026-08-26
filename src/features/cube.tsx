@@ -35,7 +35,7 @@ export default class Cube extends Feature3D<CubeRecord> {
   }
 
   async generate() {
-    this.mesh = BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
     this.mesh.isPickable = true
 
     // handle no-texture case
@@ -54,7 +54,7 @@ export default class Cube extends Feature3D<CubeRecord> {
   }
 
   async generateInstance(root: Cube) {
-    if (!(root.mesh instanceof BABYLON.Mesh)) throw new Error('generateInstance must be called with root feature')
+    if (!((false /* todo(lite): root.mesh instanceof BABYLON.Mesh */))) throw new Error('generateInstance must be called with root feature')
 
     // TODO the mesh type does not allow for an instanced mesh. The feature class hierarchy needs to be refactored to allow for this
     this.mesh = root.mesh.createInstance(this.uniqueEntityName('instance')) as unknown as MeshExtended
@@ -75,18 +75,18 @@ export default class Cube extends Feature3D<CubeRecord> {
    * mesh.material.diffuseTexture = texture wasn't working. (and unfreezing did not help)
    * @param texture BABYLON.BaseTexture
    */
-  createMaterial = (texture?: BABYLON.BaseTexture) => {
+  createMaterial = (texture?: any) => {
     if (!this.mesh || this.disposed) {
       return
     }
     if (this.mesh.material) {
       this.mesh.material.dispose()
     }
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
 
     material.specularColor.fromArray(this.description.specularColor || [1, 1, 1])
     if (this.description.color) {
-      material.diffuseColor = BABYLON.Color3.FromHexString(this.description.color)
+      material.diffuseColor = (undefined as any /* todo(lite): BABYLON.Color3.FromHexString(this.description.color) */)
     }
     if (texture) {
       material.diffuseTexture = texture

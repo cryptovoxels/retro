@@ -1,6 +1,8 @@
 import { isIOS, isMobile, isSafari, isTablet, wantsGateway } from '../common/helpers/detector'
 import type Controls from './controls/controls'
 import { isLoaded, markLoaded } from './utils/loading-done'
+import { Camera, Color3, Color4, FreeCamera, Mesh, SceneContext, Vec3 } from '@babylonjs/lite'
+import { quat, vec3 } from 'wgpu-matrix'
 
 const HOLE = 'gateway-hole'
 const FRAME = 'gateway-frame'
@@ -12,11 +14,11 @@ const LAYER_ROOM = 2
 
 let started = false
 let videoStarted = false
-let holeMesh: BABYLON.Mesh | null = null
-let forward = new BABYLON.Vector3(0, 0, 1)
+let holeMesh: Mesh | null = null
+let forward = vec3.fromValues(0, 0, 1)
 let bootAt = 0
 
-function isGatewayMesh(mesh: BABYLON.AbstractMesh) {
+function isGatewayMesh(mesh: Mesh) {
   return mesh.name === HOLE || mesh.name === FRAME
 }
 
@@ -77,7 +79,7 @@ export function startPhoneVideo() {
   window.addEventListener('pointerdown', ask, { capture: true })
 }
 
-function enableRoomLook(camera: BABYLON.DeviceOrientationCamera) {
+function enableRoomLook(camera: any) {
   const cam = camera as any
   const DOE = window.DeviceOrientationEvent as any
   if (DOE && typeof DOE.requestPermission === 'function') {
@@ -94,7 +96,7 @@ function enableRoomLook(camera: BABYLON.DeviceOrientationCamera) {
   }
 }
 
-function muteCamera(cam: BABYLON.Camera) {
+function muteCamera(cam: Camera) {
   try {
     cam.detachControl()
   } catch {}
@@ -115,7 +117,7 @@ function hidePlayChrome() {
   setTimeout(hide, 1500)
 }
 
-function lookDir(cam: BABYLON.Camera) {
+function lookDir(cam: Camera) {
   const d = cam.getForwardRay().direction.clone()
   d.y = 0
   if (d.lengthSquared() < 0.01) d.set(0, 0, 1)
@@ -123,7 +125,7 @@ function lookDir(cam: BABYLON.Camera) {
   return d
 }
 
-function setupStencilPortal(scene: BABYLON.Scene) {
+function setupStencilPortal(scene: SceneContext) {
   scene.setRenderingAutoClearDepthStencil(0, true, true, true)
   scene.setRenderingAutoClearDepthStencil(1, false, true, false)
   scene.setRenderingAutoClearDepthStencil(2, false, false, false)
@@ -133,29 +135,29 @@ function setupStencilPortal(scene: BABYLON.Scene) {
     if (info.renderingGroupId === 0) {
       engine.setStencilBuffer(true)
       engine.setStencilMask(0xff)
-      engine.setStencilFunction(BABYLON.Engine.ALWAYS)
+      engine.setStencilFunction((undefined as any /* todo(lite): BABYLON.Engine.ALWAYS */))
       engine.setStencilFunctionReference(1)
-      engine.setStencilOperation(BABYLON.Engine.KEEP, BABYLON.Engine.KEEP, BABYLON.Engine.REPLACE)
+      engine.setStencilOperation((undefined as any /* todo(lite): BABYLON.Engine.KEEP */), (undefined as any /* todo(lite): BABYLON.Engine.KEEP */), (undefined as any /* todo(lite): BABYLON.Engine.REPLACE */))
     } else if (info.renderingGroupId === 1) {
       engine.setStencilBuffer(true)
       engine.setStencilMask(0x00)
-      engine.setStencilFunction(BABYLON.Engine.EQUAL)
+      engine.setStencilFunction((undefined as any /* todo(lite): BABYLON.Engine.EQUAL */))
       engine.setStencilFunctionReference(1)
-      engine.setStencilOperation(BABYLON.Engine.KEEP, BABYLON.Engine.KEEP, BABYLON.Engine.KEEP)
+      engine.setStencilOperation((undefined as any /* todo(lite): BABYLON.Engine.KEEP */), (undefined as any /* todo(lite): BABYLON.Engine.KEEP */), (undefined as any /* todo(lite): BABYLON.Engine.KEEP */))
     } else {
       engine.setStencilBuffer(false)
     }
   })
 }
 
-function placeHole(scene: BABYLON.Scene, holePos: BABYLON.Vector3, yaw: number) {
-  const hole = BABYLON.MeshBuilder.CreatePlane(HOLE, { width: 1.2, height: 2.2 }, scene)
+function placeHole(scene: SceneContext, holePos: Vec3, yaw: number) {
+  const hole = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(HOLE, { width: 1.2, height: 2.2 }, scene) */)
   hole.position.copyFrom(holePos)
   hole.rotation.y = yaw
   hole.renderingGroupId = 0
   hole.layerMask = 0x0fffffff
   hole.isPickable = false
-  const holeMat = new BABYLON.StandardMaterial(HOLE, scene)
+  const holeMat = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(HOLE, scene) */)
   holeMat.disableColorWrite = true
   holeMat.disableDepthWrite = true
   holeMat.backFaceCulling = false
@@ -163,14 +165,14 @@ function placeHole(scene: BABYLON.Scene, holePos: BABYLON.Vector3, yaw: number) 
   hole.material = holeMat
   holeMesh = hole
 
-  const frame = BABYLON.MeshBuilder.CreateBox(FRAME, { width: 1.32, height: 2.32, depth: 0.06 }, scene)
+  const frame = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox(FRAME, { width: 1.32, height: 2.32, depth: 0.06 }, scene) */)
   frame.position.copyFrom(holePos)
   frame.rotation.y = yaw
   frame.renderingGroupId = 2
   frame.layerMask = 0x0fffffff
   frame.isPickable = false
-  const frameMat = new BABYLON.StandardMaterial(FRAME, scene)
-  frameMat.emissiveColor = new BABYLON.Color3(0.45, 0.45, 0.4)
+  const frameMat = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(FRAME, scene) */)
+  frameMat.emissiveColor = ([0.45, 0.45, 0.4] as Color3)
   frameMat.disableLighting = true
   frameMat.wireframe = true
   frameMat.fogEnabled = false
@@ -178,7 +180,7 @@ function placeHole(scene: BABYLON.Scene, holePos: BABYLON.Vector3, yaw: number) 
   return { hole, frame }
 }
 
-function revealParcelThroughHole(scene: BABYLON.Scene, cam: BABYLON.Camera) {
+function revealParcelThroughHole(scene: SceneContext, cam: Camera) {
   scene.meshes.forEach((m) => {
     if (isGatewayMesh(m)) return
     m.layerMask = 0x0fffffff
@@ -193,7 +195,7 @@ function revealParcelThroughHole(scene: BABYLON.Scene, cam: BABYLON.Camera) {
   setupStencilPortal(scene)
 }
 
-function openDoorInFront(scene: BABYLON.Scene, roomCam: BABYLON.Camera, meshObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.AbstractMesh>>) {
+function openDoorInFront(scene: SceneContext, roomCam: Camera, meshObs: (any | null)) {
   if (holeMesh) return
   forward = lookDir(roomCam)
   ;(roomCam as any).setParent(null)
@@ -209,7 +211,7 @@ function openDoorInFront(scene: BABYLON.Scene, roomCam: BABYLON.Camera, meshObs:
   hideHint()
 }
 
-async function tryGatewayAR(scene: BABYLON.Scene, controls: Controls, spawnCam: BABYLON.Camera): Promise<boolean> {
+async function tryGatewayAR(scene: SceneContext, controls: Controls, spawnCam: Camera): Promise<boolean> {
   if (isIOS() || isSafari()) return false
   const xrNav = navigator.xr
   if (!xrNav?.isSessionSupported) return false
@@ -242,7 +244,7 @@ async function tryGatewayAR(scene: BABYLON.Scene, controls: Controls, spawnCam: 
       domOverlay: { root: document.body },
     } as any)
 
-    const hitTest = helper.baseExperience.featuresManager.enableFeature(BABYLON.WebXRFeatureName.HIT_TEST, 'latest', {
+    const hitTest = helper.baseExperience.featuresManager.enableFeature((undefined as any /* todo(lite): BABYLON.WebXRFeatureName.HIT_TEST */), 'latest', {
       disablePermanentHitTest: false,
       enableTransientHitTest: true,
     } as any) as any
@@ -251,15 +253,15 @@ async function tryGatewayAR(scene: BABYLON.Scene, controls: Controls, spawnCam: 
 
     hitTest?.onHitTestResultObservable?.add((results: any[]) => {
       if (holeMesh || !results?.length) return
-      const pos = new BABYLON.Vector3()
-      const rot = new BABYLON.Quaternion()
-      const scl = new BABYLON.Vector3()
+      const pos = vec3.create()
+      const rot = quat.identity()
+      const scl = vec3.create()
       results[0].transformationMatrix.decompose(scl, rot, pos)
-      const mat = new BABYLON.Matrix()
+      const mat = (undefined as any /* todo(lite): new BABYLON.Matrix() */)
       rot.toRotationMatrix(mat)
-      const normal = BABYLON.Vector3.TransformNormal(BABYLON.Vector3.Up(), mat)
+      const normal = (undefined as any /* todo(lite): BABYLON.Vector3.TransformNormal(BABYLON.Vector3.Up(), mat) */)
       const cam = scene.activeCamera
-      if (cam && BABYLON.Vector3.Dot(normal, cam.globalPosition.subtract(pos)) < 0) normal.scaleInPlace(-1)
+      if (cam && vec3.dot(normal, cam.globalPosition.subtract(pos)) < 0) normal.scaleInPlace(-1)
       if (cam) cam.position.addInPlace(spawnCam.position.subtract(pos))
       const { hole, frame } = placeHole(scene, pos, 0)
       hole.lookAt(pos.add(normal))
@@ -270,7 +272,7 @@ async function tryGatewayAR(scene: BABYLON.Scene, controls: Controls, spawnCam: 
   }
 
   scene.onPointerObservable.add((info) => {
-    if (info.type !== BABYLON.PointerEventTypes.POINTERDOWN) return
+    if (info.type !== (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERDOWN */)) return
     if (!entered) {
       enter().catch(() => {
         entered = false
@@ -283,13 +285,13 @@ async function tryGatewayAR(scene: BABYLON.Scene, controls: Controls, spawnCam: 
   return true
 }
 
-function startWallDoor(scene: BABYLON.Scene, controls: Controls, spawnCam: BABYLON.Camera) {
+function startWallDoor(scene: SceneContext, controls: Controls, spawnCam: Camera) {
   muteCamera(spawnCam)
   controls.disableMovement()
   hidePlayChrome()
 
   const frozenPos = spawnCam.position.clone()
-  const frozenRot = 'rotation' in spawnCam ? (spawnCam as BABYLON.FreeCamera).rotation.clone() : new BABYLON.Vector3(0, 0, 0)
+  const frozenRot = 'rotation' in spawnCam ? (spawnCam as FreeCamera).rotation.clone() : vec3.fromValues(0, 0, 0)
 
   spawnCam.layerMask = LAYER_PARCEL
   scene.meshes.forEach((m) => {
@@ -299,7 +301,7 @@ function startWallDoor(scene: BABYLON.Scene, controls: Controls, spawnCam: BABYL
     if (!isGatewayMesh(m)) m.layerMask = LAYER_PARCEL
   })
 
-  const roomCam = new BABYLON.DeviceOrientationCamera('gateway-room', frozenPos.clone(), scene)
+  const roomCam = (undefined as any /* todo(lite): new BABYLON.DeviceOrientationCamera('gateway-room', frozenPos.clone(), scene) */)
   roomCam.rotation.copyFrom(frozenRot)
   roomCam.layerMask = LAYER_ROOM
   roomCam.minZ = 0.1
@@ -317,7 +319,7 @@ function startWallDoor(scene: BABYLON.Scene, controls: Controls, spawnCam: BABYL
   })
 }
 
-function startStencilDoor(scene: BABYLON.Scene, cam: BABYLON.Camera) {
+function startStencilDoor(scene: SceneContext, cam: Camera) {
   const pos = cam.position.clone()
   const ray = cam.getForwardRay()
   forward = ray.direction.clone()
@@ -327,7 +329,7 @@ function startStencilDoor(scene: BABYLON.Scene, cam: BABYLON.Camera) {
 
   const holePos = pos.add(forward.scale(0.35))
   holePos.y = 1.1
-  const parent = cam.parent instanceof BABYLON.Node ? cam.parent : null
+  const parent = (false /* todo(lite): cam.parent instanceof BABYLON.Node */) ? cam.parent : null
   const { hole, frame } = placeHole(scene, holePos, Math.atan2(forward.x, forward.z))
   if (parent) {
     hole.parent = parent
@@ -345,7 +347,7 @@ function startStencilDoor(scene: BABYLON.Scene, cam: BABYLON.Camera) {
 
   const enterObs = scene.onAfterRenderObservable.add(() => {
     if (Date.now() - bootAt < ENTER_AFTER_MS || !holeMesh || !scene.activeCamera) return
-    const into = BABYLON.Vector3.Dot(scene.activeCamera.position.subtract(holeMesh.position), forward)
+    const into = vec3.dot(scene.activeCamera.position.subtract(holeMesh.position), forward)
     if (into > ENTER_DEPTH) {
       scene.onAfterRenderObservable.remove(enterObs)
       enterPlay()
@@ -353,7 +355,7 @@ function startStencilDoor(scene: BABYLON.Scene, cam: BABYLON.Camera) {
   })
 }
 
-export function startGateway(scene: BABYLON.Scene, controls: Controls) {
+export function startGateway(scene: SceneContext, controls: Controls) {
   if (!wantsGateway() || started) return
   const cam = scene.activeCamera
   if (!cam) return
@@ -363,7 +365,7 @@ export function startGateway(scene: BABYLON.Scene, controls: Controls) {
   document.body.classList.add('gateway')
   scene.autoClear = true
   scene.autoClearDepthAndStencil = true
-  scene.clearColor = new BABYLON.Color4(0, 0, 0, 0)
+  scene.clearColor = ([0, 0, 0, 0] as Color4)
   scene.imageProcessingConfiguration.applyByPostProcess = false
   controls.setNoclip(true)
 
@@ -383,7 +385,7 @@ export function startGateway(scene: BABYLON.Scene, controls: Controls) {
   if (!isLoaded()) markLoaded()
 }
 
-export function hideGatewayBackdrop(skybox?: { mesh: BABYLON.Mesh }, horizon?: { setVisible: (v: boolean) => void }) {
+export function hideGatewayBackdrop(skybox?: { mesh: Mesh }, horizon?: { setVisible: (v: boolean) => void }) {
   if (!wantsGateway()) return
   if (skybox) skybox.mesh.isVisible = false
   horizon?.setVisible(false)

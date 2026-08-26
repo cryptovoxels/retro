@@ -32,6 +32,8 @@ import { ParcelEventMap } from './utils/parcel-event-map'
 import { Action } from '../common/messages'
 import { addVoxels, removeCollider } from './physics/world'
 import { voxelCollider } from './monoworker/physics'
+import { Color3, Mesh, SceneContext, StandardMaterialProps, Texture2D, TransformNode, Vec3 } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 const isTest = process.env.NODE_ENV === 'test'
 
@@ -47,7 +49,7 @@ export enum ParcelActivationState {
 }
 
 export default class Parcel extends TypedEventTarget<ParcelEventMap> {
-  private static defaultSoundSprite: BABYLON.Sound
+  private static defaultSoundSprite: any
   readonly id: number
   readonly spaceId: string | undefined
   readonly isFastboot: boolean
@@ -70,16 +72,16 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   features: FeatureRecord[]
   featuresList: Feature[] = []
   field: NdArray<Uint16Array> | undefined
-  voxelMesh: BABYLON.Mesh | undefined
-  glassMesh: BABYLON.Mesh | undefined
+  voxelMesh: Mesh | undefined
+  glassMesh: Mesh | undefined
   content: Partial<ParcelRecord> = {}
-  readonly parentNode: BABYLON.TransformNode
+  readonly parentNode: TransformNode
   readonly budget: ParcelBudget
   socketAuth: string | undefined
   label: string | undefined
   featuresActive?: boolean // Are features active for this parcel? IE are we displaying features? May be in generation.
-  readonly scene: BABYLON.Scene
-  readonly transform: BABYLON.TransformNode & { parcel?: Parcel }
+  readonly scene: SceneContext
+  readonly transform: TransformNode & { parcel?: Parcel }
   readonly x1: number
   readonly y1: number
   readonly z1: number
@@ -94,9 +96,9 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   behaviours: LuaBehaviours | null = null
   loaded = false
   loading = false
-  readonly featureBounds: BABYLON.BoundingBox
-  readonly hardFeatureBounds: BABYLON.BoundingBox // Bounding box beyond the parcel bounds. Max distance from parcel bounds that a feature can be moved to.
-  readonly exteriorBounds: BABYLON.BoundingBox
+  readonly featureBounds: any
+  readonly hardFeatureBounds: any // Bounding box beyond the parcel bounds. Max distance from parcel bounds that a feature can be moved to.
+  readonly exteriorBounds: any
   public readonly grid: Grid
   private regeneratingFeatures = false
   private colliderVoxels: Int32Array | null = null
@@ -107,21 +109,21 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   private voxelFieldGen = 0
   private readonly refreshVoxels: () => void
   readonly relight: () => void
-  private readonly soundSprite: BABYLON.Sound | null = null
+  private readonly soundSprite: any | null = null
   private featuresLoaded = false
   /** Server-side preview: skip lua + bouncer after features load. */
   preview = false
   private entered = false
   autobuilt = false
-  tilesetTexture: BABYLON.Texture | null = null
+  tilesetTexture: Texture2D | null = null
 
   get areFeaturesLoaded() {
     return this.featuresLoaded
   }
 
   constructor(
-    scene: BABYLON.Scene,
-    parent: BABYLON.Nullable<BABYLON.TransformNode>,
+    scene: SceneContext,
+    parent: (TransformNode | null),
     record: ParcelRecord & {
       spaceId?: string
     },
@@ -134,7 +136,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     if (parent?.parent) {
       throw new Error('parcel: Constructing with a non-root parent node unsupported - coordinate translation assumptions will break')
     }
-    this.parentNode = parent ?? new BABYLON.TransformNode(`parcel/${record.id}/root`, scene)
+    this.parentNode = parent ?? (undefined as any /* todo(lite): new BABYLON.TransformNode(`parcel/${record.id}/root`, scene) */)
     this.grid = grid
     this.isFastboot = isFastboot
 
@@ -164,13 +166,13 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
     if (!Parcel.defaultSoundSprite && Parcel.audio) {
       try {
-        Parcel.defaultSoundSprite = new BABYLON.Sound('parcel-sound-sprite', `${process.env.SOUNDS_URL}/default-parcel-sprite.wav`, this.scene, null, {
+        Parcel.defaultSoundSprite = (undefined as any /* todo(lite): new BABYLON.Sound('parcel-sound-sprite', `${process.env.SOUNDS_URL}/default-parcel-sprite.wav`, this.scene, null, {
           distanceModel: 'exponential',
           spatialSound: true,
           maxDistance: 32,
           rolloffFactor: 1.2,
           refDistance: 3,
-        })
+        }) */)
         Parcel.audio.addToParcelBus(Parcel.defaultSoundSprite)
       } catch (e) {
         // fails in perf-test
@@ -186,7 +188,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.refreshVoxels = throttle(() => this.generate(), 10, { leading: false, trailing: true })
     this.relight = debounce(() => this.generate(), 150)
 
-    this.transform = new BABYLON.TransformNode(`parcel/${this.id}`, scene)
+    this.transform = (undefined as any /* todo(lite): new BABYLON.TransformNode(`parcel/${this.id}`, scene) */)
     this.transform.metadata = { isParcel: true }
     this.transform.position.copyFrom(this.boundingBox.center)
     this.transform.position.y = this.min.y
@@ -204,18 +206,18 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // this.sandbox is set via `updateMeta()` above
     this.featureBounds = this.sandbox
       ? this.boundingBox
-      : new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), this.parentNode._worldMatrix)
+      : (undefined as any /* todo(lite): new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), this.parentNode._worldMatrix) */)
 
     const hardFeatureBound = 25
 
     // in sandbox, set hardBoundingbox to be the featureBounds
     this.hardFeatureBounds = this.sandbox
-      ? new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), this.parentNode._worldMatrix)
-      : new BABYLON.BoundingBox(
+      ? (undefined as any /* todo(lite): new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), this.parentNode._worldMatrix) */)
+      : (undefined as any /* todo(lite): new BABYLON.BoundingBox(
           new BABYLON.Vector3(this.x1 - hardFeatureBound, this.y1 - hardFeatureBound, this.z1 - hardFeatureBound),
           new BABYLON.Vector3(this.x2 + hardFeatureBound, this.y2 + hardFeatureBound, this.z2 + hardFeatureBound),
           this.parentNode._worldMatrix,
-        )
+        ) */)
 
     // fix parcel offset, but leave enough for exterior signage
     const grace = 0.1
@@ -224,11 +226,11 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // this.sandbox is set via `updateMeta()` above
     this.exteriorBounds = this.sandbox
       ? this.boundingBox
-      : new BABYLON.BoundingBox(
+      : (undefined as any /* todo(lite): new BABYLON.BoundingBox(
           new BABYLON.Vector3(this.x1 + offset - grace, this.y1 + offset - grace, this.z1 + offset - grace),
           new BABYLON.Vector3(this.x2 + offset + grace, this.y2 + offset + grace, this.z2 + offset + grace),
           this.parentNode._worldMatrix,
-        )
+        ) */)
 
     // Use pre-computed field if provided (from grid-worker)
     if (precomputedField) {
@@ -345,11 +347,11 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     return this.toCamera().lengthSquared() < NEARBY * NEARBY
   }
 
-  get paletteColors(): BABYLON.Color3[] {
+  get paletteColors(): Color3[] {
     if (!this.palette) {
-      return defaultColors.map(BABYLON.Color3.FromHexString)
+      return defaultColors.map((undefined as any /* todo(lite): BABYLON.Color3.FromHexString */))
     }
-    return this.palette.map((c, i) => c || defaultColors[i]).map(BABYLON.Color3.FromHexString)
+    return this.palette.map((c, i) => c || defaultColors[i]).map((undefined as any /* todo(lite): BABYLON.Color3.FromHexString */))
   }
 
   get sandbox() {
@@ -368,14 +370,14 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     return this.activationState
   }
 
-  private _boundingBox: BABYLON.BoundingBox | null = null
+  private _boundingBox: any | null = null
 
   /**
    * Get the parcel's bounding box: min/max in grid coordinates, minimumWorld/maximumWorld in absolute
    */
-  get boundingBox(): BABYLON.BoundingBox {
+  get boundingBox(): any {
     if (!this._boundingBox) {
-      this._boundingBox = new BABYLON.BoundingBox(this.min, this.max, this.parentNode._worldMatrix)
+      this._boundingBox = (undefined as any /* todo(lite): new BABYLON.BoundingBox(this.min, this.max, this.parentNode._worldMatrix) */)
     }
     return this._boundingBox
   }
@@ -406,15 +408,15 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   /**
    * Minimum parcel bound, in grid coordinates
    */
-  private get min(): BABYLON.Vector3 {
-    return new BABYLON.Vector3(this.x1, this.y1, this.z1)
+  private get min(): Vec3 {
+    return vec3.fromValues(this.x1, this.y1, this.z1)
   }
 
   /**
    * Minimum parcel bound, in grid coordinates
    */
-  private get max(): BABYLON.Vector3 {
-    return new BABYLON.Vector3(this.x2, this.y2, this.z2)
+  private get max(): Vec3 {
+    return vec3.fromValues(this.x2, this.y2, this.z2)
   }
 
   performanceScores() {
@@ -427,7 +429,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.featuresList.forEach((f) => {
       if (f.isAnimated) animated++
       if (f.type === 'group') groups++
-      if (f.mesh instanceof BABYLON.AbstractMesh && !f.mesh.isAnInstance) {
+      if ((false /* todo(lite): f.mesh instanceof BABYLON.AbstractMesh */) && !f.mesh.isAnInstance) {
         indicesCount += f.mesh?.getTotalIndices() || 0
       }
     })
@@ -443,7 +445,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
   }
 
-  pointWithinHardFeatureBounds(point: BABYLON.Vector3): boolean {
+  pointWithinHardFeatureBounds(point: Vec3): boolean {
     return this.hardFeatureBounds.intersectsPoint(point)
   }
 
@@ -452,7 +454,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
    * Returns null if the point doesn't point to a voxel in this parcel.
    * Returns 0 if the voxel is empty.
    */
-  voxelValueFromPositionInParcel(pos: BABYLON.Vector3): number | null {
+  voxelValueFromPositionInParcel(pos: Vec3): number | null {
     const coord = this.voxelCoordFromPositionInParcel(pos)
     if (coord) {
       return this.field?.get(coord[0], coord[1], coord[2]) ?? null
@@ -645,25 +647,25 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.regenerate()
   }
 
-  toCamera(): BABYLON.Vector3 {
+  toCamera(): Vec3 {
     if (this.scene.activeCamera && 'target' in this.scene.activeCamera) {
-      return this.transform.position.subtract(this.scene.activeCamera['target'] as BABYLON.Vector3)
+      return this.transform.position.subtract(this.scene.activeCamera['target'] as Vec3)
     }
     if (this.scene.activeCamera) {
       return this.transform.position.subtract(cameraPosition(this.scene))
     }
-    return new BABYLON.Vector3(0, 0, 0)
+    return vec3.fromValues(0, 0, 0)
   }
 
   updateShader() {
-    if (!this.voxelMesh || !this.voxelMesh.material || !(this.voxelMesh.material instanceof BABYLON.ShaderMaterial)) {
+    if (!this.voxelMesh || !this.voxelMesh.material || !((false /* todo(lite): this.voxelMesh.material instanceof BABYLON.ShaderMaterial */))) {
       return
     }
 
     window.environment?.updateShaderProperties(this.voxelMesh.material)
   }
 
-  onTileSetUpdate: BABYLON.Observable<void> = new BABYLON.Observable<void>()
+  onTileSetUpdate: any = (undefined as any /* todo(lite): new BABYLON.Observable<void>() */)
 
   setBrightness(brightness: number) {
     this.brightness = brightness
@@ -1028,7 +1030,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     return featureInsideOurParcel && !featureInsideParentParcel
   }
 
-  playSound(id: number, position: Feature | BABYLON.Vector3 | any) {
+  playSound(id: number, position: Feature | Vec3 | any) {
     if (!this.soundSprite) {
       console.warn('Sound sprite not loaded')
       return
@@ -1045,7 +1047,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
       if (position instanceof Feature) {
         sound.setPosition(position.absolutePosition)
-      } else if (position instanceof BABYLON.Vector3) {
+      } else if ((false /* todo(lite): position instanceof BABYLON.Vector3 */)) {
         sound.setPosition(position)
         // or should position be relative to the parcel????
       } else {
@@ -1061,7 +1063,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
    * Tests that a point is in this strict parcel bounds (in grid coordinates).
    * Compared in grid space on purpose: the cached BoundingBox's world vectors are computed once at load.
    */
-  contains(pointInGrid: BABYLON.Vector3): boolean {
+  contains(pointInGrid: Vec3): boolean {
     return pointInGrid.x >= this.x1 && pointInGrid.x <= this.x2 && pointInGrid.y >= this.y1 && pointInGrid.y <= this.y2 && pointInGrid.z >= this.z1 && pointInGrid.z <= this.z2
   }
 
@@ -1087,7 +1089,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   /**
    * Convert the given positionInParcel to the given voxel coordinate
    */
-  private voxelCoordFromPositionInParcel(pos: BABYLON.Vector3): [number, number, number] | null {
+  private voxelCoordFromPositionInParcel(pos: Vec3): [number, number, number] | null {
     if (!this.voxelMesh) {
       return null
     }
@@ -1149,9 +1151,9 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     })
   }
 
-  private featureToCamera(description: FeatureRecord): BABYLON.Vector3 {
+  private featureToCamera(description: FeatureRecord): Vec3 {
     if (description.position) {
-      return this.toCamera().subtract(BABYLON.Vector3.FromArray(tidyVec3(description.position)))
+      return this.toCamera().subtract(vec3.clone(tidyVec3(description.position) as any))
     }
     return this.toCamera()
   }
@@ -1177,7 +1179,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       return
     }
 
-    if (palette && palette[1] && material instanceof BABYLON.ShaderMaterial) {
+    if (palette && palette[1] && (false /* todo(lite): material instanceof BABYLON.ShaderMaterial */)) {
       material.setColor3Array('palette', palette)
     }
   }
@@ -1333,11 +1335,11 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     const pending = !!(this.tileset && !this.tilesetTexture)
     const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id, this.paletteColors, this.tilesetTexture ?? (pending ? createWhiteTexture(this.scene) : undefined))
     if (pending) {
-      const mat = opaque.material as BABYLON.StandardMaterial
-      const tex = new BABYLON.Texture(process.env.IMG_HOST + '/' + this.tileset!.slice(1), this.scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, () => {
+      const mat = opaque.material as StandardMaterialProps
+      const tex = (undefined as any /* todo(lite): new BABYLON.Texture(process.env.IMG_HOST + '/' + this.tileset!.slice(1), this.scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, () => {
         this.tilesetTexture = tex
         if (opaque.material === mat) mat.diffuseTexture = tex
-      })
+      }) */)
     }
     if (gen !== this.voxelFieldGen) {
       this.disposeGeneratedMeshes(opaque, glass)
@@ -1362,7 +1364,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.dispatchEvent(createEvent('MeshLoaded', opaque))
   }
 
-  private disposeGeneratedMeshes(...meshes: (BABYLON.Mesh | null | undefined)[]) {
+  private disposeGeneratedMeshes(...meshes: (Mesh | null | undefined)[]) {
     for (const mesh of meshes) {
       if (!mesh) continue
       if (mesh.material && !isShared(mesh.material)) mesh.material.dispose()
@@ -1378,7 +1380,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
   }
 
-  private setVoxelMesh(mesh: BABYLON.Nullable<BABYLON.Mesh>, cfg?: { pickable: boolean }) {
+  private setVoxelMesh(mesh: (Mesh | null), cfg?: { pickable: boolean }) {
     // Don't dispose cached/shared materials - they're used by other parcels
     if (this.voxelMesh?.material && !isShared(this.voxelMesh.material)) {
       this.voxelMesh.material.dispose()
@@ -1393,7 +1395,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     mesh.freezeWorldMatrix()
   }
 
-  private setGlassMesh(mesh: BABYLON.Nullable<BABYLON.Mesh>, cfg?: { pickable: boolean }) {
+  private setGlassMesh(mesh: (Mesh | null), cfg?: { pickable: boolean }) {
     // Don't dispose cached/shared materials - they're used by other parcels
     if (this.glassMesh?.material && !isShared(this.glassMesh.material)) {
       this.glassMesh.material.dispose()
@@ -1437,7 +1439,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.physicsRegistered = false
   }
 
-  private setCommonMeshProperties(mesh: BABYLON.Mesh, cfg?: { pickable: boolean }) {
+  private setCommonMeshProperties(mesh: Mesh, cfg?: { pickable: boolean }) {
     mesh.parent = this.transform
     mesh.isPickable = cfg?.pickable || false
     mesh.setEnabled(true)

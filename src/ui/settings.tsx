@@ -10,6 +10,7 @@ import { chatSettings } from './interact/chat'
 import { voiceSettings } from '../voice-settings'
 import { DEFAULT_SENSITIVITY, MAX_SENSITIVITY, MIN_SENSITIVITY } from '../controls/user-control-settings'
 import { getTheme, setTheme } from '../../common/helpers/theme'
+import { SceneContext } from '@babylonjs/lite'
 
 function toReversedPercentage(value: number, min: number, max: number): number {
   return ((max - value) / (max - min)) * 100
@@ -37,7 +38,7 @@ function loadPersistedAudio(): PersistedAudio | undefined {
 }
 
 type Props = {
-  scene: BABYLON.Scene
+  scene: SceneContext
   minimapSettings: MinimapSettings
 }
 

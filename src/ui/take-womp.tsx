@@ -9,13 +9,14 @@ import { MinimapSettings } from '../minimap'
 import type Parcel from '../parcel'
 import { pendingWomp, sidebarClosed, uiAsideTick, uiPane } from '../store'
 import { resolveUgc } from '../utils/helpers'
+import { EngineContext, SceneContext } from '@babylonjs/lite'
 
 interface Props {
   onClose?: () => void
   coords: string
   parcel: Parcel
   image: string
-  scene: BABYLON.Scene
+  scene: SceneContext
 }
 
 const headers = {
@@ -38,7 +39,7 @@ interface State {
 
 const WompSize = { width: 1024, height: 1024 } as const
 
-let wompSound: BABYLON.Sound | null = null
+let wompSound: any | null = null
 
 function playWompSound() {
   const audio = window._audio
@@ -69,7 +70,7 @@ export default class TakeWomp extends Component<Props, State> {
     setTimeout(() => (document.querySelector('.take-womp textarea') as HTMLTextAreaElement | null)?.focus(), 0)
   }
 
-  static async Capture(engine: BABYLON.Engine, scene: BABYLON.Scene, minimapSettings: MinimapSettings) {
+  static async Capture(engine: EngineContext, scene: SceneContext, minimapSettings: MinimapSettings) {
     if (scene.activeCamera === null) {
       app.showSnackbar('Failed to capture womp. Could not get camera', PanelType.Danger)
       return
@@ -111,7 +112,7 @@ export default class TakeWomp extends Component<Props, State> {
 
     let image: string
     try {
-      image = await BABYLON.ScreenshotTools.CreateScreenshotAsync(engine, scene.activeCamera, WompSize, 'image/jpeg')
+      image = await (undefined as any /* todo(lite): BABYLON.ScreenshotTools.CreateScreenshotAsync(engine, scene.activeCamera, WompSize, 'image/jpeg') */)
     } finally {
       canvas.style.width = currentCanvasSizeWidth
       canvas.style.height = currentCanvasSizeHeight

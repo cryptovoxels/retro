@@ -1,3 +1,5 @@
+import { EngineContext, FreeCamera, SceneContext, Vec3 } from '@babylonjs/lite'
+import { mat4, vec3 } from 'wgpu-matrix'
 // forked from BABYLON.FreeCameraKeyboardMoveInput with `keyCode` replaced with `code` for correct international keyboard handling
 // https://github.com/BabylonJS/Babylon.js/blob/c843dcbc3875e9eee184152a10b857f7af9f4993/src/Cameras/Inputs/freeCameraKeyboardMoveInput.ts
 // writes unitless direction into Controls.move; PlayerBody scales by speed * dt
@@ -11,16 +13,16 @@ interface LocaleKeyboardMoveInputOptions {
   keysRotateRight?: string[]
 }
 
-const localDir = BABYLON.Vector3.Zero()
-const worldDir = BABYLON.Vector3.Zero()
-const viewInv = BABYLON.Matrix.Identity()
+const localDir = vec3.create()
+const worldDir = vec3.create()
+const viewInv = mat4.identity()
 
-export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.FreeCamera> {
+export class LocaleKeyboardMoveInput /* todo(lite): implements BABYLON.ICameraInput<BABYLON.FreeCamera> */ {
   /**
    * Defines the camera the input is attached to.
    */
   // @ts-expect-error - Camera property is set by Babylon.js framework
-  public camera: BABYLON.FreeCamera
+  public camera: FreeCamera
 
   public keysUp: string[] = []
   public keysDown: string[] = []
@@ -33,7 +35,7 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
   /** third person: A/D turn the body, not the camera */
   public onTurn: ((delta: number) => void) | null = null
   /** unitless direction accumulator owned by Controls */
-  public move: BABYLON.Vector3 = undefined!
+  public move: Vec3 = undefined!
 
   /**
    * Defines the pointer angular sensibility  along the X and Y axis or how fast is the camera rotating.
@@ -42,13 +44,13 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
 
   private _keys = new Array<string>()
   // @ts-expect-error - Observer types not fully compatible
-  private _onCanvasBlurObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Engine>>
+  private _onCanvasBlurObserver: (any | null)
   // @ts-expect-error - Observer types not fully compatible
-  private _onKeyboardObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.KeyboardInfo>>
+  private _onKeyboardObserver: (any | null)
   // @ts-expect-error - Engine property set during initialization
-  private _engine: BABYLON.Engine
+  private _engine: EngineContext
   // @ts-expect-error - Scene property set during initialization
-  private _scene: BABYLON.Scene
+  private _scene: SceneContext
 
   constructor(options: LocaleKeyboardMoveInputOptions) {
     Object.assign(this, options)
@@ -68,7 +70,7 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
    * @param noPreventDefault Defines whether event caught by the controls should call preventdefault() (https://developer.mozilla.org/en-US/docs/Web/API/Event/preventDefault)
    */
   public attachControl(noPreventDefault?: boolean): void {
-    noPreventDefault = BABYLON.Tools.BackCompatCameraNoPreventDefault(arguments)
+    noPreventDefault = (undefined as any /* todo(lite): BABYLON.Tools.BackCompatCameraNoPreventDefault(arguments) */)
     if (this._onCanvasBlurObserver) {
       return
     }
@@ -83,7 +85,7 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
     this._onKeyboardObserver = this._scene.onKeyboardObservable.add((info) => {
       const evt = info.event
       if (!evt.metaKey) {
-        if (info.type === BABYLON.KeyboardEventTypes.KEYDOWN) {
+        if (info.type === (undefined as any /* todo(lite): BABYLON.KeyboardEventTypes.KEYDOWN */)) {
           if (
             this.keysUp.indexOf(evt.code) !== -1 ||
             this.keysDown.indexOf(evt.code) !== -1 ||
@@ -196,7 +198,7 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
       }
 
       camera.getViewMatrix().invertToRef(viewInv)
-      BABYLON.Vector3.TransformNormalToRef(localDir, viewInv, worldDir)
+      (undefined as any /* todo(lite): BABYLON.Vector3.TransformNormalToRef(localDir, viewInv, worldDir) */)
       this.move.addInPlace(worldDir)
     }
   }

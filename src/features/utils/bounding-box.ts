@@ -1,23 +1,24 @@
 import type Feature from '../feature'
+import { Mesh } from '@babylonjs/lite'
 
-export const boundingBoxesOfFeatures = (features: Array<Feature>): BABYLON.BoundingBox[] => {
-  return features.map((feature: Feature) => feature.boundingBox).filter((boundingBox) => boundingBox) as BABYLON.BoundingBox[]
+export const boundingBoxesOfFeatures = (features: Array<Feature>): any[] => {
+  return features.map((feature: Feature) => feature.boundingBox).filter((boundingBox) => boundingBox) as any[]
 }
 
-export const boundingBoxOfMesh = (mesh: BABYLON.AbstractMesh): BABYLON.BoundingBox => {
-  const isTransformNode = (mesh: BABYLON.AbstractMesh) => {
-    return mesh instanceof BABYLON.TransformNode && !mesh['getBoundingInfo']
+export const boundingBoxOfMesh = (mesh: Mesh): any => {
+  const isTransformNode = (mesh: Mesh) => {
+    return (false /* todo(lite): mesh instanceof BABYLON.TransformNode */) && !mesh['getBoundingInfo']
   }
 
   // hack to allow highlight of polytext and other features that use a TransformNode
   // can't just check for transform node, because everything inherits from it
   if (isTransformNode(mesh)) {
-    mesh = mesh.getChildren()[0] as BABYLON.AbstractMesh
+    mesh = mesh.getChildren()[0] as Mesh
   }
   // In some cases the child of the transform node is still a transform node; I assume this happens for groups in groups
   while (isTransformNode(mesh)) {
     try {
-      mesh = mesh.getChildren()[0] as BABYLON.AbstractMesh
+      mesh = mesh.getChildren()[0] as Mesh
     } catch {
       console.warn('BoundingBoxOfMesh: Error in obtaining a mesh')
       break
@@ -27,7 +28,7 @@ export const boundingBoxOfMesh = (mesh: BABYLON.AbstractMesh): BABYLON.BoundingB
   return mesh.getBoundingInfo().boundingBox
 }
 
-export const boundingBoxOfBoundingBoxes = (boundingBoxes: BABYLON.BoundingBox[]): BABYLON.BoundingBox => {
+export const boundingBoxOfBoundingBoxes = (boundingBoxes: any[]): any => {
   if (boundingBoxes.length === 1) {
     boundingBoxes[0]
   }
@@ -37,9 +38,9 @@ export const boundingBoxOfBoundingBoxes = (boundingBoxes: BABYLON.BoundingBox[])
   for (let i = 0; i < boundingBoxes.length; i++) {
     const { minimumWorld: nextMix, maximumWorld: nextMax } = boundingBoxes[i]
 
-    min = BABYLON.Vector3.Minimize(min, nextMix)
-    max = BABYLON.Vector3.Maximize(max, nextMax)
+    min = (undefined as any /* todo(lite): BABYLON.Vector3.Minimize(min, nextMix) */)
+    max = (undefined as any /* todo(lite): BABYLON.Vector3.Maximize(max, nextMax) */)
   }
 
-  return new BABYLON.BoundingBox(min, max)
+  return (undefined as any /* todo(lite): new BABYLON.BoundingBox(min, max) */)
 }

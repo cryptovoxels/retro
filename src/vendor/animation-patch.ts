@@ -1,5 +1,5 @@
-BABYLON.Scene.prototype['_animationTimeLast'] = 0
-BABYLON.Scene.prototype['_animate'] = function(): void {
+(undefined as any /* todo(lite): BABYLON.Scene.prototype['_animationTimeLast'] = 0 */)
+(undefined as any /* todo(lite): BABYLON.Scene.prototype['_animate'] = function(): void {
   if (!this.animationsEnabled) {
     return
   }
@@ -39,5 +39,5 @@ BABYLON.Scene.prototype['_animate'] = function(): void {
 
   // Late animation bindings
   this._processLateAnimationBindings()
-}
+} */)
   

@@ -3,10 +3,11 @@ import type Connector from '../connector'
 import type Grid from '../grid'
 import { isLocal } from '../../common/helpers/detector'
 import { ConnectionState } from '../utils/socket-client'
+import { SceneContext } from '@babylonjs/lite'
 interface Props {
   grid: Grid
   connector: Connector
-  scene: BABYLON.Scene
+  scene: SceneContext
 }
 
 interface State {

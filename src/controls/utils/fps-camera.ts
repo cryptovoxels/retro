@@ -1,8 +1,10 @@
 import PlayerCamera from './player-camera'
 import { coords } from '../../../common/helpers/utils'
+import { SceneContext } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
-export function createFirstPersonCamera(scene: BABYLON.Scene, coords: coords): PlayerCamera {
-  const camera = new PlayerCamera('player-camera', coords?.position || BABYLON.Vector3.Zero(), scene)
+export function createFirstPersonCamera(scene: SceneContext, coords: coords): PlayerCamera {
+  const camera = new PlayerCamera('player-camera', coords?.position || vec3.create(), scene)
 
   camera.minZ = 0.1
   camera.maxZ = window.draw.distance * 2.0

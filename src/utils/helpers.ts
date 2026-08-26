@@ -64,12 +64,12 @@ export function tidyInt(input: string | number | null | undefined, defaultValue:
  */
 export function tidyColor3(input: ColorRecord | undefined, defaultValue: string) {
   if (typeof input == 'string' && input != '') {
-    return BABYLON.Color3.FromHexString(input)
+    return (undefined as any /* todo(lite): BABYLON.Color3.FromHexString(input) */)
   }
   if (Array.isArray(input) && input.length == 3) {
-    return BABYLON.Color3.FromArray(input)
+    return (undefined as any /* todo(lite): BABYLON.Color3.FromArray(input) */)
   }
-  return BABYLON.Color3.FromHexString(defaultValue)
+  return (undefined as any /* todo(lite): BABYLON.Color3.FromHexString(defaultValue) */)
 }
 
 export function tidyVec3(input: Vec3Description | undefined): [number, number, number] {
@@ -106,7 +106,7 @@ export const resolveUgc = (url?: string) => {
 /**
  * Returns true if the second bounding box is completely within the first, in absolute coordinates
  */
-export function bboxCompletelyWithin(container: BABYLON.BoundingBox, contents: BABYLON.BoundingBox) {
+export function bboxCompletelyWithin(container: any, contents: any) {
   const contMin = container.minimumWorld
   const contMax = container.maximumWorld
 

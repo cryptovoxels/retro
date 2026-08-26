@@ -126,7 +126,7 @@ export default class CollectibleModel extends Feature3D<CollectibleModelRecord> 
     this.afterGenerate()
 
     if (this.mesh.material) {
-      this.mesh.material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
+      this.mesh.material.transparencyMode = (undefined as any /* todo(lite): BABYLON.Material.MATERIAL_ALPHABLEND */)
     }
 
     this.refreshAvatarsIntervalHandle = setInterval(() => {
@@ -196,7 +196,7 @@ export default class CollectibleModel extends Feature3D<CollectibleModelRecord> 
     let rotation = [0, 0, 0]
     if (this.description.tryRotation) {
       // collectible rotation is saved in radians
-      rotation = [BABYLON.Angle.FromRadians(this.description.tryRotation[0]).degrees(), BABYLON.Angle.FromRadians(this.description.tryRotation[1]).degrees(), BABYLON.Angle.FromRadians(this.description.tryRotation[2]).degrees()]
+      rotation = [(undefined as any /* todo(lite): BABYLON.Angle.FromRadians(this.description.tryRotation[0]).degrees() */), (undefined as any /* todo(lite): BABYLON.Angle.FromRadians(this.description.tryRotation[1]).degrees() */), (undefined as any /* todo(lite): BABYLON.Angle.FromRadians(this.description.tryRotation[2]).degrees() */)]
     }
 
     return {

@@ -79,6 +79,7 @@ import ParcelSnapshots from './ui/parcel-snapshots'
 import { SettingsUI } from './ui/settings'
 import TakeWomp from './ui/take-womp'
 import WompButton from './ui/womp-button'
+import { SceneContext } from '@babylonjs/lite'
 
 const NUMBER_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const
 
@@ -91,7 +92,7 @@ const isOnSandboxParcel = () => {
 
 const wantsSandboxGuide = () => wantsLearnQuery() || isOnSandboxParcel()
 
-const Location = (props: { scene: BABYLON.Scene; signedIn: any }) => {
+const Location = (props: { scene: SceneContext; signedIn: any }) => {
   const currentOrNearestParcel = selectCurrentOrNearestParcel()
   if (!currentOrNearestParcel) {
     return <a href="/">Home</a>
@@ -125,7 +126,7 @@ export interface Tool {
 }
 
 export interface UserInterfaceProps {
-  scene: BABYLON.Scene
+  scene: SceneContext
   canvas: HTMLCanvasElement
   grid: Grid
   connector: Connector
@@ -572,8 +573,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     controls?.requestPointerLock ? controls.requestPointerLock()?.catch?.(() => {}) : requestPointerLock()
   }
 
-  get camera(): BABYLON.UniversalCamera {
-    return this.props.scene.activeCamera as BABYLON.UniversalCamera
+  get camera(): any {
+    return this.props.scene.activeCamera as any
   }
 
   refocus() {
@@ -732,7 +733,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     }
   }
 
-  takeWomp(scene: BABYLON.Scene) {
+  takeWomp(scene: SceneContext) {
     if (!app.signedIn) return
     const engine = scene.getEngine()
     TakeWomp.Capture(engine, scene, this.props.minimapSettings)

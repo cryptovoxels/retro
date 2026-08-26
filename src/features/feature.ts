@@ -16,6 +16,8 @@ import { axisNames2D, axisNames3D, bboxCompletelyWithin, resolveUgc, tidyURL, ti
 import { TimeOfDay } from '../utils/time-of-day'
 import Group from './group'
 import { boundingBoxOfMesh } from './utils/bounding-box'
+import { Mesh, PickingInfo, SceneContext, StandardMaterialProps, TransformNode, Vec3, onBeforeRender } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 /**
  * Special data type passed to onClick handlers
@@ -29,17 +31,17 @@ export type FeatureEvent = {
  * Mesh that exports a feature click-handler used by this class
  * Never instantiated, but casted-to in some cases.
  */
-export type MeshExtended = BABYLON.Mesh & NodeExtensionProps
+export type MeshExtended = Mesh & NodeExtensionProps
 
-type TransformNodeExtended = BABYLON.TransformNode & NodeExtensionProps
+type TransformNodeExtended = TransformNode & NodeExtensionProps
 
-export type AbstractMeshExtended = BABYLON.AbstractMesh & NodeExtensionProps
+export type AbstractMeshExtended = Mesh & NodeExtensionProps
 
 // used to extend mesh, abstract mesh, transform node
 type NodeExtensionProps = {
   feature?: Feature | undefined
   parcel?: Parcel | undefined
-  cvOnLeftClick?: (a?: BABYLON.PickingInfo | null) => void
+  cvOnLeftClick?: (a?: PickingInfo | null) => void
 }
 
 export type FeatureTrigger = {
@@ -48,7 +50,7 @@ export type FeatureTrigger = {
   timerLength?: number
   proximityToTrigger?: number
   triggered?: boolean
-  handler?: (scene: BABYLON.Scene) => void
+  handler?: (scene: SceneContext) => void
 }
 
 const EPSILON = 0.01
@@ -63,9 +65,9 @@ export enum TransparencyMode {
 }
 
 export interface transformVectors {
-  rotation: BABYLON.Vector3
-  position: BABYLON.Vector3
-  scaling: BABYLON.Vector3
+  rotation: Vec3
+  position: Vec3
+  scaling: Vec3
 }
 
 type EntityType = 'material' | 'mesh' | 'texture' | 'parent' | 'light' | 'instance'
@@ -82,19 +84,19 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   static timerLength = 100 //how long (milliseconds) to be close to feature to trigger animation
   static Editor: any // todo type this
   static isRenderable = false
-  static layer: BABYLON.HighlightLayer
-  static draftMaterial: BABYLON.StandardMaterial | null = null
-  private static draftPulseObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
+  static layer: any
+  static draftMaterial: StandardMaterialProps | null = null
+  private static draftPulseObs: (any | null) = null
 
-  static getDraftMaterial(scene: BABYLON.Scene): BABYLON.StandardMaterial {
+  static getDraftMaterial(scene: SceneContext): StandardMaterialProps {
     if (!Feature.draftMaterial) {
-      const m = new BABYLON.StandardMaterial('feature-draft', scene)
+      const m = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('feature-draft', scene) */)
       m.specularColor.set(0, 0, 0)
       m.diffuseColor.set(0.4, 0.4, 0.4)
       m.emissiveColor.set(0.4, 0.4, 0.4)
       m.backFaceCulling = false
       Feature.draftMaterial = m
-      Feature.draftPulseObs = scene.onBeforeRenderObservable.add(() => {
+      Feature.draftPulseObs = onBeforeRender(scene, () => {
         const g = 0.4 + 0.1 * Math.sin(Date.now() * 0.003)
         m.diffuseColor.set(g, g, g)
         m.emissiveColor.set(g, g, g)
@@ -103,28 +105,28 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     return Feature.draftMaterial
   }
 
-  parent: BABYLON.TransformNode | null = null
+  parent: TransformNode | null = null
   uuid: string
-  scene: BABYLON.Scene
+  scene: SceneContext
   mesh?: AbstractMeshExtended | TransformNodeExtended | null
   description: Description
   parcel: Parcel
   onEnter?: () => void
   onExit?: () => void
-  animation?: BABYLON.Animation
+  animation?: any
   _animationDisabled = false
   timer?: number
   disposed = false
   basicGui?: FeatureBasicGUI | null
   createdByScripting = false // if feature has been created by scripting, so we can clean it on reload
   _triggers: Set<FeatureTrigger> = new Set()
-  gizmos: BABYLON.Gizmo[] = []
+  gizmos: any[] = []
   private _isPickable: boolean = true
   public afterSetCommon?: () => void
   protected abortController = new AbortController()
-  private animationInstance: BABYLON.Animatable | undefined = undefined
+  private animationInstance: any | undefined = undefined
 
-  constructor(scene: BABYLON.Scene, parcel: Parcel, uuid: string, description: Description) {
+  constructor(scene: SceneContext, parcel: Parcel, uuid: string, description: Description) {
     super()
     this.scene = scene
     this.parcel = parcel
@@ -308,11 +310,11 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   get rotation() {
-    return BABYLON.Vector3.FromArray(this.tidyRotation)
+    return vec3.clone(this.tidyRotation as any)
   }
 
   get scale() {
-    return BABYLON.Vector3.FromArray(this.tidyScale)
+    return vec3.clone(this.tidyScale as any)
   }
 
   get tidyScale(): [number, number, number] {
@@ -320,13 +322,13 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   get position() {
-    return BABYLON.Vector3.FromArray(this.tidyPosition)
+    return vec3.clone(this.tidyPosition as any)
   }
 
   /**
    * Returns the position relative to its parent group
    */
-  get positionInGroup(): BABYLON.Vector3 | null {
+  get positionInGroup(): Vec3 | null {
     if (!this.group || !this.group.mesh) return null
     return this.getTransformVectorsRelativeToNode(this.group.mesh).position
   }
@@ -342,7 +344,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       // if the item is regenerating and the mesh is not there yet
       const groupTransformNode = this.group.mesh
 
-      const meshReplicaTransform = new BABYLON.TransformNode('meshReplicaTransform', this.scene)
+      const meshReplicaTransform = (undefined as any /* todo(lite): new BABYLON.TransformNode('meshReplicaTransform', this.scene) */)
       meshReplicaTransform.position.copyFrom(this.position)
       meshReplicaTransform.rotation.copyFrom(this.rotation)
       meshReplicaTransform.scaling.copyFrom(this.scale)
@@ -398,14 +400,14 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   get isAnInstance() {
-    return this.mesh instanceof BABYLON.InstancedMesh
+    return (false /* todo(lite): this.mesh instanceof BABYLON.InstancedMesh */)
   }
 
-  get boundingBox(): BABYLON.BoundingBox | null {
+  get boundingBox(): any | null {
     if (!this.mesh) {
       return null
     }
-    return this.mesh && boundingBoxOfMesh(this.mesh as BABYLON.AbstractMesh) // todo fix
+    return this.mesh && boundingBoxOfMesh(this.mesh as Mesh) // todo fix
   }
 
   protected get connector(): Connector {
@@ -456,7 +458,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     }
   }
 
-  inside(checkBoundingBox: BABYLON.BoundingBox): boolean {
+  inside(checkBoundingBox: any): boolean {
     // the parcel's cached boxes go stale when a teleport moves the world offset - resync first
     this.parcel.syncWorldBounds()
     return !this.boundingBox || bboxCompletelyWithin(checkBoundingBox, this.boundingBox)
@@ -488,9 +490,9 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       throw new Error('No mesh to add events to')
     }
 
-    mesh.cvOnLeftClick = (pickInfo: BABYLON.PickingInfo | null | undefined) => {
-      const point: BABYLON.FloatArray = []
-      const normal: BABYLON.FloatArray = []
+    mesh.cvOnLeftClick = (pickInfo: PickingInfo | null | undefined) => {
+      const point: any = []
+      const normal: any = []
 
       if (pickInfo?.pickedPoint) {
         pickInfo.pickedPoint.subtract(this.parcel.transform.position).toArray(point)
@@ -595,7 +597,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
     let timer: number | undefined
 
-    featureTrigger.handler = (scene: BABYLON.Scene) => {
+    featureTrigger.handler = (scene: SceneContext) => {
       // only check every 6 frame (1000ms/60fps)*6frames = 100ms
       if (!(scene.getFrameId() % 6)) {
         return
@@ -613,7 +615,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
         return
       }
 
-      const distance = BABYLON.Vector3.Distance(this.mesh.absolutePosition, avatarPos)
+      const distance = vec3.distance(this.mesh.absolutePosition, avatarPos)
       const proximityToTrigger = featureTrigger.proximityToTrigger || Feature.proximityToTrigger
 
       if (featureTrigger.triggered && distance > proximityToTrigger) {
@@ -687,7 +689,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
   public abstract whatIsThis(): string | VNode<Feature>
 
-  allowedProposedPosition(proposedPosition: BABYLON.Vector3): boolean {
+  allowedProposedPosition(proposedPosition: Vec3): boolean {
     return this.wouldBeInBoundsIfMoved(proposedPosition) || this.proposedPositionCloserToParcelCenter(proposedPosition)
   }
 
@@ -695,7 +697,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
    * Is the proposed position closer to parcel centre than the current position?
    * @proposedPosition position in local space eg. feature.description.position eg. the position displayed in the text input
    */
-  proposedPositionCloserToParcelCenter = (point: BABYLON.Vector3) => {
+  proposedPositionCloserToParcelCenter = (point: Vec3) => {
     if (!this.mesh) {
       return false
     }
@@ -714,24 +716,24 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   /**
    * Translate the feature position by the vector in its local space and return the resulting coordinate in parcel
    */
-  localTranslationInParcelSpace(translation: BABYLON.Vector3) {
+  localTranslationInParcelSpace(translation: Vec3) {
     if (!this.mesh) {
-      return BABYLON.Vector3.Zero()
+      return vec3.create()
     }
-    let vec = BABYLON.Vector3.TransformNormal(this.mesh.getPositionExpressedInLocalSpace().add(translation), this.mesh._localMatrix)
+    let vec = (undefined as any /* todo(lite): BABYLON.Vector3.TransformNormal(this.mesh.getPositionExpressedInLocalSpace().add(translation), this.mesh._localMatrix) */)
 
-    let parent: BABYLON.Node | null = this.mesh
+    let parent: TransformNode | null = this.mesh
     while (true) {
       parent = parent.parent
 
-      if (!parent || !(parent instanceof BABYLON.TransformNode)) {
+      if (!parent || !((false /* todo(lite): parent instanceof BABYLON.TransformNode */))) {
         throw new Error("feature: Can't get the parcelMatrix() of a mesh not descending from a parcel mesh")
       }
       if (parent.metadata?.isParcel) {
         break
       }
 
-      vec = BABYLON.Vector3.TransformCoordinates(vec, parent._localMatrix)
+      vec = (undefined as any /* todo(lite): BABYLON.Vector3.TransformCoordinates(vec, parent._localMatrix) */)
     }
     return vec
   }
@@ -766,7 +768,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   async regenerate(): Promise<void> {
-    if (this.mesh instanceof BABYLON.Mesh && this.mesh.instances.length > 0) {
+    if ((false /* todo(lite): this.mesh instanceof BABYLON.Mesh */) && this.mesh.instances.length > 0) {
       // if you are editing the root object, deinstance all the other items otherwise they will be destroyed
       this.deinstance()
     }
@@ -792,12 +794,12 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
         this.scene.stopAnimation(this.mesh)
       }
 
-      if (this.mesh instanceof BABYLON.AbstractMesh) {
+      if ((false /* todo(lite): this.mesh instanceof BABYLON.AbstractMesh */)) {
         const material = this.mesh.material
         this.mesh.material = null
         this.mesh.dispose()
         this.mesh = null
-        if (material instanceof BABYLON.StandardMaterial && material !== Feature.draftMaterial && material.getBindedMeshes().length <= 1) {
+        if ((false /* todo(lite): material instanceof BABYLON.StandardMaterial */) && material !== Feature.draftMaterial && material.getBindedMeshes().length <= 1) {
           material?.dispose(false, true)
         }
       } else {
@@ -865,14 +867,14 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   getOtherInstances(): Feature[] {
-    if (this.mesh instanceof BABYLON.Mesh) {
+    if ((false /* todo(lite): this.mesh instanceof BABYLON.Mesh */)) {
       return this.mesh.instances
         .map((x) => {
           return (x as unknown as MeshExtended).feature
         })
         .filter((x) => x !== undefined) as Feature[]
-    } else if (this.mesh && (this.mesh as any) instanceof BABYLON.InstancedMesh) {
-      const instMesh = this.mesh as BABYLON.InstancedMesh & { sourceMesh: MeshExtended }
+    } else if (this.mesh && (false /* todo(lite): (this.mesh as any) instanceof BABYLON.InstancedMesh */)) {
+      const instMesh = this.mesh as Mesh & { sourceMesh: MeshExtended }
       if (!instMesh.sourceMesh.feature) return []
 
       return [instMesh.sourceMesh['feature']].concat(instMesh.sourceMesh.instances.filter((m) => m !== this.mesh).map((m) => (m as any)['feature']))
@@ -967,10 +969,10 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       return
     }
 
-    const offset = this.description.animation.destination === 'position' ? this.position : BABYLON.Vector3.Zero()
-    const keys = validKeys.map((k: validFrame) => ({ frame: k.frame, value: BABYLON.Vector3.FromArray(k.value).addInPlace(offset) }))
+    const offset = this.description.animation.destination === 'position' ? this.position : vec3.create()
+    const keys = validKeys.map((k: validFrame) => ({ frame: k.frame, value: (undefined as any /* todo(lite): BABYLON.Vector3.FromArray(k.value).addInPlace(offset) */) }))
 
-    this.animation = new BABYLON.Animation('feature/animation', this.description.animation.destination, 30, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE)
+    this.animation = (undefined as any /* todo(lite): new BABYLON.Animation('feature/animation', this.description.animation.destination, 30, BABYLON.Animation.ANIMATIONTYPE_VECTOR3, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE) */)
     this.animation.setKeys(keys)
 
     const easingDescription = this.description.animation.easing
@@ -1001,11 +1003,11 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   // if we want to change the parent, but preserve the screen appearance, use this function to find what the feature's transforms should be updated to.
-  public getTransformVectorsRelativeToNode(node: BABYLON.Node): transformVectors {
+  public getTransformVectorsRelativeToNode(node: TransformNode): transformVectors {
     if (!this.mesh) {
-      const rotation = new BABYLON.Vector3()
-      const position = new BABYLON.Vector3()
-      const scaling = new BABYLON.Vector3()
+      const rotation = vec3.create()
+      const position = vec3.create()
+      const scaling = vec3.create()
       return { rotation, position, scaling }
     }
 
@@ -1040,7 +1042,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
     // Create parent
     if (!this.parent) {
-      this.parent = new BABYLON.TransformNode('feature/parent', this.scene)
+      this.parent = (undefined as any /* todo(lite): new BABYLON.TransformNode('feature/parent', this.scene) */)
     }
 
     // this.parent business is only used by nft-image- since nft-image has two separate meshes
@@ -1064,11 +1066,11 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       // that it exists. In a bugfix to 8.10.0, we've restored the legacy behaviour for 3D artifacts but not 2D.
       if (this.legacyNudge() !== null) {
         // Extrude from the face a leetle
-        this.mesh.translate(BABYLON.Axis.Z, <number>this.legacyNudge(), BABYLON.Space.LOCAL)
+        this.mesh.translate(vec3.fromValues(0, 0, 1), <number>this.legacyNudge(), (undefined as any /* todo(lite): BABYLON.Space.LOCAL */))
       } else if (this.nudge() !== null) {
         let scaledNudge = <number>this.nudge() / this.mesh.scaling.z
         // Test point - follow the nudging 5x the distance and check that it doesn't end up in a voxel
-        const testPoint = this.localTranslationInParcelSpace(new BABYLON.Vector3(0, 0, scaledNudge * 5))
+        const testPoint = this.localTranslationInParcelSpace(vec3.fromValues(0, 0, scaledNudge * 5))
 
         // If there is a voxel value then we have nudged the centrepoint into a solid voxel, reverse the nudge
         const voxelValue = this.parcel.voxelValueFromPositionInParcel(testPoint) || 0
@@ -1077,7 +1079,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
         }
 
         // Extrude from the face a leetle - nudge is multiplied by scaling.z in world coordinates so needs to have the scaling factored in
-        this.mesh.translate(BABYLON.Axis.Z, scaledNudge, BABYLON.Space.LOCAL)
+        this.mesh.translate(vec3.fromValues(0, 0, 1), scaledNudge, (undefined as any /* todo(lite): BABYLON.Space.LOCAL */))
 
         // Make x & y slightly bigger so that boxes made from nudged flat surfaces still touch corners
         if (this.nudge() !== null) {
@@ -1102,7 +1104,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
       if (this.shouldBeInteractive()) {
         const abstractMesh: AbstractMeshExtended = this.mesh as AbstractMeshExtended
-        if (!(abstractMesh instanceof BABYLON.InstancedMesh)) abstractMesh.enablePointerMoveEvents = true
+        if (!((false /* todo(lite): abstractMesh instanceof BABYLON.InstancedMesh */))) abstractMesh.enablePointerMoveEvents = true
         this.mesh.metadata.captureMoveEvents = true
         this.mesh.metadata.isInteractive = true
       }
@@ -1120,7 +1122,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
    * would feature.boundingBox lie within feature.parcel.hardFeatureBounds?
    * @proposedPosition position in local space eg. feature.description.position eg. the position displayed in the text input
    */
-  private wouldBeInBoundsIfMoved(proposedPosition: BABYLON.Vector3): boolean {
+  private wouldBeInBoundsIfMoved(proposedPosition: Vec3): boolean {
     if (!this.mesh || !this.boundingBox) return false
 
     const meshReplicaTransform = getMeshReplicaTransform(this.mesh)
@@ -1154,8 +1156,8 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
  * returns a transform node that has same placement
  * and hierarchy as the supplied mesh
  */
-export const getMeshReplicaTransform = (mesh: BABYLON.TransformNode): BABYLON.TransformNode => {
-  const meshReplicaTransform = new BABYLON.TransformNode('temp', mesh.getScene())
+export const getMeshReplicaTransform = (mesh: TransformNode): TransformNode => {
+  const meshReplicaTransform = (undefined as any /* todo(lite): new BABYLON.TransformNode('temp', mesh.getScene()) */)
   meshReplicaTransform.rotation.copyFrom(mesh.rotation)
   meshReplicaTransform.position.copyFrom(mesh.position)
   meshReplicaTransform.scaling.copyFrom(mesh.scaling)

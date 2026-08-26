@@ -4,6 +4,7 @@ import { app, AppEvent } from '../../../web/src/state'
 import { FeatureAssetCategory, FeatureAssetType, LibraryAsset, ScriptAssetCategory } from '../../library-asset'
 import { AssetBrowser, NUMBER_PER_PAGE } from './asset-browser'
 import { BrowserSortingOptions } from './browser-sorting-options'
+import { SceneContext } from '@babylonjs/lite'
 
 enum Tab {
   All = 'all',
@@ -14,7 +15,7 @@ enum Tab {
 
 type Props = {
   onClose?: () => void
-  scene: BABYLON.Scene
+  scene: SceneContext
 }
 
 type AssetCategory = FeatureAssetCategory | ScriptAssetCategory

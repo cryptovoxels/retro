@@ -42,6 +42,8 @@ import { SpatialAudio } from '../audio/spatial-audio'
 import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
+import { Material } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 // Quick-access subset for the broadcast dock. Full list lives in src/ui/interact/dance-pane.tsx.
 const DOCK_DANCES: Array<{ label: string; anim: Animations }> = [
@@ -905,7 +907,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         const feature = (await tool.spawn(pick, { ...Showbox.template, angleMode: true })) as Showbox | null
         if (feature) {
           // land it right beside the primary stage screen, facing the same way, so it's in view and oriented - then drag/resize.
-          const right = this.mesh ? this.mesh.getDirection(new BABYLON.Vector3(1, 0, 0)).normalize() : new BABYLON.Vector3(1, 0, 0)
+          const right = this.mesh ? this.mesh.getDirection(vec3.fromValues(1, 0, 0)).normalize() : vec3.fromValues(1, 0, 0)
           const offset = (this.scale?.x ?? 2) / 2 + 1.3
           feature.set({ position: this.position.add(right.scale(offset)).asArray() as [number, number, number], rotation: this.rotation.asArray() as [number, number, number] })
         }
@@ -1276,7 +1278,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.rolloffFactor <= 0 || !this.audio) return false
     // createMediaElementSource throws if the element is already wired to WebAudio - fall back to flat volume.
     try {
-      const source = BABYLON.Engine.audioEngine?.audioContext?.createMediaElementSource(el)
+      const source = (undefined as any /* todo(lite): BABYLON.Engine.audioEngine?.audioContext?.createMediaElementSource(el) */)
       if (!source) return false
       const spatial = this.audio.createSpatialAudio({
         name: 'feature/showbox/stream',
@@ -2321,7 +2323,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
   }
 
   generate() {
-    this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
     this.mesh.id = this.mesh.name + '/' + this.uuid
     this.setCommon()
     this.afterSetCommon = () => {
@@ -2684,9 +2686,9 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     canvas.height = h
     const ctx = canvas.getContext('2d')
     if (!ctx) return
-    const tex = new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), canvas, this.scene, false)
+    const tex = (undefined as any /* todo(lite): new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), canvas, this.scene, false) */)
     tex.hasAlpha = false
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     material.diffuseTexture = tex
     material.backFaceCulling = false
     material.zOffset = -5
@@ -2826,7 +2828,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     // the stream is gone - stop the letterbox raf or it keeps uploading the dead frame forever
     this.stopMeshLetterbox()
     const { w, h } = this.meshVideoSize()
-    const tex = new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), { width: w, height: h }, this.scene, false)
+    const tex = (undefined as any /* todo(lite): new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), { width: w, height: h }, this.scene, false) */)
     const ctx = tex.getContext() as CanvasRenderingContext2D
     const font = 'bold 18px "Source Code Pro", monospace'
 
@@ -2889,7 +2891,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     tex.update()
     tex.hasAlpha = false
 
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     material.diffuseTexture = tex
     material.backFaceCulling = false
     material.zOffset = -5
@@ -2904,7 +2906,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     if (this.disposed || !this.mesh) return
     const w = 640
     const h = 360
-    const tex = new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), { width: w, height: h }, this.scene, false)
+    const tex = (undefined as any /* todo(lite): new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), { width: w, height: h }, this.scene, false) */)
     const ctx = tex.getContext() as CanvasRenderingContext2D
     ctx.fillStyle = '#0d0d0d'
     ctx.fillRect(0, 0, w, h)
@@ -2919,7 +2921,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     tex.update()
     tex.hasAlpha = false
 
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     material.diffuseTexture = tex
     material.backFaceCulling = false
     material.zOffset = -5
@@ -3173,8 +3175,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
   // babylon does not refcount replaced materials/textures - dispose the previous screen
   // material we made (never the mesh's original one) or every preview/attach leaks GPU memory.
-  screenMaterial: BABYLON.Material | null = null
-  swapScreenMaterial(material: BABYLON.Material) {
+  screenMaterial: Material | null = null
+  swapScreenMaterial(material: Material) {
     const old = this.screenMaterial
     this.screenMaterial = material
     if (this.mesh) this.mesh.material = material
@@ -3198,8 +3200,8 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     this.hasActiveVideo = true
     this.stopMeshLetterbox()
 
-    const applyMaterial = (tex: BABYLON.BaseTexture) => {
-      const mat = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const applyMaterial = (tex: any) => {
+      const mat = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
       mat.diffuseTexture = tex
       mat.backFaceCulling = false
       mat.zOffset = -5
@@ -3210,7 +3212,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
     }
 
     const attachDirect = () => {
-      const tex = new BABYLON.VideoTexture(this.uniqueEntityName('texture'), el, this.scene, false, false)
+      const tex = (undefined as any /* todo(lite): new BABYLON.VideoTexture(this.uniqueEntityName('texture'), el, this.scene, false, false) */)
       tex.hasAlpha = false
       applyMaterial(tex)
     }
@@ -3226,7 +3228,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         attachDirect()
         return
       }
-      const tex = new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), canvas, this.scene, false)
+      const tex = (undefined as any /* todo(lite): new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), canvas, this.scene, false) */)
       tex.hasAlpha = false
       applyMaterial(tex)
       const tick = () => {
@@ -3531,7 +3533,7 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         if (cam) {
           // host spawns facing the screen; audience stands further out in the opposite direction
           const yaw = this.rotation.y + (mobileShowWorld ? Math.PI : 0)
-          setCameraRotation(this.scene, new BABYLON.Vector3(cam.rotation.x, yaw, cam.rotation.z))
+          setCameraRotation(this.scene, vec3.fromValues(cam.rotation.x, yaw, cam.rotation.z))
         }
       }
       mobileExtrasBtn = document.createElement('button')

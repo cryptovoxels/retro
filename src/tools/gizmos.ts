@@ -4,25 +4,27 @@ import { setSelectedFeature } from '../store'
 import { createEvent } from '../utils/EventEmitter'
 import { limitAbsoluteValue, round } from '../utils/helpers'
 import { isFlatWallFeature } from './flat-wall'
+import { Mesh, SceneContext, StandardMaterialProps, TransformNode, Vec3, onBeforeRender } from '@babylonjs/lite'
+import { mat4, vec3 } from 'wgpu-matrix'
 
-let utilLayer = undefined as BABYLON.UtilityLayerRenderer | undefined
-const gizmos: BABYLON.AxisDragGizmo[] = []
+let utilLayer = undefined as any | undefined
+const gizmos: any[] = []
 // This is to allow reverting the position if the new position set by gizmo is not allowed (outside hard limit)
-let initialPosition: BABYLON.Vector3
-let initialFeaturePosition: BABYLON.Vector3
+let initialPosition: Vec3
+let initialFeaturePosition: Vec3
 
 // showboxes drag around like a window: grab the body, slide it in its own plane (depth locked). one shared behavior.
-let windowDragMesh: BABYLON.Mesh | null = null
+let windowDragMesh: Mesh | null = null
 let windowDragMeshWasPickable = true
-let windowDragFeatureStart: BABYLON.Vector3 | null = null
-let windowDragMeshStart: BABYLON.Vector3 | null = null
-let windowDragMeshWorldStart: BABYLON.Vector3 | null = null
+let windowDragFeatureStart: Vec3 | null = null
+let windowDragMeshStart: Vec3 | null = null
+let windowDragMeshWorldStart: Vec3 | null = null
 let windowDragMoved = false
 let windowDragActive = false
-let windowDragCursorObserver: BABYLON.Observer<BABYLON.PointerInfo> | null = null
-let windowDragPointerObserver: BABYLON.Observer<BABYLON.PointerInfo> | null = null
-let windowDragPrePointerObserver: BABYLON.Observer<BABYLON.PointerInfoPre> | null = null
-let windowDragUnfreezeObserver: BABYLON.Observer<BABYLON.Scene> | null = null
+let windowDragCursorObserver: any | null = null
+let windowDragPointerObserver: any | null = null
+let windowDragPrePointerObserver: any | null = null
+let windowDragUnfreezeObserver: any | null = null
 let windowDragDocPointerUp: (() => void) | null = null
 let windowDragFrame: PlaneFrame | null = null
 let windowDragGrabU = 0
@@ -32,15 +34,15 @@ let activeHandles: ResizeHandleSet | null = null
 
 type AxisLabel = 'X' | 'Y' | 'Z'
 
-type PlaneFrame = { origin: BABYLON.Vector3; axisX: BABYLON.Vector3; axisY: BABYLON.Vector3; normal: BABYLON.Vector3 }
+type PlaneFrame = { origin: Vec3; axisX: Vec3; axisY: Vec3; normal: Vec3 }
 
-const planeFrameFromMesh = (mesh: BABYLON.AbstractMesh): PlaneFrame => {
+const planeFrameFromMesh = (mesh: Mesh): PlaneFrame => {
   const W = mesh.computeWorldMatrix(true)
   return {
     origin: mesh.getAbsolutePosition().clone(),
-    axisX: BABYLON.Vector3.TransformNormal(BABYLON.Axis.X, W).normalize(),
-    axisY: BABYLON.Vector3.TransformNormal(BABYLON.Axis.Y, W).normalize(),
-    normal: BABYLON.Vector3.TransformNormal(BABYLON.Axis.Z, W).normalize(),
+    axisX: (undefined as any /* todo(lite): BABYLON.Vector3.TransformNormal(BABYLON.Axis.X, W).normalize() */),
+    axisY: (undefined as any /* todo(lite): BABYLON.Vector3.TransformNormal(BABYLON.Axis.Y, W).normalize() */),
+    normal: (undefined as any /* todo(lite): BABYLON.Vector3.TransformNormal(BABYLON.Axis.Z, W).normalize() */),
   }
 }
 
@@ -53,8 +55,8 @@ const updateHighlight = () => {
  * First we create the gizmos;
  * These will stay on standby until attached.
  */
-export const createGizmos = (scene: BABYLON.Scene) => {
-  utilLayer = utilLayer || new BABYLON.UtilityLayerRenderer(scene)
+export const createGizmos = (scene: SceneContext) => {
+  utilLayer = utilLayer || (undefined as any /* todo(lite): new BABYLON.UtilityLayerRenderer(scene) */)
 
   gizmos.push(...createAxisDragGizmos())
 
@@ -64,13 +66,13 @@ export const createGizmos = (scene: BABYLON.Scene) => {
 // create position gizmos
 const createAxisDragGizmos = () => {
   const axes = [
-    { color: BABYLON.Color3.FromHexString('#ff0000'), label: 'X', axis: BABYLON.Axis.X, alpha: 1 },
-    { color: BABYLON.Color3.FromHexString('#00ff00'), label: 'Y', axis: BABYLON.Axis.Y, alpha: 1 },
-    { color: BABYLON.Color3.FromHexString('#0000ff'), label: 'Z', axis: BABYLON.Axis.Z, alpha: 0.5 },
+    { color: (undefined as any /* todo(lite): BABYLON.Color3.FromHexString('#ff0000') */), label: 'X', axis: vec3.fromValues(1, 0, 0), alpha: 1 },
+    { color: (undefined as any /* todo(lite): BABYLON.Color3.FromHexString('#00ff00') */), label: 'Y', axis: vec3.fromValues(0, 1, 0), alpha: 1 },
+    { color: (undefined as any /* todo(lite): BABYLON.Color3.FromHexString('#0000ff') */), label: 'Z', axis: vec3.fromValues(0, 0, 1), alpha: 0.5 },
   ]
 
   return axes.map((a) => {
-    const gizmo = new BABYLON.AxisDragGizmo(a.axis, a.color, utilLayer, undefined, 4)
+    const gizmo = (undefined as any /* todo(lite): new BABYLON.AxisDragGizmo(a.axis, a.color, utilLayer, undefined, 4) */)
     gizmo.snapDistance = 0.05
     gizmo.scaleRatio = 1.5
     gizmo.coloredMaterial.alpha = a.alpha
@@ -82,10 +84,10 @@ const createAxisDragGizmos = () => {
   })
 }
 
-const axisLabelOf = (gizmo: BABYLON.Gizmo): AxisLabel | undefined => gizmo._rootMesh?.metadata?.axisLabel
+const axisLabelOf = (gizmo: any): AxisLabel | undefined => gizmo._rootMesh?.metadata?.axisLabel
 
 // position gizmos onDrag
-const addOnAxisDragBehavior = (gizmo: BABYLON.AxisDragGizmo, axes: AxisLabel) => {
+const addOnAxisDragBehavior = (gizmo: any, axes: AxisLabel) => {
   gizmo.dragBehavior.onDragStartObservable.add(onAxisStartDrag(gizmo))
   gizmo.dragBehavior.onDragObservable.add(onDragObservableHandler(gizmo))
   gizmo.dragBehavior.onDragEndObservable.add(onAxisDragEnd(gizmo, axes))
@@ -93,9 +95,9 @@ const addOnAxisDragBehavior = (gizmo: BABYLON.AxisDragGizmo, axes: AxisLabel) =>
   gizmo.dragBehavior.onDragEndObservable.add(GenericOnDragEnd(gizmo))
 }
 
-const gizmoTransform = (gizmo: BABYLON.Gizmo): BABYLON.TransformNode | null => (gizmo.attachedMesh as BABYLON.TransformNode | null) ?? (gizmo.attachedNode as BABYLON.TransformNode | null)
+const gizmoTransform = (gizmo: any): TransformNode | null => (gizmo.attachedMesh as TransformNode | null) ?? (gizmo.attachedNode as TransformNode | null)
 
-const onAxisStartDrag = (gizmo: BABYLON.Gizmo) => () => {
+const onAxisStartDrag = (gizmo: any) => () => {
   const feature = getFeature(gizmo)
   const mesh = gizmoTransform(gizmo)
   if (!feature || !mesh) return
@@ -103,7 +105,7 @@ const onAxisStartDrag = (gizmo: BABYLON.Gizmo) => () => {
   initialFeaturePosition = feature.position.clone()
 }
 
-const onAxisDragEnd = (gizmo: BABYLON.AxisDragGizmo, axis: AxisLabel) => () => {
+const onAxisDragEnd = (gizmo: any, axis: AxisLabel) => () => {
   const feature = getFeature(gizmo)
   if (!feature) return
 
@@ -129,7 +131,7 @@ const onAxisDragEnd = (gizmo: BABYLON.AxisDragGizmo, axis: AxisLabel) => () => {
   setSelectedFeature(feature)
 }
 
-const onDragObservableHandler = (gizmo: BABYLON.IGizmo) => () => {
+const onDragObservableHandler = (gizmo: any) => () => {
   const feature = getFeature(gizmo)
   if (!feature) return
 
@@ -140,17 +142,17 @@ const onDragObservableHandler = (gizmo: BABYLON.IGizmo) => () => {
   updateHighlight()
 }
 
-const limitVector3AbsoluteValues = (vector3: BABYLON.Vector3, maximumAbsoluteValue: number): BABYLON.Vector3 => {
+const limitVector3AbsoluteValues = (vector3: Vec3, maximumAbsoluteValue: number): Vec3 => {
   vector3.x = limitAbsoluteValue(vector3.x, maximumAbsoluteValue)
   vector3.y = limitAbsoluteValue(vector3.y, maximumAbsoluteValue)
   vector3.z = limitAbsoluteValue(vector3.z, maximumAbsoluteValue)
   return vector3
 }
 
-const clearGizmo = (gizmo: BABYLON.Gizmo) => {
+const clearGizmo = (gizmo: any) => {
   gizmo.attachedMesh = null
   gizmo.attachedNode = null
-  if (gizmo instanceof BABYLON.AxisDragGizmo) {
+  if ((false /* todo(lite): gizmo instanceof BABYLON.AxisDragGizmo */)) {
     gizmo.isEnabled = false
     gizmo.updateGizmoRotationToMatchAttachedMesh = false
   }
@@ -163,7 +165,7 @@ const clearGizmo = (gizmo: BABYLON.Gizmo) => {
 export const bindGizmosToFeature = (feature: Feature) => {
   // always drop leftovers first — skipped X/Y axes used to stay enabled from the previous feature
   gizmos.forEach(clearGizmo)
-  gizmos.forEach((gizmo: BABYLON.Gizmo) => {
+  gizmos.forEach((gizmo: any) => {
     bindGizmoToFeature(gizmo, feature)
   })
   // flat wall features: face drag + corner resize + blue Z for depth (no X/Y arrows)
@@ -175,10 +177,10 @@ export const bindGizmosToFeature = (feature: Feature) => {
   }
 }
 
-const bindGizmoToFeature = (gizmo: BABYLON.Gizmo, feature: Feature) => {
+const bindGizmoToFeature = (gizmo: any, feature: Feature) => {
   // flat wall: skip X/Y drag; keep Z for depth along the screen normal
   if (isFlatWallFeature(feature)) {
-    if (gizmo instanceof BABYLON.AxisDragGizmo && axisLabelOf(gizmo) !== 'Z') {
+    if ((false /* todo(lite): gizmo instanceof BABYLON.AxisDragGizmo */) && axisLabelOf(gizmo) !== 'Z') {
       clearGizmo(gizmo)
       return
     }
@@ -190,19 +192,19 @@ const bindGizmoToFeature = (gizmo: BABYLON.Gizmo, feature: Feature) => {
     } else {
       // all non-group features
       // typescript should know this is a Mesh here 😔
-      gizmo.attachedMesh = feature.mesh as BABYLON.Mesh
+      gizmo.attachedMesh = feature.mesh as Mesh
     }
   }
 
-  if (gizmo instanceof BABYLON.AxisDragGizmo) {
+  if ((false /* todo(lite): gizmo instanceof BABYLON.AxisDragGizmo */)) {
     gizmo.isEnabled = true
     // depth must follow the screen facing, not world Z (wall screens are rotated)
-    if (isFlatWallFeature(feature) && gizmo instanceof BABYLON.AxisDragGizmo) {
+    if (isFlatWallFeature(feature) && (false /* todo(lite): gizmo instanceof BABYLON.AxisDragGizmo */)) {
       gizmo.updateGizmoRotationToMatchAttachedMesh = true
       gizmo.coloredMaterial.alpha = 1
       // small — Z points at the camera on wall art, so a fat arrow collider covers the face
       gizmo.scaleRatio = 0.75
-    } else if (gizmo instanceof BABYLON.AxisDragGizmo) {
+    } else if ((false /* todo(lite): gizmo instanceof BABYLON.AxisDragGizmo */)) {
       gizmo.updateGizmoRotationToMatchAttachedMesh = false
       gizmo.scaleRatio = 1.5
       if (axisLabelOf(gizmo) === 'Z') gizmo.coloredMaterial.alpha = 0.5
@@ -219,14 +221,14 @@ export const unbindGizmosFromFeature = (feature: Feature) => {
   hideResizeHandles(feature)
 }
 
-const getFeature = (gizmo: BABYLON.IGizmo): Feature | null => {
+const getFeature = (gizmo: any): Feature | null => {
   const attachedEntity = gizmo.attachedMesh || (gizmo.attachedNode as any)
   if (!attachedEntity) return null
   return attachedEntity.feature as Feature // defined in feature.ts setCommon
 }
 
 export const rebindGizmos = (feature: Feature) => {
-  gizmos.forEach((gizmo: BABYLON.Gizmo) => {
+  gizmos.forEach((gizmo: any) => {
     const boundFeature = getFeature(gizmo)
     if (!boundFeature) return
     if (boundFeature.uuid === feature.uuid) {
@@ -246,7 +248,7 @@ const roundNumberArray = (array: number[], dp: number) => array.map((i: number) 
 const SNAP = 0.05
 const snapArray = (a: number[]) => a.map((v) => round(Math.round(v / SNAP) * SNAP, 2))
 
-export const pointerOverGizmo = (scene: BABYLON.Scene): boolean => {
+export const pointerOverGizmo = (scene: SceneContext): boolean => {
   if (utilLayer?.utilityLayerScene.pick(scene.pointerX, scene.pointerY)?.hit) return true
   if (windowDragMesh) {
     const p = scene.pick(scene.pointerX, scene.pointerY, (m) => m === windowDragMesh)
@@ -260,7 +262,7 @@ export const pointerOverGizmo = (scene: BABYLON.Scene): boolean => {
  * @param gizmo The gizmo
  * @returns void
  */
-const GenericOnDragStart = (gizmo: BABYLON.Gizmo) => () => {
+const GenericOnDragStart = (gizmo: any) => () => {
   window.ui?.setDragging(true)
   const feature = getFeature(gizmo)
   if (!feature) return
@@ -270,14 +272,14 @@ const GenericOnDragStart = (gizmo: BABYLON.Gizmo) => () => {
     feature.pauseAnimation()
   }
 }
-const GenericOnDragEnd = (gizmo: BABYLON.Gizmo) => () => {
+const GenericOnDragEnd = (gizmo: any) => () => {
   window.ui?.setDragging(false)
   const feature = getFeature(gizmo)
   if (!feature) return
 
   // If feature is animated, pause Animation on DragStart
   if (feature.isAnimated) {
-    feature.startAnimation(gizmo instanceof BABYLON.AxisDragGizmo ? true : false)
+    feature.startAnimation((false /* todo(lite): gizmo instanceof BABYLON.AxisDragGizmo */) ? true : false)
   }
 }
 
@@ -287,33 +289,33 @@ const GenericOnDragEnd = (gizmo: BABYLON.Gizmo) => () => {
 // PointerDragBehavior silently stops moving a frozen mesh.
 // ──────────────────────────────────────────────────────────────────────────
 
-const rayHitPlane = (ray: BABYLON.Ray, origin: BABYLON.Vector3, normal: BABYLON.Vector3): BABYLON.Vector3 | null => {
-  const denom = BABYLON.Vector3.Dot(ray.direction, normal)
+const rayHitPlane = (ray: any, origin: Vec3, normal: Vec3): Vec3 | null => {
+  const denom = vec3.dot(ray.direction, normal)
   if (Math.abs(denom) < 1e-5) return null
-  const t = BABYLON.Vector3.Dot(origin.subtract(ray.origin), normal) / denom
+  const t = vec3.dot(origin.subtract(ray.origin), normal) / denom
   if (t < 0) return null
   return ray.origin.add(ray.direction.scale(t))
 }
 
-const pointerRay = (scene: BABYLON.Scene): BABYLON.Ray | null => {
+const pointerRay = (scene: SceneContext): any | null => {
   const cam = scene.activeCamera
   if (!cam) return null
-  return scene.createPickingRay(scene.pointerX, scene.pointerY, BABYLON.Matrix.Identity(), cam)
+  return scene.createPickingRay(scene.pointerX, scene.pointerY, mat4.identity(), cam)
 }
 
-const setMeshWorldPositionOnPlane = (mesh: BABYLON.Mesh, worldPos: BABYLON.Vector3) => {
+const setMeshWorldPositionOnPlane = (mesh: Mesh, worldPos: Vec3) => {
   mesh.unfreezeWorldMatrix()
-  const parent = mesh.parent as BABYLON.TransformNode | null
+  const parent = mesh.parent as TransformNode | null
   if (parent) {
     const inv = parent.getWorldMatrix().clone().invert()
-    BABYLON.Vector3.TransformCoordinatesToRef(worldPos, inv, mesh.position)
+    (undefined as any /* todo(lite): BABYLON.Vector3.TransformCoordinatesToRef(worldPos, inv, mesh.position) */)
   } else {
     mesh.position.copyFrom(worldPos)
   }
   mesh.computeWorldMatrix(true)
 }
 
-const finishWindowDrag = (feature: Feature, mesh: BABYLON.Mesh, canvas: HTMLCanvasElement | null) => {
+const finishWindowDrag = (feature: Feature, mesh: Mesh, canvas: HTMLCanvasElement | null) => {
   windowDragFrame = null
   if (windowDragDocPointerUp) {
     document.removeEventListener('pointerup', windowDragDocPointerUp)
@@ -341,7 +343,7 @@ const finishWindowDrag = (feature: Feature, mesh: BABYLON.Mesh, canvas: HTMLCanv
 }
 
 const attachWindowDrag = (feature: Feature) => {
-  const mesh = feature.mesh as BABYLON.Mesh | undefined
+  const mesh = feature.mesh as Mesh | undefined
   if (!mesh) return
   detachWindowDrag()
 
@@ -356,12 +358,12 @@ const attachWindowDrag = (feature: Feature) => {
   scene.constantlyUpdateMeshUnderPointer = true
 
   // setCommon freezes meshes; keep this one thawed the whole time the editor gizmos are bound
-  windowDragUnfreezeObserver = scene.onBeforeRenderObservable.add(() => {
+  windowDragUnfreezeObserver = onBeforeRender(scene, () => {
     if (windowDragMesh && windowDragMesh.isWorldMatrixFrozen) windowDragMesh.unfreezeWorldMatrix()
   })
 
   windowDragCursorObserver = scene.onPointerObservable.add((info) => {
-    if (info.type !== BABYLON.PointerEventTypes.POINTERMOVE || !canvas || !windowDragMesh) return
+    if (info.type !== (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERMOVE */) || !canvas || !windowDragMesh) return
     if (windowDragActive || window.ui?.state?.dragging) {
       canvas.style.cursor = 'move'
       return
@@ -382,7 +384,7 @@ const attachWindowDrag = (feature: Feature) => {
   windowDragPrePointerObserver = scene.onPrePointerObservable.add(
     (info) => {
       if (!windowDragMesh || windowDragMesh !== mesh) return
-      if (info.type !== BABYLON.PointerEventTypes.POINTERDOWN || info.event.button !== 0) return
+      if (info.type !== (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERDOWN */) || info.event.button !== 0) return
 
       if (utilLayer) {
         const uPick = utilLayer.utilityLayerScene.pick(scene.pointerX, scene.pointerY)
@@ -399,8 +401,8 @@ const attachWindowDrag = (feature: Feature) => {
       if (!hit) return
 
       windowDragFrame = frame
-      windowDragGrabU = BABYLON.Vector3.Dot(hit.subtract(frame.origin), frame.axisX)
-      windowDragGrabV = BABYLON.Vector3.Dot(hit.subtract(frame.origin), frame.axisY)
+      windowDragGrabU = vec3.dot(hit.subtract(frame.origin), frame.axisX)
+      windowDragGrabV = vec3.dot(hit.subtract(frame.origin), frame.axisY)
       windowDragFeatureStart = feature.position.clone()
       windowDragMeshStart = mesh.position.clone()
       windowDragMeshWorldStart = mesh.getAbsolutePosition().clone()
@@ -426,7 +428,7 @@ const attachWindowDrag = (feature: Feature) => {
     (info) => {
       if (!windowDragMesh || windowDragMesh !== mesh) return
       if (!windowDragActive) return
-      if (info.type !== BABYLON.PointerEventTypes.POINTERMOVE) return
+      if (info.type !== (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERMOVE */)) return
 
       const frame = windowDragFrame
       const worldStart = windowDragMeshWorldStart
@@ -437,8 +439,8 @@ const attachWindowDrag = (feature: Feature) => {
       const hit = rayHitPlane(ray, frame.origin, frame.normal)
       if (!hit) return
 
-      const u = BABYLON.Vector3.Dot(hit.subtract(frame.origin), frame.axisX)
-      const v = BABYLON.Vector3.Dot(hit.subtract(frame.origin), frame.axisY)
+      const u = vec3.dot(hit.subtract(frame.origin), frame.axisX)
+      const v = vec3.dot(hit.subtract(frame.origin), frame.axisY)
       const du = u - windowDragGrabU
       const dv = v - windowDragGrabV
       if (!windowDragMoved && (Math.abs(du) > 0.002 || Math.abs(dv) > 0.002)) {
@@ -522,17 +524,17 @@ const HANDLE_CORNERS = [
 ]
 
 // diagonal resize cursor that matches the handle corner in screen space (screens rotate on walls)
-const resizeCursorForCorner = (corner: { sx: number; sy: number }, mesh: BABYLON.Mesh, scene: BABYLON.Scene) => {
+const resizeCursorForCorner = (corner: { sx: number; sy: number }, mesh: Mesh, scene: SceneContext) => {
   const cam = scene.activeCamera
   if (!cam) return 'nwse-resize'
   const W = mesh.computeWorldMatrix(true)
-  const cWorld = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(corner.sx * 0.5, corner.sy * 0.5, 0), W)
-  const aWorld = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-corner.sx * 0.5, -corner.sy * 0.5, 0), W)
+  const cWorld = (undefined as any /* todo(lite): BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(corner.sx * 0.5, corner.sy * 0.5, 0), W) */)
+  const aWorld = (undefined as any /* todo(lite): BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(-corner.sx * 0.5, -corner.sy * 0.5, 0), W) */)
   const engine = scene.getEngine()
   const viewport = cam.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight())
   const transform = scene.getTransformMatrix()
-  const cScr = BABYLON.Vector3.Project(cWorld, BABYLON.Matrix.Identity(), transform, viewport)
-  const aScr = BABYLON.Vector3.Project(aWorld, BABYLON.Matrix.Identity(), transform, viewport)
+  const cScr = (undefined as any /* todo(lite): BABYLON.Vector3.Project(cWorld, BABYLON.Matrix.Identity(), transform, viewport) */)
+  const aScr = (undefined as any /* todo(lite): BABYLON.Vector3.Project(aWorld, BABYLON.Matrix.Identity(), transform, viewport) */)
   const dx = cScr.x - aScr.x
   const dy = cScr.y - aScr.y
   return dx * dy > 0 ? 'nwse-resize' : 'nesw-resize'
@@ -553,38 +555,38 @@ const hideResizeHandles = (feature?: Feature) => {
 
 class ResizeHandleSet {
   feature: Feature
-  private scene: BABYLON.Scene
-  private uScene: BABYLON.Scene
+  private scene: SceneContext
+  private uScene: SceneContext
   private canvas: HTMLCanvasElement | null
-  private handles: BABYLON.Mesh[] = []
-  private normals: BABYLON.Vector3[] = [] // per-handle live drag-plane normal (updated each frame)
-  private observer: BABYLON.Observer<BABYLON.Scene> | null = null
-  private material: BABYLON.StandardMaterial
+  private handles: Mesh[] = []
+  private normals: Vec3[] = [] // per-handle live drag-plane normal (updated each frame)
+  private observer: any | null = null
+  private material: StandardMaterialProps
 
-  constructor(feature: Feature, layer: BABYLON.UtilityLayerRenderer) {
+  constructor(feature: Feature, layer: any) {
     this.feature = feature
     this.scene = layer.originalScene
     this.uScene = layer.utilityLayerScene
     this.canvas = this.scene.getEngine().getRenderingCanvas()
 
-    this.material = new BABYLON.StandardMaterial('feature/showbox/resize-handle/mat', this.uScene)
-    this.material.emissiveColor = BABYLON.Color3.FromHexString('#e6635a')
+    this.material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('feature/showbox/resize-handle/mat', this.uScene) */)
+    this.material.emissiveColor = (undefined as any /* todo(lite): BABYLON.Color3.FromHexString('#e6635a') */)
     this.material.disableLighting = true
 
     HANDLE_CORNERS.forEach((corner, i) => {
-      const handle = BABYLON.MeshBuilder.CreateBox(`feature/showbox/resize-handle/${i}`, { size: 1 }, this.uScene)
+      const handle = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox(`feature/showbox/resize-handle/${i}`, { size: 1 }, this.uScene) */)
       handle.material = this.material
       handle.isPickable = true
       handle.enablePointerMoveEvents = true
-      handle.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL // easy to grab from any angle
-      this.normals.push(BABYLON.Axis.Z.clone())
+      handle.billboardMode = (undefined as any /* todo(lite): BABYLON.Mesh.BILLBOARDMODE_ALL */) // easy to grab from any angle
+      this.normals.push((undefined as any /* todo(lite): BABYLON.Axis.Z.clone() */))
       this.handles.push(handle)
       this.attachHoverCursor(handle, corner)
       this.attachDrag(handle, corner, i)
     })
 
     // place + size the handles every frame from the showbox's own world matrix
-    this.observer = this.scene.onBeforeRenderObservable.add(() => this.sync())
+    this.observer = onBeforeRender(this.scene, () => this.sync())
     this.sync()
   }
 
@@ -592,58 +594,58 @@ class ResizeHandleSet {
     const mesh = this.feature.mesh
     if (!mesh) return
     const W = mesh.computeWorldMatrix(true)
-    const camPos = this.scene.activeCamera?.globalPosition ?? BABYLON.Vector3.Zero()
-    const normal = BABYLON.Vector3.TransformNormal(BABYLON.Axis.Z, W).normalize() // screen forward in world
+    const camPos = this.scene.activeCamera?.globalPosition ?? vec3.create()
+    const normal = (undefined as any /* todo(lite): BABYLON.Vector3.TransformNormal(BABYLON.Axis.Z, W).normalize() */) // screen forward in world
 
     this.handles.forEach((handle, i) => {
       const c = HANDLE_CORNERS[i]
-      const worldCorner = BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(c.sx * 0.5, c.sy * 0.5, 0), W)
+      const worldCorner = (undefined as any /* todo(lite): BABYLON.Vector3.TransformCoordinates(new BABYLON.Vector3(c.sx * 0.5, c.sy * 0.5, 0), W) */)
       handle.position.copyFrom(worldCorner)
       // constant on-screen size: scale by distance to camera, independent of the screen's own scale
-      handle.scaling.setAll(HANDLE_PIXEL_SIZE * BABYLON.Vector3.Distance(worldCorner, camPos))
+      handle.scaling.setAll(HANDLE_PIXEL_SIZE * vec3.distance(worldCorner, camPos))
       this.normals[i].copyFrom(normal)
     })
   }
 
-  private attachHoverCursor(handle: BABYLON.Mesh, corner: { sx: number; sy: number }) {
-    handle.actionManager = new BABYLON.ActionManager(this.uScene)
+  private attachHoverCursor(handle: Mesh, corner: { sx: number; sy: number }) {
+    handle.actionManager = (undefined as any /* todo(lite): new BABYLON.ActionManager(this.uScene) */)
     handle.actionManager.registerAction(
-      new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, () => {
+      (undefined as any /* todo(lite): new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOverTrigger, () => {
         const mesh = this.feature.mesh
         if (!this.canvas || !mesh) return
         this.canvas.style.cursor = resizeCursorForCorner(corner, mesh as BABYLON.Mesh, this.scene)
-      }),
+      }) */),
     )
     handle.actionManager.registerAction(
-      new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, () => {
+      (undefined as any /* todo(lite): new BABYLON.ExecuteCodeAction(BABYLON.ActionManager.OnPointerOutTrigger, () => {
         if (this.canvas) this.canvas.style.cursor = ''
-      }),
+      }) */),
     )
   }
 
-  private attachDrag(handle: BABYLON.Mesh, corner: { sx: number; sy: number }, index: number) {
-    const behavior = new BABYLON.PointerDragBehavior()
+  private attachDrag(handle: Mesh, corner: { sx: number; sy: number }, index: number) {
+    const behavior = (undefined as any /* todo(lite): new BABYLON.PointerDragBehavior() */)
     behavior.moveAttached = false // we own handle placement via sync()
     behavior.useObjectOrientationForDragging = false
 
-    const anchorWorld = new BABYLON.Vector3() // opposite corner, pinned for the whole drag
-    const axisX = new BABYLON.Vector3() // screen local-X direction in world (normalized)
-    const axisY = new BABYLON.Vector3()
-    const anchorLocal = new BABYLON.Vector3(-corner.sx * 0.5, -corner.sy * 0.5, 0)
+    const anchorWorld = vec3.create() // opposite corner, pinned for the whole drag
+    const axisX = vec3.create() // screen local-X direction in world (normalized)
+    const axisY = vec3.create()
+    const anchorLocal = vec3.fromValues(-corner.sx * 0.5, -corner.sy * 0.5, 0)
     let startW = 1 // scale at drag start, so we can keep the screen's aspect ratio
     let startH = 1
     // drag-start snapshots for the commit. mesh transform = feature values + setCommon's z-nudge
     // and nudgeGrowth, so committing the raw mesh values baked the nudge in and the image jumped
     // (and grew) on every release. Commit feature values + drag delta instead, like face drag does.
-    const featurePosStart = new BABYLON.Vector3()
-    const meshPosStart = new BABYLON.Vector3()
-    const featureScaleStart = new BABYLON.Vector3()
-    const meshScaleStart = new BABYLON.Vector3()
+    const featurePosStart = vec3.create()
+    const meshPosStart = vec3.create()
+    const featureScaleStart = vec3.create()
+    const meshScaleStart = vec3.create()
 
     behavior.onDragStartObservable.add(() => {
       const mesh = this.feature.mesh
       if (!mesh) return
-      if (this.canvas) this.canvas.style.cursor = resizeCursorForCorner(corner, mesh as BABYLON.Mesh, this.scene)
+      if (this.canvas) this.canvas.style.cursor = resizeCursorForCorner(corner, mesh as Mesh, this.scene)
       window.ui?.setDragging(true)
       if (this.feature.isAnimated) this.feature.pauseAnimation()
       mesh.unfreezeWorldMatrix() // we mutate scaling/position during the drag
@@ -654,9 +656,9 @@ class ResizeHandleSet {
       featureScaleStart.copyFrom(this.feature.scale)
       meshScaleStart.copyFrom(mesh.scaling)
       const W = mesh.computeWorldMatrix(true)
-      axisX.copyFrom(BABYLON.Vector3.TransformNormal(BABYLON.Axis.X, W).normalize())
-      axisY.copyFrom(BABYLON.Vector3.TransformNormal(BABYLON.Axis.Y, W).normalize())
-      anchorWorld.copyFrom(BABYLON.Vector3.TransformCoordinates(anchorLocal, W))
+      axisX.copyFrom((undefined as any /* todo(lite): BABYLON.Vector3.TransformNormal(BABYLON.Axis.X, W).normalize() */))
+      axisY.copyFrom((undefined as any /* todo(lite): BABYLON.Vector3.TransformNormal(BABYLON.Axis.Y, W).normalize() */))
+      anchorWorld.copyFrom((undefined as any /* todo(lite): BABYLON.Vector3.TransformCoordinates(anchorLocal, W) */))
     })
 
     behavior.onDragObservable.add((event) => {
@@ -667,8 +669,8 @@ class ResizeHandleSet {
       // vector from the pinned opposite corner to the pointer, decomposed onto the screen axes.
       // plane geometry is 1 unit wide, so world width == scaling.x (likewise y).
       const D = event.dragPlanePoint.subtract(anchorWorld)
-      const rawW = corner.sx * BABYLON.Vector3.Dot(D, axisX)
-      const rawH = corner.sy * BABYLON.Vector3.Dot(D, axisY)
+      const rawW = corner.sx * vec3.dot(D, axisX)
+      const rawH = corner.sy * vec3.dot(D, axisY)
       let width: number
       let height: number
       if (this.feature.scaleAspectLocked !== false) {
@@ -690,12 +692,12 @@ class ResizeHandleSet {
       // pivot is the plane centre, so scaling moved BOTH corners - shift the mesh so the opposite
       // corner returns to where it started (true grab-the-corner behaviour).
       const W2 = mesh.computeWorldMatrix(true)
-      const newAnchorWorld = BABYLON.Vector3.TransformCoordinates(anchorLocal, W2)
+      const newAnchorWorld = (undefined as any /* todo(lite): BABYLON.Vector3.TransformCoordinates(anchorLocal, W2) */)
       const shiftWorld = anchorWorld.subtract(newAnchorWorld)
-      const parent = mesh.parent as BABYLON.TransformNode | null
+      const parent = mesh.parent as TransformNode | null
       if (parent) {
         const inv = parent.getWorldMatrix().clone().invert()
-        mesh.position.addInPlace(BABYLON.Vector3.TransformNormal(shiftWorld, inv))
+        mesh.position.addInPlace((undefined as any /* todo(lite): BABYLON.Vector3.TransformNormal(shiftWorld, inv) */))
       } else {
         mesh.position.addInPlace(shiftWorld)
       }

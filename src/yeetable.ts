@@ -11,22 +11,24 @@ import { disposeGhost, ghostSegmentHit } from './ghosts'
 import { runCompute } from './mono-pool'
 import type Controls from './controls/controls'
 import type { NerfMessage } from '../common/messages'
+import { Mesh, SceneContext, Vec3, onBeforeRender } from '@babylonjs/lite'
+import { quat, vec3 } from 'wgpu-matrix'
 
 type LocalObj = {
   id: string
   wid: string
-  mesh: BABYLON.AbstractMesh
+  mesh: Mesh
   body: RAPIER.RigidBody
   owned: true
   thrownAt: number
-  lastPos: BABYLON.Vector3
+  lastPos: Vec3
   nerfed?: boolean
 }
 
 type RemoteObj = {
   id: string
   wid: string
-  mesh: BABYLON.AbstractMesh | null
+  mesh: Mesh | null
   queue: TransformQueue
   owned: false
   loading?: boolean
@@ -34,10 +36,10 @@ type RemoteObj = {
 
 const locals = new Map<string, LocalObj>()
 const remotes = new Map<string, RemoteObj>()
-const heldMeshes = new Map<string, BABYLON.Mesh>()
-const yeetMeshes = new Map<string, BABYLON.Mesh>()
+const heldMeshes = new Map<string, Mesh>()
+const yeetMeshes = new Map<string, Mesh>()
 const yeetCoords = new Map<string, Int32Array>()
-let heldMesh: BABYLON.Mesh | null = null
+let heldMesh: Mesh | null = null
 let heldBobT = 0
 let seq = 0
 let hooked = false
@@ -48,7 +50,7 @@ function clientUUID() {
   return window.connector?.persona?.uuid || 'local'
 }
 
-function burstWorld(pos: BABYLON.Vector3) {
+function burstWorld(pos: Vec3) {
   const scene = window.scene
   if (!scene) return
   emote('💥', pos, scene)
@@ -65,7 +67,7 @@ function respawn() {
   window.persona?.teleportNoHistory({ position: pos })
 }
 
-function carveCrater(parcelId: string, center: BABYLON.Vector3) {
+function carveCrater(parcelId: string, center: Vec3) {
   const parcel = window.grid?.parcels?.get(Number(parcelId))
   if (!parcel?.voxelMesh || !parcel.field) return
   const vm = parcel.voxelMesh.position
@@ -85,7 +87,7 @@ function carveCrater(parcelId: string, center: BABYLON.Vector3) {
   parcel.carve(voxels)
 }
 
-function nerfAt(pos: BABYLON.Vector3, yeetId: string, kind: NerfMessage['kind'], target?: string) {
+function nerfAt(pos: Vec3, yeetId: string, kind: NerfMessage['kind'], target?: string) {
   console.log('nerfAt', `${pos.x},${pos.y},${pos.z}`)
 
   disposeYeet(yeetId)
@@ -105,8 +107,8 @@ function resolveHit(hit: ContactHit) {
   if (!local || local.nerfed) return
 
   local.nerfed = true
-  const pos = new BABYLON.Vector3(hit.pos.x, hit.pos.y, hit.pos.z)
-  const normal = new BABYLON.Vector3(hit.normal.x, hit.normal.y, hit.normal.z)
+  const pos = vec3.fromValues(hit.pos.x, hit.pos.y, hit.pos.z)
+  const normal = vec3.fromValues(hit.normal.x, hit.normal.y, hit.normal.z)
 
   if (hit.other.tag === 'avatar') {
     nerfAt(pos, hit.yeetId, 'avatar', hit.other.id)
@@ -138,7 +140,7 @@ function ghostHits() {
   for (const o of locals.values()) {
     if (o.nerfed) continue
     const t = o.body.translation()
-    const pos = new BABYLON.Vector3(t.x, t.y, t.z)
+    const pos = vec3.fromValues(t.x, t.y, t.z)
     const from = o.lastPos
     const to = pos
     const ghost = ghostSegmentHit(from, to)
@@ -149,10 +151,10 @@ function ghostHits() {
   }
 }
 
-function ensureHooks(scene: BABYLON.Scene) {
+function ensureHooks(scene: SceneContext) {
   if (hooked) return
   hooked = true
-  scene.onBeforeRenderObservable.add(() => {
+  onBeforeRender(scene, () => {
     const dt = scene.getEngine().getDeltaTime() / 1000
     heldBobT += dt
     syncAvatars()
@@ -161,9 +163,9 @@ function ensureHooks(scene: BABYLON.Scene) {
     for (const o of locals.values()) {
       const t = o.body.translation()
       const r = o.body.rotation()
-      const pos = new BABYLON.Vector3(t.x, t.y, t.z)
+      const pos = vec3.fromValues(t.x, t.y, t.z)
       o.mesh.position.copyFrom(pos)
-      if (!o.mesh.rotationQuaternion) o.mesh.rotationQuaternion = BABYLON.Quaternion.Identity()
+      if (!o.mesh.rotationQuaternion) o.mesh.rotationQuaternion = quat.identity()
       o.mesh.rotationQuaternion.set(r.x, r.y, r.z, r.w)
 
       if (!o.nerfed && Date.now() - o.thrownAt > 4000) {
@@ -178,7 +180,7 @@ function ensureHooks(scene: BABYLON.Scene) {
       const t = o.queue.get(now - 200)
       if (!t) continue
       o.mesh.position.copyFrom(t.position)
-      if (!o.mesh.rotationQuaternion) o.mesh.rotationQuaternion = BABYLON.Quaternion.Identity()
+      if (!o.mesh.rotationQuaternion) o.mesh.rotationQuaternion = quat.identity()
       o.mesh.rotationQuaternion.copyFrom(t.orientation)
     }
     if (heldMesh) {
@@ -243,8 +245,8 @@ export async function yeetWearable(wid: string) {
 
   const eye = cameraPosition(scene)
   const rot = cameraRotation(scene)
-  const q = BABYLON.Quaternion.FromEulerAngles(rot.x, rot.y, rot.z)
-  const forward = new BABYLON.Vector3(0, 0, 1)
+  const q = quat.fromEuler(rot.x, rot.y, rot.z, 'yxz') /* todo(lite): verify euler order */
+  const forward = vec3.fromValues(0, 0, 1)
   forward.rotateByQuaternionToRef(q, forward)
   const origin = eye.add(forward.scale(1))
 
@@ -258,7 +260,7 @@ export async function yeetWearable(wid: string) {
   body.setAngvel({ x: Math.random() * 4 - 2, y: Math.random() * 4 - 2, z: Math.random() * 4 - 2 }, true)
 
   mesh.position.copyFrom(origin)
-  if (!mesh.rotationQuaternion) mesh.rotationQuaternion = BABYLON.Quaternion.Identity()
+  if (!mesh.rotationQuaternion) mesh.rotationQuaternion = quat.identity()
 
   locals.set(id, { id, wid, mesh, body, owned: true, thrownAt: Date.now(), lastPos: origin.clone() })
 
@@ -296,7 +298,7 @@ async function showHeld(wid: string) {
   heldMesh = mesh
   mesh.parent = camera
   mesh.position.set(0, -0.25, 0.55)
-  mesh.rotationQuaternion = BABYLON.Quaternion.Identity()
+  mesh.rotationQuaternion = quat.identity()
   mesh.setEnabled(!!window.connector?.controls?.firstPersonView)
 }
 
@@ -314,7 +316,7 @@ function startYeetState() {
   }, 200)
 }
 
-export function startYeet(scene: BABYLON.Scene, controls: Controls, canvas: HTMLCanvasElement) {
+export function startYeet(scene: SceneContext, controls: Controls, canvas: HTMLCanvasElement) {
   ensureHooks(scene)
   effect(() => {
     void showHeld(equippedWid.value || '')
@@ -354,12 +356,12 @@ export async function onRemoteYeet(msg: { uuid: string; id: string; wid: string;
     return
   }
   mesh.position.fromArray(msg.position)
-  mesh.rotationQuaternion = new BABYLON.Quaternion(msg.orientation[0], msg.orientation[1], msg.orientation[2], msg.orientation[3])
+  mesh.rotationQuaternion = quat.fromValues(msg.orientation[0], msg.orientation[1], msg.orientation[2], msg.orientation[3])
   remote.mesh = mesh
   remote.loading = false
   remote.queue.add({
     timestamp: Date.now(),
-    position: BABYLON.Vector3.FromArray(msg.position),
+    position: vec3.clone(msg.position as any),
     orientation: mesh.rotationQuaternion.clone(),
     animation: Animations.Idle,
   })
@@ -374,15 +376,15 @@ export function onRemoteYeetState(msg: { uuid: string; objects: any[] }) {
     if (!remote) continue
     remote.queue.add({
       timestamp: now,
-      position: new BABYLON.Vector3(x, y, z),
-      orientation: new BABYLON.Quaternion(qx, qy, qz, qw),
+      position: vec3.fromValues(x, y, z),
+      orientation: quat.fromValues(qx, qy, qz, qw),
       animation: Animations.Idle,
     })
   }
 }
 
 export function onRemoteNerf(msg: NerfMessage) {
-  const pos = BABYLON.Vector3.FromArray(msg.position)
+  const pos = vec3.clone(msg.position as any)
   disposeYeet(msg.yeetId)
   burstWorld(pos)
   if (msg.kind === 'field' && msg.target) carveCrater(msg.target, pos)

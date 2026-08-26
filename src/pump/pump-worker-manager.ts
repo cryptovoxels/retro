@@ -1,6 +1,7 @@
 import { FeatureRecord, SortableFeature, WorkerTiming, WorkerOperationType, InstanceRelation, LoadOrderItem, InstanceRelationMap, ParcelInstanceRelations } from './types'
 import { getGridMono } from '../mono-pool'
 import type { Mono } from '../mono'
+import { Vec3 } from '@babylonjs/lite'
 
 interface WorkerStats {
   pendingRequests: number
@@ -64,7 +65,7 @@ export class PumpWorkerManager {
     return this.workerState
   }
 
-  private serializeCameraVectors(position: BABYLON.Vector3, direction: BABYLON.Vector3): { position: [number, number, number]; direction: [number, number, number] } {
+  private serializeCameraVectors(position: Vec3, direction: Vec3): { position: [number, number, number]; direction: [number, number, number] } {
     return {
       position: [position.x, position.y, position.z],
       direction: [direction.x, direction.y, direction.z],
@@ -165,8 +166,8 @@ export class PumpWorkerManager {
   async requestFeatureSortingWithVectors(
     features: SortableFeature[],
     instanceRelations: ParcelInstanceRelations,
-    cameraPosition: BABYLON.Vector3,
-    cameraDirection: BABYLON.Vector3,
+    cameraPosition: Vec3,
+    cameraDirection: Vec3,
     maxDrawDistance = 200,
     currentParcelId?: number,
   ): Promise<LoadOrderItem[]> {

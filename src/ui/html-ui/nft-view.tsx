@@ -8,8 +8,9 @@ import type NftImage from '../../features/nft-image'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { truncate } from '../../../web/src/lib/string-utils'
 import { track } from '../../../web/src/helpers/umami'
+import { Mesh, StandardMaterialProps } from '@babylonjs/lite'
 
-async function textureToDataUrl(tex: BABYLON.BaseTexture): Promise<string | null> {
+async function textureToDataUrl(tex: any): Promise<string | null> {
   try {
     const size = tex.getSize()
     const w = size.width
@@ -38,8 +39,8 @@ async function textureToDataUrl(tex: BABYLON.BaseTexture): Promise<string | null
   }
 }
 
-function aspectFromFeature(feature: { scale: { x: number; y: number }; mesh?: BABYLON.AbstractMesh | null }) {
-  const mat = feature.mesh?.material as BABYLON.StandardMaterial | undefined
+function aspectFromFeature(feature: { scale: { x: number; y: number }; mesh?: Mesh | null }) {
+  const mat = feature.mesh?.material as StandardMaterialProps | undefined
   const tex = mat?.diffuseTexture
   if (tex) {
     const s = tex.getSize()
@@ -106,7 +107,7 @@ export function NftView({ asset, onClose, feature, dialogEl }: Props) {
   }
 
   useEffect(() => {
-    const mat = feature.mesh?.material as BABYLON.StandardMaterial | undefined
+    const mat = feature.mesh?.material as StandardMaterialProps | undefined
     const tex = mat?.diffuseTexture
     if (!tex) return
     let cancelled = false

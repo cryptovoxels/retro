@@ -20,7 +20,7 @@ export type ConnectionState =
   | { status: 'reconnecting' }
 
 export abstract class SocketClient {
-  onConnectionStateChanged: BABYLON.Observable<ConnectionState> = new BABYLON.Observable()
+  onConnectionStateChanged: any = (undefined as any /* todo(lite): new BABYLON.Observable() */)
   private readonly wsSingleton = new WebSocketSingleton()
   private connectionSaga = {
     wasAbandoned: false,

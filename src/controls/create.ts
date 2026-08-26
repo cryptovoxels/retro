@@ -3,10 +3,11 @@ import DesktopControls from './desktop/controls'
 import MobileControls from './mobile/controls'
 import type Controls from './controls'
 import XROverlay from './webxr'
+import { SceneContext } from '@babylonjs/lite'
 
 export let xr: XROverlay | undefined
 
-export const CreateControls = (scene: BABYLON.Scene, canvas: HTMLCanvasElement): Controls => {
+export const CreateControls = (scene: SceneContext, canvas: HTMLCanvasElement): Controls => {
   let controls: Controls | undefined
 
   if (isMobile() || isTablet()) {

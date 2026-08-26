@@ -2,14 +2,16 @@ import { Costume, CostumeAttachment } from '../common/messages/costumes'
 import { app } from '../web/src/state'
 import { voxImporter } from '../common/vox-import/vox-import'
 import type Avatar from './avatar'
+import { Mesh, SceneContext } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 export interface AttachmentWithMesh extends CostumeAttachment {
-  mesh?: BABYLON.Mesh
+  mesh?: Mesh
 }
 
 export class AvatarAttachmentManager {
-  skeleton: BABYLON.Skeleton | null
-  attached: BABYLON.Mesh[] = []
+  skeleton: any | null
+  attached: Mesh[] = []
   visible = true
   abortController = new AbortController()
   costume: Costume | null = null
@@ -17,7 +19,7 @@ export class AvatarAttachmentManager {
   attachments: Array<AttachmentWithMesh> = []
 
   constructor(
-    private scene: BABYLON.Scene,
+    private scene: SceneContext,
     private avatar: Avatar,
     private readonly avatarViewDistance: number,
   ) {
@@ -149,11 +151,11 @@ export class AvatarAttachmentManager {
 
     mesh.addLODLevel(this.avatarViewDistance, null)
 
-    const position = new BABYLON.Vector3(attachment.position[0], attachment.position[1], attachment.position[2])
+    const position = vec3.fromValues(attachment.position[0], attachment.position[1], attachment.position[2])
     mesh.position.copyFrom(position)
 
     // eulers
-    const rotation = new BABYLON.Vector3(BABYLON.Angle.FromDegrees(attachment.rotation[0]).radians(), BABYLON.Angle.FromDegrees(attachment.rotation[1]).radians(), BABYLON.Angle.FromDegrees(attachment.rotation[2]).radians())
+    const rotation = vec3.fromValues(((attachment.rotation[0]) * Math.PI / 180), ((attachment.rotation[1]) * Math.PI / 180), ((attachment.rotation[2]) * Math.PI / 180))
     mesh.rotationQuaternion = null
     mesh.rotation = rotation
 

@@ -12,8 +12,9 @@ import { isLoaded } from '../utils/loading-done'
 import { stepPhysics } from '../physics/world'
 import { startGhosts } from '../ghosts'
 import { startYeet } from '../yeetable'
+import { SceneContext } from '@babylonjs/lite'
 
-export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCanvasElement, controls: Controls, environment: Environment) {
+export const createWorld = async function (scene: SceneContext, canvas: HTMLCanvasElement, controls: Controls, environment: Environment) {
   const grid = new Grid(scene, environment)
   if (window.config.isGrid) {
     grid.loadWorker()
@@ -88,7 +89,7 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
   return { grid, connector }
 }
 
-function initConnector(scene: BABYLON.Scene, controls: Controls, grid: Grid): Connector {
+function initConnector(scene: SceneContext, controls: Controls, grid: Grid): Connector {
   const connector = new Connector(scene, grid, controls)
   if (window.config.isMultiuser) {
     connector.connect()
@@ -97,7 +98,7 @@ function initConnector(scene: BABYLON.Scene, controls: Controls, grid: Grid): Co
 }
 
 //Randomize initial center spawning coordinates (no more overlapping avatars) when 'coords' param is null in-world
-function initialSpawn(_scene: BABYLON.Scene, _grid: Grid, controls: Controls) {
+function initialSpawn(_scene: SceneContext, _grid: Grid, controls: Controls) {
   const searchParams = new URLSearchParams(document.location.search.substring(1))
   if (searchParams.get('coords')) {
     // Coords is not null, don't randomize spawn at center in-world
@@ -119,7 +120,7 @@ function initialSpawn(_scene: BABYLON.Scene, _grid: Grid, controls: Controls) {
 }
 
 // Show params as NESW coordinates
-function updateNavbarWithCoords(scene: BABYLON.Scene, connector: Connector) {
+function updateNavbarWithCoords(scene: SceneContext, connector: Connector) {
   let oldUrl = '/'
   setInterval(() => {
     if (wantsGateway()) return

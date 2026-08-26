@@ -8,7 +8,7 @@
 
     "target": "ES6",
     "typeRoots": ["./node_modules/@types", "./node_modules"],
-    "types": ["babylonjs", "babylonjs-gui", "node"],
+    "types": ["node"],
     "experimentalDecorators": true,
     "strict": true,
     "module": "ES2022",

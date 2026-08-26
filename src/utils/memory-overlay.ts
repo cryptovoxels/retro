@@ -1,4 +1,5 @@
-export function createGPUMemoryHUD(scene: BABYLON.Scene) {
+import { SceneContext, onBeforeRender } from '@babylonjs/lite'
+export function createGPUMemoryHUD(scene: SceneContext) {
   const engine = scene.getEngine()
   const gl = engine._gl
 
@@ -36,7 +37,7 @@ export function createGPUMemoryHUD(scene: BABYLON.Scene) {
     return totalBytes
   }
 
-  function estimateMeshMemory(scene: BABYLON.Scene) {
+  function estimateMeshMemory(scene: SceneContext) {
     let total = 0
     const unique = scene.meshes.filter((m: any) => !m.isAnInstance && m.geometry)
     for (const mesh of unique) {
@@ -49,7 +50,7 @@ export function createGPUMemoryHUD(scene: BABYLON.Scene) {
     return total
   }
 
-  scene.onBeforeRenderObservable.add(() => {
+  onBeforeRender(scene, () => {
     const meshMB = (estimateMeshMemory(scene) / 1024 / 1024).toFixed(1)
     const texMB = (estimateTextureMemory() / 1024 / 1024).toFixed(1)
     hud.textContent = `🧠 GPU Mem:

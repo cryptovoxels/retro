@@ -12,6 +12,8 @@ import { Action, AvatarIdentity } from '../common/messages'
 import { cameraRotation, setCameraPosition, setCameraRotation } from './utils/camera'
 import VoiceChat from './voice-chat'
 import { WALK_HZ } from './controls/utils/player-body'
+import { SceneContext, Vec3 } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 const identityEquals = (a: AvatarIdentity, b: AvatarIdentity) => a.wallet === b.wallet && a.name === b.name
 const identityFromUser = (user: User): AvatarIdentity => ({ wallet: user.wallet, name: user.name })
@@ -21,18 +23,18 @@ export default class Persona {
   connector: Connector
   controls: Controls
   firstPersonView: boolean
-  position: BABYLON.Vector3
-  rotation: BABYLON.Vector3
+  position: Vec3
+  rotation: Vec3
   avatar: Avatar | undefined = undefined
   avatarSignature: AvatarIdentity | null = null
   voiceChat = new VoiceChat(this)
-  onAnimationChanged: BABYLON.Observable<Animations> = new BABYLON.Observable()
+  onAnimationChanged: any = (undefined as any /* todo(lite): new BABYLON.Observable() */)
   emote: Animations | null = null
   private stepping = false
-  private readonly scene: BABYLON.Scene
+  private readonly scene: SceneContext
 
   constructor(
-    scene: BABYLON.Scene,
+    scene: SceneContext,
     connector: Connector,
     controls: Controls,
     public readonly uuid: string,
@@ -40,8 +42,8 @@ export default class Persona {
     this.scene = scene
     this.controls = controls
     this.connector = connector
-    this.position = BABYLON.Vector3.Zero()
-    this.rotation = new BABYLON.Vector3(0, 0, 0)
+    this.position = vec3.create()
+    this.rotation = vec3.fromValues(0, 0, 0)
     this._animation = Animations.Idle
     this.firstPersonView = true
     window.persona = this
@@ -164,7 +166,7 @@ export default class Persona {
 
     if (coords.rotation) {
       const r = cameraRotation(this.scene)
-      setCameraRotation(this.scene, new BABYLON.Vector3(r.x, coords.rotation.y, r.z))
+      setCameraRotation(this.scene, vec3.fromValues(r.x, coords.rotation.y, r.z))
     }
 
     // make sure we see the features of new area immediately (otherwise we have to wait up to 5 seconds)
@@ -200,7 +202,7 @@ export default class Persona {
     return Animations.Idle
   }
 
-  update(position: BABYLON.Vector3, rotation: BABYLON.Vector3, controls: Controls) {
+  update(position: Vec3, rotation: Vec3, controls: Controls) {
     const m = controls.body.motion
     const clip = this.pickClip(controls)
     if (clip !== this._animation) this.animation = clip

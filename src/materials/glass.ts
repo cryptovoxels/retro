@@ -1,5 +1,6 @@
 import { cacheMaterial, generateCacheKey, getCachedMaterial } from './cache'
 import { ColorInput, toColor3 } from './color-utils'
+import { Color3, Material, SceneContext } from '@babylonjs/lite'
 
 export interface GlassConfig {
   name?: string
@@ -9,7 +10,7 @@ export interface GlassConfig {
   indexOfRefraction?: number
 }
 
-export function createGlassMaterial(scene: BABYLON.Scene, config: GlassConfig = {}): BABYLON.Material {
+export function createGlassMaterial(scene: SceneContext, config: GlassConfig = {}): Material {
   // Parse color if provided
   const parsedTint = config.tint ? toColor3(config.tint) : undefined
 
@@ -21,9 +22,9 @@ export function createGlassMaterial(scene: BABYLON.Scene, config: GlassConfig = 
   const cached = getCachedMaterial(cacheKey)
   if (cached) return cached
 
-  const material = new BABYLON.StandardMaterial(`glass/${config.name || 'default'}/${Date.now()}`, scene)
+  const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(`glass/${config.name || 'default'}/${Date.now()}`, scene) */)
 
-  const baseColor = parsedTint || new BABYLON.Color3(0.5, 0.55, 0.64)
+  const baseColor = parsedTint || ([0.5, 0.55, 0.64] as Color3)
   material.diffuseColor = baseColor
   material.emissiveColor = baseColor
   material.alpha = config.alpha ?? 0.25
@@ -34,7 +35,7 @@ export function createGlassMaterial(scene: BABYLON.Scene, config: GlassConfig = 
   // Add environment texture reflections for glass if available
   if (scene.environmentTexture) {
     material.reflectionTexture = scene.environmentTexture
-    material.reflectionTexture.coordinatesMode = BABYLON.Texture.CUBIC_MODE
+    material.reflectionTexture.coordinatesMode = (undefined as any /* todo(lite): BABYLON.Texture.CUBIC_MODE */)
     material.reflectionTexture.level = 0.3 // Subtle reflections for glass
   }
 

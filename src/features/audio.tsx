@@ -35,12 +35,12 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
   image: HTMLImageElement | null = null
   playing = false
   loadTriggered = false
-  sound: BABYLON.Sound | null = null
-  texture: BABYLON.GUI.AdvancedDynamicTexture | null = null
+  sound: any | null = null
+  texture: any | null = null
   interval: NodeJS.Timeout | null = null
-  playButton: BABYLON.GUI.TextBlock | null = null
-  playStatus: BABYLON.GUI.TextBlock | null = null
-  playProgress: BABYLON.GUI.Slider | null = null
+  playButton: any | null = null
+  playStatus: any | null = null
+  playProgress: any | null = null
   hasBeenGeneratedAtLeastOnce = false // First generate has been called? Feature has loaded but it having a mesh is not guaranteed
   autoStopTimeout: NodeJS.Timeout | null = null
   asset: ProxyAssetOpensea | null = null
@@ -421,7 +421,7 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
   }
 
   generate() {
-    const plane = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    const plane = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
 
     // Used by controls.ts to suppress the blocking of move events
     plane.metadata = { captureMoveEvents: true }
@@ -437,8 +437,8 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
 
     this.setCommon()
 
-    this.texture = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(plane, this.sprite ? 128 : 512, 128)
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    this.texture = (undefined as any /* todo(lite): BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(plane, this.sprite ? 128 : 512, 128) */)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     material.diffuseTexture = this.texture
     material.zOffset = -5
     material.blockDirtyMechanism = true
@@ -499,42 +499,42 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
   }
 
   addControls() {
-    const r = new BABYLON.GUI.Rectangle('controls')
+    const r = (undefined as any /* todo(lite): new BABYLON.GUI.Rectangle('controls') */)
     r.cornerRadius = 64
     r.background = 'white'
     r.width = 1
     r.height = 0.95
     this.texture?.addControl(r)
 
-    const b = new BABYLON.GUI.TextBlock('play', '▶')
+    const b = (undefined as any /* todo(lite): new BABYLON.GUI.TextBlock('play', '▶') */)
     b.width = '92px'
     b.height = '92px'
     b.color = 'black'
     b.fontSize = 50
-    b.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT
+    b.horizontalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT */)
     b.onPointerClickObservable.add(() => this.onClick())
     r.addControl(b)
     this.playButton = b
 
     if (!this.sprite) {
-      const s = new BABYLON.GUI.TextBlock('play', defaultStatus)
+      const s = (undefined as any /* todo(lite): new BABYLON.GUI.TextBlock('play', defaultStatus) */)
       s.width = '160px'
       s.height = '92px'
       s.left = '80px'
       s.color = 'black'
       s.fontSize = 22
-      s.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT
+      s.horizontalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT */)
       r.addControl(s)
       this.playStatus = s
 
-      const p = new BABYLON.GUI.Slider('progress')
+      const p = (undefined as any /* todo(lite): new BABYLON.GUI.Slider('progress') */)
       p.width = '184px'
       p.height = '18px'
       p.left = '230px'
       p.background = '#555555'
       p.value = 0
       p.maximum = 1
-      p.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT
+      p.horizontalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT */)
       // Allow fast-forward / rewind via slider on mouseup
       p.onPointerUpObservable.add((value, eventState) => this.setPlayProgress(eventState.currentTarget.value))
       this.playProgress = p
@@ -543,13 +543,13 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
         r.addControl(p)
       }
 
-      const e = new BABYLON.GUI.TextBlock('ellipsis', '⋮')
+      const e = (undefined as any /* todo(lite): new BABYLON.GUI.TextBlock('ellipsis', '⋮') */)
       e.width = '32px'
       e.height = '92px'
       e.color = 'black'
       e.fontSize = 50
       e.left = '-32px'
-      e.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT
+      e.horizontalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_RIGHT */)
       e.onPointerUpObservable.add(() => this.onDownload())
       r.addControl(e)
     }

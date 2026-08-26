@@ -7,6 +7,7 @@ import { Advanced, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Tool
 import * as htmlToCanvas from '../vendor/html-to-canvas'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
+import { StandardMaterialProps } from '@babylonjs/lite'
 
 export default class Richtext extends Feature2D<RichTextRecord> {
   static iframe: HTMLIFrameElement | null = null
@@ -37,7 +38,7 @@ export default class Richtext extends Feature2D<RichTextRecord> {
   }
 
   generate() {
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     material.alpha = 0.999
 
     material.zOffset = -5
@@ -46,14 +47,14 @@ export default class Richtext extends Feature2D<RichTextRecord> {
     material.backFaceCulling = false
 
     if (this.blendMode === 'Multiply') {
-      material.alphaMode = BABYLON.Engine.ALPHA_MULTIPLY
+      material.alphaMode = (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_MULTIPLY */)
     } else if (this.blendMode === 'Screen') {
-      material.alphaMode = BABYLON.Engine.ALPHA_SCREENMODE
+      material.alphaMode = (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_SCREENMODE */)
     } else {
       material.emissiveColor.set(0, 0, 0)
     }
 
-    const plane = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    const plane = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
     material.blockDirtyMechanism = true
     plane.material = material
 
@@ -169,7 +170,7 @@ export default class Richtext extends Feature2D<RichTextRecord> {
       iDoc.body.outerHTML = html
     }
 
-    const texture = new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), options, this.scene, true)
+    const texture = (undefined as any /* todo(lite): new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), options, this.scene, true) */)
     texture.hasAlpha = false
 
     const ctx = texture.getContext()
@@ -178,7 +179,7 @@ export default class Richtext extends Feature2D<RichTextRecord> {
     htmlToCanvas(iDoc?.documentElement, ctx)
     texture.update(true)
 
-    const m = this.mesh.material as BABYLON.StandardMaterial | null
+    const m = this.mesh.material as StandardMaterialProps | null
     if (m) {
       m.diffuseTexture = texture
     }

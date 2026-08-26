@@ -1,9 +1,10 @@
+import { Mesh, SceneContext, Vec3 } from '@babylonjs/lite'
 export default class Skybox {
-  private readonly _mesh: BABYLON.Mesh
-  private material: BABYLON.SkyMaterial
+  private readonly _mesh: Mesh
+  private material: any
 
-  constructor(scene: BABYLON.Scene) {
-    const material = new BABYLON.SkyMaterial('skybox/sky-material', scene)
+  constructor(scene: SceneContext) {
+    const material = (undefined as any /* todo(lite): new BABYLON.SkyMaterial('skybox/sky-material', scene) */)
     material.backFaceCulling = false // leave
     material.useSunPosition = true
     material.fogEnabled = false // we set out fog kinda thick so we can't enable it for the sky
@@ -14,7 +15,7 @@ export default class Skybox {
     material.freeze()
     this.material = material
 
-    const mesh = BABYLON.MeshBuilder.CreateSphere('skybox', { segments: 16, diameter: 1 }, scene)
+    const mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateSphere('skybox', { segments: 16, diameter: 1 }, scene) */)
 
     const updateScale = (drawDistance: number) => {
       mesh.scaling.setAll(drawDistance * 1.96)
@@ -31,11 +32,11 @@ export default class Skybox {
     this._mesh = mesh
   }
 
-  get mesh(): BABYLON.Mesh {
+  get mesh(): Mesh {
     return this._mesh
   }
 
-  update(sunPosition: BABYLON.Vector3, luminance: number) {
+  update(sunPosition: Vec3, luminance: number) {
     if (this.material.sunPosition.equals(sunPosition) && this.material.luminance === luminance) {
       return
     }

@@ -1,11 +1,12 @@
 import { Component } from 'preact'
 import ParcelSnapshot, { type ParcelSnapshotRecord } from '../../web/src/components/parcel-snapshot'
 import type Parcel from '../parcel'
+import { SceneContext } from '@babylonjs/lite'
 
 interface Props {
   parcel?: Parcel
 
-  scene: BABYLON.Scene
+  scene: SceneContext
 }
 
 interface State {

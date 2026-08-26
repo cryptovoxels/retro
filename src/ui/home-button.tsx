@@ -1,10 +1,11 @@
 import Grid from '../grid'
 import { route } from 'preact-router'
 import { CubeIcon } from '../../web/src/components/icons/icons'
+import { SceneContext } from '@babylonjs/lite'
 
 interface Props {
   grid: Grid
-  scene: BABYLON.Scene
+  scene: SceneContext
 }
 
 export default function HomeButton(props: Props) {

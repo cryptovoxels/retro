@@ -56,7 +56,7 @@ export default class Sign extends Feature2D<SignRecord> {
     Sign.canvas.height = height
 
     // Make a dynamic texture
-    const dynamicTexture = new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), Sign.canvas, this.scene, true)
+    const dynamicTexture = (undefined as any /* todo(lite): new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), Sign.canvas, this.scene, true) */)
     dynamicTexture.hasAlpha = false
 
     const ctx = dynamicTexture.getContext() as CanvasRenderingContext2D // typeCast needed.
@@ -79,9 +79,9 @@ export default class Sign extends Feature2D<SignRecord> {
 
     dynamicTexture.update(true)
 
-    const plane = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    const plane = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
 
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
 
     material.diffuseColor.set(1, 1, 1)
     material.diffuseTexture = dynamicTexture
@@ -93,9 +93,9 @@ export default class Sign extends Feature2D<SignRecord> {
     material.freeze()
 
     if (this.blendMode === 'Multiply') {
-      material.alphaMode = BABYLON.Engine.ALPHA_MULTIPLY
+      material.alphaMode = (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_MULTIPLY */)
     } else if (this.blendMode === 'Screen') {
-      material.alphaMode = BABYLON.Engine.ALPHA_SCREENMODE
+      material.alphaMode = (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_SCREENMODE */)
     } else {
       material.emissiveColor.set(0, 0, 0)
     }

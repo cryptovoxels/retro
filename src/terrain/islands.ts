@@ -3,20 +3,21 @@ import { StateObservable } from '../utils/state-observable'
 import { createIslandMaterial } from '../materials'
 import { pointInPolygon } from '../utils/polygon-utils'
 import { addCuboid } from '../physics/world'
+import { Camera, Mesh, SceneContext, Vec2, Vec3 } from '@babylonjs/lite'
 
 export class Island {
   list: Islands
   desc: IslandRecord
-  center: BABYLON.Vector3
+  center: Vec3
   radius: number
-  outline: BABYLON.Vector2[]
+  outline: Vec2[]
   texturePath = '/textures/00-grid.png'
-  private readonly _mesh: BABYLON.Mesh
+  private readonly _mesh: Mesh
 
   constructor(list: Islands, desc: IslandRecord) {
     this.list = list
     this.desc = desc
-    this.outline = this.desc.geometry.coordinates[0].map((c: [x: number, y: number]) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
+    this.outline = this.desc.geometry.coordinates[0].map((c: [x: number, y: number]) => ({ x: c[0] * 100, y: c[1] * 100 } as Vec2)).reverse()
 
     // if (window.config.isSpace) {
     //   this.texturePath = '/textures/subgrid.png'
@@ -26,13 +27,13 @@ export class Island {
     // }
 
     // build mesh
-    const shape = this.desc.geometry.coordinates[0].map((c) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
-    const pt = new BABYLON.PolygonMeshBuilder('island/' + this.name, shape, this.scene)
+    const shape = this.desc.geometry.coordinates[0].map((c) => ({ x: c[0] * 100, y: c[1] * 100 } as Vec2)).reverse()
+    const pt = (undefined as any /* todo(lite): new BABYLON.PolygonMeshBuilder('island/' + this.name, shape, this.scene) */)
 
     // add holes for parcel basements and lakes
     const makeHoles = (multipolygon: MultiPolygonGeometry) => {
       const nudge = 0.25
-      return multipolygon.coordinates.map((p) => p[0].map((c) => new BABYLON.Vector2(c[0] * 100 + nudge, c[1] * 100 + nudge)))
+      return multipolygon.coordinates.map((p) => p[0].map((c) => ({ x: c[0] * 100 + nudge, y: c[1] * 100 + nudge } as Vec2)))
     }
 
     const holes = makeHoles(this.desc.lakes_geometry_json)
@@ -40,7 +41,7 @@ export class Island {
       holes.push(...makeHoles(this.desc.holes_geometry_json))
     }
 
-    holes.forEach((hole: BABYLON.Vector2[]) => {
+    holes.forEach((hole: Vec2[]) => {
       pt.addHole(hole)
     })
 
@@ -48,13 +49,13 @@ export class Island {
 
     if (this.desc.id >= 40) {
       for (const s of this.desc.geometry.coordinates.slice(1)) {
-        const shape = s.map((c) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
-        const pt = new BABYLON.PolygonMeshBuilder('island/' + this.name, shape, this.scene)
+        const shape = s.map((c) => ({ x: c[0] * 100, y: c[1] * 100 } as Vec2)).reverse()
+        const pt = (undefined as any /* todo(lite): new BABYLON.PolygonMeshBuilder('island/' + this.name, shape, this.scene) */)
         meshes.push(pt.build(false, 32))
       }
     }
 
-    const mesh = BABYLON.Mesh.MergeMeshes(meshes, true)!
+    const mesh = (undefined as any /* todo(lite): BABYLON.Mesh.MergeMeshes(meshes, true)! */)
     mesh.metadata = 'teleportable'
     mesh.receiveShadows = true
     mesh.visibility = 0
@@ -71,7 +72,7 @@ export class Island {
     return this.desc.name
   }
 
-  get mesh(): BABYLON.Mesh {
+  get mesh(): Mesh {
     return this._mesh
   }
 
@@ -83,12 +84,12 @@ export class Island {
     return !!['Scarcity', 'Flora', 'Andromeda'].includes(this.name)
   }
 
-  checkIntersects(boundingInfo: BABYLON.BoundingInfo) {
+  checkIntersects(boundingInfo: any) {
     if (!this._mesh) {
       console.warn('no mesh for island, cannot check for intersection. Possible race condition detected', this.name)
       return false
     }
-    return BABYLON.BoundingBox.Intersects(this._mesh.getBoundingInfo().boundingBox as BABYLON.DeepImmutableObject<BABYLON.BoundingBox>, boundingInfo.boundingBox as BABYLON.DeepImmutableObject<BABYLON.BoundingBox>)
+    return (undefined as any /* todo(lite): BABYLON.BoundingBox.Intersects(this._mesh.getBoundingInfo().boundingBox as BABYLON.DeepImmutableObject<BABYLON.BoundingBox>, boundingInfo.boundingBox as BABYLON.DeepImmutableObject<BABYLON.BoundingBox>) */)
   }
 
   async render(): Promise<BABYLON.Mesh> {
@@ -97,7 +98,7 @@ export class Island {
     const width = this._mesh.getBoundingInfo().maximum.x - this._mesh.getBoundingInfo().minimum.x
     const depth = this._mesh.getBoundingInfo().maximum.z - this._mesh.getBoundingInfo().minimum.z
 
-    const texture = new BABYLON.Texture(this.texturePath, this.scene)
+    const texture = (undefined as any /* todo(lite): new BABYLON.Texture(this.texturePath, this.scene) */)
 
     // Configure texture UV scaling
     texture.vScale = depth * 2
@@ -121,13 +122,13 @@ export class Island {
 }
 
 export default class Islands {
-  scene: BABYLON.Scene
+  scene: SceneContext
   islands: Island[] = []
 
   public islandsStateObservable = new StateObservable<'loaded' | 'unloaded'>('unloaded')
   private _fetchCompleted = false
 
-  constructor(scene: BABYLON.Scene) {
+  constructor(scene: SceneContext) {
     this.scene = scene
   }
 
@@ -146,7 +147,7 @@ export default class Islands {
   }
 
   // this should be called regularly to enable/disable rendering of islands that are far away
-  setVisibility(cam: BABYLON.Camera, loadingDistance: number) {
+  setVisibility(cam: Camera, loadingDistance: number) {
     const camPos = cam.position.clone()
     // we ignore the height of the camera, so that islands are rendered even if the camera is above or below them
     camPos.y = 0
@@ -173,14 +174,14 @@ export default class Islands {
     this.islandsStateObservable.setState('unloaded')
   }
 
-  getIntersecting(boundingInfo: BABYLON.BoundingInfo) {
+  getIntersecting(boundingInfo: any) {
     return this.islands.filter((island) => {
       return island.hasBasements && island.checkIntersects(boundingInfo)
     })
   }
 
-  allMeshes(): BABYLON.Mesh[] {
-    const meshes: BABYLON.Mesh[] = []
+  allMeshes(): Mesh[] {
+    const meshes: Mesh[] = []
     for (const island of this.islands) {
       if (island.mesh) {
         meshes.push(island.mesh)
@@ -195,7 +196,7 @@ export default class Islands {
     return this.islands.map((island) => island.desc)
   }
 
-  getIsland(point: BABYLON.Vector2): Island | false {
+  getIsland(point: Vec2): Island | false {
     for (const island of this.islands) {
       const dx = point.x - island.center.x
       const dz = point.y - island.center.z

@@ -7,10 +7,12 @@ import type Grid from '../../grid'
 import type Parcel from '../../parcel'
 import { toggleFPSStats } from '../../utils/fps-stats'
 import { TimeOfDay } from '../../utils/time-of-day'
+import { Color3, Mesh, SceneContext } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 interface Props {
   parcel: Parcel | null
-  scene: BABYLON.Scene
+  scene: SceneContext
   environment: Environment
 }
 
@@ -20,13 +22,13 @@ interface State {
   gridIsOpen: boolean
   multiplayerIsOpen: boolean
   nightTime: boolean
-  parcelBoundingBoxes: BABYLON.Mesh[]
+  parcelBoundingBoxes: Mesh[]
   isGridWorkerRunning: boolean
 }
 
 export default class DebugTools extends Component<Props, State> {
   static previousState: State
-  spectrumAnalyser: BABYLON.Analyser
+  spectrumAnalyser: any
 
   constructor(props: Props) {
     super(props)
@@ -41,7 +43,7 @@ export default class DebugTools extends Component<Props, State> {
       isGridWorkerRunning: this.grid.isWorkerRunning,
     }
 
-    this.spectrumAnalyser = new BABYLON.Analyser(this.scene)
+    this.spectrumAnalyser = (undefined as any /* todo(lite): new BABYLON.Analyser(this.scene) */)
     DebugTools.previousState = this.state
   }
 
@@ -90,7 +92,7 @@ export default class DebugTools extends Component<Props, State> {
     if (!position) {
       return
     }
-    const m = BABYLON.MeshBuilder.CreateSphere('debug/sphere', { diameter: 0.8 }, this.props.scene)
+    const m = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateSphere('debug/sphere', { diameter: 0.8 }, this.props.scene) */)
     const parcel = this.grid.currentOrNearestParcel()
     if (parent == 'parcel' && parcel) {
       m.parent = parcel.transform
@@ -170,7 +172,7 @@ export default class DebugTools extends Component<Props, State> {
       if (this.state.showSpectrumAnalyser) {
         this.spectrumAnalyser.DEBUGCANVASPOS.x = 120
         this.spectrumAnalyser.DEBUGCANVASPOS.y = 30
-        BABYLON.Engine.audioEngine?.connectToAnalyser(this.spectrumAnalyser)
+        (undefined as any /* todo(lite): BABYLON.Engine.audioEngine?.connectToAnalyser(this.spectrumAnalyser) */)
         this.spectrumAnalyser.drawDebugCanvas()
       } else {
         this.spectrumAnalyser.stopDebugCanvas()
@@ -258,7 +260,7 @@ export async function createMeshAtPopUp(): Promise<[BABYLON.Vector3, Scope] | [n
     }
 
     const resolvePosition = (position: number[], scope: Scope) => {
-      const newVector = BABYLON.Vector3.FromArray(position)
+      const newVector = vec3.clone(position as any)
       resolve([newVector, scope])
       close()
     }
@@ -314,20 +316,20 @@ function CreateMeshAtPositionWindow({ resolveAndClose, rejectAndClose }: { resol
   )
 }
 
-function visualizeParcelBoundingBoxes(parcel: Parcel, scene: BABYLON.Scene): [BABYLON.Mesh, BABYLON.Mesh, BABYLON.Mesh] {
-  const meshes: [BABYLON.Mesh, BABYLON.Mesh, BABYLON.Mesh] = [null!, null!, null!]
+function visualizeParcelBoundingBoxes(parcel: Parcel, scene: SceneContext): [Mesh, Mesh, Mesh] {
+  const meshes: [Mesh, Mesh, Mesh] = [null!, null!, null!]
 
   let bb = parcel.featureBounds
   let width = bb.maximum.x - bb.minimum.x
   let height = bb.maximum.y - bb.minimum.y
   let depth = bb.maximum.z - bb.minimum.z
-  const m = BABYLON.MeshBuilder.CreateBox(`parcel/${parcel.id}/featureBounds`, { width, height, depth }, scene)
+  const m = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox(`parcel/${parcel.id}/featureBounds`, { width, height, depth }, scene) */)
   m.parent = parcel.transform
-  m.material = new BABYLON.StandardMaterial('parcel/blocked', parcel.scene) //Parcel.noNFTShaderMaterial as BABYLON.ShaderMaterial
+  m.material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('parcel/blocked', parcel.scene) */) //Parcel.noNFTShaderMaterial as BABYLON.ShaderMaterial
   m.material.backFaceCulling = false
-  m.position = new BABYLON.Vector3(0, height / 2, 0)
-  ;(m.material as any).diffuseColor = BABYLON.Color3.Green()
-  ;(m.material as any).emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.7)
+  m.position = vec3.fromValues(0, height / 2, 0)
+  ;(m.material as any).diffuseColor = ([0, 1, 0] as Color3)
+  ;(m.material as any).emissiveColor = ([0.7, 0.7, 0.7] as Color3)
   ;(m.material as any).alpha = 0.5
   m.material.blockDirtyMechanism = true
   meshes.push(m)
@@ -336,12 +338,12 @@ function visualizeParcelBoundingBoxes(parcel: Parcel, scene: BABYLON.Scene): [BA
   width = bb.maximum.x - bb.minimum.x + 0.2
   height = bb.maximum.y - bb.minimum.y
   depth = bb.maximum.z - bb.minimum.z + 0.2
-  const mm = BABYLON.MeshBuilder.CreateBox(`parcel/${parcel.id}/boundingBox`, { width, height, depth }, scene)
+  const mm = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox(`parcel/${parcel.id}/boundingBox`, { width, height, depth }, scene) */)
   mm.parent = parcel.transform
-  mm.position = new BABYLON.Vector3(0, height / 2, 0)
-  mm.material = new BABYLON.StandardMaterial('parcel/blocked/blue', parcel.scene) //Parcel.noNFTShaderMaterial as BABYLON.ShaderMaterial
-  ;(mm.material as any).diffuseColor = BABYLON.Color3.Blue()
-  ;(mm.material as any).emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.7)
+  mm.position = vec3.fromValues(0, height / 2, 0)
+  mm.material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('parcel/blocked/blue', parcel.scene) */) //Parcel.noNFTShaderMaterial as BABYLON.ShaderMaterial
+  ;(mm.material as any).diffuseColor = ([0, 0, 1] as Color3)
+  ;(mm.material as any).emissiveColor = ([0.7, 0.7, 0.7] as Color3)
   ;(mm.material as any).alpha = 0.5
   mm.material.blockDirtyMechanism = true
   meshes.push(mm)
@@ -350,12 +352,12 @@ function visualizeParcelBoundingBoxes(parcel: Parcel, scene: BABYLON.Scene): [BA
   width = hardBB.maximum.x - hardBB.minimum.x
   height = hardBB.maximum.y - hardBB.minimum.y
   depth = hardBB.maximum.z - hardBB.minimum.z
-  const mmm = BABYLON.MeshBuilder.CreateBox(`parcel/${parcel.id}/HardFeatureBounds`, { width, height, depth }, scene)
+  const mmm = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox(`parcel/${parcel.id}/HardFeatureBounds`, { width, height, depth }, scene) */)
   mmm.parent = parcel.transform
-  mmm.position = new BABYLON.Vector3(0, height / 2, 0)
-  mmm.material = new BABYLON.StandardMaterial('parcel/blocked/blue', parcel.scene) //Parcel.noNFTShaderMaterial as BABYLON.ShaderMaterial
-  ;(mmm.material as any).diffuseColor = BABYLON.Color3.Red()
-  ;(mmm.material as any).emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.7)
+  mmm.position = vec3.fromValues(0, height / 2, 0)
+  mmm.material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('parcel/blocked/blue', parcel.scene) */) //Parcel.noNFTShaderMaterial as BABYLON.ShaderMaterial
+  ;(mmm.material as any).diffuseColor = ([1, 0, 0] as Color3)
+  ;(mmm.material as any).emissiveColor = ([0.7, 0.7, 0.7] as Color3)
   ;(mmm.material as any).alpha = 0.5
   mmm.material.blockDirtyMechanism = true
   meshes.push(mmm)

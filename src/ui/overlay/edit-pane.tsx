@@ -8,6 +8,7 @@ import { checkedFeatures, deleteCheckedFeatures, groupCheckedFeatures, nearestEd
 import { FeatureContext } from '../features/context'
 import { templateFromFeature } from '../../tools/feature'
 import type { FeatureTemplate } from '../../features/_metadata'
+import { SceneContext } from '@babylonjs/lite'
 
 function featureLabel(feature: Feature) {
   const id = feature.description?.id
@@ -17,7 +18,7 @@ function featureLabel(feature: Feature) {
 
 type EditPaneProps = {
   parcel: Parcel | null
-  scene: BABYLON.Scene
+  scene: SceneContext
   feature?: Feature
   editor?: any
   publishAsset?: FeatureTemplate | string

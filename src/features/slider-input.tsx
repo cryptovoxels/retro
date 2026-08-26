@@ -17,8 +17,8 @@ export default class SliderInput extends Feature2D<SliderInputRecord> {
     type: 'slider-input',
     scale: [1, 0.25, 0],
   }
-  input: BABYLON.GUI.Slider | null = null
-  grid: BABYLON.GUI.Grid | null = null
+  input: any | null = null
+  grid: any | null = null
 
   get currentValue() {
     return this.input?.value || 0
@@ -33,9 +33,9 @@ export default class SliderInput extends Feature2D<SliderInputRecord> {
   }
 
   generate() {
-    const plane = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
-    const texture = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(plane, 512, 128)
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const plane = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
+    const texture = (undefined as any /* todo(lite): BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(plane, 512, 128) */)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     material.diffuseTexture = texture
 
     material.specularColor.fromArray(this.description.specularColor || [1, 1, 1])
@@ -48,7 +48,7 @@ export default class SliderInput extends Feature2D<SliderInputRecord> {
     plane.metadata = { captureMoveEvents: true }
 
     // Create grid for the GUI
-    this.grid = new BABYLON.GUI.Grid()
+    this.grid = (undefined as any /* todo(lite): new BABYLON.GUI.Grid() */)
     texture.addControl(this.grid)
     this.grid.addColumnDefinition(1)
 
@@ -56,7 +56,7 @@ export default class SliderInput extends Feature2D<SliderInputRecord> {
     this.grid.addRowDefinition(0.5)
 
     if (this.description.text) {
-      const header = new BABYLON.GUI.TextBlock()
+      const header = (undefined as any /* todo(lite): new BABYLON.GUI.TextBlock() */)
       header.text = this.description.text
       header.height = '30px'
       header.color = 'white'
@@ -65,7 +65,7 @@ export default class SliderInput extends Feature2D<SliderInputRecord> {
       this.grid.addControl(header, 0, 0)
     }
 
-    const input = new BABYLON.GUI.Slider()
+    const input = (undefined as any /* todo(lite): new BABYLON.GUI.Slider() */)
     input.width = 1
     input.minimum = this.description.minimum || 0.01
     input.maximum = this.description.maximum || 100

@@ -6,6 +6,7 @@ import { ReflectiveWater } from '../shaders/reflective-water'
 import { GraphicLevels } from '../graphic/graphic-engine'
 import Islands from './islands'
 import { OCEAN_HEIGHT_OFFSET } from '../constants'
+import { Mesh, SceneContext } from '@babylonjs/lite'
 
 type IntersectionType = 'partial' | 'full'
 type MeshPosition = { x: number; z: number }
@@ -24,8 +25,8 @@ export class Ocean implements ChunkObserver {
 
   private readonly size: number
   private readonly halfSize: number
-  private readonly scene: BABYLON.Scene
-  private readonly mesh: BABYLON.Mesh
+  private readonly scene: SceneContext
+  private readonly mesh: Mesh
   private readonly materials: { reflection: ReflectiveWater; simple: SimpleWater }
   private currentMaterial: WaterMaterialType
   private instances: Map<string, BABYLON.InstancedMesh> = new Map()
@@ -38,16 +39,16 @@ export class Ocean implements ChunkObserver {
   private readonly FRAME_BUDGET_MS = 8 // 8ms budget per frame for chunk processing
   private isProcessingQueue = false
   private islandBoundsCache = new Map<number, { minX: number; maxX: number; minZ: number; maxZ: number }>()
-  private baseReflectionMeshes: BABYLON.AbstractMesh[] = []
-  private reflectionMeshes: BABYLON.AbstractMesh[] = []
+  private baseReflectionMeshes: Mesh[] = []
+  private reflectionMeshes: Mesh[] = []
 
-  constructor(size: number, scene: BABYLON.Scene, reflectionMeshes: BABYLON.AbstractMesh[] = []) {
+  constructor(size: number, scene: SceneContext, reflectionMeshes: Mesh[] = []) {
     this.size = size
     this.halfSize = size * 0.5
     this.scene = scene
 
     // set up the instance template
-    this.mesh = BABYLON.MeshBuilder.CreateGround('ocean_original', { width: this.size, height: this.size, subdivisions: 1 }, scene)
+    this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateGround('ocean_original', { width: this.size, height: this.size, subdivisions: 1 }, scene) */)
     this.mesh.position.set(-99999, -99999, -99999)
     this.mesh.setEnabled(false)
 
@@ -65,7 +66,7 @@ export class Ocean implements ChunkObserver {
     }
   }
 
-  createInstance(x: number, y: number): BABYLON.InstancedMesh {
+  createInstance(x: number, y: number): Mesh {
     const i = this.mesh.createInstance(`ocean_i_${x}_${y}`)
     i.position.x = this.size * x + this.halfSize
     i.position.y = OCEAN_HEIGHT_OFFSET
@@ -152,7 +153,7 @@ export class Ocean implements ChunkObserver {
     return this.customMeshes.has(key)
   }
 
-  addReflection(mesh: BABYLON.AbstractMesh): void {
+  addReflection(mesh: Mesh): void {
     if (mesh.visibility === 0) return
     if (this.reflectionMeshes.includes(mesh)) return
     this.reflectionMeshes.push(mesh)
@@ -161,7 +162,7 @@ export class Ocean implements ChunkObserver {
     }
   }
 
-  removeReflection(mesh: BABYLON.AbstractMesh): void {
+  removeReflection(mesh: Mesh): void {
     this.reflectionMeshes = this.reflectionMeshes.filter((m) => m !== mesh)
     this.materials.reflection.removeFromRenderList(mesh)
   }
@@ -391,7 +392,7 @@ export class Ocean implements ChunkObserver {
     }
   }
 
-  private createMergedOceanMesh(chunk: Chunk, polygonVerticesArray: Point2D[][], key: string, heightOverride?: number): BABYLON.Mesh {
+  private createMergedOceanMesh(chunk: Chunk, polygonVerticesArray: Point2D[][], key: string, heightOverride?: number): Mesh {
     if (polygonVerticesArray.length === 0) {
       throw new Error(`No polygons provided for merged ocean mesh creation in chunk ${key}`)
     }
@@ -455,16 +456,16 @@ export class Ocean implements ChunkObserver {
     return localVertices
   }
 
-  private createMeshWithGeometry(key: string, meshIndex: number, localVertices: number[], indices: number[], chunk: Chunk, meshPosition: MeshPosition): BABYLON.Mesh {
-    const mesh = new BABYLON.Mesh(`ocean_clipped_${key}_${meshIndex}`, this.scene)
+  private createMeshWithGeometry(key: string, meshIndex: number, localVertices: number[], indices: number[], chunk: Chunk, meshPosition: MeshPosition): Mesh {
+    const mesh = (undefined as any /* todo(lite): new BABYLON.Mesh(`ocean_clipped_${key}_${meshIndex}`, this.scene) */)
     const vertexData = this.createVertexData(localVertices, indices, chunk, meshPosition)
     vertexData.applyToMesh(mesh)
     mesh.position.set(meshPosition.x, 0, meshPosition.z)
     return mesh
   }
 
-  private createVertexData(localVertices: number[], indices: number[], chunk: Chunk, meshPosition: MeshPosition): BABYLON.VertexData {
-    const vertexData = new BABYLON.VertexData()
+  private createVertexData(localVertices: number[], indices: number[], chunk: Chunk, meshPosition: MeshPosition): any {
+    const vertexData = (undefined as any /* todo(lite): new BABYLON.VertexData() */)
     vertexData.positions = localVertices
     vertexData.indices = indices // Use the proper earcut indices
     vertexData.uvs = this.generateUVCoordinates(localVertices, chunk, meshPosition)
@@ -496,7 +497,7 @@ export class Ocean implements ChunkObserver {
     return normals
   }
 
-  private configureMeshProperties(mesh: BABYLON.Mesh, heightOverride?: number): void {
+  private configureMeshProperties(mesh: Mesh, heightOverride?: number): void {
     mesh.material = this.mesh.material
     const yPosition = heightOverride !== undefined ? heightOverride : OCEAN_HEIGHT_OFFSET
     mesh.position.set(mesh.position.x, yPosition, mesh.position.z)

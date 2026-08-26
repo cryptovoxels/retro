@@ -1,13 +1,14 @@
 import { v7 as uuid } from 'uuid'
+import { SceneContext, ShaderMaterial } from '@babylonjs/lite'
 
 type nftFragmentStyle = 'nftFrame' | 'nftFrameColors' | 'nftFrameBlue'
 
 export default class NFTFrame {
-  frameMaterial: BABYLON.ShaderMaterial
+  frameMaterial: ShaderMaterial
   time = 0
 
-  constructor(scene: BABYLON.Scene, nftFragmentStyle: nftFragmentStyle = 'nftFrame', name: string = uuid()) {
-    this.frameMaterial = new BABYLON.ShaderMaterial(
+  constructor(scene: SceneContext, nftFragmentStyle: nftFragmentStyle = 'nftFrame', name: string = uuid()) {
+    this.frameMaterial = (undefined as any /* todo(lite): new BABYLON.ShaderMaterial(
       `feature/nft-image/${name}`,
       scene,
       {
@@ -19,7 +20,7 @@ export default class NFTFrame {
         uniforms: ['worldViewProjection'],
         defines: ['#define IMAGEPROCESSINGPOSTPROCESS'],
       },
-    )
+    ) */)
 
     this.frameMaterial.setFloat('time', 0)
 

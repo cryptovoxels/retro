@@ -1,12 +1,13 @@
+import { SceneContext } from '@babylonjs/lite'
 export class ColorGrader {
   disposed = false
-  private readonly _postProcess: BABYLON.ImageProcessingPostProcess
+  private readonly _postProcess: any
   private sandboxOn = false
-  private sandboxPP: BABYLON.Nullable<BABYLON.PostProcess> = null
+  private sandboxPP: (any | null) = null
 
-  constructor(private scene: BABYLON.Scene) {
+  constructor(private scene: SceneContext) {
     // warning setting reusable to true causes youtube and twitch videos to wobble... not sure why
-    this._postProcess = new BABYLON.ImageProcessingPostProcess('luts', 1.0, null, BABYLON.Texture.BILINEAR_SAMPLINGMODE, this.scene.getEngine(), false, BABYLON.Constants.TEXTURETYPE_HALF_FLOAT)
+    this._postProcess = (undefined as any /* todo(lite): new BABYLON.ImageProcessingPostProcess('luts', 1.0, null, BABYLON.Texture.BILINEAR_SAMPLINGMODE, this.scene.getEngine(), false, BABYLON.Constants.TEXTURETYPE_HALF_FLOAT) */)
     this._postProcess.colorGradingEnabled = false
     this._postProcess.colorCurvesEnabled = false
     this._postProcess.toneMappingEnabled = false
@@ -20,7 +21,7 @@ export class ColorGrader {
     this._postProcess.samples = 1
   }
 
-  public get postProcess(): BABYLON.ImageProcessingPostProcess {
+  public get postProcess(): any {
     return this._postProcess
   }
 
@@ -41,8 +42,8 @@ export class ColorGrader {
     const camera = this.scene.activeCamera
     if (!camera) return
 
-    if (!BABYLON.Effect.ShadersStore['sandboxBorderPixelShader']) {
-      BABYLON.Effect.ShadersStore['sandboxBorderPixelShader'] = `
+    if (!(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['sandboxBorderPixelShader'] */)) {
+      (undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['sandboxBorderPixelShader'] = `
 varying vec2 vUV;
 uniform sampler2D textureSampler;
 uniform vec2 screenSize;
@@ -58,7 +59,7 @@ void main(void) {
   color.rgb = mix(color.rgb, pink, t);
   gl_FragColor = color;
 }
-`
+` */)
     }
 
     if (this.sandboxPP) {
@@ -69,7 +70,7 @@ void main(void) {
     }
 
     const engine = this.scene.getEngine()
-    const pp = new BABYLON.PostProcess('sandboxBorder', 'sandboxBorder', ['screenSize', 'borderWidth'], null, 1.0, camera, BABYLON.Texture.BILINEAR_SAMPLINGMODE, engine, false)
+    const pp = (undefined as any /* todo(lite): new BABYLON.PostProcess('sandboxBorder', 'sandboxBorder', ['screenSize', 'borderWidth'], null, 1.0, camera, BABYLON.Texture.BILINEAR_SAMPLINGMODE, engine, false) */)
     pp.onApply = (effect) => {
       effect.setFloat2('screenSize', engine.getRenderWidth(), engine.getRenderHeight())
       effect.setFloat('borderWidth', 30.0)

@@ -3,20 +3,21 @@ import type { LanternRecord } from '../common/messages/feature'
 import { createGlassMaterial } from './materials/glass'
 import { runCompute } from './mono-pool'
 import type { Geo, GlassGeo } from './monoworker/lightmap'
+import { Color3, Mesh, SceneContext, Texture2D } from '@babylonjs/lite'
 
 const DEBUG_LIGHT_PROBES = false
 
-let cachedTex: BABYLON.Texture | null = null
+let cachedTex: Texture2D | null = null
 let cachedTexUrl = ''
 
-function loadTex(url: string, scene: BABYLON.Scene): BABYLON.Texture {
+function loadTex(url: string, scene: SceneContext): Texture2D {
   if (cachedTex && cachedTexUrl === url) return cachedTex
-  cachedTex = new BABYLON.Texture(url, scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE)
+  cachedTex = (undefined as any /* todo(lite): new BABYLON.Texture(url, scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE) */)
   cachedTexUrl = url
   return cachedTex
 }
 
-function tintVertexColors(lighting: Float32Array, colorIndices: Float32Array, palette: BABYLON.Color3[]) {
+function tintVertexColors(lighting: Float32Array, colorIndices: Float32Array, palette: Color3[]) {
   const colors = new Float32Array(lighting.length)
   for (let i = 0; i < colorIndices.length; i++) {
     const p = palette[colorIndices[i] | 0] || palette[0]
@@ -30,18 +31,18 @@ function tintVertexColors(lighting: Float32Array, colorIndices: Float32Array, pa
   return colors
 }
 
-export function applyCleanPalette(mesh: BABYLON.Mesh, palette: BABYLON.Color3[]) {
+export function applyCleanPalette(mesh: Mesh, palette: Color3[]) {
   const colorIndex = mesh.getVerticesData('colorIndex')
   const baseColor = mesh.getVerticesData('baseColor')
   if (!colorIndex || !baseColor) return false
 
-  mesh.updateVerticesData(BABYLON.VertexBuffer.ColorKind, tintVertexColors(baseColor as Float32Array, colorIndex as Float32Array, palette))
+  mesh.updateVerticesData((undefined as any /* todo(lite): BABYLON.VertexBuffer.ColorKind */), tintVertexColors(baseColor as Float32Array, colorIndex as Float32Array, palette))
   return true
 }
 
-function mesh(geo: Geo, tex: BABYLON.Texture, scene: BABYLON.Scene, id: number, palette: BABYLON.Color3[]): BABYLON.Mesh {
-  const m = new BABYLON.Mesh(`voxelizer/opaque-${id}`, scene)
-  const vd = new BABYLON.VertexData()
+function mesh(geo: Geo, tex: Texture2D, scene: SceneContext, id: number, palette: Color3[]): Mesh {
+  const m = (undefined as any /* todo(lite): new BABYLON.Mesh(`voxelizer/opaque-${id}`, scene) */)
+  const vd = (undefined as any /* todo(lite): new BABYLON.VertexData() */)
   vd.positions = geo.positions
   vd.normals = geo.normals
   vd.uvs = geo.uvs
@@ -53,7 +54,7 @@ function mesh(geo: Geo, tex: BABYLON.Texture, scene: BABYLON.Scene, id: number, 
   m.setVerticesData('colorIndex', geo.colorIndices, false, 1)
   m.setVerticesData('baseColor', geo.colors, false, 4)
 
-  const mat = new BABYLON.StandardMaterial('clean-voxel-mat', scene)
+  const mat = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('clean-voxel-mat', scene) */)
   mat.diffuseTexture = tex
 
   const c = 0.6
@@ -66,9 +67,9 @@ function mesh(geo: Geo, tex: BABYLON.Texture, scene: BABYLON.Scene, id: number, 
   return m
 }
 
-function glassMesh(geo: GlassGeo, scene: BABYLON.Scene, id: number, palette: BABYLON.Color3[]): BABYLON.Mesh {
-  const m = new BABYLON.Mesh(`voxelizer/glass-${id}`, scene)
-  const vd = new BABYLON.VertexData()
+function glassMesh(geo: GlassGeo, scene: SceneContext, id: number, palette: Color3[]): Mesh {
+  const m = (undefined as any /* todo(lite): new BABYLON.Mesh(`voxelizer/glass-${id}`, scene) */)
+  const vd = (undefined as any /* todo(lite): new BABYLON.VertexData() */)
   vd.positions = geo.positions
   vd.normals = geo.normals
   vd.indices = geo.indices
@@ -95,11 +96,11 @@ function glassMesh(geo: GlassGeo, scene: BABYLON.Scene, id: number, palette: BAB
 export async function buildCleanMesh(
   field: NdArray<Uint16Array>,
   lanterns: LanternRecord[],
-  scene: BABYLON.Scene,
+  scene: SceneContext,
   off: [number, number, number],
   id: number,
-  palette: BABYLON.Color3[],
-  texOverride?: BABYLON.Texture,
+  palette: Color3[],
+  texOverride?: Texture2D,
 ): Promise<{ opaque: BABYLON.Mesh; glass: BABYLON.Mesh | null }> {
   const lights = lanterns.map((l: any) => ({ position: l.position, color: l.color ?? '#ffffff', strength: l.strength }))
   const pal = palette.map((c) => [c.r, c.g, c.b] as [number, number, number])

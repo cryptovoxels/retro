@@ -2,16 +2,17 @@ import { Environment } from '../enviroments/environment'
 import Controls from './controls'
 import { WorldEnvironment } from '../enviroments/world-environment'
 import { wantsGateway } from '../../common/helpers/detector'
+import { Mesh, SceneContext, Vec3 } from '@babylonjs/lite'
 
 export default class XROverlay {
-  webXR: BABYLON.WebXRDefaultExperience | null = null
-  xrTeleportation: BABYLON.WebXRMotionControllerTeleportation | null = null
+  webXR: any | null = null
+  xrTeleportation: any | null = null
   teleportableMeshes: Set<BABYLON.AbstractMesh> = new Set()
-  scene: BABYLON.Scene
+  scene: SceneContext
   canvas: HTMLCanvasElement
   controls: Controls
 
-  constructor(scene: BABYLON.Scene, canvas: HTMLCanvasElement, controls: Controls) {
+  constructor(scene: SceneContext, canvas: HTMLCanvasElement, controls: Controls) {
     this.scene = scene
     this.canvas = canvas
     this.controls = controls
@@ -59,7 +60,7 @@ export default class XROverlay {
       // console.log(`XR State Change to: ${state}`)
 
       try {
-        if (state !== BABYLON.WebXRState.IN_XR) {
+        if (state !== (undefined as any /* todo(lite): BABYLON.WebXRState.IN_XR */)) {
           return
         }
 
@@ -71,16 +72,16 @@ export default class XROverlay {
 
     const featuresManager = this.webXR.baseExperience.featuresManager
 
-    this.xrTeleportation = featuresManager.enableFeature(BABYLON.WebXRFeatureName.TELEPORTATION, 'stable', {
+    this.xrTeleportation = featuresManager.enableFeature((undefined as any /* todo(lite): BABYLON.WebXRFeatureName.TELEPORTATION */), 'stable', {
       xrInput: this.webXR.input,
       floorMeshes: Array.from(this.teleportableMeshes),
-    }) as BABYLON.WebXRMotionControllerTeleportation
+    }) as any
 
     // disable the pointer as it is unused currently and just adds overhead (avoid picking)
-    featuresManager.disableFeature(BABYLON.WebXRFeatureName.POINTER_SELECTION)
+    featuresManager.disableFeature((undefined as any /* todo(lite): BABYLON.WebXRFeatureName.POINTER_SELECTION */))
 
     if (multiview) {
-      featureManager.enableFeature(BABYLON.WebXRFeatureName.LAYERS, 'stable', { preferMultiviewOnInit: true }, true, false)
+      featureManager.enableFeature((undefined as any /* todo(lite): BABYLON.WebXRFeatureName.LAYERS */), 'stable', { preferMultiviewOnInit: true }, true, false)
     }
 
     this.xrTeleportation.rotationEnabled = false
@@ -96,14 +97,14 @@ export default class XROverlay {
     }
   }
 
-  resetXRFloorHeight(positionInWorld: BABYLON.Vector3) {
+  resetXRFloorHeight(positionInWorld: Vec3) {
     if (!this.webXR) {
       return
     }
 
     const camera = this.webXR.baseExperience.camera
 
-    const pickResult = this.scene.pickWithRay(new BABYLON.Ray(positionInWorld, new BABYLON.Vector3(0, -1, 0), 5), (e) => this.teleportableMeshes.has(e))
+    const pickResult = this.scene.pickWithRay((undefined as any /* todo(lite): new BABYLON.Ray(positionInWorld, new BABYLON.Vector3(0, -1, 0), 5) */), (e) => this.teleportableMeshes.has(e))
     if (!pickResult?.hit || !pickResult.pickedPoint) {
       return
     }
@@ -112,14 +113,14 @@ export default class XROverlay {
     camera.position.y = pickPositionInWorld.y + camera.realWorldHeight
   }
 
-  addTeleportMesh(mesh: BABYLON.AbstractMesh) {
+  addTeleportMesh(mesh: Mesh) {
     this.teleportableMeshes.add(mesh)
     if (this.xrTeleportation) {
       this.xrTeleportation.addFloorMesh(mesh)
     }
   }
 
-  removeTeleportMesh(mesh: BABYLON.AbstractMesh) {
+  removeTeleportMesh(mesh: Mesh) {
     this.teleportableMeshes.delete(mesh)
     if (this.xrTeleportation) {
       this.xrTeleportation.removeFloorMesh(mesh)

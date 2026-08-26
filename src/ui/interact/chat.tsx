@@ -20,9 +20,10 @@ import { isHate } from '../../hate'
 import { matcher } from '../../obscenity'
 import { NearByPlayers } from './nearby-players'
 import { createEvent, TypedEventTarget } from '../../utils/EventEmitter'
+import { SceneContext } from '@babylonjs/lite'
 
 interface Props {
-  scene: BABYLON.Scene
+  scene: SceneContext
   focusChatInput?: () => void
 }
 

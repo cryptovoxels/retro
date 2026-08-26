@@ -3,34 +3,36 @@ import { cameraPosition } from './utils/camera'
 import { Transform, TransformQueue } from './utils/transform'
 import { AVATAR_VIEW_DISTANCE, INTERPOLATION_MAX_VELOCITY } from './constants'
 import { encodeCoords } from '../common/helpers/utils'
+import { Quat, SceneContext, TransformNode, Vec3, onBeforeRender } from '@babylonjs/lite'
+import { quat, vec3 } from 'wgpu-matrix'
 
 type timestamp = number
 
 export abstract class Entity {
   public readonly joinedAt: timestamp = 0
-  protected readonly scene: BABYLON.Scene
-  protected readonly node: BABYLON.TransformNode
+  protected readonly scene: SceneContext
+  protected readonly node: TransformNode
   protected tickRate: number = 1000 / 5
   protected lastTeleportAt: timestamp = 0
   protected lastMovedAt: timestamp = 0
-  protected _orientationQuaternion = BABYLON.Quaternion.Zero()
+  protected _orientationQuaternion = quat.create()
   protected transformQueue: TransformQueue | null = null
   protected animation: AvatarAnimations | null = null
   protected startAnimation: Animations = Animations.Idle
   protected state: 'disposed' | 'loading' | 'loaded' = 'disposed'
-  protected onBeforeRenderObservable: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> | null = null
+  protected onBeforeRenderObservable: (any | null) | null = null
 
   animationOverride: Animations | null = null
 
-  protected constructor(scene: BABYLON.Scene, parent: BABYLON.Nullable<BABYLON.TransformNode>, joined: timestamp) {
+  protected constructor(scene: SceneContext, parent: (TransformNode | null), joined: timestamp) {
     this.scene = scene
-    this.node = new BABYLON.TransformNode('entity', this.scene)
+    this.node = (undefined as any /* todo(lite): new BABYLON.TransformNode('entity', this.scene) */)
     this.node.setParent(parent)
     this.node.setEnabled(false)
     this.joinedAt = joined
   }
 
-  protected _position = BABYLON.Vector3.Zero()
+  protected _position = vec3.create()
 
   /**
    * Getter to obtain the position of the avatar.
@@ -40,9 +42,9 @@ export abstract class Entity {
     return this._position
   }
 
-  protected _orientation = BABYLON.Vector3.Zero()
+  protected _orientation = vec3.create()
 
-  get orientation(): BABYLON.Vector3 {
+  get orientation(): Vec3 {
     return this._orientation
   }
 
@@ -52,7 +54,7 @@ export abstract class Entity {
     return this._distanceFromCamera
   }
 
-  get absolutePosition(): BABYLON.Vector3 {
+  get absolutePosition(): Vec3 {
     return this.node.absolutePosition
   }
 
@@ -69,7 +71,7 @@ export abstract class Entity {
 
     return encodeCoords({
       position: v,
-      rotation: new BABYLON.Vector3(0, Math.PI, 0),
+      rotation: vec3.fromValues(0, Math.PI, 0),
     })
   }
 
@@ -119,19 +121,19 @@ export abstract class Entity {
     return this.state === 'disposed'
   }
 
-  getDistanceFrom(position: BABYLON.Vector3): number {
+  getDistanceFrom(position: Vec3): number {
     if (!this.position || this.lastMovedAt === 0) return Infinity
     // this might fail for some reason, probably bad state from multiplayer
     // if it fails, just treat as infinite distance so we don't break womp broadcast updating
     // on error resume next....🤦
     try {
-      return BABYLON.Vector3.Distance(position, this.position)
+      return vec3.distance(position, this.position)
     } catch (ex) {
       return Infinity
     }
   }
 
-  public move(transform: { position: BABYLON.Vector3; orientation: BABYLON.Quaternion; animation: Animations; timestamp: number }) {
+  public move(transform: { position: Vec3; orientation: Quat; animation: Animations; timestamp: number }) {
     if (!this.isLoaded()) {
       this.setTransform(transform)
       return
@@ -142,7 +144,7 @@ export abstract class Entity {
   protected setTransform(i: Transform) {
     this._position.copyFrom(i.position)
     this.node.position.copyFrom(this._position)
-    this._distanceFromCamera = this.scene.activeCamera ? BABYLON.Vector3.Distance(this._position, cameraPosition(this.scene)) : Infinity
+    this._distanceFromCamera = this.scene.activeCamera ? vec3.distance(this._position, cameraPosition(this.scene)) : Infinity
 
     this._orientationQuaternion.copyFrom(i.orientation)
     this._orientation.copyFrom(this._orientationQuaternion.toEulerAngles())
@@ -169,7 +171,7 @@ export abstract class Entity {
   }
 
   protected loadFinished() {
-    this.onBeforeRenderObservable = this.scene.onBeforeRenderObservable.add(this.update.bind(this))
+    this.onBeforeRenderObservable = onBeforeRender(this.scene, this.update.bind(this))
     this.state = 'loaded'
     // will trigger hooks, orient the mesh and trigger some sort of dirty on the mesh(es)
     this.move({

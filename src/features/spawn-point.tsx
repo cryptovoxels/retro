@@ -4,6 +4,8 @@ import { Position, Rotation, Behaviours, EditorProps } from '../../web/src/compo
 import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D } from './feature'
+import { Color4, Mesh, StandardMaterialProps } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 export default class SpawnPoint extends Feature3D<SpawnPointRecord> {
   static metadata: FeatureMetadata = {
@@ -17,9 +19,9 @@ export default class SpawnPoint extends Feature3D<SpawnPointRecord> {
     scale: [1, 1, 1],
   }
   static Editor: any
-  meshInside: BABYLON.Mesh | null = null
-  matInside: BABYLON.StandardMaterial | null = null
-  particleSystem: BABYLON.ParticleSystem | null = null
+  meshInside: Mesh | null = null
+  matInside: StandardMaterialProps | null = null
+  particleSystem: any | null = null
 
   toString() {
     return '[spawn-point]'
@@ -46,8 +48,8 @@ export default class SpawnPoint extends Feature3D<SpawnPointRecord> {
       this.mesh = mesh
       this.refreshVisible()
       this.meshInside.parent = this.mesh
-      this.meshInside.position = BABYLON.Vector3.Zero()
-      this.matInside = this.meshInside.material as BABYLON.StandardMaterial
+      this.meshInside.position = vec3.create()
+      this.matInside = this.meshInside.material as StandardMaterialProps
 
       const scale = 1
       this.description.scale = [scale, scale, scale]
@@ -87,10 +89,10 @@ export default class SpawnPoint extends Feature3D<SpawnPointRecord> {
   emitParticles(emoji: string) {
     this.stopEmit()
 
-    const particleSystem = (this.particleSystem = new BABYLON.ParticleSystem('feature/spawn-point/emit-' + Math.round(Math.random() * 1000), 200, this.scene))
+    const particleSystem = (this.particleSystem = (undefined as any /* todo(lite): new BABYLON.ParticleSystem('feature/spawn-point/emit-' + Math.round(Math.random() * 1000), 200, this.scene) */))
 
     //Texture of each particle
-    const t = new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), { width: 64, height: 64 }, this.scene, true)
+    const t = (undefined as any /* todo(lite): new BABYLON.DynamicTexture(this.uniqueEntityName('texture'), { width: 64, height: 64 }, this.scene, true) */)
     const ctx = t.getContext()
 
     ctx.font = '32px sans-serif'
@@ -101,13 +103,13 @@ export default class SpawnPoint extends Feature3D<SpawnPointRecord> {
 
     // Where the particles come from
     particleSystem.emitter = this.mesh ?? null
-    particleSystem.minEmitBox = new BABYLON.Vector3(-0.2, -0.1, -0.2) // Starting all from
-    particleSystem.maxEmitBox = new BABYLON.Vector3(0.2, -0.1, 0.2) // To...
+    particleSystem.minEmitBox = vec3.fromValues(-0.2, -0.1, -0.2) // Starting all from
+    particleSystem.maxEmitBox = vec3.fromValues(0.2, -0.1, 0.2) // To...
 
     // Colors of all particles
-    particleSystem.color1 = new BABYLON.Color4(1, 1, 1, 1)
-    particleSystem.color2 = new BABYLON.Color4(1, 1, 1, 1)
-    particleSystem.colorDead = new BABYLON.Color4(1, 1, 1, 0)
+    particleSystem.color1 = ([1, 1, 1, 1] as Color4)
+    particleSystem.color2 = ([1, 1, 1, 1] as Color4)
+    particleSystem.colorDead = ([1, 1, 1, 0] as Color4)
 
     // Size of each particle (random between...
     particleSystem.minSize = 0.4
@@ -121,14 +123,14 @@ export default class SpawnPoint extends Feature3D<SpawnPointRecord> {
     particleSystem.emitRate = 5
 
     // Blend mode : BLENDMODE_ONEONE, or BLENDMODE_STANDARD
-    particleSystem.blendMode = BABYLON.ParticleSystem.BLENDMODE_ADD
+    particleSystem.blendMode = (undefined as any /* todo(lite): BABYLON.ParticleSystem.BLENDMODE_ADD */)
 
     // Set the gravity of all particles
-    particleSystem.gravity = new BABYLON.Vector3(0, 1, 0)
+    particleSystem.gravity = vec3.fromValues(0, 1, 0)
 
     // Direction of each particle after it has been emitted
-    particleSystem.direction1 = new BABYLON.Vector3(0, 0, 0)
-    particleSystem.direction2 = new BABYLON.Vector3(0, 0, 0)
+    particleSystem.direction1 = vec3.fromValues(0, 0, 0)
+    particleSystem.direction2 = vec3.fromValues(0, 0, 0)
 
     // Angular speed, in radians
     particleSystem.minAngularSpeed = 0

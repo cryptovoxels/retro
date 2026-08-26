@@ -4,44 +4,45 @@
 import type { IDebugTab } from './base-debug'
 import type { FeaturePump } from '../../pump/feature-pump'
 import { PumpStatsReader } from '../../pump/pump-stats'
+import { SceneContext } from '@babylonjs/lite'
 
 export class PumpDebugTab implements IDebugTab {
   readonly name = 'Pump Debug'
 
-  private scene: BABYLON.Scene
-  private statsText: BABYLON.GUI.TextBlock | null = null
-  private pendingFeaturesText: BABYLON.GUI.TextBlock | null = null
+  private scene: SceneContext
+  private statsText: any | null = null
+  private pendingFeaturesText: any | null = null
   private statsReader = new PumpStatsReader()
 
-  constructor(scene: BABYLON.Scene) {
+  constructor(scene: SceneContext) {
     this.scene = scene
   }
 
-  createContent(): BABYLON.GUI.Control {
+  createContent(): any {
     // Create main container
-    const container = new BABYLON.GUI.Rectangle('pumpDebugContainer')
+    const container = (undefined as any /* todo(lite): new BABYLON.GUI.Rectangle('pumpDebugContainer') */)
     container.color = 'transparent'
     container.thickness = 0
 
     // Create main stats text block
-    this.statsText = new BABYLON.GUI.TextBlock('stats', 'Loading pump statistics...')
+    this.statsText = (undefined as any /* todo(lite): new BABYLON.GUI.TextBlock('stats', 'Loading pump statistics...') */)
     this.statsText.color = '#cccccc'
     this.statsText.fontSize = 12
     this.statsText.fontFamily = 'Consolas, monospace'
-    this.statsText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT
-    this.statsText.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP
+    this.statsText.textHorizontalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT */)
+    this.statsText.textVerticalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP */)
     this.statsText.paddingLeftInPixels = 10
     this.statsText.paddingTopInPixels = 10
 
     container.addControl(this.statsText)
 
     // Create separate pending features text block for coloring
-    this.pendingFeaturesText = new BABYLON.GUI.TextBlock('pendingFeatures', 'Pending features: 0/50')
+    this.pendingFeaturesText = (undefined as any /* todo(lite): new BABYLON.GUI.TextBlock('pendingFeatures', 'Pending features: 0/50') */)
     this.pendingFeaturesText.color = '#cccccc'
     this.pendingFeaturesText.fontSize = 12
     this.pendingFeaturesText.fontFamily = 'Consolas, monospace'
-    this.pendingFeaturesText.textHorizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT
-    this.pendingFeaturesText.textVerticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP
+    this.pendingFeaturesText.textHorizontalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT */)
+    this.pendingFeaturesText.textVerticalAlignment = (undefined as any /* todo(lite): BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP */)
     this.pendingFeaturesText.paddingLeftInPixels = 10
     this.pendingFeaturesText.paddingTopInPixels = 153 // Position after Active features line
 

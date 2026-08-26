@@ -7,6 +7,7 @@ import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, Source
 import PortalTeleportGUI from '../ui/gui/portal-gui'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, FeatureTrigger } from './feature'
+import { Mesh, SceneContext, Texture2D } from '@babylonjs/lite'
 
 const DIAMOND = Math.PI / 4
 const SPIN_FRAMES = 600
@@ -22,13 +23,13 @@ export default class Portal extends Feature3D<PortalRecord> {
     type: 'portal',
     scale: [0.6, 0.6, 0.6],
   }
-  static outlineMesh: BABYLON.Mesh | null = null
+  static outlineMesh: Mesh | null = null
 
-  sound: BABYLON.Sound | null = null
+  sound: any | null = null
   proximityTrigger: FeatureTrigger | null = null
   _teleportGUI: PortalTeleportGUI | null = null
-  outline: BABYLON.Mesh | null = null
-  spinAnim: BABYLON.Animatable | null = null
+  outline: Mesh | null = null
+  spinAnim: any | null = null
 
   // fixme
   get audio() {
@@ -58,7 +59,7 @@ export default class Portal extends Feature3D<PortalRecord> {
     return !this.description.womp.space_id ? `/play?coords=${this.description.womp.coords}` : `/spaces/${this.description.womp.space_id}`
   }
 
-  static getOutlineMesh(scene: BABYLON.Scene) {
+  static getOutlineMesh(scene: SceneContext) {
     if (!Portal.outlineMesh) {
       Portal.outlineMesh = voxFromFill(
         [16, 16, 16],
@@ -77,7 +78,7 @@ export default class Portal extends Feature3D<PortalRecord> {
       Portal.outlineMesh.name = 'portal-outline'
       Portal.outlineMesh.isVisible = false
       Portal.outlineMesh.isPickable = false
-      const mat = new BABYLON.StandardMaterial('portal-outline', scene)
+      const mat = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('portal-outline', scene) */)
       mat.diffuseColor.set(1, 1, 1)
       mat.emissiveColor.set(0.8, 0.8, 0.9)
       mat.specularColor.set(0, 0, 0)
@@ -101,14 +102,14 @@ export default class Portal extends Feature3D<PortalRecord> {
     // How close you have to be for trigger to trigger. (minimum 1.76)
     this.description.proximityToTrigger = 2
 
-    this.mesh = BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), { size: 0.45 }, this.scene)
+    this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), { size: 0.45 }, this.scene) */)
     this.mesh.isPickable = true
     this.mesh.onAfterWorldMatrixUpdateObservable.add(this.updateAfterWorldOffsetChange)
 
     this.attachOutline()
     this.setCommon()
 
-    const m = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const m = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     m.alpha = 0.1
     m.specularColor.set(0, 0, 0)
     m.blockDirtyMechanism = true
@@ -144,7 +145,7 @@ export default class Portal extends Feature3D<PortalRecord> {
     this.mesh.rotation.z = this.rotation.z + DIAMOND
     this.mesh.rotation.y = baseY
 
-    const spin = new BABYLON.Animation('portal-spin', 'rotation.y', 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE)
+    const spin = (undefined as any /* todo(lite): new BABYLON.Animation('portal-spin', 'rotation.y', 30, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE) */)
     spin.setKeys([
       { frame: 0, value: baseY },
       { frame: SPIN_FRAMES, value: baseY + Math.PI * 2 },
@@ -273,12 +274,12 @@ export default class Portal extends Feature3D<PortalRecord> {
     this._dispose()
   }
 
-  renderImage(texture: BABYLON.Texture) {
+  renderImage(texture: Texture2D) {
     if (!this.mesh) {
       return
     }
     this.mesh.material?.dispose()
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
 
     material.alpha = 0.85
     material.specularColor.set(0.4, 0.4, 0.5)
@@ -287,7 +288,7 @@ export default class Portal extends Feature3D<PortalRecord> {
     material.ambientColor.set(0.1, 0.1, 0.15)
 
     texture.hasAlpha = false
-    texture.coordinatesMode = BABYLON.Texture.SPHERICAL_MODE
+    texture.coordinatesMode = (undefined as any /* todo(lite): BABYLON.Texture.SPHERICAL_MODE */)
     texture.uScale = 0.25
     texture.vScale = 0.25
     material.reflectionTexture = texture

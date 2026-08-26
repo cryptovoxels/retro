@@ -15,7 +15,7 @@ export default class TextInput extends Feature2D<TextInputRecord> {
     type: 'text-input',
     scale: [1, 0.25, 0],
   }
-  input: BABYLON.GUI.InputText | null = null
+  input: any | null = null
 
   toString() {
     return this.description.placeholder || super.toString()
@@ -30,9 +30,9 @@ export default class TextInput extends Feature2D<TextInputRecord> {
   }
 
   generate() {
-    const plane = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
-    const texture = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(plane, 512, 128)
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const plane = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
+    const texture = (undefined as any /* todo(lite): BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(plane, 512, 128) */)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     material.diffuseTexture = texture
 
     material.specularColor.fromArray(this.description.specularColor || [1, 1, 1])
@@ -41,7 +41,7 @@ export default class TextInput extends Feature2D<TextInputRecord> {
     material.blockDirtyMechanism = true
     plane.material = material
 
-    const input = new BABYLON.GUI.InputText()
+    const input = (undefined as any /* todo(lite): new BABYLON.GUI.InputText() */)
     input.width = 1
     input.maxWidth = 1
     input.height = '80px'

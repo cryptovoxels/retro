@@ -8,12 +8,13 @@ import { NftMediaBox } from './nft-view'
 import { unmountComponentAtNode } from 'preact/compat'
 import { SUPPORTED_CHAINS_BY_ID } from '../../../common/helpers/chain-helpers'
 import { avatarName } from '../../../common/messages/avatar-ref'
+import { SceneContext } from '@babylonjs/lite'
 
 type Props = {
   collectible: CollectibleModel
   onClose: () => void
   status?: string
-  scene: BABYLON.Scene
+  scene: SceneContext
   dialogEl: HTMLElement
 }
 type State = {
@@ -198,7 +199,7 @@ export class CollectibleHTMLUi extends HTMLUi<Props, State> {
   }
 }
 
-export default function showCollectibleHTMLUi(collectible: CollectibleModel, scene: BABYLON.Scene) {
+export default function showCollectibleHTMLUi(collectible: CollectibleModel, scene: SceneContext) {
   if (!!CollectibleHTMLUi.currentElement) {
     unmountComponentAtNode(CollectibleHTMLUi.currentElement)
     CollectibleHTMLUi.currentElement = null!

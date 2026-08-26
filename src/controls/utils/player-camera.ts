@@ -1,18 +1,20 @@
 import RAPIER from '@dimforge/rapier3d-compat'
 import { physics } from '../../physics/world'
 import type PlayerBody from './player-body'
+import { SceneContext, Vec3 } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 const ORBIT_MARGIN = 0.3 // keep the lens off the wall it just hit
 
 // FreeCamera owns look direction. PlayerBody owns where the feet can go.
 // Place the lens on the eye, or swing it back for third person.
-export default class PlayerCamera extends BABYLON.FreeCamera {
+export default class PlayerCamera extends (Object as any) /* todo(lite): extends BABYLON.FreeCamera */ {
   /** metres behind the eye; Controls eases this */
   distance = 0
   body: PlayerBody = undefined!
-  private back = BABYLON.Vector3.Zero()
+  private back = vec3.create()
 
-  constructor(name: string, position: BABYLON.Vector3, scene?: BABYLON.Scene, setActiveOnSceneIfNoneActive = true) {
+  constructor(name: string, position: Vec3, scene?: SceneContext, setActiveOnSceneIfNoneActive = true) {
     super(name, position, scene, setActiveOnSceneIfNoneActive)
     // FreeCamera adds keyboard+mouse; we use LocaleKeyboardMoveInput instead
     const keyboard = this.inputs.attached['keyboard']
@@ -30,7 +32,7 @@ export default class PlayerCamera extends BABYLON.FreeCamera {
       this.position.copyFrom(this.body.position)
       return
     }
-    const q = BABYLON.Quaternion.RotationYawPitchRoll(this.rotation.y, this.rotation.x, this.rotation.z)
+    const q = (undefined as any /* todo(lite): BABYLON.Quaternion.RotationYawPitchRoll(this.rotation.y, this.rotation.x, this.rotation.z) */)
     this.back.copyFromFloats(0, 0, -1).rotateByQuaternionToRef(q, this.back)
 
     let dist = this.distance

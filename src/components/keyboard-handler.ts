@@ -1,3 +1,4 @@
+import { SceneContext } from '@babylonjs/lite'
 const INPUT_NODE_NAMES = ['SELECT', 'INPUT', 'TEXTAREA', 'BUTTON']
 
 /**
@@ -36,12 +37,12 @@ interface KeyboardHandlerOptions {
 }
 
 export class KeyboardHandler {
-  scene: BABYLON.Scene
+  scene: SceneContext
   keyDownHandlers: Set<KeyboardEventHandler> = new Set()
   keyUpHandlers: Set<KeyboardEventHandler> = new Set()
   keyHeldHandlers: Set<KeyboardEventHandler> = new Set()
 
-  constructor(scene: BABYLON.Scene, options?: KeyboardHandlerOptions) {
+  constructor(scene: SceneContext, options?: KeyboardHandlerOptions) {
     document.addEventListener('keydown', this.onKeyDown)
     document.addEventListener('keyup', this.onKeyUp)
     document.addEventListener('pointerlockchange', this.onPointerLockChange)
@@ -122,7 +123,7 @@ export class KeyboardHandler {
 
   clearBabylonControlFocus() {
     this.scene.textures.forEach((texture) => {
-      if (texture instanceof BABYLON.GUI.AdvancedDynamicTexture) {
+      if ((false /* todo(lite): texture instanceof BABYLON.GUI.AdvancedDynamicTexture */)) {
         texture.focusedControl = null
       }
     })
@@ -131,7 +132,7 @@ export class KeyboardHandler {
   getBabylonControlHasFocus() {
     // find out if a text input or similar has keyboard focus
     return this.scene.textures.some((texture) => {
-      if (texture instanceof BABYLON.GUI.AdvancedDynamicTexture) {
+      if ((false /* todo(lite): texture instanceof BABYLON.GUI.AdvancedDynamicTexture */)) {
         return !!texture.focusedControl
       }
     })

@@ -1,5 +1,6 @@
 import RAPIER from '@dimforge/rapier3d-compat'
 import { physics, PLAYER_QUERY, Vec3 } from '../../physics/world'
+import { vec3 } from 'wgpu-matrix'
 const RADIUS = 0.2
 const EYE = 1.65 // eye height above the feet
 const HEAD = 0.1 // skull above the eyes
@@ -20,7 +21,7 @@ export const WALK_HZ = 0.15
 export type Motion = { hz: number; vy: number; impact: number }
 
 export default class PlayerBody {
-  position = BABYLON.Vector3.Zero()
+  position = vec3.create()
   motion: Motion = { hz: 0, vy: 0, impact: 0 }
   /** vehicles, pose balls, gateway: move straight, skip the world (implies no gravity) */
   noclip = false
@@ -33,7 +34,7 @@ export default class PlayerBody {
   private ready = false
   private vel = new RAPIER.Vector3(0, 0, 0)
   private doubled = true
-  private scratch = BABYLON.Vector3.Zero()
+  private scratch = vec3.create()
 
   get blocker(): RAPIER.RigidBody | undefined {
     return this.ready ? this.body : undefined
@@ -73,7 +74,7 @@ export default class PlayerBody {
   private stuck = 0
 
   /** move is unitless direction; speed is m/s; dt is seconds */
-  step(move: BABYLON.Vector3, dt: number): void {
+  step(move: Vec3, dt: number): void {
     // Smooth acceleration and deceleration
     const t = 1 - Math.exp(-10 * dt)
     this.vel.x += (move.x * this.speed - this.vel.x) * t

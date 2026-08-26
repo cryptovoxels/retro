@@ -4,6 +4,7 @@ import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/sr
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, MeshExtended } from './feature'
+import { Color3, Mesh } from '@babylonjs/lite'
 
 const LETTER_SPACING = 0.5
 const SCALE = 5.0
@@ -11,7 +12,7 @@ const ALPHABET_RED = 217
 const ALPHABET_GREEN = 226
 const ALPHABET_BLUE = 236
 
-function buildColorMap(diffuse: BABYLON.Color3): Record<number, [number, number, number]> {
+function buildColorMap(diffuse: Color3): Record<number, [number, number, number]> {
   const r = Math.round(diffuse.r * 255)
   const g = Math.round(diffuse.g * 255)
   const b = Math.round(diffuse.b * 255)
@@ -46,9 +47,9 @@ export default class Polytext extends Feature3D<PolytextRecord> {
 
   async generate() {
     const text = (this.description.text || '').slice(0, 24).toLowerCase()
-    const diffuse = BABYLON.Color3.FromHexString(this.description.color || '#ffffff')
+    const diffuse = (undefined as any /* todo(lite): BABYLON.Color3.FromHexString(this.description.color || '#ffffff') */)
     const colorMap = buildColorMap(diffuse)
-    const letters: BABYLON.Mesh[] = []
+    const letters: Mesh[] = []
     let x = ((text.length + 1) * LETTER_SPACING * SCALE) / -2
 
     for (const ch of text) {
@@ -90,7 +91,7 @@ export default class Polytext extends Feature3D<PolytextRecord> {
       return
     }
 
-    const merged = BABYLON.Mesh.MergeMeshes(letters, true)
+    const merged = (undefined as any /* todo(lite): BABYLON.Mesh.MergeMeshes(letters, true) */)
     if (!merged) {
       return
     }

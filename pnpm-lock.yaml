@@ -14,6 +14,9 @@ importers:
       '@aws-sdk/s3-request-presigner':
         specifier: ^3.472.0
         version: 3.1020.0
+      '@babylonjs/lite':
+        specifier: ^1.24.0
+        version: 1.24.0
       '@bugsnag/js':
         specifier: 7.20.2
         version: 7.20.2
@@ -68,18 +71,6 @@ importers:
       assert:
         specifier: ^2.0.0
         version: 2.1.0
-      babylonjs:
-        specifier: ^6.11.2
-        version: 6.49.0
-      babylonjs-gui:
-        specifier: ^6.11.2
-        version: 6.49.0
-      babylonjs-loaders:
-        specifier: ^6.11.2
-        version: 6.49.0
-      babylonjs-materials:
-        specifier: ^6.11.2
-        version: 6.49.0
       base24:
         specifier: ^1.0.3
         version: 1.0.3
@@ -404,6 +395,9 @@ importers:
       wasmoon:
         specifier: ^1.16.0
         version: 1.16.0
+      wgpu-matrix:
+        specifier: ^3.4.2
+        version: 3.4.2
       winston:
         specifier: ^3.9.0
         version: 3.19.0
@@ -805,6 +799,17 @@ packages:
   '@babel/types@7.29.0':
     resolution: {integrity: sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==}
     engines: {node: '>=6.9.0'}
+
+  '@babylonjs/lite@1.24.0':
+    resolution: {integrity: sha512-EUUmm9XPindH3OPDuORiUivEL0bWlNxQ5O+u105GeYEVdXJtcagfWg2Py3GeTX6Rafr6QnzPmByEewv8BIy2+w==}
+    peerDependencies:
+      '@babylonjs/havok': ^1.3.0
+      '@webgpu/types': ^0.1.52
+    peerDependenciesMeta:
+      '@babylonjs/havok':
+        optional: true
+      '@webgpu/types':
+        optional: true
 
   '@bcoe/v8-coverage@1.0.2':
     resolution: {integrity: sha512-6zABk/ECA/QYSCQ1NGiVwwbQerUCZ+TQbp64Q3AgmfNvurHH0j8TtXa1qbShXA6qqkpAj4V5W8pP6mLe1mcMqA==}
@@ -2781,21 +2786,6 @@ packages:
 
   axios@1.14.0:
     resolution: {integrity: sha512-3Y8yrqLSwjuzpXuZ0oIYZ/XGgLwUIBU3uLvbcpb0pidD9ctpShJd43KSlEEkVQg6DS0G9NKyzOvBfUtDKEyHvQ==}
-
-  babylonjs-gltf2interface@6.49.0:
-    resolution: {integrity: sha512-4qzKCgEayti/YUaeMgAAZxZJlx/kLqXxoC+G8gODYz9wOV9UjnHF09wREZ5cuELzzY/rjSJMqkgDfYbUQIQ6/A==}
-
-  babylonjs-gui@6.49.0:
-    resolution: {integrity: sha512-EUm+GD+1rb++Tu4ouMxOIAp+2QAzHrAcDfGa8ghnCET3Dn+icJaHa8b+iXTfG4OXRUM2N2Mnp5F/3kHXmyfxsQ==}
-
-  babylonjs-loaders@6.49.0:
-    resolution: {integrity: sha512-kuGbt1hONx0rMOyKEcMkjdorQSZFt5VTONum1Fg2vtVhJ1VnzbKAcFCSfh9TudcqWVQrCJWVsFOiXGZcgCwKrQ==}
-
-  babylonjs-materials@6.49.0:
-    resolution: {integrity: sha512-TYd4s3YUVPX/uX6TU5TFFuPb1d+L8QD9YfOGpLgHE/HX3+vmEW3A9sG0psuQCJ4ph+6eHM1ZIf5ITWWH4HlEAg==}
-
-  babylonjs@6.49.0:
-    resolution: {integrity: sha512-KYGpELn2osBvB8UqGuk6gfJBrriojwisw/egXaiBZNQaNuURjjogI1mgwAz4/KJB14JJwELNw3JNB4sp3Rh5Ng==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
@@ -6285,6 +6275,9 @@ packages:
     resolution: {integrity: sha512-OqedPIGOfsDlo31UNwYbCFMSaO9m9G/0faIHj5/dZFDMFqPTcx6UwqyOy3COEaEOg/9VsGIpdqn62W5KhoKSpg==}
     engines: {node: '>=0.8.0'}
 
+  wgpu-matrix@3.4.2:
+    resolution: {integrity: sha512-IfZFbG7olEYBD76VCZy2TzqM57GKy3LT++AZh37tMHPPByO6R2h61zXGBZFNPi2IzxNivNi8y5dvze5PjaczjA==}
+
   whatwg-encoding@3.1.1:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
     engines: {node: '>=18'}
@@ -6928,6 +6921,8 @@ snapshots:
     dependencies:
       '@babel/helper-string-parser': 7.27.1
       '@babel/helper-validator-identifier': 7.28.5
+
+  '@babylonjs/lite@1.24.0': {}
 
   '@bcoe/v8-coverage@1.0.2': {}
 
@@ -9511,23 +9506,6 @@ snapshots:
       proxy-from-env: 2.1.0
     transitivePeerDependencies:
       - debug
-
-  babylonjs-gltf2interface@6.49.0: {}
-
-  babylonjs-gui@6.49.0:
-    dependencies:
-      babylonjs: 6.49.0
-
-  babylonjs-loaders@6.49.0:
-    dependencies:
-      babylonjs: 6.49.0
-      babylonjs-gltf2interface: 6.49.0
-
-  babylonjs-materials@6.49.0:
-    dependencies:
-      babylonjs: 6.49.0
-
-  babylonjs@6.49.0: {}
 
   balanced-match@1.0.2: {}
 
@@ -13528,6 +13506,8 @@ snapshots:
       websocket-extensions: 0.1.4
 
   websocket-extensions@0.1.4: {}
+
+  wgpu-matrix@3.4.2: {}
 
   whatwg-encoding@3.1.1:
     dependencies:

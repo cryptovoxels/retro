@@ -9,6 +9,7 @@ import { createEvent } from '../utils/EventEmitter'
 import { cameraPosition } from '../utils/camera'
 import { OCEAN_HEIGHT_OFFSET } from '../constants'
 import { hideGatewayBackdrop } from '../gateway'
+import { Color3, Color4, Mesh, SceneContext, Vec2, Vec3 } from '@babylonjs/lite'
 
 export class WorldEnvironment extends Environment {
   terrain?: Terrain
@@ -19,7 +20,7 @@ export class WorldEnvironment extends Environment {
   private _isUnderwater: boolean | null = null
   private _groundStateObservable: StateObservable<'loaded' | 'unloaded'> | undefined
 
-  constructor(scene: BABYLON.Scene) {
+  constructor(scene: SceneContext) {
     super(scene)
   }
 
@@ -45,18 +46,18 @@ export class WorldEnvironment extends Environment {
       return false
     }
 
-    if (this.terrain?.getIsland(new BABYLON.Vector2(cameraPos.x, cameraPos.z))) {
+    if (this.terrain?.getIsland(({ x: cameraPos.x, y: cameraPos.z } as Vec2))) {
       return false
     }
 
     return this.hasWaterAtPosition(cameraPos)
   }
 
-  private isAboveWaterSurface(position: BABYLON.Vector3): boolean {
+  private isAboveWaterSurface(position: Vec3): boolean {
     return position.y >= OCEAN_HEIGHT_OFFSET + 0.3
   }
 
-  private hasWaterAtPosition(position: BABYLON.Vector3): boolean {
+  private hasWaterAtPosition(position: Vec3): boolean {
     return this.terrain?.hasWaterMeshAt(position.x, position.z) || false
   }
 
@@ -66,7 +67,7 @@ export class WorldEnvironment extends Environment {
 
   get fogColor() {
     if (this.isUnderwater) {
-      return new BABYLON.Color3(0.2, 0.2, 0.2)
+      return ([0.2, 0.2, 0.2] as Color3)
     }
     return this.isNight ? NIGHT_FOG_COLOR : DAY_FOG_COLOR
   }
@@ -80,13 +81,13 @@ export class WorldEnvironment extends Environment {
 
   get clearColor() {
     if (this.isUnderwater) {
-      return new BABYLON.Color4(0.03, 0.03, 0.03, 1)
+      return ([0.03, 0.03, 0.03, 1] as Color4)
     }
     return super.clearColor
   }
 
   get horizonAlphaMode() {
-    return BABYLON.Engine.ALPHA_COMBINE
+    return (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_COMBINE */)
   }
 
   get brightness() {
@@ -160,7 +161,7 @@ export class WorldEnvironment extends Environment {
     }
   }
 
-  parcelMeshesAdded(meshes: BABYLON.Mesh[]) {
+  parcelMeshesAdded(meshes: Mesh[]) {
     const validMeshes = meshes.filter((m) => m)
 
     validMeshes.forEach((parcelMesh) => {
@@ -172,7 +173,7 @@ export class WorldEnvironment extends Environment {
     })
   }
 
-  parcelMeshesRemoved(meshes: BABYLON.Mesh[]) {
+  parcelMeshesRemoved(meshes: Mesh[]) {
     const validMeshes = meshes.filter((m) => m)
 
     validMeshes.forEach((parcelMesh) => {

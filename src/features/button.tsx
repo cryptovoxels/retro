@@ -69,7 +69,7 @@ export default class Button extends Feature3D<ButtonRecord> {
 
     if (!this.animation && this.mesh) {
       const y = this.mesh.scaling.y
-      this.animation = new BABYLON.Animation('button-press', 'scaling.y', 60, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE)
+      this.animation = (undefined as any /* todo(lite): new BABYLON.Animation('button-press', 'scaling.y', 60, BABYLON.Animation.ANIMATIONTYPE_FLOAT, BABYLON.Animation.ANIMATIONLOOPMODE_CYCLE) */)
 
       const keys = []
 

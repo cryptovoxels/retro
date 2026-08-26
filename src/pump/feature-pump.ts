@@ -3,6 +3,8 @@ import type Parcel from '../parcel'
 import { tidyVec3 } from '../utils/helpers'
 import { PumpWorkerManager } from './pump-worker-manager'
 import type { FeatureRecord, LoadItem, LoadOrderItem, ParcelInstanceRelations, SortableFeature, WorkerOperationType } from './types'
+import { SceneContext, Vec3 } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 const DEFAULT_MAX_CONCURRENT_FEATURES = 20 // Default max concurrent features
 
@@ -38,10 +40,10 @@ export class FeaturePump {
 
   private deactivationQueue: PendingDeactivation[] = []
 
-  private cameraPosition: BABYLON.Vector3 = BABYLON.Vector3.Zero()
-  private cameraDirection: BABYLON.Vector3 = BABYLON.Vector3.Forward()
-  private lastSortPosition: BABYLON.Vector3 = BABYLON.Vector3.Zero()
-  private lastSortDirection: BABYLON.Vector3 = BABYLON.Vector3.Forward()
+  private cameraPosition: Vec3 = vec3.create()
+  private cameraDirection: Vec3 = (undefined as any /* todo(lite): BABYLON.Vector3.Forward() */)
+  private lastSortPosition: Vec3 = vec3.create()
+  private lastSortDirection: Vec3 = (undefined as any /* todo(lite): BABYLON.Vector3.Forward() */)
   private currentParcel: Parcel | undefined = undefined
   private needsSorting = false
 
@@ -64,7 +66,7 @@ export class FeaturePump {
   private instanceRelations: ParcelInstanceRelations = new Map()
 
   public constructor(
-    private scene: BABYLON.Scene,
+    private scene: SceneContext,
     workerManager?: PumpWorkerManager,
     maxConcurrentFeatures?: number,
   ) {
@@ -177,9 +179,9 @@ export class FeaturePump {
    * @param position Camera world position
    * @param direction Camera look direction (will be normalized internally if needed)
    */
-  public setCameraPosition(position: BABYLON.Vector3, direction: BABYLON.Vector3): void {
+  public setCameraPosition(position: Vec3, direction: Vec3): void {
     const directionChanged = this.calculateDirectionAlignment(this.lastSortDirection, direction) < 0.99
-    const positionChanged = BABYLON.Vector3.Distance(position, this.lastSortPosition) > 1.0
+    const positionChanged = vec3.distance(position, this.lastSortPosition) > 1.0
     const cameraChanged = positionChanged || directionChanged
 
     this.cameraPosition.copyFrom(position)
@@ -605,7 +607,7 @@ export class FeaturePump {
    * Returns 1.0 for identical directions, 0.0 for perpendicular, -1.0 for opposite.
    * Returns 1.0 if either vector is invalid (zero length).
    */
-  private calculateDirectionAlignment(directionA: BABYLON.Vector3, directionB: BABYLON.Vector3): number {
+  private calculateDirectionAlignment(directionA: Vec3, directionB: Vec3): number {
     // Calculate vector lengths
     const lengthA = directionA.length()
     const lengthB = directionB.length()
@@ -618,7 +620,7 @@ export class FeaturePump {
     const normalizedA = directionA.normalizeToNew()
     const normalizedB = directionB.normalizeToNew()
 
-    return BABYLON.Vector3.Dot(normalizedA, normalizedB)
+    return vec3.dot(normalizedA, normalizedB)
   }
 
   /**

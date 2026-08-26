@@ -1,5 +1,6 @@
 import { isHate } from './hate'
 import { matcher } from './obscenity'
+import { DynamicTexture2D, SceneContext, StandardMaterialProps, TransformNode, onBeforeRender } from '@babylonjs/lite'
 
 const getTextWidth = (ctx: CanvasRenderingContext2D, text: string) => {
   return ctx.measureText(text).width
@@ -11,42 +12,42 @@ const TOTAL_MS = 1500
 const TAIL_MS = 500
 const FADE_MS = TOTAL_MS - TAIL_MS
 
-export class Bubble extends BABYLON.Mesh {
-  private texture: BABYLON.DynamicTexture
+export class Bubble extends (Object as any) /* todo(lite): extends BABYLON.Mesh */ {
+  private texture: DynamicTexture2D
   private startedAt = 0
   constructor(
-    scene: BABYLON.Scene,
-    parent: BABYLON.TransformNode,
+    scene: SceneContext,
+    parent: TransformNode,
     public readonly text: string,
   ) {
     super('chat', scene)
 
     // 1. Get the geometry data for a plane
     // We create a temporary mesh just to steal its vertex data
-    const vertexData = BABYLON.VertexData.CreatePlane({
+    const vertexData = (undefined as any /* todo(lite): BABYLON.VertexData.CreatePlane({
       width: 2,
       height: 1,
       sideOrientation: BABYLON.Mesh.DOUBLESIDE, // Easier to see while debugging
-    })
+    }) */)
 
     // 2. Apply that geometry to 'this' instance
     vertexData.applyToMesh(this)
 
-    this.billboardMode = BABYLON.Mesh.BILLBOARDMODE_Y
+    this.billboardMode = (undefined as any /* todo(lite): BABYLON.Mesh.BILLBOARDMODE_Y */)
 
-    this.texture = new BABYLON.DynamicTexture(
+    this.texture = (undefined as any /* todo(lite): new BABYLON.DynamicTexture(
       'chat',
       {
         width: WIDTH,
         height: HEIGHT,
       },
       scene,
-    )
+    ) */)
     this.texture.hasAlpha = true
 
-    const m = new BABYLON.StandardMaterial('chat', scene)
+    const m = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('chat', scene) */)
     m.diffuseTexture = this.texture
-    m.sideOrientation = BABYLON.Mesh.DOUBLESIDE
+    m.sideOrientation = (undefined as any /* todo(lite): BABYLON.Mesh.DOUBLESIDE */)
     m.useAlphaFromDiffuseTexture = true
     m.emissiveColor.set(0.7, 0.7, 0.7)
     this.material = m
@@ -62,10 +63,10 @@ export class Bubble extends BABYLON.Mesh {
 
   private startAnimation() {
     this.startedAt = performance.now()
-    const mat = this.material as BABYLON.StandardMaterial
+    const mat = this.material as StandardMaterialProps
     let lastTail = 1
     // mesh-level observable: cleaned up automatically when this mesh disposes
-    this.onBeforeRenderObservable.add(() => {
+    onBeforeRender(this, () => {
       const elapsed = performance.now() - this.startedAt
       if (elapsed >= TOTAL_MS) {
         this.dispose()

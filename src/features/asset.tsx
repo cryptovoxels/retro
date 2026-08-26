@@ -18,10 +18,10 @@ export default class Asset extends Feature3D<AssetRecord> {
   }
 
   async generate() {
-    this.mesh = BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
     this.mesh.isPickable = true
 
-    const mat = new BABYLON.StandardMaterial('asset/material', this.scene)
+    const mat = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('asset/material', this.scene) */)
     mat.diffuseColor.set(1, 0, 1)
     this.mesh.material = mat
   }

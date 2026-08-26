@@ -6,6 +6,7 @@ import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from 
 import { isURL } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
+import { SceneContext, Texture2D } from '@babylonjs/lite'
 
 export function buildYoutubeThumbnailUrl(videoId: string | undefined): string | null {
   if (!videoId) {
@@ -14,14 +15,14 @@ export function buildYoutubeThumbnailUrl(videoId: string | undefined): string | 
   return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
 }
 
-export async function loadYoutubeThumbnail(scene: BABYLON.Scene, videoId: string | undefined, signal: AbortSignal): Promise<BABYLON.Texture> {
+export async function loadYoutubeThumbnail(scene: SceneContext, videoId: string | undefined, signal: AbortSignal): Promise<BABYLON.Texture> {
   const thumbnailUrl = buildYoutubeThumbnailUrl(videoId)
   if (!thumbnailUrl) {
     return fetchNoImageTexture(scene)
   }
 
   return new Promise((resolve) => {
-    const texture = new BABYLON.Texture(
+    const texture = (undefined as any /* todo(lite): new BABYLON.Texture(
       thumbnailUrl,
       scene,
       false,
@@ -29,7 +30,7 @@ export async function loadYoutubeThumbnail(scene: BABYLON.Scene, videoId: string
       BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
       () => resolve(texture),
       async () => resolve(await fetchNoImageTexture(scene)),
-    )
+    ) */)
 
     signal.addEventListener('abort', () => texture.dispose(), { once: true })
   })
@@ -100,7 +101,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
   }
 
   generate() {
-    this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
     this.mesh.id = this.mesh.name + '/' + this.uuid
     this.setCommon()
     this.setPreview()
@@ -116,7 +117,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
       return
     }
 
-    let texture: BABYLON.Texture
+    let texture: Texture2D
     if (this.description.previewUrl) {
       texture = await fetchTexture(this.scene, this.previewUrl, this.abortController.signal, { transparent: false, stretch: true })
     } else {
@@ -124,7 +125,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
     }
     texture.hasAlpha = false
 
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     material.diffuseTexture = texture
     material.backFaceCulling = false
     material.zOffset = -5
@@ -142,7 +143,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
     const channel = this.videoId ?? 'unknown'
     const w = 640
     const h = 360
-    const tex = new BABYLON.DynamicTexture(this.uniqueEntityName('tpreview' as any), { width: w, height: h }, this.scene, false)
+    const tex = (undefined as any /* todo(lite): new BABYLON.DynamicTexture(this.uniqueEntityName('tpreview' as any), { width: w, height: h }, this.scene, false) */)
     const ctx = tex.getContext() as CanvasRenderingContext2D
     const font = 'bold 18px "Source Code Pro", monospace'
 
@@ -174,7 +175,7 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
     tex.update()
     tex.hasAlpha = false
 
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     material.diffuseTexture = tex
     material.backFaceCulling = false
     material.zOffset = -5

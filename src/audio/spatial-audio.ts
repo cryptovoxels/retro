@@ -1,3 +1,4 @@
+import { SceneContext, Vec3 } from '@babylonjs/lite'
 /**
  * Note that spatial audio is positioned using absolute coordinates, and need to be updated when the world-offset is
  * changed
@@ -7,7 +8,7 @@ export class SpatialAudio {
   output: GainNode
   soundPanner: PannerNode
 
-  constructor(name: string, scene: BABYLON.Scene, audioNode: AudioNode, absolutePosition: BABYLON.Vector3) {
+  constructor(name: string, scene: SceneContext, audioNode: AudioNode, absolutePosition: Vec3) {
     this.audioNode = audioNode
     this.soundPanner = this.audioContext!.createPanner()
     this.soundPanner.channelCount = 2
@@ -36,7 +37,7 @@ export class SpatialAudio {
   }
 
   get audioContext() {
-    return BABYLON.Engine.audioEngine?.audioContext
+    return (undefined as any /* todo(lite): BABYLON.Engine.audioEngine?.audioContext */)
   }
 
   get rolloffFactor() {
@@ -47,7 +48,7 @@ export class SpatialAudio {
     this.soundPanner.rolloffFactor = value
   }
 
-  setPosition(absolutePosition: BABYLON.Vector3, timeConstant = 0.1) {
+  setPosition(absolutePosition: Vec3, timeConstant = 0.1) {
     if (this.soundPanner && this.audioContext) {
       this.soundPanner.positionX.setTargetAtTime(absolutePosition.x, this.audioContext.currentTime, timeConstant)
       this.soundPanner.positionY.setTargetAtTime(absolutePosition.y, this.audioContext.currentTime, timeConstant)

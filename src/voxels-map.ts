@@ -1,7 +1,9 @@
 import { getParcelHelper } from '../common/helpers/parcel-helper'
 import { SingleParcelRecord } from '../common/messages/parcel'
+import { Color3, Color4, EngineContext, FreeCamera, Material, Mesh, SceneContext, TransformNode, Vec2, Vec3 } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
-export const OCEAN = new BABYLON.Color4(0.19, 0.44, 0.54, 1)
+export const OCEAN = ([0.19, 0.44, 0.54, 1] as Color4)
 
 export interface ParcelData {
   id: number
@@ -23,38 +25,38 @@ export interface ParcelData {
 }
 
 export class Island {
-  public readonly center: BABYLON.Vector3
+  public readonly center: Vec3
   public readonly radius: number
-  private readonly _mesh: BABYLON.Mesh
+  private readonly _mesh: Mesh
 
   constructor(
-    private scene: BABYLON.Scene,
-    private parent: BABYLON.TransformNode,
+    private scene: SceneContext,
+    private parent: TransformNode,
     private desc: any,
   ) {
-    const shape = this.desc.geometry.coordinates[0].map((c: any) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
-    const pt = new BABYLON.PolygonMeshBuilder('island/' + this.desc.name, shape, this.scene)
+    const shape = this.desc.geometry.coordinates[0].map((c: any) => ({ x: c[0] * 100, y: c[1] * 100 } as Vec2)).reverse()
+    const pt = (undefined as any /* todo(lite): new BABYLON.PolygonMeshBuilder('island/' + this.desc.name, shape, this.scene) */)
     const makeHoles = (multipolygon: any) => {
       const nudge = 0.25
-      return multipolygon.coordinates.map((p: any) => p[0].map((c: any) => new BABYLON.Vector2(c[0] * 100 + nudge, c[1] * 100 + nudge)))
+      return multipolygon.coordinates.map((p: any) => p[0].map((c: any) => ({ x: c[0] * 100 + nudge, y: c[1] * 100 + nudge } as Vec2)))
     }
     let holes = makeHoles(this.desc.lakes_geometry_json)
     if (this.desc.holes_geometry_json && this.hasBasements()) {
       holes = holes.concat(makeHoles(this.desc.holes_geometry_json))
     }
-    holes.forEach((hole: BABYLON.Vector2[]) => pt.addHole(hole))
+    holes.forEach((hole: Vec2[]) => pt.addHole(hole))
 
     const meshes = [pt.build(false, 0.05)]
 
     if (this.desc.id >= 40) {
       for (const s of this.desc.geometry.coordinates.slice(1)) {
-        const shape = s.map((c: any) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
-        const pt = new BABYLON.PolygonMeshBuilder('island/' + this.desc.name, shape, this.scene)
+        const shape = s.map((c: any) => ({ x: c[0] * 100, y: c[1] * 100 } as Vec2)).reverse()
+        const pt = (undefined as any /* todo(lite): new BABYLON.PolygonMeshBuilder('island/' + this.desc.name, shape, this.scene) */)
         meshes.push(pt.build(false, 0.05))
       }
     }
 
-    this._mesh = BABYLON.Mesh.MergeMeshes(meshes, true)!
+    this._mesh = (undefined as any /* todo(lite): BABYLON.Mesh.MergeMeshes(meshes, true)! */)
     this._mesh.position.y = 0.75 - 0.01
     this._mesh.isEnabled(false)
     speedOptimize(this._mesh)
@@ -63,7 +65,7 @@ export class Island {
     this.radius = this._mesh.getBoundingInfo().boundingSphere.radiusWorld
   }
 
-  setMaterial(material: BABYLON.Material) {
+  setMaterial(material: Material) {
     this._mesh.material = material
   }
 
@@ -71,7 +73,7 @@ export class Island {
     this._mesh?.dispose(false, true)
   }
 
-  distanceEnable(playerPos: BABYLON.Vector3, loadingDistance: number) {
+  distanceEnable(playerPos: Vec3, loadingDistance: number) {
     const pos = playerPos.clone()
     pos.y = 0
     const a = this.radius + loadingDistance
@@ -94,13 +96,13 @@ export class MapParcel {
   readonly sandbox: boolean
   readonly isCommons: boolean
   private readonly data: ParcelData
-  private readonly mother: BABYLON.Mesh
-  private _mesh?: BABYLON.InstancedMesh
+  private readonly mother: Mesh
+  private _mesh?: Mesh
 
   constructor(
-    protected scene: BABYLON.Scene,
+    protected scene: SceneContext,
     data: ParcelData,
-    mother: BABYLON.Mesh,
+    mother: Mesh,
   ) {
     this.data = data
     this.mother = mother
@@ -113,9 +115,9 @@ export class MapParcel {
     return this.data.id
   }
 
-  getMesh = (): BABYLON.InstancedMesh | undefined => this._mesh
+  getMesh = (): Mesh | undefined => this._mesh
 
-  setMesh = (mother: BABYLON.Mesh) => {
+  setMesh = (mother: Mesh) => {
     this.dispose()
     if (!mother) return
     const nudge = 0.25
@@ -135,7 +137,7 @@ export class MapParcel {
   }
 }
 
-export function speedOptimize(mesh: BABYLON.Mesh | BABYLON.InstancedMesh) {
+export function speedOptimize(mesh: Mesh | Mesh) {
   mesh.alwaysSelectAsActiveMesh = true
   mesh.doNotSyncBoundingInfo = true
   if ('convertToUnIndexedMesh' in mesh) {
@@ -144,16 +146,16 @@ export function speedOptimize(mesh: BABYLON.Mesh | BABYLON.InstancedMesh) {
   mesh.freezeWorldMatrix()
 }
 
-export function distanceEnable(mesh: BABYLON.AbstractMesh | undefined, playerMesh: BABYLON.Mesh, maxLength: number) {
+export function distanceEnable(mesh: Mesh | undefined, playerMesh: Mesh, maxLength: number) {
   if (!mesh) return
-  const dist = BABYLON.Vector3.DistanceSquared(mesh.position, playerMesh.position)
+  const dist = vec3.distanceSq(mesh.position, playerMesh.position)
   const isVisible = dist < maxLength * maxLength
   if (isVisible !== mesh.isEnabled()) {
     mesh.setEnabled(isVisible)
   }
 }
 
-export function createBaseMeshes(scene: BABYLON.Scene) {
+export function createBaseMeshes(scene: SceneContext) {
   return {
     parcel: createPMesh('parcel-default', scene, 0.4, 0.4, 0.4),
     sandbox: createPMesh('parcel-sandbox', scene, 0.91, 0.78, 0.18),
@@ -164,16 +166,16 @@ export function createBaseMeshes(scene: BABYLON.Scene) {
   }
 }
 
-export const createMaterial = (name: string, scene: BABYLON.Scene, r: number, g: number, b: number) => {
-  const material = new BABYLON.StandardMaterial(name, scene)
+export const createMaterial = (name: string, scene: SceneContext, r: number, g: number, b: number) => {
+  const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(name, scene) */)
   material.disableLighting = true
-  material.emissiveColor = new BABYLON.Color3(r, g, b)
+  material.emissiveColor = ([r, g, b] as Color3)
   material.freeze()
   return material
 }
 
-const createPMesh = (name: string, scene: BABYLON.Scene, r: number, g: number, b: number) => {
-  const pMesh = BABYLON.MeshBuilder.CreatePlane(name, { width: 1.0, height: 1.0 }, scene)
+const createPMesh = (name: string, scene: SceneContext, r: number, g: number, b: number) => {
+  const pMesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(name, { width: 1.0, height: 1.0 }, scene) */)
   pMesh.position.y = 1.0
   pMesh.rotation.x = Math.PI / 2.0
   pMesh.visibility = 1
@@ -191,9 +193,9 @@ export async function fetchIslands() {
   return islandCache
 }
 
-export async function loadIslands(scene: BABYLON.Scene, parent?: BABYLON.TransformNode, cull = false, bright = false) {
-  const root = parent ?? new BABYLON.TransformNode('map_islands', scene)
-  const islandMaterial = new BABYLON.StandardMaterial('map-island', scene)
+export async function loadIslands(scene: SceneContext, parent?: TransformNode, cull = false, bright = false) {
+  const root = parent ?? (undefined as any /* todo(lite): new BABYLON.TransformNode('map_islands', scene) */)
+  const islandMaterial = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('map-island', scene) */)
   islandMaterial.disableLighting = true
   const g = bright ? 0.9 : 0.2
   islandMaterial.emissiveColor.set(g, g, g)
@@ -267,9 +269,9 @@ export type MapMarker = {
 export type VoxelsMapOpts = {
   ortho?: number
   // lock camera to this scene's active camera (island info sidebar)
-  follow?: BABYLON.Scene
+  follow?: SceneContext
   // show a player arrow tracking this scene without locking pan
-  arrow?: BABYLON.Scene
+  arrow?: SceneContext
   parcels?: boolean
   nav?: boolean
   wallet?: string
@@ -279,24 +281,24 @@ export type VoxelsMapOpts = {
 
 // babylon top-down map — shop page (wide) or island info sidebar (follow + parcels)
 export class VoxelsMap {
-  private engine: BABYLON.Engine
-  private scene: BABYLON.Scene
-  private camera: BABYLON.FreeCamera
+  private engine: EngineContext
+  private scene: SceneContext
+  private camera: FreeCamera
   private islands: Island[] = []
   private parcels: MapParcel[] = []
   private rows: ParcelData[] = []
   private meshes?: ReturnType<typeof createBaseMeshes>
-  private playerMesh?: BABYLON.Mesh
-  private followObs?: BABYLON.Observer<BABYLON.Scene>
-  private overlayObs?: BABYLON.Observer<BABYLON.Scene>
+  private playerMesh?: Mesh
+  private followObs?: any
+  private overlayObs?: any
   private ro?: ResizeObserver
   private dragging = false
   private moved = false
   private lastX = 0
   private lastZ = 0
   private ortho: number
-  private follow?: BABYLON.Scene
-  private arrow?: BABYLON.Scene
+  private follow?: SceneContext
+  private arrow?: SceneContext
   private wantParcels: boolean
   private wallet?: string
   private overlay: HTMLDivElement
@@ -336,16 +338,16 @@ export class VoxelsMap {
     this.overlay.style.cssText = 'position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2'
     canvas.insertAdjacentElement('afterend', this.overlay)
 
-    this.engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true })
-    this.scene = new BABYLON.Scene(this.engine)
+    this.engine = (undefined as any /* todo(lite): new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true }) */)
+    this.scene = (undefined as any /* todo(lite): new BABYLON.Scene(this.engine) */)
     this.scene.clearColor = OCEAN
     this.scene.skipPointerMovePicking = true
     this.scene.skipPointerDownPicking = true
     this.scene.skipPointerUpPicking = true
 
-    this.camera = new BABYLON.FreeCamera('voxels_map_cam', new BABYLON.Vector3(0, 100, 0), this.scene)
-    this.camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
-    this.camera.setTarget(BABYLON.Vector3.Zero())
+    this.camera = (undefined as any /* todo(lite): new BABYLON.FreeCamera('voxels_map_cam', new BABYLON.Vector3(0, 100, 0), this.scene) */)
+    this.camera.mode = (undefined as any /* todo(lite): BABYLON.Camera.ORTHOGRAPHIC_CAMERA */)
+    this.camera.setTarget(vec3.create())
     // setTarget straight down resolves yaw to PI, rendering the world 180deg
     // rotated (south-up). force yaw 0 so north is up, same as the minimap.
     this.camera.rotation.y = 0
@@ -436,19 +438,19 @@ export class VoxelsMap {
     const fps = 60
     const frames = Math.max(1, Math.round((ms / 1000) * fps))
 
-    const ease = new BABYLON.QuadraticEase()
-    ease.setEasingMode(BABYLON.EasingFunction.EASINGMODE_EASEINOUT)
+    const ease = (undefined as any /* todo(lite): new BABYLON.QuadraticEase() */)
+    ease.setEasingMode((undefined as any /* todo(lite): BABYLON.EasingFunction.EASINGMODE_EASEINOUT */))
 
-    const to = new BABYLON.Vector3(x, this.camera.position.y, z)
+    const to = vec3.fromValues(x, this.camera.position.y, z)
     this.flying = true
     this.flyTarget = { x, z, ortho }
-    BABYLON.Animation.CreateAndStartAnimation('map-fly', this.camera, 'position', fps, frames, this.camera.position.clone(), to, 0, ease, () => {
+    (undefined as any /* todo(lite): BABYLON.Animation.CreateAndStartAnimation('map-fly', this.camera, 'position', fps, frames, this.camera.position.clone(), to, 0, ease, () => {
       this.flying = false
       this.flyTarget = null
       this.onMove?.()
-    })
+    }) */)
     if (ortho != null) {
-      BABYLON.Animation.CreateAndStartAnimation('map-zoom', this, 'flyOrtho', fps, frames, this.ortho, ortho, 0, ease, undefined, this.scene)
+      (undefined as any /* todo(lite): BABYLON.Animation.CreateAndStartAnimation('map-zoom', this, 'flyOrtho', fps, frames, this.ortho, ortho, 0, ease, undefined, this.scene) */)
     }
   }
 
@@ -593,7 +595,7 @@ export class VoxelsMap {
     if (this.playerMesh) {
       this.playerMesh.position.copyFrom(cam.position)
       this.playerMesh.position.y = 2
-      if (cam instanceof BABYLON.TargetCamera) {
+      if ((false /* todo(lite): cam instanceof BABYLON.TargetCamera */)) {
         this.playerMesh.rotation.y = cam.rotation.y
       }
     }
@@ -607,10 +609,10 @@ export class VoxelsMap {
   }
 
   private createTriangleMesh(name: string) {
-    const vertexData = new BABYLON.VertexData()
+    const vertexData = (undefined as any /* todo(lite): new BABYLON.VertexData() */)
     vertexData.positions = [-0, 1, 1, -1, 1, -1, 1, 1, -1]
     vertexData.indices = [0, 1, 2]
-    const m = new BABYLON.Mesh(name, this.scene)
+    const m = (undefined as any /* todo(lite): new BABYLON.Mesh(name, this.scene) */)
     vertexData.applyToMesh(m)
     m.convertToUnIndexedMesh()
     return m

@@ -5,6 +5,7 @@ import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from 
 import { tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D } from './feature'
+import { vec3 } from 'wgpu-matrix'
 
 export default class Lantern extends Feature3D<LanternRecord> {
   static isRenderable = true
@@ -23,7 +24,7 @@ export default class Lantern extends Feature3D<LanternRecord> {
   }
 
   get rotation() {
-    return BABYLON.Vector3.Zero()
+    return vec3.create()
   }
 
   whatIsThis() {
@@ -31,9 +32,9 @@ export default class Lantern extends Feature3D<LanternRecord> {
   }
 
   generate() {
-    this.mesh = BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), { size: 0.5 }, this.scene)
+    this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), { size: 0.5 }, this.scene) */)
     this.mesh.isPickable = true
-    BABYLON.Tags.AddTagsTo(this.mesh, 'glow')
+    (undefined as any /* todo(lite): BABYLON.Tags.AddTagsTo(this.mesh, 'glow') */)
 
     this.setCommon()
 

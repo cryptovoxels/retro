@@ -2,13 +2,14 @@ import { Component } from 'preact'
 import { blocks, defaultColors } from '../../../common/content/blocks'
 import UserInterface from '../../user-interface'
 import { SelectionMode } from '../../tools/voxel'
+import { SceneContext } from '@babylonjs/lite'
 
 const DEFAULT_TILESET = '/textures/atlas-ao.png'
 
 interface Props {
   tileset?: string
   palette?: string[]
-  scene: BABYLON.Scene
+  scene: SceneContext
 }
 
 interface State {

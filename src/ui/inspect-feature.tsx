@@ -3,6 +3,7 @@ import Feature from '../features/feature'
 import { openDialog } from '../../common/helpers/ui-helpers'
 import { decodeCoords, encodeCoords } from '../../common/helpers/utils'
 import ParcelHelper, { featurePlayCoordsFromRecord } from '../../common/helpers/parcel-helper'
+import { Mesh } from '@babylonjs/lite'
 
 export function inspectFeature(feature: Feature) {
   const ui = window.ui
@@ -15,7 +16,7 @@ export function inspectFeature(feature: Feature) {
 
   ui.featureTool.setMode('inspect')
   ui.setTool(ui.featureTool)
-  ui.featureTool.highlightFeature(feature, feature.mesh as BABYLON.AbstractMesh | undefined)
+  ui.featureTool.highlightFeature(feature, feature.mesh as Mesh | undefined)
 
   const isModerator = window.user.moderator
 

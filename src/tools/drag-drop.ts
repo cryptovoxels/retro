@@ -4,6 +4,7 @@ import { getImageInfo, getURlImageInfo, getVoxInfo } from '../../web/src/utils'
 
 import { uploadMedia, UploadMediaResult } from '../../common/helpers/upload-media'
 import { PanelType } from '../../web/src/components/panel'
+import { PickingInfo, SceneContext } from '@babylonjs/lite'
 
 const MB = 1024 * 1024
 
@@ -14,11 +15,11 @@ function preventDefaults(e: any) {
 
 // Drag drop manager
 export class DragDrop {
-  scene: BABYLON.Scene
+  scene: SceneContext
 
-  pickInfo: BABYLON.PickingInfo | undefined
+  pickInfo: PickingInfo | undefined
 
-  constructor(scene: BABYLON.Scene) {
+  constructor(scene: SceneContext) {
     this.scene = scene
 
     document.body.addEventListener('dragenter', preventDefaults, false)

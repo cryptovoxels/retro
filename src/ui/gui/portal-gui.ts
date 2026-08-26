@@ -1,14 +1,15 @@
 import Portal from '../../features/portal'
+import { Mesh, SceneContext, TransformNode } from '@babylonjs/lite'
 
 export default class PortalTeleportGUI {
-  scene: BABYLON.Scene
+  scene: SceneContext
   portal: Portal
-  plane: BABYLON.Mesh = undefined!
-  advancedDynamicTexture: BABYLON.GUI.AdvancedDynamicTexture = undefined!
-  grid: BABYLON.GUI.Grid = undefined!
-  parent: BABYLON.TransformNode = undefined!
+  plane: Mesh = undefined!
+  advancedDynamicTexture: any = undefined!
+  grid: any = undefined!
+  parent: TransformNode = undefined!
 
-  constructor(scene: BABYLON.Scene, portal: Portal) {
+  constructor(scene: SceneContext, portal: Portal) {
     this.scene = scene
     this.portal = portal
   }
@@ -27,7 +28,7 @@ export default class PortalTeleportGUI {
       return
     }
     // Create plane mesh — 4:1 to match ADT 512x128
-    this.plane = BABYLON.MeshBuilder.CreatePlane(
+    this.plane = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(
       'portal/gui',
       {
         width: 1,
@@ -35,10 +36,10 @@ export default class PortalTeleportGUI {
         sideOrientation: BABYLON.Mesh.FRONTSIDE,
       },
       this.scene,
-    )
-    this.plane.billboardMode = BABYLON.Mesh.BILLBOARDMODE_Y
+    ) */)
+    this.plane.billboardMode = (undefined as any /* todo(lite): BABYLON.Mesh.BILLBOARDMODE_Y */)
     // Create parent transformNode
-    this.parent = new BABYLON.TransformNode('feature/portal/parent', this.scene)
+    this.parent = (undefined as any /* todo(lite): new BABYLON.TransformNode('feature/portal/parent', this.scene) */)
     this.parent.position.copyFrom(this.portal.mesh.getAbsolutePosition())
     this.plane.setParent(this.parent)
     const position_y = this.portal.mesh.scaling.y / 2 + 0.2
@@ -49,11 +50,11 @@ export default class PortalTeleportGUI {
     this.plane.position.set(0, position_y, 0)
 
     // GUI
-    const advancedDynamicTexture = BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(this.plane, 512, 128)
+    const advancedDynamicTexture = (undefined as any /* todo(lite): BABYLON.GUI.AdvancedDynamicTexture.CreateForMesh(this.plane, 512, 128) */)
     advancedDynamicTexture.hasAlpha = true
     this.advancedDynamicTexture = advancedDynamicTexture
     // Create grid for the GUI
-    this.grid = new BABYLON.GUI.Grid()
+    this.grid = (undefined as any /* todo(lite): new BABYLON.GUI.Grid() */)
     advancedDynamicTexture.addControl(this.grid)
     this.grid.addColumnDefinition(1)
     this.grid.addRowDefinition(1)
@@ -80,7 +81,7 @@ export default class PortalTeleportGUI {
     this.grid.fontWeight = 'bold'
     this.grid.fontSize = '44px'
 
-    const text = new BABYLON.GUI.TextBlock()
+    const text = (undefined as any /* todo(lite): new BABYLON.GUI.TextBlock() */)
     text.text = this.parcelName
     text.textWrapping = 2
     text.height = '50px'

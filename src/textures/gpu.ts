@@ -23,7 +23,7 @@ export function getGpuTextureFormat(): TextureFormatExtension {
 }
 
 function detectFormat(): TextureFormatExtension {
-  const engine = BABYLON.EngineStore.Instances[0]
+  const engine = (undefined as any /* todo(lite): BABYLON.EngineStore.Instances[0] */)
 
   if (!engine) {
     throw new Error('Cannot detect texture format: BabylonJS engine not initialized')

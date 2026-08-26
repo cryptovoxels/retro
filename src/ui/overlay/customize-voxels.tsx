@@ -2,13 +2,14 @@ import { debounce } from 'lodash'
 import { Component } from 'preact'
 import { blocks, defaultColors } from '../../../common/content/blocks'
 import type Parcel from '../../parcel'
+import { DynamicTexture2D, SceneContext } from '@babylonjs/lite'
 
 const DEFAULT_TILESET = '/textures/atlas-ao.png?voxelscom'
 const { setTimeout } = window
 
 interface Props {
   parcel: Parcel
-  scene: BABYLON.Scene
+  scene: SceneContext
 }
 
 interface State {
@@ -24,7 +25,7 @@ interface State {
 
 export default class CustomizeVoxels extends Component<Props, State> {
   image: HTMLImageElement | undefined
-  dynamicTexture: BABYLON.DynamicTexture | undefined
+  dynamicTexture: DynamicTexture2D | undefined
   dragOverTimer: number | undefined
   controller: AbortController | null = null
   textureObserver: any = null
@@ -206,7 +207,7 @@ export default class CustomizeVoxels extends Component<Props, State> {
     }
 
     if (!this.dynamicTexture) {
-      this.dynamicTexture = new BABYLON.DynamicTexture('ui/tiles', { width: 1024, height: 1024 }, this.scene, true)
+      this.dynamicTexture = (undefined as any /* todo(lite): new BABYLON.DynamicTexture('ui/tiles', { width: 1024, height: 1024 }, this.scene, true) */)
     }
   }
 
@@ -311,7 +312,7 @@ export default class CustomizeVoxels extends Component<Props, State> {
       this.dynamicTexture?.update(false)
 
       const m = this.props.parcel.voxelMesh.material
-      if (this.dynamicTexture && m instanceof BABYLON.ShaderMaterial) {
+      if (this.dynamicTexture && (false /* todo(lite): m instanceof BABYLON.ShaderMaterial */)) {
         m.setTexture('tileMap', this.dynamicTexture)
       }
 

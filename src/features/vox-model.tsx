@@ -9,16 +9,18 @@ import { isURL } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import Feature, { Feature3D, FeatureEvent, FeatureTrigger, MeshExtended, transformVectors } from './feature'
 import ActionGui from '../ui/gui/action-button-gui'
+import { Mesh } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 
 // used when "Scale To Grid" is enabled
 const CUBESCALE_MULTIPLIER_X = 0.02
 const CUBESCALE_MULTIPLIER_Y = 0.065
 const CUBESCALE_SCALE_FACTOR = 1 / (0.02 * 32) / 2
 const CUBESCALE_SCALE_FACTOR_RECIPROCAL = 1 / CUBESCALE_SCALE_FACTOR
-const CUBESCALE_SCALE_FACTOR_VECTOR = new BABYLON.Vector3(CUBESCALE_SCALE_FACTOR, CUBESCALE_SCALE_FACTOR, CUBESCALE_SCALE_FACTOR)
-const CUBESCALE_SCALE_FACTOR_RECIPROCAL_VECTOR = new BABYLON.Vector3(CUBESCALE_SCALE_FACTOR_RECIPROCAL, CUBESCALE_SCALE_FACTOR_RECIPROCAL, CUBESCALE_SCALE_FACTOR_RECIPROCAL)
+const CUBESCALE_SCALE_FACTOR_VECTOR = vec3.fromValues(CUBESCALE_SCALE_FACTOR, CUBESCALE_SCALE_FACTOR, CUBESCALE_SCALE_FACTOR)
+const CUBESCALE_SCALE_FACTOR_RECIPROCAL_VECTOR = vec3.fromValues(CUBESCALE_SCALE_FACTOR_RECIPROCAL, CUBESCALE_SCALE_FACTOR_RECIPROCAL, CUBESCALE_SCALE_FACTOR_RECIPROCAL)
 
-const cubescaleOffset = (scale: [number, number, number]) => new BABYLON.Vector3(CUBESCALE_MULTIPLIER_X * scale[0], 0, CUBESCALE_MULTIPLIER_Y * scale[2])
+const cubescaleOffset = (scale: [number, number, number]) => vec3.fromValues(CUBESCALE_MULTIPLIER_X * scale[0], 0, CUBESCALE_MULTIPLIER_Y * scale[2])
 
 export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord | RideRecord = VoxModelRecord> extends Feature3D<Description> {
   static Editor: typeof Editor
@@ -86,19 +88,19 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
 
   generateDraft() {
     if (this.disposed) return
-    if (!(this.mesh instanceof BABYLON.Mesh)) {
-      this.mesh = BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    if (!((false /* todo(lite): this.mesh instanceof BABYLON.Mesh */))) {
+      this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
       rebindGizmos(this)
     }
     this.mesh.material = Feature.getDraftMaterial(this.scene)
     this.setCommon()
   }
 
-  private applyImportedMesh(imported: BABYLON.Mesh) {
-    if (!(this.mesh instanceof BABYLON.Mesh)) {
+  private applyImportedMesh(imported: Mesh) {
+    if (!((false /* todo(lite): this.mesh instanceof BABYLON.Mesh */))) {
       this.mesh = imported
     } else {
-      BABYLON.VertexData.ExtractFromMesh(imported).applyToMesh(this.mesh)
+      (undefined as any /* todo(lite): BABYLON.VertexData.ExtractFromMesh(imported).applyToMesh(this.mesh) */)
       this.mesh.material = imported.material
       imported.material = null
       imported.dispose()
@@ -123,7 +125,7 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     } else {
       url = `${process.env.ASSET_PATH}/models/vox-five.vox`
     }
-    let mesh: BABYLON.Mesh
+    let mesh: Mesh
     try {
       mesh = await voxImporter().import(url, this._voxImportParams())
       this._importError = null
@@ -352,7 +354,7 @@ export class Ride extends VoxModel<RideRecord> {
     if (this.driveGui || !this.mesh) return
     if (this.driverUuid) return
     const top = this.mesh.getBoundingInfo().boundingBox.maximumWorld.y - this.mesh.absolutePosition.y
-    const gui = new ActionGui(this, { position: new BABYLON.Vector3(0, top + 0.6, 0) })
+    const gui = new ActionGui(this, { position: vec3.fromValues(0, top + 0.6, 0) })
     gui.addButton('Drive', {
       positionInGrid: [0, 0],
       height: '50px',

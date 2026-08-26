@@ -19,6 +19,7 @@ import Feature, { Feature2D, TransparencyMode } from './feature'
 import { setTextureProperties } from './image'
 import NFTFrame from './utils/nft-frame'
 import { Action } from '../../common/messages'
+import { Mesh, SceneContext, Texture2D } from '@babylonjs/lite'
 
 export function arrayBufferToDataURL(buf: ArrayBuffer, mime = 'application/octet-stream'): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -30,10 +31,10 @@ export function arrayBufferToDataURL(buf: ArrayBuffer, mime = 'application/octet
   })
 }
 
-BABYLON.Effect.ShadersStore['nftVertexShader'] = nftVertexShader
-BABYLON.Effect.ShadersStore['nftFramePixelShader'] = nftFrameShaderClassic
-BABYLON.Effect.ShadersStore['nftFrameColorsPixelShader'] = nftFrameColorsShaderColors
-BABYLON.Effect.ShadersStore['nftFrameBluePixelShader'] = nftFrameBlueShaderBlue
+(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['nftVertexShader'] = nftVertexShader */)
+(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['nftFramePixelShader'] = nftFrameShaderClassic */)
+(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['nftFrameColorsPixelShader'] = nftFrameColorsShaderColors */)
+(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['nftFrameBluePixelShader'] = nftFrameBlueShaderBlue */)
 
 const frameThick = 0.05
 
@@ -54,7 +55,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     scale: [1, 1, 0],
     url: '',
   }
-  frame: BABYLON.Mesh | null = null
+  frame: Mesh | null = null
   forceUpdate = false
   rendered = false
   assetHelper: OpenseaAssetHelper | null = null
@@ -101,7 +102,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     return readOpenseaUrl(this.url)
   }
 
-  static generateFrameMaterials(scene: BABYLON.Scene) {
+  static generateFrameMaterials(scene: SceneContext) {
     NftImage.classicFrameMaterial = new NFTFrame(scene, 'nftFrame', 'nft-classic-frame')
     NftImage.colorsFrameMaterial = new NFTFrame(scene, 'nftFrameColors', 'nft-frame-frame')
     NftImage.blueFrameMaterial = new NFTFrame(scene, 'nftFrameBlue', 'nft-blue-frame')
@@ -122,8 +123,8 @@ export default class NftImage extends Feature2D<NftImageRecord> {
 
   generateDraft() {
     if (this.disposed) return
-    if (!(this.mesh instanceof BABYLON.Mesh)) {
-      this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    if (!((false /* todo(lite): this.mesh instanceof BABYLON.Mesh */))) {
+      this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
       rebindGizmos(this)
     }
     this.mesh.material = Feature.getDraftMaterial(this.scene)
@@ -219,7 +220,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
         // console.log('img', img)
 
         const size = { width: 512, height: 512 }
-        const tex = new BABYLON.DynamicTexture('imgTex', size, this.scene, false)
+        const tex = (undefined as any /* todo(lite): new BABYLON.DynamicTexture('imgTex', size, this.scene, false) */)
 
         // on dispose, remove the img from the DOM
         tex.onDisposeObservable.add(() => {
@@ -331,10 +332,10 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     showNftView(this)
   }
 
-  renderImage(texture: BABYLON.Texture): BABYLON.Mesh | null {
+  renderImage(texture: Texture2D): Mesh | null {
     if (this.disposed) return null
 
-    const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene) */)
     material.specularColor.set(0, 0, 0)
     material.diffuseColor.set(1, 1, 1)
 
@@ -352,13 +353,13 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     material.zOffset = -5
     material.diffuseTexture = texture
 
-    if (!(this.mesh instanceof BABYLON.Mesh)) {
-      this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+    if (!((false /* todo(lite): this.mesh instanceof BABYLON.Mesh */))) {
+      this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) */)
       rebindGizmos(this)
     } else {
       const old = this.mesh.material
       this.mesh.material = null
-      if (old instanceof BABYLON.StandardMaterial && old !== Feature.draftMaterial && old.getBindedMeshes().length <= 1) {
+      if ((false /* todo(lite): old instanceof BABYLON.StandardMaterial */) && old !== Feature.draftMaterial && old.getBindedMeshes().length <= 1) {
         old.dispose(false, true)
       }
     }
@@ -404,12 +405,12 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     const box = (width: number, height: number, depth: number, extra: number) => {
       const he = extra / 2
       const faceUV = [
-        new BABYLON.Vector4(-he, -he, width + he, height + he), // back
-        new BABYLON.Vector4(-he, -he, width + he, height + he), // front
-        new BABYLON.Vector4(-he, -he, height + he, depth + he), // right
-        new BABYLON.Vector4(-he, -he, height + he, depth + he), // left
-        new BABYLON.Vector4(-he, -he, depth + he, width + he), // top
-        new BABYLON.Vector4(-he, -he, depth + he, width + he), // bottom
+        (undefined as any /* todo(lite): new BABYLON.Vector4(-he, -he, width + he, height + he) */), // back
+        (undefined as any /* todo(lite): new BABYLON.Vector4(-he, -he, width + he, height + he) */), // front
+        (undefined as any /* todo(lite): new BABYLON.Vector4(-he, -he, height + he, depth + he) */), // right
+        (undefined as any /* todo(lite): new BABYLON.Vector4(-he, -he, height + he, depth + he) */), // left
+        (undefined as any /* todo(lite): new BABYLON.Vector4(-he, -he, depth + he, width + he) */), // top
+        (undefined as any /* todo(lite): new BABYLON.Vector4(-he, -he, depth + he, width + he) */), // bottom
       ]
 
       const options = {
@@ -419,7 +420,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
         faceUV: faceUV,
       }
 
-      return BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), options, this.scene)
+      return (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), options, this.scene) */)
     }
 
     if (!this.assetHelper?.isOwner(this.parcel.owner)) {
@@ -433,8 +434,8 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     const inner_box = box(this.scale.x, this.scale.y, frameThick, 0)
 
     // CSG
-    const c = BABYLON.CSG.FromMesh(outer_box)
-    c.subtractInPlace(BABYLON.CSG.FromMesh(inner_box))
+    const c = (undefined as any /* todo(lite): BABYLON.CSG.FromMesh(outer_box) */)
+    c.subtractInPlace((undefined as any /* todo(lite): BABYLON.CSG.FromMesh(inner_box) */))
 
     // Dispose frame boxes
     outer_box.dispose()

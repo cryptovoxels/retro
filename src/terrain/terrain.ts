@@ -4,13 +4,14 @@ import { isLoaded } from '../utils/loading-done'
 import { StateObservable } from '../utils/state-observable'
 import { Ocean } from './ocean'
 import { ChunkSystem } from './chunk-system'
+import { Mesh, SceneContext, Vec2 } from '@babylonjs/lite'
 
 const CHUNK_SIZE = 48
 
 export class Terrain {
   public islandsStateObservable: StateObservable<'loaded' | 'unloaded'>
   public invalidateIslandsLoaded: () => void
-  private readonly _scene: BABYLON.Scene
+  private readonly _scene: SceneContext
   private readonly _islands: Islands
   private readonly _oceanFloor: OceanFloor
   private _ocean: Ocean
@@ -18,7 +19,7 @@ export class Terrain {
   private _islandsHasLoaded = false
   private _loadRange: number
 
-  constructor(scene: BABYLON.Scene, skyboxes: any[]) {
+  constructor(scene: SceneContext, skyboxes: any[]) {
     this._scene = scene
     this._loadRange = Math.ceil((window.draw.distance * 1.414 + CHUNK_SIZE / 2) / CHUNK_SIZE)
 
@@ -29,7 +30,7 @@ export class Terrain {
     this._oceanFloor = new OceanFloor(CHUNK_SIZE, scene)
 
     // Extract meshes from skyboxes for reflection
-    const skyboxMeshes: BABYLON.Mesh[] = []
+    const skyboxMeshes: Mesh[] = []
     for (const skybox of skyboxes) {
       // Skybox has .mesh property
       if (skybox.mesh) {
@@ -89,11 +90,11 @@ export class Terrain {
     this._islands.allMeshes().forEach((mesh) => this._ocean.addReflection(mesh))
   }
 
-  addReflectionMesh(mesh: BABYLON.Mesh) {
+  addReflectionMesh(mesh: Mesh) {
     this._ocean.addReflection(mesh)
   }
 
-  removeReflectionMesh(mesh: BABYLON.Mesh) {
+  removeReflectionMesh(mesh: Mesh) {
     this._ocean.removeReflection(mesh)
   }
 
@@ -101,7 +102,7 @@ export class Terrain {
     return this._ocean.hasWaterMeshAt(x, z)
   }
 
-  getIsland(point: BABYLON.Vector2) {
+  getIsland(point: Vec2) {
     return this._islands.getIsland(point)
   }
 }

@@ -5,10 +5,12 @@ import { decodeCoords } from '../../../common/helpers/utils'
 import { getCoordsFromURL } from '../../utils/helpers'
 import { createFirstPersonCamera } from '../utils/fps-camera'
 import { WALK } from '../utils/player-body'
+import { SceneContext } from '@babylonjs/lite'
+import { mat4, vec3 } from 'wgpu-matrix'
 
-const localDir = BABYLON.Vector3.Zero()
-const worldDir = BABYLON.Vector3.Zero()
-const viewInv = BABYLON.Matrix.Identity()
+const localDir = vec3.create()
+const worldDir = vec3.create()
+const viewInv = mat4.identity()
 
 export default class MobileControls extends Controls {
   shiftKey = false
@@ -17,7 +19,7 @@ export default class MobileControls extends Controls {
   btnToggleFly: HTMLElement | null = null
   btnDrive: HTMLButtonElement | null = null
 
-  constructor(scene: BABYLON.Scene, canvas: HTMLCanvasElement) {
+  constructor(scene: SceneContext, canvas: HTMLCanvasElement) {
     super(scene, canvas)
     this.defaultSpeed = 9 // was SPEED 0.15/frame at 60fps; dial down after feel-check
   }
@@ -106,7 +108,7 @@ export default class MobileControls extends Controls {
     }
 
     this.camera.getViewMatrix().invertToRef(viewInv)
-    BABYLON.Vector3.TransformNormalToRef(localDir, viewInv, worldDir)
+    (undefined as any /* todo(lite): BABYLON.Vector3.TransformNormalToRef(localDir, viewInv, worldDir) */)
     this.move.addInPlace(worldDir)
   }
 

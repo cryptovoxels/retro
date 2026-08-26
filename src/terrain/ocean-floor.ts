@@ -1,38 +1,39 @@
 import type { Chunk, ChunkObserver } from './chunk-system'
 import { addCuboid, removeCollider } from '../physics/world'
+import { Color3, Mesh, SceneContext } from '@babylonjs/lite'
 
 export default class OceanFloor implements ChunkObserver {
-  private readonly _mesh: BABYLON.Mesh
+  private readonly _mesh: Mesh
   private readonly size: number
   private readonly halfSize: number
   private instances: Map<string, BABYLON.InstancedMesh> = new Map()
 
-  constructor(size: number, scene: BABYLON.Scene) {
+  constructor(size: number, scene: SceneContext) {
     this.size = size
     this.halfSize = size * 0.5
 
-    const oceanFloorTexture = new BABYLON.Texture(process.env.ASSET_PATH + '/textures/subgrid.png', scene)
+    const oceanFloorTexture = (undefined as any /* todo(lite): new BABYLON.Texture(process.env.ASSET_PATH + '/textures/subgrid.png', scene) */)
     oceanFloorTexture.uScale = this.size
     oceanFloorTexture.vScale = this.size
 
-    const oceanFloorMaterial = new BABYLON.StandardMaterial('skybox/ocean-floor', scene)
+    const oceanFloorMaterial = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('skybox/ocean-floor', scene) */)
     oceanFloorMaterial.diffuseColor.set(0.2, 0.2, 0.2)
     oceanFloorMaterial.ambientTexture = oceanFloorTexture
-    oceanFloorMaterial.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1)
+    oceanFloorMaterial.specularColor = ([0.1, 0.1, 0.1] as Color3)
     oceanFloorMaterial.fogEnabled = true
 
-    this._mesh = BABYLON.MeshBuilder.CreateGround('ocean_floor_original', { width: this.size, height: this.size, subdivisions: 1 }, scene)
+    this._mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateGround('ocean_floor_original', { width: this.size, height: this.size, subdivisions: 1 }, scene) */)
     this._mesh.material = oceanFloorMaterial
     this._mesh.position.set(this.halfSize, -1024, this.halfSize)
     this._mesh.setEnabled(false) // instanced, dont need to render the original mesh
     this._mesh.receiveShadows = true
   }
 
-  get mesh(): BABYLON.Mesh {
+  get mesh(): Mesh {
     return this._mesh
   }
 
-  createInstance(x: number, y: number): BABYLON.InstancedMesh {
+  createInstance(x: number, y: number): Mesh {
     const i = this._mesh.createInstance(`ocean_floor_i_${x}_${y}`)
     i.position.x = this.size * x + this.halfSize
     i.position.y = -6

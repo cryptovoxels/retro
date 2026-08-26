@@ -4,6 +4,7 @@ import { FootstepSounds } from './footstep-sounds'
 import { FlySound } from './fly-sound'
 import { soundFx, SoundName } from './soundfx'
 import { SpatialAudio } from './spatial-audio'
+import { SceneContext, Vec3 } from '@babylonjs/lite'
 
 export interface AudioSettings {
   parcelAudioVolume: number
@@ -51,7 +52,7 @@ export interface SoundParams {
   url?: string
   buffer?: ArrayBuffer
   readyToPlayCallback?: () => void
-  options?: BABYLON.ISoundOptions
+  options?: any
   outputBus?: AudioBus
 }
 
@@ -60,21 +61,21 @@ interface SpatialAudioParams {
   audioNode: AudioNode
   outputBus?: AudioBus
   rolloffFactor?: number
-  absolutePosition: BABYLON.Vector3
+  absolutePosition: Vec3
 }
 
-function createSoundtrack(scene: BABYLON.Scene) {
+function createSoundtrack(scene: SceneContext) {
   // make sure babylon already has all the soundtrack stuff setup before we try and create busses
-  BABYLON.Sound._SceneComponentInitialization(scene)
+  (undefined as any /* todo(lite): BABYLON.Sound._SceneComponentInitialization(scene) */)
 
-  const soundTrack = new BABYLON.SoundTrack(scene, {}) as any
+  const soundTrack = (undefined as any /* todo(lite): new BABYLON.SoundTrack(scene, {}) as any */)
   soundTrack._initializeSoundTrackAudioGraph()
-  return soundTrack as BABYLON.SoundTrack
+  return soundTrack as any
 }
 
 export class AudioEngine {
-  babylonAudioEngine: BABYLON.IAudioEngine | null
-  scene: BABYLON.Scene
+  babylonAudioEngine: any | null
+  scene: SceneContext
   audioContext: AudioContext
 
   footstepSounds: FootstepSounds
@@ -84,8 +85,8 @@ export class AudioEngine {
   avatarOut: GainNode
 
   // used by both web audio and audio tags (for echo cancellation)
-  parcelAudioBus: BABYLON.SoundTrack
-  soundEffectsBus: BABYLON.SoundTrack
+  parcelAudioBus: any
+  soundEffectsBus: any
 
   soundLastPlayedAt = 0 // unix timestamp
 
@@ -93,12 +94,12 @@ export class AudioEngine {
   broadcasting = false
   private preBroadcastVolumes: { parcel: number } | null = null
 
-  constructor(scene: BABYLON.Scene) {
+  constructor(scene: SceneContext) {
     if (!wantsAudio()) {
       throw new Error('Trying to create audio when not wanted')
     }
 
-    this.babylonAudioEngine = BABYLON.Engine.audioEngine
+    this.babylonAudioEngine = (undefined as any /* todo(lite): BABYLON.Engine.audioEngine */)
     if (!this.babylonAudioEngine?.audioContext || !this.masterOut) {
       throw new Error('No audio engine')
     }
@@ -153,16 +154,16 @@ export class AudioEngine {
     return window.connector
   }
 
-  addToParcelBus(sound: BABYLON.Sound) {
+  addToParcelBus(sound: any) {
     this.parcelAudioBus.addSound(sound)
   }
 
-  addToEffectsBus(sound: BABYLON.Sound) {
+  addToEffectsBus(sound: any) {
     this.soundEffectsBus.addSound(sound)
   }
 
   createSound(params: SoundParams) {
-    const sound = new BABYLON.Sound(params.name, params.url || params.buffer, this.scene, params.readyToPlayCallback, params.options)
+    const sound = (undefined as any /* todo(lite): new BABYLON.Sound(params.name, params.url || params.buffer, this.scene, params.readyToPlayCallback, params.options) */)
 
     // default babylon doesn't copy the soundtrack when using `clone` so we manually patch to make the soundtrack/bus stick once cloned
     sound.clone = cloneWithSoundTrack
@@ -176,7 +177,7 @@ export class AudioEngine {
     return sound
   }
 
-  playSound(soundName: SoundName, limitPlaybackRate = false, worldPosition?: BABYLON.Vector3) {
+  playSound(soundName: SoundName, limitPlaybackRate = false, worldPosition?: Vec3) {
     // allow a new sound every 250 - 500ms if limitPlaybackRate is set
     const nextPlayAllowedAt = this.soundLastPlayedAt + 250 + Math.random() * 250
     const sound = this.soundFx[soundName]
@@ -264,9 +265,9 @@ function tryParseJson(json: string) {
   }
 }
 
-function cloneWithSoundTrack(this: BABYLON.Sound): BABYLON.Nullable<BABYLON.Sound> {
-  const result = BABYLON.Sound.prototype.clone.call(this)
-  const scene = this['_scene'] as BABYLON.Scene
+function cloneWithSoundTrack(this: any): (any | null) {
+  const result = (undefined as any /* todo(lite): BABYLON.Sound.prototype.clone.call(this) */)
+  const scene = this['_scene'] as SceneContext
   const soundtrack = scene.soundTracks?.find((s) => s.id === this.soundTrackId)
   if (result) {
     soundtrack?.addSound(result)

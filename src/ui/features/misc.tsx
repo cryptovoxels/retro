@@ -19,6 +19,7 @@ import { bindGizmosToFeature, unbindGizmosFromFeature } from '../../tools/gizmos
 import { round, XYZ } from '../../utils/helpers'
 import { degToRad, floatArray, RADIAN_DP, radToDeg, truncate } from './common'
 import { useFeatureContext } from './context'
+import { Color3, SceneContext } from '@babylonjs/lite'
 
 export const LOADING = 'Loading...'
 export const NO_PARCEL_FOUND = 'No parcels found.'
@@ -99,7 +100,7 @@ export function Sound(props: { feature: Feature<ButtonRecord> }) {
 export type FeatureEditorProps<T extends Feature = Feature> = {
   feature: T
   parcel: Parcel
-  scene: BABYLON.Scene
+  scene: SceneContext
 }
 
 export class FeatureEditor<T extends Feature = Feature> extends Component<FeatureEditorProps<T>, any> {
@@ -189,7 +190,7 @@ export class FeatureEditor<T extends Feature = Feature> extends Component<Featur
   }
 }
 
-export function Toolbar(props: { feature: Feature; scene: BABYLON.Scene }) {
+export function Toolbar(props: { feature: Feature; scene: SceneContext }) {
   if (!props.scene) {
     // some where in the stack the types are not correct, and a scene is not provided
     console.debug(new Error('Toolbar: No scene provided'))
@@ -396,64 +397,64 @@ interface EasingFunctions {
   [key: string]: EasingFunctionGenerator | VoidFunction
 }
 
-type EasingFunctionGenerator = (mode: number) => BABYLON.EasingFunction
+type EasingFunctionGenerator = (mode: number) => any
 
 export const easingFunctions: EasingFunctions = {
   None: () => {
     // No easing function - returns undefined (no easing applied)
   },
   Bounce: (mode: number) => {
-    const easing = new BABYLON.BounceEase()
+    const easing = (undefined as any /* todo(lite): new BABYLON.BounceEase() */)
     easing.setEasingMode(mode)
     return easing
   },
   Back: (mode: number) => {
-    const easing = new BABYLON.BackEase()
+    const easing = (undefined as any /* todo(lite): new BABYLON.BackEase() */)
     easing.setEasingMode(mode)
     return easing
   },
   Circle: (mode: number) => {
-    const easing = new BABYLON.CircleEase()
+    const easing = (undefined as any /* todo(lite): new BABYLON.CircleEase() */)
     easing.setEasingMode(mode)
     return easing
   },
   Cubic: (mode: number) => {
-    const easing = new BABYLON.CubicEase()
+    const easing = (undefined as any /* todo(lite): new BABYLON.CubicEase() */)
     easing.setEasingMode(mode)
     return easing
   },
   Elastic: (mode: number) => {
-    const easing = new BABYLON.ElasticEase()
+    const easing = (undefined as any /* todo(lite): new BABYLON.ElasticEase() */)
     easing.setEasingMode(mode)
     return easing
   },
   Exponential: (mode: number) => {
-    const easing = new BABYLON.ExponentialEase()
+    const easing = (undefined as any /* todo(lite): new BABYLON.ExponentialEase() */)
     easing.setEasingMode(mode)
     return easing
   },
   Power: (mode: number) => {
-    const easing = new BABYLON.PowerEase()
+    const easing = (undefined as any /* todo(lite): new BABYLON.PowerEase() */)
     easing.setEasingMode(mode)
     return easing
   },
   Quadratic: (mode: number) => {
-    const easing = new BABYLON.QuadraticEase()
+    const easing = (undefined as any /* todo(lite): new BABYLON.QuadraticEase() */)
     easing.setEasingMode(mode)
     return easing
   },
   Quartic: (mode: number) => {
-    const easing = new BABYLON.QuarticEase()
+    const easing = (undefined as any /* todo(lite): new BABYLON.QuarticEase() */)
     easing.setEasingMode(mode)
     return easing
   },
   Quintic: (mode: number) => {
-    const easing = new BABYLON.QuinticEase()
+    const easing = (undefined as any /* todo(lite): new BABYLON.QuinticEase() */)
     easing.setEasingMode(mode)
     return easing
   },
   Sine: (mode: number) => {
-    const easing = new BABYLON.SineEase()
+    const easing = (undefined as any /* todo(lite): new BABYLON.SineEase() */)
     easing.setEasingMode(mode)
     return easing
   },
@@ -464,9 +465,9 @@ interface EasingModes {
 }
 
 export const easingModes: EasingModes = {
-  'Start + End': BABYLON.EasingFunction.EASINGMODE_EASEINOUT,
-  Start: BABYLON.EasingFunction.EASINGMODE_EASEIN,
-  End: BABYLON.EasingFunction.EASINGMODE_EASEOUT,
+  'Start + End': (undefined as any /* todo(lite): BABYLON.EasingFunction.EASINGMODE_EASEINOUT */),
+  Start: (undefined as any /* todo(lite): BABYLON.EasingFunction.EASINGMODE_EASEIN */),
+  End: (undefined as any /* todo(lite): BABYLON.EasingFunction.EASINGMODE_EASEOUT */),
 }
 
 export function easingDropdown(easing: EasingDescription, setEasing: Dispatch<StateUpdater<EasingDescription>>) {
@@ -687,7 +688,7 @@ export function CollectibleTryScale(props: { feature: CollectibleModel }) {
   )
 }
 
-export function CollectibleTryBone(props: { feature: CollectibleModel; scene: BABYLON.Scene }) {
+export function CollectibleTryBone(props: { feature: CollectibleModel; scene: SceneContext }) {
   if (!window.connector.persona.avatar) {
     return null
   }
@@ -696,13 +697,13 @@ export function CollectibleTryBone(props: { feature: CollectibleModel; scene: BA
     return null
   }
 
-  const [skeleton, setSkeleton] = useState<BABYLON.Skeleton>(window.connector?.persona.avatar?.skeleton)
+  const [skeleton, setSkeleton] = useState<any>(window.connector?.persona.avatar?.skeleton)
 
   if (!skeleton) {
     const rootURL = `/models/`
-    BABYLON.SceneLoader.ImportMesh(null, rootURL, 'avatar.glb', props.scene, (meshes, particleSystems, skeletons) => {
+    (undefined as any /* todo(lite): BABYLON.SceneLoader.ImportMesh(null, rootURL, 'avatar.glb', props.scene, (meshes, particleSystems, skeletons) => {
       setSkeleton(skeletons[0])
-    })
+    }) */)
   }
   const boneName = (b: any) => b.name.split(/:/)[1]
   const update = (bone: string) => {
@@ -762,7 +763,7 @@ export function Advanced(props: any) {
 export function SpecularColorSetting(props: { feature: Feature & { description: { specularColor?: [number, number, number] } } }) {
   const update = debounce(
     (value: string) => {
-      const rgb: BABYLON.Color3 = BABYLON.Color3.FromHexString(value)
+      const rgb: Color3 = (undefined as any /* todo(lite): BABYLON.Color3.FromHexString(value) */)
 
       props.feature.set({ specularColor: rgb.asArray() as [number, number, number] })
     },
@@ -772,7 +773,7 @@ export function SpecularColorSetting(props: { feature: Feature & { description: 
 
   const defaultSpecularColor = [1, 1, 1]
 
-  const color: string = BABYLON.Color3.FromArray(props.feature.description.specularColor || defaultSpecularColor).toHexString()
+  const color: string = (undefined as any /* todo(lite): BABYLON.Color3.FromArray(props.feature.description.specularColor || defaultSpecularColor).toHexString() */)
 
   return (
     <>

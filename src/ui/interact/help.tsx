@@ -1,9 +1,10 @@
 import { Component } from 'preact'
 import { onDragStart } from '../dialog'
+import { SceneContext } from '@babylonjs/lite'
 
 interface Props {
   onClose?: () => void
-  scene: BABYLON.Scene
+  scene: SceneContext
   onShowSandboxGuide?: () => void
 }
 
