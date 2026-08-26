@@ -44,7 +44,7 @@ interface Selection {
   featureTemplate?: FeatureTemplate
   parcel?: Parcel
   mode?: FeatureSelectionMode
-  axes?: Array<BABYLON.Vector3>
+  axes?: Array<Vec3>
 }
 
 const centreOfPositions = (positions: Array<Array<number>>): Vec3 => {
@@ -73,7 +73,7 @@ export default class FeatureTool implements Tool {
   parent: (TransformNode | null)
   grid: Grid
   selection: Selection
-  secondarySelection: Record<string, BABYLON.AbstractMesh>
+  secondarySelection: Record<string, Mesh>
 
   secondarySelectionMaterial: StandardMaterialProps
   enabled = signal(false)

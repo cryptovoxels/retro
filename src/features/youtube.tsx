@@ -15,7 +15,7 @@ export function buildYoutubeThumbnailUrl(videoId: string | undefined): string | 
   return `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`
 }
 
-export async function loadYoutubeThumbnail(scene: SceneContext, videoId: string | undefined, signal: AbortSignal): Promise<BABYLON.Texture> {
+export async function loadYoutubeThumbnail(scene: SceneContext, videoId: string | undefined, signal: AbortSignal): Promise<Texture2D> {
   const thumbnailUrl = buildYoutubeThumbnailUrl(videoId)
   if (!thumbnailUrl) {
     return fetchNoImageTexture(scene)

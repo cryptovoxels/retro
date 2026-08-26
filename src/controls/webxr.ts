@@ -7,7 +7,7 @@ import { Mesh, SceneContext, Vec3 } from '@babylonjs/lite'
 export default class XROverlay {
   webXR: any | null = null
   xrTeleportation: any | null = null
-  teleportableMeshes: Set<BABYLON.AbstractMesh> = new Set()
+  teleportableMeshes: Set<Mesh> = new Set()
   scene: SceneContext
   canvas: HTMLCanvasElement
   controls: Controls

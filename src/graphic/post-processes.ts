@@ -7,7 +7,7 @@ import { SceneContext, StandardMaterialProps, onBeforeRender } from '@babylonjs/
 export class PostProcesses {
   private readonly scene: SceneContext
   private readonly colorGrader: ColorGrader
-  private readonly pipelines: Record<GraphicLevels, BABYLON.PostProcessRenderPipeline>
+  private readonly pipelines: Record<GraphicLevels, any>
   private glowLayer: (any | null) = null
   private blurPP: (any | null) = null
   private underwaterPP: (any | null) = null

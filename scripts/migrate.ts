@@ -132,6 +132,11 @@ function mapTypeText(node: ts.TypeNode, sf: ts.SourceFile): string {
       }
       return mapped
     }
+    // non-BABYLON generic (Promise<BABYLON.X>, Array<BABYLON.X>, ...): map the args
+    if (node.typeArguments?.length && /\bBABYLON\b/.test(node.getText(sf))) {
+      const args = node.typeArguments.map((t) => mapTypeText(t, sf)).join(', ')
+      return `${name}<${args}>`
+    }
   }
   if (ts.isTypeQueryNode(node) && node.exprName.getText(sf).startsWith('BABYLON')) return 'any'
   if (ts.isArrayTypeNode(node)) return `${mapTypeText(node.elementType, sf)}[]`
@@ -272,16 +277,19 @@ function migrate(filePath: string): boolean {
 
   function visit(node: ts.Node): void {
     // ---- type positions ----
-    if (ts.isTypeReferenceNode(node) || ts.isTypeQueryNode(node)) {
-      const text = node.getText(sf)
-      if (/\bBABYLON\b/.test(text)) {
-        push(node, mapTypeText(node as ts.TypeNode, sf))
-        return // no recursion into replaced node
-      }
+    // only intercept when the type itself is BABYLON.X; nested cases like
+    // Promise<BABYLON.X> are caught by recursing into the type arguments
+    if (ts.isTypeReferenceNode(node) && node.typeName.getText(sf).startsWith('BABYLON.')) {
+      push(node, mapTypeText(node, sf))
+      return // no recursion into replaced node
+    }
+    if (ts.isTypeQueryNode(node) && node.exprName.getText(sf).startsWith('BABYLON')) {
+      push(node, 'any')
+      return
     }
 
-    // ---- heritage clauses ----
-    if (ts.isHeritageClause(node) && /\bBABYLON\./.test(node.getText(sf))) {
+    // ---- heritage clauses: only when the base itself is a BABYLON class ----
+    if (ts.isHeritageClause(node) && node.types.some((t) => isBabylonRooted(t.expression))) {
       const clauseText = node.getText(sf)
       const parent = node.parent
       if (node.token === ts.SyntaxKind.ExtendsKeyword && (ts.isClassDeclaration(parent) || ts.isClassExpression(parent))) {

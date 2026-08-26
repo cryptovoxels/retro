@@ -9,6 +9,7 @@ import { toggleFPSStats } from '../../utils/fps-stats'
 import { TimeOfDay } from '../../utils/time-of-day'
 import { Color3, Mesh, SceneContext } from '@babylonjs/lite'
 import { vec3 } from 'wgpu-matrix'
+import { Vec3 } from '@babylonjs/lite'
 
 interface Props {
   parcel: Parcel | null
@@ -250,7 +251,7 @@ export default class DebugTools extends Component<Props, State> {
 
 type Scope = 'world' | 'parcel'
 
-export async function createMeshAtPopUp(): Promise<[BABYLON.Vector3, Scope] | [null, Scope]> {
+export async function createMeshAtPopUp(): Promise<[Vec3, Scope] | [null, Scope]> {
   const div = document.createElement('div')
   div.className = ''
   return new Promise(function (resolve, reject) {

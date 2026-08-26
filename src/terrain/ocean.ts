@@ -29,8 +29,8 @@ export class Ocean implements ChunkObserver {
   private readonly mesh: Mesh
   private readonly materials: { reflection: ReflectiveWater; simple: SimpleWater }
   private currentMaterial: WaterMaterialType
-  private instances: Map<string, BABYLON.InstancedMesh> = new Map()
-  private customMeshes: Map<string, BABYLON.Mesh[]> = new Map()
+  private instances: Map<string, Mesh> = new Map()
+  private customMeshes: Map<string, Mesh[]> = new Map()
   private processingChunks: Set<string> = new Set()
   private deferredChunks: Array<Chunk> = []
   private islands: IslandRecord[] = []

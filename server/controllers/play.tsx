@@ -6,7 +6,7 @@ import { Islands } from '../islands'
 import { Db } from '../pg'
 import { PassportStatic } from 'passport'
 import { Express } from 'express'
-import 'babylonjs' // BABYLON
+// import 'babylonjs' // BABYLON
 const isProduction = process.env.NODE_ENV === 'production'
 
 export default function PlayController(db: Db, passport: PassportStatic, app: Express) {

@@ -101,7 +101,7 @@ export async function buildCleanMesh(
   id: number,
   palette: Color3[],
   texOverride?: Texture2D,
-): Promise<{ opaque: BABYLON.Mesh; glass: BABYLON.Mesh | null }> {
+): Promise<{ opaque: Mesh; glass: Mesh | null }> {
   const lights = lanterns.map((l: any) => ({ position: l.position, color: l.color ?? '#ffffff', strength: l.strength }))
   const pal = palette.map((c) => [c.r, c.g, c.b] as [number, number, number])
   const { opaque, glass } = await runCompute((w) => w.bakeLightmap(field.data, field.shape as [number, number, number], field.stride, field.offset, lights, off, pal))

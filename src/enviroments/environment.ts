@@ -8,11 +8,11 @@ import { vec3 } from 'wgpu-matrix'
 const AMBIENT = 0.3
 const GATEWAY_AMBIENT = 0.45
 
-export abstract class Environment extends (Object as any) /* todo(lite): extends TypedEventTarget<{
+export abstract class Environment extends TypedEventTarget<{
   'fog-updated': void
-  'parcel-collider-added': BABYLON.AbstractMesh
-  'parcel-collider-removed': BABYLON.AbstractMesh
-}> */ {
+  'parcel-collider-added': Mesh
+  'parcel-collider-removed': Mesh
+}> {
   public ambientLight?: HemisphericLight
 
   protected constructor(protected readonly scene: SceneContext) {

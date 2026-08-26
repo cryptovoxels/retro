@@ -1133,7 +1133,7 @@ export async function LoadUserAvatar(scene: SceneContext, uuid: string, descript
   return new Avatar(scene, Date.now(), uuid, description, true)
 }
 
-function loadAvatarContainer(scene: SceneContext, avatarFile: string): Promise<BABYLON.AssetContainer> {
+function loadAvatarContainer(scene: SceneContext, avatarFile: string): Promise<AssetContainer> {
   return new Promise((resolve, reject) => {
     (undefined as any /* todo(lite): BABYLON.SceneLoader.LoadAssetContainer(
       `/models/`,

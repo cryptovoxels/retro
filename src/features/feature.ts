@@ -465,7 +465,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   // used by parcel-script
-  playAnimation(animations: Array<BABYLON.Animation>) {
+  playAnimation(animations: Array<any>) {
     if (!this.mesh) {
       return
     }

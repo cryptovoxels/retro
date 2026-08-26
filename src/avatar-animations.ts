@@ -141,7 +141,7 @@ export class AvatarAnimations {
    */
   copy(from: any) {
     // to avoid a loop-in-a-loop we make a lookup hash for any node having a mixamoring name
-    const lookup: Record<string, BABYLON.TransformNode> = {}
+    const lookup: Record<string, TransformNode> = {}
     from.bones.forEach((bone) => {
       lookup[bone.name] = bone.getTransformNode()!
     })
@@ -189,9 +189,9 @@ export async function loadAnimation(scene: SceneContext): Promise<void> {
   AvatarAnimations.rootAnimationGroups = [...basicAnimations, ...extraAnimations]
 }
 
-const loadBasicAnimations = (scene: SceneContext): Promise<ReadonlyArray<BABYLON.AnimationGroup>> => loadAnimations(scene, 'all-actions')
+const loadBasicAnimations = (scene: SceneContext): Promise<ReadonlyArray<AnimationGroup>> => loadAnimations(scene, 'all-actions')
 
-const loadExtraAnimation = async (scene: SceneContext, name: string): Promise<BABYLON.AnimationGroup> => {
+const loadExtraAnimation = async (scene: SceneContext, name: string): Promise<AnimationGroup> => {
   const animationGroups = await loadAnimations(scene, name)
 
   const animationGroup = animationGroups[0]
@@ -200,7 +200,7 @@ const loadExtraAnimation = async (scene: SceneContext, name: string): Promise<BA
   return animationGroup
 }
 
-const loadAnimations = async (scene: SceneContext, glbName: string): Promise<ReadonlyArray<BABYLON.AnimationGroup>> => {
+const loadAnimations = async (scene: SceneContext, glbName: string): Promise<ReadonlyArray<AnimationGroup>> => {
   const imported = await (undefined as any /* todo(lite): BABYLON.SceneLoader.ImportMeshAsync(null, '/animations/', `${glbName.toLowerCase()}.glb`, scene) */)
 
   // Discard any meshes - we just want the animations

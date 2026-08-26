@@ -220,7 +220,7 @@ async function loadCoords(wid: string, url: string) {
   return coords
 }
 
-async function loadYeetMesh(wid: string, url: string): Promise<BABYLON.AbstractMesh | null> {
+async function loadYeetMesh(wid: string, url: string): Promise<Mesh | null> {
   let template = yeetMeshes.get(wid)
   if (!template) {
     try {

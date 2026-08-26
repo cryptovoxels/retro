@@ -6,7 +6,7 @@ export default class OceanFloor implements ChunkObserver {
   private readonly _mesh: Mesh
   private readonly size: number
   private readonly halfSize: number
-  private instances: Map<string, BABYLON.InstancedMesh> = new Map()
+  private instances: Map<string, Mesh> = new Map()
 
   constructor(size: number, scene: SceneContext) {
     this.size = size

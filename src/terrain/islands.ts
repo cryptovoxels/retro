@@ -92,7 +92,7 @@ export class Island {
     return (undefined as any /* todo(lite): BABYLON.BoundingBox.Intersects(this._mesh.getBoundingInfo().boundingBox as BABYLON.DeepImmutableObject<BABYLON.BoundingBox>, boundingInfo.boundingBox as BABYLON.DeepImmutableObject<BABYLON.BoundingBox>) */)
   }
 
-  async render(): Promise<BABYLON.Mesh> {
+  async render(): Promise<Mesh> {
     this._mesh.position.y = 0.75 - 0.01 // 0.01 = the nudge epsilon
 
     const width = this._mesh.getBoundingInfo().maximum.x - this._mesh.getBoundingInfo().minimum.x

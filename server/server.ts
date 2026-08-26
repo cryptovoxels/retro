@@ -76,7 +76,7 @@ import responseTime from 'response-time'
 
 // this will tell typescript that `document` exists
 // Do not remove unless you know what you're doing
-import 'babylonjs' // BABYLON
+// import 'babylonjs' // BABYLON
 // Our requires
 import { stat } from 'fs/promises'
 import throng from 'throng'

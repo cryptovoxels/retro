@@ -80,7 +80,7 @@ export class AudioEngine {
 
   footstepSounds: FootstepSounds
   flySound: FlySound
-  soundFx: Record<SoundName, BABYLON.Sound>
+  soundFx: Record<SoundName, any>
 
   avatarOut: GainNode
 
@@ -126,7 +126,7 @@ export class AudioEngine {
         acc[sound as SoundName] = this.createSound({ name: sound, ...options })
         return acc
       },
-      {} as Record<SoundName, BABYLON.Sound>,
+      {} as Record<SoundName, any>,
     )
   }
 
