@@ -41,10 +41,9 @@ function congaLateralSlot(uuid: string): number {
   return (((h % 7) + 7) % 7) - 3
 }
 
-const WALK_TO_RUN_EASE = (undefined as any /* todo(lite): new BABYLON.SineEase() */)
-WALK_TO_RUN_EASE.setEasingMode((undefined as any /* todo(lite): BABYLON.EasingFunction.EASINGMODE_EASEIN */))
-const RUN_TO_WALK_EASE = (undefined as any /* todo(lite): new BABYLON.SineEase() */)
-RUN_TO_WALK_EASE.setEasingMode((undefined as any /* todo(lite): BABYLON.EasingFunction.EASINGMODE_EASEOUT */))
+// todo(lite): BABYLON.SineEase walk/run easing
+const WALK_TO_RUN_EASE: any = null
+const RUN_TO_WALK_EASE: any = null
 
 /**
  * Get the next value of easing the current number to the target number
@@ -167,15 +166,17 @@ export default abstract class Controls implements IControls {
     this.addControls(camera)
 
     this.camera = camera
-    this.scene.activeCamera = camera
+    this.scene.camera = camera.cam
 
     this.body = new PlayerBody()
-    this.body.position.copyFrom(camera.position)
+    vec3.copy(camera.position as any, this.body.position)
     camera.body = this.body
     camera.place()
 
-    // Enable feature clicking
-    this.scene.onPointerObservable.add(this.featureClickHandler.bind(this))
+    // Enable feature clicking (mobile only; uses scene picking when available)
+    if ((this.scene as any).onPointerObservable?.add) {
+      this.scene.onPointerObservable.add(this.featureClickHandler.bind(this))
+    }
 
     document.addEventListener('keydown', this.onDriveKeyDown)
     document.addEventListener('keyup', this.onDriveKeyUp)
@@ -241,7 +242,7 @@ export default abstract class Controls implements IControls {
 
   toggleZoom() {
     const animateFov = (target: number) => {
-      const camera = this.scene.activeCamera
+      const camera = this.scene.camera
       if (!camera) {
         return
       }
@@ -377,7 +378,7 @@ export default abstract class Controls implements IControls {
       const duration = 10
       this.walkRunAnimation?.stop()
       this.walkRunAnimation = (undefined as any /* todo(lite): BABYLON.Animation.CreateAndStartAnimation('walk-to-run', this.body, 'speed', fps, duration, this.body.speed, this.runSpeed, undefined, WALK_TO_RUN_EASE, undefined, this.scene) */)
-      this.walkRunAnimation!.loopAnimation = false
+      // todo(lite): this.walkRunAnimation!.loopAnimation = false
     }
   }
 
@@ -390,7 +391,7 @@ export default abstract class Controls implements IControls {
       const target = this.defaultSpeed
       this.walkRunAnimation?.stop()
       this.walkRunAnimation = (undefined as any /* todo(lite): BABYLON.Animation.CreateAndStartAnimation('walk-to-run', this.body, 'speed', fps, duration, this.body.speed, target, undefined, WALK_TO_RUN_EASE, undefined, this.scene) */)
-      this.walkRunAnimation!.loopAnimation = false
+      // todo(lite): this.walkRunAnimation!.loopAnimation = false
     }
   }
 
@@ -1042,7 +1043,7 @@ export default abstract class Controls implements IControls {
       const [ox, oy, oz] = this.vehicleSeatOffset
       this.vehicleSeatLocal.copyFromFloats(ox, oy, oz)
       (undefined as any /* todo(lite): BABYLON.Vector3.TransformCoordinatesToRef(this.vehicleSeatLocal, car.mesh.getWorldMatrix(), this.vehicleSeatWorld) */)
-      this.body.position.copyFrom(this.vehicleSeatWorld)
+      vec3.copy(this.vehicleSeatWorld, this.body.position)
       // mouse owns look (pitch + yaw); car facing is separate via getVehicleDriveYaw
     }
 
@@ -1054,70 +1055,22 @@ export default abstract class Controls implements IControls {
   }
 }
 
-function generateReticule(scene: SceneContext) {
-  const w = 128
-  const utilLayer = (undefined as any /* todo(lite): new BABYLON.UtilityLayerRenderer(scene) */)
-  const utilScene = utilLayer.utilityLayerScene
-  const texture = (undefined as any /* todo(lite): new BABYLON.DynamicTexture('reticule', w, scene, false) */)
-  texture.hasAlpha = true
-
-  const ctx = <CanvasRenderingContext2D>texture.getContext()
-  const radius = w * 0.2
-  const centerX = w * 0.5
-  const centerY = w * 0.5
-
-  ctx.beginPath()
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)'
-  ctx.lineWidth = 4
-  for (let i = 0; i <= 6; i++) {
-    const angle = (Math.PI / 3) * i - Math.PI / 2
-    const x = centerX + radius * Math.cos(angle)
-    const y = centerY + radius * Math.sin(angle)
-    if (i === 0) ctx.moveTo(x + 2, y + 2)
-    else ctx.lineTo(x + 2, y + 2)
-  }
-  ctx.stroke()
-
-  ctx.beginPath()
-  ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
-  ctx.lineWidth = 4
-  for (let i = 0; i <= 6; i++) {
-    const angle = (Math.PI / 3) * i - Math.PI / 2
-    const x = centerX + radius * Math.cos(angle)
-    const y = centerY + radius * Math.sin(angle)
-    if (i === 0) ctx.moveTo(x, y)
-    else ctx.lineTo(x, y)
-  }
-  ctx.stroke()
-  texture.update()
-
-  const root = (undefined as any /* todo(lite): new BABYLON.TransformNode('reticule', utilScene) */)
-  root.position.set(0, 0, 0.2)
-
-  const colors: [string, Color3][] = [
-    ['r', ([1, 0.15, 0.15] as Color3)],
-    ['g', ([0.15, 1, 0.15] as Color3)],
-    ['b', ([0.15, 0.4, 1] as Color3)],
-  ]
-
-  const channels = colors.map(([suffix, color]) => {
-    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(`reticule_${suffix}`, utilScene) */)
-    material.diffuseTexture = texture
-    material.opacityTexture = texture
-    material.emissiveColor.copyFrom(color)
-    material.disableLighting = true
-    material.alphaMode = (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_ADD */)
-    material.disableDepthWrite = true
-
-    const mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreatePlane(`reticule_${suffix}`, { size: 0.04 }, utilScene) */)
-    mesh.material = material
-    mesh.parent = root
-    mesh.isPickable = false
-    mesh.visibility = 0
-    return mesh
-  })
-
-  return { root, channels }
+function generateReticule(_scene: SceneContext) {
+  // todo(lite): UtilityLayerRenderer + DynamicTexture reticule
+  const stubMesh = () =>
+    ({
+      visibility: 0,
+      scaling: { setAll: (_: number) => {} },
+      rotation: { z: 0 },
+      position: { x: 0, y: 0, set: (_x: number, _y: number, _z: number) => {} },
+      parent: null,
+      isPickable: false,
+    }) as any
+  const root = {
+    position: { set: (_x: number, _y: number, _z: number) => {} },
+    parent: null as any,
+  } as any
+  return { root, channels: [stubMesh(), stubMesh(), stubMesh()] }
 }
 
 export function featureFromPick(pickInfo?: PickingInfo | null): Feature | null {

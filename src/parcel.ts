@@ -34,6 +34,22 @@ import { addVoxels, removeCollider } from './physics/world'
 import { voxelCollider } from './monoworker/physics'
 import { Color3, Mesh, SceneContext, StandardMaterialProps, Texture2D, TransformNode, Vec3 } from '@babylonjs/lite'
 import { vec3 } from 'wgpu-matrix'
+import { patchVec3 } from './utils/vec3-compat'
+
+function stubBounds(minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number) {
+  const minimum = patchVec3(vec3.fromValues(minX, minY, minZ))
+  const maximum = patchVec3(vec3.fromValues(maxX, maxY, maxZ))
+  return {
+    minimum,
+    maximum,
+    center: patchVec3(vec3.fromValues((minX + maxX) / 2, (minY + maxY) / 2, (minZ + maxZ) / 2)),
+    minimumWorld: minimum,
+    maximumWorld: maximum,
+    intersectsPoint(p: Vec3) {
+      return p[0] >= minX && p[0] <= maxX && p[1] >= minY && p[1] <= maxY && p[2] >= minZ && p[2] <= maxZ
+    },
+  }
+}
 
 const isTest = process.env.NODE_ENV === 'test'
 
@@ -188,10 +204,13 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.refreshVoxels = throttle(() => this.generate(), 10, { leading: false, trailing: true })
     this.relight = debounce(() => this.generate(), 150)
 
-    this.transform = (undefined as any /* todo(lite): new BABYLON.TransformNode(`parcel/${this.id}`, scene) */)
-    this.transform.metadata = { isParcel: true }
+    this.transform = {
+      metadata: { isParcel: true },
+      position: patchVec3(vec3.create()),
+      parent: null,
+    } as any
     this.transform.position.copyFrom(this.boundingBox.center)
-    this.transform.position.y = this.min.y
+    this.transform.position.y = this.y1
 
     this.transform.parent = null
 
@@ -206,18 +225,21 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // this.sandbox is set via `updateMeta()` above
     this.featureBounds = this.sandbox
       ? this.boundingBox
-      : (undefined as any /* todo(lite): new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), this.parentNode._worldMatrix) */)
+      : stubBounds(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth, this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth)
 
     const hardFeatureBound = 25
 
     // in sandbox, set hardBoundingbox to be the featureBounds
     this.hardFeatureBounds = this.sandbox
-      ? (undefined as any /* todo(lite): new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), this.parentNode._worldMatrix) */)
-      : (undefined as any /* todo(lite): new BABYLON.BoundingBox(
-          new BABYLON.Vector3(this.x1 - hardFeatureBound, this.y1 - hardFeatureBound, this.z1 - hardFeatureBound),
-          new BABYLON.Vector3(this.x2 + hardFeatureBound, this.y2 + hardFeatureBound, this.z2 + hardFeatureBound),
-          this.parentNode._worldMatrix,
-        ) */)
+      ? stubBounds(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth, this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth)
+      : stubBounds(
+          this.x1 - hardFeatureBound,
+          this.y1 - hardFeatureBound,
+          this.z1 - hardFeatureBound,
+          this.x2 + hardFeatureBound,
+          this.y2 + hardFeatureBound,
+          this.z2 + hardFeatureBound,
+        )
 
     // fix parcel offset, but leave enough for exterior signage
     const grace = 0.1
@@ -226,11 +248,14 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // this.sandbox is set via `updateMeta()` above
     this.exteriorBounds = this.sandbox
       ? this.boundingBox
-      : (undefined as any /* todo(lite): new BABYLON.BoundingBox(
-          new BABYLON.Vector3(this.x1 + offset - grace, this.y1 + offset - grace, this.z1 + offset - grace),
-          new BABYLON.Vector3(this.x2 + offset + grace, this.y2 + offset + grace, this.z2 + offset + grace),
-          this.parentNode._worldMatrix,
-        ) */)
+      : stubBounds(
+          this.x1 + offset - grace,
+          this.y1 + offset - grace,
+          this.z1 + offset - grace,
+          this.x2 + offset + grace,
+          this.y2 + offset + grace,
+          this.z2 + offset + grace,
+        )
 
     // Use pre-computed field if provided (from grid-worker)
     if (precomputedField) {
@@ -348,10 +373,14 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   get paletteColors(): Color3[] {
-    if (!this.palette) {
-      return defaultColors.map((undefined as any /* todo(lite): BABYLON.Color3.FromHexString */))
+    const hexColor = (hex: string) => {
+      const n = parseInt(hex.replace('#', ''), 16)
+      return { r: ((n >> 16) & 255) / 255, g: ((n >> 8) & 255) / 255, b: (n & 255) / 255 } as Color3
     }
-    return this.palette.map((c, i) => c || defaultColors[i]).map((undefined as any /* todo(lite): BABYLON.Color3.FromHexString */))
+    if (!this.palette) {
+      return defaultColors.map(hexColor)
+    }
+    return this.palette.map((c, i) => c || defaultColors[i]).map(hexColor)
   }
 
   get sandbox() {
@@ -377,7 +406,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
    */
   get boundingBox(): any {
     if (!this._boundingBox) {
-      this._boundingBox = (undefined as any /* todo(lite): new BABYLON.BoundingBox(this.min, this.max, this.parentNode._worldMatrix) */)
+      this._boundingBox = stubBounds(this.x1, this.y1, this.z1, this.x2, this.y2, this.z2)
     }
     return this._boundingBox
   }

@@ -1,5 +1,6 @@
 import { cacheMaterial, generateCacheKey, getCachedMaterial } from './cache'
 import { ColorInput, toColor3 } from './color-utils'
+import { stubMaterial } from '../utils/stub-mesh'
 import { Color3, Material, SceneContext } from '@babylonjs/lite'
 
 export interface GlassConfig {
@@ -22,25 +23,25 @@ export function createGlassMaterial(scene: SceneContext, config: GlassConfig = {
   const cached = getCachedMaterial(cacheKey)
   if (cached) return cached
 
-  const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial(`glass/${config.name || 'default'}/${Date.now()}`, scene) */)
-
+  const material = stubMaterial() as Material
   const baseColor = parsedTint || ([0.5, 0.55, 0.64] as Color3)
-  material.diffuseColor = baseColor
-  material.emissiveColor = baseColor
+  ;(material as any).diffuseColor = baseColor
+  ;(material as any).emissiveColor = baseColor
   material.alpha = config.alpha ?? 0.25
-  material.zOffset = 1
-  material.needDepthPrePass = false
+  ;(material as any).zOffset = 1
+  ;(material as any).needDepthPrePass = false
   material.backFaceCulling = false
 
-  // Add environment texture reflections for glass if available
   if (scene.environmentTexture) {
-    material.reflectionTexture = scene.environmentTexture
-    material.reflectionTexture.coordinatesMode = (undefined as any /* todo(lite): BABYLON.Texture.CUBIC_MODE */)
-    material.reflectionTexture.level = 0.3 // Subtle reflections for glass
+    ;(material as any).reflectionTexture = scene.environmentTexture
+    ;(material as any).reflectionTexture.coordinatesMode = 0
+    ;(material as any).reflectionTexture.level = 0.3
   }
 
-  material.freeze()
-  material.blockDirtyMechanism = true
+  ;(material as any).freeze = () => {}
+  ;(material as any).blockDirtyMechanism = true
+  ;(material as any).onDisposeObservable = { add: () => {} }
+  ;(material as any).dispose = () => {}
 
   cacheMaterial(cacheKey, material)
   return material

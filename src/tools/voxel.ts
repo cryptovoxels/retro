@@ -8,6 +8,7 @@ import { AudioEngine } from '../audio/audio-engine'
 import type { Tool } from '../user-interface'
 import { signal } from '@preact/signals'
 import { createGlassMaterial } from '../materials/glass'
+import { stubMaterial, stubMesh } from '../utils/stub-mesh'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
 import { track } from '../../web/src/helpers/umami'
 import { Material, Mesh, PickingInfo, SceneContext, StandardMaterialProps, Texture2D, TransformNode, Vec3 } from '@babylonjs/lite'
@@ -91,14 +92,14 @@ export default class Selector implements Tool {
     this.parent = parent
 
     // Selection box
-    this.box = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox('tools/voxel/selector', { size: 0.51 }, scene) */)
+    this.box = stubMesh('tools/voxel/selector')
     this.box.parent = this.parent
     this.box.isPickable = false
 
-    this.atlasTexture = (undefined as any /* todo(lite): new BABYLON.Texture('/textures/atlas-ao.png', scene) */)
-    this.glassTexture = (undefined as any /* todo(lite): new BABYLON.Texture('/images/glass.png', scene) */)
+    this.atlasTexture = {} as Texture2D
+    this.glassTexture = {} as Texture2D
 
-    const material = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('tools/voxel/selector', scene) */)
+    const material = stubMaterial()
     material.diffuseTexture = this.atlasTexture
     material.alpha = 0.85
     material.transparencyMode = (undefined as any /* todo(lite): BABYLON.Material.MATERIAL_ALPHABLEND */)

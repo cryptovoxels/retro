@@ -2,7 +2,7 @@ import { wantsGateway } from '../../common/helpers/detector'
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
 import { TimeOfDay } from '../utils/time-of-day'
 import { StateObservable } from '../utils/state-observable'
-import { Color3, Color4, HemisphericLight, Mesh, SceneContext, ShaderMaterial } from '@babylonjs/lite'
+import { Color3, Color4, HemisphericLight, Mesh, SceneContext, ShaderMaterial, addToScene, createHemisphericLight, setFog } from '@babylonjs/lite'
 import { vec3 } from 'wgpu-matrix'
 
 const AMBIENT = 0.3
@@ -78,9 +78,12 @@ export abstract class Environment extends TypedEventTarget<{
     this.scene.clearColor = this.clearColor
     this.updateFog(this.scene)
 
-    this.ambientLight = (undefined as any /* todo(lite): new BABYLON.HemisphericLight('sun', this.sunPosition, this.scene) */)
-    this.ambientLight.intensity = this.brightness
-    this.ambientLight.groundColor = ([this.ambient, this.ambient, this.ambient] as Color3)
+    this.ambientLight = createHemisphericLight(
+      [this.sunPosition[0], this.sunPosition[1], this.sunPosition[2]],
+      this.brightness,
+    )
+    this.ambientLight.groundColor = [this.ambient, this.ambient, this.ambient]
+    addToScene(this.scene, this.ambientLight)
 
     window.draw.addEventListener('distance-changed', () => {
       this.updateFog(this.scene)
@@ -92,9 +95,14 @@ export abstract class Environment extends TypedEventTarget<{
   }
 
   updateFog(scene: SceneContext) {
-    scene.fogMode = (undefined as any /* todo(lite): BABYLON.Scene.FOGMODE_EXP2 */)
-    scene.fogDensity = this.fogDensity
-    scene.fogColor = this.fogColor
+    const c = this.fogColor
+    setFog(scene, {
+      mode: 2,
+      density: this.fogDensity,
+      start: 0,
+      end: 1000,
+      color: [c[0], c[1], c[2]],
+    })
     this.dispatchEvent(createEvent('fog-updated', undefined))
   }
 

@@ -11,19 +11,31 @@ import { uiPane } from '../../store'
 import { app, AppEvent } from '../../../web/src/state'
 import { pointerOverGizmo } from '../../tools/gizmos'
 import { Camera, SceneContext } from '@babylonjs/lite'
+
 const POINTER_WHEEL_MULTIPLIER = 0.001
+// BJS PointerEventTypes stand-ins for desktopClicks
+const PTR_DOWN = 1
+const PTR_UP = 2
+const PTR_MOVE = 4
+const PTR_WHEEL = 8
+const PTR_TAP = 32
 export default class DesktopControls extends Controls {
   keyboardInput?: LocaleKeyboardMoveInput
   private lockListener?: () => void
   private nerfClick = false
   private mouseLookAttached = false
+  private onCanvasPointerDown = (e: PointerEvent) => this.desktopClicks({ type: PTR_DOWN, event: e, pickInfo: null }, { skipNextObservers: false })
+  private onCanvasPointerUp = (e: PointerEvent) => this.desktopClicks({ type: PTR_UP, event: e, pickInfo: null }, { skipNextObservers: false })
+  private onCanvasPointerMove = (e: PointerEvent) => this.desktopClicks({ type: PTR_MOVE, event: e, pickInfo: null }, { skipNextObservers: false })
+  private onCanvasWheel = (e: WheelEvent) => {
+    e.preventDefault()
+    this.desktopClicks({ type: PTR_WHEEL, event: e, pickInfo: null }, { skipNextObservers: false })
+  }
 
   constructor(scene: SceneContext, canvas: HTMLCanvasElement) {
     super(scene, canvas)
 
-    scene.skipPointerUpPicking = false
-    scene.skipPointerDownPicking = false
-    scene.skipPointerMovePicking = false
+    // todo(lite): scene.skipPointerUpPicking / skipPointerDownPicking
 
     this.onPointerLockChange()
   }
@@ -80,14 +92,20 @@ export default class DesktopControls extends Controls {
     this.addGamepadControls(camera)
 
     this.desktopClicks = this.desktopClicks.bind(this)
-    this.scene.onPointerObservable.add(this.desktopClicks, undefined, true)
+    this.canvas.addEventListener('pointerdown', this.onCanvasPointerDown)
+    this.canvas.addEventListener('pointerup', this.onCanvasPointerUp)
+    this.canvas.addEventListener('pointermove', this.onCanvasPointerMove)
+    this.canvas.addEventListener('wheel', this.onCanvasWheel, { passive: false })
 
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault())
   }
 
   dispose() {
     if (this.lockListener) document.removeEventListener('pointerlockchange', this.lockListener)
-    this.scene.onPointerObservable.removeCallback(this.desktopClicks)
+    this.canvas.removeEventListener('pointerdown', this.onCanvasPointerDown)
+    this.canvas.removeEventListener('pointerup', this.onCanvasPointerUp)
+    this.canvas.removeEventListener('pointermove', this.onCanvasPointerMove)
+    this.canvas.removeEventListener('wheel', this.onCanvasWheel)
   }
 
   onPointerLockChange() {
@@ -148,7 +166,7 @@ export default class DesktopControls extends Controls {
 
     const btn = eventData.event.button
 
-    if (eventData.type === (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERDOWN */) && btn === 0 && !hasPointerLock() && !eventData.event.shiftKey) {
+    if (eventData.type === PTR_DOWN && btn === 0 && !hasPointerLock() && !eventData.event.shiftKey) {
       const editMode = window.ui?.featureTool?.selection?.mode === 'edit' && window.ui?.activeTool === window.ui?.featureTool
       if (editMode) {
         if (pointerOverGizmo(this.scene)) return
@@ -167,11 +185,11 @@ export default class DesktopControls extends Controls {
     }
 
     switch (eventData.type) {
-      case (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERWHEEL */):
+      case PTR_WHEEL:
         this.handlePointerWheel((<any>eventData.event).deltaY)
         break
 
-      case (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERTAP */):
+      case PTR_TAP:
         if (btn === 1) {
           this.togglePerspective()
           break
@@ -223,7 +241,7 @@ export default class DesktopControls extends Controls {
         }
         break
 
-      case (undefined as any /* todo(lite): BABYLON.PointerEventTypes.POINTERMOVE */):
+      case PTR_MOVE:
         const pick = hasPointerLock() ? this.pickAtView(undefined, undefined, false, (m) => this.reticuleHighlightPredicate(m)) : eventData.pickInfo
         const feature = featureFromPick(pick)
         const distance = pick?.distance || Infinity
@@ -356,35 +374,8 @@ export default class DesktopControls extends Controls {
     })
   }
 
-  addGamepadControls(camera: PlayerCamera) {
-    camera.inputs.addGamepad()
-    const gamepad = <any>camera.inputs.attached['gamepad']
-
-    gamepad.gamepadAngularSensibility = 40
-
-    const gamepadManager = (undefined as any /* todo(lite): new BABYLON.GamepadManager(this.scene) */)
-    gamepadManager.onGamepadConnectedObservable.add((gamepad) => {
-      console.log('Gamepad detected')
-      if ((gamepad as any)['onButtonDownObservable']) {
-        this.hasGamepad = gamepadManager.gamepads.some((g) => g.isConnected)
-        ;(gamepad as any)['onButtonDownObservable'].add((buttonId: any) => {
-          const button = this.getGamepadButton(gamepad, buttonId)
-          if (button) {
-            this.onGamepadButton(button, true)
-          }
-        })
-        ;(gamepad as any)['onButtonUpObservable'].add((buttonId: any) => {
-          const button = this.getGamepadButton(gamepad, buttonId)
-          if (button) {
-            this.onGamepadButton(button, false)
-          }
-        })
-      }
-    })
-
-    gamepadManager.onGamepadDisconnectedObservable.add(() => {
-      this.hasGamepad = gamepadManager.gamepads.some((g) => g.isConnected)
-    })
+  addGamepadControls(_camera: PlayerCamera) {
+    // todo(lite): BABYLON gamepad input + GamepadManager
   }
 
   onGamepadButton(button: string, pressed: boolean) {

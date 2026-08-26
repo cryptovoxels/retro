@@ -1,32 +1,22 @@
 import type { Chunk, ChunkObserver } from './chunk-system'
 import { addCuboid, removeCollider } from '../physics/world'
-import { Color3, Mesh, SceneContext } from '@babylonjs/lite'
+import { Mesh, SceneContext } from '@babylonjs/lite'
+import { stubInstancedMesh } from './stub-mesh'
 
 export default class OceanFloor implements ChunkObserver {
-  private readonly _mesh: Mesh
+  private readonly _mesh: Mesh & { instances: Mesh[] }
   private readonly size: number
   private readonly halfSize: number
   private instances: Map<string, Mesh> = new Map()
 
-  constructor(size: number, scene: SceneContext) {
+  constructor(size: number, _scene: SceneContext) {
     this.size = size
     this.halfSize = size * 0.5
 
-    const oceanFloorTexture = (undefined as any /* todo(lite): new BABYLON.Texture(process.env.ASSET_PATH + '/textures/subgrid.png', scene) */)
-    oceanFloorTexture.uScale = this.size
-    oceanFloorTexture.vScale = this.size
-
-    const oceanFloorMaterial = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('skybox/ocean-floor', scene) */)
-    oceanFloorMaterial.diffuseColor.set(0.2, 0.2, 0.2)
-    oceanFloorMaterial.ambientTexture = oceanFloorTexture
-    oceanFloorMaterial.specularColor = ([0.1, 0.1, 0.1] as Color3)
-    oceanFloorMaterial.fogEnabled = true
-
-    this._mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateGround('ocean_floor_original', { width: this.size, height: this.size, subdivisions: 1 }, scene) */)
-    this._mesh.material = oceanFloorMaterial
+    // todo(lite): subgrid texture + instanced ground mesh
+    this._mesh = stubInstancedMesh()
     this._mesh.position.set(this.halfSize, -1024, this.halfSize)
-    this._mesh.setEnabled(false) // instanced, dont need to render the original mesh
-    this._mesh.receiveShadows = true
+    this._mesh.setEnabled(false)
   }
 
   get mesh(): Mesh {

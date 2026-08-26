@@ -1,9 +1,53 @@
-import { IslandRecord, MultiPolygonGeometry } from '../../common/messages/api-islands'
+import { IslandRecord } from '../../common/messages/api-islands'
 import { StateObservable } from '../utils/state-observable'
-import { createIslandMaterial } from '../materials'
 import { pointInPolygon } from '../utils/polygon-utils'
 import { addCuboid } from '../physics/world'
 import { Camera, Mesh, SceneContext, Vec2, Vec3 } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
+
+function islandBounds(outline: Vec2[]) {
+  let minX = Infinity
+  let maxX = -Infinity
+  let minZ = Infinity
+  let maxZ = -Infinity
+  for (const p of outline) {
+    minX = Math.min(minX, p.x)
+    maxX = Math.max(maxX, p.x)
+    minZ = Math.min(minZ, p.y)
+    maxZ = Math.max(maxZ, p.y)
+  }
+  const cx = (minX + maxX) * 0.5
+  const cz = (minZ + maxZ) * 0.5
+  const radius = Math.max(maxX - minX, maxZ - minZ) * 0.5
+  return { cx, cz, radius, minX, maxX, minZ, maxZ }
+}
+
+function stubIslandMesh(bounds: ReturnType<typeof islandBounds>): Mesh {
+  const center = vec3.fromValues(bounds.cx, 0, bounds.cz)
+  const bb = {
+    centerWorld: { clone: () => vec3.clone(center) },
+    radiusWorld: bounds.radius,
+    boundingBox: {
+      center: { add: (p: any) => p },
+      extendSize: { x: (bounds.maxX - bounds.minX) * 0.5, y: 0.5, z: (bounds.maxZ - bounds.minZ) * 0.5 },
+    },
+    minimum: { x: bounds.minX, z: bounds.minZ },
+    maximum: { x: bounds.maxX, z: bounds.maxZ },
+  }
+  let enabled = false
+  return {
+    metadata: 'teleportable',
+    receiveShadows: true,
+    visibility: 0,
+    material: null,
+    position: { y: 0 },
+    getBoundingInfo: () => bb,
+    isEnabled: () => enabled,
+    setEnabled: (v: boolean) => {
+      enabled = v
+    },
+  } as Mesh
+}
 
 export class Island {
   list: Islands
@@ -11,7 +55,6 @@ export class Island {
   center: Vec3
   radius: number
   outline: Vec2[]
-  texturePath = '/textures/00-grid.png'
   private readonly _mesh: Mesh
 
   constructor(list: Islands, desc: IslandRecord) {
@@ -19,53 +62,11 @@ export class Island {
     this.desc = desc
     this.outline = this.desc.geometry.coordinates[0].map((c: [x: number, y: number]) => ({ x: c[0] * 100, y: c[1] * 100 } as Vec2)).reverse()
 
-    // if (window.config.isSpace) {
-    //   this.texturePath = '/textures/subgrid.png'
-    // } else if (desc.texture) {
-    //   // texture comes from the DB
-    //   this.texturePath = desc.texture
-    // }
-
-    // build mesh
-    const shape = this.desc.geometry.coordinates[0].map((c) => ({ x: c[0] * 100, y: c[1] * 100 } as Vec2)).reverse()
-    const pt = (undefined as any /* todo(lite): new BABYLON.PolygonMeshBuilder('island/' + this.name, shape, this.scene) */)
-
-    // add holes for parcel basements and lakes
-    const makeHoles = (multipolygon: MultiPolygonGeometry) => {
-      const nudge = 0.25
-      return multipolygon.coordinates.map((p) => p[0].map((c) => ({ x: c[0] * 100 + nudge, y: c[1] * 100 + nudge } as Vec2)))
-    }
-
-    const holes = makeHoles(this.desc.lakes_geometry_json)
-    if (this.desc.holes_geometry_json && this.hasBasements) {
-      holes.push(...makeHoles(this.desc.holes_geometry_json))
-    }
-
-    holes.forEach((hole: Vec2[]) => {
-      pt.addHole(hole)
-    })
-
-    const meshes = [pt.build(false, 32)]
-
-    if (this.desc.id >= 40) {
-      for (const s of this.desc.geometry.coordinates.slice(1)) {
-        const shape = s.map((c) => ({ x: c[0] * 100, y: c[1] * 100 } as Vec2)).reverse()
-        const pt = (undefined as any /* todo(lite): new BABYLON.PolygonMeshBuilder('island/' + this.name, shape, this.scene) */)
-        meshes.push(pt.build(false, 32))
-      }
-    }
-
-    const mesh = (undefined as any /* todo(lite): BABYLON.Mesh.MergeMeshes(meshes, true)! */)
-    mesh.metadata = 'teleportable'
-    mesh.receiveShadows = true
-    mesh.visibility = 0
-
-    this._mesh = mesh
-
-    // such a bad fit for distance checking, but so fast to check
-    // Note that these are in world-coordinates
-    this.center = this._mesh.getBoundingInfo().boundingSphere.centerWorld.clone()
-    this.radius = this._mesh.getBoundingInfo().boundingSphere.radiusWorld
+    // todo(lite): PolygonMeshBuilder island meshes
+    const bounds = islandBounds(this.outline)
+    this._mesh = stubIslandMesh(bounds)
+    this.center = vec3.fromValues(bounds.cx, 0, bounds.cz)
+    this.radius = bounds.radius
   }
 
   get name() {
@@ -84,38 +85,20 @@ export class Island {
     return !!['Scarcity', 'Flora', 'Andromeda'].includes(this.name)
   }
 
-  checkIntersects(boundingInfo: any) {
-    if (!this._mesh) {
-      console.warn('no mesh for island, cannot check for intersection. Possible race condition detected', this.name)
-      return false
-    }
-    return (undefined as any /* todo(lite): BABYLON.BoundingBox.Intersects(this._mesh.getBoundingInfo().boundingBox as BABYLON.DeepImmutableObject<BABYLON.BoundingBox>, boundingInfo.boundingBox as BABYLON.DeepImmutableObject<BABYLON.BoundingBox>) */)
+  checkIntersects(_boundingInfo: any) {
+    return false
   }
 
   async render(): Promise<Mesh> {
-    this._mesh.position.y = 0.75 - 0.01 // 0.01 = the nudge epsilon
-
-    const width = this._mesh.getBoundingInfo().maximum.x - this._mesh.getBoundingInfo().minimum.x
-    const depth = this._mesh.getBoundingInfo().maximum.z - this._mesh.getBoundingInfo().minimum.z
-
-    const texture = (undefined as any /* todo(lite): new BABYLON.Texture(this.texturePath, this.scene) */)
-
-    // Configure texture UV scaling
-    texture.vScale = depth * 2
-    texture.uScale = width * 2
-    texture.uOffset = 0.5
-    texture.vOffset = 0.5
-
-    this._mesh.material = createIslandMaterial(this.scene, {
-      name: this.name,
-      texture,
-    })
+    this._mesh.position.y = 0.75 - 0.01
     this._mesh.visibility = 1
 
-    // nerfed collider: one cube for the whole island bounds. good enough to walk on and yeet at.
     const bb = this._mesh.getBoundingInfo().boundingBox
-    const c = bb.center.add(this._mesh.position)
-    addCuboid(`island-${this.name}`, { x: bb.extendSize.x, y: bb.extendSize.y, z: bb.extendSize.z }, { x: c.x, y: c.y, z: c.z })
+    addCuboid(
+      `island-${this.name}`,
+      { x: bb.extendSize.x, y: bb.extendSize.y, z: bb.extendSize.z },
+      { x: this.center[0], y: this._mesh.position.y, z: this.center[2] },
+    )
 
     return this._mesh
   }

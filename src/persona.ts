@@ -14,6 +14,7 @@ import VoiceChat from './voice-chat'
 import { WALK_HZ } from './controls/utils/player-body'
 import { SceneContext, Vec3 } from '@babylonjs/lite'
 import { vec3 } from 'wgpu-matrix'
+import { patchVec3 } from './utils/vec3-compat'
 
 const identityEquals = (a: AvatarIdentity, b: AvatarIdentity) => a.wallet === b.wallet && a.name === b.name
 const identityFromUser = (user: User): AvatarIdentity => ({ wallet: user.wallet, name: user.name })
@@ -42,8 +43,8 @@ export default class Persona {
     this.scene = scene
     this.controls = controls
     this.connector = connector
-    this.position = vec3.create()
-    this.rotation = vec3.fromValues(0, 0, 0)
+    this.position = patchVec3(vec3.create())
+    this.rotation = patchVec3(vec3.fromValues(0, 0, 0))
     this._animation = Animations.Idle
     this.firstPersonView = true
     window.persona = this

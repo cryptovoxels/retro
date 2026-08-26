@@ -2,8 +2,8 @@ import fragShader from './horizon.fsh'
 import vertShader from './horizon.vsh'
 import { Mesh } from '@babylonjs/lite'
 
-(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['horizonVertexShader'] = vertShader */)
-(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['horizonFragmentShader'] = fragShader */)
+(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['horizonVertexShader'] = vertShader */);
+(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['horizonFragmentShader'] = fragShader */);
 
 class HorizonMaterialDefines extends (Object as any) /* todo(lite): extends BABYLON.MaterialDefines */ {
   public CLIPPLANE = false
@@ -118,4 +118,4 @@ export class HorizonMaterial extends (Object as any) /* todo(lite): extends BABY
   }
 }
 
-(undefined as any /* todo(lite): BABYLON.RegisterClass('BABYLON.HorizonMaterial', HorizonMaterial) */)
+(undefined as any /* todo(lite): BABYLON.RegisterClass('BABYLON.HorizonMaterial', HorizonMaterial) */);

@@ -1,4 +1,5 @@
 import { cameraPosition } from './utils/camera'
+import { vecAsArray } from './utils/vec3-compat'
 import Parcel, { ParcelActivationState } from './parcel'
 import { isMobile, wantsIsolate } from '../common/helpers/detector'
 import { sortBy, throttle } from 'lodash'
@@ -508,7 +509,7 @@ export default class Grid extends SocketClient {
       }
 
       const queryId = this._nextQueryId++
-      return this.workerAPI.queryParcelsAtPosition(queryId, pos.asArray() as [number, number, number]).then((result) => result.parcelIds)
+      return this.workerAPI.queryParcelsAtPosition(queryId, vecAsArray(pos)).then((result) => result.parcelIds)
     })
   }
 

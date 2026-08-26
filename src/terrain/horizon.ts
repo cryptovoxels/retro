@@ -1,42 +1,60 @@
-import { HorizonMaterial } from '../shaders/horizon'
 import { Color3, Mesh, SceneContext } from '@babylonjs/lite'
 
-// Horizon makes sure that the ground terrain and the skybox has a gradient fog blending them together
+function stubHorizonMaterial() {
+  let topColor: Color3 = [0, 0, 0]
+  return {
+    fogEnabled: true,
+    offset: 0.5,
+    scale: 25,
+    smoothness: 1,
+    topColorAlpha: 0,
+    backFaceCulling: false,
+    disableLighting: true,
+    alphaMode: 0,
+    topColor: {
+      equals: (c: Color3) => topColor[0] === c[0] && topColor[1] === c[1] && topColor[2] === c[2],
+    },
+    bottomColor: topColor,
+    bottomColorAlpha: 1,
+    unfreeze: () => {},
+    freeze: () => {},
+    blockDirtyMechanism: true,
+    _setTopColor: (c: Color3) => {
+      topColor = c
+    },
+  }
+}
+
+function stubHorizonMesh() {
+  return {
+    scaling: { setAll: (_: number) => {} },
+    infiniteDistance: false,
+    isPickable: false,
+    alphaIndex: 2,
+    material: null,
+    isVisible: true,
+    setEnabled: (_: boolean) => {},
+  } as Mesh
+}
+
+// Horizon blends ground terrain and skybox fog at the rim
 export default class Horizon {
   private mesh: Mesh
-  private material: any
+  private material: ReturnType<typeof stubHorizonMaterial>
 
-  constructor(scene: SceneContext) {
-    const material = new HorizonMaterial('skybox/horizon', scene)
-    material.fogEnabled = true
-
-    material.offset = 0.5 // used to move the color along the Y axis
-    material.scale = 25 // used to scale the color on the Y axis, the higher this number is the lower the horizon will be
-    material.smoothness = 1 //  speed of the color change along Y axis (0-10)
-
-    material.topColorAlpha = 0
-    material.backFaceCulling = false
-    material.disableLighting = true
-
-    material.freeze()
-    material.blockDirtyMechanism = true
-    this.material = material
-
-    // infiniteDistance — no scene parent needed
-    const mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateSphere('skybox/horizon', { segments: 16, diameter: 1 }, scene) */)
+  constructor(_scene: SceneContext) {
+    // todo(lite): HorizonMaterial + horizon sphere mesh
+    this.material = stubHorizonMaterial()
+    const mesh = stubHorizonMesh()
+    mesh.material = this.material as any
 
     const updateHorizonScale = (drawDistance: number) => {
-      // just needs to be a tad smaller than the skybox so it can 'draw' in-front off it
       mesh.scaling.setAll(drawDistance * 1.8)
     }
 
     updateHorizonScale(window.draw.distance)
     window.draw.addEventListener('distance-changed', (e) => updateHorizonScale(e.detail), { passive: true })
 
-    mesh.infiniteDistance = true
-    mesh.isPickable = false
-    mesh.alphaIndex = 2 // render behind all other alpha blended meshes except for global and local skyboxes
-    mesh.material = material
     this.mesh = mesh
   }
 
@@ -45,13 +63,9 @@ export default class Horizon {
       return
     }
     this.material.unfreeze()
-    if (horizonAlphaMode === (undefined as any /* todo(lite): BABYLON.Engine.ALPHA_DISABLE */)) {
-      this.material.topColorAlpha = 1.0
-    } else {
-      this.material.topColorAlpha = 0.0
-    }
+    this.material.topColorAlpha = horizonAlphaMode === 0 ? 1.0 : 0.0
     this.material.alphaMode = horizonAlphaMode
-    this.material.topColor = fogColor
+    this.material._setTopColor(fogColor)
     this.material.bottomColor = fogColor
     this.material.bottomColorAlpha = 1.0
     this.material.freeze()

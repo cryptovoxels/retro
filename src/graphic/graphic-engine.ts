@@ -1,7 +1,7 @@
 import { isBatterySaver } from '../../common/helpers/detector'
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
 import type { PostProcesses } from './post-processes'
-import { EngineContext } from '@babylonjs/lite'
+import { EngineContext, resizeEngine } from '@babylonjs/lite'
 
 export enum GraphicLevels {
   Low = 0,
@@ -77,13 +77,11 @@ export class GraphicEngine extends TypedEventTarget<{
   }
 
   private refresh() {
-    if (isBatterySaver()) {
-      this.engine.setHardwareScalingLevel(1 / this.devicePixelRatio)
-    } else if (this.#level === GraphicLevels.Low || this.#level === GraphicLevels.Medium) {
-      this.engine.setHardwareScalingLevel(1)
-    } else {
-      this.engine.setHardwareScalingLevel(1 / this.devicePixelRatio)
-    }
+    const surface = this.engine.surfaces[0]
+    const useFullDpr =
+      !isBatterySaver() && (this.#level === GraphicLevels.Low || this.#level === GraphicLevels.Medium)
+    surface.maxDevicePixelRatio = useFullDpr ? this.devicePixelRatio : 1
+    resizeEngine(this.engine)
   }
 }
 

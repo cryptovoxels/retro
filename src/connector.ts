@@ -12,7 +12,7 @@ import type Controls from './controls/controls'
 import type Grid from './grid'
 import Persona from './persona'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
-import { ConnectionState } from './utils/socket-client'
+import { ConnectionState, liteObservable } from './utils/socket-client'
 import { Transform } from './utils/transform'
 import { signal } from '@preact/signals'
 import { decodeCoords } from '../common/helpers/utils'
@@ -83,7 +83,7 @@ export function clearChatView() {
 export const congaFollowUiRev = signal(0)
 
 export default class Connector extends TypedEventTarget<{ avatar_joined: string }> {
-  readonly onConnectionStateChanged: any = (undefined as any /* todo(lite): new BABYLON.Observable() */)
+  readonly onConnectionStateChanged = liteObservable<ConnectionState>()
   loadNearbyAvatarsInterval: NodeJS.Timeout | null = null
   controls: Controls
   connectedAt: Date | undefined

@@ -1,6 +1,7 @@
 import type { NdArray } from 'ndarray'
 import type { LanternRecord } from '../common/messages/feature'
 import { createGlassMaterial } from './materials/glass'
+import { stubMaterial, stubMesh, stubVertexData } from './utils/stub-mesh'
 import { runCompute } from './mono-pool'
 import type { Geo, GlassGeo } from './monoworker/lightmap'
 import { Color3, Mesh, SceneContext, Texture2D } from '@babylonjs/lite'
@@ -10,9 +11,9 @@ const DEBUG_LIGHT_PROBES = false
 let cachedTex: Texture2D | null = null
 let cachedTexUrl = ''
 
-function loadTex(url: string, scene: SceneContext): Texture2D {
+function loadTex(url: string, _scene: SceneContext): Texture2D {
   if (cachedTex && cachedTexUrl === url) return cachedTex
-  cachedTex = (undefined as any /* todo(lite): new BABYLON.Texture(url, scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE) */)
+  cachedTex = {} as Texture2D
   cachedTexUrl = url
   return cachedTex
 }
@@ -36,13 +37,13 @@ export function applyCleanPalette(mesh: Mesh, palette: Color3[]) {
   const baseColor = mesh.getVerticesData('baseColor')
   if (!colorIndex || !baseColor) return false
 
-  mesh.updateVerticesData((undefined as any /* todo(lite): BABYLON.VertexBuffer.ColorKind */), tintVertexColors(baseColor as Float32Array, colorIndex as Float32Array, palette))
+  mesh.updateVerticesData('color', tintVertexColors(baseColor as Float32Array, colorIndex as Float32Array, palette))
   return true
 }
 
-function mesh(geo: Geo, tex: Texture2D, scene: SceneContext, id: number, palette: Color3[]): Mesh {
-  const m = (undefined as any /* todo(lite): new BABYLON.Mesh(`voxelizer/opaque-${id}`, scene) */)
-  const vd = (undefined as any /* todo(lite): new BABYLON.VertexData() */)
+function mesh(geo: Geo, tex: Texture2D, _scene: SceneContext, id: number, palette: Color3[]): Mesh {
+  const m = stubMesh(`voxelizer/opaque-${id}`)
+  const vd = stubVertexData()
   vd.positions = geo.positions
   vd.normals = geo.normals
   vd.uvs = geo.uvs
@@ -54,7 +55,7 @@ function mesh(geo: Geo, tex: Texture2D, scene: SceneContext, id: number, palette
   m.setVerticesData('colorIndex', geo.colorIndices, false, 1)
   m.setVerticesData('baseColor', geo.colors, false, 4)
 
-  const mat = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('clean-voxel-mat', scene) */)
+  const mat = stubMaterial()
   mat.diffuseTexture = tex
 
   const c = 0.6
@@ -68,8 +69,8 @@ function mesh(geo: Geo, tex: Texture2D, scene: SceneContext, id: number, palette
 }
 
 function glassMesh(geo: GlassGeo, scene: SceneContext, id: number, palette: Color3[]): Mesh {
-  const m = (undefined as any /* todo(lite): new BABYLON.Mesh(`voxelizer/glass-${id}`, scene) */)
-  const vd = (undefined as any /* todo(lite): new BABYLON.VertexData() */)
+  const m = stubMesh(`voxelizer/glass-${id}`)
+  const vd = stubVertexData()
   vd.positions = geo.positions
   vd.normals = geo.normals
   vd.indices = geo.indices

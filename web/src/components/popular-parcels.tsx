@@ -70,6 +70,6 @@ export default class PopularParcels extends Component<Props, State> {
       )
     })
 
-    return <div class="popularity">{this.state.fetching ? <Spinner /> : <table>{popular}</table>}</div>
+    return <div class="popularity">{this.state.fetching ? <Spinner /> : <table><tbody>{popular}</tbody></table>}</div>
   }
 }

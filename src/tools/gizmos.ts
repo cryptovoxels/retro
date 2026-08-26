@@ -55,11 +55,8 @@ const updateHighlight = () => {
  * First we create the gizmos;
  * These will stay on standby until attached.
  */
-export const createGizmos = (scene: SceneContext) => {
-  utilLayer = utilLayer || (undefined as any /* todo(lite): new BABYLON.UtilityLayerRenderer(scene) */)
-
-  gizmos.push(...createAxisDragGizmos())
-
+export const createGizmos = (_scene: SceneContext) => {
+  // todo(lite): AxisDragGizmo / UtilityLayerRenderer
   return gizmos
 }
 

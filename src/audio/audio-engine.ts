@@ -64,13 +64,28 @@ interface SpatialAudioParams {
   absolutePosition: Vec3
 }
 
-function createSoundtrack(scene: SceneContext) {
-  // make sure babylon already has all the soundtrack stuff setup before we try and create busses
-  (undefined as any /* todo(lite): BABYLON.Sound._SceneComponentInitialization(scene) */)
+function createSoundtrack(ctx: AudioContext, master: GainNode) {
+  const out = ctx.createGain()
+  out.connect(master)
+  return {
+    _outputAudioNode: out,
+    _initializeSoundTrackAudioGraph: () => {},
+    addSound: (_sound: any) => {},
+    setVolume: (v: number) => {
+      out.gain.value = v
+    },
+  }
+}
 
-  const soundTrack = (undefined as any /* todo(lite): new BABYLON.SoundTrack(scene, {}) as any */)
-  soundTrack._initializeSoundTrackAudioGraph()
-  return soundTrack as any
+function stubSound() {
+  return {
+    clone: () => stubSound(),
+    setPosition: (_p: Vec3) => {},
+    setPlaybackRate: (_r: number) => {},
+    play: () => {},
+    stop: () => {},
+    dispose: () => {},
+  }
 }
 
 export class AudioEngine {
@@ -99,15 +114,17 @@ export class AudioEngine {
       throw new Error('Trying to create audio when not wanted')
     }
 
-    this.babylonAudioEngine = (undefined as any /* todo(lite): BABYLON.Engine.audioEngine */)
-    if (!this.babylonAudioEngine?.audioContext || !this.masterOut) {
+    const ctx = new AudioContext()
+    const masterGain = ctx.createGain()
+    masterGain.connect(ctx.destination)
+    this.babylonAudioEngine = { audioContext: ctx, masterGain }
+    if (!this.babylonAudioEngine?.audioContext) {
       throw new Error('No audio engine')
     }
     this.scene = scene
-    this.audioContext = this.babylonAudioEngine.audioContext
-    // create audio busses
-    this.parcelAudioBus = createSoundtrack(this.scene)
-    this.soundEffectsBus = createSoundtrack(this.scene)
+    this.audioContext = ctx
+    this.parcelAudioBus = createSoundtrack(ctx, masterGain)
+    this.soundEffectsBus = createSoundtrack(ctx, masterGain)
 
     // avatar audio
     this.avatarOut = this.audioContext.createGain()
@@ -163,7 +180,7 @@ export class AudioEngine {
   }
 
   createSound(params: SoundParams) {
-    const sound = (undefined as any /* todo(lite): new BABYLON.Sound(params.name, params.url || params.buffer, this.scene, params.readyToPlayCallback, params.options) */)
+    const sound = stubSound()
 
     // default babylon doesn't copy the soundtrack when using `clone` so we manually patch to make the soundtrack/bus stick once cloned
     sound.clone = cloneWithSoundTrack

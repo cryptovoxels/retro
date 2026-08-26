@@ -11,6 +11,22 @@ const RETRY_HISTORY_TTL = MAX_RECONNECT_TIME * MAX_RECONNECT_RETRIES
 
 const wait = (ms: number) => new Promise((res) => setTimeout(res, ms))
 
+/** Minimal BJS Observable stand-in for lite migration. */
+export function liteObservable<T>() {
+  const cbs = new Set<(v: T) => void>()
+  return {
+    add: (cb: (v: T) => void) => {
+      cbs.add(cb)
+    },
+    removeCallback: (cb: (v: T) => void) => {
+      cbs.delete(cb)
+    },
+    notifyObservers: (v: T) => {
+      cbs.forEach((cb) => cb(v))
+    },
+  }
+}
+
 export type ConnectionState =
   | {
       status: 'disconnected'
@@ -20,7 +36,7 @@ export type ConnectionState =
   | { status: 'reconnecting' }
 
 export abstract class SocketClient {
-  onConnectionStateChanged: any = (undefined as any /* todo(lite): new BABYLON.Observable() */)
+  onConnectionStateChanged = liteObservable<ConnectionState>()
   private readonly wsSingleton = new WebSocketSingleton()
   private connectionSaga = {
     wasAbandoned: false,

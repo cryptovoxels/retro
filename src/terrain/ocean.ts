@@ -7,6 +7,7 @@ import { GraphicLevels } from '../graphic/graphic-engine'
 import Islands from './islands'
 import { OCEAN_HEIGHT_OFFSET } from '../constants'
 import { Mesh, SceneContext } from '@babylonjs/lite'
+import { stubInstancedMesh } from './stub-mesh'
 
 type IntersectionType = 'partial' | 'full'
 type MeshPosition = { x: number; z: number }
@@ -47,8 +48,8 @@ export class Ocean implements ChunkObserver {
     this.halfSize = size * 0.5
     this.scene = scene
 
-    // set up the instance template
-    this.mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateGround('ocean_original', { width: this.size, height: this.size, subdivisions: 1 }, scene) */)
+    // todo(lite): instanced ocean ground mesh
+    this.mesh = stubInstancedMesh()
     this.mesh.position.set(-99999, -99999, -99999)
     this.mesh.setEnabled(false)
 

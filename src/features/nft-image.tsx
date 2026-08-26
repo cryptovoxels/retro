@@ -31,10 +31,10 @@ export function arrayBufferToDataURL(buf: ArrayBuffer, mime = 'application/octet
   })
 }
 
-(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['nftVertexShader'] = nftVertexShader */)
-(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['nftFramePixelShader'] = nftFrameShaderClassic */)
-(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['nftFrameColorsPixelShader'] = nftFrameColorsShaderColors */)
-(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['nftFrameBluePixelShader'] = nftFrameBlueShaderBlue */)
+(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['nftVertexShader'] = nftVertexShader */);
+(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['nftFramePixelShader'] = nftFrameShaderClassic */);
+(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['nftFrameColorsPixelShader'] = nftFrameColorsShaderColors */);
+(undefined as any /* todo(lite): BABYLON.Effect.ShadersStore['nftFrameBluePixelShader'] = nftFrameBlueShaderBlue */);
 
 const frameThick = 0.05
 

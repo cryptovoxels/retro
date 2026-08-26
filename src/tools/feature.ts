@@ -20,7 +20,7 @@ import { distanceToAABB } from '../utils/boundaries'
 import { getTransformVectorsRelativeToNode } from '../utils/feature'
 import { cameraPosition } from '../utils/camera'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
-import { isFlatWallFeature } from './flat-wall'
+import { stubMaterial, stubMesh } from '../utils/stub-mesh'
 import { Color3, Color4, Mesh, PickingInfo, SceneContext, StandardMaterialProps, TransformNode, Vec2, Vec3 } from '@babylonjs/lite'
 import { quat, vec3 } from 'wgpu-matrix'
 
@@ -115,23 +115,23 @@ export default class FeatureTool implements Tool {
     // No default block
     this.selection = {}
 
-    this.selector = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox('feature/selector', { size: 1 }, this.scene) */)
+    this.selector = stubMesh('feature/selector')
     // this.selector.parent = parent
     this.selector.enableEdgesRendering()
     this.selector.edgesWidth = 0.5
     this.selector.edgesColor = SELECTION_COLORS.inside.edges
     this.selector.isPickable = false
 
-    const selectorMaterial = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('feature/feature', this.scene) */)
+    const selectorMaterial = stubMaterial()
     selectorMaterial.alpha = 0
 
-    this.selector.material = selectorMaterial
+    this.selector.material = selectorMaterial as any
     this.selector.visibility = 0
 
     this.createFeatureLoadingMesh()
 
     this.secondarySelection = {}
-    this.secondarySelectionMaterial = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('feature/feature', this.scene) */)
+    this.secondarySelectionMaterial = stubMaterial() as any
     this.secondarySelectionMaterial.emissiveColor = SELECTION_COLORS.inside.fill
     this.secondarySelectionMaterial.alpha = 0.2
     this.secondarySelectionMaterial.blockDirtyMechanism = true
@@ -235,23 +235,20 @@ export default class FeatureTool implements Tool {
    * while the prematureFeature is loading
    */
   private createFeatureLoadingMesh() {
-    this.spawnFeatureLoadingMesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateBox('feature/spawnFeatureLoadingMesh', { size: 1 }, this.scene) */)
+    this.spawnFeatureLoadingMesh = stubMesh('feature/spawnFeatureLoadingMesh')
     this.spawnFeatureLoadingMesh.isVisible = false
     this.spawnFeatureLoadingMesh.isPickable = false
 
-    this.featureLoadingMaterial = (undefined as any /* todo(lite): new BABYLON.StandardMaterial('feature/featureLoading', this.scene) */)
-    this.featureLoadingMaterial.diffuseColor = ([0.8, 0.8, 0.8] as Color3)
+    this.featureLoadingMaterial = stubMaterial() as any
+    this.featureLoadingMaterial.diffuseColor = [0.8, 0.8, 0.8] as Color3
     this.featureLoadingMaterial.emissiveColor = SELECTION_COLORS.inside.fill
     this.featureLoadingMaterial.alpha = 0.5
     this.spawnFeatureLoadingMesh.material = this.featureLoadingMaterial
 
-    /**
-     * Callback dedicated to animating the spawn feature loading mesh (when we're loading the prematureFeature)
-     */
     const onAfterRenderAnimatePulse = (mesh: Mesh) => {
       if (mesh && mesh.isVisible) {
-        // Simple pulsating effect
-        ;(mesh.material as StandardMaterialProps).diffuseColor = (undefined as any /* todo(lite): new BABYLON.Color3(0.5, 0.5, 0.5).scale(0.5 + 0.5 * Math.abs(Math.sin(Date.now() * 0.003))) */)
+        const s = 0.5 + 0.5 * Math.abs(Math.sin(Date.now() * 0.003))
+        ;(mesh.material as any).diffuseColor = [s * 0.5, s * 0.5, s * 0.5]
       }
     }
 

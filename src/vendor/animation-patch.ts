@@ -1,4 +1,4 @@
-(undefined as any /* todo(lite): BABYLON.Scene.prototype['_animationTimeLast'] = 0 */)
+(undefined as any /* todo(lite): BABYLON.Scene.prototype['_animationTimeLast'] = 0 */);
 (undefined as any /* todo(lite): BABYLON.Scene.prototype['_animate'] = function(): void {
   if (!this.animationsEnabled) {
     return

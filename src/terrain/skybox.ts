@@ -1,21 +1,46 @@
 import { Mesh, SceneContext, Vec3 } from '@babylonjs/lite'
+
+function stubMesh() {
+  return {
+    scaling: { setAll: (_: number) => {} },
+    material: null,
+    infiniteDistance: false,
+    isPickable: false,
+    alphaIndex: 0,
+    isVisible: true,
+  } as Mesh
+}
+
+function stubMaterial() {
+  let sunPosition: Vec3 = [0, 1, 0]
+  let luminance = 1
+  return {
+    sunPosition: {
+      equals: (v: Vec3) => sunPosition[0] === v[0] && sunPosition[1] === v[1] && sunPosition[2] === v[2],
+    },
+    get luminance() {
+      return luminance
+    },
+    set luminance(v: number) {
+      luminance = v
+    },
+    unfreeze: () => {},
+    freeze: () => {},
+    _setSun: (v: Vec3) => {
+      sunPosition = v
+    },
+  }
+}
+
 export default class Skybox {
   private readonly _mesh: Mesh
-  private material: any
+  private material: ReturnType<typeof stubMaterial>
 
-  constructor(scene: SceneContext) {
-    const material = (undefined as any /* todo(lite): new BABYLON.SkyMaterial('skybox/sky-material', scene) */)
-    material.backFaceCulling = false // leave
-    material.useSunPosition = true
-    material.fogEnabled = false // we set out fog kinda thick so we can't enable it for the sky
-    material.turbidity = 1 // smearing of the sun local to the sun itself
-    material.rayleigh = 2 // smearing of the sun across the sky in general
-    material.mieCoefficient = 0.03 // smearing that obscures the sun's shape
-    material.dithering = true // needed to overcome precision issues introduced by shader pipeline
-    material.freeze()
-    this.material = material
-
-    const mesh = (undefined as any /* todo(lite): BABYLON.MeshBuilder.CreateSphere('skybox', { segments: 16, diameter: 1 }, scene) */)
+  constructor(_scene: SceneContext) {
+    // todo(lite): SkyMaterial + sky sphere mesh
+    this.material = stubMaterial()
+    const mesh = stubMesh()
+    mesh.material = this.material as any
 
     const updateScale = (drawDistance: number) => {
       mesh.scaling.setAll(drawDistance * 1.96)
@@ -23,11 +48,6 @@ export default class Skybox {
 
     updateScale(window.draw.distance)
     window.draw.addEventListener('distance-changed', (e) => updateScale(e.detail))
-
-    mesh.material = material
-    mesh.infiniteDistance = true
-    mesh.isPickable = false
-    mesh.alphaIndex = 0 // render behind all other alpha blended meshes
 
     this._mesh = mesh
   }
@@ -41,7 +61,7 @@ export default class Skybox {
       return
     }
     this.material.unfreeze()
-    this.material.sunPosition = sunPosition
+    this.material._setSun(sunPosition)
     this.material.luminance = luminance
     this.material.freeze()
   }

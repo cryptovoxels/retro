@@ -3,7 +3,7 @@
  * a bunch of stuff that causes a SecurityException
  */
 
-import { initializeTextureAnimation } from './textures/animation'
+import { createEngine, EngineContext, Mesh, resizeEngine, SceneContext } from '@babylonjs/lite'
 
 try {
   const testKey = '__test__'
@@ -66,7 +66,7 @@ import { MetaMaskInpageProvider } from '@metamask/providers'
 import { currentBuildDate, currentVersion } from '../common/version'
 import { CameraSettings } from './controls/user-control-settings'
 import { createGPUMemoryHUD } from './utils/memory-overlay'
-import { EngineContext, Mesh, SceneContext } from '@babylonjs/lite'
+import { initializeTextureAnimation } from './textures/animation'
 
 if (process.env.NODE_ENV === 'development') {
   require('preact/debug')
@@ -139,7 +139,7 @@ async function main() {
 
   // if the inspector breaks, try downloading the correct version into `/dist/vendor` like this:
   // `wget https://unpkg.com/babylonjs-inspector@6.11.2/babylon.inspector.bundle.js`
-  (undefined as any /* todo(lite): BABYLON.DebugLayer.InspectorURL = '/vendor/babylon.inspector.bundle.js' */)
+  // todo(lite): BABYLON.DebugLayer.InspectorURL = '/vendor/babylon.inspector.bundle.js'
 
   // Initialise user singleton
   window.user = new User()
@@ -190,52 +190,29 @@ async function main() {
   }
 
   // Don't use babylon spinner
-  (undefined as any /* todo(lite): BABYLON.SceneLoader.ShowLoadingScreen = false */)
+  // todo(lite): BABYLON.SceneLoader.ShowLoadingScreen = false
 
   // Tried by randomly exploring around origin
-  (undefined as any /* todo(lite): BABYLON.Engine.CollisionsEpsilon = 0.001 */)
+  // todo(lite): BABYLON.Engine.CollisionsEpsilon = 0.001
 
   /**
    * First we create the main babylon engine that is global for every scene we are using
    */
-  const engine = (undefined as any /* todo(lite): new BABYLON.Engine(
-    canvas,
-    false,
-    {
-      disableWebGL2Support: isIOS(),
-      antialias: !isMobile(),
-      stencil: true,
-      alpha: wantsGateway(),
-      preserveDrawingBuffer: true, // needed for screenshots (womps)
-      doNotHandleContextLost: true, // we handle context lost ourselves *see below*
-    },
-    false,
-  ) */)
-  // reload page on context lost, rather than trying to recover (which requires lots of extra memory)
-  engine.onContextLostObservable.add(() => {
-    console.log('context lost')
-    window.confirm('WebGL context lost. Reload page?') && window.location.reload()
-  })
+  const engine = await createEngine(canvas)
+  ;(engine as any).resize = () => resizeEngine(engine)
+  // todo(lite): engine.onContextLostObservable - reload on device lost
   window.engine = engine
 
   // make sure the FOV changes correctly if the window gets resized
   window.addEventListener(
     'resize',
     () => {
-      engine.resize()
+      resizeEngine(engine)
     },
     { passive: true },
   )
-  // try and reduce memory consumption by not using indexedDB
-  engine.enableOfflineSupport = false
-
-  // override enterFullscreen to use body element instead of canvas
-  engine.enterFullscreen = (requestPointerLock: boolean) => {
-    if (!engine.isFullscreen) {
-      engine['_pointerLockRequested'] = requestPointerLock
-      (undefined as any /* todo(lite): BABYLON.Engine._RequestFullscreen(document.body) */)
-    }
-  }
+  // todo(lite): engine.enableOfflineSupport = false
+  // todo(lite): engine.enterFullscreen override
 
   const sceneConfig = sceneConfigFromURL()
   window.config = sceneConfig
@@ -273,9 +250,7 @@ async function main() {
   window.main = main
   main.setScene(scene)
 
-  const assetsManager = (undefined as any /* todo(lite): new BABYLON.AssetsManager(scene) */)
-  assetsManager.useDefaultLoadingScreen = false
-  assetsManager.load()
+  // todo(lite): BABYLON.AssetsManager preload
 
   const { initPhysics } = await import('./physics/world')
   await initPhysics()
@@ -319,7 +294,8 @@ async function main() {
 
   // minimap is never shown on mobile (enabled getter returns false) but the constructor
   // still allocates a Scene, camera, meshes and PostProcess -- skip it entirely
-  if (!isMobile()) {
+  // todo(lite): minimap needs Scene/camera stub
+  if (!isMobile() && false) {
     map = new Minimap(engine, connector)
     mapSettings = map.getSettings()
 

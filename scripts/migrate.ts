@@ -114,6 +114,14 @@ function todoComment(orig: string): string {
   return `/* todo(lite): ${sanitize(orig)} */`
 }
 
+/** stub a BABYLON expression; semicolon when it's its own statement (ASI trap otherwise) */
+function stubExpr(node: ts.Node, sf: ts.SourceFile): string {
+  const text = `(undefined as any ${todoComment(node.getText(sf))})`
+  const p = node.parent
+  if (p && ts.isExpressionStatement(p) && p.expression === node) return `${text};`
+  return text
+}
+
 function mapTypeText(node: ts.TypeNode, sf: ts.SourceFile): string {
   if (ts.isTypeReferenceNode(node)) {
     const name = node.typeName.getText(sf)
@@ -326,7 +334,7 @@ function migrate(filePath: string): boolean {
         node.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
         isBabylonRooted(node.left)
       ) {
-        push(node, `(undefined as any ${todoComment(node.getText(sf))})`)
+        push(node, stubExpr(node, sf))
         return
       }
 
@@ -334,7 +342,7 @@ function migrate(filePath: string): boolean {
       // (skip identifiers that are just the `.name` side of a property access)
       const isPropName = ts.isIdentifier(node) && ts.isPropertyAccessExpression(node.parent) && node.parent.name === node
       if (!isPropName && isBabylonRooted(node)) {
-        push(node, `(undefined as any ${todoComment(node.getText(sf))})`)
+        push(node, stubExpr(node, sf))
         return
       }
     }
