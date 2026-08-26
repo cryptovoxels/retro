@@ -203,6 +203,7 @@ export default abstract class Controls implements IControls {
       }
 
       this.body.flying = this.flying
+      ;(this as any).keyboardInput?.checkInputs?.()
       this.body.step(this.move, dt)
       this.move.setAll(0)
       this.updateConga()
@@ -265,6 +266,8 @@ export default abstract class Controls implements IControls {
   pickAtView(x?: number, y?: number, useMovePredicate = false, predicateOverride?: (mesh: Mesh) => boolean): PickingInfo | null {
     const cam = this.camera
     if (!cam) return null
+    const pickFn = (this.scene as any).pick
+    if (typeof pickFn !== 'function') return null
 
     const predicate = predicateOverride ?? (useMovePredicate ? this.scene.pointerMovePredicate : undefined)
     const engine = this.scene.getEngine()
@@ -273,7 +276,7 @@ export default abstract class Controls implements IControls {
     const scaling = engine.getHardwareScalingLevel()
     const px = x ?? (engine.getRenderWidth() * scaling) / 2
     const py = y ?? (engine.getRenderHeight() * scaling) / 2
-    const pick = this.scene.pick(px, py, predicate, false, cam)
+    const pick = pickFn.call(this.scene, px, py, predicate, false, cam)
 
     return pick ?? null
   }

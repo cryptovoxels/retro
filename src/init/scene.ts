@@ -36,11 +36,13 @@ function patchBjsScene(engine: EngineContext, scene: SceneContext) {
   const canvas = scene.surface.canvas as HTMLCanvasElement
   let deltaMs = 1000 / 60
   let frameId = 0
+  const beforeRender = renderObservable()
   const afterRender = renderObservable()
 
   onBeforeRender(scene, (dt) => {
     frameId++
     deltaMs = dt || 1000 / 60
+    beforeRender.fire()
     afterRender.fire()
   })
 
@@ -78,6 +80,7 @@ function patchBjsScene(engine: EngineContext, scene: SceneContext) {
     configurable: true,
   })
 
+  s.onBeforeRenderObservable = beforeRender
   s.onAfterRenderObservable = afterRender
   s.getFrameId = () => frameId
   s.textures = []

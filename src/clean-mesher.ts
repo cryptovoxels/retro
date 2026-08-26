@@ -32,10 +32,14 @@ function tintVertexColors(lighting: Float32Array, colorIndices: Float32Array, pa
   for (let i = 0; i < colorIndices.length; i++) {
     const p = palette[colorIndices[i] | 0] || palette[0]
     if (!p) continue
+    const a = p as any
+    const pr = a.r ?? a[0] ?? 0
+    const pg = a.g ?? a[1] ?? 0
+    const pb = a.b ?? a[2] ?? 0
     const o = i * 4
-    colors[o] = lighting[o] * p[0]
-    colors[o + 1] = lighting[o + 1] * p[1]
-    colors[o + 2] = lighting[o + 2] * p[2]
+    colors[o] = lighting[o] * pr
+    colors[o + 1] = lighting[o + 1] * pg
+    colors[o + 2] = lighting[o + 2] * pb
     colors[o + 3] = 1
   }
   return colors
@@ -50,13 +54,7 @@ export function applyCleanPalette(mesh: Mesh, palette: Color3[]) {
 }
 
 function meshPos(mesh: Mesh, x: number, y: number, z: number) {
-  const p = mesh.position as any
-  if (p.set) p.set(x, y, z)
-  else {
-    p[0] = x
-    p[1] = y
-    p[2] = z
-  }
+  mesh.position.set(x, y, z)
 }
 
 function mesh(geo: Geo, tex: Texture2D, scene: SceneContext, id: number, palette: Color3[]): Mesh {
@@ -101,7 +99,10 @@ export async function buildCleanMesh(
   texOverride?: Texture2D,
 ): Promise<{ opaque: Mesh; glass: Mesh | null }> {
   const lights = lanterns.map((l: any) => ({ position: l.position, color: l.color ?? '#ffffff', strength: l.strength }))
-  const pal = palette.map((c) => [c[0], c[1], c[2]] as [number, number, number])
+  const pal = palette.map((c) => {
+    const a = c as any
+    return [a.r ?? a[0] ?? 0, a.g ?? a[1] ?? 0, a.b ?? a[2] ?? 0] as [number, number, number]
+  })
   const { opaque, glass } = await runCompute((w) => w.bakeLightmap(field.data, field.shape as [number, number, number], field.stride, field.offset, lights, off, pal))
   const url = DEBUG_LIGHT_PROBES ? '/textures/00-grid.png' : '/textures/atlas-ao.png'
   const tex = texOverride ?? (await loadTex(url, scene))

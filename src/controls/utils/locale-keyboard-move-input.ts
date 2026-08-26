@@ -1,5 +1,5 @@
-import { EngineContext, FreeCamera, SceneContext, Vec3 } from '@babylonjs/lite'
-import { mat4, vec3 } from 'wgpu-matrix'
+import { EngineContext, SceneContext, Vec3 } from '@babylonjs/lite'
+import { vec3 } from 'wgpu-matrix'
 import { patchVec3 } from '../../utils/vec3-compat'
 // forked from BABYLON.FreeCameraKeyboardMoveInput with `keyCode` replaced with `code` for correct international keyboard handling
 // https://github.com/BabylonJS/Babylon.js/blob/c843dcbc3875e9eee184152a10b857f7af9f4993/src/Cameras/Inputs/freeCameraKeyboardMoveInput.ts
@@ -16,14 +16,12 @@ interface LocaleKeyboardMoveInputOptions {
 
 const localDir = patchVec3(vec3.create())
 const worldDir = patchVec3(vec3.create())
-const viewInv = mat4.identity()
 
 export class LocaleKeyboardMoveInput /* todo(lite): implements BABYLON.ICameraInput<BABYLON.FreeCamera> */ {
   /**
    * Defines the camera the input is attached to.
    */
-  // @ts-expect-error - Camera property is set by Babylon.js framework
-  public camera: FreeCamera
+  public camera: any
 
   public keysUp: string[] = []
   public keysDown: string[] = []
@@ -44,14 +42,14 @@ export class LocaleKeyboardMoveInput /* todo(lite): implements BABYLON.ICameraIn
   public rotationSpeed = 0.5
 
   private _keys = new Array<string>()
-  // @ts-expect-error - Observer types not fully compatible
-  private _onCanvasBlurObserver: (any | null)
-  // @ts-expect-error - Observer types not fully compatible
-  private _onKeyboardObserver: (any | null)
-  // @ts-expect-error - Engine property set during initialization
-  private _engine: EngineContext
-  // @ts-expect-error - Scene property set during initialization
-  private _scene: SceneContext
+  private _attached = false
+  private _onKeyDown = (evt: KeyboardEvent) => this.onKey(evt, true)
+  private _onKeyUp = (evt: KeyboardEvent) => this.onKey(evt, false)
+  private _onBlur = () => {
+    this._keys = []
+  }
+  private _engine!: EngineContext
+  private _scene!: SceneContext
 
   constructor(options: LocaleKeyboardMoveInputOptions) {
     Object.assign(this, options)
@@ -70,84 +68,41 @@ export class LocaleKeyboardMoveInput /* todo(lite): implements BABYLON.ICameraIn
    * Attach the input controls to a specific dom element to get the input from.
    * @param noPreventDefault Defines whether event caught by the controls should call preventdefault() (https://developer.mozilla.org/en-US/docs/Web/API/Event/preventDefault)
    */
-  public attachControl(noPreventDefault?: boolean): void {
-    noPreventDefault = (undefined as any /* todo(lite): BABYLON.Tools.BackCompatCameraNoPreventDefault(arguments) */)
-    if (this._onCanvasBlurObserver) {
-      return
-    }
-
+  public attachControl(_noPreventDefault?: boolean): void {
+    if (this._attached) return
+    this._attached = true
     this._scene = this.camera.getScene()
     this._engine = this._scene.getEngine()
-
-    this._onCanvasBlurObserver = this._engine.onCanvasBlurObservable.add(() => {
-      this._keys = []
-    })
-
-    this._onKeyboardObserver = this._scene.onKeyboardObservable.add((info) => {
-      const evt = info.event
-      if (!evt.metaKey) {
-        if (info.type === (undefined as any /* todo(lite): BABYLON.KeyboardEventTypes.KEYDOWN */)) {
-          if (
-            this.keysUp.indexOf(evt.code) !== -1 ||
-            this.keysDown.indexOf(evt.code) !== -1 ||
-            this.keysLeft.indexOf(evt.code) !== -1 ||
-            this.keysRight.indexOf(evt.code) !== -1 ||
-            this.keysRotateLeft.indexOf(evt.code) !== -1 ||
-            this.keysRotateRight.indexOf(evt.code) !== -1
-          ) {
-            const index = this._keys.indexOf(evt.code)
-
-            if (index === -1) {
-              this._keys.push(evt.code)
-            }
-            if (!noPreventDefault) {
-              evt.preventDefault()
-            }
-          }
-        } else {
-          if (
-            this.keysUp.indexOf(evt.code) !== -1 ||
-            this.keysDown.indexOf(evt.code) !== -1 ||
-            this.keysLeft.indexOf(evt.code) !== -1 ||
-            this.keysRight.indexOf(evt.code) !== -1 ||
-            this.keysRotateLeft.indexOf(evt.code) !== -1 ||
-            this.keysRotateRight.indexOf(evt.code) !== -1
-          ) {
-            const index = this._keys.indexOf(evt.code)
-
-            if (index >= 0) {
-              this._keys.splice(index, 1)
-            }
-            if (!noPreventDefault) {
-              evt.preventDefault()
-            }
-          }
-        }
-      }
-    })
+    document.addEventListener('keydown', this._onKeyDown)
+    document.addEventListener('keyup', this._onKeyUp)
+    this._engine.getRenderingCanvas()?.addEventListener('blur', this._onBlur)
   }
 
-  /**
-   * Detach the current controls from the specified dom element.
-   */
-  public detachControl(): void
+  private onKey(evt: KeyboardEvent, down: boolean) {
+    if (evt.metaKey) return
+    const moveKey =
+      this.keysUp.includes(evt.code) ||
+      this.keysDown.includes(evt.code) ||
+      this.keysLeft.includes(evt.code) ||
+      this.keysRight.includes(evt.code) ||
+      this.keysRotateLeft.includes(evt.code) ||
+      this.keysRotateRight.includes(evt.code)
+    if (!moveKey) return
 
-  /**
-   * Detach the current controls from the specified dom element.
-   * @param ignored defines an ignored parameter kept for backward compatibility. If you want to define the source input element, you can set engine.inputElement before calling camera.attachControl
-   */
-  public detachControl(): void {
-    if (this._scene) {
-      if (this._onKeyboardObserver) {
-        this._scene.onKeyboardObservable.remove(this._onKeyboardObserver)
-      }
-
-      if (this._onCanvasBlurObserver) {
-        this._engine.onCanvasBlurObservable.remove(this._onCanvasBlurObserver)
-      }
-      this._onKeyboardObserver = null
-      this._onCanvasBlurObserver = null
+    const index = this._keys.indexOf(evt.code)
+    if (down) {
+      if (index === -1) this._keys.push(evt.code)
+    } else if (index >= 0) {
+      this._keys.splice(index, 1)
     }
+  }
+
+  public detachControl(): void {
+    if (!this._attached) return
+    this._attached = false
+    document.removeEventListener('keydown', this._onKeyDown)
+    document.removeEventListener('keyup', this._onKeyUp)
+    this._engine?.getRenderingCanvas()?.removeEventListener('blur', this._onBlur)
     this._keys = []
   }
 
@@ -156,9 +111,11 @@ export class LocaleKeyboardMoveInput /* todo(lite): implements BABYLON.ICameraIn
    * This is a dynamically created lambda to avoid the performance penalty of looping for inputs in the render loop.
    */
   public checkInputs(): void {
-    if (!this._onKeyboardObserver || !this.move) return
-    const camera = this.camera
-    const yaw = this.alongYaw?.()
+    if (!this._attached || !this.move) return
+    const camera = this.camera as any
+    const yaw = this.alongYaw?.() ?? camera.rotation?.y ?? 0
+    const sy = Math.sin(yaw)
+    const cy = Math.cos(yaw)
     for (let index = 0; index < this._keys.length; index++) {
       const keyCode = this._keys[index]
 
@@ -173,12 +130,12 @@ export class LocaleKeyboardMoveInput /* todo(lite): implements BABYLON.ICameraIn
         continue
       }
 
-      if (yaw != null && this.keysUp.indexOf(keyCode) !== -1) {
-        this.move.addInPlaceFromFloats(Math.sin(yaw), 0, Math.cos(yaw))
+      if (this.alongYaw != null && this.keysUp.indexOf(keyCode) !== -1) {
+        this.move.addInPlaceFromFloats(sy, 0, cy)
         continue
       }
-      if (yaw != null && this.keysDown.indexOf(keyCode) !== -1) {
-        this.move.addInPlaceFromFloats(-Math.sin(yaw), 0, -Math.cos(yaw))
+      if (this.alongYaw != null && this.keysDown.indexOf(keyCode) !== -1) {
+        this.move.addInPlaceFromFloats(-sy, 0, -cy)
         continue
       }
 
@@ -194,12 +151,9 @@ export class LocaleKeyboardMoveInput /* todo(lite): implements BABYLON.ICameraIn
         continue
       }
 
-      if (camera.getScene().useRightHandedSystem) {
-        localDir.z *= -1
-      }
-
-      camera.getViewMatrix().invertToRef(viewInv)
-      (undefined as any /* todo(lite): BABYLON.Vector3.TransformNormalToRef(localDir, viewInv, worldDir) */)
+      worldDir.x = localDir.x * cy + localDir.z * sy
+      worldDir.y = 0
+      worldDir.z = -localDir.x * sy + localDir.z * cy
       this.move.addInPlace(worldDir)
     }
   }
@@ -227,10 +181,8 @@ export class LocaleKeyboardMoveInput /* todo(lite): implements BABYLON.ICameraIn
 
   private _getLocalRotation(): number {
     let rotation = (this.rotationSpeed * this._engine.getDeltaTime()) / 1000
-    if (this.camera.getScene().useRightHandedSystem) {
-      rotation *= -1
-    }
-    if (this.camera.parent && this.camera.parent._getWorldMatrixDeterminant() < 0) {
+    const camera = this.camera as any
+    if (camera.parent && camera.parent._getWorldMatrixDeterminant?.() < 0) {
       rotation *= -1
     }
     return rotation

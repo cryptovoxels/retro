@@ -1,13 +1,12 @@
 import { debounce } from 'lodash'
 import { User } from './user'
 import Controls from './controls/controls'
-import { CAMERA_HEIGHT, coords, decodeCoords, encodeCoords } from '../common/helpers/utils'
+import { CAMERA_HEIGHT, coords, decodeCoords } from '../common/helpers/utils'
 import Connector from './connector'
 import { Animations, isCongaSyncedDance } from './avatar-animations'
 import { app, AppEvent } from '../web/src/state'
 import { track } from '../web/src/helpers/umami'
 import Avatar, { LoadUserAvatar } from './avatar'
-import { decodeCoordsFromURL } from './utils/helpers'
 import { Action, AvatarIdentity } from '../common/messages'
 import { cameraRotation, setCameraPosition, setCameraRotation } from './utils/camera'
 import VoiceChat from './voice-chat'
@@ -132,27 +131,18 @@ export default class Persona {
   teleport(coordsOrUrl: string | coords) {
     console.log('teleported to', coordsOrUrl)
 
-    const coords = typeof coordsOrUrl === 'string' ? decodeCoordsFromURL(coordsOrUrl) : coordsOrUrl
+    const coords =
+      typeof coordsOrUrl === 'string'
+        ? coordsOrUrl.includes('?')
+          ? decodeCoords(new URL(coordsOrUrl, location.origin).searchParams.get('coords'))
+          : decodeCoords(coordsOrUrl)
+        : coordsOrUrl
     if (!coords) {
       console.warn('Invalid coords', coordsOrUrl)
       return
     }
     track('teleport')
     this.teleportNoHistory(coords)
-
-    // coords only ride /play share links. elsewhere the engine stays put and the
-    // router owns the URL (/parcels/:id via Exploring).
-    if (location.pathname.split('?')[0] === '/play') {
-      const encoded = encodeCoords(coords)
-      const queryParams = new URLSearchParams(location.search)
-      queryParams.set('coords', encoded)
-      const params = queryParams.toString().replace('%40', '@').replace(/%2C/g, ',')
-      const href = params ? `${location.pathname}?${params}` : location.pathname
-      const currentParcel = this.connector.currentOrNearestParcel()
-      const name = currentParcel?.name || currentParcel?.address || encoded
-      const push = (history as any).oldPushState?.bind(history) ?? history.pushState.bind(history)
-      push(encoded, name, href)
-    }
 
     this.connector.sendMetric(Action.Teleport)
   }

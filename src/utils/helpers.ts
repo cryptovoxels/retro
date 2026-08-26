@@ -4,16 +4,14 @@ import { decodeCoords } from '../../common/helpers/utils'
 
 /**
  * Get coordinates from the ?coords= flag in the URL.
- * @returns {string} coordinates, eg: 45W,253N,
+ * todo(lite): coords URL disabled during lite boot
  */
-export const getCoordsFromURL = (url?: string) => {
-  const search = url ? url.replace(/^.+?\?/, '') : document.location.search.substring(1)
-  const searchParams = new URLSearchParams(search)
-  return searchParams.get('coords')
+export const getCoordsFromURL = (_url?: string) => {
+  return null
 }
 
-export const decodeCoordsFromURL = (url?: string) => {
-  return decodeCoords(getCoordsFromURL(url))
+export const decodeCoordsFromURL = (_url?: string) => {
+  return decodeCoords(null)
 }
 
 /**

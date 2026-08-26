@@ -1410,13 +1410,11 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   private setMeshPos(mesh: Mesh, off: [number, number, number]) {
-    const p = mesh.position as any
-    if (p.set) p.set(off[0], off[1], off[2])
-    else {
-      p[0] = off[0]
-      p[1] = off[1]
-      p[2] = off[2]
-    }
+    const t = this.transform.position as any
+    const tx = t.x ?? t[0] ?? 0
+    const ty = t.y ?? t[1] ?? 0
+    const tz = t.z ?? t[2] ?? 0
+    mesh.position.set(tx + off[0], ty + off[1], tz + off[2])
   }
 
   private setVoxelMesh(mesh: (Mesh | null), cfg?: { pickable: boolean }) {
@@ -1479,7 +1477,8 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   private setCommonMeshProperties(mesh: Mesh, cfg?: { pickable: boolean }) {
-    mesh.parent = this.transform
+    // todo(lite): parent to a real SceneNode once transform is ported
+    mesh.parent = null
     mesh.isPickable = cfg?.pickable || false
     mesh.setEnabled(true)
   }

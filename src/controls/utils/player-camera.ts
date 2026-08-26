@@ -1,7 +1,7 @@
 import RAPIER from '@dimforge/rapier3d-compat'
 import { physics } from '../../physics/world'
 import type PlayerBody from './player-body'
-import { addToScene, attachFreeControl, createFreeCamera, FreeCamera, SceneContext, Vec3 } from '@babylonjs/lite'
+import { addToScene, createFreeCamera, FreeCamera, SceneContext, Vec3 } from '@babylonjs/lite'
 import { attachForwardRay } from '../../utils/camera'
 import { patchVec3 } from '../../utils/vec3-compat'
 import { quat, vec3 } from 'wgpu-matrix'
@@ -68,8 +68,17 @@ export default class PlayerCamera {
   // todo(lite): real camera input manager
   inputs = {
     attached: {} as Record<string, any>,
-    add: (_input: any) => {},
-    remove: (_input: any) => {},
+    add: (input: any) => {
+      const key = input.getSimpleName?.() ?? 'input'
+      this.inputs.attached[key] = input
+      input.camera = this
+      input.attachControl?.(true)
+    },
+    remove: (input: any) => {
+      input.detachControl?.()
+      const key = input.getSimpleName?.() ?? 'input'
+      delete this.inputs.attached[key]
+    },
     addGamepad: () => {},
   }
 
@@ -153,16 +162,55 @@ export default class PlayerCamera {
   }
 
   attachControl(canvas: HTMLCanvasElement, _noPreventDefault?: boolean) {
-    attachFreeControl(this.cam, canvas, this.scene)
+    const cam = this.cam as any
+    let offMove: (() => void) | null = null
+
+    const mouseInput = {
+      attachControl: (_noPreventDefault?: boolean) => {
+        offMove?.()
+        const onMove = (e: MouseEvent) => {
+          if (document.pointerLockElement !== canvas) return
+          const sens = this.cam.angularSensitivity || 2000
+          this._rotation.y += e.movementX / sens
+          this._rotation.x -= e.movementY / sens
+          const maxPitch = Math.PI / 2 - 0.01
+          this._rotation.x = Math.max(-maxPitch, Math.min(maxPitch, this._rotation.x))
+          cam._yaw = this._rotation.y
+          cam._pitch = this._rotation.x
+        }
+        document.addEventListener('mousemove', onMove)
+        offMove = () => document.removeEventListener('mousemove', onMove)
+      },
+      detachControl: () => {
+        offMove?.()
+        offMove = null
+      },
+    }
+
+    this.inputs.attached.mouse = mouseInput
+    mouseInput.attachControl(_noPreventDefault)
   }
 
-  _decideIfNeedsToMove(): boolean {
-    return false
+  private syncTarget() {
+    const yaw = this._rotation.y
+    const pitch = this._rotation.x
+    const cosY = Math.cos(yaw)
+    const sinY = Math.sin(yaw)
+    const cosP = Math.cos(pitch)
+    const sinP = Math.sin(pitch)
+    const px = this.position.x
+    const py = this.position.y
+    const pz = this.position.z
+    this.cam.target.set(px + sinY * cosP, py + sinP, pz + cosY * cosP)
+    const c = this.cam as any
+    c._yaw = yaw
+    c._pitch = pitch
   }
 
   place() {
     if (this.distance <= 0) {
       this.position.copyFrom(this.body.position as any)
+      this.syncTarget()
       return
     }
     const q = quat.fromEuler(this._rotation.y, this._rotation.x, this._rotation.z, 'yxz')
@@ -178,6 +226,11 @@ export default class PlayerCamera {
     vec3.copy(this.body.position as any, this.position as any)
     vec3.scale(dist, this.back, this.back)
     vec3.add(this.position as any, this.back, this.position as any)
+    this.syncTarget()
+  }
+
+  _decideIfNeedsToMove(): boolean {
+    return false
   }
 
   getClassName(): string {

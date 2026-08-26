@@ -24,9 +24,11 @@ export default class DesktopControls extends Controls {
   private lockListener?: () => void
   private nerfClick = false
   private mouseLookAttached = false
-  private onCanvasPointerDown = (e: PointerEvent) => this.desktopClicks({ type: PTR_DOWN, event: e, pickInfo: null }, { skipNextObservers: false })
-  private onCanvasPointerUp = (e: PointerEvent) => this.desktopClicks({ type: PTR_UP, event: e, pickInfo: null }, { skipNextObservers: false })
-  private onCanvasPointerMove = (e: PointerEvent) => this.desktopClicks({ type: PTR_MOVE, event: e, pickInfo: null }, { skipNextObservers: false })
+  private hadPointerLock = false
+  private canvasHooked = false
+  private onCanvasMouseDown = (e: MouseEvent) => this.desktopClicks({ type: PTR_DOWN, event: e, pickInfo: null }, { skipNextObservers: false })
+  private onCanvasMouseUp = (e: MouseEvent) => this.desktopClicks({ type: PTR_UP, event: e, pickInfo: null }, { skipNextObservers: false })
+  private onCanvasMouseMove = (e: MouseEvent) => this.desktopClicks({ type: PTR_MOVE, event: e, pickInfo: null }, { skipNextObservers: false })
   private onCanvasWheel = (e: WheelEvent) => {
     e.preventDefault()
     this.desktopClicks({ type: PTR_WHEEL, event: e, pickInfo: null }, { skipNextObservers: false })
@@ -37,7 +39,7 @@ export default class DesktopControls extends Controls {
 
     // todo(lite): scene.skipPointerUpPicking / skipPointerDownPicking
 
-    this.onPointerLockChange()
+    this.addLockListener()
   }
 
   createCamera() {
@@ -85,34 +87,43 @@ export default class DesktopControls extends Controls {
 
   addControls(camera: PlayerCamera) {
     camera.attachControl(this.canvas, true)
-    this.mouseLookAttached = true // camera.attachControl attaches mouse; lock handler may detach
-    this.addLockListener()
+    this.mouseLookAttached = false
 
     this.addKeyboardControls(camera)
     this.addGamepadControls(camera)
 
-    this.desktopClicks = this.desktopClicks.bind(this)
-    this.canvas.addEventListener('pointerdown', this.onCanvasPointerDown)
-    this.canvas.addEventListener('pointerup', this.onCanvasPointerUp)
-    this.canvas.addEventListener('pointermove', this.onCanvasPointerMove)
-    this.canvas.addEventListener('wheel', this.onCanvasWheel, { passive: false })
+    this.hookCanvas()
+  }
 
-    this.canvas.addEventListener('contextmenu', (e) => e.preventDefault())
+  /** Canvas moves into .client-canvas after boot; bind clicks on the live element. */
+  hookCanvas() {
+    const canvas = (document.querySelector('canvas#renderCanvas') ?? this.canvas) as HTMLCanvasElement
+    if (!canvas || this.canvasHooked) return
+    this.canvasHooked = true
+    if (!canvas.hasAttribute('tabindex')) canvas.tabIndex = 0
+
+    this.desktopClicks = this.desktopClicks.bind(this)
+    canvas.addEventListener('mousedown', this.onCanvasMouseDown)
+    canvas.addEventListener('mouseup', this.onCanvasMouseUp)
+    canvas.addEventListener('mousemove', this.onCanvasMouseMove)
+    canvas.addEventListener('wheel', this.onCanvasWheel, { passive: false })
+    canvas.addEventListener('contextmenu', (e) => e.preventDefault())
   }
 
   dispose() {
     if (this.lockListener) document.removeEventListener('pointerlockchange', this.lockListener)
-    this.canvas.removeEventListener('pointerdown', this.onCanvasPointerDown)
-    this.canvas.removeEventListener('pointerup', this.onCanvasPointerUp)
-    this.canvas.removeEventListener('pointermove', this.onCanvasPointerMove)
-    this.canvas.removeEventListener('wheel', this.onCanvasWheel)
+    const canvas = (document.querySelector('canvas#renderCanvas') ?? this.canvas) as HTMLCanvasElement
+    canvas.removeEventListener('mousedown', this.onCanvasMouseDown)
+    canvas.removeEventListener('mouseup', this.onCanvasMouseUp)
+    canvas.removeEventListener('mousemove', this.onCanvasMouseMove)
+    canvas.removeEventListener('wheel', this.onCanvasWheel)
   }
 
   onPointerLockChange() {
     const cam = this.camera
     if (!cam?.inputs) return
 
-    const canvas = this.scene.getEngine().getRenderingCanvas()
+    const canvas = (document.querySelector('canvas#renderCanvas') ?? this.scene.getEngine().getRenderingCanvas()) as HTMLCanvasElement
     const locked = document.pointerLockElement === canvas
 
     // sidebar buttons are unclickable while locked - fade them out of the way
@@ -123,14 +134,13 @@ export default class DesktopControls extends Controls {
 
     const mouse = cam.inputs.attached['mouse'] as any | undefined
     if (locked) {
-      // Babylon FreeCameraMouseInput stacks observers on every attach; never attach twice
+      this.hadPointerLock = true
       if (!this.mouseLookAttached) {
         mouse?.attachControl(true)
         this.mouseLookAttached = true
       }
-    } else {
-      // feature editor open: keep drag-look attached so off-object drags still look around.
-      // face drag / gizmos claim their pointer-downs on prepointer, so they never fight the camera.
+    } else if (this.hadPointerLock) {
+      this.hadPointerLock = false
       const editorOpen = !!(window.ui?.state?.editor || window.ui?.state?.feature)
       if (this.mouseLookAttached && !editorOpen) {
         mouse?.detachControl()
@@ -429,10 +439,11 @@ export default class DesktopControls extends Controls {
     ;(window as any).engine?.setBlur?.(false)
 
     // don't focus() before lock — steals the user gesture, forces a second click
-    const maybePromise: unknown = this.canvas.requestPointerLock()
+    const canvas = (document.querySelector('canvas#renderCanvas') ?? this.canvas) as HTMLCanvasElement
+    const maybePromise: unknown = canvas.requestPointerLock()
     if (maybePromise instanceof Promise) {
       return maybePromise.then((v) => {
-        this.canvas.focus()
+        canvas.focus()
         return v
       })
     }
@@ -448,7 +459,7 @@ export default class DesktopControls extends Controls {
       }
       const pointerLockSuccess = (e: Event) => {
         removeEvents()
-        this.canvas.focus()
+        canvas.focus()
         resolve(e)
       }
 

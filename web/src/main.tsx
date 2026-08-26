@@ -85,7 +85,6 @@ const Main = () => {
   const [currentPath, setCurrentPath] = useState(window.location.pathname)
   const [urlSearch, setUrlSearch] = useState(location.search)
   const lightBroadcast = currentPath.startsWith('/golive/broadcast')
-  const coords = new URLSearchParams(urlSearch).get('coords') || ''
   const play = isPlayPath(currentPath)
 
   useEffect(() => {
@@ -107,7 +106,7 @@ const Main = () => {
       <main class={[lightBroadcast ? 'showbox-light-shell' : '', play ? '-play' : ''].filter(Boolean).join(' ') || undefined}>
         {!lightBroadcast && <WebHeader path={currentPath} />}
 
-        <Client coords={coords} path={currentPath} />
+        <Client path={currentPath} />
 
         <div class={play ? 'page -play' : 'page'}>
           {!play && !lightBroadcast && <SidebarClose onClick={closePageSidebar} />}

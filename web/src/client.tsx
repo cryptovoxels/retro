@@ -4,7 +4,7 @@ import { canUseDom } from '../../common/helpers/utils'
 import { wantsNoUI } from '../../common/helpers/detector'
 import type { BootResult } from '../../src'
 import cachedFetch from './helpers/cached-fetch'
-import { getCoords, getParcelIdFromPath, syncParcelUrl } from './helpers/coords-nav'
+import { getParcelIdFromPath, syncParcelUrl } from './helpers/coords-nav'
 import { app, AppEvent } from './state'
 
 function boot(): Promise<BootResult> {
@@ -12,7 +12,6 @@ function boot(): Promise<BootResult> {
 }
 
 type FrameProps = {
-  coords: string
   path?: string
 }
 
@@ -34,7 +33,6 @@ export class Client extends Component<FrameProps, FrameState> {
   }
 
   componentDidUpdate(prev: Readonly<FrameProps>) {
-    if (prev.coords !== this.props.coords && this.props.coords) this.naviport()
     const id = getParcelIdFromPath(this.props.path)
     const prevId = getParcelIdFromPath(prev.path)
     if (id && id !== prevId) this.gotoParcel(id)
@@ -59,7 +57,8 @@ export class Client extends Component<FrameProps, FrameState> {
 
     box.appendChild(canvas)
     canvas.style.display = 'block'
-    this.naviport()
+    window.engine?.resize()
+    ;(window.connector?.controls as { hookCanvas?: () => void } | undefined)?.hookCanvas?.()
     const id = getParcelIdFromPath(this.props.path)
     if (id) this.gotoParcel(id)
     this.watchSize()
@@ -83,18 +82,6 @@ export class Client extends Component<FrameProps, FrameState> {
         if (c) window.persona?.naviport(c)
       })
       .catch(() => {})
-  }
-
-  private naviport() {
-    const coords = this.props.coords || getCoords()
-    if (!coords) return
-    void boot().then(() => {
-      try {
-        window.persona?.naviport(coords)
-      } catch (e) {
-        console.error(e)
-      }
-    })
   }
 
   render() {
