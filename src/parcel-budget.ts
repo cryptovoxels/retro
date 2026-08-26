@@ -79,14 +79,10 @@ export default class ParcelBudget {
   }
 
   count(type: FeatureType) {
-    let sum = this.features.filter((f) => f.type === type).length
-    if (type == 'polytext') {
-      sum += this.features.filter((f) => f.type === 'polytext-v2').length
+    if (type === 'polytext' || type === 'polytext-v2') {
+      return this.features.filter((f) => f.type === 'polytext' || f.type === 'polytext-v2').length
     }
-    if (type == 'polytext-v2') {
-      sum += this.features.filter((f) => f.type === 'polytext').length
-    }
-    return sum
+    return this.features.filter((f) => f.type === type).length
   }
 
   remaining(type: FeatureType) {

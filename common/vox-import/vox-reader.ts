@@ -88,7 +88,7 @@ function hashTableLookUp(bucketData: Uint32Array, wrapMask: number, key_a: numbe
   }
 }
 
-export const voxReader = (buffer: ArrayBuffer, renderJob: any, flipX: boolean, megavox: boolean, wantCollider: boolean, callback: Callback) => {
+export const voxReader = (buffer: ArrayBuffer, renderJob: any, flipX: boolean, megavox: boolean, wantCollider: boolean, callback: Callback, colorMap?: Record<number, [number, number, number]>) => {
   // console.log('voxReader processing...')
 
   VoxReader.read(buffer, (vox: any, errstr: string | null) => {
@@ -143,6 +143,11 @@ export const voxReader = (buffer: ArrayBuffer, renderJob: any, flipX: boolean, m
     const colorTable = new Uint32Array(256)
     for (let i = 0; i < 256; i++) {
       colorTable[i] = palette[i].r | (palette[i].g << 8) | (palette[i].b << 16)
+    }
+    if (colorMap) {
+      for (const [idx, rgb] of Object.entries(colorMap)) {
+        colorTable[+idx] = rgb[0] | (rgb[1] << 8) | (rgb[2] << 16)
+      }
     }
 
     // Identity function, use these to nudge the mesh as needed

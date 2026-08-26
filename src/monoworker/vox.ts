@@ -28,7 +28,7 @@ async function loadVoxUrl(url: string): Promise<ArrayBuffer> {
     .then((r) => r!.arrayBuffer())
 }
 
-export async function loadVox({ renderJob, flipX, megavox, wantCollider, timeoutMs, ...urlOrBuffer }: JobRecord): Promise<any> {
+export async function loadVox({ renderJob, flipX, megavox, wantCollider, timeoutMs, colorMap, ...urlOrBuffer }: JobRecord): Promise<any> {
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(() => reject(new Error(`Job ${renderJob} timed out after ${timeoutMs}ms`)), timeoutMs)
   })
@@ -41,38 +41,46 @@ export async function loadVox({ renderJob, flipX, megavox, wantCollider, timeout
     }
 
     return new Promise((resolve, reject) => {
-      voxReader(data, renderJob, flipX, megavox, wantCollider, (data) => {
-        if (cancelledJobs.has(renderJob)) {
-          return resolve({ renderJob, cancelled: true })
-        }
-
-        if (data instanceof Error) {
-          let originalUrlInfo = ''
-          if ('url' in urlOrBuffer) {
-            try {
-              const searchParams = new URL(urlOrBuffer.url, 'https://voxels.com').searchParams
-              originalUrlInfo = `: ${searchParams.get('url') || urlOrBuffer.url}`
-            } catch (e) {
-              console.log('failed to parse .vox url - ', urlOrBuffer.url)
-            }
+      voxReader(
+        data,
+        renderJob,
+        flipX,
+        megavox,
+        wantCollider,
+        (data) => {
+          if (cancelledJobs.has(renderJob)) {
+            return resolve({ renderJob, cancelled: true })
           }
-          return reject(new Error(`failed reading .vox ${data} - ${originalUrlInfo}`))
-        }
 
-        resolve({
-          renderJob,
-          positions: data.positions,
-          indices: data.indices,
-          colors: data.colors,
-          size: data.size,
-          ...('colliderPositions' in data
-            ? {
-                colliderPositions: data.colliderPositions,
-                colliderIndices: data.colliderIndices,
+          if (data instanceof Error) {
+            let originalUrlInfo = ''
+            if ('url' in urlOrBuffer) {
+              try {
+                const searchParams = new URL(urlOrBuffer.url, 'https://voxels.com').searchParams
+                originalUrlInfo = `: ${searchParams.get('url') || urlOrBuffer.url}`
+              } catch (e) {
+                console.log('failed to parse .vox url - ', urlOrBuffer.url)
               }
-            : {}),
-        })
-      })
+            }
+            return reject(new Error(`failed reading .vox ${data} - ${originalUrlInfo}`))
+          }
+
+          resolve({
+            renderJob,
+            positions: data.positions,
+            indices: data.indices,
+            colors: data.colors,
+            size: data.size,
+            ...('colliderPositions' in data
+              ? {
+                  colliderPositions: data.colliderPositions,
+                  colliderIndices: data.colliderIndices,
+                }
+              : {}),
+          })
+        },
+        colorMap,
+      )
     })
   })()
 
