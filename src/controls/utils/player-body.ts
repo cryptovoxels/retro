@@ -74,8 +74,15 @@ export default class PlayerBody {
 
   /** move is unitless direction; speed is m/s; dt is seconds */
   step(move: BABYLON.Vector3, dt: number): void {
+
+    // Smooth acceleration and deceleration
+    const t = 1 - Math.exp(-10 * dt)
+    this.vel.x += (move.x * this.speed - this.vel.x) * t
+    this.vel.z += (move.z * this.speed - this.vel.z) * t
+
+    // Re-use scratch
     const d = this.scratch
-    d.copyFrom(move).scaleInPlace(this.speed * dt)
+    d.set(this.vel.x * dt, move.y * this.speed * dt, this.vel.z * dt)
 
     if (this.noclip || !this.setup()) {
       this.position.addInPlace(d)
