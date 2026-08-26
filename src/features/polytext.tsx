@@ -6,6 +6,7 @@ import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { MeshExtended, NonMeshedFeature } from './feature'
 
 const LETTER_SPACING = 0.5
+const SCALE = 5.0
 const ALPHABET_RED = 217
 const ALPHABET_GREEN = 226
 const ALPHABET_BLUE = 236
@@ -50,19 +51,14 @@ export default class Polytext extends NonMeshedFeature<PolytextRecord> {
     const text = (this.description.text || '').slice(0, 24).toLowerCase()
     const diffuse = BABYLON.Color3.FromHexString(this.description.color || '#ffffff')
     const colorMap = buildColorMap(diffuse)
-    let x = 0 - text.length * LETTER_SPACING * 0.5
+    let x = (text.length + 1) * LETTER_SPACING * SCALE / -2
 
     for (const ch of text) {
+      x += LETTER_SPACING * SCALE
+
       if (!/[a-z0-9]/.test(ch)) {
-        x += LETTER_SPACING
         continue
       }
-
-      // const node = new BABYLON.TransformNode(this.uniqueEntityName('instance'), this.scene)
-      // node.rotation.y = Math.PI / 2
-      // node.setParent(parent)
-      // node.position.x = x
-      x += LETTER_SPACING
 
       try {
         const mesh = await voxImporter().import(`${process.env.ASSET_PATH}/alphabet/${ch}.vox`, {
@@ -73,10 +69,15 @@ export default class Polytext extends NonMeshedFeature<PolytextRecord> {
           mesh.dispose()
           return
         }
-        mesh.setParent(parent)
-        mesh.rotation.y = Math.PI / 2
 
-        mesh.position.y = LETTER_SPACING
+        // Bake scale rotation and centerline
+        mesh.rotation.y = Math.PI / 2
+        mesh.scaling.set(SCALE, SCALE, SCALE)
+        mesh.position.y = LETTER_SPACING * SCALE / 2
+        mesh.bakeCurrentTransformIntoVertices()
+
+        // Set position manually
+        mesh.setParent(parent)
         mesh.position.z = x
 
         mesh.isPickable = true
