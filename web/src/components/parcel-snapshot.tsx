@@ -14,7 +14,6 @@ export type ParcelSnapshotRecord = {
   parcel_id: number
   content: Record<string, any>
   snapshot_name?: string
-  ipfs_hash?: string
   name?: string
   updated_at?: string
   created_at?: string

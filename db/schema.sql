@@ -586,8 +586,7 @@ CREATE TABLE public.property_versions (
     created_at timestamp without time zone DEFAULT now(),
     is_snapshot boolean DEFAULT false NOT NULL,
     snapshot_name text,
-    content_hash bytea,
-    ipfs_hash text
+    content_hash bytea
 );
 CREATE SEQUENCE public.property_versions_id_seq
     START WITH 1
