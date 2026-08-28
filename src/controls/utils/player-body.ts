@@ -2,9 +2,8 @@ import RAPIER from '@dimforge/rapier3d-compat'
 import { physics, PLAYER_QUERY, Vec3 } from '../../physics/world'
 const RADIUS = 0.2
 const EYE = 1.65 // eye height above the feet
-const HEAD = 0.1 // skull above the eyes
 const HALF = 0.6
-const DROP = (EYE - HEAD) / 2 // eye above the capsule centre, 0.75
+const DROP = 0.95
 
 const unchanged = (a: Vec3, b: Vec3, epsilon = 0.001) => Math.abs(a.x - b.x) < epsilon && Math.abs(a.y - b.y) < epsilon && Math.abs(a.z - b.z) < epsilon
 const nonzero = (v: Vec3, epsilon = 0.001) => Math.abs(v.x) > epsilon || Math.abs(v.y) > epsilon || Math.abs(v.z) > epsilon
