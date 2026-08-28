@@ -10,6 +10,7 @@ import { PassportStatic } from 'passport'
 import { tokensToEnter } from '../../common/messages/parcel'
 import Avatar from '../avatar'
 import { userOwnsToken } from '../lib/ethereum-helpers'
+import { isValidUUID } from '../lib/helpers'
 import { Db } from '../pg'
 import { VoxelsUser } from '../user'
 
@@ -200,6 +201,28 @@ export default function AvatarsController(db: Db, passport: PassportStatic, app:
         const row = lookup.get(`${o.contract}:${o.tokenId}`)
         if (row) joined.push({ ...row, quantity: o.quantity })
       }
+
+      // Remember the holdings so /unowned.json can answer without hitting alchemy.
+      // Only when alchemy gave us something: an empty answer is a failed fetch as
+      // often as it is an empty wallet, and wiping on that would flag wearables
+      // people do own. Deduped because on conflict do update cannot touch the same
+      // row twice in one statement.
+      if (joined.length) {
+        try {
+          await db.query(
+            'sql/avatar/track-wearable-owners',
+            `with owned as (select unnest($2::uuid[]) as id), ins as (
+               insert into wearable_owners (wallet, wearable_id)
+               select lower($1), id from owned
+               on conflict (wallet, wearable_id) do update set updated_at = now()
+             )
+             delete from wearable_owners where wallet = lower($1) and wearable_id not in (select id from owned)`,
+            [wallet, [...new Set(joined.map((r) => r.id))]],
+          )
+        } catch {
+          // fail soft - the assets read is the job, tracking is a side effect
+        }
+      }
     }
 
     const byKey = new Map<string, any>()
@@ -222,6 +245,38 @@ export default function AvatarsController(db: Db, passport: PassportStatic, app:
     for (const row of authored.rows) put(row)
 
     res.status(200).json({ success: true, assets: [...byKey.values()] })
+  })
+
+  // Which of these wearables can this wallet not wear? Batched because the costumer
+  // asks about a whole costume at once, not a piece at a time.
+  app.post('/api/avatars/:wallet/unowned.json', cache(false), async (req, res) => {
+    const wallet = req.params.wallet
+    const wids: string[] = Array.isArray(req.body?.wids) ? req.body.wids.filter(isValidUUID).slice(0, 64) : []
+
+    if (!ethers.isAddress(wallet) || !wids.length) {
+      res.json({ success: true, unowned: [] })
+      return
+    }
+
+    try {
+      // Reads what /assets last wrote, so this trails the chain by one visit: something
+      // bought a minute ago still reads as unowned until that route runs again. A wallet
+      // with no rows at all has never been looked up, and answers nothing unowned rather
+      // than telling someone to go buy a wearable they already have.
+      const result = await db.query(
+        'sql/avatar/unowned-wearables',
+        `select w.id::text as id from wearables w
+         where w.id = any($2::uuid[])
+           and w.is_free is not true
+           and lower(coalesce(w.author, '')) <> lower($1)
+           and exists (select 1 from wearable_owners o where o.wallet = lower($1))
+           and not exists (select 1 from wearable_owners o where o.wallet = lower($1) and o.wearable_id = w.id)`,
+        [wallet, wids],
+      )
+      res.json({ success: true, unowned: result.rows.map((r) => r.id) })
+    } catch {
+      res.status(500).json({ success: false })
+    }
   })
 
   app.get('/api/wearables/free.json', cache('60 seconds'), async (_req, res) => {

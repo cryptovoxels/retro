@@ -357,3 +357,12 @@ $$);
 SELECT apply_migration('chat-moderated-at', $$
   ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS moderated_at timestamptz;
 $$);
+
+SELECT apply_migration('wearable-owners', $$
+  CREATE TABLE IF NOT EXISTS wearable_owners (
+    wallet      text NOT NULL,
+    wearable_id uuid NOT NULL REFERENCES wearables (id) ON DELETE CASCADE,
+    updated_at  timestamptz NOT NULL DEFAULT now(),
+    PRIMARY KEY (wallet, wearable_id)
+  );
+$$);

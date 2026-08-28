@@ -102,6 +102,7 @@ export default class Costumer extends Component<Props, State> {
     if (!isEqual(this.props.costumeId, prevProps.costumeId)) {
       this.setState({ attachmentIdx: null })
       this.forceUpdate()
+      void this.loadUnowned()
     }
 
     if (this.state.attachmentIdx === null && this.gizmoManager) {
@@ -524,9 +525,31 @@ export default class Costumer extends Component<Props, State> {
       this.setState({ loading: false })
       throw new Error('Could not fetch costumes')
     }
-    this.setState({ costumes: costumes, loading: false })
+    this.setState({ costumes: costumes, loading: false }, () => void this.loadUnowned())
 
     return avatarCostumeId
+  }
+
+  // Which pieces of this costume the wallet cannot wear. The answer trails the chain
+  // by one /api/avatars/:wallet/assets load, so treat it as advisory: on any failure
+  // leave the list alone rather than blocking Wear.
+  loadUnowned = async () => {
+    const wallet = app.state.wallet
+    const wids = [...new Set((this.costume?.attachments ?? []).map((a) => a.wid).filter(Boolean))] as string[]
+
+    if (!wallet || !wids.length) {
+      this.setState({ unowned: [] })
+      return
+    }
+
+    try {
+      const r = await fetch(`/api/avatars/${wallet.toLowerCase()}/unowned.json`, { ...fetchParams, method: 'POST', body: JSON.stringify({ wids }) })
+      if (!r.ok) return
+      const { unowned } = await r.json()
+      this.setState({ unowned: unowned ?? [] })
+    } catch {
+      // never break the costumer over an ownership check
+    }
   }
 
   hideBoneSpheres() {

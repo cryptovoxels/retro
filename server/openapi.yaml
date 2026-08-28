@@ -898,6 +898,56 @@ paths:
                     items:
                       $ref: '#/components/schemas/Wearable'
 
+  /api/avatars/{wallet}/unowned.json:
+    post:
+      operationId: checkAvatarUnowned
+      tags: [avatars]
+      summary: Which of these wearables the wallet cannot wear
+      description: |
+        The subset of `wids` this wallet does not hold. Free wearables and the
+        wallet's own authored ones are never in it. Batched because the costumer
+        asks about a whole costume at once.
+
+        Ownership is read from what `GET /api/avatars/{wallet}/assets` last wrote,
+        so it trails the chain by one call of that route: something bought a minute
+        ago still reads as unowned. A wallet that route has never resolved has no
+        record at all, and answers an empty list rather than flagging every piece.
+
+        Ids that are not uuids are dropped and the batch is capped at 64.
+      parameters:
+        - $ref: '#/components/parameters/Wallet'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [wids]
+              properties:
+                wids:
+                  type: array
+                  maxItems: 64
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  unowned:
+                    type: array
+                    items:
+                      type: string
+                      format: uuid
+        '500':
+          $ref: '#/components/responses/Failure'
+
   /api/avatars/{wallet}/wearables:
     get:
       operationId: getAvatarWornWearables

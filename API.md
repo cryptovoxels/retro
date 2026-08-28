@@ -14,7 +14,7 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 
 - [parcels](#parcels), 20 routes
 - [womps](#womps), 6 routes
-- [avatars](#avatars), 13 routes
+- [avatars](#avatars), 14 routes
 - [collectibles](#collectibles), 3 routes
 - [collections](#collections), 9 routes
 - [wearables](#wearables), 8 routes
@@ -474,6 +474,7 @@ Matches `womps.author` exactly, so the wallet has to be cased the way it was sto
 - [`GET /api/avatars/by/{nameOrWallet}.json`](#get-apiavatarsbynameorwalletjson) One citizen by name or wallet
 - [`GET /api/avatars/search`](#get-apiavatarssearch) Name or wallet substring match, ten at most
 - [`GET /api/avatars/{wallet}/assets`](#get-apiavatarswalletassets) Wearables this wallet can wear or authored
+- [`POST /api/avatars/{wallet}/unowned.json`](#post-apiavatarswalletunownedjson) Which of these wearables the wallet cannot wear
 - [`GET /api/avatars/{wallet}/wearables`](#get-apiavatarswalletwearables) The collectibles in this citizen's current costume
 - [`GET /api/avatars/{wallet}/costume.json`](#get-apiavatarswalletcostumejson) The costume this citizen is wearing
 - [`GET /api/avatars/{wallet}/costumes`](#get-apiavatarswalletcostumes) Every costume this citizen has saved
@@ -547,6 +548,32 @@ Merge of (1) Alchemy holdings on known collection contracts, (2) `is_free` weara
 - `200` object
   - `success` boolean
   - `assets` array of [`Wearable`](#wearable)
+
+### POST /api/avatars/{wallet}/unowned.json
+
+Which of these wearables the wallet cannot wear
+
+The subset of `wids` this wallet does not hold. Free wearables and the wallet's own authored ones are never in it. Batched because the costumer asks about a whole costume at once.
+
+Ownership is read from what `GET /api/avatars/{wallet}/assets` last wrote, so it trails the chain by one call of that route: something bought a minute ago still reads as unowned. A wallet that route has never resolved has no record at all, and answers an empty list rather than flagging every piece.
+
+Ids that are not uuids are dropped and the batch is capped at 64.
+
+**parameters**
+
+- `wallet` (path, required) string
+
+**body**
+
+- `application/json` object
+  - `wids` array of string, a uuid
+
+**answers**
+
+- `200` object
+  - `success` boolean
+  - `unowned` array of string, a uuid
+- `500` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/avatars/{wallet}/wearables
 
