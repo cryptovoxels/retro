@@ -1496,6 +1496,7 @@ A citizen.
 - `costume_id` string or null
 - `costume` [`Costume`](#costume)
 - `home_id` integer or null
+- `src` string or null: UGC VRM url (ugc://...) when wearing a custom avatar mesh.
 - `created_at` string or null: Pacific/Auckland, not UTC.
 - `last_online` string or null: Pacific/Auckland, not UTC.
 

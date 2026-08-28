@@ -75,6 +75,9 @@ module.exports = (env, argv) => {
       fallback: {
         crypto: false,
         vm: false,
+        fs: false,
+        path: false,
+        url: false,
       },
       fullySpecified: false,
     },
@@ -83,6 +86,10 @@ module.exports = (env, argv) => {
       path: path.resolve(__dirname, '../dist'),
     },
     plugins: [
+      // @gltf-transform/core ships NodeIO with node:fs / node:path; strip the scheme so fallbacks apply
+      new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+        resource.request = resource.request.replace(/^node:/, '')
+      }),
       new webpack.ProvidePlugin({
         Buffer: ['buffer', 'Buffer'],
       }),

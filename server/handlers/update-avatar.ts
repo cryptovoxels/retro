@@ -69,8 +69,21 @@ export default function updateAvatar() {
 export async function updateAvatarAppearance(req: VoxelsUserRequest, res: Response) {
   const wallet = req.user?.wallet?.toLowerCase()
   if (!wallet) return res.status(403).json({ success: false })
-  if (!('costume_id' in req.body)) return res.json({ success: true })
-  await db.query('embedded/update-avatar-costume', `UPDATE avatars SET costume_id=$1 WHERE lower(owner)=lower($2)`, [req.body.costume_id, wallet])
+
+  if ('src' in req.body) {
+    const src = req.body.src
+    if (src !== null && !(typeof src === 'string' && /^ugc:\/\/.+\.vrm$/i.test(src))) {
+      return res.status(400).json({ success: false, error: 'bad src' })
+    }
+    await db.query('embedded/update-avatar-src', `UPDATE avatars SET src=$1 WHERE lower(owner)=lower($2)`, [src, wallet])
+  }
+
+  if ('costume_id' in req.body) {
+    await db.query('embedded/update-avatar-costume', `UPDATE avatars SET costume_id=$1 WHERE lower(owner)=lower($2)`, [req.body.costume_id, wallet])
+  }
+
+  if (!('src' in req.body) && !('costume_id' in req.body)) return res.json({ success: true })
+
   notifyAvatarChanged(wallet)
   res.json({ success: true })
 }

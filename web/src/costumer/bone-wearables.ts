@@ -1,6 +1,6 @@
 import type { CollectiblesData } from '../../../common/helpers/collections-helpers'
 
-/** Wearables to offer for a skeleton bone (mixamorig short name, e.g. LeftHand). */
+/** Wearables to offer for a skeleton bone (short name, e.g. LeftHand). */
 export function wearablesForBone(bone: string, wearables: CollectiblesData[]): CollectiblesData[] {
   const b = bone.toLowerCase()
   return wearables.filter((w) => {

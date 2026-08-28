@@ -105,7 +105,7 @@ export class Wearable extends Component<Props, State> {
     if (!this.skeleton) return null
 
     const lower = bone.toLowerCase()
-    const found = this.skeleton.bones.find((b) => b.name.toLowerCase() === `mixamorig:${lower}`)
+    const found = this.skeleton.bones.find((b) => b.name.toLowerCase() === lower)
 
     if (!found) {
       console.error(`Bad bone name "${bone}"`)

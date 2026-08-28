@@ -55,8 +55,71 @@ export function isCongaSyncedDance(a: Animations): boolean {
   }
 }
 
+/** Mixamo short bone name (lowercase, after strip) -> VRM 1.0 humanoid bone name. */
+const MIXAMO_TO_HUMANOID: Record<string, string> = {
+  hips: 'hips',
+  spine: 'spine',
+  spine1: 'chest',
+  spine2: 'upperChest',
+  neck: 'neck',
+  head: 'head',
+  leftshoulder: 'leftShoulder',
+  leftarm: 'leftUpperArm',
+  leftforearm: 'leftLowerArm',
+  lefthand: 'leftHand',
+  rightshoulder: 'rightShoulder',
+  rightarm: 'rightUpperArm',
+  rightforearm: 'rightLowerArm',
+  righthand: 'rightHand',
+  leftupleg: 'leftUpperLeg',
+  leftleg: 'leftLowerLeg',
+  leftfoot: 'leftFoot',
+  lefttoebase: 'leftToes',
+  rightupleg: 'rightUpperLeg',
+  rightleg: 'rightLowerLeg',
+  rightfoot: 'rightFoot',
+  righttoebase: 'rightToes',
+  lefthandthumb1: 'leftThumbMetacarpal',
+  lefthandthumb2: 'leftThumbProximal',
+  lefthandthumb3: 'leftThumbDistal',
+  lefthandindex1: 'leftIndexProximal',
+  lefthandindex2: 'leftIndexIntermediate',
+  lefthandindex3: 'leftIndexDistal',
+  lefthandmiddle1: 'leftMiddleProximal',
+  lefthandmiddle2: 'leftMiddleIntermediate',
+  lefthandmiddle3: 'leftMiddleDistal',
+  lefthandring1: 'leftRingProximal',
+  lefthandring2: 'leftRingIntermediate',
+  lefthandring3: 'leftRingDistal',
+  lefthandpinky1: 'leftLittleProximal',
+  lefthandpinky2: 'leftLittleIntermediate',
+  lefthandpinky3: 'leftLittleDistal',
+  righthandthumb1: 'rightThumbMetacarpal',
+  righthandthumb2: 'rightThumbProximal',
+  righthandthumb3: 'rightThumbDistal',
+  righthandindex1: 'rightIndexProximal',
+  righthandindex2: 'rightIndexIntermediate',
+  righthandindex3: 'rightIndexDistal',
+  righthandmiddle1: 'rightMiddleProximal',
+  righthandmiddle2: 'rightMiddleIntermediate',
+  righthandmiddle3: 'rightMiddleDistal',
+  righthandring1: 'rightRingProximal',
+  righthandring2: 'rightRingIntermediate',
+  righthandring3: 'rightRingDistal',
+  righthandpinky1: 'rightLittleProximal',
+  righthandpinky2: 'rightLittleIntermediate',
+  righthandpinky3: 'rightLittleDistal',
+}
+
+type WoodyRest = {
+  world: BABYLON.Quaternion
+  parentWorld: BABYLON.Quaternion
+}
+
 export class AvatarAnimations {
   static rootAnimationGroups: BABYLON.AnimationGroup[] = []
+  static woodyRest: Record<string, WoodyRest> | null = null
+  static woodyHipsHeight = 1
   animationGroups: (BABYLON.AnimationGroup | undefined)[] = []
   activeAnimationGroup: BABYLON.AnimationGroup | undefined
 
@@ -139,6 +202,7 @@ export class AvatarAnimations {
    * @returns {BABYLON.AnimationGroup[]}
    */
   copy(from: BABYLON.Skeleton) {
+    AvatarAnimations.cacheWoodyRest(from)
     // to avoid a loop-in-a-loop we make a lookup hash for any node having a mixamoring name
     const lookup: Record<string, BABYLON.TransformNode> = {}
     from.bones.forEach((bone) => {
@@ -156,7 +220,7 @@ export class AvatarAnimations {
         targetedAnimationsKey.animation.enableBlending = true
         const boneNode = lookup[targetedAnimationsKey.target.name]
         if (!!boneNode) {
-          if (boneNode!.id.split('.')[0] == 'Clone of mixamorig:Hips') {
+          if (boneNode!.id.split('.')[0] == 'Clone of hips') {
             // wave.glb is Mixamo Z-up: hips ~90deg on X and y~0. Skip those tracks or you wave on your back.
             if (anim.name === 'Wave') return
             // If its the hip bone, copy bone rotation and position (everything BUT scaling)
@@ -170,6 +234,103 @@ export class AvatarAnimations {
             }
           }
         }
+      })
+      groups.push(group)
+    })
+    this.animationGroups = groups
+  }
+
+  /** Cache Woody bind-pose world quats for Mixamo->VRM retarget. */
+  static cacheWoodyRest(skeleton: BABYLON.Skeleton) {
+    if (AvatarAnimations.woodyRest) return
+    skeleton.computeAbsoluteTransforms()
+    const rest: Record<string, WoodyRest> = {}
+    for (const bone of skeleton.bones) {
+      const abs = bone.getAbsoluteTransform()
+      const world = new BABYLON.Quaternion()
+      abs.decompose(undefined, world)
+      let parentWorld = BABYLON.Quaternion.Identity()
+      const parent = bone.getParent()
+      if (parent) {
+        parent.getAbsoluteTransform().decompose(undefined, parentWorld)
+      }
+      rest[bone.name.toLowerCase()] = { world, parentWorld }
+    }
+    const hips = skeleton.bones.find((b) => b.name.toLowerCase() === 'hips')
+    if (hips) AvatarAnimations.woodyHipsHeight = Math.max(0.1, hips.getAbsolutePosition().y)
+    AvatarAnimations.woodyRest = rest
+  }
+
+  /**
+   * Bind Mixamo animation clips onto a VRM skeleton via humanoid bone map.
+   * Rotation keys are rest-pose corrected; hips position is scaled by height ratio.
+   * Call cacheWoodyRest on a Woody skeleton first.
+   */
+  retargetVrm(from: BABYLON.Skeleton, humanoid: Record<string, string>, vrmHipsHeight: number) {
+    const woodyRest = AvatarAnimations.woodyRest
+    if (!woodyRest) {
+      console.error('woody rest pose not cached; cannot retarget VRM')
+      return
+    }
+
+    const byName: Record<string, BABYLON.TransformNode> = {}
+    from.bones.forEach((bone) => {
+      const tn = bone.getTransformNode()
+      if (tn) byName[bone.name] = tn
+    })
+
+    const hipsScale = vrmHipsHeight / AvatarAnimations.woodyHipsHeight
+    const groups: BABYLON.AnimationGroup[] = []
+
+    AvatarAnimations.rootAnimationGroups.forEach((anim) => {
+      const group = anim.clone(anim.name)
+      if (!group) return
+
+      group.targetedAnimations.forEach((ta) => {
+        ta.animation.blendingSpeed = 0.1
+        ta.animation.enableBlending = true
+
+        const mixamoName = ta.target.name.toLowerCase()
+        const humanoidName = MIXAMO_TO_HUMANOID[mixamoName]
+        if (!humanoidName) return
+        const vrmNodeName = humanoid[humanoidName]
+        if (!vrmNodeName) return
+        const boneNode = byName[vrmNodeName]
+        if (!boneNode) return
+
+        const prop = ta.animation.targetProperty
+        if (mixamoName === 'hips') {
+          if (anim.name === 'Wave') return
+          if (prop === 'scaling') return
+          if (prop === 'position') {
+            const keys = ta.animation.getKeys()
+            for (const key of keys) {
+              const v = key.value as BABYLON.Vector3
+              key.value = new BABYLON.Vector3(v.x * hipsScale, v.y * hipsScale, v.z * hipsScale)
+            }
+            ta.target = boneNode
+            return
+          }
+          if (prop === 'rotationQuaternion') {
+            // fall through to rest correction
+          } else {
+            return
+          }
+        } else if (prop !== 'rotationQuaternion') {
+          return
+        }
+
+        const rest = woodyRest[mixamoName]
+        if (rest && prop === 'rotationQuaternion') {
+          const invRest = rest.world.clone()
+          invRest.invert()
+          const keys = ta.animation.getKeys()
+          for (const key of keys) {
+            const q = key.value as BABYLON.Quaternion
+            key.value = rest.parentWorld.clone().multiply(q).multiply(invRest)
+          }
+        }
+        ta.target = boneNode
       })
       groups.push(group)
     })

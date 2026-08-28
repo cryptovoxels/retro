@@ -1,6 +1,6 @@
 import { md5 } from './utils'
 
-export type UploadMediaType = 'parcel-content' | 'womps' | 'assetlibrary'
+export type UploadMediaType = 'parcel-content' | 'womps' | 'assetlibrary' | 'avatar'
 
 export const getFileNameNoExtension = (filenameWithExtension: string) => {
   const a = filenameWithExtension.split('.')
@@ -38,5 +38,6 @@ export function ugcKey(wallet: string, mediaType: UploadMediaType, fileName: str
   const w = wallet.toLowerCase()
   if (mediaType === 'womps') return `${w}/womps/${fileName}`
   if (mediaType === 'assetlibrary') return `${w}/assetlibrary/${fileName}`
+  if (mediaType === 'avatar') return `${w}/avatar/${fileName}`
   return `${w}/${fileName}`
 }

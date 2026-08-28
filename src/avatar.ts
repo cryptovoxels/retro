@@ -4,15 +4,17 @@ import { stringEllipsisInCanvas } from '../web/src/utils'
 import { AvatarAttachmentManager } from './attachment-manager'
 import { AudioEngine } from './audio/audio-engine'
 import { RemoteFlySound } from './audio/fly-sound'
-import { Animations, loadAnimation } from './avatar-animations'
+import { Animations, AvatarAnimations, loadAnimation } from './avatar-animations'
 import type Connector from './connector'
 import { AVATAR_VIEW_DISTANCE } from './constants'
 import { Entity } from './entity'
 import { MeshExtended } from './features/feature'
 import type Parcel from './parcel'
 import { emote } from './utils/emote'
+import { resolveUgc } from './utils/helpers'
 import { Transform } from './utils/transform'
 import { Bubble } from './chat'
+import { humanoidBones } from './vrm-bones'
 
 const ANONYMOUS_NAME = 'anon'
 const DEFAULT_SKIN_SVG =
@@ -39,6 +41,7 @@ export default class Avatar extends Entity {
   private static rootAvatarLoadState = LoadState.None
   private static silhouetteMaterial: BABYLON.StandardMaterial | null = null
   private static silhouetteGroupReady = false
+  private static vrmCache = new Map<string, Promise<{ container: BABYLON.AssetContainer; humanoid: Record<string, string> } | null>>()
   skeleton: BABYLON.Skeleton | null = null
   private readonly _description: AvatarRecord
   private readonly _uuid: string
@@ -56,6 +59,10 @@ export default class Avatar extends Entity {
   private isTyping = false
   private showNameTag = true
   private _inConga = false
+  /** UGC VRM src from the avatar record (ugc://...). */
+  private _src: string | null = null
+  /** Local preview override; undefined means use _src. */
+  private _previewSrc: string | null | undefined = undefined
   /** Remote: uuid of the avatar they follow in conga (from multiplayer). Local unused. */
   private _congaFollowsUuid: string | null = null
   /** Remote drive visual: temporary megavox mesh under this avatar while they drive. */
@@ -116,6 +123,22 @@ export default class Avatar extends Entity {
 
   get isAnon() {
     return this.name === 'anon'
+  }
+
+  get src() {
+    return this._previewSrc !== undefined ? this._previewSrc : this._src
+  }
+
+  /** Preview a VRM on the local avatar without saving. Pass null to preview Woody. */
+  wearPreview(src: string | null) {
+    this._previewSrc = src
+    void this.loadAvatarMesh()
+  }
+
+  /** Drop preview override and reload from saved src. */
+  clearPreview() {
+    this._previewSrc = undefined
+    void this.loadAvatarMesh()
   }
 
   protected _isUser = false
@@ -469,6 +492,14 @@ export default class Avatar extends Entity {
       if (this.isUser) {
         // avatar is anon on spawn and then we load the stuff;
         // This is to make sure we're not waiting for the MP response if the avatar is the user's
+        const wallet = this.wallet
+        if (wallet) {
+          try {
+            await this.fetch(wallet)
+          } catch {
+            // fail soft - woody is fine
+          }
+        }
         await this.loadAvatarMesh()
       } else {
         // we need to set this here because the this.fetch is asynchronous and there is a race condition with Connector.loadUnloadAvatars()
@@ -820,6 +851,7 @@ export default class Avatar extends Entity {
   ): Promise<{
     name?: string | undefined
     costume_id?: number | undefined
+    src?: string | null
   } | null> {
     let url = `/api/avatars/${wallet}.json`
 
@@ -834,8 +866,9 @@ export default class Avatar extends Entity {
 
     const name = (r.avatar && r.avatar.name) || r.avatar?.owner?.slice(0, 10) + '...' || ANONYMOUS_NAME
     const costume = (r.avatar && r.avatar.costume) || {}
+    const src = (r.avatar && r.avatar.src) || null
 
-    let changes: { name?: string; costume_id?: number } | null = null
+    let changes: { name?: string; costume_id?: number; src?: string | null } | null = null
     if (this._description.name != name) {
       changes = {
         name: name,
@@ -851,7 +884,57 @@ export default class Avatar extends Entity {
       changes.costume_id = costume.id
     }
 
+    if (this._src !== src) {
+      if (!changes) changes = {}
+      changes.src = src
+      this._src = src
+    }
+
     return changes
+  }
+
+  private static ensureWoodyRest() {
+    if (AvatarAnimations.woodyRest) return
+    if (!Avatar.woody) return
+    const entries = Avatar.woody.instantiateModelsToScene(() => 'woodyRest', false)
+    if (entries.skeletons[0]) AvatarAnimations.cacheWoodyRest(entries.skeletons[0])
+    entries.dispose()
+  }
+
+  private static loadVrm(scene: BABYLON.Scene, src: string) {
+    const resolved = resolveUgc(src)
+    if (!resolved) return Promise.resolve(null)
+    let pending = Avatar.vrmCache.get(resolved)
+    if (!pending) {
+      pending = (async () => {
+        try {
+          const res = await fetch(resolved)
+          if (!res.ok) throw new Error(`vrm fetch ${res.status}`)
+          const buf = await res.arrayBuffer()
+          const humanoid = humanoidBones(buf)
+          const slash = resolved.lastIndexOf('/')
+          const root = resolved.slice(0, slash + 1)
+          const name = resolved.slice(slash + 1)
+          const container = await new Promise<BABYLON.AssetContainer>((resolve, reject) => {
+            BABYLON.SceneLoader.LoadAssetContainer(
+              root,
+              name,
+              scene,
+              (c) => resolve(c),
+              null,
+              (_s, msg) => reject(msg || 'vrm load failed'),
+              '.glb',
+            )
+          })
+          return { container, humanoid }
+        } catch (e) {
+          console.error('vrm load failed', e)
+          return null
+        }
+      })()
+      Avatar.vrmCache.set(resolved, pending)
+    }
+    return pending
   }
 
   /**
@@ -863,6 +946,17 @@ export default class Avatar extends Entity {
     }
 
     super.load()
+
+    const vrmSrc = this.src
+    if (vrmSrc) {
+      Avatar.ensureWoodyRest()
+      const loaded = await Avatar.loadVrm(this.scene, vrmSrc)
+      if (loaded) {
+        await this.instantiateVrm(loaded.container, loaded.humanoid)
+        return
+      }
+      console.error('falling back to woody')
+    }
 
     const container = Avatar.woody
 
@@ -894,8 +988,6 @@ export default class Avatar extends Entity {
       this._material.diffuseColor.set(1, 1, 1)
       this._material.specularColor.set(1, 1, 1)
       this._material.emissiveColor.set(0.5, 0.5, 0.5)
-      // this._material.disableLighting = true
-      // this._material.specularPower = 1000
     } else {
       this._material.diffuseColor.set(0.82, 0.81, 0.8)
       this._material.emissiveColor.set(0, 0, 0)
@@ -903,6 +995,33 @@ export default class Avatar extends Entity {
     }
     this._material.blockDirtyMechanism = true
 
+    this.finishAvatarMesh(entries.skeletons[0], false)
+  }
+
+  private async instantiateVrm(container: BABYLON.AssetContainer, humanoid: Record<string, string>) {
+    const entries = container.instantiateModelsToScene(() => 'vrm', false)
+    this._avatarMesh = entries.rootNodes[0] as BABYLON.Mesh
+    this._avatarMesh.isPickable = false
+    this._avatarMesh.getChildMeshes().forEach((m) => {
+      m.isPickable = false
+      m.metadata = { isAvatarPart: true }
+    })
+    this._avatarMesh.metadata = { isAvatarPart: true }
+    this._avatarMesh.setParent(this.node)
+    // VRM faces -Z in glTF; Woody faces +Z. Hardcode the flip.
+    this._avatarMesh.rotation.y = Math.PI
+
+    this.armatureMesh = (this._avatarMesh.getChildMeshes().find((m) => !!(m as BABYLON.Mesh).skeleton) as BABYLON.Mesh) || (this._avatarMesh.getChildMeshes()[0] as BABYLON.Mesh)
+    if (this.armatureMesh) {
+      this.armatureMesh.isPickable = false
+      this.armatureMesh.metadata = { isAvatarPart: true }
+    }
+
+    const skeleton = entries.skeletons[0]
+    this.finishAvatarMesh(skeleton, true, humanoid)
+  }
+
+  private finishAvatarMesh(skeleton: BABYLON.Skeleton | undefined, isVrm: boolean, humanoid?: Record<string, string>) {
     if (!this.isUser) {
       this.collider = BABYLON.MeshBuilder.CreateSphere(
         `avatar/collider`,
@@ -920,15 +1039,32 @@ export default class Avatar extends Entity {
       this.collider.setParent(this.node)
     }
 
-    this._avatarMesh.addLODLevel(AVATAR_VIEW_DISTANCE, null)
-    this.armatureMesh.addLODLevel(AVATAR_VIEW_DISTANCE, null)
+    this._avatarMesh?.addLODLevel(AVATAR_VIEW_DISTANCE, null)
+    this.armatureMesh?.addLODLevel(AVATAR_VIEW_DISTANCE, null)
     this.collider?.addLODLevel(AVATAR_VIEW_DISTANCE, null)
 
-    this.skeleton = entries.skeletons[0]
-    this.armatureMesh.skeleton = this.skeleton
-    this.animation?.copy(this.skeleton)
+    this.skeleton = skeleton || null
+    if (this.armatureMesh && this.skeleton) this.armatureMesh.skeleton = this.skeleton
 
-    if (!this.isUser && SILHOUTTES_ENABLED) {
+    if (isVrm && this.skeleton && humanoid) {
+      const hipsName = humanoid.hips
+      const hipsIdx = hipsName ? this.skeleton.getBoneIndexByName(hipsName) : -1
+      const hipsBone = hipsIdx >= 0 ? this.skeleton.bones[hipsIdx] : null
+      const vrmHipsHeight = hipsBone ? Math.max(0.1, hipsBone.getAbsolutePosition().y) : 1
+      this.animation?.retargetVrm(this.skeleton, humanoid, vrmHipsHeight)
+      const headName = humanoid.head
+      const headIdx = headName ? this.skeleton.getBoneIndexByName(headName) : -1
+      this.neckBone = headIdx >= 0 ? this.skeleton.bones[headIdx] : undefined
+    } else if (this.skeleton) {
+      this.animation?.copy(this.skeleton)
+      const t = this.skeleton.getBoneIndexByName('head')
+      this.neckBone = this.skeleton.bones[t]
+      if (!this.neckBone) {
+        console.error('could not find the bone named head')
+      }
+    }
+
+    if (!this.isUser && SILHOUTTES_ENABLED && this.armatureMesh) {
       const sil = this.armatureMesh.clone(`avatar/silhouette/${this._uuid}`, null) as BABYLON.Mesh
       sil.isPickable = false
       sil.metadata = { isAvatarPart: true }
@@ -940,16 +1076,9 @@ export default class Avatar extends Entity {
       this.silhouetteMesh = sil
     }
 
-    const t = this.skeleton?.getBoneIndexByName('mixamorig:Head')
-    this.neckBone = this.skeleton.bones[t]
-    if (!this.neckBone) {
-      console.error('could not find the bone named mixamorig:Head')
-    }
-
     if (this.isUser) {
-      // Make sure we don't hide avatar when out of camera frustum if avatar is us
-      this._avatarMesh.alwaysSelectAsActiveMesh = true
-      this.armatureMesh.alwaysSelectAsActiveMesh = true
+      if (this._avatarMesh) this._avatarMesh.alwaysSelectAsActiveMesh = true
+      if (this.armatureMesh) this.armatureMesh.alwaysSelectAsActiveMesh = true
     }
 
     if (this.showNameTag) {
@@ -959,19 +1088,16 @@ export default class Avatar extends Entity {
     this._attachmentManager = new AvatarAttachmentManager(this.scene, this, AVATAR_VIEW_DISTANCE - 1)
 
     if (this.wallet) {
-      this._attachmentManager.loadCostume(undefined, this._description.costumeId)
+      // todo: route costume attachments through humanoid map for VRMs
+      if (!isVrm) this._attachmentManager.loadCostume(undefined, this._description.costumeId)
       this.addEvents()
     }
 
-    // Hide by default if this is the current user and it shouldn't be displayed
     if (this.isUser && !window.connector.controls.showSelfAvatar) {
       this.hide()
     }
 
-    // these should always be zero relative to this.parent, but if a user teleports and the system tries to load
-    // avatars that it already has data for, the meshes will be offset due to the absolute and relative coordinate
-    // systems we are using to fix an z-fighting issue on far away islands
-    this._avatarMesh.position.set(0, -AVATAR_HEIGHT, 0)
+    this._avatarMesh?.position.set(0, -AVATAR_HEIGHT, 0)
     this.silhouetteMesh?.position.set(0, -AVATAR_HEIGHT, 0)
     this.collider?.position.set(0, -AVATAR_HEIGHT / 2, 0)
 

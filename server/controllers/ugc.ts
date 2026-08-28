@@ -5,7 +5,7 @@ import { presignPut, ugcConfigured, ugcExists } from '../lib/ugc'
 import { VoxelsUserRequest } from '../user'
 
 const MAX_UPLOAD = 50 * 1024 * 1024
-const ALLOWED_EXT = /\.(jpe?g|gif|png|webp|vox|mp3|mp4)$/i
+const ALLOWED_EXT = /\.(jpe?g|gif|png|webp|vox|mp3|mp4|vrm)$/i
 
 function allowedName(name: string) {
   if (!name || name.length > 512) return false
@@ -40,7 +40,7 @@ export default function UgcController(passport: PassportStatic, app: Express) {
       return res.status(400).json({ success: false, error: 'file must be under 50MB' })
     }
 
-    const type: UploadMediaType = mediaType === 'womps' || mediaType === 'assetlibrary' ? mediaType : 'parcel-content'
+    const type: UploadMediaType = mediaType === 'womps' || mediaType === 'assetlibrary' || mediaType === 'avatar' ? mediaType : 'parcel-content'
     const key = ugcKey(wallet, type, name)
     if (await ugcExists(key)) return res.json({ success: true, exists: true, key })
     const uploadUrl = await presignPut(key, contentType || 'application/octet-stream', size)

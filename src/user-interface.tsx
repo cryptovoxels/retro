@@ -77,6 +77,7 @@ import CustomizeVoxels from './ui/overlay/customize-voxels'
 import { NftBrowser } from './ui/overlay/nft-browser'
 import ParcelSnapshots from './ui/parcel-snapshots'
 import { SettingsUI } from './ui/settings'
+import { AvatarTab } from './ui/avatar-tab'
 import TakeWomp from './ui/take-womp'
 import WompButton from './ui/womp-button'
 
@@ -116,7 +117,7 @@ export enum Mode {
   Avatar,
 }
 
-export type UIPanes = 'add' | 'edit' | 'voxels' | 'debugTool' | 'nfts' | 'chat' | 'dance' | 'emote' | 'yeet' | 'settings' | 'womp' | 'takeWomp' | 'help' | 'login' | 'parcelSnapshots' | 'broadcast'
+export type UIPanes = 'add' | 'edit' | 'voxels' | 'debugTool' | 'nfts' | 'chat' | 'dance' | 'emote' | 'yeet' | 'settings' | 'avatar' | 'womp' | 'takeWomp' | 'help' | 'login' | 'parcelSnapshots' | 'broadcast'
 
 export interface Tool {
   activate: () => void
@@ -960,6 +961,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return <YeetPane />
       case 'settings':
         return <SettingsUI scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
+      case 'avatar':
+        return <AvatarTab />
       case 'womp':
         return <WompOverlay scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
       case 'takeWomp': {
@@ -1077,6 +1080,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
               <li class={active('settings')}>
                 <a href="#preferences" onMouseOver={onHover('settings')} onClick={onClick('settings')}>
                   Settings
+                </a>
+              </li>
+              <li class={active('avatar')}>
+                <a href="#avatar" onMouseOver={onHover('avatar')} onClick={onClick('avatar')}>
+                  Avatar
                 </a>
               </li>
               <li class={active('dance')}>

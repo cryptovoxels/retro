@@ -2623,6 +2623,9 @@ components:
           $ref: '#/components/schemas/Costume'
         home_id:
           type: [integer, 'null']
+        src:
+          type: [string, 'null']
+          description: UGC VRM url (ugc://...) when wearing a custom avatar mesh.
         created_at:
           type: [string, 'null']
           description: Pacific/Auckland, not UTC.

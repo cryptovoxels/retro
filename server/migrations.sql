@@ -357,3 +357,7 @@ $$);
 SELECT apply_migration('chat-moderated-at', $$
   ALTER TABLE chat_messages ADD COLUMN IF NOT EXISTS moderated_at timestamptz;
 $$);
+
+SELECT apply_migration('avatars-src', $$
+  ALTER TABLE avatars ADD COLUMN IF NOT EXISTS src text;
+$$);
