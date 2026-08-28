@@ -90,11 +90,12 @@ function applyGhostLook(avatar: Avatar, ghostId: string) {
   avatar.nametag = false
   const m = avatar.material
   if (!m) return
-  m.diffuseColor.set(0.25, 0.95, 0.35)
-  m.emissiveColor.set(0.08, 0.35, 0.12)
+  m.diffuseColor.set(0, 0, 0)
+  m.emissiveColor.set(0, 0, 0)
   m.specularColor.set(0.1, 0.2, 0.1)
-  m.alpha = 0.35
-  m.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
+  // m.alpha = 0.35
+  // m.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
+  // m.needDepthPrePass = true
   const collider = (avatar as any).collider
   if (collider) {
     collider.isPickable = false

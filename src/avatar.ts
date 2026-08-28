@@ -17,6 +17,7 @@ import { Bubble } from './chat'
 const ANONYMOUS_NAME = 'anon'
 const DEFAULT_SKIN_SVG =
   '<?xml version="1.0" encoding="UTF-8"?><svg width="644px" style="background-color:white" height="641px" viewBox="0 0 644 641" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"></svg>'
+const SILHOUTTES_ENABLED = false
 
 enum LoadState {
   None,
@@ -894,11 +895,7 @@ export default class Avatar extends Entity {
       this._material.specularColor.set(1, 1, 1)
       this._material.emissiveColor.set(0.5, 0.5, 0.5)
       // this._material.disableLighting = true
-      this._material.specularPower = 1000
-
-      this.armatureMesh.outlineColor = new BABYLON.Color3(0.05, 0.05, 0.05)
-      this.armatureMesh.outlineWidth = 0.02
-      this.armatureMesh.renderOutline = true
+      // this._material.specularPower = 1000
     } else {
       this._material.diffuseColor.set(0.82, 0.81, 0.8)
       this._material.emissiveColor.set(0, 0, 0)
@@ -931,10 +928,9 @@ export default class Avatar extends Entity {
     this.armatureMesh.skeleton = this.skeleton
     this.animation?.copy(this.skeleton)
 
-    if (!this.isUser) {
+    if (!this.isUser && SILHOUTTES_ENABLED) {
       const sil = this.armatureMesh.clone(`avatar/silhouette/${this._uuid}`, null) as BABYLON.Mesh
       sil.isPickable = false
-      sil.renderOutline = false
       sil.metadata = { isAvatarPart: true }
       sil.skeleton = this.skeleton
       sil.material = Avatar.ensureSilhouetteMaterial(this.scene)
