@@ -23,6 +23,7 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 - [events](#events), 6 routes
 - [search](#search), 1 route
 - [ghosts](#ghosts), 1 route
+- [chat](#chat), 1 route
 - [schemas](#schemas), 23 shapes
 
 ## parcels
@@ -1274,6 +1275,26 @@ Returns up to 10 anonymous movement fragments whose start or end parcel matches.
   - `success` boolean
   - `ghosts` array of [`Ghost`](#ghost)
 - `400` The lookup did not land. Some handlers send this with status 200.
+
+## chat
+
+- [`GET /api/chat.json`](#get-apichatjson) Recent chat messages
+
+### GET /api/chat.json
+
+Recent chat messages
+
+Returns up to 200 unmoderated chat messages in chronological order. Used by the client on connect instead of replaying history over the multiplayer websocket.
+
+**answers**
+
+- `200` object
+  - `messages` array of object
+    - `id` string
+    - `uuid` string
+    - `text` string
+    - `avatar` anything: AvatarRef snapshot at send time
+    - `moderated` boolean
 
 ## schemas
 

@@ -67,8 +67,13 @@ function send(message: messages.Message) {
 export function connectShardChat() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return ws
 
-  // clear before open so a fast Send is not wiped by history replay setup
-  if (!(window as any).connector) messageList.value = []
+  // clear before open so a fast Send is not wiped by history setup
+  if (!(window as any).connector) {
+    messageList.value = []
+    chatMessages.value = []
+  }
+
+  void fetchChatHistory()
 
   ws = new WebSocket(socketUrl())
   ws.binaryType = 'arraybuffer'
@@ -98,6 +103,27 @@ export function connectShardChat() {
   }
 
   return ws
+}
+
+async function fetchChatHistory() {
+  if ((window as any).connector) return
+  try {
+    const res = await fetch('/api/chat.json', { cache: 'no-store' })
+    const data = await res.json()
+    const lines: ShardChatLine[] = []
+    const list: typeof messageList.value = []
+    for (const m of data.messages ?? []) {
+      const text = entityDecode(m.text)
+      const who = chatLineName(m.avatar)
+      lines.push({ text, uuid: m.uuid, who })
+      list.push({ id: m.id, moderated: m.moderated, avatar: undefined, avatarRef: m.avatar ?? who, text, timestamp: Date.now() })
+    }
+    // history under any live lines that arrived during the fetch
+    chatMessages.value = [...lines, ...chatMessages.value]
+    const merged = [...list, ...messageList.value]
+    while (merged.length > 1000) merged.shift()
+    messageList.value = merged
+  } catch {}
 }
 
 export function disconnectShardChat() {

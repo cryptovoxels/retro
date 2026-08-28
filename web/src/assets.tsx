@@ -23,7 +23,7 @@ interface Props {
 }
 
 export function bucketUrl(id: string) {
-  return `https://ugc.crvox.com/renders/asset-${id}.png`
+  return `https://ugc.voxels.com/renders/asset-${id}.png`
 }
 
 export function renderUrl(id: string) {
@@ -101,27 +101,27 @@ export default function Library(props: Props) {
   const list =
     controls.view === 'list'
       ? assets.map((asset) => (
-          <tr class="asset">
-            <td>
-              <input type="checkbox" />
-            </td>
-            <td>
-              <Image type={asset.type} src={bucketUrl(asset.id!)} altsrc={renderUrl(asset.id!)} />
-            </td>
-            <td>
-              <InplaceEdit value={asset.name} onChange={onRename(asset)}>
-                <a href={`/assets/${asset.id}`}>{asset.name}</a>
-              </InplaceEdit>
-            </td>
-            <td>{canEdit(asset) && <a href={`/assets/${asset.id}/edit`}>Edit</a>}</td>
-          </tr>
-        ))
+        <tr class="asset">
+          <td>
+            <input type="checkbox" />
+          </td>
+          <td>
+            <Image type={asset.type} src={bucketUrl(asset.id!)} altsrc={renderUrl(asset.id!)} />
+          </td>
+          <td>
+            <InplaceEdit value={asset.name} onChange={onRename(asset)}>
+              <a href={`/assets/${asset.id}`}>{asset.name}</a>
+            </InplaceEdit>
+          </td>
+          <td>{canEdit(asset) && <a href={`/assets/${asset.id}/edit`}>Edit</a>}</td>
+        </tr>
+      ))
       : assets.map((asset) => (
-          <div class="asset" onClick={() => route(`/assets/${asset.id}`)}>
-            <Image src={bucketUrl(asset.id!)} altsrc={renderUrl(asset.id!)} />
-            <p>{asset.name}</p>
-          </div>
-        ))
+        <div class="asset" onClick={() => route(`/assets/${asset.id}`)}>
+          <Image src={bucketUrl(asset.id!)} altsrc={renderUrl(asset.id!)} />
+          <p>{asset.name}</p>
+        </div>
+      ))
 
   return (
     <section class="columns">

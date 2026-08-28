@@ -1,6 +1,6 @@
 // ABOUTME: Deterministic CDN URLs for rendered thumbs. Key: {version}/{type}/{uuid}.{ext}
 
-const CDN = 'https://ugc.crvox.com'
+const CDN = 'https://ugc.voxels.com'
 const VERSION = 'v1'
 
 export function thumbKey(type: string, uuid: string, ext = 'webp') {

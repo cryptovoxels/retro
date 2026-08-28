@@ -12,7 +12,7 @@ const BUCKET = 'voxels-ugc'
 const REGION = 'syd1'
 const ENDPOINT = 'https://syd1.digitaloceanspaces.com'
 const ACCESS_KEY_ID = process.env.UGC_ACCESS || ''
-const CDN = 'https://ugc.crvox.com'
+const CDN = 'https://ugc.voxels.com'
 
 export type SpotKind = 'en' | 'ar'
 
@@ -155,9 +155,9 @@ async function script(db: Db, redis: any, kind: SpotKind): Promise<{ text: strin
   const hot = pop.length ? pop.map((p) => `- ${p.name || p.address}`).join('\n') : '- the streets are quiet'
   const onln = here.length
     ? here
-        .slice(0, 6)
-        .map((h) => `- ${h}`)
-        .join('\n')
+      .slice(0, 6)
+      .map((h) => `- ${h}`)
+      .join('\n')
     : '- nobody around right now'
   const posts = blog.length ? blog.map((b) => `- ${b}`).join('\n') : '- no posts'
   const chats = chatter.length ? chatter.map((c) => `- ${c}`).join('\n') : '- chat is quiet'
@@ -224,7 +224,7 @@ async function presence(redis: any): Promise<{ parcel: number | null; name: stri
       try {
         const u = JSON.parse(v ?? 'null')
         if (u) out.push({ parcel: u.parcel ?? null, name: avatarName(u.avatar) })
-      } catch {}
+      } catch { }
     }
     return out
   } catch {

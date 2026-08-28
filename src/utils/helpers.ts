@@ -100,7 +100,7 @@ export const tidyURL = (urlCandidate: any): string | undefined => {
 
 export const resolveUgc = (url?: string) => {
   if (!url) return url
-  return url.startsWith('ugc://') ? 'https://ugc.crvox.com/' + url.slice(6) : url
+  return url.startsWith('ugc://') ? 'https://ugc.voxels.com/' + url.slice(6) : url
 }
 
 /**

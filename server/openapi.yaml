@@ -30,8 +30,42 @@ tags:
   - name: events
   - name: search
   - name: ghosts
+  - name: chat
 
 paths:
+  /api/chat.json:
+    get:
+      operationId: listChat
+      tags: [chat]
+      summary: Recent chat messages
+      description: |
+        Returns up to 200 unmoderated chat messages in chronological order.
+        Used by the client on connect instead of replaying history over the
+        multiplayer websocket.
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        uuid:
+                          type: string
+                        text:
+                          type: string
+                        avatar:
+                          description: AvatarRef snapshot at send time
+                        moderated:
+                          type: boolean
+
   /api/ghosts:
     get:
       operationId: listGhosts

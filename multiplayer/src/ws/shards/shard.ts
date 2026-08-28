@@ -162,10 +162,6 @@ export class Shard {
       throw error
     }
     client.send(toBuffer(messages.JoinEncoder(msg)), msg.type)
-
-    for (const m of this.recentChat) {
-      client.send(toBuffer(messages.ChatEncoder(m)), m.type)
-    }
   }
 
   removeClient(clientUUID: ClientUUID): void {

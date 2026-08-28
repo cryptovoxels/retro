@@ -102,7 +102,7 @@ export default function AssetLibraryController(db: Db, passport: PassportStatic,
       })
     }
 
-    const s3Url = `https://ugc.crvox.com/${Key}`
+    const s3Url = `https://ugc.voxels.com/${Key}`
 
     // Confirm the file exists
     const fileExists = await fetch(s3Url)

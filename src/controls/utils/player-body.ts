@@ -14,7 +14,7 @@ export const RUN = 12.65 // was runSpeed 4.0
 export const JUMP_SPEED = 6
 export const HOP_SPEED = 3
 export const GRAVITY = -9.8
-export const WALK_HZ = 0.15
+export const WALK_HZ = 0.05
 
 export type Motion = { hz: number; vy: number; impact: number }
 
@@ -119,5 +119,6 @@ export default class PlayerBody {
 
     this.body.setNextKinematicTranslation(next)
     this.position.set(next.x, next.y + DROP, next.z)
+    this.writeMotion(Math.hypot(stepped.x, stepped.z) / dt, 0)
   }
 }

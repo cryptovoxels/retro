@@ -53,6 +53,7 @@ import ExternalsController from './controllers/externals'
 import ModerationReportsController from './controllers/reports'
 import WompsController from './controllers/womps'
 import GhostsController from './controllers/ghosts'
+import ChatController from './controllers/chat'
 import IslandBoardController from './controllers/island-board'
 import BlogController from './controllers/blog'
 import { ingestReleaseNotes } from './blog-ingest'
@@ -405,6 +406,7 @@ CostumesController(db, passport, app)
 WompsController(db, passport, app)
 // Ghosts (anonymous path fragments)
 GhostsController(db, passport, app)
+ChatController(db, app)
 
 IslandBoardController(db, passport, app)
 BlogController(db, passport, app)
