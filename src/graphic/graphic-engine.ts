@@ -80,7 +80,7 @@ export class GraphicEngine extends TypedEventTarget<{
     const surface = this.engine.surfaces[0]
     const useFullDpr =
       !isBatterySaver() && (this.#level === GraphicLevels.Low || this.#level === GraphicLevels.Medium)
-    surface.maxDevicePixelRatio = useFullDpr ? this.devicePixelRatio : 1
+    surface.maxDevicePixelRatio = 1 / 2 // this.devicePixelRatio : 1
     resizeEngine(this.engine)
   }
 }

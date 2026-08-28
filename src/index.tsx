@@ -152,7 +152,7 @@ async function main() {
 
   const canvas = document.createElement('canvas')
   canvas.id = 'renderCanvas'
-  canvas.style.cssText = 'width: 100%; height: 100%; display: none; touch-action: none;'
+  canvas.style.cssText = 'width: 100%; height: 100%; display: none; touch-action: none; image-rendering: pixelated;'
   document.body.appendChild(canvas)
 
   canvas.addEventListener(
