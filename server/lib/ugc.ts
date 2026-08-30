@@ -18,6 +18,9 @@ export function ugcClient() {
     endpoint: UGC_ENDPOINT,
     credentials: { accessKeyId, secretAccessKey },
     forcePathStyle: false,
+    // DO Spaces chokes on the SDK's default crc32: it bakes x-amz-checksum-crc32
+    // of an empty body into the presigned URL, so the real PUT fails the digest.
+    requestChecksumCalculation: 'WHEN_REQUIRED',
   })
 }
 
