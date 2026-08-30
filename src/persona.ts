@@ -211,7 +211,7 @@ export default class Persona {
     if (driveYaw != null) {
       // seated: face the car nose, not the orbiting camera
       this.rotation.y = driveYaw
-    } else {
+    } else if (!controls.camera?.orbit) {
       this.rotation.y = rotation.y
     }
 

@@ -13,6 +13,10 @@ function localAvatar() {
   return window.connector?.persona?.avatar
 }
 
+function controls() {
+  return window.connector?.controls
+}
+
 export class AvatarTab extends Component<{}, State> {
   state: State = {
     busy: false,
@@ -20,6 +24,25 @@ export class AvatarTab extends Component<{}, State> {
     errors: [],
     pendingSrc: null,
     status: '',
+  }
+
+  private wasFirstPerson = true
+
+  beginPreviewCam() {
+    const c = controls()
+    if (!c) return
+    this.wasFirstPerson = c.firstPersonView
+    if (c.firstPersonView) c.enterThirdPerson()
+    c.camera.orbit = true
+    c.camera.autoRotate = true
+  }
+
+  endPreviewCam() {
+    const c = controls()
+    if (!c) return
+    c.camera.orbit = false
+    c.camera.autoRotate = false
+    if (this.wasFirstPerson) c.enterFirstPerson()
   }
 
   onFile = async (e: Event) => {
@@ -46,6 +69,7 @@ export class AvatarTab extends Component<{}, State> {
     }
 
     localAvatar()?.wearPreview(result.location)
+    this.beginPreviewCam()
     this.setState({ busy: false, pendingSrc: result.location, progress: 100, status: 'previewing - hit save to keep it' })
   }
 
@@ -66,6 +90,7 @@ export class AvatarTab extends Component<{}, State> {
         return
       }
       localAvatar()?.clearPreview()
+      this.endPreviewCam()
       this.setState({ busy: false, pendingSrc: null, status: 'saved' })
     } catch (e) {
       this.setState({ busy: false, errors: [e instanceof Error ? e.message : 'save failed'], status: '' })
@@ -95,6 +120,7 @@ export class AvatarTab extends Component<{}, State> {
 
   cancelPreview = () => {
     localAvatar()?.clearPreview()
+    this.endPreviewCam()
     this.setState({ pendingSrc: null, status: '', errors: [] })
   }
 

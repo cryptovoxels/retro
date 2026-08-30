@@ -1008,7 +1008,8 @@ export default class Avatar extends Entity {
     })
     this._avatarMesh.metadata = { isAvatarPart: true }
     this._avatarMesh.setParent(this.node)
-    // VRM faces -Z in glTF; Woody faces +Z. Hardcode the flip.
+    // VRM faces -Z in glTF; Woody faces +Z. Yaw 180 (never mirror - a Z scale flip
+    // reflects skeleton handedness and bends every joint backwards).
     this._avatarMesh.rotation.y = Math.PI
 
     this.armatureMesh = (this._avatarMesh.getChildMeshes().find((m) => !!(m as BABYLON.Mesh).skeleton) as BABYLON.Mesh) || (this._avatarMesh.getChildMeshes()[0] as BABYLON.Mesh)
