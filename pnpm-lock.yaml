@@ -380,9 +380,6 @@ importers:
       texture-compressor:
         specifier: ^1.0.2
         version: 1.0.2
-      throng:
-        specifier: ^5.0.0
-        version: 5.0.0
       timeago.js:
         specifier: 4.0.2
         version: 4.0.2
@@ -535,9 +532,6 @@ importers:
       '@types/strftime':
         specifier: ^0.9.4
         version: 0.9.8
-      '@types/throng':
-        specifier: ^5.0.4
-        version: 5.0.7
       '@types/tmp':
         specifier: ^0.2.0
         version: 0.2.6
@@ -2610,9 +2604,6 @@ packages:
   '@types/tape@4.13.4':
     resolution: {integrity: sha512-0Mw8/FAMheD2MvyaFYDaAix7X5GfNjl/XI+zvqJdzC6N05BmHKz6Hwn+r7+8PEXDEKrC3V/irC9z7mrl5a130g==}
 
-  '@types/throng@5.0.7':
-    resolution: {integrity: sha512-O8TBC55LPTOYPXak2Ft7meBksgHituuw49xx7gZy1+BcCO1tRGGD8Eqp2bFDFcLp0vKrsOg/Y077dmHjGiOmWQ==}
-
   '@types/through@0.0.33':
     resolution: {integrity: sha512-HsJ+z3QuETzP3cswwtzt2vEIiHBk/dCcHGhbmG5X3ecnwFD/lPrMpliGXxSCg03L9AhrdwA4Oz/qfspkDW+xGQ==}
 
@@ -3331,6 +3322,7 @@ packages:
   cron-parser@4.9.0:
     resolution: {integrity: sha512-p0SaNjrHOnQeR8/VnfGbmg9te2kfyYSQ7Sc/j/6DtPL3JQvKxmjO9TSjNFpujqV3vEYYBvNNvXSxzyksBWAx1Q==}
     engines: {node: '>=12.0.0'}
+    deprecated: v4 is no longer maintained, upgrade to v5
 
   cross-spawn@6.0.6:
     resolution: {integrity: sha512-VqCUuhcd1iB+dsv8gxPttb5iZh/D0iubSP21g36KXdEuf6I5JiioesUVjpCdHV9MZRUfVFlvwtIUyPfxo5trtw==}
@@ -3345,6 +3337,7 @@ packages:
 
   crypto-js@4.2.0:
     resolution: {integrity: sha512-KALDyEYgpY+Rlob/iriUtjV6d5Eq+Y191A5g4UqLAi8CyGP9N1+FdVbkc1SxKc2r4YAYqG8JzO2KGL+AizD70Q==}
+    deprecated: Active development of CryptoJS has been discontinued. This library is no longer maintained.
 
   cssstyle@4.6.0:
     resolution: {integrity: sha512-2z+rWdzbbSZv6/rhtvzvqeZQHrBaqgogqt85sqFNbabZOuFbCVFb8kPeEtZjiKkbrm395irpNKiYeFeLiQnFPg==}
@@ -5335,6 +5328,7 @@ packages:
   prom-client@14.2.0:
     resolution: {integrity: sha512-sF308EhTenb/pDRPakm+WgiN+VdM/T1RaHj1x+MvAuT8UiQP8JmOEbxVqtkbfR4LrvOg5n7ic01kRBDGXjYikA==}
     engines: {node: '>=10'}
+    deprecated: prom-client has been replaced by @prometheus-io/client
 
   property-expr@2.0.6:
     resolution: {integrity: sha512-SVtmxhRE/CGkn3eZY1T6pC8Nln6Fr/lu1mKSgRud0eC73whjGfoAogbn78LkD8aFL0zz3bAFerKSnOl7NlErBA==}
@@ -6022,10 +6016,6 @@ packages:
     peerDependencies:
       tslib: ^2
 
-  throng@5.0.0:
-    resolution: {integrity: sha512-nrq7+qQhn/DL8yW/wiwImTepfi6ynOCAe7moSwgoYN1F32yQMdBkuFII40oAkb3cDfaL6q5BIoFTDCHdMWQ8Pw==}
-    engines: {node: '>= 10'}
-
   through2@2.0.5:
     resolution: {integrity: sha512-/mrRod8xqpA+IHSLyGCQ2s8SPHiCDEeQJSep1jqLYeEUClOFG2Qsh+4FU6G9VeqpZnGW/Su8LQGc4YKni5rYSQ==}
 
@@ -6310,6 +6300,7 @@ packages:
 
   uuid@8.3.2:
     resolution: {integrity: sha512-+NYs2QeMWy+GWFOEm9xnn6HCDp0l7QBD7ml8zLUmJ+93Q5NF0NocErnwkTkXVFNiX3/fpC6afS8Dhb/gz7R7eg==}
+    deprecated: uuid@10 and below is no longer supported.  For ESM codebases, update to uuid@latest.  For CommonJS codebases, use uuid@11 (but be aware this version will likely be deprecated in 2028).
     hasBin: true
 
   validate-npm-package-license@3.0.4:
@@ -9462,8 +9453,6 @@ snapshots:
     dependencies:
       '@types/node': 25.9.5
       '@types/through': 0.0.33
-
-  '@types/throng@5.0.7': {}
 
   '@types/through@0.0.33':
     dependencies:
@@ -13414,10 +13403,6 @@ snapshots:
   thingies@2.6.0(tslib@2.8.1):
     dependencies:
       tslib: 2.8.1
-
-  throng@5.0.0:
-    dependencies:
-      lodash: 4.17.23
 
   through2@2.0.5:
     dependencies:

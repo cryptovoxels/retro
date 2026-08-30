@@ -60,7 +60,7 @@ import { ingestReleaseNotes } from './blog-ingest'
 import createGridSocket from './grid/createGridSocket'
 import { searchAndReturn } from './handlers/search'
 import { EthereumListener } from './jobs/ethereum-listener'
-import truncateMetrics from './jobs/truncate-metrics'
+import startJobs from './cronjobs'
 import log from './lib/logger'
 import { createRequestHandlerForQuery, query } from './lib/query-helpers'
 import { getTypeOfContract } from './lib/utils'
@@ -80,7 +80,6 @@ import responseTime from 'response-time'
 import 'babylonjs' // BABYLON
 // Our requires
 import { stat } from 'fs/promises'
-import throng from 'throng'
 import config from '../common/config'
 import loadRoutes from '../web/load-routes'
 // @ts-expect-error - this is un-typed
@@ -619,30 +618,6 @@ const start = () => {
   })
 }
 
-const master = () => {
-  log.info(`master() running on DYNO=${process.env.DYNO} PORT=${port}`) //TODO: Remove
-
-  // truncate the next-to-be-reused metrics table once per day
-  setTimeout(() => {
-    setInterval(() => truncateMetrics(), 1000 * 60 * 60 * 24)
-    truncateMetrics()
-  }, 1000)
-
-  EthereumListener()
-}
-
-const WORKERS = Number(process.env.TEST_WEB_CONCURRENCY || '1')
-log.info(`WORKERS=${WORKERS}`) //TODO: Remove
-
-if (WORKERS > 1) {
-  throng({
-    workers: WORKERS,
-    worker: start,
-    master: master,
-    lifetime: Infinity,
-    start,
-  })
-} else {
-  start()
-  master()
-}
+start()
+startJobs()
+EthereumListener()

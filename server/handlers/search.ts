@@ -19,7 +19,7 @@ export async function searchAndReturn(req: Request, res: Response) {
     return
   }
 
-  q = `%${q}%`
+  const like = `%${q}%`
 
   const limit = 50
   const page = 0
@@ -42,17 +42,29 @@ export async function searchAndReturn(req: Request, res: Response) {
   //  Refresh when you need to pick up new/updated rows:
   //    REFRESH MATERIALIZED VIEW CONCURRENTLY search_corpus;
 
+  // explicit parcel name/address match so things like "2 niven walk" always land
+  const parcelQuery = `
+  SELECT
+    id::text AS id, COALESCE(name, address) AS name, 'parcel' AS type,
+    NULL AS description, minted_at AS created_at, 1 AS rank
+  FROM
+    properties
+  WHERE
+    (minted OR is_common) AND (name ILIKE $1 OR address ILIKE $1)
+  ORDER BY
+    minted_at DESC
+  LIMIT
+    $2;
+  `
+
   let results = []
 
   try {
-    const queryConfig: any = {
-      text: query,
-      name: 'search.sql',
-      values: [q, limit, page * limit],
-    }
+    const [ftsResult, parcelResult] = await Promise.all([db.query<any>({ text: query, name: 'search.sql', values: [q, limit, page * limit] }), db.query<any>({ text: parcelQuery, name: 'search-parcels.sql', values: [like, limit] })])
 
-    const queryResult = await db.query<any>(queryConfig)
-    results = queryResult.rows
+    // parcels first, then dedupe fts rows that already matched a parcel
+    const seen = new Set(parcelResult.rows.map((r: any) => `${r.type}:${r.id}`))
+    results = [...parcelResult.rows, ...ftsResult.rows.filter((r: any) => !seen.has(`${r.type}:${r.id}`))]
   } catch (err: any) {
     if (err.toString().match(/not been populated/)) {
       pgp.query(`REFRESH MATERIALIZED VIEW search_corpus;`)
