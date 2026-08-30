@@ -511,6 +511,8 @@ export default abstract class Controls implements IControls {
       this.toggleZoom()
     }
     this.firstPersonView = true
+    this.camera.orbit = false
+    this.camera.autoRotate = false
     this.camera.rotation.x = 0
     return true
   }

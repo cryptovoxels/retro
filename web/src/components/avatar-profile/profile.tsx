@@ -189,7 +189,7 @@ export default function Profile(props: Props) {
           </>
         )}
 
-        <WompsList title="Womps" numberToShow={20} collapsed={false} ttl={60} fetch={`/womps/by/${walletOrUUId}`} />
+        <WompsList title="Womps" numberToShow={20} collapsed={false} ttl={60} fetch={`/womps/by/${walletOrUUId}`} quiet />
       </article>
     </section>
   )

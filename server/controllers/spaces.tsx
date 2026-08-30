@@ -46,7 +46,6 @@ export default function SpacesController(db: Db, _passport: PassportStatic, app:
     res.redirect(`/spaces/${id}`)
   })
 
-
   app.get(
     '/api/spaces/:id.json',
     cache(false),

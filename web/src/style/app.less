@@ -407,6 +407,34 @@ select {
   }
 }
 
+.cube-spin {
+  top: 0;
+  min-width: var(--size);
+  min-height: var(--size);
+  width: var(--size);
+  height: var(--size);
+  vertical-align: middle;
+  animation: cube-spin 1s linear infinite;
+}
+
+@keyframes cube-spin {
+  from {
+    transform: rotateX(-15deg) rotateY(-35deg);
+  }
+
+  to {
+    transform: rotateX(-15deg) rotateY(325deg);
+  }
+}
+
+.cube-page {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 40vh;
+  padding: 2rem;
+}
+
 .voxel-radio {
   display: flex;
   border-radius: 6px;
@@ -1133,20 +1161,34 @@ div.map {
   }
 
   .chat-line {
-    display: flex;
-    gap: 0.5rem;
     line-height: 1.4;
-    padding: 0.15rem 0;
+    padding: 0.15rem 0 0.15rem 1.5rem;
+    text-indent: -1.5rem;
+    word-break: break-word;
   }
 
   .chat-who {
     font-weight: bold;
     color: var(--red);
-    flex-shrink: 0;
+    text-decoration: none;
   }
 
-  .chat-text {
-    word-break: break-word;
+  .chat-anon {
+    color: inherit;
+  }
+
+  .chat-x {
+    all: unset;
+    float: right;
+    cursor: pointer;
+    color: var(--muted);
+  }
+
+  .chat-gap {
+    text-align: center;
+    font-size: x-small;
+    color: var(--muted);
+    padding: 0.5rem 0;
   }
 
   s.profanity {
@@ -1772,7 +1814,7 @@ section.profile {
   background: var(--hover);
   position: relative;
 
-  .loading {
+  .cube-spin {
     position: absolute;
     left: 50%;
     top: 50%;
@@ -2570,45 +2612,6 @@ table.spaces {
   }
 }
 
-/* Loading spinner */
-.loading {
-  display: inline-block;
-  box-sizing: border-box;
-  flex-shrink: 0;
-  vertical-align: middle;
-  border: 2px solid currentColor;
-  border-top-color: var(--red);
-  border-right-color: transparent;
-  opacity: 0.9;
-  animation: loading-icon-spin 0.75s linear infinite;
-  background: none;
-  position: relative;
-  top: 0;
-  margin: 0;
-
-  &.on-light {
-    color: var(--line);
-  }
-}
-
-@-moz-keyframes loading-icon-spin {
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-@-webkit-keyframes loading-icon-spin {
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes loading-icon-spin {
-  100% {
-    transform: rotate(360deg);
-  }
-}
-
 // Panel helpers
 .panel {
   padding: 5px;
@@ -2910,6 +2913,13 @@ body.walking .canvasdom aside > ul.ui-sidebar {
       font-weight: bold;
       color: var(--red);
       text-shadow: none;
+    }
+
+    .chat-x {
+      all: unset;
+      cursor: pointer;
+      margin-left: 0.25rem;
+      opacity: 0.6;
     }
   }
 

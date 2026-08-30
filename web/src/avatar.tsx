@@ -2,8 +2,8 @@ import { isAddress } from 'ethers'
 import { Component } from 'preact'
 import { ApiAvatar } from '../../common/messages/api-avatars'
 import Profile from './components/avatar-profile/profile'
+import { loadingBox } from './components/loading-icon'
 import cachedFetch from './helpers/cached-fetch'
-import { Spinner } from './spinner'
 import { app } from './state'
 import { fetchOptions } from './utils'
 
@@ -69,7 +69,7 @@ export default class Avatar extends Component<Props, State> {
 
   render() {
     if (this.state.loading) {
-      return <Spinner size={24} />
+      return loadingBox(24)
     }
 
     if (!this.exists()) {

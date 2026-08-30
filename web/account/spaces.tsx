@@ -1,7 +1,6 @@
 import { Component } from 'preact'
 import { SimpleSpaceRecord } from '../../common/messages/space'
 import { avatarName } from '../../common/messages/avatar-ref'
-import { loadingBox } from '../src/components/loading-icon'
 import cachedFetch from '../src/helpers/cached-fetch'
 import { fetchOptions } from '../src/utils'
 
@@ -51,7 +50,7 @@ export class Spaces extends Component<Props, State> {
 
   render() {
     if (this.state.loading) {
-      return loadingBox()
+      return null
     }
 
     const showTheseMany = 16

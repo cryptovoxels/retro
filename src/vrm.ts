@@ -130,6 +130,40 @@ async function boundsErrors(doc: Document, getBounds: (n: any) => { min: number[
   return errors
 }
 
+/** Best-effort 0.x -> 1.0: synth VRMC_vrm humanoid, drop legacy VRM. Rig is left
+ * alone - instantiateVrm yaws 180 and retargetVrm handles the keys. */
+function upgradeVrm0(doc: Document, vrmExt: any): boolean {
+  const root = doc.getRoot()
+  const legacy = root.listExtensionsUsed().find((e) => e.extensionName === 'VRM') as any
+  const bonesArr = legacy?.data?.humanoid?.humanBones
+  if (!Array.isArray(bonesArr)) return false
+
+  const nodes = root.listNodes()
+  const humanBones: Record<string, { node: number }> = {}
+  const ext = doc.createExtension(vrmExt.VRMCVRM) as any
+  for (const b of bonesArr) {
+    const node = typeof b?.node === 'number' ? nodes[b.node] : null
+    if (!b?.bone || !node) continue
+    humanBones[b.bone] = { node: 0 } // rewritten on write from humanoidBoneNodes
+    ext.humanoidBoneNodes.set(b.bone, node)
+  }
+  if (!Object.keys(humanBones).length) return false
+
+  // VRMCVRM.write sets json.samplers = this.samplers - empty = wipe = babylon sampler:0 fail
+  ext.samplers = Array.isArray(legacy.samplers) && legacy.samplers.length ? legacy.samplers.slice() : [{ magFilter: 9729, minFilter: 9729, wrapS: 10497, wrapT: 10497 }]
+
+  ext.data = {
+    specVersion: '1.0',
+    meta: { name: legacy?.data?.meta?.title || 'avatar', licenseUrl: '', avatarPermission: 'onlyAuthor' },
+    humanoid: { humanBones },
+  }
+
+  try {
+    legacy.dispose()
+  } catch {}
+  return true
+}
+
 export async function compileVrm(file: File): Promise<CompileVrmResult> {
   const { WebIO, functions, vrmExt, MeshoptSimplifier } = await loadLibs()
   const io = new WebIO().registerExtensions(vrmExt.VRMC_VRM_EXTENSIONS)
@@ -142,7 +176,12 @@ export async function compileVrm(file: File): Promise<CompileVrmResult> {
     return { bytes: null, errors: [`failed to read VRM: ${e instanceof Error ? e.message : String(e)}`] }
   }
 
-  // early reject 0.x before we bother transforming
+  if (hasExt(doc, 'VRM') && !hasExt(doc, 'VRMC_vrm')) {
+    if (!upgradeVrm0(doc, vrmExt)) {
+      return { bytes: null, errors: ['this is VRM 0.x - re-export as VRM 1.0'] }
+    }
+  }
+
   const early = vrmTest(doc)
   if (early.some((e) => e.includes('VRM 0.x') || e.includes('not a VRM'))) {
     return { bytes: null, errors: early }

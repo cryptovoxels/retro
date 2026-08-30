@@ -1,6 +1,5 @@
 import { h } from 'preact'
 import { useState } from 'preact/hooks'
-import { Spinner } from '../spinner'
 
 interface Props {
   src: string
@@ -78,7 +77,6 @@ export default function Image({ type, src, altsrc, alt = '', class: className }:
   if (fallback) {
     return (
       <div class="loading-image">
-        <Spinner size={16} />
         <img onError={() => setFailed(true)} onLoad={() => setLoaded(true)} src={altsrc} alt={alt} class={className} />
       </div>
     )

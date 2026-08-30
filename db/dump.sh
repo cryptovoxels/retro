@@ -96,6 +96,7 @@ dump_table "spaces" "
   ORDER BY visits DESC NULLS LAST
   LIMIT 500
 "
+dump_table "chat_messages" "SELECT * FROM chat_messages ORDER BY created_at DESC LIMIT 200"
 
 cat <<EOF >> $OUTPUT_FILE
 COMMIT;

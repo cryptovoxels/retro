@@ -17,6 +17,10 @@ export default class LoadingIcon extends Component<Props, any> {
   }
 }
 
-export function loadingBox(size = 92) {
-  return <Spinner size={size} />
+export function loadingBox(size = 48) {
+  return (
+    <div class="cube-page">
+      <Spinner size={size} />
+    </div>
+  )
 }
