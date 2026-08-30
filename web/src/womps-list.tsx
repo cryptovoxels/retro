@@ -22,6 +22,7 @@ interface Props {
   // in-world explorer: cards teleport instead of routing, see-more swaps the panel
   onWompClick?: (womp: Womp) => void
   onSeeMore?: () => void
+  quiet?: boolean
 }
 
 interface State {
@@ -88,7 +89,7 @@ export default class WompsList extends Component<Props, State> {
 
   render() {
     if (!this.state.loaded && !this.props.womps) {
-      return <Spinner size={24} />
+      return this.props.quiet ? null : <Spinner size={24} />
     }
 
     const allWomps = this.state.womps!.map((womp) => {

@@ -1,7 +1,6 @@
 import { sortBy } from 'lodash'
 import { Component } from 'preact'
 import ParcelHelper from '../../common/helpers/parcel-helper'
-import { loadingBox } from '../src/components/loading-icon'
 import PropertyItem from '../src/components/property-item'
 import cachedFetch from '../src/helpers/cached-fetch'
 import { fetchOptions } from '../src/utils'
@@ -86,7 +85,7 @@ export class Contributor extends Component<Props, State> {
 
   render() {
     if (this.state.loading) {
-      return loadingBox()
+      return null
     }
 
     const showTheseMany = 10

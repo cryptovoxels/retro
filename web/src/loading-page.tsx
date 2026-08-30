@@ -1,5 +1,5 @@
 import { VNode } from 'preact'
-import LoadingIcon from './components/loading-icon'
+import { loadingBox } from './components/loading-icon'
 
 export default function LoadingPage(props: { admin?: boolean; text?: string; children?: VNode[] }) {
   if (!!props.admin) {
@@ -11,11 +11,7 @@ export default function LoadingPage(props: { admin?: boolean; text?: string; chi
           <title>Voxels - Admin</title>
         </head>
 
-        <section>
-          <div>
-            <LoadingIcon />
-          </div>
-        </section>
+        <section>{loadingBox()}</section>
       </div>
     )
   }
@@ -26,11 +22,8 @@ export default function LoadingPage(props: { admin?: boolean; text?: string; chi
         <title>Voxels</title>
       </head>
 
-      <div>
-        <span>
-          <LoadingIcon /> {props.text}
-        </span>
-      </div>
+      {loadingBox()}
+      {props.text && <p style={{ textAlign: 'center' }}>{props.text}</p>}
     </section>
   )
 }

@@ -1,5 +1,4 @@
 import { Component } from 'preact'
-import { Spinner } from '../spinner'
 import { requestThumb } from '../helpers/voxel-thumb'
 
 type Props = {
@@ -54,11 +53,7 @@ export default class VoxelImage extends Component<Props, State> {
 
     if (failed) return <div class={className} />
     if (!url) {
-      return (
-        <div class={['loading-image', className].filter(Boolean).join(' ')}>
-          <Spinner size={18} bg="light" />
-        </div>
-      )
+      return <div class={['loading-image', className].filter(Boolean).join(' ')} />
     }
     return <img src={url} alt={alt} class={className} />
   }

@@ -1,7 +1,7 @@
 import { Component } from 'preact'
 import { ApiAvatar } from '../../common/messages/api-avatars'
 import Profile from './components/avatar-profile/profile'
-import { Spinner } from './spinner'
+import { loadingBox } from './components/loading-icon'
 import { app } from './state'
 import { fetchOptions } from './utils'
 
@@ -42,7 +42,7 @@ export default class Home extends Component<Props, State> {
 
   render() {
     if (!this.state.avatar) {
-      return <Spinner size={24} />
+      return loadingBox(24)
     }
 
     return <Profile walletOrUUId={this.wallet} isOwner={true} tab={this.props.tab} />

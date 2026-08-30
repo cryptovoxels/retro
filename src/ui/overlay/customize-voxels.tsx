@@ -1,6 +1,7 @@
 import { debounce } from 'lodash'
 import { Component } from 'preact'
 import { blocks, defaultColors } from '../../../common/content/blocks'
+import { Spinner } from '../../../web/src/spinner'
 import type Parcel from '../../parcel'
 
 const DEFAULT_TILESET = '/textures/atlas-ao.png?voxelscom'
@@ -463,7 +464,7 @@ export default class CustomizeVoxels extends Component<Props, State> {
         </div>
         {this.state.uploading && (
           <div>
-            <div className="loading"></div>
+            <Spinner size={16} />
             {this.state.uploadingText}
           </div>
         )}
