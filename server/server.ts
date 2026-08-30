@@ -56,7 +56,6 @@ import GhostsController from './controllers/ghosts'
 import ChatController from './controllers/chat'
 import IslandBoardController from './controllers/island-board'
 import BlogController from './controllers/blog'
-import { ingestReleaseNotes } from './blog-ingest'
 import createGridSocket from './grid/createGridSocket'
 import { searchAndReturn } from './handlers/search'
 import { EthereumListener } from './jobs/ethereum-listener'
@@ -153,7 +152,7 @@ if (process.env.NODE_ENV === 'development') {
   })
 }
 
-// Enable if you're behind a reverse proxy (Heroku, Bluemix, AWS ELB, Nginx, etc) see https://expressjs.com/en/guide/behind-proxies.html
+// Enable if you're behind a reverse proxy (Digital Ocean App Platform, Nginx, etc) see https://expressjs.com/en/guide/behind-proxies.html
 app.set('trust proxy', 1)
 const httpServer = http.createServer(app)
 
@@ -409,7 +408,6 @@ ChatController(db, app)
 
 IslandBoardController(db, passport, app)
 BlogController(db, passport, app)
-void ingestReleaseNotes().catch((e) => console.error('blog ingest failed:', e))
 // Spaces
 SpacesController(db, passport, app)
 // collections

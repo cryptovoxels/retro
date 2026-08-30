@@ -41,6 +41,9 @@ export default function PostPage(props: {
   const [busy, setBusy] = useState(false)
   const [loading, setLoading] = useState(!props.post && !!slug)
   const [copied, setCopied] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [editTitle, setEditTitle] = useState('')
+  const [editBody, setEditBody] = useState('')
   const [, tick] = useState(0)
 
   const load = () => {
@@ -91,6 +94,29 @@ export default function PostPage(props: {
     await fetch(`/api/comments/${id}/remove`, fetchOptions(undefined, JSON.stringify({})))
     await invalidateUrl(`/api/posts/${slug}.json`, true)
     load()
+  }
+
+  const startEdit = () => {
+    if (!post) return
+    setEditTitle(post.title)
+    setEditBody(post.body)
+    setEditing(true)
+  }
+
+  const saveEdit = async () => {
+    if (!post || !editTitle.trim() || !editBody.trim() || busy) return
+    setBusy(true)
+    try {
+      const r = await fetch('/api/posts', fetchOptions(undefined, JSON.stringify({ slug: post.slug, title: editTitle, body: editBody }))).then((x) => x.json())
+      if (r.success) {
+        setEditing(false)
+        await invalidateUrl(`/api/posts/${slug}.json`, true)
+        await invalidateUrl('/api/posts.json', true)
+        load()
+      }
+    } finally {
+      setBusy(false)
+    }
   }
 
   const shareUrl = slug ? postShareUrl(slug) : ''
@@ -160,18 +186,50 @@ export default function PostPage(props: {
       <h1>{post.title}</h1>
       <p>
         {authorLabel(post.author)} · {new Date(post.created_at).toLocaleDateString()}
+        {app.isAdmin() && !editing && (
+          <>
+            {' '}
+            ·{' '}
+            <button type="button" onClick={startEdit}>
+              edit
+            </button>
+          </>
+        )}
       </p>
-      {!props.onBack && (
-        <p class="post-share">
-          <button type="button" onClick={copyLink}>
-            {copied ? 'Copied' : 'Copy link'}
-          </button>{' '}
-          <a href={tweetUrl} target="_blank" rel="noopener noreferrer">
-            Share on X
-          </a>
-        </p>
+      {editing && app.isAdmin() ? (
+        <form>
+          <div class="f">
+            <label>title</label>
+            <input type="text" value={editTitle} onInput={(e) => setEditTitle((e.target as HTMLInputElement).value)} />
+          </div>
+          <div class="f">
+            <label>body</label>
+            <textarea value={editBody} rows={12} onInput={(e) => setEditBody((e.target as HTMLTextAreaElement).value)} />
+          </div>
+          <div class="f">
+            <button type="button" disabled={busy} onClick={saveEdit}>
+              save
+            </button>{' '}
+            <button type="button" disabled={busy} onClick={() => setEditing(false)}>
+              cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        <>
+          {!props.onBack && (
+            <p class="post-share">
+              <button type="button" onClick={copyLink}>
+                {copied ? 'Copied' : 'Copy link'}
+              </button>{' '}
+              <a href={tweetUrl} target="_blank" rel="noopener noreferrer">
+                Share on X
+              </a>
+            </p>
+          )}
+          <div dangerouslySetInnerHTML={{ __html: html }} />
+        </>
       )}
-      <div dangerouslySetInnerHTML={{ __html: html }} />
 
       <h3>comments</h3>
       <ul>

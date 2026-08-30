@@ -562,9 +562,6 @@ importers:
       happy-dom:
         specifier: ^20.8.9
         version: 20.8.9
-      heroku-client:
-        specifier: ^3.1.0
-        version: 3.1.1
       jsdom:
         specifier: ^26.1.0
         version: 26.1.0
@@ -4095,10 +4092,6 @@ packages:
     resolution: {integrity: sha512-a+YgzWw6dajqhQfb6ktxil0FsQuWTKzrLSUfy55dxS8fuvl1jidTIMPZ2udN15mjjcpBPgTHNHGF5tyWKYyR8w==}
     engines: {node: '>=10.0.0'}
 
-  heroku-client@3.1.1:
-    resolution: {integrity: sha512-pddaffngJ57sYfAZhzbIrbPpUpfnTmwq+RS2Hng7BuQRTrmXjBd8LBxs/lQ8etfPRRrv4ol+kwCu84GL/bsFyQ==}
-    engines: {node: '>=6.0.0'}
-
   hosted-git-info@2.8.9:
     resolution: {integrity: sha512-mxIDAb9Lsm6DoOJ7xH+5+X4y1LU/4Hi50L9C5sIswK3JzULS4bwk1FvjdBgvYR4bzT4tuUQiC15FE2f5HbLvYw==}
 
@@ -4359,10 +4352,6 @@ packages:
   is-regex@1.2.1:
     resolution: {integrity: sha512-MjYsKHO5O7mCsmRGxWcLWheFqN9DJ/2TmngvjKXihe6efViPqc274+Fx/4fYj/r03+ESvBdTXK0V6tA3rgez1g==}
     engines: {node: '>= 0.4'}
-
-  is-retry-allowed@1.2.0:
-    resolution: {integrity: sha512-RUbUeKwvm3XG2VYamhJL1xFktgjvPzL0Hq8C+6yrWIswDy3BIXGqCxhxkc30N9jqK311gVU137K8Ei55/zVJRg==}
-    engines: {node: '>=0.10.0'}
 
   is-set@2.0.3:
     resolution: {integrity: sha512-iPAjerrse27/ygGLxw+EBR9agv9Y6uLeYVJMu+QNCoouJ1/1ri0mGrcWpfCqFZuzzx3WjtwxG098X+n4OuRkPg==}
@@ -6166,9 +6155,6 @@ packages:
   tsyringe@4.10.0:
     resolution: {integrity: sha512-axr3IdNuVIxnaK5XGEUFTu3YmAQ6lllgrvqfEoR16g/HGnYY/6We4oWENtAnzK6/LpJ2ur9PAb80RBt7/U4ugw==}
     engines: {node: '>= 6.0.0'}
-
-  tunnel-agent@0.6.0:
-    resolution: {integrity: sha512-McnNiV1l8RYeY8tBgEpuodCC1mLUdbSN+CYBL7kJsJNInOP8UjDDEwdk6Mw60vdLLrr5NHKZhMAOSrR2NZuQ+w==}
 
   turf-jsts@1.2.3:
     resolution: {integrity: sha512-Ja03QIJlPuHt4IQ2FfGex4F4JAr8m3jpaHbFbQrgwr7s7L6U8ocrHiF3J1+wf9jzhGKxvDeaCAnGDot8OjGFyA==}
@@ -11183,11 +11169,6 @@ snapshots:
 
   helmet-csp@3.4.0: {}
 
-  heroku-client@3.1.1:
-    dependencies:
-      is-retry-allowed: 1.2.0
-      tunnel-agent: 0.6.0
-
   hosted-git-info@2.8.9: {}
 
   hpack.js@2.1.6:
@@ -11451,8 +11432,6 @@ snapshots:
       gopd: 1.2.0
       has-tostringtag: 1.0.2
       hasown: 2.0.2
-
-  is-retry-allowed@1.2.0: {}
 
   is-set@2.0.3: {}
 
@@ -13533,10 +13512,6 @@ snapshots:
   tsyringe@4.10.0:
     dependencies:
       tslib: 1.14.1
-
-  tunnel-agent@0.6.0:
-    dependencies:
-      safe-buffer: 5.2.1
 
   turf-jsts@1.2.3: {}
 

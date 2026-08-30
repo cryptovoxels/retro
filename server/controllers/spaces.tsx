@@ -19,6 +19,34 @@ const parse = {
 }
 
 export default function SpacesController(db: Db, _passport: PassportStatic, app: Express) {
+  // check id exists and redirect
+
+  app.get('/spaces/:id/play', async (req, res) => {
+    const { id } = req.params
+    if (!isValidUUID(id)) {
+      res.status(404).send('not found')
+      return
+    }
+
+    // check if space exists
+    let result
+    try {
+      result = await db.query('spaces/check-id-exists', 'select id from spaces where id=$1', [id])
+    } catch (err) {
+      res.status(500).send('internal error')
+      return
+    }
+
+    if (!result || !result.rows || result.rows.length === 0) {
+      res.status(404).send('not found')
+      return
+    }
+
+    // redirect to player for this space
+    res.redirect(`/spaces/${id}`)
+  })
+
+
   app.get(
     '/api/spaces/:id.json',
     cache(false),

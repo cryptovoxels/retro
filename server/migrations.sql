@@ -361,3 +361,7 @@ $$);
 SELECT apply_migration('avatars-src', $$
   ALTER TABLE avatars ADD COLUMN IF NOT EXISTS src text;
 $$);
+
+SELECT apply_migration('posts-hash', $$
+  ALTER TABLE posts ADD COLUMN IF NOT EXISTS hash text UNIQUE;
+$$);

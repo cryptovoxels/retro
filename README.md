@@ -24,7 +24,8 @@ guidelines.
 
 # Infrastructure
 
-Thie app is deployed to digitalocean app platform from `main` at https://retro.voxels.com
+This app deploys to Digital Ocean App Platform from `main` at https://retro.voxels.com.
+Deploy pre-job runs `npm run predeploy` (migrate + release-blog).
 
 # Operations
 
