@@ -131,7 +131,7 @@ export class AvatarTab extends Component<{}, State> {
     return (
       <div>
         <h3>avatar</h3>
-        <p>upload a VRM 1.0. we compile it, test it hard, then you preview before saving.</p>
+        <p>upload a VRM 0.x. we compile it, test it hard, then you preview before saving.</p>
 
         <div class="f">
           <label>vrm file</label>

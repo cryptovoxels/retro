@@ -1,4 +1,5 @@
 import type { Document } from '@gltf-transform/core'
+import { humanoidBones } from './vrm-bones'
 
 const REQUIRED_BONES = ['hips', 'spine', 'head', 'leftUpperArm', 'leftLowerArm', 'leftHand', 'rightUpperArm', 'rightLowerArm', 'rightHand', 'leftUpperLeg', 'leftLowerLeg', 'leftFoot', 'rightUpperLeg', 'rightLowerLeg', 'rightFoot'] as const
 
@@ -17,8 +18,8 @@ export type CompileVrmResult = {
 }
 
 async function loadLibs() {
-  const [{ WebIO }, functions, vrmExt, { MeshoptSimplifier }] = await Promise.all([import('@gltf-transform/core'), import('@gltf-transform/functions'), import('gltf-transform-vrm-extensions'), import('meshoptimizer')])
-  return { WebIO, functions, vrmExt, MeshoptSimplifier }
+  const [{ WebIO }, functions, vrmExt, { MeshoptSimplifier, MeshoptEncoder }] = await Promise.all([import('@gltf-transform/core'), import('@gltf-transform/functions'), import('gltf-transform-vrm-extensions'), import('meshoptimizer')])
+  return { WebIO, functions, vrmExt, MeshoptSimplifier, MeshoptEncoder }
 }
 
 function countTriangles(doc: Document): number {
@@ -47,16 +48,17 @@ function countJoints(doc: Document): number {
 
 function humanoidFromDoc(doc: Document): Record<string, string> {
   const root = doc.getRoot() as any
-  // VRMCVRM stores humanoid on the extension instance after read
-  const ext = root.listExtensionsUsed?.()?.find((e: any) => e.extensionName === 'VRMC_vrm')
-  if (ext?.getHumanoidBoneNodes) {
-    const out: Record<string, string> = {}
-    for (const [bone, node] of ext.getHumanoidBoneNodes()) {
-      out[bone] = node.getName()
-    }
-    return out
+  // legacy VRM 0.x: humanBones is an array of { bone, node } with raw node indices
+  const legacy = root.listExtensionsUsed?.()?.find((e: any) => e.extensionName === 'VRM')
+  const bonesArr = legacy?.data?.humanoid?.humanBones
+  if (!Array.isArray(bonesArr)) return {}
+  const nodes = root.listNodes()
+  const out: Record<string, string> = {}
+  for (const b of bonesArr) {
+    const node = typeof b?.node === 'number' ? nodes[b.node] : null
+    if (b?.bone && node) out[b.bone] = node.getName()
   }
-  return {}
+  return out
 }
 
 function hasExt(doc: Document, name: string): boolean {
@@ -69,12 +71,12 @@ function hasExt(doc: Document, name: string): boolean {
 export function vrmTest(doc: Document, compiledBytes?: number): string[] {
   const errors: string[] = []
 
-  if (hasExt(doc, 'VRM') && !hasExt(doc, 'VRMC_vrm')) {
-    errors.push('this is VRM 0.x - re-export as VRM 1.0')
+  if (hasExt(doc, 'VRMC_vrm') && !hasExt(doc, 'VRM')) {
+    errors.push('this is VRM 1.0 - re-export as VRM 0.x')
     return errors
   }
-  if (!hasExt(doc, 'VRMC_vrm')) {
-    errors.push('not a VRM 1.0 file (missing VRMC_vrm)')
+  if (!hasExt(doc, 'VRM')) {
+    errors.push('not a VRM 0.x file (missing VRM)')
     return errors
   }
 
@@ -130,42 +132,36 @@ async function boundsErrors(doc: Document, getBounds: (n: any) => { min: number[
   return errors
 }
 
-/** Best-effort 0.x -> 1.0: synth VRMC_vrm humanoid, drop legacy VRM. Rig is left
- * alone - instantiateVrm yaws 180 and retargetVrm handles the keys. */
-function upgradeVrm0(doc: Document, vrmExt: any): boolean {
-  const root = doc.getRoot()
-  const legacy = root.listExtensionsUsed().find((e) => e.extensionName === 'VRM') as any
-  const bonesArr = legacy?.data?.humanoid?.humanBones
-  if (!Array.isArray(bonesArr)) return false
-
-  const nodes = root.listNodes()
-  const humanBones: Record<string, { node: number }> = {}
-  const ext = doc.createExtension(vrmExt.VRMCVRM) as any
-  for (const b of bonesArr) {
-    const node = typeof b?.node === 'number' ? nodes[b.node] : null
-    if (!b?.bone || !node) continue
-    humanBones[b.bone] = { node: 0 } // rewritten on write from humanoidBoneNodes
-    ext.humanoidBoneNodes.set(b.bone, node)
+/** Merge prims to cut draw calls. join() skips skinned nodes, so do it by hand:
+ * within each mesh (skin is constant) group by material, skip morph targets
+ * (joinPrimitives refuses them - keeps the VRoid face prim separate), merge each
+ * group of 2+. Nodes are untouched, so 0.x humanoid node indices stay valid. */
+function mergePrims(doc: Document, joinPrimitives: (prims: any[]) => any) {
+  for (const mesh of doc.getRoot().listMeshes()) {
+    const groups = new Map<any, any[]>()
+    for (const prim of mesh.listPrimitives()) {
+      if (prim.listTargets().length) continue
+      const mat = prim.getMaterial()
+      const arr = groups.get(mat)
+      if (arr) arr.push(prim)
+      else groups.set(mat, [prim])
+    }
+    for (const prims of groups.values()) {
+      if (prims.length < 2) continue
+      let merged: any
+      try {
+        merged = joinPrimitives(prims)
+      } catch {
+        continue
+      }
+      for (const p of prims) p.dispose()
+      mesh.addPrimitive(merged)
+    }
   }
-  if (!Object.keys(humanBones).length) return false
-
-  // VRMCVRM.write sets json.samplers = this.samplers - empty = wipe = babylon sampler:0 fail
-  ext.samplers = Array.isArray(legacy.samplers) && legacy.samplers.length ? legacy.samplers.slice() : [{ magFilter: 9729, minFilter: 9729, wrapS: 10497, wrapT: 10497 }]
-
-  ext.data = {
-    specVersion: '1.0',
-    meta: { name: legacy?.data?.meta?.title || 'avatar', licenseUrl: '', avatarPermission: 'onlyAuthor' },
-    humanoid: { humanBones },
-  }
-
-  try {
-    legacy.dispose()
-  } catch {}
-  return true
 }
 
 export async function compileVrm(file: File): Promise<CompileVrmResult> {
-  const { WebIO, functions, vrmExt, MeshoptSimplifier } = await loadLibs()
+  const { WebIO, functions, vrmExt, MeshoptSimplifier, MeshoptEncoder } = await loadLibs()
   const io = new WebIO().registerExtensions(vrmExt.VRMC_VRM_EXTENSIONS)
 
   let doc: Document
@@ -176,26 +172,23 @@ export async function compileVrm(file: File): Promise<CompileVrmResult> {
     return { bytes: null, errors: [`failed to read VRM: ${e instanceof Error ? e.message : String(e)}`] }
   }
 
-  if (hasExt(doc, 'VRM') && !hasExt(doc, 'VRMC_vrm')) {
-    if (!upgradeVrm0(doc, vrmExt)) {
-      return { bytes: null, errors: ['this is VRM 0.x - re-export as VRM 1.0'] }
-    }
-  }
-
   const early = vrmTest(doc)
-  if (early.some((e) => e.includes('VRM 0.x') || e.includes('not a VRM'))) {
+  if (early.some((e) => e.includes('VRM 1.0') || e.includes('not a VRM'))) {
     return { bytes: null, errors: early }
   }
 
-  const trisBefore = countTriangles(doc)
-  const transforms: any[] = [functions.dedup(), functions.weld(), functions.prune(), functions.textureCompress({ targetFormat: 'webp', resize: [1024, 1024] })]
-  if (trisBefore > MAX_TRIANGLES) {
-    const ratio = Math.max(0.05, MAX_TRIANGLES / trisBefore)
-    transforms.splice(2, 0, functions.simplify({ simplifier: MeshoptSimplifier, ratio, error: 0.01 }))
-  }
-
   try {
-    await doc.transform(...transforms)
+    await MeshoptEncoder.ready
+    const trisBefore = countTriangles(doc)
+    const pre: any[] = [functions.dedup(), functions.weld()]
+    if (trisBefore > MAX_TRIANGLES) {
+      const ratio = Math.max(0.05, MAX_TRIANGLES / trisBefore)
+      pre.push(functions.simplify({ simplifier: MeshoptSimplifier, ratio, error: 0.01 }))
+    }
+    await doc.transform(...pre)
+    mergePrims(doc, functions.joinPrimitives)
+    // keepLeaves: raw node indices in the legacy VRM humanoid block must not shift
+    await doc.transform(functions.prune({ keepLeaves: true }), functions.textureCompress({ targetFormat: 'webp', resize: [1024, 1024] }), functions.reorder({ encoder: MeshoptEncoder }))
   } catch (e) {
     return { bytes: null, errors: [`compile failed: ${e instanceof Error ? e.message : String(e)}`] }
   }
@@ -212,6 +205,12 @@ export async function compileVrm(file: File): Promise<CompileVrmResult> {
 
   if (bytes.byteLength > MAX_BYTES) {
     return { bytes: null, errors: [`compiled size ${(bytes.byteLength / 1024 / 1024).toFixed(1)}MB (max 5MB)`] }
+  }
+
+  // canary: a shifted node index silently breaks the humanoid map - catch it here
+  const map = humanoidBones(bytes.buffer as ArrayBuffer)
+  for (const bone of REQUIRED_BONES) {
+    if (!map[bone]) return { bytes: null, errors: [`compile corrupted humanoid (missing ${bone})`] }
   }
 
   return { bytes, errors: [] }

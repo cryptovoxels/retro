@@ -1,4 +1,4 @@
-/** Parse GLB JSON chunk; map VRMC_vrm humanoid bone name -> node name. No gltf-transform. */
+/** Parse GLB JSON chunk; map VRM 0.x humanoid bone name -> node name. No gltf-transform. */
 export function humanoidBones(bytes: ArrayBuffer): Record<string, string> {
   const view = new DataView(bytes)
   if (view.getUint32(0, true) !== 0x46546c67) return {} // glTF
@@ -12,13 +12,14 @@ export function humanoidBones(bytes: ArrayBuffer): Record<string, string> {
   } catch {
     return {}
   }
-  const bones = gltf?.extensions?.VRMC_vrm?.humanoid?.humanBones
-  if (!bones || !gltf.nodes) return {}
+  // 0.x: humanBones is an array of { bone, node }
+  const bones = gltf?.extensions?.VRM?.humanoid?.humanBones
+  if (!Array.isArray(bones) || !gltf.nodes) return {}
   const out: Record<string, string> = {}
-  for (const [name, entry] of Object.entries(bones) as [string, { node?: number }][]) {
-    if (entry?.node == null) continue
+  for (const entry of bones) {
+    if (entry?.node == null || !entry?.bone) continue
     const node = gltf.nodes[entry.node]
-    if (node?.name) out[name] = node.name
+    if (node?.name) out[entry.bone] = node.name
   }
   return out
 }
