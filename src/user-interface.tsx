@@ -23,7 +23,6 @@ import type { FeatureTemplate } from './features/_metadata'
 import type Grid from './grid'
 import type { MinimapSettings } from './minimap'
 import Parcel from './parcel'
-import { Animations } from './avatar-animations'
 import {
   selectCurrentOrNearestParcel,
   selectNearestEditableParcel,
@@ -54,7 +53,6 @@ import { MaterialDebugTab } from './ui/debug/material-debug-tab'
 import { OceanDebugTab } from './ui/debug/ocean-debug-tab'
 import { PumpDebugTab } from './ui/debug/pump-debug-tab'
 import { FeatureEditor } from './ui/features/misc'
-import { openExplore } from '../web/src/helpers/open-explore'
 import HomeButton from './ui/home-button'
 import { ChatOverlay, chatSettings } from './ui/interact/chat'
 import { voiceSettings } from './voice-settings'
@@ -62,7 +60,6 @@ import { DancePane } from './ui/interact/dance-pane'
 import { EmotePane } from './ui/interact/emote-pane'
 import { YeetPane } from './ui/interact/yeet-pane'
 import { HelpOverlay } from './ui/interact/help'
-import { SandboxGuide, SandboxGuideMini } from './ui/sandbox-guide'
 import { FirstTimeInstructions } from '../web/src/components/first-time-instructions'
 import { BroadcastSidebarTab } from '../web/src/broadcast-sidebar-tab'
 import { ShowboxBroadcastPane } from '../web/src/showbox-broadcast-pane'
@@ -83,14 +80,10 @@ import WompButton from './ui/womp-button'
 
 const NUMBER_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const
 
-const wantsLearnQuery = () => typeof location !== 'undefined' && new URLSearchParams(location.search).get('learn') === 'true'
-
-const isOnSandboxParcel = () => {
+const isSandbox = () => {
   const p = selectNearestEditableParcel() ?? (typeof window !== 'undefined' ? window.grid?.nearestEditableParcel?.() : null)
   return !!(p as any)?.sandbox
 }
-
-const wantsSandboxGuide = () => wantsLearnQuery() || isOnSandboxParcel()
 
 const Location = (props: { scene: BABYLON.Scene; signedIn: any }) => {
   const currentOrNearestParcel = selectCurrentOrNearestParcel()
@@ -156,10 +149,6 @@ type UserInterfaceState = {
   publishAsset?: FeatureTemplate | string
   /** Shown next to minimap expand; same source as Explore radar */
   onlineCount: number
-  sandboxGuideOpen?: boolean
-  sandboxGuideMini?: boolean
-  sandboxGuideRestart?: boolean
-  sandboxGuideKey?: number
   chatEnabled: boolean
   dragging?: boolean
   voice?: 'off' | 'live' | 'muted'
@@ -189,11 +178,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   chatListDispose?: () => void
   parcelEditDispose?: () => void
   uiPaneDispose?: () => void
-  sandboxGuideParcelDispose?: () => void
-  sandboxLookDispose?: () => void
   wompPollTimer: ReturnType<typeof setInterval> | null = null
   latestWompId = 0
-  sandboxRollingBack = false
 
   constructor(props: UserInterfaceProps) {
     super(props)
@@ -378,26 +364,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     // teach Explore: badge when a new public womp lands while you're in world
     void this.pollNewWomp()
     this.wompPollTimer = setInterval(() => void this.pollNewWomp(), 45_000)
-
-    if ((wantsLearnQuery() || isOnSandboxParcel()) && !isMobileMedia()) {
-      this.setState({ sandboxGuideOpen: true, sandboxGuideMini: false, sandboxGuideRestart: false })
-    }
-
-    this.sandboxGuideParcelDispose = effect(() => {
-      nearestEditableParcel.value
-      if (isMobileMedia()) return
-      if (!isOnSandboxParcel()) return
-      if (this.state.sandboxGuideOpen || this.state.sandboxGuideRestart) return
-      this.setState({ sandboxGuideOpen: true, sandboxGuideMini: false, sandboxGuideRestart: false })
-    })
-
-    this.sandboxLookDispose = effect(() => {
-      nearestEditableParcel.value
-      const on = isOnSandboxParcel()
-      try {
-        window._color?.setSandboxLook?.(on)
-      } catch {}
-    })
   }
 
   private static WOMP_SEEN_KEY = 'voxels-explore-last-womp'
@@ -442,62 +408,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     if (this.state.newWomp) this.setState({ newWomp: false })
   }
 
-  enterSandboxGuideMini = () => {
-    exitPointerLock()
-    uiPane.value = 'add'
-    this.setState({ pane: 'add', sandboxGuideMini: true })
-  }
-
-  celebrateSandboxGuideComplete = () => {
-    exitPointerLock()
-    this.connector.emote('🔥')
-    this.connector.persona.playEmote(Animations.Dance)
-    this.setState({ sandboxGuideOpen: false, sandboxGuideMini: false, sandboxGuideRestart: true })
-  }
-
-  restartSandboxGuide = () => {
-    uiPane.value = undefined
-    this.setState({
-      sandboxGuideMini: false,
-      sandboxGuideKey: (this.state.sandboxGuideKey || 0) + 1,
-      pane: undefined,
-    })
-  }
-
-  openSandboxGuide = () => {
-    uiPane.value = undefined
-    this.setState({
-      sandboxGuideOpen: true,
-      sandboxGuideMini: false,
-      sandboxGuideRestart: false,
-      sandboxGuideKey: (this.state.sandboxGuideKey || 0) + 1,
-      pane: undefined,
-    })
-  }
-
-  rollBackSandbox = async () => {
-    const p = selectNearestEditableParcel()
-    if (!p?.sandbox || this.sandboxRollingBack) return
-    if (!confirm('Roll back this sandbox to how it looked when you started editing?')) return
-    this.sandboxRollingBack = true
-    try {
-      const r = await fetch(`/api/parcels/${p.id}/sandbox-rollback`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: '{}',
-      })
-      const d = await r.json().catch(() => ({}))
-      if (!d?.success) {
-        app.showSnackbar(d?.error || 'Nothing to roll back yet', PanelType.Warning)
-      }
-    } catch {
-      app.showSnackbar('Roll back failed', PanelType.Danger)
-    } finally {
-      this.sandboxRollingBack = false
-    }
-  }
-
   componentDidUpdate(_prevProps: UserInterfaceProps, prevState: UserInterfaceState) {
     if (!prevState.pane && this.state.pane) {
       this.chatLastReadAt = Date.now()
@@ -536,11 +446,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.chatListDispose?.()
     this.parcelEditDispose?.()
     this.uiPaneDispose?.()
-    this.sandboxGuideParcelDispose?.()
-    this.sandboxLookDispose?.()
-    try {
-      window._color?.setSandboxLook?.(false)
-    } catch {}
     // dispose the keyboard handler too - it attaches keydown/keyup on `document` in addKeyboardHandlers,
     // and without this each unmount (e.g. womp preview -> /play, every page hop) leaks a live handler.
     // They accumulate and re-fire shortcuts N times, so camera toggles (C perspective, F fly) cancel out.
@@ -625,17 +530,9 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         { code: 'Escape', handleEvent: () => this.onEscape() },
         {
           code: 'Tab',
-          handleEvent: (e: KeyboardEvent) => {
-            if (wantsSandboxGuide() && this.state.sandboxGuideOpen) {
-              e.preventDefault()
-              this.setPane('add')
-              return
-            }
-
+          handleEvent: () => {
             if (this.state.pane) return
-
             this.setPane('add')
-            return
           },
         },
       ],
@@ -677,11 +574,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   setPane(pane: UIPanes) {
-    if (wantsSandboxGuide() && this.state.sandboxGuideOpen && pane === 'add') {
-      this.enterSandboxGuideMini()
-      return
-    }
-
     // opening a pane always reveals the sidebar; if it was collapsed, reveal instead of toggling shut
     const wasCollapsed = sidebarClosed.value
     sidebarClosed.value = false
@@ -971,7 +863,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return <TakeWomp coords={w.coords} parcel={w.parcel} image={w.image} scene={this.props.scene} onClose={closeTakeWomp} />
       }
       case 'help':
-        return <HelpOverlay scene={this.props.scene} onShowSandboxGuide={wantsSandboxGuide() ? this.openSandboxGuide : undefined} />
+        return <HelpOverlay scene={this.props.scene} />
       case 'broadcast':
         return <ShowboxBroadcastPane />
       default:
@@ -1062,20 +954,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   Fullscreen
                 </a>
               </li>
-              <li>
-                <a
-                  href="/"
-                  onClick={(e) => {
-                    e.preventDefault()
-                    this.markWompsSeen()
-                    openExplore()
-                    exitPointerLock()
-                  }}
-                  title={this.state.newWomp ? 'new womp - open Explore' : 'Explore'}
-                >
-                  Explore{this.state.newWomp ? <span class="explore-new-dot" aria-label="new womp" /> : null}
-                </a>
-              </li>
 
               <li class={active('settings')}>
                 <a href="#preferences" onMouseOver={onHover('settings')} onClick={onClick('settings')}>
@@ -1102,7 +980,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   Yeet
                 </a>
               </li>
-              {(this.state.signedIn || wantsSandboxGuide()) && canEdit && (
+              {(this.state.signedIn || isSandbox()) && canEdit && (
                 <>
                   <li class={this.voxelTool.enabled.value ? 'active' : ''}>
                     <a
@@ -1176,27 +1054,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
             {this.state.chatEnabled && !location.pathname.startsWith('/chat') && <ChatOverlay scene={this.props.scene} />}
           </aside>
-
-          {nearestEditableParcel?.sandbox && nearestEditableParcel.canEdit && (
-            <div class="sandbox-rollback">
-              <button type="button" class="linkish" onClick={this.rollBackSandbox}>
-                roll back
-              </button>
-            </div>
-          )}
-
-          {this.state.sandboxGuideOpen && !this.state.sandboxGuideMini && <SandboxGuide key={this.state.sandboxGuideKey || 0} voxelTool={this.voxelTool} onComplete={this.celebrateSandboxGuideComplete} />}
-
-          {this.state.sandboxGuideOpen && this.state.sandboxGuideMini && <SandboxGuideMini onGotIt={this.celebrateSandboxGuideComplete} onStartOver={this.restartSandboxGuide} />}
-
-          {!this.state.sandboxGuideOpen && this.state.sandboxGuideRestart && wantsSandboxGuide() && (
-            <div class="sandbox-guide-restart">
-              <a href="/shop">get a parcel in the shop</a>
-              <button type="button" class="linkish" onClick={this.openSandboxGuide}>
-                start over
-              </button>
-            </div>
-          )}
 
           <BroadcastSidebarTab />
 

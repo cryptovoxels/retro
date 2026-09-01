@@ -1,7 +1,6 @@
 import { Component, Fragment } from 'preact'
 import ParcelHelper from '../../common/helpers/parcel-helper'
 import { currentVersion } from '../../common/version'
-import { focusFirst, onListArrowKeys } from './helpers/keynav'
 import Head from './components/head'
 import BlogTeaser from './components/blog-teaser'
 import Classifieds from './components/classifieds'
@@ -11,7 +10,6 @@ import type { Womp } from './components/womp-card'
 import { getClientPath } from './helpers/client-helpers'
 import { naviportHere } from './helpers/coords-nav'
 import cachedFetch from './helpers/cached-fetch'
-import { FOCUS_EXPLORE } from './helpers/open-explore'
 import { app, AppEvent } from './state'
 import WompsList from './womps-list'
 
@@ -69,26 +67,11 @@ async function pickFrontpageParcel() {
   naviportHere(url)
 }
 
-function teleportToWomp(womp: Womp) {
-  if (!womp.coords) return
-  if (womp.space_id) {
-    window.location.href = `/spaces/${womp.space_id}`
-    return
-  }
-  window.persona.teleport(womp.coords)
-}
-
 export default class Explore extends Component<{}> {
   componentDidMount() {
     app.on(AppEvent.Logout, this.rerender)
     app.on(AppEvent.Login, this.rerender)
     void pickFrontpageParcel()
-    try {
-      if (sessionStorage.getItem(FOCUS_EXPLORE)) {
-        sessionStorage.removeItem(FOCUS_EXPLORE)
-        focusFirst('.explorer')
-      }
-    } catch {}
   }
 
   rerender = () => {
@@ -102,23 +85,13 @@ export default class Explore extends Component<{}> {
 
   render() {
     return (
-      <Fragment>
-        <Head title="Voxels (formerly Cryptovoxels)" url={'/'}>
-          <Fragment>
-            <link rel="prefetch" href={getClientPath(currentVersion)} />
-            <link rel="prefetch" href="/api/parcels/cached.json" />
-            <link rel="prefetch" href="/api/parcels/map.json" />
-          </Fragment>
-        </Head>
-
-        <section class="explorer" onKeyDown={onListArrowKeys}>
-          <Radar teleportTo={naviportHere} />
-          <h3>Popular</h3>
-          <PopularParcels />
-          <BlogTeaser />
-          <Classifieds limit={3} />
-        </section>
-      </Fragment>
+      <section class="explorer">
+        <Radar teleportTo={naviportHere} />
+        <h3>Popular</h3>
+        <PopularParcels />
+        <BlogTeaser />
+        <Classifieds limit={3} />
+      </section>
     )
   }
 }
