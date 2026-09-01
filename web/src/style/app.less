@@ -38,23 +38,25 @@
   color-scheme: light;
 }
 
-// opt-in via Settings; localStorage key "theme"
-html[data-theme='dark'] {
-  --bg: #0d0d0d;
-  --fg: #f5f5f0;
-  --line: #ddd;
-  --line-trans: #ddda;
-  --scroll-track: #222;
-  --disabled: #888;
-  --muted: #999;
-  --muted-2: #aaa;
-  --border-color: #444;
-  --hover: #1a1a1a;
-  --semi: rgba(13, 13, 13, 0.9);
-  --surface: #1f1f1f;
-  // #03f sinks into dark grey; keep the voxels blue, just brighter
-  --accent: #6af;
-  color-scheme: dark;
+// follows the OS setting automatically
+@media @dark {
+  :root {
+    --bg: #0d0d0d;
+    --fg: #f5f5f0;
+    --line: #ddd;
+    --line-trans: #ddda;
+    --scroll-track: #222;
+    --disabled: #888;
+    --muted: #999;
+    --muted-2: #aaa;
+    --border-color: #444;
+    --hover: #1a1a1a;
+    --semi: rgba(13, 13, 13, 0.9);
+    --surface: #1f1f1f;
+    // #03f sinks into dark grey; keep the voxels blue, just brighter
+    --accent: #6af;
+    color-scheme: dark;
+  }
 }
 
 // --- fonts ---
