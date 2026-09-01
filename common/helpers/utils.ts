@@ -229,13 +229,6 @@ export const encodeCoords = (coords: coords): string => {
   }
 }
 
-export const jitterCoord = (coord: string, length = 1): string => {
-  const decoded = decodeCoords(coord)
-  decoded.position.x += (Math.random() * 2 - 1) * length
-  decoded.position.z += (Math.random() * 2 - 1) * length
-  return encodeCoords(decoded)
-}
-
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CLIPBOARD
 
@@ -323,7 +316,7 @@ export const web3ExtractErrorMessage = (e: { code?: any; message?: string; data?
         try {
           const d = JSON.parse(error.message.substring(`[ethjs-query] while formatting outputs from RPC '`.length, error.message.length - 1))
           error.data.message = d.value?.data?.message
-        } catch {}
+        } catch { }
       }
       if (error.data?.code == 3 && error.data?.message?.match(/(Ownable)/i)) {
         return 'You are not the owner of this smart contract'
