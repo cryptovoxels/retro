@@ -192,7 +192,7 @@ export default class Parcels extends Component<Props, State> {
 
     return (
       <section>
-        <Head title='All parcels' />
+        <Head title="All parcels" />
 
         <div role={'group'} style={'gap:1.5rem;'}>
           <label htmlFor="select">Sort by </label>

@@ -150,7 +150,7 @@ export class WorldEnvironment extends Environment {
 
     this.updateFog(this.scene)
     this.scene.clearColor = this.clearColor
-      ; (window as any).engine?.setUnderwater?.(this.isUnderwater)
+    ;(window as any).engine?.setUnderwater?.(this.isUnderwater)
 
     // Update ambient light intensity when day/night changes
     if (this.ambientLight) {

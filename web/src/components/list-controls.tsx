@@ -16,7 +16,6 @@ export function useListControls(initialQuery = ''): [Controls, JSX.Element] {
   const link = (patch: Partial<{ v: string; s: string; q: string }>) => location.pathname + '?' + qs({ v: view, s: sort, q: query, ...patch })
 
   const el = (
-
     <div class="list-controls">
       <form
         role="search"

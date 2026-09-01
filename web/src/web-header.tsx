@@ -44,7 +44,7 @@ function chatLastSeen(): number {
 function markChatSeen() {
   try {
     localStorage.setItem(CHAT_LAST_SEEN, String(Date.now()))
-  } catch { }
+  } catch {}
 }
 
 function SiteNavToggle() {
@@ -114,7 +114,7 @@ export default class WebHeader extends Component<Props, State> {
         const n = (d.posts || []).filter((p: any) => new Date(p.created_at).getTime() > weekAgo).length
         this.setState({ blogN: n })
       })
-      .catch(() => { })
+      .catch(() => {})
 
     cachedFetch('/api/classifieds.json')
       .then((r) => r.json())
@@ -122,7 +122,7 @@ export default class WebHeader extends Component<Props, State> {
         const n = (d.fresh || []).filter((i: any) => i.price > 0 && i.price < 4.2).length
         this.setState({ shopN: n })
       })
-      .catch(() => { })
+      .catch(() => {})
   }
 
   showSnackbar(message: any) {

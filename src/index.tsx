@@ -15,9 +15,9 @@ try {
   Object.defineProperty(window, 'localStorage', {
     value: {
       getItem: () => null,
-      setItem: () => { },
-      removeItem: () => { },
-      clear: () => { },
+      setItem: () => {},
+      removeItem: () => {},
+      clear: () => {},
       key: () => null,
       length: 0,
     },
