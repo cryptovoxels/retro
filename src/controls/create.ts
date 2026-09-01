@@ -1,4 +1,4 @@
-import { isDesktop, isMobile, isTablet, wantsGateway, wantsXR } from '../../common/helpers/detector'
+import { isDesktop, isMobile, isTablet, wantsXR } from '../../common/helpers/detector'
 import DesktopControls from './desktop/controls'
 import MobileControls from './mobile/controls'
 import type Controls from './controls'
@@ -15,7 +15,7 @@ export const CreateControls = (scene: BABYLON.Scene, canvas: HTMLCanvasElement):
     controls = new DesktopControls(scene, canvas)
   }
 
-  if (wantsXR() && !wantsGateway()) {
+  if (wantsXR()) {
     xr = new XROverlay(scene, canvas, controls!)
     let started = false
 

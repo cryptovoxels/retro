@@ -4,7 +4,6 @@ import { uploadMedia } from '../../common/helpers/upload-media'
 import { PanelType } from '../../web/src/components/panel'
 import { track } from '../../web/src/helpers/umami'
 import { app } from '../../web/src/state'
-import { wompFlash } from '../graphic/womp-flash'
 import { MinimapSettings } from '../minimap'
 import type Parcel from '../parcel'
 import { pendingWomp, sidebarClosed, uiAsideTick, uiPane } from '../store'
@@ -118,8 +117,6 @@ export default class TakeWomp extends Component<Props, State> {
       engine.resize(true)
       minimapSettings.hide = false
     }
-
-    wompFlash(scene)
 
     pendingWomp.value = { coords, parcel, image }
     uiPane.value = 'takeWomp'

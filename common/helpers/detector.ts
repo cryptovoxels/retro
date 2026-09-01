@@ -111,14 +111,9 @@ export const wantsEmbeddedUI = () => {
   return searchParams.get('ui') === 'embedded'
 }
 
-export const wantsGateway = () => {
-  const v = searchParams.get('gateway')
-  return v === '1' || v === 'true'
-}
-
 // &ui=off drops the HUD and reticule (used by go-live links, see secret-flags.md)
 export const wantsNoUI = () => {
-  return ['off', 'false', '0'].includes(searchParams.get('ui') ?? '') || wantsGateway()
+  return ['off', 'false', '0'].includes(searchParams.get('ui') ?? '')
 }
 
 export const isAndroid = () => {
@@ -126,7 +121,7 @@ export const isAndroid = () => {
 }
 
 export const wantsIsolate = () => {
-  return searchParams.get('isolate') === 'true' || wantsGateway()
+  return searchParams.get('isolate') === 'true'
 }
 
 export const isDebug = () => {
@@ -177,8 +172,6 @@ export const wantsAudio = (): boolean => {
   if (audio === 'on' || audio === '1' || audio === 'true') return true
   // iframe embeds default silent - pass audio=on if you want sound
   if (isEmbedded()) return false
-  // phone speakers at an opening howl
-  if (wantsGateway()) return false
   return true
 }
 

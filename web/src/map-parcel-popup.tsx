@@ -4,7 +4,6 @@ import { copyTextToClipboard, encodeCoords } from '../../common/helpers/utils'
 import { MapParcelRecord } from '../../common/messages/api-parcels'
 import type { ParcelData, VoxelsMap } from './helpers/load-voxels-map'
 import { PanelType } from './components/panel'
-import ParcelEvent from './helpers/event'
 import { app } from './state'
 import { AvatarLink } from './components/avatar-link'
 
@@ -79,59 +78,4 @@ export function mapTeleportPopup(map: VoxelsMap, x: number, z: number, openSpawn
   }
   buttonContainer.appendChild(copyCoordsLinkBtn)
   map.openPopup(x, z, div)
-}
-
-export function mapEventMarkerPopup(event: ParcelEvent, openSpawnUrl: (url: string | null) => void): HTMLElement {
-  const div = document.createElement('div')
-  div.className = 'map-teleport-popup'
-
-  div.innerHTML = render(
-    <div>
-      <h2>
-        {'Event live now '} at {event.parcel_address}
-      </h2>
-
-      <br />
-
-      <strong>
-        <a href={`/events/${event.id}`}>{event.name}</a>
-      </strong>
-
-      <br />
-
-      <div>
-        Hosted by{' '}
-        <a href={`/u/${event.author}`} target="_blank">
-          {event.authorNameOrAddress(10)}
-        </a>
-      </div>
-      <br />
-      <div id="popup-buttonContainer" style={{ textAlign: 'center' }}></div>
-    </div>,
-  )
-
-  const buttonContainer = div.querySelector('#popup-buttonContainer')!
-
-  const button = document.createElement('button')
-  button.className = 'teleportHere'
-  button.textContent = 'Visit now'
-  button.onclick = () => {
-    button.textContent = 'Loading...'
-    button.disabled = true
-    event.getTeleportString().then(openSpawnUrl)
-  }
-
-  buttonContainer.appendChild(button)
-
-  const button2 = document.createElement('button')
-  button2.className = 'copyCoordinates'
-  button2.textContent = 'Copy link to event'
-  button2.onclick = () => {
-    button2.textContent = 'Loading...'
-    button2.disabled = true
-    event.getTeleportString().then(copyToClipboard)
-  }
-  buttonContainer.appendChild(button2)
-
-  return div
 }

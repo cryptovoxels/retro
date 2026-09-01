@@ -15,9 +15,9 @@ try {
   Object.defineProperty(window, 'localStorage', {
     value: {
       getItem: () => null,
-      setItem: () => {},
-      removeItem: () => {},
-      clear: () => {},
+      setItem: () => { },
+      removeItem: () => { },
+      clear: () => { },
       key: () => null,
       length: 0,
     },
@@ -35,12 +35,9 @@ import { FeaturePump } from './pump/feature-pump'
 import UserInterface, { UserInterfaceProps } from './user-interface'
 import Connector from './connector'
 
-// Robots (NPCs)
-import Robots from './robots/robots'
-
 // Features
 import { type AudioEngine } from './audio/audio-engine'
-import { isBatterySaver, isDebug, isInspect, isIOS, isMobile, wantsGateway, wantsXR } from '../common/helpers/detector'
+import { isBatterySaver, isDebug, isInspect, isIOS, isMobile, wantsXR } from '../common/helpers/detector'
 import { DragDrop } from './tools/drag-drop'
 
 // Patching animation with features from later babylon.js version
@@ -59,7 +56,6 @@ import { createWorld } from './init/world'
 import { sceneConfigFromURL, SceneConfig } from './scene-config'
 import type { Environment } from './enviroments/environment'
 import { PostProcesses } from './graphic/post-processes'
-import { ColorGrader } from './graphic/color-grading'
 import { FOV } from './graphic/field-of-view'
 import { Minimap, MinimapSettings } from './minimap'
 import { MetaMaskInpageProvider } from '@metamask/providers'
@@ -73,9 +69,7 @@ if (process.env.NODE_ENV === 'development') {
 
 console.log(`Voxels engine | v${currentVersion} | ${currentBuildDate}`)
 
-type Voxels = {
-  robots?: Robots
-}
+type Voxels = {}
 
 // Register of the singletons we still have bound to window
 declare global {
@@ -201,12 +195,11 @@ async function main() {
     canvas,
     false,
     {
-      disableWebGL2Support: isIOS(),
-      antialias: !isMobile(),
-      stencil: true,
-      alpha: wantsGateway(),
+      disableWebGL2Support: false,
+      antialias: false,
+      stencil: false,
       preserveDrawingBuffer: true, // needed for screenshots (womps)
-      doNotHandleContextLost: true, // we handle context lost ourselves *see below*
+      doNotHandleContextLost: true,
     },
     false,
   )
@@ -290,17 +283,16 @@ async function main() {
 
   new DragDrop(scene)
 
-  const color = new ColorGrader(scene)
-  window._color = color
+  graphic.postProcesses = new PostProcesses(scene, graphic)
+  graphic.postProcesses.cover()
 
-  graphic.postProcesses = new PostProcesses(scene, color, graphic)
-  if (!wantsGateway()) graphic.postProcesses.cover()
-  ;(engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
-  ;(engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
+  const e = engine as any
+  e.setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
+  e.setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
 
   // not related to a parcel or space
-  const { environment } = await createEnvironment(scene)
   // Give the Controls a chance to observe things in the Environment
+  const { environment } = await createEnvironment(scene)
   controls.attachEnvironment(environment)
 
   if (xr) {
@@ -348,50 +340,16 @@ async function main() {
     main.start()
   }
 
-  voxels.robots = new Robots(scene)
-  voxels.robots.start()
-
   extendTabIndexOnClick()
 
   // <Client> renders this in its own tree, so the UI mounts with the canvas and
   // unmounts when you leave the world (instead of living on <body> forever).
   const ui: BootResult = {
     UI: UserInterface,
-    props: { scene, canvas, grid, connector, environment, enabled: !wantsXR() && !wantsGateway(), minimapSettings: mapSettings ?? new MinimapSettings() },
+    props: { scene, canvas, grid, connector, environment, enabled: !wantsXR(), minimapSettings: mapSettings ?? new MinimapSettings() },
   }
 
   if (wantsXR()) return ui
 
-  // isInspect() && toggleBabylonInspector(scene).then(/** ignore promise */)
-  // // also toggle the inspector on Shift + CTRL + Meta + I
-  // window.addEventListener('keydown', (ev) => {
-  //   if (ev.shiftKey && ev.ctrlKey && ev.metaKey && ev.code === 'KeyI') {
-  //     toggleBabylonInspector(scene)
-  //   }
-  // })
-
   return ui
-
-  async function toggleBabylonInspector(scene: BABYLON.Scene | null) {
-    // show babylonjs built in scene explorer
-    // https://doc.babylonjs.com/features/playground_debuglayer
-
-    scene?.executeWhenReady(() => {
-      if (scene?.debugLayer.isVisible()) {
-        scene?.debugLayer.hide()
-        return
-      }
-
-      scene?.debugLayer.show({
-        overlay: false,
-        enablePopup: true,
-        globalRoot: document.getElementsByTagName('body')[0],
-        showExplorer: true,
-        showInspector: true,
-        embedMode: true,
-        handleResize: false,
-        // initialTab: BABYLON.DebugLayerTab.Statistics,
-      })
-    })
-  }
 }

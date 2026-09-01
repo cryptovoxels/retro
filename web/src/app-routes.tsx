@@ -18,10 +18,6 @@ import CollectionPage from './collection'
 import Collections from './collections'
 import CollectionsNew from './collections-new'
 import Conduct from './conduct'
-import EventPage from './event-page'
-import Events from './events'
-import EventsNew from './events-new'
-import EventsEdit from './events-edit'
 import Explore from './explore'
 import Logout from './logout'
 import Island from './island'
@@ -36,14 +32,12 @@ import RenderCostume from './render/costume'
 import Search from './search'
 import Shop from './shop'
 import Space from './space'
-import BuildPage from './build'
 import Terms from './terms'
 import Wearable from './wearable'
 import Womp from './womp'
 import WompsPage from './womps'
 import IslandsAdmin from './admin/islands'
 import Admin from './admin/admin'
-import NotFound from './not-found'
 import { ChatPage } from './chat-page'
 import { routes } from './routes'
 
@@ -59,7 +53,6 @@ const components: Record<string, ComponentType<any>> = {
   art: ArtDoc,
   apiDoc: ApiDoc,
   logout: Logout,
-  notFound: NotFound,
   search: Search,
   assets: Assets,
   assetsNew: AssetsNew,
@@ -70,7 +63,6 @@ const components: Record<string, ComponentType<any>> = {
   parcel: Parcel,
   parcelEdit: ParcelEdit,
   space: Space,
-  build: BuildPage,
   islands: Islands,
   island: Island,
   map: WorldMap,
@@ -85,10 +77,6 @@ const components: Record<string, ComponentType<any>> = {
   collection: CollectionPage,
   wearable: Wearable,
   womp: Womp,
-  eventPage: EventPage,
-  eventsNew: EventsNew,
-  eventsEdit: EventsEdit,
-  events: Events,
   shop: Shop,
   womps: WompsPage,
   islandsAdmin: IslandsAdmin,

@@ -4,7 +4,6 @@ import Avatar from './src/avatar'
 import BehavioursDoc from './src/behaviours-doc'
 import Blog from './src/blog'
 import Conduct from './src/conduct'
-import EventPage from './src/event-page'
 import Explore from './src/explore'
 import Parcel from './src/parcel'
 import Parcels from './src/parcels'
@@ -27,7 +26,6 @@ import { shellRoutes } from './src/routes'
 import { Express } from 'express'
 import path from 'path'
 import { SUPPORTED_CHAINS_BY_ID } from '../common/helpers/chain-helpers'
-import NotFound from './src/not-found'
 
 const renderPage = (content: any) => renderComponent(content)
 
@@ -87,9 +85,6 @@ export default function loadRoutes(app: Express) {
     res.type('text/yaml').sendFile(path.join(__dirname, '..', 'server', 'openapi.yaml'))
   })
 
-  app.get('/not-found', cache(duration), (req, res) => {
-    res.send(renderPage(<NotFound path="/not-found" />))
-  })
   app.get('/parcels', cache(duration), (req, res) => {
     const limit = typeof req.query.limit === 'string' ? parseInt(req.query.limit, 100) : NaN
     const page = typeof req.query.page === 'string' ? parseInt(req.query.page, 10) : NaN
@@ -152,7 +147,7 @@ export default function loadRoutes(app: Express) {
   app.get('/blog/:slug', cache('1 minute'), async (req, res) => {
     const slug = req.params.slug
     if (typeof slug !== 'string' || !slug) {
-      return res.status(404).send(renderPage(<NotFound />))
+      return res.status(404).send('Not found')
     }
 
     try {
@@ -170,7 +165,7 @@ export default function loadRoutes(app: Express) {
         [slug],
       )
       if (!(post.rows?.length ?? 0)) {
-        return res.status(404).send(renderPage(<NotFound />))
+        return res.status(404).send('Not found')
       }
 
       const comments = await db.query(
@@ -196,26 +191,11 @@ export default function loadRoutes(app: Express) {
     const walletOrName = req.params.walletOrName
     queryAndCallback(db, 'get-avatar-by-name-or-wallet', 'avatar', [walletOrName], (response) => {
       if (!response.success) {
-        res.send(renderPage(<NotFound />))
-        return
+        return res.status(404).json({ success: false })
       }
       res.send(renderPage(<Avatar avatar={response.avatar} tab={req.params.tab} />))
     })
   })
-
-  // app.get('/events/:id', (req, res) => {
-  //   const id = parseInt(req.params.id, 10)
-  //   if (isNaN(id)) {
-  //     return res.status(404).json({ success: false, message: 'event not found' })
-  //   }
-  //   queryAndCallback(db, 'events/get-event', 'event', [id], (response) => {
-  //     if (!response.success) {
-  //       res.send(renderPage(<NotFound />))
-  //       return
-  //     }
-  //     res.send(renderPage(<EventPage event={response.event} />))
-  //   })
-  // })
 
   app.get('/collections/:collection_id/:token_id', cache('1 minute'), (req, res) => {
     const id = parseInt(req.params.collection_id, 10)
@@ -228,7 +208,7 @@ export default function loadRoutes(app: Express) {
     }
     queryAndCallback(db, 'collectibles/get-collectible', 'wearable', [id, token_id], (response) => {
       if (!response.success) {
-        res.redirect(404, '/not-found')
+        return res.status(404).json({ success: false })
         return
       }
       const chain_identifier = SUPPORTED_CHAINS_BY_ID[response.wearable.chain_id] || 'eth'
@@ -263,8 +243,7 @@ export default function loadRoutes(app: Express) {
 
     queryAndCallback(db, 'spaces/get-space-content', 'space', [req.params.id], (response) => {
       if (!response.success) {
-        res.redirect('/not-found')
-        return
+        return res.status(404).json({ success: false })
       }
       res.send(renderPage(<Space space={response.space} />))
     })

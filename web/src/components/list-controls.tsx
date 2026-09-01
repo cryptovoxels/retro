@@ -16,29 +16,8 @@ export function useListControls(initialQuery = ''): [Controls, JSX.Element] {
   const link = (patch: Partial<{ v: string; s: string; q: string }>) => location.pathname + '?' + qs({ v: view, s: sort, q: query, ...patch })
 
   const el = (
+
     <div class="list-controls">
-      <div>
-        <h5>View as</h5>
-        {['grid', 'list'].map((v, i) => (
-          <>
-            {i > 0 && ' | '}
-            <a key={v} href={link({ v })} aria-current={v === view ? 'page' : undefined} onClick={() => setView(v)}>
-              {v}
-            </a>
-          </>
-        ))}
-      </div>
-      <div>
-        <h5>Sort by</h5>
-        {['popular', 'newest', 'oldest'].map((s, i) => (
-          <>
-            {i > 0 && ' | '}
-            <a key={s} href={link({ s })} aria-current={s === sort ? 'page' : undefined} onClick={() => setSort(s)}>
-              {s}
-            </a>
-          </>
-        ))}
-      </div>
       <form
         role="search"
         onSubmit={(e) => {

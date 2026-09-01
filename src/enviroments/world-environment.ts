@@ -8,7 +8,6 @@ import { DAY_BRIGHTNESS, DAY_FOG_COLOR, DAY_SUN_POSITION, NIGHT_BRIGHTNESS, NIGH
 import { createEvent } from '../utils/EventEmitter'
 import { cameraPosition } from '../utils/camera'
 import { OCEAN_HEIGHT_OFFSET } from '../constants'
-import { hideGatewayBackdrop } from '../gateway'
 
 export class WorldEnvironment extends Environment {
   terrain?: Terrain
@@ -141,7 +140,6 @@ export class WorldEnvironment extends Environment {
     if (this.skybox) this.skybox.mesh.isVisible = !this.isUnderwater
     this.horizon?.update(this.horizonAlphaMode, this.fogColor)
     this.horizon?.setVisible(!this.isUnderwater)
-    hideGatewayBackdrop(this.skybox, this.horizon)
     this.terrain?.update()
   }
 
@@ -152,7 +150,7 @@ export class WorldEnvironment extends Environment {
 
     this.updateFog(this.scene)
     this.scene.clearColor = this.clearColor
-    ;(window as any).engine?.setUnderwater?.(this.isUnderwater)
+      ; (window as any).engine?.setUnderwater?.(this.isUnderwater)
 
     // Update ambient light intensity when day/night changes
     if (this.ambientLight) {

@@ -44,10 +44,6 @@ export class ParcelAdminOverlay extends Component<Props> {
                 Edit on web
               </a>
             </div>
-            <div className="OverlayHighlightContent">
-              <h4>Event Management</h4>
-              <a href={`/events/new?parcel_id=${(p as any).id}`}>Create event</a>
-            </div>
           </div>
         </section>
       </dialog>

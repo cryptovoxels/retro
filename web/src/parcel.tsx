@@ -6,7 +6,6 @@ import { canUseDom } from '../../common/helpers/utils'
 import { FullParcelRecord, NearbyParcelRecord, ParcelWithMintednessRecord } from '../../common/messages/parcel'
 import type { VoxelsMap } from './helpers/load-voxels-map'
 import { loadVoxelsMap } from './helpers/load-voxels-map'
-import ParcelEvents from './components/parcel-events'
 import cachedFetch from './helpers/cached-fetch'
 import Head from './components/head'
 import { app, AppEvent } from './state'
@@ -323,8 +322,6 @@ export default class Parcel extends Component<Props, State> {
             </ul>
           </div>
         )}
-
-        {this.state.parcel ? <ParcelEvents parcel={this.state.parcel} /> : null}
 
         {this.state.parcel?.description && (
           <div>
