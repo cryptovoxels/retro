@@ -1,17 +1,17 @@
 export default class Skybox {
   private readonly _mesh: BABYLON.Mesh
-  private material: BABYLON.SkyMaterial
+  private material: BABYLON.GradientMaterial
 
   constructor(scene: BABYLON.Scene) {
-    const material = new BABYLON.SkyMaterial('skybox/sky-material', scene)
+    const material = new BABYLON.GradientMaterial('skybox/sky-material', scene)
     material.backFaceCulling = false // leave
-    material.useSunPosition = true
+    // material.useSunPosition = true
     material.fogEnabled = false // we set out fog kinda thick so we can't enable it for the sky
-    material.turbidity = 1 // smearing of the sun local to the sun itself
-    material.rayleigh = 2 // smearing of the sun across the sky in general
-    material.mieCoefficient = 0.03 // smearing that obscures the sun's shape
-    material.dithering = true // needed to overcome precision issues introduced by shader pipeline
-    material.freeze()
+    // material.turbidity = 1 // smearing of the sun local to the sun itself
+    // material.rayleigh = 2 // smearing of the sun across the sky in general
+    // material.mieCoefficient = 0.03 // smearing that obscures the sun's shape
+    // material.dithering = true // needed to overcome precision issues introduced by shader pipeline
+    // material.freeze()
     this.material = material
 
     const mesh = BABYLON.MeshBuilder.CreateSphere('skybox', { segments: 16, diameter: 1 }, scene)
@@ -36,12 +36,12 @@ export default class Skybox {
   }
 
   update(sunPosition: BABYLON.Vector3, luminance: number) {
-    if (this.material.sunPosition.equals(sunPosition) && this.material.luminance === luminance) {
-      return
-    }
-    this.material.unfreeze()
-    this.material.sunPosition = sunPosition
-    this.material.luminance = luminance
-    this.material.freeze()
+    // if (this.material.sunPosition.equals(sunPosition) && this.material.luminance === luminance) {
+    //   return
+    // }
+    // this.material.unfreeze()
+    // this.material.sunPosition = sunPosition
+    // this.material.luminance = luminance
+    // this.material.freeze()
   }
 }
