@@ -192,7 +192,19 @@ export default class Parcels extends Component<Props, State> {
 
     return (
       <section>
-        <Head title="All parcels" />
+        <Head title={'All parcels'} description={'See all currently minted parcels'} url={'/parcels'} />
+
+        <br />
+        <div style={{ display: 'flex', flex: 1, width: '100%' }}>
+          <div style={{ flexGrow: 1 }} />
+          <div>
+            {app.state.wallet && (
+              <button class="outline" onClick={() => (window.location.href = '/parcels/new')}>
+                View New listings
+              </button>
+            )}
+          </div>
+        </div>
 
         <div role={'group'} style={'gap:1.5rem;'}>
           <label htmlFor="select">Sort by </label>

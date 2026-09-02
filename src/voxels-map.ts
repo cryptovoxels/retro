@@ -1,5 +1,5 @@
 import { getParcelHelper } from '../common/helpers/parcel-helper'
-import { ParcelRecord } from '../common/messages/parcel'
+import { SingleParcelRecord } from '../common/messages/parcel'
 
 export const OCEAN = new BABYLON.Color4(0.19, 0.44, 0.54, 1)
 
@@ -208,17 +208,17 @@ export async function loadIslands(scene: BABYLON.Scene, parent?: BABYLON.Transfo
   return islands as Island[]
 }
 
-export const fetchAllParcels = (cachebust = false): Promise<ParcelRecord[]> => fetchCachedParcels(`/api/parcels/cached.json`, cachebust)
-export const fetchOwnerParcels = (wallet: string, cachebust = false): Promise<ParcelRecord[]> => fetchCachedParcels(`/api/wallet/${wallet}/parcels.json`, cachebust)
-export const fetchContributingParcels = (wallet: string, cachebust = false): Promise<ParcelRecord[]> => fetchCachedParcels(`/api/wallet/${wallet}/contributing-parcels.json`, cachebust)
+export const fetchAllParcels = (cachebust = false): Promise<SingleParcelRecord[]> => fetchCachedParcels(`/api/parcels/cached.json`, cachebust)
+export const fetchOwnerParcels = (wallet: string, cachebust = false): Promise<SingleParcelRecord[]> => fetchCachedParcels(`/api/wallet/${wallet}/parcels.json`, cachebust)
+export const fetchContributingParcels = (wallet: string, cachebust = false): Promise<SingleParcelRecord[]> => fetchCachedParcels(`/api/wallet/${wallet}/contributing-parcels.json`, cachebust)
 
 export async function fetchMapParcels() {
   const r = await fetch(`${process.env.API || '/api'}/parcels/map.json`, { credentials: 'include' }).then((res) => res.json())
   return (r.parcels || []) as ParcelData[]
 }
 
-const parcelCache: Record<string, ParcelRecord[]> = {}
-const fetchCachedParcels = (url: string, cachebust = false): Promise<ParcelRecord[]> => {
+const parcelCache: Record<string, SingleParcelRecord[]> = {}
+const fetchCachedParcels = (url: string, cachebust = false): Promise<SingleParcelRecord[]> => {
   return new Promise((resolve) => {
     if (!cachebust && Array.isArray(parcelCache[url])) return resolve(parcelCache[url])
     if (cachebust) url += `cb=${Date.now()}`

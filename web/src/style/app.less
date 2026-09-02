@@ -38,25 +38,23 @@
   color-scheme: light;
 }
 
-// follows the OS setting automatically
-@media @dark {
-  :root {
-    --bg: #0d0d0d;
-    --fg: #f5f5f0;
-    --line: #ddd;
-    --line-trans: #ddda;
-    --scroll-track: #222;
-    --disabled: #888;
-    --muted: #999;
-    --muted-2: #aaa;
-    --border-color: #444;
-    --hover: #1a1a1a;
-    --semi: rgba(13, 13, 13, 0.9);
-    --surface: #1f1f1f;
-    // #03f sinks into dark grey; keep the voxels blue, just brighter
-    --accent: #6af;
-    color-scheme: dark;
-  }
+// opt-in via Settings; localStorage key "theme"
+html[data-theme='dark'] {
+  --bg: #0d0d0d;
+  --fg: #f5f5f0;
+  --line: #ddd;
+  --line-trans: #ddda;
+  --scroll-track: #222;
+  --disabled: #888;
+  --muted: #999;
+  --muted-2: #aaa;
+  --border-color: #444;
+  --hover: #1a1a1a;
+  --semi: rgba(13, 13, 13, 0.9);
+  --surface: #1f1f1f;
+  // #03f sinks into dark grey; keep the voxels blue, just brighter
+  --accent: #6af;
+  color-scheme: dark;
 }
 
 // --- fonts ---
@@ -92,17 +90,17 @@ h3,
 h4,
 h5,
 h6 {
-  // font-family: 'arial rounded mt bold', sans-serif;
+  font-family: 'arial rounded mt bold', sans-serif;
   font-weight: 700;
   margin: 0 0 0.5rem;
 }
 
 h1 {
-  font-size: 1.5rem;
+  font-size: 2.2rem;
 }
 
 h1 {
-  font-size: 1.5rem;
+  font-size: 2.2rem;
 }
 
 h2 {
@@ -1614,15 +1612,18 @@ small {
 /* Forms */
 
 div.f {
-  position: flex;
-  flex-direction: row;
-  gap: 0.2rem;
+  position: relative;
   margin-bottom: 0.5rem;
-  padding: 0;
+  padding: 0 0 0 10rem;
 
   label {
+    position: absolute;
+    left: 0;
     text-transform: lowercase;
-    font-size: smaller;
+  }
+
+  label:has(input) {
+    position: relative;
   }
 
   button {
@@ -1638,7 +1639,6 @@ div.f {
   textarea {
     font-family: 'source code pro', monospace;
     width: 25rem;
-    max-width: 100%;
     font-size: 0.9rem;
     padding: 0.2rem;
   }
@@ -1707,6 +1707,8 @@ section.login {
     align-self: stretch;
   }
 }
+
+/* Account page quick links (New event) - spacing like top nav */
 
 /* Account page (your own profile) */
 
@@ -2024,6 +2026,18 @@ table.spaces {
 
   .radar > li {
     margin-bottom: 0.35rem;
+  }
+
+  .ExplorerCommunityEvents {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .EventRow {
+    margin: 0 0 0.5rem;
+    padding: 0;
+    gap: 0.5rem;
   }
 
   .wrap-grid {
@@ -4239,6 +4253,10 @@ form.PermissionsRadioSelector > div {
       margin-bottom: 8px;
     }
 
+    .event-item {
+      background-color: #1d1d1d;
+    }
+
     p {
       margin-bottom: 2px;
     }
@@ -5162,6 +5180,103 @@ main:has(.worldmap) {
 
 .wearable-icon img {
   border-radius: 0.5rem;
+}
+
+.sandbox-guide {
+  position: fixed;
+  left: 12rem;
+  bottom: 7rem;
+  z-index: 600;
+  max-width: 14rem;
+  padding: 0.75rem 1rem;
+  background: var(--surface);
+  color: var(--fg);
+
+  .sandbox-guide-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.5rem;
+    gap: 1rem;
+  }
+
+  ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  li {
+    margin: 0.25rem 0;
+
+    &.done,
+    &.skipped {
+      opacity: 0.45;
+    }
+  }
+
+  .mark {
+    display: inline-block;
+    width: 1.75rem;
+    font-family: monospace;
+  }
+
+  .hint {
+    margin: 0.25rem 0 0.25rem 1.75rem;
+    opacity: 0.7;
+  }
+
+  button.linkish {
+    margin-left: 1.75rem;
+    background: none;
+    border: none;
+    color: var(--fg);
+    opacity: 0.7;
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  &.sandbox-guide-mini {
+    left: 50%;
+    transform: translateX(-50%);
+    max-width: none;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.5rem 1rem;
+
+    button.linkish {
+      margin-left: 0;
+      color: var(--fg);
+    }
+  }
+}
+
+.sandbox-guide-restart {
+  position: fixed;
+  left: 12rem;
+  bottom: 7rem;
+  z-index: 600;
+  padding: 0.5rem 0.75rem;
+  background: var(--surface);
+  color: var(--fg);
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+
+  button {
+    background: none;
+    border: none;
+    color: var(--fg);
+    cursor: pointer;
+    padding: 0;
+    text-decoration: underline;
+  }
 }
 
 .fullscreen-button {

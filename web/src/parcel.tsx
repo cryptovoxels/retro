@@ -3,9 +3,10 @@ import { format } from 'timeago.js'
 import ParcelHelper from '../../common/helpers/parcel-helper'
 import { parcelRendererUrl } from '../../common/renderable/thumb-url'
 import { canUseDom } from '../../common/helpers/utils'
-import { FullParcelRecord, NearbyParcelRecord, ParcelRecord } from '../../common/messages/parcel'
+import { FullParcelRecord, NearbyParcelRecord, ParcelWithMintednessRecord } from '../../common/messages/parcel'
 import type { VoxelsMap } from './helpers/load-voxels-map'
 import { loadVoxelsMap } from './helpers/load-voxels-map'
+import ParcelEvents from './components/parcel-events'
 import cachedFetch from './helpers/cached-fetch'
 import Head from './components/head'
 import { app, AppEvent } from './state'
@@ -17,7 +18,7 @@ import { getParcelIdFromPath } from './helpers/coords-nav'
 import { route } from 'preact-router'
 
 export interface Props {
-  parcel?: ParcelRecord
+  parcel?: ParcelWithMintednessRecord
   path?: string
   id?: number
 }
@@ -25,7 +26,7 @@ export interface Props {
 type SidebarTab = 'about' | 'map'
 
 export interface State {
-  parcel?: ParcelRecord | (ParcelRecord & FullParcelRecord)
+  parcel?: ParcelWithMintednessRecord | (ParcelWithMintednessRecord & FullParcelRecord)
   querying?: boolean
   nearby?: NearbyParcelRecord[]
   loading: boolean
@@ -70,8 +71,12 @@ export default class Parcel extends Component<Props, State> {
     if (this.visitUrl) app.visitUrl.value = this.visitUrl
   }
 
-  get canEdit() {
-    return this.state.parcel && this.helper?.canEdit(app.state.wallet)
+  get isOwner() {
+    if (!app.signedIn) {
+      return false
+    }
+
+    return this.state.parcel && this.helper?.isOwner(app.state.wallet)
   }
 
   get name() {
@@ -213,98 +218,98 @@ export default class Parcel extends Component<Props, State> {
   }
 
   renderAbout(islandSlug: string) {
-    const p = this.state.parcel
-
-    if (!p) {
-      return
-    }
-
-    const h = this.helper!
-    const attrs: string[] = []
-    if (p.y1 < 0) attrs.push('Basement')
-    if (h.isWaterFront) attrs.push('Waterfront')
-    if (p.kind == 'inner') attrs.push('Prebuilt')
-    const updated = 'updated_at' in p && typeof p.updated_at === 'string' ? format(Date.parse(p.updated_at as string)) : ''
-
     return (
       <>
-        <p>
-          {this.canEdit && (
-            <a
-              href={`/parcels/${this.state.parcelId}/edit`}
-              class="buttonish"
-              onClick={(e) => {
-                e.preventDefault()
-                route(`/parcels/${this.state.parcelId}/edit`)
-              }}
-            >
-              Edit
-            </a>
-          )}
+        {this.state.parcel &&
+          (() => {
+            const p = this.state.parcel
+            const h = this.helper!
+            const attrs: string[] = []
+            if (p.y1 < 0) attrs.push('Basement')
+            if (h.isWaterFront) attrs.push('Waterfront')
+            if (p.kind == 'inner') attrs.push('Prebuilt')
+            const updated = 'updated_at' in p && typeof p.updated_at === 'string' ? format(Date.parse(p.updated_at as string)) : ''
+            return (
+              <dl>
+                <dt>Address</dt>
+                <dd>
+                  {p.address}
+                  <br />
+                  {p.suburb}
+                  <br />
+                  <a href={`/islands/${islandSlug}`}>{p.island}</a>
+                </dd>
+                <dt>Owner</dt>
+                <dd>
+                  <AvatarLink avatar={p.owner} />
+                </dd>
+                <dt>Token ID</dt>
+                <dd>
+                  <a href={h.tokenUri}>#{p.id}</a>
+                </dd>
+                {(p as any).traffic_visits ? (
+                  <Fragment>
+                    <dt>Visits</dt>
+                    <dd>{(p as any).traffic_visits.toLocaleString()}</dd>
+                  </Fragment>
+                ) : null}
+                <dt>Dimensions</dt>
+                <dd>
+                  {h.width}m &times; {h.depth}m and {h.height}m tall.
+                </dd>
+                {p.y1 > 0 ? (
+                  <Fragment>
+                    <dt>Elevation</dt>
+                    <dd>{p.y1}m.</dd>
+                  </Fragment>
+                ) : null}
+                {attrs.length > 0 ? (
+                  <Fragment>
+                    <dt>Attributes</dt>
+                    <dd>{attrs.join(', ')}</dd>
+                  </Fragment>
+                ) : null}
+                {h.isSandbox ? (
+                  <Fragment>
+                    <dt>Sandbox</dt>
+                    <dd>Yes</dd>
+                  </Fragment>
+                ) : null}
+                {updated ? (
+                  <Fragment>
+                    <dt>Updated</dt>
+                    <dd>{updated}</dd>
+                  </Fragment>
+                ) : null}
+              </dl>
+            )
+          })()}
 
-          {this.state.querying ? (
-            <span>🐙 Update</span>
-          ) : (
-            <button type="button" onClick={() => this.updateStateFromBlockChain()}>
-              🦑 Update
-            </button>
-          )}
-        </p>
+        {this.isOwner && (
+          <a
+            href={`/parcels/${this.state.parcelId}/edit`}
+            onClick={(e) => {
+              e.preventDefault()
+              route(`/parcels/${this.state.parcelId}/edit`)
+            }}
+          >
+            Edit
+          </a>
+        )}
 
-        <dl>
-          <dt>Address</dt>
-          <dd>
-            {p.address}
-            <br />
-            {p.suburb}
-            <br />
-            <a href={`/islands/${islandSlug}`}>{p.island}</a>
-          </dd>
-          <dt>Owner</dt>
-          <dd>
-            <AvatarLink avatar={p.owner} />
-          </dd>
-          <dt>Token ID</dt>
-          <dd>
-            <a href={h.tokenUri}>#{p.id}</a>
-          </dd>
-          {(p as any).traffic_visits ? (
-            <Fragment>
-              <dt>Visits</dt>
-              <dd>{(p as any).traffic_visits.toLocaleString()}</dd>
-            </Fragment>
-          ) : null}
-          <dt>Dimensions</dt>
-          <dd>
-            {h.width}m &times; {h.depth}m and {h.height}m tall.
-          </dd>
-          {p.y1 > 0 ? (
-            <Fragment>
-              <dt>Elevation</dt>
-              <dd>{p.y1}m.</dd>
-            </Fragment>
-          ) : null}
-          {attrs.length > 0 ? (
-            <Fragment>
-              <dt>Attributes</dt>
-              <dd>{attrs.join(', ')}</dd>
-            </Fragment>
-          ) : null}
-          {h.isSandbox ? (
-            <Fragment>
-              <dt>Sandbox</dt>
-              <dd>Yes</dd>
-            </Fragment>
-          ) : null}
-          {updated ? (
-            <Fragment>
-              <dt>Updated</dt>
-              <dd>{updated}</dd>
-            </Fragment>
-          ) : null}
-        </dl>
+        {this.state.parcel ? (
+          <p title="Refresh owner and parcel state from the chain (e.g. after an OpenSea sale)">
+            {this.state.querying ? (
+              <span>🐙 Update</span>
+            ) : (
+              <button type="button" onClick={() => this.updateStateFromBlockChain()}>
+                🦑 Update
+              </button>
+            )}
+          </p>
+        ) : null}
 
-        {this.state.parcel ? <ParcelShop parcel={this.state.parcel} isOwner={false} /> : null}
+        {this.state.parcel ? <ParcelShop parcel={this.state.parcel} isOwner={!!this.isOwner} /> : null}
 
         {this.state.parcel?.parcel_users && this.state.parcel.parcel_users.length > 0 && (
           <div>
@@ -318,6 +323,8 @@ export default class Parcel extends Component<Props, State> {
             </ul>
           </div>
         )}
+
+        {this.state.parcel ? <ParcelEvents parcel={this.state.parcel} /> : null}
 
         {this.state.parcel?.description && (
           <div>

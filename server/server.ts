@@ -26,6 +26,7 @@ import FavoritesController from './controllers/favorites'
 import LivekitController from './controllers/livekit'
 import RadarController from './controllers/radar'
 import NftController from './controllers/nft'
+import EventsController from './controllers/parcel-events'
 import ParcelsController from './controllers/parcels'
 import PlayController from './controllers/play'
 import SpacesController from './controllers/spaces'
@@ -413,6 +414,8 @@ SpacesController(db, passport, app)
 CollectionsController(db, passport, app)
 // collectibles
 CollectiblesController(db, passport, app)
+//Events
+EventsController(db, passport, app)
 // Favorites controller
 FavoritesController(db, passport, app)
 // Asset library controller:

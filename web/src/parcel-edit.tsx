@@ -6,8 +6,6 @@ import SelectUser from './components/select-user'
 import cachedFetch, { invalidateUrl } from './helpers/cached-fetch'
 import { route } from 'preact-router'
 import { app } from './state'
-import ParcelHelper from '../../common/helpers/parcel-helper'
-import { helperFunctions } from 'babylonjs/Shaders/ShadersInclude/helperFunctions'
 
 type ParcelUser = { wallet: string; role: string }
 
@@ -168,9 +166,10 @@ export default function ParcelEdit(props: Props) {
 
   if (!parcel) return <p>Loading...</p>
 
-  const wallet = app.state.wallet
-  const helper = new ParcelHelper(parcel)
-  const canEdit = helper.canEdit(app.state.wallet)
+  const wallet = app.state.wallet?.toLowerCase()
+  const isOwner = app.isOwner(parcel.owner)
+  const isCollaborator = !!wallet && (parcel.parcel_users ?? []).some((u: ParcelUser) => u.wallet.toLowerCase() === wallet)
+  const canEdit = isOwner || isCollaborator
 
   const title = (
     <hgroup>
@@ -202,28 +201,26 @@ export default function ParcelEdit(props: Props) {
         </label>
       </div>
 
-      <h3>collaborators</h3>
-      <SelectUser onSelect={addCollaborator} />
-      {(parcel.parcel_users ?? []).length > 0 && (
-        <ul>
-          {(parcel.parcel_users as any[]).map((u) =>
-            (u.owner) ?
-              (
-
-                <li>
-                  <a href={`/u/${u.wallet}`}>{u.owner.substring(0, 10)}...</a>{' '}
-                  <button type="button" onClick={() => toggleRole(u.owner)}>
+      {isOwner && (
+        <>
+          <h3>collaborators</h3>
+          <SelectUser onSelect={addCollaborator} />
+          {(parcel.parcel_users ?? []).length > 0 && (
+            <ul>
+              {(parcel.parcel_users as ParcelUser[]).map((u) => (
+                <li key={u.wallet}>
+                  <a href={`/u/${u.wallet}`}>{u.wallet.substring(0, 10)}...</a>{' '}
+                  <button type="button" onClick={() => toggleRole(u.wallet)}>
                     {u.role}
                   </button>{' '}
-                  <button type="button" onClick={() => removeCollaborator(u.owner)}>
+                  <button type="button" onClick={() => removeCollaborator(u.wallet)}>
                     remove
                   </button>
                 </li>
-              )
-              :
-              (<li>{JSON.stringify(u)}</li>)
+              ))}
+            </ul>
           )}
-        </ul>
+        </>
       )}
 
       <button type="submit" disabled={saving}>

@@ -15,6 +15,7 @@ export default class WompsPage extends Component<Props> {
 
         <header>
           <h1>Womps</h1>
+          <p>Recent snapshots from around the world. Click one to teleport.</p>
         </header>
 
         <WompsList hint={'No womps found'} numberToShow={42} collapsed={false} fetch="/womps.json" ttl={600} />

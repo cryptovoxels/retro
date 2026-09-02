@@ -24,6 +24,9 @@ import { JSXInternal } from 'preact/src/jsx'
 import { ensureRadio } from './radio/global'
 import { app, AppEvent } from './state'
 import { AppRoutes } from './app-routes'
+import { applyTheme } from '../../common/helpers/theme'
+
+applyTheme()
 
 class MainApp extends Component {
   componentDidMount() {

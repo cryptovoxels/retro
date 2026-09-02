@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'preact/hooks'
 import ParcelHelper from '../../../common/helpers/parcel-helper'
-import { ParcelRecord } from '../../../common/messages/parcel'
+import { ParcelWithMintednessRecord } from '../../../common/messages/parcel'
 import cachedFetch from '../helpers/cached-fetch'
 import { mintParcel } from '../helpers/mint-parcel'
 import { Fee, listOnOpensea } from '../helpers/list-opensea'
@@ -13,7 +13,7 @@ type Listing = { id: number; price: number; permalink: string }
 type Config = { floor: number; volume30d: number; suggested: number; fees: Fee[] }
 
 type Props = {
-  parcel: ParcelRecord
+  parcel: ParcelWithMintednessRecord
   isOwner: boolean
 }
 

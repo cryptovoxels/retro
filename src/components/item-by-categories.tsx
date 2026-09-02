@@ -1,6 +1,6 @@
 import { Component } from 'preact'
 import { opensea, readOpenseaUrl } from '../utils/proxy'
-import { ParcelRecord } from '../../common/messages/parcel'
+import { SingleParcelRecord } from '../../common/messages/parcel'
 import { FeatureCommon, FeatureType } from '../../common/messages/feature'
 import { imageUrlViaProxy, tidyURL } from '../utils/helpers'
 
@@ -129,7 +129,7 @@ export class ItemsByCategories extends Component<Props, State> {
 }
 
 interface categoryProps {
-  category: ParcelRecord
+  category: SingleParcelRecord
   type: FeatureType
   callback?: (url: string) => void
 }
@@ -158,7 +158,7 @@ export default class CategorizedItemsComponent extends Component<categoryProps, 
     return !!this.props.category.address && !!this.props.category.features
   }
 
-  get categoryObject(): ParcelRecord {
+  get categoryObject(): SingleParcelRecord {
     return this.props.category
   }
 

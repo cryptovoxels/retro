@@ -1,4 +1,4 @@
-import { ParcelRecord } from '../../common/messages/parcel'
+import { SingleParcelRecord } from '../../common/messages/parcel'
 
 const trunc = (x: any) => {
   return x.length > 45 ? x.slice(0, 45) + '...' : x
@@ -69,7 +69,7 @@ function Description(props: any) {
   return null
 }
 
-export default function (props: { parcel: ParcelRecord }) {
+export default function (props: { parcel: SingleParcelRecord }) {
   // @ts-expect-error there is no type for the content part in the parcel record
   const features = props.parcel.content?.features?.map((f) => <Description key={f.uuid} feature={f} />)
   return <ul>{features}</ul>

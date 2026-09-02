@@ -229,6 +229,13 @@ export const encodeCoords = (coords: coords): string => {
   }
 }
 
+export const jitterCoord = (coord: string, length = 1): string => {
+  const decoded = decodeCoords(coord)
+  decoded.position.x += (Math.random() * 2 - 1) * length
+  decoded.position.z += (Math.random() * 2 - 1) * length
+  return encodeCoords(decoded)
+}
+
 /////////////////////////////////////////////////////////////////////////////////////////////////////////
 // CLIPBOARD
 

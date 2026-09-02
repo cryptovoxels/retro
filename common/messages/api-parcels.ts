@@ -2,7 +2,7 @@
 // Types for /api/parcels and /grid/parcels messages
 
 import * as t from 'io-ts'
-import { FullParcelRecord, ParcelRecord, SimpleParcelRecord } from './parcel'
+import { FullParcelRecord, SimpleParcelRecord, SingleParcelRecord } from './parcel'
 
 /**
  * /api/parcels/cached.json
@@ -22,7 +22,7 @@ export type CachedParcelsMessage = t.TypeOf<typeof CachedParcelsMessage>
 export const ApiParcelMessage = t.type(
   {
     success: t.boolean,
-    parcel: ParcelRecord,
+    parcel: SingleParcelRecord,
   },
   'ApiParcelMessage',
 )

@@ -20,6 +20,7 @@ type State = {
   query: string
   blogN: number
   shopN: number
+  eventsN: number
   chatN: number
 }
 
@@ -63,6 +64,7 @@ export default class WebHeader extends Component<Props, State> {
     query: getQueryParams()?.get('q') ?? '',
     blogN: 0,
     shopN: 0,
+    eventsN: 0,
     chatN: 0,
   }
 
@@ -123,6 +125,13 @@ export default class WebHeader extends Component<Props, State> {
         this.setState({ shopN: n })
       })
       .catch(() => {})
+
+    cachedFetch('/api/events/on.json')
+      .then((r) => r.json())
+      .then((d) => {
+        this.setState({ eventsN: (d.events || []).length })
+      })
+      .catch(() => {})
   }
 
   showSnackbar(message: any) {
@@ -152,7 +161,7 @@ export default class WebHeader extends Component<Props, State> {
     const signedIn = app.signedIn
     const admin = app.isAdmin()
     const here = this.navPath()
-    const { blogN, shopN, chatN } = this.state
+    const { blogN, shopN, eventsN, chatN } = this.state
     const A = ({ to, children }: { to: string; children: any }) => (
       <li>
         <Link activeClassName="active" class={here === to ? 'active' : undefined} href={to} path={to}>
@@ -182,35 +191,45 @@ export default class WebHeader extends Component<Props, State> {
               <A to="/">Home</A>
               {admin && <A to="/admin">Admin</A>}
               <A to="/account">{signedIn ? 'Profile' : 'Login'}</A>
+              <A to="/api">API</A>
+              <A to="/art">Art</A>
               <A to="/assets">Assets</A>
+              <A to="/behaviours">Behaviours</A>
               <A to="/blog">
                 Blog
                 {badge(blogN)}
               </A>
+              <A to="/build">Build</A>
               <A to="/chat">
                 Chat
                 {badge(chatN)}
               </A>
               <A to="/collections">Collections</A>
+              <A to="/conduct">Conduct</A>
+              {signedIn && <A to="/costumer">Costume</A>}
+              <A to="/events">
+                Events
+                {badge(eventsN)}
+              </A>
+              <A to="/golive">Go live</A>
               <A to="/islands">Islands</A>
               {signedIn && <A to="/logout">Log out</A>}
               <A to="/map">Map</A>
               <A to="/parcels">Parcels</A>
+              <A to="/privacy">Privacy</A>
               <A to="/radio">Radio</A>
               <A to="/shop">
                 Shop
                 {badge(shopN)}
               </A>
+              <A to="/terms">Terms</A>
               <A to="/womps">Womps</A>
 
               <li>
                 <br />
+                <br />
               </li>
 
-              <A to="/art">Art</A>
-              <A to="/api">API</A>
-              <A to="/behaviours">Behaviours</A>
-              <A to="/conduct">Conduct</A>
               <li>
                 <a href="https://discord.gg/3RSCZGr3fr" target="_blank" rel="noopener">
                   &rarr; Discord
@@ -221,8 +240,6 @@ export default class WebHeader extends Component<Props, State> {
                   &rarr; Github
                 </a>
               </li>
-              <A to="/privacy">Privacy</A>
-              <A to="/terms">Terms</A>
               <li>
                 <a href="https://www.x.com/cryptovoxels" target="_blank" rel="noopener">
                   &rarr; Twitter

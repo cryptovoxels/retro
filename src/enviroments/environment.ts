@@ -1,3 +1,4 @@
+import { wantsGateway } from '../../common/helpers/detector'
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
 import { TimeOfDay } from '../utils/time-of-day'
 import { StateObservable } from '../utils/state-observable'
@@ -48,10 +49,11 @@ export abstract class Environment extends TypedEventTarget<{
   }
 
   get ambient(): number {
-    return AMBIENT
+    return wantsGateway() ? GATEWAY_AMBIENT : AMBIENT
   }
 
   get fogDensity() {
+    if (wantsGateway()) return 0
     return Math.max(3 / window.draw.distance - 0.006, 0)
   }
 

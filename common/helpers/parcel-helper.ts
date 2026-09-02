@@ -1,7 +1,7 @@
 import { unzlibSync } from 'fflate'
 import ndarray from 'ndarray'
 import { MapParcelRecord } from '../messages/api-parcels'
-import { FullParcelRecord, ParcelContentRecord, ParcelGeometry, ParcelKind, ParcelRecord } from '../messages/parcel'
+import { FullParcelRecord, ParcelContentRecord, ParcelGeometry, ParcelKind, SingleParcelRecord } from '../messages/parcel'
 import { shorterWallet, ssrFriendlyWindow } from './utils'
 import { avatarName } from '../messages/avatar-ref'
 
@@ -66,7 +66,7 @@ export default class ParcelHelper {
   }
 
   // To do: there are a number of different data formats that are passed to the constructor and we should rationalise them
-  // | MapParcelRecord | FullParcelRecord | ParcelRecord...
+  // | MapParcelRecord | FullParcelRecord | ParcelRecord | SingleParcelRecord...
   constructor(obj: Partial<FullParcelRecord> | Partial<ParcelHelper>) {
     KEYS.forEach((key) => {
       ;(this as Record<string, any>)[key] = (obj as Record<string, any>)[key]
@@ -275,22 +275,6 @@ export default class ParcelHelper {
     return wallet?.toLowerCase() === this.owner?.toLowerCase()
   }
 
-  canEdit(wallet: string | null) {
-    if (this.isOwner(wallet)) {
-      return true
-    }
-
-    const users: any = this.parcelUsers ?? []
-
-    for (let u of users) {
-      if (u == wallet || u.owner == wallet) {
-        return true
-      }
-    }
-
-    return false
-  }
-
   isOwner(wallet: string | null | undefined): boolean {
     if (!wallet) return false
     const w = extractWallet(this.owner)
@@ -404,6 +388,6 @@ export function audiencePlayQuery(coords: string, mobileLean = false): string {
   return qs.toString()
 }
 
-export function getParcelHelper(parcel: MapParcelRecord | ParcelRecord) {
+export function getParcelHelper(parcel: MapParcelRecord | SingleParcelRecord) {
   return new ParcelHelper(parcel)
 }

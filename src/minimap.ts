@@ -1,7 +1,7 @@
 import type Connector from './connector'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
 import { isMobile } from '../common/helpers/detector'
-import { ParcelRecord } from '../common/messages/parcel'
+import { SingleParcelRecord } from '../common/messages/parcel'
 import { app, AppEvent } from '../web/src/state'
 import { cameraPosition } from './utils/camera'
 import { distanceEnable, fetchAllParcels, fetchContributingParcels, fetchIslands, fetchOwnerParcels, Island, MapParcel, OCEAN, createBaseMeshes, createMaterial, pickParcelMesh } from './voxels-map'
@@ -176,7 +176,7 @@ export class Minimap {
     this.unloadOtherPlayers()
   }
 
-  getMesh(data: ParcelRecord) {
+  getMesh(data: SingleParcelRecord) {
     return pickParcelMesh(data, this.meshes)
   }
 
