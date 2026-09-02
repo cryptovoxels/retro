@@ -148,7 +148,7 @@ export default class Image extends Feature2D<ImageRecord> {
     }
 
     this.mesh.material = material
-    this.mesh.visibility = tidyFloat(this.description.opacity, 1)
+    // this.mesh.visibility = tidyFloat(this.description.opacity, 1)
 
     setTextureProperties(this, texture, material, this.mesh)
 
@@ -326,6 +326,7 @@ export function setTextureProperties(
       tex.wrapV = BABYLON.Texture.WRAP_ADDRESSMODE
   }
 
+  /*
   mat.alpha = 0.999
 
   if (options.blendMode === 'Multiply') {
@@ -364,5 +365,7 @@ export function setTextureProperties(
   if (options.transparencyMode === TransparencyMode.Background) {
     mesh.alphaIndex = 10
   }
+    */
+   
   mat.blockDirtyMechanism = true
 }

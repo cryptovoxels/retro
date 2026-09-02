@@ -232,47 +232,49 @@ export const SimpleParcelRecord = t.type(
 export type SimpleParcelRecord = t.TypeOf<typeof SimpleParcelRecord>
 
 /**
- * Detailed response of single-parcel fetch /grid/parcel/(id) - doesn't include some fields provided by the SimpleParcelRecord
- */
-export const SingleParcelRecord = t.type(
-  {
-    id: FullParcelRecord.props.id,
-    hash: FullParcelRecord.props.hash,
-    kind: FullParcelRecord.props.kind,
-    features: FullParcelRecord.props.features,
-    settings: FullParcelRecord.props.settings,
-    scripting: FullParcelRecord.props.scripting,
-    voxels: FullParcelRecord.props.voxels,
-    owner: FullParcelRecord.props.owner,
-    lightmap_url: FullParcelRecord.props.lightmap_url,
-    parcel_users: FullParcelRecord.props.parcel_users,
-    description: FullParcelRecord.props.description,
-    name: FullParcelRecord.props.name,
-    label: FullParcelRecord.props.label,
-    address: FullParcelRecord.props.address,
-    suburb: FullParcelRecord.props.suburb,
-    is_common: FullParcelRecord.props.is_common,
-    x1: FullParcelRecord.props.x1,
-    y1: FullParcelRecord.props.y1,
-    z1: FullParcelRecord.props.z1,
-    x2: FullParcelRecord.props.x2,
-    y2: FullParcelRecord.props.y2,
-    z2: FullParcelRecord.props.z2,
-    tileset: FullParcelRecord.props.tileset,
-    brightness: FullParcelRecord.props.brightness,
-    palette: FullParcelRecord.props.palette,
-    vox: FullParcelRecord.props.vox,
-    visible: FullParcelRecord.props.visible,
-    sandbox: FullParcelRecord.props.sandbox,
-  },
-  'SingleParcelRecord',
-)
-export type SingleParcelRecord = t.TypeOf<typeof SingleParcelRecord>
-
-/**
  * Complete parcel description, derived by combining the simple & single parcels (which gridworker does)
  */
-export const ParcelRecord = t.intersection([SimpleParcelRecord, SingleParcelRecord], 'ParcelRecord')
+export const ParcelRecord = t.type(
+  {
+    id: FullParcelRecord.props.id,
+    owner: FullParcelRecord.props.owner,
+    name: FullParcelRecord.props.name,
+    label: FullParcelRecord.props.label,
+    kind: FullParcelRecord.props.kind,
+    description: FullParcelRecord.props.description,
+    hash: FullParcelRecord.props.hash,
+    island: FullParcelRecord.props.island,
+    suburb: FullParcelRecord.props.suburb,
+    parcel_users: FullParcelRecord.props.parcel_users,
+    visible: FullParcelRecord.props.visible,
+    x1: FullParcelRecord.props.x1,
+    x2: FullParcelRecord.props.x2,
+    y1: FullParcelRecord.props.y1,
+    y2: FullParcelRecord.props.y2,
+    z1: FullParcelRecord.props.z1,
+    z2: FullParcelRecord.props.z2,
+    address: FullParcelRecord.props.address,
+    geometry: FullParcelRecord.props.geometry,
+    height: FullParcelRecord.props.height,
+    distance_to_center: FullParcelRecord.props.distance_to_center,
+    distance_to_ocean: FullParcelRecord.props.distance_to_ocean,
+    distance_to_closest_common: FullParcelRecord.props.distance_to_closest_common,
+    lightmap_url: FullParcelRecord.props.lightmap_url,
+    is_common: FullParcelRecord.props.is_common,
+    sandbox: FullParcelRecord.props.sandbox,
+    voxels: FullParcelRecord.props.voxels,
+    scripting: FullParcelRecord.props.scripting,
+    tileset: FullParcelRecord.props.tileset,
+    palette: FullParcelRecord.props.palette,
+    features: FullParcelRecord.props.features,
+    settings: FullParcelRecord.props.settings,
+    brightness: FullParcelRecord.props.brightness,
+    vox: FullParcelRecord.props.vox,
+    // not always populated by the server
+    minted: t.union([t.boolean, t.undefined]),
+  },
+  'ParcelRecord',
+)
 export type ParcelRecord = t.TypeOf<typeof ParcelRecord>
 
 export const ParcelContentRecord = t.type(
@@ -289,12 +291,6 @@ export const ParcelContentRecord = t.type(
   'ParcelContentRecord',
 )
 export type ParcelContentRecord = t.TypeOf<typeof ParcelContentRecord>
-
-/**
- * Minted status is needed by the parcel page to decide whether to display an OpenSea link
- */
-export const ParcelWithMintednessRecord = t.intersection([ParcelRecord, t.type({ minted: t.boolean })], 'ParcelWithMintednessRecord')
-export type ParcelWithMintednessRecord = t.TypeOf<typeof ParcelWithMintednessRecord>
 
 /**
  * Validates that a simple parcel description has been completed - has had the single-parcel API result added to it

@@ -326,7 +326,6 @@ export class SettingsUI extends Component<Props, State> {
             <dd>
               <input type="checkbox" onChange={(e) => this.onToggleChat(e.target as HTMLInputElement)} checked={chatSettings.enabled} />
             </dd>
-
           </dl>
         </section>
 

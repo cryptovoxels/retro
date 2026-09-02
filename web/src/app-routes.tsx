@@ -27,8 +27,6 @@ import Parcel from './parcel'
 import ParcelEdit from './parcel-edit'
 import Parcels from './parcels'
 import Privacy from './privacy'
-import RenderAsset from './render/asset'
-import RenderCostume from './render/costume'
 import Search from './search'
 import Shop from './shop'
 import Space from './space'
@@ -58,7 +56,6 @@ const components: Record<string, ComponentType<any>> = {
   assetsNew: AssetsNew,
   asset: Asset,
   editAsset: EditAsset,
-  renderAsset: RenderAsset,
   parcels: Parcels,
   parcel: Parcel,
   parcelEdit: ParcelEdit,
@@ -68,7 +65,6 @@ const components: Record<string, ComponentType<any>> = {
   map: WorldMap,
   goLiveBroadcast: GoLiveBroadcast,
   goLive: GoLive,
-  renderCostume: RenderCostume,
   avatar: Avatar,
   costumer: Costumer,
   collections: Collections,

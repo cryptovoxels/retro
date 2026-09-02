@@ -22,13 +22,13 @@ select p.id,
        is_common,
        COALESCE(
          (SELECT row_to_json(sub) FROM (SELECT a.id, a.name, a.owner, a.created_at FROM avatars a WHERE lower(a.owner) = lower(p.owner) LIMIT 1) sub),
-         to_json(lower(p.owner))
+         json_build_object('owner', lower(p.owner))
        ) as owner,
        p.updated_at,
        (select array_to_json(array_agg(
           COALESCE(
             (SELECT row_to_json(sub) FROM (SELECT a.id, a.name, a.owner, a.created_at FROM avatars a WHERE lower(a.owner) = lower(pu.wallet) LIMIT 1) sub),
-            to_json(lower(pu.wallet))
+            json_build_object('owner', lower(pu.wallet))
           )
         )) from parcel_users pu where pu.parcel_id = p.id) as parcel_users,
        label,

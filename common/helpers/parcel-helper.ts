@@ -1,7 +1,7 @@
 import { unzlibSync } from 'fflate'
 import ndarray from 'ndarray'
 import { MapParcelRecord } from '../messages/api-parcels'
-import { FullParcelRecord, ParcelContentRecord, ParcelGeometry, ParcelKind, SingleParcelRecord } from '../messages/parcel'
+import { FullParcelRecord, ParcelContentRecord, ParcelGeometry, ParcelKind, ParcelRecord } from '../messages/parcel'
 import { shorterWallet, ssrFriendlyWindow } from './utils'
 import { avatarName } from '../messages/avatar-ref'
 
@@ -66,10 +66,10 @@ export default class ParcelHelper {
   }
 
   // To do: there are a number of different data formats that are passed to the constructor and we should rationalise them
-  // | MapParcelRecord | FullParcelRecord | ParcelRecord | SingleParcelRecord...
+  // | MapParcelRecord | FullParcelRecord | ParcelRecord...
   constructor(obj: Partial<FullParcelRecord> | Partial<ParcelHelper>) {
     KEYS.forEach((key) => {
-      ; (this as Record<string, any>)[key] = (obj as Record<string, any>)[key]
+      ;(this as Record<string, any>)[key] = (obj as Record<string, any>)[key]
     })
     if ('height' in obj) {
       this._height = obj.height
@@ -283,7 +283,7 @@ export default class ParcelHelper {
     const users: any = this.parcelUsers ?? []
 
     for (let u of users) {
-      if ((u == wallet) || (u.owner == wallet)) {
+      if (u == wallet || u.owner == wallet) {
         return true
       }
     }
@@ -404,6 +404,6 @@ export function audiencePlayQuery(coords: string, mobileLean = false): string {
   return qs.toString()
 }
 
-export function getParcelHelper(parcel: MapParcelRecord | SingleParcelRecord) {
+export function getParcelHelper(parcel: MapParcelRecord | ParcelRecord) {
   return new ParcelHelper(parcel)
 }

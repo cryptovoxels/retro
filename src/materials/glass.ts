@@ -26,20 +26,20 @@ export function createGlassMaterial(scene: BABYLON.Scene, config: GlassConfig = 
   const baseColor = parsedTint || new BABYLON.Color3(0.5, 0.55, 0.64)
   material.diffuseColor = baseColor
   material.emissiveColor = baseColor
-  material.alpha = config.alpha ?? 0.25
-  material.zOffset = 1
-  material.needDepthPrePass = false
-  material.backFaceCulling = false
+  // material.alpha = config.alpha ?? 0.25
+  // material.zOffset = 1
+  // material.needDepthPrePass = false
+  // material.backFaceCulling = false
 
   // Add environment texture reflections for glass if available
-  if (scene.environmentTexture) {
-    material.reflectionTexture = scene.environmentTexture
-    material.reflectionTexture.coordinatesMode = BABYLON.Texture.CUBIC_MODE
-    material.reflectionTexture.level = 0.3 // Subtle reflections for glass
-  }
+  // if (scene.environmentTexture) {
+  //   material.reflectionTexture = scene.environmentTexture
+  //   material.reflectionTexture.coordinatesMode = BABYLON.Texture.CUBIC_MODE
+  //   material.reflectionTexture.level = 0.3 // Subtle reflections for glass
+  // }
 
-  material.freeze()
-  material.blockDirtyMechanism = true
+  // material.freeze()
+  // material.blockDirtyMechanism = true
 
   cacheMaterial(cacheKey, material)
   return material
