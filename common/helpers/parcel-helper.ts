@@ -69,7 +69,7 @@ export default class ParcelHelper {
   // | MapParcelRecord | FullParcelRecord | ParcelRecord | SingleParcelRecord...
   constructor(obj: Partial<FullParcelRecord> | Partial<ParcelHelper>) {
     KEYS.forEach((key) => {
-      ;(this as Record<string, any>)[key] = (obj as Record<string, any>)[key]
+      ; (this as Record<string, any>)[key] = (obj as Record<string, any>)[key]
     })
     if ('height' in obj) {
       this._height = obj.height
@@ -273,6 +273,22 @@ export default class ParcelHelper {
 
   isTrueOwner(wallet = '') {
     return wallet?.toLowerCase() === this.owner?.toLowerCase()
+  }
+
+  canEdit(wallet: string | null) {
+    if (this.isOwner(wallet)) {
+      return true
+    }
+
+    const users: any = this.parcelUsers ?? []
+
+    for (let u of users) {
+      if ((u == wallet) || (u.owner == wallet)) {
+        return true
+      }
+    }
+
+    return false
   }
 
   isOwner(wallet: string | null | undefined): boolean {
