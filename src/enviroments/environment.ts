@@ -71,7 +71,7 @@ export abstract class Environment extends TypedEventTarget<{
     this.updateFog(this.scene)
 
     this.ambientLight = new BABYLON.HemisphericLight('sun', this.sunPosition, this.scene)
-    this.ambientLight.intensity = 0.5
+    this.ambientLight.intensity = 1.0
     // this.ambientLight.groundColor = new BABYLON.Color3(this.ambient, this.ambient, this.ambient)
 
     window.draw.addEventListener('distance-changed', () => {

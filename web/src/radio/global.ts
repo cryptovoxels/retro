@@ -1,3 +1,4 @@
+import { wantsAudio } from '../../../common/helpers/detector'
 import { VoxelRadioEngine } from './engine'
 
 let radio: VoxelRadioEngine | null = null
@@ -28,7 +29,8 @@ function syncDuck() {
   radio.duck(title)
 }
 
-export function ensureRadio(): VoxelRadioEngine {
+export function ensureRadio(): VoxelRadioEngine | null {
+  if (!wantsAudio()) return null
   if (!radio) {
     radio = new VoxelRadioEngine()
     radio.onChange = notify
@@ -69,7 +71,7 @@ export function unduckRadio(ref: object) {
 }
 
 export function setRadioVolume(v: number) {
-  ensureRadio().setTrackVolume(v)
+  ensureRadio()?.setTrackVolume(v)
 }
 
 export function setRadioBroadcasting(b: boolean) {

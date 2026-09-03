@@ -16,15 +16,15 @@ function loadTex(url: string, scene: BABYLON.Scene): BABYLON.Texture {
   return cachedTex
 }
 
-function tintVertexColors(lighting: Float32Array, colorIndices: Float32Array, palette: BABYLON.Color3[]) {
+function tintVertexColors(lighting: Float32Array, colorIndices: Float32Array, palette: BABYLON.Color3[], scale = 1.0) {
   const colors = new Float32Array(lighting.length)
   for (let i = 0; i < colorIndices.length; i++) {
     const p = palette[colorIndices[i] | 0] || palette[0]
     if (!p) continue
     const o = i * 4
-    colors[o] = lighting[o] * p.r
-    colors[o + 1] = lighting[o + 1] * p.g
-    colors[o + 2] = lighting[o + 2] * p.b
+    colors[o] = lighting[o] * p.r * scale
+    colors[o + 1] = lighting[o + 1] * p.g * scale
+    colors[o + 2] = lighting[o + 2] * p.b * scale
     colors[o + 3] = 1
   }
   return colors
@@ -40,12 +40,13 @@ export function applyCleanPalette(mesh: BABYLON.Mesh, palette: BABYLON.Color3[])
 }
 
 function mesh(geo: Geo, tex: BABYLON.Texture, scene: BABYLON.Scene, id: number, palette: BABYLON.Color3[]): BABYLON.Mesh {
+  console.log(JSON.stringify(palette))
   const m = new BABYLON.Mesh(`voxelizer/opaque-${id}`, scene)
   const vd = new BABYLON.VertexData()
   vd.positions = geo.positions
   vd.normals = geo.normals
   vd.uvs = geo.uvs
-  vd.colors = tintVertexColors(geo.colors, geo.colorIndices, palette)
+  vd.colors = tintVertexColors(geo.colors, geo.colorIndices, palette, 0.5)
   vd.indices = geo.indices
   vd.applyToMesh(m)
 

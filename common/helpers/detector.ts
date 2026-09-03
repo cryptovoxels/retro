@@ -179,6 +179,8 @@ export const wantsAudio = (): boolean => {
   if (isEmbedded()) return false
   // phone speakers at an opening howl
   if (wantsGateway()) return false
+  // cursor's built-in browser, agents test graphics in it and nobody wants to hear it
+  if (navigator.userAgent.includes('Cursor/')) return false
   return true
 }
 
