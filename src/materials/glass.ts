@@ -23,13 +23,14 @@ export function createGlassMaterial(scene: BABYLON.Scene, config: GlassConfig = 
 
   const material = new BABYLON.StandardMaterial(`glass/${config.name || 'default'}/${Date.now()}`, scene)
 
-  const baseColor = parsedTint || new BABYLON.Color3(0.5, 0.55, 0.64)
+  const baseColor = new BABYLON.Color3(0.3, 0.4, 0.6)
   material.diffuseColor = baseColor
+  material.specularColor = new BABYLON.Color3(1, 1, 1)
   material.emissiveColor = baseColor
-  material.alpha = config.alpha ?? 0.25
-  material.zOffset = 1
-  material.needDepthPrePass = false
   material.backFaceCulling = false
+  material.alpha = 0.5
+  material.zOffset = -1
+  // material.needDepthPrePass = true
 
   // Add environment texture reflections for glass if available
   if (scene.environmentTexture) {

@@ -389,7 +389,7 @@ function opaqueGeo(field: NdArray<Uint8Array>, light: Uint8Array): Geo {
 }
 
 function glassGeo(field: NdArray<Uint8Array>): GlassGeo | null {
-  const [w, h, d] = field.shape
+  const dims = field.shape
   const positions: number[] = []
   const normals: number[] = []
   const colorIndices: number[] = []
@@ -397,28 +397,73 @@ function glassGeo(field: NdArray<Uint8Array>): GlassGeo | null {
   const Y_OFFSET = 0.5
   let vi = 0
 
-  for (let x = 0; x < w; x++) {
-    for (let y = 0; y < h; y++) {
-      for (let z = 0; z < d; z++) {
-        const cell = field.get(x, y, z)
-        if (!isGlass(cell)) continue
-        const colorIndex = Math.floor(cell / 32) % 8
-        for (const face of FACES) {
-          const [nx, ny, nz] = face.ni
-          const ax = x + nx,
-            ay = y + ny,
-            az = z + nz
-          const nv = ax >= 0 && ay >= 0 && az >= 0 && ax < w && ay < h && az < d ? field.get(ax, ay, az) : 0
-          if (isGlass(nv)) continue // cull glass-glass shared faces
-          for (const [vx, vy, vz] of face.v) {
-            positions.push((x + vx) * VoxelSize, (y + vy) * VoxelSize + Y_OFFSET, (z + vz) * VoxelSize)
+  for (let f = 0; f < 6; f++) {
+    const face = FACES[f]
+    const axis = f >> 1
+    const sign = f % 2 === 0 ? 1 : -1
+    const au = (axis + 1) % 3
+    const av = (axis + 2) % 3
+    const du = dims[au]
+    const dv = dims[av]
+    const mask = new Int32Array(du * dv)
+    const x = [0, 0, 0]
+
+    for (let k = 0; k < dims[axis]; k++) {
+      let n = 0
+      for (let j = 0; j < dv; j++)
+        for (let i = 0; i < du; i++, n++) {
+          x[axis] = k
+          x[au] = i
+          x[av] = j
+          const cell = field.get(x[0], x[1], x[2])
+          if (!isGlass(cell)) {
+            mask[n] = 0
+            continue
+          }
+          x[axis] = k + sign
+          const nv = x[axis] >= 0 && x[axis] < dims[axis] ? field.get(x[0], x[1], x[2]) : 0
+          // only air exposes a glass face - opaque neighbours bury it
+          mask[n] = nv === 0 ? (Math.floor(cell / 32) % 8) + 1 : 0
+        }
+
+      n = 0
+      for (let j = 0; j < dv; j++)
+        for (let i = 0; i < du; ) {
+          const c = mask[n]
+          if (!c) {
+            i++
+            n++
+            continue
+          }
+          let w = 1
+          while (i + w < du && mask[n + w] === c) w++
+          let h = 1
+          let done = false
+          while (j + h < dv && !done) {
+            for (let q = 0; q < w; q++)
+              if (mask[n + q + h * du] !== c) {
+                done = true
+                break
+              }
+            if (!done) h++
+          }
+          for (let l = 0; l < h; l++) for (let q = 0; q < w; q++) mask[n + q + l * du] = 0
+
+          for (const corner of face.v) {
+            const p = [0, 0, 0]
+            p[axis] = k + corner[axis]
+            p[au] = i + corner[au] * w
+            p[av] = j + corner[av] * h
+            positions.push(p[0] * VoxelSize, p[1] * VoxelSize + Y_OFFSET, p[2] * VoxelSize)
             normals.push(...face.n)
-            colorIndices.push(colorIndex)
+            colorIndices.push(c - 1)
           }
           indices.push(vi, vi + 1, vi + 2, vi, vi + 2, vi + 3)
           vi += 4
+
+          i += w
+          n += w
         }
-      }
     }
   }
 
