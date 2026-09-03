@@ -26,7 +26,8 @@ function detectFormat(): TextureFormatExtension {
   const engine = BABYLON.EngineStore.Instances[0]
 
   if (!engine) {
-    throw new Error('Cannot detect texture format: BabylonJS engine not initialized')
+    return '.dxt.ktx'
+    // throw new Error('Cannot detect texture format: BabylonJS engine not initialized')
   }
 
   // NullEngine (used in tests) doesn't have WebGL context

@@ -32,7 +32,7 @@ export default class PlayerCamera extends BABYLON.FreeCamera {
   /** first person sits on the eye; third person swings back, stopping short of whatever is behind */
   place() {
     if (this.distance <= 0) {
-      this.position.copyFrom(this.body.position)
+      this.position.copyFromFloats(this.body.position.x, this.body.position.y, this.body.position.z)
       return
     }
     if (this.orbit && this.autoRotate) {
@@ -48,7 +48,7 @@ export default class PlayerCamera extends BABYLON.FreeCamera {
       const hit = w.castRay(new RAPIER.Ray(this.body.position, this.back), dist + ORBIT_MARGIN, true, undefined, undefined, undefined, this.body.blocker)
       if (hit) dist = Math.max(0, hit.timeOfImpact - ORBIT_MARGIN)
     }
-    this.position.copyFrom(this.body.position).addInPlace(this.back.scaleInPlace(dist))
+    this.position.copyFromFloats(this.body.position.x, this.body.position.y, this.body.position.z).addInPlace(this.back.scaleInPlace(dist))
   }
 
   getClassName(): string {

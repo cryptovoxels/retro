@@ -2,7 +2,10 @@ import PlayerCamera from '../controls/utils/player-camera'
 
 export function cameraPosition(scene: BABYLON.Scene): BABYLON.Vector3 {
   if (!scene.activeCamera) return BABYLON.Vector3.Zero()
-  if (scene.activeCamera instanceof PlayerCamera) return scene.activeCamera.body.position
+  if (scene.activeCamera instanceof PlayerCamera) {
+    const p = scene.activeCamera.body.position
+    return new BABYLON.Vector3(p.x, p.y, p.z)
+  }
   if (scene.activeCamera instanceof BABYLON.ArcRotateCamera) return scene.activeCamera.target
   if (scene.activeCamera instanceof BABYLON.WebXRCamera) return scene.activeCamera.position
   return scene.activeCamera.position
@@ -11,7 +14,7 @@ export function cameraPosition(scene: BABYLON.Scene): BABYLON.Vector3 {
 export function setCameraPosition(scene: BABYLON.Scene, position: BABYLON.Vector3) {
   if (!scene.activeCamera) return
   if (scene.activeCamera instanceof PlayerCamera) {
-    scene.activeCamera.body.position.copyFrom(position)
+    Object.assign(scene.activeCamera.body.position, { x: position.x, y: position.y, z: position.z })
     return
   }
   if (scene.activeCamera instanceof BABYLON.ArcRotateCamera) {

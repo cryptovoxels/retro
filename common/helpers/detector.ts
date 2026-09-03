@@ -116,6 +116,13 @@ export const wantsGateway = () => {
   return v === '1' || v === 'true'
 }
 
+// experimental webgpu renderer (babylon lite). ?renderer= sticks so ?renderer=babylon rescues, no webgpu silently stays on babylon
+export const wantsLite = () => {
+  const param = searchParams.get('renderer')
+  if (param) localStorage.setItem('renderer', param)
+  return localStorage.getItem('renderer') === 'lite' && !!(navigator as any).gpu
+}
+
 // &ui=off drops the HUD and reticule (used by go-live links, see secret-flags.md)
 export const wantsNoUI = () => {
   return ['off', 'false', '0'].includes(searchParams.get('ui') ?? '') || wantsGateway()

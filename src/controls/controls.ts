@@ -164,7 +164,7 @@ export default abstract class Controls implements IControls {
     this.scene.activeCamera = camera
 
     this.body = new PlayerBody()
-    this.body.position.copyFrom(camera.position)
+    Object.assign(this.body.position, { x: camera.position.x, y: camera.position.y, z: camera.position.z })
     camera.body = this.body
     camera.place()
 
@@ -449,7 +449,8 @@ export default abstract class Controls implements IControls {
   resetFloor() {
     if (!this.grid) return
     this.floorWait = []
-    this.grid.queryParcelsAtPosition(this.body.position).then((ids) => (this.floorWait = ids.length ? ids : null))
+    const p = this.body.position
+    this.grid.queryParcelsAtPosition(new BABYLON.Vector3(p.x, p.y, p.z)).then((ids) => (this.floorWait = ids.length ? ids : null))
   }
 
   setNoclip(on: boolean) {
@@ -594,10 +595,11 @@ export default abstract class Controls implements IControls {
       right.normalize()
     }
 
-    const dir = target.position.subtract(this.body.position)
+    const bp = new BABYLON.Vector3(this.body.position.x, this.body.position.y, this.body.position.z)
+    const dir = target.position.subtract(bp)
     dir.y = 0
     const gapHz = dir.length()
-    const gap3 = BABYLON.Vector3.Distance(target.position, this.body.position)
+    const gap3 = BABYLON.Vector3.Distance(target.position, bp)
     if (leaderFlying ? gap3 > 30 : gapHz > 30) {
       const tp = target.position.subtract(forward.scale(CONGA_FOLLOW_DISTANCE))
       if (!leaderFlying) {
@@ -628,7 +630,7 @@ export default abstract class Controls implements IControls {
       desired.y = this.body.position.y
     }
 
-    let pull = desired.subtract(this.body.position)
+    let pull = desired.subtract(bp)
     if (!leaderFlying) {
       pull.y = 0
     }
@@ -637,7 +639,10 @@ export default abstract class Controls implements IControls {
 
     pull.normalize()
     const step = Math.min(1, deltaTime * (3 + pullLen * 1.8))
-    this.body.position.addInPlace(pull.scale(Math.min(pullLen, pullLen * step)))
+    pull.scaleInPlace(Math.min(pullLen, pullLen * step))
+    this.body.position.x += pull.x
+    this.body.position.y += pull.y
+    this.body.position.z += pull.z
   }
 
   getCoords() {
@@ -1013,7 +1018,7 @@ export default abstract class Controls implements IControls {
       const [ox, oy, oz] = this.vehicleSeatOffset
       this.vehicleSeatLocal.copyFromFloats(ox, oy, oz)
       BABYLON.Vector3.TransformCoordinatesToRef(this.vehicleSeatLocal, car.mesh.getWorldMatrix(), this.vehicleSeatWorld)
-      this.body.position.copyFrom(this.vehicleSeatWorld)
+      Object.assign(this.body.position, { x: this.vehicleSeatWorld.x, y: this.vehicleSeatWorld.y, z: this.vehicleSeatWorld.z })
       // mouse owns look (pitch + yaw); car facing is separate via getVehicleDriveYaw
     }
 

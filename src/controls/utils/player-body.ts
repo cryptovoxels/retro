@@ -18,8 +18,9 @@ export const WALK_HZ = 0.05
 
 export type Motion = { hz: number; vy: number; impact: number }
 
+// plain {x,y,z}: the lite renderer runs this without babylon
 export default class PlayerBody {
-  position = BABYLON.Vector3.Zero()
+  position: Vec3 = { x: 0, y: 0, z: 0 }
   motion: Motion = { hz: 0, vy: 0, impact: 0 }
   /** vehicles, pose balls, gateway: move straight, skip the world (implies no gravity) */
   noclip = false
@@ -34,7 +35,7 @@ export default class PlayerBody {
   private ready = false
   private vel = new RAPIER.Vector3(0, 0, 0)
   private doubled = true
-  private scratch = BABYLON.Vector3.Zero()
+  private scratch: Vec3 = { x: 0, y: 0, z: 0 }
 
   get blocker(): RAPIER.RigidBody | undefined {
     return this.ready ? this.body : undefined
@@ -75,7 +76,7 @@ export default class PlayerBody {
   private rise = 0
 
   /** move is unitless direction; speed is m/s; dt is seconds */
-  step(move: BABYLON.Vector3, dt: number): void {
+  step(move: Vec3, dt: number): void {
     // Smooth acceleration and deceleration
     const t = 1 - Math.exp(-10 * dt)
     this.vel.x += (move.x * this.speed - this.vel.x) * t
@@ -83,11 +84,15 @@ export default class PlayerBody {
 
     // Re-use scratch
     const d = this.scratch
-    d.set(this.vel.x * dt, move.y * this.speed * dt, this.vel.z * dt)
+    d.x = this.vel.x * dt
+    d.y = move.y * this.speed * dt
+    d.z = this.vel.z * dt
 
     if (this.noclip || !this.setup()) {
       this.rise = 0
-      this.position.addInPlace(d)
+      this.position.x += d.x
+      this.position.y += d.y
+      this.position.z += d.z
       this.writeMotion(Math.hypot(d.x, d.z) / dt, 0)
       return
     }
@@ -126,7 +131,9 @@ export default class PlayerBody {
     this.rise *= Math.exp(-10 * dt)
 
     this.body.setNextKinematicTranslation(next)
-    this.position.set(next.x, next.y + DROP - this.rise, next.z)
+    this.position.x = next.x
+    this.position.y = next.y + DROP - this.rise
+    this.position.z = next.z
     this.writeMotion(Math.hypot(stepped.x, stepped.z) / dt, 0)
   }
 }

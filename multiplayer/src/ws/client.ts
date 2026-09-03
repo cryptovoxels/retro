@@ -357,7 +357,11 @@ export class Client {
       [anonId, msg.action, parcelId, position],
     )
     if (msg.action === messages.Action.Enter && parcelId != null) {
-      this.connection.query('embedded/bump-visits', `UPDATE properties SET traffic_visits = traffic_visits + 1 WHERE id = $1`, [parcelId])
+      this.connection.query(
+        'embedded/bump-visits',
+        `UPDATE properties SET traffic_visits = traffic_visits + 1 WHERE id = $1`,
+        [parcelId],
+      )
     }
   }
 

@@ -305,6 +305,22 @@ export class SettingsUI extends Component<Props, State> {
               </>
             )}
 
+            {!!(navigator as any).gpu && (
+              <>
+                <dt>Experimental renderer (babylon lite, webgpu)</dt>
+                <dd>
+                  <input
+                    type="checkbox"
+                    checked={localStorage.getItem('renderer') === 'lite'}
+                    onChange={(e) => {
+                      localStorage.setItem('renderer', (e.target as HTMLInputElement).checked ? 'lite' : 'babylon')
+                      location.reload()
+                    }}
+                  />
+                </dd>
+              </>
+            )}
+
             {this.state.showMinimapSettings && (
               <>
                 <dt>Enable mini map</dt>

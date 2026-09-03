@@ -1,13 +1,15 @@
 import { Component, createRef } from 'preact'
 import ParcelHelper from '../../common/helpers/parcel-helper'
 import { canUseDom } from '../../common/helpers/utils'
-import { wantsNoUI } from '../../common/helpers/detector'
+import { wantsLite, wantsNoUI } from '../../common/helpers/detector'
 import type { BootResult } from '../../src'
 import cachedFetch from './helpers/cached-fetch'
 import { getCoords, getParcelIdFromPath, syncParcelUrl } from './helpers/coords-nav'
 import { app, AppEvent } from './state'
 
-function boot(): Promise<BootResult> {
+// lite is its own runtime: none of the babylon module graph gets evaluated
+function boot(): Promise<BootResult | null> {
+  if (wantsLite()) return import('../../src/lite').then((m) => m.bootLite())
   return import(/* webpackMode: "eager" */ '../../src').then((m) => m.bootEngine())
 }
 
@@ -16,7 +18,7 @@ type FrameProps = {
   path?: string
 }
 
-type FrameState = { ui?: BootResult }
+type FrameState = { ui?: BootResult | null }
 
 export class Client extends Component<FrameProps, FrameState> {
   root = createRef<HTMLDivElement>()
@@ -26,10 +28,12 @@ export class Client extends Component<FrameProps, FrameState> {
   componentDidMount() {
     if (!canUseDom) return
     document.body.classList.add('in-world')
-    void boot().then((ui) => {
-      this.setState({ ui })
-      this.adopt()
-    })
+    void boot()
+      .then((ui) => {
+        this.setState({ ui })
+        this.adopt()
+      })
+      .catch((e) => console.error('[boot]', e))
     app.on(AppEvent.Exploring, this.onExplore)
   }
 
