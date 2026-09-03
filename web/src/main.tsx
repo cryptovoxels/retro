@@ -10,7 +10,7 @@ import { Route, Router, type RouterOnChangeArgs } from 'preact-router'
 import EditAccount from '../account/edit'
 import { Login } from './auth/login'
 import Snackbar from './components/snackbar'
-import VoxelRadio from './components/voxel-radio'
+import RadioPage from './components/radio-page'
 import Footer from './footer'
 import Home from './home'
 import { Client } from './client'
@@ -129,7 +129,7 @@ const Main = () => {
 function RadioPopout(_props: { path?: string }) {
   return (
     <div class="radio-popout">
-      <VoxelRadio popped />
+      <RadioPage />
     </div>
   )
 }
