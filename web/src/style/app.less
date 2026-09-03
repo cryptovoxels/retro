@@ -1612,13 +1612,14 @@ small {
 /* Forms */
 
 div.f {
-  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   margin-bottom: 0.5rem;
-  padding: 0 0 0 10rem;
+  padding: 0;
 
   label {
-    position: absolute;
-    left: 0;
+    font-size: smaller;
     text-transform: lowercase;
   }
 
@@ -1638,7 +1639,7 @@ div.f {
   input[type='number'],
   textarea {
     font-family: 'source code pro', monospace;
-    width: 25rem;
+    width: 100%;
     font-size: 0.9rem;
     padding: 0.2rem;
   }

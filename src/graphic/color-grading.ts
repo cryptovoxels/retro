@@ -13,10 +13,10 @@ export class ColorGrader {
     this._postProcess.vignetteEnabled = false
     // Enable dithering to break up gradient banding (same as skybox material)
     // Adds subtle noise to overcome precision issues in shader pipeline
-    this._postProcess.imageProcessingConfiguration.ditheringEnabled = true
-    this._postProcess.imageProcessingConfiguration.ditheringIntensity = 1.0 / 255.0
+    // this._postProcess.imageProcessingConfiguration.ditheringEnabled = true
+    // this._postProcess.imageProcessingConfiguration.ditheringIntensity = 1.0 / 255.0
     // Explicitly set applyByPostProcess to ensure materials skip their own image processing
-    this._postProcess.imageProcessingConfiguration.applyByPostProcess = true
+    // this._postProcess.imageProcessingConfiguration.applyByPostProcess = true
     this._postProcess.samples = 1
   }
 

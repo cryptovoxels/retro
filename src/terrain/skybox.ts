@@ -10,7 +10,7 @@ export default class Skybox {
     material.turbidity = 1 // smearing of the sun local to the sun itself
     material.rayleigh = 2 // smearing of the sun across the sky in general
     material.mieCoefficient = 0.03 // smearing that obscures the sun's shape
-    material.dithering = true // needed to overcome precision issues introduced by shader pipeline
+    // material.dithering = true // needed to overcome precision issues introduced by shader pipeline
     material.freeze()
     this.material = material
 

@@ -41,7 +41,10 @@ const loadQuery = () => {
       p.z1,
       p.z2,
       memoized_hash as hash,
-      (select array_to_json(array_agg(row_to_json(t))) from (select wallet,role from parcel_users where parcel_id=p.id) t) as parcel_users,
+      (select jsonb_agg(
+        coalesce((select to_jsonb(a) from (select id, name, owner, created_at from avatars where lower(owner) = lower(pu.wallet) limit 1) a), jsonb_build_object('owner', lower(pu.wallet)))
+        || jsonb_build_object('role', pu.role)
+      ) from parcel_users pu where pu.parcel_id = p.id) as parcel_users,
       is_common,
       lightmap_url,
       label,
@@ -407,7 +410,7 @@ export abstract class AbstractParcel implements ParcelRef {
      * if a wallet is not present in the new list but present in the old list, we deleted it.
      */
     const findMissingWalletInNewParcelUsersList = () => {
-      return (this.parcel_users?.filter((previousRole) => !parcel_users.find((u) => u.wallet.toLowerCase() == previousRole.wallet.toLowerCase())) ?? []) as ParcelUser[]
+      return (this.parcel_users?.filter((previousRole) => !parcel_users.find((u) => u.owner.toLowerCase() == previousRole.owner.toLowerCase())) ?? []) as ParcelUser[]
     }
     const usersToBeRemovedFromParcel = findMissingWalletInNewParcelUsersList()
 
@@ -419,7 +422,7 @@ export abstract class AbstractParcel implements ParcelRef {
 
       // remove all parcel_users associated to the parcel we want to update
       for (const r of usersToBeRemovedFromParcel) {
-        await c.query(`delete from parcel_users where parcel_id=$1 and lower(wallet)=lower($2)`, [this.id, r.wallet])
+        await c.query(`delete from parcel_users where parcel_id=$1 and lower(wallet)=lower($2)`, [this.id, r.owner])
       }
 
       // Send an insert query for each new role.
@@ -432,7 +435,7 @@ export abstract class AbstractParcel implements ParcelRef {
       ON CONFLICT ON CONSTRAINT parcel_wallet_constraint
       DO
         UPDATE SET role = $3;`,
-          [this.id, r.wallet.toLowerCase(), r.role],
+          [this.id, r.owner.toLowerCase(), r.role],
         )
       }
 
@@ -619,7 +622,10 @@ export default class Parcel extends AbstractParcel {
     const result = await db.query(
       'embedded/get-parcel-full-ref',
       `select properties.id, properties.kind, properties.name, description, island, memoized_hash as hash, owner,
-      (select array_to_json(array_agg(row_to_json(t))) from (select wallet,role from parcel_users where parcel_id=properties.id) t) as parcel_users,
+      (select jsonb_agg(
+        coalesce((select to_jsonb(a) from (select id, name, owner, created_at from avatars where lower(owner) = lower(pu.wallet) limit 1) a), jsonb_build_object('owner', lower(pu.wallet)))
+        || jsonb_build_object('role', pu.role)
+      ) from parcel_users pu where pu.parcel_id = properties.id) as parcel_users,
        is_common, suburbs.name as suburb, settings, lightmap_url, sandbox from properties
        left join suburbs on suburbs.id = properties.suburb_id
        where properties.id=$1`,

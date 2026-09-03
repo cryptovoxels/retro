@@ -298,7 +298,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
    * Returns all wallets set as "contributor"
    */
   public get contributors() {
-    return this.parcel_users?.filter((pu) => pu.role == 'contributor').map((pu) => pu.wallet) || []
+    return this.parcel_users?.filter((pu) => pu.role == 'contributor').map((pu) => pu.owner) || []
   }
 
   // The parcel page info URL
@@ -310,7 +310,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
    * Returns all wallets set as parcel owner
    */
   get owners() {
-    return [this.owner, ...(this.parcel_users?.filter((pu) => pu.role == 'owner').map((pu) => pu.wallet) || [])]
+    return [this.owner, ...(this.parcel_users?.filter((pu) => pu.role == 'owner').map((pu) => pu.owner) || [])]
   }
 
   get canEdit(): boolean {

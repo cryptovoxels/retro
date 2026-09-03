@@ -85,6 +85,24 @@ export async function loadLots(record: Record<string, unknown>): Promise<LotRect
   return r.rows
 }
 
+export type GhostRow = { type: number; path: string }
+
+/** Random anonymous visitor paths that started or ended on this lot. */
+export async function loadGhosts(id: number): Promise<GhostRow[]> {
+  try {
+    const r = await pool.query<GhostRow>(
+      `select type, encode(path, 'base64') as path from ghosts
+       where start_parcel = $1 or end_parcel = $1
+       order by random() limit 10`,
+      [id],
+    )
+    return r.rows
+  } catch (e) {
+    console.error('[renderer] ghosts', id, e)
+    return []
+  }
+}
+
 let islandCache: any[] | null = null
 
 /** Archipelago shoreline data for the preview minimap. Cached for the process. */

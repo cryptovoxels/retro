@@ -185,7 +185,7 @@ function parcelEditorWallets(parcel: any): string[] {
   if (ownerWallet) out.add(ownerWallet)
   for (const pu of parcel?.parcel_users ?? []) {
     if (pu?.role === 'owner' || pu?.role === 'contributor' || pu?.role === 'moderator') {
-      if (pu.wallet) out.add(String(pu.wallet).toLowerCase())
+      if (pu.owner) out.add(String(pu.owner).toLowerCase())
     }
   }
   return [...out]

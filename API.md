@@ -24,7 +24,7 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 - [search](#search), 1 route
 - [ghosts](#ghosts), 1 route
 - [chat](#chat), 1 route
-- [schemas](#schemas), 23 shapes
+- [schemas](#schemas), 24 shapes
 
 ## parcels
 
@@ -1307,7 +1307,7 @@ The shapes the routes above hand back.
 
 ### AvatarRef
 
-A citizen, or the bare lowercased wallet string when no avatar row matches. Anywhere an owner or author appears, expect either shape, and in the same array: `parcel_users` on a parcel mixes objects and strings.
+A citizen, or the bare lowercased wallet string when no avatar row matches. Anywhere an owner or author appears, expect either shape.
 
 - string
 - object
@@ -1315,6 +1315,16 @@ A citizen, or the bare lowercased wallet string when no avatar row matches. Anyw
   - `name` string or null
   - `owner` string
   - `created_at` string or null
+
+### ParcelUser
+
+A collaborator on a parcel: their avatar row plus `role`. When they have no avatar only `owner` (the lowercased wallet) and `role` are present.
+
+- `id` string, a uuid
+- `name` string or null
+- `owner` string
+- `created_at` string or null
+- `role` string, one of `owner`, `contributor`, `excluded`
 
 ### GeoJsonPoint
 
@@ -1401,7 +1411,7 @@ One parcel with its build. What `/api/parcels/{id}.json` returns.
 - `kind` string, one of `plot`, `inner`, `outer`, `unit`, `basement`, `asset`
 - `geometry` [`ParcelGeometry`](#parcelgeometry)
 - `owner` [`AvatarRef`](#avatarref)
-- `parcel_users` array of [`AvatarRef`](#avatarref) or null
+- `parcel_users` array of [`ParcelUser`](#parceluser) or null
 - `content` [`ParcelContent`](#parcelcontent)
 - `settings` object or null
 - `lightmap_url` string or null
@@ -1427,7 +1437,7 @@ A row from the parcel list routes. No `content`.
 - `suburb` string or null
 - `geometry` [`ParcelGeometry`](#parcelgeometry)
 - `owner` [`AvatarRef`](#avatarref)
-- `parcel_users` array of object or null
+- `parcel_users` array of [`ParcelUser`](#parceluser) or null
 - `hash` string or null
 - `lightmap_url` string or null
 - `visible` boolean
@@ -1448,9 +1458,7 @@ A row from `/api/parcels/cached.json`.
 - `kind` string
 - `geometry` [`ParcelGeometry`](#parcelgeometry)
 - `owner` string: A lowercased wallet, not an avatar object.
-- `parcel_users` array of object
-  - `wallet` string
-  - `role` string, one of `owner`, `contributor`, `excluded`
+- `parcel_users` array of [`ParcelUser`](#parceluser)
 - `hash` string or null
 - `lightmap_url` string or null
 - `settings` object or null

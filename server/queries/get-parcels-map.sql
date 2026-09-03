@@ -5,8 +5,10 @@ select properties.id as id,
        properties.description as description,
        properties.is_common as is_common,
        suburbs.name as suburb,
-       (select array_to_json(array_agg(row_to_json(t)))
-        from (select wallet, role from parcel_users where parcel_id = properties.id) t) as parcel_users,
+       (select jsonb_agg(
+          coalesce((select to_jsonb(a) from (select id, name, owner, created_at from avatars where lower(owner) = lower(pu.wallet) limit 1) a), jsonb_build_object('owner', lower(pu.wallet)))
+          || jsonb_build_object('role', pu.role)
+        ) from parcel_users pu where pu.parcel_id = properties.id) as parcel_users,
        properties.settings,
        properties.sandbox,
        island,

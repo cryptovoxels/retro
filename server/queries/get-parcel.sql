@@ -25,12 +25,10 @@ select p.id,
          to_json(lower(p.owner))
        ) as owner,
        p.updated_at,
-       (select array_to_json(array_agg(
-          COALESCE(
-            (SELECT row_to_json(sub) FROM (SELECT a.id, a.name, a.owner, a.created_at FROM avatars a WHERE lower(a.owner) = lower(pu.wallet) LIMIT 1) sub),
-            to_json(lower(pu.wallet))
-          )
-        )) from parcel_users pu where pu.parcel_id = p.id) as parcel_users,
+       (select jsonb_agg(
+          coalesce((select to_jsonb(a) from (select id, name, owner, created_at from avatars where lower(owner) = lower(pu.wallet) limit 1) a), jsonb_build_object('owner', lower(pu.wallet)))
+          || jsonb_build_object('role', pu.role)
+        ) from parcel_users pu where pu.parcel_id = p.id) as parcel_users,
        label,
        p.description,
        lightmap_url,

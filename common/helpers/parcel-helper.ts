@@ -3,7 +3,7 @@ import ndarray from 'ndarray'
 import { MapParcelRecord } from '../messages/api-parcels'
 import { FullParcelRecord, ParcelContentRecord, ParcelGeometry, ParcelKind, SingleParcelRecord } from '../messages/parcel'
 import { shorterWallet, ssrFriendlyWindow } from './utils'
-import { avatarName } from '../messages/avatar-ref'
+import { avatarName, ParcelUser } from '../messages/avatar-ref'
 
 const extractWallet = (owner: any): string => (owner && typeof owner === 'object' ? (owner.owner ?? '') : (owner ?? ''))
 
@@ -32,8 +32,7 @@ const KEYS = [
   'sandbox',
 ] as const
 
-export type UserRightRole = 'owner' | 'contributor' | 'excluded'
-export type ParcelUser = { wallet: string; role: UserRightRole }
+export type { ParcelUser, UserRightRole } from '../messages/avatar-ref'
 
 export default class ParcelHelper {
   id: number = undefined!
@@ -279,7 +278,7 @@ export default class ParcelHelper {
     if (!wallet) return false
     const w = extractWallet(this.owner)
     if (w && wallet.toLowerCase() === w.toLowerCase()) return true
-    return !!this.owners.find((owner) => wallet.toLowerCase() === owner.wallet.toLowerCase())
+    return !!this.owners.find((owner) => wallet.toLowerCase() === owner.owner.toLowerCase())
   }
 
   get contributors() {
@@ -287,7 +286,7 @@ export default class ParcelHelper {
   }
 
   isContributor = (wallet: string | null | undefined) => {
-    return !!this.contributors.find((contributor) => contributor.wallet.toLowerCase() === wallet?.toLowerCase())
+    return !!this.contributors.find((contributor) => contributor.owner.toLowerCase() === wallet?.toLowerCase())
   }
 
   get isSandbox() {

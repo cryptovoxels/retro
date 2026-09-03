@@ -15,9 +15,12 @@ const MINI_INSET = 10
 
 type LotRect = { id: number; x1: number; x2: number; z1: number; z2: number }
 
+type GhostRow = { type: number; path: string }
+
 type PreviewWorld = {
   lots?: LotRect[]
   islands?: any[]
+  ghosts?: GhostRow[]
 }
 
 function lookupEmbed(url: string): string | undefined {
@@ -272,6 +275,45 @@ function makeLotOutlines(scene: BABYLON.Scene, record: ParcelRecord, lots: LotRe
   }
 }
 
+// Same packing as src/ghosts.ts: float32 t,x,y,z per sample.
+function unpackPath(b64: string): Float32Array | null {
+  try {
+    const bin = atob(b64)
+    const bytes = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i)
+    if (bytes.byteLength % 16 !== 0 || bytes.byteLength < 32) return null
+    return new Float32Array(bytes.buffer)
+  } catch {
+    return null
+  }
+}
+
+// Black capsules replaying visitor paths on loop. Returns the per-frame tick.
+function makeGhosts(scene: BABYLON.Scene, rows: GhostRow[]) {
+  const paths = rows.map((r) => unpackPath(r.path)).filter((p): p is Float32Array => !!p)
+  if (!paths.length) return () => {}
+  const mat = createMaterial('preview-ghost', scene, 0, 0, 0)
+  const start = performance.now()
+  const ghosts = paths.map((path) => {
+    const mesh = BABYLON.MeshBuilder.CreateCapsule('preview-ghost', { height: 1.8, radius: 0.35 }, scene)
+    mesh.material = mat
+    mesh.isPickable = false
+    // Linger 2s at the end so it reads as arriving, not teleporting.
+    return { mesh, path, loop: path[path.length - 4] - path[0] + 2 }
+  })
+  return () => {
+    const now = (performance.now() - start) / 1000
+    for (const { mesh, path, loop } of ghosts) {
+      const t = path[0] + (now % loop)
+      let i = 4
+      while (i < path.length - 4 && path[i] < t) i += 4
+      const a = i - 4
+      const f = Math.min(1, Math.max(0, (t - path[a]) / Math.max(0.001, path[i] - path[a])))
+      mesh.position.set(path[a + 1] + (path[i + 1] - path[a + 1]) * f, path[a + 2] + (path[i + 2] - path[a + 2]) * f + 0.9, path[a + 3] + (path[i + 3] - path[a + 3]) * f)
+    }
+  }
+}
+
 function makeLabels(scene: BABYLON.Scene, record: ParcelRecord) {
   if (!(BABYLON as any).GUI) return
   const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('tile', true, scene)
@@ -462,8 +504,10 @@ async function renderParcelPreview(record: ParcelRecord, embeds?: Record<string,
 
 async function orbitParcelPreview(record: ParcelRecord, embeds?: Record<string, string>, world?: PreviewWorld): Promise<void> {
   const live = await buildPreview(record, embeds, world, true)
+  const tickGhosts = makeGhosts(live.scene, world?.ghosts || [])
   live.engine.runRenderLoop(() => {
     live.camera.alpha += live.engine.getDeltaTime() / 1000
+    tickGhosts()
     live.scene.render()
     live.mini?.render()
   })

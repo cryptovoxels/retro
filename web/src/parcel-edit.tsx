@@ -6,8 +6,8 @@ import SelectUser from './components/select-user'
 import cachedFetch, { invalidateUrl } from './helpers/cached-fetch'
 import { route } from 'preact-router'
 import { app } from './state'
-
-type ParcelUser = { wallet: string; role: string }
+import { ParcelUser } from '../../common/helpers/parcel-helper'
+import { AvatarLink } from './components/avatar-link'
 
 type Version = {
   id: number
@@ -94,21 +94,21 @@ export default function ParcelEdit(props: Props) {
   function addCollaborator(wallet: string) {
     if (!wallet) return
     const users: ParcelUser[] = parcel.parcel_users ?? []
-    if (users.find((u) => u.wallet.toLowerCase() === wallet.toLowerCase())) return
-    set('parcel_users', [...users, { wallet, role: 'contributor' }])
+    if (users.find((u) => u.owner.toLowerCase() === wallet.toLowerCase())) return
+    set('parcel_users', [...users, { owner: wallet, role: 'contributor' }])
   }
 
   function removeCollaborator(wallet: string) {
     set(
       'parcel_users',
-      (parcel.parcel_users ?? []).filter((u: ParcelUser) => u.wallet !== wallet),
+      (parcel.parcel_users ?? []).filter((u: ParcelUser) => u.owner !== wallet),
     )
   }
 
   function toggleRole(wallet: string) {
     set(
       'parcel_users',
-      (parcel.parcel_users ?? []).map((u: ParcelUser) => (u.wallet === wallet ? { ...u, role: u.role === 'owner' ? 'contributor' : 'owner' } : u)),
+      (parcel.parcel_users ?? []).map((u: ParcelUser) => (u.owner === wallet ? { ...u, role: u.role === 'owner' ? 'contributor' : 'owner' } : u)),
     )
   }
 
@@ -168,7 +168,7 @@ export default function ParcelEdit(props: Props) {
 
   const wallet = app.state.wallet?.toLowerCase()
   const isOwner = app.isOwner(parcel.owner)
-  const isCollaborator = !!wallet && (parcel.parcel_users ?? []).some((u: ParcelUser) => u.wallet.toLowerCase() === wallet)
+  const isCollaborator = !!wallet && (parcel.parcel_users ?? []).some((u: ParcelUser) => u.owner.toLowerCase() === wallet)
   const canEdit = isOwner || isCollaborator
 
   const title = (
@@ -197,7 +197,7 @@ export default function ParcelEdit(props: Props) {
       <h3>settings</h3>
       <div class="f">
         <label>
-          <input type="checkbox" checked={!!parcel.sandbox} onChange={(e: any) => set('sandbox', e.target.checked)} /> Sandbox (publicly editable)
+          <input type="checkbox" checked={!!parcel.sandbox} onChange={(e: any) => set('sandbox', e.target.checked)} /> Sandbox
         </label>
       </div>
 
@@ -208,12 +208,12 @@ export default function ParcelEdit(props: Props) {
           {(parcel.parcel_users ?? []).length > 0 && (
             <ul>
               {(parcel.parcel_users as ParcelUser[]).map((u) => (
-                <li key={u.wallet}>
-                  <a href={`/u/${u.wallet}`}>{u.wallet.substring(0, 10)}...</a>{' '}
-                  <button type="button" onClick={() => toggleRole(u.wallet)}>
+                <li key={u.owner}>
+                  <AvatarLink avatar={u as any} />{' '}
+                  <button type="button" onClick={() => toggleRole(u.owner)}>
                     {u.role}
                   </button>{' '}
-                  <button type="button" onClick={() => removeCollaborator(u.wallet)}>
+                  <button type="button" onClick={() => removeCollaborator(u.owner)}>
                     remove
                   </button>
                 </li>
@@ -282,32 +282,6 @@ export default function ParcelEdit(props: Props) {
     </>
   )
 
-  const quickBuild = (
-    <>
-      <h3>quick build</h3>
-      <p>Replaces all content on the parcel.</p>
-      <div class="f">
-        <label>Material</label>
-        <select onChange={(e: any) => setBuildMaterial(e.target.value)}>
-          {blocks.map((b) => (
-            <option key={b.value} value={b.value}>
-              {b.name.replace(/.png/, '')}
-            </option>
-          ))}
-        </select>
-      </div>
-      <ul>
-        {['Empty', 'Park', 'Outline', 'ThreeTowers', 'House', 'Pyramid', 'Scaffold'].map((fn) => (
-          <li key={fn}>
-            <button type="button" disabled={building} onClick={() => build(fn)}>
-              {fn}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </>
-  )
-
   if (!canEdit) {
     return (
       <section class="columns">
@@ -326,7 +300,6 @@ export default function ParcelEdit(props: Props) {
         {form}
         {history}
       </article>
-      <aside>{quickBuild}</aside>
     </section>
   )
 }

@@ -4,11 +4,10 @@ select properties.id as id,
        suburbs.name as suburb,
        properties.island,
        properties.name as name,
-       (select array_to_json(array_agg(row_to_json(t)))
-        from (select wallet,
-                     role
-              from parcel_users
-              where parcel_id = properties.id) t) as parcel_users,
+       (select jsonb_agg(
+          coalesce((select to_jsonb(a) from (select id, name, owner, created_at from avatars where lower(owner) = lower(pu.wallet) limit 1) a), jsonb_build_object('owner', lower(pu.wallet)))
+          || jsonb_build_object('role', pu.role)
+        ) from parcel_users pu where pu.parcel_id = properties.id) as parcel_users,
        geometry_json as geometry,
        CAST(distance_to_center as double precision),
        CAST(distance_to_ocean as double precision),

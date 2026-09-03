@@ -7,7 +7,7 @@ select properties.id as id,
        properties.kind,
 
        -- Optimize: Use aggregated LEFT JOIN instead of correlated subquery for better performance
-       COALESCE(pu_agg.parcel_users, '[]'::json) as parcel_users,
+       COALESCE(pu_agg.parcel_users, '[]'::jsonb) as parcel_users,
        geometry_json as geometry,
        visible,
        CAST(distance_to_center as double precision),
@@ -29,8 +29,11 @@ from properties
          left join
      suburbs on suburbs.id = properties.suburb_id
          left join
-     (select parcel_id, 
-             array_to_json(array_agg(json_build_object('wallet', wallet, 'role', role))) as parcel_users
-      from parcel_users
-      group by parcel_id) pu_agg on pu_agg.parcel_id = properties.id
+     (select pu.parcel_id,
+             jsonb_agg(
+               coalesce((select to_jsonb(a) from (select id, name, owner, created_at from avatars where lower(owner) = lower(pu.wallet) limit 1) a), jsonb_build_object('owner', lower(pu.wallet)))
+               || jsonb_build_object('role', pu.role)
+             ) as parcel_users
+      from parcel_users pu
+      group by pu.parcel_id) pu_agg on pu_agg.parcel_id = properties.id
 where visible;

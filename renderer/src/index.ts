@@ -4,7 +4,7 @@ import './bootstrap'
 import express from 'express'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { loadIslands, loadLots, loadParcelRecord, loadWearableVox } from './db'
+import { loadGhosts, loadIslands, loadLots, loadParcelRecord, loadWearableVox } from './db'
 import { embedUrls, parcelPreviewUrls } from './embed'
 import { hasParcelThumb, hasWearableThumb, parcelCdnUrl, ugcConfigured, uploadParcelThumb, uploadWearableThumb, wearableCdnUrl } from './s3'
 import { closeBrowser, renderParcel, renderWearable, setPageBase, warmBrowser } from './browser'
@@ -80,8 +80,8 @@ function mountRoutes(r: express.Router | express.Express) {
         res.status(404).end('not found')
         return
       }
-      const [embeds, lots, islands] = await Promise.all([embedUrls(parcelPreviewUrls(record)), loadLots(record), loadIslands()])
-      res.json({ record, embeds, world: { lots, islands } })
+      const [embeds, lots, islands, ghosts] = await Promise.all([embedUrls(parcelPreviewUrls(record)), loadLots(record), loadIslands(), loadGhosts(id)])
+      res.json({ record, embeds, world: { lots, islands, ghosts } })
     } catch (e) {
       console.error('[renderer] parcel json', id, e)
       res.status(500).end('db failed')

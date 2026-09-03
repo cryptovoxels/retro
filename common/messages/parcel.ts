@@ -3,7 +3,7 @@
 
 import * as t from 'io-ts'
 import { FeatureRecord, NullableStr } from './feature'
-import { avatarRefCodec } from './avatar-ref'
+import { avatarRefCodec, parcelUserCodec } from './avatar-ref'
 
 // Types are defined using io-ts instead of typescript
 // See https://github.com/gcanti/io-ts/blob/master/index.md for documentation
@@ -81,16 +81,7 @@ export const FullParcelRecord = t.type(
     hash: NullableStr,
     island: t.string, // this isn't included in /grid/parcels/(id) but *is* included in /api/parcles/cached.json :-/
     suburb: t.string,
-    parcel_users: t.union([
-      t.array(
-        t.type({
-          wallet: t.string,
-          role: t.union([t.literal('owner'), t.literal('contributor'), t.literal('excluded')]),
-        }),
-      ),
-      t.null,
-      t.undefined,
-    ]),
+    parcel_users: t.union([t.array(parcelUserCodec), t.null, t.undefined]),
     visible: t.boolean,
 
     x1: t.number,
