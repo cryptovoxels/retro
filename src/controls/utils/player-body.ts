@@ -72,6 +72,7 @@ export default class PlayerBody {
   }
 
   private stuck = 0
+  private rise = 0
 
   /** move is unitless direction; speed is m/s; dt is seconds */
   step(move: BABYLON.Vector3, dt: number): void {
@@ -85,13 +86,14 @@ export default class PlayerBody {
     d.set(this.vel.x * dt, move.y * this.speed * dt, this.vel.z * dt)
 
     if (this.noclip || !this.setup()) {
+      this.rise = 0
       this.position.addInPlace(d)
       this.writeMotion(Math.hypot(d.x, d.z) / dt, 0)
       return
     }
 
     // teleports and seat snaps move position behind our back: resync before querying
-    this.body.setTranslation({ x: this.position.x, y: this.position.y - DROP, z: this.position.z }, true)
+    this.body.setTranslation({ x: this.position.x, y: this.position.y + this.rise - DROP, z: this.position.z }, true)
 
     // console.log(this.vel.y)
 
@@ -119,8 +121,12 @@ export default class PlayerBody {
       this.vel.y = 0
     }
 
+    // autostep teleports the body up in one frame; lag the reported position and let it catch up so the step animates like the drop does
+    if (!this.flying && y <= 0 && stepped.y > 0) this.rise += stepped.y
+    this.rise *= Math.exp(-10 * dt)
+
     this.body.setNextKinematicTranslation(next)
-    this.position.set(next.x, next.y + DROP, next.z)
+    this.position.set(next.x, next.y + DROP - this.rise, next.z)
     this.writeMotion(Math.hypot(stepped.x, stepped.z) / dt, 0)
   }
 }
