@@ -40,13 +40,12 @@ export function applyCleanPalette(mesh: BABYLON.Mesh, palette: BABYLON.Color3[])
 }
 
 function mesh(geo: Geo, tex: BABYLON.Texture, scene: BABYLON.Scene, id: number, palette: BABYLON.Color3[]): BABYLON.Mesh {
-  console.log(JSON.stringify(palette))
   const m = new BABYLON.Mesh(`voxelizer/opaque-${id}`, scene)
   const vd = new BABYLON.VertexData()
   vd.positions = geo.positions
   vd.normals = geo.normals
   vd.uvs = geo.uvs
-  vd.colors = tintVertexColors(geo.colors, geo.colorIndices, palette, 0.5)
+  vd.colors = tintVertexColors(geo.colors, geo.colorIndices, palette, 0.8)
   vd.indices = geo.indices
   vd.applyToMesh(m)
 
