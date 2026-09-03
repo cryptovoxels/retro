@@ -47,7 +47,7 @@ export default class PlayerBody {
     this.body = w.createRigidBody(RAPIER.RigidBodyDesc.kinematicPositionBased().setTranslation(this.position.x, this.position.y - DROP, this.position.z))
     this.collider = w.createCollider(RAPIER.ColliderDesc.roundCylinder(HALF, RADIUS, 0.05), this.body)
     this.controller = w.createCharacterController(0.05)
-    this.controller.enableAutostep(1, 0.1, false)
+    this.controller.enableAutostep(0.6, 0.1, false)
     this.controller.setSlideEnabled(true)
     this.controller.setMinSlopeSlideAngle(0.01)
     // this.controller.enableSnapToGround(0.5)
