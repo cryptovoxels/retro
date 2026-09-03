@@ -24,6 +24,8 @@ export default class PlayerBody {
   /** vehicles, pose balls, gateway: move straight, skip the world (implies no gravity) */
   noclip = false
   flying = true
+  /** controls holds this off until the parcels under us have colliders */
+  gravity = true
   speed = WALK
   private body: RAPIER.RigidBody = undefined!
   private collider: RAPIER.Collider = undefined!
@@ -111,7 +113,7 @@ export default class PlayerBody {
 
     const n = this.controller.numComputedCollisions()
 
-    if (n == 0 && !this.flying) {
+    if (n == 0 && this.gravity) {
       this.vel.y += GRAVITY * dt
     } else {
       this.vel.y = 0

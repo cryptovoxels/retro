@@ -300,8 +300,6 @@ async function main() {
 
   // not related to a parcel or space
   const { environment } = await createEnvironment(scene)
-  // Give the Controls a chance to observe things in the Environment
-  controls.attachEnvironment(environment)
 
   if (xr) {
     xr.attachEnvironment(environment)

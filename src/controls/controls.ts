@@ -9,7 +9,6 @@ import { isLoaded } from '../utils/loading-done'
 import Feature, { MeshExtended } from '../features/feature'
 import Avatar from '../avatar'
 import { cameraPosition, cameraRotation } from '../utils/camera'
-import type { Environment } from '../enviroments/environment'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
 import { IControls } from './iControls'
 import { Animations } from '../avatar-animations'
@@ -103,8 +102,6 @@ export default abstract class Controls implements IControls {
   /** mobile dpad sets this; also used as drive steer while in a vehicle */
   direction: BABYLON.Vector3 = new BABYLON.Vector3()
 
-  islandsReady = true
-
   congaTarget: Avatar | null = null
   /** Leader's inConga can arrive a few ticks late over multiplayer. */
   private congaSyncGraceUntil = 0
@@ -150,9 +147,8 @@ export default abstract class Controls implements IControls {
   MAX_PICK_DISTANCE = 20
   audioContext: AudioContext = undefined!
   private cameraZoomed = false
-  // Gravity stays off until parcel colliders underfoot exist. See refreshGravity().
-  floorReady = true
-  private floorParcels: number[] | null = null // null = waiting for parcel ids
+  // parcels under our feet still waiting on colliders. [] = waiting on the worker, null = floor is solid
+  private floorWait: number[] | null = null
 
   constructor(
     protected scene: BABYLON.Scene,
@@ -198,7 +194,9 @@ export default abstract class Controls implements IControls {
         this.camera.cameraDirection.setAll(0)
       }
 
+      if (this.floorWait?.length && this.floorWait.every((id) => this.grid?.getByID(id)?.physicsRegistered)) this.floorWait = null
       this.body.flying = this.flying
+      this.body.gravity = !this.flying && !this.floorWait
       this.body.step(this.move, dt)
       this.move.setAll(0)
       this.updateConga()
@@ -229,12 +227,6 @@ export default abstract class Controls implements IControls {
 
   get connector(): Connector {
     return window.connector
-  }
-
-  // Some work can't be done in the ctor, because the scene has not yet had its environment field set.
-  attachEnvironment(environment: Environment) {
-    environment.groundStateObservable.addStateObserver('loaded', () => this._handleGroundLoaded())
-    environment.groundStateObservable.addStateObserver('unloaded', () => this._handleGroundUnloaded())
   }
 
   toggleZoom() {
@@ -453,24 +445,11 @@ export default abstract class Controls implements IControls {
     this.setFlying(!this.flying)
   }
 
-  // called on spawn and teleport
-  public invalidateGroundLoaded() {
-    if (!window.environment) {
-      throw new Error('invalidateGroundLoaded() called before attachEnvironment()!')
-    }
-
-    this.floorReady = false
-    if (!this.grid) {
-      throw new Error('invalidateGroundLoaded() called before attachEnvironment()!')
-    }
-
-    // The main thread doesn't keep a complete list of parcels, so we need to wait for the grid worker to tell us the definitive set of parcels containing the camera.
-    this.floorParcels = null
-    this.grid.queryParcelsAtPosition(this.body.position).then((parcelIds) => {
-      this.floorParcels = parcelIds
-    })
-
-    window.environment.invalidateGroundLoaded()
+  // called on spawn and teleport: hold gravity until the parcels here have colliders
+  resetFloor() {
+    if (!this.grid) return
+    this.floorWait = []
+    this.grid.queryParcelsAtPosition(this.body.position).then((ids) => (this.floorWait = ids.length ? ids : null))
   }
 
   setNoclip(on: boolean) {
@@ -687,14 +666,6 @@ export default abstract class Controls implements IControls {
       (mesh.enablePointerMoveEvents || this.scene.constantlyUpdateMeshUnderPointer || mesh._getActionManagerForTrigger() != null) &&
       (!this.scene.cameraToUseForPointers || (this.scene.cameraToUseForPointers.layerMask & mesh.layerMask) !== 0)
     )
-  }
-
-  protected _handleGroundUnloaded() {
-    this.islandsReady = false
-  }
-
-  protected _handleGroundLoaded() {
-    this.islandsReady = true
   }
 
   // --- ride ---

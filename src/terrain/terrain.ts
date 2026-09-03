@@ -9,7 +9,6 @@ const CHUNK_SIZE = 48
 
 export class Terrain {
   public islandsStateObservable: StateObservable<'loaded' | 'unloaded'>
-  public invalidateIslandsLoaded: () => void
   private readonly _scene: BABYLON.Scene
   private readonly _islands: Islands
   private readonly _oceanFloor: OceanFloor
@@ -24,8 +23,6 @@ export class Terrain {
 
     this._islands = new Islands(scene)
     this.islandsStateObservable = this._islands.islandsStateObservable
-    this.invalidateIslandsLoaded = () => this._islands.invalidateIslandsLoaded()
-
     this._oceanFloor = new OceanFloor(CHUNK_SIZE, scene)
 
     // Extract meshes from skyboxes for reflection

@@ -169,10 +169,6 @@ export default class Islands {
     }
   }
 
-  public invalidateIslandsLoaded() {
-    this.islandsStateObservable.setState('unloaded')
-  }
-
   getIntersecting(boundingInfo: BABYLON.BoundingInfo) {
     return this.islands.filter((island) => {
       return island.hasBasements && island.checkIntersects(boundingInfo)

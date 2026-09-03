@@ -24,8 +24,6 @@ class NullEnvironment extends Environment {
     scene.fogDensity = 0
   }
 
-  invalidateGroundLoaded() {}
-
   update() {}
 
   parcelMeshesAdded(_meshes: BABYLON.Mesh[]) {}

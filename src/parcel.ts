@@ -100,7 +100,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   public readonly grid: Grid
   private regeneratingFeatures = false
   private colliderVoxels: Int32Array | null = null
-  private physicsRegistered = false
+  physicsRegistered = false
   private activated = false
   private activationState = ParcelActivationState.Inactive
   private fieldUpdateTimeout: NodeJS.Timeout | null = null
@@ -934,8 +934,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     return true
   }
 
-  public isColliderEnabled = () => false
-
   carve(voxels: [number, number, number][]) {
     if (!this.field || !voxels.length) return
     this.setField(voxels, 0)
@@ -1126,8 +1124,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       })
     }
   }
-
-  // Called by Controls.refreshGravity() to determine whether all of this parcel's colliders are turned on.
 
   private sendTileset() {
     // Send false to force the operational transformer to update the key
@@ -1358,7 +1354,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       this.colliderVoxels = voxelCollider(this.field)
       this.registerPhysics()
     }
-    this.isColliderEnabled = () => this.physicsRegistered
     this.dispatchEvent(createEvent('MeshLoaded', opaque))
   }
 

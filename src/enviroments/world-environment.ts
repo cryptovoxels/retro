@@ -14,7 +14,6 @@ export class WorldEnvironment extends Environment {
   terrain?: Terrain
   horizon?: Horizon
   skybox?: Skybox
-  private _invalidateGroundLoaded: (() => void) | undefined
   private _isNight: boolean | null = null
   private _isUnderwater: boolean | null = null
   private _groundStateObservable: StateObservable<'loaded' | 'unloaded'> | undefined
@@ -101,19 +100,10 @@ export class WorldEnvironment extends Environment {
     const terrain = new Terrain(this.scene, [this.skybox])
     this.terrain = terrain
     this._groundStateObservable = terrain.islandsStateObservable
-    this._invalidateGroundLoaded = () => terrain.invalidateIslandsLoaded()
 
     this.horizon = new Horizon(this.scene)
 
     await terrain.load()
-  }
-
-  public override invalidateGroundLoaded() {
-    if (!this._invalidateGroundLoaded) {
-      throw new Error('invalidateGroundLoaded() called before WorldEnvironment.load()!')
-    }
-
-    this._invalidateGroundLoaded()
   }
 
   override update() {
