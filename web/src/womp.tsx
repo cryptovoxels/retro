@@ -140,13 +140,13 @@ export default class Womp extends Component<Props, State> {
     const title = this.state.womp.title ? this.state.womp.title : `Womp ${this.state.womp.id}`
 
     return (
-      <section class="columns">
-        <article>
-          <h1>{title}</h1>
+      <section>
+        <h1>{title}</h1>
 
-          <img src={img} class="womp" />
-        </article>
-        <aside>{this.renderAside(img)}</aside>
+        <img src={img} class="womp" />
+
+        {this.renderAside(img)}
+
       </section>
     )
   }
