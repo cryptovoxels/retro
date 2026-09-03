@@ -159,17 +159,6 @@ export default class Grid extends SocketClient {
       },
       { passive: true },
     )
-
-    // refresh shader data (fog distance)
-    window.environment?.addEventListener(
-      'fog-updated',
-      throttle(() => {
-        this.parcels.forEach((parcel) => {
-          parcel.updateShader()
-        })
-      }, 300),
-      { passive: true },
-    )
   }
 
   get seeksConnection() {

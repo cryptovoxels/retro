@@ -88,10 +88,6 @@ export class WorldEnvironment extends Environment {
     return BABYLON.Engine.ALPHA_COMBINE
   }
 
-  get brightness() {
-    return this.isNight ? NIGHT_BRIGHTNESS : DAY_BRIGHTNESS
-  }
-
   async load() {
     await super.load()
 
@@ -125,9 +121,7 @@ export class WorldEnvironment extends Environment {
   }
 
   private updateSceneElements(): void {
-    const skyboxBrightness = this.brightness
-
-    this.skybox?.update(this.sunPosition, skyboxBrightness)
+    this.skybox?.update(this.sunPosition, 0.5)
     if (this.skybox) this.skybox.mesh.isVisible = !this.isUnderwater
     this.horizon?.update(this.horizonAlphaMode, this.fogColor)
     this.horizon?.setVisible(!this.isUnderwater)
@@ -143,11 +137,6 @@ export class WorldEnvironment extends Environment {
     this.updateFog(this.scene)
     this.scene.clearColor = this.clearColor
     ;(window as any).engine?.setUnderwater?.(this.isUnderwater)
-
-    // Update ambient light intensity when day/night changes
-    if (this.ambientLight) {
-      this.ambientLight.intensity = this.brightness
-    }
   }
 
   parcelMeshesAdded(meshes: BABYLON.Mesh[]) {

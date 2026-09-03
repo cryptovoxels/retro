@@ -561,11 +561,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       this.palette = patch.palette
       this.refreshPalette()
     }
-
-    if (patch.brightness) {
-      this.brightness = patch.brightness
-      this.refreshBrightness()
-    }
   }
 
   receiveStatePatch(patch: Record<string, Partial<FeatureRecord>>) {
@@ -655,23 +650,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     return new BABYLON.Vector3(0, 0, 0)
   }
 
-  updateShader() {
-    if (!this.voxelMesh || !this.voxelMesh.material || !(this.voxelMesh.material instanceof BABYLON.ShaderMaterial)) {
-      return
-    }
-
-    window.environment?.updateShaderProperties(this.voxelMesh.material)
-  }
-
   onTileSetUpdate: BABYLON.Observable<void> = new BABYLON.Observable<void>()
-
-  setBrightness(brightness: number) {
-    this.brightness = brightness
-    Object.assign(this.content, { brightness })
-
-    this.refreshBrightness()
-    this.sendBrightness()
-  }
 
   setPalette(colors: Array<string> | undefined) {
     this.applyPaletteLive(colors)
@@ -989,7 +968,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // console.log(`[parcel-${this.id}] Reloaded parcel`)
     this.loadField()
     this.regenerate()
-    this.refreshBrightness()
     this.refreshPalette()
 
     // allow bringing up of build menu
@@ -1176,21 +1154,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     if (palette && palette[1] && material instanceof BABYLON.ShaderMaterial) {
       material.setColor3Array('palette', palette)
     }
-  }
-
-  private refreshBrightness() {
-    if (!this.voxelMesh) {
-      return
-    }
-
-    // todo - disabled brightness toggle
-
-    // const material = this.voxelMesh.material as BABYLON.ShaderMaterial
-
-    // // regenerate if we are still using greedy blocks so that we don't change the brightness of surrounding parcels
-    // if (isShared(material)) return this.refreshVoxels()
-
-    // material.setFloat('brightness', this.brightness || window.environment?.brightness || 1.5)
   }
 
   /**

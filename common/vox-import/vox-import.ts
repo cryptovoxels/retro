@@ -95,9 +95,11 @@ export class VoxImporter {
     )
 
     const env = window.environment
+
     if (env && this.material instanceof BABYLON.ShaderMaterial) {
       this.material.setVector3('vLight', env.sunPosition || new BABYLON.Vector3(0.577, 0.577, -0.577).normalize())
-      env.setShaderParameters(this.material, 1.8)
+      this.material.setFloat('brightness', 1.8)
+      // env.setShaderParameters(this.material, 1.8)
     }
     this.material.blockDirtyMechanism = true
   }
