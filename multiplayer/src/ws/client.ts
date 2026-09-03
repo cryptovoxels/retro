@@ -356,6 +356,9 @@ export class Client {
       `INSERT INTO metrics.${table} (client_id, action, parcel, position) VALUES ($1, $2, $3, cube($4::float8[]))`,
       [anonId, msg.action, parcelId, position],
     )
+    if (msg.action === messages.Action.Enter && parcelId != null) {
+      this.connection.query('embedded/bump-visits', `UPDATE properties SET traffic_visits = traffic_visits + 1 WHERE id = $1`, [parcelId])
+    }
   }
 
   drained() {}
