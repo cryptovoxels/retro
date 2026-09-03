@@ -291,10 +291,6 @@ export default class CollectibleModel extends Feature3D<CollectibleModelRecord> 
     this.takeOffCollectible()
   }
 
-  nudge() {
-    return -0.02
-  }
-
   shouldBeInteractive(): boolean {
     return !!this.collectible
   }

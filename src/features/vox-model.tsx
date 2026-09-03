@@ -150,11 +150,6 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     this.applyImportedMesh(mesh)
   }
 
-  // todo - make 0 in v2 of voxel alignment
-  // get nudge() {
-  //   return 0
-  // }
-
   public override onClick(e: FeatureEvent) {
     if (this.behaviours) {
       this.behaviours.dispatch(this.uuid, 'click', e)

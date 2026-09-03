@@ -68,7 +68,7 @@ export interface transformVectors {
   scaling: BABYLON.Vector3
 }
 
-type EntityType = 'material' | 'mesh' | 'texture' | 'parent' | 'light' | 'instance'
+type EntityType = 'material' | 'mesh' | 'texture' | 'light' | 'instance'
 
 const updatingThesePropsDoesntRequireRegenerate = new Set(['position', 'scale', 'rotation', 'volume'])
 // todo props type
@@ -103,7 +103,6 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     return Feature.draftMaterial
   }
 
-  parent: BABYLON.TransformNode | null = null
   uuid: string
   scene: BABYLON.Scene
   mesh?: AbstractMeshExtended | TransformNodeExtended | null
@@ -424,8 +423,6 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
   abstract nudge(): number | null
 
-  abstract legacyNudge(): number | null
-
   toString() {
     return `[${this.constructor.name.toLowerCase()}]`
   }
@@ -449,10 +446,8 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   refreshWorldMatrix() {
     if (this.isAnimated) {
       this.mesh?.isWorldMatrixFrozen && this.mesh?.unfreezeWorldMatrix()
-      this.parent?.unfreezeWorldMatrix()
     } else {
       this.mesh?.freezeWorldMatrix()
-      this.parent?.freezeWorldMatrix()
     }
   }
 
@@ -809,11 +804,6 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     }
     this.disposeBasicGui()
 
-    if (this.parent) {
-      this.parent.dispose()
-      this.parent = null
-    }
-
     this.removeAllTriggers()
     // remove trigger timeout if existant
     this.timer && clearTimeout(this.timer)
@@ -1038,53 +1028,22 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       return
     }
 
-    // Create parent
-    if (!this.parent) {
-      this.parent = new BABYLON.TransformNode('feature/parent', this.scene)
-    }
-
-    // this.parent business is only used by nft-image- since nft-image has two separate meshes
-    // refactor nft-image to merge the meshes so that we don't need to make this special consideration
-    this.parent.position.copyFrom(this.position)
-    this.parent.rotation.copyFrom(this.rotation)
-
     if (this.mesh) {
       // Set parent
       const group1 = this.groupId && this.parcel.getFeatureByUuid(this.groupId)
       this.mesh.setParent(group1 && group1.mesh ? group1.mesh : this.parcel.transform)
 
-      this.mesh.scaling.set(this.scale.x || EPSILON, this.scale.y || EPSILON, this.scale.z || EPSILON)
+      // planes have no depth, scale.z is meaningless for them and 0 -> EPSILON would kill the nudge below
+      this.mesh.scaling.set(this.scale.x || EPSILON, this.scale.y || EPSILON, this instanceof Feature2D ? 1 : this.scale.z || EPSILON)
       this.mesh.position.copyFrom(this.position)
       this.mesh.rotation.copyFrom(this.rotation)
       // In Babylon 5.5.6, a fix to computeWorldMatrix introduced something that broke the way we deal with nudges and z-fighting;
       // So now we have to always mark the mesh as dirty :/
       this.mesh.markAsDirty()
 
-      // Behaviour of nudging before 8.10.0, where the nudge is impacted by the scale. This affects placements and parcels have been designed on the assumption
-      // that it exists. In a bugfix to 8.10.0, we've restored the legacy behaviour for 3D artifacts but not 2D.
-      if (this.legacyNudge() !== null) {
-        // Extrude from the face a leetle
-        this.mesh.translate(BABYLON.Axis.Z, <number>this.legacyNudge(), BABYLON.Space.LOCAL)
-      } else if (this.nudge() !== null) {
-        let scaledNudge = <number>this.nudge() / this.mesh.scaling.z
-        // Test point - follow the nudging 5x the distance and check that it doesn't end up in a voxel
-        const testPoint = this.localTranslationInParcelSpace(new BABYLON.Vector3(0, 0, scaledNudge * 5))
-
-        // If there is a voxel value then we have nudged the centrepoint into a solid voxel, reverse the nudge
-        const voxelValue = this.parcel.voxelValueFromPositionInParcel(testPoint) || 0
-        if (voxelValue !== 0) {
-          scaledNudge *= -1
-        }
-
-        // Extrude from the face a leetle - nudge is multiplied by scaling.z in world coordinates so needs to have the scaling factored in
-        this.mesh.translate(BABYLON.Axis.Z, scaledNudge, BABYLON.Space.LOCAL)
-
-        // Make x & y slightly bigger so that boxes made from nudged flat surfaces still touch corners
-        if (this.nudge() !== null) {
-          const nudgeGrowth = Math.abs(<number>this.nudge()) * 2
-          this.mesh.scaling.addInPlaceFromFloats(nudgeGrowth, nudgeGrowth, 0)
-        }
-      }
+      // Scaled by scaling.z via translate(LOCAL). Pre-8.10.0 behaviour; parcels were built against it.
+      const nudge = this.nudge()
+      if (nudge !== null) this.mesh.translate(BABYLON.Axis.Z, nudge, BABYLON.Space.LOCAL)
 
       this.applyMeshTransformAdjustments()
 
@@ -1093,8 +1052,6 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       clickableMesh.feature = this
       clickableMesh.parcel = this.parcel
       clickableMesh.isPickable = true
-
-      this.parent.parent = this.mesh.parent
 
       if (!this.mesh.metadata) {
         this.mesh.metadata = {}
@@ -1173,10 +1130,6 @@ export abstract class Feature2D<Description extends MeshedFeatureRecord> extends
   }
 
   nudge(): number | null {
-    return -0.005
-  }
-
-  legacyNudge(): number | null {
     return -0.01
   }
 }
@@ -1187,10 +1140,6 @@ export abstract class Feature3D<Description extends MeshedFeatureRecord> extends
   }
 
   nudge(): number | null {
-    return -0.002
-  }
-
-  legacyNudge(): number | null {
     return -0.01
   }
 }
@@ -1203,10 +1152,6 @@ export abstract class NonMeshedFeature<Description extends NonMeshedFeatureRecor
   }
 
   nudge(): number | null {
-    return 0
-  }
-
-  legacyNudge(): number | null {
     return null
   }
 }

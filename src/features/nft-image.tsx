@@ -442,9 +442,14 @@ export default class NftImage extends Feature2D<NftImageRecord> {
 
     // Set material
     this.frame = c.toMesh('nft-image-frame', frameMaterial.material, this.scene, false)
-    if (this.parent) {
-      this.frame.parent = this.parent
-    }
+    this.frame.parent = this.mesh.parent
+    this.frame.position.copyFrom(this.position)
+    this.frame.rotation.copyFrom(this.rotation)
+  }
+
+  _dispose() {
+    this.frame?.dispose()
+    super._dispose()
   }
 }
 
