@@ -1,6 +1,7 @@
 export function createGPUMemoryHUD(scene: BABYLON.Scene) {
   const engine = scene.getEngine()
-  const gl = engine._gl
+  const gl = (engine as BABYLON.Engine)._gl
+  if (!gl) return
 
   const hud = document.createElement('div')
   hud.style.position = 'fixed'

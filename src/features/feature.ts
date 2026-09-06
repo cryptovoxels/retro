@@ -695,7 +695,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     if (!this.mesh) {
       return BABYLON.Vector3.Zero()
     }
-    let vec = BABYLON.Vector3.TransformNormal(this.mesh.getPositionExpressedInLocalSpace().add(translation), this.mesh._localMatrix)
+    let vec = BABYLON.Vector3.TransformNormal(this.mesh.getPositionExpressedInLocalSpace().add(translation), localMatrix(this.mesh))
 
     let parent: BABYLON.Node | null = this.mesh
     while (true) {
@@ -708,7 +708,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
         break
       }
 
-      vec = BABYLON.Vector3.TransformCoordinates(vec, parent._localMatrix)
+      vec = BABYLON.Vector3.TransformCoordinates(vec, localMatrix(parent))
     }
     return vec
   }
@@ -1141,4 +1141,9 @@ export abstract class NonMeshedFeature<Description extends NonMeshedFeatureRecor
   nudge(): number | null {
     return null
   }
+}
+
+function localMatrix(node: BABYLON.TransformNode) {
+  const q = node.rotationQuaternion ?? BABYLON.Quaternion.RotationYawPitchRoll(node.rotation.x, node.rotation.y, node.rotation.z)
+  return BABYLON.Matrix.Compose(node.scaling, q, node.position)
 }

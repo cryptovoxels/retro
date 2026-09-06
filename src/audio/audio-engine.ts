@@ -63,15 +63,6 @@ interface SpatialAudioParams {
   absolutePosition: BABYLON.Vector3
 }
 
-function createSoundtrack(scene: BABYLON.Scene) {
-  // make sure babylon already has all the soundtrack stuff setup before we try and create busses
-  BABYLON.Sound._SceneComponentInitialization(scene)
-
-  const soundTrack = new BABYLON.SoundTrack(scene, {}) as any
-  soundTrack._initializeSoundTrackAudioGraph()
-  return soundTrack as BABYLON.SoundTrack
-}
-
 export class AudioEngine {
   babylonAudioEngine: BABYLON.IAudioEngine | null
   scene: BABYLON.Scene
@@ -82,11 +73,15 @@ export class AudioEngine {
   soundFx: Record<SoundName, BABYLON.Sound>
 
   avatarOut: GainNode
+  parcelOut: GainNode
+  soundEffectsOut: GainNode
 
   // used by both web audio and audio tags (for echo cancellation)
   parcelAudioBus: BABYLON.SoundTrack
   soundEffectsBus: BABYLON.SoundTrack
 
+  private parcelVolume = 1
+  private sfxVolume = 1
   soundLastPlayedAt = 0 // unix timestamp
 
   // going live mutes parcel audio so it stays out of your broadcast
@@ -104,9 +99,14 @@ export class AudioEngine {
     }
     this.scene = scene
     this.audioContext = this.babylonAudioEngine.audioContext
-    // create audio busses
-    this.parcelAudioBus = createSoundtrack(this.scene)
-    this.soundEffectsBus = createSoundtrack(this.scene)
+
+    this.parcelOut = this.audioContext.createGain()
+    this.parcelOut.connect(this.masterOut)
+    this.soundEffectsOut = this.audioContext.createGain()
+    this.soundEffectsOut.connect(this.masterOut)
+
+    this.parcelAudioBus = new BABYLON.SoundTrack(scene, {})
+    this.soundEffectsBus = new BABYLON.SoundTrack(scene, {})
 
     // avatar audio
     this.avatarOut = this.audioContext.createGain()
@@ -137,14 +137,6 @@ export class AudioEngine {
     return this.babylonAudioEngine!.masterGain
   }
 
-  get parcelOut(): GainNode {
-    return this.parcelAudioBus['_outputAudioNode']
-  }
-
-  get soundEffectsOut(): GainNode {
-    return this.soundEffectsBus['_outputAudioNode']
-  }
-
   get running() {
     return this.audioContext.state !== 'suspended'
   }
@@ -165,7 +157,7 @@ export class AudioEngine {
     const sound = new BABYLON.Sound(params.name, params.url || params.buffer, this.scene, params.readyToPlayCallback, params.options)
 
     // default babylon doesn't copy the soundtrack when using `clone` so we manually patch to make the soundtrack/bus stick once cloned
-    sound.clone = cloneWithSoundTrack
+    sound.clone = () => cloneWithSoundTrack.call(sound, this.scene)
 
     if (params.outputBus === AudioBus.Parcel) {
       this.addToParcelBus(sound)
@@ -223,8 +215,10 @@ export class AudioEngine {
   }
 
   setSettings(settings: AudioSettings) {
-    this.parcelAudioBus.setVolume(defaultValueOfType('number', settings.parcelAudioVolume, 1))
-    this.soundEffectsBus.setVolume(defaultValueOfType('number', settings.soundEffectsVolume, 1))
+    this.parcelVolume = defaultValueOfType('number', settings.parcelAudioVolume, 1)
+    this.sfxVolume = defaultValueOfType('number', settings.soundEffectsVolume, 1)
+    this.parcelAudioBus.setVolume(this.parcelVolume)
+    this.soundEffectsBus.setVolume(this.sfxVolume)
     const stored = window.localStorage.getItem('audioSettings')
     const prev = stored ? tryParseJson(stored) : {}
     window.localStorage.setItem('audioSettings', JSON.stringify({ ...prev, ...settings }))
@@ -232,8 +226,8 @@ export class AudioEngine {
 
   getSettings(): AudioSettings {
     return {
-      parcelAudioVolume: this.parcelOut.gain.value,
-      soundEffectsVolume: this.soundEffectsOut.gain.value,
+      parcelAudioVolume: this.parcelVolume,
+      soundEffectsVolume: this.sfxVolume,
     }
   }
 
@@ -241,7 +235,7 @@ export class AudioEngine {
     if (this.broadcasting === b) return
     this.broadcasting = b
     if (b) {
-      this.preBroadcastVolumes = { parcel: this.parcelOut.gain.value }
+      this.preBroadcastVolumes = { parcel: this.parcelVolume }
       this.parcelAudioBus.setVolume(0)
     } else if (this.preBroadcastVolumes) {
       this.parcelAudioBus.setVolume(this.preBroadcastVolumes.parcel)
@@ -264,13 +258,12 @@ function tryParseJson(json: string) {
   }
 }
 
-function cloneWithSoundTrack(this: BABYLON.Sound): BABYLON.Nullable<BABYLON.Sound> {
+function cloneWithSoundTrack(this: BABYLON.Sound, scene: BABYLON.Scene): BABYLON.Nullable<BABYLON.Sound> {
   const result = BABYLON.Sound.prototype.clone.call(this)
-  const scene = this['_scene'] as BABYLON.Scene
   const soundtrack = scene.soundTracks?.find((s) => s.id === this.soundTrackId)
   if (result) {
     soundtrack?.addSound(result)
-    result.clone = cloneWithSoundTrack
+    result.clone = () => cloneWithSoundTrack.call(result, scene)
   }
   return result
 }

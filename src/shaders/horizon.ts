@@ -42,7 +42,7 @@ export class HorizonMaterial extends BABYLON.GradientMaterial {
 
     BABYLON.MaterialHelper.PrepareDefinesForFrameBoundValues(scene, engine, this, defines, useInstances ? true : false)
 
-    BABYLON.MaterialHelper.PrepareDefinesForMisc(mesh, scene, false, this.pointsCloud, this.fogEnabled, this._shouldTurnAlphaTestOn(mesh), defines)
+    BABYLON.MaterialHelper.PrepareDefinesForMisc(mesh, scene, false, this.pointsCloud, this.fogEnabled, this.needAlphaTestingForMesh(mesh), defines)
 
     defines._needNormals = BABYLON.MaterialHelper.PrepareDefinesForLights(scene, mesh, defines, false, 0, true)
 
@@ -71,7 +71,7 @@ export class HorizonMaterial extends BABYLON.GradientMaterial {
       const shaderName = 'horizon'
 
       const uniforms = ['world', 'view', 'viewProjection', 'vEyePosition', 'vLightsType', 'vFogInfos', 'vFogColor', 'pointSize', 'mBones', 'topColor', 'bottomColor', 'offset', 'smoothness', 'scale']
-      BABYLON.addClipPlaneUniforms(uniforms)
+      BABYLON.AddClipPlaneUniforms(uniforms)
       const samplers: string[] = []
       const uniformBuffers = new Array<string>()
 

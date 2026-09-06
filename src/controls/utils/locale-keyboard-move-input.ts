@@ -42,11 +42,11 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
 
   private _keys = new Array<string>()
   // @ts-expect-error - Observer types not fully compatible
-  private _onCanvasBlurObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.Engine>>
+  private _onCanvasBlurObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.AbstractEngine>>
   // @ts-expect-error - Observer types not fully compatible
   private _onKeyboardObserver: BABYLON.Nullable<BABYLON.Observer<BABYLON.KeyboardInfo>>
   // @ts-expect-error - Engine property set during initialization
-  private _engine: BABYLON.Engine
+  private _engine: BABYLON.AbstractEngine
   // @ts-expect-error - Scene property set during initialization
   private _scene: BABYLON.Scene
 
@@ -227,7 +227,7 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
     if (this.camera.getScene().useRightHandedSystem) {
       rotation *= -1
     }
-    if (this.camera.parent && this.camera.parent._getWorldMatrixDeterminant() < 0) {
+    if (this.camera.parent && this.camera.parent.getWorldMatrix().determinant() < 0) {
       rotation *= -1
     }
     return rotation

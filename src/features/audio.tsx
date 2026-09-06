@@ -143,7 +143,7 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
     const baseOptions = {
       loop: this.loop,
       spatialSound: this.rolloffFactor > 0,
-      distanceModel: 'exponential',
+      distanceModel: 'exponential' as const,
       maxDistance: 32,
       rolloffFactor: this.rolloffFactor,
       refDistance: 3,
@@ -178,7 +178,7 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
 
     if (this.streaming) {
       // for some reason the onReady callback isn't working with streaming sources
-      const audioElement = this.sound['_htmlAudioElement'] as HTMLAudioElement
+      const audioElement = (this.sound as any).getAudioElement?.() as HTMLAudioElement | undefined
       // setup initial volume for fade
       audioElement?.addEventListener('playing', () => {
         this.fadeIn(AUTOPLAY_FADE_TIME)
@@ -269,7 +269,8 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
 
   fadeIn(timeConstant: number) {
     if (this.audio && this.sound) {
-      const soundGain = this.sound['_soundGain'].gain as AudioParam
+      const soundGain = this.sound.getSoundGain()?.gain
+      if (!soundGain) return
       soundGain.setValueAtTime(0.0000001, this.audio.audioContext.currentTime)
       soundGain.setTargetAtTime(this.volume, this.audio.audioContext.currentTime, timeConstant)
     }
@@ -277,7 +278,8 @@ export default class Audio extends Feature2D<AudioRecord> implements AudioFeatur
 
   fadeOut(timeConstant: number) {
     if (this.audio && this.sound) {
-      const soundGain = this.sound['_soundGain'].gain as AudioParam
+      const soundGain = this.sound.getSoundGain()?.gain
+      if (!soundGain) return
       soundGain.setTargetAtTime(0, this.audio.audioContext.currentTime, timeConstant)
     }
   }

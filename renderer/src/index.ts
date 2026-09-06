@@ -161,7 +161,7 @@ function mountRoutes(r: express.Router | express.Express) {
     font-family: sans-serif; font-size: 22px; font-weight: bold;}
     html,body,#c{margin:0;width:100%;height:100%;overflow:hidden;display:block}
     </style>
-    <script src="/renderer/vendor/library-6.11.2.min.js"></script>
+    <script src="/renderer/vendor/library-9.25.0.min.js"></script>
   </head>
   <body>
     <canvas id="c"></canvas>
