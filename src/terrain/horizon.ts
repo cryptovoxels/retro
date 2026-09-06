@@ -1,12 +1,10 @@
-import { HorizonMaterial } from '../shaders/horizon'
-
 // Horizon makes sure that the ground terrain and the skybox has a gradient fog blending them together
 export default class Horizon {
   private mesh: BABYLON.Mesh
   private material: BABYLON.GradientMaterial
 
   constructor(scene: BABYLON.Scene) {
-    const material = new HorizonMaterial('skybox/horizon', scene)
+    const material = new BABYLON.GradientMaterial('skybox/horizon', scene)
     material.fogEnabled = true
 
     material.offset = 0.5 // used to move the color along the Y axis

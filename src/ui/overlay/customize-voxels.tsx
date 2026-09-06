@@ -312,8 +312,8 @@ export default class CustomizeVoxels extends Component<Props, State> {
       this.dynamicTexture?.update(false)
 
       const m = this.props.parcel.voxelMesh.material
-      if (this.dynamicTexture && m instanceof BABYLON.ShaderMaterial) {
-        m.setTexture('tileMap', this.dynamicTexture)
+      if (this.dynamicTexture && m instanceof BABYLON.StandardMaterial) {
+        m.diffuseTexture = this.dynamicTexture
       }
 
       this.save()

@@ -1171,10 +1171,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       this.refreshVoxels()
       return
     }
-
-    if (palette && palette[1] && material instanceof BABYLON.ShaderMaterial) {
-      material.setColor3Array('palette', palette)
-    }
   }
 
   /**
