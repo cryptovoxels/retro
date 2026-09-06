@@ -1,9 +1,6 @@
 import type { Chunk, ChunkObserver } from './chunk-system'
 import { type ClippedWaterGeometry, douglasPeucker, isAxisAlignedRectangle, type Point2D, PolygonClipping } from '../utils/polygon-utils'
 import type { IslandRecord } from '../../common/messages/api-islands'
-import { SimpleWater } from '../shaders/simple-water'
-import { ReflectiveWater } from '../shaders/reflective-water'
-import { GraphicLevels } from '../graphic/graphic-engine'
 import Islands from './islands'
 import { OCEAN_HEIGHT_OFFSET } from '../constants'
 
@@ -16,7 +13,16 @@ interface PolygonClipInstruction {
   intersectionType: IntersectionType
 }
 
-type WaterMaterialType = 'simple' | 'reflection'
+function oceanMaterial(scene: BABYLON.Scene): BABYLON.StandardMaterial {
+  const mat = new BABYLON.StandardMaterial('ocean', scene)
+  mat.diffuseColor = new BABYLON.Color3(0, 0.4, 0.7)
+  mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
+  mat.alpha = 0.9
+  mat.fogEnabled = true
+  mat.freeze()
+  mat.blockDirtyMechanism = true
+  return mat
+}
 
 export class Ocean implements ChunkObserver {
   private static readonly NEW_ISLAND_ID_THRESHOLD = 40
@@ -26,8 +32,7 @@ export class Ocean implements ChunkObserver {
   private readonly halfSize: number
   private readonly scene: BABYLON.Scene
   private readonly mesh: BABYLON.Mesh
-  private readonly materials: { reflection: ReflectiveWater; simple: SimpleWater }
-  private currentMaterial: WaterMaterialType
+  private readonly waterMaterial: BABYLON.StandardMaterial
   private instances: Map<string, BABYLON.InstancedMesh> = new Map()
   private customMeshes: Map<string, BABYLON.Mesh[]> = new Map()
   private processingChunks: Set<string> = new Set()
@@ -38,10 +43,8 @@ export class Ocean implements ChunkObserver {
   private readonly FRAME_BUDGET_MS = 8 // 8ms budget per frame for chunk processing
   private isProcessingQueue = false
   private islandBoundsCache = new Map<number, { minX: number; maxX: number; minZ: number; maxZ: number }>()
-  private baseReflectionMeshes: BABYLON.AbstractMesh[] = []
-  private reflectionMeshes: BABYLON.AbstractMesh[] = []
 
-  constructor(size: number, scene: BABYLON.Scene, reflectionMeshes: BABYLON.AbstractMesh[] = []) {
+  constructor(size: number, scene: BABYLON.Scene) {
     this.size = size
     this.halfSize = size * 0.5
     this.scene = scene
@@ -51,18 +54,8 @@ export class Ocean implements ChunkObserver {
     this.mesh.position.set(-99999, -99999, -99999)
     this.mesh.setEnabled(false)
 
-    this.materials = {
-      simple: new SimpleWater(scene),
-      reflection: new ReflectiveWater(scene, { chunkSize: size, renderTargetSize: 512 }),
-    }
-    this.currentMaterial = this.getMaterialTypeFor(window.graphic.level)
-    this.updateUsedMaterial(this.currentMaterial)
-    window.graphic.addEventListener('settingsChanged', this.onGraphicsLevelChanged.bind(this))
-
-    for (const mesh of reflectionMeshes) {
-      this.baseReflectionMeshes.push(mesh)
-      this.materials.reflection.addToReflectionList(mesh)
-    }
+    this.waterMaterial = oceanMaterial(scene)
+    this.mesh.material = this.waterMaterial
   }
 
   createInstance(x: number, y: number): BABYLON.InstancedMesh {
@@ -81,14 +74,6 @@ export class Ocean implements ChunkObserver {
     const islandData = islands.getIslandData()
     this.islandBoundsCache.clear()
     this.islands = islandData
-
-    islands
-      .allMeshes()
-      .filter((m) => m)
-      .forEach((m) => {
-        this.baseReflectionMeshes.push(m)
-        this.materials.reflection.addToReflectionList(m)
-      })
 
     if (this.deferredChunks.length == 0) return
 
@@ -152,35 +137,6 @@ export class Ocean implements ChunkObserver {
     return this.customMeshes.has(key)
   }
 
-  addReflection(mesh: BABYLON.AbstractMesh): void {
-    if (mesh.visibility === 0) return
-    if (this.reflectionMeshes.includes(mesh)) return
-    this.reflectionMeshes.push(mesh)
-    if (window.graphic.level >= GraphicLevels.High) {
-      this.materials.reflection.addToReflectionList(mesh)
-    }
-  }
-
-  removeReflection(mesh: BABYLON.AbstractMesh): void {
-    this.reflectionMeshes = this.reflectionMeshes.filter((m) => m !== mesh)
-    this.materials.reflection.removeFromRenderList(mesh)
-  }
-
-  private onGraphicsLevelChanged(): void {
-    const newType = this.getMaterialTypeFor(window.graphic.level)
-
-    if (this.currentMaterial !== newType) {
-      this.currentMaterial = newType
-      this.updateUsedMaterial(newType)
-    }
-
-    this.materials.reflection.clearRenderList()
-    this.baseReflectionMeshes.forEach((m) => this.materials.reflection.addToReflectionList(m))
-    if (window.graphic.level >= GraphicLevels.High) {
-      this.reflectionMeshes.forEach((m) => this.materials.reflection.addToReflectionList(m))
-    }
-  }
-
   dispose(): void {
     this.processingQueue.length = 0
     this.isProcessingQueue = false
@@ -192,8 +148,7 @@ export class Ocean implements ChunkObserver {
     this.customMeshes.clear()
 
     this.mesh.dispose()
-
-    Object.values(this.materials).forEach((material) => material.dispose())
+    this.waterMaterial.dispose()
   }
 
   private startProcessingQueue(): void {
@@ -502,17 +457,5 @@ export class Ocean implements ChunkObserver {
     mesh.position.set(mesh.position.x, yPosition, mesh.position.z)
     mesh.setEnabled(true)
     mesh.isVisible = true
-  }
-
-  private updateUsedMaterial(materialType: WaterMaterialType) {
-    const mt = this.materials[materialType]
-    const mat = mt.getMaterial()
-    this.mesh.material = mat
-    this.instances.forEach((instance) => (instance.material = mat))
-    this.customMeshes.forEach((meshes) => meshes.forEach((mesh) => (mesh.material = mat)))
-  }
-
-  private getMaterialTypeFor = (graphicLevel: GraphicLevels): WaterMaterialType => {
-    return graphicLevel >= GraphicLevels.Medium ? 'reflection' : 'simple'
   }
 }

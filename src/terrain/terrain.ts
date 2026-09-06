@@ -17,7 +17,7 @@ export class Terrain {
   private _islandsHasLoaded = false
   private _loadRange: number
 
-  constructor(scene: BABYLON.Scene, skyboxes: any[]) {
+  constructor(scene: BABYLON.Scene, _skyboxes: any[]) {
     this._scene = scene
     this._loadRange = Math.ceil((window.draw.distance * 1.414 + CHUNK_SIZE / 2) / CHUNK_SIZE)
 
@@ -25,22 +25,7 @@ export class Terrain {
     this.islandsStateObservable = this._islands.islandsStateObservable
     this._oceanFloor = new OceanFloor(CHUNK_SIZE, scene)
 
-    // Extract meshes from skyboxes for reflection
-    const skyboxMeshes: BABYLON.Mesh[] = []
-    for (const skybox of skyboxes) {
-      // Skybox has .mesh property
-      if (skybox.mesh) {
-        skyboxMeshes.push(skybox.mesh)
-      }
-      // Nightsky has separate starfield and moon meshes
-      if (skybox.starfield) {
-        skyboxMeshes.push(skybox.starfield)
-      }
-      if (skybox.moon) {
-        skyboxMeshes.push(skybox.moon)
-      }
-    }
-    this._ocean = new Ocean(CHUNK_SIZE, scene, skyboxMeshes)
+    this._ocean = new Ocean(CHUNK_SIZE, scene)
 
     this._chunkSystem = new ChunkSystem(CHUNK_SIZE)
     this._chunkSystem.addObserver(this._oceanFloor)
@@ -83,15 +68,6 @@ export class Terrain {
     await this._islands.load()
     this._ocean.setIslands(this._islands)
     this._islandsHasLoaded = true
-    this._islands.allMeshes().forEach((mesh) => this._ocean.addReflection(mesh))
-  }
-
-  addReflectionMesh(mesh: BABYLON.Mesh) {
-    this._ocean.addReflection(mesh)
-  }
-
-  removeReflectionMesh(mesh: BABYLON.Mesh) {
-    this._ocean.removeReflection(mesh)
   }
 
   hasWaterMeshAt(x: number, z: number) {

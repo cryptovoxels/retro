@@ -1,11 +1,6 @@
-import VoxVertexShader from './vox.vsh'
-import VoxPixelShader from './vox.fsh'
 import type { VoxData } from './vox-reader'
 import { getComputePool } from '../../src/mono-pool'
 import type { Mono } from '../../src/mono'
-
-BABYLON.Effect.ShadersStore['VoxVertexShader'] = VoxVertexShader
-BABYLON.Effect.ShadersStore['VoxPixelShader'] = VoxPixelShader
 
 type JobRecordCommon = {
   wantCollider: boolean
@@ -83,25 +78,13 @@ export class VoxImporter {
 
     if (!scene || this.material) return
 
-    this.material = new BABYLON.ShaderMaterial(
-      'vox-model/vox-shader',
-      scene,
-      { vertex: 'Vox', fragment: 'Vox' },
-      {
-        attributes: ['position', 'color'],
-        uniforms: ['world', 'worldViewProjection', 'view', 'projection', 'cameraPosition', 'brightness', 'ambient', 'lightDirection', 'fogColor', 'fogDensity'],
-        defines: ['#define IMAGEPROCESSINGPOSTPROCESS'],
-      },
-    )
-
-    const env = window.environment
-
-    if (env && this.material instanceof BABYLON.ShaderMaterial) {
-      this.material.setVector3('vLight', env.sunPosition || new BABYLON.Vector3(0.577, 0.577, -0.577).normalize())
-      this.material.setFloat('brightness', 1.8)
-      // env.setShaderParameters(this.material, 1.8)
-    }
-    this.material.blockDirtyMechanism = true
+    const mat = new BABYLON.StandardMaterial('vox-model/vox-shader', scene)
+    mat.fogEnabled = true
+    mat.specularColor.set(0, 0, 0)
+    mat.backFaceCulling = false
+    mat.freeze()
+    mat.blockDirtyMechanism = true
+    this.material = mat
   }
 
   import(urlOrBuffer: string | ArrayBuffer, options: Options): Promise<BABYLON.Mesh> {
@@ -114,6 +97,7 @@ export class VoxImporter {
       }
       const mesh = new BABYLON.Mesh('utils/vox-box', this._scene ?? window.scene)
       mesh.material = this.material
+      mesh.useVertexColors = true
       mesh.isPickable = true
 
       const renderJob = Number(this.jobIndex)

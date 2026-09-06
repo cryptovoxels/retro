@@ -143,7 +143,6 @@ export class WorldEnvironment extends Environment {
     const validMeshes = meshes.filter((m) => m)
 
     validMeshes.forEach((parcelMesh) => {
-      this.terrain?.addReflectionMesh(parcelMesh)
       // opaque voxel meshes are the floor pick targets (was collider mesh)
       if (parcelMesh.name.startsWith('voxel-field/opaque')) {
         this.dispatchEvent(createEvent('parcel-collider-added', parcelMesh))
@@ -155,7 +154,6 @@ export class WorldEnvironment extends Environment {
     const validMeshes = meshes.filter((m) => m)
 
     validMeshes.forEach((parcelMesh) => {
-      this.terrain?.removeReflectionMesh(parcelMesh)
       if (parcelMesh.name.startsWith('voxel-field/opaque')) {
         this.dispatchEvent(createEvent('parcel-collider-removed', parcelMesh))
       }
