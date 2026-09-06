@@ -1,6 +1,7 @@
 import VoxVertexShader from './vox.vsh'
 import VoxPixelShader from './vox.fsh'
-import type { VoxData } from './vox-reader'
+import type { VoxData } from '../vox/types'
+import { applyMeshBuf } from '../mesh/upload'
 import { getComputePool } from '../../src/mono-pool'
 import type { Mono } from '../../src/mono'
 
@@ -89,7 +90,7 @@ export class VoxImporter {
       { vertex: 'Vox', fragment: 'Vox' },
       {
         attributes: ['position', 'color'],
-        uniforms: ['world', 'worldViewProjection', 'view', 'projection', 'cameraPosition', 'brightness', 'ambient', 'lightDirection', 'fogColor', 'fogDensity'],
+        uniforms: ['world', 'worldViewProjection', 'view', 'projection', 'cameraPosition', 'meshOrigin', 'meshScale', 'brightness', 'ambient', 'lightDirection', 'fogColor', 'fogDensity'],
         defines: ['#define IMAGEPROCESSINGPOSTPROCESS'],
       },
     )
@@ -99,6 +100,8 @@ export class VoxImporter {
     if (env && this.material instanceof BABYLON.ShaderMaterial) {
       this.material.setVector3('vLight', env.sunPosition || new BABYLON.Vector3(0.577, 0.577, -0.577).normalize())
       this.material.setFloat('brightness', 1.8)
+      this.material.setVector3('meshOrigin', BABYLON.Vector3.Zero())
+      this.material.setFloat('meshScale', 0.02)
       // env.setShaderParameters(this.material, 1.8)
     }
     this.material.blockDirtyMechanism = true
@@ -140,15 +143,31 @@ export class VoxImporter {
           return reject(new Error('Aborted'))
         }
 
-        const { positions, indices, colors } = data as VoxData
+        // #region agent log
+        fetch('http://127.0.0.1:7655/ingest/53bfc83e-fc60-46e1-b593-0d715a1e3f0d', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '23c1af' },
+          body: JSON.stringify({
+            sessionId: '23c1af',
+            runId: 'pre-fix',
+            hypothesisId: 'H5',
+            location: 'vox-import.ts:jobs',
+            message: 'worker result received',
+            data: {
+              renderJob,
+              keys: Object.keys(data),
+              hasPos: !!(data as any).pos,
+              hasPositions: !!(data as any).positions,
+              posType: (data as any).pos?.constructor?.name,
+              posLen: (data as any).pos?.length,
+              idxLen: (data as any).idx?.length ?? (data as any).indices?.length,
+            },
+            timestamp: Date.now(),
+          }),
+        }).catch(() => {})
+        // #endregion
 
-        const d = new BABYLON.VertexData()
-        d.positions = positions
-        d.indices = indices
-        d.colors = colors
-        d.applyToMesh(mesh)
-
-        mesh.refreshBoundingInfo()
+        applyMeshBuf(mesh, data as VoxData, this.material instanceof BABYLON.ShaderMaterial ? this.material : undefined)
 
         resolve(mesh)
       }

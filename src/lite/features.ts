@@ -1,5 +1,6 @@
 import type { SceneNode, TransformNode } from '@babylonjs/lite'
 import Config from '../../common/config'
+import { expandMeshBuf } from '../../common/mesh/upload'
 import { runCompute } from '../mono-pool'
 import type { LiteParcel } from './parcel'
 import { loadTex, quatYXZ, vec } from './utils'
@@ -54,10 +55,9 @@ async function vox(parcel: LiteParcel, f: any, parent: TransformNode) {
   } catch (e) {
     return
   }
-  if (!data?.positions || parcel.disposed) return
-  // the vox worker returns no normals and the colours already look shaded: unlit with zero normals.
-  // small models come back as Uint16 indices, lite draws uint32 only
-  const m = L.createMeshFromData(engine, 'vox', data.positions, new Float32Array(data.positions.length), new Uint32Array(data.indices), undefined, undefined, undefined, data.colors)
+  if (!data?.pos || parcel.disposed) return
+  const { positions, colors, indices } = expandMeshBuf(data)
+  const m = L.createMeshFromData(engine, 'vox', positions, new Float32Array(positions.length), new Uint32Array(indices), undefined, undefined, undefined, colors)
   const mat = L.createStandardMaterial()
   mat.disableLighting = true
   mat.emissiveColor = [1, 1, 1]

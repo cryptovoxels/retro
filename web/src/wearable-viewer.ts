@@ -1,6 +1,6 @@
 import { isSafari } from '../../common/helpers/detector'
 import { createWearableScene } from './helpers/scenes'
-import voxImport from '../../common/vox-import/sync-vox-import'
+import { voxImporter } from '../../common/vox-import/vox-import'
 
 import { loadWearableVox } from './helpers/wearable-helpers'
 import { matchRight } from 'fp-ts/lib/ReadonlyNonEmptyArray'
@@ -93,7 +93,10 @@ export class WearableViewer {
 
     this.mesh?.dispose()
 
-    const mesh = await voxImport(url, this.scene!)
+    const mesh = await voxImporter().import(url, {
+      signal: AbortSignal.timeout(5000),
+      invertX: false,
+    })
     mesh.scaling.set(1, 1, 1)
     mesh.rotation.set(0, Math.PI / 4, 0)
 

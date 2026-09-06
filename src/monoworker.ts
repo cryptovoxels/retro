@@ -1,6 +1,7 @@
 import * as Comlink from 'comlink'
 import { bakeLightmap } from './monoworker/lightmap'
 import { loadVox, cancelJob } from './monoworker/vox'
+import { meshLegacyField } from './monoworker/mesh'
 import { requestInstanceIdentification, requestFeatureSorting } from './monoworker/pump'
 import { gridWorker } from './monoworker/grid'
 import { voxelCollider, wearVoxels } from './monoworker/physics'
@@ -11,6 +12,7 @@ const api = {
   bakeLightmap,
   loadVox,
   cancelJob,
+  meshLegacyField,
   requestInstanceIdentification,
   requestFeatureSorting,
   voxelCollider,

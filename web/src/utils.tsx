@@ -1,7 +1,7 @@
 import { similarity } from '../../common/helpers/utils'
 import { sum } from './helpers/math'
 
-const VoxReader = require('@sh-dave/format-vox').VoxReader
+import { voxMeta } from '../../common/vox/parse'
 
 export type FetchOptions = RequestInit & {
   // fetch priority is supported in Chrome 101 and up. Hasn't been added to ts definitions yet
@@ -126,18 +126,12 @@ export const getVoxInfo = (file: File): Promise<VoxInfo> => {
     const reader = new FileReader()
     reader.readAsArrayBuffer(file)
     reader.onload = () => {
-      VoxReader.read(reader.result, (vox: any, err: any) => {
-        if (err) return reject(err)
-        if (!vox.sizes[0]) return reject(new Error('Invalid VOX file'))
-        const size = vox.sizes[0]
-        const megavox = Math.max(size.x, size.y, size.z) > 32
-        resolve({
-          megavox,
-          sizeX: size.x,
-          sizeY: size.y,
-          sizeZ: size.z,
-        })
-      })
+      try {
+        const meta = voxMeta(reader.result as ArrayBuffer)
+        resolve(meta)
+      } catch (err) {
+        reject(err)
+      }
     }
   })
 }

@@ -15,7 +15,7 @@ let pool: Promise<MonoHandle[]> | null = null
 function spawn(): Promise<MonoHandle> {
   return createComlinkWorker<Mono>(
     () => new Worker(new URL('./monoworker.ts', import.meta.url)),
-    () => import('./monoworker').then((m) => m.mono),
+    () => Promise.reject(new Error('monoworker requires a worker')),
     { workerName: 'monoworker' },
   )
 }

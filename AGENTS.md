@@ -1,5 +1,7 @@
 # AGENTS.md
 
+Client mesh architecture: see `docs/kernel.md`.
+
 * Don't write junior dev dogshit
 * This is gamedev not a webdev
 * BABYLON is loaded globally

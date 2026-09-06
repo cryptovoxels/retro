@@ -1,5 +1,5 @@
 import { Component } from 'preact'
-import voxImport from '../../../common/vox-import/sync-vox-import'
+import { voxImporter } from '../../../common/vox-import/vox-import'
 import { Attachment } from './index'
 
 interface Props {
@@ -159,7 +159,10 @@ export class Wearable extends Component<Props, State> {
     mat.emissiveColor.set(0.3, 0.3, 0.3) // need a little light otherwise dark wearables
     mat.diffuseColor.set(1, 1, 1)
 
-    this.mesh = await voxImport(this.voxUrl, this.scene)
+    this.mesh = await voxImporter().import(this.voxUrl, {
+      signal: AbortSignal.timeout(5000),
+      invertX: false,
+    })
 
     if (!this.mounted) {
       this.mesh.dispose()

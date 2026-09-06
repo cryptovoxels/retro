@@ -31,7 +31,7 @@ import { tidyVec3 } from './utils/helpers'
 import { ParcelEventMap } from './utils/parcel-event-map'
 import { Action } from '../common/messages'
 import { addVoxels, removeCollider } from './physics/world'
-import { voxelCollider } from './monoworker/physics'
+import { voxelCollider } from '../common/vox/collider'
 
 const isTest = process.env.NODE_ENV === 'test'
 

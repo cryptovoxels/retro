@@ -1,5 +1,6 @@
 // ABOUTME: Shared Babylon vox -> webp thumb render. Used by browser worker and Playwright page.
 
+import { expandMeshBuf } from '../../common/mesh/upload'
 import { loadVox } from '../../src/monoworker/vox'
 import type { Renderable, RenderedImage, ThumbScene } from './types'
 
@@ -49,13 +50,14 @@ async function meshFromBuffer(scene: BABYLON.Scene, buf: ArrayBuffer): Promise<B
     timeoutMs: 10000,
   })
   if (data?.cancelled) throw new Error('vox cancelled')
-  if (!data?.positions) throw new Error('vox parse failed')
+  if (!data?.pos) throw new Error('vox parse failed')
 
+  const { positions, colors, indices } = expandMeshBuf(data)
   const mesh = new BABYLON.Mesh('thumb', scene)
   const vd = new BABYLON.VertexData()
-  vd.positions = data.positions
-  vd.indices = data.indices
-  vd.colors = data.colors
+  vd.positions = positions
+  vd.indices = indices
+  vd.colors = colors
   vd.applyToMesh(mesh)
 
   const mat = new BABYLON.StandardMaterial('thumb', scene)

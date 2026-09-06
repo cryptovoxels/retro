@@ -1,10 +1,8 @@
-import * as createAOMesh from 'ao-mesher'
 import ndarray from 'ndarray'
-import { oversizedField } from './helpers'
-import { setVoxelData } from './mesher'
 import fill from './ndarray-fill'
+import { meshLegacyField } from '../../src/monoworker/mesh'
 
-/** Fill an ndarray via callback, ao-mesh it, return a unit-cube-sized mesh. */
+/** Fill an ndarray via callback, mesh it, return a unit-cube-sized mesh. */
 export function voxFromFill(size: [number, number, number], fillFn: (x: number, y: number, z: number, w: number, h: number, d: number) => number, scene: BABYLON.Scene): BABYLON.Mesh {
   const [w, h, d] = size
   const field = ndarray(new Uint16Array(w * h * d), [w, h, d])
@@ -13,29 +11,13 @@ export function voxFromFill(size: [number, number, number], fillFn: (x: number, 
     return v ? v | (1 << 15) : 0
   })
 
-  const oversized = oversizedField(field)
-  const vertData: Uint8Array | null = createAOMesh(oversized)
+  const out = meshLegacyField(field.data, [w, h, d], field.stride, field.offset)
+  const geo = out.opaque
+  const positions = Array.from(geo.positions)
+  const normals = Array.from(geo.normals)
+  const colors = Array.from(geo.colors)
+  const indices = Array.from(geo.indices)
 
-  const positions: number[] = []
-  const normals: number[] = []
-  const colors: number[] = []
-  const indices: number[] = []
-  let indexCount = 0
-
-  // same remap as vox-reader: ao * 0.5 + 0.4 so corners darken without crushing to black
-  const aoColor = (ao: number) => ao * (1 / 255) * 0.5 + 0.4
-
-  if (vertData) {
-    for (let i = 0; i < vertData.length; i += 8 * 3) {
-      indexCount += setVoxelData(vertData, i, positions, normals, indices, indexCount)
-      const a = aoColor(vertData[i + 3])
-      const b = aoColor(vertData[i + 11])
-      const c = aoColor(vertData[i + 19])
-      colors.push(a, a, a, 1, b, b, b, 1, c, c, c, 1)
-    }
-  }
-
-  // Center and scale to unit cube
   if (positions.length) {
     let minX = Infinity,
       minY = Infinity,

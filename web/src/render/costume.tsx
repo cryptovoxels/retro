@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'preact/hooks'
 import { Costume } from '../../../common/types'
-import voxImport from '../../../common/vox-import/sync-vox-import'
+import { voxImporter } from '../../../common/vox-import/vox-import'
 import { createRingLight } from '../helpers/scenes'
 
 type Props = {
@@ -36,7 +36,10 @@ async function loadCostume(scene: BABYLON.Scene, costume: Costume) {
   for (let a of costume.attachments!) {
     console.log(a)
 
-    const mesh = await voxImport(`/api/collectibles/${a.wid}/vox`, scene)
+    const mesh = await voxImporter().import(`/api/collectibles/${a.wid}/vox`, {
+      signal: AbortSignal.timeout(5000),
+      invertX: false,
+    })
     // mesh.scaling.set(s, s, s)
     // mesh.bakeCurrentTransformIntoVertices()
 

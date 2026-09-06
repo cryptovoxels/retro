@@ -70,6 +70,6 @@ export default defineConfig({
 
   // SSR configuration to handle CommonJS modules
   ssr: {
-    noExternal: ['ndarray', 'ao-mesher'], // Force these CommonJS modules to be processed by Vite
+    noExternal: ['ndarray'], // Force these CommonJS modules to be processed by Vite
   },
 })
