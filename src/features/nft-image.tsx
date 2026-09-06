@@ -393,47 +393,29 @@ export default class NftImage extends Feature2D<NftImageRecord> {
       return
     }
 
-    const box = (width: number, height: number, depth: number, extra: number) => {
-      const he = extra / 2
-      const faceUV = [
-        new BABYLON.Vector4(-he, -he, width + he, height + he), // back
-        new BABYLON.Vector4(-he, -he, width + he, height + he), // front
-        new BABYLON.Vector4(-he, -he, height + he, depth + he), // right
-        new BABYLON.Vector4(-he, -he, height + he, depth + he), // left
-        new BABYLON.Vector4(-he, -he, depth + he, width + he), // top
-        new BABYLON.Vector4(-he, -he, depth + he, width + he), // bottom
-      ]
-
-      const options = {
-        width: width + extra,
-        height: height + extra,
-        depth: depth,
-        faceUV: faceUV,
-      }
-
-      return BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), options, this.scene)
-    }
-
     if (!this.assetHelper?.isOwner(this.parcel.owner)) {
       return
     }
     if (!this.description.hasFrame) {
       return
     }
-    // Generate boxes
-    const outer_box = box(this.scale.x, this.scale.y, frameThick, frameThick)
-    const inner_box = box(this.scale.x, this.scale.y, frameThick, 0)
 
-    // CSG
-    const c = BABYLON.CSG.FromMesh(outer_box)
-    c.subtractInPlace(BABYLON.CSG.FromMesh(inner_box))
+    const w = this.scale.x
+    const h = this.scale.y
+    const t = frameThick
+    const name = this.uniqueEntityName('mesh')
+    const top = BABYLON.MeshBuilder.CreateBox(`${name}/top`, { width: w + 2 * t, height: t, depth: t }, this.scene)
+    top.position.y = h / 2 + t / 2
+    const bottom = BABYLON.MeshBuilder.CreateBox(`${name}/bottom`, { width: w + 2 * t, height: t, depth: t }, this.scene)
+    bottom.position.y = -(h / 2 + t / 2)
+    const left = BABYLON.MeshBuilder.CreateBox(`${name}/left`, { width: t, height: h, depth: t }, this.scene)
+    left.position.x = -(w / 2 + t / 2)
+    const right = BABYLON.MeshBuilder.CreateBox(`${name}/right`, { width: t, height: h, depth: t }, this.scene)
+    right.position.x = w / 2 + t / 2
 
-    // Dispose frame boxes
-    outer_box.dispose()
-    inner_box.dispose()
-
-    // Set material
-    this.frame = c.toMesh('nft-image-frame', frameMaterial.material, this.scene, false)
+    this.frame = BABYLON.Mesh.MergeMeshes([top, bottom, left, right], true)!
+    this.frame.name = 'nft-image-frame'
+    this.frame.material = frameMaterial.material
     this.frame.parent = this.mesh.parent
     this.frame.position.copyFrom(this.position)
     this.frame.rotation.copyFrom(this.rotation)

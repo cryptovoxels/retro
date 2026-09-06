@@ -213,10 +213,15 @@ void main(void) {
     }
 
     Object.values(this.pipelines).forEach((p) => {
-      this.scene.postProcessRenderPipelineManager.detachCamerasFromRenderPipeline(p.name, this.scene.activeCamera)
+      const cam = this.scene.activeCamera
+      if (!cam) return
+      this.scene.postProcessRenderPipelineManager.detachCamerasFromRenderPipeline(p.name, cam)
     })
 
-    this.scene.postProcessRenderPipelineManager.attachCamerasToRenderPipeline(this.pipelines[level].name, this.scene.activeCamera)
+    const cam = this.scene.activeCamera
+    if (cam) {
+      this.scene.postProcessRenderPipelineManager.attachCamerasToRenderPipeline(this.pipelines[level].name, cam)
+    }
   }
 
   private createPipeline(level: GraphicLevels, processes: BABYLON.PostProcess[]) {

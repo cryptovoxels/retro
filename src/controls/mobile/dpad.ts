@@ -28,7 +28,7 @@ export default class Dpad {
   private activeId: number | null = null
   private moved = false
   private visible = true
-  private resizeObs: BABYLON.Observer<BABYLON.Engine> | null = null
+  private resizeObs: BABYLON.Observer<BABYLON.AbstractEngine> | null = null
 
   private onStart = (e: TouchEvent) => {
     if (!this.visible || this.activeId !== null) return

@@ -82,7 +82,7 @@ export default class Richtext extends Feature2D<RichTextRecord> {
     }
     let text = this.description.text?.toString() || ''
 
-    const options: Record<string, number> = {
+    const options = {
       width: this.scale.x * 128 * 2,
       height: this.scale.y * 128 * 2,
     }

@@ -109,14 +109,16 @@ export default class Boombox extends Feature3D<BoomboxRecord> {
 
   fadeIn(timeConstant: number) {
     if (this.sound && this.audioContext) {
-      const soundGain = this.sound['_soundGain'].gain as AudioParam
+      const soundGain = this.sound.getSoundGain()?.gain
+      if (!soundGain) return
       soundGain.setTargetAtTime(this.volume, this.audioContext.currentTime, timeConstant)
     }
   }
 
   fadeOut(timeConstant: number) {
     if (this.sound && this.audioContext) {
-      const soundGain = this.sound['_soundGain'].gain as AudioParam
+      const soundGain = this.sound.getSoundGain()?.gain
+      if (!soundGain) return
       soundGain.setTargetAtTime(0, this.audioContext.currentTime, timeConstant)
     }
   }
@@ -193,7 +195,7 @@ export default class Boombox extends Feature3D<BoomboxRecord> {
         autoplay: true,
         spatialSound: this.rolloffFactor > 0,
         skipCodecCheck: true,
-        distanceModel: 'exponential',
+        distanceModel: 'exponential' as const,
         maxDistance: 32,
         rolloffFactor: this.rolloffFactor,
         refDistance: 3,
@@ -208,8 +210,8 @@ export default class Boombox extends Feature3D<BoomboxRecord> {
 
       // if we're outside the parcel, mute the audio - it will be faded in onEnter
       if (this.parcel !== this.parcel.grid.currentOrNearestParcel()) {
-        const soundGain = this.sound['_soundGain'].gain as AudioParam
-        soundGain.value = 0
+        const soundGain = this.sound.getSoundGain()?.gain
+        if (soundGain) soundGain.value = 0
       }
 
       this.afterSetCommon()
