@@ -960,7 +960,11 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       return
     }
 
-    Object.assign(this, r.parcel)
+    const data = { ...r.parcel } as any
+    const sandbox = data.sandbox
+    delete data.sandbox
+    Object.assign(this, data)
+    ;(this.summary as any).sandbox = !!sandbox
 
     this.loaded = true
     this.loading = false
@@ -978,6 +982,15 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     if (typeof cb === 'function') {
       cb()
     }
+  }
+
+  async resave() {
+    const features: Record<string, FeatureRecord> = {}
+    for (const f of this.featuresList) {
+      if (f.uuid) features[f.uuid] = f.description
+    }
+    this.sendPatch({ features })
+    await this.reload()
   }
 
   afterUserChange() {
