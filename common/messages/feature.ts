@@ -155,6 +155,7 @@ export const FeatureCommon = t.intersection(
           keyframes: t.array(KeyFrame),
           easing: EasingDescription,
         }),
+        draft: t.string,
       },
       'optional',
     ),

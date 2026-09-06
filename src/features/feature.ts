@@ -15,6 +15,7 @@ import { getTransformVectorsRelativeToNode } from '../utils/feature'
 import { axisNames2D, axisNames3D, bboxCompletelyWithin, resolveUgc, tidyURL, tidyVec3, XYZ } from '../utils/helpers'
 import { TimeOfDay } from '../utils/time-of-day'
 import Group from './group'
+import { renderImageDraft, renderVoxDraft } from './feature-draft'
 import { boundingBoxOfMesh } from './utils/bounding-box'
 
 /**
@@ -83,25 +84,6 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   static Editor: any // todo type this
   static isRenderable = false
   static layer: BABYLON.HighlightLayer
-  static draftMaterial: BABYLON.StandardMaterial | null = null
-  private static draftPulseObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
-
-  static getDraftMaterial(scene: BABYLON.Scene): BABYLON.StandardMaterial {
-    if (!Feature.draftMaterial) {
-      const m = new BABYLON.StandardMaterial('feature-draft', scene)
-      m.specularColor.set(0, 0, 0)
-      m.diffuseColor.set(0.4, 0.4, 0.4)
-      m.emissiveColor.set(0.4, 0.4, 0.4)
-      m.backFaceCulling = false
-      Feature.draftMaterial = m
-      Feature.draftPulseObs = scene.onBeforeRenderObservable.add(() => {
-        const g = 0.4 + 0.1 * Math.sin(Date.now() * 0.003)
-        m.diffuseColor.set(g, g, g)
-        m.emissiveColor.set(g, g, g)
-      })
-    }
-    return Feature.draftMaterial
-  }
 
   uuid: string
   scene: BABYLON.Scene
@@ -751,7 +733,12 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
   public abstract generate(): Promise<void>
 
-  generateDraft(): void {}
+  generateDraft(): void {
+    if (this.disposed || !(this.description as any).draft) return
+    const d = (this.description as any).draft as string
+    if (this.type === 'image' || this.type === 'nft-image') renderImageDraft(this, d)
+    else if (this.type === 'vox-model' || this.type === 'megavox' || this.type === 'ride') renderVoxDraft(this, d)
+  }
 
   disposeBasicGui() {
     if (this.basicGui) {
@@ -792,7 +779,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
         this.mesh.material = null
         this.mesh.dispose()
         this.mesh = null
-        if (material instanceof BABYLON.StandardMaterial && material !== Feature.draftMaterial && material.getBindedMeshes().length <= 1) {
+        if (material instanceof BABYLON.StandardMaterial && material.getBindedMeshes().length <= 1) {
           material?.dispose(false, true)
         }
       } else {

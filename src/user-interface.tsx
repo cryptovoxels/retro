@@ -1087,6 +1087,19 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   Avatar
                 </a>
               </li>
+              {app.isAdmin() && nearestEditableParcel && (
+                <li>
+                  <a
+                    href="#"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      void nearestEditableParcel.resave()
+                    }}
+                  >
+                    resave
+                  </a>
+                </li>
+              )}
               <li class={active('dance')}>
                 <a href="#dance" onMouseOver={onHover('dance')} onClick={onClick('dance')}>
                   Dance

@@ -5,7 +5,7 @@ import { rebindGizmos } from '../tools/gizmos'
 import { FeatureEditor, FeatureEditorProps, Toolbar } from '../ui/features'
 import type Parcel from '../parcel'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
-import Feature, { Feature2D, FeatureEvent, MeshExtended } from './feature'
+import { Feature2D, FeatureEvent, MeshExtended } from './feature'
 import showWompView from '../ui/html-ui/womp-view'
 import { tileIndexFromUv, WOMP_WALL_COLS as COLS, WOMP_WALL_GAP as GAP, WOMP_WALL_HEADER_FRAC as HEADER_FRAC, WOMP_WALL_ROWS as ROWS, WOMP_WALL_TILES as TILES } from './womp-wall-hit'
 
@@ -59,18 +59,7 @@ export default class WompWall extends Feature2D<WompWallRecord> {
     return '[womp-wall]'
   }
 
-  generateDraft() {
-    if (this.disposed) return
-    if (!(this.mesh instanceof BABYLON.Mesh)) {
-      this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene) as MeshExtended
-      rebindGizmos(this)
-    }
-    this.mesh.material = Feature.getDraftMaterial(this.scene)
-    this.setCommon()
-  }
-
   async generate(): Promise<void> {
-    this.generateDraft()
     this.ensureBoard()
     this.addEvents()
     void this.loadAndPaint()
@@ -99,7 +88,7 @@ export default class WompWall extends Feature2D<WompWallRecord> {
 
     const old = this.mesh.material
     this.mesh.material = material
-    if (old instanceof BABYLON.StandardMaterial && old !== Feature.draftMaterial && old.getBindedMeshes().length <= 1) {
+    if (old instanceof BABYLON.StandardMaterial && old.getBindedMeshes().length <= 1) {
       old.dispose(false, false)
     }
 

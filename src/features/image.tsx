@@ -6,7 +6,8 @@ import { rebindGizmos } from '../tools/gizmos'
 import { Advanced, Animation, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, Toolbar, SourceInput } from '../ui/features'
 import { tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
-import Feature, { Feature2D, MeshExtended, TransparencyMode } from './feature'
+import { Feature2D, MeshExtended, TransparencyMode } from './feature'
+import { encodeImageDraft, persistDraft } from './feature-draft'
 
 export default class Image extends Feature2D<ImageRecord> {
   static metadata: FeatureMetadata = {
@@ -85,16 +86,6 @@ export default class Image extends Feature2D<ImageRecord> {
     this.addEvents()
   }
 
-  generateDraft() {
-    if (this.disposed) return
-    if (!(this.mesh instanceof BABYLON.Mesh)) {
-      this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
-      rebindGizmos(this)
-    }
-    this.mesh.material = Feature.getDraftMaterial(this.scene)
-    this.setCommon()
-  }
-
   async generate(): Promise<void> {
     this.loaded = false
     this.generateDraft()
@@ -115,6 +106,7 @@ export default class Image extends Feature2D<ImageRecord> {
       texture.hasAlpha = false
       this.renderImage(texture)
       this.loaded = true
+      if (this.textureURL) void encodeImageDraft(this.textureURL).then((d) => persistDraft(this, d))
     } catch {
       // aborted or failed: leave draft
     }
@@ -142,7 +134,7 @@ export default class Image extends Feature2D<ImageRecord> {
     } else {
       const old = this.mesh.material
       this.mesh.material = null
-      if (old instanceof BABYLON.StandardMaterial && old !== Feature.draftMaterial && old.getBindedMeshes().length <= 1) {
+      if (old instanceof BABYLON.StandardMaterial && old.getBindedMeshes().length <= 1) {
         old.dispose(false, true)
       }
     }
