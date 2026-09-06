@@ -227,7 +227,7 @@ export default function ExternalsController(db: Db, passport: PassportStatic, ap
     }
     const { contractAddress, tokenId, chain, tokenType } = info
 
-    let url = `https://eth-mainnet.alchemyapi.io/v2/${ALCHEMY_ETH_API_KEY}/getNFTMetadata`
+    let url = `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_ETH_API_KEY}/getNFTMetadata`
     if (chain == 137) {
       url = `https://polygon-mainnet.g.alchemy.com/v2/${ALCHEMY_MATIC_API_KEY}/getNFTMetadata`
     }
