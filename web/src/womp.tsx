@@ -146,7 +146,6 @@ export default class Womp extends Component<Props, State> {
         <img src={img} class="womp" />
 
         {this.renderAside(img)}
-
       </section>
     )
   }
