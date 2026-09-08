@@ -2,6 +2,7 @@
 // ABOUTME: Shows real-time ocean stats including instances, custom meshes, chunk processing status
 
 import type { IDebugTab } from './base-debug'
+import { getWorldTerrain } from '../../init/world-scene'
 
 export class OceanDebugTab implements IDebugTab {
   readonly name = 'Ocean Debug'
@@ -148,20 +149,9 @@ export class OceanDebugTab implements IDebugTab {
   }
 
   private getOcean(): any {
-    // Access ocean through the correct path: main.scene.environment.terrain._ocean
-    const main = (window as any).main
-    if (!main) return null
-
-    const scene = main.scene
-    if (!scene) return null
-
-    const environment = scene.environment
-    if (!environment) return null
-
-    const terrain = environment.terrain
+    const terrain = (window as any).main ? getWorldTerrain() : null
     if (!terrain) return null
-
-    return terrain._ocean || null
+    return (terrain as any)._ocean || null
   }
 
   dispose(): void {

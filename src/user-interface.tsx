@@ -16,7 +16,6 @@ import { KeyboardHandler } from './components/keyboard-handler'
 import { OnlyMobile } from './components/utils'
 import Connector, { messageList } from './connector'
 import DesktopControls from './controls/desktop/controls'
-import { Environment } from './enviroments/environment'
 import { createFeature } from './features/create'
 import Feature from './features/feature'
 import type { FeatureTemplate } from './features/_metadata'
@@ -130,7 +129,6 @@ export interface UserInterfaceProps {
   canvas: HTMLCanvasElement
   grid: Grid
   connector: Connector
-  environment: Environment
   enabled: boolean
   minimapSettings: MinimapSettings
 }
@@ -174,7 +172,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   mode: Mode
   connector: Connector
   grid: Grid
-  environment: Environment
 
   // sub tools
   activeTool: Tool | null = null
@@ -203,7 +200,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.canvas = props.canvas
     this.connector = props.connector
     this.grid = props.grid
-    this.environment = props.environment
 
     this.voxelTool = new VoxelTool(this.props.scene, null, props.grid, this.connector.controls, props.connector)
     this.featureTool = new FeatureTool(this.props.scene, null, props.grid, this.connector.controls, props.connector, createFeature)
@@ -920,9 +916,10 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       return
     }
 
-    if (url.startsWith('/spaces') && url.match('/play')) {
-      const spaceId = url.split('/')[2]
-      window.location.href = `/spaces/${spaceId}`
+    if (url.startsWith('/spaces/')) {
+      const parts = url.split('/')
+      const spaceId = parts[2]
+      if (spaceId) route(`/spaces/${spaceId}/play`)
       return
     }
 
@@ -950,7 +947,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       case 'login':
         return <Login />
       case 'debugTool':
-        return <DebugTools parcel={currentOrNearestParcel} scene={this.props.scene} environment={this.props.environment} />
+        return <DebugTools parcel={currentOrNearestParcel} scene={this.props.scene} />
       case 'chat':
         return <ChatOverlay scene={this.props.scene} />
       case 'dance':

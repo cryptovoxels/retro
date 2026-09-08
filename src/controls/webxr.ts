@@ -1,7 +1,12 @@
-import { Environment } from '../enviroments/environment'
 import Controls from './controls'
-import { WorldEnvironment } from '../enviroments/world-environment'
 import { wantsGateway } from '../../common/helpers/detector'
+import { getWorldGroundState, worldSceneEvents, worldSceneLoaded } from '../init/world-scene'
+
+let worldTerrain: { groundMeshes: BABYLON.AbstractMesh[] } | undefined
+
+export function setWorldTerrainForXR(terrain: { groundMeshes: BABYLON.AbstractMesh[] } | undefined) {
+  worldTerrain = terrain
+}
 
 export default class XROverlay {
   webXR: BABYLON.WebXRDefaultExperience | null = null
@@ -21,11 +26,10 @@ export default class XROverlay {
     return this.webXR!.baseExperience
   }
 
-  attachEnvironment(environment: Environment) {
-    environment.addEventListener('parcel-collider-added', (e) => this.addTeleportMesh(e.detail))
-    environment.addEventListener('parcel-collider-removed', (e) => this.removeTeleportMesh(e.detail))
-
-    environment.groundStateObservable.addStateObserver('loaded', this.onGroundLoaded)
+  attachWorldScene() {
+    worldSceneEvents.addEventListener('parcel-collider-added', (e) => this.addTeleportMesh(e.detail))
+    worldSceneEvents.addEventListener('parcel-collider-removed', (e) => this.removeTeleportMesh(e.detail))
+    if (worldSceneLoaded()) getWorldGroundState().addStateObserver('loaded', this.onGroundLoaded)
   }
 
   async start() {
@@ -56,13 +60,8 @@ export default class XROverlay {
     const camera = this.webXR.baseExperience.camera
 
     this.webXR.baseExperience.onStateChangedObservable.add((state) => {
-      // console.log(`XR State Change to: ${state}`)
-
       try {
-        if (state !== BABYLON.WebXRState.IN_XR) {
-          return
-        }
-
+        if (state !== BABYLON.WebXRState.IN_XR) return
         this.resetXRFloorHeight(camera.position)
       } catch (e) {
         console.log('error', e)
@@ -76,7 +75,6 @@ export default class XROverlay {
       floorMeshes: Array.from(this.teleportableMeshes),
     }) as BABYLON.WebXRMotionControllerTeleportation
 
-    // disable the pointer as it is unused currently and just adds overhead (avoid picking)
     featuresManager.disableFeature(BABYLON.WebXRFeatureName.POINTER_SELECTION)
 
     if (multiview) {
@@ -88,41 +86,25 @@ export default class XROverlay {
   }
 
   onGroundLoaded = () => {
-    // add the world colliders to the teleportation
-    if (window.environment instanceof WorldEnvironment) {
-      if (window.environment.terrain) {
-        window.environment.terrain.groundMeshes.forEach((mesh) => this.addTeleportMesh(mesh))
-      }
-    }
+    worldTerrain?.groundMeshes.forEach((mesh) => this.addTeleportMesh(mesh))
   }
 
   resetXRFloorHeight(positionInWorld: BABYLON.Vector3) {
-    if (!this.webXR) {
-      return
-    }
+    if (!this.webXR) return
 
     const camera = this.webXR.baseExperience.camera
-
     const pickResult = this.scene.pickWithRay(new BABYLON.Ray(positionInWorld, new BABYLON.Vector3(0, -1, 0), 5), (e) => this.teleportableMeshes.has(e))
-    if (!pickResult?.hit || !pickResult.pickedPoint) {
-      return
-    }
-
-    const pickPositionInWorld = pickResult.pickedPoint
-    camera.position.y = pickPositionInWorld.y + camera.realWorldHeight
+    if (!pickResult?.hit || !pickResult.pickedPoint) return
+    camera.position.y = pickResult.pickedPoint.y + camera.realWorldHeight
   }
 
   addTeleportMesh(mesh: BABYLON.AbstractMesh) {
     this.teleportableMeshes.add(mesh)
-    if (this.xrTeleportation) {
-      this.xrTeleportation.addFloorMesh(mesh)
-    }
+    if (this.xrTeleportation) this.xrTeleportation.addFloorMesh(mesh)
   }
 
   removeTeleportMesh(mesh: BABYLON.AbstractMesh) {
     this.teleportableMeshes.delete(mesh)
-    if (this.xrTeleportation) {
-      this.xrTeleportation.removeFloorMesh(mesh)
-    }
+    if (this.xrTeleportation) this.xrTeleportation.removeFloorMesh(mesh)
   }
 }

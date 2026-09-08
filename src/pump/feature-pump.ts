@@ -32,7 +32,7 @@ interface PendingDeactivation {
 }
 
 export class FeaturePump {
-  private parcelStates = new Map<number, ConsolidatedParcelTracking>()
+  private parcelStates = new Map<number | string, ConsolidatedParcelTracking>()
 
   private loadQueue: LoadItem[] = []
 
@@ -76,7 +76,7 @@ export class FeaturePump {
     return this.maxConcurrentFeatures
   }
 
-  private transitionToState(parcelId: number, newState: ParcelProcessingState): boolean {
+  private transitionToState(parcelId: number | string, newState: ParcelProcessingState): boolean {
     const tracking = this.parcelStates.get(parcelId)
     if (!tracking) return false
 
@@ -88,7 +88,7 @@ export class FeaturePump {
     return Array.from(this.parcelStates.values()).filter((tracking) => tracking.state === state)
   }
 
-  private atomicStateChange(parcelId: number, fromState: ParcelProcessingState, toState: ParcelProcessingState): boolean {
+  private atomicStateChange(parcelId: number | string, fromState: ParcelProcessingState, toState: ParcelProcessingState): boolean {
     const tracking = this.parcelStates.get(parcelId)
     if (!tracking || tracking.state !== fromState) return false
 
@@ -210,7 +210,7 @@ export class FeaturePump {
   }
 
   // Legacy method for compatibility with grid.ts and parcel.ts
-  public clearParcelTasksForID(parcelId: number): void {
+  public clearParcelTasksForID(parcelId: number | string): void {
     this.deactivationQueue = this.deactivationQueue.filter((deactivation) => deactivation.parcel.id !== parcelId)
 
     this.removeParcelFromQueues(parcelId)
@@ -218,7 +218,7 @@ export class FeaturePump {
     this.instanceRelations.delete(parcelId)
   }
 
-  public dropFeature(parcelId: number, uuid: string): void {
+  public dropFeature(parcelId: number | string, uuid: string): void {
     const tracking = this.parcelStates.get(parcelId)
     if (tracking) {
       tracking.features = tracking.features.filter((f) => f.uuid !== uuid)
@@ -260,7 +260,7 @@ export class FeaturePump {
     return this.loadQueue.splice(idx, 1)[0]
   }
 
-  private loadItemParcelId(item: LoadItem): number | undefined {
+  private loadItemParcelId(item: LoadItem): number | string | undefined {
     const feature = Array.isArray(item) ? item[0] : item
     if (!feature) return undefined
     return this.findParcelContaining(feature.uuid)?.id
@@ -297,7 +297,7 @@ export class FeaturePump {
   private applyWorkerSortOrder(loadOrder: LoadOrderItem[]): void {
     // Create a UUID -> original feature map for all features with instance detection complete
     const featureMap = new Map<string, FeatureRecord>()
-    const uuidToParcelId = new Map<string, number>()
+    const uuidToParcelId = new Map<string, number | string>()
     const readyParcels = this.getParcelsByState(ParcelProcessingState.INSTANCE_DETECTION_COMPLETE)
 
     for (const tracking of readyParcels) {
@@ -374,7 +374,7 @@ export class FeaturePump {
     return parcel.featuresList?.some((f) => f.uuid === feature.uuid) ?? false
   }
 
-  private removeParcelFromQueues(parcelId: number): void {
+  private removeParcelFromQueues(parcelId: number | string): void {
     const parcel = this.parcelStates.get(parcelId)
     if (!parcel) return
 
@@ -692,7 +692,7 @@ export class FeaturePump {
     }
 
     const allFeatures: FeatureRecord[] = []
-    const parcelIds: number[] = []
+    const parcelIds: (number | string)[] = []
 
     for (const tracking of awaitingParcels) {
       allFeatures.push(...tracking.features)
@@ -711,7 +711,7 @@ export class FeaturePump {
       })
   }
 
-  private moveProcessedParcelsToActivationQueue(parcelIds: number[], instanceRelations?: Map<string, string>): void {
+  private moveProcessedParcelsToActivationQueue(parcelIds: (number | string)[], instanceRelations?: Map<string, string>): void {
     // Store instance relations by parcel ID for efficient cleanup
     if (instanceRelations) {
       for (const parcelId of parcelIds) {

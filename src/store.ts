@@ -214,15 +214,15 @@ export const closeTakeWomp = () => {
   uiAsideTick.value++
 }
 
-export const authoring = signal<Set<number>>(new Set())
+export const authoring = signal<Set<number | string>>(new Set())
 
-export const enterAuthoring = (id: number) => {
+export const enterAuthoring = (id: number | string) => {
   const s = new Set(authoring.value)
   s.add(id)
   authoring.value = s
 }
 
-export const exitAuthoring = (id?: number) => {
+export const exitAuthoring = (id?: number | string) => {
   if (id == null) {
     authoring.value = new Set()
     return

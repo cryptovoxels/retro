@@ -448,6 +448,11 @@ export default abstract class Controls implements IControls {
   // called on spawn and teleport: hold gravity until the parcels here have colliders
   resetFloor() {
     if (!this.grid) return
+    if (this.grid.currentW > 0) {
+      this.floorWait = null
+      return
+    }
+    if (!this.grid.workerLive()) return
     this.floorWait = []
     const p = this.body.position
     this.grid.queryParcelsAtPosition(new BABYLON.Vector3(p.x, p.y, p.z)).then((ids) => (this.floorWait = ids.length ? ids : null))
@@ -864,7 +869,7 @@ export default abstract class Controls implements IControls {
     }
     return {
       featureUuid: car.uuid,
-      homeParcelId: car.parcel.id,
+      homeParcelId: typeof car.parcel.id === 'number' ? car.parcel.id : 0,
       voxUrl: String(car.description.url || ''),
       scale: [clamp(s.x), clamp(s.y), clamp(s.z)],
       yaw: car.mesh.rotation.y,

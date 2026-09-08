@@ -82,7 +82,7 @@ export default class Womp extends Component<Props, State> {
   get visitUrl() {
     const coords = this.state.womp?.coords
     if (!coords) return undefined
-    return this.isSpaceWomp() ? `/spaces/${this.state.womp.space_id}` : `/play?coords=${coords}`
+    return this.isSpaceWomp() ? `/spaces/${this.state.womp.space_id}/play` : `/play?coords=${coords}`
   }
 
   syncVisitUrl() {
@@ -112,7 +112,7 @@ export default class Womp extends Component<Props, State> {
           </dd>
           <dt>{!this.isSpaceWomp() ? `Parcel` : `Space`}</dt>
           <dd>
-            <a href={!this.isSpaceWomp() ? `/parcels/${this.state.womp.parcel_id}` : `/spaces/${this.state.womp.space_id}`}>{this.state.womp.parcel_name || this.state.womp.space_name}</a>
+            <a href={!this.isSpaceWomp() ? `/parcels/${this.state.womp.parcel_id}` : `/spaces/${this.state.womp.space_id}/play`}>{this.state.womp.parcel_name || this.state.womp.space_name}</a>
           </dd>
           <dt>Created at</dt>
           <dd>{new Date(this.state.womp.created_at).toLocaleString()}</dd>

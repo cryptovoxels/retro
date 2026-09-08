@@ -150,7 +150,7 @@ export default class TakeWomp extends Component<Props, State> {
       content: this.state.content,
       coords: this.props.coords,
       parcel_id: this.props.parcel.id,
-      space_id: this.props.parcel.spaceId,
+      space_id: typeof this.props.parcel.id === 'string' ? this.props.parcel.id : undefined,
       image_url: resolveUgc(uploadResult.location),
     })
 

@@ -48,16 +48,14 @@ export enum ParcelActivationState {
 
 export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   private static defaultSoundSprite: BABYLON.Sound
-  readonly id: number
-  readonly spaceId: string | undefined
-  readonly isFastboot: boolean
+  readonly id: number | string
   state: Record<string, Partial<FeatureRecord>> = {}
   name? = ''
   owner = ''
   parcel_users: Array<ParcelUser> | null
   suburb = 'Unknown suburb'
   island = 'Unknown island'
-  readonly summary: ParcelRecord & { spaceId?: string }
+  readonly summary: ParcelRecord & { id?: number | string }
   readonly geometry: ParcelGeometry | undefined
   description: string | undefined
   readonly address: string
@@ -123,10 +121,9 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     scene: BABYLON.Scene,
     parent: BABYLON.Nullable<BABYLON.TransformNode>,
     record: ParcelRecord & {
-      spaceId?: string
+      id?: number | string
     },
     grid: Grid,
-    isFastboot = false,
     precomputedField?: NdArray<Uint16Array>,
   ) {
     super()
@@ -136,10 +133,8 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
     this.parentNode = parent ?? new BABYLON.TransformNode(`parcel/${record.id}/root`, scene)
     this.grid = grid
-    this.isFastboot = isFastboot
 
     this.id = record.id
-    this.spaceId = record.spaceId
     this.address = record.address || 'Unknown address'
     this.x1 = record.x1
     this.x2 = record.x2
@@ -244,12 +239,13 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   get needsMint() {
-    return this.id >= 9100
+    return typeof this.id === 'number' && this.id >= 9100
   }
 
   async requestMint() {
+    if (typeof this.id !== 'number') return
     try {
-      await mintParcel(this)
+      await mintParcel(this as any)
     } catch (err) {
       console.error('On-chain minting failed:', err)
     }
@@ -303,6 +299,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
   // The parcel page info URL
   public get url() {
+    if (typeof this.id !== 'number') return `/spaces/${this.id}/play`
     return `/parcels/${this.id}`
   }
 
@@ -461,12 +458,12 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   sendPatch(patch: ParcelPatch) {
-    if (this.sandbox) return
+    if (this.sandbox || typeof this.id !== 'number') return
     this.grid.patchParcel(this.id, patch)
   }
 
   sendStatePatch(patch: Record<string, any>) {
-    if (this.sandbox) return
+    if (this.sandbox || typeof this.id !== 'number') return
     this.receiveStatePatch(patch)
     this.grid.patchParcelState(this.id, patch)
   }
@@ -859,9 +856,9 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       return
     }
     this.activationState = ParcelActivationState.Activating
-    if (this.grid.fastbootParcel && this.grid.fastbootParcel.id === this.id) {
+    if (this.grid.mountedParcel && this.grid.mountedParcel.id === this.id) {
       /**
-       * Race condition hack: on fastboot we might be activating before the voxel mesh has been created
+       * Race condition hack: mounted parcel may activate before the voxel mesh has been created
        * so we wait for it here.
        */
       await this.awaitVoxelMesh()

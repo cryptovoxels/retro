@@ -36,6 +36,7 @@ import RenderCostume from './render/costume'
 import Search from './search'
 import Shop from './shop'
 import Space from './space'
+import SpacePlay from './space-play'
 import BuildPage from './build'
 import Terms from './terms'
 import Wearable from './wearable'
@@ -70,6 +71,7 @@ const components: Record<string, ComponentType<any>> = {
   parcel: Parcel,
   parcelEdit: ParcelEdit,
   space: Space,
+  spacePlay: SpacePlay,
   build: BuildPage,
   islands: Islands,
   island: Island,

@@ -331,8 +331,8 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
 
       // update the parcels the user can edit on connect
       // really this collection shouldn't be necessary, but it is for backwards compat with building
-      if (this.grid.length === 0 && this.grid.fastbootParcel && this.grid.fastbootParcel.canEdit) {
-        this.persona.user.parcels = [this.grid.fastbootParcel]
+      if (this.grid.length === 0 && this.grid.mountedParcel && this.grid.mountedParcel.canEdit) {
+        this.persona.user.parcels = [this.grid.mountedParcel]
       } else {
         this.persona.user.parcels = this.grid.filter((p) => p.canEdit)
       }
@@ -349,7 +349,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   }
 
   async reconnect() {
-    this.multiplayerClient.close()
+    this.multiplayerClient?.close()
     // wait a bit before reconnecting to give the server a chance to clean up
     await new Promise((resolve) => setTimeout(resolve, 100))
 
@@ -360,7 +360,12 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     try {
       this.controls?.stopVehicle?.()
     } catch {}
-    this.multiplayerClient.close()
+    const ws = this.multiplayerClient
+    if (!ws) return
+    try {
+      ws.close()
+    } catch {}
+    this.isOpen = false
   }
 
   private invalidateNearbyAvatarsCache() {
@@ -610,7 +615,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     this.send(message)
   }
 
-  sendMetric(action: messages.Action, parcel?: number) {
+  sendMetric(action: messages.Action, parcel?: number | string) {
     // Set nearest parcel if possible
     if (!parcel) {
       const nearest = this.nearestParcel()
@@ -636,7 +641,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       type: messages.MessageType.metric,
       action,
       position,
-      parcel,
+      parcel: typeof parcel === 'number' ? parcel : undefined,
     }
     this.send(message)
   }
