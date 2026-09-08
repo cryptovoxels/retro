@@ -20,6 +20,9 @@ const ISO_DISTANCE = 4
 const ISO_PITCH = 0.75 // look down at the avatar, isometric-ish
 const CAMERA_EASE_OUT = 1.4
 const SWIM_LEVEL = -2
+const MIN_COORD_Y = -10
+const FALL_RESCUE_Y = -20
+const FALL_RESCUE_LIFT = 64
 
 /** Meters behind the person in front (each hop of the snake). */
 const CONGA_FOLLOW_DISTANCE = 1.35
@@ -148,7 +151,8 @@ export default abstract class Controls implements IControls {
   audioContext: AudioContext = undefined!
   private cameraZoomed = false
   // parcels under our feet still waiting on colliders. [] = waiting on the worker, null = floor is solid
-  private floorWait: number[] | null = null
+  private floorWait: number[] | null = []
+  private floorRetry = 0
 
   constructor(
     protected scene: BABYLON.Scene,
@@ -194,6 +198,17 @@ export default abstract class Controls implements IControls {
         this.camera.cameraDirection.setAll(0)
       }
 
+      if (this.body.position.y < FALL_RESCUE_Y) {
+        this.body.position.y += FALL_RESCUE_LIFT
+        this.resetFloor()
+      }
+      if (this.floorWait?.length === 0) {
+        this.floorRetry += dt
+        if (this.floorRetry >= 0.25) {
+          this.floorRetry = 0
+          this.resetFloor()
+        }
+      }
       if (this.floorWait?.length && this.floorWait.every((id) => this.grid?.getByID(id)?.physicsRegistered)) this.floorWait = null
       this.body.flying = this.flying
       this.body.gravity = !this.flying && !this.floorWait
@@ -452,10 +467,11 @@ export default abstract class Controls implements IControls {
       this.floorWait = null
       return
     }
-    if (!this.grid.workerLive()) return
     this.floorWait = []
     const p = this.body.position
-    this.grid.queryParcelsAtPosition(new BABYLON.Vector3(p.x, p.y, p.z)).then((ids) => (this.floorWait = ids.length ? ids : null))
+    this.grid.queryParcelsAtPosition(new BABYLON.Vector3(p.x, p.y, p.z)).then((ids) => {
+      if (ids.length) this.floorWait = ids
+    })
   }
 
   setNoclip(on: boolean) {
@@ -655,6 +671,7 @@ export default abstract class Controls implements IControls {
       position: this.persona.position.clone(),
       rotation: this.camera.rotation.clone(),
     }
+    if (coords.position.y < MIN_COORD_Y) return ''
 
     return encodeCoords(coords)
   }

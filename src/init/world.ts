@@ -17,6 +17,7 @@ import { setupRealmPopstate } from './realm'
 export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCanvasElement, controls: Controls) {
   const grid = new Grid(scene)
   window.grid = grid
+  controls.resetFloor()
 
   let audio: AudioEngine | null = null
 
@@ -84,6 +85,7 @@ function updateNavbarWithCoords(scene: BABYLON.Scene, connector: Connector) {
         position: connector.persona.position.clone(),
         rotation: camera.rotation.clone(),
       }
+      if (coords.position.y < -10) return
       const coordsParam = encodeCoords(coords)
       queryParams.set('coords', coordsParam)
       const params = queryParams.toString().replace('%40', '@').replace(/%2C/g, ',')

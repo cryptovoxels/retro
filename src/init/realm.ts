@@ -11,6 +11,7 @@ export function realmSavedCoords() {
 
 export function saveRealmCoords() {
   if (!window.persona || !window.scene?.activeCamera) return
+  if (window.persona.position.y < -10) return
   savedCoords = encodeCoords({
     position: window.persona.position.clone(),
     rotation: cameraRotation(window.scene),
