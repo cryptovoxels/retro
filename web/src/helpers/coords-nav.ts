@@ -8,6 +8,26 @@ export function isPlayPath(path?: string) {
   return p === '/play'
 }
 
+export function isSpacePlayPath(path?: string) {
+  const p = (path || (typeof location !== 'undefined' ? location.pathname : '')).split('?')[0]
+  return /^\/spaces\/[^/]+\/play$/.test(p)
+}
+
+export function isSpacePath(path?: string) {
+  return !!getSpaceIdFromPath(path)
+}
+
+export function getSpaceIdFromPath(path?: string): string | null {
+  const p = (path || (typeof location !== 'undefined' ? location.pathname : '')).split('?')[0]
+  const m = p.match(/^\/spaces\/([^/]+)(?:\/play)?$/)
+  return m ? m[1] : null
+}
+
+export function isWorldRoute(path?: string) {
+  const p = (path || (typeof location !== 'undefined' ? location.pathname : '')).split('?')[0]
+  return p === '/play' || /^\/parcels\/\d+/.test(p) || p === '/build' || p === '/map'
+}
+
 export function notifyUrlChange() {
   window.dispatchEvent(new Event('urlchange'))
 }

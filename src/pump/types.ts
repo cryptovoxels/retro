@@ -9,7 +9,7 @@ export type InstanceRelation = [UUID, UUID]
 export type InstanceRelationMap = Map<UUID, UUID>
 
 // Map of parcel IDs to their instance relations
-export type ParcelInstanceRelations = Map<number, InstanceRelationMap>
+export type ParcelInstanceRelations = Map<number | string, InstanceRelationMap>
 
 // Load order item: either a single UUID or array of UUIDs (for parallel loading)
 export type LoadOrderItem = UUID | UUID[]
@@ -26,7 +26,7 @@ export type SortableFeature = {
   worldPosition: [number, number, number]
   scale: [number, number, number]
   groupId?: UUID
-  parcelId: number
+  parcelId: number | string
 }
 
 export interface IdentifyInstancesRequest {
@@ -43,7 +43,7 @@ export interface SortFeaturesRequest {
   cameraPosition: [number, number, number]
   cameraDirection: [number, number, number]
   maxDrawDistance: number
-  currentParcelId?: number
+  currentParcelId?: number | string
 }
 
 export type PumpWorkerInput = IdentifyInstancesRequest | SortFeaturesRequest

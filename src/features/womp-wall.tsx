@@ -241,7 +241,8 @@ export default class WompWall extends Feature2D<WompWallRecord> {
 }
 
 function wompTakenOnParcel(w: WallWomp, parcel: Parcel): boolean {
-  if (Number(w.parcel_id) !== Number(parcel.id)) return false
+  if (typeof parcel.id !== 'number') return false
+  if (Number(w.parcel_id) !== parcel.id) return false
   if (!w.coords) return false
   const { position } = decodeCoords(w.coords)
   // feet must be on this lot; clamp y so towers / CAMERA_HEIGHT don't fail contains()

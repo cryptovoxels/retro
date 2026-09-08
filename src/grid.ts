@@ -16,7 +16,10 @@ import { ParcelPatch, ParcelRecord } from '../common/messages/parcel'
 import { GraphicLevels } from './graphic/graphic-engine'
 import { PanelType } from '../web/src/components/panel'
 import { DeferredPromise } from 'p-defer'
-import { Environment } from './enviroments/environment'
+import { createSpaceScene, createWorldScene, parcelMeshesAdded, parcelMeshesRemoved, teardownSpaceScene, teardownWorldScene } from './init/world-scene'
+import { fetchSpace } from './init/realm'
+import { normalizeSpace } from './utils/normalize-space'
+import type { MountDesc } from './utils/normalize-space'
 import { TypedEvent } from './utils/EventEmitter'
 import { ParcelEventMap } from './utils/parcel-event-map'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
@@ -59,8 +62,12 @@ const DEFAULT_UPDATE_INTERVAL_MS = 200
 
 export default class Grid extends SocketClient {
   // ParcelManager properties - folded into Grid
-  public fastbootParcel: Parcel | undefined
+  public mountedParcel: Parcel | undefined
   public parcels: Map<Parcel['id'], Parcel> = new Map()
+  currentW = 0
+  currentSpaceId: string | undefined
+  private worldLive = false
+  private switching = false
   private readonly parcelLoaded: (event: TypedEvent<'MeshLoaded', ParcelEventMap['MeshLoaded']>) => void
   private readonly parcelUnloaded: (event: TypedEvent<'MeshUnloading', ParcelEventMap['MeshUnloading']>) => void
 
@@ -69,7 +76,6 @@ export default class Grid extends SocketClient {
   public currentIsland: string | undefined = undefined
   public parcel_events = new TypedEventTarget<{ parcel_entered: Parcel['id']; parcel_exited: Parcel['id'] }>()
   private readonly scene: BABYLON.Scene
-  protected readonly environment: Environment
   private lastParcelScanAt?: number
   private nearestParcels: Array<Parcel> = []
   //@todo: refactor the whole system to be more consistent btw onEnter,onNearby,onExit
@@ -80,7 +86,7 @@ export default class Grid extends SocketClient {
   private workerCleanup: (() => void) | undefined = undefined
   private isWorker = true
   private _workerReadyPromise: Promise<void> | undefined = undefined
-  private subscriptions: Set<number> = new Set()
+  private subscriptions: Set<number | string> = new Set()
   private pingInterval?: number
   private _workerInterval?: number // You'd think "ReturnType<typeof setInterval>" would work, wouldn't you.
   private readonly isolateMode: boolean
@@ -88,21 +94,19 @@ export default class Grid extends SocketClient {
   private _queryJobs = new Map<number, DeferredPromise<number[]>>()
   private _nextQueryId = 0
 
-  constructor(scene: BABYLON.Scene, environment: Environment) {
+  constructor(scene: BABYLON.Scene) {
     super('grid', () => getGridUrl())
     this.scene = scene
-    this.environment = environment
 
-    // Initialize ParcelManager event handlers
     this.parcelLoaded = (event) => {
       if (!event.detail) return
-      this.environment.parcelMeshesAdded([event.detail])
+      if (this.currentW === 0) parcelMeshesAdded([event.detail])
       window.graphic?.postProcesses?.reveal()
     }
 
     this.parcelUnloaded = (event) => {
       if (!event.detail) return
-      this.environment.parcelMeshesRemoved([event.detail])
+      if (this.currentW === 0) parcelMeshesRemoved([event.detail])
     }
 
     this.isolateMode = wantsIsolate()
@@ -130,19 +134,14 @@ export default class Grid extends SocketClient {
     this.addInterval(this.refreshNearestParcels.bind(this), isMobile() ? 5e3 : 1e3)
 
     if (this.seeksConnection) {
-      this.connect()
       this.listenToLeaveWorld()
 
-      // make sure that we reload the parcels, including the fastboot one, so that editing works in isolate mode and
-      // other scenarios where the users logs in or out
       const refresh = (requester?: string) => () => {
+        if (!this.worldLive) return
         console.debug(`[grid] refreshing parcels after ${requester} event`)
         this.refreshActiveParcels()
         this.refreshEnteredParcel()
-        if (this.enteredParcel) {
-          // call enter event on entered parcel so that surveyor and bouncer can activate as neccessary
-          this.enteredParcel.onEnter()
-        }
+        if (this.enteredParcel) this.enteredParcel.onEnter()
       }
       app.on(AppEvent.Login, refresh('login'))
       app.on(AppEvent.Logout, refresh('logout'))
@@ -171,12 +170,12 @@ export default class Grid extends SocketClient {
   }
 
   load(description: ParcelRecord, grid: Grid, fieldBuffer?: NdArray<Uint16Array>): Parcel | undefined {
-    return this.create(description, grid, false, fieldBuffer)
+    return this.create(description, grid, fieldBuffer)
   }
 
-  loadFastboot(description: ParcelRecord, grid: Grid): Parcel | undefined {
-    const p = this.create(description, grid, true)
-    if (p) this.fastbootParcel = p
+  mountParcel(description: MountDesc | ParcelRecord, grid: Grid = this): Parcel | undefined {
+    const p = this.create(description, grid)
+    if (p) this.mountedParcel = p
     return p
   }
 
@@ -199,8 +198,8 @@ export default class Grid extends SocketClient {
 
     gridParcel.unload()
 
-    if (this.fastbootParcel?.id == parcel.id) {
-      this.fastbootParcel = undefined
+    if (this.mountedParcel?.id == parcel.id) {
+      this.mountedParcel = undefined
     }
 
     const userIndex = window.user.parcels.indexOf(parcel)
@@ -216,9 +215,8 @@ export default class Grid extends SocketClient {
     this.unload(parcel)
   }
 
-  getByID(id: number): Parcel | undefined {
-    // check the fastboot: this fixes race condition with shared state when parcels have not yet loaded
-    if (this.fastbootParcel && this.fastbootParcel.id === id) return this.fastbootParcel
+  getByID(id: number | string): Parcel | undefined {
+    if (this.mountedParcel && this.mountedParcel.id === id) return this.mountedParcel
     return this.parcels.get(id)
   }
 
@@ -252,15 +250,13 @@ export default class Grid extends SocketClient {
 
   /** Spawn a parcel for server-side preview (no grid socket / pump). */
   spawnPreview(description: ParcelRecord): Parcel | undefined {
-    return this.create(description, this, false)
+    return this.create(description, this)
   }
 
-  protected create(description: ParcelRecord, grid: Grid, isFastboot: boolean, fieldBuffer?: NdArray<Uint16Array>): Parcel | undefined {
+  protected create(description: MountDesc | ParcelRecord, grid: Grid, fieldBuffer?: NdArray<Uint16Array>): Parcel | undefined {
     const existing = this.parcels.get(description.id)
-    if (existing) {
-      return undefined
-    }
-    const p = new Parcel(this.scene, null, description, grid, isFastboot, fieldBuffer)
+    if (existing) return undefined
+    const p = new Parcel(this.scene, null, description as any, grid, fieldBuffer)
     p.addEventListener('MeshLoaded', this.parcelLoaded, { passive: true })
     p.addEventListener('MeshUnloading', this.parcelUnloaded, { passive: true })
     this.parcels.set(p.id, p)
@@ -301,7 +297,7 @@ export default class Grid extends SocketClient {
     return window.draw.distance * 1.1
   }
 
-  public async loadFastbootFromHTML() {
+  public async mountParcelFromHTML() {
     const el = document.querySelector('script#parcel')
     if (!el) return
 
@@ -312,7 +308,7 @@ export default class Grid extends SocketClient {
       return
     }
 
-    const p = this.loadFastboot(desc, this)
+    const p = this.mountParcel(desc, this)
     if (!p) return
 
     p.generate()
@@ -386,11 +382,10 @@ export default class Grid extends SocketClient {
     }
 
     // return the isolate or space as current parcel
-    if (this.length === 0 || (this.length === 1 && this.fastbootParcel)) return this.fastbootParcel
+    if (this.length === 0 || (this.length === 1 && this.mountedParcel)) return this.mountedParcel
 
-    // handle selecting spawn parcel when still loading grid
-    if (this.fastbootParcel?.contains(cameraPosition(this.scene))) {
-      this.priorParcel = this.fastbootParcel
+    if (this.mountedParcel?.contains(cameraPosition(this.scene))) {
+      this.priorParcel = this.mountedParcel
       return this.priorParcel
     }
 
@@ -490,9 +485,7 @@ export default class Grid extends SocketClient {
     const workerPromise = this._workerReadyPromise || Promise.resolve()
 
     return workerPromise.then(() => {
-      if (!this.workerAPI) {
-        throw new Error('queryParcelsAtPosition() called before grid-worker started!')
-      }
+      if (!this.workerAPI) return []
 
       const queryId = this._nextQueryId++
       return this.workerAPI.queryParcelsAtPosition(queryId, pos.asArray() as [number, number, number]).then((result) => result.parcelIds)
@@ -509,6 +502,10 @@ export default class Grid extends SocketClient {
 
     this._workerReadyPromise = workerPromise
     return workerPromise
+  }
+
+  workerLive() {
+    return !!this.workerAPI
   }
 
   private setupWorker() {
@@ -566,11 +563,70 @@ export default class Grid extends SocketClient {
     this.disconnect()
     this.intervals.forEach((id) => clearInterval(id))
     this.activeParcelPool.forEach((parcel) => {
-      this.subscribeParcel(parcel.id, false)
+      this.subscribeParcel(parcel.id as number, false)
     })
     this.forEach((parcel) => {
       this.unload(parcel)
     })
+    this.worldLive = false
+  }
+
+  connectWorld() {
+    if (this.worldLive || this.currentW !== 0) return
+    if (this.seeksConnection) this.connect()
+    this.loadWorker()
+    this.worldLive = true
+  }
+
+  async switchWorld(w: number, spaceId?: string, resumeCoords?: string) {
+    if (this.switching) return
+    if (w === this.currentW) {
+      if (w === 0 && this.worldLive) return
+      if (w > 0 && spaceId === this.currentSpaceId) return
+    }
+    this.switching = true
+    try {
+      if (this.currentW > 0) {
+        teardownSpaceScene()
+        this.shutdown()
+      } else if (this.worldLive) {
+        window.connector?.disconnect()
+        this.shutdown()
+        teardownWorldScene()
+      }
+
+      this.currentW = w
+      this.currentSpaceId = spaceId
+      window.graphic?.postProcesses?.cover()
+
+      if (w === 0) {
+        await createWorldScene(this.scene)
+        this.connectWorld()
+        await this._workerReadyPromise
+        await this.mountParcelFromHTML()
+        if (window.config.isMultiuser) window.connector?.connect()
+        const c = resumeCoords || new URLSearchParams(location.search).get('coords')
+        if (c) window.persona?.naviport(c)
+        else if (window.connector?.controls) initialWorldSpawn(window.connector.controls)
+      } else if (spaceId) {
+        createSpaceScene(this.scene)
+        if (window.connector?.isOpen) window.connector.disconnect()
+        const space = await fetchSpace(spaceId)
+        if (!space) return
+        const desc = normalizeSpace(space)
+        const p = this.mountParcel(desc)
+        await p?.generate()
+        this.nearestParcels = p ? [p] : []
+        this.refreshActiveParcels()
+        this.refreshEnteredParcel()
+        spawnSpaceParcel(window.connector?.controls, p)
+        const c = resumeCoords || new URLSearchParams(location.search).get('coords')
+        if (c) window.persona?.naviport(c)
+      }
+    } finally {
+      setTimeout(() => window.graphic?.postProcesses?.reveal(), this.currentW > 0 ? 500 : 3e3)
+      this.switching = false
+    }
   }
 
   protected onMessage(ev: MessageEvent<string>) {
@@ -618,7 +674,7 @@ export default class Grid extends SocketClient {
     this.subscriptions.forEach((parcelId) => {
       this.sendMessage({
         type: 'subscription',
-        parcelId,
+        parcelId: typeof parcelId === 'number' ? parcelId : 0,
         subscribed: true,
       })
     })
@@ -643,7 +699,7 @@ export default class Grid extends SocketClient {
     this.sendMessage({ type: 'ping' })
   }
 
-  private withParcel(parcelId: number, callback: (parcel: Parcel) => void) {
+  private withParcel(parcelId: number | string, callback: (parcel: Parcel) => void) {
     const parcel = this.getByID(parcelId)
     if (parcel) callback(parcel)
   }
@@ -704,7 +760,7 @@ export default class Grid extends SocketClient {
     }
   }
 
-  private subscribeParcel(parcelId: number, subscribed: boolean) {
+  private subscribeParcel(parcelId: number | string, subscribed: boolean) {
     if (subscribed) {
       this.subscriptions.add(parcelId)
     } else {
@@ -713,7 +769,7 @@ export default class Grid extends SocketClient {
 
     this.sendMessage({
       type: 'subscription',
-      parcelId,
+      parcelId: typeof parcelId === 'number' ? parcelId : 0,
       subscribed,
     })
   }
@@ -851,8 +907,8 @@ export default class Grid extends SocketClient {
   private addParcel(parcelDescription: ParcelRecord, fieldBuffer?: NdArray<Uint16Array>): Parcel | undefined {
     let p: Parcel | undefined
 
-    if (this.fastbootParcel && parcelDescription.id === this.fastbootParcel.id) {
-      p = this.fastbootParcel
+    if (this.mountedParcel && parcelDescription.id === this.mountedParcel.id) {
+      p = this.mountedParcel
     } else {
       p = this.load(parcelDescription, this, fieldBuffer)
     }
@@ -870,8 +926,8 @@ export default class Grid extends SocketClient {
       }, 10)
     }
 
-    if (this.fastbootParcel && parcelDescription.id === this.fastbootParcel.id) {
-      this.fastbootParcel = undefined
+    if (this.mountedParcel && parcelDescription.id === this.mountedParcel.id) {
+      this.mountedParcel = undefined
     }
 
     return p
@@ -900,8 +956,15 @@ export default class Grid extends SocketClient {
     if (!parcelToLoad) return
 
     // Generate parcel directly - grid-worker already handles flow control
-    if (parcelToLoad.isFastboot || parcelToLoad.loaded) {
-      this.workerAPI?.handleParcelGenerated(parcelToLoad.id)
+    if (this.mountedParcel && parcelToLoad.id === this.mountedParcel.id) {
+      this.workerAPI?.handleParcelGenerated(parcelToLoad.id as number)
+      return
+    }
+
+    if (parcelToLoad.loaded) {
+      if (typeof parcelToLoad.id === 'number') {
+        this.workerAPI?.handleParcelGenerated(parcelToLoad.id)
+      }
       return
     }
 
@@ -913,12 +976,12 @@ export default class Grid extends SocketClient {
       .generate()
       .then(() => {
         // Send feedback to grid-worker that this parcel generation is complete
-        this.workerAPI?.handleParcelGenerated(parcelToLoad.id)
+        this.workerAPI?.handleParcelGenerated(parcelToLoad.id as number)
       })
       .catch((error) => {
         console.error(`[grid] Failed to generate parcel ${parcelToLoad.id}:`, error)
         // Still send feedback to prevent grid-worker from getting stuck
-        this.workerAPI?.handleParcelGenerated(parcelToLoad.id)
+        this.workerAPI?.handleParcelGenerated(parcelToLoad.id as number)
       })
   }
 
@@ -933,4 +996,44 @@ export default class Grid extends SocketClient {
   get hasField() {
     return true
   }
+}
+
+function initialWorldSpawn(controls: any) {
+  const searchParams = new URLSearchParams(document.location.search.substring(1))
+  if (searchParams.get('coords')) return
+  const nudgeL = 5
+  const nudgeW = 2
+  const alongX = Math.random() < 0.5
+  let randomX = Math.random() * (nudgeL * 2) - nudgeL
+  let randomZ = Math.random() * (nudgeW * 2) - nudgeW
+  if (!alongX) {
+    randomX = Math.random() * (nudgeW * 2) - nudgeW
+    randomZ = Math.random() * (nudgeL * 2) - nudgeL
+  }
+  Object.assign(controls.body.position, { x: randomX, y: 2.5, z: randomZ })
+}
+
+function spawnSpaceParcel(controls: any, parcel: Parcel | undefined) {
+  if (!controls) return
+  if (!parcel) {
+    Object.assign(controls.body.position, { x: 0, y: 2.5, z: 0 })
+    return
+  }
+  const spawnFeature = parcel.features?.find((f) => f?.type === 'spawn-point')
+  if (!spawnFeature) {
+    Object.assign(controls.body.position, { x: 0, y: 2.5, z: 0 })
+    return
+  }
+  const pos = spawnFeature.position as number[] | { x: number; y: number; z: number }
+  const rot = spawnFeature.rotation as number[] | { x: number; y: number; z: number }
+  const px = Array.isArray(pos) ? pos[0] : pos?.x
+  const py = Array.isArray(pos) ? pos[1] : pos?.y
+  const pz = Array.isArray(pos) ? pos[2] : pos?.z
+  const ry = Array.isArray(rot) ? rot[1] : rot?.y
+  const roundHalf = (v: number) => Math.round(v * 2) / 2
+  const x = roundHalf(parseFloat(String(px || 0)))
+  const z = roundHalf(parseFloat(String(pz || 0)))
+  const y = parseFloat(String(py || 0)) + 1.75
+  Object.assign(controls.body.position, { x, y, z })
+  if (controls.camera && ry != null) controls.camera.rotation.y = parseFloat(String(ry))
 }

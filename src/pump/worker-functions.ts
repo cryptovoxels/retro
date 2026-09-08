@@ -228,7 +228,7 @@ export function workerCreateLoadOrderWithSortableFeatures(
   cameraPosition: [number, number, number],
   cameraDirection: [number, number, number],
   maxDrawDistance: number,
-  currentParcelId?: number,
+  currentParcelId?: number | string,
 ): LoadOrderItem[] {
   // Convert to FeatureRecord format
   const features: FeatureRecord[] = sortableFeatures.map((sf) => ({
@@ -252,7 +252,7 @@ export function workerCreateLoadOrderWithSortableFeatures(
   // Step 2: Build position and scale lookup maps
   const featurePositionMap = new Map<string, [number, number, number]>()
   const featureScaleMap = new Map<string, [number, number, number]>()
-  const featureParcelMap = new Map<string, number>()
+  const featureParcelMap = new Map<string, number | string>()
   for (const sf of sortableFeatures) {
     featurePositionMap.set(sf.uuid, sf.worldPosition)
     featureScaleMap.set(sf.uuid, sf.scale)
@@ -260,7 +260,7 @@ export function workerCreateLoadOrderWithSortableFeatures(
   }
 
   // Track feature count per parcel for penalties
-  const parcelFeatureCounts = new Map<number, number>()
+  const parcelFeatureCounts = new Map<number | string, number>()
 
   // Step 3: Calculate sorting scores for base features
   const instanceGroupsToSort = baseFeatures.map((baseFeature) => {

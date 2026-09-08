@@ -54,10 +54,8 @@ import { refreshMobileCanvasAfterReturn, viewportChangeHandler } from './control
 import { DrawDistance } from './graphic/draw-distance'
 import MainLoop from './main-loop'
 import { createScene } from './init/scene'
-import { createEnvironment } from './init/environment'
 import { createWorld } from './init/world'
 import { sceneConfigFromURL, SceneConfig } from './scene-config'
-import type { Environment } from './enviroments/environment'
 import { PostProcesses } from './graphic/post-processes'
 import { ColorGrader } from './graphic/color-grading'
 import { FOV } from './graphic/field-of-view'
@@ -99,7 +97,6 @@ declare global {
     draw: DrawDistance
     fov: FOV
     cameraSettings: CameraSettings
-    environment: Environment | undefined
 
     nameMesh: BABYLON.Mesh
     skyMat: BABYLON.GradientMaterial
@@ -253,7 +250,6 @@ async function main() {
 
   const cameraSettings = new CameraSettings()
   window.cameraSettings = cameraSettings
-  window.environment = undefined
 
   // Create a main scene and stuff it with some scene globals
   const scene = createScene(engine)
@@ -298,15 +294,11 @@ async function main() {
   ;(engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
   ;(engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
 
-  // not related to a parcel or space
-  const { environment } = await createEnvironment(scene)
+  const { grid, connector } = await createWorld(scene, canvas, controls)
 
   if (xr) {
-    xr.attachEnvironment(environment)
+    xr.attachWorldScene()
   }
-
-  // now we can set up and create all those things that loads stuff, like the connector, the pump (tm) and parcel loaders, audio etc
-  const { grid, connector } = await createWorld(scene, canvas, controls, environment)
   // and here we start all the main stuff, start the renderloop, the pump, web-workers and mess with some random
   // fixes for browsers
 
@@ -355,7 +347,7 @@ async function main() {
   // unmounts when you leave the world (instead of living on <body> forever).
   const ui: BootResult = {
     UI: UserInterface,
-    props: { scene, canvas, grid, connector, environment, enabled: !wantsXR() && !wantsGateway(), minimapSettings: mapSettings ?? new MinimapSettings() },
+    props: { scene, canvas, grid, connector, enabled: !wantsXR() && !wantsGateway(), minimapSettings: mapSettings ?? new MinimapSettings() },
   }
 
   if (wantsXR()) return ui

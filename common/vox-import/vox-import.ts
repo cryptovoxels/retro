@@ -3,6 +3,9 @@ import VoxPixelShader from './vox.fsh'
 import type { VoxData } from './vox-reader'
 import { getComputePool } from '../../src/mono-pool'
 import type { Mono } from '../../src/mono'
+import { DAY_SUN_POSITION, NIGHT_SUN_POSITION } from '../../src/enviroments/world-environment-constants'
+import { getWorldTimeOfDay } from '../../src/init/world-scene'
+import { TimeOfDay } from '../../src/utils/time-of-day'
 
 BABYLON.Effect.ShadersStore['VoxVertexShader'] = VoxVertexShader
 BABYLON.Effect.ShadersStore['VoxPixelShader'] = VoxPixelShader
@@ -94,12 +97,11 @@ export class VoxImporter {
       },
     )
 
-    const env = window.environment
+    const sun = getWorldTimeOfDay() === TimeOfDay.Night ? NIGHT_SUN_POSITION : DAY_SUN_POSITION
 
-    if (env && this.material instanceof BABYLON.ShaderMaterial) {
-      this.material.setVector3('vLight', env.sunPosition || new BABYLON.Vector3(0.577, 0.577, -0.577).normalize())
+    if (this.material instanceof BABYLON.ShaderMaterial) {
+      this.material.setVector3('vLight', sun)
       this.material.setFloat('brightness', 1.8)
-      // env.setShaderParameters(this.material, 1.8)
     }
     this.material.blockDirtyMechanism = true
   }

@@ -1,7 +1,6 @@
 import { wantsAudio } from '../common/helpers/detector'
 
 export type SceneConfig = BABYLON.DeepImmutableObject<{
-  isGrid: true
   isBot: boolean
   coords?: string
   isNight: boolean
@@ -10,10 +9,7 @@ export type SceneConfig = BABYLON.DeepImmutableObject<{
   isMultiuser: boolean
 }>
 
-export const isWorld = () => true
-
 const defaultConfig: SceneConfig = {
-  isGrid: true,
   isBot: false,
   isNight: false,
   wantsAudio: true,
@@ -30,7 +26,6 @@ export const sceneConfigFromURL = (): SceneConfig => {
   const isMultiuser = (): boolean => searchParams.get('mp') !== 'off'
 
   return Object.assign({}, defaultConfig, {
-    isGrid: true as const,
     isBot: isBot(),
     isNight: isNight(),
     wantsAudio: wantsAudio(),

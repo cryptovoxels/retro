@@ -5,6 +5,7 @@ import { SpaceRecord } from '../../common/messages/space'
 import { avatarName } from '../../common/messages/avatar-ref'
 import Head from './components/head'
 import cachedFetch from './helpers/cached-fetch'
+import { truncate } from './lib/string-utils'
 
 function featureUrl(raw: unknown): string | null {
   if (!raw) return null
@@ -22,6 +23,40 @@ function basename(url: string): string {
   } catch {
     return url.split('/').filter(Boolean).pop() || url
   }
+}
+
+function featureColor(raw: unknown): string | null {
+  if (!raw) return null
+  if (typeof raw === 'string') {
+    if (raw.startsWith('#')) return raw
+    if (/^[0-9a-fA-F]{3,8}$/.test(raw)) return `#${raw}`
+    return raw
+  }
+  return null
+}
+
+function featureSource(f: any): { key: string; label: string; href?: string } {
+  const url = featureUrl(f.url) || (typeof f.assetUrl === 'string' && f.assetUrl) || (typeof f.link === 'string' && f.link) || (typeof f.previewUrl === 'string' && f.previewUrl)
+  if (url) {
+    return { key: url, label: basename(url), href: url }
+  }
+  const color = featureColor(f.color)
+  if (color) return { key: color, label: color }
+  return { key: 'unknown', label: 'unknown' }
+}
+
+function contentGroups(features: any[]) {
+  const byType = new Map<string, Map<string, { count: number; label: string; href?: string }>>()
+  for (const f of features) {
+    const type = f?.type || 'unknown'
+    const src = featureSource(f)
+    const group = byType.get(type) || new Map()
+    const row = group.get(src.key)
+    if (row) row.count++
+    else group.set(src.key, { count: 1, label: src.label, href: src.href })
+    byType.set(type, group)
+  }
+  return byType
 }
 
 function ownerHref(owner: SpaceRecord['owner']): string | null {
@@ -99,13 +134,7 @@ export default class Space extends Component<Props, State> {
   render() {
     const space = this.state.space
     const features = space?.content?.features || []
-    const byType = new Map<string, typeof features>()
-    for (const f of features) {
-      const t = (f as any).type || 'unknown'
-      const list = byType.get(t) || []
-      list.push(f)
-      byType.set(t, list)
-    }
+    const byType = contentGroups(features)
 
     const voxels = !!(space?.content?.voxels || space?.voxels)
     const name = space?.name || space?.id || 'space'
@@ -117,7 +146,6 @@ export default class Space extends Component<Props, State> {
         {space && <Head title={name} description="spaces are deprecated" url={`/spaces/${space.id}`} />}
 
         <h1>{name}</h1>
-        <p>spaces are deprecated</p>
 
         {this.state.error && <p>{this.state.error}</p>}
 
@@ -136,6 +164,8 @@ export default class Space extends Component<Props, State> {
             {space.description && <p>{space.description}</p>}
 
             <p>
+              <a href={`/spaces/${space.id}/play`}>view</a>
+              {' · '}
               <button type="button" class="outline" onClick={this.downloadJson}>
                 download space
               </button>{' '}
@@ -146,32 +176,18 @@ export default class Space extends Component<Props, State> {
             {features.length === 0 ? (
               <p>no features</p>
             ) : (
-              <ul>
-                {[...byType.entries()].map(([type, list]) => (
+              <ul class="content-tree">
+                {[...byType.entries()].map(([type, sources]) => (
                   <li>
-                    {type}
+                    {type}s:
                     <ul>
-                      {list.map((f: any, i: number) => {
-                        const urls: string[] = []
-                        const u = featureUrl(f.url)
-                        if (u) urls.push(u)
-                        if (typeof f.assetUrl === 'string' && f.assetUrl) urls.push(f.assetUrl)
-                        const label = f.description || f.uuid || f.id || `#${i + 1}`
-                        return (
+                      {[...sources.values()]
+                        .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+                        .map((row) => (
                           <li>
-                            {label}
-                            {urls.length > 0 && (
-                              <ul>
-                                {urls.map((url) => (
-                                  <li>
-                                    <a href={url}>{basename(url)}</a>
-                                  </li>
-                                ))}
-                              </ul>
-                            )}
+                            {row.count} {row.href ? <a href={row.href}>{truncate(row.label, 20)}</a> : truncate(row.label, 20)}
                           </li>
-                        )
-                      })}
+                        ))}
                     </ul>
                   </li>
                 ))}

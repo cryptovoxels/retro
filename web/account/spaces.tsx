@@ -62,7 +62,6 @@ export class Spaces extends Component<Props, State> {
     return (
       <div>
         <h2>Spaces</h2>
-        <p>spaces are deprecated — download the json archive.</p>
         <ul>
           {spaces.map((s) => (
             <li>
