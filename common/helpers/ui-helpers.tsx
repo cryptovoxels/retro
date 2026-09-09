@@ -33,9 +33,11 @@ export function mediaSize(ar: number, zoom: number) {
 }
 
 export function openDialog(className: string, fastview = false) {
+  if (typeof BABYLON !== 'undefined' && window.scene?.activeCamera instanceof BABYLON.WebXRCamera) fastview = false
   const el = document.createElement('dialog')
   el.className = className.includes('pointer-lock-close') ? className : `${className} pointer-lock-close`
   ;(document.querySelector('.client') || document.body).appendChild(el)
+  window.dispatchEvent(new Event('dialogopen'))
 
   if (!fastview) {
     exitPointerLock()
