@@ -14,7 +14,7 @@ import type { ParcelGeometry, ParcelKind, ParcelPatch, ParcelRecord, ParcelRef, 
 import { getBufferFromVoxels, getFieldShape, getVoxelsFromBuffer } from '../common/voxels/helpers'
 import { VoxelSize } from '../common/voxels/mesher'
 import { applyCleanPalette, buildCleanMesh } from './clean-mesher'
-import { createWhiteTexture, fetchTexture } from './textures/textures'
+import { createWhiteTexture } from './textures/textures'
 import { tilesetRuntimeUrl } from '../common/helpers/parcel-compile'
 import type { LanternRecord } from '../common/messages/feature'
 import { app } from '../web/src/state'
@@ -1309,9 +1309,12 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id, this.paletteColors, this.tilesetTexture ?? (pending ? createWhiteTexture(this.scene) : undefined))
     if (pending) {
       const mat = opaque.material as BABYLON.StandardMaterial
-      // flipY must stay false - atlas UVs assume unflipped rows (wrong tile otherwise)
+      // Load the atlas png directly - NOT through fetchTexture. The compressed .ktx
+      // variants ignore invertY (orientation is baked at compression time), so the
+      // atlas comes back flipped and every voxel gets the wrong tile row. Third time
+      // this bug has shipped: invertY on the tileset must stay false.
       const src = tilesetRuntimeUrl(this.tileset!)
-      void fetchTexture(this.scene, src, new AbortController().signal, { flipY: false }).then((tex) => {
+      const tex = new BABYLON.Texture(src, this.scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, () => {
         this.tilesetTexture = tex
         if (opaque.material === mat) mat.diffuseTexture = tex
       })
