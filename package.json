@@ -74,6 +74,8 @@
     "renderer:build-page": "node renderer/build-page.mjs && webpack --config webpack/webpack-preview.config.js --mode production",
     "renderer:dev": "npm run renderer:build-page && tsx --watch renderer/src/index.ts",
     "renderer:start": "npm run renderer:build-page && tsx renderer/src/index.ts",
+    "compiler:dev": "tsx --watch compiler/src/index.ts",
+    "compiler:start": "tsx compiler/src/index.ts",
     "world-dump:build": "node tools/world-dump/build.mjs",
     "world-dump": "node --experimental-sqlite dist/world-dump.mjs"
   },

@@ -41,3 +41,15 @@ export function ugcKey(wallet: string, mediaType: UploadMediaType, fileName: str
   if (mediaType === 'avatar') return `${w}/avatar/${fileName}`
   return `${w}/${fileName}`
 }
+
+export function parcelUgcKey(parcelId: number, fileName: string) {
+  return `parcel/${parcelId}/${fileName}`
+}
+
+export function parcelUgcUrl(parcelId: number, fileName: string) {
+  return `ugc://parcel/${parcelId}/${fileName}`
+}
+
+export function isParcelUgc(url: string | undefined, parcelId: number) {
+  return !!url && url.startsWith(`ugc://parcel/${parcelId}/`)
+}

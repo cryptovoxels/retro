@@ -17,6 +17,7 @@
  */
 
 import config from '../../common/config'
+import { isUgcTextureUrl, ugcKtxUrl } from '../../common/helpers/parcel-compile'
 import { getGpuTextureFormat } from './gpu'
 import { buildCachedTextureUrl } from './bucket'
 import { Metadata, metadataFromResponse } from './metadata-cache'
@@ -45,6 +46,23 @@ const currentFetches = new Map<string, Promise<TextureData>>()
 
 export async function fetchTexture(scene: BABYLON.Scene, srcURL: string | null, signal: AbortSignal, options: TextureOptions = {}): Promise<BABYLON.Texture> {
   const { transparent = false, stretch = true, pixelated = false, flipY = true, mipmaps = true } = options
+
+  if (srcURL && isUgcTextureUrl(srcURL)) {
+    const ktx = ugcKtxUrl(srcURL, getGpuTextureFormat())
+    const original = srcURL.startsWith('ugc://') ? 'https://ugc.voxels.com/' + srcURL.slice(6) : srcURL
+    try {
+      if (ktx) {
+        const texture = await fetchAndCreateTexture(scene, ktx, original, signal, { flipY, mipmaps })
+        if (pixelated) texture.updateSamplingMode(1)
+        return texture
+      }
+      const texture = await fetchAndCreateTexture(scene, original, undefined, signal, { flipY, mipmaps })
+      if (pixelated) texture.updateSamplingMode(1)
+      return texture
+    } catch {
+      return await fetchNoImageTexture(scene)
+    }
+  }
 
   const urls = getTextureUrls(srcURL, transparent, stretch)
   if (!urls) {

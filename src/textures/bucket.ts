@@ -1,7 +1,7 @@
 // ABOUTME: Builds URLs for the CDN texture bucket where compressed textures are cached.
 // ABOUTME: Uses SHA1 hash of source URL + options to create deterministic bucket paths.
 
-import { simpleHash } from '../../common/helpers/utils'
+import { textureHash, textureHashOptions, type TextureHashOptions } from '../../common/helpers/texture-hash'
 import { getGpuTextureFormat } from './gpu'
 import config from '../../common/config'
 
@@ -24,7 +24,7 @@ export const buildCachedTextureUrl = (srcURL: string, transparent: boolean, stre
   }
 
   const opts = buildHashOptions(size, transparent, stretch, !!srcURL.match('.gif'))
-  const hash = hashify(srcURL, opts)
+  const hash = textureHash(srcURL, opts)
 
   let url = `${host}/compressed/${hash}_medium${getGpuTextureFormat()}`
 
@@ -37,41 +37,6 @@ export const buildCachedTextureUrl = (srcURL: string, transparent: boolean, stre
   return url
 }
 
-interface HashOptions {
-  size: number
-  mode: 'color' | 'transparent'
-  stretch: boolean
-  gif: 'sheet' // Always 'sheet' for backward compatibility
-  passthrough?: boolean
-  dontFlipY?: boolean
-}
-
-function buildHashOptions(size: number | 'passthrough' | undefined, transparent: boolean, stretch: boolean, isGif: boolean): HashOptions {
-  return {
-    size: size && size !== 'passthrough' ? size : 0,
-    mode: transparent ? 'transparent' : 'color',
-    stretch,
-    gif: 'sheet',
-    passthrough: size === 'passthrough',
-    dontFlipY: false,
-  }
-}
-
-/**
- * Create SHA1 hash from source URL and options.
- * This must match the hash the compressor uses when storing files.
- */
-function hashify(srcURL: string, opts: HashOptions): string {
-  const hashableOptions = Object.assign({}, opts)
-
-  // Exclude default values from hash for backward compatibility
-  if (!hashableOptions.passthrough) {
-    delete hashableOptions.passthrough
-  }
-  if (!hashableOptions.dontFlipY) {
-    delete hashableOptions.dontFlipY
-  }
-
-  // TODO: previously SHA-1 via Node crypto - CDN paths will differ from old cached textures
-  return simpleHash(srcURL + JSON.stringify(hashableOptions))
+function buildHashOptions(size: number | 'passthrough' | undefined, transparent: boolean, stretch: boolean, isGif: boolean): TextureHashOptions {
+  return textureHashOptions(transparent, stretch, isGif, size)
 }

@@ -1,8 +1,8 @@
 import { app } from '../../web/src/state'
-import { generateFileName, ugcKey, UploadMediaType } from './ugc-upload-keys'
+import { generateFileName, parcelUgcKey, parcelUgcUrl, ugcKey, UploadMediaType } from './ugc-upload-keys'
 
 export type { UploadMediaType } from './ugc-upload-keys'
-export { generateFileName, ugcKey } from './ugc-upload-keys'
+export { generateFileName, parcelUgcKey, parcelUgcUrl, ugcKey } from './ugc-upload-keys'
 
 export const onBeginUpload: BABYLON.Observable<File> = new BABYLON.Observable()
 export const onCompleteUpload: BABYLON.Observable<File> = new BABYLON.Observable()
@@ -27,7 +27,7 @@ async function prepare(file: File, mediaType: UploadMediaType) {
   return { key: ugcKey(wallet, mediaType, name), name }
 }
 
-async function requestPresign(name: string, file: File, mediaType: UploadMediaType) {
+async function requestPresign(name: string, file: File, mediaType: UploadMediaType, parcelId?: number) {
   const res = await fetch('/api/ugc/presign', {
     method: 'POST',
     credentials: 'include',
@@ -37,6 +37,7 @@ async function requestPresign(name: string, file: File, mediaType: UploadMediaTy
       contentType: file.type || 'application/octet-stream',
       contentLength: file.size,
       mediaType,
+      parcelId,
     }),
   })
   const data = await res.json()
@@ -95,6 +96,54 @@ export async function uploadMedia(file: File, mediaType: UploadMediaType = 'parc
     onFailUpload.notifyObservers(file)
     throw ex
   }
+}
+
+export async function uploadParcelBytes(parcelId: number, name: string, bytes: ArrayBuffer | Uint8Array, contentType: string): Promise<UploadMediaResult> {
+  const key = parcelUgcKey(parcelId, name)
+  const location = parcelUgcUrl(parcelId, name)
+  const body = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
+
+  if (uploaded.has(key)) {
+    return { success: true, location }
+  }
+
+  const presigned = await fetch('/api/ugc/presign', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name,
+      contentType,
+      contentLength: body.byteLength,
+      mediaType: 'parcel-content',
+      parcelId,
+    }),
+  }).then((r) => r.json())
+
+  if (!presigned.success) {
+    return { success: false, error: presigned.error || 'presign failed' }
+  }
+
+  if (presigned.exists) {
+    uploaded.add(key)
+    return { success: true, location }
+  }
+
+  const put = await fetch(presigned.uploadUrl as string, {
+    method: 'PUT',
+    headers: {
+      'Content-Type': contentType,
+      'x-amz-acl': 'public-read',
+    },
+    body,
+  })
+
+  if (!put.ok) {
+    return { success: false, error: 'upload failed' }
+  }
+
+  uploaded.add(key)
+  return { success: true, location }
 }
 
 export async function uploadWithProgress(file: File, onProgress: (pct: number) => void, mediaType: UploadMediaType = 'parcel-content'): Promise<UploadMediaResult> {

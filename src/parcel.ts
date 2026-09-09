@@ -14,7 +14,8 @@ import type { ParcelGeometry, ParcelKind, ParcelPatch, ParcelRecord, ParcelRef, 
 import { getBufferFromVoxels, getFieldShape, getVoxelsFromBuffer } from '../common/voxels/helpers'
 import { VoxelSize } from '../common/voxels/mesher'
 import { applyCleanPalette, buildCleanMesh } from './clean-mesher'
-import { createWhiteTexture } from './textures/textures'
+import { createWhiteTexture, fetchTexture } from './textures/textures'
+import { tilesetRuntimeUrl } from '../common/helpers/parcel-compile'
 import type { LanternRecord } from '../common/messages/feature'
 import { app } from '../web/src/state'
 import { mintParcel } from '../web/src/helpers/mint-parcel'
@@ -990,6 +991,11 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     await this.reload()
   }
 
+  async compile() {
+    const { runCompile } = await import('./parcel-compile')
+    await runCompile(this)
+  }
+
   afterUserChange() {
     this.featuresList.forEach((f) => {
       f.afterUserChange()
@@ -1303,7 +1309,8 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id, this.paletteColors, this.tilesetTexture ?? (pending ? createWhiteTexture(this.scene) : undefined))
     if (pending) {
       const mat = opaque.material as BABYLON.StandardMaterial
-      const tex = new BABYLON.Texture(process.env.IMG_HOST + '/' + this.tileset!.slice(1), this.scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, () => {
+      const src = tilesetRuntimeUrl(this.tileset!)
+      void fetchTexture(this.scene, src, new AbortController().signal).then((tex) => {
         this.tilesetTexture = tex
         if (opaque.material === mat) mat.diffuseTexture = tex
       })
