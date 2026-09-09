@@ -918,7 +918,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   openLink(url: string) {
-    if (this.visible) {
+    if (this.visible && !(window.scene?.activeCamera instanceof BABYLON.WebXRCamera)) {
       // suppress
       return
     }

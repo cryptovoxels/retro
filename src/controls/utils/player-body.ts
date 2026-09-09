@@ -1,7 +1,7 @@
 import RAPIER from '@dimforge/rapier3d-compat'
 import { physics, PLAYER_QUERY, Vec3 } from '../../physics/world'
 const RADIUS = 0.2
-const EYE = 1.65 // eye height above the feet
+export const EYE = 1.65 // eye height above the feet
 const HALF = 0.6
 const DROP = 0.95
 
@@ -75,10 +75,14 @@ export default class PlayerBody {
   private stuck = 0
   private rise = 0
 
+  resetMotion() {
+    this.vel.x = this.vel.y = this.vel.z = this.rise = 0
+  }
+
   /** move is unitless direction; speed is m/s; dt is seconds */
-  step(move: Vec3, dt: number): void {
+  step(move: Vec3, dt: number, instant = false): void {
     // Smooth acceleration and deceleration
-    const t = 1 - Math.exp(-10 * dt)
+    const t = instant ? 1 : 1 - Math.exp(-10 * dt)
     this.vel.x += (move.x * this.speed - this.vel.x) * t
     this.vel.z += (move.z * this.speed - this.vel.z) * t
 

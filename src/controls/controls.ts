@@ -148,6 +148,8 @@ export default abstract class Controls implements IControls {
   }
 
   MAX_PICK_DISTANCE = 20
+  xrSelection: BABYLON.WebXRControllerPointerSelection | null = null
+  private xrPicks = new Map<number, BABYLON.AbstractMesh>()
   audioContext: AudioContext = undefined!
   private cameraZoomed = false
   // parcels under our feet still waiting on colliders. [] = waiting on the worker, null = floor is solid
@@ -212,7 +214,8 @@ export default abstract class Controls implements IControls {
       if (this.floorWait?.length && this.floorWait.every((id) => this.grid?.getByID(id)?.physicsRegistered)) this.floorWait = null
       this.body.flying = this.flying
       this.body.gravity = !this.flying && !this.floorWait
-      this.body.step(this.move, dt)
+      // XR moves this same body from the tracked headset pose in XROverlay.tick.
+      if (!(this.scene.activeCamera instanceof BABYLON.WebXRCamera)) this.body.step(this.move, dt)
       this.move.setAll(0)
       this.updateConga()
       this.updateVehicle()
@@ -305,7 +308,7 @@ export default abstract class Controls implements IControls {
 
   lockedLeftClick(pickInfo?: BABYLON.PickingInfo | null) {
     if (!pickInfo) return
-    if (window.ui?.visible || window.ui?.activeTool) return
+    if (window.ui?.activeTool || (window.ui?.visible && !(this.scene.activeCamera instanceof BABYLON.WebXRCamera))) return
     const distance = pickInfo.distance || Infinity
     const parcel = (pickInfo.pickedMesh as MeshExtended | undefined)?.feature?.parcel
     if (distance > this.MAX_PICK_DISTANCE && !parcel?.canEdit) return
@@ -314,6 +317,20 @@ export default abstract class Controls implements IControls {
   }
 
   featureClickHandler(eventData: BABYLON.PointerInfo) {
+    const event = eventData.event as PointerEvent
+    if (event.pointerType === 'xr') {
+      const mesh = eventData.pickInfo?.pickedMesh
+      if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && event.button === 0) {
+        if (mesh && this.xrSelection?.attached) this.xrPicks.set(event.pointerId, mesh)
+        else this.xrPicks.delete(event.pointerId)
+      } else if (eventData.type === BABYLON.PointerEventTypes.POINTERUP) {
+        const pressed = this.xrPicks.get(event.pointerId)
+        this.xrPicks.delete(event.pointerId)
+        // Babylon sends another release when teleport aiming detaches selection.
+        if (pressed && pressed === mesh && this.xrSelection?.attached) this.lockedLeftClick(eventData.pickInfo)
+      }
+      return
+    }
     if (isDesktop()) return
     if (eventData.event.button === 0 && eventData.type === BABYLON.PointerEventTypes.POINTERPICK) {
       this.lockedLeftClick(eventData.pickInfo)
@@ -682,15 +699,16 @@ export default abstract class Controls implements IControls {
    * This can be overridden, e.g. in tools/voxel.ts and tools/feature.ts
    */
   defaultPointerMovePredicate(mesh: BABYLON.AbstractMesh): boolean {
+    const inXR = this.scene.activeCamera instanceof BABYLON.WebXRCamera
     // CV custom additional check
     return (
-      !!mesh.metadata?.captureMoveEvents &&
+      (inXR || !!mesh.metadata?.captureMoveEvents) &&
       // Default checks that Bablyon performs
       mesh.isPickable &&
       mesh.isVisible &&
       mesh.isReady() &&
       mesh.isEnabled() &&
-      (mesh.enablePointerMoveEvents || this.scene.constantlyUpdateMeshUnderPointer || mesh._getActionManagerForTrigger() != null) &&
+      (inXR || mesh.enablePointerMoveEvents || this.scene.constantlyUpdateMeshUnderPointer || mesh._getActionManagerForTrigger() != null) &&
       (!this.scene.cameraToUseForPointers || (this.scene.cameraToUseForPointers.layerMask & mesh.layerMask) !== 0)
     )
   }

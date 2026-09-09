@@ -1,6 +1,8 @@
 import Controls from './controls'
+import { EYE } from './utils/player-body'
+import { xrHeight } from '../utils/camera'
 import { wantsGateway } from '../../common/helpers/detector'
-import { getWorldGroundState, getWorldTerrain, worldSceneEvents, worldSceneLoaded } from '../init/world-scene'
+import { getWorldTerrain, worldSceneEvents, worldSceneLoaded } from '../init/world-scene'
 
 const MOVE_SPEED = 3.5
 const STICK_DEADZONE = 0.15
@@ -18,6 +20,11 @@ export default class XROverlay {
   scene: BABYLON.Scene
   canvas: HTMLCanvasElement
   controls: Controls
+  private starting = false
+  private entered = false
+  private slowWalk = true
+  private walkHintUntil = 0
+  private angles = BABYLON.Vector3.Zero()
   /** left thumbstick, raw -1..1 */
   private stick = { x: 0, y: 0 }
   private flyUp = false
@@ -25,6 +32,7 @@ export default class XROverlay {
   /** floors may not be meshed when we enter XR - retry the height snap until the ray hits */
   private floorSnapPending = false
   private wasDriving = false
+  private seatPosition = BABYLON.Vector3.Zero()
   /** nearby rides that are teleport targets - land on one and you're driving */
   private rideMeshes = new Map<BABYLON.AbstractMesh, Ride>()
   private rideScanAt = 0
@@ -41,6 +49,9 @@ export default class XROverlay {
     this.scene = scene
     this.canvas = canvas
     this.controls = controls
+    try {
+      this.slowWalk = localStorage.getItem('xrWalkSpeed') !== 'fast'
+    } catch {}
   }
 
   get helper() {
@@ -50,43 +61,85 @@ export default class XROverlay {
   attachWorldScene() {
     worldSceneEvents.addEventListener('parcel-collider-added', (e) => this.addTeleportMesh(e.detail))
     worldSceneEvents.addEventListener('parcel-collider-removed', (e) => this.removeTeleportMesh(e.detail))
-    if (worldSceneLoaded()) getWorldGroundState().addStateObserver('loaded', this.onGroundLoaded)
+    worldSceneEvents.addEventListener('ground-loaded', this.onGroundLoaded)
+    if (worldSceneLoaded()) this.onGroundLoaded()
   }
 
   async start() {
-    const multiview = false
+    if (this.starting || (this.webXR && this.helper.state !== BABYLON.WebXRState.NOT_IN_XR)) return
+    this.starting = true
+    try {
+      if (!this.webXR) await this.setupXR()
+      if (!this.webXR?.baseExperience) return
+      if (wantsGateway()) {
+        try {
+          await this.helper.enterXRAsync('immersive-ar', 'local-floor', this.webXR.renderTarget)
+        } catch {
+          await this.helper.enterXRAsync('immersive-vr', 'local-floor', this.webXR.renderTarget)
+        }
+      } else {
+        await this.helper.enterXRAsync('immersive-vr', 'local-floor', this.webXR.renderTarget)
+      }
+    } catch (e) {
+      console.error('Unable to enter VR', e)
+    } finally {
+      this.starting = false
+    }
+  }
 
+  private async setupXR() {
     this.webXR = await this.scene.createDefaultXRExperienceAsync({
       outputCanvasOptions: { canvasOptions: { framebufferScaleFactor: 0.5 } },
       disableDefaultUI: true,
+      disableTeleportation: true,
+      disableNearInteraction: true,
+      pointerSelectionOptions: { enablePointerSelectionOnAllControllers: true, maxPointerDistance: 20, disableScenePointerVectorUpdate: true },
     })
 
     if (!this.webXR || !this.webXR.baseExperience) {
       console.error('Error initializing webxr')
+      this.webXR = null
       return
     }
 
-    const xrOpts = multiview ? { optionalFeatures: ['layers'] } : {}
-    if (wantsGateway()) {
-      try {
-        await this.helper.enterXRAsync('immersive-ar', 'local-floor', undefined, xrOpts)
-      } catch {
-        await this.helper.enterXRAsync('immersive-vr', 'local-floor', undefined, xrOpts)
-      }
-    } else {
-      await this.helper.enterXRAsync('immersive-vr', 'local-floor', undefined, xrOpts)
-    }
-    const featureManager = this.helper.featuresManager
-
     const camera = this.webXR.baseExperience.camera
 
+    this.helper.onInitialXRPoseSetObservable.add(() => {
+      if (!wantsGateway()) camera.position.y = this.controls.body.position.y - EYE
+    })
+    const leaveDialog = () => {
+      if (this.helper.state === BABYLON.WebXRState.IN_XR) void this.helper.exitXRAsync().catch(() => {})
+    }
+    window.addEventListener('dialogopen', leaveDialog)
+    this.scene.onDisposeObservable.addOnce(() => window.removeEventListener('dialogopen', leaveDialog))
+
     this.webXR.baseExperience.onStateChangedObservable.add((state) => {
-      try {
-        if (state !== BABYLON.WebXRState.IN_XR) return
-        // parcels/terrain may still be loading - tick retries until the ray hits (fixes spawning stuck at y=0)
-        this.floorSnapPending = !this.resetXRFloorHeight(camera.position)
-      } catch (e) {
-        console.log('error', e)
+      this.floorSnapPending = state === BABYLON.WebXRState.IN_XR
+      if (state === BABYLON.WebXRState.IN_XR) {
+        this.entered = true
+        this.walkHintUntil = Date.now() + 8000
+        this.controls.body.resetMotion()
+        this.controls.flying = false
+        this.syncBody()
+        this.controls.resetFloor()
+        try {
+          this.helper.sessionManager.fixedFoveation = 0.5
+        } catch {}
+        return
+      }
+      this.resetInput()
+      this.clearHighlight()
+      this.setHint('')
+      if (state === BABYLON.WebXRState.NOT_IN_XR && this.entered) {
+        this.entered = false
+        if (this.controls.vehicleFeature) this.controls.stopVehicle()
+        // PlayerCamera.place() reads the body, so Babylon's camera-only exit copy is lost.
+        this.syncBody()
+        this.controls.camera.rotation.copyFrom(camera.rotationQuaternion.toEulerAngles())
+        this.controls.camera.place()
+        this.controls.resetFloor()
+        this.wasDriving = false
+        if (this.xrTeleportation) this.xrTeleportation.teleportationEnabled = true
       }
     })
 
@@ -99,26 +152,25 @@ export default class XROverlay {
       forceHandedness: 'right',
     }) as BABYLON.WebXRMotionControllerTeleportation
 
-    featuresManager.disableFeature(BABYLON.WebXRFeatureName.POINTER_SELECTION)
-
-    if (multiview) {
-      featureManager.enableFeature(BABYLON.WebXRFeatureName.LAYERS, 'stable', { preferMultiviewOnInit: true }, true, false)
-    }
+    this.xrTeleportation.setSelectionFeature(this.webXR.pointerSelection)
+    this.controls.xrSelection = this.webXR.pointerSelection
 
     this.xrTeleportation.rotationEnabled = false
     this.xrTeleportation.parabolicRayEnabled = true
 
     // aiming the arc at a free ride makes it glow; landing on it seats you
     this.xrTeleportation.onTargetMeshPositionUpdatedObservable.add((pick) => this.aimUpdate(pick))
-    this.xrTeleportation.onAfterCameraTeleport.add((pos) => this.teleportLanded(pos))
+    // The shipped Babylon 6.11.2 emits this on the camera, not the teleport feature.
+    camera.onAfterCameraTeleport.add(() => this.teleportLanded())
 
     this.watchControllers()
     this.scene.onBeforeRenderObservable.add(this.tick)
   }
 
   private watchControllers() {
-    this.webXR!.input.onControllerAddedObservable.add((controller) => {
-      controller.onMotionControllerInitObservable.add((mc) => {
+    const input = this.webXR!.input
+    const bindController = (controller: BABYLON.WebXRInputSource) => {
+      const bind = (mc: BABYLON.WebXRAbstractMotionController) => {
         if (mc.handedness === 'left') {
           const stick = mc.getComponent('xr-standard-thumbstick')
           stick?.onAxisValueChangedObservable.add((v) => {
@@ -127,21 +179,50 @@ export default class XROverlay {
           })
           // X enters / exits a nearby ride
           mc.getComponent('x-button')?.onButtonStateChangedObservable.add((c) => {
-            if (c.pressed) this.controls.tryEnterVehicle()
+            if (c.changes.pressed?.current && this.helper.state === BABYLON.WebXRState.IN_XR) this.controls.tryEnterVehicle()
+          })
+          mc.getComponent('y-button')?.onButtonStateChangedObservable.add((c) => {
+            if (!c.changes.pressed?.current || this.helper.state !== BABYLON.WebXRState.IN_XR) return
+            this.slowWalk = !this.slowWalk
+            this.walkHintUntil = Date.now() + 5000
+            try {
+              localStorage.setItem('xrWalkSpeed', this.slowWalk ? 'slow' : 'fast')
+            } catch {}
           })
         } else {
           // right hand keeps teleport; A/B fly up/down (climb/dive while driving a flyable)
           mc.getComponent('a-button')?.onButtonStateChangedObservable.add((c) => (this.flyUp = c.pressed))
           mc.getComponent('b-button')?.onButtonStateChangedObservable.add((c) => (this.flyDown = c.pressed))
         }
-      })
-    })
+      }
+      if (controller.motionController) bind(controller.motionController)
+      else controller.onMotionControllerInitObservable.addOnce(bind)
+    }
+    input.controllers.forEach(bindController)
+    input.onControllerAddedObservable.add(bindController)
+    input.onControllerRemovedObservable.add(() => this.resetInput())
+  }
+
+  private resetInput() {
+    this.controls.body.resetMotion()
+    this.stick.x = this.stick.y = 0
+    this.flyUp = this.flyDown = false
+    this.controls.vehicleSteer.forward = this.controls.vehicleSteer.turn = this.controls.vehicleSteer.climb = 0
+  }
+
+  private syncBody() {
+    const camera = this.helper.camera
+    const p = this.controls.body.position
+    p.x = camera.position.x
+    p.y = camera.position.y + EYE - xrHeight(camera)
+    p.z = camera.position.z
   }
 
   private tick = () => {
     if (!this.webXR || this.helper.state !== BABYLON.WebXRState.IN_XR) return
     const camera = this.helper.camera
-    const dt = this.scene.getEngine().getDeltaTime() / 1000 || 1 / 60
+    const height = xrHeight(camera)
+    const dt = Math.min(0.05, this.scene.getEngine().getDeltaTime() / 1000 || 1 / 60)
 
     if (this.floorSnapPending && this.resetXRFloorHeight(camera.position)) this.floorSnapPending = false
 
@@ -149,12 +230,14 @@ export default class XROverlay {
     if (driving !== this.wasDriving) {
       this.wasDriving = driving
       this.clearHighlight()
-      if (driving) this.driveHintUntil = Date.now() + DRIVE_HINT_MS
-      // teleporting off the seat mid-drive is nonsense
-      try {
-        if (driving) this.helper.featuresManager.detachFeature(BABYLON.WebXRFeatureName.TELEPORTATION)
-        else this.helper.featuresManager.attachFeature(BABYLON.WebXRFeatureName.TELEPORTATION)
-      } catch {}
+      if (driving) {
+        this.driveHintUntil = Date.now() + DRIVE_HINT_MS
+        const b = this.controls.body.position
+        this.seatPosition.set(b.x, b.y, b.z)
+        camera.position.set(b.x, b.y + SITTING_EYE, b.z)
+      }
+      // Keep right-stick snap turns available while seated.
+      if (this.xrTeleportation) this.xrTeleportation.teleportationEnabled = !driving
     }
 
     const now = Date.now()
@@ -166,9 +249,8 @@ export default class XROverlay {
     if (this.highlighted && now - this.highlightAt > 300) this.clearHighlight()
     this.updateHint(camera, driving, now)
 
-    const dead = (v: number) => (Math.abs(v) > STICK_DEADZONE ? v : 0)
-    const x = dead(this.stick.x)
-    const y = dead(this.stick.y)
+    const x = Math.abs(this.stick.x) > STICK_DEADZONE ? this.stick.x : 0
+    const y = Math.abs(this.stick.y) > STICK_DEADZONE ? this.stick.y : 0
     const fly = (this.flyUp ? 1 : 0) - (this.flyDown ? 1 : 0)
 
     if (driving) {
@@ -176,20 +258,34 @@ export default class XROverlay {
       this.controls.vehicleSteer.forward = -y
       this.controls.vehicleSteer.turn = x
       this.controls.vehicleSteer.climb = fly
-      // wear the seat: updateVehicle parks the body on the seat point each frame
+      // Move with the seat without undoing tracked leaning or standing.
       const b = this.controls.body.position
-      camera.position.set(b.x, b.y + SITTING_EYE, b.z)
+      camera.position.x += b.x - this.seatPosition.x
+      camera.position.y += b.y - this.seatPosition.y
+      camera.position.z += b.z - this.seatPosition.z
+      this.seatPosition.set(b.x, b.y, b.z)
       return
     }
 
-    if (!x && !y && !fly) return
-    // free locomotion relative to head yaw; A/B fly. noclip on purpose - teleport is the grounded option
-    const yaw = camera.rotationQuaternion.toEulerAngles().y
+    this.syncBody()
+    const body = this.controls.body
+    if (!this.controls.movementEnabled) return
+    if (fly) this.controls.flying = true
+    body.flying = this.controls.flying
+    body.noclip = false
+    if (body.flying || this.floorSnapPending) body.gravity = false
+    camera.rotationQuaternion.toEulerAnglesToRef(this.angles)
+    const yaw = this.angles.y
     const sin = Math.sin(yaw)
     const cos = Math.cos(yaw)
-    camera.position.x += (x * cos - y * sin) * MOVE_SPEED * dt
-    camera.position.z += (-x * sin - y * cos) * MOVE_SPEED * dt
-    camera.position.y += fly * MOVE_SPEED * dt
+    const length = Math.max(1, Math.hypot(x, y))
+    this.controls.move.set((x * cos - y * sin) / length, fly, (-x * sin - y * cos) / length)
+    const speed = body.speed
+    body.speed = this.slowWalk ? 1.5 : MOVE_SPEED
+    body.step(this.controls.move, dt, true)
+    body.speed = speed
+    this.controls.move.setAll(0)
+    camera.position.set(body.position.x, body.position.y - EYE + height, body.position.z)
   }
 
   onGroundLoaded = () => {
@@ -247,17 +343,16 @@ export default class XROverlay {
     this.highlighted = null
   }
 
-  private teleportLanded(pos: BABYLON.Vector3) {
-    if (this.controls.vehicleFeature) return
-    for (const ride of this.rideMeshes.values()) {
-      if (!this.rideFree(ride)) continue
-      const bb = ride.boundingBox
-      if (!bb) continue
-      const closest = BABYLON.Vector3.Clamp(pos, bb.minimumWorld, bb.maximumWorld)
-      if (BABYLON.Vector3.DistanceSquared(pos, closest) > 1.5 * 1.5) continue
-      this.controls.enterVehicle(ride)
-      return
-    }
+  private teleportLanded() {
+    this.floorSnapPending = false
+    this.controls.body.resetMotion()
+    if (this.controls.vehicleFeature) this.controls.stopVehicle()
+    this.controls.flying = false
+    this.syncBody()
+    this.controls.resetFloor()
+    const ride = this.highlighted ? this.rideMeshes.get(this.highlighted) : null
+    this.clearHighlight()
+    if (!this.controls.vehicleFeature && this.rideFree(ride)) this.controls.enterVehicle(ride)
   }
 
   // --- in-world hints (the DOM hint never renders in a headset) ---
@@ -289,14 +384,21 @@ export default class XROverlay {
   }
 
   private updateHint(camera: BABYLON.WebXRCamera, driving: boolean, now: number) {
+    let text = ''
     if (driving) {
       if (now >= this.driveHintUntil) {
         this.setHint('')
         return
       }
       const car = this.controls.vehicleFeature as Ride
-      this.setHint(car?.isFlyable ? 'stick drives - A/B climb - X hops out' : 'stick drives - X hops out')
-      const yaw = camera.rotationQuaternion.toEulerAngles().y
+      text = car?.isFlyable ? 'stick drives - A/B climb - X hops out' : 'stick drives - X hops out'
+    } else if (now < this.walkHintUntil) {
+      text = this.slowWalk ? 'slow walk - Y faster - trigger interacts' : 'fast walk - Y slower - trigger interacts'
+    }
+    if (text) {
+      this.setHint(text)
+      camera.rotationQuaternion.toEulerAnglesToRef(this.angles)
+      const yaw = this.angles.y
       this.hintMesh!.position.set(camera.position.x + Math.sin(yaw) * 1.6, camera.position.y - 0.15, camera.position.z + Math.cos(yaw) * 1.6)
       return
     }
@@ -326,14 +428,24 @@ export default class XROverlay {
     if (!this.webXR) return false
 
     const camera = this.webXR.baseExperience.camera
-    const pickResult = this.scene.pickWithRay(new BABYLON.Ray(positionInWorld, new BABYLON.Vector3(0, -1, 0), 5), (e) => this.teleportableMeshes.has(e))
+    const ray = new BABYLON.Ray(positionInWorld.clone(), BABYLON.Vector3.Down(), 5)
+    const floor = (mesh: BABYLON.AbstractMesh) => this.teleportableMeshes.has(mesh)
+    let pickResult = this.scene.pickWithRay(ray, floor)
+    if (!pickResult?.hit) {
+      // At y=0 the street is above the headset; a downward ray alone never recovers.
+      ray.origin.y += 2
+      ray.length += 2
+      pickResult = this.scene.pickWithRay(ray, floor)
+    }
     if (!pickResult?.hit || !pickResult.pickedPoint) return false
-    camera.position.y = pickResult.pickedPoint.y + camera.realWorldHeight
+    camera.position.y = pickResult.pickedPoint.y + xrHeight(camera)
     return true
   }
 
   addTeleportMesh(mesh: BABYLON.AbstractMesh) {
+    if (this.teleportableMeshes.has(mesh)) return
     this.teleportableMeshes.add(mesh)
+    mesh.onDisposeObservable.addOnce(() => this.removeTeleportMesh(mesh))
     if (this.xrTeleportation) this.xrTeleportation.addFloorMesh(mesh)
   }
 

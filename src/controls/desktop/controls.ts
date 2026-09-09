@@ -143,6 +143,7 @@ export default class DesktopControls extends Controls {
   }
 
   desktopClicks(eventData: BABYLON.PointerInfo, eventState: BABYLON.EventState) {
+    if ((eventData.event as PointerEvent).pointerType === 'xr') return
     const authoring = !!window.ui?.state?.feature
 
     const btn = eventData.event.button

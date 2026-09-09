@@ -16,6 +16,7 @@ const GATEWAY_AMBIENT = 0.45
 
 export type WorldSceneEvents = {
   'fog-updated': void
+  'ground-loaded': void
   'parcel-collider-added': BABYLON.AbstractMesh
   'parcel-collider-removed': BABYLON.AbstractMesh
 }
@@ -129,6 +130,7 @@ export async function createWorldScene(s: BABYLON.Scene) {
   await terrain.load()
 
   loaded = true
+  worldSceneEvents.dispatchEvent(createEvent('ground-loaded', undefined))
   isNightCache = null
   isUnderwaterCache = null
 }
