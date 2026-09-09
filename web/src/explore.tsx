@@ -10,7 +10,7 @@ import Radar from './components/radar'
 import type { Womp } from './components/womp-card'
 import { getClientPath } from './helpers/client-helpers'
 import { route } from 'preact-router'
-import { naviportHere } from './helpers/coords-nav'
+import { getCoords, naviportHere } from './helpers/coords-nav'
 import cachedFetch from './helpers/cached-fetch'
 import { FOCUS_EXPLORE } from './helpers/open-explore'
 import { app, AppEvent } from './state'
@@ -64,6 +64,7 @@ async function popularParcel(): Promise<number | null> {
 
 async function pickFrontpageParcel() {
   if (window.grid?.currentParcel()) return
+  if (getCoords()) return
   const id = (await busiestParcel()) ?? (await popularParcel())
   if (!id) return
   const url = await new ParcelHelper({ id }).spawnUrl()

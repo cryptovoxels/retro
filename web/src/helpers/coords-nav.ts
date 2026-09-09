@@ -25,7 +25,7 @@ export function getSpaceIdFromPath(path?: string): string | null {
 
 export function isWorldRoute(path?: string) {
   const p = (path || (typeof location !== 'undefined' ? location.pathname : '')).split('?')[0]
-  return p === '/play' || /^\/parcels\/\d+/.test(p) || p === '/build' || p === '/map'
+  return !p.startsWith('/spaces/')
 }
 
 export function notifyUrlChange() {

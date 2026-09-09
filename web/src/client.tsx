@@ -6,7 +6,7 @@ import type { BootResult } from '../../src'
 import { pushSpaceHistory, realmSavedCoords, saveRealmCoords } from '../../src/init/realm'
 import { spaceW } from '../../src/utils/space-w'
 import cachedFetch from './helpers/cached-fetch'
-import { getCoords, getParcelIdFromPath, getSpaceIdFromPath, isSpacePath, isSpacePlayPath, isWorldRoute, syncParcelUrl } from './helpers/coords-nav'
+import { getCoords, getParcelIdFromPath, getSpaceIdFromPath, isSpacePath, isSpacePlayPath, syncParcelUrl } from './helpers/coords-nav'
 import { app, AppEvent } from './state'
 
 function boot(): Promise<BootResult | null> {
@@ -72,11 +72,7 @@ export class Client extends Component<FrameProps, FrameState> {
         await grid.switchWorld(spaceW(spaceId), spaceId, coords)
         return
       }
-      if (isWorldRoute(path)) {
-        await grid.switchWorld(0, undefined, realmSavedCoords())
-        return
-      }
-      window.graphic?.postProcesses?.reveal()
+      await grid.switchWorld(0, undefined, getCoords() || realmSavedCoords())
     })
   }
 
