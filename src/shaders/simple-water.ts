@@ -19,7 +19,7 @@ export class SimpleWater {
         attributes: ['position', 'normal', 'uv'],
         uniforms: ['world', 'view', 'viewProjection', 'vFogInfos', 'vFogColor', 'diffuseColor', 'vEyePosition', 'sunDirection', 'sunColor', 'sunSpecularPower'],
         samplers: [],
-        needAlphaBlending: true,
+        needAlphaBlending: false,
         needAlphaTesting: false,
         defines: ['#define IMAGEPROCESSINGPOSTPROCESS'],
       },
