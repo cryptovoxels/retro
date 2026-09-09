@@ -1,4 +1,4 @@
-import { isDesktop, isMobile, wantsNoUI } from '../../common/helpers/detector'
+import { isDesktop, isMobile, wantsNoUI, wantsXR } from '../../common/helpers/detector'
 import { User } from '../user'
 import { encodeCoords } from '../../common/helpers/utils'
 import type Grid from '../grid'
@@ -127,8 +127,8 @@ export default abstract class Controls implements IControls {
   private vehicleNearbyAt = 0
   private vehicleHintEl: HTMLDivElement | null = null
   vehicleNearby: import('../features/vox-model').Ride | null = null
-  /** mobile / shared: -1..1 forward and turn while driving */
-  vehicleSteer = { forward: 0, turn: 0 }
+  /** mobile / XR / shared: -1..1 forward, turn and climb while driving */
+  vehicleSteer = { forward: 0, turn: 0, climb: 0 }
   /** visitor-only facing nudge when they can't save driveYawOffset */
   private vehicleFacingNudge = 0
   /** working seat offset while seated (local to ride); flushed to driveSeatOffset when editable */
@@ -763,7 +763,8 @@ export default abstract class Controls implements IControls {
     this.persona.animation = Animations.Sitting
     this.vehicleFacingNudge = 0
     // start in chase cam so you can see the car; C still toggles first/third while driving
-    if (this.firstPersonView) this.enterThirdPerson(5)
+    // XR: stay first person - chase cam would park your own avatar mesh on the headset
+    if (this.firstPersonView && !wantsXR()) this.enterThirdPerson(5)
     this.camera.rotation.y = this.driveFacingYaw(car)
     this.setVehicleHint(this.driveHint(car))
     this.refreshMobileDriveChrome?.()
@@ -839,6 +840,7 @@ export default abstract class Controls implements IControls {
     this.vehicleSeatMode = false
     this.vehicleSteer.forward = 0
     this.vehicleSteer.turn = 0
+    this.vehicleSteer.climb = 0
     this.driveHeld.clear()
     this.vehicleFacingNudge = 0
     if (car) {
@@ -1002,7 +1004,7 @@ export default abstract class Controls implements IControls {
       }
       // hovercraft: Space/PageUp climb, V/PageDown dive
       if (car.isFlyable) {
-        let climb = 0
+        let climb = this.vehicleSteer.climb
         if (held('Space') || held('PageUp')) climb = 1
         if (held('KeyV') || held('PageDown')) climb = -1
         if (climb) this.vehicleHoverY += climb * speed * dt
