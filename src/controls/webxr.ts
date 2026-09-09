@@ -1,12 +1,6 @@
 import Controls from './controls'
 import { wantsGateway } from '../../common/helpers/detector'
-import { getWorldGroundState, worldSceneEvents, worldSceneLoaded } from '../init/world-scene'
-
-let worldTerrain: { groundMeshes: BABYLON.AbstractMesh[] } | undefined
-
-export function setWorldTerrainForXR(terrain: { groundMeshes: BABYLON.AbstractMesh[] } | undefined) {
-  worldTerrain = terrain
-}
+import { getWorldGroundState, getWorldTerrain, worldSceneEvents, worldSceneLoaded } from '../init/world-scene'
 
 const MOVE_SPEED = 3.5
 const STICK_DEADZONE = 0.15
@@ -199,7 +193,8 @@ export default class XROverlay {
   }
 
   onGroundLoaded = () => {
-    worldTerrain?.groundMeshes.forEach((mesh) => this.addTeleportMesh(mesh))
+    // island ground meshes are the streets - without these you can only teleport onto parcels
+    getWorldTerrain()?.groundMeshes.forEach((mesh) => this.addTeleportMesh(mesh))
   }
 
   // --- ride entry: teleport onto it to drive ---
