@@ -1,6 +1,12 @@
-import { clientUpload, compileParcelContent } from '../common/helpers/parcel-compile'
+import { compileParcelContent } from '../common/helpers/parcel-compile'
+import { uploadParcelBytes } from '../common/helpers/upload-media'
 import { encodeImageDraft, encodeVoxDraft } from './features/feature-draft'
 import type Parcel from './parcel'
+
+async function clientUpload(parcelId: number, name: string, bytes: Uint8Array, contentType: string) {
+  const res = await uploadParcelBytes(parcelId, name, bytes, contentType)
+  return res.success ? res.location : null
+}
 
 export async function runCompile(parcel: Parcel) {
   if (!parcel.canEdit || typeof parcel.id !== 'number') return
