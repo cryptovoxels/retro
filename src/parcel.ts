@@ -1309,8 +1309,9 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id, this.paletteColors, this.tilesetTexture ?? (pending ? createWhiteTexture(this.scene) : undefined))
     if (pending) {
       const mat = opaque.material as BABYLON.StandardMaterial
+      // flipY must stay false - atlas UVs assume unflipped rows (wrong tile otherwise)
       const src = tilesetRuntimeUrl(this.tileset!)
-      void fetchTexture(this.scene, src, new AbortController().signal).then((tex) => {
+      void fetchTexture(this.scene, src, new AbortController().signal, { flipY: false }).then((tex) => {
         this.tilesetTexture = tex
         if (opaque.material === mat) mat.diffuseTexture = tex
       })
