@@ -1,4 +1,3 @@
-import { uploadParcelBytes } from './upload-media'
 import { isParcelUgc } from './ugc-upload-keys'
 import { KTX_SUFFIXES, textureBucketUrl, textureHash, textureHashOptions } from './texture-hash'
 import { FeatureRecord } from '../messages/feature'
@@ -201,11 +200,6 @@ export async function compileParcelContent(
   if (Object.keys(out).length) patch.features = out
   if (tilesetOut !== undefined) patch.tileset = tilesetOut
   return patch
-}
-
-export async function clientUpload(parcelId: number, name: string, bytes: Uint8Array, contentType: string) {
-  const res = await uploadParcelBytes(parcelId, name, bytes, contentType)
-  return res.success ? res.location : null
 }
 
 export function tilesetRuntimeUrl(tileset: string): string {
