@@ -8,7 +8,6 @@ import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Hype
 import { isURL } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, FeatureEvent, FeatureTrigger, MeshExtended, transformVectors } from './feature'
-import { encodeVoxDraft, persistDraft } from './feature-draft'
 import ActionGui from '../ui/gui/action-button-gui'
 
 // used when "Scale To Grid" is enabled
@@ -139,10 +138,6 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     }
 
     this.applyImportedMesh(mesh)
-    void fetch(url)
-      .then((r) => r.arrayBuffer())
-      .then((buf) => encodeVoxDraft(buf))
-      .then((d) => persistDraft(this, d))
   }
 
   public override onClick(e: FeatureEvent) {

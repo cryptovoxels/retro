@@ -191,6 +191,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   wompPollTimer: ReturnType<typeof setInterval> | null = null
   latestWompId = 0
   sandboxRollingBack = false
+  compileTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(props: UserInterfaceProps) {
     super(props)
@@ -797,9 +798,21 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   setTool(tool: Tool | null) {
     if (this.activeTool === tool) return
+    const leavingVoxel = this.activeTool === this.voxelTool && tool !== this.voxelTool
     this.activeTool?.deactivate()
     tool?.activate()
     this.activeTool = tool
+    if (leavingVoxel) this.scheduleCompile()
+  }
+
+  scheduleCompile() {
+    if (this.compileTimer) clearTimeout(this.compileTimer)
+    this.compileTimer = setTimeout(() => {
+      this.compileTimer = null
+      for (const p of window.user?.parcels || []) {
+        if (p.canEdit) void p.compile()
+      }
+    }, 1000)
   }
 
   deactivateTools() {
