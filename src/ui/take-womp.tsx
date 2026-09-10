@@ -1,20 +1,27 @@
 import { Component } from 'preact'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { uploadMedia } from '../../common/helpers/upload-media'
+import { writeCaip19 } from '../../common/helpers/nft-url'
+import type { AvatarRef } from '../../common/messages/avatar-ref'
 import { PanelType } from '../../web/src/components/panel'
 import { track } from '../../web/src/helpers/umami'
 import { app } from '../../web/src/state'
 import { wompFlash } from '../graphic/womp-flash'
 import { MinimapSettings } from '../minimap'
 import type Parcel from '../parcel'
-import { pendingWomp, sidebarClosed, uiAsideTick, uiPane } from '../store'
+import type NftImage from '../features/nft-image'
+import { pendingWomp, sidebarClosed, uiAsideTick, uiPane, type WompMetadata } from '../store'
 import { resolveUgc } from '../utils/helpers'
+import { cameraPosition } from '../utils/camera'
+import { readNftUrl } from '../utils/proxy'
+import { WompMetadata as WompMetadataView } from '../../web/src/components/womp-metadata'
 
 interface Props {
   onClose?: () => void
   coords: string
   parcel: Parcel
   image: string
+  metadata: WompMetadata
   scene: BABYLON.Scene
 }
 
@@ -37,6 +44,7 @@ interface State {
 }
 
 const WompSize = { width: 1024, height: 1024 } as const
+const ART_DISTANCE_M = 5
 
 let wompSound: BABYLON.Sound | null = null
 
@@ -54,6 +62,96 @@ function playWompSound() {
   wompSound.play()
 }
 
+function pointInFrustum(point: BABYLON.Vector3, planes: BABYLON.Plane[]): boolean {
+  for (const p of planes) {
+    if (p.dotCoordinate(point) < 0) return false
+  }
+  return true
+}
+
+function screenXY(world: BABYLON.Vector3, scene: BABYLON.Scene): { x: number; y: number } | null {
+  const camera = scene.activeCamera
+  if (!camera) return null
+  const engine = scene.getEngine()
+  const viewport = camera.viewport.toGlobal(engine.getRenderWidth(), engine.getRenderHeight())
+  const transform = scene.getTransformMatrix()
+  const scr = BABYLON.Vector3.Project(world, BABYLON.Matrix.Identity(), transform, viewport)
+  if (scr.z < 0 || scr.z > 1) return null
+  const x = (scr.x - viewport.x) / viewport.width
+  const y = (scr.y - viewport.y) / viewport.height
+  if (x < 0 || x > 1 || y < 0 || y > 1) return null
+  return { x: Math.round(x * 1000) / 1000, y: Math.round(y * 1000) / 1000 }
+}
+
+function avatarRef(a: any): AvatarRef {
+  // local player: use the loaded profile AvatarRef, not the wire identity wallet
+  if (a.isUser) {
+    if (app.avatarRef && typeof app.avatarRef === 'object') return app.avatarRef
+    if (app.state.name && app.state.wallet) return { id: app.state.wallet, name: app.state.name, owner: app.state.wallet, created_at: '' }
+    if (app.state.name) return app.state.name
+    if (app.state.wallet) return app.state.wallet
+  }
+  const name = a.description?.name
+  const owner = a.wallet
+  if (name && owner) return { id: owner, name, owner, created_at: '' }
+  if (name) return name
+  if (owner) return owner
+  return 'anon'
+}
+
+function collectMetadata(scene: BABYLON.Scene): WompMetadata {
+  const camera = scene.activeCamera
+  if (!camera) return { avatars: [], art: [] }
+
+  const planes = BABYLON.Frustum.GetPlanes(camera.getTransformationMatrix())
+  const camPos = cameraPosition(scene)
+  const avatars: WompMetadata['avatars'] = []
+  const art: WompMetadata['art'] = []
+
+  const seen = new Set<string>()
+  const list = [...(window.connector?.avatars ?? [])]
+  const self = window.connector?.persona?.avatar
+  if (self && !list.includes(self)) list.push(self)
+
+  for (const a of list) {
+    if (!a?.hasPosition || seen.has(a.uuid)) continue
+    seen.add(a.uuid)
+    const pos = a.absolutePosition
+    if (!pointInFrustum(pos, planes)) continue
+    const xy = screenXY(pos, scene)
+    if (!xy) continue
+    avatars.push({ avatar: avatarRef(a), x: xy.x, y: xy.y })
+  }
+
+  const parcels = window.grid?.parcels
+  if (parcels) {
+    for (const parcel of parcels.values()) {
+      for (const f of parcel.getFeaturesByType('nft-image') as NftImage[]) {
+        if (!f) continue
+        const pos = f.absolutePosition
+        if (!pos) continue
+        const dist = BABYLON.Vector3.Distance(camPos, pos)
+        if (dist > ART_DISTANCE_M) continue
+        if (!pointInFrustum(pos, planes)) continue
+        if (!f.url) continue
+        const info = readNftUrl(f.url)
+        if (!info) continue
+        const schema = (f.asset?.asset_contract?.schema_name || 'ERC721').toLowerCase() === 'erc1155' ? 'erc1155' : 'erc721'
+        const xy = screenXY(pos, scene)
+        if (!xy) continue
+        art.push({
+          name: f.asset?.name ?? null,
+          x: xy.x,
+          y: xy.y,
+          src: writeCaip19(info, schema),
+        })
+      }
+    }
+  }
+
+  return { avatars, art }
+}
+
 export default class TakeWomp extends Component<Props, State> {
   constructor(props: Props) {
     super(props)
@@ -67,6 +165,27 @@ export default class TakeWomp extends Component<Props, State> {
 
   componentDidMount() {
     setTimeout(() => (document.querySelector('.take-womp textarea') as HTMLTextAreaElement | null)?.focus(), 0)
+    this.fetchDescription()
+  }
+
+  async fetchDescription() {
+    try {
+      const r = await fetch('/api/models/womp-description', {
+        method: 'POST',
+        credentials: 'include',
+        headers,
+        body: JSON.stringify({
+          metadata: this.props.metadata,
+          coords: this.props.coords,
+          parcel_id: this.props.parcel.id,
+        }),
+      }).then((r) => r.json())
+      if (r?.description && !this.state.content) {
+        this.setState({ content: String(r.description).slice(0, 160) })
+      }
+    } catch {
+      // fail soft — leave blank
+    }
   }
 
   static async Capture(engine: BABYLON.Engine, scene: BABYLON.Scene, minimapSettings: MinimapSettings) {
@@ -110,7 +229,9 @@ export default class TakeWomp extends Component<Props, State> {
     engine.resize(true)
 
     let image: string
+    let metadata: WompMetadata = { avatars: [], art: [] }
     try {
+      metadata = collectMetadata(scene)
       image = await BABYLON.ScreenshotTools.CreateScreenshotAsync(engine, scene.activeCamera, WompSize, 'image/jpeg')
     } finally {
       canvas.style.width = currentCanvasSizeWidth
@@ -121,7 +242,7 @@ export default class TakeWomp extends Component<Props, State> {
 
     wompFlash(scene)
 
-    pendingWomp.value = { coords, parcel, image }
+    pendingWomp.value = { coords, parcel, image, metadata }
     uiPane.value = 'takeWomp'
     sidebarClosed.value = false
     uiAsideTick.value++
@@ -152,6 +273,7 @@ export default class TakeWomp extends Component<Props, State> {
       parcel_id: this.props.parcel.id,
       space_id: typeof this.props.parcel.id === 'string' ? this.props.parcel.id : undefined,
       image_url: resolveUgc(uploadResult.location),
+      metadata: this.props.metadata,
     })
 
     fetch('/api/womps/create', {
@@ -224,6 +346,7 @@ export default class TakeWomp extends Component<Props, State> {
         <div class="WompOptions">
           <h4>{this.state.kind === WompType.BugReport ? 'Bug Report Details (required)' : 'Description (optional)'}</h4>
           <textarea value={this.state.content} onInput={(e) => this.setState({ content: (e as any).target['value'] })} />
+          <WompMetadataView metadata={this.props.metadata} />
 
           <h4>Womp Type</h4>
           <form class="PermissionsRadioSelector">

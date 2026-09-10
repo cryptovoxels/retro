@@ -3,6 +3,7 @@ import Feature from './features/feature'
 import Group from './features/group'
 import { effect, signal } from '@preact/signals'
 import Grid from './grid'
+import type { AvatarRef } from '../common/messages/avatar-ref'
 export type CheckedFeatures = Record<string, Feature>
 
 const TICK = 500
@@ -200,10 +201,29 @@ effect(() => {
   if (!uiPane.value && broadcastShowboxUuid.value) uiPane.value = 'broadcast'
 })
 
+export type WompMetadataAvatar = {
+  avatar: AvatarRef
+  x: number
+  y: number
+}
+
+export type WompMetadataArt = {
+  name: string | null
+  x: number
+  y: number
+  src: string
+}
+
+export type WompMetadata = {
+  avatars: WompMetadataAvatar[]
+  art: WompMetadataArt[]
+}
+
 export type PendingWomp = {
   coords: string
   parcel: Parcel
   image: string
+  metadata: WompMetadata
 }
 
 export const pendingWomp = signal<PendingWomp | null>(null)
