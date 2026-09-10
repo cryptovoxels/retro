@@ -49,6 +49,16 @@ function installEmbeds(embeds: Record<string, string> | undefined) {
     return origFetch(input as any, init)
   }) as typeof fetch
 
+  // Babylon 6 Texture loads through FileTools/WebRequest, not Tools.LoadImage.
+  const fileTools = (BABYLON as any).FileTools
+  if (fileTools) {
+    const origPre = typeof fileTools.PreprocessUrl === 'function' ? fileTools.PreprocessUrl.bind(fileTools) : (u: string) => u
+    fileTools.PreprocessUrl = (url: string) => {
+      const hit = lookupEmbed(url)
+      return hit || origPre(url)
+    }
+  }
+
   const tools = (BABYLON as any).Tools
   if (tools?.LoadImage) {
     const origLoad = tools.LoadImage.bind(tools)
@@ -451,9 +461,7 @@ async function buildPreview(record: ParcelRecord, embeds: Record<string, string>
   window.scene = scene
   const grid = new NullGrid(scene)
   await grid.preparePreview()
-  // environment.load() stomps clearColor to transparent.
   scene.clearColor = OCEAN.clone()
-  if (scene.lights[0]) scene.lights[0].intensity = 0.5
   await getComputePool()
 
   const parcel = grid.spawnPreview(bare)
@@ -464,7 +472,6 @@ async function buildPreview(record: ParcelRecord, embeds: Record<string, string>
   await parcel.activate()
   await scene.whenReadyAsync()
   zoomCamera(camera, bare)
-  // environment.load() and later hooks leave clearColor transparent -> white webp.
   scene.clearColor = new BABYLON.Color4(OCEAN.r, OCEAN.g, OCEAN.b, 1)
   const mini = world?.islands?.length ? makeMinimap(engine, bare, world.islands) : undefined
   return { canvas, engine, scene, camera, mini, parcel }

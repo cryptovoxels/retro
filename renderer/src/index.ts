@@ -13,6 +13,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const RETRY_AFTER = '10'
 const ASSET_ORIGIN = process.env.ASSET_PATH || 'https://www.voxels.com'
+// Local orbit pages load /api/* from the page origin; point at the main server.
+const API_ORIGIN = process.env.API_ORIGIN || 'http://127.0.0.1:9000'
 
 const app = express()
 const port = process.env.PORT || '8080'
@@ -208,9 +210,28 @@ async function proxyTextures(req: express.Request, res: express.Response) {
   }
 }
 
+async function proxyApi(req: express.Request, res: express.Response) {
+  try {
+    const url = `${API_ORIGIN}/api${req.url}`
+    const r = await fetch(url, {
+      method: req.method,
+      headers: { accept: req.headers.accept || '*/*' },
+    })
+    res.status(r.status)
+    res.set('content-type', r.headers.get('content-type') || 'application/json')
+    res.set('access-control-allow-origin', '*')
+    res.send(Buffer.from(await r.arrayBuffer()))
+  } catch (e) {
+    console.error('[renderer] api proxy', req.url, e)
+    res.status(502).end('proxy fail')
+  }
+}
+
 // Parcel mesher loads /textures/atlas-ao* relative to the page origin.
 app.use('/textures', proxyTextures)
 app.use('/renderer/textures', proxyTextures)
+// Dev: local orbit pages may still hit /api/* on the page host.
+app.use('/api', proxyApi)
 
 app.use('/page', express.static(path.join(__dirname, '../page')))
 app.use('/renderer/page', express.static(path.join(__dirname, '../page')))
