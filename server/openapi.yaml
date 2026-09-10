@@ -2585,6 +2585,13 @@ components:
           type: [string, 'null']
         image_url:
           type: [string, 'null']
+        metadata:
+          description: |
+            Who and what was in the shot when it was taken. Null on older womps.
+            Screenspace `x`/`y` are normalized 0-1 over the image (top-left origin).
+          oneOf:
+            - $ref: '#/components/schemas/WompMetadata'
+            - type: 'null'
         image_supplied:
           type: boolean
           description: |
@@ -2595,6 +2602,52 @@ components:
           type: string
         updated_at:
           type: string
+
+    WompMetadata:
+      description: |
+        Scene context for a womp: avatars in the camera frustum, and nft-image
+        features within 5m that were also in view.
+      type: object
+      properties:
+        avatars:
+          type: array
+          items:
+            $ref: '#/components/schemas/WompMetadataAvatar'
+        art:
+          type: array
+          items:
+            $ref: '#/components/schemas/WompMetadataArt'
+
+    WompMetadataAvatar:
+      type: object
+      required: [avatar, x, y]
+      properties:
+        avatar:
+          $ref: '#/components/schemas/AvatarRef'
+        x:
+          type: number
+          description: Screenspace X of the avatar centroid, 0-1.
+        y:
+          type: number
+          description: Screenspace Y of the avatar centroid, 0-1.
+
+    WompMetadataArt:
+      type: object
+      required: [x, y, src]
+      properties:
+        name:
+          type: [string, 'null']
+          description: NFT title when known at capture time.
+        x:
+          type: number
+          description: Screenspace X of the art centroid, 0-1.
+        y:
+          type: number
+          description: Screenspace Y of the art centroid, 0-1.
+        src:
+          type: string
+          description: |
+            CAIP-19 asset id, e.g. `eip155:1/erc721:0xabc.../42`.
 
     Avatar:
       description: A citizen.

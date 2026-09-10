@@ -6,6 +6,7 @@ import { Component } from 'preact'
 import cachedFetch from '../src/helpers/cached-fetch'
 import { wompCache } from './store/index'
 import { AvatarLink } from './components/avatar-link'
+import { WompMetadata } from './components/womp-metadata'
 import { avatarName } from '../../common/messages/avatar-ref'
 import { naviportHere } from './helpers/coords-nav'
 import { app } from './state'
@@ -119,6 +120,7 @@ export default class Womp extends Component<Props, State> {
         </dl>
 
         {this.state.womp.content && <p>{this.state.womp.content}</p>}
+        <WompMetadata metadata={this.state.womp.metadata} />
 
         <ReportButton type="womps" item={this.state.womp}>
           <option value="Womp contains NSFW content">Womp contains NSFW content</option>

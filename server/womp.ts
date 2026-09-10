@@ -17,6 +17,7 @@ export default class Womp {
   image: Uint8Array = undefined!
   image_url: string = undefined!
   kind: WompType = undefined!
+  metadata: any = undefined!
 
   constructor(params?: any) {
     if (params) {
@@ -59,13 +60,13 @@ export default class Womp {
       'embedded/insert-womp-2',
       `
       insert into
-        womps (author, content, coords, parcel_id, space_id, kind, image_url, created_at, updated_at)
+        womps (author, content, coords, parcel_id, space_id, kind, image_url, metadata, created_at, updated_at)
       values
-        ($1, $2, $3, $4, $5, $6,$7, NOW(), NOW())
+        ($1, $2, $3, $4, $5, $6, $7, $8, NOW(), NOW())
       returning
         id
     `,
-      [this.author, this.content, this.coords, this.parcel_id, this.space_id, this.kind, this.image_url],
+      [this.author, this.content, this.coords, this.parcel_id, this.space_id, this.kind, this.image_url, this.metadata ? JSON.stringify(this.metadata) : null],
     )
 
     this.id = insertResponse.rows[0].id
