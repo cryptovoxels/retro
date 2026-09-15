@@ -1,4 +1,4 @@
-import { isDesktop, isMobile, wantsNoUI } from '../../common/helpers/detector'
+import { isDesktop, isMobile, wantsNoUI, wantsXR } from '../../common/helpers/detector'
 import { User } from '../user'
 import { encodeCoords } from '../../common/helpers/utils'
 import type Grid from '../grid'
@@ -20,6 +20,9 @@ const ISO_DISTANCE = 4
 const ISO_PITCH = 0.75 // look down at the avatar, isometric-ish
 const CAMERA_EASE_OUT = 1.4
 const SWIM_LEVEL = -2
+const MIN_COORD_Y = -10
+const FALL_RESCUE_Y = -20
+const FALL_RESCUE_LIFT = 64
 
 /** Meters behind the person in front (each hop of the snake). */
 const CONGA_FOLLOW_DISTANCE = 1.35
@@ -124,8 +127,8 @@ export default abstract class Controls implements IControls {
   private vehicleNearbyAt = 0
   private vehicleHintEl: HTMLDivElement | null = null
   vehicleNearby: import('../features/vox-model').Ride | null = null
-  /** mobile / shared: -1..1 forward and turn while driving */
-  vehicleSteer = { forward: 0, turn: 0 }
+  /** mobile / XR / shared: -1..1 forward, turn and climb while driving */
+  vehicleSteer = { forward: 0, turn: 0, climb: 0 }
   /** visitor-only facing nudge when they can't save driveYawOffset */
   private vehicleFacingNudge = 0
   /** working seat offset while seated (local to ride); flushed to driveSeatOffset when editable */
@@ -145,10 +148,13 @@ export default abstract class Controls implements IControls {
   }
 
   MAX_PICK_DISTANCE = 20
+  xrSelection: BABYLON.WebXRControllerPointerSelection | null = null
+  private xrPicks = new Map<number, BABYLON.AbstractMesh>()
   audioContext: AudioContext = undefined!
   private cameraZoomed = false
   // parcels under our feet still waiting on colliders. [] = waiting on the worker, null = floor is solid
-  private floorWait: number[] | null = null
+  private floorWait: number[] | null = []
+  private floorRetry = 0
 
   constructor(
     protected scene: BABYLON.Scene,
@@ -194,10 +200,22 @@ export default abstract class Controls implements IControls {
         this.camera.cameraDirection.setAll(0)
       }
 
+      if (this.body.position.y < FALL_RESCUE_Y) {
+        this.body.position.y += FALL_RESCUE_LIFT
+        this.resetFloor()
+      }
+      if (this.floorWait?.length === 0) {
+        this.floorRetry += dt
+        if (this.floorRetry >= 0.25) {
+          this.floorRetry = 0
+          this.resetFloor()
+        }
+      }
       if (this.floorWait?.length && this.floorWait.every((id) => this.grid?.getByID(id)?.physicsRegistered)) this.floorWait = null
       this.body.flying = this.flying
       this.body.gravity = !this.flying && !this.floorWait
-      this.body.step(this.move, dt)
+      // XR moves this same body from the tracked headset pose in XROverlay.tick.
+      if (!(this.scene.activeCamera instanceof BABYLON.WebXRCamera)) this.body.step(this.move, dt)
       this.move.setAll(0)
       this.updateConga()
       this.updateVehicle()
@@ -290,7 +308,7 @@ export default abstract class Controls implements IControls {
 
   lockedLeftClick(pickInfo?: BABYLON.PickingInfo | null) {
     if (!pickInfo) return
-    if (window.ui?.visible || window.ui?.activeTool) return
+    if (window.ui?.activeTool || (window.ui?.visible && !(this.scene.activeCamera instanceof BABYLON.WebXRCamera))) return
     const distance = pickInfo.distance || Infinity
     const parcel = (pickInfo.pickedMesh as MeshExtended | undefined)?.feature?.parcel
     if (distance > this.MAX_PICK_DISTANCE && !parcel?.canEdit) return
@@ -299,6 +317,20 @@ export default abstract class Controls implements IControls {
   }
 
   featureClickHandler(eventData: BABYLON.PointerInfo) {
+    const event = eventData.event as PointerEvent
+    if (event.pointerType === 'xr') {
+      const mesh = eventData.pickInfo?.pickedMesh
+      if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && event.button === 0) {
+        if (mesh && this.xrSelection?.attached) this.xrPicks.set(event.pointerId, mesh)
+        else this.xrPicks.delete(event.pointerId)
+      } else if (eventData.type === BABYLON.PointerEventTypes.POINTERUP) {
+        const pressed = this.xrPicks.get(event.pointerId)
+        this.xrPicks.delete(event.pointerId)
+        // Babylon sends another release when teleport aiming detaches selection.
+        if (pressed && pressed === mesh && this.xrSelection?.attached) this.lockedLeftClick(eventData.pickInfo)
+      }
+      return
+    }
     if (isDesktop()) return
     if (eventData.event.button === 0 && eventData.type === BABYLON.PointerEventTypes.POINTERPICK) {
       this.lockedLeftClick(eventData.pickInfo)
@@ -448,9 +480,15 @@ export default abstract class Controls implements IControls {
   // called on spawn and teleport: hold gravity until the parcels here have colliders
   resetFloor() {
     if (!this.grid) return
+    if (this.grid.currentW > 0) {
+      this.floorWait = null
+      return
+    }
     this.floorWait = []
     const p = this.body.position
-    this.grid.queryParcelsAtPosition(new BABYLON.Vector3(p.x, p.y, p.z)).then((ids) => (this.floorWait = ids.length ? ids : null))
+    this.grid.queryParcelsAtPosition(new BABYLON.Vector3(p.x, p.y, p.z)).then((ids) => {
+      if (ids.length) this.floorWait = ids
+    })
   }
 
   setNoclip(on: boolean) {
@@ -650,6 +688,7 @@ export default abstract class Controls implements IControls {
       position: this.persona.position.clone(),
       rotation: this.camera.rotation.clone(),
     }
+    if (coords.position.y < MIN_COORD_Y) return ''
 
     return encodeCoords(coords)
   }
@@ -660,15 +699,16 @@ export default abstract class Controls implements IControls {
    * This can be overridden, e.g. in tools/voxel.ts and tools/feature.ts
    */
   defaultPointerMovePredicate(mesh: BABYLON.AbstractMesh): boolean {
+    const inXR = this.scene.activeCamera instanceof BABYLON.WebXRCamera
     // CV custom additional check
     return (
-      !!mesh.metadata?.captureMoveEvents &&
+      (inXR || !!mesh.metadata?.captureMoveEvents) &&
       // Default checks that Bablyon performs
       mesh.isPickable &&
       mesh.isVisible &&
       mesh.isReady() &&
       mesh.isEnabled() &&
-      (mesh.enablePointerMoveEvents || this.scene.constantlyUpdateMeshUnderPointer || mesh._getActionManagerForTrigger() != null) &&
+      (inXR || mesh.enablePointerMoveEvents || this.scene.constantlyUpdateMeshUnderPointer || mesh._getActionManagerForTrigger() != null) &&
       (!this.scene.cameraToUseForPointers || (this.scene.cameraToUseForPointers.layerMask & mesh.layerMask) !== 0)
     )
   }
@@ -741,7 +781,8 @@ export default abstract class Controls implements IControls {
     this.persona.animation = Animations.Sitting
     this.vehicleFacingNudge = 0
     // start in chase cam so you can see the car; C still toggles first/third while driving
-    if (this.firstPersonView) this.enterThirdPerson(5)
+    // XR: stay first person - chase cam would park your own avatar mesh on the headset
+    if (this.firstPersonView && !wantsXR()) this.enterThirdPerson(5)
     this.camera.rotation.y = this.driveFacingYaw(car)
     this.setVehicleHint(this.driveHint(car))
     this.refreshMobileDriveChrome?.()
@@ -817,6 +858,7 @@ export default abstract class Controls implements IControls {
     this.vehicleSeatMode = false
     this.vehicleSteer.forward = 0
     this.vehicleSteer.turn = 0
+    this.vehicleSteer.climb = 0
     this.driveHeld.clear()
     this.vehicleFacingNudge = 0
     if (car) {
@@ -864,7 +906,7 @@ export default abstract class Controls implements IControls {
     }
     return {
       featureUuid: car.uuid,
-      homeParcelId: car.parcel.id,
+      homeParcelId: typeof car.parcel.id === 'number' ? car.parcel.id : 0,
       voxUrl: String(car.description.url || ''),
       scale: [clamp(s.x), clamp(s.y), clamp(s.z)],
       yaw: car.mesh.rotation.y,
@@ -980,7 +1022,7 @@ export default abstract class Controls implements IControls {
       }
       // hovercraft: Space/PageUp climb, V/PageDown dive
       if (car.isFlyable) {
-        let climb = 0
+        let climb = this.vehicleSteer.climb
         if (held('Space') || held('PageUp')) climb = 1
         if (held('KeyV') || held('PageDown')) climb = -1
         if (climb) this.vehicleHoverY += climb * speed * dt

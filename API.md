@@ -24,7 +24,7 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 - [search](#search), 1 route
 - [ghosts](#ghosts), 1 route
 - [chat](#chat), 1 route
-- [schemas](#schemas), 24 shapes
+- [schemas](#schemas), 27 shapes
 
 ## parcels
 
@@ -1483,9 +1483,30 @@ A photograph somebody took in world.
 - `parcel_island` string or null
 - `space_name` string or null
 - `image_url` string or null
+- `metadata` [`WompMetadata`](#wompmetadata) or null: Who and what was in the shot when it was taken. Null on older womps. Screenspace `x`/`y` are normalized 0-1 over the image (top-left origin).
 - `image_supplied` boolean: True when the bytes are in the database, which is what makes `/api/womps/{id}.jpg` work. False means the picture only lives at `image_url`. Absent on `/api/womps/{id}.json`.
 - `created_at` string
 - `updated_at` string
+
+### WompMetadata
+
+Scene context for a womp: avatars in the camera frustum, and nft-image features within 5m that were also in view.
+
+- `avatars` array of [`WompMetadataAvatar`](#wompmetadataavatar)
+- `art` array of [`WompMetadataArt`](#wompmetadataart)
+
+### WompMetadataAvatar
+
+- `avatar` [`AvatarRef`](#avatarref)
+- `x` number: Screenspace X of the avatar centroid, 0-1.
+- `y` number: Screenspace Y of the avatar centroid, 0-1.
+
+### WompMetadataArt
+
+- `name` string or null: NFT title when known at capture time.
+- `x` number: Screenspace X of the art centroid, 0-1.
+- `y` number: Screenspace Y of the art centroid, 0-1.
+- `src` string: CAIP-19 asset id, e.g. `eip155:1/erc721:0xabc.../42`.
 
 ### Avatar
 

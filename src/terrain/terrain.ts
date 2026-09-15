@@ -17,14 +17,13 @@ export class Terrain {
   private _islandsHasLoaded = false
   private _loadRange: number
 
-  constructor(scene: BABYLON.Scene, _skyboxes: any[]) {
+  constructor(scene: BABYLON.Scene) {
     this._scene = scene
     this._loadRange = Math.ceil((window.draw.distance * 1.414 + CHUNK_SIZE / 2) / CHUNK_SIZE)
 
     this._islands = new Islands(scene)
     this.islandsStateObservable = this._islands.islandsStateObservable
     this._oceanFloor = new OceanFloor(CHUNK_SIZE, scene)
-
     this._ocean = new Ocean(CHUNK_SIZE, scene)
 
     this._chunkSystem = new ChunkSystem(CHUNK_SIZE)

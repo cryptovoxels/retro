@@ -264,10 +264,10 @@ function isGuestForShowbox(uuid: string): boolean {
 }
 
 // guest pass is scoped to one primary showbox, but angle mirrors are sibling screens on the same parcel.
-function isGuestOnParcel(parcelId: number): boolean {
+function isGuestOnParcel(parcelId: number | string): boolean {
   if (!guestPassToken()) return false
   const payload = guestJwtPayload()
-  if (payload?.parcel_id != null) return Number(payload.parcel_id) === parcelId
+  if (payload?.parcel_id != null) return Number(payload.parcel_id) === Number(parcelId)
   return !!showboxJoinShowUuid()
 }
 

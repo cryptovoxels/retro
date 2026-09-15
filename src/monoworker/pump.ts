@@ -20,7 +20,7 @@ export async function requestFeatureSorting(
   cameraPosition: [number, number, number],
   cameraDirection: [number, number, number],
   maxDrawDistance = 200,
-  currentParcelId?: number,
+  currentParcelId?: number | string,
 ): Promise<LoadOrderItem[]> {
   if (!Array.isArray(features)) {
     throw new Error('Invalid features array')

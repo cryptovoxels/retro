@@ -13,6 +13,7 @@ import { enterAuthoring } from '../store'
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
 import { getTransformVectorsRelativeToNode } from '../utils/feature'
 import { axisNames2D, axisNames3D, bboxCompletelyWithin, resolveUgc, tidyURL, tidyVec3, XYZ } from '../utils/helpers'
+import { getWorldTimeOfDay, setWorldTimeOfDay } from '../init/world-scene'
 import { TimeOfDay } from '../utils/time-of-day'
 import Group from './group'
 import { renderImageDraft, renderVoxDraft } from './feature-draft'
@@ -532,8 +533,8 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     // We have a time flag in the world link
     if (this.isWorldLink && this.linkHasTimeFlag) {
       const time = this.linkHasTimeFlag
-      if (window.environment && window.environment.timeOfDay !== time) {
-        window.environment.timeOfDay = time
+      if (window.grid?.currentW === 0 && time !== getWorldTimeOfDay()) {
+        setWorldTimeOfDay(time)
       }
       if (this.linkHasCoords) {
         // We also have coords

@@ -7,8 +7,6 @@ import { Advanced, Animation, BlendMode, FeatureEditor, FeatureEditorProps, Feat
 import { tidyFloat } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D, MeshExtended, TransparencyMode } from './feature'
-import { encodeImageDraft, persistDraft } from './feature-draft'
-
 export default class Image extends Feature2D<ImageRecord> {
   static metadata: FeatureMetadata = {
     title: 'Image',
@@ -106,7 +104,6 @@ export default class Image extends Feature2D<ImageRecord> {
       texture.hasAlpha = false
       this.renderImage(texture)
       this.loaded = true
-      if (this.textureURL) void encodeImageDraft(this.textureURL).then((d) => persistDraft(this, d))
     } catch {
       // aborted or failed: leave draft
     }

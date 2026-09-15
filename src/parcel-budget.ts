@@ -68,7 +68,7 @@ export default class ParcelBudget {
 
   // hard limit
   static budget(type: FeatureType, parcel?: Parcel): number {
-    const space = parcel?.spaceId
+    const space = typeof parcel?.id !== 'number'
     let limits = featureBudget
 
     if (parcel && space && parcel.owner.match(crvox)) {

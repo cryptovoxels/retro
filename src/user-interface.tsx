@@ -16,7 +16,6 @@ import { KeyboardHandler } from './components/keyboard-handler'
 import { OnlyMobile } from './components/utils'
 import Connector, { messageList } from './connector'
 import DesktopControls from './controls/desktop/controls'
-import { Environment } from './enviroments/environment'
 import { createFeature } from './features/create'
 import Feature from './features/feature'
 import type { FeatureTemplate } from './features/_metadata'
@@ -130,7 +129,6 @@ export interface UserInterfaceProps {
   canvas: HTMLCanvasElement
   grid: Grid
   connector: Connector
-  environment: Environment
   enabled: boolean
   minimapSettings: MinimapSettings
 }
@@ -174,7 +172,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   mode: Mode
   connector: Connector
   grid: Grid
-  environment: Environment
 
   // sub tools
   activeTool: Tool | null = null
@@ -194,6 +191,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   wompPollTimer: ReturnType<typeof setInterval> | null = null
   latestWompId = 0
   sandboxRollingBack = false
+  compileTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor(props: UserInterfaceProps) {
     super(props)
@@ -203,7 +201,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.canvas = props.canvas
     this.connector = props.connector
     this.grid = props.grid
-    this.environment = props.environment
 
     this.voxelTool = new VoxelTool(this.props.scene, null, props.grid, this.connector.controls, props.connector)
     this.featureTool = new FeatureTool(this.props.scene, null, props.grid, this.connector.controls, props.connector, createFeature)
@@ -801,9 +798,21 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   setTool(tool: Tool | null) {
     if (this.activeTool === tool) return
+    const leavingVoxel = this.activeTool === this.voxelTool && tool !== this.voxelTool
     this.activeTool?.deactivate()
     tool?.activate()
     this.activeTool = tool
+    if (leavingVoxel) this.scheduleCompile()
+  }
+
+  scheduleCompile() {
+    if (this.compileTimer) clearTimeout(this.compileTimer)
+    this.compileTimer = setTimeout(() => {
+      this.compileTimer = null
+      for (const p of window.user?.parcels || []) {
+        if (p.canEdit) void p.compile()
+      }
+    }, 1000)
   }
 
   deactivateTools() {
@@ -909,7 +918,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   openLink(url: string) {
-    if (this.visible) {
+    if (this.visible && !(window.scene?.activeCamera instanceof BABYLON.WebXRCamera)) {
       // suppress
       return
     }
@@ -920,9 +929,10 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       return
     }
 
-    if (url.startsWith('/spaces') && url.match('/play')) {
-      const spaceId = url.split('/')[2]
-      window.location.href = `/spaces/${spaceId}`
+    if (url.startsWith('/spaces/')) {
+      const parts = url.split('/')
+      const spaceId = parts[2]
+      if (spaceId) route(`/spaces/${spaceId}/play`)
       return
     }
 
@@ -950,7 +960,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       case 'login':
         return <Login />
       case 'debugTool':
-        return <DebugTools parcel={currentOrNearestParcel} scene={this.props.scene} environment={this.props.environment} />
+        return <DebugTools parcel={currentOrNearestParcel} scene={this.props.scene} />
       case 'chat':
         return <ChatOverlay scene={this.props.scene} />
       case 'dance':
@@ -968,7 +978,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       case 'takeWomp': {
         const w = pendingWomp.value
         if (!w) return null
-        return <TakeWomp coords={w.coords} parcel={w.parcel} image={w.image} scene={this.props.scene} onClose={closeTakeWomp} />
+        return <TakeWomp coords={w.coords} parcel={w.parcel} image={w.image} metadata={w.metadata} scene={this.props.scene} onClose={closeTakeWomp} />
       }
       case 'help':
         return <HelpOverlay scene={this.props.scene} onShowSandboxGuide={wantsSandboxGuide() ? this.openSandboxGuide : undefined} />

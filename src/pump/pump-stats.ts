@@ -9,7 +9,7 @@ export interface PumpStatistics {
   loadQueueSize: number
   deactivationQueueSize: number
   activeParcelsCount: number
-  currentParcelId?: number
+  currentParcelId?: number | string
 
   // Sort timing
   lastSortDuration?: number

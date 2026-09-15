@@ -328,11 +328,11 @@ select {
   }
 
   50% {
-    transform: rotateX(-15deg) rotateY(-215deg);
+    transform: rotateX(-15deg) rotateY(145deg);
   }
 
   100% {
-    transform: rotateX(-15deg) rotateY(-395deg);
+    transform: rotateX(-15deg) rotateY(325deg);
   }
 }
 
@@ -340,11 +340,8 @@ select {
   display: block;
 }
 
-.logo:hover .cube-logo {
-  animation: cube-rock 1s linear infinite;
-}
-
 .cube-logo {
+  animation: cube-rock 3s linear infinite;
   box-sizing: border-box;
   position: relative;
   top: -0.5rem;
@@ -418,11 +415,11 @@ select {
 }
 
 @keyframes cube-spin {
-  from {
+  to {
     transform: rotateX(-15deg) rotateY(-35deg);
   }
 
-  to {
+  from {
     transform: rotateX(-15deg) rotateY(325deg);
   }
 }
@@ -5332,5 +5329,19 @@ body.theatre-mode {
 
   cite {
     opacity: 0.5;
+  }
+}
+
+.content-tree {
+  &,
+  ul,
+  li {
+    margin: 0;
+    padding: 0;
+  }
+
+  li {
+    list-style: none;
+    border-bottom: var(--border);
   }
 }

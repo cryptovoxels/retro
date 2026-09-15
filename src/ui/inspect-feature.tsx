@@ -47,6 +47,9 @@ export function inspectFeature(feature: Feature) {
 
     // Moderator by default
     const text = 'Are you sure you want to delete this feature?'
+    if (typeof feature.parcel.id !== 'number' || typeof currentParcelId !== 'number') {
+      return
+    }
     if (confirm(text)) {
       connector.deleteFeature(feature.parcel.id, feature.uuid, currentParcelId)
       close()

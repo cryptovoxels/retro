@@ -17,19 +17,10 @@ export const CreateControls = (scene: BABYLON.Scene, canvas: HTMLCanvasElement):
 
   if (wantsXR() && !wantsGateway()) {
     xr = new XROverlay(scene, canvas, controls!)
-    let started = false
-
-    navigator.xr?.addEventListener('sessiongranted', () => {
-      console.log('onSessionGranted')
-      started = true
-
-      xr?.start()
-    })
+    navigator.xr?.addEventListener('sessiongranted', () => xr?.start())
 
     canvas.addEventListener('click', (e: any) => {
-      if (!started && xr) {
-        started = true
-
+      if (xr) {
         e.preventDefault()
         xr.start()
       }

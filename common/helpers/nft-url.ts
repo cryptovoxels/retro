@@ -73,3 +73,8 @@ export function readNftUrl(url: string): NftUrl | null {
   if (!url) return null
   return readCaip19(url) || readOpenseaNftUrl(url)
 }
+
+/** CAIP-19 asset id, e.g. `eip155:1/erc721:0xabc.../42` */
+export function writeCaip19(nft: NftUrl, schema: 'erc721' | 'erc1155' = 'erc721'): string {
+  return `eip155:${nft.chain}/${schema}:${nft.contract}/${nft.token}`
+}

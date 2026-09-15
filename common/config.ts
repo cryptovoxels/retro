@@ -1,6 +1,5 @@
 type Parcel = {
-  id: number | undefined | null
-  spaceId: string | undefined | null
+  id: number | string | undefined | null
 }
 
 class config {

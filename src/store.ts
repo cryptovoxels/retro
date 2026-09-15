@@ -3,6 +3,7 @@ import Feature from './features/feature'
 import Group from './features/group'
 import { effect, signal } from '@preact/signals'
 import Grid from './grid'
+import type { AvatarRef } from '../common/messages/avatar-ref'
 export type CheckedFeatures = Record<string, Feature>
 
 const TICK = 500
@@ -200,10 +201,29 @@ effect(() => {
   if (!uiPane.value && broadcastShowboxUuid.value) uiPane.value = 'broadcast'
 })
 
+export type WompMetadataAvatar = {
+  avatar: AvatarRef
+  x: number
+  y: number
+}
+
+export type WompMetadataArt = {
+  name: string | null
+  x: number
+  y: number
+  src: string
+}
+
+export type WompMetadata = {
+  avatars: WompMetadataAvatar[]
+  art: WompMetadataArt[]
+}
+
 export type PendingWomp = {
   coords: string
   parcel: Parcel
   image: string
+  metadata: WompMetadata
 }
 
 export const pendingWomp = signal<PendingWomp | null>(null)
@@ -214,15 +234,15 @@ export const closeTakeWomp = () => {
   uiAsideTick.value++
 }
 
-export const authoring = signal<Set<number>>(new Set())
+export const authoring = signal<Set<number | string>>(new Set())
 
-export const enterAuthoring = (id: number) => {
+export const enterAuthoring = (id: number | string) => {
   const s = new Set(authoring.value)
   s.add(id)
   authoring.value = s
 }
 
-export const exitAuthoring = (id?: number) => {
+export const exitAuthoring = (id?: number | string) => {
   if (id == null) {
     authoring.value = new Set()
     return

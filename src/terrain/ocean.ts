@@ -17,7 +17,7 @@ function oceanMaterial(scene: BABYLON.Scene): BABYLON.StandardMaterial {
   const mat = new BABYLON.StandardMaterial('ocean', scene)
   mat.diffuseColor = new BABYLON.Color3(0, 0.4, 0.7)
   mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
-  mat.alpha = 0.9
+  mat.alpha = 1
   mat.fogEnabled = true
   mat.freeze()
   mat.blockDirtyMechanism = true
