@@ -219,6 +219,9 @@ export class AudioEngine {
     this.sfxVolume = defaultValueOfType('number', settings.soundEffectsVolume, 1)
     this.parcelAudioBus.setVolume(this.parcelVolume)
     this.soundEffectsBus.setVolume(this.sfxVolume)
+    // spatial (non-SoundTrack) audio uses these gain nodes; keep them in sync with the buses
+    this.parcelOut.gain.value = this.broadcasting ? 0 : this.parcelVolume
+    this.soundEffectsOut.gain.value = this.sfxVolume
     const stored = window.localStorage.getItem('audioSettings')
     const prev = stored ? tryParseJson(stored) : {}
     window.localStorage.setItem('audioSettings', JSON.stringify({ ...prev, ...settings }))
@@ -237,8 +240,10 @@ export class AudioEngine {
     if (b) {
       this.preBroadcastVolumes = { parcel: this.parcelVolume }
       this.parcelAudioBus.setVolume(0)
+      this.parcelOut.gain.value = 0
     } else if (this.preBroadcastVolumes) {
       this.parcelAudioBus.setVolume(this.preBroadcastVolumes.parcel)
+      this.parcelOut.gain.value = this.preBroadcastVolumes.parcel
       this.preBroadcastVolumes = null
     }
   }
