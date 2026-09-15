@@ -1,5 +1,5 @@
-const BUNDLE_VERSION = '6.11.2'
-const BABYLON_VERSION = '6.11.2'
+const BUNDLE_VERSION = '9.25.0'
+const BABYLON_VERSION = '9.25.0'
 
 function babylonBundleUrls(minified) {
   const m = minified ? '.min' : ''
@@ -39,7 +39,7 @@ function bundleUrls(minified) {
 module.exports = {
   // For use by the website
   ...bundleUrls(process.env.NODE_ENV !== 'development'),
-  UNBUNDLED_BABYLON_LIB_URL_FOR_WEB_WORKERS: 'https://www.voxels.com/babylon.min.js',
+  UNBUNDLED_BABYLON_LIB_URL_FOR_WEB_WORKERS: '/vendor/library-9.25.0.min.js',
 
   // For use by the bundler
   bundles

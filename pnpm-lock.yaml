@@ -78,17 +78,17 @@ importers:
         specifier: ^2.0.0
         version: 2.1.0
       babylonjs:
-        specifier: ^6.11.2
-        version: 6.49.0
+        specifier: ^9.25.0
+        version: 9.25.0
       babylonjs-gui:
-        specifier: ^6.11.2
-        version: 6.49.0
+        specifier: ^9.25.0
+        version: 9.25.0
       babylonjs-loaders:
-        specifier: ^6.11.2
-        version: 6.49.0
+        specifier: ^9.25.0
+        version: 9.25.0
       babylonjs-materials:
-        specifier: ^6.11.2
-        version: 6.49.0
+        specifier: ^9.25.0
+        version: 9.25.0
       base24:
         specifier: ^1.0.3
         version: 1.0.3
@@ -2959,20 +2959,20 @@ packages:
   axios@1.14.0:
     resolution: {integrity: sha512-3Y8yrqLSwjuzpXuZ0oIYZ/XGgLwUIBU3uLvbcpb0pidD9ctpShJd43KSlEEkVQg6DS0G9NKyzOvBfUtDKEyHvQ==}
 
-  babylonjs-gltf2interface@6.49.0:
-    resolution: {integrity: sha512-4qzKCgEayti/YUaeMgAAZxZJlx/kLqXxoC+G8gODYz9wOV9UjnHF09wREZ5cuELzzY/rjSJMqkgDfYbUQIQ6/A==}
+  babylonjs-gltf2interface@9.25.0:
+    resolution: {integrity: sha512-yi+Gh+rqEghH5T9jdpp0W+be4HRh13+0N4xCPazMyElNbwqtEYoWoFLE3Q3CrA1aY4H5dMOVRXYcspWwo15crg==}
 
-  babylonjs-gui@6.49.0:
-    resolution: {integrity: sha512-EUm+GD+1rb++Tu4ouMxOIAp+2QAzHrAcDfGa8ghnCET3Dn+icJaHa8b+iXTfG4OXRUM2N2Mnp5F/3kHXmyfxsQ==}
+  babylonjs-gui@9.25.0:
+    resolution: {integrity: sha512-HUv42cd2XeARlOwWWkb/34i9vwR3eu0w/VgB3ebYeabR5YG6XQVMt4x6OdHE5idO8lBhwmeDOWLObQgwF33njA==}
 
-  babylonjs-loaders@6.49.0:
-    resolution: {integrity: sha512-kuGbt1hONx0rMOyKEcMkjdorQSZFt5VTONum1Fg2vtVhJ1VnzbKAcFCSfh9TudcqWVQrCJWVsFOiXGZcgCwKrQ==}
+  babylonjs-loaders@9.25.0:
+    resolution: {integrity: sha512-cgHEN3gfNEQE4H/rpFs4Yr7MDC4Txv+D9N83S239l9Q6BDzxU7bSQ0QZe4ljikzbfXYjm/3SQP88avdFs3xXgw==}
 
-  babylonjs-materials@6.49.0:
-    resolution: {integrity: sha512-TYd4s3YUVPX/uX6TU5TFFuPb1d+L8QD9YfOGpLgHE/HX3+vmEW3A9sG0psuQCJ4ph+6eHM1ZIf5ITWWH4HlEAg==}
+  babylonjs-materials@9.25.0:
+    resolution: {integrity: sha512-In0wp16s256LlFFfh/E/MkbtpBoATSFZOmPh+Uu2zjOr8Hn2TJeLJMJdgZ6ucoOyEWvO1EaP9hTLtQOr40Yncw==}
 
-  babylonjs@6.49.0:
-    resolution: {integrity: sha512-KYGpELn2osBvB8UqGuk6gfJBrriojwisw/egXaiBZNQaNuURjjogI1mgwAz4/KJB14JJwELNw3JNB4sp3Rh5Ng==}
+  babylonjs@9.25.0:
+    resolution: {integrity: sha512-1hqtHr21ahlOYePM/DeWqhO4kUh9LPrbSjefTjdnSkmKnNqt8eYAxkFDYwk88hLUzY2FhPx7WJBG6ZRshCIxMQ==}
 
   balanced-match@1.0.2:
     resolution: {integrity: sha512-3oSeUO0TMV67hN1AmbXsK4yaqU7tjiHlbxRDZOpH0KW9+CeX4bRAaX0Anxt0tx2MrpRpWwQaPwIlISEJhYU5Pw==}
@@ -9855,22 +9855,22 @@ snapshots:
     transitivePeerDependencies:
       - debug
 
-  babylonjs-gltf2interface@6.49.0: {}
+  babylonjs-gltf2interface@9.25.0: {}
 
-  babylonjs-gui@6.49.0:
+  babylonjs-gui@9.25.0:
     dependencies:
-      babylonjs: 6.49.0
+      babylonjs: 9.25.0
 
-  babylonjs-loaders@6.49.0:
+  babylonjs-loaders@9.25.0:
     dependencies:
-      babylonjs: 6.49.0
-      babylonjs-gltf2interface: 6.49.0
+      babylonjs: 9.25.0
+      babylonjs-gltf2interface: 9.25.0
 
-  babylonjs-materials@6.49.0:
+  babylonjs-materials@9.25.0:
     dependencies:
-      babylonjs: 6.49.0
+      babylonjs: 9.25.0
 
-  babylonjs@6.49.0: {}
+  babylonjs@9.25.0: {}
 
   balanced-match@1.0.2: {}
 

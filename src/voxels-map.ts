@@ -336,7 +336,7 @@ export class VoxelsMap {
     this.overlay.style.cssText = 'position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2'
     canvas.insertAdjacentElement('afterend', this.overlay)
 
-    this.engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true })
+    this.engine = new BABYLON.Engine(canvas, true, { audioEngine: true, preserveDrawingBuffer: true, stencil: true })
     this.scene = new BABYLON.Scene(this.engine)
     this.scene.clearColor = OCEAN
     this.scene.skipPointerMovePicking = true

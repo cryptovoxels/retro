@@ -200,17 +200,25 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // this.sandbox is set via `updateMeta()` above
     this.featureBounds = this.sandbox
       ? this.boundingBox
-      : new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), this.parentNode._worldMatrix)
+      : new BABYLON.BoundingBox(
+          new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth),
+          new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth),
+          this.parentNode.getWorldMatrix(),
+        )
 
     const hardFeatureBound = 25
 
     // in sandbox, set hardBoundingbox to be the featureBounds
     this.hardFeatureBounds = this.sandbox
-      ? new BABYLON.BoundingBox(new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth), new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth), this.parentNode._worldMatrix)
+      ? new BABYLON.BoundingBox(
+          new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth),
+          new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth),
+          this.parentNode.getWorldMatrix(),
+        )
       : new BABYLON.BoundingBox(
           new BABYLON.Vector3(this.x1 - hardFeatureBound, this.y1 - hardFeatureBound, this.z1 - hardFeatureBound),
           new BABYLON.Vector3(this.x2 + hardFeatureBound, this.y2 + hardFeatureBound, this.z2 + hardFeatureBound),
-          this.parentNode._worldMatrix,
+          this.parentNode.getWorldMatrix(),
         )
 
     // fix parcel offset, but leave enough for exterior signage
@@ -223,7 +231,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       : new BABYLON.BoundingBox(
           new BABYLON.Vector3(this.x1 + offset - grace, this.y1 + offset - grace, this.z1 + offset - grace),
           new BABYLON.Vector3(this.x2 + offset + grace, this.y2 + offset + grace, this.z2 + offset + grace),
-          this.parentNode._worldMatrix,
+          this.parentNode.getWorldMatrix(),
         )
 
     // Use pre-computed field if provided (from grid-worker)
@@ -373,7 +381,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
    */
   get boundingBox(): BABYLON.BoundingBox {
     if (!this._boundingBox) {
-      this._boundingBox = new BABYLON.BoundingBox(this.min, this.max, this.parentNode._worldMatrix)
+      this._boundingBox = new BABYLON.BoundingBox(this.min, this.max, this.parentNode.getWorldMatrix())
     }
     return this._boundingBox
   }
@@ -1165,10 +1173,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       // stained spill is baked into light RGB - rebake so walls pick up new tint
       this.refreshVoxels()
       return
-    }
-
-    if (palette && palette[1] && material instanceof BABYLON.ShaderMaterial) {
-      material.setColor3Array('palette', palette)
     }
   }
 

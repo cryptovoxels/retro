@@ -188,7 +188,7 @@ export default class TakeWomp extends Component<Props, State> {
     }
   }
 
-  static async Capture(engine: BABYLON.Engine, scene: BABYLON.Scene, minimapSettings: MinimapSettings) {
+  static async Capture(engine: BABYLON.AbstractEngine, scene: BABYLON.Scene, minimapSettings: MinimapSettings) {
     if (scene.activeCamera === null) {
       app.showSnackbar('Failed to capture womp. Could not get camera', PanelType.Danger)
       return

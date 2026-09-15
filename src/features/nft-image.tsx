@@ -3,10 +3,6 @@ import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { ImageMode, NftImageRecord } from '../../common/messages/feature'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { app } from '../../web/src/state'
-import nftFrameBlueShaderBlue from '../shaders/nft-frame-blue.fsh'
-import nftFrameShaderClassic from '../shaders/nft-frame-classic.fsh'
-import nftFrameColorsShaderColors from '../shaders/nft-frame-colors.fsh'
-import nftVertexShader from '../shaders/nft.vsh'
 import { fetchTexture } from '../textures/textures'
 import { rebindGizmos } from '../tools/gizmos'
 import { Advanced, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, SourceInput } from '../ui/features'
@@ -17,8 +13,15 @@ import { opensea, readOpenseaUrl } from '../utils/proxy'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D, TransparencyMode } from './feature'
 import { setTextureProperties } from './image'
-import NFTFrame from './utils/nft-frame'
 import { Action } from '../../common/messages'
+
+function frameMat(scene: BABYLON.Scene, name: string, color: BABYLON.Color3): BABYLON.StandardMaterial {
+  const m = new BABYLON.StandardMaterial(`feature/nft-image/${name}`, scene)
+  m.emissiveColor = color
+  m.disableLighting = true
+  m.freeze()
+  return m
+}
 
 export function arrayBufferToDataURL(buf: ArrayBuffer, mime = 'application/octet-stream'): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -30,19 +33,14 @@ export function arrayBufferToDataURL(buf: ArrayBuffer, mime = 'application/octet
   })
 }
 
-BABYLON.Effect.ShadersStore['nftVertexShader'] = nftVertexShader
-BABYLON.Effect.ShadersStore['nftFramePixelShader'] = nftFrameShaderClassic
-BABYLON.Effect.ShadersStore['nftFrameColorsPixelShader'] = nftFrameColorsShaderColors
-BABYLON.Effect.ShadersStore['nftFrameBluePixelShader'] = nftFrameBlueShaderBlue
-
 const frameThick = 0.05
 
 const queryParams = new URLSearchParams(document.location.search.substring(1))
 
 export default class NftImage extends Feature2D<NftImageRecord> {
-  static classicFrameMaterial: NFTFrame
-  static colorsFrameMaterial: NFTFrame
-  static blueFrameMaterial: NFTFrame
+  static classicFrameMaterial: BABYLON.StandardMaterial
+  static colorsFrameMaterial: BABYLON.StandardMaterial
+  static blueFrameMaterial: BABYLON.StandardMaterial
   static metadata: FeatureMetadata = {
     title: 'NFT Image',
     subtitle: 'nfts you own',
@@ -102,9 +100,9 @@ export default class NftImage extends Feature2D<NftImageRecord> {
   }
 
   static generateFrameMaterials(scene: BABYLON.Scene) {
-    NftImage.classicFrameMaterial = new NFTFrame(scene, 'nftFrame', 'nft-classic-frame')
-    NftImage.colorsFrameMaterial = new NFTFrame(scene, 'nftFrameColors', 'nft-frame-frame')
-    NftImage.blueFrameMaterial = new NFTFrame(scene, 'nftFrameBlue', 'nft-blue-frame')
+    NftImage.classicFrameMaterial = frameMat(scene, 'nft-classic-frame', new BABYLON.Color3(0.6, 0.6, 0.6))
+    NftImage.colorsFrameMaterial = frameMat(scene, 'nft-frame-frame', new BABYLON.Color3(0.8, 0.4, 0.8))
+    NftImage.blueFrameMaterial = frameMat(scene, 'nft-blue-frame', new BABYLON.Color3(0.2, 0.4, 0.9))
   }
 
   toString() {
@@ -391,47 +389,29 @@ export default class NftImage extends Feature2D<NftImageRecord> {
       return
     }
 
-    const box = (width: number, height: number, depth: number, extra: number) => {
-      const he = extra / 2
-      const faceUV = [
-        new BABYLON.Vector4(-he, -he, width + he, height + he), // back
-        new BABYLON.Vector4(-he, -he, width + he, height + he), // front
-        new BABYLON.Vector4(-he, -he, height + he, depth + he), // right
-        new BABYLON.Vector4(-he, -he, height + he, depth + he), // left
-        new BABYLON.Vector4(-he, -he, depth + he, width + he), // top
-        new BABYLON.Vector4(-he, -he, depth + he, width + he), // bottom
-      ]
-
-      const options = {
-        width: width + extra,
-        height: height + extra,
-        depth: depth,
-        faceUV: faceUV,
-      }
-
-      return BABYLON.MeshBuilder.CreateBox(this.uniqueEntityName('mesh'), options, this.scene)
-    }
-
     if (!this.assetHelper?.isOwner(this.parcel.owner)) {
       return
     }
     if (!this.description.hasFrame) {
       return
     }
-    // Generate boxes
-    const outer_box = box(this.scale.x, this.scale.y, frameThick, frameThick)
-    const inner_box = box(this.scale.x, this.scale.y, frameThick, 0)
 
-    // CSG
-    const c = BABYLON.CSG.FromMesh(outer_box)
-    c.subtractInPlace(BABYLON.CSG.FromMesh(inner_box))
+    const w = this.scale.x
+    const h = this.scale.y
+    const t = frameThick
+    const name = this.uniqueEntityName('mesh')
+    const top = BABYLON.MeshBuilder.CreateBox(`${name}/top`, { width: w + 2 * t, height: t, depth: t }, this.scene)
+    top.position.y = h / 2 + t / 2
+    const bottom = BABYLON.MeshBuilder.CreateBox(`${name}/bottom`, { width: w + 2 * t, height: t, depth: t }, this.scene)
+    bottom.position.y = -(h / 2 + t / 2)
+    const left = BABYLON.MeshBuilder.CreateBox(`${name}/left`, { width: t, height: h, depth: t }, this.scene)
+    left.position.x = -(w / 2 + t / 2)
+    const right = BABYLON.MeshBuilder.CreateBox(`${name}/right`, { width: t, height: h, depth: t }, this.scene)
+    right.position.x = w / 2 + t / 2
 
-    // Dispose frame boxes
-    outer_box.dispose()
-    inner_box.dispose()
-
-    // Set material
-    this.frame = c.toMesh('nft-image-frame', frameMaterial.material, this.scene, false)
+    this.frame = BABYLON.Mesh.MergeMeshes([top, bottom, left, right], true)!
+    this.frame.name = 'nft-image-frame'
+    this.frame.material = frameMaterial
     this.frame.parent = this.mesh.parent
     this.frame.position.copyFrom(this.position)
     this.frame.rotation.copyFrom(this.rotation)

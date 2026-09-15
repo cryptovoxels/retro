@@ -22,6 +22,10 @@ export function getGpuTextureFormat(): TextureFormatExtension {
   return cachedFormat
 }
 
+function glContext(engine: BABYLON.AbstractEngine): WebGLRenderingContext | null {
+  return (engine as BABYLON.Engine)._gl ?? null
+}
+
 function detectFormat(): TextureFormatExtension {
   const engine = BABYLON.EngineStore.Instances[0]
 
@@ -30,23 +34,25 @@ function detectFormat(): TextureFormatExtension {
     // throw new Error('Cannot detect texture format: BabylonJS engine not initialized')
   }
 
+  const gl = glContext(engine)
+
   // NullEngine (used in tests) doesn't have WebGL context
-  if (!engine._gl) {
+  if (!gl) {
     return '.pvrtc.ktx'
   }
 
   // Check for supported compression formats in order of preference
   // ETC is smaller than ASTC over the wire
-  if (engine._gl.getExtension('WEBGL_compressed_texture_s3tc')) {
+  if (gl.getExtension('WEBGL_compressed_texture_s3tc')) {
     return '.dxt.ktx'
   }
-  if (engine._gl.getExtension('WEBGL_compressed_texture_pvrtc')) {
+  if (gl.getExtension('WEBGL_compressed_texture_pvrtc')) {
     return '.pvrtc.ktx'
   }
-  if (engine._gl.getExtension('WEBGL_compressed_texture_etc')) {
+  if (gl.getExtension('WEBGL_compressed_texture_etc')) {
     return '.etc.ktx'
   }
-  if (engine._gl.getExtension('WEBGL_compressed_texture_astc')) {
+  if (gl.getExtension('WEBGL_compressed_texture_astc')) {
     return '.astc.ktx'
   }
 
