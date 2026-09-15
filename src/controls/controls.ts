@@ -16,7 +16,7 @@ import { Animations } from '../avatar-animations'
 export const CAMERA_DISTANCE = isMobile() ? 2.5 : 1.5
 export const MIN_CAMERA_DISTANCE = 0.5
 export const MAX_CAMERA_DISTANCE = 10
-const ISO_DISTANCE = 4
+const ISO_DISTANCE = 2
 const ISO_PITCH = 0.75 // look down at the avatar, isometric-ish
 const CAMERA_EASE_OUT = 1.4
 const SWIM_LEVEL = -2
