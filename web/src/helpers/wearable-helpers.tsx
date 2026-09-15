@@ -59,7 +59,7 @@ export function rarityColor(issues: number) {
 }
 
 export const loadWearableVox = (importer: VoxImporter, urlOrBuffer: string | ArrayBuffer, scene: BABYLON.Scene, abortController: AbortController) => {
-  return importer.import(urlOrBuffer, { wantCollider: false, signal: abortController.signal }).then((mesh: BABYLON.Mesh) => {
+  return importer.import(urlOrBuffer, { signal: abortController.signal }).then((mesh: BABYLON.Mesh) => {
     if (!mesh) {
       throw new Error('could not load mesh')
     }

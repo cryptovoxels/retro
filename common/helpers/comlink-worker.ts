@@ -2,7 +2,10 @@
 // ABOUTME: Used for running code in workers when available, or in main thread in sandboxed environments
 
 import * as Comlink from 'comlink'
+import { installAbort } from '../../src/monoworker/abort'
 import { forceMainThreadWorkers } from './detector'
+
+installAbort()
 
 interface ComlinkWorkerResult<T> {
   worker: T

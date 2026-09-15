@@ -285,8 +285,8 @@ export default class Avatar extends Entity {
       const url = payload.voxUrl ? Config.voxModelURL(payload.voxUrl, undefined, 'megavox') : `${process.env.ASSET_PATH}/models/vox-five.vox`
       const mesh = await voxImporter().import(url, {
         megavox: true,
-        wantCollider: false,
-      } as any)
+        signal: new AbortController().signal,
+      })
       if (gen !== this._vehicleLoadGen) {
         mesh.dispose()
         return
