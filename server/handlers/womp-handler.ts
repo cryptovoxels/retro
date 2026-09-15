@@ -8,7 +8,7 @@ import { VoxelsUserRequest } from '../user'
 const log = named('womp-handler')
 
 export async function createWomp(req: VoxelsUserRequest, res: Response) {
-  const { content, coords, parcel_id, space_id, kind, image_url } = req.body
+  const { content, coords, parcel_id, space_id, kind, image_url, metadata } = req.body
   const author = req.user?.wallet
 
   if (!Object.values(WompType).includes(kind)) {
@@ -49,6 +49,7 @@ export async function createWomp(req: VoxelsUserRequest, res: Response) {
     space_id,
     image_url,
     kind,
+    metadata: metadata && typeof metadata === 'object' && !Array.isArray(metadata) ? metadata : undefined,
   })
 
   const p = await womp.create()

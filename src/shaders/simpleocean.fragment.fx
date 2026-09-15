@@ -26,11 +26,6 @@ uniform float waterSurfaceY;
 #include<imageProcessingFunctions>
 #include<fogFragmentDeclaration>
 
-float calculateFresnel(vec3 normal, vec3 viewDir, float fresnelPower) {
-    float NdotV = max(dot(normal, viewDir), 0.0);
-    return pow(1.0 - NdotV, fresnelPower);
-}
-
 vec3 calculateSunSpecular(vec3 normal, vec3 viewDir, vec3 lightDir, vec3 lightColor, float specularPower) {
     vec3 halfVector = normalize(viewDir + lightDir);
     float NdotH = max(dot(normal, halfVector), 0.0);
@@ -49,15 +44,12 @@ void main(void) {
         color += sunSpecular;
     }
 
-    float fresnel = calculateFresnel(normal, viewDir, 2.0);
-    float finalAlpha = mix(0.6, 0.8, fresnel);
-
     #ifdef FOG
     float fog = CalcFogFactor();
     color.rgb = mix(vFogColor, color.rgb, fog);
     #endif
 
-    gl_FragColor = vec4(color, finalAlpha);;
+    gl_FragColor = vec4(color, 1.0);
 
     #include<imageProcessingCompatibility>
 }

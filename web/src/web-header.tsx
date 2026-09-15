@@ -179,7 +179,7 @@ export default class WebHeader extends Component<Props, State> {
             <ul>
               <li class="logo">
                 <a href="/">
-                  <CubeIcon name="v" />
+                  <CubeIcon name="c" />
                 </a>
               </li>
               <li>

@@ -26,7 +26,7 @@ const MAX_SPAN_S = 90
 const MAX_GHOSTS = 10
 const STRIDE = 4
 
-type Sample = { t: number; x: number; y: number; z: number; parcel: number }
+type Sample = { t: number; x: number; y: number; z: number; parcel: number | string }
 
 type GhostRow = {
   start_parcel: number
@@ -152,7 +152,7 @@ export function startGhosts(scene: BABYLON.Scene, grid: Grid, controls: Controls
   let idleSinceMs: number | null = null
   let lastSampleAt = 0
   let fetchAt = Date.now() + 5000 + Math.random() * 5000
-  let lastFetchParcel: number | null = null
+  let lastFetchParcel: number | string | null = null
 
   const resetBlob = (type: GhostTypeId | null) => {
     samples = []
@@ -169,7 +169,7 @@ export function startGhosts(scene: BABYLON.Scene, grid: Grid, controls: Controls
   }
 
   const distinctParcels = (blob: Sample[] = samples) => {
-    const set = new Set<number>()
+    const set = new Set<number | string>()
     for (const s of blob) set.add(s.parcel)
     return set
   }

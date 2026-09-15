@@ -16,7 +16,6 @@ import { tidyFloat } from '../utils/helpers'
 import { opensea, readOpenseaUrl } from '../utils/proxy'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D, TransparencyMode } from './feature'
-import { encodeImageDraft, persistDraft } from './feature-draft'
 import { setTextureProperties } from './image'
 import NFTFrame from './utils/nft-frame'
 import { Action } from '../../common/messages'
@@ -269,7 +268,6 @@ export default class NftImage extends Feature2D<NftImageRecord> {
         texture.hasAlpha = false
         this.renderImage(texture)
         this.loaded = true
-        void encodeImageDraft(imgUrl).then((d) => persistDraft(this, d))
       } catch {
         // aborted or failed: leave draft
       }

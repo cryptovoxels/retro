@@ -6,6 +6,7 @@ import { Component } from 'preact'
 import cachedFetch from '../src/helpers/cached-fetch'
 import { wompCache } from './store/index'
 import { AvatarLink } from './components/avatar-link'
+import { WompMetadata } from './components/womp-metadata'
 import { avatarName } from '../../common/messages/avatar-ref'
 import { naviportHere } from './helpers/coords-nav'
 import { app } from './state'
@@ -82,7 +83,7 @@ export default class Womp extends Component<Props, State> {
   get visitUrl() {
     const coords = this.state.womp?.coords
     if (!coords) return undefined
-    return this.isSpaceWomp() ? `/spaces/${this.state.womp.space_id}` : `/play?coords=${coords}`
+    return this.isSpaceWomp() ? `/spaces/${this.state.womp.space_id}/play` : `/play?coords=${coords}`
   }
 
   syncVisitUrl() {
@@ -112,13 +113,14 @@ export default class Womp extends Component<Props, State> {
           </dd>
           <dt>{!this.isSpaceWomp() ? `Parcel` : `Space`}</dt>
           <dd>
-            <a href={!this.isSpaceWomp() ? `/parcels/${this.state.womp.parcel_id}` : `/spaces/${this.state.womp.space_id}`}>{this.state.womp.parcel_name || this.state.womp.space_name}</a>
+            <a href={!this.isSpaceWomp() ? `/parcels/${this.state.womp.parcel_id}` : `/spaces/${this.state.womp.space_id}/play`}>{this.state.womp.parcel_name || this.state.womp.space_name}</a>
           </dd>
           <dt>Created at</dt>
           <dd>{new Date(this.state.womp.created_at).toLocaleString()}</dd>
         </dl>
 
         {this.state.womp.content && <p>{this.state.womp.content}</p>}
+        <WompMetadata metadata={this.state.womp.metadata} />
 
         <ReportButton type="womps" item={this.state.womp}>
           <option value="Womp contains NSFW content">Womp contains NSFW content</option>

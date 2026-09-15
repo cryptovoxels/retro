@@ -168,7 +168,7 @@ export class PumpWorkerManager {
     cameraPosition: BABYLON.Vector3,
     cameraDirection: BABYLON.Vector3,
     maxDrawDistance = 200,
-    currentParcelId?: number,
+    currentParcelId?: number | string,
   ): Promise<LoadOrderItem[]> {
     const camera = this.serializeCameraVectors(cameraPosition, cameraDirection)
     const relations = this.serializeInstanceRelations(instanceRelations)
@@ -181,7 +181,7 @@ export class PumpWorkerManager {
     cameraPosition: [number, number, number],
     cameraDirection: [number, number, number],
     maxDrawDistance = 200,
-    currentParcelId?: number,
+    currentParcelId?: number | string,
   ): Promise<LoadOrderItem[]> {
     return this.executeWorkerRequest(() => this.workerAPI!.requestFeatureSorting(features, instanceRelations, cameraPosition, cameraDirection, maxDrawDistance, currentParcelId), 'sorting')
   }

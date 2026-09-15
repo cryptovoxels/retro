@@ -39,7 +39,7 @@ export function applyCleanPalette(mesh: BABYLON.Mesh, palette: BABYLON.Color3[])
   return true
 }
 
-function mesh(geo: Geo, tex: BABYLON.Texture, scene: BABYLON.Scene, id: number, palette: BABYLON.Color3[]): BABYLON.Mesh {
+function mesh(geo: Geo, tex: BABYLON.Texture, scene: BABYLON.Scene, id: number | string, palette: BABYLON.Color3[]): BABYLON.Mesh {
   const m = new BABYLON.Mesh(`voxelizer/opaque-${id}`, scene)
   const vd = new BABYLON.VertexData()
   vd.positions = geo.positions
@@ -66,7 +66,7 @@ function mesh(geo: Geo, tex: BABYLON.Texture, scene: BABYLON.Scene, id: number, 
   return m
 }
 
-function glassMesh(geo: GlassGeo, scene: BABYLON.Scene, id: number, palette: BABYLON.Color3[]): BABYLON.Mesh {
+function glassMesh(geo: GlassGeo, scene: BABYLON.Scene, id: number | string, palette: BABYLON.Color3[]): BABYLON.Mesh {
   const m = new BABYLON.Mesh(`voxelizer/glass-${id}`, scene)
   const vd = new BABYLON.VertexData()
   vd.positions = geo.positions
@@ -97,7 +97,7 @@ export async function buildCleanMesh(
   lanterns: LanternRecord[],
   scene: BABYLON.Scene,
   off: [number, number, number],
-  id: number,
+  id: number | string,
   palette: BABYLON.Color3[],
   texOverride?: BABYLON.Texture,
 ): Promise<{ opaque: BABYLON.Mesh; glass: BABYLON.Mesh | null }> {

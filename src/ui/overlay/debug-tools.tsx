@@ -2,16 +2,15 @@ import { Component } from 'preact'
 import { render, unmountComponentAtNode, useState } from 'preact/compat'
 import Connector from '../../connector'
 import { showAreaContentAnalyzeUI } from '../../controls/desktop/area-content-analyzer'
-import { Environment } from '../../enviroments/environment'
 import type Grid from '../../grid'
 import type Parcel from '../../parcel'
+import { getWorldTimeOfDay, setWorldTimeOfDay, updateWorldScene } from '../../init/world-scene'
 import { toggleFPSStats } from '../../utils/fps-stats'
 import { TimeOfDay } from '../../utils/time-of-day'
 
 interface Props {
   parcel: Parcel | null
   scene: BABYLON.Scene
-  environment: Environment
 }
 
 interface State {
@@ -37,7 +36,7 @@ export default class DebugTools extends Component<Props, State> {
       parcelBoundingBoxes: DebugTools.previousState?.parcelBoundingBoxes || [],
       gridIsOpen: this.grid.isOpen,
       multiplayerIsOpen: this.connector.isOpen,
-      nightTime: this.environment.timeOfDay == TimeOfDay.Night,
+      nightTime: getWorldTimeOfDay() == TimeOfDay.Night,
       isGridWorkerRunning: this.grid.isWorkerRunning,
     }
 
@@ -50,7 +49,7 @@ export default class DebugTools extends Component<Props, State> {
   }
 
   get environment() {
-    return this.props.environment
+    return null
   }
 
   get scene() {
@@ -102,15 +101,9 @@ export default class DebugTools extends Component<Props, State> {
 
   toggleTimeOfDay() {
     this.setState({ nightTime: !this.state.nightTime }, () => {
-      if (!this.environment) {
-        return
-      }
-      let time = TimeOfDay.Day
-      if (this.environment.timeOfDay == TimeOfDay.Day) {
-        time = TimeOfDay.Night
-      }
-      this.environment.timeOfDay = time
-      this.environment.update()
+      const time = this.state.nightTime ? TimeOfDay.Night : TimeOfDay.Day
+      setWorldTimeOfDay(time)
+      updateWorldScene()
     })
   }
 

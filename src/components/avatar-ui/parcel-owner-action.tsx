@@ -27,7 +27,7 @@ export default class ParcelOwnerActions extends Component<Props> {
     if (!app.signedIn) return false
     const parcel = this.currentParcel
     if (!parcel) return false
-    return new ParcelHelper(parcel).isOwner(app.state.wallet)
+    return new ParcelHelper(parcel.summary as any).isOwner(app.state.wallet)
   }
 
   render() {

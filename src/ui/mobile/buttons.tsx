@@ -5,7 +5,7 @@ import { MinimapSettings } from '../../minimap'
 export default function MobileButtons({ connector, scene, minimapSettings }: { connector: Connector; scene: BABYLON.Scene; minimapSettings: MinimapSettings }) {
   return (
     <div class="mobile-buttons">
-      <div style={(isTablet() && window.config.isGrid && { bottom: '200px' }) as any} className="mobile-controls-container">
+      <div style={(isTablet() && window.grid?.currentW === 0 && { bottom: '200px' }) as any} className="mobile-controls-container">
         <button className="camera-view-button hex-button" onClick={() => connector.controls.togglePerspective()}>
           Zoom
         </button>

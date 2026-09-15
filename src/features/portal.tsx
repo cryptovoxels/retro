@@ -55,7 +55,7 @@ export default class Portal extends Feature3D<PortalRecord> {
     if (!this.description.womp) {
       return null
     }
-    return !this.description.womp.space_id ? `/play?coords=${this.description.womp.coords}` : `/spaces/${this.description.womp.space_id}`
+    return !this.description.womp.space_id ? `/play?coords=${this.description.womp.coords}` : `/spaces/${this.description.womp.space_id}/play`
   }
 
   static getOutlineMesh(scene: BABYLON.Scene) {

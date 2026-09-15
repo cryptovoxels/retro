@@ -34,7 +34,7 @@ export function DesktopOrMobile({ children }: { children?: ComponentChildren }) 
 }
 
 export function OnlyOnGrid({ scene, children }: { scene: BABYLON.Scene; children?: ComponentChildren }) {
-  if (window.config.isGrid) {
+  if (window.grid?.currentW === 0) {
     return children as any
   } else {
     return null

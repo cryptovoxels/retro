@@ -135,7 +135,49 @@ async function behaviourAgent(req: Request, res: Response) {
   res.json({ script: out })
 }
 
+async function wompDescription(req: Request, res: Response) {
+  const { metadata } = req.body as {
+    metadata?: { avatars?: { avatar?: any }[]; art?: { name?: string | null }[] }
+  }
+
+  const people = (metadata?.avatars ?? [])
+    .map((a) => {
+      const ref = a?.avatar
+      if (!ref) return null
+      if (typeof ref === 'string') {
+        if (ref === 'anon' || ref.startsWith('0x')) return null
+        return ref
+      }
+      const name = ref.name
+      if (!name || name === 'anon' || String(name).startsWith('0x')) return null
+      return String(name)
+    })
+    .filter(Boolean) as string[]
+  const pieces = (metadata?.art ?? []).map((a) => a?.name).filter((n): n is string => !!n)
+  const anonCount = (metadata?.avatars?.length ?? 0) - people.length
+
+  const who =
+    people.length === 0 && anonCount === 0
+      ? ''
+      : people.length === 0
+        ? anonCount === 1
+          ? 'someone'
+          : `${anonCount} people`
+        : people.length === 1
+          ? people[0]
+          : people.length === 2
+            ? `${people[0]} and ${people[1]}`
+            : `${people.slice(0, -1).join(', ')}, and ${people[people.length - 1]}`
+
+  const what = pieces.length === 0 ? '' : pieces.length === 1 ? pieces[0] : pieces.slice(0, 2).join(' and ')
+
+  // deterministic to_sentence of avatars + nearby art only — no parcel, no inventing
+  const description = (who && what ? `${who} with ${what}` : who || what || '').slice(0, 160)
+  res.json({ description })
+}
+
 export default function ModelsController(app: Express) {
   app.post('/api/models/time', parseTime)
   app.post('/api/models/behaviour', behaviourAgent)
+  app.post('/api/models/womp-description', wompDescription)
 }
