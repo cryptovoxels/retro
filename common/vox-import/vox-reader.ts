@@ -167,6 +167,25 @@ export const voxReader = (buffer: ArrayBuffer, megavox: boolean, callback: Callb
     }
 
     const numMergedVerts = next_v_i
+
+    for (let i = 0; i < index_i; i += 3) {
+      const a = indices[i + 0] + 0
+      const b = indices[i + 1] + 0
+      const c = indices[i + 2] + 0
+
+      const y1 = positions[a * 3 + 1]
+      const y2 = positions[b * 3 + 1]
+      const y3 = positions[c * 3 + 1]
+
+      // Reverse y face winding order
+      if (y1 == y2 && y2 == y3) {
+        // continue
+      } else {
+        // indices[i + 1] = c
+        // indices[i + 2] = b
+      }
+    }
+
     const finalIndices = numMergedVerts < 65536 ? Uint16Array.from(indices.subarray(0, index_i)) : indices.subarray(0, index_i)
 
     callback({

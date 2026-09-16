@@ -21,30 +21,33 @@ export const voxImporter = (): VoxImporter => {
 export class VoxImporter {
   private static readonly JOB_TIMEOUT_MS = 5000
 
-  private material: BABYLON.Material | null = null
+  // private material: BABYLON.Material | null = null
   private _scene: BABYLON.Scene | undefined
 
   initialize(scene: BABYLON.Scene) {
     if (scene) this._scene = scene
-    if (!scene || this.material) return
+    // if (!scene || this.material) return
 
-    const mat = new BABYLON.StandardMaterial('vox-model/vox-shader', scene)
-    mat.fogEnabled = true
-    mat.specularColor.set(0, 0, 0)
-    this.material = mat
+    // const mat = new BABYLON.StandardMaterial('vox-model/vox-shader', scene)
+    // mat.fogEnabled = true
+    // mat.specularColor.set(0, 0, 0)
+    // this.material = mat
   }
 
   async import(urlOrBuffer: string | ArrayBuffer, options: Options): Promise<BABYLON.Mesh> {
-    if (!this.material) {
-      console.error('VoxImport.material missing')
-    }
+    // if (!this.material) {
+    //   console.error('VoxImport.material missing')
+    // }
     if (options.signal?.aborted) {
       throw new Error('Aborted')
     }
 
     const scene = this._scene ?? window.scene
     const mesh = new BABYLON.Mesh('utils/vox-box', scene)
-    mesh.material = this.material
+    const mat = new BABYLON.StandardMaterial('vox-model/vox-shader', scene)
+    mat.specularColor.set(0, 0, 0)
+
+    mesh.material = mat
     mesh.useVertexColors = true
     mesh.isPickable = true
 
