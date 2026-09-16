@@ -22,6 +22,7 @@ import type { FeatureTemplate } from './features/_metadata'
 import type Grid from './grid'
 import type { MinimapSettings } from './minimap'
 import Parcel from './parcel'
+import { spamhaus } from './markov-haus'
 import { Animations } from './avatar-animations'
 import {
   selectCurrentOrNearestParcel,
@@ -1098,17 +1099,30 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                 </a>
               </li>
               {app.isAdmin() && nearestEditableParcel && (
-                <li>
-                  <a
-                    href="#"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      void nearestEditableParcel.resave()
-                    }}
-                  >
-                    resave
-                  </a>
-                </li>
+                <>
+                  <li>
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        void nearestEditableParcel.resave()
+                      }}
+                    >
+                      resave
+                    </a>
+                  </li>
+                  <li>
+                    <a
+                      href="#"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        void spamhaus(nearestEditableParcel)
+                      }}
+                    >
+                      spamhaus
+                    </a>
+                  </li>
+                </>
               )}
               <li class={active('dance')}>
                 <a href="#dance" onMouseOver={onHover('dance')} onClick={onClick('dance')}>
