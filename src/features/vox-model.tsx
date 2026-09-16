@@ -33,7 +33,6 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     type: 'vox-model',
     scale: [0.5, 0.5, 0.5],
     url: '',
-    flipX: true,
   }
 
   private _importError: string | null = null
@@ -85,18 +84,11 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   }
 
   private applyImportedMesh(imported: BABYLON.Mesh) {
-    if (!(this.mesh instanceof BABYLON.Mesh)) {
-      this.mesh = imported
-    } else {
-      BABYLON.VertexData.ExtractFromMesh(imported).applyToMesh(this.mesh)
-      this.mesh.material = imported.material
-      imported.material = null
-      imported.dispose()
-    }
+    this.mesh?.dispose()
+    this.mesh = imported
     this.mesh.isPickable = true
     this.mesh.name = this.uniqueEntityName('mesh')
     this.mesh.id = this.mesh.name
-    this.mesh.refreshBoundingInfo()
     this.afterGenerate()
   }
 
@@ -284,7 +276,6 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     type: 'megavox',
     scale: [0.5, 0.5, 0.5],
     url: '',
-    flipX: true,
   }
 
   protected override _voxImportParams(): VoxImportOptions {
@@ -311,7 +302,6 @@ export class Ride extends VoxModel<RideRecord> {
     type: 'ride',
     scale: [0.5, 0.5, 0.5],
     url: '',
-    flipX: true,
   }
 
   // live drive state (ephemeral) - not written to the parcel feature record every frame
@@ -383,7 +373,6 @@ export class Ride extends VoxModel<RideRecord> {
 
   applyDrivePose(position: [number, number, number], rotation: [number, number, number]) {
     if (!this.mesh) return
-    if (this.mesh.isWorldMatrixFrozen) this.mesh.unfreezeWorldMatrix()
     if (this.mesh.rotationQuaternion) this.mesh.rotationQuaternion = null
     this.mesh.position.fromArray(position)
     this.mesh.rotation.fromArray(rotation)
@@ -439,9 +428,6 @@ export class Ride extends VoxModel<RideRecord> {
     const pos = (this.description.position as [number, number, number]) || [0, 0, 0]
     const rot = (this.description.rotation as [number, number, number]) || [0, 0, 0]
     this.applyDrivePose(pos, rot)
-    try {
-      this.mesh?.freezeWorldMatrix()
-    } catch {}
     this.setParkedVisible(true)
     this.broadcastDriveState({ recall: true, position: pos, rotation: rot, driverUuid: null, emptySince: null })
     const controls = window.connector?.controls as any

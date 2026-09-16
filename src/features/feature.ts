@@ -426,14 +426,6 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     return !!this.isLink || hasBehaviours || (!!this.script && !!this.script.match(/on\('click'/g))
   }
 
-  refreshWorldMatrix() {
-    if (this.isAnimated) {
-      this.mesh?.isWorldMatrixFrozen && this.mesh?.unfreezeWorldMatrix()
-    } else {
-      this.mesh?.freezeWorldMatrix()
-    }
-  }
-
   inside(checkBoundingBox: BABYLON.BoundingBox): boolean {
     // the parcel's cached boxes go stale when a teleport moves the world offset - resync first
     this.parcel.syncWorldBounds()
@@ -445,8 +437,6 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     if (!this.mesh) {
       return
     }
-
-    this.mesh.unfreezeWorldMatrix()
 
     const frames = Math.max(...animations.map((animation) => animation.getHighestFrame()))
 
@@ -1056,8 +1046,6 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     if (this.afterSetCommon) {
       this.afterSetCommon()
     }
-
-    this.refreshWorldMatrix()
   }
 
   /**

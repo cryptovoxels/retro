@@ -79,11 +79,6 @@ export default class Group extends NonMeshedFeature<GroupRecord> {
     super.delete()
   }
 
-  refreshWorldMatrix() {
-    super.refreshWorldMatrix()
-    this.children.forEach((child) => child.refreshWorldMatrix())
-  }
-
   async regenerate() {
     await super.regenerate()
 

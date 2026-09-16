@@ -1,7 +1,6 @@
 import { voxReader } from '../../common/vox-import/vox-reader'
 
 export type LoadVoxArgs = {
-  flipX: boolean
   megavox: boolean
   timeoutMs: number
   colorMap?: Record<number, [number, number, number]>
@@ -32,7 +31,7 @@ async function loadVoxUrl(url: string, signal?: AbortSignal): Promise<ArrayBuffe
     .then((r) => r!.arrayBuffer())
 }
 
-export async function loadVox({ flipX, megavox, timeoutMs, colorMap, ...urlOrBuffer }: LoadVoxArgs, signal?: AbortSignal): Promise<any> {
+export async function loadVox({ megavox, timeoutMs, colorMap, ...urlOrBuffer }: LoadVoxArgs, signal?: AbortSignal): Promise<any> {
   const timeoutPromise = new Promise((_, reject) => {
     setTimeout(() => reject(new Error(`loadVox timed out after ${timeoutMs}ms`)), timeoutMs)
   })
@@ -47,10 +46,7 @@ export async function loadVox({ flipX, megavox, timeoutMs, colorMap, ...urlOrBuf
     return new Promise((resolve, reject) => {
       voxReader(
         data,
-        0,
-        flipX,
         megavox,
-        false,
         (data) => {
           if (signal?.aborted) {
             return resolve({ cancelled: true })

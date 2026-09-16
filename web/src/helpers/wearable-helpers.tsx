@@ -72,6 +72,7 @@ export const loadWearableVox = (importer: VoxImporter, urlOrBuffer: string | Arr
     const mat = new BABYLON.StandardMaterial('wearable', scene)
     mat.emissiveColor.set(0.5, 0.5, 0.5)
     mat.diffuseColor.set(1, 1, 1)
+    mat.backFaceCulling = false
     mat.blockDirtyMechanism = true
     mat.freeze()
     mesh.material = mat

@@ -19,6 +19,7 @@ vi.mock('comlink', () => ({
       }),
   }),
   proxy: (x: any) => x,
+  transferHandlers: new Map(),
 }))
 
 describe('createComlinkWorker', () => {

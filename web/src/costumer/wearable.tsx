@@ -147,8 +147,6 @@ export class Wearable extends Component<Props, State> {
   async componentDidMount() {
     this.mounted = true
 
-    const opts = { invertX: false }
-
     if (!this.scene) {
       throw new Error('No scene')
     }

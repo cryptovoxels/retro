@@ -105,7 +105,6 @@ export type FeatureTemplate = {
   url?: string
   blendMode?: string
   transparencyMode?: string
-  flipX?: boolean
   rotation?: [number, number, number]
   color?: string
   rotate?: number[]

@@ -40,7 +40,6 @@ async function blobFromCanvas(canvas: OffscreenCanvas | HTMLCanvasElement): Prom
 async function meshFromBuffer(scene: BABYLON.Scene, buf: ArrayBuffer): Promise<BABYLON.Mesh> {
   const data = await loadVox({
     buffer: buf.slice(0),
-    flipX: true,
     megavox: false,
     timeoutMs: 10000,
   })
@@ -48,24 +47,21 @@ async function meshFromBuffer(scene: BABYLON.Scene, buf: ArrayBuffer): Promise<B
 
   const mesh = new BABYLON.Mesh('thumb', scene)
   const vd = new BABYLON.VertexData()
-  vd.positions = data.positions
+  vd.positions = data.positions as any
   vd.indices = data.indices
-  vd.colors = data.colors
+  vd.colors = data.colors as any
   vd.applyToMesh(mesh)
 
   const mat = new BABYLON.StandardMaterial('thumb', scene)
   mat.diffuseColor.set(1, 1, 1)
   mat.specularColor.set(0, 0, 0)
   mat.emissiveColor.set(0.25, 0.25, 0.25)
-  mat.backFaceCulling = false
-  mat.freeze()
   mesh.material = mat
 
   mesh.computeWorldMatrix(true)
   mesh.refreshBoundingInfo()
   const center = mesh.getBoundingInfo().boundingBox.centerWorld
   mesh.position.set(-center.x, -center.y, center.z)
-  mesh.freezeWorldMatrix()
   return mesh
 }
 
