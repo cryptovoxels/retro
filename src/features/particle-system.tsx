@@ -76,7 +76,6 @@ export default class ParticleSystem extends Feature3D<ParticlesRecord> {
     this.mesh.translate(BABYLON.Axis.Z, -0.1, BABYLON.Space.LOCAL)
 
     await this.createParticleSystem(this.mesh)
-    this.refreshWorldMatrix()
   }
 
   async createParticleSystem(plane: BABYLON.AbstractMesh) {

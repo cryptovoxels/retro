@@ -22,7 +22,6 @@ let windowDragActive = false
 let windowDragCursorObserver: BABYLON.Observer<BABYLON.PointerInfo> | null = null
 let windowDragPointerObserver: BABYLON.Observer<BABYLON.PointerInfo> | null = null
 let windowDragPrePointerObserver: BABYLON.Observer<BABYLON.PointerInfoPre> | null = null
-let windowDragUnfreezeObserver: BABYLON.Observer<BABYLON.Scene> | null = null
 let windowDragDocPointerUp: (() => void) | null = null
 let windowDragFrame: PlaneFrame | null = null
 let windowDragGrabU = 0
@@ -132,10 +131,6 @@ const onAxisDragEnd = (gizmo: BABYLON.AxisDragGizmo, axis: AxisLabel) => () => {
 const onDragObservableHandler = (gizmo: BABYLON.IGizmo) => () => {
   const feature = getFeature(gizmo)
   if (!feature) return
-
-  if (feature.type === 'group') {
-    feature.refreshWorldMatrix()
-  }
 
   updateHighlight()
 }
@@ -302,7 +297,6 @@ const pointerRay = (scene: BABYLON.Scene): BABYLON.Ray | null => {
 }
 
 const setMeshWorldPositionOnPlane = (mesh: BABYLON.Mesh, worldPos: BABYLON.Vector3) => {
-  mesh.unfreezeWorldMatrix()
   const parent = mesh.parent as BABYLON.TransformNode | null
   if (parent) {
     const inv = parent.getWorldMatrix().clone().invert()
@@ -348,17 +342,11 @@ const attachWindowDrag = (feature: Feature) => {
   const scene = mesh.getScene()
   const canvas = scene.getEngine().getRenderingCanvas()
 
-  mesh.unfreezeWorldMatrix()
   windowDragMeshWasPickable = mesh.isPickable
   mesh.isPickable = true
   mesh.enablePointerMoveEvents = true
   ;(mesh as any).hoverCursor = 'move'
   scene.constantlyUpdateMeshUnderPointer = true
-
-  // setCommon freezes meshes; keep this one thawed the whole time the editor gizmos are bound
-  windowDragUnfreezeObserver = scene.onBeforeRenderObservable.add(() => {
-    if (windowDragMesh && windowDragMesh.isWorldMatrixFrozen) windowDragMesh.unfreezeWorldMatrix()
-  })
 
   windowDragCursorObserver = scene.onPointerObservable.add((info) => {
     if (info.type !== BABYLON.PointerEventTypes.POINTERMOVE || !canvas || !windowDragMesh) return
@@ -391,7 +379,6 @@ const attachWindowDrag = (feature: Feature) => {
       const pick = scene.pick(scene.pointerX, scene.pointerY, (m) => m === mesh)
       if (!pick?.hit) return
 
-      mesh.unfreezeWorldMatrix()
       const frame = planeFrameFromMesh(mesh)
       const ray = pointerRay(scene)
       if (!ray) return
@@ -431,7 +418,6 @@ const attachWindowDrag = (feature: Feature) => {
       const frame = windowDragFrame
       const worldStart = windowDragMeshWorldStart
       if (!frame || !worldStart) return
-      mesh.unfreezeWorldMatrix()
       const ray = pointerRay(scene)
       if (!ray) return
       const hit = rayHitPlane(ray, frame.origin, frame.normal)
@@ -486,10 +472,6 @@ const detachWindowDrag = () => {
     if (windowDragPrePointerObserver) {
       scene.onPrePointerObservable.remove(windowDragPrePointerObserver)
       windowDragPrePointerObserver = null
-    }
-    if (windowDragUnfreezeObserver) {
-      scene.onBeforeRenderObservable.remove(windowDragUnfreezeObserver)
-      windowDragUnfreezeObserver = null
     }
     ;(windowDragMesh as any).hoverCursor = ''
     windowDragMesh.isPickable = windowDragMeshWasPickable
@@ -646,7 +628,6 @@ class ResizeHandleSet {
       if (this.canvas) this.canvas.style.cursor = resizeCursorForCorner(corner, mesh as BABYLON.Mesh, this.scene)
       window.ui?.setDragging(true)
       if (this.feature.isAnimated) this.feature.pauseAnimation()
-      mesh.unfreezeWorldMatrix() // we mutate scaling/position during the drag
       startW = Math.abs(mesh.scaling.x) || 1
       startH = Math.abs(mesh.scaling.y) || 1
       featurePosStart.copyFrom(this.feature.position)
@@ -721,7 +702,6 @@ class ResizeHandleSet {
         scale: snapArray(scale.asArray()) as Vec3Description,
         position: snapArray(position.asArray()) as Vec3Description,
       })
-      feature.refreshWorldMatrix()
       if (feature.isAnimated) feature.startAnimation(false)
       setSelectedFeature(feature) // preact rerender of the editor number fields
       updateHighlight()

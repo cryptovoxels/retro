@@ -62,7 +62,6 @@ async function meshFromBuffer(scene: BABYLON.Scene, buf: ArrayBuffer): Promise<B
   mesh.refreshBoundingInfo()
   const center = mesh.getBoundingInfo().boundingBox.centerWorld
   mesh.position.set(-center.x, -center.y, center.z)
-  // mesh.freezeWorldMatrix()
   return mesh
 }
 
