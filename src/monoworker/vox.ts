@@ -44,31 +44,36 @@ export async function loadVox({ megavox, timeoutMs, colorMap, ...urlOrBuffer }: 
     if (signal?.aborted) return { cancelled: true }
 
     return new Promise((resolve, reject) => {
-      voxReader(data, megavox, (data) => {
-        if (signal?.aborted) {
-          return resolve({ cancelled: true })
-        }
-
-        if (data instanceof Error) {
-          let originalUrlInfo = ''
-          if ('url' in urlOrBuffer) {
-            try {
-              const searchParams = new URL(urlOrBuffer.url, 'https://voxels.com').searchParams
-              originalUrlInfo = `: ${searchParams.get('url') || urlOrBuffer.url}`
-            } catch (e) {
-              console.log('failed to parse .vox url - ', urlOrBuffer.url)
-            }
+      voxReader(
+        data,
+        megavox,
+        (data) => {
+          if (signal?.aborted) {
+            return resolve({ cancelled: true })
           }
-          return reject(new Error(`failed reading .vox ${data} - ${originalUrlInfo}`))
-        }
 
-        resolve({
-          positions: data.positions,
-          indices: data.indices,
-          colors: data.colors,
-          size: data.size,
-        })
-      }, colorMap)
+          if (data instanceof Error) {
+            let originalUrlInfo = ''
+            if ('url' in urlOrBuffer) {
+              try {
+                const searchParams = new URL(urlOrBuffer.url, 'https://voxels.com').searchParams
+                originalUrlInfo = `: ${searchParams.get('url') || urlOrBuffer.url}`
+              } catch (e) {
+                console.log('failed to parse .vox url - ', urlOrBuffer.url)
+              }
+            }
+            return reject(new Error(`failed reading .vox ${data} - ${originalUrlInfo}`))
+          }
+
+          resolve({
+            positions: data.positions,
+            indices: data.indices,
+            colors: data.colors,
+            size: data.size,
+          })
+        },
+        colorMap,
+      )
     })
   })()
 
