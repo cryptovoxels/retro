@@ -49,7 +49,7 @@ async function vox(parcel: LiteParcel, f: any, parent: TransformNode) {
   const url = f.url ? Config.voxModelURL(f.url, undefined, f.type === 'ride' ? 'megavox' : f.type) : `${process.env.ASSET_PATH}/models/vox-five.vox`
   let data: any
   try {
-    data = await runCompute((w) => w.loadVox({ url, flipX: true, megavox: f.type !== 'vox-model', timeoutMs: 5000 }))
+    data = await runCompute((w) => w.loadVox({ url, megavox: f.type !== 'vox-model', timeoutMs: 5000 }))
   } catch (e) {
     return
   }

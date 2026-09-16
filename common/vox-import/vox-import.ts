@@ -1,12 +1,13 @@
 import { runCompute } from '../../src/mono-pool'
 
 export interface Options {
-  invertX?: boolean // default false -> flipX true when absent
   megavox?: boolean
   sizeHint?: BABYLON.Vector3
   signal: AbortSignal
   colorMap?: Record<number, [number, number, number]>
 }
+
+const VOX_SCALE = 0.02
 
 let _instance: VoxImporter | null = null
 export const voxImporter = (): VoxImporter => {
@@ -30,9 +31,6 @@ export class VoxImporter {
     const mat = new BABYLON.StandardMaterial('vox-model/vox-shader', scene)
     mat.fogEnabled = true
     mat.specularColor.set(0, 0, 0)
-    mat.backFaceCulling = false
-    mat.freeze()
-    mat.blockDirtyMechanism = true
     this.material = mat
   }
 
@@ -44,7 +42,8 @@ export class VoxImporter {
       throw new Error('Aborted')
     }
 
-    const mesh = new BABYLON.Mesh('utils/vox-box', this._scene ?? window.scene)
+    const scene = this._scene ?? window.scene
+    const mesh = new BABYLON.Mesh('utils/vox-box', scene)
     mesh.material = this.material
     mesh.useVertexColors = true
     mesh.isPickable = true
@@ -65,7 +64,6 @@ export class VoxImporter {
           w.loadVox(
             {
               ...(urlOrBuffer instanceof ArrayBuffer ? { buffer: urlOrBuffer } : { url: urlOrBuffer }),
-              flipX: 'invertX' in options ? !!options.invertX : true,
               megavox: !!options.megavox,
               timeoutMs: VoxImporter.JOB_TIMEOUT_MS,
               colorMap: options.colorMap,
@@ -81,12 +79,29 @@ export class VoxImporter {
         throw new Error('Aborted')
       }
 
-      const d = new BABYLON.VertexData()
-      d.positions = data.positions
-      d.indices = data.indices
-      d.colors = data.colors
-      d.applyToMesh(mesh)
+      const engine = scene.getEngine()
+      mesh.setVerticesBuffer(
+        new BABYLON.VertexBuffer(engine, data.positions, BABYLON.VertexBuffer.PositionKind, {
+          updatable: false,
+          size: 3,
+          type: BABYLON.VertexBuffer.BYTE,
+          normalized: false,
+        }),
+      )
+      mesh.setVerticesBuffer(
+        new BABYLON.VertexBuffer(engine, data.colors, BABYLON.VertexBuffer.ColorKind, {
+          updatable: false,
+          size: 4,
+          type: BABYLON.VertexBuffer.UNSIGNED_BYTE,
+          normalized: true,
+        }),
+      )
+      mesh.setIndices(data.indices)
+
+      // Scale int8 voxel units to world without touching mesh.scaling (feature/attachment scale stays clean)
+      mesh.setPreTransformMatrix(BABYLON.Matrix.Scaling(VOX_SCALE, VOX_SCALE, VOX_SCALE))
       mesh.refreshBoundingInfo()
+
       return mesh
       /// #endif
     } catch (error) {
