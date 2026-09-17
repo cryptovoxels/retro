@@ -80,9 +80,7 @@ export function encodeVoxDraft(buffer: ArrayBuffer): Promise<string | null> {
         const cx = Math.min(3, Math.floor((v.x / sx) * 4))
         const cy = Math.min(3, Math.floor((v.y / sy) * 4))
         const cz = Math.min(3, Math.floor((v.z / sz) * 4))
-        const cell = cx + cy * 4 + cz * 16
-        const { r, g, b } = vox.palette[v.colorIndex] || { r: 0, g: 0, b: 0 }
-        cells[cell].push(nearestIndex(r, g, b))
+        cells[cx + cy * 4 + cz * 16].push(v.colorIndex)
       }
 
       // 64 cells + 3 size bytes so the client can draw it at the real footprint
@@ -93,6 +91,7 @@ export function encodeVoxDraft(buffer: ArrayBuffer): Promise<string | null> {
       for (let i = 0; i < 64; i++) {
         const hits = cells[i]
         if (!hits.length) continue
+        // most common source palette index in the block, then snap that colour to the standard palette
         const freq = new Map<number, number>()
         for (const c of hits) freq.set(c, (freq.get(c) || 0) + 1)
         let best = hits[0]
@@ -103,7 +102,9 @@ export function encodeVoxDraft(buffer: ArrayBuffer): Promise<string | null> {
             best = c
           }
         }
-        out[i] = best
+        // no RGBA chunk means the file already uses the standard palette
+        const col = vox.palette?.[best]
+        out[i] = col ? nearestIndex(col.r, col.g, col.b) : best
       }
 
       resolve(bytesToB64(out))
