@@ -135,12 +135,18 @@ const URL_FIELDS = ['url', 'previewUrl', 'assetUrl'] as const
 
 type Fetched = { bytes: Uint8Array; contentType: string; status: number } | { error: string; status?: number }
 
+export type CompileDraft = {
+  encodeImage?: (url: string, bytes?: Uint8Array) => Promise<string | null>
+  encodeVox?: (buf: ArrayBuffer) => Promise<string | null>
+}
+
 type JobCtx = {
   parcelId: number
   upload: CompileUpload
   pools?: CompilePools
   board?: CompileBoardView
   hoard?: CompileHoard
+  draft?: CompileDraft
   missing: string[]
   stat: CompileStat
   // same URL on ten features at once = one GET (in-flight only, see memoFetch)
@@ -224,8 +230,23 @@ function markMissing(ctx: JobCtx, rawUrl: string, reason: string) {
   else say(`  ${C[0]}FAIL ${truncated(rawUrl)} ${reason}${R}`)
 }
 
-type RehostOk = { location: string; bytes: Uint8Array; ext: string; base: string }
+// no bytes past this point: holding bodies until the parcel finished oom-killed an 8gb box three times
+type RehostOk = { location: string; ext: string; base: string; draft?: string }
 type RehostResult = RehostOk | null
+
+function toArrayBuffer(b: Uint8Array): ArrayBuffer {
+  return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer
+}
+
+function setDraft(ctx: JobCtx, desc: any, d: string) {
+  desc.draft = d
+  ctx.stat.drafts++
+  ctx.board?.bump({ drafts: 1 })
+}
+
+function wantsDraft(type: string | undefined) {
+  return type === 'image' || type === 'nft-image' || type === 'vox-model' || type === 'megavox' || type === 'ride'
+}
 
 function rehostOne(ctx: JobCtx, rawUrl: string, kind: SniffKind): Promise<RehostResult> {
   const key = `${kind} ${rawUrl}`
@@ -325,9 +346,12 @@ async function rehostUncached(ctx: JobCtx, rawUrl: string, kind: SniffKind): Pro
 
   ctx.stat.uploads++
   ctx.board?.bump({ uploads: 1 })
-  // only image/vox get a draft; video and audio bodies are the big ones, let them go now
-  const draftable = kind === 'image' || kind === 'vox'
-  return { location: uploaded.location, bytes: draftable ? bytes : new Uint8Array(), ext: ok.ext, base }
+
+  // draft now, while we still have the body, then let it go
+  let draft: string | undefined
+  if (kind === 'image' && ctx.draft?.encodeImage) draft = (await ctx.draft.encodeImage('', bytes)) || undefined
+  if (kind === 'vox' && ctx.draft?.encodeVox) draft = (await ctx.draft.encodeVox(toArrayBuffer(bytes))) || undefined
+  return { location: uploaded.location, ext: ok.ext, base, draft }
 }
 
 function yoCompile(parcelId: number, total: number, stat: CompileStat, board?: CompileBoardView) {
@@ -351,10 +375,7 @@ export async function compileParcelContent(
   features: FeatureRecord[],
   tileset: string | undefined,
   upload: CompileUpload,
-  draft?: {
-    encodeImage?: (url: string, bytes?: Uint8Array) => Promise<string | null>
-    encodeVox?: (buf: ArrayBuffer) => Promise<string | null>
-  },
+  draft?: CompileDraft,
   opts?: {
     pools?: CompilePools
     board?: CompileBoardView
@@ -366,8 +387,7 @@ export async function compileParcelContent(
   const n = features.length
   const stat = emptyStat()
   const missing: string[] = []
-  const ctx: JobCtx = { parcelId, upload, pools: opts?.pools, board: opts?.board, hoard: opts?.hoard, missing, stat, fetchMemo: new Map(), rehostMemo: new Map() }
-  const bytesByUuid = new Map<string, Uint8Array>()
+  const ctx: JobCtx = { parcelId, upload, pools: opts?.pools, board: opts?.board, hoard: opts?.hoard, draft, missing, stat, fetchMemo: new Map(), rehostMemo: new Map() }
 
   ctx.board?.bump({ total: 0 })
 
@@ -424,66 +444,38 @@ export async function compileParcelContent(
       const desc = descs.get(job.uuid)
       if (!desc) return
       ;(desc as any)[job.field] = result.location
-      if (job.field === 'url' && result.bytes.byteLength) bytesByUuid.set(job.uuid, result.bytes)
+      if (job.field === 'url' && result.draft && wantsDraft(desc.type) && result.draft !== (desc as any).draft) setDraft(ctx, desc, result.draft)
     }),
   )
 
-  // drafts, in parallel: sharp is threadpool work and this must not hold the compiler slot serially
+  // backfill: url already parked on ugc from an earlier pass but the draft is missing or the old format
   await Promise.all(
     features.map(async (f) => {
       if (!f.uuid) return
       const desc = descs.get(f.uuid)!
-      let changed = false
-
-      for (const field of URL_FIELDS) {
-        if ((desc as any)[field] !== (f as any)[field] && (desc as any)[field]) changed = true
-      }
-
-      // drafts only from bytes we just fetched, or a url already parked on ugc. never refetch a dead host.
-      const cached = bytesByUuid.get(f.uuid)
       const descUrl = tidyURL((desc as any).url)
-      // and never refetch ugc just to recompute a draft we already have (re-pick passes)
       const isVox = f.type === 'vox-model' || f.type === 'megavox' || f.type === 'ride'
       const oldDraft = (desc as any).draft as string | undefined
       // vox drafts grew 3 size bytes (67 bytes = 92 b64 chars); shorter ones are the unsized format, redo them
       const stale = !oldDraft || (isVox && oldDraft.length !== 92)
-      const onUgc = !!descUrl && descUrl.startsWith('ugc://') && stale
 
-      if (draft?.encodeImage && (f.type === 'image' || f.type === 'nft-image') && (cached || onUgc)) {
-        const d = await draft.encodeImage(resolveUgc(descUrl) || '', cached)
-        if (d && d !== (desc as any).draft) {
-          ;(desc as any).draft = d
-          changed = true
-          stat.drafts++
-          ctx.board?.bump({ drafts: 1 })
-        }
-      }
-
-      if (draft?.encodeVox && isVox && (cached || onUgc)) {
-        let buf: ArrayBuffer | null = null
-        if (cached) {
-          buf = cached.buffer.slice(cached.byteOffset, cached.byteOffset + cached.byteLength) as ArrayBuffer
-        } else {
+      if (draft && stale && wantsDraft(f.type) && descUrl?.startsWith('ugc://')) {
+        let d: string | null = null
+        if (isVox) {
           const fetched = await memoFetch(ctx, resolveUgc(descUrl) || '')
-          if (!('error' in fetched)) {
-            const b = fetched.bytes
-            buf = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer
-          }
+          if (!('error' in fetched) && draft.encodeVox) d = await draft.encodeVox(toArrayBuffer(fetched.bytes))
+        } else if (draft.encodeImage) {
+          d = await draft.encodeImage(resolveUgc(descUrl) || '')
         }
-        if (buf) {
-          const d = await draft.encodeVox(buf)
-          if (d && d !== (desc as any).draft) {
-            ;(desc as any).draft = d
-            changed = true
-            stat.drafts++
-            ctx.board?.bump({ drafts: 1 })
-          }
-        }
+        if (d) setDraft(ctx, desc, d)
       }
 
-      if (changed) {
-        out[f.uuid] = desc
-        stat.patched++
+      for (const field of [...URL_FIELDS, 'draft']) {
+        if ((desc as any)[field] !== (f as any)[field] && (desc as any)[field]) {
+          out[f.uuid] = desc
+          stat.patched++
+          return
+        }
       }
     }),
   )

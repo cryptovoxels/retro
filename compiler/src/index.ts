@@ -108,6 +108,15 @@ async function compileOne(id: number) {
   }
 }
 
+// a js death must not look like an oom kill: stop the board so the stack survives the redraw, then die loud
+for (const ev of ['uncaughtException', 'unhandledRejection'] as const) {
+  process.on(ev, (e) => {
+    board.stop()
+    console.error(`[compiler] ${ev}`, e)
+    process.exit(1)
+  })
+}
+
 const abort = new AbortController()
 
 async function workerLoop() {

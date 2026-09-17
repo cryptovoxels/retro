@@ -147,9 +147,11 @@ export class Board {
     const ids = Array.from(this.live).sort((a, b) => a - b)
     const list = ids.length ? ids.join(', ') : '...'
     const s = this.stats
+    // rss is what the oom killer sees; arrayBuffers is the fetched bodies we are holding
+    const m = process.memoryUsage()
     return [
       `${B}=== RECOMPILING PARCEL ${list} ===${R}`,
-      `${s.parcels} parcels  ${s.workers} fetchers  ${GREEN}${s.done}${R}/${s.total}  ${kbSize(s.bytes)}  drafts ${s.drafts}  dug ${YELLOW}${s.dug}${R}  fail ${RED}${s.fail}${R}  uploads ${s.uploads}`,
+      `${s.parcels} parcels  ${s.workers} fetchers  ${GREEN}${s.done}${R}/${s.total}  ${kbSize(s.bytes)}  drafts ${s.drafts}  dug ${YELLOW}${s.dug}${R}  fail ${RED}${s.fail}${R}  uploads ${s.uploads}  ${MAGENTA}rss ${kbSize(m.rss)}  bodies ${kbSize(m.arrayBuffers)}${R}`,
       '',
     ]
   }
