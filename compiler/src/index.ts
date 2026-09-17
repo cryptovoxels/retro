@@ -10,6 +10,7 @@ import { encodeImageDraft, encodeVoxDraft } from './drafts'
 import { createFarm } from './farm'
 import { hoardEnabled, hoardFetch } from './hoard'
 import { serverUpload } from './upload'
+import { encodeVoxelbr } from './voxelbr'
 
 const port = process.env.PORT || '8081'
 const SLEEP_MS = parseInt(process.env.COMPILE_SLEEP_MS || '0', 10)
@@ -75,7 +76,7 @@ async function compileOne(id: number) {
 
     const features = (parcel.content.features || []).filter((f: any) => f && f.uuid)
     const tileset = parcel.content.tileset as string | undefined
-    const upload = (name: string, bytes: Uint8Array, contentType: string) => serverUpload(id, name, bytes, contentType)
+    const upload = (name: string, bytes: Uint8Array, contentType: string, contentEncoding?: string) => serverUpload(id, name, bytes, contentType, contentEncoding)
 
     const { patch, missing } = await compileParcelContent(
       id,
@@ -85,6 +86,7 @@ async function compileOne(id: number) {
       {
         encodeImage: encodeImageDraft,
         encodeVox: encodeVoxDraft,
+        encodeVoxelbr,
       },
       { pools, board, hoard: hoardEnabled() ? hoardFetch : undefined },
     )
