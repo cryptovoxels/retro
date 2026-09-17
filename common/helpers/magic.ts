@@ -1,6 +1,6 @@
 // ABOUTME: Magic-byte sniffers for images, audio, video, vox, and ktx.
 
-export type SniffKind = 'image' | 'audio' | 'video' | 'vox' | 'ktx'
+export type SniffKind = 'image' | 'audio' | 'video' | 'vox'
 
 export function isVox(buf: Uint8Array): boolean {
   return buf.length >= 4 && buf[0] === 0x56 && buf[1] === 0x4f && buf[2] === 0x58 && buf[3] === 0x20
@@ -46,17 +46,7 @@ export function isWebM(buf: Uint8Array): boolean {
 
 export function isKtx(buf: Uint8Array): boolean {
   // 0xAB 4B 54 58 20 31 31 BB 0D 0A 1A 0A
-  return (
-    buf.length >= 12 &&
-    buf[0] === 0xab &&
-    buf[1] === 0x4b &&
-    buf[2] === 0x54 &&
-    buf[3] === 0x58 &&
-    buf[4] === 0x20 &&
-    buf[5] === 0x31 &&
-    buf[6] === 0x31 &&
-    buf[7] === 0xbb
-  )
+  return buf.length >= 12 && buf[0] === 0xab && buf[1] === 0x4b && buf[2] === 0x54 && buf[3] === 0x58 && buf[4] === 0x20 && buf[5] === 0x31 && buf[6] === 0x31 && buf[7] === 0xbb
 }
 
 export function looksLikeHtml(buf: Uint8Array): boolean {
@@ -120,7 +110,7 @@ export function sniffBytes(bytes: Uint8Array, contentType: string, kind: SniffKi
   if (!bytes.length) return { ok: false, reason: 'empty' }
   if (looksLikeHtml(bytes)) return { ok: false, reason: 'html' }
   if (badMime(contentType)) return { ok: false, reason: `mime ${contentType || 'none'}` }
-  if (kind !== 'vox' && kind !== 'ktx' && looksLikeJson(bytes)) return { ok: false, reason: 'json' }
+  if (kind !== 'vox' && looksLikeJson(bytes)) return { ok: false, reason: 'json' }
 
   if (kind === 'image') {
     if (isPng(bytes) || isJpeg(bytes) || isGif(bytes) || isWebP(bytes)) {
@@ -146,10 +136,6 @@ export function sniffBytes(bytes: Uint8Array, contentType: string, kind: SniffKi
   if (kind === 'vox') {
     if (isVox(bytes)) return { ok: true, ext: 'vox', contentType: 'application/octet-stream' }
     return { ok: false, reason: 'not vox' }
-  }
-  if (kind === 'ktx') {
-    if (isKtx(bytes)) return { ok: true, ext: 'ktx', contentType: 'image/ktx' }
-    return { ok: false, reason: 'not ktx' }
   }
   return { ok: false, reason: 'unknown kind' }
 }

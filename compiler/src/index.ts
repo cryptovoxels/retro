@@ -8,11 +8,12 @@ import db from '../../server/pg'
 import { Board } from './board'
 import { encodeImageDraft, encodeVoxDraft } from './drafts'
 import { createFarm } from './farm'
+import { hoardEnabled, hoardFetch } from './hoard'
 import { serverUpload } from './upload'
 
 const port = process.env.PORT || '8081'
 const SLEEP_MS = parseInt(process.env.COMPILE_SLEEP_MS || '0', 10)
-const COMPILE_PARCELS = parseInt(process.env.COMPILE_PARCELS || '8', 10)
+const COMPILE_PARCELS = parseInt(process.env.COMPILE_PARCELS || '16', 10)
 const COMPILE_WORKERS = parseInt(process.env.COMPILE_WORKERS || '40', 10)
 
 const app = express()
@@ -30,32 +31,31 @@ const pools: CompilePools = {
 }
 
 const seen = new Set<number>()
+const queue: number[] = []
 const picking = { lock: Promise.resolve() }
 
+// the where clause is a full table text scan, so grab the lowest 100 in one go and hand them out shuffled
 async function pickParcelId(): Promise<number | null> {
-  let id: number | null = null
   picking.lock = picking.lock.then(async () => {
+    if (queue.length) return
     const r = await db.query(
-      'embedded/pick-uncompiled-parcel',
-      `select id from (
-         select id from properties
-         where content::text not like '%ugc://parcel/%'
-           and not (id = any($1::int[]))
-         order by id
-         limit 100
-       ) t
-       order by random()
-       limit 1`,
+      'embedded/pick-uncompiled-parcels',
+      `select id from properties
+        where (content::text not like '%ugc://parcel/%' or json_array_length(coalesce(content->'missing', '[]'::json)) > 0)
+          and not (id = any($1::int[]))
+        order by id
+        limit 100`,
       [Array.from(seen)],
     )
-    const rowId = r.rows[0]?.id
-    if (typeof rowId === 'number') {
-      seen.add(rowId)
-      id = rowId
+    for (const row of r.rows) {
+      if (typeof row.id !== 'number' || seen.has(row.id)) continue
+      seen.add(row.id)
+      queue.splice(Math.floor(Math.random() * (queue.length + 1)), 0, row.id)
     }
   })
-  await picking.lock
-  return id
+  // a failed query must not poison the lock chain for every later pick
+  await picking.lock.catch((e) => console.error('[compiler] pick', e))
+  return queue.shift() ?? null
 }
 
 function applyPatch(content: any, patch: Awaited<ReturnType<typeof compileParcelContent>>['patch']) {
@@ -86,7 +86,7 @@ async function compileOne(id: number) {
         encodeImage: encodeImageDraft,
         encodeVox: encodeVoxDraft,
       },
-      { pools, board },
+      { pools, board, hoard: hoardEnabled() ? hoardFetch : undefined },
     )
 
     const prevMissing = Array.isArray(parcel.content.missing) ? parcel.content.missing : []
@@ -99,6 +99,9 @@ async function compileOne(id: number) {
     if (patch.features || patch.tileset !== undefined || missingChanged) {
       parcel.setContent(parcel.content)
       await parcel.save()
+      board.logDone(`#${id} saved  patched ${Object.keys(patch.features || {}).length}  tileset ${patch.tileset !== undefined ? 'yes' : 'no'}  missing ${missing.length}`)
+    } else {
+      board.logDone(`#${id} nothing to do`)
     }
   } finally {
     board.removeParcel(id)
@@ -129,5 +132,5 @@ async function workerLoop() {
 app.listen(port, () => {
   board.start()
   for (let i = 0; i < COMPILE_PARCELS; i++) void workerLoop()
-  console.error(`[compiler] listening on ${port}  parcels=${COMPILE_PARCELS} workers=${COMPILE_WORKERS}`)
+  console.error(`[compiler] listening on ${port}  parcels=${COMPILE_PARCELS} workers=${COMPILE_WORKERS}  hoard=${hoardEnabled() ? 'on' : 'off (set FULLBUCKET_ACCESS/SECRET)'}`)
 })

@@ -24,11 +24,16 @@ function nearestIndex(r: number, g: number, b: number): number {
   return best
 }
 
-export async function encodeImageDraft(url: string): Promise<string | null> {
+export async function encodeImageDraft(url: string, bytes?: Uint8Array): Promise<string | null> {
   try {
-    const res = await fetch(url)
-    if (!res.ok) return null
-    const buf = Buffer.from(await res.arrayBuffer())
+    let buf: Buffer
+    if (bytes) {
+      buf = Buffer.from(bytes)
+    } else {
+      const res = await fetch(url, { signal: AbortSignal.timeout(30000) })
+      if (!res.ok) return null
+      buf = Buffer.from(await res.arrayBuffer())
+    }
     const webp = await sharp(buf).resize(8, 8).webp({ quality: 80 }).toBuffer()
     return webp.toString('base64')
   } catch {

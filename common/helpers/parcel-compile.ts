@@ -1,9 +1,8 @@
 // ABOUTME: Rehost parcel feature URLs to UGC, sniff bytes, encode drafts. Parallel via optional farm.
 
-import { isParcelUgc } from './ugc-upload-keys'
-import { KTX_SUFFIXES, textureBucketUrl, textureHash, textureHashOptions } from './texture-hash'
+import { contentName, isParcelUgc } from './ugc-upload-keys'
 import { FeatureRecord } from '../messages/feature'
-import { dropboxDirect, sniffBytes, type SniffKind } from './magic'
+import { dropboxDirect, sniffBytes, type SniffKind, type SniffResult } from './magic'
 
 export type CompilePatch = {
   features?: Record<string, FeatureRecord>
@@ -19,9 +18,9 @@ export type CompilePools = {
 }
 
 export type CompileBoardView = {
-  set(slot: number, row: { parcelId: number; url: string; phase: 'GET' | 'PUT' | 'KTX' | 'HAVE' | 'FAIL'; got: number; total: number; detail?: string }): void
+  set(slot: number, row: { parcelId: number; url: string; phase: 'GET' | 'PUT' | 'HAVE' | 'FAIL' | 'DIG'; got: number; total: number; detail?: string }): void
   idle(slot: number): void
-  bump(partial: { done?: number; total?: number; bytes?: number; drafts?: number; fail?: number; uploads?: number }): void
+  bump(partial: { done?: number; total?: number; bytes?: number; drafts?: number; fail?: number; uploads?: number; dug?: number }): void
   logDone?(line: string): void
 }
 
@@ -71,12 +70,15 @@ type CompileStat = {
   bytes: number
   uploads: number
   skipped: number
-  ktx: number
+  dug: number
 }
 
 function emptyStat(): CompileStat {
-  return { drafts: 0, patched: 0, fetches: 0, fetchFail: 0, bytes: 0, uploads: 0, skipped: 0, ktx: 0 }
+  return { drafts: 0, patched: 0, fetches: 0, fetchFail: 0, bytes: 0, uploads: 0, skipped: 0, dug: 0 }
 }
+
+// dig a dead url out of an old cache bucket; server only
+export type CompileHoard = (url: string, kind: SniffKind) => Promise<{ bytes: Uint8Array; contentType: string; key: string } | null>
 
 function resolveUgc(url?: string) {
   if (!url) return url
@@ -100,6 +102,8 @@ function shouldSkip(url: string | undefined): boolean {
   if (u.match(/twitch\.tv\//)) return true
   if (u.match(/cryptovoxels\.com\/play|voxels\.com\/play/)) return true
   if (u.match(/opensea\.io\/(assets|item)\//) && !u.match(/storage\.opensea/)) return true
+  // hls playlists are streams, not files
+  if (u.match(/\.m3u8(\?|$)/)) return true
   return false
 }
 
@@ -107,7 +111,9 @@ function absoluteUrl(raw: string): string | null {
   let url = tidyURL(raw)
   if (!url) return null
   if (url.startsWith('//')) url = 'https:' + url
-  if (url.startsWith('/')) url = (process.env.ASSET_PATH || 'https://www.voxels.com').replace(/\/$/, '') + url
+  // relative /uploads/* (tilesets etc) live on the image host, same as tilesetRuntimeUrl
+  if (url.startsWith('/uploads/')) url = (process.env.IMG_HOST || 'https://img.cryptovoxels.com').replace(/\/$/, '') + url
+  else if (url.startsWith('/')) url = (process.env.ASSET_PATH || 'https://www.voxels.com').replace(/\/$/, '') + url
   if (url.includes('dropbox.com')) url = dropboxDirect(url)
   try {
     return new URL(url).toString()
@@ -127,21 +133,27 @@ function kindFor(featureType: string | undefined, field: string): SniffKind {
 
 const URL_FIELDS = ['url', 'previewUrl', 'assetUrl'] as const
 
+type Fetched = { bytes: Uint8Array; contentType: string; status: number } | { error: string; status?: number }
+
 type JobCtx = {
   parcelId: number
   upload: CompileUpload
   pools?: CompilePools
   board?: CompileBoardView
+  hoard?: CompileHoard
   missing: string[]
   stat: CompileStat
+  // same URL on ten features = one GET
+  fetchMemo: Map<string, Promise<Fetched>>
+  // and one sniff, one dig, one PUT
+  rehostMemo: Map<string, Promise<RehostResult>>
 }
 
-async function streamFetch(
-  url: string,
-  onProgress?: (got: number, total: number) => void,
-): Promise<{ bytes: Uint8Array; contentType: string; status: number } | { error: string; status?: number }> {
+const FETCH_TIMEOUT_MS = 30000
+
+async function streamFetch(url: string, onProgress?: (got: number, total: number) => void): Promise<Fetched> {
   try {
-    const res = await fetch(resolveUgc(url) || url)
+    const res = await fetch(resolveUgc(url) || url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
     if (!res.ok) return { error: String(res.status), status: res.status }
     const total = parseInt(res.headers.get('content-length') || '0', 10) || 0
     const contentType = res.headers.get('content-type') || ''
@@ -170,8 +182,17 @@ async function streamFetch(
     }
     return { bytes, contentType, status: res.status }
   } catch (e) {
-    return { error: e instanceof Error ? e.message : 'fetch boom' }
+    const msg = e instanceof Error ? (e.name === 'TimeoutError' ? 'timeout' : e.message) : 'fetch boom'
+    return { error: msg.replace(/^TypeError: /, '') }
   }
+}
+
+function memoFetch(ctx: JobCtx, url: string, onProgress?: (got: number, total: number) => void): Promise<Fetched> {
+  const hit = ctx.fetchMemo.get(url)
+  if (hit) return hit
+  const p = streamFetch(url, onProgress)
+  ctx.fetchMemo.set(url, p)
+  return p
 }
 
 async function withDownload<T>(ctx: JobCtx, fn: (slot: number) => Promise<T>): Promise<T> {
@@ -192,16 +213,20 @@ function markMissing(ctx: JobCtx, rawUrl: string, reason: string) {
   else say(`  ${C[0]}FAIL ${truncated(rawUrl)} ${reason}${R}`)
 }
 
-type RehostOk = { location: string; bytes: Uint8Array; ext: string }
+type RehostOk = { location: string; bytes: Uint8Array; ext: string; base: string }
 type RehostResult = RehostOk | null
 
-async function rehostOne(
-  ctx: JobCtx,
-  rawUrl: string,
-  fileName: string,
-  kind: SniffKind,
-  phase: 'GET' | 'KTX' = 'GET',
-): Promise<RehostResult> {
+function rehostOne(ctx: JobCtx, rawUrl: string, kind: SniffKind): Promise<RehostResult> {
+  const key = `${kind} ${rawUrl}`
+  let p = ctx.rehostMemo.get(key)
+  if (!p) {
+    p = rehostUncached(ctx, rawUrl, kind)
+    ctx.rehostMemo.set(key, p)
+  }
+  return p
+}
+
+async function rehostUncached(ctx: JobCtx, rawUrl: string, kind: SniffKind): Promise<RehostResult> {
   if (isParcelUgc(rawUrl, ctx.parcelId) || shouldSkip(rawUrl)) {
     ctx.stat.skipped++
     return null
@@ -213,46 +238,57 @@ async function rehostOne(
   }
 
   const fetched = await withDownload(ctx, async (slot) => {
-    ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase, got: 0, total: 0 })
-    const r = await streamFetch(sourceUrl, (got, total) => {
-      ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase, got, total })
+    ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase: 'GET', got: 0, total: 0 })
+    const r = await memoFetch(ctx, sourceUrl, (got, total) => {
+      ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase: 'GET', got, total })
     })
-    if ('error' in r) {
-      ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase: 'FAIL', got: 0, total: 0, detail: r.error })
-      await new Promise((res) => setTimeout(res, 80))
-      ctx.board?.idle(slot)
-      return r
-    }
-    ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase, got: r.bytes.byteLength, total: r.bytes.byteLength })
     ctx.board?.idle(slot)
     return r
   })
 
-  if ('error' in fetched) {
-    markMissing(ctx, rawUrl, fetched.error)
-    return null
+  let bytes: Uint8Array = 'error' in fetched ? new Uint8Array() : fetched.bytes
+  let sniff: SniffResult = 'error' in fetched ? { ok: false, reason: fetched.error } : sniffBytes(bytes, fetched.contentType, kind)
+
+  // origin dead or lying: dig in the old herring caches, keyed by the url spelling the client used back then
+  if (sniff.ok === false && ctx.hoard) {
+    const reason = sniff.reason
+    const dug = await withDownload(ctx, async (slot) => {
+      ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase: 'DIG', got: 0, total: 0, detail: reason })
+      for (const u of new Set([rawUrl, sourceUrl])) {
+        const h = await ctx.hoard!(u, kind)
+        if (!h) continue
+        const s = sniffBytes(h.bytes, h.contentType, kind)
+        if (!s.ok) continue
+        ctx.board?.set(slot, { parcelId: ctx.parcelId, url: h.key, phase: 'DIG', got: h.bytes.byteLength, total: h.bytes.byteLength })
+        ctx.board?.idle(slot)
+        return { bytes: h.bytes, sniff: s }
+      }
+      ctx.board?.idle(slot)
+      return null
+    })
+    if (dug) {
+      bytes = dug.bytes
+      sniff = dug.sniff
+      ctx.stat.dug++
+      ctx.board?.bump({ dug: 1 })
+    }
   }
 
-  const sniff = sniffBytes(fetched.bytes, fetched.contentType, kind)
-  if (!sniff.ok) {
-    const reason = sniff.reason
-    await withDownload(ctx, async (slot) => {
-      ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase: 'FAIL', got: 0, total: 0, detail: reason })
-      await new Promise((res) => setTimeout(res, 80))
-      ctx.board?.idle(slot)
-    })
-    markMissing(ctx, rawUrl, reason)
+  if (sniff.ok === false) {
+    markMissing(ctx, rawUrl, sniff.reason)
     return null
   }
+  const ok = sniff
 
   ctx.stat.fetches++
-  ctx.stat.bytes += fetched.bytes.byteLength
-  ctx.board?.bump({ done: 1, bytes: fetched.bytes.byteLength })
+  ctx.stat.bytes += bytes.byteLength
+  ctx.board?.bump({ done: 1, bytes: bytes.byteLength })
 
-  const name = `${fileName}.${sniff.ext}`
+  const base = await contentName(bytes)
+  const name = `${base}.${ok.ext}`
   const uploaded = await withUpload(ctx, async (slot) => {
-    ctx.board?.set(slot, { parcelId: ctx.parcelId, url: name, phase: kind === 'ktx' ? 'KTX' : 'PUT', got: 0, total: fetched.bytes.byteLength })
-    const loc = await ctx.upload(name, fetched.bytes, sniff.contentType)
+    ctx.board?.set(slot, { parcelId: ctx.parcelId, url: name, phase: 'PUT', got: 0, total: bytes.byteLength })
+    const loc = await ctx.upload(name, bytes, ok.contentType)
     if (!loc) {
       ctx.board?.set(slot, { parcelId: ctx.parcelId, url: name, phase: 'FAIL', got: 0, total: 0, detail: 'upload' })
       await new Promise((res) => setTimeout(res, 80))
@@ -263,8 +299,8 @@ async function rehostOne(
       parcelId: ctx.parcelId,
       url: name,
       phase: loc.existed ? 'HAVE' : 'PUT',
-      got: fetched.bytes.byteLength,
-      total: fetched.bytes.byteLength,
+      got: bytes.byteLength,
+      total: bytes.byteLength,
     })
     await new Promise((res) => setTimeout(res, 40))
     ctx.board?.idle(slot)
@@ -278,49 +314,11 @@ async function rehostOne(
 
   ctx.stat.uploads++
   ctx.board?.bump({ uploads: 1 })
-  if (kind === 'ktx') ctx.stat.ktx++
-  return { location: uploaded.location, bytes: fetched.bytes, ext: sniff.ext }
-}
-
-async function copyKtx(ctx: JobCtx, baseName: string, sourceUrl: string, transparent: boolean, stretch: boolean) {
-  const opts = textureHashOptions(transparent, stretch, /\.gif/i.test(sourceUrl))
-  const hash = textureHash(sourceUrl, opts)
-  const bucketHost = process.env.TEXTURE_BUCKET || 'https://textures.sfo2.cdn.digitaloceanspaces.com'
-
-  await Promise.all(
-    KTX_SUFFIXES.map(async (suffix) => {
-      const bucketUrl = textureBucketUrl(hash, suffix, bucketHost)
-      const sidecarName = `${baseName}_medium${suffix}`
-
-      const fetched = await withDownload(ctx, async (slot) => {
-        ctx.board?.set(slot, { parcelId: ctx.parcelId, url: bucketUrl, phase: 'KTX', got: 0, total: 0 })
-        const r = await streamFetch(bucketUrl, (got, total) => {
-          ctx.board?.set(slot, { parcelId: ctx.parcelId, url: bucketUrl, phase: 'KTX', got, total })
-        })
-        ctx.board?.idle(slot)
-        return r
-      })
-      if ('error' in fetched) return
-      const sniff = sniffBytes(fetched.bytes, fetched.contentType, 'ktx')
-      if (!sniff.ok) return
-
-      await withUpload(ctx, async (slot) => {
-        ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sidecarName, phase: 'PUT', got: 0, total: fetched.bytes.byteLength })
-        const loc = await ctx.upload(sidecarName, fetched.bytes, 'image/ktx')
-        ctx.board?.idle(slot)
-        if (loc) {
-          ctx.stat.ktx++
-          ctx.stat.uploads++
-          ctx.board?.bump({ uploads: 1 })
-        }
-        return loc
-      })
-    }),
-  )
+  return { location: uploaded.location, bytes, ext: ok.ext, base }
 }
 
 function yoCompile(parcelId: number, total: number, stat: CompileStat, board?: CompileBoardView) {
-  const line = `Yo Compile ${stat.drafts}/${total} features get a draft  patched ${stat.patched}/${total}  fail ${stat.fetchFail}  ${kbSize(stat.bytes)}`
+  const line = `Yo Compile ${stat.drafts}/${total} features get a draft  patched ${stat.patched}/${total}  dug ${stat.dug}  fail ${stat.fetchFail}  ${kbSize(stat.bytes)}`
   if (board?.logDone) {
     board.logDone(`#${parcelId} ${line}`)
     return
@@ -341,12 +339,13 @@ export async function compileParcelContent(
   tileset: string | undefined,
   upload: CompileUpload,
   draft?: {
-    encodeImage?: (url: string) => Promise<string | null>
+    encodeImage?: (url: string, bytes?: Uint8Array) => Promise<string | null>
     encodeVox?: (buf: ArrayBuffer) => Promise<string | null>
   },
   opts?: {
     pools?: CompilePools
     board?: CompileBoardView
+    hoard?: CompileHoard
   },
 ): Promise<CompileResult> {
   const out: Record<string, FeatureRecord> = {}
@@ -354,7 +353,7 @@ export async function compileParcelContent(
   const n = features.length
   const stat = emptyStat()
   const missing: string[] = []
-  const ctx: JobCtx = { parcelId, upload, pools: opts?.pools, board: opts?.board, missing, stat }
+  const ctx: JobCtx = { parcelId, upload, pools: opts?.pools, board: opts?.board, hoard: opts?.hoard, missing, stat, fetchMemo: new Map(), rehostMemo: new Map() }
   const bytesByUuid = new Map<string, Uint8Array>()
 
   ctx.board?.bump({ total: 0 })
@@ -363,9 +362,7 @@ export async function compileParcelContent(
     uuid?: string
     field?: (typeof URL_FIELDS)[number]
     rawUrl: string
-    fileName: string
     kind: SniffKind
-    rasterOpts?: { transparent: boolean; stretch: boolean }
     isTileset?: boolean
   }
 
@@ -376,14 +373,11 @@ export async function compileParcelContent(
     for (const field of URL_FIELDS) {
       const raw = tidyURL((f as any)[field])
       if (!raw || shouldSkip(raw) || isParcelUgc(raw, parcelId)) continue
-      const isRaster = f.type === 'image' || f.type === 'nft-image' || f.type === 'cube' || f.type === 'portal' || field !== 'url'
       jobs.push({
         uuid: f.uuid,
         field,
         rawUrl: raw,
-        fileName: `${f.uuid}-${field}`,
         kind: kindFor(f.type, field),
-        rasterOpts: isRaster ? { transparent: !!(f as any).transparent, stretch: !!(f as any).stretch } : undefined,
       })
     }
   }
@@ -391,10 +385,8 @@ export async function compileParcelContent(
   if (tileset && !isParcelUgc(tileset, parcelId) && !shouldSkip(tileset)) {
     jobs.push({
       rawUrl: tileset,
-      fileName: 'tileset',
       kind: 'image',
       isTileset: true,
-      rasterOpts: { transparent: false, stretch: false },
     })
   }
 
@@ -407,12 +399,11 @@ export async function compileParcelContent(
 
   await Promise.all(
     jobs.map(async (job) => {
-      const result = await rehostOne(ctx, job.rawUrl, job.fileName, job.kind)
+      const result = await rehostOne(ctx, job.rawUrl, job.kind)
       if (!result) return
 
       if (job.isTileset) {
         tilesetOut = result.location
-        if (job.rasterOpts) await copyKtx(ctx, 'tileset', absoluteUrl(job.rawUrl) || job.rawUrl, false, false)
         return
       }
 
@@ -421,26 +412,27 @@ export async function compileParcelContent(
       if (!desc) return
       ;(desc as any)[job.field] = result.location
       if (job.field === 'url') bytesByUuid.set(job.uuid, result.bytes)
-      if (job.rasterOpts && (result.ext === 'png' || result.ext === 'jpg' || result.ext === 'jpeg' || result.ext === 'webp' || result.ext === 'gif')) {
-        await copyKtx(ctx, job.fileName, absoluteUrl(job.rawUrl) || job.rawUrl, job.rasterOpts.transparent, job.rasterOpts.stretch)
-      }
     }),
   )
 
-  // drafts
-  for (const f of features) {
-    if (!f.uuid) continue
-    const desc = descs.get(f.uuid)!
-    let changed = false
+  // drafts, in parallel: sharp is threadpool work and this must not hold the compiler slot serially
+  await Promise.all(
+    features.map(async (f) => {
+      if (!f.uuid) return
+      const desc = descs.get(f.uuid)!
+      let changed = false
 
-    for (const field of URL_FIELDS) {
-      if ((desc as any)[field] !== (f as any)[field] && (desc as any)[field]) changed = true
-    }
+      for (const field of URL_FIELDS) {
+        if ((desc as any)[field] !== (f as any)[field] && (desc as any)[field]) changed = true
+      }
 
-    if (draft?.encodeImage && (f.type === 'image' || f.type === 'nft-image')) {
-      const imgUrl = resolveUgc(tidyURL((desc as any).url) || tidyURL(f.url))
-      if (imgUrl) {
-        const d = await draft.encodeImage(imgUrl)
+      // drafts only from bytes we just fetched, or a url already parked on ugc. never refetch a dead host.
+      const cached = bytesByUuid.get(f.uuid)
+      const descUrl = tidyURL((desc as any).url)
+      const onUgc = !!descUrl && descUrl.startsWith('ugc://')
+
+      if (draft?.encodeImage && (f.type === 'image' || f.type === 'nft-image') && (cached || onUgc)) {
+        const d = await draft.encodeImage(resolveUgc(descUrl) || '', cached)
         if (d && d !== (desc as any).draft) {
           ;(desc as any).draft = d
           changed = true
@@ -448,39 +440,35 @@ export async function compileParcelContent(
           ctx.board?.bump({ drafts: 1 })
         }
       }
-    }
 
-    if (draft?.encodeVox && (f.type === 'vox-model' || f.type === 'megavox' || f.type === 'ride')) {
-      const cached = bytesByUuid.get(f.uuid)
-      let buf: ArrayBuffer | null = null
-      if (cached) {
-        buf = cached.buffer.slice(cached.byteOffset, cached.byteOffset + cached.byteLength) as ArrayBuffer
-      } else {
-        const voxUrl = resolveUgc(tidyURL((desc as any).url) || tidyURL(f.url))
-        if (voxUrl) {
-          const fetched = await streamFetch(voxUrl)
+      if (draft?.encodeVox && (f.type === 'vox-model' || f.type === 'megavox' || f.type === 'ride') && (cached || onUgc)) {
+        let buf: ArrayBuffer | null = null
+        if (cached) {
+          buf = cached.buffer.slice(cached.byteOffset, cached.byteOffset + cached.byteLength) as ArrayBuffer
+        } else {
+          const fetched = await memoFetch(ctx, resolveUgc(descUrl) || '')
           if (!('error' in fetched)) {
             const b = fetched.bytes
             buf = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer
           }
         }
-      }
-      if (buf) {
-        const d = await draft.encodeVox(buf)
-        if (d && d !== (desc as any).draft) {
-          ;(desc as any).draft = d
-          changed = true
-          stat.drafts++
-          ctx.board?.bump({ drafts: 1 })
+        if (buf) {
+          const d = await draft.encodeVox(buf)
+          if (d && d !== (desc as any).draft) {
+            ;(desc as any).draft = d
+            changed = true
+            stat.drafts++
+            ctx.board?.bump({ drafts: 1 })
+          }
         }
       }
-    }
 
-    if (changed) {
-      out[f.uuid] = desc
-      stat.patched++
-    }
-  }
+      if (changed) {
+        out[f.uuid] = desc
+        stat.patched++
+      }
+    }),
+  )
 
   const patch: CompilePatch = {}
   if (Object.keys(out).length) patch.features = out
@@ -507,14 +495,6 @@ export function tilesetRuntimeUrl(tileset: string): string {
   if (tileset.startsWith('ugc://')) return resolveUgc(tileset) || tileset
   if (tileset.startsWith('/')) return (process.env.IMG_HOST || '').replace(/\/$/, '') + tileset
   return tileset
-}
-
-export function ugcKtxUrl(srcURL: string, format: string): string | null {
-  const resolved = resolveUgc(srcURL)
-  if (!resolved || (!srcURL.startsWith('ugc://') && !resolved.includes('ugc.voxels.com/'))) return null
-  const dot = resolved.lastIndexOf('.')
-  if (dot < 0) return null
-  return resolved.slice(0, dot) + `_medium${format}`
 }
 
 export function isUgcTextureUrl(url: string | null | undefined) {

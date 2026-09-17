@@ -1,6 +1,6 @@
 // ABOUTME: 1998 IRC-style in-place progress board for the parcel compiler farm.
 
-export type BoardPhase = 'GET' | 'PUT' | 'KTX' | 'HAVE' | 'FAIL' | 'idle'
+export type BoardPhase = 'GET' | 'PUT' | 'HAVE' | 'FAIL' | 'DIG' | 'idle'
 
 export type BoardRow = {
   parcelId: number
@@ -17,6 +17,7 @@ export type BoardStats = {
   bytes: number
   drafts: number
   fail: number
+  dug: number
   uploads: number
   parcels: number
   workers: number
@@ -62,8 +63,9 @@ function kbSize(n: number) {
 
 function phaseColor(phase: BoardPhase) {
   if (phase === 'GET') return CYAN
-  if (phase === 'PUT' || phase === 'KTX') return MAGENTA
+  if (phase === 'PUT') return MAGENTA
   if (phase === 'HAVE') return GREEN
+  if (phase === 'DIG') return YELLOW
   if (phase === 'FAIL') return RED
   return D
 }
@@ -80,8 +82,8 @@ export class Board {
 
   constructor(workers: number, parcels: number) {
     this.rows = Array.from({ length: workers }, () => null)
-    this.stats = { done: 0, total: 0, bytes: 0, drafts: 0, fail: 0, uploads: 0, parcels, workers }
-    this.tty = !!(process.stdout.isTTY)
+    this.stats = { done: 0, total: 0, bytes: 0, drafts: 0, fail: 0, dug: 0, uploads: 0, parcels, workers }
+    this.tty = !!process.stdout.isTTY
   }
 
   start() {
@@ -127,11 +129,16 @@ export class Board {
       bytes: this.stats.bytes + (partial.bytes || 0),
       drafts: this.stats.drafts + (partial.drafts || 0),
       fail: this.stats.fail + (partial.fail || 0),
+      dug: this.stats.dug + (partial.dug || 0),
       uploads: this.stats.uploads + (partial.uploads || 0),
     })
   }
 
   logDone(line: string) {
+    if (!this.tty) {
+      console.error(line)
+      return
+    }
     this.scrollback.push(line)
     if (this.scrollback.length > 8) this.scrollback.shift()
   }
@@ -142,7 +149,7 @@ export class Board {
     const s = this.stats
     return [
       `${B}=== RECOMPILING PARCEL ${list} ===${R}`,
-      `${s.parcels} parcels  ${s.workers} fetchers  ${GREEN}${s.done}${R}/${s.total}  ${kbSize(s.bytes)}  drafts ${s.drafts}  fail ${RED}${s.fail}${R}  uploads ${s.uploads}`,
+      `${s.parcels} parcels  ${s.workers} fetchers  ${GREEN}${s.done}${R}/${s.total}  ${kbSize(s.bytes)}  drafts ${s.drafts}  dug ${YELLOW}${s.dug}${R}  fail ${RED}${s.fail}${R}  uploads ${s.uploads}`,
       '',
     ]
   }
@@ -174,10 +181,13 @@ export class Board {
       const now = Date.now()
       if (now - this.lastPrint < 2000) return
       this.lastPrint = now
-      const ids = Array.from(this.live).sort((a, b) => a - b).join(', ') || '...'
+      const ids =
+        Array.from(this.live)
+          .sort((a, b) => a - b)
+          .join(', ') || '...'
       const active = this.rows.filter(Boolean) as BoardRow[]
       const s = this.stats
-      console.error(`=== RECOMPILING PARCEL ${ids} ===  ${active.length} active  ${s.done}/${s.total}  fail ${s.fail}  ${kbSize(s.bytes)}`)
+      console.error(`=== RECOMPILING PARCEL ${ids} ===  ${active.length} active  ${s.done}/${s.total}  dug ${s.dug}  fail ${s.fail}  ${kbSize(s.bytes)}`)
       for (const r of active.slice(0, 12)) {
         console.error(`  ${r.parcelId}  ${r.phase.padEnd(4)}  ${r.url.slice(0, 60)}${r.detail ? ' ' + r.detail : ''}`)
       }

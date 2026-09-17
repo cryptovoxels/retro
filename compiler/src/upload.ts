@@ -21,7 +21,8 @@ export async function serverUpload(parcelId: number, name: string, bytes: Uint8A
       }),
     )
     return { location, existed: false }
-  } catch {
+  } catch (e) {
+    console.error(`[upload] ${key}`, e instanceof Error ? e.message : e)
     return null
   }
 }

@@ -1,16 +1,7 @@
 // ABOUTME: Re-export magic sniffers for world-dump (Buffer-friendly wrappers).
 
 import type { Kind } from './resolve'
-import {
-  isVox as isVoxU8,
-  isPng as isPngU8,
-  isJpeg as isJpegU8,
-  isGif as isGifU8,
-  isWebP as isWebPU8,
-  isMp3 as isMp3U8,
-  isMp4 as isMp4U8,
-  extForValid as extForValidU8,
-} from '../../common/helpers/magic'
+import { isVox as isVoxU8, isPng as isPngU8, isJpeg as isJpegU8, isGif as isGifU8, isWebP as isWebPU8, isMp3 as isMp3U8, isMp4 as isMp4U8, extForValid as extForValidU8 } from '../../common/helpers/magic'
 
 export function isVox(buf: Buffer): boolean {
   return isVoxU8(buf)
