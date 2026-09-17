@@ -5,7 +5,7 @@ import type Parcel from './parcel'
 
 async function clientUpload(parcelId: number, name: string, bytes: Uint8Array, contentType: string) {
   const res = await uploadParcelBytes(parcelId, name, bytes, contentType)
-  return res.success ? res.location : null
+  return res.success ? { location: res.location, existed: false } : null
 }
 
 export async function runCompile(parcel: Parcel) {
@@ -13,7 +13,7 @@ export async function runCompile(parcel: Parcel) {
 
   const upload = (name: string, bytes: Uint8Array, contentType: string) => clientUpload(parcel.id as number, name, bytes, contentType)
 
-  const patch = await compileParcelContent(
+  const { patch } = await compileParcelContent(
     parcel.id as number,
     parcel.featuresList.map((f) => f.description),
     parcel.tileset,

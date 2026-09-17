@@ -58,3 +58,6 @@ world.db-wal
 renderer/page/bundle.js
 renderer/page/parcel-bundle.js
 renderer/page/*.parcel-bundle.js
+tools/bucket-keys/*.tsv
+tools/bucket-keys/*.tsv.part
+tools/bucket-keys/keys.sqlite

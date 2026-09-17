@@ -42,6 +42,21 @@ export function ugcKey(wallet: string, mediaType: UploadMediaType, fileName: str
   return `${w}/${fileName}`
 }
 
+const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+
+// content address inside a parcel: 6 base58 chars of the sha1. 58^6 is plenty for one parcel and reads nicer than 40 hex.
+export async function contentName(bytes: Uint8Array): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-1', bytes as BufferSource))
+  let n = 0
+  for (let i = 0; i < 6; i++) n = n * 256 + digest[i]
+  let out = ''
+  for (let i = 0; i < 6; i++) {
+    out = B58[n % 58] + out
+    n = Math.floor(n / 58)
+  }
+  return out
+}
+
 export function parcelUgcKey(parcelId: number, fileName: string) {
   return `parcel/${parcelId}/${fileName}`
 }

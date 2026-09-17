@@ -28,7 +28,7 @@ import ParcelBudget from './parcel-budget'
 import LuaBehaviours from './lua/behaviours'
 import { FeaturePump } from './pump/feature-pump'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
-import { tidyVec3 } from './utils/helpers'
+import { resolveUgc, tidyVec3 } from './utils/helpers'
 import { ParcelEventMap } from './utils/parcel-event-map'
 import { Action } from '../common/messages'
 import { addVoxels, removeCollider } from './physics/world'
@@ -39,6 +39,22 @@ const isTest = process.env.NODE_ENV === 'test'
 const NEARBY = isTest ? 92 : 64
 
 const SPRITE_SLICE_DURATION = 0.5
+
+// Fire every ugc GET the moment content lands instead of one per pump tick. ugc.voxels.com is
+// h2 so ~100 streams ride one connection, and max-age=3600 means the feature's own fetch
+// (main thread or monoworker, same http cache) lands on warm bytes. Body must be read to cache.
+const warmed = new Set<string>()
+function warmUgc(features: FeatureRecord[], tileset?: string) {
+  const urls = [tileset]
+  for (const f of features as any[]) for (const k of ['url', 'previewUrl', 'assetUrl']) urls.push(typeof f?.[k] === 'string' ? f[k] : f?.[k]?.url)
+  for (const u of urls) {
+    if (typeof u !== 'string' || !u.startsWith('ugc://') || warmed.has(u)) continue
+    warmed.add(u)
+    fetch(resolveUgc(u)!)
+      .then((r) => r.arrayBuffer())
+      .catch(() => {})
+  }
+}
 
 export enum ParcelActivationState {
   Inactive = 'inactive',
@@ -1234,6 +1250,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
         this.activationState = ParcelActivationState.Active
       }
     } else {
+      warmUgc(features, this.tileset)
       window.main?.pump.activate(this, features, this.onFeaturesLoaded)
     }
   }

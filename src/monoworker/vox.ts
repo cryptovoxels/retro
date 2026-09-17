@@ -22,7 +22,7 @@ async function loadVoxUrl(url: string, signal?: AbortSignal): Promise<ArrayBuffe
       } catch (e) {}
 
       const originalUrl = searchParams?.get('url') || url
-      if (data.message) {
+      if (data?.message) {
         throw new Error(`failed fetching .vox ${data.message} - ${originalUrl}`)
       } else {
         throw new Error(`failed fetching .vox ${response.status} - ${originalUrl}`)
