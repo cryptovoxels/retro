@@ -1,6 +1,7 @@
 import { throttle } from 'lodash'
 import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { ImageMode, NftImageRecord } from '../../common/messages/feature'
+import { isUgcTextureUrl } from '../../common/helpers/parcel-compile'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { app } from '../../web/src/state'
 import { fetchTexture } from '../textures/textures'
@@ -23,19 +24,7 @@ function frameMat(scene: BABYLON.Scene, name: string, color: BABYLON.Color3): BA
   return m
 }
 
-export function arrayBufferToDataURL(buf: ArrayBuffer, mime = 'application/octet-stream'): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const blob = new Blob([buf], { type: mime })
-    const fr = new FileReader()
-    fr.onload = () => resolve(fr.result as string) // data:... base64
-    fr.onerror = reject
-    fr.readAsDataURL(blob)
-  })
-}
-
 const frameThick = 0.05
-
-const queryParams = new URLSearchParams(document.location.search.substring(1))
 
 export default class NftImage extends Feature2D<NftImageRecord> {
   static classicFrameMaterial: BABYLON.StandardMaterial
@@ -137,156 +126,87 @@ export default class NftImage extends Feature2D<NftImageRecord> {
   }
 
   generateNFT = async (): Promise<void> => {
-    // get the URL of the asset
-    return new Promise(async (resolve) => {
-      this.loaded = false
-      this.generateDraft()
-      var url = await this.loadURL()
+    this.loaded = false
+    this.generateDraft()
+    if (this.disposed || this.abortController.signal.aborted) return
 
-      if (this.disposed || this.abortController.signal.aborted) {
-        return resolve()
-      }
+    // compiled / rehosted: paint ugc directly, never OpenSea for the in-world texture
+    const rawUrl = (this.description as any).url as string | undefined
+    if (isUgcTextureUrl(rawUrl) || isUgcTextureUrl(this.url)) {
+      if (this.url) await this.paintTexture(this.url)
+      return
+    }
 
-      if (!this.assetHelper) {
-        console.warn('NFT URL:', this.url, 'could not be loaded.')
-        return resolve()
-      }
+    // draft present: leave it, don't hit OpenSea just to maybe replace it with a failure
+    if ((this.description as any).draft) return
 
-      const imgUrl = this.assetHelper!.getImage
-      const isSvg = imgUrl.endsWith('.svg')
-      // const isGif = imgUrl.endsWith('.gif')
+    // uncompiled, no draft: OpenSea for the texture (popup path shares loadURL)
+    const imgUrl = await this.loadURL()
+    if (!imgUrl || this.disposed || this.abortController.signal.aborted) return
 
-      if (this.parcel.id === 86 && isSvg) {
-        // 1) fetch → sanitize → blob → img (untainted)
-        const res = await fetch(imgUrl, { mode: 'cors', credentials: 'omit' })
-        const ext = imgUrl.split('.').pop()
-
-        var datauri = ''
-
-        if (ext == 'svg') {
-          const svgText = await res.text()
-          datauri = `data:image/svg+xml;base64,${btoa(svgText)}`
-        } else if (ext == 'gif') {
-          const buf = await res.arrayBuffer()
-          const gifuri = await arrayBufferToDataURL(buf, 'image/gif')
-
-          // const svg = `
-          // <svg class="a p" viewBox="0 0 72 72" xmlns="http://www.w3.org/2000/svg">
-          //   <image href="${gifuri}" width="512" height="512" />
-          // </svg>
-
-          datauri = `data:image/svg+xml;base64,${btoa(gifuri)}`
-        } else {
-          // const buf = await res.arrayBuffer()
-          // datauri = await arrayBufferToDataURL(buf, 'image/png')
-        }
-
-        // optional but wise: strip scripts/external refs
-        // e.g. DOMPurify if you have it:
-        // svgText = DOMPurify.sanitize(svgText, { USE_PROFILES: { svg: true, svgFilters: true } });
-
-        const img = new Image()
-        img.crossOrigin = 'anonymous'
-        img.src = datauri
-        await img.decode()
-
-        // 2) upload to WebGL
-        // gl.bindTexture(gl.TEXTURE_2D, tex);
-        //         gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, img);
-
-        img.style.cssText = `
-          position: fixed;
-          top: 0;
-          left: 32px;
-          width: 32px;
-          height: 32px;
-          z-index: 1000;
-        `
-        document.body.appendChild(img)
-
-        // console.log('img', img)
-
-        const size = { width: 512, height: 512 }
-        const tex = new BABYLON.DynamicTexture('imgTex', size, this.scene, false)
-
-        // on dispose, remove the img from the DOM
-        tex.onDisposeObservable.add(() => {
-          img.remove()
-        })
-
-        // console.log('tex', tex)
-
-        // draw the image into the texture
-        const ctx = tex.getContext()
-
-        function refresh() {
-          if (!img) return
-
-          ctx.clearRect(0, 0, size.width, size.height)
-          ctx.drawImage(img, 0, 0, size.width, size.height)
-          tex.update(true) // pass false to keep current invertY
-
-          // console.log('refresh', img)
-
-          // call again next frame if needed
-          requestAnimationFrame(refresh)
-        }
-
-        refresh()
-        // ctx.clearRect(0, 0, size.width, size.height)
-        // ctx.drawImage(img, 0, 0, size.width, size.height)
-        // tex.update() // upload to GPU
-
-        // use it
-        // const mat = new BABYLON.StandardMaterial('m', scene)
-        // mat.diffuseTexture = tex
-        // mesh.material = mat
-
-        // const mesh = this.renderImage(tex)
-        // this.loaded = true
-        // resolve()
-        // return mesh
-
-        setTimeout(() => {
-          // @ts-ignore
-          this.mesh.material.diffuseTexture = tex
-        }, 1000)
-      }
-
+    // parcel 86 svg hack kept for the one place that needs it
+    if (this.parcel.id === 86 && imgUrl.endsWith('.svg') && this.assetHelper) {
       try {
-        const texture = await fetchTexture(this.scene, url, this.abortController.signal, {
-          transparent: !!this.description.transparent,
-          stretch: !!this.description.stretch,
-          pixelated: this.description.pixelated,
-        })
-        if (this.disposed || this.abortController.signal.aborted) {
-          texture.dispose()
-          return resolve()
-        }
-        texture.hasAlpha = false
-        this.renderImage(texture)
-        this.loaded = true
+        await this.paintSvgHack(imgUrl)
       } catch {
-        // aborted or failed: leave draft
+        // leave blank
       }
-      resolve()
-    })
+      return
+    }
+
+    await this.paintTexture(imgUrl)
   }
 
-  loadURL = async () => {
-    if (!this.url) {
-      // if no URL just show nothing
-      return null
+  private async paintTexture(url: string) {
+    try {
+      const texture = await fetchTexture(this.scene, url, this.abortController.signal, {
+        transparent: !!this.description.transparent,
+        stretch: !!this.description.stretch,
+        pixelated: this.description.pixelated,
+      })
+      if (this.disposed || this.abortController.signal.aborted) {
+        texture.dispose()
+        return
+      }
+      texture.hasAlpha = false
+      this.renderImage(texture)
+      this.loaded = true
+    } catch {
+      // aborted or failed: leave draft / blank
     }
-    const nftInfo = this.nftInfo
+  }
 
-    if (!nftInfo) {
-      // if we have a URL but the NFTinfo is bad, show error image
-      return `${process.env.ASSET_PATH}/images/error-URL_is_invalid.png`
+  private async paintSvgHack(imgUrl: string) {
+    const res = await fetch(imgUrl, { mode: 'cors', credentials: 'omit' })
+    const svgText = await res.text()
+    const datauri = `data:image/svg+xml;base64,${btoa(svgText)}`
+    const img = new Image()
+    img.crossOrigin = 'anonymous'
+    img.src = datauri
+    await img.decode()
+    const size = { width: 512, height: 512 }
+    const tex = new BABYLON.DynamicTexture('imgTex', size, this.scene, false)
+    tex.onDisposeObservable.add(() => img.remove())
+    const ctx = tex.getContext()
+    ctx.clearRect(0, 0, size.width, size.height)
+    ctx.drawImage(img, 0, 0, size.width, size.height)
+    tex.update(true)
+    if (this.disposed || this.abortController.signal.aborted) {
+      tex.dispose()
+      return
     }
+    this.renderImage(tex)
+    this.loaded = true
+  }
+
+  // OpenSea metadata + image URL. used for uncompiled render and the inspect popup. never returns an error PNG.
+  loadURL = async (): Promise<string | null> => {
+    if (!this.url) return null
+    const nftInfo = this.nftInfo
+    if (!nftInfo) return null
 
     if (!this.forceUpdate && this.asset && this.assetHelper && this.asset.token_id === nftInfo.token && this.asset.asset_contract.address === nftInfo.contract) {
-      return this.assetHelper.getImage
+      return this.assetHelper.getImage || null
     }
     this.asset = this.assetHelper = null
 
@@ -294,17 +214,13 @@ export default class NftImage extends Feature2D<NftImageRecord> {
       console.warn(`couldn't fetch NFT for parcel ${this.parcel.id}`, err, nftInfo)
     })
 
-    // console.log('data', data)
-
-    if (!data || !('asset_contract' in data)) {
-      return `${process.env.ASSET_PATH}/images/error-could_not_fetch_nft.png`
-    }
+    if (!data || !('asset_contract' in data)) return null
 
     this.asset = data
     this.assetHelper = new OpenseaAssetHelper(data)
     this.forceUpdate = false
 
-    return this.assetHelper.getImage
+    return this.assetHelper.getImage || null
   }
 
   onClick() {
