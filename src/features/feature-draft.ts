@@ -1,3 +1,4 @@
+import { VOX_SCALE } from '../../common/vox-import/vox-import'
 import { rebindGizmos } from '../tools/gizmos'
 import Feature from './feature'
 
@@ -68,36 +69,27 @@ export function encodeVoxDraft(buffer: ArrayBuffer): Promise<string | null> {
       if (err || !vox?.models?.[0]?.length) return resolve(null)
 
       const model = vox.models[0]
-      let minX = Infinity
-      let minY = Infinity
-      let minZ = Infinity
-      let maxX = -Infinity
-      let maxY = -Infinity
-      let maxZ = -Infinity
-      for (const v of model) {
-        minX = Math.min(minX, v.x)
-        minY = Math.min(minY, v.y)
-        minZ = Math.min(minZ, v.z)
-        maxX = Math.max(maxX, v.x)
-        maxY = Math.max(maxY, v.y)
-        maxZ = Math.max(maxZ, v.z)
-      }
+      // bucket on the SIZE chunk, not the occupied bbox, so cells land where vox-reader puts the real voxels
+      const size = vox.sizes?.[0] || { x: 1, y: 1, z: 1 }
+      const sx = Math.max(1, size.x)
+      const sy = Math.max(1, size.y)
+      const sz = Math.max(1, size.z)
 
       const cells: number[][] = Array.from({ length: 64 }, () => [])
-      const rx = Math.max(1, maxX - minX)
-      const ry = Math.max(1, maxY - minY)
-      const rz = Math.max(1, maxZ - minZ)
-
       for (const v of model) {
-        const cx = Math.min(3, Math.floor(((v.x - minX) / rx) * 3.999))
-        const cy = Math.min(3, Math.floor(((v.y - minY) / ry) * 3.999))
-        const cz = Math.min(3, Math.floor(((v.z - minZ) / rz) * 3.999))
+        const cx = Math.min(3, Math.floor((v.x / sx) * 4))
+        const cy = Math.min(3, Math.floor((v.y / sy) * 4))
+        const cz = Math.min(3, Math.floor((v.z / sz) * 4))
         const cell = cx + cy * 4 + cz * 16
         const { r, g, b } = vox.palette[v.colorIndex] || { r: 0, g: 0, b: 0 }
         cells[cell].push(nearestIndex(r, g, b))
       }
 
-      const out = new Uint8Array(64)
+      // 64 cells + 3 size bytes so the client can draw it at the real footprint
+      const out = new Uint8Array(67)
+      out[64] = Math.min(255, sx)
+      out[65] = Math.min(255, sy)
+      out[66] = Math.min(255, sz)
       for (let i = 0; i < 64; i++) {
         const hits = cells[i]
         if (!hits.length) continue
@@ -150,10 +142,12 @@ export function renderVoxDraft(feature: Feature, b64: string) {
   const f = feature as any
 
   const bytes = b64ToBytes(b64)
-  if (bytes.length !== 64) return
+  // 64 cells + 3 size bytes. old 64-byte drafts have no size, the compiler redoes them
+  if (bytes.length !== 67) return
 
   const scene = feature.scene
-  const cell = 1 / 4
+  // one cell = a quarter of the model, in world units, in babylon axes (vox z is up)
+  const cell = new BABYLON.Vector3(((bytes[64] || 1) / 4) * VOX_SCALE, ((bytes[66] || 1) / 4) * VOX_SCALE, ((bytes[65] || 1) / 4) * VOX_SCALE)
   const boxes: BABYLON.Mesh[] = []
 
   for (let z = 0; z < 4; z++) {
@@ -162,8 +156,9 @@ export function renderVoxDraft(feature: Feature, b64: string) {
         const pi = bytes[x + y * 4 + z * 16]
         if (!pi) continue
         const color = MAGICA_PALETTE[pi] || MAGICA_PALETTE[1]
-        const box = BABYLON.MeshBuilder.CreateBox(f.uniqueEntityName('mesh'), { size: cell * 0.95 }, scene)
-        box.position.set((x - 1.5) * cell, (y - 1.5) * cell, (z - 1.5) * cell)
+        const box = BABYLON.MeshBuilder.CreateBox(f.uniqueEntityName('mesh'), { width: cell.x * 0.95, height: cell.y * 0.95, depth: cell.z * 0.95 }, scene)
+        // same layout as vox-reader: mirrored x, vox z up, base on y=0, x/z centred
+        box.position.set((1.5 - x) * cell.x, (z + 0.5) * cell.y, (1.5 - y) * cell.z)
         const vd = BABYLON.VertexData.ExtractFromMesh(box)
         const n = vd.positions!.length / 3
         const colors = new Float32Array(n * 4)
@@ -186,9 +181,8 @@ export function renderVoxDraft(feature: Feature, b64: string) {
   if (!merged) return
 
   const mat = new BABYLON.StandardMaterial(f.uniqueEntityName('material'), scene)
+  // no disableLighting: with no lights and black emissive the vertex colours multiply to black
   mat.specularColor.set(0, 0, 0)
-  mat.disableLighting = true
-  ;(mat as any).useVertexColors = true
 
   if (!(feature.mesh instanceof BABYLON.Mesh)) {
     feature.mesh = merged

@@ -430,7 +430,11 @@ export async function compileParcelContent(
       const cached = bytesByUuid.get(f.uuid)
       const descUrl = tidyURL((desc as any).url)
       // and never refetch ugc just to recompute a draft we already have (re-pick passes)
-      const onUgc = !!descUrl && descUrl.startsWith('ugc://') && !(desc as any).draft
+      const isVox = f.type === 'vox-model' || f.type === 'megavox' || f.type === 'ride'
+      const oldDraft = (desc as any).draft as string | undefined
+      // vox drafts grew 3 size bytes (67 bytes = 92 b64 chars); shorter ones are the unsized format, redo them
+      const stale = !oldDraft || (isVox && oldDraft.length !== 92)
+      const onUgc = !!descUrl && descUrl.startsWith('ugc://') && stale
 
       if (draft?.encodeImage && (f.type === 'image' || f.type === 'nft-image') && (cached || onUgc)) {
         const d = await draft.encodeImage(resolveUgc(descUrl) || '', cached)
@@ -442,7 +446,7 @@ export async function compileParcelContent(
         }
       }
 
-      if (draft?.encodeVox && (f.type === 'vox-model' || f.type === 'megavox' || f.type === 'ride') && (cached || onUgc)) {
+      if (draft?.encodeVox && isVox && (cached || onUgc)) {
         let buf: ArrayBuffer | null = null
         if (cached) {
           buf = cached.buffer.slice(cached.byteOffset, cached.byteOffset + cached.byteLength) as ArrayBuffer
