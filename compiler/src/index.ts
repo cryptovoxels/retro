@@ -16,6 +16,8 @@ const port = process.env.PORT || '8081'
 const SLEEP_MS = parseInt(process.env.COMPILE_SLEEP_MS || '0', 10)
 const COMPILE_PARCELS = parseInt(process.env.COMPILE_PARCELS || '16', 10)
 const COMPILE_WORKERS = parseInt(process.env.COMPILE_WORKERS || '40', 10)
+// COMPILE_REPROCESS=1 or --reprocess: every parcel, drafts only, no UGC PUTs, exit when done
+const REPROCESS = process.env.COMPILE_REPROCESS === '1' || process.argv.includes('--reprocess')
 
 const app = express()
 
@@ -34,20 +36,36 @@ const pools: CompilePools = {
 const seen = new Set<number>()
 const queue: number[] = []
 const picking = { lock: Promise.resolve() }
+let exhausted = false
+let inFlight = 0
 
 // the where clause is a full table text scan, so grab the lowest 100 in one go and hand them out shuffled
 async function pickParcelId(): Promise<number | null> {
   picking.lock = picking.lock.then(async () => {
     if (queue.length) return
-    const r = await db.query(
-      'embedded/pick-uncompiled-parcels',
-      `select id from properties
-        where (content::text not like '%ugc://parcel/%' or json_array_length(coalesce(content->'missing', '[]'::json)) > 0)
-          and not (id = any($1::int[]))
-        order by content::text like '%ugc://parcel/%', id
-        limit 100`,
-      [Array.from(seen)],
-    )
+    if (exhausted) return
+    const r = REPROCESS
+      ? await db.query(
+          'embedded/pick-all-parcels',
+          `select id from properties
+            where not (id = any($1::int[]))
+            order by id
+            limit 100`,
+          [Array.from(seen)],
+        )
+      : await db.query(
+          'embedded/pick-uncompiled-parcels',
+          `select id from properties
+            where (content::text not like '%ugc://parcel/%' or json_array_length(coalesce(content->'missing', '[]'::json)) > 0)
+              and not (id = any($1::int[]))
+            order by content::text like '%ugc://parcel/%', id
+            limit 100`,
+          [Array.from(seen)],
+        )
+    if (!r.rows.length) {
+      exhausted = true
+      return
+    }
     for (const row of r.rows) {
       if (typeof row.id !== 'number' || seen.has(row.id)) continue
       seen.add(row.id)
@@ -76,7 +94,8 @@ async function compileOne(id: number) {
 
     const features = (parcel.content.features || []).filter((f: any) => f && f.uuid)
     const tileset = parcel.content.tileset as string | undefined
-    const upload = (name: string, bytes: Uint8Array, contentType: string, contentEncoding?: string) => serverUpload(id, name, bytes, contentType, contentEncoding)
+    // reprocess never writes the bucket; normal mode uploads as usual
+    const upload = REPROCESS ? async () => null : (name: string, bytes: Uint8Array, contentType: string, contentEncoding?: string) => serverUpload(id, name, bytes, contentType, contentEncoding)
 
     const { patch, missing } = await compileParcelContent(
       id,
@@ -86,22 +105,24 @@ async function compileOne(id: number) {
       {
         encodeImage: encodeImageDraft,
         encodeVox: encodeVoxDraft,
-        encodeVoxelbr,
+        encodeVoxelbr: REPROCESS ? undefined : encodeVoxelbr,
       },
-      { pools, board, hoard: hoardEnabled() ? hoardFetch : undefined },
+      { pools, board, hoard: !REPROCESS && hoardEnabled() ? hoardFetch : undefined, reprocess: REPROCESS },
     )
 
     const prevMissing = Array.isArray(parcel.content.missing) ? parcel.content.missing : []
     applyPatch(parcel.content, patch)
 
-    if (missing.length) parcel.content.missing = missing
-    else delete parcel.content.missing
+    if (!REPROCESS) {
+      if (missing.length) parcel.content.missing = missing
+      else delete parcel.content.missing
+    }
 
-    const missingChanged = JSON.stringify(prevMissing) !== JSON.stringify(missing)
+    const missingChanged = !REPROCESS && JSON.stringify(prevMissing) !== JSON.stringify(missing)
     if (patch.features || patch.tileset !== undefined || missingChanged) {
       parcel.setContent(parcel.content)
       await parcel.save()
-      board.logDone(`#${id} saved  patched ${Object.keys(patch.features || {}).length}  tileset ${patch.tileset !== undefined ? 'yes' : 'no'}  missing ${missing.length}`)
+      board.logDone(`#${id} saved  patched ${Object.keys(patch.features || {}).length}  tileset ${patch.tileset !== undefined ? 'yes' : 'no'}  missing ${REPROCESS ? '-' : missing.length}`)
     } else {
       board.logDone(`#${id} nothing to do`)
     }
@@ -125,9 +146,15 @@ async function workerLoop() {
   while (!abort.signal.aborted) {
     const id = await pickParcelId()
     if (!id) {
+      if (REPROCESS && exhausted && inFlight === 0 && !queue.length) {
+        board.stop()
+        console.error(`[compiler] reprocess done  ${seen.size} parcels`)
+        process.exit(0)
+      }
       await new Promise((r) => setTimeout(r, Math.max(SLEEP_MS, 1000)))
       continue
     }
+    inFlight++
     try {
       await farm.compilers.run(async () => {
         await compileOne(id)
@@ -135,6 +162,8 @@ async function workerLoop() {
     } catch (e) {
       board.logDone(`#${id} boom ${e}`)
       console.error('[compiler]', id, e)
+    } finally {
+      inFlight--
     }
     if (SLEEP_MS > 0) await new Promise((r) => setTimeout(r, SLEEP_MS))
   }
@@ -143,5 +172,7 @@ async function workerLoop() {
 app.listen(port, () => {
   board.start()
   for (let i = 0; i < COMPILE_PARCELS; i++) void workerLoop()
-  console.error(`[compiler] listening on ${port}  parcels=${COMPILE_PARCELS} workers=${COMPILE_WORKERS}  hoard=${hoardEnabled() ? 'on' : 'off (set FULLBUCKET_ACCESS/SECRET)'}`)
+  console.error(
+    `[compiler] listening on ${port}  parcels=${COMPILE_PARCELS} workers=${COMPILE_WORKERS}  hoard=${!REPROCESS && hoardEnabled() ? 'on' : 'off'}  mode=${REPROCESS ? 'REPROCESS (all parcels, drafts only, no ugc put)' : 'compile'}`,
+  )
 })

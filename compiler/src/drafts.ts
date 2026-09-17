@@ -38,8 +38,9 @@ export async function encodeImageDraft(url: string, bytes?: Uint8Array): Promise
       if (!res.ok) return null
       input = Buffer.from(await res.arrayBuffer())
     }
-    const webp = await sharp(input).resize(8, 8).webp({ quality: 80 }).toBuffer()
-    return webp.toString('base64')
+    // 4x4 raw RGB = 48 bytes = 64 chars b64. no texture, vertex colours on the client
+    const raw = await sharp(input).resize(4, 4, { fit: 'fill' }).removeAlpha().raw().toBuffer()
+    return raw.toString('base64')
   } catch {
     return null
   }

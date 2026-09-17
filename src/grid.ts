@@ -90,6 +90,10 @@ export default class Grid extends SocketClient {
   private pingInterval?: number
   private _workerInterval?: number // You'd think "ReturnType<typeof setInterval>" would work, wouldn't you.
   private readonly isolateMode: boolean
+
+  get isolating() {
+    return this.isolateMode
+  }
   private intervals: number[] = []
   private _queryJobs = new Map<number, DeferredPromise<number[]>>()
   private _nextQueryId = 0
@@ -132,6 +136,8 @@ export default class Grid extends SocketClient {
     this.addInterval(this.refreshActiveParcels.bind(this), isMobile() ? 2e3 : DEFAULT_UPDATE_INTERVAL_MS)
     this.addInterval(this.refreshEnteredParcel.bind(this), DEFAULT_UPDATE_INTERVAL_MS)
     this.addInterval(this.refreshNearestParcels.bind(this), isMobile() ? 5e3 : 1e3)
+
+    this.scene.onBeforeRenderObservable.add(this.occlusionTick)
 
     if (this.seeksConnection) {
       this.listenToLeaveWorld()
@@ -812,6 +818,21 @@ export default class Grid extends SocketClient {
     return this.getNearest(8, this.getCameraPosition()).filter((p) => p.kind == 'inner')[0]
   }
 
+  private occlusionTick = () => {
+    const current = this.currentOrNearestParcel()
+    this.parcels.forEach((p) => {
+      // standing inside the probe thrashs the query — never treat current as occluded
+      if (p === current || !p.occlusionProbe) {
+        p.occludedFrames = 0
+        p.setFeaturesHidden(false)
+        return
+      }
+      if (p.occlusionProbe.isOccluded) p.occludedFrames++
+      else p.occludedFrames = 0
+      p.setFeaturesHidden(p.occluded)
+    })
+  }
+
   private refreshActiveParcels() {
     // Reprioritize pump queue based on current camera position
     const camPos = this.getCameraPosition()
@@ -820,7 +841,15 @@ export default class Grid extends SocketClient {
     const currentParcel = this.currentOrNearestParcel()
 
     // get parcels near camera (to prioritize things close to player)
-    const allNearest = this.getNearest(this.activePoolSize, camPos)
+    // occluded parcels never start dressing; already-active ones stay until occluded ~10s
+    const allNearest = this.getNearest(this.activePoolSize * 2, camPos)
+      .filter((p) => {
+        if (p === currentParcel) return true
+        if (!p.occluded) return true
+        if (this.activeParcelPool.includes(p) && p.occludedFrames <= 600) return true
+        return false
+      })
+      .slice(0, this.activePoolSize)
 
     const filteredNearest: Parcel[] = []
     const cap = Math.floor(this.activePoolSize / 2)
@@ -841,6 +870,12 @@ export default class Grid extends SocketClient {
 
     if (currentParcel) {
       newPool.unshift(currentParcel)
+    }
+
+    // drop pool members that have been occluded for ~10s
+    for (let i = newPool.length - 1; i >= 0; i--) {
+      const p = newPool[i]
+      if (p !== currentParcel && p.occludedFrames > 600) newPool.splice(i, 1)
     }
 
     newPool.length = Math.min(newPool.length, this.activePoolSize)

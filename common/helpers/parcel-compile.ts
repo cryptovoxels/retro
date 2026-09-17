@@ -425,6 +425,8 @@ export async function compileParcelContent(
     pools?: CompilePools
     board?: CompileBoardView
     hoard?: CompileHoard
+    // rewrite drafts on existing ugc:// urls; skip rehost PUTs and voxelbr uploads
+    reprocess?: boolean
   },
 ): Promise<CompileResult> {
   const out: Record<string, FeatureRecord> = {}
@@ -433,6 +435,7 @@ export async function compileParcelContent(
   const stat = emptyStat()
   const missing: string[] = []
   const ctx: JobCtx = { parcelId, upload, pools: opts?.pools, board: opts?.board, hoard: opts?.hoard, draft, missing, stat, fetchMemo: new Map(), rehostMemo: new Map() }
+  const reprocess = !!opts?.reprocess
 
   ctx.board?.bump({ total: 0 })
 
@@ -446,26 +449,28 @@ export async function compileParcelContent(
 
   const jobs: UrlJob[] = []
 
-  for (const f of features) {
-    if (!f.uuid) continue
-    for (const field of URL_FIELDS) {
-      const raw = tidyURL((f as any)[field])
-      if (!raw || shouldSkip(raw) || isParcelUgc(raw, parcelId)) continue
+  if (!reprocess) {
+    for (const f of features) {
+      if (!f.uuid) continue
+      for (const field of URL_FIELDS) {
+        const raw = tidyURL((f as any)[field])
+        if (!raw || shouldSkip(raw) || isParcelUgc(raw, parcelId)) continue
+        jobs.push({
+          uuid: f.uuid,
+          field,
+          rawUrl: raw,
+          kind: kindFor(f.type, field),
+        })
+      }
+    }
+
+    if (tileset && !isParcelUgc(tileset, parcelId) && !shouldSkip(tileset)) {
       jobs.push({
-        uuid: f.uuid,
-        field,
-        rawUrl: raw,
-        kind: kindFor(f.type, field),
+        rawUrl: tileset,
+        kind: 'image',
+        isTileset: true,
       })
     }
-  }
-
-  if (tileset && !isParcelUgc(tileset, parcelId) && !shouldSkip(tileset)) {
-    jobs.push({
-      rawUrl: tileset,
-      kind: 'image',
-      isTileset: true,
-    })
   }
 
   ctx.board?.bump({ total: jobs.length })
@@ -503,9 +508,10 @@ export async function compileParcelContent(
     const descUrl = tidyURL((desc as any).url)
     const isVox = isVoxType(f.type)
     const oldDraft = (desc as any).draft as string | undefined
-    // vox drafts grew 3 size bytes (67 bytes = 92 b64 chars); shorter ones are the unsized format, redo them
-    const needDraft = !oldDraft || (isVox && oldDraft.length !== 92)
-    const needVoxelbr = isVox && !(desc as any).voxelbr
+    // vox drafts: 67 bytes = 92 b64. image drafts: 48 bytes raw RGB = 64 b64. anything else is old format, redo
+    const needDraft = !oldDraft || (isVox ? oldDraft.length !== 92 : oldDraft.length !== 64)
+    // reprocess never writes the bucket, so skip voxelbr
+    const needVoxelbr = !reprocess && isVox && !(desc as any).voxelbr
 
     if (draft && (needDraft || needVoxelbr) && wantsDraft(f.type) && descUrl?.startsWith('ugc://')) {
       const sourceUrl = resolveUgc(descUrl) || ''

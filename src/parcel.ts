@@ -33,12 +33,16 @@ import { ParcelEventMap } from './utils/parcel-event-map'
 import { Action } from '../common/messages'
 import { addVoxels, removeCollider } from './physics/world'
 import { voxelCollider } from './monoworker/physics'
+import ParcelDrafts from './parcel-drafts'
+import { GraphicLevels } from './graphic/graphic-engine'
 
 const isTest = process.env.NODE_ENV === 'test'
 
 const NEARBY = isTest ? 92 : 64
 
 const SPRITE_SLICE_DURATION = 0.5
+
+const LIVE_TYPES = new Set(['video', 'vid-screen', 'youtube', 'audio', 'boombox', 'particle-system'])
 
 // Fire every ugc GET the moment content lands instead of one per pump tick. ugc.voxels.com is
 // h2 so ~100 streams ride one connection, and max-age=3600 means the feature's own fetch
@@ -128,6 +132,31 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   preview = false
   private entered = false
   autobuilt = false
+  readonly drafts = new ParcelDrafts(this)
+  private _featureRoot: BABYLON.TransformNode | null = null
+  private parkedLive: FeatureRecord[] = []
+  occludedFrames = 0
+  private featuresHidden = false
+  /** Invisible DB-bounds box; occlusion query target. Voxels only occlude, never get queried. */
+  occlusionProbe: BABYLON.Mesh | null = null
+
+  get featureRoot(): BABYLON.TransformNode {
+    if (this._featureRoot && !this._featureRoot.isDisposed()) return this._featureRoot
+    this._featureRoot = new BABYLON.TransformNode(`features/${this.id}`, this.scene)
+    this._featureRoot.parent = this.transform
+    if (this.featuresHidden) this._featureRoot.setEnabled(false)
+    return this._featureRoot
+  }
+
+  get occluded() {
+    return this.occludedFrames >= 3
+  }
+
+  setFeaturesHidden(hide: boolean) {
+    if (hide === this.featuresHidden) return
+    this.featuresHidden = hide
+    if (this._featureRoot && !this._featureRoot.isDisposed()) this._featureRoot.setEnabled(!hide)
+  }
   tilesetTexture: BABYLON.Texture | null = null
 
   get areFeaturesLoaded() {
@@ -544,6 +573,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
           // DELETE
           const fi = this.features.findIndex((f) => f?.uuid === uuid)
           if (fi > -1) this.features.splice(fi, 1)
+          this.drafts.remove(uuid)
           if (feature) {
             if (feature.type === 'showbox') showboxRemoved = true
             const i = this.featuresList.indexOf(feature)
@@ -748,6 +778,12 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       throw new Error('createFeature: parcel is not loaded')
     }
 
+    // live tier: park until entered. pump only awaits the promise.
+    if (window.main && !this.entered && !this.preview && LIVE_TYPES.has(description.type)) {
+      this.parkedLive.push(description)
+      return null as any
+    }
+
     if (!this.budget.consume(description)) {
       throw new Error(`feature type ${description.type} is over budget`)
     }
@@ -779,6 +815,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       this.featuresList.splice(i, 1)
     }
 
+    this.drafts.remove(f.uuid)
     f.dispose()
   }
 
@@ -805,6 +842,20 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
           f.onEnter()
         }
       })
+    }
+
+    // live tier: create parked media now that we're inside
+    const parked = this.parkedLive.splice(0)
+    if (parked.length && this.featuresActive) {
+      void Promise.all(
+        parked.map(async (desc) => {
+          try {
+            await this.createFeature(desc)
+          } catch (e) {
+            console.error(`[parcel] live createFeature ${desc.type} ${desc.uuid}`, e)
+          }
+        }),
+      )
     }
   }
 
@@ -848,6 +899,12 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.featuresList.forEach((feature) => {
       feature.dispose()
     })
+    this.drafts.clear()
+    this._featureRoot = null
+    this.parkedLive = []
+    this.occludedFrames = 0
+    this.featuresHidden = false
+    this.occlusionProbe = null
     this.transform.getChildren().forEach((c) => c.dispose())
     // null out disposed voxel mesh to ensure a new one is generated next time
     this.voxelMesh = undefined
@@ -891,6 +948,8 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
     this.activated = true
 
+    await this.drafts.explode()
+
     // Create features
     await this.generateFeatures()
 
@@ -918,6 +977,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.activationState = ParcelActivationState.Deactivating
     this.activated = false
     this.featuresActive = false
+    this.parkedLive = []
+
+    // shell drafts back before feature meshes dispose
+    void this.drafts.build()
 
     const features = this.featuresList.slice()
 
@@ -1210,6 +1273,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
 
     this.featuresActive = true
+    this.parkedLive = []
 
     this.budget.reset()
 
@@ -1311,6 +1375,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   async generateVoxelField() {
     if (!this.voxels || this.voxels.trim() === '') {
       console.debug(`Skipping meshing for parcel ${this.id} - no voxel data`)
+      if (this.activationState === ParcelActivationState.Inactive || this.activationState === ParcelActivationState.Deactivating) {
+        await this.drafts.build()
+      }
+      this.ensureOcclusionProbe()
       return
     }
 
@@ -1327,7 +1395,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // Y matches setVoxelMesh so voxel.ts pick/place math is correct
     const off: [number, number, number] = [-this.width / 4 + 0.25, -0.75 + this.ZFightingNudge, -this.depth / 4 + 0.25]
     const pending = !!(this.tileset && !this.tilesetTexture)
+    // drafts + voxel mesh in parallel on the worker; hold attach until both settle
+    const draftsPromise = this.activationState === ParcelActivationState.Inactive || this.activationState === ParcelActivationState.Deactivating ? this.drafts.build() : Promise.resolve()
     const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id, this.paletteColors, this.tilesetTexture ?? (pending ? createWhiteTexture(this.scene) : undefined))
+    await draftsPromise
     if (pending) {
       const mat = opaque.material as BABYLON.StandardMaterial
       // Load the atlas png directly - NOT through fetchTexture. The compressed .ktx
@@ -1350,6 +1421,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     opaque.position.set(off[0], off[1], off[2])
     opaque.isPickable = true
     opaque.freezeWorldMatrix()
+    this.ensureOcclusionProbe()
     this.setGlassMesh(glass, { pickable: true })
     if (this.glassMesh) {
       this.glassMesh.position.set(off[0], off[1], off[2])
@@ -1360,6 +1432,33 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       this.registerPhysics()
     }
     this.dispatchEvent(createEvent('MeshLoaded', opaque))
+  }
+
+  // Invisible box = DB parcel AABB. Query asks "do voxel fields fully cover this box?".
+  // Never put occlusionType on voxelMesh — that culls voxels and thrashs when you're inside.
+  ensureOcclusionProbe() {
+    if (this.occlusionProbe && !this.occlusionProbe.isDisposed()) return
+    const level = window.graphic?.getSettings()?.level
+    if (this.preview || this.grid.isolating || (level != null && level <= GraphicLevels.Low)) return
+
+    const w = this.x2 - this.x1
+    const h = this.y2 - this.y1
+    const d = this.z2 - this.z1
+    if (w <= 0 || h <= 0 || d <= 0) return
+
+    // transform sits at xz centre, y = min — box centred on that with y up from the floor
+    const probe = BABYLON.MeshBuilder.CreateBox(`occlusion/${this.id}`, { width: w, height: h, depth: d }, this.scene)
+    probe.parent = this.transform
+    probe.position.set(0, h / 2, 0)
+    probe.isPickable = false
+    // 0 skips the active list and never issues a query; tiny alpha still triggers the bbox probe
+    probe.visibility = 0.0001
+    probe.forceRenderingWhenOccluded = true
+    probe.occlusionType = BABYLON.AbstractMesh.OCCLUSION_TYPE_OPTIMISTIC
+    probe.occlusionQueryAlgorithmType = BABYLON.AbstractMesh.OCCLUSION_ALGORITHM_TYPE_ACCURATE
+    probe.freezeWorldMatrix()
+    this.occlusionProbe = probe
+    this.occludedFrames = 0
   }
 
   private disposeGeneratedMeshes(...meshes: (BABYLON.Mesh | null | undefined)[]) {

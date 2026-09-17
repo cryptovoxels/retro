@@ -16,7 +16,6 @@ import { axisNames2D, axisNames3D, bboxCompletelyWithin, resolveUgc, tidyURL, ti
 import { getWorldTimeOfDay, setWorldTimeOfDay } from '../init/world-scene'
 import { TimeOfDay } from '../utils/time-of-day'
 import Group from './group'
-import { renderImageDraft, renderVoxDraft } from './feature-draft'
 import { boundingBoxOfMesh } from './utils/bounding-box'
 
 /**
@@ -730,9 +729,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
   generateDraft(): void {
     if (this.disposed || !(this.description as any).draft) return
-    const d = (this.description as any).draft as string
-    if (this.type === 'image' || this.type === 'nft-image') renderImageDraft(this, d)
-    else if (this.type === 'vox-model' || this.type === 'megavox' || this.type === 'ride') renderVoxDraft(this, d)
+    if (this.parcel.drafts.take(this)) this.setCommon()
   }
 
   disposeBasicGui() {
@@ -1013,7 +1010,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     if (this.mesh) {
       // Set parent
       const group1 = this.groupId && this.parcel.getFeatureByUuid(this.groupId)
-      this.mesh.setParent(group1 && group1.mesh ? group1.mesh : this.parcel.transform)
+      this.mesh.setParent(group1 && group1.mesh ? group1.mesh : this.parcel.featureRoot)
 
       // planes have no depth, scale.z is meaningless for them and 0 -> EPSILON would kill the nudge below
       this.mesh.scaling.set(this.scale.x || EPSILON, this.scale.y || EPSILON, this instanceof Feature2D ? 1 : this.scale.z || EPSILON)
