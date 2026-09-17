@@ -142,7 +142,7 @@ export function NftView({ asset, onClose, feature, dialogEl }: Props) {
 
   const content = (setAr: (ar: number) => void) => {
     if (error) {
-      return <img src={`${process.env.ASSET_PATH}/images/error-could_not_fetch_nft.png`} alt={error} />
+      return <p>{error}</p>
     }
 
     const previewImg = preview && !ready ? <img src={preview} alt={assetHelper.getName} /> : null
