@@ -59,7 +59,7 @@ function mesh(geo: Geo, tex: BABYLON.Texture, scene: BABYLON.Scene, id: number |
   const c = 0.6
   mat.diffuseColor.set(c, c, c)
 
-  mat.specularColor.set(0.05, 0.05, 0.05)
+  mat.specularColor.set(0.3, 0.3, 0.3)
   mat.specularPower = 10
   m.material = mat
   m.useVertexColors = true
