@@ -5,6 +5,8 @@ import { GetObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { createHash } from 'crypto'
 import sharp from 'sharp'
 import { sniffBytes, type SniffKind } from '../../common/helpers/magic'
+import { MAX_BYTES } from '../../common/helpers/parcel-compile'
+import { diskFetch, readBounded } from './download'
 
 const md5 = (s: string) => createHash('md5').update(s).digest('hex')
 const slug = (url: string) => (url.slice(0, 64) + '-').replace(/[^A-Za-z0-9]/g, '-')
@@ -54,10 +56,24 @@ export async function hoardFetch(url: string, kind: SniffKind): Promise<{ bytes:
   if (!hoardEnabled()) return null
   for (const { bucket, key } of hoardKeys(url)) {
     try {
-      const res = await client(bucket).send(new GetObjectCommand({ Bucket: bucket, Key: key }))
-      const bytes = await res.Body?.transformToByteArray()
+      const res = await client(bucket).send(
+        new GetObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Range: `bytes=0-${MAX_BYTES - 1}`,
+        }),
+      )
+      const fullSize = parseInt(res.ContentRange?.split('/').pop() || '', 10)
+      if (fullSize > MAX_BYTES || (res.ContentLength || 0) > MAX_BYTES) {
+        ;(res.Body as any)?.destroy?.()
+        continue
+      }
+      if (!res.Body) continue
+      const loaded = await readBounded(res.Body as any)
+      if ('error' in loaded) continue
+      const bytes = loaded.bytes
       // herring cached error pages too, keep digging past those
-      if (bytes?.length && sniffBytes(bytes, res.ContentType || '', kind).ok) return { bytes, contentType: res.ContentType || '', key: `${bucket}/${key}` }
+      if (bytes.length && sniffBytes(bytes, res.ContentType || '', kind).ok) return { bytes, contentType: res.ContentType || '', key: `${bucket}/${key}` }
     } catch {
       // not there, next
     }
@@ -83,9 +99,9 @@ async function ktxDig(url: string) {
           .digest('hex')
         const key = `${hash}_medium.dxt.ktx`
         try {
-          const res = await fetch(TEXTURES_CDN + key, { signal: AbortSignal.timeout(15000) })
-          if (!res.ok) continue
-          const png = await ktxToPng(new Uint8Array(await res.arrayBuffer()))
+          const fetched = await diskFetch(TEXTURES_CDN + key)
+          if ('error' in fetched) continue
+          const png = await ktxToPng(fetched.bytes)
           if (png) return { bytes: png, contentType: 'image/png', key: `textures/${key} (decoded)` }
         } catch {}
       }

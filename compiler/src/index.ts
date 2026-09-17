@@ -6,6 +6,7 @@ import { compileParcelContent, type CompilePools } from '../../common/helpers/pa
 import Parcel from '../../server/parcel'
 import db from '../../server/pg'
 import { Board } from './board'
+import { diskFetch } from './download'
 import { encodeImageDraft, encodeVoxDraft } from './drafts'
 import { createFarm } from './farm'
 import { hoardEnabled, hoardFetch } from './hoard'
@@ -107,7 +108,7 @@ async function compileOne(id: number) {
         encodeVox: encodeVoxDraft,
         encodeVoxelbr: REPROCESS ? undefined : encodeVoxelbr,
       },
-      { pools, board, hoard: !REPROCESS && hoardEnabled() ? hoardFetch : undefined, reprocess: REPROCESS },
+      { pools, board, fetch: diskFetch, hoard: !REPROCESS && hoardEnabled() ? hoardFetch : undefined, reprocess: REPROCESS },
     )
 
     const prevMissing = Array.isArray(parcel.content.missing) ? parcel.content.missing : []

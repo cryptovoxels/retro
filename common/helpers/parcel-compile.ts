@@ -133,7 +133,9 @@ function kindFor(featureType: string | undefined, field: string): SniffKind {
 
 const URL_FIELDS = ['url', 'previewUrl', 'assetUrl'] as const
 
-type Fetched = { bytes: Uint8Array; contentType: string; status: number } | { error: string; status?: number }
+export type CompileFetched = { bytes: Uint8Array; contentType: string; status: number } | { error: string; status?: number }
+// compiler injects a disk-backed fetch; browser keeps the in-memory default
+export type CompileFetch = (url: string, onProgress?: (got: number, total: number) => void) => Promise<CompileFetched>
 
 export type CompileDraft = {
   encodeImage?: (url: string, bytes?: Uint8Array) => Promise<string | null>
@@ -147,21 +149,22 @@ type JobCtx = {
   pools?: CompilePools
   board?: CompileBoardView
   hoard?: CompileHoard
+  fetch?: CompileFetch
   draft?: CompileDraft
   missing: string[]
   stat: CompileStat
   // same URL on ten features at once = one GET (in-flight only, see memoFetch)
-  fetchMemo: Map<string, Promise<Fetched>>
+  fetchMemo: Map<string, Promise<CompileFetched>>
   // and one sniff, one dig, one PUT
   rehostMemo: Map<string, Promise<RehostResult>>
 }
 
 const FETCH_TIMEOUT_MS = 30000
-// everything is buffered in ram; stop giant movies before they eat the box
-const MAX_BYTES = 20 * 1024 * 1024
-const TOO_BIG = { error: 'too big (>20mb)' }
+// everything is buffered in ram on the browser path; stop giant movies before they eat the box
+export const MAX_BYTES = 20 * 1024 * 1024
+const TOO_BIG: CompileFetched = { error: 'too big (>20mb)' }
 
-async function streamFetch(url: string, onProgress?: (got: number, total: number) => void): Promise<Fetched> {
+async function streamFetch(url: string, onProgress?: (got: number, total: number) => void): Promise<CompileFetched> {
   try {
     const res = await fetch(resolveUgc(url) || url, {
       headers: { Range: `bytes=0-${MAX_BYTES - 1}` },
@@ -217,10 +220,10 @@ async function streamFetch(url: string, onProgress?: (got: number, total: number
   }
 }
 
-function memoFetch(ctx: JobCtx, url: string, onProgress?: (got: number, total: number) => void): Promise<Fetched> {
+function memoFetch(ctx: JobCtx, url: string, onProgress?: (got: number, total: number) => void): Promise<CompileFetched> {
   const hit = ctx.fetchMemo.get(url)
   if (hit) return hit
-  const p = streamFetch(url, onProgress)
+  const p = (ctx.fetch || streamFetch)(url, onProgress)
   ctx.fetchMemo.set(url, p)
   // dedupe in-flight only; a settled entry would pin the body in ram for the rest of the parcel
   void p.finally(() => ctx.fetchMemo.delete(url))
@@ -461,6 +464,7 @@ export async function compileParcelContent(
     pools?: CompilePools
     board?: CompileBoardView
     hoard?: CompileHoard
+    fetch?: CompileFetch
     // rewrite drafts on existing ugc:// urls; skip rehost PUTs and voxelbr uploads
     reprocess?: boolean
   },
@@ -470,7 +474,19 @@ export async function compileParcelContent(
   const n = features.length
   const stat = emptyStat()
   const missing: string[] = []
-  const ctx: JobCtx = { parcelId, upload, pools: opts?.pools, board: opts?.board, hoard: opts?.hoard, draft, missing, stat, fetchMemo: new Map(), rehostMemo: new Map() }
+  const ctx: JobCtx = {
+    parcelId,
+    upload,
+    pools: opts?.pools,
+    board: opts?.board,
+    hoard: opts?.hoard,
+    fetch: opts?.fetch,
+    draft,
+    missing,
+    stat,
+    fetchMemo: new Map(),
+    rehostMemo: new Map(),
+  }
   const reprocess = !!opts?.reprocess
 
   ctx.board?.bump({ total: 0 })
