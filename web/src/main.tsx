@@ -16,7 +16,6 @@ import Home from './home'
 import { Client } from './client'
 import { isPlayPath, notifyUrlChange } from './helpers/coords-nav'
 import { track, trackPage } from './helpers/umami'
-import WebHeader from './web-header'
 import { SidebarClose, closePageSidebar } from './sidebar-close'
 
 import { useEffect, useState } from 'preact/hooks'
@@ -105,8 +104,6 @@ const Main = () => {
   return (
     <MainApp>
       <main class={[lightBroadcast ? 'showbox-light-shell' : '', play ? '-play' : ''].filter(Boolean).join(' ') || undefined}>
-        {!lightBroadcast && <WebHeader path={currentPath} />}
-
         <Client coords={coords} path={currentPath} />
 
         <div class={play ? 'page -play' : 'page'}>
