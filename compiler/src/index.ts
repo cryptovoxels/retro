@@ -43,7 +43,7 @@ async function pickParcelId(): Promise<number | null> {
       `select id from properties
         where (content::text not like '%ugc://parcel/%' or json_array_length(coalesce(content->'missing', '[]'::json)) > 0)
           and not (id = any($1::int[]))
-        order by id
+        order by content::text like '%ugc://parcel/%', id
         limit 100`,
       [Array.from(seen)],
     )
