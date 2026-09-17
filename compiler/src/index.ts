@@ -2,7 +2,7 @@
 
 import './bootstrap'
 import express from 'express'
-import { compileParcelContent } from '../../common/helpers/parcel-compile'
+import { compileParcelContent, leftoverUrls, say, truncated, C, B, R, vibe } from '../../common/helpers/parcel-compile'
 import Parcel from '../../server/parcel'
 import db from '../../server/pg'
 import { encodeImageDraft, encodeVoxDraft } from './drafts'
@@ -17,8 +17,22 @@ app.get('/health', (_req, res) => {
   res.status(200).end('up')
 })
 
+const seen = new Set<number>()
+
 async function pickParcelId(): Promise<number | null> {
-  const r = await db.query('embedded/pick-uncompiled-parcel', `select id from properties where content::text not like '%ugc://parcel/%' order by random() limit 1`)
+  const r = await db.query(
+    'embedded/pick-uncompiled-parcel',
+    `select id from (
+       select id from properties
+       where content::text not like '%ugc://parcel/%'
+         and not (id = any($1::int[]))
+       order by id
+       limit 100
+     ) t
+     order by random()
+     limit 1`,
+    [Array.from(seen)],
+  )
   const id = r.rows[0]?.id
   return typeof id === 'number' ? id : null
 }
@@ -33,6 +47,7 @@ function applyPatch(content: any, patch: Awaited<ReturnType<typeof compileParcel
 }
 
 async function compileOne(id: number) {
+  seen.add(id)
   const parcel = await Parcel.load(id)
   if (!parcel?.content) return
 
@@ -45,27 +60,46 @@ async function compileOne(id: number) {
     encodeVox: encodeVoxDraft,
   })
 
-  if (!patch.features && patch.tileset === undefined) return
+  if (patch.features || patch.tileset !== undefined) {
+    applyPatch(parcel.content, patch)
+    parcel.setContent(parcel.content)
+    await parcel.save()
+    console.log('[compiler] compiled parcel', id)
+  }
 
-  applyPatch(parcel.content, patch)
-  parcel.setContent(parcel.content)
-  await parcel.save()
-  console.log('[compiler] compiled parcel', id)
+  const left = leftoverUrls(id, parcel.content.features || [], parcel.content.tileset)
+  if (left.length) {
+    say(`${C[0]}${B}leftover parcel ${id}  (${left.length})${R} 💀`)
+    for (const u of left) say(`  ${C[0]}→ ${truncated(u)}${R} ${vibe(0)}`)
+  }
 }
 
+const abort = new AbortController()
+
 async function loop() {
-  for (;;) {
-    try {
-      const id = await pickParcelId()
-      if (id) await compileOne(id)
-    } catch (e) {
-      console.error('[compiler]', e)
+  console.log('looping my bro')
+
+  while (!abort.signal.aborted) {
+    const id = await pickParcelId()
+
+    if (id) {
+      console.log('Compiling parcel', id)
+
+      try {
+        await compileOne(id)
+      } catch (e) {
+        console.error('[compiler]', e)
+      }
+    } else {
+      console.log('no parcel to compile')
     }
+
     await new Promise((r) => setTimeout(r, SLEEP_MS))
   }
 }
 
 app.listen(port, () => {
+  loop()
+
   console.log('[compiler] listening on', port)
-  void loop()
 })
