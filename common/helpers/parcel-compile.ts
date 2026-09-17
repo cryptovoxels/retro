@@ -172,6 +172,9 @@ async function streamFetch(url: string, onProgress?: (got: number, total: number
       const buf = await res.arrayBuffer()
       if (buf.byteLength > MAX_BYTES) return TOO_BIG
       onProgress?.(buf.byteLength, buf.byteLength || total)
+      // #region agent log
+      ;(globalThis as any).__track?.(buf, buf.byteLength)
+      // #endregion
       return { bytes: new Uint8Array(buf), contentType, status: res.status }
     }
     const reader = res.body.getReader()
@@ -196,6 +199,9 @@ async function streamFetch(url: string, onProgress?: (got: number, total: number
       bytes.set(c, off)
       off += c.byteLength
     }
+    // #region agent log
+    ;(globalThis as any).__track?.(bytes.buffer, got)
+    // #endregion
     return { bytes, contentType, status: res.status }
   } catch (e) {
     const msg = e instanceof Error ? (e.name === 'TimeoutError' ? 'timeout' : e.message) : 'fetch boom'
@@ -357,9 +363,28 @@ async function rehostUncached(ctx: JobCtx, rawUrl: string, kind: SniffKind): Pro
   ctx.stat.bytes += bytes.byteLength
   ctx.board?.bump({ done: 1, bytes: bytes.byteLength })
 
+  // #region agent log
+  const __g = (globalThis as any).__g
+  const __tHeld = Date.now()
+  if (__g) {
+    __g.held++
+    __g.heldBytes += bytes.byteLength
+    if (__g.held > __g.maxHeld) __g.maxHeld = __g.held
+    if (__g.heldBytes > __g.maxHeldBytes) __g.maxHeldBytes = __g.heldBytes
+  }
+  const __release = () => {
+    if (!__g) return
+    __g.held--
+    __g.heldBytes -= bytes.byteLength
+  }
+  // #endregion
   const base = await contentName(bytes)
   const name = `${base}.${ok.ext}`
   const uploaded = await withUpload(ctx, async (slot) => {
+    // #region agent log
+    const __waited = Date.now() - __tHeld
+    if (__waited > 3000) (globalThis as any).__dbg?.('parcel-compile.ts:withUpload', 'body waited for upload slot', { parcelId: ctx.parcelId, url: sourceUrl, bytes: bytes.byteLength, waitedMs: __waited, held: __g?.held, heldBytes: __g?.heldBytes }, 'H3')
+    // #endregion
     ctx.board?.set(slot, { parcelId: ctx.parcelId, url: name, phase: 'PUT', got: 0, total: bytes.byteLength })
     const loc = await ctx.upload(name, bytes, ok.contentType)
     if (!loc) {
@@ -381,6 +406,9 @@ async function rehostUncached(ctx: JobCtx, rawUrl: string, kind: SniffKind): Pro
   })
 
   if (!uploaded) {
+    // #region agent log
+    __release()
+    // #endregion
     markMissing(ctx, rawUrl, 'upload failed')
     return null
   }
@@ -396,6 +424,9 @@ async function rehostUncached(ctx: JobCtx, rawUrl: string, kind: SniffKind): Pro
     if (ctx.draft?.encodeVox) draft = (await ctx.draft.encodeVox(toArrayBuffer(bytes))) || undefined
     voxelbr = await putVoxelbr(ctx, bytes)
   }
+  // #region agent log
+  __release()
+  // #endregion
   return { location: uploaded.location, ext: ok.ext, base, draft, voxelbr }
 }
 

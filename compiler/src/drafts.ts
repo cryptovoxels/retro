@@ -38,6 +38,13 @@ export async function encodeImageDraft(url: string, bytes?: Uint8Array): Promise
       if (!res.ok) return null
       input = Buffer.from(await res.arrayBuffer())
     }
+    // #region agent log
+    const __g = (globalThis as any).__g
+    if (__g) {
+      __g.imgDraft++
+      __g.imgBytes += input.byteLength
+    }
+    // #endregion
     // 4x4 raw RGB = 48 bytes = 64 chars b64. no texture, vertex colours on the client
     const raw = await sharp(input).resize(4, 4, { fit: 'fill' }).removeAlpha().raw().toBuffer()
     return raw.toString('base64')
@@ -52,6 +59,11 @@ export function encodeVoxDraft(buffer: ArrayBuffer): Promise<string | null> {
       if (err || !vox?.models?.[0]?.length) return resolve(null)
 
       const model = vox.models[0]
+      // #region agent log
+      const __g = (globalThis as any).__g
+      if (__g) __g.voxDraft++
+      if (model.length > 300_000) (globalThis as any).__dbg?.('drafts.ts:encodeVoxDraft', 'huge vox model objects', { input: buffer.byteLength, voxels: model.length, heapUsedMb: Math.round(process.memoryUsage().heapUsed / 1048576) }, 'H2')
+      // #endregion
       // bucket on the SIZE chunk, not the occupied bbox, so cells land where vox-reader puts the real voxels
       const size = vox.sizes?.[0] || { x: 1, y: 1, z: 1 }
       const sx = Math.max(1, size.x)

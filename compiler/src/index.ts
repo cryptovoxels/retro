@@ -11,6 +11,10 @@ import { createFarm } from './farm'
 import { hoardEnabled, hoardFetch } from './hoard'
 import { serverUpload } from './upload'
 import { encodeVoxelbr } from './voxelbr'
+// #region agent log
+import sharp from 'sharp'
+import { dbg, gauges, mb } from './debug-log'
+// #endregion
 
 const port = process.env.PORT || '8081'
 const SLEEP_MS = parseInt(process.env.COMPILE_SLEEP_MS || '0', 10)
@@ -168,6 +172,34 @@ async function workerLoop() {
     if (SLEEP_MS > 0) await new Promise((r) => setTimeout(r, SLEEP_MS))
   }
 }
+
+// #region agent log
+const memSnap = () => {
+  const m = process.memoryUsage()
+  return { rss: mb(m.rss), arrayBuffers: mb(m.arrayBuffers), external: mb(m.external), heapUsed: mb(m.heapUsed), heapTotal: mb(m.heapTotal) }
+}
+let tick = 0
+setInterval(() => {
+  const before = memSnap()
+  const gcFn = (globalThis as any).gc
+  gcFn?.()
+  const after = gcFn ? memSnap() : null
+  dbg('index.ts:sampler', 'mem tick', {
+    tick: tick++,
+    gcAvailable: !!gcFn,
+    before,
+    after,
+    freedByGcMb: after ? { rss: before.rss - after.rss, arrayBuffers: before.arrayBuffers - after.arrayBuffers, heapUsed: before.heapUsed - after.heapUsed } : null,
+    gauges: { ...gauges, heldBytesMb: mb(gauges.heldBytes), aliveBytesMb: mb(gauges.aliveBytes), fetchBytesMb: mb(gauges.fetchBytes), voxelbrRawMb: mb(gauges.voxelbrRaw), imgBytesMb: mb(gauges.imgBytes), maxHeldBytesMb: mb(gauges.maxHeldBytes) },
+    sharp: sharp.cache(),
+    inFlight,
+    queue: queue.length,
+    node: process.version,
+    execArgv: process.execArgv,
+    nodeOptions: process.env.NODE_OPTIONS || '',
+  }, 'H1,H3,H4,H5')
+}, 15000)
+// #endregion
 
 app.listen(port, () => {
   board.start()
