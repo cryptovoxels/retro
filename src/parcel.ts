@@ -56,7 +56,7 @@ function warmUgc(features: FeatureRecord[], tileset?: string) {
     warmed.add(u)
     fetch(resolveUgc(u)!)
       .then((r) => r.arrayBuffer())
-      .catch(() => { })
+      .catch(() => {})
   }
 }
 
@@ -246,25 +246,25 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.featureBounds = this.sandbox
       ? this.boundingBox
       : new BABYLON.BoundingBox(
-        new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth),
-        new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth),
-        this.parentNode.getWorldMatrix(),
-      )
+          new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth),
+          new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth),
+          this.parentNode.getWorldMatrix(),
+        )
 
     const hardFeatureBound = 25
 
     // in sandbox, set hardBoundingbox to be the featureBounds
     this.hardFeatureBounds = this.sandbox
       ? new BABYLON.BoundingBox(
-        new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth),
-        new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth),
-        this.parentNode.getWorldMatrix(),
-      )
+          new BABYLON.Vector3(this.x1 - streetWidth, this.y1 - underHeight, this.z1 - streetWidth),
+          new BABYLON.Vector3(this.x2 + streetWidth, this.y2 + overHeight, this.z2 + streetWidth),
+          this.parentNode.getWorldMatrix(),
+        )
       : new BABYLON.BoundingBox(
-        new BABYLON.Vector3(this.x1 - hardFeatureBound, this.y1 - hardFeatureBound, this.z1 - hardFeatureBound),
-        new BABYLON.Vector3(this.x2 + hardFeatureBound, this.y2 + hardFeatureBound, this.z2 + hardFeatureBound),
-        this.parentNode.getWorldMatrix(),
-      )
+          new BABYLON.Vector3(this.x1 - hardFeatureBound, this.y1 - hardFeatureBound, this.z1 - hardFeatureBound),
+          new BABYLON.Vector3(this.x2 + hardFeatureBound, this.y2 + hardFeatureBound, this.z2 + hardFeatureBound),
+          this.parentNode.getWorldMatrix(),
+        )
 
     // fix parcel offset, but leave enough for exterior signage
     const grace = 0.1
@@ -274,10 +274,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.exteriorBounds = this.sandbox
       ? this.boundingBox
       : new BABYLON.BoundingBox(
-        new BABYLON.Vector3(this.x1 + offset - grace, this.y1 + offset - grace, this.z1 + offset - grace),
-        new BABYLON.Vector3(this.x2 + offset + grace, this.y2 + offset + grace, this.z2 + offset + grace),
-        this.parentNode.getWorldMatrix(),
-      )
+          new BABYLON.Vector3(this.x1 + offset - grace, this.y1 + offset - grace, this.z1 + offset - grace),
+          new BABYLON.Vector3(this.x2 + offset + grace, this.y2 + offset + grace, this.z2 + offset + grace),
+          this.parentNode.getWorldMatrix(),
+        )
 
     // Use pre-computed field if provided (from grid-worker)
     if (precomputedField) {
@@ -432,7 +432,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   // the standalone bounding boxes cache their world vectors from the parent matrix at construction.
-  syncWorldBounds() { }
+  syncWorldBounds() {}
 
   get width() {
     return (this.x2 - this.x1) / VoxelSize
@@ -541,7 +541,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.owner = meta.owner && typeof meta.owner === 'object' ? (meta.owner as any).owner : (meta.owner ?? '')
     this.parcel_users = meta.parcel_users || []
     this.settings = meta.settings || {}
-      ; (this.summary as any).sandbox = !!(meta as any).sandbox
+    ;(this.summary as any).sandbox = !!(meta as any).sandbox
   }
 
   /**
@@ -1049,7 +1049,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     const sandbox = data.sandbox
     delete data.sandbox
     Object.assign(this, data)
-      ; (this.summary as any).sandbox = !!sandbox
+    ;(this.summary as any).sandbox = !!sandbox
 
     this.loaded = true
     this.loading = false
