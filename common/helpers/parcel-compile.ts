@@ -1,18 +1,38 @@
+// ABOUTME: Rehost parcel feature URLs to UGC, sniff bytes, encode drafts. Parallel via optional farm.
+
 import { isParcelUgc } from './ugc-upload-keys'
 import { KTX_SUFFIXES, textureBucketUrl, textureHash, textureHashOptions } from './texture-hash'
 import { FeatureRecord } from '../messages/feature'
+import { dropboxDirect, sniffBytes, type SniffKind } from './magic'
 
 export type CompilePatch = {
   features?: Record<string, FeatureRecord>
   tileset?: string | false
 }
 
-export type CompileUpload = (name: string, bytes: Uint8Array, contentType: string) => Promise<string | null>
+export type UploadResult = { location: string; existed?: boolean }
+export type CompileUpload = (name: string, bytes: Uint8Array, contentType: string) => Promise<UploadResult | null>
+
+export type CompilePools = {
+  download<T>(fn: (slot: number) => Promise<T>): Promise<T>
+  upload<T>(fn: (slot: number) => Promise<T>): Promise<T>
+}
+
+export type CompileBoardView = {
+  set(slot: number, row: { parcelId: number; url: string; phase: 'GET' | 'PUT' | 'KTX' | 'HAVE' | 'FAIL'; got: number; total: number; detail?: string }): void
+  idle(slot: number): void
+  bump(partial: { done?: number; total?: number; bytes?: number; drafts?: number; fail?: number; uploads?: number }): void
+  logDone?(line: string): void
+}
+
+export type CompileResult = {
+  patch: CompilePatch
+  missing: string[]
+}
 
 const LOUD = typeof process !== 'undefined' && !!(process as any).versions?.node
 const R = '\x1b[0m'
 const B = '\x1b[1m'
-const D = '\x1b[2m'
 const C = ['\x1b[31m', '\x1b[32m', '\x1b[33m', '\x1b[34m', '\x1b[35m', '\x1b[36m', '\x1b[91m', '\x1b[92m', '\x1b[93m', '\x1b[94m', '\x1b[95m', '\x1b[96m']
 const HEARTS = ['❤️', '🧡', '💛', '💚', '💙', '💜', '💖', '💗', '💕', '💞']
 const FACES = ['😘', '😍', '🤩', '🥳', '😎', '🤠', '😻', '🫶', '✨', '🔥']
@@ -54,8 +74,6 @@ type CompileStat = {
   ktx: number
 }
 
-let stat: CompileStat = emptyStat()
-
 function emptyStat(): CompileStat {
   return { drafts: 0, patched: 0, fetches: 0, fetchFail: 0, bytes: 0, uploads: 0, skipped: 0, ktx: 0 }
 }
@@ -74,8 +92,6 @@ function tidyURL(urlCandidate: any): string | undefined {
   return undefined
 }
 
-const RASTER_EXT = /\.(jpe?g|png|webp|gif)$/i
-
 function shouldSkip(url: string | undefined): boolean {
   if (!url) return true
   const u = url.toLowerCase()
@@ -92,6 +108,7 @@ function absoluteUrl(raw: string): string | null {
   if (!url) return null
   if (url.startsWith('//')) url = 'https:' + url
   if (url.startsWith('/')) url = (process.env.ASSET_PATH || 'https://www.voxels.com').replace(/\/$/, '') + url
+  if (url.includes('dropbox.com')) url = dropboxDirect(url)
   try {
     return new URL(url).toString()
   } catch {
@@ -99,135 +116,224 @@ function absoluteUrl(raw: string): string | null {
   }
 }
 
-function extFromUrl(url: string, contentType?: string) {
-  const m = url.match(/\.([a-z0-9]+)(?:\?|$)/i)
-  if (m?.[1]) return m[1].toLowerCase()
-  if (contentType?.includes('webp')) return 'webp'
-  if (contentType?.includes('jpeg') || contentType?.includes('jpg')) return 'jpg'
-  if (contentType?.includes('gif')) return 'gif'
-  if (contentType?.includes('png')) return 'png'
-  if (contentType?.includes('vox')) return 'vox'
-  return 'bin'
+function kindFor(featureType: string | undefined, field: string): SniffKind {
+  if (field === 'previewUrl') return 'image'
+  if (field === 'assetUrl') return 'video'
+  if (featureType === 'audio') return 'audio'
+  if (featureType === 'video') return 'video'
+  if (featureType === 'vox-model' || featureType === 'megavox' || featureType === 'ride' || featureType === 'vox') return 'vox'
+  return 'image'
 }
 
-function contentTypeForExt(ext: string) {
-  if (ext === 'jpg' || ext === 'jpeg') return 'image/jpeg'
-  if (ext === 'png') return 'image/png'
-  if (ext === 'webp') return 'image/webp'
-  if (ext === 'gif') return 'image/gif'
-  if (ext === 'vox') return 'application/octet-stream'
-  if (ext.endsWith('ktx')) return 'image/ktx'
-  return 'application/octet-stream'
+const URL_FIELDS = ['url', 'previewUrl', 'assetUrl'] as const
+
+type JobCtx = {
+  parcelId: number
+  upload: CompileUpload
+  pools?: CompilePools
+  board?: CompileBoardView
+  missing: string[]
+  stat: CompileStat
 }
 
-async function fetchBytes(url: string, tag = 0): Promise<{ bytes: Uint8Array; contentType: string } | null> {
-  const c = paint(tag)
-  say(`  ${c}${B}Fetching${R} ${c}${truncated(url)}${R} ${D}...${R} ${vibe(tag)}`)
+async function streamFetch(
+  url: string,
+  onProgress?: (got: number, total: number) => void,
+): Promise<{ bytes: Uint8Array; contentType: string; status: number } | { error: string; status?: number }> {
   try {
     const res = await fetch(resolveUgc(url) || url)
-    if (!res.ok) {
-      stat.fetchFail++
-      say(`  ${C[0]}${B}💀 ${res.status}${R} ${truncated(url)} 😵`)
-      return null
+    if (!res.ok) return { error: String(res.status), status: res.status }
+    const total = parseInt(res.headers.get('content-length') || '0', 10) || 0
+    const contentType = res.headers.get('content-type') || ''
+    if (!res.body || !onProgress) {
+      const buf = await res.arrayBuffer()
+      onProgress?.(buf.byteLength, buf.byteLength || total)
+      return { bytes: new Uint8Array(buf), contentType, status: res.status }
     }
-    const buf = await res.arrayBuffer()
-    const bytes = new Uint8Array(buf)
-    stat.fetches++
-    stat.bytes += bytes.byteLength
-    say(`  ${c}Fetching ${truncated(url)} ${B}[${kbSize(bytes.byteLength)}]${R} ${vibe(tag + 1)}`)
-    return { bytes, contentType: res.headers.get('content-type') || '' }
+    const reader = res.body.getReader()
+    const chunks: Uint8Array[] = []
+    let got = 0
+    for (;;) {
+      const { done, value } = await reader.read()
+      if (done) break
+      if (value) {
+        chunks.push(value)
+        got += value.byteLength
+        onProgress(got, total)
+      }
+    }
+    const bytes = new Uint8Array(got)
+    let off = 0
+    for (const c of chunks) {
+      bytes.set(c, off)
+      off += c.byteLength
+    }
+    return { bytes, contentType, status: res.status }
   } catch (e) {
-    stat.fetchFail++
-    say(`  ${C[0]}${B}💀 boom${R} ${truncated(url)} ${D}${e}${R} 😵`)
-    return null
+    return { error: e instanceof Error ? e.message : 'fetch boom' }
   }
 }
 
-async function copyKtxSidecars(parcelId: number, baseName: string, sourceUrl: string, transparent: boolean, stretch: boolean, upload: CompileUpload) {
+async function withDownload<T>(ctx: JobCtx, fn: (slot: number) => Promise<T>): Promise<T> {
+  if (ctx.pools) return ctx.pools.download(fn)
+  return fn(0)
+}
+
+async function withUpload<T>(ctx: JobCtx, fn: (slot: number) => Promise<T>): Promise<T> {
+  if (ctx.pools) return ctx.pools.upload(fn)
+  return fn(0)
+}
+
+function markMissing(ctx: JobCtx, rawUrl: string, reason: string) {
+  if (!ctx.missing.includes(rawUrl)) ctx.missing.push(rawUrl)
+  ctx.stat.fetchFail++
+  ctx.board?.bump({ fail: 1 })
+  if (ctx.board?.logDone) ctx.board.logDone(`#${ctx.parcelId} FAIL ${truncated(rawUrl)} ${reason}`)
+  else say(`  ${C[0]}FAIL ${truncated(rawUrl)} ${reason}${R}`)
+}
+
+type RehostOk = { location: string; bytes: Uint8Array; ext: string }
+type RehostResult = RehostOk | null
+
+async function rehostOne(
+  ctx: JobCtx,
+  rawUrl: string,
+  fileName: string,
+  kind: SniffKind,
+  phase: 'GET' | 'KTX' = 'GET',
+): Promise<RehostResult> {
+  if (isParcelUgc(rawUrl, ctx.parcelId) || shouldSkip(rawUrl)) {
+    ctx.stat.skipped++
+    return null
+  }
+  const sourceUrl = absoluteUrl(rawUrl)
+  if (!sourceUrl) {
+    markMissing(ctx, rawUrl, 'bad url')
+    return null
+  }
+
+  const fetched = await withDownload(ctx, async (slot) => {
+    ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase, got: 0, total: 0 })
+    const r = await streamFetch(sourceUrl, (got, total) => {
+      ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase, got, total })
+    })
+    if ('error' in r) {
+      ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase: 'FAIL', got: 0, total: 0, detail: r.error })
+      await new Promise((res) => setTimeout(res, 80))
+      ctx.board?.idle(slot)
+      return r
+    }
+    ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase, got: r.bytes.byteLength, total: r.bytes.byteLength })
+    ctx.board?.idle(slot)
+    return r
+  })
+
+  if ('error' in fetched) {
+    markMissing(ctx, rawUrl, fetched.error)
+    return null
+  }
+
+  const sniff = sniffBytes(fetched.bytes, fetched.contentType, kind)
+  if (!sniff.ok) {
+    const reason = sniff.reason
+    await withDownload(ctx, async (slot) => {
+      ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase: 'FAIL', got: 0, total: 0, detail: reason })
+      await new Promise((res) => setTimeout(res, 80))
+      ctx.board?.idle(slot)
+    })
+    markMissing(ctx, rawUrl, reason)
+    return null
+  }
+
+  ctx.stat.fetches++
+  ctx.stat.bytes += fetched.bytes.byteLength
+  ctx.board?.bump({ done: 1, bytes: fetched.bytes.byteLength })
+
+  const name = `${fileName}.${sniff.ext}`
+  const uploaded = await withUpload(ctx, async (slot) => {
+    ctx.board?.set(slot, { parcelId: ctx.parcelId, url: name, phase: kind === 'ktx' ? 'KTX' : 'PUT', got: 0, total: fetched.bytes.byteLength })
+    const loc = await ctx.upload(name, fetched.bytes, sniff.contentType)
+    if (!loc) {
+      ctx.board?.set(slot, { parcelId: ctx.parcelId, url: name, phase: 'FAIL', got: 0, total: 0, detail: 'upload' })
+      await new Promise((res) => setTimeout(res, 80))
+      ctx.board?.idle(slot)
+      return null
+    }
+    ctx.board?.set(slot, {
+      parcelId: ctx.parcelId,
+      url: name,
+      phase: loc.existed ? 'HAVE' : 'PUT',
+      got: fetched.bytes.byteLength,
+      total: fetched.bytes.byteLength,
+    })
+    await new Promise((res) => setTimeout(res, 40))
+    ctx.board?.idle(slot)
+    return loc
+  })
+
+  if (!uploaded) {
+    markMissing(ctx, rawUrl, 'upload failed')
+    return null
+  }
+
+  ctx.stat.uploads++
+  ctx.board?.bump({ uploads: 1 })
+  if (kind === 'ktx') ctx.stat.ktx++
+  return { location: uploaded.location, bytes: fetched.bytes, ext: sniff.ext }
+}
+
+async function copyKtx(ctx: JobCtx, baseName: string, sourceUrl: string, transparent: boolean, stretch: boolean) {
   const opts = textureHashOptions(transparent, stretch, /\.gif/i.test(sourceUrl))
   const hash = textureHash(sourceUrl, opts)
   const bucketHost = process.env.TEXTURE_BUCKET || 'https://textures.sfo2.cdn.digitaloceanspaces.com'
 
-  for (const suffix of KTX_SUFFIXES) {
-    const bucketUrl = textureBucketUrl(hash, suffix, bucketHost)
-    const c = paint(suffix.length)
-    say(`  ${c}🧊 ktx ${suffix}${R} ${D}${truncated(bucketUrl)}${R}`)
-    try {
-      const res = await fetch(bucketUrl)
-      if (!res.ok) {
-        say(`  ${D}🧊 miss ${suffix} (${res.status}) 🫥${R}`)
-        continue
-      }
-      const bytes = new Uint8Array(await res.arrayBuffer())
+  await Promise.all(
+    KTX_SUFFIXES.map(async (suffix) => {
+      const bucketUrl = textureBucketUrl(hash, suffix, bucketHost)
       const sidecarName = `${baseName}_medium${suffix}`
-      say(`  ${c}${B}📤 upload${R} ${sidecarName} ${B}[${kbSize(bytes.byteLength)}]${R} ${vibe(11)}`)
-      const loc = await upload(sidecarName, bytes, 'image/ktx')
-      if (loc) {
-        stat.ktx++
-        stat.uploads++
-        say(`  ${c}🧊 packed ${sidecarName} ${B}[${kbSize(bytes.byteLength)}]${R} 😎💙`)
-      } else {
-        say(`  ${C[0]}🧊 ktx upload failed ${sidecarName} 😭${R}`)
-      }
-    } catch {
-      say(`  ${C[0]}🧊 ktx died ${suffix} 💀${R}`)
-    }
-  }
+
+      const fetched = await withDownload(ctx, async (slot) => {
+        ctx.board?.set(slot, { parcelId: ctx.parcelId, url: bucketUrl, phase: 'KTX', got: 0, total: 0 })
+        const r = await streamFetch(bucketUrl, (got, total) => {
+          ctx.board?.set(slot, { parcelId: ctx.parcelId, url: bucketUrl, phase: 'KTX', got, total })
+        })
+        ctx.board?.idle(slot)
+        return r
+      })
+      if ('error' in fetched) return
+      const sniff = sniffBytes(fetched.bytes, fetched.contentType, 'ktx')
+      if (!sniff.ok) return
+
+      await withUpload(ctx, async (slot) => {
+        ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sidecarName, phase: 'PUT', got: 0, total: fetched.bytes.byteLength })
+        const loc = await ctx.upload(sidecarName, fetched.bytes, 'image/ktx')
+        ctx.board?.idle(slot)
+        if (loc) {
+          ctx.stat.ktx++
+          ctx.stat.uploads++
+          ctx.board?.bump({ uploads: 1 })
+        }
+        return loc
+      })
+    }),
+  )
 }
 
-async function rehostUrl(parcelId: number, rawUrl: string, fileName: string, upload: CompileUpload, rasterOpts?: { transparent: boolean; stretch: boolean }, tag = 0) {
-  if (isParcelUgc(rawUrl, parcelId)) {
-    say(`  ${D}already ugc ${truncated(rawUrl)} 💅${R}`)
-    stat.skipped++
-    return rawUrl
+function yoCompile(parcelId: number, total: number, stat: CompileStat, board?: CompileBoardView) {
+  const line = `Yo Compile ${stat.drafts}/${total} features get a draft  patched ${stat.patched}/${total}  fail ${stat.fetchFail}  ${kbSize(stat.bytes)}`
+  if (board?.logDone) {
+    board.logDone(`#${parcelId} ${line}`)
+    return
   }
-  if (shouldSkip(rawUrl)) {
-    say(`  ${C[3]}😴 skip ${truncated(rawUrl)}${R} ${vibe(2)}`)
-    stat.skipped++
-    return rawUrl
-  }
-  const sourceUrl = absoluteUrl(rawUrl)
-  if (!sourceUrl) {
-    say(`  ${C[1]}🤷 not a url ${truncated(rawUrl)}${R}`)
-    stat.skipped++
-    return rawUrl
-  }
-
-  const fetched = await fetchBytes(sourceUrl, tag)
-  if (!fetched) return rawUrl
-
-  const ext = extFromUrl(sourceUrl, fetched.contentType)
-  const name = `${fileName}.${ext}`
-  say(`  ${paint(tag + 4)}${B}📤 upload${R} ${name} ${B}[${kbSize(fetched.bytes.byteLength)}]${R} ${vibe(tag + 4)}`)
-  const location = await upload(name, fetched.bytes, contentTypeForExt(ext))
-  if (!location) {
-    say(`  ${C[0]}${B}📤 upload failed${R} ${name} 😭💔`)
-    return rawUrl
-  }
-  stat.uploads++
-  say(`  ${C[2]}${B}💖 parked${R} ${location} ${vibe(tag + 5)}`)
-
-  if (rasterOpts && RASTER_EXT.test(name)) {
-    await copyKtxSidecars(parcelId, fileName, sourceUrl, rasterOpts.transparent, rasterOpts.stretch, upload)
-  }
-
-  return location
-}
-
-function yoCompile(parcelId: number, total: number) {
   const c = paint(parcelId)
   say('')
   say(`${c}${B}   ___ ___  __  __ ___ ___ _    ___ ${R}`)
   say(`${c}${B}  / __/ _ \\|  \\/  | _ \\_ _| |  | __|${R}`)
   say(`${c}${B} | (_| (_) | |\\/| |  _/| || |__| _| ${R}`)
   say(`${c}${B}  \\___\\___/|_|  |_|_| |___|____|___|${R}`)
-  say(`${c}${B}  Yo Compile  ${stat.drafts}/${total} features get a draft  ${vibe(parcelId)}${R}`)
-  say(`${paint(2)}  patched ${B}${stat.patched}${R}${paint(2)}/${total}   fetches ${B}${stat.fetches}${R}${paint(2)}  fail ${B}${stat.fetchFail}${R}${paint(2)}  ${kbSize(stat.bytes)}${R}`)
-  say(`${paint(4)}  uploads ${B}${stat.uploads}${R}${paint(4)}   ktx ${B}${stat.ktx}${R}${paint(4)}   skipped ${B}${stat.skipped}${R} 🦄💫`)
+  say(`${c}${B}  ${line}  ${vibe(parcelId)}${R}`)
   say('')
 }
-
-const URL_FIELDS = ['url', 'previewUrl', 'assetUrl'] as const
 
 export async function compileParcelContent(
   parcelId: number,
@@ -238,69 +344,134 @@ export async function compileParcelContent(
     encodeImage?: (url: string) => Promise<string | null>
     encodeVox?: (buf: ArrayBuffer) => Promise<string | null>
   },
-): Promise<CompilePatch> {
+  opts?: {
+    pools?: CompilePools
+    board?: CompileBoardView
+  },
+): Promise<CompileResult> {
   const out: Record<string, FeatureRecord> = {}
   let tilesetOut: string | false | undefined
   const n = features.length
-  stat = emptyStat()
-  say(`\n${B}\x1b[45m\x1b[97m  COMPILE parcel ${parcelId}  ${R} ${C[5]}${n} features${R} 🌈🦄💫`)
+  const stat = emptyStat()
+  const missing: string[] = []
+  const ctx: JobCtx = { parcelId, upload, pools: opts?.pools, board: opts?.board, missing, stat }
+  const bytesByUuid = new Map<string, Uint8Array>()
 
-  for (let i = 0; i < features.length; i++) {
-    const f = features[i]
-    if (!f.uuid) {
-      say(`  ${C[3]}👻 feature ${i} has no uuid, yeet${R}`)
-      continue
+  ctx.board?.bump({ total: 0 })
+
+  type UrlJob = {
+    uuid?: string
+    field?: (typeof URL_FIELDS)[number]
+    rawUrl: string
+    fileName: string
+    kind: SniffKind
+    rasterOpts?: { transparent: boolean; stretch: boolean }
+    isTileset?: boolean
+  }
+
+  const jobs: UrlJob[] = []
+
+  for (const f of features) {
+    if (!f.uuid) continue
+    for (const field of URL_FIELDS) {
+      const raw = tidyURL((f as any)[field])
+      if (!raw || shouldSkip(raw) || isParcelUgc(raw, parcelId)) continue
+      const isRaster = f.type === 'image' || f.type === 'nft-image' || f.type === 'cube' || f.type === 'portal' || field !== 'url'
+      jobs.push({
+        uuid: f.uuid,
+        field,
+        rawUrl: raw,
+        fileName: `${f.uuid}-${field}`,
+        kind: kindFor(f.type, field),
+        rasterOpts: isRaster ? { transparent: !!(f as any).transparent, stretch: !!(f as any).stretch } : undefined,
+      })
     }
-    const c = paint(i)
-    say(`${c}${B}▸ ${f.type}${R} ${c}${D}${f.uuid}${R} ${vibe(i)}`)
-    const desc = { ...f } as FeatureRecord & { draft?: string }
+  }
+
+  if (tileset && !isParcelUgc(tileset, parcelId) && !shouldSkip(tileset)) {
+    jobs.push({
+      rawUrl: tileset,
+      fileName: 'tileset',
+      kind: 'image',
+      isTileset: true,
+      rasterOpts: { transparent: false, stretch: false },
+    })
+  }
+
+  ctx.board?.bump({ total: jobs.length })
+
+  const descs = new Map<string, FeatureRecord & { draft?: string }>()
+  for (const f of features) {
+    if (f.uuid) descs.set(f.uuid, { ...f })
+  }
+
+  await Promise.all(
+    jobs.map(async (job) => {
+      const result = await rehostOne(ctx, job.rawUrl, job.fileName, job.kind)
+      if (!result) return
+
+      if (job.isTileset) {
+        tilesetOut = result.location
+        if (job.rasterOpts) await copyKtx(ctx, 'tileset', absoluteUrl(job.rawUrl) || job.rawUrl, false, false)
+        return
+      }
+
+      if (!job.uuid || !job.field) return
+      const desc = descs.get(job.uuid)
+      if (!desc) return
+      ;(desc as any)[job.field] = result.location
+      if (job.field === 'url') bytesByUuid.set(job.uuid, result.bytes)
+      if (job.rasterOpts && (result.ext === 'png' || result.ext === 'jpg' || result.ext === 'jpeg' || result.ext === 'webp' || result.ext === 'gif')) {
+        await copyKtx(ctx, job.fileName, absoluteUrl(job.rawUrl) || job.rawUrl, job.rasterOpts.transparent, job.rasterOpts.stretch)
+      }
+    }),
+  )
+
+  // drafts
+  for (const f of features) {
+    if (!f.uuid) continue
+    const desc = descs.get(f.uuid)!
     let changed = false
 
     for (const field of URL_FIELDS) {
-      const raw = tidyURL((f as any)[field])
-      if (!raw) continue
-      say(`  ${c}field ${B}${field}${R} ${D}${truncated(raw)}${R} 💘`)
-      const isRaster = f.type === 'image' || f.type === 'nft-image' || f.type === 'cube' || f.type === 'portal' || field !== 'url'
-      const rasterOpts = isRaster ? { transparent: !!(f as any).transparent, stretch: !!(f as any).stretch } : undefined
-      const base = `${f.uuid}-${field}`
-      const next = await rehostUrl(parcelId, raw, base, upload, rasterOpts, i)
-      if (next !== (f as any)[field]) {
-        ;(desc as any)[field] = next
-        changed = true
-      }
+      if ((desc as any)[field] !== (f as any)[field] && (desc as any)[field]) changed = true
     }
 
     if (draft?.encodeImage && (f.type === 'image' || f.type === 'nft-image')) {
       const imgUrl = resolveUgc(tidyURL((desc as any).url) || tidyURL(f.url))
       if (imgUrl) {
-        say(`  ${C[5]}✏️  image draft ${truncated(imgUrl)}${R} 😘`)
         const d = await draft.encodeImage(imgUrl)
         if (d && d !== (desc as any).draft) {
           ;(desc as any).draft = d
           changed = true
           stat.drafts++
-          say(`  ${C[2]}✏️  draft ok ${d.length} chars 💗${R}`)
-        } else {
-          say(`  ${D}✏️  draft skip${R} 🫠`)
+          ctx.board?.bump({ drafts: 1 })
         }
       }
     }
 
     if (draft?.encodeVox && (f.type === 'vox-model' || f.type === 'megavox' || f.type === 'ride')) {
-      const voxUrl = resolveUgc(tidyURL((desc as any).url) || tidyURL(f.url))
-      if (voxUrl) {
-        say(`  ${C[4]}🧱 vox draft ${truncated(voxUrl)}${R} 🤩`)
-        const fetched = await fetchBytes(voxUrl, i + 8)
-        if (fetched) {
-          const d = await draft.encodeVox(fetched.bytes.buffer as any)
-          if (d && d !== (desc as any).draft) {
-            ;(desc as any).draft = d
-            changed = true
-            stat.drafts++
-            say(`  ${C[2]}🧱 vox draft ok ${d.length} chars 💚${R}`)
-          } else {
-            say(`  ${D}🧱 vox draft skip${R} 🫠`)
+      const cached = bytesByUuid.get(f.uuid)
+      let buf: ArrayBuffer | null = null
+      if (cached) {
+        buf = cached.buffer.slice(cached.byteOffset, cached.byteOffset + cached.byteLength) as ArrayBuffer
+      } else {
+        const voxUrl = resolveUgc(tidyURL((desc as any).url) || tidyURL(f.url))
+        if (voxUrl) {
+          const fetched = await streamFetch(voxUrl)
+          if (!('error' in fetched)) {
+            const b = fetched.bytes
+            buf = b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer
           }
+        }
+      }
+      if (buf) {
+        const d = await draft.encodeVox(buf)
+        if (d && d !== (desc as any).draft) {
+          ;(desc as any).draft = d
+          changed = true
+          stat.drafts++
+          ctx.board?.bump({ drafts: 1 })
         }
       }
     }
@@ -308,39 +479,14 @@ export async function compileParcelContent(
     if (changed) {
       out[f.uuid] = desc
       stat.patched++
-      say(`  ${C[2]}${B}✔ patched ${f.type}${R} 🎉❤️`)
     }
-  }
-
-  if (tileset && !isParcelUgc(tileset, parcelId)) {
-    say(`${C[6]}${B}🧩 tileset${R} ${truncated(tileset)} ${vibe(9)}`)
-    const sourceUrl = tileset.startsWith('/') ? absoluteUrl(tileset) : absoluteUrl(tileset)
-    if (sourceUrl) {
-      const fetched = await fetchBytes(sourceUrl, 9)
-      if (fetched) {
-        const ext = extFromUrl(sourceUrl, fetched.contentType) || 'png'
-        say(`  ${C[6]}${B}📤 upload${R} tileset.${ext} ${B}[${kbSize(fetched.bytes.byteLength)}]${R} 😘❤️`)
-        const location = await upload(`tileset.${ext}`, fetched.bytes, contentTypeForExt(ext))
-        if (location) {
-          tilesetOut = location
-          stat.uploads++
-          say(`  ${C[2]}💖 tileset parked ${location}${R}`)
-          await copyKtxSidecars(parcelId, 'tileset', sourceUrl, false, false, upload)
-        } else {
-          say(`  ${C[0]}📤 tileset upload failed 😭${R}`)
-        }
-      }
-    }
-  } else if (tileset) {
-    say(`${D}🧩 tileset already ugc ${truncated(tileset)} 💅${R}`)
-    stat.skipped++
   }
 
   const patch: CompilePatch = {}
   if (Object.keys(out).length) patch.features = out
   if (tilesetOut !== undefined) patch.tileset = tilesetOut
-  yoCompile(parcelId, n)
-  return patch
+  yoCompile(parcelId, n, stat, ctx.board)
+  return { patch, missing }
 }
 
 export function leftoverUrls(parcelId: number, features: FeatureRecord[], tileset?: string): string[] {
