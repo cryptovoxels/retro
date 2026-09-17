@@ -429,7 +429,8 @@ export async function compileParcelContent(
       // drafts only from bytes we just fetched, or a url already parked on ugc. never refetch a dead host.
       const cached = bytesByUuid.get(f.uuid)
       const descUrl = tidyURL((desc as any).url)
-      const onUgc = !!descUrl && descUrl.startsWith('ugc://')
+      // and never refetch ugc just to recompute a draft we already have (re-pick passes)
+      const onUgc = !!descUrl && descUrl.startsWith('ugc://') && !(desc as any).draft
 
       if (draft?.encodeImage && (f.type === 'image' || f.type === 'nft-image') && (cached || onUgc)) {
         const d = await draft.encodeImage(resolveUgc(descUrl) || '', cached)

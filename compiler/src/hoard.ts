@@ -14,14 +14,18 @@ export const herringName = (url: string, opts: 'undefined' | 'null') => slug(url
 
 export function hoardKeys(url: string): Array<{ bucket: string; key: string }> {
   const img = herringName(url, 'undefined')
+  const vox = herringName(url, 'null')
   const out = [
     { bucket: 'crvox-object-backup', key: `image_proxy_volume/cache/imgproxy/source/${img}` },
     { bucket: 'crvox-object-backup', key: `image_proxy_volume_2/cache/imgproxy/source/${img}` },
-    { bucket: 'crvoxproxy', key: `vox/source/${herringName(url, 'null')}.vox` },
+    // vox in the imgproxy source cache kept their extension, images did not
+    { bucket: 'crvox-object-backup', key: `image_proxy_volume/cache/imgproxy/source/${vox}.vox` },
+    { bucket: 'crvox-object-backup', key: `image_proxy_volume_2/cache/imgproxy/source/${vox}.vox` },
+    { bucket: 'crvoxproxy', key: `vox/source/${vox}.vox` },
     { bucket: 'crvoxproxy', key: `audio/source/${img}` },
     { bucket: 'crvox-object-backup', key: `asset_urls/${slug(url)}${Buffer.from(url + 'null').toString('hex')}${md5('')}` },
   ]
-  const atlas = url.match(/\/uploads\/atlas\/([a-f0-9]{40})\.png/)?.[1]
+  const atlas = url.match(/\/atlas\/([a-f0-9]{40})/)?.[1]
   if (atlas) out.unshift({ bucket: 'crvox-object-backup', key: `image_proxy_volume_2/atlas/atlas/${atlas}.png` })
   return out
 }
