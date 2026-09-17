@@ -716,8 +716,8 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       return
     }
     // url change must kill a stale pre-mesh; compiler backfills a fresh one next pass
-    if ('url' in props && (this.description as any).bin) {
-      ;(props as any).bin = null
+    if ('url' in props && (this.description as any).voxelbr) {
+      ;(props as any).voxelbr = null
     }
     this.update(props)
     this.sendToServer(Object.keys(props) as Array<keyof Description>)

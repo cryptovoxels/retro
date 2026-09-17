@@ -86,7 +86,7 @@ async function compileOne(id: number) {
       {
         encodeImage: encodeImageDraft,
         encodeVox: encodeVoxDraft,
-        encodeBin: encodeVoxelbr,
+        encodeVoxelbr,
       },
       { pools, board, hoard: hoardEnabled() ? hoardFetch : undefined },
     )

@@ -102,12 +102,12 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     let mesh: BABYLON.Mesh | null = null
 
     // pre-meshed .voxelbr: fetch, slice, upload. any failure falls through to the worker path
-    const bin = (this.description as any).bin as string | undefined
-    if (bin) {
+    const voxelbr = (this.description as any).voxelbr as string | undefined
+    if (voxelbr) {
       try {
-        const binUrl = resolveUgc(bin)
-        if (binUrl) {
-          const res = await fetch(binUrl, { signal })
+        const voxelbrUrl = resolveUgc(voxelbr)
+        if (voxelbrUrl) {
+          const res = await fetch(voxelbrUrl, { signal })
           if (res.ok) mesh = await voxImporter().importBin(await res.arrayBuffer(), signal)
         }
       } catch (e) {
