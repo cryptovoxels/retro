@@ -10,11 +10,14 @@ export function ugcConfigured() {
   return !!(process.env.UGC_ACCESS && process.env.UGC_SECRET)
 }
 
+let client: S3Client | null = null
+
 export function ugcClient() {
+  if (client) return client
   const accessKeyId = process.env.UGC_ACCESS || ''
   const secretAccessKey = process.env.UGC_SECRET || ''
   if (!accessKeyId || !secretAccessKey) throw new Error('UGC_ACCESS / UGC_SECRET not set')
-  return new S3Client({
+  client = new S3Client({
     region: UGC_REGION,
     endpoint: UGC_ENDPOINT,
     credentials: { accessKeyId, secretAccessKey },
@@ -23,6 +26,7 @@ export function ugcClient() {
     // of an empty body into the presigned URL, so the real PUT fails the digest.
     requestChecksumCalculation: 'WHEN_REQUIRED',
   })
+  return client
 }
 
 export async function ugcExists(key: string) {
