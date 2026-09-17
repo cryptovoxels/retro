@@ -328,7 +328,7 @@ async function rehostUncached(ctx: JobCtx, rawUrl: string, kind: SniffKind): Pro
     return null
   }
 
-  const fetched = await withDownload(ctx, async (slot) => {
+  let fetched: any = await withDownload(ctx, async (slot) => {
     ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase: 'GET', got: 0, total: 0 })
     const r = await memoFetch(ctx, sourceUrl, (got, total) => {
       ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase: 'GET', got, total })
@@ -337,8 +337,9 @@ async function rehostUncached(ctx: JobCtx, rawUrl: string, kind: SniffKind): Pro
     return r
   })
 
-  let bytes: Uint8Array | null = 'error' in fetched ? new Uint8Array() : fetched.bytes
-  let sniff: SniffResult = 'error' in fetched ? { ok: false, reason: fetched.error } : sniffBytes(bytes!, fetched.contentType, kind)
+  let bytes: any = 'error' in fetched ? new Uint8Array() : fetched.bytes
+  let sniff: SniffResult = 'error' in fetched ? { ok: false, reason: fetched.error } : sniffBytes(bytes, fetched.contentType, kind)
+  fetched = null
 
   // origin dead or lying: dig in the old herring caches, keyed by the url spelling the client used back then
   if (sniff.ok === false && ctx.hoard) {
@@ -366,6 +367,7 @@ async function rehostUncached(ctx: JobCtx, rawUrl: string, kind: SniffKind): Pro
   }
 
   if (sniff.ok === false) {
+    bytes = null
     markMissing(ctx, rawUrl, sniff.reason)
     return null
   }
@@ -399,6 +401,7 @@ async function rehostUncached(ctx: JobCtx, rawUrl: string, kind: SniffKind): Pro
   })
 
   if (!uploaded) {
+    bytes = null
     markMissing(ctx, rawUrl, 'upload failed')
     return null
   }
@@ -414,7 +417,7 @@ async function rehostUncached(ctx: JobCtx, rawUrl: string, kind: SniffKind): Pro
     if (ctx.draft?.encodeVox) draft = (await ctx.draft.encodeVox(toArrayBuffer(bytes))) || undefined
     voxelbr = await putVoxelbr(ctx, bytes)
   }
-  bytes = null!
+  bytes = null
   return { location: uploaded.location, ext: ok.ext, base, draft, voxelbr }
 }
 
@@ -534,7 +537,7 @@ export async function compileParcelContent(
 
     if (draft && (needDraft || needVoxelbr) && wantsDraft(f.type) && descUrl?.startsWith('ugc://')) {
       const sourceUrl = resolveUgc(descUrl) || ''
-      const fetched = await withDownload(ctx, async (slot) => {
+      let fetched: any = await withDownload(ctx, async (slot) => {
         ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase: 'GET', got: 0, total: 0 })
         const r = await memoFetch(ctx, sourceUrl, (got, total) => {
           ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase: 'GET', got, total })
@@ -557,7 +560,7 @@ export async function compileParcelContent(
           if (d) setDraft(ctx, desc, d)
         }
       }
-      ;(fetched as any) = null
+      fetched = null
     }
 
     for (const field of [...URL_FIELDS, 'draft', 'voxelbr']) {

@@ -128,9 +128,6 @@ async function compileOne(id: number) {
     }
   } finally {
     board.removeParcel(id)
-    // arraybuffers sit outside the v8 heap; without a kick they never get collected and rss only climbs
-    const gc = (globalThis as any).gc as (() => void) | undefined
-    if (gc && process.memoryUsage().arrayBuffers > 256 * 1024 * 1024) gc()
   }
 }
 
@@ -176,6 +173,6 @@ app.listen(port, () => {
   board.start()
   for (let i = 0; i < COMPILE_PARCELS; i++) void workerLoop()
   console.error(
-    `[compiler] listening on ${port}  parcels=${COMPILE_PARCELS} workers=${COMPILE_WORKERS}  hoard=${!REPROCESS && hoardEnabled() ? 'on' : 'off'}  mode=${REPROCESS ? 'REPROCESS (all parcels, drafts only, no ugc put)' : 'compile'}  gc=${typeof (globalThis as any).gc === 'function' ? 'on' : 'OFF (set NODE_OPTIONS=--expose-gc)'}`,
+    `[compiler] listening on ${port}  parcels=${COMPILE_PARCELS} workers=${COMPILE_WORKERS}  hoard=${!REPROCESS && hoardEnabled() ? 'on' : 'off'}  mode=${REPROCESS ? 'REPROCESS (all parcels, drafts only, no ugc put)' : 'compile'}`,
   )
 })
