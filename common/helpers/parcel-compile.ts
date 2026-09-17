@@ -10,7 +10,7 @@ export type CompilePatch = {
 }
 
 export type UploadResult = { location: string; existed?: boolean }
-export type CompileUpload = (name: string, bytes: Uint8Array, contentType: string) => Promise<UploadResult | null>
+export type CompileUpload = (name: string, bytes: Uint8Array, contentType: string, contentEncoding?: string) => Promise<UploadResult | null>
 
 export type CompilePools = {
   download<T>(fn: (slot: number) => Promise<T>): Promise<T>
@@ -138,6 +138,7 @@ type Fetched = { bytes: Uint8Array; contentType: string; status: number } | { er
 export type CompileDraft = {
   encodeImage?: (url: string, bytes?: Uint8Array) => Promise<string | null>
   encodeVox?: (buf: ArrayBuffer) => Promise<string | null>
+  encodeBin?: (buf: ArrayBuffer) => Promise<{ raw: Uint8Array; br: Uint8Array } | null>
 }
 
 type JobCtx = {
@@ -231,7 +232,7 @@ function markMissing(ctx: JobCtx, rawUrl: string, reason: string) {
 }
 
 // no bytes past this point: holding bodies until the parcel finished oom-killed an 8gb box three times
-type RehostOk = { location: string; ext: string; base: string; draft?: string }
+type RehostOk = { location: string; ext: string; base: string; draft?: string; bin?: string }
 type RehostResult = RehostOk | null
 
 function toArrayBuffer(b: Uint8Array): ArrayBuffer {
@@ -246,6 +247,42 @@ function setDraft(ctx: JobCtx, desc: any, d: string) {
 
 function wantsDraft(type: string | undefined) {
   return type === 'image' || type === 'nft-image' || type === 'vox-model' || type === 'megavox' || type === 'ride'
+}
+
+function isVoxType(type: string | undefined) {
+  return type === 'vox-model' || type === 'megavox' || type === 'ride'
+}
+
+async function putBin(ctx: JobCtx, bytes: Uint8Array): Promise<string | undefined> {
+  if (!ctx.draft?.encodeBin) return undefined
+  const packed = await ctx.draft.encodeBin(toArrayBuffer(bytes))
+  if (!packed) return undefined
+  const base = await contentName(packed.raw)
+  const name = `${base}.voxelbr`
+  const uploaded = await withUpload(ctx, async (slot) => {
+    ctx.board?.set(slot, { parcelId: ctx.parcelId, url: name, phase: 'PUT', got: 0, total: packed.br.byteLength })
+    const loc = await ctx.upload(name, packed.br, 'application/octet-stream', 'br')
+    if (!loc) {
+      ctx.board?.set(slot, { parcelId: ctx.parcelId, url: name, phase: 'FAIL', got: 0, total: 0, detail: 'upload' })
+      await new Promise((res) => setTimeout(res, 80))
+      ctx.board?.idle(slot)
+      return null
+    }
+    ctx.board?.set(slot, {
+      parcelId: ctx.parcelId,
+      url: name,
+      phase: loc.existed ? 'HAVE' : 'PUT',
+      got: packed.br.byteLength,
+      total: packed.br.byteLength,
+    })
+    await new Promise((res) => setTimeout(res, 40))
+    ctx.board?.idle(slot)
+    return loc
+  })
+  if (!uploaded) return undefined
+  ctx.stat.uploads++
+  ctx.board?.bump({ uploads: 1 })
+  return uploaded.location
 }
 
 function rehostOne(ctx: JobCtx, rawUrl: string, kind: SniffKind): Promise<RehostResult> {
@@ -347,11 +384,15 @@ async function rehostUncached(ctx: JobCtx, rawUrl: string, kind: SniffKind): Pro
   ctx.stat.uploads++
   ctx.board?.bump({ uploads: 1 })
 
-  // draft now, while we still have the body, then let it go
+  // draft + voxelbr now, while we still have the body, then let it go
   let draft: string | undefined
+  let bin: string | undefined
   if (kind === 'image' && ctx.draft?.encodeImage) draft = (await ctx.draft.encodeImage('', bytes)) || undefined
-  if (kind === 'vox' && ctx.draft?.encodeVox) draft = (await ctx.draft.encodeVox(toArrayBuffer(bytes))) || undefined
-  return { location: uploaded.location, ext: ok.ext, base, draft }
+  if (kind === 'vox') {
+    if (ctx.draft?.encodeVox) draft = (await ctx.draft.encodeVox(toArrayBuffer(bytes))) || undefined
+    bin = await putBin(ctx, bytes)
+  }
+  return { location: uploaded.location, ext: ok.ext, base, draft, bin }
 }
 
 function yoCompile(parcelId: number, total: number, stat: CompileStat, board?: CompileBoardView) {
@@ -445,33 +486,44 @@ export async function compileParcelContent(
       if (!desc) return
       ;(desc as any)[job.field] = result.location
       if (job.field === 'url' && result.draft && wantsDraft(desc.type) && result.draft !== (desc as any).draft) setDraft(ctx, desc, result.draft)
+      // url change without a fresh bin must kill the stale one
+      if (job.field === 'url' && isVoxType(desc.type)) (desc as any).bin = result.bin ?? null
     }),
   )
 
-  // backfill: url already parked on ugc from an earlier pass but the draft is missing or the old format
+  // backfill: url already parked on ugc from an earlier pass but draft/bin missing or old format
   await Promise.all(
     features.map(async (f) => {
       if (!f.uuid) return
       const desc = descs.get(f.uuid)!
       const descUrl = tidyURL((desc as any).url)
-      const isVox = f.type === 'vox-model' || f.type === 'megavox' || f.type === 'ride'
+      const isVox = isVoxType(f.type)
       const oldDraft = (desc as any).draft as string | undefined
       // vox drafts grew 3 size bytes (67 bytes = 92 b64 chars); shorter ones are the unsized format, redo them
-      const stale = !oldDraft || (isVox && oldDraft.length !== 92)
+      const needDraft = !oldDraft || (isVox && oldDraft.length !== 92)
+      const needBin = isVox && !(desc as any).bin
 
-      if (draft && stale && wantsDraft(f.type) && descUrl?.startsWith('ugc://')) {
-        let d: string | null = null
+      if (draft && (needDraft || needBin) && wantsDraft(f.type) && descUrl?.startsWith('ugc://')) {
         if (isVox) {
           const fetched = await memoFetch(ctx, resolveUgc(descUrl) || '')
-          if (!('error' in fetched) && draft.encodeVox) d = await draft.encodeVox(toArrayBuffer(fetched.bytes))
-        } else if (draft.encodeImage) {
-          d = await draft.encodeImage(resolveUgc(descUrl) || '')
+          if (!('error' in fetched)) {
+            if (needDraft && draft.encodeVox) {
+              const d = await draft.encodeVox(toArrayBuffer(fetched.bytes))
+              if (d) setDraft(ctx, desc, d)
+            }
+            if (needBin) {
+              const location = await putBin(ctx, fetched.bytes)
+              if (location) (desc as any).bin = location
+            }
+          }
+        } else if (needDraft && draft.encodeImage) {
+          const d = await draft.encodeImage(resolveUgc(descUrl) || '')
+          if (d) setDraft(ctx, desc, d)
         }
-        if (d) setDraft(ctx, desc, d)
       }
 
-      for (const field of [...URL_FIELDS, 'draft']) {
-        if ((desc as any)[field] !== (f as any)[field] && (desc as any)[field]) {
+      for (const field of [...URL_FIELDS, 'draft', 'bin']) {
+        if ((desc as any)[field] !== (f as any)[field]) {
           out[f.uuid] = desc
           stat.patched++
           return

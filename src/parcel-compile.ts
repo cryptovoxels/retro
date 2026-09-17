@@ -3,7 +3,7 @@ import { uploadParcelBytes } from '../common/helpers/upload-media'
 import { encodeImageDraft, encodeVoxDraft } from './features/feature-draft'
 import type Parcel from './parcel'
 
-async function clientUpload(parcelId: number, name: string, bytes: Uint8Array, contentType: string) {
+async function clientUpload(parcelId: number, name: string, bytes: Uint8Array, contentType: string, _contentEncoding?: string) {
   const res = await uploadParcelBytes(parcelId, name, bytes, contentType)
   return res.success ? { location: res.location, existed: false } : null
 }

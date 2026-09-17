@@ -5,7 +5,7 @@ import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/sr
 import Panel from '../../web/src/components/panel'
 import { rebindGizmos } from '../tools/gizmos'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, Toolbar, SourceInput } from '../ui/features'
-import { isURL } from '../utils/helpers'
+import { isURL, resolveUgc } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, FeatureEvent, FeatureTrigger, MeshExtended, transformVectors } from './feature'
 import ActionGui from '../ui/gui/action-button-gui'
@@ -98,33 +98,54 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   }
 
   private async loadContent() {
-    let url: string
+    const signal = this.abortController.signal
+    let mesh: BABYLON.Mesh | null = null
 
-    if (this.url && isURL(this.url)) {
-      url = Config.voxModelURL(this.url, this.parcel, this.type === 'ride' ? 'megavox' : this.type)
-    } else {
-      url = `${process.env.ASSET_PATH}/models/vox-five.vox`
+    // pre-meshed .voxelbr: fetch, slice, upload. any failure falls through to the worker path
+    const bin = (this.description as any).bin as string | undefined
+    if (bin) {
+      try {
+        const binUrl = resolveUgc(bin)
+        if (binUrl) {
+          const res = await fetch(binUrl, { signal })
+          if (res.ok) mesh = await voxImporter().importBin(await res.arrayBuffer(), signal)
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message === 'Aborted') return
+        // fall through to .vox
+      }
     }
-    let mesh: BABYLON.Mesh
-    try {
-      mesh = await voxImporter().import(url, this._voxImportParams())
+
+    if (!mesh) {
+      let url: string
+      if (this.url && isURL(this.url)) {
+        url = Config.voxModelURL(this.url, this.parcel, this.type === 'ride' ? 'megavox' : this.type)
+      } else {
+        url = `${process.env.ASSET_PATH}/models/vox-five.vox`
+      }
+      try {
+        mesh = await voxImporter().import(url, this._voxImportParams())
+        this._importError = null
+        this.refreshErrorMessage()
+      } catch (e) {
+        this._importError = typeof e === 'string' ? e : ((e as Error | null)?.message ?? 'Unknown error')
+        if (e instanceof Error && e.message === 'Aborted') {
+          // ignore abort errors
+          return
+        } else {
+          console.warn(e)
+        }
+        if (this.disposed || signal.aborted) return
+        await this.onError()
+        this.refreshErrorMessage()
+        return
+      }
+    } else {
       this._importError = null
       this.refreshErrorMessage()
-    } catch (e) {
-      this._importError = typeof e === 'string' ? e : ((e as Error | null)?.message ?? 'Unknown error')
-      if (e instanceof Error && e.message === 'Aborted') {
-        // ignore abort errors
-        return
-      } else {
-        console.warn(e)
-      }
-      if (this.disposed || this.abortController.signal.aborted) return
-      await this.onError()
-      this.refreshErrorMessage()
-      return
     }
 
-    if (this.disposed || this.abortController.signal.aborted) {
+    if (this.disposed || signal.aborted) {
       mesh.dispose()
       return
     }

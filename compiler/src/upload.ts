@@ -5,7 +5,7 @@ import { parcelUgcKey, parcelUgcUrl, UGC_CACHE } from '../../common/helpers/ugc-
 import type { UploadResult } from '../../common/helpers/parcel-compile'
 import { ugcClient, UGC_BUCKET, ugcExists } from '../../server/lib/ugc'
 
-export async function serverUpload(parcelId: number, name: string, bytes: Uint8Array, contentType: string): Promise<UploadResult | null> {
+export async function serverUpload(parcelId: number, name: string, bytes: Uint8Array, contentType: string, contentEncoding?: string): Promise<UploadResult | null> {
   const key = parcelUgcKey(parcelId, name)
   const location = parcelUgcUrl(parcelId, name)
   if (await ugcExists(key)) return { location, existed: true }
@@ -19,6 +19,7 @@ export async function serverUpload(parcelId: number, name: string, bytes: Uint8A
         ContentType: contentType,
         CacheControl: UGC_CACHE,
         ACL: 'public-read',
+        ...(contentEncoding ? { ContentEncoding: contentEncoding } : {}),
       }),
     )
     return { location, existed: false }
