@@ -47,39 +47,29 @@ export function encodeVoxDraft(buffer: ArrayBuffer): Promise<string | null> {
       if (err || !vox?.models?.[0]?.length) return resolve(null)
 
       const model = vox.models[0]
-      let minX = Infinity
-      let minY = Infinity
-      let minZ = Infinity
-      let maxX = -Infinity
-      let maxY = -Infinity
-      let maxZ = -Infinity
-      for (const v of model) {
-        minX = Math.min(minX, v.x)
-        minY = Math.min(minY, v.y)
-        minZ = Math.min(minZ, v.z)
-        maxX = Math.max(maxX, v.x)
-        maxY = Math.max(maxY, v.y)
-        maxZ = Math.max(maxZ, v.z)
-      }
+      // bucket on the SIZE chunk, not the occupied bbox, so cells land where vox-reader puts the real voxels
+      const size = vox.sizes?.[0] || { x: 1, y: 1, z: 1 }
+      const sx = Math.max(1, size.x)
+      const sy = Math.max(1, size.y)
+      const sz = Math.max(1, size.z)
 
       const cells: number[][] = Array.from({ length: 64 }, () => [])
-      const rx = Math.max(1, maxX - minX)
-      const ry = Math.max(1, maxY - minY)
-      const rz = Math.max(1, maxZ - minZ)
-
       for (const v of model) {
-        const cx = Math.min(3, Math.floor(((v.x - minX) / rx) * 3.999))
-        const cy = Math.min(3, Math.floor(((v.y - minY) / ry) * 3.999))
-        const cz = Math.min(3, Math.floor(((v.z - minZ) / rz) * 3.999))
-        const cell = cx + cy * 4 + cz * 16
-        const { r, g, b } = vox.palette[v.colorIndex] || { r: 0, g: 0, b: 0 }
-        cells[cell].push(nearestIndex(r, g, b))
+        const cx = Math.min(3, Math.floor((v.x / sx) * 4))
+        const cy = Math.min(3, Math.floor((v.y / sy) * 4))
+        const cz = Math.min(3, Math.floor((v.z / sz) * 4))
+        cells[cx + cy * 4 + cz * 16].push(v.colorIndex)
       }
 
-      const out = new Uint8Array(64)
+      // 64 cells + 3 size bytes so the client can draw it at the real footprint
+      const out = new Uint8Array(67)
+      out[64] = Math.min(255, sx)
+      out[65] = Math.min(255, sy)
+      out[66] = Math.min(255, sz)
       for (let i = 0; i < 64; i++) {
         const hits = cells[i]
         if (!hits.length) continue
+        // most common source palette index in the block, then snap that colour to the standard palette
         const freq = new Map<number, number>()
         for (const c of hits) freq.set(c, (freq.get(c) || 0) + 1)
         let best = hits[0]
@@ -90,7 +80,9 @@ export function encodeVoxDraft(buffer: ArrayBuffer): Promise<string | null> {
             best = c
           }
         }
-        out[i] = best
+        // no RGBA chunk means the file already uses the standard palette
+        const col = vox.palette?.[best]
+        out[i] = col ? nearestIndex(col.r, col.g, col.b) : best
       }
 
       let s = ''

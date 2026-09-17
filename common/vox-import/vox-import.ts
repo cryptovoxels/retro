@@ -7,7 +7,7 @@ export interface Options {
   colorMap?: Record<number, [number, number, number]>
 }
 
-const VOX_SCALE = 0.02
+export const VOX_SCALE = 0.02
 
 let _instance: VoxImporter | null = null
 export const voxImporter = (): VoxImporter => {
