@@ -337,8 +337,8 @@ async function rehostUncached(ctx: JobCtx, rawUrl: string, kind: SniffKind): Pro
     return r
   })
 
-  let bytes: Uint8Array = 'error' in fetched ? new Uint8Array() : fetched.bytes
-  let sniff: SniffResult = 'error' in fetched ? { ok: false, reason: fetched.error } : sniffBytes(bytes, fetched.contentType, kind)
+  let bytes: Uint8Array | null = 'error' in fetched ? new Uint8Array() : fetched.bytes
+  let sniff: SniffResult = 'error' in fetched ? { ok: false, reason: fetched.error } : sniffBytes(bytes!, fetched.contentType, kind)
 
   // origin dead or lying: dig in the old herring caches, keyed by the url spelling the client used back then
   if (sniff.ok === false && ctx.hoard) {
@@ -414,6 +414,7 @@ async function rehostUncached(ctx: JobCtx, rawUrl: string, kind: SniffKind): Pro
     if (ctx.draft?.encodeVox) draft = (await ctx.draft.encodeVox(toArrayBuffer(bytes))) || undefined
     voxelbr = await putVoxelbr(ctx, bytes)
   }
+  bytes = null!
   return { location: uploaded.location, ext: ok.ext, base, draft, voxelbr }
 }
 
@@ -556,6 +557,7 @@ export async function compileParcelContent(
           if (d) setDraft(ctx, desc, d)
         }
       }
+      ;(fetched as any) = null
     }
 
     for (const field of [...URL_FIELDS, 'draft', 'voxelbr']) {

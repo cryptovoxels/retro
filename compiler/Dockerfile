@@ -21,6 +21,8 @@ ENV PORT=8081
 ENV ASSET_PATH=https://www.voxels.com
 ENV IMG_HOST=https://cdn.cryptovoxels.com
 ENV TEXTURE_BUCKET=https://textures.sfo2.cdn.digitaloceanspaces.com
+# arraybuffers don't pressure the js heap; without this dead fetches never get collected
+ENV NODE_OPTIONS=--expose-gc
 
 EXPOSE 8081
 
