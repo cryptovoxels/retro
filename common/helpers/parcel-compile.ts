@@ -157,18 +157,32 @@ type JobCtx = {
 }
 
 const FETCH_TIMEOUT_MS = 30000
-// everything is buffered in ram and 32 parcels run at once; a 200mb video per feature oom-killed an 8gb box
-const MAX_BYTES = 100 * 1024 * 1024
-const TOO_BIG = { error: 'too big (>100mb)' }
+// everything is buffered in ram; stop giant movies before they eat the box
+const MAX_BYTES = 20 * 1024 * 1024
+const TOO_BIG = { error: 'too big (>20mb)' }
 
 async function streamFetch(url: string, onProgress?: (got: number, total: number) => void): Promise<Fetched> {
   try {
-    const res = await fetch(resolveUgc(url) || url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
-    if (!res.ok) return { error: String(res.status), status: res.status }
+    const res = await fetch(resolveUgc(url) || url, {
+      headers: { Range: `bytes=0-${MAX_BYTES - 1}` },
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+    })
+    if (!res.ok) {
+      await res.body?.cancel()
+      return { error: String(res.status), status: res.status }
+    }
+    const rangeSize = parseInt(res.headers.get('content-range')?.split('/').pop() || '', 10)
+    if ((res.status === 206 && !rangeSize) || rangeSize > MAX_BYTES) {
+      await res.body?.cancel()
+      return TOO_BIG
+    }
     const total = parseInt(res.headers.get('content-length') || '0', 10) || 0
-    if (total > MAX_BYTES) return TOO_BIG
+    if (total > MAX_BYTES) {
+      await res.body?.cancel()
+      return TOO_BIG
+    }
     const contentType = res.headers.get('content-type') || ''
-    if (!res.body || !onProgress) {
+    if (!res.body) {
       const buf = await res.arrayBuffer()
       if (buf.byteLength > MAX_BYTES) return TOO_BIG
       onProgress?.(buf.byteLength, buf.byteLength || total)
@@ -184,10 +198,10 @@ async function streamFetch(url: string, onProgress?: (got: number, total: number
         chunks.push(value)
         got += value.byteLength
         if (got > MAX_BYTES) {
-          void reader.cancel()
+          await reader.cancel()
           return TOO_BIG
         }
-        onProgress(got, total)
+        onProgress?.(got, total)
       }
     }
     const bytes = new Uint8Array(got)
