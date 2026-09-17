@@ -1,5 +1,3 @@
-import { VOX_SCALE } from '../../common/vox-import/vox-import'
-import { rebindGizmos } from '../tools/gizmos'
 import Feature from './feature'
 
 const VoxReader = require('@sh-dave/format-vox').VoxReader
@@ -11,8 +9,6 @@ const MAGICA_RGB: [number, number, number][] = rawPalette.map((c: number, i: num
   const col = VoxTools.transformColor(c)
   return [col.r, col.g, col.b]
 })
-const MAGICA_PALETTE: BABYLON.Color3[] = MAGICA_RGB.map(([r, g, b]) => new BABYLON.Color3(r / 255, g / 255, b / 255))
-Object.freeze(MAGICA_PALETTE)
 Object.freeze(MAGICA_RGB)
 
 function nearestIndex(r: number, g: number, b: number): number {
@@ -35,13 +31,6 @@ function bytesToB64(bytes: Uint8Array): string {
   return btoa(s)
 }
 
-function b64ToBytes(b64: string): Uint8Array {
-  const s = atob(b64)
-  const out = new Uint8Array(s.length)
-  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i)
-  return out
-}
-
 export async function encodeImageDraft(url: string): Promise<string | null> {
   try {
     const img = new Image()
@@ -49,15 +38,19 @@ export async function encodeImageDraft(url: string): Promise<string | null> {
     img.src = url
     await img.decode()
     const canvas = document.createElement('canvas')
-    canvas.width = 8
-    canvas.height = 8
+    canvas.width = 4
+    canvas.height = 4
     const ctx = canvas.getContext('2d')
     if (!ctx) return null
-    ctx.drawImage(img, 0, 0, 8, 8)
-    const dataUrl = canvas.toDataURL('image/webp', 0.8)
-    const prefix = 'data:image/webp;base64,'
-    if (!dataUrl.startsWith(prefix)) return null
-    return dataUrl.slice(prefix.length)
+    ctx.drawImage(img, 0, 0, 4, 4)
+    const { data } = ctx.getImageData(0, 0, 4, 4)
+    const out = new Uint8Array(48)
+    for (let i = 0, j = 0; i < 16; i++, j += 3) {
+      out[j] = data[i * 4]
+      out[j + 1] = data[i * 4 + 1]
+      out[j + 2] = data[i * 4 + 2]
+    }
+    return bytesToB64(out)
   } catch {
     return null
   }
@@ -116,86 +109,4 @@ export function persistDraft(feature: Feature, draft: string | null) {
   if (!draft || !feature.parcel?.canEdit || draft === (feature.description as any).draft) return
   ;(feature.description as any).draft = draft
   feature.sendToServer(['draft' as any])
-}
-
-export function renderImageDraft(feature: Feature, b64: string) {
-  if (feature.disposed) return
-  const f = feature as any
-
-  const material = new BABYLON.StandardMaterial(f.uniqueEntityName('material'), feature.scene)
-  material.specularColor.set(0, 0, 0)
-  material.diffuseColor.set(1, 1, 1)
-  material.emissiveColor.set(1, 1, 1)
-  material.diffuseTexture = new BABYLON.Texture('data:image/webp;base64,' + b64, feature.scene, false, true, BABYLON.Texture.BILINEAR_SAMPLINGMODE)
-  material.backFaceCulling = false
-
-  if (!(feature.mesh instanceof BABYLON.Mesh)) {
-    feature.mesh = BABYLON.MeshBuilder.CreatePlane(f.uniqueEntityName('mesh'), { size: 1 }, feature.scene)
-    rebindGizmos(feature)
-  }
-
-  ;(feature.mesh as BABYLON.Mesh).material = material
-  f.setCommon()
-}
-
-export function renderVoxDraft(feature: Feature, b64: string) {
-  if (feature.disposed) return
-  const f = feature as any
-
-  const bytes = b64ToBytes(b64)
-  // 64 cells + 3 size bytes. old 64-byte drafts have no size, the compiler redoes them
-  if (bytes.length !== 67) return
-
-  const scene = feature.scene
-  // one cell = a quarter of the model, in world units, in babylon axes (vox z is up)
-  const cell = new BABYLON.Vector3(((bytes[64] || 1) / 4) * VOX_SCALE, ((bytes[66] || 1) / 4) * VOX_SCALE, ((bytes[65] || 1) / 4) * VOX_SCALE)
-  const boxes: BABYLON.Mesh[] = []
-
-  for (let z = 0; z < 4; z++) {
-    for (let y = 0; y < 4; y++) {
-      for (let x = 0; x < 4; x++) {
-        const pi = bytes[x + y * 4 + z * 16]
-        if (!pi) continue
-        const color = MAGICA_PALETTE[pi] || MAGICA_PALETTE[1]
-        const box = BABYLON.MeshBuilder.CreateBox(f.uniqueEntityName('mesh'), { width: cell.x * 0.95, height: cell.y * 0.95, depth: cell.z * 0.95 }, scene)
-        // same layout as vox-reader: mirrored x, vox z up, base on y=0, x/z centred
-        box.position.set((1.5 - x) * cell.x, (z + 0.5) * cell.y, (1.5 - y) * cell.z)
-        const vd = BABYLON.VertexData.ExtractFromMesh(box)
-        const n = vd.positions!.length / 3
-        const colors = new Float32Array(n * 4)
-        for (let i = 0; i < n; i++) {
-          colors[i * 4] = color.r
-          colors[i * 4 + 1] = color.g
-          colors[i * 4 + 2] = color.b
-          colors[i * 4 + 3] = 1
-        }
-        vd.colors = colors
-        vd.applyToMesh(box)
-        boxes.push(box)
-      }
-    }
-  }
-
-  if (!boxes.length) return
-
-  const merged = BABYLON.Mesh.MergeMeshes(boxes, true, true, undefined, false, true)
-  if (!merged) return
-
-  const mat = new BABYLON.StandardMaterial(f.uniqueEntityName('material'), scene)
-  // no disableLighting: with no lights and black emissive the vertex colours multiply to black
-  mat.specularColor.set(0, 0, 0)
-
-  if (!(feature.mesh instanceof BABYLON.Mesh)) {
-    feature.mesh = merged
-    rebindGizmos(feature)
-  } else {
-    const old = feature.mesh as BABYLON.Mesh
-    BABYLON.VertexData.ExtractFromMesh(merged).applyToMesh(old)
-    merged.material = null
-    merged.dispose()
-    feature.mesh = old
-  }
-
-  ;(feature.mesh as BABYLON.Mesh).material = mat
-  f.setCommon()
 }

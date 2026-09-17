@@ -5,6 +5,7 @@ import { loadVox } from './monoworker/vox'
 import { requestInstanceIdentification, requestFeatureSorting } from './monoworker/pump'
 import { gridWorker } from './monoworker/grid'
 import { voxelCollider, wearVoxels } from './monoworker/physics'
+import { meshDrafts } from './monoworker/drafts'
 
 installAbort()
 
@@ -13,6 +14,7 @@ const api = {
   ping: () => true as const,
   bakeLightmap,
   loadVox,
+  meshDrafts,
   requestInstanceIdentification,
   requestFeatureSorting,
   voxelCollider,

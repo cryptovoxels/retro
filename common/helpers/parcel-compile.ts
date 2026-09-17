@@ -236,7 +236,11 @@ type RehostOk = { location: string; ext: string; base: string; draft?: string; v
 type RehostResult = RehostOk | null
 
 function toArrayBuffer(b: Uint8Array): ArrayBuffer {
-  return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength) as ArrayBuffer
+  if (b.byteOffset === 0 && b.byteLength === b.buffer.byteLength) return b.buffer as ArrayBuffer
+  // copy only when the view is a slice of a bigger buffer
+  const out = new Uint8Array(b.byteLength)
+  out.set(b)
+  return out.buffer
 }
 
 function setDraft(ctx: JobCtx, desc: any, d: string) {
@@ -421,6 +425,8 @@ export async function compileParcelContent(
     pools?: CompilePools
     board?: CompileBoardView
     hoard?: CompileHoard
+    // rewrite drafts on existing ugc:// urls; skip rehost PUTs and voxelbr uploads
+    reprocess?: boolean
   },
 ): Promise<CompileResult> {
   const out: Record<string, FeatureRecord> = {}
@@ -429,6 +435,7 @@ export async function compileParcelContent(
   const stat = emptyStat()
   const missing: string[] = []
   const ctx: JobCtx = { parcelId, upload, pools: opts?.pools, board: opts?.board, hoard: opts?.hoard, draft, missing, stat, fetchMemo: new Map(), rehostMemo: new Map() }
+  const reprocess = !!opts?.reprocess
 
   ctx.board?.bump({ total: 0 })
 
@@ -442,26 +449,28 @@ export async function compileParcelContent(
 
   const jobs: UrlJob[] = []
 
-  for (const f of features) {
-    if (!f.uuid) continue
-    for (const field of URL_FIELDS) {
-      const raw = tidyURL((f as any)[field])
-      if (!raw || shouldSkip(raw) || isParcelUgc(raw, parcelId)) continue
+  if (!reprocess) {
+    for (const f of features) {
+      if (!f.uuid) continue
+      for (const field of URL_FIELDS) {
+        const raw = tidyURL((f as any)[field])
+        if (!raw || shouldSkip(raw) || isParcelUgc(raw, parcelId)) continue
+        jobs.push({
+          uuid: f.uuid,
+          field,
+          rawUrl: raw,
+          kind: kindFor(f.type, field),
+        })
+      }
+    }
+
+    if (tileset && !isParcelUgc(tileset, parcelId) && !shouldSkip(tileset)) {
       jobs.push({
-        uuid: f.uuid,
-        field,
-        rawUrl: raw,
-        kind: kindFor(f.type, field),
+        rawUrl: tileset,
+        kind: 'image',
+        isTileset: true,
       })
     }
-  }
-
-  if (tileset && !isParcelUgc(tileset, parcelId) && !shouldSkip(tileset)) {
-    jobs.push({
-      rawUrl: tileset,
-      kind: 'image',
-      isTileset: true,
-    })
   }
 
   ctx.board?.bump({ total: jobs.length })
@@ -491,46 +500,58 @@ export async function compileParcelContent(
     }),
   )
 
-  // backfill: url already parked on ugc from an earlier pass but draft/voxelbr missing or old format
-  await Promise.all(
-    features.map(async (f) => {
-      if (!f.uuid) return
-      const desc = descs.get(f.uuid)!
-      const descUrl = tidyURL((desc as any).url)
-      const isVox = isVoxType(f.type)
-      const oldDraft = (desc as any).draft as string | undefined
-      // vox drafts grew 3 size bytes (67 bytes = 92 b64 chars); shorter ones are the unsized format, redo them
-      const needDraft = !oldDraft || (isVox && oldDraft.length !== 92)
-      const needVoxelbr = isVox && !(desc as any).voxelbr
+  // backfill: url already parked on ugc from an earlier pass but draft/voxelbr missing or old format.
+  // serial on purpose: Promise.all held every feature body in ram at once and oom'd the box.
+  for (const f of features) {
+    if (!f.uuid) continue
+    const desc = descs.get(f.uuid)!
+    const descUrl = tidyURL((desc as any).url)
+    const isVox = isVoxType(f.type)
+    const oldDraft = (desc as any).draft as string | undefined
+    // vox drafts: 67 bytes = 92 b64. image drafts: 48 bytes raw RGB = 64 b64. anything else is old format, redo
+    const needDraft = !oldDraft || (isVox ? oldDraft.length !== 92 : oldDraft.length !== 64)
+    // reprocess never writes the bucket, so skip voxelbr
+    const needVoxelbr = !reprocess && isVox && !(desc as any).voxelbr
 
-      if (draft && (needDraft || needVoxelbr) && wantsDraft(f.type) && descUrl?.startsWith('ugc://')) {
+    if (draft && (needDraft || needVoxelbr) && wantsDraft(f.type) && descUrl?.startsWith('ugc://')) {
+      const sourceUrl = resolveUgc(descUrl) || ''
+      const fetched = await withDownload(ctx, async (slot) => {
+        ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase: 'GET', got: 0, total: 0 })
+        const r = await memoFetch(ctx, sourceUrl, (got, total) => {
+          ctx.board?.set(slot, { parcelId: ctx.parcelId, url: sourceUrl, phase: 'GET', got, total })
+        })
+        ctx.board?.idle(slot)
+        return r
+      })
+      if (!('error' in fetched)) {
         if (isVox) {
-          const fetched = await memoFetch(ctx, resolveUgc(descUrl) || '')
-          if (!('error' in fetched)) {
-            if (needDraft && draft.encodeVox) {
-              const d = await draft.encodeVox(toArrayBuffer(fetched.bytes))
-              if (d) setDraft(ctx, desc, d)
-            }
-            if (needVoxelbr) {
-              const location = await putVoxelbr(ctx, fetched.bytes)
-              if (location) (desc as any).voxelbr = location
-            }
+          if (needDraft && draft.encodeVox) {
+            const d = await draft.encodeVox(toArrayBuffer(fetched.bytes))
+            if (d) setDraft(ctx, desc, d)
+          }
+          if (needVoxelbr) {
+            const location = await putVoxelbr(ctx, fetched.bytes)
+            if (location) (desc as any).voxelbr = location
           }
         } else if (needDraft && draft.encodeImage) {
-          const d = await draft.encodeImage(resolveUgc(descUrl) || '')
+          const d = await draft.encodeImage('', fetched.bytes)
           if (d) setDraft(ctx, desc, d)
         }
       }
+    }
 
-      for (const field of [...URL_FIELDS, 'draft', 'voxelbr']) {
-        if ((desc as any)[field] !== (f as any)[field]) {
-          out[f.uuid] = desc
-          stat.patched++
-          return
-        }
+    for (const field of [...URL_FIELDS, 'draft', 'voxelbr']) {
+      if ((desc as any)[field] !== (f as any)[field]) {
+        out[f.uuid] = desc
+        stat.patched++
+        break
       }
-    }),
-  )
+    }
+  }
+
+  // drop memo maps so parcel-scoped promises can GC
+  ctx.fetchMemo.clear()
+  ctx.rehostMemo.clear()
 
   const patch: CompilePatch = {}
   if (Object.keys(out).length) patch.features = out

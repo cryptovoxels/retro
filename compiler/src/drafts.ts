@@ -1,5 +1,9 @@
 import sharp from 'sharp'
 
+// reprocess walks the whole world; libvips caches eat the box if left on
+sharp.cache(false)
+sharp.concurrency(1)
+
 const VoxReader = require('@sh-dave/format-vox').VoxReader
 const VoxTools = require('@sh-dave/format-vox').VoxTools
 
@@ -26,16 +30,17 @@ function nearestIndex(r: number, g: number, b: number): number {
 
 export async function encodeImageDraft(url: string, bytes?: Uint8Array): Promise<string | null> {
   try {
-    let buf: Buffer
+    let input: Buffer | Uint8Array
     if (bytes) {
-      buf = Buffer.from(bytes)
+      input = bytes
     } else {
       const res = await fetch(url, { signal: AbortSignal.timeout(30000) })
       if (!res.ok) return null
-      buf = Buffer.from(await res.arrayBuffer())
+      input = Buffer.from(await res.arrayBuffer())
     }
-    const webp = await sharp(buf).resize(8, 8).webp({ quality: 80 }).toBuffer()
-    return webp.toString('base64')
+    // 4x4 raw RGB = 48 bytes = 64 chars b64. no texture, vertex colours on the client
+    const raw = await sharp(input).resize(4, 4, { fit: 'fill' }).removeAlpha().raw().toBuffer()
+    return raw.toString('base64')
   } catch {
     return null
   }

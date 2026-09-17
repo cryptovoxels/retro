@@ -23,13 +23,13 @@ export function createGlassMaterial(scene: BABYLON.Scene, config: GlassConfig = 
 
   const material = new BABYLON.StandardMaterial(`glass/${config.name || 'default'}/${Date.now()}`, scene)
 
-  const baseColor = new BABYLON.Color3(0.35, 0.35, 0.355)
+  const baseColor = new BABYLON.Color3(0.45, 0.45, 0.45)
   material.diffuseColor = baseColor
-  material.specularColor = new BABYLON.Color3(0.8, 0.8, 0.8)
+  material.specularColor = new BABYLON.Color3(0.7, 0.7, 0.7)
   material.specularPower = 10
   material.emissiveColor = baseColor
   material.backFaceCulling = false
-  material.alpha = 0.45
+  material.alpha = 0.3
   material.zOffset = -1
   // material.needDepthPrePass = true
 
