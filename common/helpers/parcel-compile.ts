@@ -143,22 +143,27 @@ type JobCtx = {
   hoard?: CompileHoard
   missing: string[]
   stat: CompileStat
-  // same URL on ten features = one GET
+  // same URL on ten features at once = one GET (in-flight only, see memoFetch)
   fetchMemo: Map<string, Promise<Fetched>>
   // and one sniff, one dig, one PUT
   rehostMemo: Map<string, Promise<RehostResult>>
 }
 
 const FETCH_TIMEOUT_MS = 30000
+// everything is buffered in ram and 32 parcels run at once; a 200mb video per feature oom-killed an 8gb box
+const MAX_BYTES = 100 * 1024 * 1024
+const TOO_BIG = { error: 'too big (>100mb)' }
 
 async function streamFetch(url: string, onProgress?: (got: number, total: number) => void): Promise<Fetched> {
   try {
     const res = await fetch(resolveUgc(url) || url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
     if (!res.ok) return { error: String(res.status), status: res.status }
     const total = parseInt(res.headers.get('content-length') || '0', 10) || 0
+    if (total > MAX_BYTES) return TOO_BIG
     const contentType = res.headers.get('content-type') || ''
     if (!res.body || !onProgress) {
       const buf = await res.arrayBuffer()
+      if (buf.byteLength > MAX_BYTES) return TOO_BIG
       onProgress?.(buf.byteLength, buf.byteLength || total)
       return { bytes: new Uint8Array(buf), contentType, status: res.status }
     }
@@ -171,6 +176,10 @@ async function streamFetch(url: string, onProgress?: (got: number, total: number
       if (value) {
         chunks.push(value)
         got += value.byteLength
+        if (got > MAX_BYTES) {
+          void reader.cancel()
+          return TOO_BIG
+        }
         onProgress(got, total)
       }
     }
@@ -192,6 +201,8 @@ function memoFetch(ctx: JobCtx, url: string, onProgress?: (got: number, total: n
   if (hit) return hit
   const p = streamFetch(url, onProgress)
   ctx.fetchMemo.set(url, p)
+  // dedupe in-flight only; a settled entry would pin the body in ram for the rest of the parcel
+  void p.finally(() => ctx.fetchMemo.delete(url))
   return p
 }
 
@@ -314,7 +325,9 @@ async function rehostUncached(ctx: JobCtx, rawUrl: string, kind: SniffKind): Pro
 
   ctx.stat.uploads++
   ctx.board?.bump({ uploads: 1 })
-  return { location: uploaded.location, bytes, ext: ok.ext, base }
+  // only image/vox get a draft; video and audio bodies are the big ones, let them go now
+  const draftable = kind === 'image' || kind === 'vox'
+  return { location: uploaded.location, bytes: draftable ? bytes : new Uint8Array(), ext: ok.ext, base }
 }
 
 function yoCompile(parcelId: number, total: number, stat: CompileStat, board?: CompileBoardView) {
@@ -411,7 +424,7 @@ export async function compileParcelContent(
       const desc = descs.get(job.uuid)
       if (!desc) return
       ;(desc as any)[job.field] = result.location
-      if (job.field === 'url') bytesByUuid.set(job.uuid, result.bytes)
+      if (job.field === 'url' && result.bytes.byteLength) bytesByUuid.set(job.uuid, result.bytes)
     }),
   )
 
