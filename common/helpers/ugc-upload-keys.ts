@@ -2,6 +2,9 @@ import { md5 } from './utils'
 
 export type UploadMediaType = 'parcel-content' | 'womps' | 'assetlibrary' | 'avatar'
 
+// every ugc key has the content hash in it, so an object never changes under its name. let every cdn hold it forever.
+export const UGC_CACHE = 'public, max-age=31536000, immutable'
+
 export const getFileNameNoExtension = (filenameWithExtension: string) => {
   const a = filenameWithExtension.split('.')
   let name = a.splice(0, a.length - 1).join('.')

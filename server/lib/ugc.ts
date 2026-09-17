@@ -1,5 +1,6 @@
 import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { UGC_CACHE } from '../../common/helpers/ugc-upload-keys'
 
 export const UGC_BUCKET = 'voxels-ugc'
 export const UGC_REGION = 'syd1'
@@ -39,6 +40,7 @@ export async function presignPut(key: string, contentType: string, contentLength
     Key: key,
     ContentType: contentType,
     ContentLength: contentLength,
+    CacheControl: UGC_CACHE,
     ACL: 'public-read',
   })
   return getSignedUrl(ugcClient(), command, {

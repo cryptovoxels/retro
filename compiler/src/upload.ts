@@ -1,7 +1,7 @@
 // ABOUTME: Quiet UGC put for compiler - board owns the progress UI.
 
 import { PutObjectCommand } from '@aws-sdk/client-s3'
-import { parcelUgcKey, parcelUgcUrl } from '../../common/helpers/ugc-upload-keys'
+import { parcelUgcKey, parcelUgcUrl, UGC_CACHE } from '../../common/helpers/ugc-upload-keys'
 import type { UploadResult } from '../../common/helpers/parcel-compile'
 import { ugcClient, UGC_BUCKET, ugcExists } from '../../server/lib/ugc'
 
@@ -17,6 +17,7 @@ export async function serverUpload(parcelId: number, name: string, bytes: Uint8A
         Key: key,
         Body: bytes,
         ContentType: contentType,
+        CacheControl: UGC_CACHE,
         ACL: 'public-read',
       }),
     )
