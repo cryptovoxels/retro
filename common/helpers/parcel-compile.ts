@@ -257,15 +257,33 @@ function isVoxType(type: string | undefined) {
   return type === 'vox-model' || type === 'megavox' || type === 'ride'
 }
 
+// one mesh at a time — parallel megavox meshes each spike ~50-70mb of scratch
+let voxelbrLock: Promise<void> = Promise.resolve()
+function withVoxelbr<T>(fn: () => Promise<T>): Promise<T> {
+  let release!: () => void
+  const gate = new Promise<void>((r) => {
+    release = r
+  })
+  const prev = voxelbrLock
+  voxelbrLock = prev.then(() => gate)
+  return prev.then(fn).finally(release)
+}
+
 async function putVoxelbr(ctx: JobCtx, bytes: Uint8Array): Promise<string | undefined> {
   if (!ctx.draft?.encodeVoxelbr) return undefined
-  const packed = await ctx.draft.encodeVoxelbr(toArrayBuffer(bytes))
+  // mesh one at a time; PUT can fan out on the uploader pool
+  const packed = await withVoxelbr(async () => {
+    const p = await ctx.draft!.encodeVoxelbr!(toArrayBuffer(bytes))
+    if (!p) return null
+    const base = await contentName(p.raw)
+    return { br: p.br, base }
+  })
   if (!packed) return undefined
-  const base = await contentName(packed.raw)
-  const name = `${base}.voxelbr`
+  const name = `${packed.base}.voxelbr`
+  const br = packed.br
   const uploaded = await withUpload(ctx, async (slot) => {
-    ctx.board?.set(slot, { parcelId: ctx.parcelId, url: name, phase: 'PUT', got: 0, total: packed.br.byteLength })
-    const loc = await ctx.upload(name, packed.br, 'application/octet-stream', 'br')
+    ctx.board?.set(slot, { parcelId: ctx.parcelId, url: name, phase: 'PUT', got: 0, total: br.byteLength })
+    const loc = await ctx.upload(name, br, 'application/octet-stream', 'br')
     if (!loc) {
       ctx.board?.set(slot, { parcelId: ctx.parcelId, url: name, phase: 'FAIL', got: 0, total: 0, detail: 'upload' })
       await new Promise((res) => setTimeout(res, 80))
@@ -276,8 +294,8 @@ async function putVoxelbr(ctx: JobCtx, bytes: Uint8Array): Promise<string | unde
       parcelId: ctx.parcelId,
       url: name,
       phase: loc.existed ? 'HAVE' : 'PUT',
-      got: packed.br.byteLength,
-      total: packed.br.byteLength,
+      got: br.byteLength,
+      total: br.byteLength,
     })
     await new Promise((res) => setTimeout(res, 40))
     ctx.board?.idle(slot)

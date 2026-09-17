@@ -186,12 +186,15 @@ export const voxReader = (buffer: ArrayBuffer, megavox: boolean, callback: Callb
       }
     }
 
-    const finalIndices = numMergedVerts < 65536 ? Uint16Array.from(indices.subarray(0, index_i)) : indices.subarray(0, index_i)
+    // copy tight — subarray pins the full unmerged allocs (often 2-4x the real mesh)
+    const finalPositions = new Int8Array(positions.buffer.slice(positions.byteOffset, positions.byteOffset + numMergedVerts * 3))
+    const finalColors = new Uint8Array(colors.buffer.slice(colors.byteOffset, colors.byteOffset + numMergedVerts * 4))
+    const finalIndices = numMergedVerts < 65536 ? Uint16Array.from(indices.subarray(0, index_i)) : new Uint32Array(indices.buffer.slice(indices.byteOffset, indices.byteOffset + index_i * 4))
 
     callback({
-      positions: positions.subarray(0, numMergedVerts * 3),
+      positions: finalPositions,
       indices: finalIndices,
-      colors: colors.subarray(0, numMergedVerts * 4),
+      colors: finalColors,
       size: [originalSize.x, originalSize.y, originalSize.z],
     })
   })
