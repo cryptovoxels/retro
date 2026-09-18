@@ -995,11 +995,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     window.engine.enterFullscreen(true)
   }
 
-  enterTheatre = (e: Event) => {
-    e.preventDefault()
-    document.body.classList.toggle('theatre-mode')
-  }
-
   showNotificationBanner(message: string, duration = 5000, onClick?: () => void) {
     // ideally we would use a dedicated noitification banner component, but for now we'll use the snackbar
     return Snackbar.show(message, PanelType.Info, duration, onClick)
@@ -1019,6 +1014,43 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       this.setPane(p)
       exitPointerLock()
     }
+
+    const openPage = (e: any) => {
+      e.preventDefault()
+      route(e.currentTarget.getAttribute('href'))
+      exitPointerLock()
+    }
+
+    const signedIn = this.state.signedIn
+    const siteLinks: [string, string, boolean?][] = [
+      ['/', 'Home'],
+      ...(app.isAdmin() ? ([['/admin', 'Admin']] as [string, string][]) : []),
+      ['/account', signedIn ? 'Profile' : 'Login'],
+      ['/api', 'API'],
+      ['/art', 'Art'],
+      ['/assets', 'Assets'],
+      ['/behaviours', 'Behaviours'],
+      ['/blog', 'Blog'],
+      ['/build', 'Build'],
+      ['/chat', 'Chat'],
+      ['/collections', 'Collections'],
+      ['/conduct', 'Conduct'],
+      ...(signedIn ? ([['/costumer', 'Costume']] as [string, string][]) : []),
+      ['/events', 'Events'],
+      ['/golive', 'Go live'],
+      ['/islands', 'Islands'],
+      ...(signedIn ? ([['/logout', 'Log out']] as [string, string][]) : []),
+      ['/map', 'Map'],
+      ['/parcels', 'Parcels'],
+      ['/privacy', 'Privacy'],
+      ['/radio', 'Radio'],
+      ['/shop', 'Shop'],
+      ['/terms', 'Terms'],
+      ['/womps', 'Womps'],
+      ['https://discord.gg/3RSCZGr3fr', 'Discord', true],
+      ['https://github.com/cryptovoxels/retro', 'Github', true],
+      ['https://www.x.com/cryptovoxels', 'Twitter', true],
+    ]
 
     const nearestEditableParcel = selectNearestEditableParcel() ?? null
     const mintable = app.isAdmin() && nearestEditableParcel?.needsMint
@@ -1063,11 +1095,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   </a>
                 </li>
               )}
-              <li>
-                <a href="#" title="Theatre" onClick={this.enterTheatre}>
-                  Theatre
-                </a>
-              </li>
               <li>
                 <a href="#" title="Fullscreen" onClick={this.enterFullscreen}>
                   Fullscreen
@@ -1209,6 +1236,20 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   </a>
                 </li>
               )}
+              <li>
+                <a href="/" onClick={openPage}>
+                  Site
+                </a>
+                <ul>
+                  {siteLinks.map(([href, label, external]) => (
+                    <li key={href}>
+                      <a href={href} onClick={external ? undefined : openPage} target={external ? '_blank' : undefined} rel={external ? 'noopener' : undefined}>
+                        {label}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </li>
             </ul>
 
             {this.state.chatEnabled && !location.pathname.startsWith('/chat') && <ChatOverlay scene={this.props.scene} />}
