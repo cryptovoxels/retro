@@ -57,9 +57,9 @@ async function pickParcelId(): Promise<number | null> {
       : await db.query(
           'embedded/pick-uncompiled-parcels',
           `select id from properties
-            where (content::text not like '%ugc://parcel/%' or json_array_length(coalesce(content->'missing', '[]'::json)) > 0)
+            where (compiled_at is null or updated_at > compiled_at)
               and not (id = any($1::int[]))
-            order by content::text like '%ugc://parcel/%', id
+            order by compiled_at nulls first, id
             limit 100`,
           [Array.from(seen)],
         )
@@ -127,6 +127,9 @@ async function compileOne(id: number) {
     } else {
       board.logDone(`#${id} nothing to do`)
     }
+
+    // after parcel.save(): it sets updated_at = NOW(), stamping earlier re-queues every parcel
+    await db.query('embedded/stamp-compiled', 'update properties set compiled_at = now() where id = $1', [id])
   } finally {
     board.removeParcel(id)
   }

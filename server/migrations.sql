@@ -365,3 +365,8 @@ $$);
 SELECT apply_migration('posts-hash', $$
   ALTER TABLE posts ADD COLUMN IF NOT EXISTS hash text UNIQUE;
 $$);
+
+SELECT apply_migration('properties-compiled-at', $$
+  ALTER TABLE properties ADD COLUMN IF NOT EXISTS compiled_at timestamp;
+  CREATE INDEX IF NOT EXISTS properties_compiled_at_idx ON properties (compiled_at);
+$$);

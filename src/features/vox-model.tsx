@@ -36,6 +36,8 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   }
 
   private _importError: string | null = null
+  // instances await this before createInstance, so they never instance the draft
+  public loading: Promise<void> | null = null
 
   // Must be public for the Editor
   public get importError() {
@@ -59,14 +61,15 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   }
 
   public override async generateInstance(root: VoxModel) {
-    if (!root.mesh) {
-      // No mesh, generate normal mesh
-      await this.generate()
-      return
-    }
-
-    //@todo: fix type mesh
+    this.generateDraft()
+    await root.loading
+    if (this.disposed || this.abortController.signal.aborted) return
+    // root failed or has no real mesh: keep own draft
+    if (!root.mesh || root.importError) return
+    this.mesh?.dispose()
     this.mesh = root.mesh.createInstance(this.uniqueEntityName('instance')) as unknown as MeshExtended
+    // pivot (the 0.02 vox scale) is per-node, instances do not inherit it from the source
+    this.mesh.setPreTransformMatrix(root.mesh.getPivotMatrix())
     this.afterGenerate()
   }
 
@@ -94,7 +97,7 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
 
   public override async generate() {
     this.generateDraft()
-    void this.loadContent()
+    this.loading = this.loadContent()
   }
 
   private async loadContent() {

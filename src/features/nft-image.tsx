@@ -256,7 +256,9 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     material.zOffset = -5
     material.diffuseTexture = texture
 
-    if (!(this.mesh instanceof BABYLON.Mesh)) {
+    // draft mesh has no uvs, must be replaced not reused
+    if (!(this.mesh instanceof BABYLON.Mesh) || !this.mesh.isVerticesDataPresent(BABYLON.VertexBuffer.UVKind)) {
+      this.mesh?.dispose()
       this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
       rebindGizmos(this)
     } else {
