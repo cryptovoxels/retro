@@ -5,6 +5,11 @@ WORKDIR /app
 RUN npm i -g pnpm@9.15.4
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
+# App Platform passes spec env as build args. The bundle filename has to match
+# currentVersion at runtime or the server serves a 404 for the app script.
+# Declared after the install so a new commit hash does not bust that layer.
+ARG BUILD_NUM
+ENV BUILD_NUM=$BUILD_NUM
 COPY . .
 RUN mkdir -p dist && pnpm exec lessc web/src/style/app.less dist/app.css && node scripts/bundle-node.mjs web
 
