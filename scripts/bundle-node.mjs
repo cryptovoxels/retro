@@ -218,7 +218,7 @@ function previewOptions() {
 
 const nodeTargets = {
   server: ['server/boot.ts', path.join(repo, 'server/bundle_server.js'), []],
-  migrate: ['server/migration/migrate.ts', path.join(repo, 'server/migrate.js'), []],
+  migrate: ['server/migration/main.ts', path.join(repo, 'server/migrate.js'), []],
   mp: ['multiplayer/src/index.ts', path.join(repo, 'dist/mp.js'), []],
   compressor: ['compressor/src/index.ts', path.join(repo, 'dist/compressor.js'), ['sharp', 'texture-compressor']],
   renderer: ['renderer/src/index.ts', path.join(repo, 'dist/renderer.js'), ['playwright']],

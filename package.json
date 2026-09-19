@@ -45,7 +45,7 @@
     "css": "lessc web/src/style/app.less dist/app.css",
     "watch-css": "less-watch-compiler web/src/style dist app.less",
     "compile-css": "lessc web/src/style/app.less dist/app.css",
-    "migrate": "NODE_TLS_REJECT_UNAUTHORIZED=0 tsx server/migration/migrate.ts",
+    "migrate": "NODE_TLS_REJECT_UNAUTHORIZED=0 tsx server/migration/main.ts",
     "release-blog": "tsx scripts/release-blog.ts",
     "predeploy": "npm run migrate && npm run release-blog",
     "prettier": "prettier --write .",
