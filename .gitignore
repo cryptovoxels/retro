@@ -23,6 +23,7 @@ renderer/page/*.parcel-bundle.js
 dist/music/unclean
 cryptovoxels.sql
 server/bundle_server.js
+server/migrate.js
 .vscode/launch.json
 dist/stats.json
 dist/*.js.gz

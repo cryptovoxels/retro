@@ -1,7 +1,6 @@
 import { Component, render } from 'preact'
 import { app } from '../../state'
 import Panel from '../panel'
-import { unmountComponentAtNode } from 'preact/compat'
 import WearableHelper from '../../helpers/collectible'
 import { AssetType } from '../Editable/editable'
 import EditableDescription from '../Editable/editable-description'
@@ -91,7 +90,7 @@ export class EditCollectibleWindow extends Component<Props, State> {
 
 export function toggleEditCollectibleWindow(collectible: CollectibleRecord, onClose?: (cacheBust?: boolean) => void) {
   if (EditCollectibleWindow.currentElement?.parentElement) {
-    unmountComponentAtNode(EditCollectibleWindow.currentElement)
+    render(null, EditCollectibleWindow.currentElement)
     EditCollectibleWindow.currentElement = null!
   } else {
     const div = document.createElement('div')
@@ -103,7 +102,7 @@ export function toggleEditCollectibleWindow(collectible: CollectibleRecord, onCl
         collectible={collectible}
         refresh={onClose}
         onClose={() => {
-          !!EditCollectibleWindow.currentElement && unmountComponentAtNode(EditCollectibleWindow.currentElement)
+          !!EditCollectibleWindow.currentElement && render(null, EditCollectibleWindow.currentElement)
           EditCollectibleWindow.currentElement = null!
           div?.remove()
         }}

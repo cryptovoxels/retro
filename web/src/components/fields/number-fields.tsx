@@ -1,5 +1,5 @@
-import { ComponentChild, VNode } from 'preact'
-import { JSX, useId } from 'preact/compat'
+import { ComponentChild, JSX, VNode } from 'preact'
+import { useId } from 'preact/hooks'
 
 type Props = {
   name: string

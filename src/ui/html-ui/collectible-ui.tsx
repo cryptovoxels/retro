@@ -5,7 +5,6 @@ import CollectibleModel from '../../features/collectible-model'
 import { openDialog } from '../../../common/helpers/ui-helpers'
 import { HTMLUi } from './html-ui'
 import { NftMediaBox } from './nft-view'
-import { unmountComponentAtNode } from 'preact/compat'
 import { SUPPORTED_CHAINS_BY_ID } from '../../../common/helpers/chain-helpers'
 import { avatarName } from '../../../common/messages/avatar-ref'
 
@@ -200,7 +199,7 @@ export class CollectibleHTMLUi extends HTMLUi<Props, State> {
 
 export default function showCollectibleHTMLUi(collectible: CollectibleModel, scene: BABYLON.Scene) {
   if (!!CollectibleHTMLUi.currentElement) {
-    unmountComponentAtNode(CollectibleHTMLUi.currentElement)
+    render(null, CollectibleHTMLUi.currentElement)
     CollectibleHTMLUi.currentElement = null!
     CollectibleHTMLUi.close()
   }

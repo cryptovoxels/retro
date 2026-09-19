@@ -168,8 +168,8 @@ function mountRoutes(r: express.Router | express.Express) {
   <body>
     <canvas id="c"></canvas>
     <script src="/renderer/page/stub-storage.js"></script>
-    <script src="/renderer/page/parcel-bundle.js"></script>
-    <script>
+    <script type="module" src="/renderer/page/parcel-bundle.js"></script>
+    <script type="module">
       fetch(location.pathname.replace(/\\.html$/, '.json'))
         .then((r) => {
           if (!r.ok) throw new Error('json ' + r.status)
