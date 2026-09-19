@@ -3,16 +3,6 @@ node_modules
 # dist holds committed art alongside build output. Keep the art, drop the stale
 # local bundles so the build stage emits its own. babylon.min.js and leaflet.css
 # match these globs but are committed assets the build never regenerates.
-dist/*.js
-dist/*.js.gz
-dist/*.js.br
-dist/*.css
-dist/*.css.gz
-dist/*.css.br
-dist/*.LICENSE.txt
-dist/stats.json
-!dist/babylon.min.js
-!dist/leaflet.css
 db
 .env
 .env.*
