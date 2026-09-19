@@ -9,6 +9,11 @@ export type CheckedFeatures = Record<string, Feature>
 const TICK = 500
 
 setInterval(() => {
+  // no window under test teardown; the timer outlives the jsdom env
+  if (typeof window === 'undefined') {
+    return
+  }
+
   const grid = window.grid as Grid
 
   if (!grid) {
