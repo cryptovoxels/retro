@@ -1,4 +1,4 @@
-import { useId } from 'preact/compat'
+import { useId } from 'preact/hooks'
 import { ComponentChild, VNode } from 'preact'
 
 type Props = {

@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'preact/hooks'
-import { unmountComponentAtNode } from 'preact/compat'
+import { render } from 'preact'
 import { isMobileMedia } from './detector'
 
 // Attempt to unlock. Also blur the canvas so the pointer-lock handler doesn't re-acquire on the next click.
@@ -79,7 +79,7 @@ export function openDialog(className: string, fastview = false) {
     delete (el as any).dismiss
     stopFastviewListeners()
     el.removeEventListener('click', onButtonClick, true)
-    unmountComponentAtNode(el)
+    render(null, el)
     el.remove()
     if (!document.querySelector('.pointer-lock-close,.overlay')) {
       ;(window as any).engine?.setBlur?.(false)

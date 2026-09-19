@@ -1,4 +1,4 @@
-import * as createAOMesh from 'ao-mesher'
+import createAOMesh from 'ao-mesher'
 import ndarray from 'ndarray'
 import { oversizedField } from './helpers'
 import { setVoxelData } from './mesher'

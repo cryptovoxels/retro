@@ -108,7 +108,6 @@ export class VoxImporter {
     })
 
     try {
-      /// #if RUNTIME === 'WEB'
       const data = await Promise.race([
         runCompute((w) =>
           w.loadVox(
@@ -132,7 +131,6 @@ export class VoxImporter {
       applyBuffers(mesh, scene.getEngine(), data.positions, data.colors, data.indices)
 
       return mesh
-      /// #endif
     } catch (error) {
       if (options.signal.aborted) {
         mesh.dispose()

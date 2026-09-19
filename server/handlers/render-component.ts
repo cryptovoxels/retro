@@ -53,6 +53,6 @@ export default function renderComponent(component: VNode) {
 </body>
 
 <script defer src='${BABYLON_BUNDLE_URL}'></script>
-<script defer src='${appJs}'></script>
+<script type="module" src="${appJs}"></script>
 </html>`
 }

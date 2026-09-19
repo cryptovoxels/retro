@@ -1,6 +1,5 @@
 declare module 'unistore/full/preact'
 declare module 'behave-js'
-declare module 'color-temperature'
 declare module 'text2png'
 declare module 'svgdom'
 declare module 'ao-mesher'

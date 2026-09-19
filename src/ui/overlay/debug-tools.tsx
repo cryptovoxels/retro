@@ -1,5 +1,5 @@
-import { Component } from 'preact'
-import { render, unmountComponentAtNode, useState } from 'preact/compat'
+import { Component, render } from 'preact'
+import { useState } from 'preact/hooks'
 import Connector from '../../connector'
 import { showAreaContentAnalyzeUI } from '../../controls/desktop/area-content-analyzer'
 import type Grid from '../../grid'
@@ -246,7 +246,7 @@ export async function createMeshAtPopUp(): Promise<[BABYLON.Vector3, Scope] | [n
   div.className = ''
   return new Promise(function (resolve, reject) {
     const close = () => {
-      unmountComponentAtNode(div)
+      render(null, div)
       div?.remove()
     }
 

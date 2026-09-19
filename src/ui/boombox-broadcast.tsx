@@ -4,7 +4,7 @@ import { exitPointerLock, requestPointerLockIfNoOverlays } from '../../common/he
 import Boombox from '../features/boombox'
 import { AudioBroadcaster } from '../components/audio-broadcaster'
 import Connector from '../connector'
-import { unmountComponentAtNode, useEffect, useState } from 'preact/compat'
+import { useEffect, useState } from 'preact/hooks'
 
 const DEFAULT_AUDIO_DEVICE = { label: 'Default', deviceId: 'default' }
 
@@ -422,7 +422,7 @@ export function openBoomboxBroadcastUI(boombox: Boombox, onClose: () => void): P
       <BoomboxBroadcast
         onClose={() => {
           if (!div.parentElement) return
-          unmountComponentAtNode(div)
+          render(null, div)
           div.remove()
           requestPointerLockIfNoOverlays()
           onClose && onClose()

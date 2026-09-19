@@ -11,7 +11,7 @@ import { app, AppEvent } from './state'
 
 function boot(): Promise<BootResult | null> {
   if (wantsLite()) return import('../../src/lite').then((m) => m.bootLite())
-  return import(/* webpackMode: "eager" */ '../../src').then((m) => m.bootEngine())
+  return import('../../src').then((m) => m.bootEngine())
 }
 
 type FrameProps = {

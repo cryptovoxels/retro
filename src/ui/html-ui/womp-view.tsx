@@ -1,5 +1,4 @@
 import { render } from 'preact'
-import { unmountComponentAtNode } from 'preact/compat'
 import { useEffect, useState } from 'preact/hooks'
 import { openDialog } from '../../../common/helpers/ui-helpers'
 import { HTMLUi } from './html-ui'
@@ -88,7 +87,7 @@ export default function showWompView(womp: WompLite, gallery?: WompLite[]) {
   if (!womp?.id) return
 
   if (node) {
-    unmountComponentAtNode(node)
+    render(null, node)
     node = null
   }
 

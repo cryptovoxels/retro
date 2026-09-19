@@ -4,7 +4,7 @@ import { RichTextRecord } from '../../common/messages/feature'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { Advanced, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 // @ts-expect-error this is some dodgy vendor thing
-import * as htmlToCanvas from '../vendor/html-to-canvas'
+import htmlToCanvas from '../vendor/html-to-canvas'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature2D } from './feature'
 

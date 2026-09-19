@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import * as strftime from 'strftime'
+import strftime from 'strftime'
 import { blocks } from '../../common/content/blocks'
 import { Login } from './auth/login'
 import SelectUser from './components/select-user'
