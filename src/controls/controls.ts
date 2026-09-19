@@ -254,7 +254,8 @@ export default abstract class Controls implements IControls {
         return
       }
       this.cameraZoomed = !this.cameraZoomed
-      BABYLON.Animation.CreateAndStartAnimation('fov anim', camera, 'fov', 120, 15, camera.fov, target, 0)
+      // CONSTANT is the only loopMode that makes CreateAndStartAnimation run once
+      BABYLON.Animation.CreateAndStartAnimation('fov anim', camera, 'fov', 120, 15, camera.fov, target, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT)
     }
 
     if (!this.cameraZoomed) {

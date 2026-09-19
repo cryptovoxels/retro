@@ -442,13 +442,13 @@ export class VoxelsMap {
     const to = new BABYLON.Vector3(x, this.camera.position.y, z)
     this.flying = true
     this.flyTarget = { x, z, ortho }
-    BABYLON.Animation.CreateAndStartAnimation('map-fly', this.camera, 'position', fps, frames, this.camera.position.clone(), to, 0, ease, () => {
+    BABYLON.Animation.CreateAndStartAnimation('map-fly', this.camera, 'position', fps, frames, this.camera.position.clone(), to, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT, ease, () => {
       this.flying = false
       this.flyTarget = null
       this.onMove?.()
     })
     if (ortho != null) {
-      BABYLON.Animation.CreateAndStartAnimation('map-zoom', this, 'flyOrtho', fps, frames, this.ortho, ortho, 0, ease, undefined, this.scene)
+      BABYLON.Animation.CreateAndStartAnimation('map-zoom', this, 'flyOrtho', fps, frames, this.ortho, ortho, BABYLON.Animation.ANIMATIONLOOPMODE_CONSTANT, ease, undefined, this.scene)
     }
   }
 
