@@ -5,3 +5,5 @@ dist/*
 db
 .env
 .env.*
+# the server reads this at runtime and the bundler inlines the public keys
+!.env.production
