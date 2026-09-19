@@ -30,6 +30,7 @@ const publicEnv = [
   'WEB_ASSETS',
   'WEB_JS',
   'WEARABLE_CONTRACT_ADDRESS',
+  'BUILD_NUM',
 ]
 
 function loadEnv(file) {
@@ -55,6 +56,7 @@ function browserDefine(dev) {
     if (value !== undefined) env[key] = value
   }
   env.NODE_ENV = dev ? 'development' : (env.NODE_ENV ?? 'production')
+  env.BUILD_NUM = buildNum
   const define = { global: 'globalThis' }
   for (const key of publicEnv) define[`process.env.${key}`] = key in env ? JSON.stringify(env[key]) : 'undefined'
   // anything outside publicEnv reads undefined instead of throwing. server secrets stay out of the client
@@ -169,8 +171,12 @@ function compress(file) {
 function clientOptions(dev) {
   return {
     absWorkingDir: repo,
-    entryPoints: ['web/src/main.tsx'],
-    outfile: path.join(repo, 'dist', `${buildNum}-app.js`),
+    entryPoints: [
+      { in: 'web/src/main.tsx', out: `${buildNum}-app` },
+      { in: 'src/monoworker.ts', out: `${buildNum}-monoworker` },
+      { in: 'web/src/workers/voxel-thumb.ts', out: `${buildNum}-voxel-thumb` },
+    ],
+    outdir: path.join(repo, 'dist'),
     bundle: true,
     platform: 'browser',
     format: 'esm',
@@ -230,8 +236,10 @@ async function buildClient(dev) {
     return
   }
   await esbuild.build(clientOptions(false))
-  compress(path.join(repo, 'dist', `${buildNum}-app.js`))
-  console.log('built', `dist/${buildNum}-app.js`)
+  for (const name of ['app', 'monoworker', 'voxel-thumb']) {
+    compress(path.join(repo, 'dist', `${buildNum}-${name}.js`))
+    console.log('built', `dist/${buildNum}-${name}.js`)
+  }
 }
 
 const arg = process.argv[2] || 'all'

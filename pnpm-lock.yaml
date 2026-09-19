@@ -110,9 +110,6 @@ importers:
       color-hash:
         specifier: ^2.0.2
         version: 2.0.2
-      color-temperature:
-        specifier: ^0.2.7
-        version: 0.2.7
       comlink:
         specifier: ^4.4.2
         version: 4.4.2
@@ -2864,9 +2861,6 @@ packages:
   color-string@2.1.4:
     resolution: {integrity: sha512-Bb6Cq8oq0IjDOe8wJmi4JeNn763Xs9cfrBcaylK1tPypWzyoy2G3l90v9k64kjphl/ZJjPIShFztenRomi8WTg==}
     engines: {node: '>=18'}
-
-  color-temperature@0.2.7:
-    resolution: {integrity: sha512-hFuGKuSBO4V2+AY4KAUvPr3fnNgfgSR1Kf3P1zp80t+zJF0Y37Z1VW2HZIPN90g29NkrlZK5ATIrDul7PCJYZA==}
 
   color@5.0.3:
     resolution: {integrity: sha512-ezmVcLR3xAVp8kYOm4GS45ZLLgIE6SPAFoduLr6hTDajwb3KZ2F46gulK3XpcwRFb5KKGCSezCBAY4Dw4HsyXA==}
@@ -8831,8 +8825,6 @@ snapshots:
   color-string@2.1.4:
     dependencies:
       color-name: 2.1.0
-
-  color-temperature@0.2.7: {}
 
   color@5.0.3:
     dependencies:

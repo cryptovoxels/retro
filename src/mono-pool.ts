@@ -14,7 +14,7 @@ let pool: Promise<MonoHandle[]> | null = null
 
 function spawn(): Promise<MonoHandle> {
   return createComlinkWorker<Mono>(
-    () => new Worker(new URL('./monoworker.ts', import.meta.url)),
+    () => new Worker(new URL(`./${process.env.BUILD_NUM}-monoworker.js`, import.meta.url), { type: 'module' }),
     () => import('./monoworker').then((m) => m.mono),
     { workerName: 'monoworker' },
   )

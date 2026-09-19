@@ -102,7 +102,6 @@
     "browser-cookies": "1.2.0",
     "buffer-image-size": "^0.6.4",
     "color-hash": "^2.0.2",
-    "color-temperature": "^0.2.7",
     "comlink": "^4.4.2",
     "compression": "^1.7.4",
     "concurrently": "8.2.0",

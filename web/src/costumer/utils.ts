@@ -1,5 +1,3 @@
-import * as ct from 'color-temperature'
-
 export function setupGizmos(scene: BABYLON.Scene, onDragEnd: () => void) {
   const gizmoManager = new BABYLON.GizmoManager(scene, 3.5)
   gizmoManager.positionGizmoEnabled = true
@@ -78,7 +76,7 @@ export function createRingLight(scene: BABYLON.Scene, camera: BABYLON.Camera) {
   ring.position.z = -5
 
   const red = new BABYLON.PointLight('redLight', new BABYLON.Vector3(0, 10, 0), scene)
-  red.diffuse.set(1, 1, 1) // = blackbody(2700)
+  red.diffuse = blackbody(2700)
   red.specular = blackbody(3500)
   red.parent = ring
 
@@ -108,9 +106,20 @@ export function createRingLight(scene: BABYLON.Scene, camera: BABYLON.Camera) {
   scene.beginAnimation(ring, 0, 300, true)
 }
 
-export const blackbody = (temperature: number) => {
-  const rgb = ct.colorTemperature2rgb(temperature)
-  return BABYLON.Color3.FromInts(rgb.red, rgb.green, rgb.blue)
+export const blackbody = (kelvin: number) => {
+  const t = kelvin / 100
+  let r = 255
+  let g = 255
+  let b = 255
+  if (t > 66) {
+    r = 329.698727446 * (t - 60) ** -0.1332047592
+    g = 288.1221695283 * (t - 60) ** -0.0755148492
+  } else {
+    g = 99.4708025861 * Math.log(t) - 161.1195681661
+    b = t <= 19 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307
+  }
+  const byte = (n: number) => Math.max(0, Math.min(255, Math.round(n)))
+  return BABYLON.Color3.FromInts(byte(r), byte(g), byte(b))
 }
 
 let costumerVoidShaderRegistered = false

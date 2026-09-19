@@ -32,7 +32,7 @@ async function getApi() {
   if (!apiPromise) {
     apiPromise = (async () => {
       const handle = await createComlinkWorker<VoxelThumb>(
-        () => new Worker(new URL('../workers/voxel-thumb.ts', import.meta.url)),
+        () => new Worker(new URL(`./${process.env.BUILD_NUM}-voxel-thumb.js`, import.meta.url), { type: 'module' }),
         async () => {
           await ensureBabylon()
           return import('../workers/voxel-thumb').then((m) => m.api)
