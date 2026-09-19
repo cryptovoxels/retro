@@ -49,13 +49,16 @@ function loadEnv(file) {
 
 function browserDefine(dev) {
   const file = loadEnv(path.join(repo, dev ? '.env' : '.env.production'))
-  const define = { global: 'globalThis' }
+  const env = {}
   for (const key of publicEnv) {
     const value = process.env[key] ?? file[key]
-    define[`process.env.${key}`] = value === undefined ? 'undefined' : JSON.stringify(value)
+    if (value !== undefined) env[key] = value
   }
-  if (dev) define['process.env.NODE_ENV'] = '"development"'
-  else if (define['process.env.NODE_ENV'] === 'undefined') define['process.env.NODE_ENV'] = '"production"'
+  env.NODE_ENV = dev ? 'development' : (env.NODE_ENV ?? 'production')
+  const define = { global: 'globalThis' }
+  for (const key of publicEnv) define[`process.env.${key}`] = key in env ? JSON.stringify(env[key]) : 'undefined'
+  // anything outside publicEnv reads undefined instead of throwing. server secrets stay out of the client
+  define['process'] = JSON.stringify({ env })
   return define
 }
 
