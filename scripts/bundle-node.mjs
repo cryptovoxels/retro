@@ -168,15 +168,9 @@ function compress(file) {
   )
 }
 
-function clientOptions(dev) {
+function browserOptions(dev) {
   return {
     absWorkingDir: repo,
-    entryPoints: [
-      { in: 'web/src/main.tsx', out: `${buildNum}-app` },
-      { in: 'src/monoworker.ts', out: `${buildNum}-monoworker` },
-      { in: 'web/src/workers/voxel-thumb.ts', out: `${buildNum}-voxel-thumb` },
-    ],
-    outdir: path.join(repo, 'dist'),
     bundle: true,
     platform: 'browser',
     format: 'esm',
@@ -192,22 +186,33 @@ function clientOptions(dev) {
   }
 }
 
+function clientOptions(dev) {
+  return {
+    ...browserOptions(dev),
+    entryPoints: [
+      { in: 'web/src/main.tsx', out: `${buildNum}-app` },
+      { in: 'src/monoworker.ts', out: `${buildNum}-monoworker` },
+    ],
+    outdir: path.join(repo, 'dist'),
+  }
+}
+
+// classic worker: it loads babylon with importScripts, which module workers reject
+function thumbWorkerOptions(dev) {
+  return {
+    ...browserOptions(dev),
+    entryPoints: [{ in: 'web/src/workers/voxel-thumb.ts', out: `${buildNum}-voxel-thumb` }],
+    outdir: path.join(repo, 'dist'),
+    format: 'iife',
+  }
+}
+
 function previewOptions() {
   return {
-    absWorkingDir: repo,
+    ...browserOptions(false),
     entryPoints: ['src/preview/parcel-preview.ts'],
     outfile: path.join(repo, 'renderer/page/parcel-bundle.js'),
-    bundle: true,
-    platform: 'browser',
-    format: 'esm',
     target: ['chrome120'],
-    jsx: 'automatic',
-    jsxImportSource: 'preact',
-    define: browserDefine(false),
-    inject: [path.join(repo, 'scripts/buffer-shim.js')],
-    plugins: [textPlugin(), emptyBuiltins()],
-    legalComments: 'none',
-    logLevel: 'warning',
   }
 }
 
@@ -230,12 +235,13 @@ async function buildClient(dev) {
   fs.mkdirSync(path.join(repo, 'dist'), { recursive: true })
   if (dev) {
     const ctx = await esbuild.context(clientOptions(true))
-    await ctx.watch()
+    const thumb = await esbuild.context(thumbWorkerOptions(true))
+    await Promise.all([ctx.watch(), thumb.watch()])
     await ctx.serve({ port: 9200, servedir: path.join(repo, 'dist') })
     console.log('client watch http://localhost:9200')
     return
   }
-  await esbuild.build(clientOptions(false))
+  await Promise.all([esbuild.build(clientOptions(false)), esbuild.build(thumbWorkerOptions(false))])
   for (const name of ['app', 'monoworker', 'voxel-thumb']) {
     compress(path.join(repo, 'dist', `${buildNum}-${name}.js`))
     console.log('built', `dist/${buildNum}-${name}.js`)
