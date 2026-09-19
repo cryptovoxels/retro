@@ -2,7 +2,7 @@
 
 FROM node:25-slim AS build
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@9.15.4 --activate
+RUN npm i -g pnpm@9.15.4
 COPY package.json pnpm-lock.yaml ./
 RUN pnpm install --frozen-lockfile
 COPY . .
