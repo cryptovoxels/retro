@@ -1,45 +1,14 @@
-import VoxVertexShader from './vox.vsh'
-import VoxPixelShader from './vox.fsh'
-import type { VoxData } from './vox-reader'
-import { getComputePool } from '../../src/mono-pool'
-import type { Mono } from '../../src/mono'
-import { DAY_SUN_POSITION, NIGHT_SUN_POSITION } from '../../src/enviroments/world-environment-constants'
-import { getWorldTimeOfDay } from '../../src/init/world-scene'
-import { TimeOfDay } from '../../src/utils/time-of-day'
-
-BABYLON.Effect.ShadersStore['VoxVertexShader'] = VoxVertexShader
-BABYLON.Effect.ShadersStore['VoxPixelShader'] = VoxPixelShader
-
-type JobRecordCommon = {
-  wantCollider: boolean
-  renderJob: number
-  flipX: boolean
-  megavox: boolean
-  sizeHint?: Array<number>
-  timeoutMs: number
-  colorMap?: Record<number, [number, number, number]>
-}
-
-type UrlJobRecord = JobRecordCommon & {
-  url: string
-}
-
-type BufferJobRecord = JobRecordCommon & {
-  buffer: ArrayBuffer
-}
-
-export type JobRecord = UrlJobRecord | BufferJobRecord
-
-type JobsManager = { [x: number]: (data: { renderJob: number } & (VoxData | { error: any })) => void }
+import { runCompute } from '../../src/mono-pool'
+import { unpackVoxelbr } from './voxelbr'
 
 export interface Options {
-  wantCollider?: boolean // default false
-  invertX?: boolean // default false
   megavox?: boolean
   sizeHint?: BABYLON.Vector3
   signal: AbortSignal
   colorMap?: Record<number, [number, number, number]>
 }
+
+export const VOX_SCALE = 0.02
 
 let _instance: VoxImporter | null = null
 export const voxImporter = (): VoxImporter => {
@@ -50,244 +19,127 @@ export const voxImporter = (): VoxImporter => {
   return _instance
 }
 
+function applyBuffers(mesh: BABYLON.Mesh, engine: BABYLON.AbstractEngine, positions: Int8Array, colors: Uint8Array, indices: Uint16Array | Uint32Array) {
+  mesh.setVerticesBuffer(
+    new BABYLON.VertexBuffer(engine, positions, BABYLON.VertexBuffer.PositionKind, {
+      updatable: false,
+      size: 3,
+      type: BABYLON.VertexBuffer.BYTE,
+      normalized: false,
+    }),
+  )
+  mesh.setVerticesBuffer(
+    new BABYLON.VertexBuffer(engine, colors, BABYLON.VertexBuffer.ColorKind, {
+      updatable: false,
+      size: 4,
+      type: BABYLON.VertexBuffer.UNSIGNED_BYTE,
+      normalized: true,
+    }),
+  )
+  mesh.setIndices(indices)
+  // Scale int8 voxel units to world without touching mesh.scaling (feature/attachment scale stays clean)
+  mesh.setPreTransformMatrix(BABYLON.Matrix.Scaling(VOX_SCALE, VOX_SCALE, VOX_SCALE))
+  mesh.refreshBoundingInfo()
+}
+
 export class VoxImporter {
-  private static readonly WORKER_COUNT = 4
   private static readonly JOB_TIMEOUT_MS = 5000
 
-  private jobs: JobsManager = {}
-  private jobWorkerMap: Map<number, Mono> = new Map()
-  private workerBusyCount: Map<Mono, number> = new Map()
-  private jobIndex = 0
-  private material: BABYLON.Material | null = null
-  private workers: Mono[] = []
-  private workerCleanups: (() => void)[] = []
-  private workersReady: Promise<void> | null = null
+  // private material: BABYLON.Material | null = null
   private _scene: BABYLON.Scene | undefined
 
   initialize(scene: BABYLON.Scene) {
     if (scene) this._scene = scene
+    // if (!scene || this.material) return
 
-    // Pool first so a missing scene cannot poison the singleton.
-    /// #if RUNTIME === 'WEB'
-    if (!this.workersReady) {
-      this.workersReady = getComputePool()
-        .then((handles) => {
-          for (const h of handles) {
-            this.workers.push(h.worker)
-            this.workerCleanups.push(h.cleanup)
-            this.workerBusyCount.set(h.worker, 0)
-          }
-        })
-        .catch((error) => {
-          console.error('Failed to load vox workers:', error)
-        })
-    }
-    /// #endif
-
-    if (!scene || this.material) return
-
-    this.material = new BABYLON.ShaderMaterial(
-      'vox-model/vox-shader',
-      scene,
-      { vertex: 'Vox', fragment: 'Vox' },
-      {
-        attributes: ['position', 'color'],
-        uniforms: ['world', 'worldViewProjection', 'view', 'projection', 'cameraPosition', 'brightness', 'ambient', 'lightDirection', 'fogColor', 'fogDensity'],
-        defines: ['#define IMAGEPROCESSINGPOSTPROCESS'],
-      },
-    )
-
-    const sun = getWorldTimeOfDay() === TimeOfDay.Night ? NIGHT_SUN_POSITION : DAY_SUN_POSITION
-
-    if (this.material instanceof BABYLON.ShaderMaterial) {
-      this.material.setVector3('vLight', sun)
-      this.material.setFloat('brightness', 1.8)
-    }
-    this.material.blockDirtyMechanism = true
+    // const mat = new BABYLON.StandardMaterial('vox-model/vox-shader', scene)
+    // mat.fogEnabled = true
+    // mat.specularColor.set(0, 0, 0)
+    // this.material = mat
   }
 
-  import(urlOrBuffer: string | ArrayBuffer, options: Options): Promise<BABYLON.Mesh> {
-    return new Promise((resolve, reject) => {
-      if (!this.material) {
-        console.error('VoxImport.material missing')
+  private makeMesh(scene: BABYLON.Scene) {
+    const mesh = new BABYLON.Mesh('utils/vox-box', scene)
+    const mat = new BABYLON.StandardMaterial('vox-model/vox-shader', scene)
+    mat.specularColor.set(0, 0, 0)
+    mesh.material = mat
+    mesh.useVertexColors = true
+    mesh.isPickable = true
+    return mesh
+  }
+
+  // pre-meshed .voxelbr: slice typed views and upload, no worker
+  async importBin(buf: ArrayBuffer, signal?: AbortSignal): Promise<BABYLON.Mesh> {
+    if (signal?.aborted) throw new Error('Aborted')
+    const scene = this._scene ?? window.scene
+    const mesh = this.makeMesh(scene)
+    try {
+      const { positions, colors, indices } = unpackVoxelbr(buf)
+      if (signal?.aborted) {
+        mesh.dispose()
+        throw new Error('Aborted')
       }
-      if (options.signal?.aborted) {
-        return reject('Aborted')
+      applyBuffers(mesh, scene.getEngine(), positions, colors, indices)
+      return mesh
+    } catch (e) {
+      mesh.dispose()
+      throw e
+    }
+  }
+
+  async import(urlOrBuffer: string | ArrayBuffer, options: Options): Promise<BABYLON.Mesh> {
+    // if (!this.material) {
+    //   console.error('VoxImport.material missing')
+    // }
+    if (options.signal?.aborted) {
+      throw new Error('Aborted')
+    }
+
+    const scene = this._scene ?? window.scene
+    const mesh = this.makeMesh(scene)
+
+    let onAbort: (() => void) | undefined
+    const aborted = new Promise<never>((_, reject) => {
+      onAbort = () => {
+        mesh.dispose()
+        reject(new Error('Aborted'))
       }
-      const mesh = new BABYLON.Mesh('utils/vox-box', this._scene ?? window.scene)
-      mesh.material = this.material
-      mesh.isPickable = true
-
-      const renderJob = Number(this.jobIndex)
-      this.jobIndex++
-
-      if (options.signal) {
-        options.signal.addEventListener('abort', () => {
-          this.cancelJob(renderJob)
-          mesh.dispose()
-          return reject(new Error('Aborted'))
-        })
-      }
-
-      this.jobs[renderJob] = (data) => {
-        this.cleanupJob(renderJob)
-
-        if ('error' in data) {
-          mesh.dispose()
-          return reject(data.error)
-        }
-
-        if (options.signal?.aborted) {
-          mesh.dispose()
-          return reject(new Error('Aborted'))
-        }
-
-        const { positions, indices, colors } = data as VoxData
-
-        const d = new BABYLON.VertexData()
-        d.positions = positions
-        d.indices = indices
-        d.colors = colors
-        d.applyToMesh(mesh)
-
-        mesh.refreshBoundingInfo()
-
-        resolve(mesh)
-      }
-
-      const sizeHint = [1, 1, 1]
-
-      if (options && 'sizeHint' in options) {
-        options.sizeHint?.toArray(sizeHint)
-      }
-
-      const voxJob: JobRecord = {
-        renderJob,
-        ...(urlOrBuffer instanceof ArrayBuffer ? { buffer: urlOrBuffer } : { url: urlOrBuffer }),
-        flipX: options && 'invertX' in options ? !!options.invertX : true,
-        megavox: options && !!options.megavox,
-        sizeHint,
-        wantCollider: false,
-        timeoutMs: VoxImporter.JOB_TIMEOUT_MS,
-        colorMap: options.colorMap,
-      }
-      /// #if RUNTIME === 'WEB'
-      const run = async () => {
-        if (this.workersReady) await this.workersReady
-        if (this.workers.length === 0) {
-          mesh.dispose()
-          return reject(new Error('No workers available'))
-        }
-        const worker = this.getFreeWorker()
-        this.jobWorkerMap.set(renderJob, worker)
-        worker
-          .loadVox(voxJob)
-          .then((result) => {
-            const voxImport = this.jobs[renderJob]
-            if (voxImport) {
-              if ('cancelled' in result && result.cancelled) {
-                this.cleanupJob(renderJob)
-                return
-              }
-              voxImport(result)
-            }
-          })
-          .catch((error) => {
-            const voxImport = this.jobs[renderJob]
-            if (voxImport) {
-              voxImport({ renderJob, error: error.message || error })
-            } else {
-              throw error
-            }
-          })
-      }
-      run().catch(reject)
-      /// #endif
+      options.signal.addEventListener('abort', onAbort)
     })
-  }
 
-  private getFreeWorker(): Mono {
-    if (this.workers.length === 0) {
-      console.error('no workers for VoxImporter')
-      throw new Error('No workers available')
-    }
+    try {
+      const data = await Promise.race([
+        runCompute((w) =>
+          w.loadVox(
+            {
+              ...(urlOrBuffer instanceof ArrayBuffer ? { buffer: urlOrBuffer } : { url: urlOrBuffer }),
+              megavox: !!options.megavox,
+              timeoutMs: VoxImporter.JOB_TIMEOUT_MS,
+              colorMap: options.colorMap,
+            },
+            options.signal,
+          ),
+        ),
+        aborted,
+      ])
 
-    // Initialize busy counts for new workers
-    for (const worker of this.workers) {
-      if (!this.workerBusyCount.has(worker)) {
-        this.workerBusyCount.set(worker, 0)
+      if (data?.cancelled || options.signal.aborted) {
+        mesh.dispose()
+        throw new Error('Aborted')
       }
-    }
 
-    // Find worker with least active jobs
-    let leastBusyWorker = this.workers[0]
-    let minJobs = this.workerBusyCount.get(leastBusyWorker) || 0
+      applyBuffers(mesh, scene.getEngine(), data.positions, data.colors, data.indices)
 
-    for (const worker of this.workers) {
-      const busyCount = this.workerBusyCount.get(worker) || 0
-      if (busyCount < minJobs) {
-        minJobs = busyCount
-        leastBusyWorker = worker
+      return mesh
+    } catch (error) {
+      if (options.signal.aborted) {
+        mesh.dispose()
+        throw new Error('Aborted')
       }
+      mesh.dispose()
+      throw error
+    } finally {
+      if (onAbort) options.signal.removeEventListener('abort', onAbort)
     }
-
-    // Increment busy count
-    this.workerBusyCount.set(leastBusyWorker, minJobs + 1)
-    return leastBusyWorker
-  }
-
-  private cleanupJob(renderJob: number) {
-    // Decrement worker busy count
-    const worker = this.jobWorkerMap.get(renderJob)
-    if (worker && this.workerBusyCount.has(worker)) {
-      const currentCount = this.workerBusyCount.get(worker) || 0
-      this.workerBusyCount.set(worker, Math.max(0, currentCount - 1))
-    }
-
-    // Remove worker mapping and job
-    this.jobWorkerMap.delete(renderJob)
-    delete this.jobs[renderJob]
-  }
-
-  private cancelJob(renderJob: number) {
-    // Send cancellation message to the worker handling this job
-    const worker = this.jobWorkerMap.get(renderJob)
-    if (worker) {
-      worker.cancelJob(renderJob)
-    }
-    this.cleanupJob(renderJob)
-  }
-
-  /**
-   * Get current worker load statistics for debugging
-   */
-  public getWorkerStats() {
-    const stats = this.workers.map((worker, index) => ({
-      workerIndex: index,
-      busyJobs: this.workerBusyCount.get(worker) || 0,
-    }))
-
-    return {
-      totalWorkers: this.workers.length,
-      totalActiveJobs: Object.keys(this.jobs).length,
-      workerLoads: stats,
-    }
-  }
-
-  public terminate() {
-    // Cancel all pending jobs
-    for (const renderJob of Object.keys(this.jobs)) {
-      this.cancelJob(Number(renderJob))
-    }
-
-    // Clear all maps
-    this.jobs = {}
-    this.jobWorkerMap.clear()
-    this.workerBusyCount.clear()
-
-    // Terminate workers
-    this.workerCleanups.forEach((cleanup) => cleanup())
-    this.workers = []
-    this.workerCleanups = []
   }
 }

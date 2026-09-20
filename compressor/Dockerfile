@@ -1,56 +1,24 @@
-# ABOUTME: Dockerfile for the texture compressor service.
-# ABOUTME: Includes ffmpeg, imagemagick, and libwebp for image processing.
+# ABOUTME: Texture compressor. ffmpeg plus sharp, not the monorepo.
+# ABOUTME: amd64 because texture-compressor ships x86 binaries.
 
-# Force x86_64 for texture-compressor binaries
-FROM --platform=linux/amd64 node:20-slim AS builder
-
-# Install build dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    python3 \
-    make \
-    g++ \
-    && rm -rf /var/lib/apt/lists/*
-
+FROM node:25-slim AS build
 WORKDIR /app
+RUN npm i -g pnpm@9.15.4
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY . .
+RUN node scripts/bundle-node.mjs compressor
 
-# Copy package files
-COPY package*.json ./
-
-# Install all dependencies (including dev for build)
-RUN npm install
-
-# Copy source
-COPY compressor/ ./compressor/
-COPY common/ ./common/
-
-# Production stage
-FROM --platform=linux/amd64 node:20-slim
-
-# Install runtime dependencies for image processing
+FROM --platform=linux/amd64 node:25-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     imagemagick \
     webp \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
-
-# Copy node_modules from builder
-COPY --from=builder /app/node_modules ./node_modules
-
-# Copy package.json for module resolution
-COPY package*.json ./
-
-# Copy compressor source
-COPY compressor/ ./compressor/
-COPY common/ ./common/
-
-# Create cache directory
-RUN mkdir -p /tmp/generated
-
-# Expose default port (8080 for App Platform compatibility)
+ENV NODE_ENV=production
+COPY --from=build /app/dist/compressor.js /app/compressor.js
+RUN npm install --omit=dev sharp@0.34.5 texture-compressor@1.0.2
 EXPOSE 8080
-
-# Run the compressor
-CMD ["node", "--import", "tsx", "compressor/src/index.ts"]
+CMD ["node", "compressor.js"]

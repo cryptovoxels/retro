@@ -1,5 +1,6 @@
 import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3'
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { UGC_CACHE } from '../../common/helpers/ugc-upload-keys'
 
 export const UGC_BUCKET = 'voxels-ugc'
 export const UGC_REGION = 'syd1'
@@ -9,11 +10,14 @@ export function ugcConfigured() {
   return !!(process.env.UGC_ACCESS && process.env.UGC_SECRET)
 }
 
+let client: S3Client | null = null
+
 export function ugcClient() {
+  if (client) return client
   const accessKeyId = process.env.UGC_ACCESS || ''
   const secretAccessKey = process.env.UGC_SECRET || ''
   if (!accessKeyId || !secretAccessKey) throw new Error('UGC_ACCESS / UGC_SECRET not set')
-  return new S3Client({
+  client = new S3Client({
     region: UGC_REGION,
     endpoint: UGC_ENDPOINT,
     credentials: { accessKeyId, secretAccessKey },
@@ -22,6 +26,7 @@ export function ugcClient() {
     // of an empty body into the presigned URL, so the real PUT fails the digest.
     requestChecksumCalculation: 'WHEN_REQUIRED',
   })
+  return client
 }
 
 export async function ugcExists(key: string) {
@@ -39,6 +44,7 @@ export async function presignPut(key: string, contentType: string, contentLength
     Key: key,
     ContentType: contentType,
     ContentLength: contentLength,
+    CacheControl: UGC_CACHE,
     ACL: 'public-read',
   })
   return getSignedUrl(ugcClient(), command, {

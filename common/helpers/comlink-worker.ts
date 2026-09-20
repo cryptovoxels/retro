@@ -2,7 +2,10 @@
 // ABOUTME: Used for running code in workers when available, or in main thread in sandboxed environments
 
 import * as Comlink from 'comlink'
+import { installAbort } from '../../src/monoworker/abort'
 import { forceMainThreadWorkers } from './detector'
+
+installAbort()
 
 interface ComlinkWorkerResult<T> {
   worker: T
@@ -15,13 +18,8 @@ type ReadyApi = { ping?: () => boolean | Promise<boolean> }
 const READY_MS = 4000
 
 /**
- * Creates a worker with Comlink, falls back to main thread if workers unavailable
- *
- * NOTE: Use `() => new Worker(new URL('./worker.ts', import.meta.url))` - webpack 5
- * recognizes this pattern and compiles TypeScript workers to separate bundles
- *
- * Worker script failures (importScripts NetworkError, etc) happen AFTER new Worker()
- * succeeds, so we wait for ping / error before treating the worker as live.
+ * Creates a worker with Comlink, falls back to main thread only when forced
+ * (embedded iframe, renderer preview). A worker that fails to load rejects.
  */
 export async function createComlinkWorker<T>(workerFactory: () => Worker, fallback: () => T | Promise<T>, options: { debug?: boolean; workerName?: string } = {}): Promise<ComlinkWorkerResult<T>> {
   // Force main thread if URL parameter is set
@@ -47,29 +45,15 @@ export async function createComlinkWorker<T>(workerFactory: () => Worker, fallba
     }
   }
 
-  try {
-    const worker = workerFactory()
-    const api = Comlink.wrap<T & ReadyApi>(worker)
+  const worker = workerFactory()
+  const api = Comlink.wrap<T & ReadyApi>(worker)
 
-    await waitForWorkerReady(worker, api as ReadyApi)
+  await waitForWorkerReady(worker, api as ReadyApi)
 
-    return {
-      worker: api as T,
-      cleanup: () => worker.terminate(),
-      isWorker: true,
-    }
-  } catch (error) {
-    console.warn(`[ComlinkWorker] Falling back to main thread${options.workerName ? ` (${options.workerName})` : ''}:`, error)
-
-    const api = await fallback()
-
-    return {
-      worker: api,
-      cleanup: () => {
-        /* no-op for main thread */
-      },
-      isWorker: false,
-    }
+  return {
+    worker: api as T,
+    cleanup: () => worker.terminate(),
+    isWorker: true,
   }
 }
 
@@ -100,7 +84,7 @@ function waitForWorkerReady(worker: Worker, api: ReadyApi): Promise<void> {
 
     worker.addEventListener('error', onError)
 
-    // ping is exposed once webpack finished importScripts + Comlink.expose
+    // ping is exposed once the worker script has booted and called Comlink.expose
     Promise.resolve()
       .then(() => (api.ping ? api.ping() : true))
       .then(() => finish())

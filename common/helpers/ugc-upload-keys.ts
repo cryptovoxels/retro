@@ -2,6 +2,9 @@ import { md5 } from './utils'
 
 export type UploadMediaType = 'parcel-content' | 'womps' | 'assetlibrary' | 'avatar'
 
+// every ugc key has the content hash in it, so an object never changes under its name. let every cdn hold it forever.
+export const UGC_CACHE = 'public, max-age=31536000, immutable'
+
 export const getFileNameNoExtension = (filenameWithExtension: string) => {
   const a = filenameWithExtension.split('.')
   let name = a.splice(0, a.length - 1).join('.')
@@ -40,6 +43,21 @@ export function ugcKey(wallet: string, mediaType: UploadMediaType, fileName: str
   if (mediaType === 'assetlibrary') return `${w}/assetlibrary/${fileName}`
   if (mediaType === 'avatar') return `${w}/avatar/${fileName}`
   return `${w}/${fileName}`
+}
+
+const B58 = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz'
+
+// content address inside a parcel: 6 base58 chars of the sha1. 58^6 is plenty for one parcel and reads nicer than 40 hex.
+export async function contentName(bytes: Uint8Array): Promise<string> {
+  const digest = new Uint8Array(await crypto.subtle.digest('SHA-1', bytes as BufferSource))
+  let n = 0
+  for (let i = 0; i < 6; i++) n = n * 256 + digest[i]
+  let out = ''
+  for (let i = 0; i < 6; i++) {
+    out = B58[n % 58] + out
+    n = Math.floor(n / 58)
+  }
+  return out
 }
 
 export function parcelUgcKey(parcelId: number, fileName: string) {

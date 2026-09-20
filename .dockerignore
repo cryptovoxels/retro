@@ -1,0 +1,10 @@
+node_modules
+.git
+# dist holds committed art alongside build output. Keep the art, drop the stale
+# local bundles so the build stage emits its own. babylon.min.js and leaflet.css
+# match these globs but are committed assets the build never regenerates.
+db
+.env
+.env.*
+# the server reads this at runtime and the bundler inlines the public keys
+!.env.production

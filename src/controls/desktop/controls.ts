@@ -3,7 +3,7 @@ import Controls, { CAMERA_DISTANCE, featureFromPick, MAX_CAMERA_DISTANCE, MIN_CA
 import PlayerCamera from '../utils/player-camera'
 import { LocaleKeyboardMoveInput } from '../utils/locale-keyboard-move-input'
 import { clamp } from 'lodash'
-import { unmountComponentAtNode } from 'preact/compat'
+import { render } from 'preact'
 import { createFirstPersonCamera } from '../utils/fps-camera'
 import { decodeCoordsFromURL } from '../../utils/helpers'
 import { hasPointerLock, isFastviewBlocking } from '../../../common/helpers/ui-helpers'
@@ -432,7 +432,7 @@ export default class DesktopControls extends Controls {
 
   requestPointerLock() {
     document.querySelectorAll('.pointer-lock-close').forEach((element) => {
-      unmountComponentAtNode(element)
+      render(null, element)
       element.remove()
     })
     ;(window as any).engine?.setBlur?.(false)

@@ -1,44 +1,22 @@
-# ABOUTME: Dockerfile for the vox/parcel thumb renderer (Playwright + Chromium).
-# ABOUTME: App Platform: expose 8080, set DATABASE_URL + UGC_ACCESS + UGC_SECRET.
+# ABOUTME: Thumb renderer. Playwright base stays. Final stage is the bundle, not the monorepo.
+# ABOUTME: index.js sits in renderer/src so __dirname still finds page/ and dist/vendor.
+
+FROM node:25-slim AS build
+WORKDIR /app
+RUN npm i -g pnpm@9.15.4
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
+COPY . .
+RUN node renderer/build-page.mjs && node scripts/bundle-node.mjs renderer
 
 FROM mcr.microsoft.com/playwright:v1.62.1-noble
-
 WORKDIR /app
-
-COPY package.json pnpm-lock.yaml ./
-
-RUN corepack enable && corepack prepare pnpm@9.15.4 --activate \
-  && pnpm config set engine-strict false \
-  && pnpm install --frozen-lockfile
-
-COPY common/ ./common/
-COPY src/ ./src/
-COPY web/src/ ./web/src/
-COPY web/types.ts ./web/types.ts
-COPY vendor/ ./vendor/
-COPY webpack/ ./webpack/
-COPY renderer/ ./renderer/
-COPY tsconfig.json tsconfig.prod.json ./
-COPY dist/vendor/library-6.11.2.min.js ./dist/vendor/
-
-# .env.production is gitignored; write the public CDN hosts webpack inlines.
-RUN printf '%s\n' \
-  'ASSET_PATH=https://www.voxels.com' \
-  'IMG_HOST=https://cdn.cryptovoxels.com' \
-  'SOUNDS_URL=https://img.cryptovoxels.com/sounds' \
-  'MODELS_URL=https://cdn.cryptovoxels.com/models' \
-  'TEXTURE_HOST=https://textures.voxels.com' \
-  > .env.production
-
-# Wearable page (esbuild) + parcel page (webpack, needs shaders)
-RUN node renderer/build-page.mjs \
-  && npx webpack --config webpack/webpack-preview.config.js --mode production
-
 ENV PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+ENV NODE_ENV=production
 ENV PORT=8080
-ENV ASSET_PATH=https://www.voxels.com
-ENV IMG_HOST=https://cdn.cryptovoxels.com
-
+COPY --from=build /app/dist/renderer.js /app/renderer/src/index.js
+COPY --from=build /app/renderer/page /app/renderer/page
+COPY --from=build /app/dist/vendor /app/dist/vendor
+RUN npm install --omit=dev playwright@1.62.1
 EXPOSE 8080
-
-CMD ["npx", "tsx", "renderer/src/index.ts"]
+CMD ["node", "renderer/src/index.js"]

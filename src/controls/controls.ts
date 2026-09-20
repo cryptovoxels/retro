@@ -16,7 +16,7 @@ import { Animations } from '../avatar-animations'
 export const CAMERA_DISTANCE = isMobile() ? 2.5 : 1.5
 export const MIN_CAMERA_DISTANCE = 0.5
 export const MAX_CAMERA_DISTANCE = 10
-const ISO_DISTANCE = 4
+const ISO_DISTANCE = 2
 const ISO_PITCH = 0.75 // look down at the avatar, isometric-ish
 const CAMERA_EASE_OUT = 1.4
 const SWIM_LEVEL = -2
@@ -774,8 +774,6 @@ export default abstract class Controls implements IControls {
     this.vehicleSeatMode = false
     this.setNoclip(true)
     this.disableMovement()
-    // features freeze their world matrix after setCommon - thaw so drive pose updates show up
-    car.mesh?.unfreezeWorldMatrix()
     if (car.mesh?.rotationQuaternion) car.mesh.rotationQuaternion = null
     this.persona.audio?.footstepSounds?.noStep()
     this.persona.animation = Animations.Sitting
@@ -866,9 +864,6 @@ export default abstract class Controls implements IControls {
         // left far from the lot: snap home now. unloading the parcel would kill the recall timer and strand it.
         if (car.isAwayFromPark()) car.recallToPark()
         else car.releaseDriver(this.persona.uuid)
-      } catch {}
-      try {
-        car.mesh?.freezeWorldMatrix()
       } catch {}
       try {
         this.grid?.unloadIfBeyondDraw?.(car.parcel)
@@ -1031,9 +1026,7 @@ export default abstract class Controls implements IControls {
       }
     }
     car.mesh.position.y = this.vehicleHoverY
-    // frozen meshes need freezeWorldMatrix() again to bake the new pose (computeWorldMatrix alone is a no-op when frozen)
-    if (car.mesh.isWorldMatrixFrozen) car.mesh.freezeWorldMatrix()
-    else car.mesh.computeWorldMatrix(true)
+    car.mesh.computeWorldMatrix(true)
 
     // water rescue: swim level
     const worldY = car.absolutePosition?.y ?? car.mesh.position.y
@@ -1042,8 +1035,7 @@ export default abstract class Controls implements IControls {
         car.mesh.position.copyFrom(this.vehicleLastDryPos)
         car.mesh.rotation.copyFrom(this.vehicleLastDryRot)
         this.vehicleHoverY = this.vehicleLastDryPos.y
-        if (car.mesh.isWorldMatrixFrozen) car.mesh.freezeWorldMatrix()
-        else car.mesh.computeWorldMatrix(true)
+        car.mesh.computeWorldMatrix(true)
         car.broadcastDriveState()
       } else {
         car.recallToPark()

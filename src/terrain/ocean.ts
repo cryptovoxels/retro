@@ -1,7 +1,6 @@
 import type { Chunk, ChunkObserver } from './chunk-system'
 import { type ClippedWaterGeometry, douglasPeucker, isAxisAlignedRectangle, type Point2D, PolygonClipping } from '../utils/polygon-utils'
 import type { IslandRecord } from '../../common/messages/api-islands'
-import { SimpleWater } from '../shaders/simple-water'
 import Islands from './islands'
 import { OCEAN_HEIGHT_OFFSET } from '../constants'
 
@@ -14,6 +13,17 @@ interface PolygonClipInstruction {
   intersectionType: IntersectionType
 }
 
+function oceanMaterial(scene: BABYLON.Scene): BABYLON.StandardMaterial {
+  const mat = new BABYLON.StandardMaterial('ocean', scene)
+  mat.diffuseColor = new BABYLON.Color3(0, 0.4, 0.7)
+  mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
+  mat.alpha = 1
+  mat.fogEnabled = true
+  mat.freeze()
+  mat.blockDirtyMechanism = true
+  return mat
+}
+
 export class Ocean implements ChunkObserver {
   private static readonly NEW_ISLAND_ID_THRESHOLD = 40
   private static readonly COORDINATE_SCALE_FACTOR = 100
@@ -22,7 +32,7 @@ export class Ocean implements ChunkObserver {
   private readonly halfSize: number
   private readonly scene: BABYLON.Scene
   private readonly mesh: BABYLON.Mesh
-  private readonly water: SimpleWater
+  private readonly waterMaterial: BABYLON.StandardMaterial
   private instances: Map<string, BABYLON.InstancedMesh> = new Map()
   private customMeshes: Map<string, BABYLON.Mesh[]> = new Map()
   private processingChunks: Set<string> = new Set()
@@ -44,8 +54,8 @@ export class Ocean implements ChunkObserver {
     this.mesh.position.set(-99999, -99999, -99999)
     this.mesh.setEnabled(false)
 
-    this.water = new SimpleWater(scene)
-    this.mesh.material = this.water.getMaterial()
+    this.waterMaterial = oceanMaterial(scene)
+    this.mesh.material = this.waterMaterial
   }
 
   createInstance(x: number, y: number): BABYLON.InstancedMesh {
@@ -138,7 +148,7 @@ export class Ocean implements ChunkObserver {
     this.customMeshes.clear()
 
     this.mesh.dispose()
-    this.water.dispose()
+    this.waterMaterial.dispose()
   }
 
   private startProcessingQueue(): void {

@@ -1,10 +1,13 @@
 import { voxReader } from '../../common/vox-import/vox-reader'
-import type { JobRecord } from '../../common/vox-import/vox-import'
 
-const cancelledJobs = new Set<number>()
+export type LoadVoxArgs = {
+  megavox: boolean
+  timeoutMs: number
+  colorMap?: Record<number, [number, number, number]>
+} & ({ url: string } | { buffer: ArrayBuffer })
 
-async function loadVoxUrl(url: string): Promise<ArrayBuffer> {
-  return fetch(url)
+async function loadVoxUrl(url: string, signal?: AbortSignal): Promise<ArrayBuffer> {
+  return fetch(url, { signal })
     .then(async (response) => {
       if (response.ok) {
         return response
@@ -19,7 +22,7 @@ async function loadVoxUrl(url: string): Promise<ArrayBuffer> {
       } catch (e) {}
 
       const originalUrl = searchParams?.get('url') || url
-      if (data.message) {
+      if (data?.message) {
         throw new Error(`failed fetching .vox ${data.message} - ${originalUrl}`)
       } else {
         throw new Error(`failed fetching .vox ${response.status} - ${originalUrl}`)
@@ -28,28 +31,25 @@ async function loadVoxUrl(url: string): Promise<ArrayBuffer> {
     .then((r) => r!.arrayBuffer())
 }
 
-export async function loadVox({ renderJob, flipX, megavox, wantCollider, timeoutMs, colorMap, ...urlOrBuffer }: JobRecord): Promise<any> {
+export async function loadVox({ megavox, timeoutMs, colorMap, ...urlOrBuffer }: LoadVoxArgs, signal?: AbortSignal): Promise<any> {
   const timeoutPromise = new Promise((_, reject) => {
-    setTimeout(() => reject(new Error(`Job ${renderJob} timed out after ${timeoutMs}ms`)), timeoutMs)
+    setTimeout(() => reject(new Error(`loadVox timed out after ${timeoutMs}ms`)), timeoutMs)
   })
 
   const workPromise = (async () => {
-    const data = 'url' in urlOrBuffer ? await loadVoxUrl(urlOrBuffer.url) : urlOrBuffer.buffer
+    if (signal?.aborted) return { cancelled: true }
 
-    if (cancelledJobs.has(renderJob)) {
-      return { renderJob, cancelled: true }
-    }
+    const data = 'url' in urlOrBuffer ? await loadVoxUrl(urlOrBuffer.url, signal) : urlOrBuffer.buffer
+
+    if (signal?.aborted) return { cancelled: true }
 
     return new Promise((resolve, reject) => {
       voxReader(
         data,
-        renderJob,
-        flipX,
         megavox,
-        wantCollider,
         (data) => {
-          if (cancelledJobs.has(renderJob)) {
-            return resolve({ renderJob, cancelled: true })
+          if (signal?.aborted) {
+            return resolve({ cancelled: true })
           }
 
           if (data instanceof Error) {
@@ -66,17 +66,10 @@ export async function loadVox({ renderJob, flipX, megavox, wantCollider, timeout
           }
 
           resolve({
-            renderJob,
             positions: data.positions,
             indices: data.indices,
             colors: data.colors,
             size: data.size,
-            ...('colliderPositions' in data
-              ? {
-                  colliderPositions: data.colliderPositions,
-                  colliderIndices: data.colliderIndices,
-                }
-              : {}),
           })
         },
         colorMap,
@@ -85,8 +78,4 @@ export async function loadVox({ renderJob, flipX, megavox, wantCollider, timeout
   })()
 
   return Promise.race([workPromise, timeoutPromise])
-}
-
-export function cancelJob(renderJob: number) {
-  cancelledJobs.add(renderJob)
 }

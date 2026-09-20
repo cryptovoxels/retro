@@ -131,8 +131,7 @@ export class AvatarAttachmentManager {
 
     const url = `/api/collectibles/${attachment.wid}/vox`
 
-    const opts = { invertX: false, signal: this.abortController.signal }
-    const mesh = await voxImporter().import(url, opts)
+    const mesh = await voxImporter().import(url, { signal: this.abortController.signal })
     mesh.name = 'wearable'
 
     this.attached.push(mesh)

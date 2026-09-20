@@ -1,7 +1,7 @@
 import http from 'http'
 import QueryString from 'querystring'
 import { v7 as uuid } from 'uuid'
-import WebSocket from 'ws'
+import WebSocket, { WebSocketServer } from 'ws'
 import { GridClientMessage } from '../../common/messages/grid'
 import Avatar from '../avatar'
 import authParcelFn from '../auth-parcel'
@@ -25,7 +25,7 @@ export type StatePersistQueueEntry = {
 }
 
 export default class GridSocket {
-  private wss: WebSocket.Server
+  private wss: WebSocketServer
   private worldGridShard: GridShard
   private patchSetByClientId: Map<string, PatchSet> = new Map()
   private parcelStateCache: Map<number, Record<string, unknown>> = new Map()
@@ -55,7 +55,7 @@ export default class GridSocket {
       this.worldGridShard.handleShardMessage(message)
     })
 
-    this.wss = new WebSocket.Server({
+    this.wss = new WebSocketServer({
       server,
       path,
       verifyClient: async (info, done) => {
@@ -90,7 +90,7 @@ export default class GridSocket {
       log.error(errorMessage)
     })
 
-    this.wss.on('connection', (ws: WebSocket.WebSocket, req: http.IncomingMessage) => {
+    this.wss.on('connection', (ws: WebSocket, req: http.IncomingMessage) => {
       const client: GridClient = {
         id: uuid(),
         user: (req as any).user,

@@ -215,6 +215,20 @@ export function createSpaceScene(s: BABYLON.Scene) {
   addCuboid('space-ground', { x: half, y: hy, z: half }, { x: 0, y: -hy, z: 0 })
 }
 
+// Orbit/thumb preview: no sky, fog, or terrain. Caller draws ocean/islands.
+export function createPreviewScene(s: BABYLON.Scene) {
+  teardownWorldScene()
+  scene = s
+  s.clearColor = new BABYLON.Color4(0, 0, 0, 1)
+  s.fogMode = BABYLON.Scene.FOGMODE_NONE
+  s.fogDensity = 0
+
+  ambientLight = new BABYLON.HemisphericLight('sun', new BABYLON.Vector3(0.3, 1, 0.2), s)
+  ambientLight.intensity = 0.5
+  loaded = true
+  groundStateObservable = new StateObservable<'loaded' | 'unloaded'>('loaded')
+}
+
 export function teardownSpaceScene() {
   removeCollider('space-ground')
   spaceGround?.dispose()

@@ -3,7 +3,6 @@ import { ProxyAssetOpensea } from '../../../common/messages/api-opensea'
 import { mediaSize, openDialog } from '../../../common/helpers/ui-helpers'
 import OpenseaAssetHelper from '../gui/opensea-asset-helper'
 import { HTMLUi } from './html-ui'
-import { unmountComponentAtNode } from 'preact/compat'
 import type NftImage from '../../features/nft-image'
 import { useEffect, useRef, useState } from 'preact/hooks'
 import { truncate } from '../../../web/src/lib/string-utils'
@@ -142,7 +141,7 @@ export function NftView({ asset, onClose, feature, dialogEl }: Props) {
 
   const content = (setAr: (ar: number) => void) => {
     if (error) {
-      return <img src={`${process.env.ASSET_PATH}/images/error-could_not_fetch_nft.png`} alt={error} />
+      return <p>{error}</p>
     }
 
     const previewImg = preview && !ready ? <img src={preview} alt={assetHelper.getName} /> : null
@@ -234,7 +233,7 @@ export default function showNftView(feature: NftImage) {
   track('view_nft')
 
   if (node) {
-    unmountComponentAtNode(node)
+    render(null, node)
     node = null
   }
 

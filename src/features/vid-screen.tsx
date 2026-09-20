@@ -1,6 +1,6 @@
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { throttle } from 'lodash'
-import { render, unmountComponentAtNode } from 'preact/compat'
+import { render } from 'preact'
 import { FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { VidScreenRecord } from '../../common/messages/feature'
 import { Feature2D } from './feature'
@@ -13,7 +13,7 @@ function openControls(vidscreen: VidScreen) {
   document.body.appendChild(div)
 
   const close = () => {
-    div && unmountComponentAtNode(div)
+    div && render(null, div)
     window.connector.controls.enableMovement()
     div?.remove()
 

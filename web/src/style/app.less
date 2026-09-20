@@ -90,7 +90,6 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: 'arial rounded mt bold', sans-serif;
   font-weight: 700;
   margin: 0 0 0.5rem;
 }
@@ -3187,15 +3186,14 @@ dialog.editor {
 
   // inspector property list
   dl.props {
-    display: grid;
-    grid-template-columns: 5rem 1fr;
+    display: flex;
+    flex-direction: column;
     margin: 0;
     padding: 0;
-    gap: 1rem 0;
+    gap: 0.1rem;
 
     dt,
     dd {
-      margin: 0;
       padding: 0;
     }
 
@@ -3210,6 +3208,7 @@ dialog.editor {
 
     dd {
       padding: 0;
+      margin-bottom: 1rem;
 
       &.full {
         grid-column: 1 / -1;
@@ -3222,9 +3221,8 @@ dialog.editor {
       textarea {
         font: inherit;
         width: 100%;
-        border: none;
         padding: 4px;
-        background: transparent;
+        box-sizing: border-box;
       }
 
       input[type='checkbox'] {
@@ -3239,7 +3237,7 @@ dialog.editor {
       min-width: 0;
       overflow: hidden;
       border: var(--border);
-      border-radius: 1rem;
+      border-radius: 2px;
       text-align: center;
 
       span {
@@ -3459,10 +3457,6 @@ dialog.editor {
       margin-top: 0;
     }
 
-    dd {
-      margin: 0;
-    }
-
     .f {
       padding: 0;
 
@@ -3506,17 +3500,6 @@ dialog.editor {
 
     dd.full {
       padding: 4px 0;
-    }
-
-    dd input[type='checkbox'] {
-      margin: 4px 4px 4px 0;
-    }
-
-    dd input[type='text'],
-    dd input[type='number'],
-    dd select,
-    dd textarea {
-      padding-left: 0;
     }
   }
 }
@@ -5294,6 +5277,17 @@ main:has(.worldmap) {
 }
 
 body.theatre-mode {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+
+  * {
+    color: #bbb !important;
+  }
+
+  .ui-sidebar > li > a {
+    border: 2px solid #5555;
+    background: rgba(0, 0, 0, 0.6);
+  }
+
   main {
     grid-template-columns: 0 1fr 0;
 
@@ -5310,8 +5304,28 @@ body.theatre-mode {
       right: 1rem;
       width: 18rem;
       bottom: 1rem;
-      border-radius: 2rem;
-      box-shadow: 3px 3px 1rem rgba(0, 0, 0, 0.2);
+      border-radius: 1rem;
+      border: 2px solid #5555;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(12px);
+
+      h1 {
+        font-size: 1.2rem;
+        letter-spacing: -0.5px;
+      }
+
+      dt {
+        display: none;
+      }
+
+      dd {
+        background: #3335;
+        border: 2px solid #5555;
+        border-radius: 1.2rem;
+        padding: 1rem;
+        opacity: unset;
+        margin-bottom: 1rem;
+      }
     }
   }
 }

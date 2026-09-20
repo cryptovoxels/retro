@@ -16,7 +16,6 @@ import { axisNames2D, axisNames3D, bboxCompletelyWithin, resolveUgc, tidyURL, ti
 import { getWorldTimeOfDay, setWorldTimeOfDay } from '../init/world-scene'
 import { TimeOfDay } from '../utils/time-of-day'
 import Group from './group'
-import { renderImageDraft, renderVoxDraft } from './feature-draft'
 import { boundingBoxOfMesh } from './utils/bounding-box'
 
 /**
@@ -426,14 +425,6 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     return !!this.isLink || hasBehaviours || (!!this.script && !!this.script.match(/on\('click'/g))
   }
 
-  refreshWorldMatrix() {
-    if (this.isAnimated) {
-      this.mesh?.isWorldMatrixFrozen && this.mesh?.unfreezeWorldMatrix()
-    } else {
-      this.mesh?.freezeWorldMatrix()
-    }
-  }
-
   inside(checkBoundingBox: BABYLON.BoundingBox): boolean {
     // the parcel's cached boxes go stale when a teleport moves the world offset - resync first
     this.parcel.syncWorldBounds()
@@ -445,8 +436,6 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     if (!this.mesh) {
       return
     }
-
-    this.mesh.unfreezeWorldMatrix()
 
     const frames = Math.max(...animations.map((animation) => animation.getHighestFrame()))
 
@@ -696,7 +685,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     if (!this.mesh) {
       return BABYLON.Vector3.Zero()
     }
-    let vec = BABYLON.Vector3.TransformNormal(this.mesh.getPositionExpressedInLocalSpace().add(translation), this.mesh._localMatrix)
+    let vec = BABYLON.Vector3.TransformNormal(this.mesh.getPositionExpressedInLocalSpace().add(translation), localMatrix(this.mesh))
 
     let parent: BABYLON.Node | null = this.mesh
     while (true) {
@@ -709,7 +698,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
         break
       }
 
-      vec = BABYLON.Vector3.TransformCoordinates(vec, parent._localMatrix)
+      vec = BABYLON.Vector3.TransformCoordinates(vec, localMatrix(parent))
     }
     return vec
   }
@@ -725,6 +714,10 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       // If the object is empty don't send an update to the server
       return
     }
+    // url change must kill a stale pre-mesh; compiler backfills a fresh one next pass
+    if ('url' in props && (this.description as any).voxelbr) {
+      ;(props as any).voxelbr = null
+    }
     this.update(props)
     this.sendToServer(Object.keys(props) as Array<keyof Description>)
 
@@ -736,9 +729,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
   generateDraft(): void {
     if (this.disposed || !(this.description as any).draft) return
-    const d = (this.description as any).draft as string
-    if (this.type === 'image' || this.type === 'nft-image') renderImageDraft(this, d)
-    else if (this.type === 'vox-model' || this.type === 'megavox' || this.type === 'ride') renderVoxDraft(this, d)
+    if (this.parcel.drafts.take(this)) this.setCommon()
   }
 
   disposeBasicGui() {
@@ -1019,7 +1010,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     if (this.mesh) {
       // Set parent
       const group1 = this.groupId && this.parcel.getFeatureByUuid(this.groupId)
-      this.mesh.setParent(group1 && group1.mesh ? group1.mesh : this.parcel.transform)
+      this.mesh.setParent(group1 && group1.mesh ? group1.mesh : this.parcel.featureRoot)
 
       // planes have no depth, scale.z is meaningless for them and 0 -> EPSILON would kill the nudge below
       this.mesh.scaling.set(this.scale.x || EPSILON, this.scale.y || EPSILON, this instanceof Feature2D ? 1 : this.scale.z || EPSILON)
@@ -1056,8 +1047,6 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     if (this.afterSetCommon) {
       this.afterSetCommon()
     }
-
-    this.refreshWorldMatrix()
   }
 
   /**
@@ -1142,4 +1131,9 @@ export abstract class NonMeshedFeature<Description extends NonMeshedFeatureRecor
   nudge(): number | null {
     return null
   }
+}
+
+function localMatrix(node: BABYLON.TransformNode) {
+  const q = node.rotationQuaternion ?? BABYLON.Quaternion.RotationYawPitchRoll(node.rotation.x, node.rotation.y, node.rotation.z)
+  return BABYLON.Matrix.Compose(node.scaling, q, node.position)
 }

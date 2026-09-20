@@ -1,5 +1,5 @@
 import { app } from '../../web/src/state'
-import { generateFileName, parcelUgcKey, parcelUgcUrl, ugcKey, UploadMediaType } from './ugc-upload-keys'
+import { generateFileName, parcelUgcKey, parcelUgcUrl, UGC_CACHE, ugcKey, UploadMediaType } from './ugc-upload-keys'
 
 export type { UploadMediaType } from './ugc-upload-keys'
 export { generateFileName, parcelUgcKey, parcelUgcUrl, ugcKey } from './ugc-upload-keys'
@@ -79,6 +79,7 @@ export async function uploadMedia(file: File, mediaType: UploadMediaType = 'parc
       method: 'PUT',
       headers: {
         'Content-Type': file.type || 'application/octet-stream',
+        'Cache-Control': UGC_CACHE,
         'x-amz-acl': 'public-read',
       },
       body: file,
@@ -133,6 +134,7 @@ export async function uploadParcelBytes(parcelId: number, name: string, bytes: A
     method: 'PUT',
     headers: {
       'Content-Type': contentType,
+      'Cache-Control': UGC_CACHE,
       'x-amz-acl': 'public-read',
     },
     body,
@@ -176,6 +178,7 @@ export async function uploadWithProgress(file: File, onProgress: (pct: number) =
       const xhr = new XMLHttpRequest()
       xhr.open('PUT', presigned.uploadUrl!)
       xhr.setRequestHeader('Content-Type', file.type || 'application/octet-stream')
+      xhr.setRequestHeader('Cache-Control', UGC_CACHE)
       xhr.setRequestHeader('x-amz-acl', 'public-read')
       xhr.upload.onprogress = (e) => {
         if (e.lengthComputable) onProgress(Math.round((e.loaded / e.total) * 100))

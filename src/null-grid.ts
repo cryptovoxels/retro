@@ -1,5 +1,5 @@
 import Grid from './grid'
-import { createWorldScene } from './init/world-scene'
+import { createPreviewScene } from './init/world-scene'
 import type { ParcelRecord } from '../common/messages/parcel'
 import type Parcel from './parcel'
 
@@ -23,6 +23,6 @@ export class NullGrid extends Grid {
   }
 
   async preparePreview() {
-    await createWorldScene(window.scene)
+    createPreviewScene(window.scene)
   }
 }

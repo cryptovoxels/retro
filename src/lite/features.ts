@@ -5,7 +5,6 @@ import type { LiteParcel } from './parcel'
 import { loadTex, quatYXZ, vec } from './utils'
 
 const EPSILON = 0.01
-let jobs = 0
 
 // planes have no depth, scale.z is meaningless for them (Feature2D forces 1)
 function place(node: SceneNode, f: any, flat = false) {
@@ -50,7 +49,7 @@ async function vox(parcel: LiteParcel, f: any, parent: TransformNode) {
   const url = f.url ? Config.voxModelURL(f.url, undefined, f.type === 'ride' ? 'megavox' : f.type) : `${process.env.ASSET_PATH}/models/vox-five.vox`
   let data: any
   try {
-    data = await runCompute((w) => w.loadVox({ renderJob: jobs++, url, flipX: true, megavox: f.type !== 'vox-model', wantCollider: false, timeoutMs: 5000 }))
+    data = await runCompute((w) => w.loadVox({ url, megavox: f.type !== 'vox-model', timeoutMs: 5000 }))
   } catch (e) {
     return
   }

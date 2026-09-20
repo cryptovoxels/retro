@@ -1,4 +1,4 @@
-import * as createAOMesh from 'ao-mesher'
+import createAOMesh from 'ao-mesher'
 import fill from '../voxels/ndarray-fill'
 import ndarray from 'ndarray'
 import { VertexData } from 'babylonjs'

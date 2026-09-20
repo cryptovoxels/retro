@@ -1,6 +1,5 @@
 import { effect } from '@preact/signals'
 import { Component, createRef, Fragment, JSX } from 'preact'
-import { forwardRef } from 'preact/compat'
 import { useEffect, useRef, useState } from 'preact/hooks'
 
 import { isMobile } from '../../../common/helpers/detector'

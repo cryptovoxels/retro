@@ -1,5 +1,4 @@
 import { Component, render } from 'preact'
-import { unmountComponentAtNode } from 'preact/compat'
 
 const Stats = require('stats.js')
 
@@ -49,7 +48,7 @@ export default class FPSStats extends Component<any, any> {
 
 export function toggleFPSStats() {
   if (!!FPSStats.stats) {
-    unmountComponentAtNode(FPSStats.currentElement)
+    render(null, FPSStats.currentElement)
     FPSStats.currentElement?.remove()
     FPSStats.dispose()
   } else {

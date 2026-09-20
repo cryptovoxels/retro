@@ -1,12 +1,10 @@
-import { HorizonMaterial } from '../shaders/horizon'
-
 // Horizon fills the gap between ground fog color and the skybox
 export default class Horizon {
   private mesh: BABYLON.Mesh
   private material: BABYLON.GradientMaterial
 
   constructor(scene: BABYLON.Scene) {
-    const material = new HorizonMaterial('skybox/horizon', scene)
+    const material = new BABYLON.GradientMaterial('skybox/horizon', scene)
     material.fogEnabled = true
 
     material.offset = 0.5

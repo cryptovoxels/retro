@@ -4,24 +4,8 @@
 import { defineConfig } from 'vitest/config'
 import path from 'path'
 
-// Custom plugin to handle shader files
-const shaderPlugin = () => {
-  return {
-    name: 'shader-loader',
-    transform(code: string, id: string) {
-      if (id.endsWith('.vsh') || id.endsWith('.fsh') || id.endsWith('.fx')) {
-        // Return the shader code as a string export
-        return {
-          code: `export default ${JSON.stringify(code)}`,
-          map: null,
-        }
-      }
-    },
-  }
-}
-
 export default defineConfig({
-  plugins: [shaderPlugin()],
+  plugins: [],
 
   // JSX configuration for Preact
   esbuild: {

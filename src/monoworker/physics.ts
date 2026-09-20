@@ -77,10 +77,10 @@ function downsampleBuf(buf: ArrayBuffer, shift: number): Promise<Int32Array> {
 }
 
 /** 16^3 occupancy from a wearable .vox. Any filled 2x2x2 of the 32^3 source is one cell. */
-export async function wearVoxels(url: string): Promise<Int32Array> {
+export async function wearVoxels(url: string, signal?: AbortSignal): Promise<Int32Array> {
   let buf: ArrayBuffer
   try {
-    const res = await fetch(url)
+    const res = await fetch(url, { signal })
     if (!res.ok) return empty
     buf = await res.arrayBuffer()
   } catch {

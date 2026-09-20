@@ -1,5 +1,4 @@
 import { Component, ComponentChildren, render, VNode } from 'preact'
-import { unmountComponentAtNode } from 'preact/compat'
 import { useEffect, useState } from 'preact/hooks'
 import { app } from '../state'
 import { PanelType } from './panel'
@@ -89,7 +88,7 @@ export default class ReportButton extends Component<Props, State> {
 
   hideReportForm = () => {
     if (ReportButton.windowElement) {
-      ReportButton.windowElement && unmountComponentAtNode(ReportButton.windowElement)
+      ReportButton.windowElement && render(null, ReportButton.windowElement)
       ReportButton.windowElement.remove()
       ReportButton.windowElement = null!
     }

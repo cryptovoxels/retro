@@ -1,16 +1,20 @@
 import * as Comlink from 'comlink'
+import { installAbort } from './monoworker/abort'
 import { bakeLightmap } from './monoworker/lightmap'
-import { loadVox, cancelJob } from './monoworker/vox'
+import { loadVox } from './monoworker/vox'
 import { requestInstanceIdentification, requestFeatureSorting } from './monoworker/pump'
 import { gridWorker } from './monoworker/grid'
 import { voxelCollider, wearVoxels } from './monoworker/physics'
+import { meshDrafts } from './monoworker/drafts'
+
+installAbort()
 
 const api = {
   // ready probe for createComlinkWorker (importScripts can fail after new Worker)
   ping: () => true as const,
   bakeLightmap,
   loadVox,
-  cancelJob,
+  meshDrafts,
   requestInstanceIdentification,
   requestFeatureSorting,
   voxelCollider,

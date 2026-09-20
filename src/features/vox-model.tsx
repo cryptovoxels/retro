@@ -5,7 +5,7 @@ import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/sr
 import Panel from '../../web/src/components/panel'
 import { rebindGizmos } from '../tools/gizmos'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Hyperlink, Toolbar, SourceInput } from '../ui/features'
-import { isURL } from '../utils/helpers'
+import { isURL, resolveUgc } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, FeatureEvent, FeatureTrigger, MeshExtended, transformVectors } from './feature'
 import ActionGui from '../ui/gui/action-button-gui'
@@ -33,10 +33,11 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     type: 'vox-model',
     scale: [0.5, 0.5, 0.5],
     url: '',
-    flipX: true,
   }
 
   private _importError: string | null = null
+  // instances await this before createInstance, so they never instance the draft
+  public loading: Promise<void> | null = null
 
   // Must be public for the Editor
   public get importError() {
@@ -60,14 +61,15 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   }
 
   public override async generateInstance(root: VoxModel) {
-    if (!root.mesh) {
-      // No mesh, generate normal mesh
-      await this.generate()
-      return
-    }
-
-    //@todo: fix type mesh
+    this.generateDraft()
+    await root.loading
+    if (this.disposed || this.abortController.signal.aborted) return
+    // root failed or has no real mesh: keep own draft
+    if (!root.mesh || root.importError) return
+    this.mesh?.dispose()
     this.mesh = root.mesh.createInstance(this.uniqueEntityName('instance')) as unknown as MeshExtended
+    // pivot (the 0.02 vox scale) is per-node, instances do not inherit it from the source
+    this.mesh.setPreTransformMatrix(root.mesh.getPivotMatrix())
     this.afterGenerate()
   }
 
@@ -85,54 +87,68 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   }
 
   private applyImportedMesh(imported: BABYLON.Mesh) {
-    if (!(this.mesh instanceof BABYLON.Mesh)) {
-      this.mesh = imported
-    } else {
-      BABYLON.VertexData.ExtractFromMesh(imported).applyToMesh(this.mesh)
-      this.mesh.material = imported.material
-      imported.material = null
-      imported.dispose()
-    }
+    this.mesh?.dispose()
+    this.mesh = imported
     this.mesh.isPickable = true
     this.mesh.name = this.uniqueEntityName('mesh')
     this.mesh.id = this.mesh.name
-    this.mesh.refreshBoundingInfo()
     this.afterGenerate()
   }
 
   public override async generate() {
     this.generateDraft()
-    void this.loadContent()
+    this.loading = this.loadContent()
   }
 
   private async loadContent() {
-    let url: string
+    const signal = this.abortController.signal
+    let mesh: BABYLON.Mesh | null = null
 
-    if (this.url && isURL(this.url)) {
-      url = Config.voxModelURL(this.url, this.parcel, this.type === 'ride' ? 'megavox' : this.type)
-    } else {
-      url = `${process.env.ASSET_PATH}/models/vox-five.vox`
+    // pre-meshed .voxelbr: fetch, slice, upload. any failure falls through to the worker path
+    const voxelbr = (this.description as any).voxelbr as string | undefined
+    if (voxelbr) {
+      try {
+        const voxelbrUrl = resolveUgc(voxelbr)
+        if (voxelbrUrl) {
+          const res = await fetch(voxelbrUrl, { signal })
+          if (res.ok) mesh = await voxImporter().importBin(await res.arrayBuffer(), signal)
+        }
+      } catch (e) {
+        if (e instanceof Error && e.message === 'Aborted') return
+        // fall through to .vox
+      }
     }
-    let mesh: BABYLON.Mesh
-    try {
-      mesh = await voxImporter().import(url, this._voxImportParams())
+
+    if (!mesh) {
+      let url: string
+      if (this.url && isURL(this.url)) {
+        url = Config.voxModelURL(this.url, this.parcel, this.type === 'ride' ? 'megavox' : this.type)
+      } else {
+        url = `${process.env.ASSET_PATH}/models/vox-five.vox`
+      }
+      try {
+        mesh = await voxImporter().import(url, this._voxImportParams())
+        this._importError = null
+        this.refreshErrorMessage()
+      } catch (e) {
+        this._importError = typeof e === 'string' ? e : ((e as Error | null)?.message ?? 'Unknown error')
+        if (e instanceof Error && e.message === 'Aborted') {
+          // ignore abort errors
+          return
+        } else {
+          console.warn(e)
+        }
+        if (this.disposed || signal.aborted) return
+        await this.onError()
+        this.refreshErrorMessage()
+        return
+      }
+    } else {
       this._importError = null
       this.refreshErrorMessage()
-    } catch (e) {
-      this._importError = typeof e === 'string' ? e : ((e as Error | null)?.message ?? 'Unknown error')
-      if (e instanceof Error && e.message === 'Aborted') {
-        // ignore abort errors
-        return
-      } else {
-        console.warn(e)
-      }
-      if (this.disposed || this.abortController.signal.aborted) return
-      await this.onError()
-      this.refreshErrorMessage()
-      return
     }
 
-    if (this.disposed || this.abortController.signal.aborted) {
+    if (this.disposed || signal.aborted) {
       mesh.dispose()
       return
     }
@@ -284,7 +300,6 @@ export class Megavox extends VoxModel<MegavoxRecord> {
     type: 'megavox',
     scale: [0.5, 0.5, 0.5],
     url: '',
-    flipX: true,
   }
 
   protected override _voxImportParams(): VoxImportOptions {
@@ -311,7 +326,6 @@ export class Ride extends VoxModel<RideRecord> {
     type: 'ride',
     scale: [0.5, 0.5, 0.5],
     url: '',
-    flipX: true,
   }
 
   // live drive state (ephemeral) - not written to the parcel feature record every frame
@@ -383,7 +397,6 @@ export class Ride extends VoxModel<RideRecord> {
 
   applyDrivePose(position: [number, number, number], rotation: [number, number, number]) {
     if (!this.mesh) return
-    if (this.mesh.isWorldMatrixFrozen) this.mesh.unfreezeWorldMatrix()
     if (this.mesh.rotationQuaternion) this.mesh.rotationQuaternion = null
     this.mesh.position.fromArray(position)
     this.mesh.rotation.fromArray(rotation)
@@ -439,9 +452,6 @@ export class Ride extends VoxModel<RideRecord> {
     const pos = (this.description.position as [number, number, number]) || [0, 0, 0]
     const rot = (this.description.rotation as [number, number, number]) || [0, 0, 0]
     this.applyDrivePose(pos, rot)
-    try {
-      this.mesh?.freezeWorldMatrix()
-    } catch {}
     this.setParkedVisible(true)
     this.broadcastDriveState({ recall: true, position: pos, rotation: rot, driverUuid: null, emptySince: null })
     const controls = window.connector?.controls as any

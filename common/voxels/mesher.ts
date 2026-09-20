@@ -1,4 +1,4 @@
-import * as createAOMesh from 'ao-mesher'
+import createAOMesh from 'ao-mesher'
 import type { NdArray } from 'ndarray'
 import { oversizedField } from '../../common/voxels/helpers'
 import { VoxelSize } from './constants'

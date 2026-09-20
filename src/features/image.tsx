@@ -20,6 +20,8 @@ export default class Image extends Feature2D<ImageRecord> {
     url: '',
   }
   loaded = false
+  // instances await this before createInstance, so they never instance the draft
+  loading: Promise<void> | null = null
 
   get transparencyMode() {
     if (this.description.transparent === true) {
@@ -68,12 +70,12 @@ export default class Image extends Feature2D<ImageRecord> {
   }
 
   async generateInstance(root: Image) {
-    if (!root.mesh) {
-      // No mesh, just create a non-instanced mesh
-      await this.generate()
-      return
-    }
-
+    this.generateDraft()
+    await root.loading
+    if (this.disposed || this.abortController.signal.aborted) return
+    // root failed or has no real mesh: keep own draft
+    if (!root.loaded || !root.mesh) return
+    this.mesh?.dispose()
     this.mesh = root.mesh.createInstance(this.uniqueEntityName('instance')) as unknown as MeshExtended
 
     this.setCommon()
@@ -87,7 +89,7 @@ export default class Image extends Feature2D<ImageRecord> {
   async generate(): Promise<void> {
     this.loaded = false
     this.generateDraft()
-    void this.loadContent()
+    this.loading = this.loadContent()
   }
 
   private async loadContent() {
@@ -125,7 +127,9 @@ export default class Image extends Feature2D<ImageRecord> {
     material.backFaceCulling = false
     material.zOffset = -5
 
-    if (!(this.mesh instanceof BABYLON.Mesh)) {
+    // draft mesh has no uvs, must be replaced not reused
+    if (!(this.mesh instanceof BABYLON.Mesh) || !this.mesh.isVerticesDataPresent(BABYLON.VertexBuffer.UVKind)) {
+      this.mesh?.dispose()
       this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
       rebindGizmos(this)
     } else {

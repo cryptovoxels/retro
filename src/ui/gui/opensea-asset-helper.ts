@@ -88,7 +88,7 @@ export default class OpenseaAssetHelper {
    * return image
    */
   get getImage(): string {
-    return this.image_url || this.image_preview_url || this.image_original_url || `${process.env.ASSET_PATH}/images/error-could_not_fetch_nft.png`
+    return this.image_url || this.image_preview_url || this.image_original_url || ''
   }
 
   /**
@@ -192,9 +192,7 @@ export default class OpenseaAssetHelper {
   // is a resized to 500w image, we can hack the plane.. that number to request a bigger sized image
   getBiggerImage(size = 1024): string {
     const url = this.image_url || this.image_preview_url || this.image_original_url
-    if (!url) {
-      return `${process.env.ASSET_PATH}/images/error-could_not_fetch_nft.png`
-    }
+    if (!url) return ''
 
     if (!url.includes('w=')) {
       return url
@@ -205,7 +203,7 @@ export default class OpenseaAssetHelper {
       u = new URL(url)
     } catch (e) {
       console.error(`NFT URL ${url} is not a valid URL`)
-      return `${process.env.ASSET_PATH}/images/error-could_not_fetch_nft.png`
+      return ''
     }
     u.searchParams.set('w', `${size}`)
     return u.toString()
