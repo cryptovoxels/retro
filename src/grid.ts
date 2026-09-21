@@ -105,7 +105,6 @@ export default class Grid extends SocketClient {
     this.parcelLoaded = (event) => {
       if (!event.detail) return
       if (this.currentW === 0) parcelMeshesAdded([event.detail])
-      window.graphic?.postProcesses?.reveal()
     }
 
     this.parcelUnloaded = (event) => {
@@ -603,7 +602,6 @@ export default class Grid extends SocketClient {
 
       this.currentW = w
       this.currentSpaceId = spaceId
-      window.graphic?.postProcesses?.cover()
 
       if (w === 0) {
         await createWorldScene(this.scene)
@@ -630,7 +628,6 @@ export default class Grid extends SocketClient {
         if (c) window.persona?.naviport(c)
       }
     } finally {
-      setTimeout(() => window.graphic?.postProcesses?.reveal(), this.currentW > 0 ? 500 : 3e3)
       this.switching = false
     }
   }
@@ -744,7 +741,7 @@ export default class Grid extends SocketClient {
   private handleParcelScriptUpdate(message: ParcelScriptMessage) {
     // Legacy parcel-script reload signal. The QuickJS runtime is gone; behaviours
     // hot-reload by re-attaching when the parcel patches its features list.
-    this.withParcel(message.parcelId, (_parcel) => {})
+    this.withParcel(message.parcelId, (_parcel) => { })
     void message
   }
 

@@ -146,7 +146,7 @@ async function main() {
 
   const canvas = document.createElement('canvas')
   canvas.id = 'renderCanvas'
-  canvas.style.cssText = 'width: 100%; height: 10%; display: none; touch-action: none;'
+  canvas.style.cssText = 'width: 100%; height: 100%; display: none; touch-action: none;'
   document.body.appendChild(canvas)
 
   canvas.addEventListener(
@@ -293,7 +293,6 @@ async function main() {
   window._color = color
 
   graphic.postProcesses = new PostProcesses(scene, color, graphic)
-  if (!wantsGateway()) graphic.postProcesses.cover()
     ; (engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
     ; (engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
 

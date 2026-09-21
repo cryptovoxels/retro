@@ -9,9 +9,6 @@ export class PostProcesses {
   private readonly pipelines: Record<GraphicLevels, BABYLON.PostProcessRenderPipeline>
   private glowLayer: BABYLON.Nullable<BABYLON.GlowLayer> = null
   private blurPP: BABYLON.Nullable<BABYLON.BlurPostProcess> = null
-  private coverEl: HTMLDivElement | null = null
-  private revealing = false
-  private coverObs: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> = null
 
   constructor(scene: BABYLON.Scene, color: ColorGrader, graphics: GraphicEngine) {
     this.scene = scene
@@ -36,56 +33,6 @@ export class PostProcesses {
     })
   }
 
-  cover() {
-    if (this.coverObs) {
-      this.scene.onBeforeRenderObservable.remove(this.coverObs)
-      this.coverObs = null
-    }
-    this.revealing = false
-
-    const canvas = this.scene.getEngine().getRenderingCanvas()
-    const parent = canvas?.parentElement
-    if (!parent) return
-
-    if (!this.coverEl) {
-      const el = document.createElement('div')
-      el.style.cssText = 'position:absolute;inset:0;background:#808080;pointer-events:none;z-index:1'
-      if (parent.style.position !== 'relative' && parent.style.position !== 'absolute') {
-        parent.style.position = 'relative'
-      }
-      parent.appendChild(el)
-      this.coverEl = el
-    }
-    this.coverEl.style.opacity = '1'
-  }
-
-  reveal() {
-    if (!this.coverEl) {
-      if (!isLoaded()) markLoaded()
-      return
-    }
-    if (this.revealing) return
-    this.revealing = true
-    if (!isLoaded()) markLoaded()
-
-    let elapsed = 0
-    this.coverObs = this.scene.onBeforeRenderObservable.add(() => {
-      elapsed += this.scene.getEngine().getDeltaTime()
-      const t = 1 - Math.min(1, elapsed / 400)
-      if (this.coverEl) this.coverEl.style.opacity = String(t)
-
-      if (t <= 0) {
-        if (this.coverObs) {
-          this.scene.onBeforeRenderObservable.remove(this.coverObs)
-          this.coverObs = null
-        }
-        this.coverEl?.remove()
-        this.coverEl = null
-        this.revealing = false
-      }
-    })
-  }
-
   setBlur(on: boolean) {
     const camera = this.scene.activeCamera
     if (!camera) return
@@ -103,13 +50,13 @@ export class PostProcesses {
     } else if (this.blurPP) {
       try {
         camera.detachPostProcess(this.blurPP)
-      } catch {}
+      } catch { }
       this.blurPP.dispose()
       this.blurPP = null
     }
   }
 
-  setUnderwater(_on: boolean) {}
+  setUnderwater(_on: boolean) { }
 
   changeEffects(level: GraphicLevels) {
     if (wantsGateway()) return

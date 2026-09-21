@@ -37,7 +37,6 @@ export class Client extends Component<FrameProps, FrameState> {
       .then(() => this.adopt())
       .catch((e) => {
         console.error('[boot]', e)
-        window.graphic?.postProcesses?.reveal()
         this.adopt()
       })
     app.on(AppEvent.Exploring, this.onExplore)
@@ -110,7 +109,7 @@ export class Client extends Component<FrameProps, FrameState> {
         const c = d.parcel ? new ParcelHelper(d.parcel).spawnCoords : ''
         if (c) window.persona?.naviport(c)
       })
-      .catch(() => {})
+      .catch(() => { })
   }
 
   private naviport() {

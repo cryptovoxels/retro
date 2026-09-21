@@ -157,7 +157,6 @@ export default class Persona {
   // out of a restricted area.
   teleportNoHistory(coords: coords) {
     console.log(`Teleporting to ${coords.position.x}, ${coords.position.y}, ${coords.position.z}`)
-    window.graphic?.postProcesses?.cover()
     this.audio?.playSound('persona.teleport')
 
     setCameraPosition(this.scene, coords.position)
@@ -172,15 +171,6 @@ export default class Persona {
 
     // clear out previous grounded and wait for new ground to load so that we don't fall before parcel has loaded
     this.controls.resetFloor()
-
-    // cached dest already meshed — no MeshLoaded; lift after one frame so grey still reads
-    if (window.grid?.currentOrNearestParcel()?.voxelMesh) {
-      this.scene.onBeforeRenderObservable.addOnce(() => {
-        window.graphic?.postProcesses?.reveal()
-      })
-    }
-    // ocean / slow load escape (MeshLoaded also calls reveal; once-guard is fine)
-    setTimeout(() => window.graphic?.postProcesses?.reveal(), 3e3)
   }
 
   playEmote(animation: Animations | null) {
