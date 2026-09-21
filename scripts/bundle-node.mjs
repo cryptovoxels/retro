@@ -237,7 +237,7 @@ async function buildClient(dev) {
     const ctx = await esbuild.context(clientOptions(true))
     const thumb = await esbuild.context(thumbWorkerOptions(true))
     await Promise.all([ctx.watch(), thumb.watch()])
-    await ctx.serve({ port: 9200, servedir: path.join(repo, 'dist') })
+    await ctx.serve({ port: 9200, servedir: path.join(repo, 'dist'), cors: { origin: 'http://localhost:9000' } })
     console.log('client watch http://localhost:9200')
     return
   }

@@ -15,9 +15,9 @@ try {
   Object.defineProperty(window, 'localStorage', {
     value: {
       getItem: () => null,
-      setItem: () => {},
-      removeItem: () => {},
-      clear: () => {},
+      setItem: () => { },
+      removeItem: () => { },
+      clear: () => { },
       key: () => null,
       length: 0,
     },
@@ -146,7 +146,7 @@ async function main() {
 
   const canvas = document.createElement('canvas')
   canvas.id = 'renderCanvas'
-  canvas.style.cssText = 'width: 100%; height: 100%; display: none; touch-action: none;'
+  canvas.style.cssText = 'width: 100%; height: 10%; display: none; touch-action: none;'
   document.body.appendChild(canvas)
 
   canvas.addEventListener(
@@ -294,8 +294,8 @@ async function main() {
 
   graphic.postProcesses = new PostProcesses(scene, color, graphic)
   if (!wantsGateway()) graphic.postProcesses.cover()
-  ;(engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
-  ;(engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
+    ; (engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
+    ; (engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
 
   const { grid, connector } = await createWorld(scene, canvas, controls)
 

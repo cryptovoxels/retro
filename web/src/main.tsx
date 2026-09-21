@@ -2,8 +2,10 @@
 if (process.env.NODE_ENV === 'development') {
   // Must use require here as import statements are only allowed
   // to exist at top-level.
-  require('preact/debug')
+  // require('preact/debug')
+  new EventSource('http://localhost:9200/esbuild').addEventListener('change', () => location.reload())
 }
+
 import { Component, render } from 'preact'
 import { Route, Router, type RouterOnChangeArgs } from 'preact-router'
 
@@ -45,7 +47,7 @@ class MainApp extends Component {
   }
 }
 
-;(history as any)['oldPushState'] = history.pushState
+; (history as any)['oldPushState'] = history.pushState
 history.pushState = function () {
   const url = arguments && arguments[2]
   const previousPath = document.location.pathname
@@ -55,7 +57,7 @@ history.pushState = function () {
     path = url.replace(/\?.+/, '')
   }
 
-  ;(history as any)['oldPushState'].apply(this, arguments as any)
+  ; (history as any)['oldPushState'].apply(this, arguments as any)
 
   notifyUrlChange()
 
