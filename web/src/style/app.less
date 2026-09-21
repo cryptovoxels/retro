@@ -1241,12 +1241,6 @@ body.gateway {
   }
 }
 
-body.in-world {
-  overflow: hidden;
-  --play-gutter: max(1rem, env(safe-area-inset-left, 0px));
-  --play-top: max(0.5rem, env(safe-area-inset-top, 0px));
-}
-
 .ui-pane,
 .page {
   box-sizing: border-box;
@@ -1297,11 +1291,6 @@ body:-webkit-full-screen .client-placeholder {
   width: 100vw;
   height: 100vh;
   z-index: 1;
-}
-
-body:fullscreen.in-world .ui-pane.-broadcast,
-body:-webkit-full-screen.in-world .ui-pane.-broadcast {
-  width: min(360px, 36vw);
 }
 
 .showbox-broadcast-mount {
@@ -2727,42 +2716,6 @@ dl.deets {
   a.active {
     border: none;
     font-weight: bold;
-  }
-}
-
-// The in-world skin only applies under body.in-world (toggled by Client.adopt/unmount).
-// Keep element resets inside .client so parcel/embed page HTML (about/map sidebar) stays intact.
-body.x-in-world {
-  #babylonUnmuteIconBtn {
-    left: 60px !important;
-  }
-
-  ::-webkit-scrollbar {
-    width: 12px;
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: var(--muted-2);
-  }
-
-  ::-webkit-scrollbar-track {
-    background: var(--scroll-track);
-    margin: 1rem 0;
-  }
-
-  .client {
-
-    p,
-    li,
-    ul,
-    section,
-    h1,
-    h2,
-    h3,
-    h4 {
-      margin: 0;
-      padding: 0;
-    }
   }
 }
 

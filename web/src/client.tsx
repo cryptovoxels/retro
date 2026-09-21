@@ -28,7 +28,6 @@ export class Client extends Component<FrameProps, FrameState> {
 
   componentDidMount() {
     if (!canUseDom) return
-    document.body.classList.add('in-world')
     void boot()
       .then((ui) => {
         this.setState({ ui })
@@ -54,7 +53,6 @@ export class Client extends Component<FrameProps, FrameState> {
   componentWillUnmount() {
     this.observer?.disconnect()
     app.removeListener(AppEvent.Exploring, this.onExplore)
-    document.body.classList.remove('in-world')
   }
 
   private syncRealm(path?: string, prevPath?: string): Promise<void> {

@@ -35,7 +35,7 @@ export default function loadRoutes(app: Express) {
   const duration = '10 minutes'
 
   app.get('/', cache(duration), (req, res) => {
-    res.send(renderPage(<Explore />))
+    res.send(renderPage(<LoadingPage />))
   })
 
   app.get('/explore', cache(duration), (req, res) => {
