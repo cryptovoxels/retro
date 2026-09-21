@@ -68,6 +68,16 @@ html[data-theme='dark'] {
     url(/fonts/sourcecodepro-regular.woff) format('woff');
 }
 
+@font-face {
+  font-family: 'forward';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src:
+    local('FFF Forward'),
+    url(/fonts/forward.ttf) format('truetype');
+}
+
 // --- base ---
 html,
 body {
@@ -76,7 +86,7 @@ body {
 }
 
 body {
-  font-family: 'helvetica neue', sans-serif;
+  font-family: 'arial', sans-serif;
   font-size: 0.9rem;
   line-height: 1.5;
   margin-bottom: 20rem;
@@ -90,6 +100,7 @@ h3,
 h4,
 h5,
 h6 {
+  font-family: 'forward';
   font-weight: 700;
   margin: 0 0 0.5rem;
 }
@@ -533,8 +544,8 @@ header .voxel-radio {
 
 .wrap-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(6rem, 1fr));
-  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
+  gap: 0.5rem;
 
   img,
   .wearable-icon,
@@ -543,7 +554,7 @@ header .voxel-radio {
     display: block;
     width: 100%;
     aspect-ratio: 1;
-    border-radius: 0.5rem;
+    border-radius: 2px;
   }
 
   .wearable-icon img,
@@ -562,7 +573,7 @@ header .voxel-radio {
   }
 
   // richer cards (see-more /womps): author, time, caption under the shot
-  .womp.-medium {
+  .womp {
     .womp-meta {
       margin-top: 0.25rem;
     }
@@ -594,22 +605,11 @@ header .voxel-radio {
       white-space: normal;
     }
   }
-
-  &:has(.womp.-medium) {
-    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
-    gap: 1rem;
-  }
 }
 
 img {
   max-width: 100%;
   max-height: 85vh;
-}
-
-@media @narrow {
-  .wrap-grid {
-    grid-template-columns: repeat(auto-fill, minmax(40vw, 1fr));
-  }
 }
 
 // Button style
@@ -853,7 +853,6 @@ main {
     grid-column: 3;
     grid-row: 1;
     min-width: 0;
-    overflow-y: auto;
     padding: 1rem;
     background: var(--bg);
   }
@@ -2027,17 +2026,6 @@ table.spaces {
     margin: 0 0 0.5rem;
     padding: 0;
     gap: 0.5rem;
-  }
-
-  .wrap-grid {
-    gap: 0.65rem;
-    grid-template-columns: repeat(auto-fill, minmax(5.5rem, 1fr));
-  }
-
-  // see-more: lean on the shared rich-card styles; keep the grid a touch denser in the sidebar
-  &:has(.womp.-medium) .wrap-grid {
-    grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr));
-    gap: 0.85rem;
   }
 }
 
@@ -5322,5 +5310,30 @@ body.theatre-mode {
   li {
     list-style: none;
     border-bottom: var(--border);
+  }
+}
+
+
+// Mobile explore page
+@media @narrow {
+  .explorer {
+    position: relative;
+
+    h1 {
+      z-index: 9000;
+      font-size: 24px;
+      line-height: 24px;
+      position: absolute;
+      top: -40px;
+      letter-spacing: 1px;
+      color: white;
+      text-shadow:
+        -1px -1px 0 #000,
+        1px -1px 0 #000,
+        -1px 1px 0 #000,
+        1px 1px 0 #000,
+        3px 3px 3px #0005;
+
+    }
   }
 }
