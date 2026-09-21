@@ -90,7 +90,7 @@ export default class Explore extends Component<{}> {
         sessionStorage.removeItem(FOCUS_EXPLORE)
         focusFirst('.explorer')
       }
-    } catch {}
+    } catch { }
   }
 
   rerender = () => {
@@ -105,9 +105,10 @@ export default class Explore extends Component<{}> {
   render() {
     return (
       <Fragment>
-        <Head title="Voxels (formerly Cryptovoxels)" url={'/'} />
+        <Head title="Voxels" url='/' />
 
         <section class="explorer" onKeyDown={onListArrowKeys}>
+          <h1>Voxels</h1>
           <Radar teleportTo={naviportHere} />
           <h3>Womps</h3>
           <WompsList numberToShow={12} mobilePreview={6} collapsed={false} fetch="/womps.json" ttl={600} onWompClick={teleportToWomp} />
