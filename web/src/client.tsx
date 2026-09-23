@@ -9,10 +9,13 @@ import cachedFetch from './helpers/cached-fetch'
 import { getCoords, getParcelIdFromPath, getSpaceIdFromPath, isSpacePath, isSpacePlayPath, syncParcelUrl } from './helpers/coords-nav'
 import { app, AppEvent } from './state'
 
-function boot(): Promise<BootResult | null> {
+/** Memoised engine boot; safe to await from anywhere that needs window.persona / window.grid. */
+export function worldBoot(): Promise<BootResult | null> {
   if (wantsLite()) return import('../../src/lite').then((m) => m.bootLite())
   return import('../../src').then((m) => m.bootEngine())
 }
+
+const boot = worldBoot
 
 type FrameProps = {
   coords: string

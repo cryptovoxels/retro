@@ -68,6 +68,12 @@ export default class Grid extends SocketClient {
   currentSpaceId: string | undefined
   private worldLive = false
   private switching = false
+
+  /** Open world is mounted and no realm switch is in flight - safe to naviport without being overridden. */
+  get openWorldReady() {
+    return this.currentW === 0 && this.worldLive && !this.switching
+  }
+
   private readonly parcelLoaded: (event: TypedEvent<'MeshLoaded', ParcelEventMap['MeshLoaded']>) => void
   private readonly parcelUnloaded: (event: TypedEvent<'MeshUnloading', ParcelEventMap['MeshUnloading']>) => void
 
