@@ -4549,21 +4549,24 @@ dialog {
   }
 }
 
-/* scoped: do not touch other dialogs */
+/* scoped: do not touch other dialogs.
+   media first, meta below. the figure hugs the media via --ar (set from the loaded image / video);
+   no JS sizing. narrow screens get a full-screen sheet. */
 dialog.nft-view {
+  --nft-media-w: ~'min(calc(92vw - 2rem), 70rem)';
+  --nft-media-h: 62dvh;
+
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  width: fit-content;
+  min-width: 20rem;
   max-width: none;
-  max-height: none;
-  min-width: 0;
+  max-height: 92dvh;
   overflow: hidden;
   /* keep centered; animate scale alone so bounce doesn't drift */
   transform: none;
   translate: -50% -50%;
-  transition:
-    width 80ms ease-out,
-    height 80ms ease-out;
   animation: nft-bounce-in 200ms ease-out;
 
   &.-out {
@@ -4571,109 +4574,40 @@ dialog.nft-view {
   }
 
   .close {
-    font-size: 1.5rem;
-    line-height: 1;
+    z-index: 1;
     top: 0;
-    right: 0.25rem;
+    right: 0;
+    width: 2.75rem;
+    height: 2.75rem;
+    font-size: 1.75rem;
+    line-height: 2.75rem;
+    text-align: center;
+    color: var(--fg);
+    text-shadow: 0 0 4px var(--surface);
   }
 
   h1,
   h3 {
     flex: 0 0 auto;
     margin: 0;
-    padding: 0.5rem 1rem;
   }
 
-  .nft-header {
-    flex: 0 0 auto;
-    padding: 0 0 1rem 0;
-
-    h1 {
-      padding: 0;
-    }
-
-    * {
-      margin: 0;
-    }
-  }
-
-  .nft-collection-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    margin-top: 0.5rem;
-  }
-
-  .nft-collection {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    min-width: 0;
-    color: inherit;
-    text-decoration: none;
-
-    img {
-      width: 1.5rem;
-      height: 1.5rem;
-      object-fit: cover;
-      flex: 0 0 auto;
-    }
-
-    span {
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-  }
-
-  .nft-open {
-    flex: 0 0 auto;
-    color: inherit;
-  }
-
-  .nft-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.5rem;
-    list-style: none;
-    margin: 0.5rem 0 0;
-    padding: 0;
-
-    li {
-      border: var(--border);
-      padding: 0.15rem 0.5rem;
-      text-transform: uppercase;
-      font-size: x-small;
-      opacity: 0.5;
-      box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.3);
-      border-radius: 1rem;
-    }
-  }
-
-  div.center {
-    flex: 1 1 auto;
-    min-height: 0;
-    display: flex;
-    flex-direction: column;
-    text-align: center;
-  }
-
-  .SplitPanel {
-    flex: 1 1 auto;
-    min-height: 0;
-    overflow: auto;
-  }
-
-  .SplitPanel .Panel {
-    min-height: 0;
+  h1 {
+    white-space: normal;
   }
 
   .nft-media {
+    --ar: 1;
     position: relative;
-    flex: 1 1 auto;
+    flex: 0 0 auto; /* the meta below shrinks, never the art */
+    margin: 0;
+    width: min(var(--nft-media-w), calc(var(--nft-media-h) * var(--ar)));
+    max-width: 100%;
+    aspect-ratio: var(--ar);
+    max-height: var(--nft-media-h);
     min-height: 0;
-    width: 100%;
+    background: var(--line);
+    transition: width 120ms ease-out;
 
     a {
       display: block;
@@ -4687,6 +4621,14 @@ dialog.nft-view {
       width: 100%;
       height: 100%;
       object-fit: contain;
+    }
+
+    audio {
+      position: absolute;
+      left: 0.5rem;
+      right: 0.5rem;
+      bottom: 0.5rem;
+      width: auto;
     }
 
     .gallery-nav {
@@ -4723,13 +4665,143 @@ dialog.nft-view {
     }
   }
 
-  .nft-description {
+  .nft-meta {
     flex: 0 1 auto;
-    max-height: 30%;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding: 0.75rem 1rem 1rem;
+    overflow: hidden;
+
+    /* only the description gives way when space is tight */
+    > * {
+      flex: 0 0 auto;
+    }
+  }
+
+  .nft-collection-row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 1rem;
+    min-width: 0;
+  }
+
+  .nft-collection {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--muted);
+  }
+
+  .nft-open {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .nft-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+
+    li {
+      border: var(--border);
+      padding: 0.15rem 0.5rem;
+      text-transform: uppercase;
+      font-size: x-small;
+      opacity: 0.6;
+      border-radius: 1rem;
+      white-space: nowrap;
+      max-width: 12rem;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+
+  .nft-meta .nft-description {
+    flex: 0 1 auto;
+    min-height: 3rem;
+    margin: 0;
     overflow: auto;
     white-space: pre-line;
     word-break: break-word;
-    padding: 1rem;
+  }
+
+  /* collectible dialog still uses the split panel inside this shell */
+  .SplitPanel {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .SplitPanel .Panel {
+    min-height: 0;
+  }
+
+  @media @narrow {
+    --nft-media-w: 100vw;
+    --nft-media-h: 100dvh;
+
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    min-width: 0;
+    translate: none;
+    border: 0;
+    border-radius: 0;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    animation: none;
+
+    &.-out {
+      animation: nft-bounce-out 200ms ease-in forwards;
+    }
+
+    .close {
+      top: env(safe-area-inset-top, 0px);
+      width: 3rem;
+      height: 3rem;
+      line-height: 3rem;
+      font-size: 2rem;
+    }
+
+    .nft-media {
+      flex: 1 1 auto;
+      width: 100%;
+      aspect-ratio: auto;
+      max-height: none;
+      transition: none;
+    }
+
+    .nft-meta {
+      flex: 0 1 auto;
+      max-height: 45%;
+      padding-left: max(1rem, env(safe-area-inset-left, 0px));
+      padding-right: max(1rem, env(safe-area-inset-right, 0px));
+    }
+
+    .nft-tags {
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      scrollbar-width: none;
+      padding-bottom: 2px;
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
+
+      li {
+        flex: 0 0 auto;
+      }
+    }
   }
 }
 

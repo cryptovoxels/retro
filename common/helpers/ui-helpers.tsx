@@ -20,18 +20,6 @@ export function isFastviewBlocking() {
   return fastviewBlocksWorld
 }
 
-export function mediaSize(ar: number, zoom: number) {
-  const maxW = innerWidth * 0.85
-  const maxH = innerHeight * 0.7
-  let w = maxW * zoom
-  let h = w / ar
-  if (h > maxH * zoom) {
-    h = maxH * zoom
-    w = h * ar
-  }
-  return { w, h }
-}
-
 export function openDialog(className: string, fastview = false) {
   if (typeof BABYLON !== 'undefined' && window.scene?.activeCamera instanceof BABYLON.WebXRCamera) fastview = false
   const el = document.createElement('dialog')

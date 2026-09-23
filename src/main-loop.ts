@@ -59,21 +59,28 @@ export default class MainLoop extends TypedEventTarget<Record<LOOP_STATE, void>>
     this.start()
   }
 
+  // an exception escaping the render callback stops Babylon from queueing the next frame: the world freezes
+  private logFrameError = throttle((err: unknown) => console.error('render loop error', err), 5000, { leading: true, trailing: false })
+
   start() {
     this.engine.runRenderLoop(() => {
-      FPSStats.end()
+      try {
+        FPSStats.end()
 
-      if (this.scene?.activeCamera) {
-        const camera = this.scene.activeCamera
-        const forwardRay = camera.getForwardRay()
-        this._pump.setCameraPosition(cameraPosition(this.scene), forwardRay.direction)
+        if (this.scene?.activeCamera) {
+          const camera = this.scene.activeCamera
+          const forwardRay = camera.getForwardRay()
+          this._pump.setCameraPosition(cameraPosition(this.scene), forwardRay.direction)
+        }
+
+        this.scene?.render()
+        this.mapScene?.render()
+
+        this._pump.pump()
+        FPSStats.begin()
+      } catch (err) {
+        this.logFrameError(err)
       }
-
-      this.scene?.render()
-      this.mapScene?.render()
-
-      this._pump.pump()
-      FPSStats.begin()
     })
 
     this.dispatchEvent(createEvent('running', undefined))

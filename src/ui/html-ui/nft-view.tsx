@@ -1,59 +1,23 @@
 import { ComponentChildren, render } from 'preact'
 import { ProxyAssetOpensea } from '../../../common/messages/api-opensea'
-import { mediaSize, openDialog } from '../../../common/helpers/ui-helpers'
+import { openDialog } from '../../../common/helpers/ui-helpers'
 import OpenseaAssetHelper from '../gui/opensea-asset-helper'
 import { HTMLUi } from './html-ui'
 import type NftImage from '../../features/nft-image'
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { truncate } from '../../../web/src/lib/string-utils'
 import { track } from '../../../web/src/helpers/umami'
 
-async function textureToDataUrl(tex: BABYLON.BaseTexture): Promise<string | null> {
-  try {
-    const size = tex.getSize()
-    const w = size.width
-    const h = size.height
-    if (!w || !h) return null
+// accumulated scroll-down (px) in fastview before the dialog is dismissed
+const WHEEL_DISMISS = 400
 
-    const pixels = await tex.readPixels()
-    if (!pixels) return null
-
-    const src = new Uint8ClampedArray(pixels.buffer, pixels.byteOffset, pixels.byteLength)
-    const dst = new Uint8ClampedArray(w * h * 4)
-    // WebGL readPixels is bottom-up; ImageData is top-down
-    for (let y = 0; y < h; y++) {
-      dst.set(src.subarray((h - 1 - y) * w * 4, (h - y) * w * 4), y * w * 4)
-    }
-
-    const canvas = document.createElement('canvas')
-    canvas.width = w
-    canvas.height = h
-    const ctx = canvas.getContext('2d')
-    if (!ctx) return null
-    ctx.putImageData(new ImageData(dst, w, h), 0, 0)
-    return canvas.toDataURL('image/png')
-  } catch {
-    return null
-  }
-}
-
-function aspectFromFeature(feature: { scale: { x: number; y: number }; mesh?: BABYLON.AbstractMesh | null }) {
-  const mat = feature.mesh?.material as BABYLON.StandardMaterial | undefined
-  const tex = mat?.diffuseTexture
-  if (tex) {
-    const s = tex.getSize()
-    if (s.width && s.height) return s.width / s.height
-  }
-  const sx = feature.scale?.x || 1
-  const sy = feature.scale?.y || 1
-  return sx / sy || 1
-}
-
+/**
+ * Media area shared by the nft / collectible / womp dialogs. Sizing is CSS-driven: the figure gets an
+ * `--ar` custom property (from `setAr`) and the stylesheet turns that into a box that hugs the media.
+ * In fastview, scrolling down dismisses.
+ */
 export function NftMediaBox({ dialogEl, aspect, onDismiss, children }: { dialogEl: HTMLElement; aspect: number; onDismiss?: () => void; children: ComponentChildren | ((setAr: (ar: number) => void) => ComponentChildren) }) {
-  const [zoom, setZoom] = useState(1)
   const [ar, setAr] = useState(aspect || 1)
-  const zoomRef = useRef(1)
-  zoomRef.current = zoom
+  const acc = useRef(0)
 
   useEffect(() => {
     setAr(aspect || 1)
@@ -62,24 +26,29 @@ export function NftMediaBox({ dialogEl, aspect, onDismiss, children }: { dialogE
   useEffect(() => {
     const onWheel = (e: WheelEvent) => {
       if (!dialogEl.classList.contains('fastview')) return
-      const next = zoomRef.current - e.deltaY * 0.001
-      if (next < 0.5) {
+      acc.current = Math.max(0, acc.current + e.deltaY)
+      if (acc.current > WHEEL_DISMISS) {
+        acc.current = 0
         onDismiss?.()
-        return
       }
-      setZoom(Math.min(2.5, next))
     }
     document.addEventListener('wheel', onWheel, { capture: true })
     return () => document.removeEventListener('wheel', onWheel, { capture: true })
   }, [dialogEl, onDismiss])
 
-  useEffect(() => {
-    const { w, h } = mediaSize(ar, zoom)
-    dialogEl.style.width = `${w}px`
-    dialogEl.style.height = `${h}px`
-  }, [ar, zoom, dialogEl])
+  return (
+    <figure class="nft-media" style={{ '--ar': String(ar > 0 ? ar : 1) }}>
+      {typeof children === 'function' ? children(setAr) : children}
+    </figure>
+  )
+}
 
-  return <div class="nft-media">{typeof children === 'function' ? children(setAr) : children}</div>
+/** onLoad / onLoadedMetadata handler that feeds the media's natural aspect into the box */
+export const mediaAspect = (setAr: (ar: number) => void) => (e: Event) => {
+  const t = e.currentTarget as HTMLImageElement | HTMLVideoElement
+  const w = 'naturalWidth' in t ? t.naturalWidth : t.videoWidth
+  const h = 'naturalHeight' in t ? t.naturalHeight : t.videoHeight
+  if (w && h) setAr(w / h)
 }
 
 type Props = {
@@ -91,31 +60,22 @@ type Props = {
 
 type NFTType = 'video' | 'image' | 'audio'
 
+function ipfsToHttp(url: string) {
+  return url.startsWith('ipfs://') ? 'https://ipfs.io/ipfs/' + url.split('/').splice(0, 2).join('/') : url
+}
+
+// ERC1155 ids are 70+ digits; keep chips readable
+function shortId(id: string) {
+  return id.length > 12 ? `${id.slice(0, 6)}…${id.slice(-4)}` : id
+}
+
 export function NftView({ asset, onClose, feature, dialogEl }: Props) {
   const [type, setType] = useState<NFTType>('image')
-  const [error, setError] = useState('')
-  const [preview, setPreview] = useState<string | null>(null)
-  const [ready, setReady] = useState(false)
   const assetHelper = new OpenseaAssetHelper(asset)
-  const aspect = aspectFromFeature(feature)
 
-  const imageURL = () => {
-    const url = assetHelper.getBiggerImage(1024)
-    return url.startsWith('ipfs://') ? 'https://ipfs.io/ipfs/' + url.split('/').splice(0, 2).join('/') : url
-  }
-
-  useEffect(() => {
-    const mat = feature.mesh?.material as BABYLON.StandardMaterial | undefined
-    const tex = mat?.diffuseTexture
-    if (!tex) return
-    let cancelled = false
-    textureToDataUrl(tex).then((url) => {
-      if (!cancelled && url) setPreview(url)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [feature])
+  // in-world plane ratio is the best guess until the media reports its own
+  const aspect = (feature.scale?.x || 1) / (feature.scale?.y || 1) || 1
+  const imageURL = ipfsToHttp(assetHelper.getBiggerImage(1024))
 
   useEffect(() => {
     if (assetHelper.isAnimated) {
@@ -123,55 +83,20 @@ export function NftView({ asset, onClose, feature, dialogEl }: Props) {
     }
   }, [asset.animation_url])
 
-  useEffect(() => {
-    setReady(false)
-  }, [type])
-
-  const markReady = () => setReady(true)
-  // hide real media only while we have a texture preview covering it
-  const mediaStyle = !ready && preview ? { display: 'none' as const } : undefined
-
-  const onMediaDims = (setAr: (ar: number) => void) => (e: Event) => {
-    const t = e.currentTarget as HTMLImageElement | HTMLVideoElement
-    const w = 'naturalWidth' in t ? t.naturalWidth : t.videoWidth
-    const h = 'naturalHeight' in t ? t.naturalHeight : t.videoHeight
-    if (w && h) setAr(w / h)
-    markReady()
-  }
-
-  const content = (setAr: (ar: number) => void) => {
-    if (error) {
-      return <p>{error}</p>
-    }
-
-    const previewImg = preview && !ready ? <img src={preview} alt={assetHelper.getName} /> : null
-    const onLoad = onMediaDims(setAr)
-
+  const media = (setAr: (ar: number) => void) => {
+    const onLoad = mediaAspect(setAr)
     switch (type) {
       case 'audio':
         return (
           <>
-            {previewImg}
-            <img src={imageURL()} alt={assetHelper.getName} style={mediaStyle} onLoad={onLoad} onError={markReady} />
+            <img src={imageURL} alt={assetHelper.getName} onLoad={onLoad} />
             <audio controls autoPlay loop src={asset.animation_url!} />
           </>
         )
       case 'video':
-        return (
-          <>
-            {previewImg}
-            <video src={asset.animation_url!} controls autoPlay loop playsInline style={mediaStyle} onLoadedMetadata={onLoad} onError={markReady} />
-          </>
-        )
+        return <video src={asset.animation_url!} controls autoPlay loop playsInline onLoadedMetadata={onLoad} />
       default:
-        return (
-          <>
-            {previewImg}
-            <a href={asset.permalink} target="_blank" style={mediaStyle}>
-              <img src={imageURL()} alt={assetHelper.getName} onLoad={onLoad} onError={markReady} />
-            </a>
-          </>
-        )
+        return <img src={imageURL} alt={assetHelper.getName} onLoad={onLoad} />
     }
   }
 
@@ -180,44 +105,41 @@ export function NftView({ asset, onClose, feature, dialogEl }: Props) {
   const supply = (contract as any)?.total_supply
   const minted = (contract as any)?.created_date
   const tags = [
-    contract?.name,
     contract?.schema_name,
     contract?.chain,
     supply ? `${supply} mints` : null,
     minted ? String(minted).slice(0, 10) : null,
-    asset.token_id ? `token #${asset.token_id}` : null,
+    asset.token_id ? `#${shortId(String(asset.token_id))}` : null,
     ownerCount ? `${ownerCount} owners` : null,
   ].filter(Boolean) as string[]
 
   return (
     <>
-      <button class="close" onClick={onClose}>
+      <button class="close" onClick={onClose} aria-label="Close">
         &times;
       </button>
-      <header class="nft-header">
+      <NftMediaBox dialogEl={dialogEl} aspect={aspect} onDismiss={onClose}>
+        {media}
+      </NftMediaBox>
+      <div class="nft-meta">
         <h1>{assetHelper.getName}</h1>
-        {contract?.name && (
-          <p>
-            <a href={asset.permalink} target="_blank">
-              {contract?.name}
+        <div class="nft-collection-row">
+          {contract?.name && <span class="nft-collection">{contract.name}</span>}
+          {asset.permalink && (
+            <a class="nft-open" href={asset.permalink} target="_blank" rel="noopener">
+              View on OpenSea
             </a>
-          </p>
-        )}
-        {tags.length > 0 ? (
+          )}
+        </div>
+        {tags.length > 0 && (
           <ul class="nft-tags">
             {tags.map((t) => (
-              <li key={t}>{truncate(t, 10)}</li>
+              <li key={t}>{t}</li>
             ))}
           </ul>
-        ) : null}
-      </header>
-
-      <div class="center">
-        <NftMediaBox dialogEl={dialogEl} aspect={aspect} onDismiss={onClose}>
-          {content}
-        </NftMediaBox>
+        )}
+        {assetHelper.description && <p class="nft-description">{assetHelper.description}</p>}
       </div>
-      <p class="nft-description">{assetHelper.description}</p>
     </>
   )
 }

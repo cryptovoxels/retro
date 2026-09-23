@@ -9,6 +9,7 @@ export class PostProcesses {
   private readonly pipelines: Record<GraphicLevels, BABYLON.PostProcessRenderPipeline>
   private glowLayer: BABYLON.Nullable<BABYLON.GlowLayer> = null
   private blurPP: BABYLON.Nullable<BABYLON.BlurPostProcess> = null
+  private blurCamera: BABYLON.Nullable<BABYLON.Camera> = null
 
   constructor(scene: BABYLON.Scene, color: ColorGrader, graphics: GraphicEngine) {
     this.scene = scene
@@ -33,26 +34,22 @@ export class PostProcesses {
     })
   }
 
+  // Fixed kernel, built once, attached/detached per dialog. Changing `kernel` at runtime swaps in an
+  // uncompiled effect mid-apply and the resulting throw kills the render loop (world freeze).
   setBlur(on: boolean) {
-    const camera = this.scene.activeCamera
-    if (!camera) return
-
     if (on) {
-      const t0 = performance.now()
-      if (this.blurPP) return
-
-      const pp = new BABYLON.BlurPostProcess('focusBlur', new BABYLON.Vector2(1, 0), 8, 1.0, camera)
-      pp.onApply = () => {
-        const t1 = performance.now()
-        pp.kernel = Math.min(64, 8 + (t1 - t0) * 0.02)
+      const camera = this.scene.activeCamera
+      if (!camera || this.blurCamera) return
+      if (!this.blurPP) {
+        this.blurPP = new BABYLON.BlurPostProcess('focusBlur', new BABYLON.Vector2(1, 0), 24, 1.0, null, BABYLON.Texture.BILINEAR_SAMPLINGMODE, this.scene.getEngine())
       }
-      this.blurPP = pp
-    } else if (this.blurPP) {
+      camera.attachPostProcess(this.blurPP)
+      this.blurCamera = camera
+    } else if (this.blurPP && this.blurCamera) {
       try {
-        camera.detachPostProcess(this.blurPP)
-      } catch { }
-      this.blurPP.dispose()
-      this.blurPP = null
+        this.blurCamera.detachPostProcess(this.blurPP)
+      } catch {}
+      this.blurCamera = null
     }
   }
 
