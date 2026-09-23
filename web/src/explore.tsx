@@ -109,12 +109,12 @@ export default class Explore extends Component<{}> {
 
         <section class="explorer" onKeyDown={onListArrowKeys}>
           <h1>Voxels</h1>
+          <a href="/account">Login</a>
           <Radar teleportTo={naviportHere} />
           <h3>Womps</h3>
           <WompsList numberToShow={12} mobilePreview={6} collapsed={false} fetch="/womps.json" ttl={600} onWompClick={teleportToWomp} />
           <h3>Popular</h3>
           <PopularParcels />
-          <BlogTeaser />
           <Classifieds limit={3} />
         </section>
       </Fragment>

@@ -11,7 +11,7 @@ function chatbarPx() {
     const raw = getComputedStyle(document.documentElement).getPropertyValue('--chatbar').trim()
     if (raw.endsWith('rem')) return parseFloat(raw) * REM
     if (raw.endsWith('px')) return parseFloat(raw)
-  } catch {}
+  } catch { }
   return 3 * REM
 }
 
@@ -161,13 +161,16 @@ export default class Dpad {
     const h = r.height
     if (w <= 0 || h <= 0 || !this.controls.camera) return
 
+    const BUFF = 8
     const size = w * PAD_FRAC
-    const left = REM
+    const left = w - BUFF - size
+    const top = h - BUFF - size
+
     // iPad: lift off the home indicator / chat like the old inline style
-    const bottom = isTablet() ? 250 : chatbarPx() + REM
+    // const bottom = isTablet() ? 250 : chatbarPx() + REM
 
     this.rect.left = left
-    this.rect.top = h - bottom - size
+    this.rect.top = top
     this.rect.size = size
 
     const cam = this.controls.camera

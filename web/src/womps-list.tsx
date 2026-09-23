@@ -32,7 +32,6 @@ interface State {
   fetch?: string
   loaded?: boolean
   collapsed?: boolean
-  expanded?: boolean
 }
 
 const getFetchURL = (props: Props): string => '/api' + (props.fetch ? props.fetch : '/womps.json')
@@ -47,7 +46,6 @@ export default class WompsList extends Component<Props, State> {
       fetch: getFetchURL(props),
       numberToShow: props.numberToShow ? props.numberToShow : 20,
       collapsed: props.collapsed ?? true,
-      expanded: false,
     }
   }
 
@@ -98,28 +96,12 @@ export default class WompsList extends Component<Props, State> {
       return <WompCard key={womp.id} nearbyCount={nearbyCount} openInSameWindow={true} onClick={this.props.onWompClick} className={`${this.state.collapsed ? '' : '-medium'} `} womp={womp} hoverText={`Click to teleport to ${womp.coords}`} />
     })
 
-    const preview = this.props.mobilePreview
-    const mobilePreview = preview && isMobile() && !this.state.expanded
-    const womps = mobilePreview ? allWomps.slice(0, preview) : allWomps
-    const showSeeAll = mobilePreview && allWomps.length > preview!
-    const mobileHomePreview = preview && isMobile()
-    const showMore = !mobileHomePreview && !showSeeAll && allWomps.length >= this.state.numberToShow
-
-    if (!allWomps.length) {
-      if (this.props.hint) {
-        return <p>{this.props.hint}</p>
-      }
-      return null
-    }
+    const womps = allWomps
 
     return (
       <div>
         {this.props.title && <h2>{this.props.title}</h2>}
         <div class="wrap-grid">{womps}</div>
-        <div>
-          {showSeeAll && <button onClick={() => this.setState({ expanded: true })}>See all</button>}
-          {showMore && (this.props.onSeeMore ? <button onClick={this.props.onSeeMore}>See more</button> : <button onClick={() => this.showMore()}>Show More</button>)}
-        </div>
       </div>
     )
   }

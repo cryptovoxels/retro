@@ -485,6 +485,7 @@ const ChatInput = ({ keepFocus, onFocusChange }: { keepFocus?: boolean; onFocusC
       <form onSubmit={say}>
         <input
           type="text"
+          placeholder='Chat'
           onKeyDown={onChatKeydown}
           onFocus={() => onFocusChange?.(true)}
           onBlur={() => {
@@ -495,7 +496,6 @@ const ChatInput = ({ keepFocus, onFocusChange }: { keepFocus?: boolean; onFocusC
           onChange={(e: any) => setMessage(e.target.value)}
           ref={inputRef}
         />
-        <button type="submit">Send</button>
       </form>
     </div>
   )

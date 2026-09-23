@@ -825,7 +825,6 @@ main {
   display: grid;
   grid-template-columns: auto 1fr 23rem;
   grid-template-rows: 1fr;
-  overflow: hidden;
 
   >header,
   >.site-nav-toggle {
@@ -1464,7 +1463,7 @@ figcaption {
 @media @narrow {
   .client-canvas {
     height: 50vh !important;
-    background: red;
+    background: radial-gradient(#aaa, #555);
   }
 }
 
@@ -2909,18 +2908,6 @@ body.walking .canvasdom aside>ul.ui-sidebar {
     input {
       font-size: 1rem;
     }
-  }
-}
-
-// safe-area alone misses Android/iOS browser toolbars (often 0). Lift chat + give dpad room.
-@media @narrow {
-  :root {
-    --chatbar: 6rem;
-  }
-
-  .canvasdom div.chat {
-    bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
-    left: var(--play-gutter, 1rem);
   }
 }
 
@@ -5323,8 +5310,7 @@ body.theatre-mode {
       z-index: 9000;
       font-size: 24px;
       line-height: 24px;
-      position: absolute;
-      top: -40px;
+      margin-bottom: 20px;
       letter-spacing: 1px;
       color: white;
       text-shadow:
@@ -5335,5 +5321,34 @@ body.theatre-mode {
         3px 3px 3px #0005;
 
     }
+  }
+}
+
+// MOBILE CHAT
+@media @narrow {
+  :root {
+    --chatbar: 6rem;
+  }
+
+  .canvasdom div.chat {
+    bottom: 0;
+    right: 0;
+    left: 0;
+
+
+    form {
+      background: #0005;
+      padding: 5px;
+
+    }
+
+    input {
+      width: 100%;
+    }
+
+  }
+
+  .sidebar-chrome {
+    display: none;
   }
 }
