@@ -14,7 +14,7 @@ import Toggle from '../web/src/components/toggle'
 import { app, AppEvent } from '../web/src/state'
 import { KeyboardHandler } from './components/keyboard-handler'
 import { OnlyMobile } from './components/utils'
-import Connector, { messageList } from './connector'
+import Connector from './connector'
 import DesktopControls from './controls/desktop/controls'
 import { createFeature } from './features/create'
 import Feature from './features/feature'
@@ -117,7 +117,7 @@ export enum Mode {
   Avatar,
 }
 
-export type UIPanes = 'add' | 'edit' | 'voxels' | 'debugTool' | 'nfts' | 'chat' | 'dance' | 'emote' | 'yeet' | 'settings' | 'avatar' | 'womp' | 'takeWomp' | 'help' | 'login' | 'parcelSnapshots' | 'broadcast'
+export type UIPanes = 'add' | 'edit' | 'voxels' | 'debugTool' | 'nfts' | 'dance' | 'emote' | 'yeet' | 'settings' | 'avatar' | 'womp' | 'takeWomp' | 'help' | 'login' | 'parcelSnapshots' | 'broadcast'
 
 export interface Tool {
   activate: () => void
@@ -183,8 +183,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   presenceEs: EventSource | null = null
   presenceUuids = new Set<string>()
-  chatLastReadAt = Date.now()
-  chatListDispose?: () => void
   parcelEditDispose?: () => void
   uiPaneDispose?: () => void
   sandboxGuideParcelDispose?: () => void
@@ -362,11 +360,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       window.engine?.resize()
     })
 
-    this.chatListDispose = effect(() => {
-      messageList.value
-      this.forceUpdate()
-    })
-
     // show/hide Add/Edit/etc as you walk onto parcels you can or can't edit
     this.parcelEditDispose = effect(() => {
       nearestEditableParcel.value
@@ -497,9 +490,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   componentDidUpdate(_prevProps: UserInterfaceProps, prevState: UserInterfaceState) {
-    if (!prevState.pane && this.state.pane) {
-      this.chatLastReadAt = Date.now()
-    }
     if (prevState.pane !== this.state.pane || prevState.feature?.uuid !== this.state.feature?.uuid) {
       uiAsideTick.value++
     }
@@ -531,7 +521,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     document.removeEventListener('pointerlockchange', this.onPointerLockChange)
     chatSettings.removeEventListener('changed', this.onChatSettingsChange)
     voiceSettings.removeEventListener('changed', this.onVoiceSettingsChange)
-    this.chatListDispose?.()
     this.parcelEditDispose?.()
     this.uiPaneDispose?.()
     this.sandboxGuideParcelDispose?.()
@@ -782,19 +771,10 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
     exitPointerLock()
 
-    const input = document.querySelector('.canvasdom div.chat input') as HTMLInputElement
-
-    if (!input) {
-      return
-    }
-
-    if (document.activeElement === input) {
-      // input.blur()
-    } else {
-      setTimeout(() => {
-        input.focus()
-      })
-    }
+    const input = document.querySelector<HTMLInputElement>('.canvasdom div.chat input')
+    if (!input || document.activeElement === input) return
+    // defer so the Enter keydown that opened chat does not land in the input
+    setTimeout(() => input.focus())
   }
 
   setTool(tool: Tool | null) {
@@ -962,8 +942,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return <Login />
       case 'debugTool':
         return <DebugTools parcel={currentOrNearestParcel} scene={this.props.scene} />
-      case 'chat':
-        return <ChatOverlay scene={this.props.scene} />
       case 'dance':
         return <DancePane />
       case 'emote':
@@ -1038,7 +1016,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
     const currentPane = this.state.pane
     const active = (pane: string, disabled?: boolean) => (currentPane === pane ? 'active' : disabled ? 'disabled' : '')
-    // const unreadChat = this.state.chatEnabled && !this.state.pane ? messageList.value.some((m) => m.timestamp > this.chatLastReadAt) : false
     const chat = this.state.chatEnabled && !location.pathname.startsWith('/chat')
 
     return (
@@ -1213,7 +1190,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           </aside>
 
-          {chat && <ChatOverlay scene={this.props.scene} />}
+          {chat && <ChatOverlay />}
 
           {nearestEditableParcel?.sandbox && nearestEditableParcel.canEdit && (
             <div class="sandbox-rollback">

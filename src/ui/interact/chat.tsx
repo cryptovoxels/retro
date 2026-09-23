@@ -1,102 +1,22 @@
 import { effect } from '@preact/signals'
-import { Component, createRef, Fragment, JSX } from 'preact'
+import { Fragment, JSX } from 'preact'
 import { useEffect, useRef, useState } from 'preact/hooks'
 
 import { isMobile } from '../../../common/helpers/detector'
 import { resetMobileViewportLayout } from '../../controls/mobile/controls'
-import { Emojis, replaceEmojiText, replaceEmoticonsAndEmojiText } from '../../../common/helpers/emojis'
-import { Emotes } from '../../../common/messages/constant'
 import { avatarName, avatarSlug } from '../../../common/messages/avatar-ref'
-import { PanelType } from '../../../web/src/components/panel'
 import { sendChat } from '../../../web/src/shard-chat'
 import { truncate } from '../../../web/src/lib/string-utils'
 import { app } from '../../../web/src/state'
-import Avatar from '../../avatar'
-import Connector, { ChatMessageRecord, messageList } from '../../connector'
-import GuestBook from '../../features/guest-book'
-import Persona from '../../persona'
+import { ChatMessageRecord, messageList } from '../../connector'
 import { isHate } from '../../hate'
 import { matcher } from '../../obscenity'
-import { NearByPlayers } from './nearby-players'
 import { createEvent, TypedEventTarget } from '../../utils/EventEmitter'
 
-interface Props {
-  scene: BABYLON.Scene
-  focusChatInput?: () => void
-}
-
-type TimeStamp = number
-type State = {
-  nearby: Avatar[]
-  lastRead: TimeStamp
-  focused: boolean
-}
-
-export class ChatOverlay extends Component<Props, State> {
-  lastSentTyping: number | null = null
-  inputRef: preact.RefObject<HTMLDivElement>
-  chatDispose?: () => void
-  static instance: ChatOverlay | null = null
-  constructor(props: Props) {
-    super(props)
-
-    this.state = {
-      nearby: [],
-      lastRead: Date.now(),
-      focused: false,
-    }
-    this.inputRef = createRef<HTMLDivElement>()
-    ChatOverlay.instance = this
-  }
-
-  get connector(): Connector {
-    return window.connector
-  }
-
-  get persona(): Persona {
-    return this.connector.persona
-  }
-
-  get isDPadVisible() {
-    return !!(this.connector.controls as any).dpad
-  }
-
-  typing = () => {
-    const now = Date.now()
-    if (!this.lastSentTyping || now - this.lastSentTyping > 4e3) {
-      this.lastSentTyping = now
-      this.connector.typing()
-    }
-  }
-
-  focusInput() {
-    const input = this.inputRef.current?.querySelector('input')
-    input?.focus()
-  }
-
-  onChatInputFocus = (bool: boolean) => {
-    this.setState({ focused: bool })
-  }
-
-  componentDidMount() {
-    this.chatDispose = effect(() => {
-      messageList.value
-      this.forceUpdate()
-    })
-  }
-
-  componentWillUnmount() {
-    this.chatDispose?.()
-    if (ChatOverlay.instance === this) {
-      ChatOverlay.instance = null
-    }
-  }
-
-  render() {
-    const isGuest = !!app.state.wallet?.startsWith('guest:')
-    const chatCap = isGuest ? 25 : 10
-    return <ChatPanel cap={chatCap} variant="overlay" style={isGuest ? 'font-size: 14px' : undefined} />
-  }
+/** In-world HUD chat. Guests get a bigger cap and smaller type. */
+export function ChatOverlay() {
+  const isGuest = !!app.state.wallet?.startsWith('guest:')
+  return <ChatPanel cap={isGuest ? 25 : 10} variant="overlay" style={isGuest ? 'font-size: 14px' : undefined} />
 }
 
 function chatName(m: ChatMessageRecord) {
@@ -469,35 +389,30 @@ const ChatInput = ({ keepFocus, onFocusChange }: { keepFocus?: boolean; onFocusC
     if (isMobile()) resetMobileViewportLayout()
   }
 
+  // Enter submits via the form's implicit submission (single text input)
   const onChatKeydown = (e: KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      say(e)
-    } else if (e.key === 'Escape') {
+    if (e.key === 'Escape') {
       setMessage('')
       blur()
-    } else {
-      // typing()
     }
   }
 
   return (
-    <div>
-      <form onSubmit={say}>
-        <input
-          type="text"
-          placeholder='Chat'
-          onKeyDown={onChatKeydown}
-          onFocus={() => onFocusChange?.(true)}
-          onBlur={() => {
-            onFocusChange?.(false)
-            isMobile() && resetMobileViewportLayout()
-          }}
-          value={currentMessage}
-          onChange={(e: any) => setMessage(e.target.value)}
-          ref={inputRef}
-        />
-      </form>
-    </div>
+    <form onSubmit={say}>
+      <input
+        type="text"
+        placeholder="Chat"
+        onKeyDown={onChatKeydown}
+        onFocus={() => onFocusChange?.(true)}
+        onBlur={() => {
+          onFocusChange?.(false)
+          isMobile() && resetMobileViewportLayout()
+        }}
+        value={currentMessage}
+        onInput={(e) => setMessage((e.target as HTMLInputElement).value)}
+        ref={inputRef}
+      />
+    </form>
   )
 }
 
