@@ -100,7 +100,7 @@ h3,
 h4,
 h5,
 h6 {
-  font-family: 'forward';
+  // font-family: 'forward';
   font-weight: 700;
   margin: 0 0 0.5rem;
 }
@@ -4599,7 +4599,8 @@ dialog.nft-view {
   .nft-media {
     --ar: 1;
     position: relative;
-    flex: 0 0 auto; /* the meta below shrinks, never the art */
+    flex: 0 0 auto;
+    /* the meta below shrinks, never the art */
     margin: 0;
     width: min(var(--nft-media-w), calc(var(--nft-media-h) * var(--ar)));
     max-width: 100%;
@@ -4675,7 +4676,7 @@ dialog.nft-view {
     overflow: hidden;
 
     /* only the description gives way when space is tight */
-    > * {
+    >* {
       flex: 0 0 auto;
     }
   }
