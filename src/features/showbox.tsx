@@ -29,10 +29,10 @@ import { encodeCoords } from '../../common/helpers/utils'
 import { ShowboxRecord } from '../../common/messages/feature'
 import { effect } from '@preact/signals'
 import { Room, RoomEvent, Track, createLocalScreenTracks, createLocalTracks, createLocalVideoTrack } from 'livekit-client'
-import { avatarName } from '../../common/messages/avatar-ref'
 import { app, AppEvent } from '../../web/src/state'
 import { PanelType } from '../../web/src/components/panel'
-import { messageList, type ChatMessageRecord } from '../connector'
+import { chatLine } from '../../web/src/shard-chat'
+import { messageList } from '../connector'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { Animations } from '../avatar-animations'
 import { cameraPosition, cameraRotation, setCameraRotation } from '../utils/camera'
@@ -4505,12 +4505,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       Object.assign(chatMessages.style, { display: 'flex', flexDirection: 'column', gap: '4px' })
       chatSection.append(chatMessages)
 
-      const chatLineName = (m: ChatMessageRecord) => {
-        if (m.avatarRef) return avatarName(m.avatarRef)
-        const avatar = m.avatar ? window.connector?.findAvatar(m.avatar) : null
-        return avatar?.name || 'anon'
-      }
-
       renderDockChat = () => {
         chatMessages.replaceChildren()
         const msgs = messageList.value.slice(-30)
@@ -4522,13 +4516,14 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
           return
         }
         for (const m of msgs) {
+          const { who: name, text } = chatLine(m)
           const line = document.createElement('div')
           const who = document.createElement('span')
           who.style.color = '#f5b942'
           who.style.fontWeight = 'bold'
-          who.textContent = chatLineName(m) + ': '
+          who.textContent = name + ': '
           const body = document.createElement('span')
-          body.textContent = m.text
+          body.textContent = text
           line.append(who, body)
           chatMessages.append(line)
         }

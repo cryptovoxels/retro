@@ -1,24 +1,29 @@
 import { v7 as uuid } from 'uuid'
 import Cookies from 'js-cookie'
-import { signal } from '@preact/signals'
 import { avatarName, type AvatarRef } from '../../common/messages/avatar-ref'
 import * as messages from '../../common/messages'
-import { messageList } from '../../src/connector'
+import { messageList, type ChatMessageRecord } from '../../src/connector'
 import { track } from './helpers/umami'
 import { app } from './state'
 
 const clientUUID = uuid()
 
-export type ShardChatLine = { text: string; uuid?: string; who?: string }
-
-function chatLineName(avatar?: AvatarRef): string {
+function avatarLineName(avatar?: AvatarRef): string {
   if (!avatar) return 'anon'
   if (typeof avatar === 'object') return avatar.name || 'anon'
   const n = avatarName(avatar)
   return n === '...' ? 'anon' : n
 }
 
-export const chatMessages = signal<ShardChatLine[]>([])
+/** Plain who/text for a messageList entry (broadcast dock and other non-ChatPanel views). */
+export function chatLine(m: ChatMessageRecord): { who: string; text: string } {
+  let who = m.avatarRef ? avatarLineName(m.avatarRef) : ''
+  if (!who || who === 'anon') {
+    const avatar = m.avatar ? (window as any).connector?.findAvatar(m.avatar) : null
+    who = avatar?.name || who || 'anon'
+  }
+  return { who, text: entityDecode(m.text) }
+}
 
 let converter: HTMLTextAreaElement | null = null
 
@@ -68,10 +73,7 @@ export function connectShardChat() {
   if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return ws
 
   // clear before open so a fast Send is not wiped by history setup
-  if (!(window as any).connector) {
-    messageList.value = []
-    chatMessages.value = []
-  }
+  if (!(window as any).connector) messageList.value = []
 
   void fetchChatHistory()
 
@@ -91,10 +93,7 @@ export function connectShardChat() {
       if (result.type !== 'success' || !result.message) return
       if (result.message.type !== messages.MessageType.chat) return
       const m = result.message
-      const text = entityDecode(m.text)
-      const who = chatLineName(m.avatar)
-      chatMessages.value = [...chatMessages.value, { text, uuid: m.uuid, who }]
-      pushMessageList(text, m.avatar ?? who, m.id, m.moderated)
+      pushMessageList(entityDecode(m.text), m.avatar ?? avatarLineName(m.avatar), m.id, m.moderated)
     } catch {}
   }
 
@@ -110,16 +109,18 @@ async function fetchChatHistory() {
   try {
     const res = await fetch('/api/chat.json', { cache: 'no-store' })
     const data = await res.json()
-    const lines: ShardChatLine[] = []
     const list: typeof messageList.value = []
     for (const m of data.messages ?? []) {
-      const text = entityDecode(m.text)
-      const who = chatLineName(m.avatar)
-      lines.push({ text, uuid: m.uuid, who })
-      list.push({ id: m.id, moderated: m.moderated, avatar: undefined, avatarRef: m.avatar ?? who, text, timestamp: Date.now() })
+      list.push({
+        id: m.id,
+        moderated: m.moderated,
+        avatar: undefined,
+        avatarRef: m.avatar ?? avatarLineName(m.avatar),
+        text: entityDecode(m.text),
+        timestamp: Date.now(),
+      })
     }
     // history under any live lines that arrived during the fetch
-    chatMessages.value = [...lines, ...chatMessages.value]
     const merged = [...list, ...messageList.value]
     while (merged.length > 1000) merged.shift()
     messageList.value = merged
@@ -137,10 +138,9 @@ export function sendChat(text: string) {
   const trimmed = text.trim()
   if (!trimmed) return false
   if (!ws || ws.readyState !== WebSocket.OPEN) connectShardChat()
-  const who = (app.state.name || '').trim() || 'anon'
   // mp publish skips the sender - show our line locally so reply feels instant
-  chatMessages.value = [...chatMessages.value, { text: trimmed, who }]
-  pushMessageList(trimmed, who)
+  // (in-world the connector's own socket gets the echo, so pushMessageList is a no-op there)
+  pushMessageList(trimmed, (app.state.name || '').trim() || 'anon')
   send({
     type: messages.MessageType.chat,
     id: '',

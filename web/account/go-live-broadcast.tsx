@@ -26,7 +26,8 @@ import ParcelHelper, { showboxAudiencePlayCoordsFromRecord, showboxFanSharePlayQ
 import { avatarName } from '../../common/messages/avatar-ref'
 import { Login } from '../src/auth/login'
 import cachedFetch, { invalidateUrl } from '../src/helpers/cached-fetch'
-import { announceShowLive, chatMessages, connectShardChat, disconnectShardChat, sendChat } from '../src/shard-chat'
+import { messageList } from '../../src/connector'
+import { announceShowLive, chatLine, connectShardChat, disconnectShardChat, sendChat } from '../src/shard-chat'
 import { Spinner } from '../src/spinner'
 import { app, AppEvent } from '../src/state'
 import { fetchOptions } from '../src/utils'
@@ -636,7 +637,7 @@ export default function GoLiveBroadcast() {
 
   useEffect(() => {
     const dispose = effect(() => {
-      chatMessages.value
+      messageList.value
       setChatRev((n) => n + 1)
       scrollChatToEnd()
     })
@@ -1730,13 +1731,16 @@ export default function GoLiveBroadcast() {
 
           <div class="showbox-dock-chat-block">
             <div ref={chatBox} class="showbox-dock-chat-box">
-              {chatMessages.value.slice(-30).map((m, i) => (
-                <div key={m.uuid || i}>
-                  <span class="showbox-dock-chat-who">{m.who || 'anon'}: </span>
-                  <span>{m.text}</span>
-                </div>
-              ))}
-              {!chatMessages.value.length && <div class="showbox-dock-chat-empty">audience chat shows up here</div>}
+              {messageList.value.slice(-30).map((m, i) => {
+                const { who, text } = chatLine(m)
+                return (
+                  <div key={m.id || i}>
+                    <span class="showbox-dock-chat-who">{who}: </span>
+                    <span>{text}</span>
+                  </div>
+                )
+              })}
+              {!messageList.value.length && <div class="showbox-dock-chat-empty">audience chat shows up here</div>}
             </div>
             <div class="showbox-dock-chat-reply">
               <input
