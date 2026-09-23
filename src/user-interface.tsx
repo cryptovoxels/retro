@@ -1029,8 +1029,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
               <WompButton onClick={() => this.takeWomp(this.props.scene)} />
             </div>
           )}
-          {isMobileMedia() && <WompButton onClick={() => this.takeWomp(this.props.scene)} />}
-
           <aside data-active={!!this.state.pane}>
             <ul class="ui-sidebar" onMouseLeave={onBlur}>
               {!!broadcastShowboxUuid.value && (
@@ -1217,7 +1215,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
           <ConnectionStatusUI connector={this.connector} grid={this.grid} scene={this.props.scene} />
           <OnlyMobile>
-            <MobileButtons connector={this.connector} scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
+            <MobileButtons connector={this.connector} scene={this.props.scene} minimapSettings={this.props.minimapSettings} onWomp={() => this.takeWomp(this.props.scene)} />
           </OnlyMobile>
 
           <CongaJoinHintOverlay />

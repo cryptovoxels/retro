@@ -12,7 +12,9 @@ const viewInv = BABYLON.Matrix.Identity()
 
 export default class MobileControls extends Controls {
   shiftKey = false
-  dpad: Dpad | null = null
+  // set inside addControls(), which the base constructor calls before subclass field
+  // initialisers run - an `= null` here would wipe it. `declare` emits no initialiser.
+  declare dpad: Dpad | null
   btnCameraView: HTMLElement | null = null
   btnToggleFly: HTMLElement | null = null
   btnDrive: HTMLButtonElement | null = null

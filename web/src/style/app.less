@@ -4413,19 +4413,23 @@ form.PermissionsRadioSelector>div {
 div.mobile-buttons {
   position: absolute;
   bottom: var(--chatbar);
-  right: 0;
+  left: 0;
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: flex-start;
 
   div.mobile-controls-container {
     @size: 3.2rem;
-    text-align: right;
+    text-align: left;
     height: @size;
     margin: 1rem;
 
     &>button.hex-button {
       position: relative;
+      // .womp-button sets absolute offsets for the desktop corner; neutralise them in the row
+      top: auto;
+      right: auto;
+      z-index: auto;
       padding: 0;
       margin: 0 0.5rem 0 0;
       font-size: 0.8rem;

@@ -1,19 +1,10 @@
-import { isTablet } from '../../../common/helpers/detector'
 import MobileControls from './controls'
 
 const TAP_THRESHOLD = 8
 const DEPTH = 0.35
 const PAD_FRAC = 0.4 // was 40vw
-const REM = 16
-
-function chatbarPx() {
-  try {
-    const raw = getComputedStyle(document.documentElement).getPropertyValue('--chatbar').trim()
-    if (raw.endsWith('rem')) return parseFloat(raw) * REM
-    if (raw.endsWith('px')) return parseFloat(raw)
-  } catch { }
-  return 3 * REM
-}
+const EDGE = 8 // right inset
+const BOTTOM = 24 // lift off the chat bar
 
 /** screen-space virtual stick drawn as camera-parented utility-layer planes */
 export default class Dpad {
@@ -30,32 +21,30 @@ export default class Dpad {
   private visible = true
   private resizeObs: BABYLON.Observer<BABYLON.AbstractEngine> | null = null
 
-  private onStart = (e: TouchEvent) => {
-    if (!this.visible || this.activeId !== null) return
-    const t = e.changedTouches[0]
-    if (!t) return
-    const p = this.canvasPoint(t)
+  // babylon's camera input listens for pointer events on the canvas; these run first
+  // (document, capture) and swallow the pointer that started inside the pad so a
+  // dpad drag never turns the camera. other pointers pass through untouched.
+  private onPointerDown = (e: PointerEvent) => {
+    if (!this.visible || this.activeId !== null || e.target !== this.canvas) return
+    const p = this.canvasPoint(e)
     if (!this.inPad(p.x, p.y)) return
-    this.activeId = t.identifier
+    this.activeId = e.pointerId
     this.moved = false
     this.apply(p.x, p.y)
     e.preventDefault()
     e.stopImmediatePropagation()
   }
 
-  private onMove = (e: TouchEvent) => {
-    if (this.activeId === null) return
-    const t = Array.from(e.touches).find((t) => t.identifier === this.activeId)
-    if (!t) return
-    const p = this.canvasPoint(t)
+  private onPointerMove = (e: PointerEvent) => {
+    if (e.pointerId !== this.activeId) return
+    const p = this.canvasPoint(e)
     this.apply(p.x, p.y)
     e.preventDefault()
     e.stopImmediatePropagation()
   }
 
-  private onEnd = (e: TouchEvent) => {
-    if (this.activeId === null) return
-    if (!Array.from(e.changedTouches).some((t) => t.identifier === this.activeId)) return
+  private onPointerEnd = (e: PointerEvent) => {
+    if (e.pointerId !== this.activeId) return
 
     this.activeId = null
     this.controls.direction.set(0, 0, 0)
@@ -64,6 +53,17 @@ export default class Dpad {
     if (!this.moved) this.controls.body.jump()
     e.preventDefault()
     e.stopImmediatePropagation()
+  }
+
+  // `* { touch-action: manipulation }` lets the page pan; block that for pad touches
+  private onTouch = (e: TouchEvent) => {
+    if (!this.visible) return
+    if (this.activeId !== null) {
+      e.preventDefault()
+      return
+    }
+    const t = e.changedTouches[0]
+    if (t && this.inPad(...this.canvasXY(t.clientX, t.clientY))) e.preventDefault()
   }
 
   constructor(controls: MobileControls, canvas: HTMLCanvasElement) {
@@ -115,10 +115,12 @@ export default class Dpad {
     this.resizeObs = engine.onResizeObservable.add(() => this.layout())
 
     const opts: AddEventListenerOptions = { capture: true, passive: false }
-    this.canvas.addEventListener('touchstart', this.onStart, opts)
-    this.canvas.addEventListener('touchmove', this.onMove, opts)
-    this.canvas.addEventListener('touchend', this.onEnd, opts)
-    this.canvas.addEventListener('touchcancel', this.onEnd, opts)
+    document.addEventListener('pointerdown', this.onPointerDown, opts)
+    document.addEventListener('pointermove', this.onPointerMove, opts)
+    document.addEventListener('pointerup', this.onPointerEnd, opts)
+    document.addEventListener('pointercancel', this.onPointerEnd, opts)
+    this.canvas.addEventListener('touchstart', this.onTouch, opts)
+    this.canvas.addEventListener('touchmove', this.onTouch, opts)
   }
 
   setVisible(v: boolean) {
@@ -132,10 +134,12 @@ export default class Dpad {
 
   dispose() {
     const opts: AddEventListenerOptions = { capture: true }
-    this.canvas.removeEventListener('touchstart', this.onStart, opts)
-    this.canvas.removeEventListener('touchmove', this.onMove, opts)
-    this.canvas.removeEventListener('touchend', this.onEnd, opts)
-    this.canvas.removeEventListener('touchcancel', this.onEnd, opts)
+    document.removeEventListener('pointerdown', this.onPointerDown, opts)
+    document.removeEventListener('pointermove', this.onPointerMove, opts)
+    document.removeEventListener('pointerup', this.onPointerEnd, opts)
+    document.removeEventListener('pointercancel', this.onPointerEnd, opts)
+    this.canvas.removeEventListener('touchstart', this.onTouch, opts)
+    this.canvas.removeEventListener('touchmove', this.onTouch, opts)
 
     if (this.resizeObs) {
       this.controls.camera.getScene().getEngine().onResizeObservable.remove(this.resizeObs)
@@ -145,9 +149,14 @@ export default class Dpad {
     this.layer?.dispose()
   }
 
-  private canvasPoint(t: Touch) {
+  private canvasXY(clientX: number, clientY: number): [number, number] {
     const r = this.canvas.getBoundingClientRect()
-    return { x: t.clientX - r.left, y: t.clientY - r.top }
+    return [clientX - r.left, clientY - r.top]
+  }
+
+  private canvasPoint(e: { clientX: number; clientY: number }) {
+    const [x, y] = this.canvasXY(e.clientX, e.clientY)
+    return { x, y }
   }
 
   private inPad(x: number, y: number) {
@@ -161,13 +170,9 @@ export default class Dpad {
     const h = r.height
     if (w <= 0 || h <= 0 || !this.controls.camera) return
 
-    const BUFF = 8
     const size = w * PAD_FRAC
-    const left = w - BUFF - size
-    const top = h - BUFF - size
-
-    // iPad: lift off the home indicator / chat like the old inline style
-    // const bottom = isTablet() ? 250 : chatbarPx() + REM
+    const left = w - EDGE - size
+    const top = h - BOTTOM - size
 
     this.rect.left = left
     this.rect.top = top
