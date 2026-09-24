@@ -4592,6 +4592,55 @@ dialog {
 /* scoped: do not touch other dialogs.
    media first, meta below. the figure hugs the media via --ar (set from the loaded image / video);
    no JS sizing. narrow screens get a full-screen sheet. */
+// in-world naming step for new accounts: sits to the side so the spinning avatar stays visible
+dialog.welcome {
+  left: 2rem;
+  transform: translateY(-50%);
+  width: 22rem;
+  min-width: 0;
+  max-width: calc(100vw - 4rem);
+  padding: 1rem;
+
+  section.welcome {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .f {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+
+    label {
+      display: block;
+    }
+
+    small {
+      color: var(--soft);
+    }
+
+    input[type='text'] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.4rem 0.5rem;
+      border: 1px solid var(--muted-2);
+    }
+  }
+
+  .f.costume {
+    padding: 1rem;
+    border: 1px dashed var(--border-color);
+  }
+
+  @media @narrow {
+    left: 50%;
+    top: auto;
+    bottom: 1rem;
+    transform: translateX(-50%);
+  }
+}
+
 dialog.nft-view {
   --nft-media-w: ~'min(calc(92vw - 2rem), 70rem)';
   --nft-media-h: 62dvh;

@@ -370,3 +370,12 @@ SELECT apply_migration('properties-compiled-at', $$
   ALTER TABLE properties ADD COLUMN IF NOT EXISTS compiled_at timestamp;
   CREATE INDEX IF NOT EXISTS properties_compiled_at_idx ON properties (compiled_at);
 $$);
+
+SELECT apply_migration('email-codes', $$
+  CREATE TABLE IF NOT EXISTS email_codes (
+    email citext PRIMARY KEY,
+    code text NOT NULL,
+    expires_at timestamptz NOT NULL,
+    attempts integer NOT NULL DEFAULT 0
+  );
+$$);
