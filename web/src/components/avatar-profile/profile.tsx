@@ -80,14 +80,14 @@ export default function Profile(props: Props) {
         <dl>
           {hasWallet && (
             <>
-              <dt>Wallet</dt>
+              <dt>wallet address</dt>
               <dd>
                 <a onClick={copyWallet} title="Click to copy">
                   {ethTrunc(walletOrUUId)}
                 </a>{' '}
                 &mdash;{' '}
                 <a href={`https://etherscan.io/address/${walletOrUUId}`} target="_blank">
-                  Etherscan
+                  etherscan
                 </a>
               </dd>
             </>
@@ -95,7 +95,7 @@ export default function Profile(props: Props) {
 
           {avatar?.social_link_1 && (
             <>
-              <dt>your homepage</dt>
+              <dt>homepages</dt>
               <dd>
                 <a href={avatar.social_link_1} target="_blank">
                   {truncate(avatar.social_link_1, { length: 48 })}
@@ -110,12 +110,12 @@ export default function Profile(props: Props) {
 
           {avatar?.moderator && (
             <>
-              <dt>Role</dt>
-              <dd>Moderator</dd>
+              <dt>role</dt>
+              <dd>moderator</dd>
             </>
           )}
 
-          <dt>Joined</dt>
+          <dt>joined</dt>
           <dd>{avatar?.created_at ? format(avatar.created_at) : 'The mists of time'}</dd>
         </dl>
 

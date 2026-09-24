@@ -111,7 +111,7 @@ export default class CollectionPage extends Component<Props, State> {
     const deployed = !!c.address
 
     return (
-      <section class="columns">
+      <section>
         <article>
           <h1>{c.name}</h1>
           {c.description && <p>{c.description}</p>}

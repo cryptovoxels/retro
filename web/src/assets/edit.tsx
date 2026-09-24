@@ -51,7 +51,7 @@ export default function EditAsset(props: Props) {
   if (!asset) return <p>Loading...</p>
 
   return (
-    <section class="columns">
+    <section>
       <article>
         <hgroup>
           <h1>

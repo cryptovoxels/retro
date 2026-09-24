@@ -8,7 +8,7 @@ export default function EditAccount() {
   const wallet = app.state?.wallet
 
   return (
-    <section class="columns">
+    <section>
       <hgroup>
         <h1>edit account</h1>
         <a href={`/avatar/${wallet}`}>back to profile</a>

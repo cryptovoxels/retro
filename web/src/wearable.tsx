@@ -92,7 +92,7 @@ export default class Wearable extends Component<Props, State> {
     const openseaUrl = `https://opensea.io/assets/${this.wearable.collection_address}/${this.wearable.token_id}`
 
     return (
-      <section class="columns">
+      <section>
         <article>
           <hgroup>
             <h1>{this.wearable.name}</h1>

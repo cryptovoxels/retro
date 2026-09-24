@@ -124,7 +124,7 @@ export default function Library(props: Props) {
         ))
 
   return (
-    <section class="columns">
+    <section>
       <article>
         {controlsEl}
 

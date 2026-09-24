@@ -53,7 +53,7 @@ export default function CollectionEdit(props: Props) {
   }
 
   return (
-    <section class="columns">
+    <section>
       <article>
         <hgroup>
           <h1>

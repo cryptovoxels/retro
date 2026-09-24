@@ -107,7 +107,7 @@ export default class Parcels extends Component<Props, State> {
     const height = window.innerHeight - 80 + 'px'
 
     return (
-      <section class="columns">
+      <section>
         <Head title={`${this.state.island.name}`} />
 
         <article>

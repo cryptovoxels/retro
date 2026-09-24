@@ -81,7 +81,7 @@ export default function EventsEdit(props: Props) {
   }
 
   return (
-    <section class="columns">
+    <section>
       <article>
         <hgroup>
           <h1>Edit Event</h1>

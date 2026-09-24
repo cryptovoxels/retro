@@ -49,7 +49,7 @@ export default function Events(props: Props) {
   }, [controls.sort])
 
   return (
-    <section class="columns">
+    <section>
       <article>
         {controlsEl}
         <table class="events">

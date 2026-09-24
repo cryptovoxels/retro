@@ -147,7 +147,7 @@ export default class Asset extends Component<Props, State> {
     }
 
     return (
-      <section class="columns">
+      <section>
         <article>
           <h1>{this.state.asset.name}</h1>
           <figure class="shortie">

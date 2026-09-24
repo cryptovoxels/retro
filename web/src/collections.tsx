@@ -48,7 +48,7 @@ export default function ListCollections({ path }: { path?: string }) {
   ))
 
   return (
-    <section class="columns">
+    <section>
       <article>
         <h1>Collections</h1>
 
