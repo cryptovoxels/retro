@@ -3,15 +3,7 @@ import { app } from '../../../web/src/state'
 import Connector from '../../connector'
 import { MinimapSettings } from '../../minimap'
 
-export default function MobileButtons({
-  connector,
-  onWomp,
-}: {
-  connector: Connector
-  scene: BABYLON.Scene
-  minimapSettings: MinimapSettings
-  onWomp: () => void
-}) {
+export default function MobileButtons({ connector, onWomp }: { connector: Connector; scene: BABYLON.Scene; minimapSettings: MinimapSettings; onWomp: () => void }) {
   return (
     <div class="mobile-buttons">
       <div style={(isTablet() && window.grid?.currentW === 0 && { bottom: '200px' }) as any} className="mobile-controls-container">

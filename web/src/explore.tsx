@@ -34,7 +34,7 @@ export default class Explore extends Component<{}> {
         sessionStorage.removeItem(FOCUS_EXPLORE)
         focusFirst('.explorer')
       }
-    } catch { }
+    } catch {}
   }
 
   rerender = () => {
@@ -49,7 +49,7 @@ export default class Explore extends Component<{}> {
   render() {
     return (
       <Fragment>
-        <Head title="Voxels" url='/' />
+        <Head title="Voxels" url="/" />
 
         <section class="explorer" onKeyDown={onListArrowKeys}>
           <h1>Voxels</h1>
