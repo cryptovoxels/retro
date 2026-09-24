@@ -14,7 +14,6 @@ import { app } from '../../state'
 import { PanelType } from '../panel'
 import WompsList from '../../womps-list'
 import { truncate } from 'lodash'
-import WhatNext from './what-next'
 import Delegations from '../account/delegations'
 
 type Props = {
@@ -63,8 +62,6 @@ export default function Profile(props: Props) {
   const name = avatar?.name
   const hasWallet = !!walletAddress
 
-  const refreshAvatar = (a: ApiAvatar) => setAvatar(a)
-
   return (
     <section class="columns profile">
       <article>
@@ -78,8 +75,6 @@ export default function Profile(props: Props) {
             )}
           </hgroup>
         )}
-        {isOwner && <WhatNext avatar={avatar} costumes={costumes} onSaved={refreshAvatar} />}
-
         {avatar?.description && <p>{avatar.description}</p>}
 
         <dl>
