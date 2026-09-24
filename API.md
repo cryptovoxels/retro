@@ -24,7 +24,8 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 - [search](#search), 1 route
 - [ghosts](#ghosts), 1 route
 - [chat](#chat), 1 route
-- [schemas](#schemas), 27 shapes
+- [account](#account), 5 routes
+- [schemas](#schemas), 28 shapes
 
 ## parcels
 
@@ -1296,6 +1297,107 @@ Returns up to 200 unmoderated chat messages in chronological order. Used by the 
     - `avatar` anything: AvatarRef snapshot at send time
     - `moderated` boolean
 
+## account
+
+- [`GET /api/account/me`](#get-apiaccountme) Who am I, and which identities can I switch to
+- [`POST /api/delegations`](#post-apidelegations) Link a wallet to my email account
+- [`POST /api/delegations/attach`](#post-apidelegationsattach) Link an email to my wallet account
+- [`DELETE /api/delegations/{wallet}`](#delete-apidelegationswallet) Unlink an identity
+- [`POST /api/delegations/appoint`](#post-apidelegationsappoint) Switch the session to a linked identity
+
+### GET /api/account/me
+
+Who am I, and which identities can I switch to
+
+JWT required. An email account is a uuid that stands in for a wallet. Delegations link an email uuid to real wallets; every identity in the link set can switch to any other with `appoint`. `wallet` is the identity you are acting as, `account` is the one that signed in (null unless acting as a delegate), and `identities` is the base identity followed by everything linked to it.
+
+**answers**
+
+- `200` object
+  - `success` boolean
+  - `wallet` string
+  - `account` string or null
+  - `email` string or null
+  - `identities` array of [`Identity`](#identity)
+- `401` The lookup did not land. Some handlers send this with status 200.
+
+### POST /api/delegations
+
+Link a wallet to my email account
+
+JWT required, and the signed-in identity must be an email account. Sign the message `I volunteer <email> as my delegate for voxels.com.` with the wallet (personal_sign) and post the signature. The recovered address becomes a linked identity. Posting the same wallet twice is a no-op with `added: false`.
+
+**body**
+
+- `application/json` object
+  - `signature` string
+
+**answers**
+
+- `200` object
+  - `success` boolean
+  - `wallet` string: Lowercased address recovered from the signature.
+  - `added` boolean
+- `400` The lookup did not land. Some handlers send this with status 200.
+- `401` The lookup did not land. Some handlers send this with status 200.
+
+### POST /api/delegations/attach
+
+Link an email to my wallet account
+
+JWT required, and the signed-in identity must be a wallet. Request a code with `POST /api/signin/code {email}` first, then post the email and code here. The email account is created if it does not exist yet and linked to the wallet.
+
+**body**
+
+- `application/json` object
+  - `email` string
+  - `code` string
+
+**answers**
+
+- `200` object
+  - `success` boolean
+  - `wallet` string: The uuid of the email account.
+  - `added` boolean
+- `400` The lookup did not land. Some handlers send this with status 200.
+- `401` The lookup did not land. Some handlers send this with status 200.
+
+### DELETE /api/delegations/{wallet}
+
+Unlink an identity
+
+JWT required. Removes the link between the signed-in identity and `wallet`, from either side: an email account passes the wallet, a wallet passes the email account uuid.
+
+**parameters**
+
+- `wallet` (path, required) string
+
+**answers**
+
+- `200` object
+  - `success` boolean
+  - `removed` boolean
+- `401` The lookup did not land. Some handlers send this with status 200.
+
+### POST /api/delegations/appoint
+
+Switch the session to a linked identity
+
+JWT required. `wallet` must be the signed-in identity or one linked to it. Sets a new `jwt` cookie acting as that identity and returns the token. The token keeps the signed-in identity in `account`, so switching back is another call to this route with the base identity.
+
+**body**
+
+- `application/json` object
+  - `wallet` string
+
+**answers**
+
+- `200` object
+  - `success` boolean
+  - `token` string
+  - `name` string
+- `401` The lookup did not land. Some handlers send this with status 200.
+
 ## schemas
 
 The shapes the routes above hand back.
@@ -1304,6 +1406,12 @@ The shapes the routes above hand back.
 
 - `success` boolean, always `false`
 - `message` string
+
+### Identity
+
+- `wallet` string: Lowercased wallet address, or the uuid of an email account.
+- `name` string or null
+- `email` string or null: Set for email accounts.
 
 ### AvatarRef
 

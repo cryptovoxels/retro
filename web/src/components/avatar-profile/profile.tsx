@@ -15,6 +15,7 @@ import { PanelType } from '../panel'
 import WompsList from '../../womps-list'
 import { truncate } from 'lodash'
 import WhatNext from './what-next'
+import Delegations from '../account/delegations'
 
 type Props = {
   walletOrUUId: string
@@ -122,6 +123,8 @@ export default function Profile(props: Props) {
           <dt>Joined</dt>
           <dd>{avatar?.created_at ? format(avatar.created_at) : 'The mists of time'}</dd>
         </dl>
+
+        {isOwner && <Delegations />}
 
         <Parcels wallet={walletOrUUId} isOwner={isOwner} />
         <Contributor wallet={walletOrUUId} isOwner={isOwner} />

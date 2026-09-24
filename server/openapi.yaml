@@ -31,6 +31,7 @@ tags:
   - name: search
   - name: ghosts
   - name: chat
+  - name: account
 
 paths:
   /api/chat.json:
@@ -2132,6 +2133,191 @@ paths:
                     items:
                       $ref: '#/components/schemas/SearchResult'
 
+  /api/account/me:
+    get:
+      operationId: accountMe
+      tags: [account]
+      summary: Who am I, and which identities can I switch to
+      description: |
+        JWT required. An email account is a uuid that stands in for a wallet.
+        Delegations link an email uuid to real wallets; every identity in the
+        link set can switch to any other with `appoint`. `wallet` is the
+        identity you are acting as, `account` is the one that signed in (null
+        unless acting as a delegate), and `identities` is the base identity
+        followed by everything linked to it.
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  wallet:
+                    type: string
+                  account:
+                    type: [string, 'null']
+                  email:
+                    type: [string, 'null']
+                  identities:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Identity'
+        '401':
+          $ref: '#/components/responses/Failure'
+
+  /api/delegations:
+    post:
+      operationId: createDelegation
+      tags: [account]
+      summary: Link a wallet to my email account
+      description: |
+        JWT required, and the signed-in identity must be an email account. Sign
+        the message `I volunteer <email> as my delegate for voxels.com.` with
+        the wallet (personal_sign) and post the signature. The recovered
+        address becomes a linked identity. Posting the same wallet twice is a
+        no-op with `added: false`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [signature]
+              properties:
+                signature:
+                  type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  wallet:
+                    type: string
+                    description: Lowercased address recovered from the signature.
+                  added:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/Failure'
+        '401':
+          $ref: '#/components/responses/Failure'
+
+  /api/delegations/attach:
+    post:
+      operationId: attachEmail
+      tags: [account]
+      summary: Link an email to my wallet account
+      description: |
+        JWT required, and the signed-in identity must be a wallet. Request a
+        code with `POST /api/signin/code {email}` first, then post the email
+        and code here. The email account is created if it does not exist yet
+        and linked to the wallet.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, code]
+              properties:
+                email:
+                  type: string
+                code:
+                  type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  wallet:
+                    type: string
+                    description: The uuid of the email account.
+                  added:
+                    type: boolean
+        '400':
+          $ref: '#/components/responses/Failure'
+        '401':
+          $ref: '#/components/responses/Failure'
+
+  /api/delegations/{wallet}:
+    delete:
+      operationId: removeDelegation
+      tags: [account]
+      summary: Unlink an identity
+      description: |
+        JWT required. Removes the link between the signed-in identity and
+        `wallet`, from either side: an email account passes the wallet, a
+        wallet passes the email account uuid.
+      parameters:
+        - name: wallet
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  removed:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Failure'
+
+  /api/delegations/appoint:
+    post:
+      operationId: appointIdentity
+      tags: [account]
+      summary: Switch the session to a linked identity
+      description: |
+        JWT required. `wallet` must be the signed-in identity or one linked to
+        it. Sets a new `jwt` cookie acting as that identity and returns the
+        token. The token keeps the signed-in identity in `account`, so
+        switching back is another call to this route with the base identity.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [wallet]
+              properties:
+                wallet:
+                  type: string
+      responses:
+        '200':
+          description: ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  token:
+                    type: string
+                  name:
+                    type: string
+        '401':
+          $ref: '#/components/responses/Failure'
+
 components:
   parameters:
     ParcelId:
@@ -2210,6 +2396,18 @@ components:
           const: false
         message:
           type: string
+
+    Identity:
+      type: object
+      properties:
+        wallet:
+          type: string
+          description: Lowercased wallet address, or the uuid of an email account.
+        name:
+          type: [string, 'null']
+        email:
+          type: [string, 'null']
+          description: Set for email accounts.
 
     AvatarRef:
       description: |

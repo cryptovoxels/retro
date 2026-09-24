@@ -42,6 +42,8 @@ export enum AppEvent {
 export interface StateObject {
   loading?: boolean
   wallet: string | null
+  /** Identity that signed in, set only while acting as a linked wallet or email account. */
+  account?: string | null
   moderator?: boolean
   name?: string
   unverifiedWallet?: string
@@ -183,6 +185,7 @@ export class Appstate extends State {
       this.setState({
         key,
         wallet,
+        account: payload?.account?.toLowerCase() ?? null,
       })
 
       let fetchPing, resultPing
@@ -221,6 +224,7 @@ export class Appstate extends State {
 
     this.setState({
       wallet: null!,
+      account: null,
       key: null!,
       moderator: false,
       name: null!,
@@ -325,7 +329,7 @@ export class Appstate extends State {
       return
     }
     const wallet = payload.wallet.toLowerCase()
-    this.setState({ key, name: name ?? undefined, wallet })
+    this.setState({ key, name: name ?? undefined, wallet, account: payload.account?.toLowerCase() ?? null })
     this.loadAvatar()
     this.emit(AppEvent.Login, isNewUser)
   }
