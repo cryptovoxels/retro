@@ -961,67 +961,11 @@ button.hamburger {
   line-height: 1;
 }
 
-.columns {
-  display: flex;
-  flex-direction: row;
-  align-items: start;
-  gap: 0.5rem 1rem;
-
-  & > nav {
-    margin-top: 4rem;
-    overflow: hidden;
-    max-width: 10rem;
-    transition: max-width 200ms ease-in-out;
-  }
-
-  & > article {
-    flex: 1;
-    padding: 0.5rem 0;
-  }
-
-  & > aside {
-    width: 18rem;
-    padding: 0.5rem 0.5rem 1rem 0;
-
-    a {
-      color: var(--red);
-      text-decoration: underline;
-    }
-  }
-
-  .hamburger {
-    position: absolute;
-    left: -2rem;
-    top: 0.5rem;
-  }
-}
-
-// home + parcel pages: the world bleeds to the viewport edges like /play
-// (full-bleed sizing comes from the push-panel grid rules below)
-.columns.home,
-.columns.parcel-page,
-.columns.space-page,
-.columns.build-page {
-  gap: 0;
-
-  > article {
-    padding: 0;
-  }
-}
 
 @media @narrow {
   article {
     background: none;
     padding: 0;
-  }
-
-  .columns {
-    flex-direction: column;
-
-    & > article,
-    & > aside {
-      width: 100%;
-    }
   }
 }
 
@@ -1921,38 +1865,6 @@ p.empty {
 }
 
 // Sidebar columns nav
-
-.columns.nav {
-  nav {
-    ul {
-      margin: 0;
-      padding: 0;
-    }
-
-    ul li {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-
-      & > a {
-        display: block;
-
-        // truncate
-        text-overflow: ellipsis;
-        overflow: hidden;
-        white-space: nowrap;
-      }
-    }
-
-    li[aria-selected='true'] {
-      a {
-        text-decoration: none;
-        color: inherit;
-        font-weight: bold;
-      }
-    }
-  }
-}
 
 // Context menu
 
@@ -5173,38 +5085,6 @@ main:has(.worldmap) {
   position: relative;
 }
 
-.columns.for-sale {
-  height: 100%;
-  gap: 0;
-  align-items: stretch;
-
-  > article {
-    padding: 0;
-    min-width: 0;
-    height: 100%;
-  }
-
-  > aside {
-    width: 23rem;
-    overflow-y: auto;
-    padding: 1rem;
-    background: var(--bg);
-  }
-}
-
-@media @narrow {
-  .columns.for-sale {
-    > article {
-      flex: 1;
-      min-height: 0;
-    }
-
-    > aside {
-      width: 100%;
-      flex: 0 0 40%;
-    }
-  }
-}
 
 // clear the fixed hamburger (same ~3.5rem offset as the play sidebar pills)
 .map-for-sale-cta {
