@@ -4,6 +4,7 @@ import { isMobile } from '../../../common/helpers/detector'
 import { consumeMetamaskLoginPending, hasMetamask, openMetamaskMobileDapp } from '../auth/login-helper'
 import { login } from '../auth/state-login'
 import { app, AppEvent } from '../state'
+import { closePageSidebar } from '../sidebar-close'
 
 const fetchParams = {
   headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
@@ -24,13 +25,7 @@ async function postJSON(url: string, body: unknown) {
   return data
 }
 
-async function checkNameAvailable(name: string): Promise<boolean> {
-  const r = await fetch('/api/account/reserve', { ...fetchParams, method: 'POST', body: JSON.stringify({ name }) })
-  const j = await r.json()
-  return !!j.available
-}
-
-type Stage = 'email' | 'passkey' | 'code' | 'name'
+type Stage = 'email' | 'passkey' | 'code'
 
 export const AddPasskey = ({ username, onDone }: { username: string; onDone?: () => void }) => {
   const [busy, setBusy] = useState(false)
@@ -81,11 +76,6 @@ export const Login = ({ reason, hideHeading }: { reason?: string; hideHeading?: 
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [passkeyUsername, setPasskeyUsername] = useState('')
-  const [pendingToken, setPendingToken] = useState<string | null>(null)
-  const [pendingName, setPendingName] = useState<string | null>(null)
-  const [chosenName, setChosenName] = useState('')
-  const [nameAvailable, setNameAvailable] = useState<boolean | null>(null)
-  const [nameChecking, setNameChecking] = useState(false)
   const [mmHint, setMmHint] = useState('')
 
   useEffect(() => {
@@ -144,13 +134,9 @@ export const Login = ({ reason, hideHeading }: { reason?: string; hideHeading?: 
       setError('Invalid code')
       return
     }
-    if (r.isNewUser) {
-      setPendingToken(r.token)
-      setPendingName(r.name)
-      setStage('name')
-    } else {
-      app.onToken(r.token, r.name, false)
-    }
+    // new users pick their name in-world (src/ui/welcome.tsx) once the sidebar closes
+    app.onToken(r.token, r.name, r.isNewUser)
+    if (r.isNewUser) closePageSidebar()
   }
 
   const onPasskeyLogin = async () => {
@@ -170,33 +156,12 @@ export const Login = ({ reason, hideHeading }: { reason?: string; hideHeading?: 
         return
       }
       login.onToken(r.token, r.name ?? null, !!r.isNewUser)
+      if (r.isNewUser) closePageSidebar()
     } catch (e: any) {
       setError(e?.message || 'Cancelled')
     } finally {
       setBusy(false)
     }
-  }
-
-  const onNameInput = async (name: string) => {
-    setChosenName(name)
-    setNameAvailable(null)
-    if (!name.trim()) return
-    setNameChecking(true)
-    const avail = await checkNameAvailable(name.trim())
-    setNameChecking(false)
-    setNameAvailable(avail)
-  }
-
-  const onConfirmName = async (e: Event) => {
-    e.preventDefault()
-    if (!pendingToken || !chosenName.trim() || !nameAvailable) return
-    app.onToken(pendingToken, chosenName.trim(), true)
-    await fetch('/api/avatar', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: chosenName.trim() }),
-    }).catch(() => {})
   }
 
   const onMetamask = async () => {
@@ -218,30 +183,6 @@ export const Login = ({ reason, hideHeading }: { reason?: string; hideHeading?: 
     setBusy(false)
     setMmHint('')
     if (!ok && !app.signedIn) setError('wallet login cancelled')
-  }
-
-  if (stage === 'name' && pendingToken) {
-    return (
-      <section class="login">
-        <h1>choose a name</h1>
-        <form onSubmit={onConfirmName}>
-          <div class="f">
-            <label>username</label>
-            <input type="text" autofocus value={chosenName} onInput={(e) => onNameInput(e.currentTarget.value)} placeholder="yourname" autocapitalize="none" />
-          </div>
-          {chosenName.trim() && <p>{nameChecking ? 'checking...' : nameAvailable === true ? 'available' : nameAvailable === false ? 'taken' : ''}</p>}
-          {chosenName.trim() && nameAvailable && (
-            <div class="f">
-              <label>passkey</label>
-              <AddPasskey username={chosenName.trim()} />
-            </div>
-          )}
-          <button type="submit" disabled={!nameAvailable || !chosenName.trim()}>
-            done
-          </button>
-        </form>
-      </section>
-    )
   }
 
   if (stage === 'passkey') {
@@ -276,7 +217,7 @@ export const Login = ({ reason, hideHeading }: { reason?: string; hideHeading?: 
         <form onSubmit={onSubmitCode}>
           <div class="f">
             <label>code</label>
-            <input maxLength={6} autofocus type="text" onInput={(e: any) => setCode(e.target.value)} />
+            <input maxLength={6} inputMode="numeric" autocomplete="one-time-code" autofocus type="text" onInput={(e: any) => setCode(e.target.value)} />
           </div>
           {error && <p>{error}</p>}
           <button type="submit" disabled={busy}>

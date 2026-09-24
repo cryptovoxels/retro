@@ -89,9 +89,6 @@ importers:
       babylonjs-materials:
         specifier: ^9.25.0
         version: 9.25.0
-      base24:
-        specifier: ^1.0.3
-        version: 1.0.3
       base64-to-uint8array:
         specifier: 1.0.0
         version: 1.0.0
@@ -2664,9 +2661,6 @@ packages:
   balanced-match@4.0.4:
     resolution: {integrity: sha512-BLrgEcRTwX2o6gGxGOCNyMvGSp35YofuYzw9h1IMTRmKqttAZZVU67bdb9Pr2vUHA8+j3i2tJfjO6C6+4myGTA==}
     engines: {node: 18 || 20 || >=22}
-
-  base24@1.0.3:
-    resolution: {integrity: sha512-HrbaMvqpuaj6Ur35CSW2lv99Q96GBMwPd3Bj37tE9BH68X28p5uSxkmy3HtmDKMAe9wJwO8QvJtGrp/qkcPdbA==}
 
   base64-js@1.5.1:
     resolution: {integrity: sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA==}
@@ -8619,8 +8613,6 @@ snapshots:
   balanced-match@1.0.2: {}
 
   balanced-match@4.0.4: {}
-
-  base24@1.0.3: {}
 
   base64-js@1.5.1: {}
 

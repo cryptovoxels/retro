@@ -11,6 +11,7 @@ import { isLoaded } from '../utils/loading-done'
 import { stepPhysics } from '../physics/world'
 import { startGhosts } from '../ghosts'
 import { startYeet } from '../yeetable'
+import { watchWelcome } from '../ui/welcome'
 import { updateWorldScene } from './world-scene'
 import { setupRealmPopstate } from './realm'
 
@@ -35,6 +36,7 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
 
   startGhosts(scene, grid, controls, connector)
   startYeet(scene, controls, canvas)
+  watchWelcome(scene)
 
   setupRealmPopstate()
 
