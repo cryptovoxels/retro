@@ -18,7 +18,7 @@ export function useListControls(initialQuery = ''): [Controls, JSX.Element] {
   const el = (
     <div class="list-controls">
       <div>
-        <h5>View as</h5>
+        <small>view</small>
         {['grid', 'list'].map((v, i) => (
           <>
             {i > 0 && ' | '}
@@ -29,7 +29,7 @@ export function useListControls(initialQuery = ''): [Controls, JSX.Element] {
         ))}
       </div>
       <div>
-        <h5>Sort by</h5>
+        <small>sort</small>
         {['popular', 'newest', 'oldest'].map((s, i) => (
           <>
             {i > 0 && ' | '}
@@ -47,7 +47,6 @@ export function useListControls(initialQuery = ''): [Controls, JSX.Element] {
         }}
       >
         <input type="search" value={query} onInput={(e: any) => setQuery(e.target.value)} placeholder="Search" />
-        <button type="submit">Search</button>
       </form>
     </div>
   )

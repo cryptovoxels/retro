@@ -973,11 +973,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     window.engine.enterFullscreen(true)
   }
 
-  enterTheatre = (e: Event) => {
-    e.preventDefault()
-    document.body.classList.toggle('theatre-mode')
-  }
-
   showNotificationBanner(message: string, duration = 5000, onClick?: () => void) {
     // ideally we would use a dedicated noitification banner component, but for now we'll use the snackbar
     return Snackbar.show(message, PanelType.Info, duration, onClick)
@@ -1038,11 +1033,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                   </a>
                 </li>
               )}
-              <li>
-                <a href="#" title="Theatre" onClick={this.enterTheatre}>
-                  Theatre
-                </a>
-              </li>
               <li>
                 <a href="#" title="Fullscreen" onClick={this.enterFullscreen}>
                   Fullscreen

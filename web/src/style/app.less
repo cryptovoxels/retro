@@ -850,10 +850,11 @@ main {
 
   > .client,
   > .canvasdom {
-    grid-column: 2;
-    grid-row: 1;
-    min-width: 0;
-    min-height: 0;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
   }
 
   > .canvasdom {
@@ -868,8 +869,24 @@ main {
     grid-column: 3;
     grid-row: 1;
     min-width: 0;
+    height: ~'calc(100vh - 2rem)';
+    box-sizing: border-box;
+    overflow-y: auto;
+    margin: 1rem;
     padding: 1rem;
-    background: var(--bg);
+    border: 2px solid #ccca;
+    border-radius: 1rem;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(12px);
+    color: #aaa;
+
+    * {
+      color: unset !important;
+    }
+    .ui-sidebar > li > a {
+      border: 2px solid #5555;
+      background: rgba(0, 0, 0, 0.6);
+    }
   }
 
   > .ui-pane.-closed {
@@ -879,19 +896,6 @@ main {
   // pane takes the column; page steps aside
   &:has(> .ui-pane:not(.-closed)) > .page {
     display: none;
-  }
-
-  // /play: no page, full bleed - until a pane opens, then it pushes
-  &.-play {
-    grid-template-columns: auto 1fr;
-
-    > .page {
-      display: none;
-    }
-  }
-
-  &.-play:has(> .ui-pane:not(.-closed)) {
-    grid-template-columns: auto 1fr 23rem;
   }
 }
 
@@ -916,14 +920,6 @@ main {
     > .ui-pane {
       grid-column: 1;
       grid-row: 2;
-    }
-
-    &.-play {
-      grid-template-rows: 1fr;
-    }
-
-    &.-play:has(> .ui-pane:not(.-closed)) {
-      grid-template-rows: 1fr 40%;
     }
   }
 }
@@ -960,7 +956,6 @@ button.hamburger {
   font-size: 1.2rem;
   line-height: 1;
 }
-
 
 @media @narrow {
   article {
@@ -1819,19 +1814,24 @@ p.empty {
 // List controls
 
 .list-controls {
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template:
+    'view sort'
+    'search search';
   gap: 0.5rem;
+  margin-bottom: 1rem;
 
-  div {
-    flex: 1;
+  small {
+    display: block;
+    opacity: 0.5;
   }
 
-  h5 {
-    margin: 0;
-    font-size: smaller;
-    opacity: 0.5;
-    font-weight: normal;
+  form {
+    grid-area: search;
+
+    input {
+      width: 100%;
+    }
   }
 }
 
@@ -5085,7 +5085,6 @@ main:has(.worldmap) {
   position: relative;
 }
 
-
 // clear the fixed hamburger (same ~3.5rem offset as the play sidebar pills)
 .map-for-sale-cta {
   position: absolute;
@@ -5248,60 +5247,6 @@ main:has(.worldmap) {
   &:hover {
     background-color: var(--red);
     cursor: pointer;
-  }
-}
-
-body.theatre-mode {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-
-  * {
-    color: #bbb !important;
-  }
-
-  .ui-sidebar > li > a {
-    border: 2px solid #5555;
-    background: rgba(0, 0, 0, 0.6);
-  }
-
-  main {
-    grid-template-columns: 0 1fr 0;
-
-    & > header {
-      display: none;
-    }
-
-    & > .page,
-    & > .ui-pane {
-      grid-column: unset;
-      grid-row: unset;
-      position: fixed;
-      top: 1rem;
-      right: 1rem;
-      width: 18rem;
-      bottom: 1rem;
-      border-radius: 1rem;
-      border: 2px solid #5555;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(12px);
-
-      h1 {
-        font-size: 1.2rem;
-        letter-spacing: -0.5px;
-      }
-
-      dt {
-        display: none;
-      }
-
-      dd {
-        background: #3335;
-        border: 2px solid #5555;
-        border-radius: 1.2rem;
-        padding: 1rem;
-        opacity: unset;
-        margin-bottom: 1rem;
-      }
-    }
   }
 }
 
