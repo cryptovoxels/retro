@@ -53,7 +53,7 @@ export class PostProcesses {
     }
   }
 
-  setUnderwater(_on: boolean) { }
+  setUnderwater(_on: boolean) {}
 
   changeEffects(level: GraphicLevels) {
     if (wantsGateway()) return

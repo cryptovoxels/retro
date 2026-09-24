@@ -15,9 +15,9 @@ try {
   Object.defineProperty(window, 'localStorage', {
     value: {
       getItem: () => null,
-      setItem: () => { },
-      removeItem: () => { },
-      clear: () => { },
+      setItem: () => {},
+      removeItem: () => {},
+      clear: () => {},
       key: () => null,
       length: 0,
     },
@@ -293,8 +293,8 @@ async function main() {
   window._color = color
 
   graphic.postProcesses = new PostProcesses(scene, color, graphic)
-    ; (engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
-    ; (engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
+  ;(engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
+  ;(engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
 
   const { grid, connector } = await createWorld(scene, canvas, controls)
 
