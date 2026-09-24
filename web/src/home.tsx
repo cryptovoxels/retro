@@ -2,7 +2,7 @@ import { Component } from 'preact'
 import { ApiAvatar } from '../../common/messages/api-avatars'
 import Profile from './components/avatar-profile/profile'
 import { loadingBox } from './components/loading-icon'
-import { app } from './state'
+import { app, AppEvent } from './state'
 import { fetchOptions } from './utils'
 
 export interface Props {
@@ -26,6 +26,12 @@ export default class Home extends Component<Props, State> {
 
   componentDidMount() {
     this.fetchAvatar()
+    // switching to a linked identity logs in again without leaving the page
+    app.on(AppEvent.Login, this.fetchAvatar)
+  }
+
+  componentWillUnmount() {
+    app.removeListener(AppEvent.Login, this.fetchAvatar)
   }
 
   fetchAvatar = async () => {

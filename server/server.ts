@@ -18,6 +18,7 @@ import streamWearable from './handlers/stream-wearable'
 import { isOwner } from './lib/helpers'
 
 import AdminController from './controllers/admin'
+import DelegatesController from './controllers/delegates'
 import GuestPassesController from './controllers/guest-passes'
 import { livekitService } from './controllers/livekit'
 import CollectiblesController from './controllers/collectibles'
@@ -371,6 +372,9 @@ app.post('/grid/parcels/:id/build', passport.authenticate('jwt', { session: fals
 // spaces are not on the grid but I couldn't think of a better URI than /grid/...
 
 AdminController(db, passport, app)
+
+// Email accounts <-> wallets, and switching between linked identities
+DelegatesController(db, passport, app)
 
 // Livekit controller
 LivekitController(db, passport, app)

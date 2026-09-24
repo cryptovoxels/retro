@@ -36,6 +36,8 @@ type SignInOptions = {
   providerName?: string
   /** Saves to avatars.name (e.g. passkey signup username). */
   preferredDisplayName?: string
+  /** Identity that signed in, kept in the JWT while acting as a delegate wallet. */
+  account?: string
 }
 
 type PersonalSignIn = {
@@ -64,6 +66,17 @@ async function getEmailCode(email: string): Promise<{ code: string; expiry: stri
   const expiry = new Date().toISOString().split('T')[0]
 
   return { code, expiry }
+}
+
+export async function verifyEmailCode(email: string, code: string): Promise<boolean> {
+  const expected = await getEmailCode(email)
+  return code.trim() === expected.code
+}
+
+/** The uuid that stands in for a wallet on email accounts, creating the avatar row on first use. */
+export async function emailUuid(email: string): Promise<string> {
+  const r = await db.query('embedded/get-user-uuid', 'select get_or_create_user_uuid($1) as uuid', [email.toLowerCase()])
+  return r.rows[0].uuid
 }
 
 export async function EmailCode(req: Request<any, any>, res: Response) {
@@ -149,24 +162,14 @@ export async function SignIn(req: Request<any, Params>, res: Response) {
   const params = req.body as Partial<SIM>
 
   if (params.email && params.code) {
-    const { code } = params
-    let { email } = params
-    email = email.toLowerCase()
+    const email = params.email.toLowerCase()
 
-    const expected = await getEmailCode(email)
-
-    if (code != expected.code) {
-      console.log(`Expected ${expected.code}, got ${code} for email ${email} with expiry ${expected.expiry}`)
-      res.json({ success: false, error: `Invalid code ${expected.code} for email ${email} with expiry ${expected.expiry}` })
-
+    if (!(await verifyEmailCode(email, params.code))) {
+      res.json({ success: false, error: 'Invalid code' })
       return
     }
 
-    // Successful authentication
-
-    const r = await db.query('embedded/get-user-uuid', 'select get_or_create_user_uuid($1) as uuid', [email])
-    const wallet = r && r.rows[0] && r.rows[0].uuid
-
+    const wallet = await emailUuid(email)
     const { token, name, isNewUser } = await getUserInfo(res, wallet, {})
     res.json({ success: true, token, name, isNewUser })
     return
@@ -266,7 +269,7 @@ export async function getUserInfo(res: Response, wallet: string, options: SignIn
   const maxAgeMs = 61 * 24 * 60 * 60 * 1000 // ~2 months
   const expiresAtMs = Date.now() + maxAgeMs
 
-  const payload = { wallet, moderator: isMod({ user: { wallet } }) }
+  const payload = { wallet, ...(options.account && { account: options.account }), moderator: isMod({ user: { wallet } }) }
   const token = await new SignJWT(payload as any)
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()

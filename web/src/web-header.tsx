@@ -10,6 +10,7 @@ import { route } from 'preact-router'
 import cachedFetch from './helpers/cached-fetch'
 import { messageList } from '../../src/connector'
 import { siteNavOpen, toggleSiteNav } from '../../src/store'
+import { appoint, identityLabel, loadMe, me } from './auth/identities'
 type Props = {
   path: string
 }
@@ -69,11 +70,17 @@ export default class WebHeader extends Component<Props, State> {
   }
 
   chatDispose: (() => void) | null = null
+  meDispose: (() => void) | null = null
 
   componentDidMount() {
     app.on(AppEvent.Change, this.onAppChange)
     app.on(AppEvent.ProviderMessage, this.onProviderMessage)
     this.fetchBadges()
+    void loadMe()
+    this.meDispose = effect(() => {
+      me.value
+      this.forceUpdate()
+    })
     if (this.navPath() === '/chat') markChatSeen()
     this.chatDispose = effect(() => {
       const list = messageList.value
@@ -92,6 +99,8 @@ export default class WebHeader extends Component<Props, State> {
     app.removeListener(AppEvent.ProviderMessage, this.onProviderMessage)
     this.chatDispose?.()
     this.chatDispose = null
+    this.meDispose?.()
+    this.meDispose = null
   }
 
   componentDidUpdate(prevProps: Props) {
@@ -141,6 +150,11 @@ export default class WebHeader extends Component<Props, State> {
     }, 5000)
   }
 
+  onSwitch = async (e: Event, wallet: string) => {
+    e.preventDefault()
+    if (!(await appoint(wallet))) app.showSnackbar('Could not switch identity', PanelType.Warning)
+  }
+
   onAppChange = () => this.forceUpdate()
 
   onProviderMessage = (message?: string | Error) => app.showSnackbar(message, PanelType.Info)
@@ -162,6 +176,9 @@ export default class WebHeader extends Component<Props, State> {
     const admin = app.isAdmin()
     const here = this.navPath()
     const { blogN, shopN, eventsN, chatN } = this.state
+    const ids = me.value
+    const others = ids && ids.identities.length > 1 ? ids.identities.filter((id) => id.wallet !== ids.wallet) : []
+    const current = ids && others.length > 0 ? identityLabel(ids.identities.find((id) => id.wallet === ids.wallet) ?? { wallet: ids.wallet, name: app.state.name ?? null, email: null }) : ''
     const A = ({ to, children }: { to: string; children: any }) => (
       <li>
         <Link activeClassName="active" class={here === to ? 'active' : undefined} href={to} path={to}>
@@ -191,6 +208,16 @@ export default class WebHeader extends Component<Props, State> {
               <A to="/">Home</A>
               {admin && <A to="/admin">Admin</A>}
               <A to="/account">{signedIn ? 'Profile' : 'Login'}</A>
+              {others.length > 0 && (
+                <li class="identities">
+                  <small>you are {current}</small>
+                  {others.map((id) => (
+                    <a key={id.wallet} href="" onClick={(e) => this.onSwitch(e, id.wallet)}>
+                      switch to {identityLabel(id)}
+                    </a>
+                  ))}
+                </li>
+              )}
               <A to="/api">API</A>
               <A to="/art">Art</A>
               <A to="/assets">Assets</A>
