@@ -269,8 +269,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     uiPane.value = 'edit'
     this.setState({ feature, editor: editor, currentOrNearestParcel: feature?.parcel, pane: 'edit', publishAsset: undefined })
     exitPointerLock()
-      // off-object drags look around while editing
-      ; (this.connector.controls as any).attachDragLook?.()
+    // off-object drags look around while editing
+    ;(this.connector.controls as any).attachDragLook?.()
   }
 
   openPublishAsset(asset: FeatureTemplate | string) {
@@ -341,7 +341,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           } else return
           const n = this.presenceUuids.size
           if (n !== this.state.onlineCount) this.setState({ onlineCount: n })
-        } catch { }
+        } catch {}
       }
     }
 
@@ -387,7 +387,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       const on = isOnSandboxParcel()
       try {
         window._color?.setSandboxLook?.(on)
-      } catch { }
+      } catch {}
     })
   }
 
@@ -404,7 +404,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   private writeSeenWompId(id: number) {
     try {
       localStorage.setItem(UserInterface.WOMP_SEEN_KEY, String(id))
-    } catch { }
+    } catch {}
   }
 
   private pollNewWomp = async () => {
@@ -421,7 +421,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return
       }
       if (id > seen && !this.state.newWomp) this.setState({ newWomp: true })
-    } catch { }
+    } catch {}
   }
 
   private markWompsSeen = () => {
@@ -508,7 +508,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.setState({ voiceEnabled: true })
   }
 
-  updateCanEdit = () => { }
+  updateCanEdit = () => {}
 
   componentWillUnmount() {
     this.presenceEs?.close()
@@ -527,7 +527,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.sandboxLookDispose?.()
     try {
       window._color?.setSandboxLook?.(false)
-    } catch { }
+    } catch {}
     // dispose the keyboard handler too - it attaches keydown/keyup on `document` in addKeyboardHandlers,
     // and without this each unmount (e.g. womp preview -> /play, every page hop) leaks a live handler.
     // They accumulate and re-fire shortcuts N times, so camera toggles (C perspective, F fly) cancel out.
@@ -557,7 +557,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     this.setState({ editor: undefined, feature: undefined, pane: uiPane.value as UIPanes | undefined, publishAsset: undefined })
     // controls path avoids focus-before-lock (steals the gesture) and eats the post-unlock cooldown rejection
     const controls = this.connector.controls as any
-    controls?.requestPointerLock ? controls.requestPointerLock()?.catch?.(() => { }) : requestPointerLock()
+    controls?.requestPointerLock ? controls.requestPointerLock()?.catch?.(() => {}) : requestPointerLock()
   }
 
   get camera(): BABYLON.UniversalCamera {
@@ -736,8 +736,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       const uuid = broadcastShowboxUuid.value
       const feature = uuid ? (selectCurrentOrNearestParcel() || selectNearestEditableParcel())?.getFeatureByUuid(uuid) : undefined
       if (feature && typeof (feature as any).dismissBroadcastPanel === 'function') {
-        ; (feature as any).dismissBroadcastPanel()
-          ; (feature as any).clearBroadcastDockUi?.()
+        ;(feature as any).dismissBroadcastPanel()
+        ;(feature as any).clearBroadcastDockUi?.()
       } else {
         closeBroadcastSidebar()
       }
@@ -1185,7 +1185,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
                 </li>
               )}
             </ul>
-
           </aside>
 
           {chat && <ChatOverlay />}

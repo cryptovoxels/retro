@@ -110,7 +110,7 @@ export class Client extends Component<FrameProps, FrameState> {
         const c = d.parcel ? new ParcelHelper(d.parcel).spawnCoords : ''
         if (c) window.persona?.naviport(c)
       })
-      .catch(() => { })
+      .catch(() => {})
   }
 
   private naviport() {
