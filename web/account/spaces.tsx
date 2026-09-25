@@ -61,7 +61,7 @@ export class Spaces extends Component<Props, State> {
 
     return (
       <div>
-        <h2>Spaces</h2>
+        <h2>spaces</h2>
         <ul>
           {spaces.map((s) => (
             <li>

@@ -1,27 +1,27 @@
 import makeBlockie from 'ethereum-blockies-base64'
 
-interface AvatarProps {
+interface AvatarTileProps {
   wallet?: string
   size?: number
 }
 
-const AvatarImage = (props: AvatarProps) => {
+export function AvatarTile(props: AvatarTileProps) {
   const size = props.size || 32
   const link = `/u/${props.wallet}`
 
   if (!props.wallet) {
     return (
-      <span>
+      <span class="tile avatar-tile">
         <img width={size} height={size} style={{ width: size, height: size }} src="/images/no-image.png" />
       </span>
     )
-  } else {
-    return (
-      <a href={link}>
-        <img width={size} height={size} style={{ width: size, height: size }} src={makeBlockie(props.wallet)} />
-      </a>
-    )
   }
+
+  return (
+    <a class="tile avatar-tile" href={link}>
+      <img width={size} height={size} style={{ width: size, height: size }} src={makeBlockie(props.wallet)} />
+    </a>
+  )
 }
 
-export default AvatarImage
+export default AvatarTile

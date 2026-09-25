@@ -19,7 +19,7 @@ export interface Womp {
   nearby_count?: number
 }
 
-interface CardProps {
+interface TileProps {
   womp: Womp
   className?: string
   nearbyCount?: number
@@ -32,7 +32,7 @@ interface CardProps {
 // 12 hours -> 12h
 export const timeFormat = (t: TDate) => format(t).replace(/ ([a-z])[a-z]+/, '$1')
 
-export function WompCard(props: CardProps) {
+export function WompTile(props: TileProps) {
   const nearbyCount = props.nearbyCount ?? props.womp.nearby_count
   const rich = /\b-medium\b/.test(props.className || '')
 
@@ -50,9 +50,11 @@ export function WompCard(props: CardProps) {
   const caption = props.womp.content ? (props.womp.content.length > 80 ? props.womp.content.slice(0, 76) + '...' : props.womp.content) : ''
 
   return (
-    <div class={`womp ${props.className || ''}`.trim()} title={props.hoverText}>
+    <div class={`tile womp ${props.className || ''}`.trim()} title={props.hoverText}>
       <a onClick={onClick} href={`/womps/${props.womp.id}`}>
-        <img loading="lazy" src={props.womp.image_url} alt={props.womp.content || location} />
+        <div class="thumb">
+          <img loading="lazy" src={props.womp.image_url} />
+        </div>
         {rich ? (
           <div class="womp-meta">
             <p class="womp-where" title={location}>

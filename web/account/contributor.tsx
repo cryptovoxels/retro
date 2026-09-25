@@ -98,7 +98,7 @@ export class Contributor extends Component<Props, State> {
 
     return (
       <>
-        <h2>Collaborations</h2>
+        <h2>collaborations</h2>
         <table class="parcels">
           <tbody>{contributorsParcels}</tbody>
         </table>

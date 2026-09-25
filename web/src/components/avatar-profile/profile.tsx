@@ -70,7 +70,7 @@ export default function Profile(props: Props) {
             <h1>{name}</h1>
             {isOwner && (
               <a href="/account/edit" role="button">
-                Edit account
+                edit account
               </a>
             )}
           </hgroup>
@@ -82,7 +82,7 @@ export default function Profile(props: Props) {
             <>
               <dt>wallet address</dt>
               <dd>
-                <a onClick={copyWallet} title="Click to copy">
+                <a onClick={copyWallet} title="click to copy">
                   {ethTrunc(walletOrUUId)}
                 </a>{' '}
                 &mdash;{' '}
@@ -116,7 +116,7 @@ export default function Profile(props: Props) {
           )}
 
           <dt>joined</dt>
-          <dd>{avatar?.created_at ? format(avatar.created_at) : 'The mists of time'}</dd>
+          <dd>{avatar?.created_at ? format(avatar.created_at) : 'the mists of time'}</dd>
         </dl>
 
         {isOwner && <Delegations />}
@@ -127,7 +127,7 @@ export default function Profile(props: Props) {
 
         {collections.length > 0 && (
           <>
-            <h2>Collections</h2>
+            <h2>collections</h2>
             <table>
               <tbody>
                 {collections.map((c) => (
@@ -144,7 +144,7 @@ export default function Profile(props: Props) {
 
         {costumes.length > 0 && (
           <>
-            <h2>Costumes</h2>
+            <h2>costumes</h2>
             <table>
               <tbody>
                 {costumes.map((c) => (
@@ -159,7 +159,7 @@ export default function Profile(props: Props) {
           </>
         )}
 
-        <WompsList title="Womps" numberToShow={20} collapsed={false} ttl={60} fetch={`/womps/by/${walletOrUUId}`} quiet />
+        <WompsList title="womps" numberToShow={20} collapsed={false} ttl={60} fetch={`/womps/by/${walletOrUUId}`} quiet />
       </article>
     </section>
   )

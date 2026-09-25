@@ -4,7 +4,7 @@ import { copyTextToClipboard } from '../../../../common/helpers/utils'
 import { getUserAccounts, hasMetamask, signMessage } from '../../auth/login-helper'
 import { appoint, identityLabel, isEmailAccount, loadMe, me as meSignal } from '../../auth/identities'
 import { app } from '../../state'
-import AvatarImage from '../avatar-image'
+import { AvatarTile } from '../../tiles/avatar-tile'
 import { PanelType } from '../panel'
 
 const jsonHeaders = { Accept: 'application/json', 'Content-Type': 'application/json' } as const
@@ -72,7 +72,7 @@ export default function Delegations() {
           const current = id.wallet === me.wallet
           return (
             <li key={id.wallet}>
-              <AvatarImage wallet={id.wallet} size={24} /> {identityLabel(id)}{' '}
+              <AvatarTile wallet={id.wallet} size={24} /> {identityLabel(id)}{' '}
               {current ? (
                 <small>(you, right now)</small>
               ) : (

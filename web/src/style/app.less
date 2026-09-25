@@ -544,10 +544,60 @@ header .voxel-radio {
 .voice-toggle {
 }
 
+// shared look for web/src/tiles/* (parcel, asset, womp, avatar)
+.tile {
+  > a {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  // the wrapper owns the square; a loading/broken <img> shrink-wraps its
+  // fallback content in chrome, so sizing the img directly doesn't hold
+  .thumb {
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: var(--hover);
+    border-radius: 5px;
+
+    img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      aspect-ratio: auto;
+      object-fit: cover;
+      border-radius: 5px;
+    }
+  }
+
+  p {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  small {
+    display: block;
+    opacity: 0.6;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+// inline blockie, not a grid cell
+.avatar-tile {
+  display: inline-block;
+  vertical-align: middle;
+}
+
 .wrap-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
   gap: 0.5rem;
+  text-align: center;
 
   img,
   .wearable-icon,
@@ -556,7 +606,7 @@ header .voxel-radio {
     display: block;
     width: 100%;
     aspect-ratio: 1;
-    border-radius: 2px;
+    border-radius: 10px;
   }
 
   .wearable-icon img,
@@ -649,7 +699,6 @@ a.buttonish {
   &[disabled] {
     color: var(--disabled);
     opacity: 0.8;
-    cursor: default;
   }
 
   &.active {
@@ -666,6 +715,7 @@ header:has(nav) {
   height: 100vh;
   overflow-y: auto;
   box-sizing: border-box;
+  transition: opacity 0.5s;
 }
 
 // phone: left nav is a closed hamburger overlay (desktop keeps the column)
@@ -679,7 +729,7 @@ header:has(nav) {
     z-index: 1000;
     background: var(--bg);
     transform: translateX(-100%);
-    transition: transform 150ms ease-out;
+    transition: transform 150ms ease-out, opacity 0.5s;
     pointer-events: none;
   }
 
@@ -762,32 +812,47 @@ header nav {
     min-width: 0;
     max-width: none;
   }
-}
 
-footer {
-  margin: 1rem 0 4rem 0;
-
-  p {
-    text-align: center;
-    color: var(--soft);
-    font-size: 0.625rem;
+  ul.world-actions:empty {
+    display: none;
   }
 
-  nav {
-    ul {
-      // center align children
-      justify-content: center;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      padding: 1rem;
-      border-top: var(--border);
-      border-bottom: var(--border);
-    }
+  ul.world-actions:not(:empty) {
+    margin-bottom: 0.75rem;
+  }
 
-    li {
-      list-style: none;
+  li.disabled > a {
+    color: var(--disabled);
+
+    &:hover {
+      text-decoration: none;
     }
+  }
+
+  li > .voice-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0 1rem;
+    border-bottom: var(--border);
+  }
+}
+
+// pointer lock: the column fades and clicks fall through to the canvas.
+// the links stay hittable so moving onto one brings the column back.
+body.walking header:has(nav) {
+  opacity: 0;
+  pointer-events: none;
+
+  a,
+  button,
+  input,
+  .voice-toggle {
+    pointer-events: auto;
+  }
+
+  &:hover {
+    opacity: 1;
   }
 }
 
@@ -795,42 +860,6 @@ header nav img.logo {
   width: 28px;
   height: 32px;
   margin: 2px;
-}
-
-@media @narrow {
-  footer nav {
-    position: relative;
-
-    &::after {
-      content: '';
-      position: absolute;
-      right: 0;
-      top: 0;
-      bottom: 0;
-      width: 2.5rem;
-      background: linear-gradient(to right, rgba(13, 13, 13, 0), var(--bg));
-      pointer-events: none;
-      z-index: 1;
-    }
-
-    ul {
-      width: 100%;
-      overflow-x: auto;
-      flex-wrap: nowrap;
-      justify-content: flex-start;
-      scrollbar-width: none;
-      -ms-overflow-style: none;
-
-      &::-webkit-scrollbar {
-        display: none;
-      }
-    }
-
-    li {
-      flex: 0 0 auto;
-      white-space: nowrap;
-    }
-  }
 }
 
 main {
@@ -850,10 +879,11 @@ main {
 
   > .client,
   > .canvasdom {
-    grid-column: 2;
-    grid-row: 1;
-    min-width: 0;
-    min-height: 0;
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    bottom: 0;
   }
 
   > .canvasdom {
@@ -863,36 +893,59 @@ main {
     height: 100%;
   }
 
-  > .page,
-  > .ui-pane {
+  > .page {
     grid-column: 3;
     grid-row: 1;
     min-width: 0;
+    height: ~'calc(100vh - 2rem)';
+    box-sizing: border-box;
+    overflow-y: auto;
+    margin: 1rem;
     padding: 1rem;
-    background: var(--bg);
-  }
+    border: 2px solid #ccca;
+    border-radius: 1rem;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(12px);
+    color: #aaa;
 
-  > .ui-pane.-closed {
-    display: none;
-  }
+    // Sidebar title between chrome
 
-  // pane takes the column; page steps aside
-  &:has(> .ui-pane:not(.-closed)) > .page {
-    display: none;
-  }
+    section {
+      margin-top: 3rem;
 
-  // /play: no page, full bleed - until a pane opens, then it pushes
-  &.-play {
-    grid-template-columns: auto 1fr;
+      & > h1 {
+        position: absolute;
+        font-size: 1.5rem;
+        font-weight: bold;
+        top: 1rem;
+        left: 1rem;
+        right: 1rem;
+        text-align: center;
+      }
+    }
 
-    > .page {
-      display: none;
+    * {
+      color: unset !important;
     }
   }
 
-  &.-play:has(> .ui-pane:not(.-closed)) {
-    grid-template-columns: auto 1fr 23rem;
-  }
+}
+
+.page {
+  transition: transform 200ms ease-out;
+}
+
+.page.-play {
+  transform: translateX(120%);
+  pointer-events: none;
+}
+
+.page:has(> .page-tool:not(:empty)) > .page-route {
+  display: none;
+}
+
+.page-tool:empty {
+  display: none;
 }
 
 @media @narrow {
@@ -912,18 +965,9 @@ main {
       grid-row: 1;
     }
 
-    > .page,
-    > .ui-pane {
+    > .page {
       grid-column: 1;
       grid-row: 2;
-    }
-
-    &.-play {
-      grid-template-rows: 1fr;
-    }
-
-    &.-play:has(> .ui-pane:not(.-closed)) {
-      grid-template-rows: 1fr 40%;
     }
   }
 }
@@ -960,7 +1004,6 @@ button.hamburger {
   font-size: 1.2rem;
   line-height: 1;
 }
-
 
 @media @narrow {
   article {
@@ -1199,20 +1242,25 @@ body.gateway {
   }
 }
 
-.ui-pane,
 .page {
   box-sizing: border-box;
   pointer-events: auto;
 }
 
-// sticky top strip so the X stays put while the column scrolls
+// sticky top strip so back + X stay put while the column scrolls
 .sidebar-chrome {
   position: absolute;
   top: 1rem;
+  left: 0.5rem;
   right: 0.5rem;
   z-index: 5000;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
 
   button {
+    pointer-events: auto;
     background: none;
     border: none;
     font-family: 'arial rounded mt bold';
@@ -1227,6 +1275,18 @@ body.gateway {
     &:hover {
       background: #ccc;
       color: white;
+    }
+  }
+
+  .sidebar-back {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    svg {
+      display: block;
     }
   }
 }
@@ -1775,7 +1835,6 @@ section.profile {
   background: #0af;
 }
 
-.broken-image,
 .loading-image {
   width: 100%;
   aspect-ratio: 1/1;
@@ -1819,19 +1878,24 @@ p.empty {
 // List controls
 
 .list-controls {
-  display: flex;
-  flex-direction: row;
+  display: grid;
+  grid-template:
+    'view sort'
+    'search search';
   gap: 0.5rem;
+  margin-bottom: 1rem;
 
-  div {
-    flex: 1;
+  small {
+    display: block;
+    opacity: 0.5;
   }
 
-  h5 {
-    margin: 0;
-    font-size: smaller;
-    opacity: 0.5;
-    font-weight: normal;
+  form {
+    grid-area: search;
+
+    input {
+      width: 100%;
+    }
   }
 }
 
@@ -2656,110 +2720,15 @@ button.iconish {
   text-shadow: 2px 2px var(--bg);
 }
 
-/* Sidebar nav */
-
-// left in-world chrome (Fullscreen / Explore / Settings / Dance / Info / …).
-// pruned when LESS collapsed; without it the links sit unstyled in the canvas.
+// clicks on empty canvas chrome fall through to the world
 .canvasdom {
   pointer-events: none;
-}
-
-.canvasdom aside {
-  width: 8rem;
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  z-index: 2;
-  pointer-events: none;
-
-  & > ul.ui-sidebar {
-    // punch through empty column so 3D ActionGui (try on / guestbook) gets clicks
-    pointer-events: none;
-    transition: opacity 0.5s;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    width: 8rem;
-    margin: 0;
-    padding: 0;
-
-    li:first-child {
-      // clear fixed ☰ above Explore + a little breathing room
-      margin-top: 3.5rem;
-    }
-
-    li,
-    > u {
-      pointer-events: auto;
-      list-style: none;
-      margin: 0;
-      padding: 0 var(--play-gutter, 1rem);
-    }
-
-    li.disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-
-      a {
-        color: unset;
-      }
-    }
-
-    a,
-    u {
-      opacity: 0.8;
-      display: inline-block;
-      cursor: pointer;
-      background: var(--surface);
-      box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.5);
-      border-radius: 0.8rem;
-      padding: 0.1rem 0.5rem;
-    }
-
-    .active a,
-    .active u {
-      text-decoration: underline;
-      font-weight: bold;
-      color: unset;
-    }
-
-    // new public womp since last Explore open - sits after the word
-    .explore-new-dot {
-      display: inline-block;
-      width: 0.35rem;
-      height: 0.35rem;
-      margin-left: 0.25rem;
-      background: var(--red);
-      vertical-align: text-top;
-    }
-  }
-
-  @media screen and (max-width: 799px), screen and (max-height: 449px) {
-    &[data-active='false'] > ul.ui-sidebar {
-      transform: translateX(-100%);
-      visibility: hidden;
-      pointer-events: none;
-    }
-  }
-}
-
-// walking fades the sidebar so the world gets the screen; mouse over the column brings it back
-body.walking .canvasdom aside > ul.ui-sidebar {
-  opacity: 0;
-
-  &:hover {
-    opacity: 1;
-  }
 }
 
 // the aside is the single scroll container in split view; inner pane sections
 // must not make a second one (that was the double-scrollbar). pin headers with
 // position: sticky instead of a nested scroller.
-.ui-pane section {
+.page section {
   overflow: visible;
   padding: 0.5rem;
 }
@@ -2909,7 +2878,7 @@ body.walking .canvasdom aside > ul.ui-sidebar {
   }
 }
 
-.ui-pane .EmoteList ul {
+.page .EmoteList ul {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
   gap: 0.5rem;
@@ -2924,7 +2893,7 @@ body.walking .canvasdom aside > ul.ui-sidebar {
   }
 }
 
-.ui-pane .AnimateList ul {
+.page .AnimateList ul {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -3369,7 +3338,7 @@ dialog.editor {
   }
 }
 
-.ui-pane section.settings {
+.page section.settings {
   dl.props {
     margin: 0;
     padding: 0;
@@ -3387,7 +3356,7 @@ dialog.editor {
 
 // toolbar class is enough - don't depend on main>aside chain for button chrome
 .editor-toolbar ul.toolbar,
-.ui-pane .editor ul.toolbar,
+.page .editor ul.toolbar,
 dialog ul.toolbar {
   margin-bottom: 10px;
   padding-left: 0;
@@ -3466,7 +3435,7 @@ section.build-tab nav.build-main-tabs {
 }
 
 /* Login */
-.ui-pane section.login {
+.page section.login {
   padding: 1rem;
 
   img {
@@ -3474,7 +3443,7 @@ section.build-tab nav.build-main-tabs {
   }
 }
 
-.ui-pane .login a.button {
+.page .login a.button {
   position: relative;
   color: var(--bg);
   padding: 0.5rem 1rem;
@@ -3692,7 +3661,6 @@ section.build-tab nav.build-main-tabs {
   }
 
   &.-preview {
-    cursor: default;
     margin: 0 5px 0 0;
   }
 
@@ -3704,19 +3672,13 @@ section.build-tab nav.build-main-tabs {
     margin-bottom: 5px;
   }
 
-  > div.loading-image,
-  > div.broken-image {
+  > div.loading-image {
     width: 100%;
 
     > img {
       display: block;
       margin: auto;
     }
-  }
-
-  > div.broken-image {
-    height: 100%;
-    filter: grayscale();
   }
 
   a {
@@ -3888,8 +3850,8 @@ section.build-tab nav.build-main-tabs {
 
 // these panes set overflow-x: hidden, which per spec forces overflow-y to auto and
 // makes a second scrollbar; the aside is the only scroller in split view
-.ui-pane .editor,
-.ui-pane section.settings {
+.page .editor,
+.page section.settings {
   overflow: visible;
 }
 
@@ -5063,6 +5025,7 @@ main:has(.worldmap) {
       margin: 0;
       position: absolute;
       top: 0;
+      left: 0;
       right: 0;
       background: transparent;
     }
@@ -5084,7 +5047,6 @@ main:has(.worldmap) {
   height: 100%;
   position: relative;
 }
-
 
 // clear the fixed hamburger (same ~3.5rem offset as the play sidebar pills)
 .map-for-sale-cta {
@@ -5251,60 +5213,6 @@ main:has(.worldmap) {
   }
 }
 
-body.theatre-mode {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-
-  * {
-    color: #bbb !important;
-  }
-
-  .ui-sidebar > li > a {
-    border: 2px solid #5555;
-    background: rgba(0, 0, 0, 0.6);
-  }
-
-  main {
-    grid-template-columns: 0 1fr 0;
-
-    & > header {
-      display: none;
-    }
-
-    & > .page,
-    & > .ui-pane {
-      grid-column: unset;
-      grid-row: unset;
-      position: fixed;
-      top: 1rem;
-      right: 1rem;
-      width: 18rem;
-      bottom: 1rem;
-      border-radius: 1rem;
-      border: 2px solid #5555;
-      background: rgba(0, 0, 0, 0.6);
-      backdrop-filter: blur(12px);
-
-      h1 {
-        font-size: 1.2rem;
-        letter-spacing: -0.5px;
-      }
-
-      dt {
-        display: none;
-      }
-
-      dd {
-        background: #3335;
-        border: 2px solid #5555;
-        border-radius: 1.2rem;
-        padding: 1rem;
-        opacity: unset;
-        margin-bottom: 1rem;
-      }
-    }
-  }
-}
-
 .nft-grid {
   font-size: small;
 
@@ -5380,5 +5288,21 @@ body.theatre-mode {
 
   .sidebar-chrome {
     display: none;
+  }
+}
+
+// Aside bottom bar
+
+section {
+  aside {
+    position: absolute;
+    bottom: 1rem;
+    left: 1rem;
+    right: 1rem;
+  }
+
+  aside > .buttonish {
+    display: block;
+    text-align: center;
   }
 }

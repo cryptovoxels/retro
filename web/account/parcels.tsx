@@ -106,7 +106,7 @@ export class Parcels extends Component<Props, State> {
 
     return (
       <>
-        <h2>Parcels</h2>
+        <h2>parcels</h2>
         <table class="parcels">
           <tbody>{parcels}</tbody>
         </table>

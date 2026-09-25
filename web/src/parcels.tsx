@@ -1,19 +1,21 @@
-import { Component } from 'preact'
-
 import { Link } from 'preact-router/match'
+
 import ParcelHelper from '../../common/helpers/parcel-helper'
 import { ssrFriendlyWindow } from '../../common/helpers/utils'
 import { SimpleParcelRecord } from '../../common/messages/parcel'
-import Head from './components/head'
+import { useListControls } from './components/list-controls'
 import PaginationLinks from './components/pagination-links'
 import cachedFetch from './helpers/cached-fetch'
+import { useLiveSearch } from './helpers/live-search'
 import parse from './helpers/parse'
 import { Spinner } from './spinner'
-import { app } from './state'
 import { parcelCache } from './store/index'
+import { ParcelTile } from './tiles/parcel-tile'
 import { fetchOptions } from './utils'
 
 const limit = 50 // limit on server is 50 so can't go any higher than that..
+
+const PARCEL_SORTS = ['id', 'island', 'name'] as const
 
 type TableRowProps = {
   record: SimpleParcelRecord
@@ -52,196 +54,99 @@ const TableRow = (props: TableRowProps) => {
   )
 }
 
-const propertiesSort = ['id', 'height', 'island', 'suburb', 'distance'] as const
-type PropertiesSort = (typeof propertiesSort)[number]
+function matchesParcel(p: SimpleParcelRecord, q: string) {
+  const needle = q.trim().toLowerCase()
+  if (!needle) return true
+  return !!p.name?.toLowerCase().includes(needle) || !!p.address?.toLowerCase().includes(needle) || !!p.island?.toLowerCase().includes(needle) || String(p.id).includes(needle)
+}
+
+const matchAll = () => true
 
 export interface Props {
   parcels?: any
   path?: string
   page?: any
+  q?: string
 }
 
-export interface State {
-  parcels: any
-  sort: PropertiesSort
-  ascending: boolean
-  query?: string
-  loading: boolean
-  view?: string
-  page: number
-  total?: number
-}
+export default function Parcels(props: Props) {
+  const page = (props.page && parseInt(props.page, 10)) || 1
+  const queryParams = ssrFriendlyWindow ? new URLSearchParams(document.location.search.substring(1)) : undefined
+  const owner = queryParams && parse.ethaddress(queryParams.get('owner'))
+  const initialQuery = owner || props.q || queryParams?.get('q') || ''
 
-export default class Parcels extends Component<Props, State> {
-  controller: any
+  const [controls, controlsEl] = useListControls(initialQuery, {
+    sorts: [...PARCEL_SORTS],
+    views: ['list', 'grid'],
+    initialSort: 'id',
+    initialView: 'grid',
+  })
 
-  constructor(props: any) {
-    super()
+  const q = owner || controls.query || ''
 
-    const page = (props.page && parseInt(props.page, 10)) || 1
+  const { items, loading, meta } = useLiveSearch<SimpleParcelRecord, number>({
+    query: controls.query,
+    submitCount: controls.submitCount,
+    deps: [controls.sort, page, owner],
+    cacheKey: `parcels|${q}|${page}|${controls.sort}|${owner || ''}`,
+    match: owner ? matchAll : matchesParcel,
+    load: async (signal) => {
+      const searchParams = new URLSearchParams({
+        sort: controls.sort,
+        asc: 'true',
+        page: (page - 1).toString(),
+        limit: limit.toString(),
+        q,
+      })
+      const ac = new AbortController()
+      signal.addEventListener('abort', () => ac.abort())
+      const r = await cachedFetch(`/api/parcels/search.json?${searchParams}`, fetchOptions(ac))
+      const body = await r.json()
+      const next = (body.parcels || []) as SimpleParcelRecord[]
+      const total = next.length > 0 ? (next[0] as any).pagination_count : 0
+      next.forEach((p) => parcelCache.put(`/parcels/${p.id}`, p))
+      return { items: next, meta: total as number }
+    },
+    path: owner ? null : '/parcels',
+    initial: props.parcels,
+  })
 
-    this.state = {
-      loading: !props.parcels,
-      parcels: props.parcels || [],
-      sort: 'id',
-      ascending: true,
-      query: this.getQuery() ?? undefined,
-      page,
-    }
-  }
+  const description = owner ? `owned by ${owner}` : null
 
-  get queryParams(): URLSearchParams | undefined {
-    return ssrFriendlyWindow ? new URLSearchParams(document.location.search.substring(1)) : undefined
-  }
-
-  get owner(): undefined | string {
-    return this.queryParams && parse.ethaddress(this.queryParams.get('owner'))
-  }
-
-  onUrl = () => this.forceUpdate()
-
-  componentDidMount() {
-    this.fetch()
-    window.addEventListener('urlchange', this.onUrl)
-  }
-
-  componentWillUnmount() {
-    window.removeEventListener('urlchange', this.onUrl)
-    if (this.controller) {
-      this.controller.abort('ABORT: quitting component')
-    }
-  }
-
-  componentWillReceiveProps(nextProps: Props) {
-    const page = (nextProps.page && parseInt(nextProps.page, 10)) || 1
-    this.setState({ page }, this.fetch.bind(this))
-  }
-
-  getQuery() {
-    if (this.owner) {
-      return this.owner
-    }
-    return this.queryParams?.get('q') ?? undefined
-  }
-
-  async fetch() {
-    if (this.controller) {
-      this.controller.abort('ABORT:fetching')
-      this.controller = null
-    }
-
-    const query = this.getQuery()
-
-    this.setState({ query: query, loading: true, parcels: [] })
-
-    const searchParams = new URLSearchParams({
-      sort: this.state.sort,
-      asc: this.state.ascending ? 'true' : 'false',
-      page: (this.state.page - 1).toString(),
-      limit: limit.toString(),
-      q: query ?? '',
-    })
-    this.controller = new AbortController()
-    const r = await cachedFetch(`/api/parcels/search.json?${searchParams}`, fetchOptions(this.controller))
-    const r_1 = await r.json()
-    const parcels = r_1.parcels || []
-    const total = parcels.length > 0 ? parcels[0].pagination_count : 0
-    this.controller = null
-    this.setState({ parcels, total, loading: false })
-    this.populateCache()
-  }
-
-  populateCache() {
-    this.state.parcels.forEach((p: SimpleParcelRecord) => parcelCache.put(`/parcels/${p.id}`, p))
-  }
-
-  toggleSort(field: PropertiesSort) {
-    if (this.state.sort === field) {
-      this.setState({ ascending: !this.state.ascending })
-    } else {
-      this.setState({ sort: field, ascending: false })
-    }
-  }
-
-  componentDidUpdate(previousProps: Readonly<Props>, previousState: Readonly<State>, snapshot: any): void {
-    if (previousState.sort !== this.state.sort || previousState.ascending !== this.state.ascending) {
-      this.fetch()
-    }
-  }
-
-  render() {
-    let view
-
-    if (!this.state.loading && !this.state.parcels) {
-      view = <div>No parcels found</div>
-    } else {
-      const parcels = this.state.parcels.map((p: any) => <TableRow key={p.id} record={p} helper={new ParcelHelper(p)} selected={false} />)
-
-      view = (
-        <table class="parcels-table">
-          <tr>
-            <th>#</th>
-            <th onClick={() => this.toggleSort('id')}>Address</th>
-          </tr>
-          {parcels}
-        </table>
-      )
-    }
-
-    const description = this.owner ? `owned by ${this.owner}` : null
-
-    return (
-      <section>
-        <Head title={'All parcels'} description={'See all currently minted parcels'} url={'/parcels'} />
-
-        <br />
-        <div style={{ display: 'flex', flex: 1, width: '100%' }}>
-          <div style={{ flexGrow: 1 }} />
-          <div>
-            {app.state.wallet && (
-              <button class="outline" onClick={() => (window.location.href = '/parcels/new')}>
-                View New listings
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div role={'group'} style={'gap:1.5rem;'}>
-          <label htmlFor="select">Sort by </label>
-          <select
-            name="asc"
-            aria-label="Order"
-            onChange={(e) => {
-              this.setState({ ascending: e.currentTarget.value === 'Asc' ? true : false })
-            }}
-          >
-            <option selected={this.state.ascending} value="Asc">
-              Asc
-            </option>
-            <option selected={!this.state.ascending} value="Desc">
-              Desc
-            </option>
-          </select>
-          <label htmlFor="select">Order by </label>
-          <select
-            name="Order by"
-            aria-label="Order"
-            onChange={(e) => {
-              this.setState({ sort: e.currentTarget.value as PropertiesSort })
-            }}
-          >
-            {propertiesSort.map((prop) => (
-              <option selected={this.state.sort == prop} value={prop}>
-                {prop.charAt(0).toUpperCase() + prop.slice(1)}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <PaginationLinks path="/parcels" total={this.state.total} page={this.state.page} limit={limit} description={description} queryParams={this.queryParams} />
-
-        <article>{this.state.loading ? <Spinner size={18} /> : view}</article>
-      </section>
+  let view
+  if (!loading && items.length === 0) {
+    view = <div>No parcels found</div>
+  } else if (controls.view === 'grid') {
+    view = (
+      <div class="wrap-grid">
+        {items.map((p) => (
+          <ParcelTile key={p.id} parcel={p} />
+        ))}
+      </div>
+    )
+  } else {
+    view = (
+      <table class="parcels-table">
+        <tr>
+          <th>#</th>
+          <th>Address</th>
+        </tr>
+        {items.map((p) => (
+          <TableRow key={p.id} record={p} helper={new ParcelHelper(p)} selected={false} />
+        ))}
+      </table>
     )
   }
+
+  return (
+    <section>
+      <h1>parcels</h1>
+
+      {controlsEl}
+
+      <article>{loading ? <Spinner size={18} /> : view}</article>
+
+      <PaginationLinks path="/parcels" total={meta} page={page} limit={limit} description={description} queryParams={queryParams} />
+    </section>
+  )
 }

@@ -1,6 +1,6 @@
 import { Component } from 'preact'
 import { isMobile } from '../../common/helpers/detector'
-import { Womp, WompCard } from './components/womp-card'
+import { Womp, WompTile } from './tiles/womp-tile'
 import cachedFetch from './helpers/cached-fetch'
 import { Spinner } from './spinner'
 import { wompCache } from './store/index'
@@ -93,7 +93,7 @@ export default class WompsList extends Component<Props, State> {
     const allWomps = this.state.womps!.map((womp) => {
       // if parcel_id is undefined, it's likely a space; which has 0 count by default for now.
       const nearbyCount = womp.parcel_id ? this.state.activeParcels?.get(womp.parcel_id) : 0
-      return <WompCard key={womp.id} nearbyCount={nearbyCount} openInSameWindow={true} onClick={this.props.onWompClick} className={`${this.state.collapsed ? '' : '-medium'} `} womp={womp} hoverText={`Click to teleport to ${womp.coords}`} />
+      return <WompTile key={womp.id} nearbyCount={nearbyCount} openInSameWindow={true} onClick={this.props.onWompClick} className={`${this.state.collapsed ? '' : '-medium'} `} womp={womp} hoverText={`Click to teleport to ${womp.coords}`} />
     })
 
     const womps = allWomps
