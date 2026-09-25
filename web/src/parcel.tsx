@@ -16,6 +16,7 @@ import { ParcelMetrics as Metrics } from './components/metrics'
 import { ParcelShop } from './components/parcel-shop'
 import { getParcelIdFromPath } from './helpers/coords-nav'
 import { route } from 'preact-router'
+import { truncate } from './lib/string-utils'
 
 export interface Props {
   parcel?: ParcelWithMintednessRecord
@@ -375,14 +376,11 @@ export default class Parcel extends Component<Props, State> {
     const parcelDesc = this.state.parcel.description || (location ? `${location}. The permanent exhibit of crypto art across thousands of galleries in an endlessly evolving world.` : '')
     const ogImage = parcelRendererUrl(this.state.parcelId)
 
-    const head = <Head title={parcelName} description={parcelDesc} url={`/parcels/${this.state.parcelId}`} imageURL={ogImage} />
-
     return (
       <section class="parcel-page">
-        {head}
-        <header>
-          <h1>{parcelName}</h1>
-        </header>
+        <h1>{this.state.parcel?.address}</h1>
+        <h2>{parcelName}</h2>
+
         {this.renderSidebar(islandSlug!)}
       </section>
     )

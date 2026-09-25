@@ -183,6 +183,20 @@ export function toggleSiteNav() {
   siteNavOpen.value = !siteNavOpen.value
 }
 
+// header mounts this list; UserInterface portals the in-world rows into it
+export const worldNavEl = signal<HTMLElement | null>(null)
+
+// .page mounts this; world tools (add, edit, …) portal into it and cover the route
+export const pageToolEl = signal<HTMLElement | null>(null)
+
+const PAGE_TOOLS = new Set(['add', 'edit', 'voxels', 'debugTool', 'nfts', 'womp', 'takeWomp', 'help', 'login', 'parcelSnapshots'])
+
+export const isPageTool = (p?: string) => !!p && PAGE_TOOLS.has(p)
+
+export function clearPageTool() {
+  if (isPageTool(uiPane.value)) uiPane.value = undefined
+}
+
 export const broadcastShowboxUuid = signal<string | undefined>(undefined)
 // when the local broadcast went live; the closed-sidebar "live" tab reads this for its timer
 export const broadcastLiveStartedAt = signal<number | undefined>(undefined)
@@ -198,13 +212,6 @@ export const closeBroadcastSidebar = () => {
   sidebarClosed.value = false
   uiAsideTick.value++
 }
-
-// while the broadcast dock is open it is the sidebar's home: hopping into edit/settings/a tool
-// swaps the pane (the pulsing live tab appears), and when that pane closes we snap back to the
-// dock. stop/close clears the uuid first, which ends this.
-effect(() => {
-  if (!uiPane.value && broadcastShowboxUuid.value) uiPane.value = 'broadcast'
-})
 
 export type WompMetadataAvatar = {
   avatar: AvatarRef

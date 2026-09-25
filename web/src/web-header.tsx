@@ -9,7 +9,7 @@ import VoxelRadio from './components/voxel-radio'
 import { route } from 'preact-router'
 import cachedFetch from './helpers/cached-fetch'
 import { messageList } from '../../src/connector'
-import { siteNavOpen, toggleSiteNav } from '../../src/store'
+import { siteNavOpen, toggleSiteNav, worldNavEl } from '../../src/store'
 import { appoint, identityLabel, loadMe, me } from './auth/identities'
 type Props = {
   path: string
@@ -47,6 +47,10 @@ function markChatSeen() {
   try {
     localStorage.setItem(CHAT_LAST_SEEN, String(Date.now()))
   } catch {}
+}
+
+function worldNavRef(el: HTMLElement | null) {
+  if (worldNavEl.value !== el) worldNavEl.value = el
 }
 
 function SiteNavToggle() {
@@ -205,6 +209,9 @@ export default class WebHeader extends Component<Props, State> {
                 </form>
                 <br />
               </li>
+            </ul>
+            <ul class="world-actions" ref={worldNavRef} />
+            <ul>
               <A to="/">Home</A>
               {admin && <A to="/admin">Admin</A>}
               <A to="/account">{signedIn ? 'Profile' : 'Login'}</A>
@@ -226,7 +233,6 @@ export default class WebHeader extends Component<Props, State> {
                 Blog
                 {badge(blogN)}
               </A>
-              <A to="/build">Build</A>
               <A to="/chat">
                 Chat
                 {badge(chatN)}
@@ -281,7 +287,7 @@ export default class WebHeader extends Component<Props, State> {
 
               <li>
                 <br />
-                <small>&copy; 2018-2026</small>
+                <small>&copy; 2018-2026 Nolan Consulting Limited</small>
               </li>
             </ul>
           </nav>
