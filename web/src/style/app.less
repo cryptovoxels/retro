@@ -544,10 +544,62 @@ header .voxel-radio {
 .voice-toggle {
 }
 
+// shared look for web/src/tiles/* (parcel, asset, womp, avatar)
+.tile {
+  cursor: pointer;
+
+  > a {
+    display: block;
+    color: inherit;
+    text-decoration: none;
+  }
+
+  // the wrapper owns the square; a loading/broken <img> shrink-wraps its
+  // fallback content in chrome, so sizing the img directly doesn't hold
+  .thumb {
+    width: 100%;
+    aspect-ratio: 1;
+    overflow: hidden;
+    background: var(--hover);
+    border-radius: 2px;
+
+    img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      aspect-ratio: auto;
+      object-fit: cover;
+    }
+  }
+
+  p {
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  small {
+    display: block;
+    opacity: 0.6;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+// inline blockie, not a grid cell
+.avatar-tile {
+  display: inline-block;
+  vertical-align: middle;
+  cursor: default;
+}
+
 .wrap-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(5rem, 1fr));
   gap: 0.5rem;
+  text-align: center;
 
   img,
   .wearable-icon,
@@ -880,6 +932,22 @@ main {
     backdrop-filter: blur(12px);
     color: #aaa;
 
+    // Sidebar title between chrome
+
+    section {
+      margin-top: 3rem;
+
+      & > h1 {
+        position: absolute;
+        font-size: 1.5rem;
+        font-weight: bold;
+        top: 1rem;
+        left: 1rem;
+        right: 1rem;
+        text-align: center;
+      }
+    }
+
     * {
       color: unset !important;
     }
@@ -1200,14 +1268,20 @@ body.gateway {
   pointer-events: auto;
 }
 
-// sticky top strip so the X stays put while the column scrolls
+// sticky top strip so back + X stay put while the column scrolls
 .sidebar-chrome {
   position: absolute;
   top: 1rem;
+  left: 0.5rem;
   right: 0.5rem;
   z-index: 5000;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  pointer-events: none;
 
   button {
+    pointer-events: auto;
     background: none;
     border: none;
     font-family: 'arial rounded mt bold';
@@ -1222,6 +1296,18 @@ body.gateway {
     &:hover {
       background: #ccc;
       color: white;
+    }
+  }
+
+  .sidebar-back {
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    svg {
+      display: block;
     }
   }
 }
@@ -1770,7 +1856,6 @@ section.profile {
   background: #0af;
 }
 
-.broken-image,
 .loading-image {
   width: 100%;
   aspect-ratio: 1/1;
@@ -3704,19 +3789,13 @@ section.build-tab nav.build-main-tabs {
     margin-bottom: 5px;
   }
 
-  > div.loading-image,
-  > div.broken-image {
+  > div.loading-image {
     width: 100%;
 
     > img {
       display: block;
       margin: auto;
     }
-  }
-
-  > div.broken-image {
-    height: 100%;
-    filter: grayscale();
   }
 
   a {
@@ -5063,6 +5142,7 @@ main:has(.worldmap) {
       margin: 0;
       position: absolute;
       top: 0;
+      left: 0;
       right: 0;
       background: transparent;
     }
@@ -5325,5 +5405,21 @@ main:has(.worldmap) {
 
   .sidebar-chrome {
     display: none;
+  }
+}
+
+// Aside bottom bar
+
+section {
+  aside {
+    position: absolute;
+    bottom: 1rem;
+    left: 1rem;
+    right: 1rem;
+  }
+
+  aside > .buttonish {
+    display: block;
+    text-align: center;
   }
 }

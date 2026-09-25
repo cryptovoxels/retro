@@ -1,6 +1,6 @@
 import { Component } from 'preact'
 import { decodeCoords } from '../../../common/helpers/utils'
-import { Womp, WompCard } from '../../../web/src/components/womp-card'
+import { Womp, WompTile } from '../../../web/src/tiles/womp-tile'
 import cachedFetch from '../../../web/src/helpers/cached-fetch'
 import Connector from '../../connector'
 import { MinimapSettings } from '../../minimap'
@@ -97,7 +97,7 @@ export class WompOverlay extends Component<Props, State> {
         <div class="grid">
           {this.state.womps.map((womp) => (
             <div class="womp" key={womp.id}>
-              <WompCard womp={womp} hoverText={`Click to teleport to ${womp.coords}`} className="-compact" onClick={this.onClick.bind(this)} />
+              <WompTile womp={womp} hoverText={`Click to teleport to ${womp.coords}`} className="-compact" onClick={this.onClick.bind(this)} />
             </div>
           ))}
         </div>

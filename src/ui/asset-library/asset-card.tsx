@@ -1,6 +1,5 @@
-import { bucketUrl, renderUrl } from '../../../web/src/assets'
+import { bucketUrl } from '../../../web/src/tiles/asset-tile'
 import { LibraryAsset } from '../../library-asset'
-import Image from '../../../web/src/components/image'
 import { avatarName } from '../../../common/messages/avatar-ref'
 
 export function AssetCard(props: { asset: LibraryAsset }) {
@@ -11,7 +10,7 @@ export function AssetCard(props: { asset: LibraryAsset }) {
       <header>
         <div class="name">{asset.name || 'My Asset'}</div>
       </header>
-      {asset.id && <Image src={bucketUrl(asset.id)} altsrc={renderUrl(asset.id)} />}
+      {asset.id && <img src={bucketUrl(asset.id)} />}
 
       <footer>
         <div class="author">Author: {asset.author ? avatarName(asset.author as any) : ''}</div>

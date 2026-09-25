@@ -1,4 +1,4 @@
-import type { Womp } from '../components/womp-card'
+import type { Womp } from '../tiles/womp-tile'
 import { worldBoot } from '../client'
 import cachedFetch from './cached-fetch'
 import { getCoords, naviportHere } from './coords-nav'
