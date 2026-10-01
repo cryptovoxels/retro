@@ -9,7 +9,7 @@ require('babylonjs-materials')
 test('loading vox with one voxel', (t) => {
   const buffer = fs.readFileSync(path.join(__dirname, 'fixtures', 'single_voxel.vox'))
 
-  voxReader(buffer, false, (res) => {
+  voxReader(buffer, true, false, (res) => {
     if (res instanceof Error) {
       t.fail(`Did not expect error: '${res.toString()}'`)
       t.end()
@@ -30,7 +30,7 @@ test('loading vox with one voxel', (t) => {
 test('loading 2_voxels_same_mat.vox', (t) => {
   const buffer = fs.readFileSync(path.join(__dirname, 'fixtures', '2_voxels_same_mat.vox'))
 
-  voxReader(buffer, false, (res) => {
+  voxReader(buffer, true, false, (res) => {
     if (res instanceof Error) {
       t.fail(`Did not expect error: '${res.toString()}'`)
       t.end()
@@ -50,7 +50,7 @@ test('loading 2_voxels_same_mat.vox', (t) => {
 test('loading 2_voxels_diff_mats.vox', (t) => {
   const buffer = fs.readFileSync(path.join(__dirname, 'fixtures', '2_voxels_diff_mats.vox'))
 
-  voxReader(buffer, false, (res) => {
+  voxReader(buffer, true, false, (res) => {
     if (res instanceof Error) {
       t.fail(`Did not expect error: '${res.toString()}'`)
       t.end()
@@ -69,7 +69,7 @@ test('loading 2_voxels_diff_mats.vox', (t) => {
 test('loading small vox', (t) => {
   const buffer = fs.readFileSync(path.join(__dirname, 'fixtures', 'green_cube.vox'))
 
-  voxReader(buffer, false, (res) => {
+  voxReader(buffer, true, false, (res) => {
     if (res instanceof Error) {
       t.fail(`Did not expect error: '${res.toString()}'`)
       t.end()
@@ -89,7 +89,7 @@ test('loading small vox', (t) => {
 test('loading mega vox', (t) => {
   const buffer = fs.readFileSync(path.join(__dirname, 'fixtures', 'mega.vox'))
 
-  voxReader(buffer, true, (res) => {
+  voxReader(buffer, true, true, (res) => {
     if (res instanceof Error) {
       t.fail(`Did not expect error: '${res.toString()}'`)
       t.end()
@@ -108,7 +108,7 @@ test('loading mega vox', (t) => {
 test('loading menger vox', (t) => {
   const buffer = fs.readFileSync(path.join(__dirname, 'fixtures', 'menger.vox'))
 
-  voxReader(buffer, true, (res) => {
+  voxReader(buffer, true, true, (res) => {
     if (res instanceof Error) {
       t.fail(`Did not expect error: '${res.toString()}'`)
       t.end()

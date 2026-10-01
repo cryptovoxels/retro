@@ -10,7 +10,7 @@ export function encodeVoxelbr(buf: ArrayBuffer): Promise<VoxelbrPacked | null> {
   return new Promise((resolve) => {
     try {
       // megavox limit so big models mesh too; output format is the same either way
-      voxReader(buf, true, (result: VoxData | Error) => {
+      voxReader(buf, true, true, (result: VoxData | Error) => {
         if (result instanceof Error) return resolve(null)
         try {
           const raw = packVoxelbr(result)

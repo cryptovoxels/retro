@@ -2,6 +2,7 @@ import { runCompute } from '../../src/mono-pool'
 import { unpackVoxelbr } from './voxelbr'
 
 export interface Options {
+  invertX?: boolean // default true
   megavox?: boolean
   sizeHint?: BABYLON.Vector3
   signal: AbortSignal
@@ -113,6 +114,7 @@ export class VoxImporter {
           w.loadVox(
             {
               ...(urlOrBuffer instanceof ArrayBuffer ? { buffer: urlOrBuffer } : { url: urlOrBuffer }),
+              flipX: options.invertX ?? true,
               megavox: !!options.megavox,
               timeoutMs: VoxImporter.JOB_TIMEOUT_MS,
               colorMap: options.colorMap,

@@ -6,6 +6,7 @@ import Avatar from '../avatar'
 import type Connector from '../connector'
 import type Parcel from '../parcel'
 import { rebindGizmos } from '../tools/gizmos'
+import { renderImageDraft, renderVoxDraft } from './feature-draft'
 import { easingFunctions, easingModes, FeatureEditor, FeatureEditorProps } from '../ui/features'
 import FeatureBasicGUI from '../ui/gui/gui'
 import { inspectFeature } from '../ui/inspect-feature'
@@ -729,7 +730,9 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
   generateDraft(): void {
     if (this.disposed || !(this.description as any).draft) return
-    if (this.parcel.drafts.take(this)) this.setCommon()
+    const d = (this.description as any).draft as string
+    if (this.type === 'image' || this.type === 'nft-image') renderImageDraft(this, d)
+    else if (this.type === 'vox-model' || this.type === 'megavox' || this.type === 'ride') renderVoxDraft(this, d)
   }
 
   disposeBasicGui() {

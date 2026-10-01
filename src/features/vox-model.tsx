@@ -66,6 +66,7 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     if (this.disposed || this.abortController.signal.aborted) return
     // root failed or has no real mesh: keep own draft
     if (!root.mesh || root.importError) return
+    if (this.mesh instanceof BABYLON.Mesh) this.mesh.material?.dispose(false, true)
     this.mesh?.dispose()
     this.mesh = root.mesh.createInstance(this.uniqueEntityName('instance')) as unknown as MeshExtended
     // pivot (the 0.02 vox scale) is per-node, instances do not inherit it from the source
@@ -87,6 +88,7 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   }
 
   private applyImportedMesh(imported: BABYLON.Mesh) {
+    if (this.mesh instanceof BABYLON.Mesh) this.mesh.material?.dispose(false, true)
     this.mesh?.dispose()
     this.mesh = imported
     this.mesh.isPickable = true

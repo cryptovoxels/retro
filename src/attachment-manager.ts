@@ -134,7 +134,7 @@ export class AvatarAttachmentManager {
 
     const url = `/api/collectibles/${attachment.wid}/vox`
 
-    const mesh = await voxImporter().import(url, { signal })
+    const mesh = await voxImporter().import(url, { invertX: false, signal })
     if (signal.aborted) {
       mesh.dispose()
       return

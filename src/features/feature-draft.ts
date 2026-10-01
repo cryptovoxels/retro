@@ -1,4 +1,8 @@
-import Feature from './feature'
+import { rebindGizmos } from '../tools/gizmos'
+import type Feature from './feature'
+
+// same as vox-import VOX_SCALE. not imported: that pulls mono-pool (worker URL) into vitest
+const VOX_SCALE = 0.02
 
 const VoxReader = require('@sh-dave/format-vox').VoxReader
 const VoxTools = require('@sh-dave/format-vox').VoxTools
@@ -109,4 +113,119 @@ export function persistDraft(feature: Feature, draft: string | null) {
   if (!draft || !feature.parcel?.canEdit || draft === (feature.description as any).draft) return
   ;(feature.description as any).draft = draft
   feature.sendToServer(['draft' as any])
+}
+
+function b64ToBytes(b64: string): Uint8Array {
+  const s = atob(b64)
+  const out = new Uint8Array(s.length)
+  for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i)
+  return out
+}
+
+// 48 bytes raw rgb, 4x4, top row first
+export function renderImageDraft(feature: Feature, b64: string) {
+  if (feature.disposed) return
+  const bytes = b64ToBytes(b64)
+  if (bytes.length !== 48) return
+  const f = feature as any
+  const material = new BABYLON.StandardMaterial(f.uniqueEntityName('material'), feature.scene)
+  material.specularColor.set(0, 0, 0)
+  material.emissiveColor.set(1, 1, 1)
+  material.diffuseTexture = BABYLON.RawTexture.CreateRGBTexture(bytes, 4, 4, feature.scene, false, true, BABYLON.Texture.NEAREST_SAMPLINGMODE)
+  material.backFaceCulling = false
+  if (!(feature.mesh instanceof BABYLON.Mesh)) {
+    feature.mesh = BABYLON.MeshBuilder.CreatePlane(f.uniqueEntityName('mesh'), { size: 1 }, feature.scene)
+    rebindGizmos(feature)
+  }
+  ;(feature.mesh as BABYLON.Mesh).material = material
+  f.setCommon()
+}
+
+// box quads wound outwards, same order as CreateBox
+const BOX_FACES: [number, number, number][][] = [
+  [
+    [-1, 1, -1],
+    [1, 1, -1],
+    [1, 1, 1],
+    [-1, 1, 1],
+  ],
+  [
+    [-1, -1, 1],
+    [1, -1, 1],
+    [1, -1, -1],
+    [-1, -1, -1],
+  ],
+  [
+    [1, -1, -1],
+    [1, -1, 1],
+    [1, 1, 1],
+    [1, 1, -1],
+  ],
+  [
+    [-1, -1, 1],
+    [-1, -1, -1],
+    [-1, 1, -1],
+    [-1, 1, 1],
+  ],
+  [
+    [1, -1, 1],
+    [-1, -1, 1],
+    [-1, 1, 1],
+    [1, 1, 1],
+  ],
+  [
+    [-1, -1, -1],
+    [1, -1, -1],
+    [1, 1, -1],
+    [-1, 1, -1],
+  ],
+]
+
+// 64 cells + 3 size bytes: 4x4x4 coloured boxes at the real footprint
+export function renderVoxDraft(feature: Feature, b64: string) {
+  if (feature.disposed) return
+  const bytes = b64ToBytes(b64)
+  if (bytes.length !== 67) return
+  const f = feature as any
+  const cx = ((bytes[64] || 1) / 4) * VOX_SCALE
+  const cy = ((bytes[66] || 1) / 4) * VOX_SCALE
+  const cz = ((bytes[65] || 1) / 4) * VOX_SCALE
+  const positions: number[] = []
+  const colors: number[] = []
+  const indices: number[] = []
+  for (let z = 0; z < 4; z++) {
+    for (let y = 0; y < 4; y++) {
+      for (let x = 0; x < 4; x++) {
+        const pi = bytes[x + y * 4 + z * 16]
+        if (!pi) continue
+        const [r, g, b] = MAGICA_RGB[pi] || MAGICA_RGB[1]
+        // mirrored x, vox z up, base on y=0, x/z centred - same layout as the real mesh
+        const ox = (1.5 - x) * cx
+        const oy = (z + 0.5) * cy
+        const oz = (1.5 - y) * cz
+        for (const q of BOX_FACES) {
+          const base = positions.length / 3
+          for (const [qx, qy, qz] of q) {
+            positions.push(ox + qx * cx * 0.475, oy + qy * cy * 0.475, oz + qz * cz * 0.475)
+            colors.push(r / 255, g / 255, b / 255, 1)
+          }
+          indices.push(base, base + 1, base + 2, base, base + 2, base + 3)
+        }
+      }
+    }
+  }
+  if (!indices.length) return
+  const mesh = new BABYLON.Mesh(f.uniqueEntityName('mesh'), feature.scene)
+  const vd = new BABYLON.VertexData()
+  vd.positions = positions
+  vd.colors = colors
+  vd.indices = indices
+  vd.applyToMesh(mesh)
+  const mat = new BABYLON.StandardMaterial(f.uniqueEntityName('material'), feature.scene)
+  mat.specularColor.set(0, 0, 0)
+  mesh.material = mat
+  feature.mesh?.dispose()
+  feature.mesh = mesh
+  rebindGizmos(feature)
+  f.setCommon()
 }

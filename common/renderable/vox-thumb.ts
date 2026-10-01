@@ -40,6 +40,7 @@ async function blobFromCanvas(canvas: OffscreenCanvas | HTMLCanvasElement): Prom
 async function meshFromBuffer(scene: BABYLON.Scene, buf: ArrayBuffer): Promise<BABYLON.Mesh> {
   const data = await loadVox({
     buffer: buf.slice(0),
+    flipX: true,
     megavox: false,
     timeoutMs: 10000,
   })

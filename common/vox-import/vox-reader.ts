@@ -55,7 +55,7 @@ function clampI8(n: number) {
   return n < -127 ? -127 : n > 127 ? 127 : n | 0
 }
 
-export const voxReader = (buffer: ArrayBuffer, megavox: boolean, callback: Callback, colorMap?: Record<number, [number, number, number]>) => {
+export const voxReader = (buffer: ArrayBuffer, flipX: boolean, megavox: boolean, callback: Callback, colorMap?: Record<number, [number, number, number]>) => {
   VoxReader.read(buffer, (vox: any, errstr: string | null) => {
     if (errstr) {
       return callback(new Error('VoxReader error: ' + errstr))
@@ -147,9 +147,9 @@ export const voxReader = (buffer: ArrayBuffer, megavox: boolean, callback: Callb
           bucketData[bucket_i * 3 + 1] = key_b
           bucketData[bucket_i * 3 + 2] = v_i
 
-          // Mirrored X, Y=aoZ, Z=-aoY (voxel units; *0.02 via mesh setPreTransformMatrix)
+          // X mirrored unless invertX: false (wearables), Y=aoZ, Z=-aoY (voxel units; *0.02 via mesh setPreTransformMatrix)
           const posOffset = v_i * 3
-          positions[posOffset] = clampI8(size.x - ax - halfX)
+          positions[posOffset] = clampI8(flipX ? size.x - ax - halfX : ax - halfX)
           positions[posOffset + 1] = clampI8(az)
           positions[posOffset + 2] = clampI8(-(ay - halfY))
 
@@ -164,27 +164,15 @@ export const voxReader = (buffer: ArrayBuffer, megavox: boolean, callback: Callb
         indices[index_i++] = v_i
         i += 8
       }
+      // ao-mesher winding is for the mirrored mesh; unmirrored flips it
+      if (!flipX) {
+        const a = indices[index_i - 1]
+        indices[index_i - 1] = indices[index_i - 2]
+        indices[index_i - 2] = a
+      }
     }
 
     const numMergedVerts = next_v_i
-
-    for (let i = 0; i < index_i; i += 3) {
-      const a = indices[i + 0] + 0
-      const b = indices[i + 1] + 0
-      const c = indices[i + 2] + 0
-
-      const y1 = positions[a * 3 + 1]
-      const y2 = positions[b * 3 + 1]
-      const y3 = positions[c * 3 + 1]
-
-      // Reverse y face winding order
-      if (y1 == y2 && y2 == y3) {
-        // continue
-      } else {
-        // indices[i + 1] = c
-        // indices[i + 2] = b
-      }
-    }
 
     // copy tight — subarray pins the full unmerged allocs (often 2-4x the real mesh)
     const finalPositions = new Int8Array(positions.buffer.slice(positions.byteOffset, positions.byteOffset + numMergedVerts * 3))

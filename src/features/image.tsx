@@ -75,6 +75,7 @@ export default class Image extends Feature2D<ImageRecord> {
     if (this.disposed || this.abortController.signal.aborted) return
     // root failed or has no real mesh: keep own draft
     if (!root.loaded || !root.mesh) return
+    if (this.mesh instanceof BABYLON.Mesh) this.mesh.material?.dispose(false, true)
     this.mesh?.dispose()
     this.mesh = root.mesh.createInstance(this.uniqueEntityName('instance')) as unknown as MeshExtended
 
