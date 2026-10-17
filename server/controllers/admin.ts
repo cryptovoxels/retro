@@ -35,6 +35,7 @@ async function unmintedFromDb(db: Db, page: number) {
     `select id, address, island, x1, y1, z1, x2, y2, z2
      from properties
      where minted = false
+       and (island is distinct from 'Architect Island' or is_common = true or kind = 'inner')
      order by id desc
      limit 100 offset $1`,
     [offset],
