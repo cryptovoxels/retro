@@ -1,5 +1,6 @@
 import { Component } from 'preact'
 import { blocks, defaultColors } from '../../../common/content/blocks'
+import { tilesetRuntimeUrl } from '../../../common/helpers/parcel-compile'
 import UserInterface from '../../user-interface'
 import { SelectionMode } from '../../tools/voxel'
 
@@ -34,7 +35,7 @@ export default class VoxelBuilder extends Component<Props, State> {
 
   get tilesetUrl() {
     if (typeof this.state.tileset !== 'string') return DEFAULT_TILESET
-    return process.env.IMG_HOST + this.state.tileset
+    return tilesetRuntimeUrl(this.state.tileset)
   }
 
   get scene() {
