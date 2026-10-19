@@ -119,7 +119,7 @@ const Main = () => {
               aria-label="Close panel"
               style={{ position: 'sticky', top: 0, zIndex: 1 }}
               onClick={(e) => {
-                worldUi.value?.closeInteractOverlay()
+                worldUi.value?.closeWithPointerLock()
                 closePageSidebar(e)
               }}
             >
