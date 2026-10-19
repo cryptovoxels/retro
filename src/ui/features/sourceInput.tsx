@@ -150,6 +150,7 @@ export class SourceInput extends Component<SourceInputProps, SourceInputState> {
             {ugcName(url)}
             {size ? ` (${humanSize(size)})` : ''}
           </span>
+          <input type="text" aria-label="Source URL" value={resolveUgc(url)} readOnly onFocus={(e) => e.currentTarget.select()} />
           <button onClick={() => this.onChange()}>change</button>
           {error && <small>{error}</small>}
         </>
