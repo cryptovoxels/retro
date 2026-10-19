@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, statSync } from 'fs'
 import { join } from 'path'
 import { fileURLToPath } from 'url'
-import test from 'tape'
+import { expect, test } from 'vitest'
 
 const SERVER = fileURLToPath(new URL('..', import.meta.url))
 
@@ -90,15 +90,14 @@ const IGNORED = [
   /^\/api\/(ping|parcels\/resources\/[^/]+\.json|parcels\/[^/]+\/(users\.json|list))$/, // jwt gated reads
 ]
 
-test('openapi.yaml does not document dead GET routes', (t) => {
+test('openapi.yaml does not document dead GET routes', () => {
   const yaml = yamlPaths()
   const live = new Set(routes().map((r) => r.path))
   const orphans = [...yaml].filter((p) => !live.has(p))
-  t.deepEqual(orphans, [])
-  t.end()
+  expect(orphans).toEqual([])
 })
 
-test('GET routes missing from openapi.yaml', (t) => {
+test('GET routes missing from openapi.yaml', () => {
   const yaml = yamlPaths()
   const undocumented = routes()
     .filter((r) => !yaml.has(r.path) && !IGNORED.some((re) => re.test(r.path)))
@@ -107,5 +106,4 @@ test('GET routes missing from openapi.yaml', (t) => {
   if (undocumented.length) {
     console.warn('GET routes not in server/openapi.yaml:\n' + undocumented.join('\n'))
   }
-  t.end()
 })

@@ -9,7 +9,7 @@ export default defineWorkspace([
     extends: './vitest.config.ts',
     test: {
       name: 'client',
-      include: ['test/**/*.test.ts'],
+      include: ['test/**/*.test.ts', 'web/test/**/*.test.ts'],
       exclude: ['test/compressor/**'],
     },
   },
@@ -22,16 +22,14 @@ export default defineWorkspace([
       globals: true,
     },
   },
-  // Server tape tests. same runner as the rest, tape API not vitest expect()
   {
     test: {
       name: 'server',
-      include: ['server/test/**/*-test.ts'],
-      // these hit postgres with a schema that does not match, or load the db on import
-      exclude: ['server/test/favorites-test.ts', 'server/test/report-test.ts', 'server/test/suspended-avatars-test.ts', 'server/test/parcel-test.ts'],
+      include: ['server/test/**/*.test.ts'],
+      // these assume an empty db with serial ids from 1, and favorites has no parcel_id column any more
+      exclude: ['server/test/favorites.test.ts', 'server/test/report.test.ts', 'server/test/parcel-events.test.ts'],
       environment: 'node',
       globals: false,
-      setupFiles: ['./test/vitest-tape.ts'],
       isolate: true,
     },
   },
