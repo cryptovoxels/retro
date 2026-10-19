@@ -11,6 +11,8 @@ export type VoxData = {
   indices: Uint16Array | Uint32Array
   colors: Uint8Array
   size: number[]
+  // rapier grid coords, same axis mapping as positions (voxel [i, i+1] per axis)
+  voxels: Int32Array
 }
 
 interface Callback {
@@ -107,6 +109,16 @@ export const voxReader = (buffer: ArrayBuffer, flipX: boolean, megavox: boolean,
     const halfX = originalSize.x >> 1
     const halfY = originalSize.y >> 1
 
+    const voxels = new Int32Array(model.length * 3)
+    let vox_i = 0
+    model.forEach((row: any) => {
+      const { x, y, z } = row
+      // ao-mesher drops the 1 cell pad, so raw model coords line up with positions
+      voxels[vox_i++] = flipX ? size.x - x - 1 - halfX : x - halfX
+      voxels[vox_i++] = z
+      voxels[vox_i++] = halfY - y - 1
+    })
+
     const numBuckets = roundToNextHighestPowerOf2(Math.ceil(Math.max(numUnmergedVerts, 2) * 1.5))
     const wrapMask = numBuckets - 1
     const bucketData = new Uint32Array(numBuckets * 3)
@@ -184,6 +196,7 @@ export const voxReader = (buffer: ArrayBuffer, flipX: boolean, megavox: boolean,
       indices: finalIndices,
       colors: finalColors,
       size: [originalSize.x, originalSize.y, originalSize.z],
+      voxels,
     })
   })
 }

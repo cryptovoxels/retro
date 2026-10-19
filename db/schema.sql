@@ -1,4 +1,4 @@
-\restrict YtKHRCfiX5Gc5etaz5oNhbsK5uZjBJAN6UsVcml0uhfae9eGPBhMtHy4ecG02R3
+\restrict bmBTQxgNGDqI7iSGKGHZa8wcQ5cVhep3Dk7zMbby6keBIRYKtJUfd9YvuW4rgNx
 CREATE SCHEMA metrics;
 CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
@@ -336,6 +336,12 @@ CREATE TABLE public.delegations (
     expires_at date,
     signature text
 );
+CREATE TABLE public.email_codes (
+    email public.citext NOT NULL,
+    code text NOT NULL,
+    expires_at timestamp with time zone NOT NULL,
+    attempts integer DEFAULT 0 NOT NULL
+);
 CREATE TABLE public.emoji_badges (
     id integer NOT NULL,
     emojiable_id text,
@@ -368,6 +374,20 @@ CREATE SEQUENCE public.favorites_id_seq
     NO MAXVALUE
     CACHE 1;
 ALTER SEQUENCE public.favorites_id_seq OWNED BY public.favorites.id;
+CREATE TABLE public.free_avatars (
+    id integer NOT NULL,
+    name text NOT NULL,
+    src text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
+CREATE SEQUENCE public.free_avatars_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ALTER SEQUENCE public.free_avatars_id_seq OWNED BY public.free_avatars.id;
 CREATE TABLE public.ghosts (
     id bigint NOT NULL,
     start_parcel integer NOT NULL,
@@ -523,7 +543,8 @@ CREATE TABLE public.properties (
     z1 integer,
     z2 integer,
     bounds public.cube,
-    sandbox boolean DEFAULT false NOT NULL
+    sandbox boolean DEFAULT false NOT NULL,
+    compiled_at timestamp without time zone
 );
 CREATE MATERIALIZED VIEW public.mv_property_counts AS
  SELECT lower(owner) AS lower_owner,
@@ -587,6 +608,15 @@ CREATE SEQUENCE public.parcel_events_id_seq
     NO MAXVALUE
     CACHE 1;
 ALTER SEQUENCE public.parcel_events_id_seq OWNED BY public.parcel_events.id;
+CREATE TABLE public.parcel_transfers (
+    hash text NOT NULL,
+    log_index integer NOT NULL,
+    block integer NOT NULL,
+    parcel_id integer NOT NULL,
+    from_wallet text NOT NULL,
+    to_wallet text NOT NULL,
+    created_at timestamp with time zone NOT NULL
+);
 CREATE TABLE public.parcel_users (
     parcel_id integer NOT NULL,
     wallet text NOT NULL,
@@ -779,6 +809,7 @@ ALTER TABLE ONLY public.comments ALTER COLUMN id SET DEFAULT nextval('public.com
 ALTER TABLE ONLY public.costumes ALTER COLUMN id SET DEFAULT nextval('public.costumes_id_seq'::regclass);
 ALTER TABLE ONLY public.emoji_badges ALTER COLUMN id SET DEFAULT nextval('public.emoji_badges_id_seq'::regclass);
 ALTER TABLE ONLY public.favorites ALTER COLUMN id SET DEFAULT nextval('public.favorites_id_seq'::regclass);
+ALTER TABLE ONLY public.free_avatars ALTER COLUMN id SET DEFAULT nextval('public.free_avatars_id_seq'::regclass);
 ALTER TABLE ONLY public.ghosts ALTER COLUMN id SET DEFAULT nextval('public.ghosts_id_seq'::regclass);
 ALTER TABLE ONLY public.island_posts ALTER COLUMN id SET DEFAULT nextval('public.island_posts_id_seq'::regclass);
 ALTER TABLE ONLY public.islands ALTER COLUMN id SET DEFAULT nextval('public.islands_id_seq'::regclass);
@@ -812,10 +843,14 @@ ALTER TABLE ONLY public.costumes
     ADD CONSTRAINT costumes_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.delegations
     ADD CONSTRAINT delegations_user_id_wallet_key UNIQUE (user_id, wallet);
+ALTER TABLE ONLY public.email_codes
+    ADD CONSTRAINT email_codes_pkey PRIMARY KEY (email);
 ALTER TABLE ONLY public.emoji_badges
     ADD CONSTRAINT emoji_badges_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.favorites
     ADD CONSTRAINT favorites_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.free_avatars
+    ADD CONSTRAINT free_avatars_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.ghosts
     ADD CONSTRAINT ghosts_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.guest_passes
@@ -838,6 +873,8 @@ ALTER TABLE ONLY public.nfts
     ADD CONSTRAINT nfts_pkey PRIMARY KEY (chain_id, contract, token_id);
 ALTER TABLE ONLY public.parcel_events
     ADD CONSTRAINT parcel_events_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.parcel_transfers
+    ADD CONSTRAINT parcel_transfers_pkey PRIMARY KEY (hash, log_index);
 ALTER TABLE ONLY public.parcel_users
     ADD CONSTRAINT parcel_wallet_constraint UNIQUE (parcel_id, wallet);
 ALTER TABLE ONLY public.passkeys
@@ -919,7 +956,10 @@ CREATE INDEX lower_avatar_name ON public.avatars USING btree (lower(name));
 CREATE INDEX lower_avatar_owner ON public.avatars USING btree (lower(owner));
 CREATE INDEX owner_index ON public.properties USING btree (lower(owner));
 CREATE INDEX parcel_id_index ON public.property_versions USING btree (parcel_id);
+CREATE INDEX parcel_transfers_block_idx ON public.parcel_transfers USING btree (block DESC, log_index DESC);
+CREATE INDEX parcel_transfers_parcel_idx ON public.parcel_transfers USING btree (parcel_id, block DESC);
 CREATE INDEX passkeys_user_uuid_idx ON public.passkeys USING btree (user_uuid);
+CREATE INDEX properties_compiled_at_idx ON public.properties USING btree (compiled_at);
 CREATE INDEX properties_lower_name ON public.properties USING btree (lower(name));
 CREATE INDEX properties_minted_idx1 ON public.properties USING btree (minted);
 CREATE INDEX properties_sandbox_idx ON public.properties USING btree (sandbox) WHERE (sandbox = true);
@@ -936,4 +976,4 @@ CREATE INDEX womps_parcel_id ON public.womps USING btree (parcel_id);
 CREATE TRIGGER wearables_recalculate_total_wearables_trigger AFTER INSERT ON public.wearables FOR EACH ROW WHEN ((new.token_id IS NOT NULL)) EXECUTE FUNCTION public.recalculate_total_wearables();
 ALTER TABLE ONLY public.island_post_hearts
     ADD CONSTRAINT island_post_hearts_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.island_posts(id) ON DELETE CASCADE;
-\unrestrict YtKHRCfiX5Gc5etaz5oNhbsK5uZjBJAN6UsVcml0uhfae9eGPBhMtHy4ecG02R3
+\unrestrict bmBTQxgNGDqI7iSGKGHZa8wcQ5cVhep3Dk7zMbby6keBIRYKtJUfd9YvuW4rgNx

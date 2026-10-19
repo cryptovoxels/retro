@@ -18,6 +18,9 @@ import { getWorldTimeOfDay, setWorldTimeOfDay } from '../init/world-scene'
 import { TimeOfDay } from '../utils/time-of-day'
 import Group from './group'
 import { boundingBoxOfMesh } from './utils/bounding-box'
+import { addCuboid, addVoxels, removeCollider } from '../physics/world'
+
+const HALF_VOXEL = new BABYLON.Vector3(0.5, 0.5, 0.5)
 
 /**
  * Special data type passed to onClick handlers
@@ -785,6 +788,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       }
     }
     this.disposeBasicGui()
+    removeCollider(`feature-${this.uuid}`)
 
     this.removeAllTriggers()
     // remove trigger timeout if existant
@@ -1028,6 +1032,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       if (nudge !== null) this.mesh.translate(BABYLON.Axis.Z, nudge, BABYLON.Space.LOCAL)
 
       this.applyMeshTransformAdjustments()
+      this.syncPhysics()
 
       // TODO FIX THIS SHIT
       const clickableMesh = this.mesh as AbstractMeshExtended
@@ -1049,6 +1054,31 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
     if (this.afterSetCommon) {
       this.afterSetCommon()
+    }
+  }
+
+  // vox meshes carry their voxel grid (vox-import applyBuffers), cubes get one oriented box. one fixed body
+  // per feature, rebuilt on edit, nothing per frame. rides drive around so they stay out.
+  // todo: stale when a parent group moves or an animation plays, the collider stays at the rest pose
+  private syncPhysics() {
+    const key = `feature-${this.uuid}`
+    const mesh = this.mesh as any
+    const voxels: Int32Array | undefined = mesh?.voxels ?? mesh?.sourceMesh?.voxels
+    if (!(this.description as any).collidable || this.type === 'ride' || !(mesh instanceof BABYLON.AbstractMesh) || !(voxels || this.type === 'cube')) {
+      removeCollider(key)
+      return
+    }
+    const s = new BABYLON.Vector3()
+    const q = new BABYLON.Quaternion()
+    const m = mesh.computeWorldMatrix(true)
+    m.decompose(s, q)
+    s.set(Math.abs(s.x), Math.abs(s.y), Math.abs(s.z))
+    if (voxels) {
+      // rapier centres voxel i on i*cell, ours spans [i, i+1]: origin sits half a voxel in
+      addVoxels(key, voxels, BABYLON.Vector3.TransformCoordinates(HALF_VOXEL, m), s, q)
+    } else {
+      const bb = mesh.getBoundingInfo().boundingBox
+      addCuboid(key, bb.extendSize.multiply(s), bb.centerWorld, q)
     }
   }
 

@@ -17,6 +17,7 @@ export default class DesktopControls extends Controls {
   private nerfClick = false
   private hoverFrame = -1
   private mouseLookAttached = false
+  private rising = false
 
   constructor(scene: BABYLON.Scene, canvas: HTMLCanvasElement) {
     super(scene, canvas)
@@ -140,6 +141,7 @@ export default class DesktopControls extends Controls {
   resetControls() {
     this.shiftKey = false
     this.ctrlKey = false
+    this.rising = false
     this.walk()
     this.keyboardInput?.reset()
   }
@@ -261,6 +263,15 @@ export default class DesktopControls extends Controls {
     this.bindKeys()
     camera.inputs.add(this.keyboardInput)
 
+    // insert first: base controls steps the body and zeroes move in its own observer
+    this.scene.onBeforeRenderObservable.add(
+      () => {
+        if (this.rising && this.flying) this.move.y += 1
+      },
+      undefined,
+      true,
+    )
+
     this.canvas.addEventListener('keydown', (e: KeyboardEvent) => {
       if (e.repeat) return
 
@@ -278,7 +289,10 @@ export default class DesktopControls extends Controls {
         this.stopConga()
       }
 
-      if (e.code === 'Space') this.body.jump()
+      if (e.code === 'Space') {
+        this.rising = true
+        this.body.jump()
+      }
 
       if (e.code === 'KeyE') {
         // stop bubble so document KeyE (edit feature) does not toggle us straight back out / open the editor
@@ -319,6 +333,7 @@ export default class DesktopControls extends Controls {
       this.shiftKey = e.shiftKey
       this.ctrlKey = e.ctrlKey || e.metaKey
 
+      if (e.code === 'Space') this.rising = false
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
         this.walk()
       }

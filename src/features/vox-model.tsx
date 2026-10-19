@@ -114,6 +114,11 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
         if (voxelbrUrl) {
           const res = await fetch(voxelbrUrl, { signal })
           if (res.ok) mesh = await voxImporter().importBin(await res.arrayBuffer(), signal)
+          // voxelbr compiled before voxels were packed: mesh it here so the collider has a grid
+          if (mesh && this.description.collidable && !(mesh as any).voxels) {
+            mesh.dispose()
+            mesh = null
+          }
         }
       } catch (e) {
         if (e instanceof Error && e.message === 'Aborted') return
