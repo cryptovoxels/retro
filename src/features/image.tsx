@@ -16,6 +16,7 @@ export default class Image extends Feature2D<ImageRecord> {
   }
   static template: FeatureTemplate = {
     type: 'image',
+    blendMode: 'Combine',
     scale: [1, 1, 0],
     url: '',
   }
