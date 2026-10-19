@@ -10,7 +10,7 @@ export type VoiceSettingsState = {
 const KEY = 'voice'
 
 export class VoiceSettings extends TypedEventTarget<{ changed: VoiceSettingsState }> {
-  private _enabled = true
+  private _enabled = false
   private _deviceId = 'default'
   private _pitch = 0
   private _monitor = false

@@ -385,7 +385,10 @@ export class SettingsUI extends Component<Props, State> {
           <dl class="props">
             <dt>Voice chat</dt>
             <dd>
-              <input type="checkbox" onChange={(e) => this.onToggleVoice(e.target as HTMLInputElement)} checked={this.state.voiceEnabled} />
+              <label>
+                <input type="checkbox" onChange={(e) => this.onToggleVoice(e.target as HTMLInputElement)} checked={this.state.voiceEnabled} />
+                {this.state.voiceEnabled ? 'On' : 'Off'}
+              </label>
             </dd>
 
             {this.state.voiceEnabled && (
