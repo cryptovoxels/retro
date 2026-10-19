@@ -25,6 +25,7 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
   }
   static template: FeatureTemplate = {
     type: 'video',
+    blendMode: 'Combine',
     scale: [2, 1, 0],
     url: '',
   }

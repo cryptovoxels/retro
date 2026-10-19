@@ -74,12 +74,14 @@ export class DragDrop {
     if (type.startsWith('image/')) {
       this.ui.featureTool.spawnPlaceholder(this.pickInfo, {
         type: 'image',
+        blendMode: 'Combine',
         scale: [4 / 3, 1, 0],
       })
       dataTransfer.dropEffect = 'copy'
     } else if (type.startsWith('video/')) {
       this.ui.featureTool.spawnPlaceholder(this.pickInfo, {
         type: 'video',
+        blendMode: 'Combine',
         scale: [16 / 9, 1, 0],
       })
     } else if (type.startsWith('audio/')) {
@@ -143,7 +145,7 @@ export class DragDrop {
         type: 'image',
         stretch: true,
         transparent: imageInfo.hasAlpha,
-        blendMode: 'Multiply',
+        blendMode: 'Combine',
         scale: [imageInfo.aspectRatio, 1, 0],
       })
     } else if (ext === '.mp3') {
@@ -160,7 +162,7 @@ export class DragDrop {
     } else if (ext === '.mov' || ext === '.mp4') {
       await this.uploadAndSpawn(file, {
         type: 'video',
-        blendMode: 'Multiply',
+        blendMode: 'Combine',
         scale: [16 / 9, 1, 0],
       })
     } else {
