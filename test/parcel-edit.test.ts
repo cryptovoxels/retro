@@ -1,5 +1,6 @@
 import { renderView, stubFetch } from './view-helper'
 import { h, render } from 'preact'
+import { act } from 'preact/test-utils'
 import { afterEach, expect, test, vi } from 'vitest'
 import ParcelEdit from '../web/src/parcel-edit'
 import { app } from '../web/src/state'
@@ -33,6 +34,11 @@ test('history has explicit actions, readable sections and no unlabeled upload', 
   expect(root.textContent).not.toContain('snapshot')
   expect(root.querySelector('input[type=file]')).toBeNull()
   expect(root.querySelectorAll('time')).toHaveLength(2)
+  expect(root.querySelectorAll('input[type=radio]')).toHaveLength(2)
+  expect([...root.querySelectorAll('button')].filter((el) => el.textContent === 'Download')).toHaveLength(1)
+  const save = root.querySelector('article')!.lastElementChild as HTMLButtonElement
+  expect(save.textContent).toBe('Save')
+  expect(save.getAttribute('form')).toBe('parcel-edit-form')
   const fetch = vi.spyOn(globalThis, 'fetch')
   root.querySelector('time')!.click()
   expect(fetch).not.toHaveBeenCalled()
@@ -54,7 +60,22 @@ test('failed save reports an error rather than success', async () => {
 test('collaborators can download history but owner-only history writes stay hidden', async () => {
   await mount('0xcollaborator')
   const buttons = [...root.querySelectorAll('button')].map((el) => el.textContent)
-  expect(buttons).toContain('Download JSON')
+  expect(buttons).toContain('Download')
   expect(buttons).not.toContain('Restore')
   expect(buttons).not.toContain('Save current version')
+})
+
+test('restore uses the selected version', async () => {
+  await mount()
+  const radio = root.querySelector('input[value="81"]') as HTMLInputElement
+  await act(() => {
+    radio.checked = true
+    radio.dispatchEvent(new Event('change', { bubbles: true }))
+  })
+  await vi.waitFor(() => expect(radio.checked).toBe(true))
+  vi.spyOn(window, 'confirm').mockReturnValue(true)
+  const fetch = vi.spyOn(globalThis, 'fetch').mockResolvedValue({ ok: true, json: async () => ({ success: true, versions }) } as any)
+  const restore = [...root.querySelectorAll('button')].find((el) => el.textContent === 'Restore')!
+  restore.click()
+  await vi.waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/parcels/42/revert', expect.objectContaining({ body: JSON.stringify({ parcel_version_id: 81 }) })))
 })
