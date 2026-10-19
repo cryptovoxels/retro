@@ -31,6 +31,7 @@ export default function ParcelEdit(props: Props) {
   const [buildMaterial, setBuildMaterial] = useState(blocks[0].value)
   const [historyMessage, setHistoryMessage] = useState('')
   const [historyBusy, setHistoryBusy] = useState(false)
+  const [selectedId, setSelectedId] = useState<number>()
   const [historyLoading, setHistoryLoading] = useState(true)
 
   useEffect(() => {
@@ -51,6 +52,7 @@ export default function ParcelEdit(props: Props) {
       const d = await r.json()
       if (!r.ok || !d.success) throw new Error('Could not load parcel edit history.')
       setVersions(d.versions ?? [])
+      setSelectedId(d.versions?.[0]?.id)
     } catch (error) {
       setHistoryMessage(error instanceof Error ? error.message : 'Could not load parcel edit history.')
     } finally {
@@ -194,7 +196,7 @@ export default function ParcelEdit(props: Props) {
   )
 
   const form = (
-    <form onSubmit={submit}>
+    <form id="parcel-edit-form" onSubmit={submit}>
       <section class="inspector-section">
         <h2>parcel details</h2>
         <div class="f">
@@ -235,17 +237,14 @@ export default function ParcelEdit(props: Props) {
           )}
         </section>
       )}
-
-      <button type="submit" disabled={saving}>
-        {saving ? 'Saving...' : 'Save parcel details'}
-      </button>
     </form>
   )
+
+  const selectedVersion = versions.find((v) => v.id === selectedId)
 
   const history = (
     <section class="inspector-section" aria-label="Parcel edit history">
       <h2>parcel edit history</h2>
-      <p>Earlier versions of this parcel's build. Restore a version to replace the current build, or download a copy.</p>
       {isOwner && (
         <button type="button" disabled={historyBusy} onClick={saveVersion}>
           Save current version
@@ -253,26 +252,38 @@ export default function ParcelEdit(props: Props) {
       )}
       {historyMessage && <p role="status">{historyMessage}</p>}
       {historyLoading ? <p>Loading edit history...</p> : versions.length === 0 && !historyMessage ? <p>No saved versions yet.</p> : null}
-      <ul>
-        {versions.map((v) => (
-          <li key={v.id} style={{ padding: '1rem 0' }}>
-            <strong>{v.snapshot_name || (v.is_snapshot ? 'Manual save' : 'Saved edit')}</strong>
-            <div>
-              <time dateTime={v.updated_at}>{new Date(v.updated_at).toLocaleString()}</time> - version {v.id}
-            </div>
-            <div>
-              {isOwner && (
-                <button type="button" disabled={historyBusy} onClick={() => revert(v)}>
-                  Restore
-                </button>
-              )}{' '}
-              <button type="button" onClick={() => download(v)}>
-                Download JSON
-              </button>
-            </div>
-          </li>
-        ))}
-      </ul>
+      <div style={{ maxHeight: '10rem', overflowY: 'auto' }}>
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">Version</th>
+              <th scope="col">Saved</th>
+            </tr>
+          </thead>
+          <tbody>
+            {versions.map((v) => (
+              <tr key={v.id}>
+                <td>
+                  <label>
+                    <input type="radio" name="parcel-version" value={v.id} checked={selectedId === v.id} onChange={() => setSelectedId(v.id)} /> {v.id}
+                  </label>
+                </td>
+                <td>
+                  <time dateTime={v.updated_at}>{new Date(v.updated_at).toLocaleString()}</time>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <button type="button" disabled={!selectedVersion || historyBusy} onClick={() => selectedVersion && download(selectedVersion)}>
+        Download
+      </button>{' '}
+      {isOwner && (
+        <button type="button" disabled={!selectedVersion || historyBusy} onClick={() => selectedVersion && revert(selectedVersion)}>
+          Restore
+        </button>
+      )}
       <p>
         <a href={`/parcels/${props.id}`}>Parcel download / upload</a> is on the parcel page.
       </p>
@@ -296,6 +307,9 @@ export default function ParcelEdit(props: Props) {
         {title}
         {form}
         {history}
+        <button type="submit" form="parcel-edit-form" disabled={saving}>
+          {saving ? 'Saving...' : 'Save'}
+        </button>
       </article>
     </section>
   )
