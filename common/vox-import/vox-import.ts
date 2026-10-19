@@ -20,7 +20,9 @@ export const voxImporter = (): VoxImporter => {
   return _instance
 }
 
-function applyBuffers(mesh: BABYLON.Mesh, engine: BABYLON.AbstractEngine, positions: Int8Array, colors: Uint8Array, indices: Uint16Array | Uint32Array) {
+function applyBuffers(mesh: BABYLON.Mesh, engine: BABYLON.AbstractEngine, positions: Int8Array, colors: Uint8Array, indices: Uint16Array | Uint32Array, voxels?: Int32Array) {
+  // feature.ts syncPhysics reads this for the rapier voxel collider
+  ;(mesh as any).voxels = voxels
   mesh.setVerticesBuffer(
     new BABYLON.VertexBuffer(engine, positions, BABYLON.VertexBuffer.PositionKind, {
       updatable: false,
@@ -75,12 +77,12 @@ export class VoxImporter {
     const scene = this._scene ?? window.scene
     const mesh = this.makeMesh(scene)
     try {
-      const { positions, colors, indices } = unpackVoxelbr(buf)
+      const { positions, colors, indices, voxels } = unpackVoxelbr(buf)
       if (signal?.aborted) {
         mesh.dispose()
         throw new Error('Aborted')
       }
-      applyBuffers(mesh, scene.getEngine(), positions, colors, indices)
+      applyBuffers(mesh, scene.getEngine(), positions, colors, indices, voxels)
       return mesh
     } catch (e) {
       mesh.dispose()
@@ -130,7 +132,7 @@ export class VoxImporter {
         throw new Error('Aborted')
       }
 
-      applyBuffers(mesh, scene.getEngine(), data.positions, data.colors, data.indices)
+      applyBuffers(mesh, scene.getEngine(), data.positions, data.colors, data.indices, data.voxels)
 
       return mesh
     } catch (error) {

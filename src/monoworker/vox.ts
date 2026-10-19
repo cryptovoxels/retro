@@ -72,6 +72,7 @@ export async function loadVox({ flipX, megavox, timeoutMs, colorMap, ...urlOrBuf
             indices: data.indices,
             colors: data.colors,
             size: data.size,
+            voxels: data.voxels,
           })
         },
         colorMap,

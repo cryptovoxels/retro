@@ -34,28 +34,26 @@ export function stepPhysics(dtSec: number) {
   }
 }
 
-function addVoxelsKeyed(key: string, coords: Int32Array, origin: Vec3, cellSize: number) {
+const PARCEL_CELL = { x: VoxelSize, y: VoxelSize, z: VoxelSize }
+
+function addFixed(key: string, desc: RAPIER.ColliderDesc, origin: Vec3, rotation?: RAPIER.Rotation) {
   if (!world) return
+  const bodyDesc = RAPIER.RigidBodyDesc.fixed().setTranslation(origin.x, origin.y, origin.z)
+  if (rotation) bodyDesc.setRotation(rotation)
+  const body = world.createRigidBody(bodyDesc)
+  const collider = world.createCollider(desc, body)
+  entries.set(key, { body, collider })
+}
+
+export function addVoxels(key: string, coords: Int32Array, origin: Vec3, cell: Vec3 = PARCEL_CELL, rotation?: RAPIER.Rotation) {
   removeCollider(key)
   if (coords.length < 3) return
-
-  const body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(origin.x, origin.y, origin.z))
-  const desc = RAPIER.ColliderDesc.voxels(coords, { x: cellSize, y: cellSize, z: cellSize })
-  const collider = world.createCollider(desc, body)
-  entries.set(key, { body, collider })
+  addFixed(key, RAPIER.ColliderDesc.voxels(coords, cell), origin, rotation)
 }
 
-export function addVoxels(key: string, coords: Int32Array, origin: Vec3) {
-  addVoxelsKeyed(key, coords, origin, VoxelSize)
-}
-
-export function addCuboid(key: string, half: Vec3, center: Vec3) {
-  if (!world) return
+export function addCuboid(key: string, half: Vec3, center: Vec3, rotation?: RAPIER.Rotation) {
   removeCollider(key)
-  const body = world.createRigidBody(RAPIER.RigidBodyDesc.fixed().setTranslation(center.x, center.y, center.z))
-  const desc = RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z)
-  const collider = world.createCollider(desc, body)
-  entries.set(key, { body, collider })
+  addFixed(key, RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z), center, rotation)
 }
 
 export function removeCollider(key: string) {

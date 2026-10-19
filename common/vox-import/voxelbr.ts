@@ -17,7 +17,9 @@ export function packVoxelbr(data: VoxData): Uint8Array {
   const posPad = align4(posBytes) - posBytes
   const colBytes = vertCount * 4
   const idxBytes = indexCount * indexBytes
-  const total = 16 + posBytes + posPad + colBytes + idxBytes
+  const idxPad = align4(idxBytes) - idxBytes
+  const voxBytes = data.voxels.length * 4
+  const total = 16 + posBytes + posPad + colBytes + idxBytes + idxPad + 4 + voxBytes
 
   const out = new Uint8Array(total)
   const view = new DataView(out.buffer)
@@ -33,6 +35,9 @@ export function packVoxelbr(data: VoxData): Uint8Array {
   out.set(new Uint8Array(data.colors.buffer, data.colors.byteOffset, colBytes), off)
   off += colBytes
   out.set(new Uint8Array(data.indices.buffer, data.indices.byteOffset, idxBytes), off)
+  off += idxBytes + idxPad
+  view.setUint32(off, data.voxels.length / 3, true)
+  out.set(new Uint8Array(data.voxels.buffer, data.voxels.byteOffset, voxBytes), off + 4)
   return out
 }
 
@@ -40,6 +45,8 @@ export function unpackVoxelbr(buf: ArrayBuffer): {
   positions: Int8Array
   colors: Uint8Array
   indices: Uint16Array | Uint32Array
+  // missing on files compiled before voxels were packed
+  voxels?: Int32Array
 } {
   if (buf.byteLength < 16) throw new Error('voxelbr too short')
   const view = new DataView(buf)
@@ -61,5 +68,11 @@ export function unpackVoxelbr(buf: ArrayBuffer): {
   const colors = new Uint8Array(buf, off, colBytes)
   off += colBytes
   const indices = indexBytes === 2 ? new Uint16Array(buf, off, indexCount) : new Uint32Array(buf, off, indexCount)
-  return { positions, colors, indices }
+  off += align4(idxBytes)
+  let voxels: Int32Array | undefined
+  if (buf.byteLength >= off + 4) {
+    const n = view.getUint32(off, true) * 3
+    if (buf.byteLength >= off + 4 + n * 4) voxels = new Int32Array(buf, off + 4, n)
+  }
+  return { positions, colors, indices, voxels }
 }
