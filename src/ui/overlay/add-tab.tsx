@@ -71,7 +71,7 @@ export default class AddTab extends Component<Props, any> {
   metaText(type: PlaceableFeatureTypes) {
     const used = this.props.parcel?.budget.count(type)
 
-    const copy = this.isNotAvailable(type) ? 'Not available on this parcel' : `${used}/${this.props.parcel?.budget.remaining(type)}`
+    const copy = this.isNotAvailable(type) ? 'Not available on this parcel' : `${used}/${ParcelBudget.budget(type, this.props.parcel)} used, ${this.props.parcel?.budget.remaining(type)} remaining`
     return <span class="meta">{copy}</span>
   }
 
@@ -90,12 +90,15 @@ export default class AddTab extends Component<Props, any> {
           }}
         >
           {feature.title}
+          <br />
+          {this.metaText(feature.type)}
         </a>
       </li>
     )
   }
 
   render() {
+    this.props.parcel?.budget.version.value
     return (
       <section>
         <div class={`FeatureSpawnList`}>
