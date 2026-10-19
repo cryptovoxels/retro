@@ -24,7 +24,8 @@ import { ensureRadio } from './radio/global'
 import { app, AppEvent } from './state'
 import { AppRoutes } from './app-routes'
 import { applyTheme } from '../../common/helpers/theme'
-import { clearPageTool, isPageTool, pageToolEl, uiPane } from '../../src/store'
+import { clearPageTool, isPageTool, pageToolEl, uiPane, worldUi } from '../../src/store'
+import { closePageSidebar } from './sidebar-close'
 
 applyTheme()
 
@@ -112,6 +113,19 @@ const Main = () => {
         <Client coords={coords} path={currentPath} />
 
         <div class={play ? 'page -play' : 'page'}>
+          {!play && !lightBroadcast && (
+            <button
+              type="button"
+              aria-label="Close panel"
+              style={{ position: 'sticky', top: 0, zIndex: 1 }}
+              onClick={(e) => {
+                worldUi.value?.closeInteractOverlay()
+                closePageSidebar(e)
+              }}
+            >
+              Close
+            </button>
+          )}
           <div class="page-route">
             <Router onChange={handleRoute}>
               {AppRoutes()}
