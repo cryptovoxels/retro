@@ -331,8 +331,6 @@ export default class WebHeader extends Component<Props, State> {
               </F>
               <F name="Exploring">
                 <ul>
-                  <A to="/activity">Activity</A>
-                  <A to="/art">Art</A>
                   <A to="/assets">Assets</A>
                   <A to="/blog" n={blogN}>
                     Blog
@@ -353,16 +351,8 @@ export default class WebHeader extends Component<Props, State> {
                   <A to="/womps">Womps</A>
                 </ul>
               </F>
-              <F name="Settings">
-                <ul title="I have altered the indentation, pray I do not alter it further - Darth Nolan">
-                  <F name="Settings">
-                    <ul>
-                      <A to="/settings">Settings</A>
-                      {admin && <A to="/admin">Admin</A>}
-                    </ul>
-                  </F>
-                </ul>
-              </F>
+              <A to="/settings">Settings</A>
+              {admin && <A to="/admin">Admin</A>}
               <F name="Help">
                 <ul>
                   <A to="/api">API</A>
