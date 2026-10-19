@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'preact/hooks'
-import strftime from 'strftime'
+import { useEffect, useState } from 'preact/hooks'
 import { blocks } from '../../common/content/blocks'
 import { Login } from './auth/login'
 import SelectUser from './components/select-user'
@@ -30,7 +29,9 @@ export default function ParcelEdit(props: Props) {
   const [saving, setSaving] = useState(false)
   const [building, setBuilding] = useState(false)
   const [buildMaterial, setBuildMaterial] = useState(blocks[0].value)
-  const fileRef = useRef<HTMLInputElement>(null)
+  const [historyMessage, setHistoryMessage] = useState('')
+  const [historyBusy, setHistoryBusy] = useState(false)
+  const [historyLoading, setHistoryLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
@@ -44,9 +45,17 @@ export default function ParcelEdit(props: Props) {
   }, [props.id])
 
   async function loadVersions() {
-    const r = await fetch(`/api/parcels/${props.id}/history.json?limit=50&page=0&asc=false`, { credentials: 'include' })
-    const d = await r.json()
-    setVersions(d.versions ?? [])
+    setHistoryLoading(true)
+    try {
+      const r = await fetch(`/api/parcels/${props.id}/history.json?limit=50&page=0&asc=false`, { credentials: 'include' })
+      const d = await r.json()
+      if (!r.ok || !d.success) throw new Error('Could not load parcel edit history.')
+      setVersions(d.versions ?? [])
+    } catch (error) {
+      setHistoryMessage(error instanceof Error ? error.message : 'Could not load parcel edit history.')
+    } finally {
+      setHistoryLoading(false)
+    }
   }
 
   function set(key: string, value: any) {
@@ -112,25 +121,48 @@ export default function ParcelEdit(props: Props) {
     )
   }
 
-  async function takeSnapshot() {
-    await fetch(`/api/parcels/snapshot`, {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ parcel_id: parcel.id }),
-    })
-    loadVersions()
+  async function saveVersion() {
+    setHistoryBusy(true)
+    setHistoryMessage('')
+    try {
+      const r = await fetch('/api/parcels/snapshot', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ parcel_id: parcel.id }),
+      })
+      const d = await r.json()
+      if (!r.ok || !d.success) throw new Error('Could not save this version.')
+      setHistoryMessage('Current build saved to parcel edit history.')
+      await loadVersions()
+    } catch (error) {
+      setHistoryMessage(error instanceof Error ? error.message : 'Could not save this version.')
+    } finally {
+      setHistoryBusy(false)
+    }
   }
 
   async function revert(v: Version) {
-    if (!confirm(`Revert to version #${v.id} from ${strftime('%B %-d, %Y at %-I%P', new Date(v.updated_at))}?`)) return
-    await fetch(`/api/parcels/${v.parcel_id}/revert`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ parcel_version_id: v.id }),
-    })
-    loadVersions()
+    if (!confirm(`Restore the build from ${new Date(v.updated_at).toLocaleString()}? This replaces the current build.`)) return
+    setHistoryBusy(true)
+    setHistoryMessage('')
+    try {
+      const r = await fetch(`/api/parcels/${v.parcel_id}/revert`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ parcel_version_id: v.id }),
+      })
+      const d = await r.json()
+      if (!r.ok || !d.success) throw new Error('Could not restore this version.')
+      await invalidateUrl(`/api/parcels/${props.id}.json`)
+      setHistoryMessage('Build restored.')
+      await loadVersions()
+    } catch (error) {
+      setHistoryMessage(error instanceof Error ? error.message : 'Could not restore this version.')
+    } finally {
+      setHistoryBusy(false)
+    }
   }
 
   async function download(v: Version) {
@@ -141,27 +173,6 @@ export default function ParcelEdit(props: Props) {
     a.href = data
     a.download = `${v.parcel_id}-${v.id}.json`
     a.click()
-  }
-
-  async function importJson(e: Event) {
-    const input = e.target as HTMLInputElement
-    if (!input.files?.[0]) return
-    const text = await input.files[0].text()
-    let content
-    try {
-      content = JSON.parse(text).content ?? JSON.parse(text)
-    } catch {
-      alert('Invalid JSON')
-      return
-    }
-    await fetch(`/grid/parcels/${parcel.id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ content }),
-    })
-    if (fileRef.current) fileRef.current.value = ''
-    loadVersions()
   }
 
   if (!parcel) return <p>Loading...</p>
@@ -184,26 +195,28 @@ export default function ParcelEdit(props: Props) {
 
   const form = (
     <form onSubmit={submit}>
-      <h3>basics</h3>
-      <div class="f">
-        <label>Name</label>
-        <input type="text" value={parcel.name || ''} onInput={(e: any) => set('name', e.target.value)} />
-      </div>
-      <div class="f">
-        <label>Description</label>
-        <textarea rows={5} value={parcel.description || ''} onInput={(e: any) => set('description', e.target.value)} />
-      </div>
-
-      <h3>settings</h3>
-      <div class="f">
-        <label>
-          <input type="checkbox" checked={!!parcel.sandbox} onChange={(e: any) => set('sandbox', e.target.checked)} /> Sandbox
-        </label>
-      </div>
-
+      <section class="inspector-section">
+        <h2>parcel details</h2>
+        <div class="f">
+          <label>Name</label>
+          <input type="text" value={parcel.name || ''} onInput={(e: any) => set('name', e.target.value)} />
+        </div>
+        <div class="f">
+          <label>Description</label>
+          <textarea rows={5} value={parcel.description || ''} onInput={(e: any) => set('description', e.target.value)} />
+        </div>
+      </section>
+      <section class="inspector-section">
+        <h2>build permissions</h2>
+        <div class="f">
+          <label>
+            <input type="checkbox" checked={!!parcel.sandbox} onChange={(e: any) => set('sandbox', e.target.checked)} /> Allow anyone to build (sandbox)
+          </label>
+        </div>
+      </section>
       {isOwner && (
-        <>
-          <h3>collaborators</h3>
+        <section class="inspector-section">
+          <h2>collaborators</h2>
           <SelectUser onSelect={addCollaborator} />
           {(parcel.parcel_users ?? []).length > 0 && (
             <ul>
@@ -220,66 +233,50 @@ export default function ParcelEdit(props: Props) {
               ))}
             </ul>
           )}
-        </>
+        </section>
       )}
 
       <button type="submit" disabled={saving}>
-        {saving ? 'Saving...' : 'Save'}
+        {saving ? 'Saving...' : 'Save parcel details'}
       </button>
     </form>
   )
 
   const history = (
-    <>
-      <h3>edit history</h3>
-      <div class="f">
-        <button type="button" onClick={takeSnapshot}>
-          Take snapshot
+    <section class="inspector-section" aria-label="Parcel edit history">
+      <h2>parcel edit history</h2>
+      <p>Earlier versions of this parcel's build. Restore a version to replace the current build, or download a copy.</p>
+      {isOwner && (
+        <button type="button" disabled={historyBusy} onClick={saveVersion}>
+          Save current version
         </button>
-        <input ref={fileRef} type="file" accept=".json" onChange={importJson} />
-      </div>
-
-      <table>
-        <thead>
-          <tr>
-            <th style={{ width: '10%' }} scope="col">
-              Type
-            </th>
-            <th>Creation date</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {versions.map((v) => (
-            <tr key={v.id}>
-              <td>{v.is_snapshot && <small>snapshot</small>}</td>
-              <td>
-                <a
-                  href="#"
-                  onClick={(e: Event) => {
-                    e.preventDefault()
-                    revert(v)
-                  }}
-                >
-                  {strftime('%B %-d, %Y at %-I%P', new Date(v.updated_at))}
-                </a>
-              </td>
-              <td>
-                <a
-                  href="#"
-                  onClick={(e: Event) => {
-                    e.preventDefault()
-                    download(v)
-                  }}
-                >
-                  download
-                </a>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </>
+      )}
+      {historyMessage && <p role="status">{historyMessage}</p>}
+      {historyLoading ? <p>Loading edit history...</p> : versions.length === 0 && !historyMessage ? <p>No saved versions yet.</p> : null}
+      <ul>
+        {versions.map((v) => (
+          <li key={v.id} style={{ padding: '1rem 0' }}>
+            <strong>{v.snapshot_name || (v.is_snapshot ? 'Manual save' : 'Saved edit')}</strong>
+            <div>
+              <time dateTime={v.updated_at}>{new Date(v.updated_at).toLocaleString()}</time> - version {v.id}
+            </div>
+            <div>
+              {isOwner && (
+                <button type="button" disabled={historyBusy} onClick={() => revert(v)}>
+                  Restore
+                </button>
+              )}{' '}
+              <button type="button" onClick={() => download(v)}>
+                Download JSON
+              </button>
+            </div>
+          </li>
+        ))}
+      </ul>
+      <p>
+        <a href={`/parcels/${props.id}`}>Parcel download / upload</a> is on the parcel page.
+      </p>
+    </section>
   )
 
   if (!canEdit) {
