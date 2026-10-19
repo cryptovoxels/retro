@@ -5,13 +5,12 @@ export type UploadMediaType = 'parcel-content' | 'womps' | 'assetlibrary' | 'ava
 // every ugc key has the content hash in it, so an object never changes under its name. let every cdn hold it forever.
 export const UGC_CACHE = 'public, max-age=31536000, immutable'
 
+// slug the name so the s3 key never needs url encoding. encoded keys get double encoded through presign and break cors.
+export const slugName = (filename: string) => filename.toLowerCase().replace(/[^a-z0-9.]+/g, '-')
+
 export const getFileNameNoExtension = (filenameWithExtension: string) => {
   const a = filenameWithExtension.split('.')
-  let name = a.splice(0, a.length - 1).join('.')
-  if (!/^[\u0000-\u007f]*$/.test(name)) {
-    name = encodeURIComponent(name)
-  }
-  return name
+  return a.splice(0, a.length - 1).join('.')
 }
 
 function arrayBufferToBase64(buffer: ArrayBuffer) {
@@ -27,14 +26,15 @@ const stableHash = md5
 
 export async function generateFileName(file: File, mediaType: UploadMediaType, wallet: string) {
   const regex = /(?:\.([^.]+))?$/
-  const ext = regex.exec(file.name)
+  const name = slugName(file.name)
+  const ext = regex.exec(name)
   const arrayBufferStr = arrayBufferToBase64(await file.arrayBuffer())
   const hashedContent = stableHash(arrayBufferStr) || String(Date.now())
   const hash = stableHash(wallet.toLowerCase() + '/' + mediaType + '/' + hashedContent)
   if (!ext?.[1]) {
-    return getFileNameNoExtension(file.name) + '_' + hash
+    return getFileNameNoExtension(name) + '_' + hash
   }
-  return getFileNameNoExtension(file.name) + '_' + hash + '.' + ext[1]
+  return getFileNameNoExtension(name) + '_' + hash + '.' + ext[1]
 }
 
 export function ugcKey(wallet: string, mediaType: UploadMediaType, fileName: string) {
