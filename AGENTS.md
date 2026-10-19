@@ -31,7 +31,7 @@ If you add, remove or change the behaviour of any route described in
 That file covers the public reads today and is where writes go when they are
 documented, so the rule follows the file, not the verb.
 
-`server/test/openapi-routes-test.ts` hard fails when the yaml documents a route
+`server/test/openapi-routes.test.ts` hard fails when the yaml documents a route
 that no longer exists, and warns when a route is missing from it. The hard half
 is deliberate: docs that lie are worse than docs with gaps. A renamed or deleted
 route without a yaml change is a lie, and it ships to everyone reading the api
