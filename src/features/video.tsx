@@ -200,6 +200,7 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
 
     const plane = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
     plane.material = material
+    plane.visibility = tidyFloat(this.description.opacity, 1)
     this.mesh = plane
     this.mesh.onAfterWorldMatrixUpdateObservable.add(this.updateAfterWorldOffsetChange)
 
@@ -560,6 +561,7 @@ class Editor extends FeatureEditor<Video> {
       url: props.feature.description.url,
       assetUrl: props.feature.description.assetUrl,
       blendMode: props.feature.blendMode,
+      opacity: tidyFloat(props.feature.description.opacity, 1),
       previewUrl: props.feature.description.previewUrl,
       autoplay: !!props.feature.description.autoplay,
       loop: props.feature.description.loop,
@@ -576,6 +578,7 @@ class Editor extends FeatureEditor<Video> {
   componentDidUpdate() {
     this.merge({
       previewUrl: this.state.previewUrl,
+      opacity: this.state.opacity,
       autoplay: this.state.autoplay,
       loop: this.state.loop,
       startAt: this.state.startAt,
@@ -655,6 +658,11 @@ class Editor extends FeatureEditor<Video> {
 
             <Animation feature={this.props.feature} />
             <BlendMode feature={this.props.feature} handleStateChange={this.onBlendModeChange} />
+
+            <div className="f">
+              <label>Opacity</label>
+              <input disabled={this.state.blendMode !== 'Combine'} type="range" min={0.01} max={1} step={0.01} value={this.state.opacity} onChange={(e) => this.setState({ opacity: parseFloat(e.currentTarget.value) })} />
+            </div>
 
             <Behaviours feature={this.props.feature} />
           </Advanced>

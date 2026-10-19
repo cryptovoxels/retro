@@ -282,6 +282,7 @@ export const VideoRecord = t.intersection(
     t.partial(
       {
         previewUrl: t.string,
+        opacity: NumOrStr,
         autoplay: t.boolean,
         loop: t.boolean,
         startAt: t.number,
