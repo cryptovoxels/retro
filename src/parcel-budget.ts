@@ -1,6 +1,7 @@
 import { FeatureType } from '../common/messages/feature'
 import type Feature from './features/feature'
 import type Parcel from './parcel'
+import { signal } from '@preact/signals'
 
 type Template = {
   type: FeatureType
@@ -58,6 +59,7 @@ export const minimalBudget: BudgetLimits = {
 const crvox = /0xa253D7cd38dC2D0B2E65AD42a7e4bEB3C60A83aD/i
 
 export default class ParcelBudget {
+  readonly version = signal(0)
   features: { type: FeatureType }[]
   parcel: Parcel
 
@@ -123,6 +125,7 @@ export default class ParcelBudget {
       return false
     }
     this.features.push({ type: feature.type })
+    this.version.value++
     return result
   }
 
@@ -130,11 +133,13 @@ export default class ParcelBudget {
     const index = this.features.findIndex((f) => f.type === feature.type)
     if (index >= 0) {
       this.features.splice(index, 1)
+      this.version.value++
     }
   }
 
   reset() {
     this.features = []
+    this.version.value++
   }
 }
 
