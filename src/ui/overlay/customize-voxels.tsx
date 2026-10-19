@@ -1,6 +1,7 @@
 import { debounce } from 'lodash'
 import { Component } from 'preact'
 import { blocks, defaultColors } from '../../../common/content/blocks'
+import { tilesetRuntimeUrl } from '../../../common/helpers/parcel-compile'
 import { Spinner } from '../../../web/src/spinner'
 import type Parcel from '../../parcel'
 
@@ -80,7 +81,7 @@ export default class CustomizeVoxels extends Component<Props, State> {
 
   get tilesetUrl() {
     if (typeof this.state.tileset !== 'string') return DEFAULT_TILESET
-    return process.env.IMG_HOST + this.state.tileset
+    return tilesetRuntimeUrl(this.state.tileset)
   }
 
   get palette() {
