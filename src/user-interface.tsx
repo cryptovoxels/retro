@@ -873,7 +873,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
     const nearestEditableParcel = selectNearestEditableParcel() ?? null
     const currentPane = this.state.pane
-    const chat = this.state.chatEnabled && !location.pathname.startsWith('/chat')
+    const chat = !location.pathname.startsWith('/chat')
 
     return (
       <>
@@ -882,7 +882,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
           <Location />
           <FirstTimeInstructions />
 
-          {chat && <ChatOverlay />}
+          {chat && <ChatOverlay enabled={this.state.chatEnabled} />}
 
           {nearestEditableParcel?.sandbox && nearestEditableParcel.canEdit && (
             <div class="sandbox-rollback">

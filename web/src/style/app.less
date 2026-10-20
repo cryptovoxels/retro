@@ -2470,7 +2470,7 @@ button.iconish {
   pointer-events: none;
 
   form,
-  .chat-messages {
+  .chat-messages p:not(.faded) {
     pointer-events: auto;
   }
 
@@ -2530,6 +2530,7 @@ button.iconish {
     transition: opacity 1s;
 
     &.faded {
+      pointer-events: none;
       opacity: 0;
     }
   }
@@ -5137,15 +5138,27 @@ header nav .user-menu {
   }
 }
 
-@media @narrow {
+@media @narrow, (pointer: coarse) {
   :root {
     --chatbar: 6rem;
   }
 
   .canvasdom div.chat {
     bottom: 0;
-    right: 0;
-    left: 0;
+    transform: none;
+    width: auto;
+    // The mobile stick occupies the rightmost 40% of the canvas.
+    right: calc(40% + 1rem);
+    left: env(safe-area-inset-left, 0px);
+
+    .chat-messages {
+      max-width: 100%;
+      overflow-wrap: anywhere;
+    }
+
+    form {
+      flex-basis: 100%;
+    }
 
     .interact-bar {
       border-radius: 0;
