@@ -18,9 +18,9 @@ import { createEvent, TypedEventTarget } from '../../utils/EventEmitter'
 import { snack } from '../../../web/src/components/snackbar'
 
 /** In-world HUD chat. Guests get a bigger cap and smaller type. */
-export function ChatOverlay() {
+export function ChatOverlay({ enabled }: { enabled: boolean }) {
   const isGuest = !!app.state.wallet?.startsWith('guest:')
-  return <ChatPanel cap={isGuest ? 25 : 10} variant="overlay" style={isGuest ? 'font-size: 14px' : undefined} />
+  return <ChatPanel cap={isGuest ? 25 : 10} variant="overlay" enabled={enabled} style={isGuest ? 'font-size: 14px' : undefined} />
 }
 
 function chatName(m: ChatMessageRecord) {
@@ -125,7 +125,7 @@ function ChatLineBody({ m }: { m: ChatMessageRecord }) {
   )
 }
 
-export function ChatPanel({ cap, variant = 'page', class: className, style }: { cap: number; variant?: 'overlay' | 'page'; class?: string; style?: string }) {
+export function ChatPanel({ cap, variant = 'page', enabled = true, class: className, style }: { cap: number; enabled?: boolean; variant?: 'overlay' | 'page'; class?: string; style?: string }) {
   const [, bump] = useState(0)
   const [focused, setFocusedRaw] = useState(false)
   const box = useRef<HTMLDivElement>(null)
@@ -145,6 +145,10 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
       bump((n) => n + 1)
     })
   }, [])
+
+  useEffect(() => {
+    if (!enabled) setFocusedRaw(false)
+  }, [enabled])
 
   // ticker so messages age out without new ones arriving
   useEffect(() => {
@@ -191,7 +195,7 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
   if (variant === 'overlay') {
     const now = Date.now()
     const age = (m: ChatMessageRecord) => now - Math.max(m.timestamp, blurAt.current)
-    let shown = focused ? msgs : msgs.filter((m) => age(m) < CHAT_GONE_MS)
+    let shown = !enabled ? [] : focused ? msgs : msgs.filter((m) => age(m) < CHAT_GONE_MS)
     // phones: three lines over the world; focusing the input recalls the rest
     if (isMobile() && !focused) shown = shown.slice(-3)
     return (
@@ -205,12 +209,25 @@ export function ChatPanel({ cap, variant = 'page', class: className, style }: { 
         </div>
         <div class="interact-bar">
           <InteractPopout />
-          <ChatInput
-            onFocusChange={(f) => {
-              setFocused(f)
-              if (isMobile()) window.scrollTo(0, 0)
+          <button
+            type="button"
+            aria-expanded={enabled}
+            title={enabled ? 'hide chat' : 'show chat'}
+            onClick={(e) => {
+              e.currentTarget.blur()
+              chatSettings.enabled = !enabled
             }}
-          />
+          >
+            chat
+          </button>
+          {enabled && (
+            <ChatInput
+              onFocusChange={(f) => {
+                setFocused(f)
+                if (isMobile()) window.scrollTo(0, 0)
+              }}
+            />
+          )}
           <button type="button" class="zoom" title="zoom [C]" onClick={() => window.connector?.controls.togglePerspective()}>
             <Icon name="zoom" />
           </button>
@@ -495,7 +512,7 @@ export class ChatSettings extends TypedEventTarget<{ changed: { enabled: boolean
     }
   }
 
-  private _enabled = true
+  private _enabled = false
 
   get enabled() {
     return this._enabled
