@@ -6,7 +6,7 @@ import { FullParcelRecord, NearbyParcelRecord, ParcelWithMintednessRecord } from
 import type { VoxelsMap } from './helpers/load-voxels-map'
 import { loadVoxelsMap } from './helpers/load-voxels-map'
 import ParcelEvents from './components/parcel-events'
-import cachedFetch from './helpers/cached-fetch'
+import cachedFetch, { invalidateUrl } from './helpers/cached-fetch'
 import { app, AppEvent } from './state'
 import { fetchOptions } from './utils'
 import { AvatarLink } from './components/avatar-link'
@@ -31,6 +31,8 @@ export interface State {
   loading: boolean
   parcelId: number
   tab: SidebarTab
+  transferring?: boolean
+  transferMessage?: string
 }
 
 const tabs: { id: SidebarTab; label: string }[] = [
@@ -41,6 +43,7 @@ const tabs: { id: SidebarTab; label: string }[] = [
 export default class Parcel extends Component<Props, State> {
   map: VoxelsMap | null = null
   mapBox = createRef<HTMLDivElement>()
+  uploadFile = createRef<HTMLInputElement>()
 
   constructor(props: Props) {
     super(props)
@@ -88,6 +91,66 @@ export default class Parcel extends Component<Props, State> {
 
   onAppChange = () => {
     this.forceUpdate()
+  }
+
+  download = async () => {
+    if (!this.canEdit || this.state.transferring) return
+    const id = this.state.parcelId
+    this.setState({ transferring: true, transferMessage: '' })
+    try {
+      const response = await cachedFetch(`/api/parcels/${id}.json`, { cache: 'reload' })
+      const data = await response.json()
+      if (!data.success || !data.parcel?.content) throw new Error('Could not download parcel.')
+      const content = data.parcel.content
+      const url = URL.createObjectURL(new Blob([JSON.stringify({ ...content, voxels: content.voxels ?? '', features: content.features ?? [] }, null, 2)], { type: 'application/json' }))
+      const link = document.createElement('a')
+      link.href = url
+      link.download = `parcel-${id}.json`
+      link.click()
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
+    } catch (error) {
+      this.setState({ transferMessage: error instanceof Error ? error.message : 'Download failed.' })
+    } finally {
+      this.setState({ transferring: false })
+    }
+  }
+
+  upload = async (event: Event) => {
+    event.preventDefault()
+    const file = this.uploadFile.current?.files?.[0]
+    if (!file || !this.canEdit || this.state.transferring) return
+    const id = this.state.parcelId
+    this.setState({ transferring: true, transferMessage: '' })
+    try {
+      const data = JSON.parse(await file.text())
+      const content = data?.parcel?.content ?? data?.content ?? data
+      if (
+        !content ||
+        typeof content !== 'object' ||
+        Array.isArray(content) ||
+        (!('voxels' in content) && !('features' in content)) ||
+        ('voxels' in content && typeof content.voxels !== 'string') ||
+        ('features' in content && !Array.isArray(content.features))
+      )
+        throw new Error('Choose a parcel JSON file containing voxels or features.')
+      if (id !== this.state.parcelId || !this.canEdit) throw new Error('Parcel changed. Choose the file again.')
+      if (!confirm(`Replace the build in parcel #${id} with ${file.name}? Download a backup first if you need it.`)) return
+      const response = await fetch(`/grid/parcels/${id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: { ...content, voxels: content.voxels ?? '', features: content.features ?? [] } }),
+      })
+      const result = await response.json()
+      if (!response.ok || !result.success) throw new Error(result.error || 'Parcel upload failed.')
+      if (this.uploadFile.current) this.uploadFile.current.value = ''
+      this.setState({ transferMessage: `Uploaded to parcel #${id}.` })
+      await invalidateUrl(`/api/parcels/${id}.json`)
+    } catch (error) {
+      this.setState({ transferMessage: error instanceof Error ? error.message : 'Upload failed.' })
+    } finally {
+      this.setState({ transferring: false })
+    }
   }
 
   onUrl = () => {
@@ -332,6 +395,26 @@ export default class Parcel extends Component<Props, State> {
           </details>
         )}
         {this.state.parcel ? <ParcelEvents parcel={this.state.parcel} /> : null}
+
+        {this.canEdit && (
+          <details class="inspector-section">
+            <summary>parcel download / upload</summary>
+            <form key={this.state.parcelId} onSubmit={this.upload}>
+              <p>Download the build as JSON, or upload a build to replace it.</p>
+              <button type="button" disabled={this.state.transferring} onClick={this.download}>
+                Download JSON
+              </button>
+              <div class="f">
+                <label htmlFor="parcel-upload">Parcel JSON</label>
+                <input id="parcel-upload" ref={this.uploadFile} type="file" accept=".json,application/json" required disabled={this.state.transferring} />
+              </div>
+              <button type="submit" disabled={this.state.transferring}>
+                Upload JSON
+              </button>
+              {this.state.transferMessage && <p role="status">{this.state.transferMessage}</p>}
+            </form>
+          </details>
+        )}
 
         <ActivitySection parcelId={this.state.parcelId} />
         <details class="inspector-section">
