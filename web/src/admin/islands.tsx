@@ -22,6 +22,7 @@ import { getVoxelsFromBuffer } from '../../../common/voxels/helpers'
 import { debounce } from 'lodash'
 import { app } from '../state'
 import { mintParcel } from '../helpers/mint-parcel'
+import { kowloon, type KowloonParcel } from './kowloon'
 
 export const voxelShader = (scene: BABYLON.Scene, name: string) => {
   // need uniforms for brightness, ambient, lightDirection, fogDensity, fogColor
@@ -121,9 +122,14 @@ export interface Props {
   id?: string
 }
 
-type ProspectiveParcel = ParcelMeta & {
-  mesh?: BABYLON.Mesh
-}
+type ProspectiveParcel = ParcelMeta &
+  Partial<KowloonParcel> & {
+    mesh?: BABYLON.Mesh
+  }
+
+// plots pink, units darker, bridges cyan
+const kindColors: Record<string, string> = { plot: '#ff00aa', unit: '#aa0077', outer: '#01cdfe' }
+const kindMaterials: Record<string, BABYLON.StandardMaterial> = {}
 
 export interface State {
   parcels: ProspectiveParcel[]
@@ -133,6 +139,8 @@ export interface State {
   d: number
   name: string
   center: vec2
+  count: number
+  reroll: number
 }
 
 export default class IslandsAdmin extends Component<Props, State> {
@@ -154,6 +162,8 @@ export default class IslandsAdmin extends Component<Props, State> {
       d: 8,
       name: '',
       center: [11.14, -5.61],
+      count: 100,
+      reroll: 0,
     }
   }
 
@@ -368,7 +378,7 @@ export default class IslandsAdmin extends Component<Props, State> {
       const d = p.z2 - p.z1
 
       box.scaling.set(w, h, d)
-      box.position.set(p.x1 + w / 2, 0, p.z1 + d / 2)
+      box.position.set(p.x1 + w / 2, p.y1, p.z1 + d / 2)
       box.isPickable = true
 
       if (w % 2 === 0) {
@@ -379,24 +389,14 @@ export default class IslandsAdmin extends Component<Props, State> {
         box.position.z -= 0.5
       }
 
-      const cubeMaterial = new BABYLON.StandardMaterial('cubeMat', this.scene!)
-      cubeMaterial.diffuseColor = new BABYLON.Color3(1, 0, 0.5)
-
-      const dynamicTexture = new BABYLON.DynamicTexture('dynamic texture', { width: 256, height: 256 }, this.scene!, false)
-      const ctx = dynamicTexture.getContext()
-      const grad = ctx.createLinearGradient(0, 0, 0, 256)
-      grad.addColorStop(0, '#f0a')
-      grad.addColorStop(1, '#a07')
-      ctx.fillStyle = grad
-      ctx.fillRect(0, 0, 256, 256)
-      dynamicTexture.drawText(String(p.id), 64, 128, 'bold 64px Arial', 'white', null, true)
-      dynamicTexture.update()
-      cubeMaterial.diffuseTexture = dynamicTexture
-      cubeMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1)
-      cubeMaterial.specularColor = new BABYLON.Color3(0, 0, 0)
-      cubeMaterial.backFaceCulling = false
-
-      box.material = cubeMaterial
+      const kind = p.kind || 'plot'
+      if (!kindMaterials[kind]) {
+        kindMaterials[kind] = new BABYLON.StandardMaterial(`parcel/${kind}`, this.scene!)
+        kindMaterials[kind].diffuseColor = BABYLON.Color3.FromHexString(kindColors[kind])
+        kindMaterials[kind].specularColor = new BABYLON.Color3(0, 0, 0)
+        kindMaterials[kind].freeze()
+      }
+      box.material = kindMaterials[kind]
 
       p.mesh = box
     }
@@ -542,29 +542,40 @@ export default class IslandsAdmin extends Component<Props, State> {
     }
   }
 
+  build = (reroll: number) => {
+    for (const p of this.state.parcels) p.mesh?.dispose()
+    const parcels = kowloon(this.state.name, this.state.count, reroll)
+    this.setState({ parcels, reroll })
+    const camera = this.scene?.activeCamera as BABYLON.ArcRotateCamera | undefined
+    if (camera) camera.radius = Math.max(...parcels.map((p) => Math.max(Math.abs(p.x2), Math.abs(p.z2)))) * 3
+    setTimeout(() => this.regenerate())
+  }
+
+  insertAll = async () => {
+    const res = await fetch('/api/admin/islands/build', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...this.islandBody(),
+        parcels: this.state.parcels.map((p) => ({ ...this.parcelPayload(p), kind: p.kind, doors: p.doors, top: p.top, material: p.material })),
+      }),
+    })
+    const json = await res.json().catch(() => ({}))
+    app.showSnackbar(json.success ? `${json.inserted} parcels inserted` : json.message || 'insert failed')
+  }
+
+  islandBody() {
+    const { field } = getIslandField(this.state.parcels)
+    return { name: this.state.name, geometry: this.getIslandGeometry(), content: { voxels: getVoxelsFromBuffer(field.data) } }
+  }
+
   onSave = async (e: any) => {
     e.preventDefault()
-
-    const { parcels, name } = this.state
-    var { field } = getIslandField(parcels)
-    const voxels = getVoxelsFromBuffer(field.data)
-    const content = { voxels }
-
-    // Generate WKT
-    // const w = 0.5
-    // const h = 0.5
-    // const x1 = this.state.center[0] - w / 2
-    // const y1 = this.state.center[1] - h / 2
-    // const x2 = this.state.center[0] + w / 2
-    // const y2 = this.state.center[1] + h / 2
-
-    // const geometry = `POLYGON((${x1} ${y1}, ${x2} ${y1}, ${x2} ${y2}, ${x1} ${y2}, ${x1} ${y1}))`
-    const geometry = this.getIslandGeometry()
 
     await fetch('/api/admin/islands', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, geometry, content }),
+      body: JSON.stringify(this.islandBody()),
     })
     app.showSnackbar('island saved')
   }
@@ -635,6 +646,21 @@ export default class IslandsAdmin extends Component<Props, State> {
               <label>Center</label>
               <input type="text" value={center} onChange={(e: any) => this.setState({ center: e.target.value.split(',').map(Number) })} />
             </div>
+
+            <div class="f">
+              <label>Parcels</label>
+              <input type="number" value={this.state.count} onChange={(e: any) => this.setState({ count: Math.max(1, parseInt(e.target.value, 10) || 1) })} />
+            </div>
+
+            <button type="button" onClick={() => this.build(this.state.reroll)}>
+              build
+            </button>
+            <button type="button" onClick={() => this.build(this.state.reroll + 1)}>
+              reroll
+            </button>
+            <button type="button" onClick={this.insertAll}>
+              insert all
+            </button>
 
             <h5>Location</h5>
 

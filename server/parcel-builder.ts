@@ -1,7 +1,7 @@
 import ndarray, { NdArray } from 'ndarray'
 import { v7 as uuid } from 'uuid'
 import zlib from 'zlib'
-import { defaultColors } from '../common/content/blocks'
+import { defaultColors, getBlockId } from '../common/content/blocks'
 import ParcelHelper from '../common/helpers/parcel-helper'
 import { ParcelContentRecord } from '../common/messages/parcel'
 import Parcel from './parcel'
@@ -274,6 +274,47 @@ export default class ParcelBuilder {
     content.palette = palette
 
     return content
+  }
+
+  // Shells for web/src/admin/kowloon.ts. Spiral stair round an 8x8 ring in the low corner, each floor holes its
+  // slab over the top of the stair below. Ground plots there are 12m, so y1 === 12 means the floor below is a plot.
+  static Kowloon(parcel: any, material: number, doors: [string, number][] = [], top = false) {
+    const b = new ParcelBuilder(parcel)
+    const neon = getBlockId(2, 3)
+    const bridge = parcel.kind === 'outer'
+    const plot = parcel.y1 <= 0
+    const ring = (x: number, z: number) => (x < 1 || x > 8 || z < 1 || z > 8 ? -1 : z === 1 ? 8 - x : x === 1 ? 6 + z : z === 8 ? 13 + x : x === 8 ? 29 - z : -1)
+    const stairs = top ? b.aboveGroundHeight - 5 : b.aboveGroundHeight
+    const below = parcel.y1 === 12 ? 22 : 15
+
+    b.fillBasement((x, _y, z) => {
+      if (plot) return ground
+      const i = ring(x, z)
+      return !bridge && i >= below - 6 && i < below ? empty : material
+    })
+
+    b.fillAboveGround((x, y, z, width, height, depth) => {
+      const face = x === 0 ? 'w' : x === width - 1 ? 'e' : z === 0 ? 's' : z === depth - 1 ? 'n' : null
+      if (bridge) return face && y < 2 && !doors.some(([f]) => f === face) ? neon : empty
+
+      const i = ring(x, z)
+      if (i >= 0 && i < stairs && y === i) return material
+      if (top && y === stairs) return i >= stairs - 6 && i < stairs ? empty : material
+      if (top && y > stairs) {
+        if (face && y === stairs + 1) return neon
+        // water tank
+        return y <= stairs + 3 && x >= width - 8 && x < width - 3 && z >= depth - 8 && z < depth - 3 ? material : empty
+      }
+      if (!face) return empty
+
+      const along = face === 'w' || face === 'e' ? z : x
+      const mid = (face === 'w' || face === 'e' ? depth : width) / 2
+      if (y < 5 && doors.some(([f, at]) => f === face && Math.abs(along + 0.5 - at * 2) < 2)) return empty
+      if (y < 5 && plot && Math.abs(along + 0.5 - mid) < 2) return empty
+      return y % 8 >= 3 && y % 8 <= 6 && along % 8 !== 0 ? glass : material
+    })
+
+    return b.serialize
   }
 
   get dummyFeatures(): any {
