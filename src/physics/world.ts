@@ -56,6 +56,12 @@ export function addCuboid(key: string, half: Vec3, center: Vec3, rotation?: RAPI
   addFixed(key, RAPIER.ColliderDesc.cuboid(half.x, half.y, half.z), center, rotation)
 }
 
+export function addTrimesh(key: string, vertices: Float32Array, indices: Uint32Array, origin: Vec3) {
+  removeCollider(key)
+  if (!vertices.length || !indices.length) return
+  addFixed(key, RAPIER.ColliderDesc.trimesh(vertices, indices), origin)
+}
+
 export function removeCollider(key: string) {
   if (!world) return
   const e = entries.get(key)
