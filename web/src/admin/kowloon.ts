@@ -4,7 +4,7 @@ import { getBlockId } from '../../../common/content/blocks'
 // Storey grid shared with ParcelBuilder.Kowloon: ground plot 12m, every unit above 8m, so floors line up across towers
 const GROUND = 12
 const STOREY = 8
-const LEVELS = 6
+const LEVELS = 12
 
 export type Door = [face: 'n' | 's' | 'e' | 'w', at: number]
 
@@ -63,26 +63,25 @@ export function kowloon(name: string, count: number, reroll: number): KowloonPar
   }
   split(-w / 2, -d / 2, w / 2, d / 2, 0)
 
-  // taller in the middle, ragged skyline
+  // spiky skyline: mostly short stuff, a few towers punching way up, loosely biased to the middle
   const maxDist = Math.hypot(w, d) / 2
-  const scored = lots.map((l) => ({ l, score: 1 - Math.hypot((l.x1 + l.x2) / 2, (l.z1 + l.z2) / 2) / maxDist + rand() * 0.4 }))
+  const scored = lots.map((l) => ({ l, score: (1 - Math.hypot((l.x1 + l.x2) / 2, (l.z1 + l.z2) / 2) / maxDist) * 0.5 + rand() }))
   scored.sort((a, b) => b.score - a.score)
   lots = scored.slice(0, count).map((s) => s.l)
 
   const levels = lots.map(() => 1)
-  const target = scored.slice(0, count).map((s) => 1 + Math.round(Math.min(s.score, 1) * (LEVELS - 1)))
+  const target = scored.slice(0, count).map((s) => 1 + Math.round(Math.min(s.score / 1.5, 1) ** 3 * (LEVELS - 1)))
   let remaining = count - lots.length
-  for (const cap of [target, target.map(() => LEVELS)]) {
-    let grew = true
-    while (remaining > 0 && grew) {
-      grew = false
-      for (let i = 0; i < lots.length && remaining > 0; i++) {
-        if (levels[i] >= cap[i]) continue
-        levels[i]++
-        remaining--
-        grew = true
-      }
+  // fill to target, and if there's parcels left over stretch every target by half so the tall ones stay the spikes
+  while (remaining > 0 && levels.some((l) => l < LEVELS)) {
+    let grew = false
+    for (let i = 0; i < lots.length && remaining > 0; i++) {
+      if (levels[i] >= target[i]) continue
+      levels[i]++
+      remaining--
+      grew = true
     }
+    if (!grew) target.forEach((t, i) => (target[i] = Math.min(LEVELS, t + Math.ceil(t / 2))))
   }
 
   const parcels: KowloonParcel[] = []
