@@ -2,7 +2,7 @@ import { IslandRecord, MultiPolygonGeometry } from '../../common/messages/api-is
 import { StateObservable } from '../utils/state-observable'
 import { createIslandMaterial } from '../materials'
 import { pointInPolygon } from '../utils/polygon-utils'
-import { addCuboid } from '../physics/world'
+import { addTrimesh } from '../physics/world'
 
 export class Island {
   list: Islands
@@ -111,10 +111,8 @@ export class Island {
     })
     this._mesh.visibility = 1
 
-    // nerfed collider: one cube for the whole island bounds. good enough to walk on.
-    const bb = this._mesh.getBoundingInfo().boundingBox
-    const c = bb.center.add(this._mesh.position)
-    addCuboid(`island-${this.name}`, { x: bb.extendSize.x, y: bb.extendSize.y, z: bb.extendSize.z }, { x: c.x, y: c.y, z: c.z })
+    // Use the rendered geometry so basement and lake holes stay open.
+    addTrimesh(`island-${this.name}`, new Float32Array(this._mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)!), new Uint32Array(this._mesh.getIndices()!), this._mesh.position)
 
     return this._mesh
   }
