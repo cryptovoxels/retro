@@ -29,7 +29,7 @@ export class Island {
 
   constructor(
     private scene: BABYLON.Scene,
-    private parent: BABYLON.TransformNode,
+    private parent: BABYLON.TransformNode | undefined,
     private desc: any,
   ) {
     const shape = this.desc.geometry.coordinates[0].map((c: any) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
@@ -288,6 +288,8 @@ export class VoxelsMap {
   private camera: BABYLON.FreeCamera
   private islands: Island[] = []
   private rows: ParcelData[] = []
+  // /propose/islands draws its proposal over the real map
+  private proposal: { island: Island; rows: ParcelData[] } | null = null
   private meshes?: ReturnType<typeof createBaseMeshes>
   private playerMesh?: BABYLON.Mesh
   private followObs?: BABYLON.Observer<BABYLON.Scene>
@@ -403,8 +405,23 @@ export class VoxelsMap {
     for (const m of [...this.markers]) m.remove()
     this.overlay.remove()
     this.islands.forEach((i) => i.dispose())
+    this.proposal?.island.dispose()
     this.scene.dispose()
     this.engine.dispose()
+  }
+
+  // island in the accent colour, parcels in the sale colour, null clears it
+  setProposal(desc: any, rows: ParcelData[]) {
+    this.proposal?.island.dispose()
+    this.proposal = null
+    if (desc) {
+      const island = new Island(this.scene, undefined, desc)
+      const c = BABYLON.Color3.FromHexString(getComputedStyle(document.documentElement).getPropertyValue('--accent').trim())
+      island.setMaterial(createMaterial('map-proposal', this.scene, c.r, c.g, c.b))
+      island.setEnabled(true)
+      this.proposal = { island, rows: rows.map((p) => ({ ...p, sandbox: true })) }
+    }
+    this.buildParcels()
   }
 
   setWallet(wallet?: string) {
@@ -417,7 +434,7 @@ export class VoxelsMap {
   private buildParcels() {
     if (!this.meshes) return
     const groups = new Map<BABYLON.Mesh, ParcelData[]>()
-    for (const p of this.rows) {
+    for (const p of this.proposal ? this.rows.concat(this.proposal.rows) : this.rows) {
       if (p.visible === false) continue
       const m = pickParcelMesh(p, this.meshes, this.wallet)
       if (!groups.has(m)) groups.set(m, [])

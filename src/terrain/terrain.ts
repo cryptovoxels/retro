@@ -1,5 +1,6 @@
 import OceanFloor from './ocean-floor'
 import Islands from './islands'
+import type { IslandRecord } from '../../common/messages/api-islands'
 import { isLoaded } from '../utils/loading-done'
 import { StateObservable } from '../utils/state-observable'
 import { Ocean } from './ocean'
@@ -67,6 +68,17 @@ export class Terrain {
     await this._islands.load()
     this._ocean.setIslands(this._islands)
     this._islandsHasLoaded = true
+  }
+
+  async addIsland(desc: IslandRecord) {
+    const island = await this._islands.add(desc)
+    this._ocean.setIslands(this._islands)
+    return island
+  }
+
+  removeIsland(name: string) {
+    this._islands.remove(name)
+    this._ocean.setIslands(this._islands)
   }
 
   hasWaterMeshAt(x: number, z: number) {
