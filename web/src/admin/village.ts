@@ -146,7 +146,8 @@ export function village({ name, streets, count, reroll, area, areaSpread, height
     y2: Math.max(4, Math.round(vary(height, heightSpread)) + 1),
     z2: l.r.z2,
     door: l.door,
-    material: getBlockId([4, 5, 6, 9][Math.floor(rand() * 4)], [1, 2][Math.floor(rand() * 2)]),
+    // wall tiles of the atlas, untinted so a colour atlas shows as painted
+    material: getBlockId([2, 4, 5, 6, 8, 9, 14][Math.floor(rand() * 7)], 0),
   }))
 
   // stand in the middle of the first street

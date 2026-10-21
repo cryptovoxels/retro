@@ -171,7 +171,7 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
 
   // Village autobuild from /propose/islands: the island, then every parcel with its voxels
   app.post('/api/admin/islands/build', passport.authenticate('jwt', { session: false }), requireAdmin, async (req, res) => {
-    const { name, geometry, content, parcels } = req.body
+    const { name, geometry, content, parcels, atlas } = req.body
     if (!validIslandBody(req.body)) {
       res.status(400).json({ success: false, message: 'Need a name and parcels' })
       return
@@ -194,7 +194,7 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
       }
 
       await upsertIsland(db, name, geometry, content)
-      for (const row of villageRows(name, parcels)) await createParcelRow(db, row)
+      for (const row of villageRows(name, parcels, atlas)) await createParcelRow(db, row)
     } catch (e: any) {
       log.error('island build failed', { e: String(e) })
       res.status(500).json({ success: false, message: e?.toString() || 'build failed' })
@@ -205,7 +205,7 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
 
   // Same build, nothing written: the world client loads this when opened with ?preview=1 so you can fly round the proposal
   app.post('/api/admin/islands/preview', passport.authenticate('jwt', { session: false }), requireAdmin, (req, res) => {
-    const { name, geometry, parcels } = req.body
+    const { name, geometry, parcels, atlas } = req.body
     if (!validIslandBody(req.body)) {
       res.status(400).json({ success: false, message: 'Need a name and parcels' })
       return
@@ -218,7 +218,7 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
     res.json({
       success: true,
       island: { id: 0, name, other_name: null, texture: '', position, geometry, holes_geometry_json: none, lakes_geometry_json: none },
-      parcels: villageRows(name, parcels).map((r) => new Parcel({ ...r, x1: m(r.x1), x2: m(r.x2), z1: m(r.z1), z2: m(r.z2), height: r.y2 - r.y1, hash: 'preview', visible: true, settings: {}, parcel_users: [] }).summary),
+      parcels: villageRows(name, parcels, atlas).map((r) => new Parcel({ ...r, x1: m(r.x1), x2: m(r.x2), z1: m(r.z1), z2: m(r.z2), height: r.y2 - r.y1, hash: 'preview', visible: true, settings: {}, parcel_users: [] }).summary),
     })
   })
 
@@ -295,11 +295,12 @@ function validIslandBody(b: any) {
   return typeof b?.name === 'string' && b.name && Array.isArray(b.parcels) && b.parcels.length
 }
 
-// designer parcels -> parcel rows with their village house voxels
-function villageRows(name: string, parcels: any[]) {
+// designer parcels -> parcel rows with their village house voxels, all on the one tileset if given
+function villageRows(name: string, parcels: any[], atlas?: string) {
+  const tileset = typeof atlas === 'string' && atlas ? atlas : undefined
   return parcels.map((p) => {
     const shape = { x1: m(p.x1), x2: m(p.x2), z1: m(p.z1), z2: m(p.z2), y1: p.y1, y2: p.y2, height: p.y2 - p.y1 }
-    return { ...p, island: name, content: ParcelBuilder.Village(shape, isInteger(p.material) ? p.material : ground, p.door) }
+    return { ...p, island: name, content: { ...ParcelBuilder.Village(shape, isInteger(p.material) ? p.material : ground, p.door), tileset } }
   })
 }
 

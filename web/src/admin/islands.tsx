@@ -86,6 +86,8 @@ export interface State {
   start: number
   name: string
   streets: string
+  // tileset png for every house, ugc bucket or any url
+  atlas: string
   center: vec2
   count: number
   reroll: number
@@ -105,7 +107,21 @@ export default class IslandsAdmin extends Component<{}, State> {
   centerMarker: MapMarker | null = null
   mapView = ''
 
-  state: State = { parcels: [], start: 1, name: '', streets: '', center: [11.14, -5.61], count: 100, reroll: 0, area: 60, areaSpread: 0.4, height: 8, heightSpread: 0.3, spawn: [0, 0] }
+  state: State = {
+    parcels: [],
+    start: 1,
+    name: '',
+    streets: '',
+    atlas: 'https://ugc.voxels.com/tilesets/cyberpunk-v1.png',
+    center: [11.14, -5.61],
+    count: 100,
+    reroll: 0,
+    area: 60,
+    areaSpread: 0.4,
+    height: 8,
+    heightSpread: 0.3,
+    spawn: [0, 0],
+  }
 
   componentDidMount() {
     this.fetch()
@@ -168,7 +184,7 @@ export default class IslandsAdmin extends Component<{}, State> {
   }
 
   buildBody() {
-    return { ...this.islandBody(), parcels: this.state.parcels.map((p) => ({ ...this.parcelPayload(p), door: p.door, material: p.material })) }
+    return { ...this.islandBody(), atlas: this.state.atlas, parcels: this.state.parcels.map((p) => ({ ...this.parcelPayload(p), door: p.door, material: p.material })) }
   }
 
   insertAll = async () => {
@@ -299,6 +315,11 @@ export default class IslandsAdmin extends Component<{}, State> {
           <div class="f">
             <label>Streets, one per line</label>
             <textarea value={this.state.streets} onChange={(e: any) => this.setState({ streets: e.target.value })} />
+          </div>
+
+          <div class="f">
+            <label>Atlas url</label>
+            <input type="text" value={this.state.atlas} onChange={(e: any) => this.setState({ atlas: e.target.value.trim() })} />
           </div>
 
           <div class="f">
