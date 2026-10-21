@@ -217,7 +217,8 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
     const none = { type: 'MultiPolygon', coordinates: [] }
     res.json({
       success: true,
-      island: { id: 0, name, other_name: null, texture: '', position, geometry, holes_geometry_json: none, lakes_geometry_json: none },
+      // 40 and up renders every ring, the clusters of a village are often separate blobs
+      island: { id: 40, name, other_name: null, texture: '', position, geometry, holes_geometry_json: none, lakes_geometry_json: none },
       parcels: villageRows(name, parcels, atlas).map((r) => new Parcel({ ...r, x1: m(r.x1), x2: m(r.x2), z1: m(r.z1), z2: m(r.z2), height: r.y2 - r.y1, hash: 'preview', visible: true, settings: {}, parcel_users: [] }).summary),
     })
   })

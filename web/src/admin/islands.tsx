@@ -1,7 +1,6 @@
 import { Component, createRef } from 'preact'
 import type { ParcelMeta } from '../../../common/types'
 import ndarray, { NdArray } from 'ndarray'
-import { contours } from 'd3-contour'
 import type { MapMarker, VoxelsMap } from '../helpers/load-voxels-map'
 import { loadVoxelsMap } from '../helpers/load-voxels-map'
 import { getVoxelsFromBuffer } from '../../../common/voxels/helpers'
@@ -14,66 +13,53 @@ const PAVEMENT_LEVEL = 1
 const BLEED_MARGIN = 2
 const PAGE_ORTHO = 2000
 
+// Outline of the solid cells of the island field as square cornered rings: every solid cell edge that
+// has water on the other side, chained into loops. Outer rings only, courtyards fill in. Geo coords.
 function getIslandGeometry(field: IslandField, center: vec2) {
-  // Convert island field to a row-major flat array
-  const grid = []
-
-  // console.log(field)
-
-  const height = field.shape[2]
   const width = field.shape[0]
+  const depth = field.shape[2]
+  const solid = (x: number, z: number) => x >= 0 && z >= 0 && x < width && z < depth && field.get(x, PAVEMENT_LEVEL, z) !== 0
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      grid.push(field.get(x, PAVEMENT_LEVEL, y))
+  // edges run anticlockwise round the solid, keyed by their start corner
+  const next = new Map<string, [number, number]>()
+  for (let x = 0; x < width; x++) {
+    for (let z = 0; z < depth; z++) {
+      if (!solid(x, z)) continue
+      if (!solid(x, z - 1)) next.set(`${x},${z}`, [x + 1, z])
+      if (!solid(x + 1, z)) next.set(`${x + 1},${z}`, [x + 1, z + 1])
+      if (!solid(x, z + 1)) next.set(`${x + 1},${z + 1}`, [x, z + 1])
+      if (!solid(x - 1, z)) next.set(`${x},${z + 1}`, [x, z])
     }
   }
 
-  // console.log(grid.length)
-  // console.log(grid.filter((i) => i === 0).length)
-
-  const granularize = (v: number) => Math.floor(v * 100) / 10000
-
-  // d3-contour wants a flat array of numbers (row-major)
-  const values = grid.flat()
-
-  // console.log(values)
-
-  // One binary threshold at 0.5 → outlines the 1s region(s)
-  const cs = contours().size([width, height]).thresholds([0.5])(values) // returns an array; we used a single threshold
-
-  // const bleedOffset = BLEED_MARGIN / 100
-
-  // console.log(center)
-  // console.log(width, height)
-
-  const offsetX = center[0] - width / 200
-  const offsetY = center[1] - height / 200
-
-  // console.log('offsetX', offsetX, 'offsetY', offsetY)
-
-  const geojson = {
-    type: 'Polygon',
-    coordinates: cs[0].coordinates.map((ring: any) => ring[0].map(([x, y]: any) => [granularize(x) + offsetX, granularize(y) + offsetY])),
+  const rings: [number, number][][] = []
+  while (next.size) {
+    const start = next.keys().next().value!
+    const ring: [number, number][] = []
+    let at = start
+    let area = 0
+    while (next.has(at)) {
+      const [x, z] = at.split(',').map(Number)
+      const to = next.get(at)!
+      next.delete(at)
+      area += x * to[1] - to[0] * z
+      // drop corners that only continue a straight edge
+      const prev = ring[ring.length - 1]
+      const before = ring[ring.length - 2]
+      if (prev && before && ((before[0] === prev[0] && prev[0] === x) || (before[1] === prev[1] && prev[1] === z))) ring.pop()
+      ring.push([x, z])
+      at = `${to[0]},${to[1]}`
+    }
+    // the loop only trims corners mid ring, so check the join back to the start too
+    const straight = (a: [number, number], b: [number, number], c: [number, number]) => (a[0] === b[0] && b[0] === c[0]) || (a[1] === b[1] && b[1] === c[1])
+    while (ring.length > 3 && straight(ring[ring.length - 2], ring[ring.length - 1], ring[0])) ring.pop()
+    while (ring.length > 3 && straight(ring[ring.length - 1], ring[0], ring[1])) ring.shift()
+    if (area > 0) rings.push(ring)
   }
 
-  // usage
-  // const geometry = toIslandsMultiPolygon(cs)
-  // // FeatureCollection if you want:
-  // const geojson = {
-  //   type: 'FeatureCollection',
-  //   features: [{ type: 'Feature', properties: { threshold: 0.5 }, geometry }],
-  // }
-
-  // // If you want to scale to world units (e.g., each pixel = 0.25m), multiply coords:
-  // const scale = 1.0 // change if you want
-  // if (scale !== 1) {
-  //   for (const f of geojson.features) {
-  //     f.geometry.coordinates = f.geometry.coordinates.map((poly) => poly.map((ring) => ring.map(([x, y]) => [granularize(x * scale), granularize(y * scale)])))
-  //   }
-  // }
-
-  return geojson
+  const offsetX = center[0] - width / 200
+  const offsetZ = center[1] - depth / 200
+  return { type: 'Polygon', coordinates: rings.map((r) => [...r, r[0]].map(([x, z]) => [x / 100 + offsetX, z / 100 + offsetZ])) }
 }
 
 type vec2 = [number, number]
@@ -112,7 +98,7 @@ export default class IslandsAdmin extends Component<{}, State> {
     start: 1,
     name: '',
     streets: '',
-    atlas: 'https://ugc.voxels.com/tilesets/cyberpunk-v1.png',
+    atlas: 'https://ugc.voxels.com/tilesets/concrete-v1.png',
     center: [11.14, -5.61],
     count: 100,
     reroll: 0,
