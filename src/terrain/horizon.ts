@@ -8,12 +8,12 @@ export default class Horizon {
     material.fogEnabled = true
 
     material.offset = 0.5
-    material.scale = 25
+    material.scale = 1 // keep the gradient alpha between 0 and 1 across the sphere
     material.smoothness = 1
 
-    material.topColorAlpha = 1
+    material.topColorAlpha = 0
     material.bottomColorAlpha = 1
-    material.alphaMode = BABYLON.Engine.ALPHA_DISABLE
+    material.alphaMode = BABYLON.Engine.ALPHA_COMBINE
     material.backFaceCulling = false
     material.disableLighting = true
 

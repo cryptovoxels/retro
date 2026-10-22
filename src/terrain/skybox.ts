@@ -7,9 +7,10 @@ export default class Skybox {
     material.backFaceCulling = false // leave
     material.useSunPosition = true
     material.fogEnabled = false // we set out fog kinda thick so we can't enable it for the sky
-    material.turbidity = 1 // smearing of the sun local to the sun itself
-    material.rayleigh = 2 // smearing of the sun across the sky in general
-    material.mieCoefficient = 0.03 // smearing that obscures the sun's shape
+    material.turbidity = 8
+    material.rayleigh = 0.6
+    material.mieCoefficient = 0.06
+    material.mieDirectionalG = 0.65 // spread the sun into haze
     // material.dithering = true // needed to overcome precision issues introduced by shader pipeline
     material.freeze()
     this.material = material
