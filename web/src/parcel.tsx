@@ -1,7 +1,7 @@
 import { Component, Fragment, createRef } from 'preact'
 import { format } from 'timeago.js'
 import ParcelHelper from '../../common/helpers/parcel-helper'
-import { canUseDom } from '../../common/helpers/utils'
+import { canUseDom, copyTextToClipboard } from '../../common/helpers/utils'
 import { FullParcelRecord, NearbyParcelRecord, ParcelWithMintednessRecord } from '../../common/messages/parcel'
 import type { VoxelsMap } from './helpers/load-voxels-map'
 import { loadVoxelsMap } from './helpers/load-voxels-map'
@@ -15,6 +15,8 @@ import { ParcelMetrics as Metrics } from './components/metrics'
 import { getParcelIdFromPath } from './helpers/coords-nav'
 import { route } from 'preact-router'
 import { truncate } from './lib/string-utils'
+import { PanelType } from './components/panel'
+import Cookies from 'js-cookie'
 
 export interface Props {
   parcel?: ParcelWithMintednessRecord
@@ -67,6 +69,27 @@ export default class Parcel extends Component<Props, State> {
   // the world this parcel lives in, so the header Play button enters it
   get visitUrl() {
     return this.helper ? `/play?coords=${this.helper.spawnCoords}` : undefined
+  }
+
+  get robotPrompt() {
+    const origin = canUseDom ? window.location.origin : 'https://www.voxels.com'
+    const jwt = canUseDom && this.isOwner ? Cookies.get('jwt') : undefined
+    const login = jwt
+      ? `Open ${origin} first, then run this JavaScript in that page to install my supplied login token. Only run it on this exact origin:
+if (location.origin === ${JSON.stringify(origin)}) document.cookie = ${JSON.stringify(`jwt=${encodeURIComponent(jwt)}; Path=/; SameSite=Lax${origin.startsWith('https:') ? '; Secure' : ''}`)}
+This is an account-wide login token, not a parcel-scoped key. Do not echo it in replies, put it in a URL, or write it to logs. Navigate to the parcel URL below after installing it so the app and sockets use the new session.`
+      : 'Use my existing browser login, or let me sign in if needed.'
+    return `You are skynet, my voxels building robot. Let's build something.
+
+Read your field manual first:
+${origin}/skynet-agents.md
+
+${login}
+
+Then connect to my parcel #${this.state.parcelId} in a visible browser tab:
+${origin}${this.visitUrl}&agent=skynet
+
+Follow the manual's startup checks for this parcel only. Don't change anything yet. Once you're connected and can edit it, say "Systems online. Awaiting instructions"`
   }
 
   syncVisitUrl() {
@@ -421,6 +444,26 @@ export default class Parcel extends Component<Props, State> {
           <summary>metrics</summary>
           <Metrics parcelId={this.state.parcelId} />
         </details>
+        {this.isOwner && (
+          <details class="inspector-section">
+            <summary>skynet</summary>
+            <div class="f">
+              <textarea id="terminator-commands" aria-label="Robot building instructions" rows={10} readOnly value={this.robotPrompt} onFocus={(e) => e.currentTarget.select()} />
+              <button
+                type="button"
+                onClick={() =>
+                  copyTextToClipboard(
+                    this.robotPrompt,
+                    () => app.showSnackbar('Instructions copied', PanelType.Success),
+                    () => app.showSnackbar('Could not copy. Select the instructions and copy them manually.', PanelType.Info),
+                  )
+                }
+              >
+                copy instructions
+              </button>
+            </div>
+          </details>
+        )}
       </>
     )
   }

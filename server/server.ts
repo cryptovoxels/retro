@@ -291,6 +291,10 @@ if (config.isDevelopment) {
 }
 
 // THE GREAT MERGE: one bundle, one stylesheet.
+app.get('/skynet-agents.md', cache(false), (req, res) => {
+  res.type('text/plain').sendFile(path.join(__dirname, '..', 'skynet-agents.md'))
+})
+
 app.get(`/${currentVersion}-app.js`, cache('1 day'), (req, res) => {
   return res.sendFile(path.join(__dirname, '..', 'dist', `${currentVersion}-app.js`))
 })

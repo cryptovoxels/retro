@@ -1,5 +1,5 @@
 import { duckRadio, unduckRadio } from '../../web/src/radio/global'
-import { isBatterySaver, isChrome } from '../../common/helpers/detector'
+import { isBatterySaver, isChrome, wantsAudio } from '../../common/helpers/detector'
 import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { VideoRecord } from '../../common/messages/feature'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
@@ -81,7 +81,7 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
   }
 
   get hasAudio() {
-    return this.volume > 0
+    return wantsAudio() && this.volume > 0
   }
 
   get loop() {
@@ -444,7 +444,7 @@ export default class Video extends Feature2D<VideoRecord> implements AudioFeatur
       'fakeclick',
       () => {
         if (this.disposed) return
-        video.muted = false
+        video.muted = !wantsAudio()
         video.play()
       },
       { signal: this.abortController.signal },
