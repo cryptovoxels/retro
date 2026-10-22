@@ -169,7 +169,7 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
     res.status(200).json({ success: true })
   })
 
-  // Village autobuild from /propose/islands: the island, then every parcel with its voxels
+  // Village autobuild from /admin island: the island, then every parcel with its voxels
   app.post('/api/admin/islands/build', passport.authenticate('jwt', { session: false }), requireAdmin, async (req, res) => {
     const { name, geometry, content, parcels, atlas } = req.body
     if (!validIslandBody(req.body)) {

@@ -222,7 +222,7 @@ export default class Grid extends SocketClient {
     }
   }
 
-  // /propose/islands drops its proposal straight into the live world. these parcels never came from the
+  // /admin island drops its proposal straight into the live world. these parcels never came from the
   // worker so it never unloads them either, clearPreview does
   private preview: { name: string; ids: Parcel['id'][] } | null = null
 

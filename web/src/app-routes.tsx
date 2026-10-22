@@ -42,7 +42,6 @@ import Terms from './terms'
 import Wearable from './wearable'
 import Womp from './womp'
 import WompsPage from './womps'
-import IslandsAdmin from './admin/islands'
 import Admin from './admin/admin'
 import NotFound from './not-found'
 import { ChatPage } from './chat-page'
@@ -94,7 +93,6 @@ const components: Record<string, ComponentType<any>> = {
   shop: Shop,
   activity: Activity,
   womps: WompsPage,
-  islandsAdmin: IslandsAdmin,
   admin: Admin,
   settings: SettingsPage,
   avatarTab: AvatarPage,

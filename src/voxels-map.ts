@@ -288,7 +288,7 @@ export class VoxelsMap {
   private camera: BABYLON.FreeCamera
   private islands: Island[] = []
   private rows: ParcelData[] = []
-  // /propose/islands draws its proposal over the real map
+  // /admin island draws its proposal over the real map
   private proposal: { island: Island; rows: ParcelData[] } | null = null
   private meshes?: ReturnType<typeof createBaseMeshes>
   private playerMesh?: BABYLON.Mesh
