@@ -70,7 +70,7 @@ test('island collider preserves basement/lake holes, walls, surface height and s
   expect(down(6.25, 6.25)).toBeNull()
   expect(down(14.25, 6.25)).toBeNull()
   expect(down(19, 19)).toBeNull()
-  expect(world.castRay(new RAPIER.Ray({ x: 6.25, y: -2, z: 6.25 }, { x: 1, y: 0, z: 0 }), 5, true)?.timeOfImpact).toBeCloseTo(2, 4)
+  expect(world.castRay(new RAPIER.Ray({ x: 6.25, y: -2, z: 6.25 }, { x: 1, y: 0, z: 0 }), 5, true)?.timeOfImpact).toBeCloseTo(1.75, 4)
   expect(world.castRay(new RAPIER.Ray({ x: 6.25, y: -2, z: 6.25 }, { x: 0, y: 1, z: 0 }), 10, true)).toBeNull()
   const count = world.colliders.len()
   await island.render()
@@ -90,14 +90,14 @@ test('island tops and walls share world-aligned 50cm UVs regardless of island di
         coordinates: [
           [
             [0, 0],
-            [0.3, 0],
-            [0.3, 0.1],
+            [0.301, -0.001],
+            [0.299, 0.101],
             [0, 0.1],
           ],
           [
             [0.4, 0],
             [0.5, 0],
-            [0.45, 0.1],
+            [0.451, 0.099],
           ],
         ],
       },
@@ -129,6 +129,8 @@ test('island tops and walls share world-aligned 50cm UVs regardless of island di
     }
   }
   for (let i = 0; i < positions.length / 3; i++) {
+    expect(positions[i * 3] * 2).toBe(Math.round(positions[i * 3] * 2))
+    expect(positions[i * 3 + 2] * 2).toBe(Math.round(positions[i * 3 + 2] * 2))
     if (Math.abs(normals[i * 3 + 1]) > 0.5) {
       expect(uvs[i * 2]).toBeCloseTo(positions[i * 3] * 2)
       expect(uvs[i * 2 + 1]).toBeCloseTo(positions[i * 3 + 2] * 2)

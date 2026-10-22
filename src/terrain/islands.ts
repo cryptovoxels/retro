@@ -1,7 +1,7 @@
 import { IslandRecord } from '../../common/messages/api-islands'
 import { StateObservable } from '../utils/state-observable'
 import { createIslandMaterial } from '../materials'
-import { pointInPolygon } from '../utils/polygon-utils'
+import { pointInPolygon, snapRing } from '../utils/polygon-utils'
 import { addTrimesh, removeCollider } from '../physics/world'
 
 export class Island {
@@ -16,14 +16,20 @@ export class Island {
   constructor(list: Islands, desc: IslandRecord) {
     this.list = list
     this.desc = desc
-    this.outline = this.desc.geometry.coordinates[0].map((c: [x: number, y: number]) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
+    this.outline = snapRing(this.desc.geometry.coordinates[0])
+      .map((p) => new BABYLON.Vector2(p.x, p.z))
+      .reverse()
 
     const holes = [this.desc.lakes_geometry_json, this.hasBasements ? this.desc.holes_geometry_json : null]
       .flatMap((geometry) => geometry?.coordinates || [])
-      .map((polygon) => polygon[0].map((c) => new BABYLON.Vector2(c[0] * 100 + 0.25, c[1] * 100 + 0.25)))
+      .map((polygon) => snapRing(polygon[0]).map((p) => new BABYLON.Vector2(p.x, p.z)))
+      .filter((hole) => hole.length >= 3)
     const rings = this.desc.id >= 40 ? this.desc.geometry.coordinates : [this.desc.geometry.coordinates[0]]
     const meshes = rings.map((ring, index) => {
-      const shape = ring.map((c) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
+      const shape = snapRing(ring)
+        .map((p) => new BABYLON.Vector2(p.x, p.z))
+        .reverse()
+      if (shape.length < 3) return new BABYLON.Mesh('island/' + this.name, this.scene)
       const builder = new BABYLON.PolygonMeshBuilder('island/' + this.name, shape, this.scene)
       if (index === 0) holes.forEach((hole) => builder.addHole(hole))
       return builder.build(false, 32)

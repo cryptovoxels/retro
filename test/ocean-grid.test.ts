@@ -60,6 +60,21 @@ function oceanGrid() {
       },
     },
   ]
+  // Database outlines can drift off-grid. Both land and lakes must snap back.
+  for (const island of ocean.islands) {
+    for (const ring of island.geometry.coordinates) {
+      for (const point of ring) {
+        point[0] += 0.0013
+        point[1] -= 0.0011
+      }
+    }
+    for (const polygon of island.lakes_geometry_json?.coordinates || []) {
+      for (const point of polygon[0]) {
+        point[0] -= 0.0012
+        point[1] += 0.0014
+      }
+    }
+  }
   return ocean
 }
 
