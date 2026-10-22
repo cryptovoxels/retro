@@ -3,6 +3,7 @@ import { type ClippedWaterGeometry, douglasPeucker, isAxisAlignedRectangle, type
 import type { IslandRecord } from '../../common/messages/api-islands'
 import Islands from './islands'
 import { OCEAN_HEIGHT_OFFSET } from '../constants'
+import { mirrorTexture } from '../utils/mirror'
 
 type IntersectionType = 'partial' | 'full'
 type MeshPosition = { x: number; z: number }
@@ -13,12 +14,41 @@ interface PolygonClipInstruction {
   intersectionType: IntersectionType
 }
 
-function oceanMaterial(scene: BABYLON.Scene): BABYLON.StandardMaterial {
+function oceanMaterial(scene: BABYLON.Scene, size: number): BABYLON.StandardMaterial {
   const mat = new BABYLON.StandardMaterial('ocean', scene)
-  mat.diffuseColor = new BABYLON.Color3(0, 0.4, 0.7)
-  mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
+  mat.diffuseColor = new BABYLON.Color3(0.18, 0.3, 0.32)
+  mat.emissiveColor = new BABYLON.Color3(0.025, 0.045, 0.05)
+  mat.specularColor = new BABYLON.Color3(0.02, 0.03, 0.03)
   mat.alpha = 1
   mat.fogEnabled = true
+  mat.reflectionTexture = mirrorTexture(scene, OCEAN_HEIGHT_OFFSET)
+  mat.reflectionTexture.level = 0.28
+  mat.reflectionFresnelParameters = new BABYLON.FresnelParameters({ bias: 0.12, power: 2 })
+
+  // Sparse pixel wavelets, drawn once. No noise or per-frame texture uploads.
+  const texture = new BABYLON.DynamicTexture('ocean_pixels', 64, scene, false, BABYLON.Texture.NEAREST_SAMPLINGMODE)
+  const ctx = texture.getContext()
+  ctx.fillStyle = '#a3b5b5'
+  ctx.fillRect(0, 0, 64, 64)
+  for (let i = 0; i < 24; i++) {
+    const x = (i * 17) % 64
+    const y = (i * 29) % 64
+    ctx.fillStyle = i % 3 === 0 ? '#bac9c7' : '#94aaaa'
+    ctx.fillRect(x, y, 3 + (i % 5), 1)
+  }
+  texture.update(false)
+  texture.uScale = texture.vScale = size / 16
+  mat.diffuseTexture = texture
+  let elapsed = 0
+  const drift = scene.onBeforeRenderObservable.add(() => {
+    elapsed += scene.getEngine().getDeltaTime() / 1000
+    texture.uOffset = (Math.floor(elapsed * 2) % 64) / 64
+    texture.vOffset = (Math.floor(elapsed * 0.5) % 64) / 64
+  })
+  mat.onDisposeObservable.add(() => {
+    scene.onBeforeRenderObservable.remove(drift)
+    texture.dispose()
+  })
   mat.freeze()
   mat.blockDirtyMechanism = true
   return mat
@@ -54,7 +84,7 @@ export class Ocean implements ChunkObserver {
     this.mesh.position.set(-99999, -99999, -99999)
     this.mesh.setEnabled(false)
 
-    this.waterMaterial = oceanMaterial(scene)
+    this.waterMaterial = oceanMaterial(scene, size)
     this.mesh.material = this.waterMaterial
   }
 
@@ -148,6 +178,7 @@ export class Ocean implements ChunkObserver {
     this.customMeshes.clear()
 
     this.mesh.dispose()
+    this.waterMaterial.reflectionTexture?.dispose()
     this.waterMaterial.dispose()
   }
 

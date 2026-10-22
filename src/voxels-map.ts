@@ -34,16 +34,6 @@ export class Island {
   ) {
     const shape = this.desc.geometry.coordinates[0].map((c: any) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
     const pt = new BABYLON.PolygonMeshBuilder('island/' + this.desc.name, shape, this.scene)
-    const makeHoles = (multipolygon: any) => {
-      const nudge = 0.25
-      return multipolygon.coordinates.map((p: any) => p[0].map((c: any) => new BABYLON.Vector2(c[0] * 100 + nudge, c[1] * 100 + nudge)))
-    }
-    let holes = makeHoles(this.desc.lakes_geometry_json)
-    if (this.desc.holes_geometry_json && this.hasBasements()) {
-      holes = holes.concat(makeHoles(this.desc.holes_geometry_json))
-    }
-    holes.forEach((hole: BABYLON.Vector2[]) => pt.addHole(hole))
-
     const meshes = [pt.build(false, 0.05)]
 
     if (this.desc.id >= 40) {

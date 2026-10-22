@@ -44,14 +44,6 @@ export function getParcelIdFromPath(path?: string): number | null {
   return Number.isFinite(id) ? id : null
 }
 
-export function syncParcelUrl(id: number) {
-  if (typeof location === 'undefined') return
-  if (!/^\/parcels\/\d+$/.test(location.pathname.split('?')[0])) return
-  if (getParcelIdFromPath() === id) return
-  history.replaceState(null, '', `/parcels/${id}`)
-  notifyParcelChange()
-}
-
 export function naviportHere(urlOrCoords: string) {
   let c = urlOrCoords
   if (urlOrCoords.includes('coords=')) {

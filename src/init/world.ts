@@ -87,8 +87,8 @@ function updateNavbarWithCoords(scene: BABYLON.Scene, connector: Connector) {
         rotation: camera.rotation.clone(),
       }
       if (coords.position.y < -10) return
-      // only rewrite the url after moving 5m, otherwise replaceState spam kills typing in inputs
-      if (lastPos && BABYLON.Vector3.Distance(lastPos, coords.position) < 5) return
+      // only rewrite the url after moving 1m, otherwise replaceState spam kills typing in inputs
+      if (lastPos && BABYLON.Vector3.Distance(lastPos, coords.position) < 1) return
       lastPos = coords.position
       const coordsParam = encodeCoords(coords)
       queryParams.set('coords', coordsParam)

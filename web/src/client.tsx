@@ -6,7 +6,7 @@ import type { BootResult } from '../../src'
 import { pushSpaceHistory, realmSavedCoords, saveRealmCoords } from '../../src/init/realm'
 import { spaceW } from '../../src/utils/space-w'
 import cachedFetch from './helpers/cached-fetch'
-import { getCoords, getParcelIdFromPath, getSpaceIdFromPath, isSpacePath, isSpacePlayPath, syncParcelUrl } from './helpers/coords-nav'
+import { getCoords, getParcelIdFromPath, getSpaceIdFromPath, isSpacePath, isSpacePlayPath } from './helpers/coords-nav'
 import { app, AppEvent } from './state'
 import { currentOrNearestParcel } from '../../src/store'
 
@@ -42,7 +42,6 @@ export class Client extends Component<FrameProps, FrameState> {
         console.error('[boot]', e)
         this.adopt()
       })
-    app.on(AppEvent.Exploring, this.onExplore)
   }
 
   componentDidUpdate(prev: Readonly<FrameProps>) {
@@ -56,7 +55,6 @@ export class Client extends Component<FrameProps, FrameState> {
 
   componentWillUnmount() {
     this.observer?.disconnect()
-    app.removeListener(AppEvent.Exploring, this.onExplore)
   }
 
   private syncRealm(path?: string, prevPath?: string): Promise<void> {
@@ -75,11 +73,6 @@ export class Client extends Component<FrameProps, FrameState> {
       }
       await grid.switchWorld(0, undefined, getCoords() || realmSavedCoords())
     })
-  }
-
-  private onExplore = () => {
-    const id = window.grid?.currentParcel()?.id
-    if (typeof id === 'number') syncParcelUrl(id)
   }
 
   private adopt() {
