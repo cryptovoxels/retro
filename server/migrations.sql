@@ -403,20 +403,3 @@ SELECT apply_migration('free-avatars', $$
     created_at timestamptz NOT NULL DEFAULT now()
   );
 $$);
-
-SELECT apply_migration('unclebitcoin-textures', $$
-  UPDATE properties
-  SET content = jsonb_set(content::jsonb, '{tileset}', '"ugc://parcel/4724/p3XMae.png"'), updated_at = now()
-  WHERE id = 4724 AND content->>'tileset' = '/uploads/atlas/b0899bdc481f8e82cb981b2c1bcf3dec3a6939c9.png';
-
-  UPDATE properties
-  SET content = jsonb_set(content::jsonb, '{features}', (
-    SELECT jsonb_agg(CASE
-      WHEN f->>'type' = 'particles' AND f->>'url' = 'https://unclebitcoin.com/imagesCV/btc-Logo.gif'
-      THEN jsonb_set(f, '{url}', '"ugc://parcel/4724/btJaVw.gif"') ELSE f END ORDER BY ord)
-    FROM jsonb_array_elements(content::jsonb->'features') WITH ORDINALITY AS features(f, ord)
-  )), updated_at = now()
-  WHERE id = 4724 AND content::jsonb->'features' @> '[{"type":"particles","url":"https://unclebitcoin.com/imagesCV/btc-Logo.gif"}]';
-  UPDATE properties SET memoized_hash = encode(digest(content::text, 'sha1'), 'hex')
-  WHERE id = 4724 AND updated_at = now();
-$$);
