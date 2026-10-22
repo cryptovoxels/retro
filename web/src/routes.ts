@@ -60,7 +60,6 @@ export const routes: RouteDef[] = [
   { path: '/shop', component: 'shop' },
   { path: '/activity', component: 'activity' },
   { path: '/womps', component: 'womps' },
-  { path: '/propose/islands', component: 'islandsAdmin', server: '/propose/*' },
   { path: '/admin', component: 'admin' },
   { path: '/home', server: '/home' },
   { path: '/login', server: '/login' },

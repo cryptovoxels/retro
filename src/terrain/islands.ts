@@ -2,7 +2,7 @@ import { IslandRecord, MultiPolygonGeometry } from '../../common/messages/api-is
 import { StateObservable } from '../utils/state-observable'
 import { createIslandMaterial } from '../materials'
 import { pointInPolygon } from '../utils/polygon-utils'
-import { addTrimesh } from '../physics/world'
+import { addTrimesh, removeCollider } from '../physics/world'
 
 export class Island {
   list: Islands
@@ -165,6 +165,23 @@ export default class Islands {
     if (this._fetchCompleted) {
       this.islandsStateObservable.setState('loaded') // No-op if already in this state
     }
+  }
+
+  // island designer preview: drop a polygon in after load, or pull it back out
+  async add(desc: IslandRecord) {
+    this.remove(desc.name)
+    const island = new Island(this, desc)
+    this.islands.push(island)
+    await island.render()
+    return island
+  }
+
+  remove(name: string) {
+    const i = this.islands.findIndex((i) => i.name === name)
+    if (i < 0) return
+    removeCollider(`island-${name}`)
+    this.islands[i].mesh.dispose()
+    this.islands.splice(i, 1)
   }
 
   getIntersecting(boundingInfo: BABYLON.BoundingInfo) {

@@ -1,440 +1,246 @@
-import { Component, createRef, Fragment } from 'preact'
-import { ParcelMetaCodec, type ParcelMeta } from '../../../common/types'
+import { Component, createRef } from 'preact'
+import type { ParcelMeta } from '../../../common/types'
 import ndarray, { NdArray } from 'ndarray'
-import * as t from 'io-ts'
-import { contours } from 'd3-contour'
 import type { MapMarker, VoxelsMap } from '../helpers/load-voxels-map'
 import { loadVoxelsMap } from '../helpers/load-voxels-map'
+import { getVoxelsFromBuffer } from '../../../common/voxels/helpers'
+import { CAMERA_HEIGHT, encodeCoords } from '../../../common/helpers/utils'
+import { app } from '../state'
+import { worldBoot } from '../client'
+import { village, type VillageParcel } from './village'
 
 const PAVEMENT_LEVEL = 1
 const BLEED_MARGIN = 2
 const PAGE_ORTHO = 2000
 
-// Fixme cant import from the src bundle
-import { aoMeshPixelShader, aoMeshVertexShader } from './ao-mesh-shaders'
-BABYLON.Effect.ShadersStore['aoMeshVertexShader'] = aoMeshVertexShader
-BABYLON.Effect.ShadersStore['aoMeshPixelShader'] = aoMeshPixelShader
-
-// Mesher
-import mesher from '../../../common/voxels/mesher'
-import { defaultColors } from '../../../common/content/blocks'
-import { getVoxelsFromBuffer } from '../../../common/voxels/helpers'
-import { debounce } from 'lodash'
-import { app } from '../state'
-import { mintParcel } from '../helpers/mint-parcel'
-
-export const voxelShader = (scene: BABYLON.Scene, name: string) => {
-  // need uniforms for brightness, ambient, lightDirection, fogDensity, fogColor
-  const m = new BABYLON.ShaderMaterial(
-    `voxel-field/${name}`,
-    scene,
-    { vertex: 'aoMesh', fragment: 'aoMesh' },
-    {
-      attributes: ['position', 'normal', 'block', 'ambientOcclusion'],
-      uniforms: ['worldViewProjection', 'tileSize', 'tileCount', 'brightness', 'ambient', 'lightDirection', 'fogDensity', 'fogColor', 'palette'],
-      samplers: ['tileMap'],
-      defines: ['#define IMAGEPROCESSINGPOSTPROCESS'],
-    },
-  )
-  m.setTexture('tileMap', new BABYLON.Texture('/textures/atlas-ao.png', scene, false, false))
-  m.setFloat('tileSize', 128)
-  m.setFloat('tileCount', 4.0)
-  m.setColor3Array(
-    'palette',
-    defaultColors.map((c) => BABYLON.Color3.FromHexString(c)),
-  )
-  m.blockDirtyMechanism = true
-  m.setFloat('brightness', 1.5)
-  m.setFloat('ambient', 0.5)
-  m.setVector3('lightDirection', new BABYLON.Vector3(0, 1, 0))
-  m.setFloat('fogDensity', 0.00001)
-  m.setColor3('fogColor', new BABYLON.Color3(0.3, 0.35, 0.8))
-  // scene.environment?.setShaderParameters(m, 1.5)
-  return m
-}
-
+// Outline of the solid cells of the island field as square cornered rings: every solid cell edge that
+// has water on the other side, chained into loops. Outer rings only, courtyards fill in. Geo coords.
 function getIslandGeometry(field: IslandField, center: vec2) {
-  // Convert island field to a row-major flat array
-  const grid = []
-
-  // console.log(field)
-
-  const height = field.shape[2]
   const width = field.shape[0]
+  const depth = field.shape[2]
+  const solid = (x: number, z: number) => x >= 0 && z >= 0 && x < width && z < depth && field.get(x, PAVEMENT_LEVEL, z) !== 0
 
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      grid.push(field.get(x, PAVEMENT_LEVEL, y))
+  // edges run anticlockwise round the solid, keyed by their start corner
+  const next = new Map<string, [number, number]>()
+  for (let x = 0; x < width; x++) {
+    for (let z = 0; z < depth; z++) {
+      if (!solid(x, z)) continue
+      if (!solid(x, z - 1)) next.set(`${x},${z}`, [x + 1, z])
+      if (!solid(x + 1, z)) next.set(`${x + 1},${z}`, [x + 1, z + 1])
+      if (!solid(x, z + 1)) next.set(`${x + 1},${z + 1}`, [x, z + 1])
+      if (!solid(x - 1, z)) next.set(`${x},${z + 1}`, [x, z])
     }
   }
 
-  // console.log(grid.length)
-  // console.log(grid.filter((i) => i === 0).length)
-
-  const granularize = (v: number) => Math.floor(v * 100) / 10000
-
-  // d3-contour wants a flat array of numbers (row-major)
-  const values = grid.flat()
-
-  // console.log(values)
-
-  // One binary threshold at 0.5 → outlines the 1s region(s)
-  const cs = contours().size([width, height]).thresholds([0.5])(values) // returns an array; we used a single threshold
-
-  // const bleedOffset = BLEED_MARGIN / 100
-
-  // console.log(center)
-  // console.log(width, height)
-
-  const offsetX = center[0] - width / 200
-  const offsetY = center[1] - height / 200
-
-  // console.log('offsetX', offsetX, 'offsetY', offsetY)
-
-  const geojson = {
-    type: 'Polygon',
-    coordinates: cs[0].coordinates.map((ring: any) => ring[0].map(([x, y]: any) => [granularize(x) + offsetX, granularize(y) + offsetY])),
+  const rings: [number, number][][] = []
+  while (next.size) {
+    const start = next.keys().next().value!
+    const ring: [number, number][] = []
+    let at = start
+    let area = 0
+    while (next.has(at)) {
+      const [x, z] = at.split(',').map(Number)
+      const to = next.get(at)!
+      next.delete(at)
+      area += x * to[1] - to[0] * z
+      // drop corners that only continue a straight edge
+      const prev = ring[ring.length - 1]
+      const before = ring[ring.length - 2]
+      if (prev && before && ((before[0] === prev[0] && prev[0] === x) || (before[1] === prev[1] && prev[1] === z))) ring.pop()
+      ring.push([x, z])
+      at = `${to[0]},${to[1]}`
+    }
+    // the loop only trims corners mid ring, so check the join back to the start too
+    const straight = (a: [number, number], b: [number, number], c: [number, number]) => (a[0] === b[0] && b[0] === c[0]) || (a[1] === b[1] && b[1] === c[1])
+    while (ring.length > 3 && straight(ring[ring.length - 2], ring[ring.length - 1], ring[0])) ring.pop()
+    while (ring.length > 3 && straight(ring[ring.length - 1], ring[0], ring[1])) ring.shift()
+    if (area > 0) rings.push(ring)
   }
 
-  // usage
-  // const geometry = toIslandsMultiPolygon(cs)
-  // // FeatureCollection if you want:
-  // const geojson = {
-  //   type: 'FeatureCollection',
-  //   features: [{ type: 'Feature', properties: { threshold: 0.5 }, geometry }],
-  // }
-
-  // // If you want to scale to world units (e.g., each pixel = 0.25m), multiply coords:
-  // const scale = 1.0 // change if you want
-  // if (scale !== 1) {
-  //   for (const f of geojson.features) {
-  //     f.geometry.coordinates = f.geometry.coordinates.map((poly) => poly.map((ring) => ring.map(([x, y]) => [granularize(x * scale), granularize(y * scale)])))
-  //   }
-  // }
-
-  return geojson
+  const offsetX = center[0] - width / 200
+  const offsetZ = center[1] - depth / 200
+  return { type: 'Polygon', coordinates: rings.map((r) => [...r, r[0]].map(([x, z]) => [x / 100 + offsetX, z / 100 + offsetZ])) }
 }
 
 type vec2 = [number, number]
 type vec4 = [number, number, number, number]
-export interface Props {
-  id?: string
-}
 
-type ProspectiveParcel = ParcelMeta & {
-  mesh?: BABYLON.Mesh
-}
+type ProspectiveParcel = ParcelMeta & Partial<VillageParcel>
 
 export interface State {
   parcels: ProspectiveParcel[]
   start: number
-  w: number
-  h: number
-  d: number
   name: string
+  streets: string
+  // tileset png for every house, ugc bucket or any url
+  atlas: string
   center: vec2
+  count: number
+  reroll: number
+  area: number
+  areaSpread: number
+  height: number
+  heightSpread: number
+  // where to stand, island metres
+  spawn: [number, number]
 }
 
-export default class IslandsAdmin extends Component<Props, State> {
-  private canvas = createRef<HTMLCanvasElement>()
-  private engine: BABYLON.Engine | null = null
-  private islandMesh: BABYLON.Mesh | null = null
+// The proposal renders in the live world behind this page: build posts it to the no-write preview
+// endpoint, the grid drops the island and parcels in, and you get flown to the center.
+export default class IslandsAdmin extends Component<{}, State> {
   map: VoxelsMap | null = null
   mapRef = createRef<HTMLDivElement>()
   centerMarker: MapMarker | null = null
+  mapView = ''
 
-  constructor(props: Props) {
-    super(props)
-
-    this.state = {
-      parcels: defaultParcels,
-      start: 1,
-      w: 8,
-      h: 8,
-      d: 8,
-      name: '',
-      center: [11.14, -5.61],
-    }
+  state: State = {
+    parcels: [],
+    start: 1,
+    name: '',
+    streets: '',
+    atlas: 'https://ugc.voxels.com/tilesets/concrete-v1.png',
+    center: [11.14, -5.61],
+    count: 100,
+    reroll: 0,
+    area: 60,
+    areaSpread: 0.4,
+    height: 8,
+    heightSpread: 0.3,
+    spawn: [0, 0],
   }
 
   componentDidMount() {
-    this.createScene()
-    this.regenerate()
     this.fetch()
+    this.createMap()
+  }
+
+  componentWillUnmount() {
+    window.grid?.clearPreview()
+    this.map?.dispose()
+    this.map = null
+    this.centerMarker = null
   }
 
   async fetch() {
     const response = await fetch(`/api/admin/parcels/top?nonce=${Math.random()}`)
     const { id } = await response.json()
     this.setState({ start: id })
-
-    setTimeout(() => this.regenerate(), 100)
   }
 
-  private createScene() {
-    const canvas = this.canvas.current
-    if (!canvas) return
+  build = (reroll: number) => {
+    const streets = this.state.streets
+      .split('\n')
+      .map((s) => s.trim())
+      .filter(Boolean)
+    const { name, count, area, areaSpread, height, heightSpread } = this.state
+    const { parcels, spawn } = village({ name, streets, count, reroll, area, areaSpread, height, heightSpread })
+    parcels.forEach((p, i) => (p.id = i + 1 + this.state.start))
+    this.setState({ parcels, reroll, spawn }, this.preview)
+  }
 
-    const engine = new BABYLON.Engine(canvas, true)
-    this.engine = engine
-
-    const scene = new BABYLON.Scene(engine)
-    scene.clearColor = new BABYLON.Color4(0.3, 0.35, 0.8, 1)
-
-    const camera = new BABYLON.ArcRotateCamera('orthoCamera', -Math.PI / 2, Math.PI / 4, 128, BABYLON.Vector3.Zero(), scene)
-    camera.setTarget(BABYLON.Vector3.Zero())
-    camera.attachControl(canvas, true)
-
-    const light = new BABYLON.HemisphericLight('light', new BABYLON.Vector3(0, 1, 0), scene)
-
-    const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 256, height: 256, subdivisions: 256 }, scene)
-    ground.position.set(-0.5, 0, -0.5)
-    const gridMat = new BABYLON.GridMaterial('grid', scene)
-    gridMat.gridRatio = 4
-    gridMat.mainColor = new BABYLON.Color3(0.5, 0.5, 1)
-    gridMat.lineColor = new BABYLON.Color3(0.5, 0.5, 0.75)
-    gridMat.opacity = 0.8
-    ground.material = gridMat
-    ground.isPickable = true
-
-    // const cubes = new Map<string, BABYLON.Mesh>()
-
-    const snap = (v: number) => Math.round(v / 4) * 4
-
-    const pointerDownHandler = (evt: PointerEvent, info: BABYLON.PointerInfo) => {
-      if (info.pickInfo && info.pickInfo.pickedPoint) {
-        const { x, z } = info.pickInfo.pickedPoint
-        const posX = snap(x)
-        const posZ = snap(z)
-
-        if (evt.button === 2) {
-          console.log('right click')
-          console.log(info.pickInfo)
-
-          const mesh = info.pickInfo.pickedMesh
-
-          if (mesh) {
-            if (mesh.name.startsWith('parcel')) {
-              mesh.dispose()
-              this.setState({ parcels: this.state.parcels.filter((p) => p.mesh !== mesh) })
-            }
-          }
-
-          setTimeout(() => this.regenerate(), 100)
-          // Right click - remove cube
-          // const mesh = cubes.get(key)
-          // if (mesh) {
-          //   mesh.dispose()
-          //   cubes.delete(key)
-          // }
-        } else if (evt.shiftKey) {
-          // Left click - add cube
-          // if (!cubes.has(key)) {
-
-          // if (this.state.w % 2 === 0) {
-          //   posX += 0.5
-          // }
-
-          // if (this.state.d % 2 === 0) {
-          //   posZ += 0.5
-          // }
-
-          const height = Math.max(4, this.state.h + Math.floor(Math.random() * 8))
-
-          const parcel = {
-            x1: posX - this.state.w / 2,
-            y1: 0,
-            z1: posZ - this.state.d / 2,
-            x2: posX + this.state.w / 2,
-            y2: height,
-            z2: posZ + this.state.d / 2,
-            id: this.state.parcels.length + 1,
-          }
-
-          const parcels = [...this.state.parcels, parcel]
-          this.setState({ parcels })
-          // cubes.set(key, box)
-          // }
-
-          setTimeout(() => this.regenerate())
-        }
-      }
+  // teleport first so the island spawns around you, then post the proposal and drop it in
+  preview = async () => {
+    if (!this.state.parcels.length) return
+    this.syncMap()
+    const [cx, cz] = this.state.center
+    const [sx, sz] = this.state.spawn
+    await worldBoot()
+    if (!window.persona) return app.showSnackbar('world not booted')
+    window.persona.naviport(encodeCoords({ position: new BABYLON.Vector3(cx * 100 + sx, CAMERA_HEIGHT, cz * 100 + sz), rotation: BABYLON.Vector3.Zero() }))
+    const res = await fetch('/api/admin/islands/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.buildBody()) })
+    const json = await res.json().catch(() => ({}))
+    if (!json.success) return app.showSnackbar(json.message || 'preview failed')
+    this.map?.setProposal(json.island, json.parcels)
+    try {
+      await window.grid?.previewIsland(json.island, json.parcels)
+    } catch (e) {
+      console.error('island preview', e)
+      app.showSnackbar('preview failed, see console')
     }
-
-    scene.onPointerObservable.add((pointerInfo) => {
-      if (pointerInfo.type === BABYLON.PointerEventTypes.POINTERDOWN) {
-        pointerDownHandler(pointerInfo.event as PointerEvent, pointerInfo)
-      }
-    })
-
-    // Disable right-click context menu on canvas
-    canvas.addEventListener('contextmenu', (e) => e.preventDefault())
-
-    engine.runRenderLoop(() => {
-      scene.render()
-    })
-
-    window.addEventListener('resize', () => {
-      engine.resize()
-    })
   }
 
-  get scene() {
-    return this.engine?.scenes[0]
+  // island width and depth in metres
+  extent(parcels: ProspectiveParcel[]) {
+    return [Math.max(...parcels.map((p) => p.x2)) - Math.min(...parcels.map((p) => p.x1)), Math.max(...parcels.map((p) => p.z2)) - Math.min(...parcels.map((p) => p.z1))]
   }
 
-  generateIsland = () => {
-    this.islandMesh?.dispose()
-
-    if (this.state.parcels.length === 0) {
-      return
-    }
-
-    const { bounds, field } = getIslandField(this.state.parcels)
-    this.islandMesh = getIslandMesh(field, this.scene!)
-    // console.log(bounds)
-
-    this.islandMesh.position.set(bounds[0], -2, bounds[1])
-    this.islandMesh.isPickable = false
-
-    this.generateParcelLayer(field, bounds)
+  islandBody() {
+    const { field } = getIslandField(this.state.parcels)
+    return { name: this.state.name, geometry: this.getIslandGeometry(), content: { voxels: getVoxelsFromBuffer(field.data) } }
   }
 
-  componentWillUnmount(): void {
-    this.engine?.dispose()
-    this.map?.dispose()
-    this.map = null
-    this.centerMarker = null
+  buildBody() {
+    return { ...this.islandBody(), atlas: this.state.atlas, parcels: this.state.parcels.map((p) => ({ ...this.parcelPayload(p), door: p.door, material: p.material })) }
+  }
+
+  insertAll = async () => {
+    const res = await fetch('/api/admin/islands/build', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.buildBody()) })
+    const json = await res.json().catch(() => ({}))
+    app.showSnackbar(json.success ? `${json.inserted} parcels inserted` : json.message || 'insert failed')
+  }
+
+  onSave = async (e: any) => {
+    e.preventDefault()
+    await fetch('/api/admin/islands', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.islandBody()) })
+    app.showSnackbar('island saved')
   }
 
   download = () => {
-    const json = JSON.stringify({ parcels: this.state.parcels.map((p) => ({ ...p, mesh: undefined })) })
-    const blob = new Blob([json], { type: 'application/json' })
-    const url = URL.createObjectURL(blob)
+    const blob = new Blob([JSON.stringify({ parcels: this.state.parcels })], { type: 'application/json' })
     const a = document.createElement('a')
-    a.href = url
+    a.href = URL.createObjectURL(blob)
     a.download = 'islands.json'
     a.click()
   }
 
   upload = async (e: any) => {
-    const file = e.target.files[0]
-    const text = await file.text()
-    console.log(text)
-
-    const { parcels } = JSON.parse(text)
-
-    // Use
-    this.setState({ parcels })
-
-    setTimeout(() => this.regenerate(), 100)
+    const text = await e.target.files[0].text()
+    try {
+      this.setState({ parcels: JSON.parse(text).parcels }, this.preview)
+    } catch {
+      app.showSnackbar('bad json')
+    }
   }
 
-  generateParcelLayer(_field: IslandField, _bounds: vec4) {
-    this.syncCenterMarker()
+  async createMap() {
+    const el = this.mapRef.current
+    if (!el || this.map) return
+    el.style.position = 'relative'
+    el.style.height = '16rem'
+    const canvas = document.createElement('canvas')
+    canvas.className = 'voxels-map'
+    canvas.style.cssText = 'width:100%;height:100%;display:block;touch-action:none'
+    el.appendChild(canvas)
+
+    const { VoxelsMap } = await loadVoxelsMap()
+    this.map = new VoxelsMap(canvas, {
+      ortho: PAGE_ORTHO / 2,
+      parcels: true,
+      onClick: (x, z) => this.setState({ center: [x / 100, z / 100] }, this.syncMap),
+    })
+    this.map.setView(this.state.center[0] * 100, this.state.center[1] * 100)
+    this.map.load().catch((e) => console.error('admin island map load failed', e))
+    this.syncMap()
   }
 
-  syncCenterMarker() {
+  // marker on the center, zoomed onto the proposal whenever it moves or gets rebuilt
+  syncMap = () => {
     if (!this.map) return
     const x = this.state.center[0] * 100
     const z = this.state.center[1] * 100
+    const view = `${x},${z},${this.state.parcels.length}`
+    if (view !== this.mapView && this.state.parcels.length) {
+      this.mapView = view
+      const [w, d] = this.extent(this.state.parcels)
+      this.map.fitBounds(x - w / 2, z - d / 2, x + w / 2, z + d / 2, 2)
+    }
+    const html = `<span>${this.state.name || 'island'}</span>`
     if (this.centerMarker) {
       this.centerMarker.setPos(x, z)
-      this.centerMarker.el.innerHTML = `<span>${this.state.name || 'island'}</span>`
+      this.centerMarker.el.innerHTML = html
       return
     }
-    this.centerMarker = this.map.addMarker({
-      x,
-      z,
-      className: 'island-label',
-      html: `<span>${this.state.name || 'island'}</span>`,
-    })
-  }
-
-  regenerate() {
-    const parcels = this.state.parcels.slice()
-
-    let index = 1
-    for (const p of parcels) {
-      p.id = index++ + this.state.start
-      p.mesh?.dispose()
-
-      const box = BABYLON.MeshBuilder.CreateBox('parcel', { size: 1 }, this.scene!)
-      box.position.y = 0.5
-      box.bakeCurrentTransformIntoVertices()
-
-      const w = p.x2 - p.x1
-      const h = p.y2 - p.y1
-      const d = p.z2 - p.z1
-
-      box.scaling.set(w, h, d)
-      box.position.set(p.x1 + w / 2, 0, p.z1 + d / 2)
-      box.isPickable = true
-
-      if (w % 2 === 0) {
-        box.position.x -= 0.5
-      }
-
-      if (d % 2 === 0) {
-        box.position.z -= 0.5
-      }
-
-      const cubeMaterial = new BABYLON.StandardMaterial('cubeMat', this.scene!)
-      cubeMaterial.diffuseColor = new BABYLON.Color3(1, 0, 0.5)
-
-      const dynamicTexture = new BABYLON.DynamicTexture('dynamic texture', { width: 256, height: 256 }, this.scene!, false)
-      const ctx = dynamicTexture.getContext()
-      const grad = ctx.createLinearGradient(0, 0, 0, 256)
-      grad.addColorStop(0, '#f0a')
-      grad.addColorStop(1, '#a07')
-      ctx.fillStyle = grad
-      ctx.fillRect(0, 0, 256, 256)
-      dynamicTexture.drawText(String(p.id), 64, 128, 'bold 64px Arial', 'white', null, true)
-      dynamicTexture.update()
-      cubeMaterial.diffuseTexture = dynamicTexture
-      cubeMaterial.emissiveColor = new BABYLON.Color3(1, 1, 1)
-      cubeMaterial.specularColor = new BABYLON.Color3(0, 0, 0)
-      cubeMaterial.backFaceCulling = false
-
-      box.material = cubeMaterial
-
-      p.mesh = box
-    }
-
-    this.setState({ parcels })
-
-    this.center()
-    this.generateIsland()
-  }
-
-  async center() {
-    if (!this.mapRef.current) {
-      return
-    }
-
-    if (!this.map) {
-      const el = this.mapRef.current
-      el.style.position = 'relative'
-      el.style.height = '16rem'
-      const canvas = document.createElement('canvas')
-      canvas.className = 'voxels-map'
-      canvas.style.cssText = 'width:100%;height:100%;display:block;touch-action:none'
-      el.appendChild(canvas)
-
-      const { VoxelsMap } = await loadVoxelsMap()
-      this.map = new VoxelsMap(canvas, {
-        ortho: PAGE_ORTHO / 2,
-        parcels: true,
-        onClick: (x, z) => {
-          this.setState({ center: [x / 100, z / 100] })
-          setTimeout(() => this.regenerate(), 100)
-        },
-      })
-      this.map.setView(this.state.center[0] * 100, this.state.center[1] * 100)
-      this.map.load().catch((e) => console.error('admin island map load failed', e))
-    }
-
-    this.syncCenterMarker()
+    this.centerMarker = this.map.addMarker({ x, z, className: 'island-label', html })
   }
 
   // Convert a designer parcel (local voxel coords) into the geo-coord payload the db wants.
@@ -443,7 +249,7 @@ export default class IslandsAdmin extends Component<Props, State> {
     const scale = 0.01
     return {
       id: parcel.id,
-      address: `${number} ${this.state.name}`,
+      address: parcel.address || `${number} ${this.state.name}`,
       island: this.state.name,
       owner: app.state.wallet || '0x2D891ED45C4C3EAB978513DF4B92a35Cf131d2e2',
       x1: parcel.x1 * scale + this.state.center[0],
@@ -456,258 +262,118 @@ export default class IslandsAdmin extends Component<Props, State> {
   }
 
   async create(parcel: ProspectiveParcel) {
-    await fetch('/api/admin/parcels/create', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(this.parcelPayload(parcel)),
-    })
-  }
-
-  async mint(parcel: ProspectiveParcel) {
-    console.log(parcel)
-
-    const id = parcel.id + this.state.start
-    // const address = `Pink ${parcel.id}`
-
-    /*
-    const response = await fetch('/api/admin/parcels/create', {
-      method: 'POST',
-      body: JSON.stringify({
-        id,
-        address,
-        x1: parcel.x1,
-        y1: parcel.y1,
-        z1: parcel.z1,
-        x2: parcel.x2,
-        y2: parcel.y2,
-        z2: parcel.z2,
-      }),
-    })
-    */
-
-    /*
-
-    {
-      "constant": false,
-      "inputs": [
-        {
-          "name": "_to",
-          "type": "address"
-        },
-        {
-          "name": "_tokenId",
-          "type": "uint256"
-        },
-        {
-          "name": "x1",
-          "type": "int16"
-        },
-        {
-          "name": "y1",
-          "type": "int16"
-        },
-        {
-          "name": "z1",
-          "type": "int16"
-        },
-        {
-          "name": "x2",
-          "type": "int16"
-        },
-        {
-          "name": "y2",
-          "type": "int16"
-        },
-        {
-          "name": "z2",
-          "type": "int16"
-        },
-        {
-          "name": "_price",
-          "type": "uint256"
-        }
-      ],
-      "name": "mint",
-      "outputs": [],
-      "payable": false,
-      "stateMutability": "nonpayable",
-      "type": "function"
-    },
-    */
-
-    try {
-      await mintParcel({ id, x1: parcel.x1, y1: parcel.y1, z1: parcel.z1, x2: parcel.x2, y2: parcel.y2, z2: parcel.z2 })
-    } catch (err) {
-      console.error('On-chain minting failed:', err)
-    }
-  }
-
-  onSave = async (e: any) => {
-    e.preventDefault()
-
-    const { parcels, name } = this.state
-    var { field } = getIslandField(parcels)
-    const voxels = getVoxelsFromBuffer(field.data)
-    const content = { voxels }
-
-    // Generate WKT
-    // const w = 0.5
-    // const h = 0.5
-    // const x1 = this.state.center[0] - w / 2
-    // const y1 = this.state.center[1] - h / 2
-    // const x2 = this.state.center[0] + w / 2
-    // const y2 = this.state.center[1] + h / 2
-
-    // const geometry = `POLYGON((${x1} ${y1}, ${x2} ${y1}, ${x2} ${y2}, ${x1} ${y2}, ${x1} ${y1}))`
-    const geometry = this.getIslandGeometry()
-
-    await fetch('/api/admin/islands', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, geometry, content }),
-    })
-    app.showSnackbar('island saved')
+    await fetch('/api/admin/parcels/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.parcelPayload(parcel)) })
   }
 
   private getIslandGeometry() {
-    var { bounds, field } = getIslandField(this.state.parcels, true)
-
-    const scale = 0.01
-    const [x1, y1, x2, y2] = bounds.map((b) => b * scale)
-
-    console.log('x1', x1, 'y1', y1, 'x2', x2, 'y2', y2)
-    console.log('center', this.state.center)
-
-    // Construct island center from center of bounds + this.state.center
-    const center: vec2 = [0, 0]
-    center[0] = this.state.center[0] + (x1 + x2) / 2
-    center[1] = this.state.center[1] + (y1 + y2) / 2
-
-    return getIslandGeometry(field, center)
+    const { bounds, field } = getIslandField(this.state.parcels, true)
+    const [x1, y1, x2, y2] = bounds.map((b) => b * 0.01)
+    return getIslandGeometry(field, [this.state.center[0] + (x1 + x2) / 2, this.state.center[1] + (y1 + y2) / 2])
   }
 
-  onName = (e: any) => {
-    this.setState({ name: e.target.value })
-
-    this.regenerateIsland()
+  // uncontrolled so preact never writes the value back mid drag, build and reroll read the state
+  slider(key: 'area' | 'areaSpread' | 'height' | 'heightSpread', label: string, min: number, max: number, step: number) {
+    return (
+      <div class="f">
+        <label>
+          {label}: {this.state[key]}
+        </label>
+        <input type="range" min={min} max={max} step={step} defaultValue={String(this.state[key])} onInput={(e: any) => this.setState({ [key]: Number(e.target.value) } as any)} />
+      </div>
+    )
   }
-
-  regenerateIsland = debounce(this.generateIsland, 100)
 
   render() {
     const center = this.state.center.map((c) => c.toFixed(2)).join(',')
     return (
-      <section class="island-admin columns">
+      <section class="island-admin">
         <header>
           <h1>Island Builder</h1>
           <p>Propose new islands for approval.</p>
         </header>
 
-        <article>
-          <figcaption>
-            <label>
-              Size:
-              <select
-                value={this.state.w + ',' + this.state.h + ',' + this.state.d}
-                onChange={(e: any) => {
-                  const [w, h, d] = e.target.value.split(',').map(Number)
-                  this.setState({ w, h, d })
-                }}
-              >
-                {sizes.map((size) => (
-                  <option value={size.join(',')}>{size.join('x')}</option>
-                ))}
-              </select>
-            </label>
-          </figcaption>
-          <figure>
-            <canvas id="islands-canvas" ref={this.canvas} />
-          </figure>
-        </article>
-        <aside>
-          <form>
-            <div class="f">
-              <label>Name</label>
-              <input type="text" value={this.state.name} onChange={this.onName} />
-            </div>
+        <form>
+          <div class="f">
+            <label>Name</label>
+            <input type="text" value={this.state.name} onChange={(e: any) => this.setState({ name: e.target.value }, this.syncMap)} />
+          </div>
 
-            <div class="f">
-              <label>Center</label>
-              <input type="text" value={center} onChange={(e: any) => this.setState({ center: e.target.value.split(',').map(Number) })} />
-            </div>
+          <div class="f">
+            <label>Streets, one per line</label>
+            <textarea value={this.state.streets} onChange={(e: any) => this.setState({ streets: e.target.value })} />
+          </div>
 
-            <h5>Location</h5>
+          <div class="f">
+            <label>Atlas url</label>
+            <input type="text" value={this.state.atlas} onChange={(e: any) => this.setState({ atlas: e.target.value.trim() })} />
+          </div>
 
-            <div class="island-map" ref={this.mapRef} />
+          <div class="f">
+            <label>Center</label>
+            <input type="text" value={center} onChange={(e: any) => this.setState({ center: e.target.value.split(',').map(Number) }, this.syncMap)} />
+          </div>
 
-            <button onClick={this.onSave}>Save</button>
-          </form>
-          <h3>Parcels</h3>
+          <div class="f">
+            <label>Parcels</label>
+            <input type="number" value={this.state.count} onChange={(e: any) => this.setState({ count: Math.max(1, parseInt(e.target.value, 10) || 1) })} />
+          </div>
 
-          <button onClick={this.download}>Download</button>
-          <input type="file" accept=".json" onChange={this.upload} />
+          {this.slider('area', 'Lot area m2', 10, 200, 5)}
+          {this.slider('areaSpread', 'Lot area spread', 0, 1, 0.05)}
+          {this.slider('height', 'Height m', 3, 30, 1)}
+          {this.slider('heightSpread', 'Height spread', 0, 1, 0.05)}
 
-          <table>
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Position</th>
-                <th>Size</th>
-                <th></th>
+          <button type="button" onClick={() => this.build(this.state.reroll)}>
+            build
+          </button>
+          <button type="button" onClick={() => this.build(this.state.reroll + 1)}>
+            reroll
+          </button>
+          <button type="button" onClick={this.insertAll}>
+            insert all
+          </button>
+
+          <h5>Location</h5>
+
+          <div class="island-map" ref={this.mapRef} />
+
+          <button onClick={this.onSave}>Save</button>
+        </form>
+        <h3>Parcels</h3>
+
+        <button onClick={this.download}>Download</button>
+        <input type="file" accept=".json" onChange={this.upload} />
+
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Address</th>
+              <th>Position</th>
+              <th>Size</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {this.state.parcels.map((parcel) => (
+              <tr key={parcel.id}>
+                <td>
+                  <a href={`/parcels/${parcel.id}`}>{parcel.id}</a>
+                </td>
+                <td>{parcel.address}</td>
+                <td>{`${parcel.x1},${parcel.y1},${parcel.z1}`}</td>
+                <td>{`${parcel.x2 - parcel.x1},${parcel.y2 - parcel.y1},${parcel.z2 - parcel.z1}`}</td>
+                <td>
+                  <button onClick={() => this.create(parcel)}>Insert</button>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {this.state.parcels.map((parcel) => {
-                const minted = false
-
-                return (
-                  <tr key={parcel.id}>
-                    <td>
-                      <a href={`/parcels/${parcel.id}`}>{parcel.id}</a>
-                    </td>
-                    <td>{`${parcel.x1},${parcel.y1},${parcel.z1}`}</td>
-                    <td>{`${parcel.x2 - parcel.x1},${parcel.y2 - parcel.y1},${parcel.z2 - parcel.z1}`}</td>
-                    <td>{minted ? <button onClick={() => this.mint(parcel)}>Mint</button> : <button onClick={() => this.create(parcel)}>Insert</button>}</td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </aside>
+            ))}
+          </tbody>
+        </table>
       </section>
     )
   }
 }
-
-// Helpers
-
-/*
-  cryptovoxels=# SELECT
-  ROUND((ST_XMax(geometry) - ST_XMin(geometry)) * 100) AS width_cm,
-  ROUND((ST_YMax(geometry) - ST_YMin(geometry)) * 100) AS depth_cm,
-  ROUND((y2 - y1)) AS height_cm,
-  COUNT(*) AS count
-FROM properties
-GROUP BY width_cm, depth_cm, height_cm
-ORDER BY count DESC
-LIMIT 20;
-
-*/
-
-const sizes = [
-  [24, 20, 12],
-  [32, 20, 12],
-  [20, 28, 16],
-  [12, 12, 12],
-  [16, 12, 16],
-  [8, 8, 8],
-  [22, 28, 12],
-  [20, 24, 16],
-  [24, 24, 16],
-  [4, 12, 32],
-].sort((a, b) => b[0] * b[1] * b[2] - a[0] * a[1] * a[2])
-
-const defaultParcels = [{ x1: -4, y1: -4, z1: -4, x2: 4, y2: 4, z2: 4, id: 69000 }]
 
 type IslandField = NdArray<Uint16Array>
 
@@ -832,90 +498,4 @@ export function getIslandField(parcels: ProspectiveParcel[], hull = false): { bo
   }
 
   return { bounds, field }
-}
-
-function getIslandMesh(field: IslandField, scene: BABYLON.Scene) {
-  const meshData = mesher(field.shape as any, field)
-
-  var normals: number[] = []
-  BABYLON.VertexData.ComputeNormals(meshData.opaquePositions, meshData.opaqueIndices, normals)
-
-  const vertData = new BABYLON.VertexData()
-  vertData.normals = normals
-  vertData.positions = meshData.opaquePositions
-  vertData.indices = meshData.opaqueIndices
-  // vertData.uvs = computeUVs(meshData.opaquePositions, normals)
-
-  const mesh = new BABYLON.Mesh('island', scene)
-  mesh.setVerticesData('position', meshData.opaquePositions)
-  mesh.setVerticesData('normal', normals)
-  mesh.setVerticesData('block', new Float32Array(meshData.opaqueTextureIndices), false, 1)
-  mesh.setVerticesData('ambientOcclusion', new Float32Array(meshData.ambientOcclusion), false, 1)
-  mesh.setIndices(meshData.opaqueIndices)
-  // mesh.setVerticesData('uv', meshData.opaqueUVs)
-
-  const mat = voxelShader(scene as any, 'default')
-  mesh.material = mat
-
-  mesh.scaling.set(2, 2, 2)
-  // mesh.rotation.x = Math.PI / 2
-  mesh.bakeCurrentTransformIntoVertices()
-
-  mesh.position.set(-1, -1, -1)
-  mesh.bakeCurrentTransformIntoVertices()
-
-  return mesh
-
-  // const w = field.shape[0]
-  // const h = field.shape[1]
-
-  // // Generate a convex hull in grid space (naive full bounding rect)
-  // const islandMeshes: BABYLON.Mesh[] = []
-
-  // for (let x = 0; x <= w; x++) {
-  //   for (let z = 0; z <= h; z++) {
-  //     if (field.get(x, z) === 1) {
-  //       const box = BABYLON.MeshBuilder.CreateBox('islandCube', { size: 1 }, scene)
-  //       box.position.set(x, 0.5, z)
-  //       islandMeshes.push(box)
-  //     }
-  //   }
-  // }
-
-  // const merged = BABYLON.Mesh.MergeMeshes(islandMeshes, true, true)
-  // if (!merged) {
-  //   throw new Error('Failed to merge island meshes')
-  // }
-
-  // // for (const m of islandMeshes) {
-  // //   m.dispose()
-  // // }
-
-  // merged.bakeCurrentTransformIntoVertices()
-
-  // return merged
-}
-
-function getParcel(id: number, mesh: BABYLON.Mesh): ProspectiveParcel {
-  const position = mesh.position
-  const scale = mesh.scaling.multiplyByFloats(0.5, 0.5, 0.5).floor()
-
-  const x1 = Math.floor(position.x) - scale.x + 1
-  const y1 = 0
-  const z1 = Math.floor(position.z) - scale.z + 1
-
-  const x2 = x1 + scale.x * 2
-  const y2 = y1 + scale.y * 2
-  const z2 = z1 + scale.z * 2
-
-  return {
-    id,
-    x1,
-    y1,
-    z1,
-    x2,
-    y2,
-    z2,
-    mesh,
-  }
 }

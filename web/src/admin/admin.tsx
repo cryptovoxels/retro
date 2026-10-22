@@ -3,8 +3,9 @@ import { app } from '../state'
 import Owned from './owned'
 import Unminted from './unminted'
 import SandboxesAdmin from './sandboxes'
+import IslandsAdmin from './islands'
 
-type Tab = 'mint' | 'list' | 'sandbox'
+type Tab = 'mint' | 'list' | 'sandbox' | 'island'
 
 export default function Admin(_props: { path?: string }) {
   const [tab, setTab] = useState<Tab>('mint')
@@ -31,11 +32,15 @@ export default function Admin(_props: { path?: string }) {
         <button class={tab === 'sandbox' ? 'active' : ''} onClick={() => setTab('sandbox')}>
           sandbox
         </button>
+        <button class={tab === 'island' ? 'active' : ''} onClick={() => setTab('island')}>
+          island
+        </button>
       </nav>
 
       {tab === 'mint' && <Unminted />}
       {tab === 'list' && <Owned />}
       {tab === 'sandbox' && <SandboxesAdmin />}
+      {tab === 'island' && <IslandsAdmin />}
     </section>
   )
 }

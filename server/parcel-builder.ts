@@ -1,7 +1,7 @@
 import ndarray, { NdArray } from 'ndarray'
 import { v7 as uuid } from 'uuid'
 import zlib from 'zlib'
-import { defaultColors } from '../common/content/blocks'
+import { defaultColors, getBlockId } from '../common/content/blocks'
 import ParcelHelper from '../common/helpers/parcel-helper'
 import { ParcelContentRecord } from '../common/messages/parcel'
 import Parcel from './parcel'
@@ -276,12 +276,49 @@ export default class ParcelBuilder {
     return content
   }
 
+  // Shells for web/src/admin/kowloon.ts. Spiral stair round an 8x8 ring in the low corner, each floor holes its
+  // slab over the top of the stair below. Ground plots there are 12m, so y1 === 12 means the floor below is a plot.
+  // ground floor village house: walls with little windows, a 2m door on the street face, flat roof
+  static Village(parcel: any, material: number, door: string) {
+    const b = new ParcelBuilder(parcel)
+    b.fillBasement(() => ground)
+    b.fillAboveGround((x, y, z, width, height, depth) => {
+      if (y === height - 1) return material
+      const face = x === 0 ? 'w' : x === width - 1 ? 'e' : z === 0 ? 's' : z === depth - 1 ? 'n' : null
+      if (!face) return empty
+      const along = face === 'w' || face === 'e' ? z : x
+      const mid = (face === 'w' || face === 'e' ? depth : width) / 2
+      if (face === door && y < 5 && Math.abs(along + 0.5 - mid) < 2) return empty
+      return y % 6 >= 2 && y % 6 <= 4 && along % 6 >= 2 && along % 6 <= 3 ? glass : material
+    })
+
+    // one to three lanterns hung inside, each its own hue so the village glows rainbow at night
+    const w = parcel.x2 - parcel.x1
+    const d = parcel.z2 - parcel.z1
+    const h = parcel.height - GROUND_HEIGHT
+    const lanterns = Array.from({ length: 1 + Math.floor(Math.random() * 3) }, () => ({
+      uuid: uuid(),
+      type: 'lantern',
+      scale: [0.5, 0.5, 0.5],
+      rotation: [0, 0, 0],
+      position: [(Math.random() - 0.5) * (w - 2), 2 + Math.random() * Math.max(0, h - 3), (Math.random() - 0.5) * (d - 2)],
+      color: rainbow(Math.random()),
+    }))
+    return { ...b.serialize, features: lanterns }
+  }
+
   get dummyFeatures(): any {
     return [
       // { type: 'sign', text: 'hi2u', position: [-2, 2, 0], scale: [1, 1, 1], rotation: [0, 0, 0] },
       // { type: 'webview', url: '...', position: [2, 2.25, 0.25], scale: [1.5, 2, 1], rotation: [0, 0, 0] }
     ]
   }
+}
+
+// full saturation hue to hex, the lantern material only reads hex
+function rainbow(hue: number) {
+  const f = (n: number) => Math.round(255 * Math.max(0, Math.min(1, Math.abs(((hue * 6 + n) % 6) - 3) - 1)))
+  return '#' + [f(0), f(4), f(2)].map((c) => c.toString(16).padStart(2, '0')).join('')
 }
 
 export function generateParcelFeatures(parcel: Parcel, func: string) {

@@ -17,8 +17,9 @@ import { ParcelPatch, ParcelRecord } from '../common/messages/parcel'
 import { GraphicLevels } from './graphic/graphic-engine'
 import { PanelType } from '../web/src/components/panel'
 import { DeferredPromise } from 'p-defer'
-import { createSpaceScene, createWorldScene, parcelMeshesAdded, parcelMeshesRemoved, teardownSpaceScene, teardownWorldScene } from './init/world-scene'
+import { createSpaceScene, createWorldScene, getWorldTerrain, parcelMeshesAdded, parcelMeshesRemoved, teardownSpaceScene, teardownWorldScene } from './init/world-scene'
 import { fetchSpace } from './init/realm'
+import type { IslandRecord } from '../common/messages/api-islands'
 import { normalizeSpace } from './utils/normalize-space'
 import type { MountDesc } from './utils/normalize-space'
 import { TypedEvent } from './utils/EventEmitter'
@@ -219,6 +220,33 @@ export default class Grid extends SocketClient {
     if (userIndex >= 0) {
       window.user.parcels.splice(userIndex, 1)
     }
+  }
+
+  // /admin island drops its proposal straight into the live world. these parcels never came from the
+  // worker so it never unloads them either, clearPreview does
+  private preview: { name: string; ids: Parcel['id'][] } | null = null
+
+  async previewIsland(island: IslandRecord, parcels: ParcelRecord[]) {
+    this.clearPreview()
+    this.preview = { name: island.name, ids: parcels.map((p) => p.id) }
+    await getWorldTerrain()?.addIsland(island)
+    for (const r of parcels) {
+      try {
+        this.load(r, this)?.generate()
+      } catch (e) {
+        console.error('preview parcel', r.id, e)
+      }
+    }
+  }
+
+  clearPreview() {
+    if (!this.preview) return
+    getWorldTerrain()?.removeIsland(this.preview.name)
+    for (const id of this.preview.ids) {
+      const p = this.parcels.get(id)
+      if (p) this.unload(p)
+    }
+    this.preview = null
   }
 
   /** after exiting a car that had pinned its home lot past draw distance */
