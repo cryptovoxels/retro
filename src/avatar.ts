@@ -14,6 +14,7 @@ import { emote } from './utils/emote'
 import { resolveUgc } from './utils/helpers'
 import { Transform } from './utils/transform'
 import { Bubble } from './chat'
+import { chatStyle, standing } from './utils'
 import { humanoidBones } from './vrm-bones'
 
 const ANONYMOUS_NAME = 'anon'
@@ -48,13 +49,14 @@ export default class Avatar extends Entity {
   private armatureMesh: BABYLON.Mesh | null = null
   private silhouetteMesh: BABYLON.Mesh | null = null
   private neckBone: BABYLON.Bone | undefined
+  private static shadows = new WeakMap<BABYLON.Scene, BABYLON.StandardMaterial>()
+  private shadowMesh: BABYLON.Mesh | null = null
   private nameMesh: BABYLON.Mesh | null = null
   private nameTexture: BABYLON.DynamicTexture | null = null
   private voiceMesh: BABYLON.Mesh | null = null
   private voiceTexture: BABYLON.DynamicTexture | null = null
   private collider: MeshExtended | undefined
   private _bubble: Bubble | null = null
-  private clearBubbleTimer: NodeJS.Timeout | undefined
   private typingTimer: NodeJS.Timeout | undefined
   private isTyping = false
   private showNameTag = true
@@ -678,6 +680,12 @@ export default class Avatar extends Entity {
    * @returns void
    */
   public disposeLocal = () => {
+    this._bubble?.dispose()
+    this._bubble = null
+    this.shadowMesh?.dispose()
+    this.shadowMesh = null
+    clearTimeout(this.typingTimer)
+
     this.nameMesh?.dispose()
     this.nameMesh = null
 
@@ -1103,6 +1111,7 @@ export default class Avatar extends Entity {
     this.collider?.position.set(0, -AVATAR_HEIGHT / 2, 0)
 
     this.loadFinished()
+    this.addShadow()
     if (Date.now() - this.joinedAt < 2000) {
       this.teleportFX(this.absolutePosition, 'avatar.arrive')
     }
@@ -1156,6 +1165,8 @@ export default class Avatar extends Entity {
 
     const material = new BABYLON.StandardMaterial('avatar/name', this.scene)
     material.blockDirtyMechanism = true
+    material.disableLighting = true
+    material.emissiveColor.set(1, 1, 1)
     material.diffuseTexture = nameTexture
     material.emissiveTexture = nameTexture
     material.opacityTexture = nameTexture
@@ -1166,22 +1177,48 @@ export default class Avatar extends Entity {
   }
 
   addChat(text: string) {
-    // bubble parents to null (stays where you spoke), so node.getChildren() won't find it
     this._bubble?.dispose()
+    this._bubble = new Bubble(this.scene, this.node, text)
+  }
 
-    const bubble = new Bubble(this.scene, this.node, text)
-    // snapshot the head position in world space; bubble stays where you spoke, doesn't follow you
-    const head = this.neckBone?.getTransformNode()?.getAbsolutePosition()
-    bubble.parent = null
-    if (head) {
-      bubble.position.copyFrom(head)
-      bubble.position.y += 0.6
-    } else {
-      bubble.position.copyFrom(this.absolutePosition)
-      bubble.position.y += 2
+  private addShadow() {
+    this.shadowMesh?.dispose()
+    let material = Avatar.shadows.get(this.scene)
+    if (!material) {
+      const texture = new BABYLON.DynamicTexture('avatar/shadow', 64, this.scene, false)
+      const ctx = texture.getContext()
+      const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
+      gradient.addColorStop(0, 'rgba(0, 0, 0, 0.22)')
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
+      ctx.fillStyle = gradient
+      ctx.fillRect(0, 0, 64, 64)
+      texture.hasAlpha = true
+      texture.update()
+      material = new BABYLON.StandardMaterial('avatar/shadow', this.scene)
+      material.diffuseTexture = texture
+      material.useAlphaFromDiffuseTexture = true
+      material.disableLighting = true
+      material.freeze()
+      Avatar.shadows.set(this.scene, material)
+      const shared = material
+      this.scene.onDisposeObservable.add(() => {
+        shared.dispose(false, true)
+        Avatar.shadows.delete(this.scene)
+      })
     }
-
-    this._bubble = bubble
+    const mesh = BABYLON.MeshBuilder.CreateGround('avatar/shadow', { width: 0.65, height: 0.45 }, this.scene)
+    mesh.material = material
+    mesh.isPickable = false
+    mesh.addLODLevel(AVATAR_VIEW_DISTANCE, null)
+    this.shadowMesh = mesh
+    const update = () => {
+      mesh.setEnabled(this.node.isEnabled() && !!this.armatureMesh?.visibility && !this._vehicle && standing(this.animationOverride ?? this.animation?.state ?? this.startAnimation))
+      mesh.position.copyFrom(this.absolutePosition)
+      mesh.position.y -= AVATAR_HEIGHT - 0.015
+    }
+    update()
+    const observer = this.scene.onBeforeRenderObservable.add(update)
+    mesh.onDisposeObservable.add(() => this.scene.onBeforeRenderObservable.remove(observer))
   }
 
   /**
@@ -1194,7 +1231,7 @@ export default class Avatar extends Entity {
       return
     }
 
-    const ctx = this.nameTexture.getContext()
+    const ctx = this.nameTexture.getContext() as CanvasRenderingContext2D
     const isHighlighted = highlight
 
     if (!ctx) {
@@ -1207,35 +1244,32 @@ export default class Avatar extends Entity {
 
     //@ts-ignore
     ctx.textAlign = 'center'
-    ctx.font = "bold 44px 'helvetica neue', sans-serif"
+    const style = chatStyle()
+    ctx.font = `bold 44px ${style.font}`
 
-    let name = stringEllipsisInCanvas(this.name, ctx, size.width)
-
-    if (this.isTyping) {
-      name += '...'
-    }
+    const name = stringEllipsisInCanvas(this.name + (this.isTyping ? '...' : ''), ctx, size.width - 40)
 
     const paddingLeftRight = 20
     const width = ctx.measureText(name).width + paddingLeftRight * 2
 
     const isConga = this._inConga
-    ctx.fillStyle = isHighlighted ? '#338d48' : 'rgba(34, 34, 34, 0.8)'
+    ctx.fillStyle = isHighlighted ? style.accent : style.background
     ctx.beginPath()
-    ctx.rect(256 - width / 2, 48, width, 64)
+    ctx.roundRect(256 - width / 2, 48, width, 64, 16)
     ctx.fill()
 
     if (isConga) {
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
+      ctx.strokeStyle = style.color
       ctx.lineWidth = 2
-      ctx.strokeRect(256 - width / 2, 48, width, 64)
+      ctx.stroke()
     }
 
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)'
+    ctx.fillStyle = style.color
     ctx.fillText(name, 256, 94)
 
     if (isConga) {
-      ctx.font = "24px 'helvetica neue', sans-serif"
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.7)'
+      ctx.font = `24px ${style.font}`
+      ctx.fillStyle = style.color
       ctx.fillText('conga!', 256, 42)
     }
 

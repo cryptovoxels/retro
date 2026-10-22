@@ -1,5 +1,6 @@
 import { isHate } from './hate'
 import { matcher } from './obscenity'
+import { chatLines, chatStyle } from './utils'
 
 const getTextWidth = (ctx: CanvasRenderingContext2D, text: string) => {
   return ctx.measureText(text).width
@@ -7,13 +8,11 @@ const getTextWidth = (ctx: CanvasRenderingContext2D, text: string) => {
 
 const WIDTH = 512
 const HEIGHT = 256
-const TOTAL_MS = 1500
-const TAIL_MS = 500
-const FADE_MS = TOTAL_MS - TAIL_MS
+const TOTAL_MS = 20000
+const FADE_MS = 500
 
 export class Bubble extends BABYLON.Mesh {
   private texture: BABYLON.DynamicTexture
-  private startedAt = 0
   constructor(
     scene: BABYLON.Scene,
     parent: BABYLON.TransformNode,
@@ -32,6 +31,7 @@ export class Bubble extends BABYLON.Mesh {
     // 2. Apply that geometry to 'this' instance
     vertexData.applyToMesh(this)
 
+    this.isPickable = false
     this.billboardMode = BABYLON.Mesh.BILLBOARDMODE_Y
 
     this.texture = new BABYLON.DynamicTexture(
@@ -48,62 +48,52 @@ export class Bubble extends BABYLON.Mesh {
     m.diffuseTexture = this.texture
     m.sideOrientation = BABYLON.Mesh.DOUBLESIDE
     m.useAlphaFromDiffuseTexture = true
-    m.emissiveColor.set(0.7, 0.7, 0.7)
+    m.disableLighting = true
+    m.emissiveTexture = this.texture
+    m.emissiveColor.set(1, 1, 1)
     this.material = m
 
-    this.parent = parent
-    this.drawText(1)
-    this.startAnimation()
+    this.drawText()
+    const startedAt = performance.now()
+    const follow = () => {
+      const elapsed = performance.now() - startedAt
+      if (elapsed >= TOTAL_MS || parent.isDisposed()) {
+        this.dispose()
+        return
+      }
+      this.position.copyFrom(parent.getAbsolutePosition())
+      this.position.y += 0.75
+      m.alpha = Math.min(1, (TOTAL_MS - elapsed) / FADE_MS)
+    }
+    follow()
+    const observer = scene.onBeforeRenderObservable.add(follow)
+    this.onDisposeObservable.add(() => {
+      scene.onBeforeRenderObservable.remove(observer)
+      m.dispose(false, true)
+    })
   }
 
   getContext() {
     return this.texture.getContext() as CanvasRenderingContext2D
   }
 
-  private startAnimation() {
-    this.startedAt = performance.now()
-    const mat = this.material as BABYLON.StandardMaterial
-    let lastTail = 1
-    // mesh-level observable: cleaned up automatically when this mesh disposes
-    this.onBeforeRenderObservable.add(() => {
-      const elapsed = performance.now() - this.startedAt
-      if (elapsed >= TOTAL_MS) {
-        this.dispose()
-        return
-      }
-      if (elapsed < TAIL_MS) {
-        const tail = 1 - elapsed / TAIL_MS
-        // only redraw when the change is visible; canvas redraws are not free
-        if (Math.abs(tail - lastTail) > 0.05) {
-          this.drawText(tail)
-          lastTail = tail
-        }
-      } else {
-        if (lastTail !== 0) {
-          this.drawText(0)
-          lastTail = 0
-        }
-        mat.alpha = 1 - (elapsed - TAIL_MS) / FADE_MS
-      }
-    })
-  }
-
-  private drawText(tailScale: number) {
+  private drawText() {
     const ctx = this.getContext() as CanvasRenderingContext2D
     const WIDTH = 512
     const HEIGHT = 256
 
     ctx.clearRect(0, 0, WIDTH, HEIGHT)
 
-    // 1. Comic-style font
-    ctx.font = "bold 20px 'Source Code Pro', sans-serif"
+    const style = chatStyle()
+    ctx.font = `20px ${style.font}`
     ctx.textBaseline = 'top'
 
-    const lines = 1
+    const text = this.text.replace(/\s+/g, ' ').trim()
+    const lines = chatLines(ctx, text)
     const lineHeight = 36
 
-    const w = Math.max(60, getTextWidth(ctx, this.text)) + 40
-    const h = lineHeight * lines + 40
+    const w = Math.max(60, ...lines.map((line) => getTextWidth(ctx, line))) + 32
+    const h = lineHeight * lines.length + 24
 
     const left = (WIDTH - w) / 2
     const top = 40
@@ -112,8 +102,8 @@ export class Bubble extends BABYLON.Mesh {
     ctx.lineCap = 'round'
     ctx.lineJoin = 'round'
     ctx.lineWidth = 4
-    ctx.strokeStyle = '#000000'
-    ctx.fillStyle = '#ffffff'
+    ctx.strokeStyle = style.background
+    ctx.fillStyle = style.background
 
     ctx.beginPath()
     // Rounded bubble body
@@ -121,52 +111,32 @@ export class Bubble extends BABYLON.Mesh {
     ctx.fill()
     ctx.stroke()
 
-    if (tailScale > 0) {
-      const tailLen = 40 * tailScale
-      // 3. The "Tail" (Pointing down)
-      ctx.beginPath()
-      ctx.moveTo(WIDTH / 2 + 30, top + h - 4)
-      ctx.lineTo(WIDTH / 2, top + h + tailLen)
-      ctx.lineTo(WIDTH / 2 + 10, top + h - 4)
-      ctx.fill()
-
-      // 4. Tail stroke
-      ctx.beginPath()
-      ctx.moveTo(WIDTH / 2 + 30, top + h)
-      ctx.lineTo(WIDTH / 2, top + h + tailLen)
-      ctx.lineTo(WIDTH / 2 + 10, top + h)
-      ctx.stroke()
-    }
-
     ctx.beginPath()
-
-    // Draw text, blurring hate / obscene segments
-    ctx.fillStyle = '#000000'
-    ctx.textAlign = 'left'
-    ctx.textBaseline = 'top'
-    const textX = WIDTH / 2 - getTextWidth(ctx, this.text) / 2
-    if (isHate(this.text)) {
-      ctx.filter = 'blur(3px)'
-      ctx.fillText(this.text, textX, h - 10)
-      ctx.filter = 'none'
-    } else {
-      const matches = matcher.getAllMatches(this.text, true)
-      let cursor = 0
-      for (const m of matches) {
-        if (m.startIndex > cursor) {
-          ctx.filter = 'none'
-          ctx.fillText(this.text.slice(cursor, m.startIndex), textX + getTextWidth(ctx, this.text.slice(0, cursor)), h - 10)
-        }
-        ctx.filter = 'blur(3px)'
-        ctx.fillText(this.text.slice(m.startIndex, m.endIndex + 1), textX + getTextWidth(ctx, this.text.slice(0, m.startIndex)), h - 10)
-        cursor = m.endIndex + 1
-      }
-      ctx.filter = 'none'
-      if (cursor < this.text.length) {
-        ctx.fillText(this.text.slice(cursor), textX + getTextWidth(ctx, this.text.slice(0, cursor)), h - 10)
-      }
-    }
+    ctx.moveTo(WIDTH / 2 - 8, top + h - 1)
+    ctx.lineTo(WIDTH / 2, top + h + 10)
+    ctx.lineTo(WIDTH / 2 + 8, top + h - 1)
     ctx.fill()
+
+    ctx.fillStyle = style.color
+    ctx.textAlign = 'left'
+    const hate = isHate(text)
+    const matches = matcher.getAllMatches(text, true)
+    let offset = 0
+    for (let row = 0; row < lines.length; row++) {
+      const line = lines[row]
+      const start = text.indexOf(line.replace(/\.\.\.$/, ''), offset)
+      let x = left + 16
+      for (let i = 0; i < line.length; i++) {
+        const index = start < 0 ? offset + i : start + i
+        ctx.filter = hate || matches.some((m) => index >= m.startIndex && index <= m.endIndex) ? 'blur(3px)' : 'none'
+        const character = String.fromCodePoint(line.codePointAt(i)!)
+        ctx.fillText(character, x, top + 12 + row * lineHeight)
+        i += character.length - 1
+        x = left + 16 + getTextWidth(ctx, line.slice(0, i + 1))
+      }
+      offset = (start < 0 ? offset : start) + line.length
+    }
+    ctx.filter = 'none'
 
     this.texture.update()
   }
