@@ -1,0 +1,13 @@
+{
+  "name": "skynet-mcp",
+  "private": true,
+  "type": "module",
+  "bin": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "ws": "8.18.3"
+  }
+}

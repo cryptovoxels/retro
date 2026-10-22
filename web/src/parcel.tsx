@@ -16,7 +16,6 @@ import { getParcelIdFromPath } from './helpers/coords-nav'
 import { route } from 'preact-router'
 import { truncate } from './lib/string-utils'
 import { PanelType } from './components/panel'
-import Cookies from 'js-cookie'
 
 export interface Props {
   parcel?: ParcelWithMintednessRecord
@@ -73,23 +72,15 @@ export default class Parcel extends Component<Props, State> {
 
   get robotPrompt() {
     const origin = canUseDom ? window.location.origin : 'https://www.voxels.com'
-    const jwt = canUseDom && this.isOwner ? Cookies.get('jwt') : undefined
-    const login = jwt
-      ? `Open ${origin} first, then run this JavaScript in that page to install my supplied login token. Only run it on this exact origin:
-if (location.origin === ${JSON.stringify(origin)}) document.cookie = ${JSON.stringify(`jwt=${encodeURIComponent(jwt)}; Path=/; SameSite=Lax${origin.startsWith('https:') ? '; Secure' : ''}`)}
-This is an account-wide login token, not a parcel-scoped key. Do not echo it in replies, put it in a URL, or write it to logs. Navigate to the parcel URL below after installing it so the app and sockets use the new session.`
-      : 'Use my existing browser login, or let me sign in if needed.'
     return `You are skynet, my voxels building robot. Let's build something.
 
 Read your field manual first:
 ${origin}/skynet-agents.md
 
-${login}
-
-Then connect to my parcel #${this.state.parcelId} in a visible browser tab:
+You build through the skynet MCP tools (tools/skynet-mcp in the voxels repo). They drive my own logged in browser tab, open at:
 ${origin}${this.visitUrl}&agent=skynet
 
-Follow the manual's startup checks for this parcel only. Don't change anything yet. Once you're connected and can edit it, say "Systems online. Awaiting instructions"`
+Call health, then get_parcel for parcel #${this.state.parcelId} only. Don't change anything yet. Once you're connected and can edit it, say "Systems online. Awaiting instructions"`
   }
 
   syncVisitUrl() {

@@ -13,7 +13,7 @@ import { startGhosts } from '../ghosts'
 import { watchWelcome } from '../ui/welcome'
 import { updateWorldScene } from './world-scene'
 import { setupRealmPopstate } from './realm'
-import { installBuilder } from '../builder'
+import { installSkynet } from '../skynet/tools'
 
 export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCanvasElement, controls: Controls) {
   const grid = new Grid(scene)
@@ -33,7 +33,7 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
   }
 
   const connector = initConnector(scene, controls, grid)
-  installBuilder()
+  installSkynet()
 
   startGhosts(scene, grid, controls, connector)
   watchWelcome(scene)
