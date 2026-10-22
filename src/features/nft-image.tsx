@@ -1,4 +1,5 @@
 import { throttle } from 'lodash'
+import { imageDraft } from '../../common/helpers/utils'
 import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { ImageMode, NftImageRecord } from '../../common/messages/feature'
 import { isUgcTextureUrl } from '../../common/helpers/parcel-compile'
@@ -137,8 +138,8 @@ export default class NftImage extends Feature2D<NftImageRecord> {
       return
     }
 
-    // draft present: leave it, don't hit OpenSea just to maybe replace it with a failure
-    if ((this.description as any).draft) return
+    // Only a renderable draft can replace the full artwork.
+    if (imageDraft((this.description as any).draft)) return
 
     // server attached the image from the nfts table, skip nft.json
     const known = (this.parcel.summary as any).nfts?.[this.uuid] as string | undefined

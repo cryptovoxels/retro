@@ -1,7 +1,7 @@
 import 'babylonjs' // BABYLON
 import { EventEmitter } from 'events'
 import { ParcelUser } from '../common/helpers/parcel-helper'
-import { HTTP2WSBaseURL, isValidUrl } from '../common/helpers/utils'
+import { HTTP2WSBaseURL, isValidUrl, imageDraft } from '../common/helpers/utils'
 import { ParcelKind, ParcelRecord, ParcelSettings } from '../common/messages/parcel'
 import { getBufferFromVoxels, getFieldShape } from '../common/voxels/helpers'
 import { isCommonParcel, isSecurityTeamParcel, isTestIsland } from './lib/helpers'
@@ -748,7 +748,7 @@ export async function nftImages(parcels: Parcel[]) {
   const wanted: { p: Parcel; uuid: string; chain: number; contract: string; token: string }[] = []
   for (const p of parcels) {
     for (const f of (p.allFeatures || []) as any[]) {
-      if (f?.type !== 'nft-image' || f.draft || isUgcTextureUrl(f.url)) continue
+      if (f?.type !== 'nft-image' || imageDraft(f.draft) || isUgcTextureUrl(f.url)) continue
       const nft = readNftUrl(f.url)
       if (nft && f.uuid) wanted.push({ p, uuid: f.uuid, chain: nft.chain, contract: nft.contract.toLowerCase(), token: nft.token })
     }

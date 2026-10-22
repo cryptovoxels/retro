@@ -1,3 +1,4 @@
+import { isUgcTextureUrl } from '../../common/helpers/parcel-compile'
 import { ParticlesRecord } from '../../common/messages/feature'
 import { Position, Rotation, Behaviours, EditorProps } from '../../web/src/components/editor'
 import { Advanced, Animation, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
@@ -81,7 +82,7 @@ export default class ParticleSystem extends Feature3D<ParticlesRecord> {
   async createParticleSystem(plane: BABYLON.AbstractMesh) {
     this.particleSystem = new BABYLON.ParticleSystem('feature/particle-system', 200, this.scene)
 
-    const url = this.url ? `${process.env.IMG_URL}/img?url=${encodeURIComponent(this.url)}&passthrough=true` : process.env.ASSET_PATH + '/textures/diamond.png'
+    const url = isUgcTextureUrl(this.url) ? this.url! : this.url ? `${process.env.IMG_URL}/img?url=${encodeURIComponent(this.url)}&passthrough=true` : process.env.ASSET_PATH + '/textures/diamond.png'
 
     // Texture of each particle
     this.particleSystem.particleTexture = new BABYLON.Texture(url, this.scene)
