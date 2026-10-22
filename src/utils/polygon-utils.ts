@@ -9,6 +9,14 @@ export interface Point2D {
   z: number
 }
 
+export function snapRing(ring: number[][]): Point2D[] {
+  const points = ring.map(([x, z]) => ({ x: Math.round(x * 200) / 2, z: Math.round(z * 200) / 2 }))
+  return points.filter((p, i) => {
+    const previous = points[(i + points.length - 1) % points.length]
+    return p.x !== previous.x || p.z !== previous.z
+  })
+}
+
 export interface ClippedWaterGeometry {
   shouldCreateMesh: boolean
   vertices: Point2D[]

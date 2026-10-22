@@ -1,7 +1,7 @@
-import { IslandRecord, MultiPolygonGeometry } from '../../common/messages/api-islands'
+import { IslandRecord } from '../../common/messages/api-islands'
 import { StateObservable } from '../utils/state-observable'
 import { createIslandMaterial } from '../materials'
-import { pointInPolygon } from '../utils/polygon-utils'
+import { pointInPolygon, snapRing } from '../utils/polygon-utils'
 import { addTrimesh, removeCollider } from '../physics/world'
 
 export class Island {
@@ -16,45 +16,39 @@ export class Island {
   constructor(list: Islands, desc: IslandRecord) {
     this.list = list
     this.desc = desc
-    this.outline = this.desc.geometry.coordinates[0].map((c: [x: number, y: number]) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
+    this.outline = snapRing(this.desc.geometry.coordinates[0])
+      .map((p) => new BABYLON.Vector2(p.x, p.z))
+      .reverse()
 
-    // if (window.config.isSpace) {
-    //   this.texturePath = '/textures/subgrid.png'
-    // } else if (desc.texture) {
-    //   // texture comes from the DB
-    //   this.texturePath = desc.texture
-    // }
-
-    // build mesh
-    const shape = this.desc.geometry.coordinates[0].map((c) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
-    const pt = new BABYLON.PolygonMeshBuilder('island/' + this.name, shape, this.scene)
-
-    // add holes for parcel basements and lakes
-    const makeHoles = (multipolygon: MultiPolygonGeometry) => {
-      const nudge = 0.25
-      return multipolygon.coordinates.map((p) => p[0].map((c) => new BABYLON.Vector2(c[0] * 100 + nudge, c[1] * 100 + nudge)))
-    }
-
-    const holes = makeHoles(this.desc.lakes_geometry_json)
-    if (this.desc.holes_geometry_json && this.hasBasements) {
-      holes.push(...makeHoles(this.desc.holes_geometry_json))
-    }
-
-    holes.forEach((hole: BABYLON.Vector2[]) => {
-      pt.addHole(hole)
+    const holes = [this.desc.lakes_geometry_json, this.hasBasements ? this.desc.holes_geometry_json : null]
+      .flatMap((geometry) => geometry?.coordinates || [])
+      .map((polygon) => snapRing(polygon[0]).map((p) => new BABYLON.Vector2(p.x, p.z)))
+      .filter((hole) => hole.length >= 3)
+    const rings = this.desc.id >= 40 ? this.desc.geometry.coordinates : [this.desc.geometry.coordinates[0]]
+    const meshes = rings.map((ring, index) => {
+      const shape = snapRing(ring)
+        .map((p) => new BABYLON.Vector2(p.x, p.z))
+        .reverse()
+      if (shape.length < 3) return new BABYLON.Mesh('island/' + this.name, this.scene)
+      const builder = new BABYLON.PolygonMeshBuilder('island/' + this.name, shape, this.scene)
+      if (index === 0) holes.forEach((hole) => builder.addHole(hole))
+      return builder.build(false, 32)
     })
 
-    const meshes = [pt.build(false, 32)]
-
-    if (this.desc.id >= 40) {
-      for (const s of this.desc.geometry.coordinates.slice(1)) {
-        const shape = s.map((c) => new BABYLON.Vector2(c[0] * 100, c[1] * 100)).reverse()
-        const pt = new BABYLON.PolygonMeshBuilder('island/' + this.name, shape, this.scene)
-        meshes.push(pt.build(false, 32))
-      }
-    }
-
     const mesh = BABYLON.Mesh.MergeMeshes(meshes, true)!
+    mesh.position.y = 0.74
+    const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)!
+    const normals = mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind)!
+    const uvs: number[] = []
+    for (let i = 0; i < positions.length; i += 3) {
+      const x = positions[i]
+      const y = positions[i + 1] + mesh.position.y
+      const z = positions[i + 2]
+      const horizontal = Math.abs(normals[i + 1]) > 0.5
+      // Two repeats per metre on every face, including basement and lake walls.
+      uvs.push((horizontal ? x : x * normals[i + 2] - z * normals[i]) * 2, (horizontal ? z : y) * 2)
+    }
+    mesh.setVerticesData(BABYLON.VertexBuffer.UVKind, uvs)
     mesh.metadata = 'teleportable'
     mesh.receiveShadows = true
     mesh.visibility = 0
@@ -92,18 +86,8 @@ export class Island {
   }
 
   async render(): Promise<BABYLON.Mesh> {
-    this._mesh.position.y = 0.75 - 0.01 // 0.01 = the nudge epsilon
-
-    const width = this._mesh.getBoundingInfo().maximum.x - this._mesh.getBoundingInfo().minimum.x
-    const depth = this._mesh.getBoundingInfo().maximum.z - this._mesh.getBoundingInfo().minimum.z
-
     const texture = new BABYLON.Texture(this.texturePath, this.scene)
-
-    // Configure texture UV scaling
-    texture.vScale = depth * 2
-    texture.uScale = width * 2
-    texture.uOffset = 0.5
-    texture.vOffset = 0.5
+    texture.uOffset = texture.vOffset = 0.5
 
     this._mesh.material = createIslandMaterial(this.scene, {
       name: this.name,

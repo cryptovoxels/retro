@@ -70,9 +70,72 @@ test('island collider preserves basement/lake holes, walls, surface height and s
   expect(down(6.25, 6.25)).toBeNull()
   expect(down(14.25, 6.25)).toBeNull()
   expect(down(19, 19)).toBeNull()
-  expect(world.castRay(new RAPIER.Ray({ x: 6.25, y: -2, z: 6.25 }, { x: 1, y: 0, z: 0 }), 5, true)?.timeOfImpact).toBeCloseTo(2, 4)
+  expect(world.castRay(new RAPIER.Ray({ x: 6.25, y: -2, z: 6.25 }, { x: 1, y: 0, z: 0 }), 5, true)?.timeOfImpact).toBeCloseTo(1.75, 4)
   expect(world.castRay(new RAPIER.Ray({ x: 6.25, y: -2, z: 6.25 }, { x: 0, y: 1, z: 0 }), 10, true)).toBeNull()
   const count = world.colliders.len()
   await island.render()
   expect(world.colliders.len()).toBe(count)
+})
+
+test('island tops and walls share world-aligned 50cm UVs regardless of island dimensions', () => {
+  ;(globalThis as any).earcut = earcut
+  engine = new BABYLON.NullEngine()
+  scene = new BABYLON.Scene(engine)
+  const island = new Island(
+    { scene } as any,
+    {
+      id: 40,
+      name: 'Scarcity',
+      geometry: {
+        coordinates: [
+          [
+            [0, 0],
+            [0.301, -0.001],
+            [0.299, 0.101],
+            [0, 0.1],
+          ],
+          [
+            [0.4, 0],
+            [0.5, 0],
+            [0.451, 0.099],
+          ],
+        ],
+      },
+      lakes_geometry_json: {
+        coordinates: [
+          [
+            [
+              [0.04, 0.04],
+              [0.08, 0.04],
+              [0.08, 0.08],
+              [0.04, 0.08],
+            ],
+          ],
+        ],
+      },
+    } as any,
+  )
+  const positions = island.mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)!
+  const normals = island.mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind)!
+  const uvs = island.mesh.getVerticesData(BABYLON.VertexBuffer.UVKind)!
+  const indices = island.mesh.getIndices()!
+  for (let i = 0; i < indices.length; i += 3) {
+    for (let edge = 0; edge < 3; edge++) {
+      const a = indices[i + edge]
+      const b = indices[i + ((edge + 1) % 3)]
+      const metres = Math.hypot(positions[a * 3] - positions[b * 3], positions[a * 3 + 1] - positions[b * 3 + 1], positions[a * 3 + 2] - positions[b * 3 + 2])
+      const repeats = Math.hypot(uvs[a * 2] - uvs[b * 2], uvs[a * 2 + 1] - uvs[b * 2 + 1])
+      expect(repeats).toBeCloseTo(metres * 2, 4)
+    }
+  }
+  for (let i = 0; i < positions.length / 3; i++) {
+    expect(positions[i * 3] * 2).toBe(Math.round(positions[i * 3] * 2))
+    expect(positions[i * 3 + 2] * 2).toBe(Math.round(positions[i * 3 + 2] * 2))
+    if (Math.abs(normals[i * 3 + 1]) > 0.5) {
+      expect(uvs[i * 2]).toBeCloseTo(positions[i * 3] * 2)
+      expect(uvs[i * 2 + 1]).toBeCloseTo(positions[i * 3 + 2] * 2)
+    } else {
+      expect(uvs[i * 2 + 1]).toBeCloseTo((positions[i * 3 + 1] + island.mesh.position.y) * 2)
+    }
+  }
 })

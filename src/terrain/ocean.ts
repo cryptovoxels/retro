@@ -1,8 +1,9 @@
 import type { Chunk, ChunkObserver } from './chunk-system'
-import { type ClippedWaterGeometry, douglasPeucker, isAxisAlignedRectangle, type Point2D, PolygonClipping } from '../utils/polygon-utils'
+import { snapRing, type Point2D, PolygonClipping } from '../utils/polygon-utils'
 import type { IslandRecord } from '../../common/messages/api-islands'
 import Islands from './islands'
 import { OCEAN_HEIGHT_OFFSET } from '../constants'
+import { mirrorTexture } from '../utils/mirror'
 
 type IntersectionType = 'partial' | 'full'
 type MeshPosition = { x: number; z: number }
@@ -13,12 +14,62 @@ interface PolygonClipInstruction {
   intersectionType: IntersectionType
 }
 
-function oceanMaterial(scene: BABYLON.Scene): BABYLON.StandardMaterial {
+function oceanMaterial(scene: BABYLON.Scene, size: number): BABYLON.StandardMaterial {
   const mat = new BABYLON.StandardMaterial('ocean', scene)
-  mat.diffuseColor = new BABYLON.Color3(0, 0.4, 0.7)
-  mat.specularColor = new BABYLON.Color3(0.05, 0.05, 0.05)
+  mat.diffuseColor = new BABYLON.Color3(0.18, 0.3, 0.32)
+  mat.emissiveColor = new BABYLON.Color3(0.025, 0.045, 0.05)
+  mat.specularColor = new BABYLON.Color3(0.02, 0.03, 0.03)
   mat.alpha = 1
   mat.fogEnabled = true
+  mat.reflectionTexture = mirrorTexture(scene, OCEAN_HEIGHT_OFFSET)
+  mat.reflectionTexture.level = 0.28
+  mat.reflectionFresnelParameters = new BABYLON.FresnelParameters({ bias: 0.12, power: 2 })
+
+  // Sparse pixel wavelets, drawn once. No noise or per-frame texture uploads.
+  const texture = new BABYLON.DynamicTexture('ocean_pixels', 32, scene, false, BABYLON.Texture.NEAREST_SAMPLINGMODE)
+  const ctx = texture.getContext()
+  ctx.fillStyle = '#a3b5b5'
+  ctx.fillRect(0, 0, 32, 32)
+  for (let i = 0; i < 12; i++) {
+    const x = (i * 17) % 32
+    const y = (i * 29) % 32
+    ctx.fillStyle = i % 3 === 0 ? '#bac9c7' : '#94aaaa'
+    ctx.fillRect(x, y, 3 + (i % 5), 1)
+    ctx.fillRect(x - 32, y, 3 + (i % 5), 1)
+  }
+  texture.update(false)
+  texture.uScale = texture.vScale = size / 16
+  mat.diffuseTexture = texture
+  let elapsed = 0
+  mat.customShaderNameResolve = (name, uniforms, _buffers, _samplers, defines, _attributes, options) => {
+    // Keep this shader out of the island material's effect cache.
+    ;(defines as any).OCEAN_RIPPLES = true
+    ;(defines as BABYLON.MaterialDefines).rebuild()
+    uniforms.push('rippleTime')
+    options!.processFinalCode = (type, code) => {
+      if (type !== 'fragment') return code
+      return code.replace('void main(', 'uniform float rippleTime;\nvoid main(').replace(
+        'coords.y=1.0-coords.y;',
+        `coords.y=1.0-coords.y;
+        vec2 wave = vPositionW.xz * 1.45;
+        coords += 0.012 * vec2(
+          sin(wave.x + cos(wave.y + rippleTime * 2.1) + rippleTime * 3.2),
+          cos(wave.y + sin(wave.x - rippleTime * 1.7) + rippleTime * 2.8)
+        );`,
+      )
+    }
+    return name
+  }
+  mat.onBindObservable.add(() => mat.getEffect()?.setFloat('rippleTime', elapsed))
+  const drift = scene.onBeforeRenderObservable.add(() => {
+    elapsed += scene.getEngine().getDeltaTime() / 1000
+    texture.uOffset = (Math.floor(elapsed) % 32) / 32
+    texture.vOffset = (Math.floor(elapsed * 0.25) % 32) / 32
+  })
+  mat.onDisposeObservable.add(() => {
+    scene.onBeforeRenderObservable.remove(drift)
+    texture.dispose()
+  })
   mat.freeze()
   mat.blockDirtyMechanism = true
   return mat
@@ -54,7 +105,7 @@ export class Ocean implements ChunkObserver {
     this.mesh.position.set(-99999, -99999, -99999)
     this.mesh.setEnabled(false)
 
-    this.waterMaterial = oceanMaterial(scene)
+    this.waterMaterial = oceanMaterial(scene, size)
     this.mesh.material = this.waterMaterial
   }
 
@@ -148,6 +199,7 @@ export class Ocean implements ChunkObserver {
     this.customMeshes.clear()
 
     this.mesh.dispose()
+    this.waterMaterial.reflectionTexture?.dispose()
     this.waterMaterial.dispose()
   }
 
@@ -169,7 +221,7 @@ export class Ocean implements ChunkObserver {
     }
 
     if (this.processingQueue.length > 0) {
-      requestAnimationFrame(() => this.processChunkQueue())
+      this.scene.onBeforeRenderObservable.addOnce(() => this.processChunkQueue())
     } else {
       this.isProcessingQueue = false
     }
@@ -242,7 +294,8 @@ export class Ocean implements ChunkObserver {
       let combinedIntersectionType: IntersectionType | null = null
 
       for (const ring of rings) {
-        const polygon = this.convertCoordinatesToPolygon(ring)
+        const polygon = snapRing(ring)
+        if (polygon.length < 3) continue
         const intersectionType = this.determineIntersectionType(tileCenter, polygon)
         if (intersectionType) {
           intersectingPolygons.push(polygon)
@@ -262,7 +315,8 @@ export class Ocean implements ChunkObserver {
 
       if (island.lakes_geometry_json?.coordinates) {
         for (const lakeCoordinates of island.lakes_geometry_json.coordinates.map((lake) => lake[0])) {
-          const lakePolygon = this.convertCoordinatesToPolygon(lakeCoordinates, 0.25)
+          const lakePolygon = snapRing(lakeCoordinates)
+          if (lakePolygon.length < 3) continue
           const intersectionType = this.determineIntersectionType(tileCenter, lakePolygon)
           if (intersectionType) {
             clipInstructions.push({ polygons: [lakePolygon], operation: 'add_water', intersectionType })
@@ -299,51 +353,30 @@ export class Ocean implements ChunkObserver {
       return
     }
 
-    for (const instruction of clipInstructions) {
-      if (instruction.operation === 'cut_water' && instruction.intersectionType === 'full') {
-        continue
-      }
-      if (instruction.operation === 'cut_water' && instruction.intersectionType === 'partial') {
-        this.createClippedWaterTile(chunk, tileCenter, key, instruction, false)
-        continue
-      }
-      if (instruction.operation === 'add_water' && instruction.intersectionType === 'full') {
-        this.instances.set(key, this.createInstance(chunk.gridX, chunk.gridZ))
-        continue
-      }
-      if (instruction.operation === 'add_water' && instruction.intersectionType === 'partial') {
-        this.createClippedWaterTile(chunk, tileCenter, key, instruction, true)
-      }
-    }
-  }
-
-  private createClippedWaterTile(chunk: Chunk, tileCenter: Point2D, key: string, instruction: PolygonClipInstruction, isInsideClipping: boolean): void {
-    let clippedGeometry: ClippedWaterGeometry
-
-    // Handle multi-polygon case (multiple rings from multi-ring islands)
-    if (instruction.polygons.length > 1 && !isInsideClipping) {
-      // Use multi-polygon clipping for multiple rings (e.g., Gaza with 7 rings)
-      clippedGeometry = PolygonClipping.clipToOutsideMultiPolygon(tileCenter, this.size, instruction.polygons)
-    } else {
-      // Single polygon case - use existing logic
-      const singlePolygon = instruction.polygons[0]
-      if (isAxisAlignedRectangle(singlePolygon)) {
-        clippedGeometry = PolygonClipping.clipAxisAlignedRectangle(tileCenter, this.size, singlePolygon, isInsideClipping)
-      } else if (isInsideClipping) {
-        clippedGeometry = PolygonClipping.clipToInsidePolygon(tileCenter, this.size, singlePolygon)
-      } else {
-        clippedGeometry = PolygonClipping.clipToOutsidePolygon(tileCenter, this.size, singlePolygon)
+    const land = clipInstructions.filter((i) => i.operation === 'cut_water').flatMap((i) => i.polygons)
+    const lakes = clipInstructions.filter((i) => i.operation === 'add_water').flatMap((i) => i.polygons)
+    const polygons: Point2D[][] = []
+    const point = { x: 0, z: 0 }
+    // One surface per 50cm cell, even where several islands or lakes share a chunk.
+    for (let z = chunk.worldZ; z < chunk.worldZ + this.size; z += 0.5) {
+      let start: number | null = null
+      for (let x = chunk.worldX; x <= chunk.worldX + this.size; x += 0.5) {
+        point.x = x + 0.25
+        point.z = z + 0.25
+        const water = x < chunk.worldX + this.size && (!land.some((p) => PolygonClipping.pointInPolygon(point, p)) || lakes.some((p) => PolygonClipping.pointInPolygon(point, p)))
+        if (water && start === null) start = x
+        if (!water && start !== null) {
+          polygons.push([
+            { x: start, z },
+            { x, z },
+            { x, z: z + 0.5 },
+            { x: start, z: z + 0.5 },
+          ])
+          start = null
+        }
       }
     }
-
-    if (clippedGeometry.shouldCreateMesh) {
-      const polygons = clippedGeometry.polygons || [clippedGeometry.vertices]
-      if (polygons.length > 0) {
-        const mergedMesh = this.createMergedOceanMesh(chunk, polygons, key)
-        const existingMeshes = this.customMeshes.get(key) || []
-        this.customMeshes.set(key, [...existingMeshes, mergedMesh])
-      }
-    }
+    if (polygons.length) this.customMeshes.set(key, [this.createMergedOceanMesh(chunk, polygons, key)])
   }
 
   private createMergedOceanMesh(chunk: Chunk, polygonVerticesArray: Point2D[][], key: string, heightOverride?: number): BABYLON.Mesh {
@@ -376,18 +409,6 @@ export class Ocean implements ChunkObserver {
     const mesh = this.createMeshWithGeometry(key, 0, mergedVertices, mergedIndices, chunk, meshPosition)
     this.configureMeshProperties(mesh, heightOverride)
     return mesh
-  }
-
-  private convertCoordinatesToPolygon(ring: number[][], nudge = 0): Point2D[] {
-    return this.simplifyIslandGeometry(ring)
-      .map((coord) => ({ x: coord[0] * Ocean.COORDINATE_SCALE_FACTOR + nudge, z: coord[1] * Ocean.COORDINATE_SCALE_FACTOR + nudge }))
-      .reverse()
-  }
-
-  private simplifyIslandGeometry(ring: number[][], tolerance = 0.005): number[][] {
-    if (ring.length < 4) return ring
-    const simplified = douglasPeucker(ring, tolerance)
-    return simplified.length >= 3 ? simplified : ring
   }
 
   private generateWorldVertices(polygonVertices: Point2D[]): { vertices: number[]; indices: number[] } {

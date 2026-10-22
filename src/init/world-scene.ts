@@ -1,7 +1,6 @@
 import { wantsGateway } from '../../common/helpers/detector'
 import { OCEAN_HEIGHT_OFFSET } from '../constants'
 import { hideGatewayBackdrop } from '../gateway'
-import Horizon from '../terrain/horizon'
 import Skybox from '../terrain/skybox'
 import { Terrain } from '../terrain/terrain'
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
@@ -25,7 +24,6 @@ export const worldSceneEvents = new TypedEventTarget<WorldSceneEvents>()
 
 let scene: BABYLON.Scene | null = null
 let terrain: Terrain | undefined
-let horizon: Horizon | undefined
 let skybox: Skybox | undefined
 let ambientLight: BABYLON.HemisphericLight | undefined
 let groundStateObservable: StateObservable<'loaded' | 'unloaded'> | undefined
@@ -40,7 +38,7 @@ function ambient() {
 
 function fogDensity() {
   if (wantsGateway()) return 0
-  return Math.max(3 / window.draw.distance - 0.006, 0)
+  return 3 / window.draw.distance // reach the sky's horizon color before the water chunks end
 }
 
 function isUnderwater() {
@@ -126,7 +124,6 @@ export async function createWorldScene(s: BABYLON.Scene) {
   skybox = new Skybox(s)
   terrain = new Terrain(s)
   groundStateObservable = terrain.islandsStateObservable
-  horizon = new Horizon(s)
   await terrain.load()
 
   loaded = true
@@ -146,8 +143,6 @@ export function teardownWorldScene() {
     terrain.groundMeshes.forEach((m) => m.dispose())
   }
   terrain = undefined
-  ;(horizon as any)?.mesh?.dispose?.()
-  horizon = undefined
   ambientLight?.dispose()
   ambientLight = undefined
   groundStateObservable = undefined
@@ -166,11 +161,9 @@ export function updateWorldScene() {
 
   if (changed) onEnvironmentStateChanged()
 
-  skybox?.update(sunPosition(), 0.5)
+  skybox?.update(sunPosition())
   if (skybox) skybox.mesh.isVisible = !underwater
-  horizon?.update(fogColor())
-  horizon?.setVisible(!underwater)
-  hideGatewayBackdrop(skybox, horizon)
+  hideGatewayBackdrop(skybox)
   terrain?.update()
 }
 

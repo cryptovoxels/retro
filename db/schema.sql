@@ -1,4 +1,4 @@
-\restrict bmBTQxgNGDqI7iSGKGHZa8wcQ5cVhep3Dk7zMbby6keBIRYKtJUfd9YvuW4rgNx
+\restrict O0GZW9rWIjFTqXnF65tMQZ9paeXsQ4Gxm3MahIi0OFOUSGgcoadtVkBWbuxPjFi
 CREATE SCHEMA metrics;
 CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
@@ -436,9 +436,9 @@ CREATE TABLE public.islands (
     id integer NOT NULL,
     name text,
     texture text DEFAULT '/textures/ground.png'::text,
-    holes_geometry_json json NOT NULL,
+    holes_geometry_json json,
     other_name character varying(50) DEFAULT NULL::character varying,
-    lakes_geometry_json json NOT NULL,
+    lakes_geometry_json json,
     content jsonb,
     geometry_json jsonb,
     position_json jsonb
@@ -976,4 +976,4 @@ CREATE INDEX womps_parcel_id ON public.womps USING btree (parcel_id);
 CREATE TRIGGER wearables_recalculate_total_wearables_trigger AFTER INSERT ON public.wearables FOR EACH ROW WHEN ((new.token_id IS NOT NULL)) EXECUTE FUNCTION public.recalculate_total_wearables();
 ALTER TABLE ONLY public.island_post_hearts
     ADD CONSTRAINT island_post_hearts_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.island_posts(id) ON DELETE CASCADE;
-\unrestrict bmBTQxgNGDqI7iSGKGHZa8wcQ5cVhep3Dk7zMbby6keBIRYKtJUfd9YvuW4rgNx
+\unrestrict O0GZW9rWIjFTqXnF65tMQZ9paeXsQ4Gxm3MahIi0OFOUSGgcoadtVkBWbuxPjFi

@@ -1,4 +1,8 @@
 import { cacheMaterial, generateCacheKey, getCachedMaterial } from './cache'
+import { mirrorTexture } from '../utils/mirror'
+
+// one mirror shared by every island, they all sit at the same height
+let islandMirror: BABYLON.MirrorTexture | null = null
 
 export interface IslandMaterialConfig {
   name: string
@@ -15,11 +19,11 @@ export function createIslandMaterial(scene: BABYLON.Scene, config: IslandMateria
 
   // Standard material colors
   // material.emissiveColor.set(0.7, 0.7, 0.7)
-  const c = 0.05
+  const c = 0.15
   material.diffuseColor.set(c, c, c)
-  const d = 0.2
+  const d = 0.1
   material.emissiveColor.set(d, d, d)
-  const e = 0.2
+  const e = 0.01
   material.specularColor.set(e, e, e)
   material.specularPower = 10
 
@@ -28,6 +32,14 @@ export function createIslandMaterial(scene: BABYLON.Scene, config: IslandMateria
 
   // Rendering settings
   material.backFaceCulling = false // Helps with reflections in the water
+
+  if (!islandMirror) {
+    islandMirror = mirrorTexture(scene, 0.74)
+    islandMirror.level = 0.3
+    islandMirror.blurKernel = 4
+  }
+  material.reflectionTexture = islandMirror
+  material.reflectionFresnelParameters = new BABYLON.FresnelParameters({ bias: 0.04, power: 3 })
 
   material.freeze()
   material.blockDirtyMechanism = true

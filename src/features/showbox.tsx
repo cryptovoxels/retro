@@ -315,19 +315,6 @@ function wantsHostJoin(uuid: string): boolean {
   return isHostJoinForShowbox(uuid)
 }
 
-// Drop show=/host= from the URL so ending a stream does not re-open the dock on parcel re-enter.
-function clearShowboxJoinParams() {
-  try {
-    const u = new URL(window.location.href)
-    if (!u.searchParams.has('show') && !u.searchParams.has('host')) return
-    u.searchParams.delete('show')
-    u.searchParams.delete('host')
-    u.searchParams.delete('guest_pass')
-    const qs = u.searchParams.toString()
-    window.history.replaceState(window.history.state, '', u.pathname + (qs ? `?${qs}` : '') + u.hash)
-  } catch {}
-}
-
 // Chat display name comes from the multiplayer login snapshot - reconnect after a rename so everyone sees it.
 function syncGuestDisplayName(name: string) {
   app.setName(name)
@@ -2370,7 +2357,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
       if (this.broadcastPanel || this.joinDockAutoOpened) return true
       if (isGuestForShowbox(this.uuid)) {
         this.joinDockAutoOpened = true
-        clearShowboxJoinParams()
         this.openBroadcastPanel(true)
         if (!this.broadcastPanel) {
           this.joinDockAutoOpened = false
@@ -2392,7 +2378,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         if (opener.broadcastPanel || opener.joinDockAutoOpened) return true
         opener.joinDockAutoOpened = true
-        clearShowboxJoinParams()
         opener.openBroadcastPanel(true)
         if (!opener.broadcastPanel) {
           opener.joinDockAutoOpened = false
@@ -2456,7 +2441,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
         }
         if (opener.broadcastPanel) return
         opener.joinDockAutoOpened = true
-        clearShowboxJoinParams()
         opener.openBroadcastPanel(true)
         if (!opener.broadcastPanel) {
           opener.joinDockAutoOpened = false
@@ -3423,7 +3407,6 @@ export default class Showbox extends Feature2D<ShowboxRecord> {
 
     if ((wantsHostJoin(this.uuid) || isGuestForShowbox(this.uuid)) && !this.joinDockAutoOpened) {
       this.joinDockAutoOpened = true
-      clearShowboxJoinParams()
     }
 
     exitPointerLock()
