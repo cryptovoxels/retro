@@ -169,6 +169,7 @@ export default class GridShard {
   }
 
   private sendPatchError(client: StatefulGridClient, originalPatch: PatchMessage, error: string) {
+    if (originalPatch.patchId) return client.send({ type: 'patch-ack', parcelId: originalPatch.parcelId, patchId: originalPatch.patchId, error })
     const msg: PatchErrorMessage = {
       type: 'patch-error',
       patch: originalPatch.patch,
@@ -297,6 +298,7 @@ export default class GridShard {
       type: 'patchCreate',
       payload: {
         parcelId: msg.parcelId,
+        patchId: msg.patchId,
         patch: msg.patch,
         sender: client.id,
       },

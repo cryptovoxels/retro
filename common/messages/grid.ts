@@ -16,12 +16,16 @@ export type GridWorkerParcelRecord = t.TypeOf<typeof GridWorkerParcelRecord>
 export const Patch = t.record(t.string, t.unknown)
 export type Patch = t.TypeOf<typeof Patch>
 
-export const PatchMessage = t.type(
-  {
-    type: t.literal('patch'),
-    parcelId: t.number,
-    patch: Patch,
-  },
+export const PatchMessage = t.intersection(
+  [
+    t.type({
+      type: t.literal('patch'),
+      parcelId: t.number,
+      patch: Patch,
+    }),
+    // set by the sender when it wants a patch-ack once the save lands
+    t.partial({ patchId: t.string }),
+  ],
   'PatchMessage',
 )
 export type PatchMessage = t.TypeOf<typeof PatchMessage>
@@ -36,6 +40,19 @@ export const PatchErrorMessage = t.type(
   'PatchErrorMessage',
 )
 export type PatchErrorMessage = t.TypeOf<typeof PatchErrorMessage>
+
+export const PatchAckMessage = t.intersection(
+  [
+    t.type({
+      type: t.literal('patch-ack'),
+      parcelId: t.number,
+      patchId: t.string,
+    }),
+    t.partial({ error: t.string }),
+  ],
+  'PatchAckMessage',
+)
+export type PatchAckMessage = t.TypeOf<typeof PatchAckMessage>
 
 export const PatchStateMessage = t.type(
   {
@@ -125,7 +142,7 @@ export const DeleteFeatureMessage = t.type(
 export type DeleteFeatureMessage = t.TypeOf<typeof DeleteFeatureMessage>
 
 // Grid Messages sent server->client
-export const GridMessage = t.union([PatchMessage, PatchErrorMessage, ParcelAuthMessage, PatchStateMessage, SuspendedMessage, ParcelMetaMessage, ParcelScriptMessage, PongMessage])
+export const GridMessage = t.union([PatchMessage, PatchAckMessage, PatchErrorMessage, ParcelAuthMessage, PatchStateMessage, SuspendedMessage, ParcelMetaMessage, ParcelScriptMessage, PongMessage])
 export type GridMessage = t.TypeOf<typeof GridMessage>
 
 // Grid Messages sent client->server
