@@ -1,17 +1,33 @@
 # skynet // voxels field manual
 
-You build in Voxels through MCP tools that drive the owner's own browser tab
-(`play?...&agent=skynet`). The tab's login is your login. If the owner can't
-edit a parcel, neither can you. Stay inside the parcel you were given.
+You build in Voxels from your own browser. The owner gives you a play link
+ending in `#skynet=<token>`. Opening it logs that browser in to edit one
+parcel for 12 hours. Keep that tab open: it renders the parcel and every edit
+goes through it. Treat the token like a password. Never echo it, log it or
+write it to files.
+
+## connecting
+
+Your tools live on that page. Use whichever you can reach:
+
+1. WebMCP: the page registers them on `navigator.modelContext`.
+2. Page JavaScript: `window.skynet`. `skynet.help()` lists them,
+   `await skynet.health()` calls one. `id` defaults to your parcel.
+3. MCP over HTTP, relayed to your browser by the server:
+   `claude mcp add --transport http voxels-skynet <origin>/api/skynet/mcp --header "Authorization: Bearer <token>"`.
+   No MCP client? POST JSON-RPC (`tools/list`, `tools/call`) to the same url
+   with the same header.
+
+The relay only works while your browser tab is open and connected.
 
 ## start every session
 
-1. `health`. `grid` must be true and the target parcel must be in `editable`.
-   If not: the tab isn't open, isn't logged in, or isn't near the parcel. Say
-   which. Don't pretend.
-2. `get_parcel` for the target id. Note `shape`, `tileset`, `palette`, `budget`.
+1. `health`. `grid` must be true and your parcel must be in `editable`. If
+   not, the tab isn't open, the token expired, or the parcel hasn't loaded yet.
+   Say which. Don't pretend.
+2. `get_parcel`. Note `shape`, `tileset`, `palette`, `budget`.
 3. Look before you touch: `read_voxels` (census, a few layers), `list_features`,
-   one `screenshot`.
+   and a screenshot of your browser.
 4. Before a big change, `snapshot` it. Keep the version id so you can `revert`.
 
 ## coordinates
@@ -63,8 +79,10 @@ refuses when it hits zero. Voxels have no budget, just the field shape.
 
 - Check geometry with `read_voxels`, not by looking at pictures. Read the
   layer or region you changed and compare the census.
-- `screenshot` (`top`, `iso`, `front`) is for judging looks: proportions,
-  materials, light. It can't prove a hole is three voxels wide.
+- Judge looks (proportions, materials, light) with your own browser
+  screenshots. The `screenshot` tool (`top`, `iso`, `front`) renders in the
+  page and is only for when you can't take one yourself. Neither can prove a
+  hole is three voxels wide.
 - Persistence is confirmed by the write result. If the owner doubts it,
   `GET /grid/parcels/<id>` reads straight from the database.
 

@@ -1,14 +1,10 @@
 import { v7 as uuid } from 'uuid'
-import cachedFetch from '../../web/src/helpers/cached-fetch'
-import { app } from '../../web/src/state'
-import { robotFov, isSkynet, wantsRoboshot } from '../../common/helpers/detector'
 import { contentName } from '../../common/helpers/ugc-upload-keys'
 import { uploadParcelBytes } from '../../common/helpers/upload-media'
 import { getVoxelsFromBuffer } from '../../common/voxels/helpers'
 import { currentVersion } from '../../common/version'
 import ParcelBudget, { featureBudget } from '../parcel-budget'
 import type Parcel from '../parcel'
-import { startBridge } from './bridge'
 
 // WebMCP shape. execute returns plain JSON, or { mimeType, base64 } for images
 export type Tool = { name: string; description: string; inputSchema: any; execute: (input: any) => any }
@@ -18,10 +14,9 @@ const registry = new Map<string, Tool>()
 
 export function registerTool(tool: Tool) {
   registry.set(tool.name, tool)
-  if (window.skynet) expose(tool)
+  expose(tool)
 }
 
-// only ever called in agent mode, players never see these tools
 function expose(tool: Tool) {
   const mc = (document as any).modelContext ?? (navigator as any).modelContext
   try {
@@ -41,13 +36,24 @@ export function content(result: any) {
   return { content: [{ type: 'text', text: JSON.stringify(result) }] }
 }
 
-function loaded(id: number): Parcel {
+// the parcel this browser's skynet token edits, read from the jwt cookie
+export function home(): number | undefined {
+  try {
+    const jwt = document.cookie.match(/(?:^|; )jwt=([^;]+)/)?.[1]
+    return JSON.parse(atob(decodeURIComponent(jwt!).split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).parcel_id
+  } catch {
+    return undefined
+  }
+}
+
+function loaded(id = home()): Parcel {
+  if (!id) throw new Error('Which parcel? Pass id.')
   const p = window.grid?.getByID(id)
   if (!p?.loaded) throw new Error(`Parcel ${id} is not loaded. Stand near it.`)
   return p
 }
 
-function editable(id: number): Parcel {
+function editable(id = home()): Parcel {
   const p = loaded(id)
   if (!p.canEdit) throw new Error(`You can't edit parcel ${id}. Log in as the owner or a collaborator.`)
   if (!p.sandbox && !window.grid?.isOpen) throw new Error('Grid socket is closed. Writes would not save.')
@@ -81,7 +87,7 @@ function* box([lo, hi]: [Point, Point], hollow = false): Generator<Point> {
 }
 
 const vec3 = { type: 'array', items: { type: 'number' }, minItems: 3, maxItems: 3 }
-const parcelId = { type: 'integer', description: 'Parcel id' }
+const parcelId = { type: 'integer', description: 'Parcel id. Defaults to the parcel your skynet token edits.' }
 
 registerTool({
   name: 'health',
@@ -89,7 +95,8 @@ registerTool({
   inputSchema: { type: 'object', properties: {} },
   execute: () => ({
     grid: !!window.grid?.isOpen,
-    wallet: app.state.wallet ?? null,
+    wallet: window.user?.wallet ?? null,
+    parcel: home() ?? null,
     editable: [...(window.grid?.parcels.values() || [])].filter((p) => p.loaded && p.canEdit).map((p) => ({ id: p.id, name: p.name ?? null })),
     version: currentVersion,
   }),
@@ -98,7 +105,7 @@ registerTool({
 registerTool({
   name: 'get_parcel',
   description: 'Parcel shape, bounds, tileset, palette, edit rights, feature counts and remaining feature budget.',
-  inputSchema: { type: 'object', properties: { id: parcelId }, required: ['id'] },
+  inputSchema: { type: 'object', properties: { id: parcelId }, required: [] },
   execute: ({ id }) => {
     const p = loaded(id)
     const features: Record<string, number> = {}
@@ -123,7 +130,7 @@ registerTool({
 registerTool({
   name: 'read_voxels',
   description: 'Read the voxel field. layer: one y slice as rows[x][z]. from/to: inclusive region as run-length [value, count] in x,y,z order (z fastest). Always returns a census of value -> count.',
-  inputSchema: { type: 'object', properties: { id: parcelId, layer: { type: 'integer' }, from: vec3, to: vec3 }, required: ['id'] },
+  inputSchema: { type: 'object', properties: { id: parcelId, layer: { type: 'integer' }, from: vec3, to: vec3 }, required: [] },
   execute: ({ id, layer, from, to }) => {
     const p = loaded(id)
     const f = field(p)
@@ -172,7 +179,7 @@ registerTool({
         },
       },
     },
-    required: ['id', 'ops'],
+    required: ['ops'],
   },
   execute: async ({ id, ops }) => {
     const p = editable(id)
@@ -219,7 +226,7 @@ registerTool({
 registerTool({
   name: 'list_features',
   description: 'All feature records in the parcel (uuid, type, position, rotation, scale and type specific props). Positions are parcel-local metres.',
-  inputSchema: { type: 'object', properties: { id: parcelId }, required: ['id'] },
+  inputSchema: { type: 'object', properties: { id: parcelId }, required: [] },
   execute: ({ id }) => loaded(id).featuresList.map((f) => f.description),
 })
 
@@ -229,7 +236,7 @@ registerTool({
   inputSchema: {
     type: 'object',
     properties: { id: parcelId, type: { type: 'string' }, position: vec3, rotation: vec3, scale: vec3, props: { type: 'object' } },
-    required: ['id', 'type', 'position'],
+    required: ['type', 'position'],
   },
   execute: async ({ id, type, position, rotation, scale, props }) => {
     const p = editable(id)
@@ -246,7 +253,7 @@ registerTool({
 registerTool({
   name: 'update_feature',
   description: 'Merge a partial record into a feature (position, rotation, scale, url, text...). Waits for the save.',
-  inputSchema: { type: 'object', properties: { id: parcelId, uuid: { type: 'string' }, patch: { type: 'object' } }, required: ['id', 'uuid', 'patch'] },
+  inputSchema: { type: 'object', properties: { id: parcelId, uuid: { type: 'string' }, patch: { type: 'object' } }, required: ['uuid', 'patch'] },
   execute: async ({ id, uuid, patch }) => {
     const p = editable(id)
     const f = p.getFeatureByUuid(uuid)
@@ -262,7 +269,7 @@ registerTool({
 registerTool({
   name: 'remove_feature',
   description: 'Delete a feature. Waits for the save.',
-  inputSchema: { type: 'object', properties: { id: parcelId, uuid: { type: 'string' } }, required: ['id', 'uuid'] },
+  inputSchema: { type: 'object', properties: { id: parcelId, uuid: { type: 'string' } }, required: ['uuid'] },
   execute: async ({ id, uuid }) => {
     const p = editable(id)
     const f = p.getFeatureByUuid(uuid)
@@ -280,19 +287,19 @@ registerTool({
   inputSchema: { type: 'object', properties: { query: { type: 'string' }, page: { type: 'integer' } }, required: ['query'] },
   execute: async ({ query, page }) => {
     const params = new URLSearchParams({ q: query, page: String(page || 0), limit: '20', sort: 'views', asc: 'false' })
-    return (await cachedFetch(`/api/library/all.json?${params}`)).json()
+    return (await fetch(`/api/library/all.json?${params}`)).json()
   },
 })
 
 registerTool({
   name: 'upload_vox',
   description: 'Upload a MagicaVoxel .vox file (base64) to the parcel content store. Returns { url } for a vox-model feature.',
-  inputSchema: { type: 'object', properties: { id: parcelId, base64: { type: 'string' } }, required: ['id', 'base64'] },
+  inputSchema: { type: 'object', properties: { id: parcelId, base64: { type: 'string' } }, required: ['base64'] },
   execute: async ({ id, base64 }) => {
-    editable(id)
+    const p = editable(id)
     const bytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
     if (String.fromCharCode(...bytes.slice(0, 4)) !== 'VOX ') throw new Error('not a .vox file')
-    const r = await uploadParcelBytes(id, (await contentName(bytes)) + '.vox', bytes, 'application/octet-stream')
+    const r = await uploadParcelBytes(p.id as number, (await contentName(bytes)) + '.vox', bytes, 'application/octet-stream')
     if (!r.success) throw new Error(r.error || 'upload failed')
     return { url: r.location }
   },
@@ -306,9 +313,9 @@ async function post(url: string, method: string, body: any) {
 registerTool({
   name: 'snapshot',
   description: 'Save the current saved state of the parcel as a named snapshot. Owner only. Returns { version } for revert.',
-  inputSchema: { type: 'object', properties: { id: parcelId, name: { type: 'string' } }, required: ['id', 'name'] },
+  inputSchema: { type: 'object', properties: { id: parcelId, name: { type: 'string' } }, required: ['name'] },
   execute: async ({ id, name }) => {
-    const r = await post('/api/parcels/snapshot', 'POST', { parcel_id: id })
+    const r = await post('/api/parcels/snapshot', 'POST', { parcel_id: editable(id).id })
     if (!r.success || !r.id) throw new Error(r.message || r.error || 'snapshot failed')
     await post('/api/parcels/snapshot', 'PUT', { version: { id: r.id }, name })
     return { version: r.id, name }
@@ -318,10 +325,10 @@ registerTool({
 registerTool({
   name: 'revert',
   description: 'Restore the parcel to a snapshot version and reload it.',
-  inputSchema: { type: 'object', properties: { id: parcelId, version: { type: 'integer' } }, required: ['id', 'version'] },
+  inputSchema: { type: 'object', properties: { id: parcelId, version: { type: 'integer' } }, required: ['version'] },
   execute: async ({ id, version }) => {
     const p = editable(id)
-    const r = await post(`/api/parcels/${id}/revert`, 'POST', { parcel_version_id: version })
+    const r = await post(`/api/parcels/${p.id}/revert`, 'POST', { parcel_version_id: version })
     if (!r.success) throw new Error(r.error || 'revert failed')
     await p.reload()
     return { reverted: version }
@@ -330,11 +337,11 @@ registerTool({
 
 registerTool({
   name: 'screenshot',
-  description: 'Render the parcel from a framed camera. preset top | iso | front (front looks north from the south side). For looks only, verify geometry with read_voxels.',
+  description: 'Fallback only: if you can screenshot your own browser, do that instead. Renders the parcel from a framed camera: top | iso | front (front looks north from the south side). For looks, verify geometry with read_voxels.',
   inputSchema: {
     type: 'object',
     properties: { id: parcelId, preset: { enum: ['top', 'iso', 'front'] }, fov: { type: 'number', description: 'degrees, default 60' }, size: { type: 'integer', description: 'pixels, default 768, max 2048' } },
-    required: ['id'],
+    required: [],
   },
   execute: async ({ id, preset, fov, size }) => {
     const p = loaded(id)
@@ -359,25 +366,3 @@ registerTool({
     }
   },
 })
-
-declare global {
-  interface Window {
-    skynet?: { tools: typeof tools; call: (name: string, input?: any) => Promise<any> }
-  }
-}
-
-export function installSkynet() {
-  if (isSkynet() && window.scene) window.scene.audioEnabled = false
-  if ((isSkynet() || wantsRoboshot()) && window.scene?.activeCamera) window.scene.activeCamera.fov = robotFov()
-  if (!isSkynet()) return
-  window.skynet = {
-    tools,
-    call: async (name, input = {}) => {
-      const tool = registry.get(name)
-      if (!tool) throw new Error(`no tool ${name}`)
-      return tool.execute(input)
-    },
-  }
-  tools().forEach(expose)
-  startBridge()
-}

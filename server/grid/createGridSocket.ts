@@ -12,7 +12,10 @@ const verifyToken =
     jwtVerify(token, new TextEncoder().encode(jwtSecretOrKey), { algorithms: ['HS256'] })
       .then(({ payload }) => payload as any)
       // guest co-host jwts carry the pass + parcel binding - the shard uses it to auth showbox live patches
-      .then((decoded) => ({ wallet: decoded.wallet, guest_pass: decoded.guest_pass, parcel_id: decoded.parcel_id }) as { wallet: string; guest_pass?: string; parcel_id?: number })
+      // skynet jwts are scoped to parcel_id, authParcel checks it against the owner who minted it
+      .then(
+        (decoded) => ({ wallet: decoded.wallet, guest_pass: decoded.guest_pass, parcel_id: decoded.parcel_id, skynet: decoded.skynet, owner: decoded.owner, sid: decoded.sid }) as { wallet: string; guest_pass?: string; parcel_id?: number },
+      )
       .catch((err) => {
         log.error(`grid-socket jwt verification error: ${err.toString()}`)
         return null

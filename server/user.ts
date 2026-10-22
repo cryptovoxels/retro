@@ -8,6 +8,11 @@ export type VoxelsUser = Express.User & {
   moderator?: boolean
 
   suspended?: SuspendedAvatar | null
+
+  /** skynet tokens edit parcel_id only, with the rights of the owner who minted them */
+  skynet?: boolean
+  parcel_id?: number
+  owner?: string
 }
 
 export type VoxelsUserRequest = Request & { user?: VoxelsUser }

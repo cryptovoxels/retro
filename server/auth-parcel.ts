@@ -26,6 +26,11 @@ export default async function authParcel(parcel: ParcelAuthRef, user: VoxelsUser
     return false
   }
 
+  if (user.skynet) {
+    // collaborator, never owner: a skynet token can't add users or mint more tokens
+    return user.parcel_id === parcel.id && user.owner && (await authParcel(parcel, { wallet: user.owner })) ? 'Collaborator' : false
+  }
+
   if (user?.suspended) {
     return false
   } else if (!!isOwnerSuspended && !user.moderator) {

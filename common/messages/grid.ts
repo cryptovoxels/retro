@@ -141,10 +141,21 @@ export const DeleteFeatureMessage = t.type(
 )
 export type DeleteFeatureMessage = t.TypeOf<typeof DeleteFeatureMessage>
 
+// skynet: the agent's browser registers its tools over the grid socket, the server
+// relays mcp tool calls from /api/skynet/mcp to it. see server/skynet.ts
+export const SkynetToolsMessage = t.type({ type: t.literal('skynet-tools'), tools: t.array(t.unknown) }, 'SkynetToolsMessage')
+export type SkynetToolsMessage = t.TypeOf<typeof SkynetToolsMessage>
+
+export const SkynetResultMessage = t.intersection([t.type({ type: t.literal('skynet-result'), id: t.number }), t.partial({ result: t.unknown, error: t.string })], 'SkynetResultMessage')
+export type SkynetResultMessage = t.TypeOf<typeof SkynetResultMessage>
+
+export const SkynetCallMessage = t.type({ type: t.literal('skynet-call'), id: t.number, name: t.string, input: t.unknown }, 'SkynetCallMessage')
+export type SkynetCallMessage = t.TypeOf<typeof SkynetCallMessage>
+
 // Grid Messages sent server->client
-export const GridMessage = t.union([PatchMessage, PatchAckMessage, PatchErrorMessage, ParcelAuthMessage, PatchStateMessage, SuspendedMessage, ParcelMetaMessage, ParcelScriptMessage, PongMessage])
+export const GridMessage = t.union([PatchMessage, PatchAckMessage, PatchErrorMessage, ParcelAuthMessage, PatchStateMessage, SuspendedMessage, ParcelMetaMessage, ParcelScriptMessage, PongMessage, SkynetCallMessage])
 export type GridMessage = t.TypeOf<typeof GridMessage>
 
 // Grid Messages sent client->server
-export const GridClientMessage = t.union([PatchMessage, SubscriptionMessage, DeleteFeatureMessage, PatchStateMessage, PingMessage])
+export const GridClientMessage = t.union([PatchMessage, SubscriptionMessage, DeleteFeatureMessage, PatchStateMessage, PingMessage, SkynetToolsMessage, SkynetResultMessage])
 export type GridClientMessage = t.TypeOf<typeof GridClientMessage>

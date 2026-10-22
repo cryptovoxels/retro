@@ -710,6 +710,10 @@ export default class Grid extends SocketClient {
         break
       case 'pong':
         break
+      case 'skynet-call':
+        // answered by the skynet bundle, only loaded with ?agent=skynet
+        ;(window as any).skynet?.answer(message)
+        break
       default:
         // Statically check that we never get here, assuming our types are correct
         const _never: never = message

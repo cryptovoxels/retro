@@ -59,6 +59,7 @@ import ChatController from './controllers/chat'
 import IslandBoardController from './controllers/island-board'
 import BlogController from './controllers/blog'
 import createGridSocket from './grid/createGridSocket'
+import SkynetController from './skynet'
 import { searchAndReturn } from './handlers/search'
 import startJobs from './cronjobs'
 import log from './lib/logger'
@@ -386,6 +387,7 @@ RadarController(app)
 
 // Guest broadcast passes (token-based access to a specific Showbox without an account)
 GuestPassesController(db, passport, app, livekitService, gridSocket)
+SkynetController(passport, app)
 
 // The NFTs
 NftController(db, passport, app)
