@@ -15,6 +15,7 @@ import { ParcelMetrics as Metrics } from './components/metrics'
 import { getParcelIdFromPath } from './helpers/coords-nav'
 import { route } from 'preact-router'
 import { truncate } from './lib/string-utils'
+import { readNftUrl } from '../../common/helpers/nft-url'
 
 export interface Props {
   parcel?: ParcelWithMintednessRecord
@@ -33,6 +34,8 @@ export interface State {
   tab: SidebarTab
   transferring?: boolean
   transferMessage?: string
+  nftifying?: boolean
+  nftifyMessage?: string
 }
 
 const tabs: { id: SidebarTab; label: string }[] = [
@@ -79,6 +82,31 @@ export default class Parcel extends Component<Props, State> {
     }
 
     return this.state.parcel && this.helper?.isOwner(app.state.wallet)
+  }
+
+  // image features with a marketplace nft link the tasklet can flip to nft-image
+  get nftifyCount() {
+    const features = (this.state.parcel as any)?.content?.features || []
+    return features.filter((f: any) => f?.type === 'image' && typeof f.link === 'string' && readNftUrl(f.link)).length
+  }
+
+  nftify = async () => {
+    if (!this.isOwner || this.state.nftifying) return
+    const id = this.state.parcelId
+    this.setState({ nftifying: true, nftifyMessage: '' })
+    try {
+      const response = await cachedFetch(`/api/parcels/${id}/nftify`, { method: 'POST', credentials: 'include', cache: 'reload' })
+      const result = await response.json()
+      if (!result.success) throw new Error()
+      if (result.changed) await invalidateUrl(`/api/parcels/${id}.json`, true)
+      if (id !== this.state.parcelId) return
+      this.setState({ nftifyMessage: result.conflict ? 'Parcel changed while converting. Try again.' : `Converted ${result.count} images.` })
+      if (result.changed) await this.fetch(id)
+    } catch {
+      if (id === this.state.parcelId) this.setState({ nftifyMessage: 'Conversion failed. Try again.' })
+    } finally {
+      if (id === this.state.parcelId) this.setState({ nftifying: false })
+    }
   }
 
   get canEdit() {
@@ -395,6 +423,16 @@ export default class Parcel extends Component<Props, State> {
           </details>
         )}
         {this.state.parcel ? <ParcelEvents parcel={this.state.parcel} /> : null}
+
+        {this.isOwner && this.nftifyCount > 0 && (
+          <div class="f">
+            <label>tasklets</label>
+            <button type="button" disabled={this.state.nftifying} onClick={this.nftify}>
+              {this.state.nftifying ? 'converting...' : `auto-convert ${this.nftifyCount} images to nft-images`}
+            </button>
+            {this.state.nftifyMessage && <p role="status">{this.state.nftifyMessage}</p>}
+          </div>
+        )}
 
         {this.canEdit && (
           <details class="inspector-section">
