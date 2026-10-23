@@ -17,6 +17,7 @@ import { ParcelPatch, ParcelRecord } from '../common/messages/parcel'
 import { GraphicLevels } from './graphic/graphic-engine'
 import { PanelType } from '../web/src/components/panel'
 import { DeferredPromise } from 'p-defer'
+import { v7 as uuid } from 'uuid'
 import { createSpaceScene, createWorldScene, getWorldTerrain, parcelMeshesAdded, parcelMeshesRemoved, teardownSpaceScene, teardownWorldScene } from './init/world-scene'
 import { fetchSpace } from './init/realm'
 import type { IslandRecord } from '../common/messages/api-islands'
@@ -103,6 +104,7 @@ export default class Grid extends SocketClient {
     return this.isolateMode
   }
   private intervals: number[] = []
+  private acks = new Map<string, (error?: string, local?: boolean) => void>()
   private _queryJobs = new Map<number, DeferredPromise<number[]>>()
   private _nextQueryId = 0
 
@@ -358,15 +360,26 @@ export default class Grid extends SocketClient {
     this.refreshEnteredParcel()
   }
 
-  public patchParcel(parcelId: number, patch: ParcelPatch) {
-    if (!this.isOpen) {
-      return this.displayPatchError()
-    }
-    this.sendMessage({
-      type: 'patch',
-      parcelId,
-      patch,
+  // resolves once the server has saved the patch. quiet skips the alert/snackbar (agents read the rejection instead)
+  public patchParcel(parcelId: number, patch: ParcelPatch, quiet = false): Promise<void> {
+    const patchId = uuid()
+    const acked = new Promise<void>((resolve, reject) => {
+      if (!this.isOpen) {
+        if (!quiet) this.displayPatchError()
+        return reject(new Error('Grid socket is not open'))
+      }
+      const timer = setTimeout(() => this.acks.get(patchId)?.('No patch-ack after 20s', true), 20000)
+      this.acks.set(patchId, (error, local) => {
+        clearTimeout(timer)
+        this.acks.delete(patchId)
+        if (error && !quiet && !local) this.displayPatchError(error)
+        error ? reject(new Error(error)) : resolve()
+      })
+      this.sendMessage({ type: 'patch', parcelId, patch, patchId })
     })
+    // humans fire and forget - don't let that become an unhandled rejection
+    acked.catch(() => {})
+    return acked
   }
 
   public deleteFeature(parcelId: number, featureUuid: string, currentParcelId: number) {
@@ -674,6 +687,9 @@ export default class Grid extends SocketClient {
       case 'patch':
         this.handleParcelPatch(message)
         break
+      case 'patch-ack':
+        this.acks.get(message.patchId)?.(message.error)
+        break
       case 'patch-error':
         this.handleParcelPatchError(message)
         break
@@ -693,6 +709,10 @@ export default class Grid extends SocketClient {
         this.handleParcelAuth(message)
         break
       case 'pong':
+        break
+      case 'skynet-call':
+        // answered by the skynet bundle, only loaded with ?agent=skynet
+        ;(window as any).skynet?.answer(message)
         break
       default:
         // Statically check that we never get here, assuming our types are correct
@@ -725,6 +745,7 @@ export default class Grid extends SocketClient {
 
   protected onClose() {
     clearInterval(this.pingInterval)
+    this.acks.forEach((ack) => ack('Grid socket closed before the save was acked', true))
     return true
   }
 

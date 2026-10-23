@@ -1,7 +1,7 @@
 import { Component, Fragment, createRef } from 'preact'
 import { format } from 'timeago.js'
 import ParcelHelper from '../../common/helpers/parcel-helper'
-import { canUseDom } from '../../common/helpers/utils'
+import { canUseDom, copyTextToClipboard } from '../../common/helpers/utils'
 import { FullParcelRecord, NearbyParcelRecord, ParcelWithMintednessRecord } from '../../common/messages/parcel'
 import type { VoxelsMap } from './helpers/load-voxels-map'
 import { loadVoxelsMap } from './helpers/load-voxels-map'
@@ -15,6 +15,7 @@ import { ParcelMetrics as Metrics } from './components/metrics'
 import { getParcelIdFromPath } from './helpers/coords-nav'
 import { route } from 'preact-router'
 import { truncate } from './lib/string-utils'
+import { PanelType } from './components/panel'
 
 export interface Props {
   parcel?: ParcelWithMintednessRecord
@@ -33,6 +34,7 @@ export interface State {
   tab: SidebarTab
   transferring?: boolean
   transferMessage?: string
+  skynet?: string
 }
 
 const tabs: { id: SidebarTab; label: string }[] = [
@@ -67,6 +69,34 @@ export default class Parcel extends Component<Props, State> {
   // the world this parcel lives in, so the header Play button enters it
   get visitUrl() {
     return this.helper ? `/play?coords=${this.helper.spawnCoords}` : undefined
+  }
+
+  get robotPrompt() {
+    const origin = canUseDom ? window.location.origin : 'https://www.voxels.com'
+    const token = this.state.skynet
+    return `You are skynet, my voxels building robot. Let's build something.
+
+Read your field manual first:
+${origin}/skynet-agents.md
+
+Open this link in your own browser and keep it open. It renders the parcel and does the edits. The link logs that browser in to edit parcel #${this.state.parcelId} only, for 12 hours. Use a browser profile that isn't logged in to anything you care about on this site.
+${origin}${this.visitUrl}&agent=skynet#skynet=${token}
+
+Your tools are on that page as WebMCP (navigator.modelContext) and window.skynet. If you can't use those, use the MCP server that relays to your browser:
+claude mcp add --transport http voxels-skynet ${origin}/api/skynet/mcp --header "Authorization: Bearer ${token}"
+
+Treat the token like a password. Don't echo it back to me or write it to files.
+
+Call health, then get_parcel. Don't change anything yet. Once you're connected and can edit it, say "Systems online. Awaiting instructions"`
+  }
+
+  summon = async () => {
+    if (this.state.skynet) return
+    const r = await fetch(`/api/parcels/${this.state.parcelId}/skynet`, { method: 'POST', credentials: 'include' })
+      .then((r) => r.json())
+      .catch(() => null)
+    if (r?.token) this.setState({ skynet: r.token })
+    else app.showSnackbar(r?.error || 'Could not summon skynet', PanelType.Danger)
   }
 
   syncVisitUrl() {
@@ -421,6 +451,27 @@ export default class Parcel extends Component<Props, State> {
           <summary>metrics</summary>
           <Metrics parcelId={this.state.parcelId} />
         </details>
+        {this.isOwner && (
+          <details class="inspector-section" onToggle={(e) => e.currentTarget.open && this.summon()}>
+            <summary>skynet</summary>
+            <div class="f">
+              <textarea id="terminator-commands" aria-label="Robot building instructions" rows={10} readOnly value={this.state.skynet ? this.robotPrompt : 'summoning...'} onFocus={(e) => e.currentTarget.select()} />
+              <button
+                type="button"
+                disabled={!this.state.skynet}
+                onClick={() =>
+                  copyTextToClipboard(
+                    this.robotPrompt,
+                    () => app.showSnackbar('Instructions copied', PanelType.Success),
+                    () => app.showSnackbar('Could not copy. Select the instructions and copy them manually.', PanelType.Info),
+                  )
+                }
+              >
+                copy instructions
+              </button>
+            </div>
+          </details>
+        )}
       </>
     )
   }

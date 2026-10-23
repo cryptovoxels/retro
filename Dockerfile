@@ -22,5 +22,6 @@ COPY --from=build /app/server/migrations.sql /app/server/migrations.sql
 COPY --from=build /app/.env.production /app/.env.production
 COPY --from=build /app/server/queries /app/server/queries
 COPY --from=build /app/dist /app/dist
+COPY --from=build /app/skynet-agents.md /app/skynet-agents.md
 EXPOSE 8080
 CMD ["sh", "-c", "node server/migrate.js & exec node server/bundle_server.js"]

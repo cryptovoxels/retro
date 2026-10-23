@@ -491,9 +491,9 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     return null
   }
 
-  sendPatch(patch: ParcelPatch) {
-    if (this.sandbox || typeof this.id !== 'number') return
-    this.grid.patchParcel(this.id, patch)
+  sendPatch(patch: ParcelPatch, quiet = false): Promise<void> {
+    if (this.sandbox || typeof this.id !== 'number') return Promise.resolve()
+    return this.grid.patchParcel(this.id, patch, quiet)
   }
 
   sendStatePatch(patch: Record<string, any>) {
