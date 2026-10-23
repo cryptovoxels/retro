@@ -1,3 +1,6 @@
+// 4x4 RGB drafts are 48 bytes, encoded as 64 base64 characters. Older drafts were WebP.
+export const imageDraft = (draft?: string): boolean => draft?.length === 64
+
 // one retry, 1s wait. for load-bearing fetches only, everything else fails soft.
 export async function retryOnce<T>(fn: () => Promise<T>): Promise<T> {
   try {

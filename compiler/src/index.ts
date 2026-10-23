@@ -19,6 +19,8 @@ const COMPILE_PARCELS = parseInt(process.env.COMPILE_PARCELS || '16', 10)
 const COMPILE_WORKERS = parseInt(process.env.COMPILE_WORKERS || '40', 10)
 // COMPILE_REPROCESS=1 or --reprocess: every parcel, drafts only, no UGC PUTs, exit when done
 const REPROCESS = process.env.COMPILE_REPROCESS === '1' || process.argv.includes('--reprocess')
+const parcelArg = process.argv.indexOf('--parcel')
+const parcelId = parcelArg < 0 ? undefined : Number(process.argv[parcelArg + 1])
 
 const app = express()
 
@@ -173,10 +175,28 @@ async function workerLoop() {
   }
 }
 
-app.listen(port, () => {
+// One parcel, same compiler and backup recovery, then exit. No world scan or HTTP listener.
+if (parcelArg >= 0) {
+  if (!Number.isSafeInteger(parcelId) || parcelId! <= 0 || REPROCESS) {
+    console.error('usage: tsx compiler/src/index.ts --parcel <id> (without --reprocess)')
+    process.exit(1)
+  }
   board.start()
-  for (let i = 0; i < COMPILE_PARCELS; i++) void workerLoop()
-  console.error(
-    `[compiler] listening on ${port}  parcels=${COMPILE_PARCELS} workers=${COMPILE_WORKERS}  hoard=${!REPROCESS && hoardEnabled() ? 'on' : 'off'}  mode=${REPROCESS ? 'REPROCESS (all parcels, drafts only, no ugc put)' : 'compile'}`,
-  )
-})
+  compileOne(parcelId!)
+    .then(() => {
+      board.stop()
+      process.exit(0)
+    })
+    .catch((e) => {
+      board.stop()
+      console.error('[compiler]', parcelId, e)
+      process.exit(1)
+    })
+} else
+  app.listen(port, () => {
+    board.start()
+    for (let i = 0; i < COMPILE_PARCELS; i++) void workerLoop()
+    console.error(
+      `[compiler] listening on ${port}  parcels=${COMPILE_PARCELS} workers=${COMPILE_WORKERS}  hoard=${!REPROCESS && hoardEnabled() ? 'on' : 'off'}  mode=${REPROCESS ? 'REPROCESS (all parcels, drafts only, no ugc put)' : 'compile'}`,
+    )
+  })
