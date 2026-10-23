@@ -98,6 +98,8 @@ function shouldSkip(url: string | undefined): boolean {
   if (!url) return true
   const u = url.toLowerCase()
   if (u.startsWith('ugc://')) return true
+  // caip-19 nft ids are looked up, never downloaded
+  if (u.startsWith('eip155:') || u.startsWith('tezos:')) return true
   if (u.match(/youtube\.com|youtu\.be/)) return true
   if (u.match(/twitch\.tv\//)) return true
   if (u.match(/cryptovoxels\.com\/play|voxels\.com\/play/)) return true

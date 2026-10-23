@@ -7,7 +7,7 @@ import config from '../../common/config'
 import { isStringHex } from '../../common/helpers/utils'
 import { AlchemyNFTAPIWithMetadata, AlchemyNFTWithMetadata } from '../../common/messages/api-alchemy'
 import { OpenSeaNftModelV2, OpenSeaNFTV2Extended } from '../../common/messages/api-opensea'
-import { openseaAssetsChainSlug } from '../../common/helpers/nft-url'
+import { isTezosAddress, openseaAssetsChainSlug, TEZOS_CHAIN_ID } from '../../common/helpers/nft-url'
 import cache, { noCache } from '../cache'
 import { requireAdmin } from '../lib/helpers'
 import log from '../lib/logger'
@@ -15,6 +15,100 @@ import { parseQueryInt } from '../lib/query-parsing-helpers'
 import Parcel from '../parcel'
 import { Db } from '../pg'
 import { VoxelsUser } from '../user'
+
+type NftRow = { immutable: any; mutable: any }
+
+const ipfs = (u: any) => (typeof u === 'string' ? u.replace(/^ipfs:\/\//, 'https://ipfs.io/ipfs/') : undefined)
+
+async function fetchOpensea(chainSlug: string, contract: string, token: string, chain_id: number): Promise<NftRow | null> {
+  const apiKey = process.env.OPENSEA_APIKEY
+  if (!apiKey) return null
+  const url = `https://api.opensea.io/api/v2/chain/${chainSlug}/contract/${contract}/nfts/${encodeURIComponent(token)}`
+  const r = await fetch(url, { method: 'GET', headers: { 'X-API-KEY': apiKey } }).catch(() => null)
+  if (!r?.ok) {
+    log.info('opensea nft fetch failed', { status: r?.status, contract, token, chain_id })
+    return null
+  }
+  const body: any = await r.json().catch(() => null)
+  const nft = body?.nft || body
+  if (!nft?.identifier || !nft?.contract) return null
+  const total_supply = nft.rarity?.total_supply
+  const immutable: any = {
+    identifier: nft.identifier,
+    collection: nft.collection,
+    contract: nft.contract,
+    token_standard: nft.token_standard,
+    name: nft.name,
+    description: nft.description,
+    image_url: nft.image_url,
+    display_image_url: nft.display_image_url,
+    animation_url: nft.animation_url,
+    display_animation_url: nft.display_animation_url,
+    metadata_url: nft.metadata_url,
+    traits: nft.traits,
+    creator: nft.creator,
+    opensea_url: nft.opensea_url,
+    created_at: nft.created_at,
+  }
+  if (total_supply != null) immutable.total_supply = total_supply
+  const mutable = {
+    owners: nft.owners,
+    updated_at: nft.updated_at,
+    is_disabled: nft.is_disabled,
+    is_nsfw: nft.is_nsfw,
+    is_suspicious: nft.is_suspicious,
+    rarity: nft.rarity,
+    estimated_value_usd: nft.estimated_value_usd,
+  }
+  return { immutable, mutable }
+}
+
+// opensea miss (delisted collection, unindexed token): alchemy reads the token uri straight off the chain
+async function fetchAlchemy(chain_id: number, contract: string, token: string): Promise<NftRow | null> {
+  const key = chain_id === 137 ? process.env.ALCHEMY_MATIC_API_KEY : chain_id === 1 ? process.env.ALCHEMY_ETH_API_KEY : null
+  if (!key) return null
+  const host = chain_id === 137 ? 'polygon-mainnet' : 'eth-mainnet'
+  const r = await fetch(`https://${host}.g.alchemy.com/nft/v3/${key}/getNFTMetadata?contractAddress=${contract}&tokenId=${encodeURIComponent(token)}`).catch(() => null)
+  const nft: any = r?.ok ? await r.json().catch(() => null) : null
+  if (!nft?.tokenId || nft.raw?.error) return null
+  const raw = nft.raw?.metadata || {}
+  const immutable = {
+    identifier: nft.tokenId,
+    collection: nft.contract?.name,
+    contract,
+    token_standard: (nft.tokenType || '').toLowerCase(),
+    name: nft.name || raw.name,
+    description: nft.description || raw.description,
+    image_url: ipfs(nft.image?.cachedUrl || nft.image?.originalUrl || raw.image),
+    animation_url: ipfs(nft.animation?.cachedUrl || raw.animation_url),
+    metadata_url: nft.tokenUri,
+    traits: Array.isArray(raw.attributes) ? raw.attributes : [],
+    creator: nft.contract?.contractDeployer,
+  }
+  return { immutable, mutable: { owners: [] } }
+}
+
+async function fetchTzkt(contract: string, token: string): Promise<NftRow | null> {
+  const r = await fetch(`https://api.tzkt.io/v1/tokens?contract=${contract}&tokenId=${encodeURIComponent(token)}`).catch(() => null)
+  const rows: any = r?.ok ? await r.json().catch(() => null) : null
+  const t = Array.isArray(rows) ? rows[0] : null
+  if (!t?.metadata) return null
+  const m = t.metadata
+  const immutable = {
+    identifier: String(t.tokenId),
+    collection: t.contract?.alias,
+    contract,
+    token_standard: 'fa2',
+    name: m.name,
+    description: m.description,
+    image_url: ipfs(m.displayUri || m.thumbnailUri || m.artifactUri),
+    animation_url: ipfs(m.artifactUri),
+    traits: Array.isArray(m.attributes) ? m.attributes.map((a: any) => ({ trait_type: a.name, value: a.value })) : [],
+    creator: m.creators?.[0],
+    total_supply: t.totalSupply,
+  }
+  return { immutable, mutable: { owners: [] } }
+}
 
 // External APIs
 export default function ExternalsController(db: Db, passport: PassportStatic, app: Express) {
@@ -56,20 +150,22 @@ export default function ExternalsController(db: Db, passport: PassportStatic, ap
     res.send({ success: true, nfts })
   })
 
-  // Single NFT by contract/token — Postgres hit, else one OpenSea call (first write wins).
+  // Single NFT by contract/token - Postgres hit, else OpenSea -> Alchemy (evm) or TzKT (tezos), first write wins.
   app.get('/api/externals/opensea/nft.json', cache('60 seconds'), async (req, res) => {
     const contractRaw = typeof req.query.contract === 'string' ? req.query.contract : ''
     const token = typeof req.query.token === 'string' ? req.query.token : ''
     const chain_id = typeof req.query.chain_id === 'string' ? parseInt(req.query.chain_id, 10) : 1
-    if (!ethers.isAddress(contractRaw) || !token || !Number.isFinite(chain_id)) {
+    const tezos = chain_id === TEZOS_CHAIN_ID
+    if (!(tezos ? isTezosAddress(contractRaw) : ethers.isAddress(contractRaw)) || !token || !Number.isFinite(chain_id)) {
       noCache(res)
       return res.status(400).json({ success: false })
     }
-    const contract = contractRaw.toLowerCase()
+    const contract = tezos ? contractRaw : contractRaw.toLowerCase()
     const chainSlug = openseaAssetsChainSlug(chain_id)
+    const permalink = tezos ? `https://objkt.com/asset/${contract}/${token}` : `https://opensea.io/assets/${chainSlug}/${contract}/${token}`
 
     const respond = (immutable: any, mutable: any) => {
-      res.json({ success: true, ...immutable, ...mutable, chain: chainSlug })
+      res.json({ success: true, ...immutable, ...mutable, chain: chainSlug, permalink })
     }
 
     try {
@@ -78,56 +174,13 @@ export default function ExternalsController(db: Db, passport: PassportStatic, ap
         return respond(hit.rows[0].immutable, hit.rows[0].mutable || {})
       }
 
-      const apiKey = process.env.OPENSEA_APIKEY
-      if (!apiKey) {
-        noCache(res)
-        return res.status(503).json({ success: false })
-      }
-
-      const url = `https://api.opensea.io/api/v2/chain/${chainSlug}/contract/${contract}/nfts/${encodeURIComponent(token)}`
-      const r = await fetch(url, { method: 'GET', headers: { 'X-API-KEY': apiKey } })
-      if (!r.ok) {
-        log.info('opensea nft fetch failed', { status: r.status, contract, token, chain_id })
-        // A rate limit or a blip from OpenSea must not be pinned by the 60 second header.
+      const found = tezos ? await fetchTzkt(contract, token) : (await fetchOpensea(chainSlug, contract, token, chain_id)) || (await fetchAlchemy(chain_id, contract, token))
+      if (!found) {
+        // A rate limit or a blip upstream must not be pinned by the 60 second header.
         noCache(res)
         return res.status(502).json({ success: false })
       }
-      const body: any = await r.json().catch(() => null)
-      const nft = body?.nft || body
-      if (!nft?.identifier || !nft?.contract) {
-        noCache(res)
-        return res.status(502).json({ success: false })
-      }
-
-      const total_supply = nft.rarity?.total_supply
-      const immutable: any = {
-        identifier: nft.identifier,
-        collection: nft.collection,
-        contract: nft.contract,
-        token_standard: nft.token_standard,
-        name: nft.name,
-        description: nft.description,
-        image_url: nft.image_url,
-        display_image_url: nft.display_image_url,
-        animation_url: nft.animation_url,
-        display_animation_url: nft.display_animation_url,
-        metadata_url: nft.metadata_url,
-        traits: nft.traits,
-        creator: nft.creator,
-        opensea_url: nft.opensea_url,
-        created_at: nft.created_at,
-      }
-      if (total_supply != null) immutable.total_supply = total_supply
-
-      const mutable: any = {
-        owners: nft.owners,
-        updated_at: nft.updated_at,
-        is_disabled: nft.is_disabled,
-        is_nsfw: nft.is_nsfw,
-        is_suspicious: nft.is_suspicious,
-        rarity: nft.rarity,
-        estimated_value_usd: nft.estimated_value_usd,
-      }
+      const { immutable, mutable } = found
 
       await db.query(
         'sql/nfts/insert',

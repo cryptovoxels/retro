@@ -48,7 +48,7 @@ export const opensea = async (contract: string, token: string, chain_id = 1): Pr
     },
     creator: nftData.creator,
     owners: nftData.owners,
-    permalink: `https://opensea.io/assets/${nftData.chain}/${nftData.contract}/${nftData.identifier}`,
+    permalink: (nftData as any).permalink || `https://opensea.io/assets/${nftData.chain}/${nftData.contract}/${nftData.identifier}`,
   }
 }
 
@@ -94,6 +94,7 @@ function mapOpenseaV2ToNFTMetadata(data: OpenSeaNftModelDetailedV2 & { total_sup
     opensea_url: data.opensea_url,
     display_image_url: data.display_image_url,
     rarity: data.rarity,
+    permalink: (data as any).permalink,
     ...(data.total_supply != null ? { total_supply: data.total_supply } : {}),
   } as OpenSeaNftModelDetailedV2Extended & { total_supply?: number }
 }
