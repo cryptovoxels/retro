@@ -259,7 +259,7 @@ export default class WebHeader extends Component<Props, State> {
 
     return (
       <>
-        <header class="menu">
+        <header class="menu mini">
           <nav ref={(el) => void (this.nav = el)} onKeyDown={this.onKeys}>
             <ul>
               <li>
