@@ -620,7 +620,8 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     this.send(message)
   }
 
-  emote(emote: string) {
+  // position = burst there instead of at the avatar (hearting an nft)
+  emote(emote: string, position?: BABYLON.Vector3) {
     if (emote.length === 0) {
       return
     }
@@ -628,7 +629,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     // Metrics
     this.sendMetric(messages.Action.Emote)
 
-    this.persona.avatar?.emote(emote, null, true)
+    this.persona.avatar?.emote(emote, position?.clone() ?? null, true, !!position)
 
     // only send supported emotes to MP
     if (!messages.Emotes.includes(emote)) {
@@ -641,6 +642,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       type: messages.MessageType.emoteAvatar,
       uuid: this.persona.uuid,
       emote,
+      position: position?.asArray(),
     }
 
     this.send(message)
@@ -773,8 +775,9 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     }
 
     const emote = entityDecode(message.emote as EncodedString)
+    const position = message.position ? BABYLON.Vector3.FromArray(message.position) : undefined
 
-    avatar.emote(emote, undefined, true)
+    avatar.emote(emote, position, true, !!position)
     avatar.recordSeen()
   }
 

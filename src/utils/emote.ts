@@ -9,12 +9,12 @@ const minSpeed = 0.01 // meters per frame
 const positionRadius = 0.3 // how wide circle around the position to randomly spawn particles (horisontally, like a hula hoop)
 const maxLifetime = 2 * 60 // lifetime in frames
 
-export const emote = (emoji: string, position: BABYLON.Vector3, scene: BABYLON.Scene, nicerLooking = true) => {
+const materials = new Map<string, BABYLON.StandardMaterial>()
+
+export const emote = (emoji: string, position: BABYLON.Vector3, scene: BABYLON.Scene, nicerLooking = true, particleCount = BABYLON.Scalar.RandomRange(1, 25)) => {
   if (!scene || scene.isDisposed) return
 
   const system = new BABYLON.SolidParticleSystem('avatar/emote-' + Date.now(), scene)
-
-  const particleCount = BABYLON.Scalar.RandomRange(1, 25)
 
   const plane = BABYLON.MeshBuilder.CreatePlane('avatar/emote-plane-' + Date.now(), { width: emojiSize, height: emojiSize }, scene)
   system.addShape(plane, particleCount)
@@ -26,10 +26,16 @@ export const emote = (emoji: string, position: BABYLON.Vector3, scene: BABYLON.S
   system.computeParticleColor = false
   system.computeParticleVertex = false
 
-  const textureSize = emojiSize * (nicerLooking ? 512 : 256)
-
-  const texture = createTexture(scene, emoji, textureSize)
-  mesh.material = createMaterial(scene, texture)
+  // one texture + material per emoji, forever. building them per burst was a canvas draw, a gpu
+  // upload and a shader compile on the click frame
+  const key = emoji + (nicerLooking ? '+' : '-')
+  let mat = materials.get(key)
+  if (!mat || mat.getScene() !== scene) {
+    mat = createMaterial(scene, createTexture(scene, emoji, emojiSize * (nicerLooking ? 512 : 256)))
+    mat.freeze()
+    materials.set(key, mat)
+  }
+  mesh.material = mat
 
   system.updateParticle = updateParticle
   system.particles.forEach((p) => {
@@ -49,7 +55,6 @@ export const emote = (emoji: string, position: BABYLON.Vector3, scene: BABYLON.S
     if (isFinished) {
       scene.onAfterRenderObservable.remove(observable)
       system.dispose()
-      mesh.material?.dispose(true, true)
     }
   })
 }

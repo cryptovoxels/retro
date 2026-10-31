@@ -528,7 +528,7 @@ export default class Avatar extends Entity {
    * @param {boolean} [playSound] should a sound be played
    * @returns {void} void
    */
-  emote(emoji: string, position: BABYLON.Vector3 | null = null, playSound = false) {
+  emote(emoji: string, position: BABYLON.Vector3 | null = null, playSound = false, burst = false) {
     if (!this.isLoaded()) {
       return
     }
@@ -542,7 +542,7 @@ export default class Avatar extends Entity {
     origin.subtractInPlace(new BABYLON.Vector3(0, 0.3, 0))
 
     const nicerLooking = Avatar.connector.getNearbyAvatarsToSelf().length <= 50
-    emote(emoji, origin, this.scene, nicerLooking)
+    emote(emoji, origin, this.scene, nicerLooking, burst ? 60 : undefined)
   }
 
   onContextClick() {

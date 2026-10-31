@@ -167,6 +167,8 @@ export const isPersistentPane = (p?: string) => !!p && PERSISTENT_PANES.has(p)
 
 export const uiAsideTick = signal(0)
 export const sidebarClosed = signal(false)
+// CAIP-19 id of the nft under the crosshair, canvasdom shows its art
+export const hoveredNft = signal<string | null>(null)
 
 // mounted in-world UI, header renders the world links off it
 export const worldUi = signal<UserInterface | null>(null)

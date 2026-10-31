@@ -15,11 +15,14 @@ import { ParcelMetrics as Metrics } from './components/metrics'
 import { getParcelIdFromPath } from './helpers/coords-nav'
 import { route } from 'preact-router'
 import { truncate } from './lib/string-utils'
+import { exitPointerLock } from '../../common/helpers/ui-helpers'
+import { sidebarClosed } from '../../src/store'
 
 export interface Props {
   parcel?: ParcelWithMintednessRecord
   path?: string
   id?: number
+  mini?: boolean
 }
 
 type SidebarTab = 'about' | 'map'
@@ -187,6 +190,7 @@ export default class Parcel extends Component<Props, State> {
   }
 
   componentDidMount() {
+    if (this.props.mini) return
     this.syncVisitUrl()
     void this.fetch(this.props.id!)
 
@@ -198,6 +202,7 @@ export default class Parcel extends Component<Props, State> {
   }
 
   componentDidUpdate(prevProps: Props, prevState: State) {
+    if (this.props.mini) return
     this.syncVisitUrl()
     if (this.props.id != this.state.parcelId) {
       void this.fetch(this.props.id!)
@@ -218,6 +223,7 @@ export default class Parcel extends Component<Props, State> {
   }
 
   componentWillUnmount() {
+    if (this.props.mini) return
     app.visitUrl.value = undefined
     this.map?.dispose()
     this.map = null
@@ -446,7 +452,28 @@ export default class Parcel extends Component<Props, State> {
     )
   }
 
+  renderMini() {
+    const p = this.props.parcel!
+    return (
+      <a
+        class="parcel-page mini"
+        href={`/parcels/${p.id}?coords=${encodeURIComponent(window.connector?.controls.getCoords() || '')}`}
+        onClick={(e) => {
+          if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+          e.preventDefault()
+          exitPointerLock()
+          sidebarClosed.value = false
+          route(`/parcels/${p.id}`, true)
+        }}
+      >
+        <strong>{p.name || p.address}</strong>
+        <span>{p.name ? p.address : p.island}</span>
+      </a>
+    )
+  }
+
   render() {
+    if (this.props.mini) return this.renderMini()
     if (!this.state.parcel || !this.helper) {
       return null
     }

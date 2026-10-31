@@ -983,6 +983,23 @@ main {
       margin: 0;
       padding: 1rem;
       .glass();
+
+      // in-world: collapsed to the mini (parcel / art), hover brings the route back.
+      // pointerlock freezes the cursor so :hover can't be trusted there, force mini
+      &.mini:not(:hover),
+      body.locked &.mini {
+        height: 6rem;
+        overflow: hidden;
+        > :not(.page-mini) {
+          display: none;
+        }
+      }
+      &.mini:hover > .page-mini {
+        display: none;
+      }
+      body.locked &.mini > .page-mini {
+        display: block;
+      }
     }
 
     // Titles sit below the sidebar controls.
@@ -1016,13 +1033,12 @@ main {
   .page {
     transition:
       opacity 80ms,
-      height 200ms,
       visibility 80ms,
       transform 200ms ease-out;
   }
 
   body.locked header.menu,
-  body.locked .page {
+  body.locked .page:not(.mini) {
     opacity: 0;
     visibility: hidden;
     transition:
@@ -1037,6 +1053,63 @@ main {
 
 .page-tool:empty {
   display: none;
+}
+
+.page-mini {
+  .mini {
+    display: block;
+    color: var(--fg);
+  }
+  strong,
+  span {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  span {
+    color: var(--muted);
+  }
+  .art {
+    display: grid;
+    grid-template-columns: 4rem minmax(0, 1fr) 4rem;
+    gap: 1rem;
+    align-items: start;
+  }
+  img {
+    width: 4rem;
+    aspect-ratio: 1;
+    object-fit: cover;
+  }
+  .heart {
+    color: var(--accent);
+    font-size: 3rem;
+    line-height: 4rem;
+    text-align: center;
+  }
+  .nft-tags {
+    display: flex;
+    gap: 0.5rem;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    li {
+      border: var(--border);
+      padding: 0 0.5rem;
+      text-transform: uppercase;
+      font-size: x-small;
+      opacity: 0.6;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+}
+
+@media @narrow {
+  .page-mini {
+    display: none;
+  }
 }
 
 @media @narrow {
@@ -2460,49 +2533,6 @@ button.iconish {
 // clicks on empty canvas chrome fall through to the world
 .canvasdom {
   pointer-events: none;
-}
-
-.parcel-location {
-  position: absolute;
-  top: 0.5rem;
-  left: 0;
-  max-width: min(22rem, calc(100% - 2rem));
-  box-sizing: border-box;
-  padding: 0;
-  text-shadow: 0 1px 3px var(--scroll-track);
-  color: var(--fg);
-  pointer-events: auto;
-
-  strong,
-  span {
-    display: block;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  span {
-    color: var(--muted);
-    margin-top: 0.15rem;
-  }
-
-  &:hover {
-    color: var(--accent);
-    text-decoration: none;
-  }
-
-  @media @narrow {
-    left: 0;
-    max-width: 100%;
-  }
-}
-
-// header column fades out on pointerlock but keeps its width, so pin to the screen edge
-@media @wide {
-  body.locked .parcel-location {
-    position: fixed;
-    left: 0;
-  }
 }
 
 // the aside is the single scroll container in split view; inner pane sections

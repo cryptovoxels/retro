@@ -7,15 +7,19 @@ import { render } from 'preact'
 import { createFirstPersonCamera } from '../utils/fps-camera'
 import { decodeCoordsFromURL } from '../../utils/helpers'
 import { hasPointerLock, isFastviewBlocking } from '../../../common/helpers/ui-helpers'
-import { uiPane } from '../../store'
-import { app, AppEvent } from '../../../web/src/state'
+import { hoveredNft, uiPane } from '../../store'
+import { readNftUrl, writeCaip19 } from '../../../common/helpers/nft-url'
+import { app, AppEvent, likedArt, toggleLike } from '../../../web/src/state'
+import { CAMERA_HEIGHT, encodeCoords } from '../../../common/helpers/utils'
 import { pointerOverGizmo } from '../../tools/gizmos'
+import type Feature from '../../features/feature'
 const POINTER_WHEEL_MULTIPLIER = 0.001
 export default class DesktopControls extends Controls {
   keyboardInput?: LocaleKeyboardMoveInput
   private lockListener?: () => void
   private nerfClick = false
   private hoverFrame = -1
+  private hoverFeature: Feature | null = null
   private mouseLookAttached = false
   private rising = false
 
@@ -146,11 +150,38 @@ export default class DesktopControls extends Controls {
     this.keyboardInput?.reset()
   }
 
+  // caip cached on the feature, hover is per frame. todo: stale if the url is edited
+  caipOf(feature: Feature | null): string | null {
+    const f = feature as any
+    if (f?.type !== 'nft-image') return null
+    if (f.caip === undefined) {
+      const nft = readNftUrl(f.url)
+      f.caip = nft ? writeCaip19(nft) : null
+    }
+    return f.caip
+  }
+
   desktopClicks(eventData: BABYLON.PointerInfo, eventState: BABYLON.EventState) {
     if ((eventData.event as PointerEvent).pointerType === 'xr') return
     const authoring = !!window.ui?.state?.feature
 
     const btn = eventData.event.button
+
+    // right click on an nft hearts it. pick now, hover state is a frame stale
+    if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 2) {
+      const pick = hasPointerLock() ? this.pickAtReticule() : eventData.pickInfo
+      const f = featureFromPick(pick) as any
+      if (f?.type === 'nft-image' && pick?.pickedPoint) {
+        const caip = this.caipOf(f)
+        if (!caip) return
+        const normal = pick.getNormal(true) ?? BABYLON.Vector3.Forward()
+        const position = pick.pickedPoint.add(normal.scale(1.5))
+        position.y += CAMERA_HEIGHT
+        toggleLike(caip, { parcel: f.parcel?.id, location: encodeCoords({ position, rotation: this.camera.rotation }) })
+        this.connector.emote(likedArt.value[caip] ? '\u2764\ufe0f' : '\ud83d\udca9', pick.pickedPoint)
+        return
+      }
+    }
 
     if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 0 && !hasPointerLock() && !eventData.event.shiftKey) {
       const editMode = window.ui?.featureTool?.selection?.mode === 'edit' && window.ui?.activeTool === window.ui?.featureTool
@@ -234,6 +265,10 @@ export default class DesktopControls extends Controls {
         const pick = hasPointerLock() ? this.pickAtView(undefined, undefined, false, (m) => this.reticuleHighlightPredicate(m)) : eventData.pickInfo
         const feature = featureFromPick(pick)
         const distance = pick?.distance || Infinity
+        if (feature !== this.hoverFeature) {
+          this.hoverFeature = feature
+          hoveredNft.value = this.caipOf(feature)
+        }
         this.setActiveReticule(!!feature?.isInteract && distance < this.MAX_PICK_DISTANCE)
     }
   }
