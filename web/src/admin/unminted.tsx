@@ -10,6 +10,21 @@ export default function Unminted() {
   const [sel, setSel] = useState<Set<number>>(new Set())
   const [busy, setBusy] = useState('')
   const [err, setErr] = useState('')
+  const [sort, setSort] = useState<{ key: 'id' | 'address' | 'island'; desc: boolean }>({ key: 'id', desc: false })
+  const [last, setLast] = useState<number | null>(null)
+
+  const sorted = [...rows].sort((a, b) => {
+    const r = a[sort.key] < b[sort.key] ? -1 : a[sort.key] > b[sort.key] ? 1 : 0
+    return sort.desc ? -r : r
+  })
+
+  function sortBy(key: 'id' | 'address' | 'island') {
+    setSort((s) => ({ key, desc: s.key === key && !s.desc }))
+  }
+
+  function arrow(key: string) {
+    return sort.key === key ? (sort.desc ? ' v' : ' ^') : ''
+  }
 
   const url = `/api/admin/parcels/unminted?page=${page}`
 
@@ -30,13 +45,20 @@ export default function Unminted() {
     load()
   }, [page])
 
-  function toggle(id: number) {
+  function toggle(id: number, shift: boolean) {
+    const ids = sorted.map((p) => p.id)
+    const i = ids.indexOf(id)
+    const j = last == null ? -1 : ids.indexOf(last)
     setSel((prev) => {
       const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
+      if (shift && j >= 0) {
+        const on = !next.has(id)
+        for (let k = Math.min(i, j); k <= Math.max(i, j); k++) on ? next.add(ids[k]) : next.delete(ids[k])
+      } else if (next.has(id)) next.delete(id)
       else next.add(id)
       return next
     })
+    setLast(id)
   }
 
   function toggleAll() {
@@ -162,16 +184,22 @@ export default function Unminted() {
             <th>
               <input type="checkbox" checked={rows.length > 0 && sel.size === rows.length} onChange={toggleAll} />
             </th>
-            <th>id</th>
-            <th>address</th>
-            <th>island</th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sortBy('id')}>
+              id{arrow('id')}
+            </th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sortBy('address')}>
+              address{arrow('address')}
+            </th>
+            <th style={{ cursor: 'pointer' }} onClick={() => sortBy('island')}>
+              island{arrow('island')}
+            </th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((p) => (
+          {sorted.map((p) => (
             <tr key={p.id}>
               <td>
-                <input type="checkbox" checked={sel.has(p.id)} onChange={() => toggle(p.id)} />
+                <input type="checkbox" checked={sel.has(p.id)} onClick={(e: any) => toggle(p.id, e.shiftKey)} />
               </td>
               <td>
                 <a href={`/parcels/${p.id}`}>{p.id}</a>
