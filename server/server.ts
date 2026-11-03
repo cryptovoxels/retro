@@ -310,7 +310,7 @@ app.use(
   }),
 )
 
-app.use('/assets', (_req, res) => {
+app.get(/^\/assets\/[^/]+\.(?:js|css)$/, (_req, res) => {
   noCache(res)
   res.sendStatus(404)
 })
