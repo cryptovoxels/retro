@@ -1,3 +1,4 @@
+import { parcelIndex } from '../common/utils'
 import { createEngine } from '../common/helpers/utils'
 import { getParcelHelper } from '../common/helpers/parcel-helper'
 import { SingleParcelRecord } from '../common/messages/parcel'
@@ -203,7 +204,7 @@ export async function loadIslands(scene: BABYLON.Scene, parent?: BABYLON.Transfo
   return islands as Island[]
 }
 
-export const fetchAllParcels = (cachebust = false): Promise<SingleParcelRecord[]> => fetchCachedParcels(`/api/parcels/cached.json`, cachebust)
+export const fetchAllParcels = (cachebust = false): Promise<SingleParcelRecord[]> => parcelIndex(cachebust).then((data) => data.parcels as any)
 export const fetchOwnerParcels = (wallet: string, cachebust = false): Promise<SingleParcelRecord[]> => fetchCachedParcels(`/api/wallet/${wallet}/parcels.json`, cachebust)
 export const fetchContributingParcels = (wallet: string, cachebust = false): Promise<SingleParcelRecord[]> => fetchCachedParcels(`/api/wallet/${wallet}/contributing-parcels.json`, cachebust)
 

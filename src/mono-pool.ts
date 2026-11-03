@@ -1,6 +1,5 @@
 import { isMobile } from '../common/helpers/detector'
 import { createComlinkWorker } from '../common/helpers/comlink-worker'
-import { releaseWorker } from '../common/utils'
 import type { Mono } from './monoworker'
 
 const COMPUTE_COUNT = 4
@@ -16,7 +15,7 @@ let pool: Promise<MonoHandle[]> | null = null
 
 function spawn(): Promise<MonoHandle> {
   return createComlinkWorker<Mono>(
-    () => releaseWorker(new URL('./monoworker.js', import.meta.url)),
+    () => new Worker(new URL(process.env.MONO_WORKER || './monoworker.js', import.meta.url), { type: 'module' }),
     () => import('./monoworker').then((m) => m.mono),
     { workerName: 'monoworker' },
   )

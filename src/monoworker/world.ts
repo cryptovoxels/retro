@@ -1,4 +1,5 @@
 import { RBush3D } from 'rbush-3d'
+import { parcelIndex } from '../../common/utils'
 import type { CachedParcelsMessage, ApiParcelMessage } from '../../common/messages/api-parcels'
 import { packIds } from '../../common/helpers/bloom'
 import { getBufferFromVoxels, getFieldShape } from '../../common/voxels/helpers'
@@ -10,9 +11,7 @@ let ready: Promise<void> | undefined
 
 export function loadIndex(): Promise<void> {
   return (ready ??= (async () => {
-    const response = await fetch(process.env.ASSET_PATH + '/api/parcels/cached.json')
-    if (!response.ok) throw new Error('Parcel index unavailable')
-    const data: CachedParcelsMessage = await response.json()
+    const data = await parcelIndex()
     index.clear()
     lots.clear()
     index.load(

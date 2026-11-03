@@ -37,6 +37,7 @@ import RadioController from './controllers/radio'
 
 import cache, { defaultCache, noCache } from './cache'
 import db, { pgp } from './pg'
+import { parcelCache } from './handlers/parcel-cache'
 
 import { ethers } from 'ethers'
 import type { Express, Request, Response } from 'express'
@@ -296,11 +297,23 @@ app.use(
     orderPreference: ['br'],
     serveStatic: {
       setHeaders: (res, file) => {
-        res.setHeader('Cache-Control', config.isDevelopment || /\.(js|css)(\.(br|gz))?$/.test(file) ? 'no-store' : 'public, max-age=86400, stale-if-error=600, stale-while-revalidate=86400')
+        res.setHeader(
+          'Cache-Control',
+          file.includes(path.sep + 'assets' + path.sep)
+            ? 'public, max-age=31536000, immutable'
+            : config.isDevelopment || /\.(js|css)(\.(br|gz))?$/.test(file)
+              ? 'no-store'
+              : 'public, max-age=86400, stale-if-error=600, stale-while-revalidate=86400',
+        )
       },
     },
   }),
 )
+
+app.get(/^\/assets\/[^/]+\.(?:js|css)$/, (_req, res) => {
+  noCache(res)
+  res.sendStatus(404)
+})
 
 // Missing bundles must not fall through to HTML or get cached by the CDN.
 app.get(/\/(?:[^/]+-)?(?:app|client|client-loader|monoworker|voxel-thumb)\.(?:js|css)$/, (_req, res) => {
@@ -547,7 +560,7 @@ app.get(
   createRequestHandlerForQuery(db, 'get-island', 'island', (req) => [req.params.slug]),
 )
 
-app.get('/api/parcels/cached.json', cache('60 seconds', true), createRequestHandlerForQuery(db, 'get-parcels-cached', 'parcels'))
+app.get('/api/parcels/cached.json', cache('60 seconds', true), parcelCache(db))
 app.get(
   '/api/activity.json',
   cache('15 seconds'),

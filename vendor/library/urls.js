@@ -12,9 +12,7 @@ function babylonBundleUrls(minified) {
   }
 }
 
-const babylonBundleLocalFilenames = [
-  'msgpack.js',
-]
+const babylonBundleLocalFilenames = []
 
 // Bundle file names and contents depend on whether we want to minify
 function bundles(minified) {

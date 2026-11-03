@@ -206,7 +206,9 @@ paths:
       tags: [parcels]
       summary: Every visible parcel
       description: |
-        The whole visible world in one document, cached hard. `owner` here is a
+        The whole visible world in one document. Refreshed every 60 seconds; the
+        last successful snapshot is served while refreshing or if the database is
+        temporarily unavailable. Returns 503 if no snapshot is available yet. `owner` here is a
         lowercased wallet string, not the avatar object the other parcel routes
         return.
       responses:
@@ -223,6 +225,13 @@ paths:
                     type: array
                     items:
                       $ref: '#/components/schemas/CachedParcel'
+        '503':
+          description: Parcel index temporarily unavailable; retry after 5 seconds.
+          headers:
+            Retry-After:
+              schema:
+                type: string
+              description: Seconds before retrying.
 
   /api/parcels/summary.json:
     get:
