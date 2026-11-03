@@ -30,7 +30,11 @@ misses download, resize, encode, upload publicly, then redirect to `ugc.voxels.c
 Originals are never overwritten. Use immutable UGC keys.
 
 Fits within 256x256 without enlargement, preserves alpha, first animation frame
-only. Limits: 16 MiB source, 16 megapixels decoded, two concurrent conversions.
+only. Limits: 16 MiB source, 16 megapixels decoded, four concurrent jobs shared with `/compressed`.
+Jobs have a two-second deadline including queue time. Network and storage
+requests abort at the deadline; native encoders are killed with SIGKILL.
+Sharp operations also have a one-second processing timeout. Slow images fail
+instead of holding up the queue. ASTC uses fast quality.
 Responses have a one-year cache. Unsupported/oversized images fail without
 falling back to the original on mobile.
 
@@ -55,7 +59,14 @@ cd compressor
 docker compose up --build
 ```
 
-Runs on port 9473. Requires `linux/amd64` platform for texture-compressor binaries.
+Runs on port 9473. Requires `linux/amd64` for the bundled Crunch binary. The image installs
+PVRTexTool 5.7.1 (2026 R1) from Imagination with a pinned SHA-256 checksum.
+PVRTexTool runs with one encoder thread per job. Local development needs
+`PVRTexToolCLI` on PATH, or `PVRTEXTOOL` set to its executable path.
+
+This product includes components of the PowerVR Tools Software from
+Imagination Technologies Limited.
+[PowerVR Tools licence](https://developer.imaginationtech.com/terms/software-end-user-licence-agreement/).
 
 ## Environment Variables
 

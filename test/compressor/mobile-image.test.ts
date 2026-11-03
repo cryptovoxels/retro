@@ -1,13 +1,13 @@
 import { afterEach, expect, it, vi } from 'vitest'
 import sharp from 'sharp'
-import { pack } from 'texture-compressor'
+import { pack } from '../../compressor/src/utils'
 import { HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
 import { ugcClient } from '../../server/lib/ugc'
 import { beforeEach } from 'vitest'
 import { access, writeFile } from 'node:fs/promises'
 import { mobileImage } from '../../compressor/src/mobile'
 
-vi.mock('texture-compressor', () => ({ pack: vi.fn() }))
+vi.mock('../../compressor/src/utils', async (original) => ({ ...(await original<any>()), pack: vi.fn() }))
 vi.mock('../../server/lib/ugc', () => ({ ugcClient: vi.fn(), UGC_BUCKET: 'voxels-ugc' }))
 let upload: any
 let send: any

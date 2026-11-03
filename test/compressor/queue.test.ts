@@ -42,7 +42,7 @@ async function settle() {
   for (let i = 0; i < 20; i++) await Promise.resolve()
 }
 
-it('deduplicates requests, runs two conversions, bounds the backlog, and releases failed jobs', async () => {
+it('deduplicates requests, runs four conversions, bounds the backlog, and releases failed jobs', async () => {
   const interval = vi.spyOn(globalThis, 'setInterval').mockImplementation(() => 0 as any)
   const log = vi.spyOn(console, 'log').mockImplementation(() => {})
   const error = vi.spyOn(console, 'error').mockImplementation(() => {})
@@ -51,7 +51,7 @@ it('deduplicates requests, runs two conversions, bounds the backlog, and release
     await import('../../compressor/src/index')
     for (let i = 0; i < 34; i++) state.handler({ query: { url: `https://example.com/${i}.png`, hint: '.astc.ktx' }, setTimeout: vi.fn() }, response())
     await settle()
-    expect(state.downloads).toBe(2)
+    expect(state.downloads).toBe(4)
     const duplicate = response()
     state.handler({ query: { url: 'https://example.com/0.png', hint: '.astc.ktx' }, setTimeout: vi.fn() }, duplicate)
     expect(duplicate.sendStatus).not.toHaveBeenCalled()
@@ -60,7 +60,7 @@ it('deduplicates requests, runs two conversions, bounds the backlog, and release
     expect(overflow.sendStatus).toHaveBeenCalledWith(503)
     state.failures.shift()!(new Error('source failed'))
     await settle()
-    expect(state.downloads).toBe(3)
+    expect(state.downloads).toBe(5)
     expect(duplicate.status).toHaveBeenCalledWith(500)
     while (state.failures.length) {
       state.failures.shift()!(new Error('source failed'))

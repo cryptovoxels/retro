@@ -210,7 +210,6 @@ async function main() {
     console.log('context lost')
     window.confirm('Graphics context lost. Reload page?') && window.location.reload()
   })
-  if (isMobile()) engine.maxFPS = 30
   window.engine = engine
 
   // make sure the FOV changes correctly if the window gets resized
