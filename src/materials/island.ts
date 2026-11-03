@@ -1,3 +1,4 @@
+import { isMobile } from '../../common/helpers/detector'
 import { cacheMaterial, generateCacheKey, getCachedMaterial } from './cache'
 import { mirrorTexture } from '../utils/mirror'
 
@@ -33,13 +34,15 @@ export function createIslandMaterial(scene: BABYLON.Scene, config: IslandMateria
   // Rendering settings
   material.backFaceCulling = false // Helps with reflections in the water
 
-  if (!islandMirror) {
-    islandMirror = mirrorTexture(scene, 0.74)
-    islandMirror.level = 0.3
-    islandMirror.blurKernel = 4
+  if (!isMobile()) {
+    if (!islandMirror) {
+      islandMirror = mirrorTexture(scene, 0.74)
+      islandMirror.level = 0.3
+      islandMirror.blurKernel = 4
+    }
+    material.reflectionTexture = islandMirror
+    material.reflectionFresnelParameters = new BABYLON.FresnelParameters({ bias: 0.04, power: 3 })
   }
-  material.reflectionTexture = islandMirror
-  material.reflectionFresnelParameters = new BABYLON.FresnelParameters({ bias: 0.04, power: 3 })
 
   material.freeze()
   material.blockDirtyMechanism = true

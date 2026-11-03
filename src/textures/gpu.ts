@@ -41,8 +41,9 @@ function detectFormat(): TextureFormatExtension {
     return '.pvrtc.ktx'
   }
 
-  // Check for supported compression formats in order of preference
-  // ETC is smaller than ASTC over the wire
+  if (gl.getExtension('WEBGL_compressed_texture_astc')) {
+    return '.astc.ktx'
+  }
   if (gl.getExtension('WEBGL_compressed_texture_s3tc')) {
     return '.dxt.ktx'
   }
@@ -51,9 +52,6 @@ function detectFormat(): TextureFormatExtension {
   }
   if (gl.getExtension('WEBGL_compressed_texture_etc')) {
     return '.etc.ktx'
-  }
-  if (gl.getExtension('WEBGL_compressed_texture_astc')) {
-    return '.astc.ktx'
   }
 
   // Fallback to PVRTC

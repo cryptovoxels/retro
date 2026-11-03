@@ -400,8 +400,12 @@ export class FeaturePump {
       return
     }
 
-    for (const feature of features) {
-      this.processFeature(feature)
+    for (let i = 0; i < features.length; i++) {
+      if (this.getTotalLoadingFeatureCount() >= this.maxConcurrentFeatures) {
+        this.loadQueue.unshift(features.slice(i))
+        return
+      }
+      this.processFeature(features[i])
     }
   }
 

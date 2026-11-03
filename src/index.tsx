@@ -211,6 +211,7 @@ async function main() {
     console.log('context lost')
     window.confirm('WebGL context lost. Reload page?') && window.location.reload()
   })
+  if (isMobile()) engine.maxFPS = 30
   window.engine = engine
 
   // make sure the FOV changes correctly if the window gets resized
@@ -263,7 +264,7 @@ async function main() {
   //   createGPUMemoryHUD(scene)
   // }
 
-  const pump = new FeaturePump(scene)
+  const pump = new FeaturePump(scene, undefined, isMobile() ? 2 : undefined)
   // @ts-expect-error expose pump for debugging
   window.pump = pump
 

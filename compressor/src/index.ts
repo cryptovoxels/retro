@@ -13,6 +13,7 @@ import * as compressor from './compress'
 import { CreateError, Texture } from './texture'
 import { app } from './www'
 import sharp from 'sharp'
+import { mobileImage } from './mobile'
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
@@ -37,10 +38,13 @@ app.get('/', (req, res) => {
 })
 
 app.route('/compressed').all(compressed)
+app.get('/mobile', mobileImage)
 
 app.get('/health', (req, res) => {
   res.status(200).end('up')
 })
+
+app.get('/*', mobileImage)
 
 function compressed(request: Request, response: Response) {
   request.setTimeout(1000 * 30)

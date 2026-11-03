@@ -1,6 +1,6 @@
 import { GraphicLevels, type GraphicEngine } from './graphic-engine'
 import type { ColorGrader } from './color-grading'
-import { wantsGateway } from '../../common/helpers/detector'
+import { isMobile, wantsGateway } from '../../common/helpers/detector'
 
 export class PostProcesses {
   private readonly scene: BABYLON.Scene
@@ -56,6 +56,7 @@ export class PostProcesses {
 
   changeEffects(level: GraphicLevels) {
     if (wantsGateway()) return
+    if (isMobile()) level = GraphicLevels.Low
     this.colorGrader.reload()
     if (this.glowLayer) {
       this.glowLayer.dispose()

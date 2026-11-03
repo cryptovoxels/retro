@@ -1,3 +1,4 @@
+import { isMobile } from '../common/helpers/detector'
 import { createComlinkWorker } from '../common/helpers/comlink-worker'
 import { releaseWorker } from '../common/utils'
 import type { Mono } from './monoworker'
@@ -36,7 +37,7 @@ export function getComputePool() {
     if (!first.isWorker) return [first]
     const handles: MonoHandle[] = [first]
     try {
-      for (let i = 1; i < COMPUTE_COUNT; i++) {
+      for (let i = 1; i < (isMobile() ? 1 : COMPUTE_COUNT); i++) {
         handles.push(await spawn())
       }
       return handles

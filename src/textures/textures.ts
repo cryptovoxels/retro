@@ -1,3 +1,4 @@
+import { isMobile } from '../../common/helpers/detector'
 // ABOUTME: Texture loading with compressed texture support and CDN caching.
 // ABOUTME: Handles fetching from bucket (cached) with fallback to compressor service.
 
@@ -44,14 +45,36 @@ type TextureUrls = {
 // Prevent multiple parallel requests for the same URL
 const currentFetches = new Map<string, Promise<TextureData>>()
 
+const mobileBytes = new WeakMap<BABYLON.Scene, number>()
+const TEXTURE_BYTES = Math.ceil((256 * 256 * 4 * 4) / 3)
+const MOBILE_BYTES = 64 * 1024 * 1024
+
 export async function fetchTexture(scene: BABYLON.Scene, srcURL: string | null, signal: AbortSignal, options: TextureOptions = {}): Promise<BABYLON.Texture> {
+  if (!isMobile()) return loadTexture(scene, srcURL, signal, options)
+  const used = mobileBytes.get(scene) || 0
+  if (used + TEXTURE_BYTES > MOBILE_BYTES) return fetchNoImageTexture(scene)
+  mobileBytes.set(scene, used + TEXTURE_BYTES)
+  const release = () => mobileBytes.set(scene, Math.max(0, (mobileBytes.get(scene) || 0) - TEXTURE_BYTES))
+  try {
+    const texture = await loadTexture(scene, srcURL, signal, options)
+    texture.onDisposeObservable.addOnce(release)
+    return texture
+  } catch (err) {
+    release()
+    throw err
+  }
+}
+
+async function loadTexture(scene: BABYLON.Scene, srcURL: string | null, signal: AbortSignal, options: TextureOptions): Promise<BABYLON.Texture> {
   const { transparent = false, stretch = true, pixelated = false, flipY = true, mipmaps = true } = options
 
-  // ugc is source bytes only, no ktx sidecars. gpu compression is a later batch job over the bucket.
+  // UGC stores originals; mobile resizing and compression happen on the compressor.
   if (srcURL && isUgcTextureUrl(srcURL)) {
     const original = srcURL.startsWith('ugc://') ? 'https://ugc.voxels.com/' + srcURL.slice(6) : srcURL
     try {
-      const texture = await fetchAndCreateTexture(scene, original, undefined, signal, { flipY, mipmaps })
+      const hint = getGpuTextureFormat() === '.astc.ktx' ? '?hint=.astc.ktx' : ''
+      const url = isMobile() ? `https://compressed.voxels.com${new URL(original).pathname}${hint}` : original
+      const texture = await fetchAndCreateTexture(scene, url, undefined, signal, { flipY, mipmaps })
       if (pixelated) texture.updateSamplingMode(1)
       return texture
     } catch {
@@ -65,7 +88,7 @@ export async function fetchTexture(scene: BABYLON.Scene, srcURL: string | null, 
   }
 
   try {
-    const texture = await fetchAndCreateTexture(scene, urls.cachedUrl, urls.compressorUrl, signal, { flipY, mipmaps })
+    const texture = await fetchAndCreateTexture(scene, urls.cachedUrl, isMobile() ? undefined : urls.compressorUrl, signal, { flipY, mipmaps })
     if (pixelated) {
       texture.updateSamplingMode(1)
     }
@@ -158,6 +181,12 @@ function getTextureUrls(srcURL: string | null, transparent: boolean, stretch: bo
     return null
   }
 
+  if (isMobile()) {
+    if (!process.env.TEXTURE_HOST) return null
+    const url = buildCompressorUrl(srcURL, transparent, stretch, 256).replace('&gif=sheet', '').replace('&hint=', '&gif=first&hint=')
+    return { cachedUrl: url, compressorUrl: url }
+  }
+
   const cachedUrl = buildCachedTextureUrl(srcURL, transparent, stretch, size)
   if (!cachedUrl) {
     return null
@@ -219,7 +248,19 @@ async function fetchTextureData(url: string, signal?: AbortSignal): Promise<Text
 }
 
 async function createTexture(scene: BABYLON.Scene | BABYLON.ThinEngine | null, url: string, buffer: ArrayBuffer, flipY: boolean, mipmaps: boolean): Promise<BABYLON.Texture> {
-  const texture = new BABYLON.Texture(`data:${url}`, scene, !mipmaps, flipY, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, undefined, undefined, buffer, true)
-  await new Promise((resolve) => setTimeout(resolve, 2))
-  return texture
+  let texture: BABYLON.Texture
+  await new Promise<void>((resolve, reject) => {
+    texture = new BABYLON.Texture(`data:${url}`, scene, !mipmaps, flipY, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, resolve, (_message, error) => reject(error || new Error('Texture decode failed')), buffer, true)
+  }).catch((error) => {
+    texture?.dispose()
+    throw error
+  })
+  if (isMobile() && !url.startsWith('/textures/')) {
+    const { width, height } = texture!.getSize()
+    if (width > 256 || height > 256) {
+      texture!.dispose()
+      throw new Error('Mobile texture exceeds 256px')
+    }
+  }
+  return texture!
 }

@@ -313,6 +313,7 @@ export default class Grid extends SocketClient {
 
   private get activePoolSize() {
     if (this.isolateMode) return 1
+    if (isMobile()) return 3
     const settings = window.graphic?.getSettings()
 
     if (!settings?.level) {
