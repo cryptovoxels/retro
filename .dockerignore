@@ -19,3 +19,6 @@ dist/*.css.gz
 dist/*.css.br
 !dist/babylon.min.js
 !dist/leaflet.css
+
+/dist/assets
+/dist/client-manifest.json

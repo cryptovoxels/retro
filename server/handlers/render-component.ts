@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
 import { VNode } from 'preact'
 import type { Response } from 'express'
 import { noCache } from '../cache'
@@ -9,7 +11,7 @@ const log = named('RenderComponent')
 const { BABYLON_BUNDLE_URL } = require('../../vendor/library/urls.js')
 
 // THE GREAT MERGE: one bundle for web pages and the in-world engine.
-const appJs = config.isDevelopment ? '/proxy/web/client.js' : '/client-loader.js'
+const assets = config.isDevelopment ? { client: '/proxy/web/client.js', css: '/app.css', babylon: BABYLON_BUNDLE_URL } : JSON.parse(readFileSync(path.join(process.cwd(), 'dist/client-manifest.json'), 'utf8'))
 
 /*
  Render a component to static html, moving the <head /> element into
@@ -46,14 +48,14 @@ export default function renderComponent(res: Response, component: VNode) {
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content">
   <link rel="shortcut icon" href="/favicon.png" />
-  ${config.isDevelopment ? `<link href="/app.css" rel="stylesheet" />` : ''}
+  ${`<link href="${assets.css}" rel="stylesheet" />`}
   ${head}
 </head>
 <body>
   ${html}
 </body>
 
-${config.isDevelopment ? `<script defer src='${BABYLON_BUNDLE_URL}'></script>` : ''}
-<script type="module" src="${appJs}"></script>
+${`<script defer src='${assets.babylon}'></script>`}
+<script type="module" src="${assets.client}"></script>
 </html>`
 }

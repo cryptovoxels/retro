@@ -63,3 +63,6 @@ tools/bucket-keys/*.tsv
 tools/bucket-keys/*.tsv.part
 tools/bucket-keys/keys.sqlite
 test-output/
+
+/dist/assets
+/dist/client-manifest.json

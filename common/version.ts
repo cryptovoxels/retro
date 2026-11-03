@@ -2,7 +2,7 @@ import * as semver from 'semver'
 
 export const defaultVersion = '1.0.0'
 
-// Client releases inline their tag and date. Server build metadata is independent.
+// Build metadata is display-only. Asset paths come from the build manifest.
 const DEFAULT_BUILD_NUM = '69420'
 const DEFAULT_BUILD_DATE = '1969-4-20 04:20:69'
 
