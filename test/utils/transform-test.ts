@@ -5,10 +5,10 @@ test('transform queue adding and length', (t) => {
   const q = BABYLON.Quaternion.Zero()
   const v = BABYLON.Vector3.Zero()
   const queue = new TransformQueue(100)
-  queue.add({ animation: 0, timestamp: 100, orientation: q.clone(), position: v.clone() })
+  queue.add({ animation: 0, grounded: true, timestamp: 100, orientation: q.clone(), position: v.clone() })
   t.equals(queue.length, 0, 'first added goes into current')
-  queue.add({ animation: 0, timestamp: 200, orientation: q.clone(), position: v.clone() })
-  queue.add({ animation: 0, timestamp: 300, orientation: q.clone(), position: v.clone() })
+  queue.add({ animation: 0, grounded: true, timestamp: 200, orientation: q.clone(), position: v.clone() })
+  queue.add({ animation: 0, grounded: true, timestamp: 300, orientation: q.clone(), position: v.clone() })
   t.equals(queue.length, 2)
   t.end()
 })
@@ -17,11 +17,11 @@ test('transform clear and find', (t) => {
   const q = BABYLON.Quaternion.Zero()
   const v = BABYLON.Vector3.Zero()
   const queue = new TransformQueue(100)
-  queue.add({ animation: 0, timestamp: 100, orientation: q.clone(), position: v.clone() })
-  queue.add({ animation: 0, timestamp: 200, orientation: q.clone(), position: v.clone() })
-  queue.add({ animation: 0, timestamp: 300, orientation: q.clone(), position: v.clone() })
-  queue.add({ animation: 0, timestamp: 400, orientation: q.clone(), position: v.clone() })
-  queue.add({ animation: 0, timestamp: 500, orientation: q.clone(), position: v.clone() })
+  queue.add({ animation: 0, grounded: true, timestamp: 100, orientation: q.clone(), position: v.clone() })
+  queue.add({ animation: 0, grounded: true, timestamp: 200, orientation: q.clone(), position: v.clone() })
+  queue.add({ animation: 0, grounded: true, timestamp: 300, orientation: q.clone(), position: v.clone() })
+  queue.add({ animation: 0, grounded: true, timestamp: 400, orientation: q.clone(), position: v.clone() })
+  queue.add({ animation: 0, grounded: true, timestamp: 500, orientation: q.clone(), position: v.clone() })
   t.equals(queue.length, 4)
 
   queue.clear(100) // the first object added should have moved to the current, so a no op
@@ -48,14 +48,14 @@ test('transform interpolation', (t) => {
   const queue = new TransformQueue(100)
 
   t.equals(queue.get(100), null)
-  queue.add({ animation: 0, timestamp: 100, orientation: q, position: v.clone().set(1, 1, 1) })
+  queue.add({ animation: 0, grounded: true, timestamp: 100, orientation: q, position: v.clone().set(1, 1, 1) })
   t.equals(queue.get(50), null)
   t.deepEquals(queue.get(110)?.position, new BABYLON.Vector3(1, 1, 1))
 
-  queue.add({ animation: 0, timestamp: 200, orientation: q, position: v.clone().set(2, 2, 2) })
-  queue.add({ animation: 0, timestamp: 300, orientation: q, position: v.clone().set(4, 4, 4) })
-  queue.add({ animation: 0, timestamp: 400, orientation: q, position: v.clone().set(5, 5, 5) })
-  queue.add({ animation: 0, timestamp: 500, orientation: q, position: v.clone().set(6, 6, 6) })
+  queue.add({ animation: 0, grounded: true, timestamp: 200, orientation: q, position: v.clone().set(2, 2, 2) })
+  queue.add({ animation: 0, grounded: true, timestamp: 300, orientation: q, position: v.clone().set(4, 4, 4) })
+  queue.add({ animation: 0, grounded: true, timestamp: 400, orientation: q, position: v.clone().set(5, 5, 5) })
+  queue.add({ animation: 0, grounded: true, timestamp: 500, orientation: q, position: v.clone().set(6, 6, 6) })
 
   t.deepEquals(queue.get(110)?.position, new BABYLON.Vector3(1.1, 1.1, 1.1))
   t.deepEquals(queue.get(190)?.position, new BABYLON.Vector3(1.9, 1.9, 1.9))
@@ -70,8 +70,8 @@ test('transform teleportation', (t) => {
   const MAX_VELOCITY = 99
   const queue = new TransformQueue(100, MAX_VELOCITY)
 
-  queue.add({ animation: 0, timestamp: 0, orientation: q, position: v.clone().set(0, 0, 0) })
-  queue.add({ animation: 0, timestamp: 100, orientation: q, position: v.clone().set(10, 0, 0) })
+  queue.add({ animation: 0, grounded: true, timestamp: 0, orientation: q, position: v.clone().set(0, 0, 0) })
+  queue.add({ animation: 0, grounded: true, timestamp: 100, orientation: q, position: v.clone().set(10, 0, 0) })
 
   // normally we would expect the position to between 10% between 0 and 10, but since we are moving so fast we are going
   // to 'teleport' to the last position instead of interpolating. This either indicates a server/client lag or an actual
@@ -87,8 +87,8 @@ test('transform test few updates interpolation', (t) => {
   const v = BABYLON.Vector3.Zero()
   const queue = new TransformQueue(100)
 
-  queue.add({ animation: 0, timestamp: 100, orientation: q, position: v.clone().set(1, 1, 1) })
-  queue.add({ animation: 0, timestamp: 1000, orientation: q, position: v.clone().set(2, 2, 2) })
+  queue.add({ animation: 0, grounded: true, timestamp: 100, orientation: q, position: v.clone().set(1, 1, 1) })
+  queue.add({ animation: 0, grounded: true, timestamp: 1000, orientation: q, position: v.clone().set(2, 2, 2) })
 
   t.deepEquals(queue.get(900)?.position, new BABYLON.Vector3(1.0, 1.0, 1.0))
   t.deepEquals(queue.get(950)?.position, new BABYLON.Vector3(1.5, 1.5, 1.5))

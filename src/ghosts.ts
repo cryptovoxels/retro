@@ -331,6 +331,7 @@ export function startGhosts(scene: BABYLON.Scene, grid: Grid, controls: Controls
         position: new BABYLON.Vector3(x, y, z),
         orientation: BABYLON.Quaternion.FromEulerAngles(0, yaw, 0),
         animation: animationFor(type, speed),
+        grounded: type !== GhostType.fly && type !== GhostType.drive,
         timestamp: startWall + (t - t0) * 1000,
       })
     }

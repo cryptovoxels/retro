@@ -54,7 +54,7 @@ function playWompSound() {
   if (!wompSound) {
     wompSound = audio.createSound({
       name: 'womp',
-      url: `${process.env.SOUNDS_URL}/womp.mp3`,
+      url: `/sounds/womp.wav`,
       options: { loop: false, autoplay: false },
     })
   }

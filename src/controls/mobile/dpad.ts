@@ -42,7 +42,7 @@ export default class Dpad {
     this.activeId = null
     this.controls.direction.set(0, 0, 0)
 
-    if (!this.moved && e.type === 'pointerup') this.controls.body.jump()
+    if (!this.moved && e.type === 'pointerup') this.controls.jump()
     e.preventDefault()
     e.stopImmediatePropagation()
   }

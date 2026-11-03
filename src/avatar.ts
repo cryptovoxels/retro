@@ -3,6 +3,7 @@ import { app } from '../web/src/state'
 import { stringEllipsisInCanvas } from '../web/src/utils'
 import { AvatarAttachmentManager } from './attachment-manager'
 import { AudioEngine } from './audio/audio-engine'
+import { Footsteps } from './audio/footsteps'
 import { RemoteFlySound } from './audio/fly-sound'
 import { Animations, AvatarAnimations, loadAnimation } from './avatar-animations'
 import type Connector from './connector'
@@ -73,7 +74,7 @@ export default class Avatar extends Entity {
   private _vehicleLoadKey: string | null = null
   private _vehicleLoadGen = 0
   private remoteFly?: RemoteFlySound
-  private remoteStepAt = 0
+  private footsteps?: Footsteps
 
   constructor(scene: BABYLON.Scene, joined: number, uuid: string, description: AvatarRecord, isUser = false) {
     super(scene, null, joined)
@@ -711,6 +712,8 @@ export default class Avatar extends Entity {
     this._attachmentManager?.dispose()
     this._attachmentManager = null
 
+    this.footsteps?.dispose()
+    this.footsteps = undefined
     this.remoteFly?.dispose()
     this.remoteFly = undefined
 
@@ -776,6 +779,7 @@ export default class Avatar extends Entity {
 
   private updateRemoteLocomotionAudio(previous: Readonly<Transform>) {
     if (this.distanceFromCamera >= SOUND_DISTANCE) {
+      this.footsteps?.reset()
       this.remoteFly?.stop()
       return
     }
@@ -785,17 +789,24 @@ export default class Avatar extends Entity {
     const moving = dx * dx + dz * dz > 0.05 * 0.05
     const anim = this.animation?.state
 
-    if (anim === Animations.Walk || anim === Animations.Run) {
+    if (this.grounded && (anim === Animations.Walk || anim === Animations.Run) && !this._vehicle) {
       this.remoteFly?.stop()
-      if (moving) {
-        const delay = anim === Animations.Run ? 300 : 490
-        if (Date.now() - this.remoteStepAt >= delay) {
-          this.remoteStepAt = Date.now()
-          Avatar.audio?.footstepSounds.playSpatialStep(this.absolutePosition, anim === Animations.Run)
-        }
+      const audio = Avatar.audio
+      const buffer = audio?.soundFx['avatar.step'].getAudioBuffer()
+      if (!this.footsteps && audio && buffer) {
+        const sound = audio.createSound({
+          name: 'avatar.step',
+          buffer,
+          options: { spatialSound: true, distanceModel: 'exponential', refDistance: 2, rolloffFactor: 1.5, maxDistance: SOUND_DISTANCE },
+        })
+        sound.attachToMesh(this.node)
+        this.footsteps = new Footsteps(sound)
       }
+      this.footsteps?.update(Math.hypot(dx, dz), this.scene.getEngine().getDeltaTime() / 1000)
       return
     }
+
+    this.footsteps?.reset()
 
     if (anim === Animations.Floating && moving) {
       const audio = Avatar.audio

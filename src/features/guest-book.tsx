@@ -158,7 +158,7 @@ export default class GuestBook extends Feature3D<GuestBookRecord> {
     if (!GuestBook.signGuestbookSound && this.audio) {
       GuestBook.signGuestbookSound = this.audio.createSound({
         name: 'sign-guestbook-sound',
-        url: `${process.env.SOUNDS_URL}/alerts/sign-guestbook.mp3`,
+        url: `/sounds/alerts/sign-guestbook.wav`,
         options: { loop: false, autoplay: false },
       })
     }

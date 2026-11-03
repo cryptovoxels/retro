@@ -28,7 +28,6 @@ export default class Persona {
   voiceChat = new VoiceChat(this)
   onAnimationChanged: BABYLON.Observable<Animations> = new BABYLON.Observable()
   emote: Animations | null = null
-  private stepping = false
   private readonly scene: BABYLON.Scene
 
   constructor(
@@ -194,6 +193,7 @@ export default class Persona {
     const clip = this.pickClip(controls)
     if (clip !== this._animation) this.animation = clip
 
+    const distance = Math.hypot(position.x - this.position.x, position.z - this.position.z)
     this.position.copyFrom(position)
 
     const driveYaw = controls.getVehicleDriveYaw?.() ?? null
@@ -216,14 +216,14 @@ export default class Persona {
       this._animation = Animations.Sitting
     }
 
-    const stepping = this._animation === Animations.Walk
-    if (stepping !== this.stepping) {
-      this.stepping = stepping
-      if (stepping) this.audio?.footstepSounds?.walk()
-      else this.audio?.footstepSounds?.noStep()
+    const footsteps = this.audio?.footsteps
+    if (m.impact >= 2) {
+      footsteps?.land(m.impact)
+    } else if (controls.body.grounded && this._animation === Animations.Walk && !controls.vehicleFeature) {
+      footsteps?.update(distance, this.scene.getEngine().getDeltaTime() / 1000)
+    } else {
+      footsteps?.reset()
     }
-
-    if (m.impact > 0) this.audio?.footstepSounds?.land(m.impact)
 
     if (controls.flying && m.hz > WALK_HZ) this.audio?.flySound?.start()
     else this.audio?.flySound?.stop()
@@ -234,6 +234,7 @@ export default class Persona {
         position: this.position,
         orientation: this.rotation.toQuaternion(),
         animation: this._animation,
+        grounded: controls.body.grounded,
         timestamp: Date.now(),
       })
     }

@@ -291,7 +291,7 @@ export default class DesktopControls extends Controls {
 
       if (e.code === 'Space') {
         this.rising = true
-        this.body.jump()
+        this.jump()
       }
 
       if (e.code === 'KeyE') {
@@ -376,7 +376,7 @@ export default class DesktopControls extends Controls {
       if (pressed) this.toggleRun()
     } else if (button === 'Cross' || button === 'A') {
       if (pressed) {
-        this.body.jump()
+        this.jump()
       }
     } else if (button === 'Circle' || button === 'B') {
       if (pressed) this.toggleFlying()

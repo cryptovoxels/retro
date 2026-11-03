@@ -346,6 +346,7 @@ export type UpdateAvatarMessage = {
   position: number[]
   orientation: Quaternion
   animation: number
+  grounded: boolean
   inConga?: boolean
   /** Person in front of this avatar in the conga chain; leader omits. Used to sync whole line (e.g. fly) to head. */
   congaFollowsUuid?: string | null
@@ -360,7 +361,16 @@ extensionCodec.register({
       return null
     }
     const vehicle = input.vehicle ? [input.vehicle.featureUuid, input.vehicle.homeParcelId, input.vehicle.voxUrl || '', Float32Array.from(input.vehicle.scale), input.vehicle.yaw, Float32Array.from(input.vehicle.seat || [0, 1.2, 0])] : null
-    return encodeAlias([encodeUUID(input.uuid), Float32Array.from(input.position), compressQuaternion(input.orientation), input.animation, input.inConga ? 1 : 0, input.congaFollowsUuid ? encodeUUID(input.congaFollowsUuid) : null, vehicle])
+    return encodeAlias([
+      encodeUUID(input.uuid),
+      Float32Array.from(input.position),
+      compressQuaternion(input.orientation),
+      input.animation,
+      input.inConga ? 1 : 0,
+      input.congaFollowsUuid ? encodeUUID(input.congaFollowsUuid) : null,
+      vehicle,
+      input.grounded,
+    ])
   },
   decode: (data): UpdateAvatarMessage => {
     const res = decodeAlias(data) as any[]
@@ -370,6 +380,7 @@ extensionCodec.register({
       position: uint8ToFloat32(res[1]),
       orientation: decompressQuaternion(res[2]),
       animation: res[3],
+      grounded: res[7],
       inConga: !!res[4],
     }
     if (res.length > 5 && res[5] != null) {

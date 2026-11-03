@@ -230,6 +230,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
   }
 
   onClick() {
+    this.audio?.playSound('avatar.click')
     this.connector.sendMetric(Action.Inspect)
     void this.openDetails()
   }

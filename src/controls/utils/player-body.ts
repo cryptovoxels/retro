@@ -25,6 +25,7 @@ export default class PlayerBody {
   /** vehicles, pose balls, gateway: move straight, skip the world (implies no gravity) */
   noclip = false
   flying = true
+  grounded = false
   /** controls holds this off until the parcels under us have colliders */
   gravity = true
   speed = WALK
@@ -63,6 +64,7 @@ export default class PlayerBody {
     // this.body.setTranslation({ x: t.x, y: t.y + bump, z: t.z }, true)
     // this.position.set(t.x, t.y + bump, t.z)
 
+    this.grounded = false
     this.vel.y = JUMP_SPEED
   }
 
@@ -76,6 +78,7 @@ export default class PlayerBody {
   private rise = 0
 
   resetMotion() {
+    this.grounded = false
     this.vel.x = this.vel.y = this.vel.z = this.rise = 0
   }
 
@@ -93,6 +96,7 @@ export default class PlayerBody {
     d.z = this.vel.z * dt
 
     if (this.noclip || !this.setup()) {
+      this.grounded = false
       this.rise = 0
       this.position.x += d.x
       this.position.y += d.y
@@ -122,6 +126,8 @@ export default class PlayerBody {
 
     // console.log(stepped.y)
 
+    this.grounded = !this.flying && this.gravity && this.controller.computedGrounded()
+    const impact = this.grounded && stepped.y > y + 0.001 ? Math.max(0, -this.vel.y) : 0
     const n = this.controller.numComputedCollisions()
 
     if (n == 0 && this.gravity) {
@@ -138,6 +144,6 @@ export default class PlayerBody {
     this.position.x = next.x
     this.position.y = next.y + DROP - this.rise
     this.position.z = next.z
-    this.writeMotion(Math.hypot(stepped.x, stepped.z) / dt, 0)
+    this.writeMotion(Math.hypot(stepped.x, stepped.z) / dt, impact)
   }
 }

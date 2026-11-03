@@ -150,6 +150,7 @@ export class Shard {
         msg.avatars.push({
           type: messages.MessageType.updateAvatar,
           animation: s.animation,
+          grounded: s.grounded,
           orientation: s.orientation!,
           position: s.position,
           uuid: s.clientUUID,

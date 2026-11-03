@@ -66,6 +66,7 @@ export function liteAvatars(lite: Lite, controls: LiteControls) {
           type: messages.MessageType.updateAvatar,
           uuid: me,
           animation: 0,
+          grounded: lite.body.grounded,
           position: [p.x, p.y, p.z],
           orientation: [0, Math.sin(controls.yaw / 2), 0, Math.cos(controls.yaw / 2)],
         }),

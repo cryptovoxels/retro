@@ -16,6 +16,7 @@ export abstract class Entity {
   protected _orientationQuaternion = BABYLON.Quaternion.Zero()
   protected transformQueue: TransformQueue | null = null
   protected animation: AvatarAnimations | null = null
+  protected grounded = false
   protected startAnimation: Animations = Animations.Idle
   protected state: 'disposed' | 'loading' | 'loaded' = 'disposed'
   protected onBeforeRenderObservable: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> | null = null
@@ -82,6 +83,7 @@ export abstract class Entity {
   public getTransform(): Readonly<Transform> {
     return {
       animation: this.animation?.state || this.startAnimation,
+      grounded: this.grounded,
       orientation: this._orientationQuaternion.clone(),
       position: this.position.clone(),
       timestamp: Date.now(),
@@ -131,7 +133,7 @@ export abstract class Entity {
     }
   }
 
-  public move(transform: { position: BABYLON.Vector3; orientation: BABYLON.Quaternion; animation: Animations; timestamp: number }) {
+  public move(transform: Transform) {
     if (!this.isLoaded()) {
       this.setTransform(transform)
       return
@@ -140,6 +142,7 @@ export abstract class Entity {
   }
 
   protected setTransform(i: Transform) {
+    this.grounded = i.grounded
     this._position.copyFrom(i.position)
     this.node.position.copyFrom(this._position)
     this._distanceFromCamera = this.scene.activeCamera ? BABYLON.Vector3.Distance(this._position, cameraPosition(this.scene)) : Infinity
@@ -176,6 +179,7 @@ export abstract class Entity {
       position: this._position,
       orientation: this._orientationQuaternion,
       animation: this.animation?.state || this.startAnimation,
+      grounded: this.grounded,
       timestamp: Date.now(),
     })
   }
