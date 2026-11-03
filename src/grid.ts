@@ -1,22 +1,19 @@
 import { cameraPosition } from './utils/camera'
 import { markLoaded } from './utils/loading-done'
-import Parcel, { ParcelActivationState } from './parcel'
-import { isMobile, wantsIsolate } from '../common/helpers/detector'
+import Parcel from './parcel'
+import { wantsIsolate } from '../common/helpers/detector'
 import { sortBy, throttle } from 'lodash'
 import { distanceToAABB } from './utils/boundaries'
 import Cookies from 'js-cookie'
 import { SocketClient } from './utils/socket-client'
 import { displaySuspendedMessage } from './ui/suspended-message'
-import ndarray, { type NdArray } from 'ndarray'
+import type { NdArray } from 'ndarray'
 import { GridClientMessage, GridMessage, ParcelAuthMessage, ParcelMetaMessage, ParcelScriptMessage, PatchErrorMessage, PatchMessage, PatchStateMessage, SuspendedMessage } from '../common/messages/grid'
-import { createMessageHandler } from '../common/helpers/comlink-worker'
-import { GridWorkerAPI, GridWorkerOutput, GridWorkerParcelLoaded, GridWorkerParcelUnloaded, GridWorkerQueryResponse } from './mono'
+import type { Mono } from './mono'
 import { getGridMono } from './mono-pool'
 import { app, AppEvent } from '../web/src/state'
 import { ParcelPatch, ParcelRecord } from '../common/messages/parcel'
-import { GraphicLevels } from './graphic/graphic-engine'
 import { PanelType } from '../web/src/components/panel'
-import { DeferredPromise } from 'p-defer'
 import { createSpaceScene, createWorldScene, getWorldGroundState, getWorldTerrain, parcelMeshesAdded, parcelMeshesRemoved, teardownSpaceScene, teardownWorldScene } from './init/world-scene'
 import { fetchSpace } from './init/realm'
 import type { IslandRecord } from '../common/messages/api-islands'
@@ -86,25 +83,15 @@ export default class Grid extends SocketClient {
   private readonly scene: BABYLON.Scene
   private lastParcelScanAt?: number
   private nearestParcels: Array<Parcel> = []
-  //@todo: refactor the whole system to be more consistent btw onEnter,onNearby,onExit
-  private activeParcelPool: Array<Parcel> = []
-  // list of parcels within the activeParcelPool that are nearby (using a radius).
-  private parcelsWithinProximity: Array<Parcel> = []
-  private workerAPI: GridWorkerAPI | undefined = undefined
-  private workerCleanup: (() => void) | undefined = undefined
-  private isWorker = true
+  private workerAPI: Mono | undefined = undefined
   private _workerReadyPromise: Promise<void> | undefined = undefined
   private subscriptions: Set<number | string> = new Set()
   private pingInterval?: number
-  private _workerInterval?: number // You'd think "ReturnType<typeof setInterval>" would work, wouldn't you.
   private readonly isolateMode: boolean
 
   get isolating() {
     return this.isolateMode
   }
-  private intervals: number[] = []
-  private _queryJobs = new Map<number, DeferredPromise<number[]>>()
-  private _nextQueryId = 0
 
   constructor(scene: BABYLON.Scene) {
     super('grid', () => getGridUrl())
@@ -143,35 +130,18 @@ export default class Grid extends SocketClient {
       { passive: true },
     )
 
-    this.addInterval(this.refreshActiveParcels.bind(this), isMobile() ? 2e3 : DEFAULT_UPDATE_INTERVAL_MS)
-    this.addInterval(this.refreshEnteredParcel.bind(this), DEFAULT_UPDATE_INTERVAL_MS)
-    this.addInterval(this.refreshNearestParcels.bind(this), isMobile() ? 5e3 : 1e3)
-
     if (this.seeksConnection) {
       this.listenToLeaveWorld()
 
       const refresh = (requester?: string) => () => {
         if (!this.worldLive) return
         console.debug(`[grid] refreshing parcels after ${requester} event`)
-        this.refreshActiveParcels()
         this.refreshEnteredParcel()
         if (this.enteredParcel) this.enteredParcel.onEnter()
       }
       app.on(AppEvent.Login, refresh('login'))
       app.on(AppEvent.Logout, refresh('logout'))
     }
-
-    // Set up ParcelManager event listeners
-    window.draw?.addEventListener(
-      'distance-changed',
-      (e) => {
-        // update lods
-        this.parcels.forEach((parcel) => {
-          parcel.updateLodDistance(e.detail)
-        })
-      },
-      { passive: true },
-    )
   }
 
   get seeksConnection() {
@@ -189,17 +159,19 @@ export default class Grid extends SocketClient {
 
   mountParcel(description: MountDesc | ParcelRecord, grid: Grid = this): Parcel | undefined {
     const p = this.create(description, grid)
-    if (p) this.mountedParcel = p
+    if (p) {
+      this.mountedParcel = p
+      window.main?.stream.connect(this, this.workerAPI)
+      window.main?.stream.add(p)
+      this.subscribeParcel(p.id, true)
+    }
     return p
   }
 
   unload(parcel: Parcel) {
-    // driving keeps the home lot alive — the car mesh lives on that parcel
-    const driven = window.connector?.controls?.vehicleFeature as { disposed?: boolean; parcel?: { id: number } } | null | undefined
-    if (driven && !driven.disposed && driven.parcel?.id === parcel.id) return
-
     // clear any pending tasks for this parcel
-    window.main?.pump.clearParcelTasksForID(parcel.id)
+    window.main?.stream.forget(parcel)
+    this.subscribeParcel(parcel.id, false)
 
     const gridParcel = this.parcels.get(parcel.id)
     if (!gridParcel) {
@@ -224,7 +196,7 @@ export default class Grid extends SocketClient {
 
   // /admin island drops its proposal straight into the live world. these parcels never came from the
   // worker so it never unloads them either, clearPreview does
-  private preview: { name: string; ids: Parcel['id'][] } | null = null
+  preview: { name: string; ids: Parcel['id'][] } | null = null
 
   async previewIsland(island: IslandRecord, parcels: ParcelRecord[]) {
     this.clearPreview()
@@ -232,7 +204,8 @@ export default class Grid extends SocketClient {
     await getWorldTerrain()?.addIsland(island)
     for (const r of parcels) {
       try {
-        this.load(r, this)?.generate()
+        const parcel = this.load(r, this)
+        if (parcel) window.main?.stream.add(parcel)
       } catch (e) {
         console.error('preview parcel', r.id, e)
       }
@@ -247,13 +220,6 @@ export default class Grid extends SocketClient {
       if (p) this.unload(p)
     }
     this.preview = null
-  }
-
-  /** after exiting a car that had pinned its home lot past draw distance */
-  unloadIfBeyondDraw(parcel: Parcel) {
-    if (!this.parcels.has(parcel.id)) return
-    if (parcel.toCamera().length() <= this.unloadDistance) return
-    this.unload(parcel)
   }
 
   getByID(id: number | string): Parcel | undefined {
@@ -289,7 +255,7 @@ export default class Grid extends SocketClient {
     return result
   }
 
-  /** Spawn a parcel for server-side preview (no grid socket / pump). */
+  /** Spawn a parcel for server-side preview (no grid socket / streaming). */
   spawnPreview(description: ParcelRecord): Parcel | undefined {
     return this.create(description, this)
   }
@@ -311,34 +277,6 @@ export default class Grid extends SocketClient {
     return !!this.workerAPI
   }
 
-  private get activePoolSize() {
-    if (this.isolateMode) return 1
-    if (isMobile()) return 3
-    const settings = window.graphic?.getSettings()
-
-    if (!settings?.level) {
-      return 3
-    }
-
-    if (settings.level <= GraphicLevels.Low) {
-      return 3
-    }
-
-    // Default calculation with a max cap of 30 to prevent performance issues
-    return Math.min(30, Math.ceil(window.draw.distance / 12))
-  }
-
-  private get nearbyDistance() {
-    // isolate keeps activePoolSize at 1; still need normal draw distance so the worker finds the parcel mesh
-    if (this.isolateMode) return window.draw.distance
-    return window.draw.distance
-  }
-
-  private get unloadDistance() {
-    // Unload distance is 10% more than draw distance to avoid flickering
-    return window.draw.distance * 1.1
-  }
-
   public async mountParcelFromHTML() {
     const el = document.querySelector('script#parcel')
     if (!el) return
@@ -353,9 +291,7 @@ export default class Grid extends SocketClient {
     const p = this.mountParcel(desc, this)
     if (!p) return
 
-    p.generate()
     this.nearestParcels = [p]
-    this.refreshActiveParcels()
     this.refreshEnteredParcel()
   }
 
@@ -523,20 +459,15 @@ export default class Grid extends SocketClient {
 
   // Calls out to the worker. Returns a promise to an array of parcel IDs, since multiple parcels can contain a point.
   public queryParcelsAtPosition(pos: BABYLON.Vector3): Promise<number[]> {
-    // Wait for worker to be ready if it's not yet
-    const workerPromise = this._workerReadyPromise || Promise.resolve()
-
-    return workerPromise.then(() => {
-      if (!this.workerAPI) return []
-
-      const queryId = this._nextQueryId++
-      return this.workerAPI.queryParcelsAtPosition(queryId, pos.asArray() as [number, number, number]).then((result) => result.parcelIds)
+    return (this._workerReadyPromise || Promise.resolve()).then(async () => {
+      const lots = await this.workerAPI?.nearbyLots(pos.asArray(), 0)
+      return lots?.map((lot) => lot.id) || []
     })
   }
 
   async startupParcels(): Promise<Array<number | string>> {
     await this._workerReadyPromise
-    const ids = this.currentW > 0 || this.isolateMode ? (this.mountedParcel ? [this.mountedParcel.id] : []) : await this.workerAPI!.nearbyParcels(this.getCameraPosition().asArray() as [number, number, number])
+    const ids = this.currentW > 0 || this.isolateMode ? (this.mountedParcel ? [this.mountedParcel.id] : []) : (await this.workerAPI!.nearbyLots(this.getCameraPosition().asArray(), 32)).map((lot) => lot.id)
     if (!ids.length) markLoaded() // Open water still needs terrain rendering.
     if (this.currentW === 0) {
       const ground = getWorldGroundState()
@@ -559,85 +490,36 @@ export default class Grid extends SocketClient {
     }
     const parcel = this.currentOrNearestParcel()
     // Remote media can keep streaming after the nearby world is drawable.
-    return !ids.length || !!parcel?.areFeaturesLoaded || !!parcel?.featuresList.some((feature) => feature.mesh instanceof BABYLON.AbstractMesh && feature.mesh.isReady(true))
+    return !ids.length || !!(parcel?.featuresActive && !parcel.features.length) || !!parcel?.featuresList.some((feature) => feature.mesh instanceof BABYLON.AbstractMesh && feature.mesh.isReady(true))
   }
 
   public loadWorker() {
-    const workerPromise = getGridMono().then(({ worker, cleanup, isWorker }) => {
+    this._workerReadyPromise = getGridMono().then(async ({ worker }) => {
       this.workerAPI = worker
-      this.workerCleanup = cleanup
-      this.isWorker = isWorker
-      return worker.load().then(() => this.setupWorker())
+      await worker.loadIndex()
+      window.main?.stream.connect(this, worker)
     })
-
-    this._workerReadyPromise = workerPromise
-    return workerPromise
+    return this._workerReadyPromise
   }
 
   workerLive() {
     return !!this.workerAPI
   }
 
-  private setupWorker() {
-    if (!this.workerAPI) return
-
-    // Set up message handler
-    const messageHandler = createMessageHandler((message: GridWorkerOutput) => this.handleWorkerMessage(message), this.isWorker)
-    this.workerAPI.setMessageCallback(messageHandler)
-
-    // Test basic worker communication
-    this.workerAPI.init(10, 20)
-
-    this.updateWorkerSettings()
-    window.draw.addEventListener('distance-changed', () => this.updateWorkerSettings(), { passive: true })
-
-    const camArr: [number, number, number] = [0, 0, 0]
-    this._workerInterval = setInterval(() => {
-      this.getCameraPosition().toArray(camArr)
-      const frustumPlanes = this.calculateFrustumPlanes()
-      // This event now drives parcel loading and unloading on the grid worker
-      this.workerAPI?.cameraUpdate(camArr, frustumPlanes)
-      window.main?.pump.setCurrentParcel(this.currentParcel())
-    }, DEFAULT_UPDATE_INTERVAL_MS)
-  }
-
-  private handleWorkerMessage(message: GridWorkerOutput) {
-    switch (message.type) {
-      case 'QueryResponse':
-        this.handleGridQueryResponse(message)
-        break
-      case 'Loaded':
-        this.handleGridParcelLoaded(message)
-        break
-      case 'Unloaded':
-        this.handleGridParcelUnloaded(message)
-        break
-      default:
-        console.warn('Unknown message type:', message)
-    }
-  }
-
-  // Only used for debugging.
   public unloadWorker() {
-    if (this.workerCleanup) {
-      console.info('[grid] Terminating the grid-worker')
-      clearInterval(this._workerInterval)
-      this.workerCleanup()
-      this.workerAPI = undefined
-      this.workerCleanup = undefined
-    }
+    window.main?.stream.clear()
+    this.workerAPI = undefined
   }
 
   public shutdown() {
     this.unloadWorker()
     this.disconnect()
-    this.intervals.forEach((id) => clearInterval(id))
-    this.activeParcelPool.forEach((parcel) => {
-      this.subscribeParcel(parcel.id as number, false)
-    })
     this.forEach((parcel) => {
       this.unload(parcel)
     })
+    this.nearestParcels = []
+    this.priorParcel = undefined
+    this.enteredParcel = undefined
     this.worldLive = false
   }
 
@@ -686,7 +568,6 @@ export default class Grid extends SocketClient {
         const p = this.mountParcel(desc)
         await p?.generate()
         this.nearestParcels = p ? [p] : []
-        this.refreshActiveParcels()
         this.refreshEnteredParcel()
         spawnSpaceParcel(window.connector?.controls, p)
         const c = resumeCoords || new URLSearchParams(location.search).get('coords')
@@ -747,7 +628,7 @@ export default class Grid extends SocketClient {
       })
     })
     // notify parcels that we have changed users for features that are only visible to owners
-    this.activeParcelPool.forEach((parcel) => {
+    this.parcels.forEach((parcel) => {
       parcel.afterUserChange()
     })
   }
@@ -755,10 +636,6 @@ export default class Grid extends SocketClient {
   protected onClose() {
     clearInterval(this.pingInterval)
     return true
-  }
-
-  protected addInterval(func: () => void, intervalMs: number) {
-    this.intervals.push(setInterval(func, intervalMs))
   }
 
   // This is to make sure we call the 'onExit' event on tab close or when the user leaves the world
@@ -828,7 +705,7 @@ export default class Grid extends SocketClient {
     }
   }
 
-  private subscribeParcel(parcelId: number | string, subscribed: boolean) {
+  public subscribeParcel(parcelId: number | string, subscribed: boolean) {
     if (subscribed) {
       this.subscriptions.add(parcelId)
     } else {
@@ -842,7 +719,7 @@ export default class Grid extends SocketClient {
     })
   }
 
-  private refreshEnteredParcel() {
+  public refreshEnteredParcel() {
     const parcel = this.currentParcel()
     if (parcel === this.enteredParcel) {
       return
@@ -880,66 +757,6 @@ export default class Grid extends SocketClient {
     return this.getNearest(8, this.getCameraPosition()).filter((p) => p.kind == 'inner')[0]
   }
 
-  private refreshActiveParcels() {
-    // Reprioritize pump queue based on current camera position
-    const camPos = this.getCameraPosition()
-
-    // 3 gives us currentParcel + the one we are looking at + the one you looked at last (bare minimum for smoothness)
-    const currentParcel = this.currentOrNearestParcel()
-
-    // get parcels near camera (to prioritize things close to player)
-    const allNearest = this.getNearest(this.activePoolSize, camPos)
-
-    const filteredNearest: Parcel[] = []
-    const cap = Math.floor(this.activePoolSize / 2)
-    for (const parcel of allNearest) {
-      if (filteredNearest.length >= cap) break
-
-      if (parcel === currentParcel) continue
-
-      // reverse the order
-      filteredNearest.unshift(parcel)
-    }
-
-    // clone the last pool and ensure that our new candidates are at the front
-    const newPool = this.activeParcelPool.filter((p) => !filteredNearest.includes(p) && p !== currentParcel)
-    filteredNearest.forEach((parcel) => {
-      newPool.unshift(parcel)
-    })
-
-    if (currentParcel) {
-      newPool.unshift(currentParcel)
-    }
-
-    newPool.length = Math.min(newPool.length, this.activePoolSize)
-
-    // driving pins the home lot: deactivating it would dispose the car under the driver
-    const driven = window.connector?.controls?.vehicleFeature as { disposed?: boolean; parcel?: Parcel } | null | undefined
-    if (driven && !driven.disposed && driven.parcel && !newPool.includes(driven.parcel)) newPool.push(driven.parcel)
-
-    // deactivate parcels no longer needed
-    this.activeParcelPool.forEach((parcel) => {
-      if (!newPool.includes(parcel) && parcel && parcel.activationStatus !== ParcelActivationState.Inactive) {
-        this.subscribeParcel(parcel.id, false)
-
-        parcel.deactivate()
-      }
-    })
-
-    // activate newly added parcels (hold neighbors until current features are up)
-    const allowOthers = !currentParcel || currentParcel.areFeaturesLoaded
-    newPool.forEach((parcel) => {
-      if (!allowOthers && parcel !== currentParcel) return
-      if (parcel && parcel.loaded && parcel.activationStatus === ParcelActivationState.Inactive) {
-        this.subscribeParcel(parcel.id, true)
-
-        parcel.activate()
-      }
-    })
-
-    this.activeParcelPool = newPool
-  }
-
   private getPointInFrontOfCamera(distance: number): BABYLON.Vector3 {
     if (!this.scene.activeCamera) {
       console.info('[grid] No camera found for grid#getPointInFrontOfCamera')
@@ -951,114 +768,6 @@ export default class Grid extends SocketClient {
 
   private getCameraPosition(): BABYLON.Vector3 {
     return cameraPosition(this.scene)
-  }
-
-  private calculateFrustumPlanes(): number[][] | undefined {
-    if (!this.scene.activeCamera) {
-      return undefined
-    }
-
-    try {
-      // Get the combined transform matrix directly from the camera (as recommended in Babylon.js forums)
-      const transformMatrix = this.scene.activeCamera.getTransformationMatrix()
-
-      // Calculate frustum planes from the transform matrix (camera space)
-      const frustumPlanes = BABYLON.Frustum.GetPlanes(transformMatrix)
-
-      return frustumPlanes.map((plane) => [plane.normal.x, plane.normal.y, plane.normal.z, plane.d])
-    } catch (e) {
-      // Fallback if frustum calculation fails
-      return undefined
-    }
-  }
-
-  private addParcel(parcelDescription: ParcelRecord, fieldBuffer?: NdArray<Uint16Array>): Parcel | undefined {
-    let p: Parcel | undefined
-
-    if (this.mountedParcel && parcelDescription.id === this.mountedParcel.id) {
-      p = this.mountedParcel
-    } else {
-      p = this.load(parcelDescription, this, fieldBuffer)
-    }
-
-    if (!p) {
-      return undefined
-    }
-
-    if (p.sandbox || p.canEdit) {
-      // do this async
-      setTimeout(() => {
-        if (!p || p.field) return
-        console.log('calling loadField() for parcel', p.id)
-        p.loadField()
-      }, 10)
-    }
-
-    if (this.mountedParcel && parcelDescription.id === this.mountedParcel.id) {
-      this.mountedParcel = undefined
-    }
-
-    return p
-  }
-
-  private handleGridParcelUnloaded(data: GridWorkerParcelUnloaded) {
-    window.main?.pump.clearParcelTasksForID(data.parcelId)
-    this.withParcel(data.parcelId, (parcel) => {
-      // Unload parcel directly - no pump needed
-      this.unload(parcel)
-    })
-  }
-
-  private handleGridQueryResponse(response: GridWorkerQueryResponse) {
-    const d = this._queryJobs.get(response.queryId)
-    if (d) {
-      this._queryJobs.delete(response.queryId)
-      d.resolve(response.parcelIds)
-    } else {
-      console.info(`[grid] Saw query result for unknown queryId ${response.queryId}`)
-    }
-  }
-
-  private handleGridParcelLoaded(data: GridWorkerParcelLoaded) {
-    const parcelToLoad = this.addParcel(data.description, data.fieldBuffer)
-    if (!parcelToLoad) return
-
-    // Generate parcel directly - grid-worker already handles flow control
-    if (this.mountedParcel && parcelToLoad.id === this.mountedParcel.id) {
-      this.workerAPI?.handleParcelGenerated(parcelToLoad.id as number)
-      return
-    }
-
-    if (parcelToLoad.loaded) {
-      if (typeof parcelToLoad.id === 'number') {
-        this.workerAPI?.handleParcelGenerated(parcelToLoad.id)
-      }
-      return
-    }
-
-    parcelToLoad.loading = true
-    parcelToLoad.loaded = false
-
-    // Generate immediately - no pump needed since grid-worker manages concurrency
-    parcelToLoad
-      .generate()
-      .then(() => {
-        // Send feedback to grid-worker that this parcel generation is complete
-        this.workerAPI?.handleParcelGenerated(parcelToLoad.id as number)
-      })
-      .catch((error) => {
-        console.error(`[grid] Failed to generate parcel ${parcelToLoad.id}:`, error)
-        // Still send feedback to prevent grid-worker from getting stuck
-        this.workerAPI?.handleParcelGenerated(parcelToLoad.id as number)
-      })
-  }
-
-  private updateWorkerSettings() {
-    if (!this.workerAPI) throw new Error('Worker not loaded')
-
-    // this is the main thing that controls GPU memory usage in CV
-    // use aggressive unloading on mobile (to prevent crashing)
-    this.workerAPI.init(this.nearbyDistance, this.unloadDistance)
   }
 
   get hasField() {

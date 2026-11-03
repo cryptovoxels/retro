@@ -1,12 +1,12 @@
 import FPSStats from './utils/fps-stats'
 import { throttle } from 'lodash'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
-import { FeaturePump } from './pump/feature-pump'
-import { cameraPosition } from './utils/camera'
+import { WorldStream } from './world-stream'
 
 export type LOOP_STATE = 'running' | 'paused'
 export default class MainLoop extends TypedEventTarget<Record<LOOP_STATE, void>> {
   paused = false
+  running = false
   filter = 'blur(25px) saturate(0%) brightness(1.4)'
 
   scene?: BABYLON.Scene
@@ -14,13 +14,9 @@ export default class MainLoop extends TypedEventTarget<Record<LOOP_STATE, void>>
 
   constructor(
     private engine: BABYLON.Engine,
-    private _pump: FeaturePump,
+    readonly stream: WorldStream,
   ) {
     super()
-  }
-
-  get pump() {
-    return this._pump
   }
 
   private get canvas() {
@@ -40,6 +36,7 @@ export default class MainLoop extends TypedEventTarget<Record<LOOP_STATE, void>>
   }
 
   pause() {
+    this.running = false
     this.engine.stopRenderLoop()
     this.paused = true
 
@@ -63,20 +60,14 @@ export default class MainLoop extends TypedEventTarget<Record<LOOP_STATE, void>>
   private logFrameError = throttle((err: unknown) => console.error('render loop error', err), 5000, { leading: true, trailing: false })
 
   start() {
+    this.running = true
     this.engine.runRenderLoop(() => {
       try {
         FPSStats.end()
 
-        if (this.scene?.activeCamera) {
-          const camera = this.scene.activeCamera
-          const forwardRay = camera.getForwardRay()
-          this._pump.setCameraPosition(cameraPosition(this.scene), forwardRay.direction)
-        }
-
         this.scene?.render()
         this.mapScene?.render()
 
-        this._pump.pump()
         FPSStats.begin()
       } catch (err) {
         this.logFrameError(err)

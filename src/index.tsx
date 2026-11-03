@@ -32,7 +32,7 @@ import { toggleFPSStats } from './utils/fps-stats'
 import { CreateControls, xr } from './controls/create'
 
 import type Grid from './grid'
-import { FeaturePump } from './pump/feature-pump'
+import { WorldStream } from './world-stream'
 import UserInterface, { UserInterfaceProps } from './user-interface'
 import Connector from './connector'
 
@@ -50,7 +50,7 @@ import { User } from './user'
 import Persona from './persona'
 import { Appstate } from '../web/src/state'
 import { refreshMobileCanvasAfterReturn, viewportChangeHandler } from './controls/mobile/controls'
-import { DrawDistance } from './graphic/draw-distance'
+import { drawDistance } from './graphic/draw-distance'
 import MainLoop from './main-loop'
 import { createScene } from './init/scene'
 import { createWorld } from './init/world'
@@ -93,7 +93,7 @@ declare global {
     scene: BABYLON.Scene
     config: SceneConfig
     graphic: GraphicEngine
-    draw: DrawDistance
+    draw: typeof drawDistance
     fov: FOV
     cameraSettings: CameraSettings
 
@@ -244,9 +244,7 @@ async function main() {
   const graphic = new GraphicEngine(engine)
   window.graphic = graphic
 
-  // keeps track of how far we should render
-  const draw = new DrawDistance(graphic)
-  window.draw = draw
+  window.draw = drawDistance
 
   // keeps track of FOV settings
   const fov = new FOV()
@@ -264,11 +262,7 @@ async function main() {
   //   createGPUMemoryHUD(scene)
   // }
 
-  const pump = new FeaturePump(scene, undefined, isMobile() ? 2 : undefined)
-  // @ts-expect-error expose pump for debugging
-  window.pump = pump
-
-  const main = new MainLoop(engine, pump)
+  const main = new MainLoop(engine, new WorldStream(scene))
   window.main = main
   main.setScene(scene)
 
@@ -302,7 +296,7 @@ async function main() {
   if (xr) {
     xr.attachWorldScene()
   }
-  // and here we start all the main stuff, start the renderloop, the pump, web-workers and mess with some random
+  // and here we start all the main stuff, start the renderloop, world streaming, web-workers and mess with some random
   // fixes for browsers
 
   let map: Minimap | null = null

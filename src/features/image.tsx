@@ -122,6 +122,7 @@ export default class Image extends Feature2D<ImageRecord> {
     }
 
     const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    material.blockDirtyMechanism = true
     material.specularColor.set(0, 0, 0)
     material.diffuseColor.set(1, 1, 1)
     material.emissiveColor.set(1, 1, 1)
@@ -142,10 +143,11 @@ export default class Image extends Feature2D<ImageRecord> {
       }
     }
 
-    this.mesh.material = material
     this.mesh.visibility = tidyFloat(this.description.opacity, 1)
 
     setTextureProperties(this, texture, material, this.mesh)
+    material.blockDirtyMechanism = false
+    this.mesh.material = material
 
     this.setCommon()
     this.addAnimation()
@@ -359,5 +361,4 @@ export function setTextureProperties(
   if (options.transparencyMode === TransparencyMode.Background) {
     mesh.alphaIndex = 10
   }
-  mat.blockDirtyMechanism = true
 }

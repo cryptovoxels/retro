@@ -30,11 +30,6 @@ export class Terrain {
     this._chunkSystem = new ChunkSystem(CHUNK_SIZE)
     this._chunkSystem.addObserver(this._oceanFloor)
     this._chunkSystem.addObserver(this._ocean)
-
-    window.draw.addEventListener('distance-changed', (e) => {
-      const newViewDistance = e.detail
-      this._loadRange = Math.ceil((newViewDistance * 1.414 + CHUNK_SIZE / 2) / CHUNK_SIZE)
-    })
   }
 
   get groundMeshes() {

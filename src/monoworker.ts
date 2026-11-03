@@ -2,8 +2,7 @@ import * as Comlink from 'comlink'
 import { installAbort } from './monoworker/abort'
 import { bakeLightmap } from './monoworker/lightmap'
 import { loadVox } from './monoworker/vox'
-import { requestInstanceIdentification, requestFeatureSorting } from './monoworker/pump'
-import { gridWorker } from './monoworker/grid'
+import { loadIndex, nearbyLots, fetchLots } from './monoworker/world'
 import { voxelCollider } from './monoworker/physics'
 
 installAbort()
@@ -13,16 +12,10 @@ const api = {
   ping: () => true as const,
   bakeLightmap,
   loadVox,
-  requestInstanceIdentification,
-  requestFeatureSorting,
   voxelCollider,
-  init: gridWorker.init.bind(gridWorker),
-  cameraUpdate: gridWorker.cameraUpdate.bind(gridWorker),
-  queryParcelsAtPosition: gridWorker.queryParcelsAtPosition.bind(gridWorker),
-  nearbyParcels: gridWorker.nearbyParcels.bind(gridWorker),
-  handleParcelGenerated: gridWorker.handleParcelGenerated.bind(gridWorker),
-  load: gridWorker.load.bind(gridWorker),
-  setMessageCallback: gridWorker.setMessageCallback.bind(gridWorker),
+  loadIndex,
+  nearbyLots,
+  fetchLots,
 }
 
 export type Mono = typeof api

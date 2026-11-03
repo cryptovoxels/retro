@@ -244,6 +244,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     if (this.disposed) return null
 
     const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
+    material.blockDirtyMechanism = true
     material.specularColor.set(0, 0, 0)
     material.diffuseColor.set(1, 1, 1)
 
@@ -274,9 +275,9 @@ export default class NftImage extends Feature2D<NftImageRecord> {
       }
     }
 
-    this.mesh.material = material
-
     setTextureProperties(this, texture, material, this.mesh)
+    material.blockDirtyMechanism = false
+    this.mesh.material = material
 
     this.setCommon()
     return this.mesh

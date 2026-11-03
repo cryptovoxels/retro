@@ -1,4 +1,4 @@
-\restrict O0GZW9rWIjFTqXnF65tMQZ9paeXsQ4Gxm3MahIi0OFOUSGgcoadtVkBWbuxPjFi
+\restrict UKwO8nX6KnZkIHdxWDDzSl8NppFo14WBbpdf1HN5ZLUZqOY2FdynIqp9dT1Pa1d
 CREATE SCHEMA metrics;
 CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
@@ -976,4 +976,4 @@ CREATE INDEX womps_parcel_id ON public.womps USING btree (parcel_id);
 CREATE TRIGGER wearables_recalculate_total_wearables_trigger AFTER INSERT ON public.wearables FOR EACH ROW WHEN ((new.token_id IS NOT NULL)) EXECUTE FUNCTION public.recalculate_total_wearables();
 ALTER TABLE ONLY public.island_post_hearts
     ADD CONSTRAINT island_post_hearts_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.island_posts(id) ON DELETE CASCADE;
-\unrestrict O0GZW9rWIjFTqXnF65tMQZ9paeXsQ4Gxm3MahIi0OFOUSGgcoadtVkBWbuxPjFi
+\unrestrict UKwO8nX6KnZkIHdxWDDzSl8NppFo14WBbpdf1HN5ZLUZqOY2FdynIqp9dT1Pa1d

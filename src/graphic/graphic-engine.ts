@@ -2,6 +2,26 @@ import { isBatterySaver } from '../../common/helpers/detector'
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
 import type { PostProcesses } from './post-processes'
 
+let opacitySorting = false
+// Babylon 9.25 treats a null transparent comparator as the default sort.
+const renderSorted = (BABYLON.RenderingGroup as any)._RenderSorted
+;(BABYLON.RenderingGroup as any)._RenderSorted = function (submeshes: BABYLON.SmartArray<BABYLON.SubMesh>, compare: any, camera: BABYLON.Camera, transparent: boolean, disableDepthPrePass: boolean) {
+  if (!transparent || opacitySorting) return renderSorted.call(this, submeshes, compare, camera, transparent, disableDepthPrePass)
+  for (let i = 0; i < submeshes.length; i++) {
+    const submesh = submeshes.data[i]
+    const scene = submesh.getMesh().getScene()
+    if ((scene as any)._activeMeshesFrozenButKeepClipping && !submesh.isInFrustum((scene as any)._frustumPlanes)) continue
+    if (submesh.getMaterial()?.needDepthPrePass && !disableDepthPrePass) {
+      const engine = scene.getEngine()
+      engine.setColorWrite(false)
+      engine.setAlphaMode(BABYLON.Engine.ALPHA_DISABLE)
+      submesh.render(false)
+      engine.setColorWrite(true)
+    }
+    submesh.render(true)
+  }
+}
+
 export enum GraphicLevels {
   Low = 0,
   Medium = 1,
@@ -11,6 +31,8 @@ export enum GraphicLevels {
 
 export interface GraphicSettings {
   level: GraphicLevels
+  reflections?: boolean
+  opacitySorting?: boolean
 }
 
 export class GraphicEngine extends TypedEventTarget<{
@@ -18,6 +40,8 @@ export class GraphicEngine extends TypedEventTarget<{
 }> {
   private readonly engine: BABYLON.Engine
   #level: GraphicLevels
+  private reflections = false
+  private opacitySorting = false
   public postProcesses?: PostProcesses
 
   constructor(engine: BABYLON.Engine) {
@@ -58,6 +82,8 @@ export class GraphicEngine extends TypedEventTarget<{
     }
 
     this.#level = level
+    this.reflections = settings.reflections === true
+    this.opacitySorting = settings.opacitySorting === true
 
     window.localStorage.setItem('graphicSettings', JSON.stringify(this.getSettings()))
     this.refresh()
@@ -72,10 +98,14 @@ export class GraphicEngine extends TypedEventTarget<{
   getSettings(): GraphicSettings {
     return {
       level: this.#level,
+      reflections: this.reflections,
+      opacitySorting: this.opacitySorting,
     }
   }
 
   private refresh() {
+    BABYLON.MaterialFlags.ReflectionTextureEnabled = this.reflections
+    opacitySorting = this.opacitySorting
     if (isBatterySaver()) {
       this.engine.setHardwareScalingLevel(1)
     } else if (this.#level === GraphicLevels.Low || this.#level === GraphicLevels.Medium) {

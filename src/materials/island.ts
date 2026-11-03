@@ -1,9 +1,4 @@
-import { isMobile } from '../../common/helpers/detector'
 import { cacheMaterial, generateCacheKey, getCachedMaterial } from './cache'
-import { mirrorTexture } from '../utils/mirror'
-
-// one mirror shared by every island, they all sit at the same height
-let islandMirror: BABYLON.MirrorTexture | null = null
 
 export interface IslandMaterialConfig {
   name: string
@@ -33,16 +28,6 @@ export function createIslandMaterial(scene: BABYLON.Scene, config: IslandMateria
 
   // Rendering settings
   material.backFaceCulling = false // Helps with reflections in the water
-
-  if (!isMobile()) {
-    if (!islandMirror) {
-      islandMirror = mirrorTexture(scene, 0.74)
-      islandMirror.level = 0.3
-      islandMirror.blurKernel = 4
-    }
-    material.reflectionTexture = islandMirror
-    material.reflectionFresnelParameters = new BABYLON.FresnelParameters({ bias: 0.04, power: 3 })
-  }
 
   material.freeze()
   material.blockDirtyMechanism = true

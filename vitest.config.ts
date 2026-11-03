@@ -1,6 +1,3 @@
-// ABOUTME: Vitest configuration for testing the feature pump v2 system
-// ABOUTME: Configures modern testing environment with TypeScript support
-
 import { defineConfig } from 'vitest/config'
 import path from 'path'
 
