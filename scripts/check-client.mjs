@@ -11,7 +11,12 @@ for (const version of ['1.10.0', '1.10.1']) {
 }
 execFileSync(process.execPath, ['scripts/bundle-node.mjs', 'web'], { stdio: 'inherit' })
 
-const helper = await build({ entryPoints: ['common/utils.ts'], bundle: true, format: 'esm', write: false })
+const helper = await build({
+  stdin: { contents: "export { releaseWorker } from './common/utils'; export { createComlinkWorker } from './common/helpers/comlink-worker'", resolveDir: process.cwd(), loader: 'ts' },
+  bundle: true,
+  format: 'esm',
+  write: false,
+})
 const server = createServer((_req, res) => res.end('<!doctype html><html><head></head><body></body></html>'))
 await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
 const origin = `http://127.0.0.1:${server.address().port}`
@@ -41,21 +46,18 @@ try {
       return route.fulfill({
         headers,
         contentType: 'text/javascript',
-        body: `import { releaseWorker } from '${origin}/helper.js';
+        body: `import { releaseWorker, createComlinkWorker } from '${origin}/helper.js';
           window.loadedVersion = ${JSON.stringify(version)};
-          const workers = ['monoworker.js', 'voxel-thumb.js'].map((file, i) => releaseWorker(new URL(file, import.meta.url), i === 1));
-          window.workerResults = Promise.all(workers.map((worker) => new Promise((resolve, reject) => {
-            const timer = setTimeout(() => reject(new Error('worker timeout')), 10000);
-            worker.onerror = (e) => { clearTimeout(timer); reject(new Error(e.message)); };
-            worker.onmessage = (e) => {
-              if (e.data.id !== 'probe') return;
-              clearTimeout(timer); worker.terminate(); resolve(e.data.value);
-            };
-            worker.postMessage({id:'probe',type:'APPLY',path:['ping'],argumentList:[]});
-          })));
+          window.workerResults = Promise.all(['monoworker.js', 'voxel-thumb.js'].map(async (file, i) => {
+            const handle = await createComlinkWorker(() => releaseWorker(new URL(file, import.meta.url), i === 1), () => { throw new Error('Unexpected main-thread fallback'); });
+            const ready = await handle.worker.ping();
+            handle.cleanup();
+            return ready;
+          }));
         `,
       })
     }
+    if (file === 'monoworker.js' || file === 'voxel-thumb.js') await new Promise((resolve) => setTimeout(resolve, 6000))
     try {
       let body = readFileSync(`.build/client${url.pathname}`)
       if (file === 'monoworker.js') body = Buffer.concat([body, Buffer.from(";fetch(new URL('/worker-origin-check', self.location.origin));")])

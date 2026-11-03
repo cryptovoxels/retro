@@ -22,7 +22,10 @@ function spawn(): Promise<MonoHandle> {
 }
 
 export function getGridMono() {
-  return (grid ??= spawn())
+  return (grid ??= spawn().catch((error) => {
+    grid = null
+    throw error
+  }))
 }
 
 export function getComputePool() {
@@ -32,11 +35,19 @@ export function getComputePool() {
     // main-thread fallback is a shared singleton; one handle is enough
     if (!first.isWorker) return [first]
     const handles: MonoHandle[] = [first]
-    for (let i = 1; i < COMPUTE_COUNT; i++) {
-      handles.push(await spawn())
+    try {
+      for (let i = 1; i < COMPUTE_COUNT; i++) {
+        handles.push(await spawn())
+      }
+      return handles
+    } catch (error) {
+      handles.forEach((handle) => handle.cleanup())
+      throw error
     }
-    return handles
-  })())
+  })().catch((error) => {
+    pool = null
+    throw error
+  }))
 }
 
 const busy = new Map<Mono, number>()

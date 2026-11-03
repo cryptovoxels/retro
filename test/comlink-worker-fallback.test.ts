@@ -38,7 +38,7 @@ describe('createComlinkWorker', () => {
       terminate() {}
       // fire error on next tick like a failed importScripts
       constructor() {
-        queueMicrotask(() => {
+        setTimeout(() => {
           for (const fn of this.listeners.error || []) fn(new ErrorEvent('error'))
         })
       }

@@ -15,13 +15,13 @@ interface ComlinkWorkerResult<T> {
 
 type ReadyApi = { ping?: () => boolean | Promise<boolean> }
 
-const READY_MS = 4000
+const READY_MS = 30000
 
 /**
  * Creates a worker with Comlink, falls back to main thread only when forced
  * (embedded iframe, renderer preview). A worker that fails to load rejects.
  */
-export async function createComlinkWorker<T>(workerFactory: () => Worker, fallback: () => T | Promise<T>, options: { debug?: boolean; workerName?: string } = {}): Promise<ComlinkWorkerResult<T>> {
+export async function createComlinkWorker<T>(workerFactory: () => Worker | Promise<Worker>, fallback: () => T | Promise<T>, options: { debug?: boolean; workerName?: string } = {}): Promise<ComlinkWorkerResult<T>> {
   // Force main thread if URL parameter is set
   if (forceMainThreadWorkers()) {
     if (options.debug) {
@@ -45,7 +45,7 @@ export async function createComlinkWorker<T>(workerFactory: () => Worker, fallba
     }
   }
 
-  const worker = workerFactory()
+  const worker = await workerFactory()
   const api = Comlink.wrap<T & ReadyApi>(worker)
 
   await waitForWorkerReady(worker, api as ReadyApi)
