@@ -31,8 +31,8 @@ export async function createWomp(req: VoxelsUserRequest, res: Response) {
     return
   }
 
-  if (typeof image_url !== 'string') {
-    res.status(400).send({ success: false, message: 'Image url is invalid' })
+  if (typeof image_url !== 'string' || !image_url.startsWith('https://ugc.voxels.com/')) {
+    res.status(400).send({ success: false, message: 'Image url must use https://ugc.voxels.com/' })
     return
   }
 
