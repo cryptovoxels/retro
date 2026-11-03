@@ -4,11 +4,16 @@
 import * as esbuild from 'esbuild'
 import fs from 'fs'
 import path from 'path'
-import zlib from 'zlib'
+import { execFileSync } from 'node:child_process'
+import less from 'less'
 import { fileURLToPath } from 'url'
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const buildNum = process.env.BUILD_NUM || '69420'
+const arg = process.argv[2] || 'all'
+const buildDate = new Date().toISOString()
+const buildNum = process.env.RELEASE_VERSION || 'dev'
+if (!/^[a-z0-9][a-z0-9.-]*$/.test(buildNum) || buildNum.includes('..')) throw new Error('Invalid release version')
+const clientDir = path.join(repo, '.build/client', buildNum)
 
 const publicEnv = [
   'API',
@@ -31,6 +36,7 @@ const publicEnv = [
   'WEB_JS',
   'WEARABLE_CONTRACT_ADDRESS',
   'BUILD_NUM',
+  'BUILD_DATE',
 ]
 
 function loadEnv(file) {
@@ -55,8 +61,9 @@ function browserDefine(dev) {
     const value = process.env[key] ?? file[key]
     if (value !== undefined) env[key] = value
   }
-  env.NODE_ENV = dev ? 'development' : (env.NODE_ENV ?? 'production')
+  env.NODE_ENV = dev ? 'development' : 'production'
   env.BUILD_NUM = buildNum
+  env.BUILD_DATE = buildDate
   const define = { global: 'globalThis' }
   for (const key of publicEnv) define[`process.env.${key}`] = key in env ? JSON.stringify(env[key]) : 'undefined'
   // anything outside publicEnv reads undefined instead of throwing. server secrets stay out of the client
@@ -157,17 +164,6 @@ async function nodeBuild(entry, outfile, external) {
   throw new Error(`gave up bundling ${entry}`)
 }
 
-function compress(file) {
-  const buf = fs.readFileSync(file)
-  fs.writeFileSync(file + '.gz', zlib.gzipSync(buf))
-  fs.writeFileSync(
-    file + '.br',
-    zlib.brotliCompressSync(buf, {
-      params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 4 },
-    }),
-  )
-}
-
 function browserOptions(dev) {
   return {
     absWorkingDir: repo,
@@ -190,10 +186,10 @@ function clientOptions(dev) {
   return {
     ...browserOptions(dev),
     entryPoints: [
-      { in: 'web/src/main.tsx', out: `${buildNum}-app` },
-      { in: 'src/monoworker.ts', out: `${buildNum}-monoworker` },
+      { in: 'web/src/main.tsx', out: 'client' },
+      { in: 'src/monoworker.ts', out: 'monoworker' },
     ],
-    outdir: path.join(repo, 'dist'),
+    outdir: dev ? path.join(repo, 'dist') : clientDir,
   }
 }
 
@@ -201,8 +197,8 @@ function clientOptions(dev) {
 function thumbWorkerOptions(dev) {
   return {
     ...browserOptions(dev),
-    entryPoints: [{ in: 'web/src/workers/voxel-thumb.ts', out: `${buildNum}-voxel-thumb` }],
-    outdir: path.join(repo, 'dist'),
+    entryPoints: [{ in: 'web/src/workers/voxel-thumb.ts', out: 'voxel-thumb' }],
+    outdir: dev ? path.join(repo, 'dist') : clientDir,
     format: 'iife',
   }
 }
@@ -241,30 +237,40 @@ async function buildClient(dev) {
     console.log('client watch http://localhost:9200')
     return
   }
+  fs.rmSync(clientDir, { recursive: true, force: true })
+  fs.mkdirSync(clientDir, { recursive: true })
+  const filename = path.join(repo, 'web/src/style/app.less')
+  const css = await less.render(fs.readFileSync(filename, 'utf8'), { filename })
+  fs.writeFileSync(path.join(clientDir, 'app.css'), css.css.replaceAll('url(/fonts/', 'url(./fonts/'))
+  fs.cpSync(path.join(repo, 'dist/fonts'), path.join(clientDir, 'fonts'), { recursive: true })
+  fs.copyFileSync(path.join(repo, 'dist/vendor/library-9.25.0.min.js'), path.join(clientDir, 'babylon.js'))
   await Promise.all([esbuild.build(clientOptions(false)), esbuild.build(thumbWorkerOptions(false))])
-  for (const name of ['app', 'monoworker', 'voxel-thumb']) {
-    compress(path.join(repo, 'dist', `${buildNum}-${name}.js`))
-    console.log('built', `dist/${buildNum}-${name}.js`)
-  }
+  fs.writeFileSync(path.join(clientDir, 'release.json'), JSON.stringify({ version: buildNum, commit: execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo, encoding: 'utf8' }).trim(), builtAt: buildDate }))
+  console.log('built', path.relative(repo, clientDir))
 }
 
-const arg = process.argv[2] || 'all'
+async function buildLoader() {
+  await esbuild.build({ ...browserOptions(false), entryPoints: ['web/loader.ts'], outfile: path.join(repo, 'dist/client-loader.js') })
+}
+
 if (arg === 'dev') {
   await buildClient(true)
-} else if (arg === 'client' || arg === 'web') {
+} else if (arg === 'client') {
   await buildClient(false)
-  if (arg === 'web') {
-    await buildNode('server')
-    await buildNode('migrate')
-  }
+} else if (arg === 'web') {
+  await buildLoader()
+  await buildNode('server')
+  await buildNode('migrate')
 } else if (arg === 'renderer') {
   await esbuild.build(previewOptions())
   console.log('built renderer/page/parcel-bundle.js')
   await buildNode('renderer')
 } else if (nodeTargets[arg]) {
+  if (arg === 'server') await buildLoader()
   await buildNode(arg)
 } else if (arg === 'all') {
   await buildClient(false)
+  await buildLoader()
   await esbuild.build(previewOptions())
   for (const name of Object.keys(nodeTargets)) await buildNode(name)
 } else {

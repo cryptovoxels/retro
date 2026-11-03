@@ -3,14 +3,7 @@ export function mirrorTexture(scene: BABYLON.Scene, y: number): BABYLON.MirrorTe
   const tex = new BABYLON.MirrorTexture(`mirror_${y}`, 512, scene, true)
   tex.mirrorPlane = new BABYLON.Plane(0, -1, 0, y)
   tex.level = 0.4
-  const wants = (m: BABYLON.AbstractMesh) => m.name === 'skybox' || m.name.startsWith('island/') || m.name.startsWith('voxelizer/opaque-')
-  tex.renderList = scene.meshes.filter(wants)
-  scene.onNewMeshAddedObservable.add((m) => {
-    if (wants(m)) tex.renderList!.push(m)
-  })
-  scene.onMeshRemovedObservable.add((m) => {
-    const i = tex.renderList!.indexOf(m)
-    if (i !== -1) tex.renderList!.splice(i, 1)
-  })
+  // Materials are assigned after mesh creation. Never sample the texture we're rendering into.
+  tex.renderListPredicate = (m) => (m.name === 'skybox' || m.name.startsWith('island/') || m.name.startsWith('voxelizer/opaque-')) && !m.material?.hasTexture(tex)
   return tex
 }

@@ -31,7 +31,9 @@ export default class MobileControls extends Controls {
     }
 
     // improve controls
-    camera.angularSensibility = 200
+    camera.angularSensibility = 200 / 1.5
+    const look = camera.movement.input.getEntry('pointer', 'rotate')
+    if (look) look.sensitivityY = 1 / 200
     camera.inertia = 0.01
     return camera
   }

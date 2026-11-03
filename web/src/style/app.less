@@ -1,8 +1,8 @@
 /* one stylesheet: web + in-world, client rules last in source order */
 
 // --- tokens ---
-@narrow: ~'(max-width: 50em)'; // ~800px
-@wide: ~'(min-width: 50em)';
+@narrow: ~'(max-width: 50em), (pointer: coarse)'; // phones stay mobile in landscape
+@wide: ~'(min-width: 50em) and (pointer: fine)';
 @dark: ~'(prefers-color-scheme: dark)';
 @multiplier: 0.5;
 
@@ -984,7 +984,7 @@ main {
   transition: transform 200ms ease-out;
 }
 
-.page.-play {
+.page.play {
   transform: translateX(120%);
   pointer-events: none;
 }
@@ -1023,6 +1023,19 @@ main {
   main {
     grid-template-columns: 1fr;
     grid-template-rows: 50vh 1fr;
+
+    &:has(> .page.play) {
+      height: calc(100dvh - 1rem);
+      grid-template-rows: 1fr;
+
+      .client-canvas {
+        height: calc(100dvh - 1rem);
+      }
+
+      > .page {
+        display: none;
+      }
+    }
 
     > header {
       grid-column: 1;
@@ -1435,8 +1448,8 @@ figcaption {
 // Mode buttons show full words on desktop, single letters on mobile
 
 @media @narrow {
-  .client-canvas {
-    height: 50vh !important;
+  .client .client-canvas {
+    height: 50vh;
     background: radial-gradient(#aaa, #555);
   }
 }
@@ -5163,9 +5176,8 @@ header nav .user-menu {
     bottom: 0;
     transform: none;
     width: auto;
-    // The mobile stick occupies the rightmost 40% of the canvas.
-    right: calc(40% + 1rem);
-    left: env(safe-area-inset-left, 0px);
+    right: 0;
+    left: 0;
 
     .chat-messages {
       max-width: 100%;
@@ -5188,6 +5200,43 @@ header nav .user-menu {
 }
 
 // Aside bottom bar
+
+@media (pointer: coarse) and (orientation: landscape) {
+  body:has(main #renderCanvas) {
+    overflow: hidden;
+
+    > :not(main),
+    main > :not(.client):not(.canvasdom),
+    .canvasdom > :not(.parcel-location),
+    .parcel-location > :not(strong) {
+      display: none !important;
+    }
+
+    > main {
+      margin: 0;
+      padding: 0;
+      height: 100dvh;
+      grid-template-columns: 1fr;
+      grid-template-rows: 1fr;
+
+      .client-canvas {
+        height: 100dvh;
+      }
+
+      > .client,
+      > .canvasdom {
+        display: block;
+        grid-column: 1;
+        grid-row: 1;
+      }
+    }
+
+    .parcel-location {
+      left: max(1rem, env(safe-area-inset-left));
+      max-width: calc(100% - 2rem);
+    }
+  }
+}
 
 .selected,
 .active,

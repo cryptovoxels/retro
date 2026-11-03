@@ -535,7 +535,7 @@ export default function AssetLibraryController(db: Db, passport: PassportStatic,
       </head>
     )
 
-    res.send(renderComponent(head))
+    res.send(renderComponent(res, head))
   })
 
   // AssetLibrary

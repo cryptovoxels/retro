@@ -2,12 +2,11 @@ import * as semver from 'semver'
 
 export const defaultVersion = '1.0.0'
 
-// This is "Sensible default" build number for Dev from CI.
-// Set your env BUILD_NUM to override it.
+// Client releases inline their tag and date. Server build metadata is independent.
 const DEFAULT_BUILD_NUM = '69420'
 const DEFAULT_BUILD_DATE = '1969-4-20 04:20:69'
 
-export const currentVersion = process.env.BUILD_NUM ?? DEFAULT_BUILD_NUM
+export const currentVersion = process.env.BUILD_NUM || DEFAULT_BUILD_NUM
 export const currentBuildDate = process.env.BUILD_DATE ?? DEFAULT_BUILD_DATE
 
 // proxy since most packages will import the constants above as well

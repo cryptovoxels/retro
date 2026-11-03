@@ -8,3 +8,14 @@ db
 .env.*
 # the server reads this at runtime and the bundler inlines the public keys
 !.env.production
+
+# Only committed art belongs in the image context, never local build output.
+.build
+dist/*.js
+dist/*.js.gz
+dist/*.js.br
+dist/*.css
+dist/*.css.gz
+dist/*.css.br
+!dist/babylon.min.js
+!dist/leaflet.css

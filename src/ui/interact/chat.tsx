@@ -245,9 +245,11 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
           <button type="button" title={app.signedIn ? 'womp [P]' : 'sign in to take a womp'} class={app.signedIn ? '' : 'disabled'} disabled={!app.signedIn} onClick={() => (window as any).ui?.takeWomp((window as any).ui.props.scene)}>
             <Icon name="camera" />
           </button>
-          <button type="button" title="fullscreen" onClick={() => window.engine?.enterFullscreen(true)}>
-            <Icon name="fullscreen" />
-          </button>
+          {!isMobile() && (
+            <button type="button" title="fullscreen" onClick={() => window.engine?.enterFullscreen(true)}>
+              <Icon name="fullscreen" />
+            </button>
+          )}
           {snack.value && <p onClick={snack.value.onClick}>{snack.value.message}</p>}
         </div>
       </div>

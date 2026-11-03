@@ -229,7 +229,7 @@ class GridWorker implements GridWorkerAPI {
   async loadPack(batch: GridWorkerParcel[], priority: FetchOptions['priority']) {
     try {
       const pack = packIds(batch.map((p) => `${p.id}:${p.hash}`))
-      const res = await fetch(`/grid/parcels/${pack}.pack`, { priority } as FetchOptions)
+      const res = await fetch(new URL(`/grid/parcels/${pack}.pack`, self.location.origin), { priority } as FetchOptions)
       const json: any = res.ok ? await res.json() : null
       for (const record of json?.parcels || []) {
         const parcel = batch.find((p) => p.id === record.id)

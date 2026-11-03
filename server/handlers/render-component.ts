@@ -1,21 +1,23 @@
 import { VNode } from 'preact'
+import type { Response } from 'express'
+import { noCache } from '../cache'
 import { render } from 'preact-render-to-string'
 import config from '../../common/config'
-import { currentVersion } from '../../common/version'
 import { named } from '../lib/logger'
 
 const log = named('RenderComponent')
 const { BABYLON_BUNDLE_URL } = require('../../vendor/library/urls.js')
 
 // THE GREAT MERGE: one bundle for web pages and the in-world engine.
-const appJs = (config.isDevelopment ? '/proxy/web' : '') + `/${currentVersion}-app.js`
+const appJs = config.isDevelopment ? '/proxy/web/client.js' : '/client-loader.js'
 
 /*
  Render a component to static html, moving the <head /> element into
  the head
 */
 
-export default function renderComponent(component: VNode) {
+export default function renderComponent(res: Response, component: VNode) {
+  noCache(res)
   let html: string
 
   if (config.isDevelopment) {
@@ -44,15 +46,14 @@ export default function renderComponent(component: VNode) {
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content">
   <link rel="shortcut icon" href="/favicon.png" />
-  <link rel="prefetch" href="${BABYLON_BUNDLE_URL}" as="script">
-  <link href='/${currentVersion}-app.css' rel="stylesheet" />
+  ${config.isDevelopment ? `<link href="/app.css" rel="stylesheet" />` : ''}
   ${head}
 </head>
 <body>
   ${html}
 </body>
 
-<script defer src='${BABYLON_BUNDLE_URL}'></script>
+${config.isDevelopment ? `<script defer src='${BABYLON_BUNDLE_URL}'></script>` : ''}
 <script type="module" src="${appJs}"></script>
 </html>`
 }

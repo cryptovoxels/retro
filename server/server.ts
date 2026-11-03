@@ -12,7 +12,6 @@ import { CheckEmail, CheckNameAvailable, EmailCode, getUserInfo, SignIn } from '
 import { PasskeyAddOptions, PasskeyAddVerify, PasskeyAvailable, PasskeyLoginOptions, PasskeyLoginVerify, PasskeyRegisterOptions, PasskeyRegisterVerify } from './handlers/passkey'
 import updateParcel from './handlers/update-parcel'
 
-import { currentVersion } from '../common/version'
 import Avatar from './avatar'
 import sitemap from './handlers/sitemap'
 import streamWearable from './handlers/stream-wearable'
@@ -239,11 +238,11 @@ app.post('/um/api/send', cache(false), async (req, res) => {
   }
 })
 
-// in dev mode we need to proxy to the webpack dev servers
+// in dev mode we need to proxy to the esbuild dev server
 if (config.isDevelopment) {
   const protocol = 'http'
 
-  // In dev mode we need to proxy to the single webpack dev server
+  // In dev mode we need to proxy to the esbuild dev server
   app.use('/proxy/web', cache(false), proxy(`${protocol}://localhost:9200`))
   app.use(cors())
 
@@ -290,27 +289,24 @@ if (config.isDevelopment) {
   )
 }
 
-// THE GREAT MERGE: one bundle, one stylesheet.
-app.get(`/${currentVersion}-app.js`, cache('1 day'), (req, res) => {
-  return res.sendFile(path.join(__dirname, '..', 'dist', `${currentVersion}-app.js`))
-})
-
-app.get(`/${currentVersion}-app.css`, cache(config.isDevelopment ? false : '1 day'), (req, res) => {
-  return res.sendFile(path.join(__dirname, '..', 'dist', `app.css`))
-})
-
 app.use(
   expressStaticGzip(path.join(__dirname, '..', 'dist'), {
     enableBrotli: true,
     index: false,
     orderPreference: ['br'],
     serveStatic: {
-      setHeaders: (res) => {
-        res.setHeader('Cache-Control', 'public, max-age=86400, stale-if-error=600, stale-while-revalidate=86400')
+      setHeaders: (res, file) => {
+        res.setHeader('Cache-Control', config.isDevelopment || /\.(js|css)(\.(br|gz))?$/.test(file) ? 'no-store' : 'public, max-age=86400, stale-if-error=600, stale-while-revalidate=86400')
       },
     },
   }),
 )
+
+// Missing bundles must not fall through to HTML or get cached by the CDN.
+app.get(/\/(?:[^/]+-)?(?:app|client|client-loader|monoworker|voxel-thumb)\.(?:js|css)$/, (_req, res) => {
+  noCache(res)
+  res.sendStatus(404)
+})
 
 const gridServer = httpServer
 const gridSocket = createGridSocket(gridServer, opts.secretOrKey, PARCEL_EVENT_EMITTER)

@@ -107,12 +107,12 @@ const Main = () => {
 
   return (
     <MainApp>
-      <main class={[lightBroadcast ? 'showbox-light-shell' : '', play ? '-play' : ''].filter(Boolean).join(' ') || undefined}>
+      <main class={[lightBroadcast ? 'showbox-light-shell' : '', play ? 'play' : ''].filter(Boolean).join(' ') || undefined}>
         {!lightBroadcast && <WebHeader path={currentPath} />}
 
         <Client coords={coords} path={currentPath} />
 
-        <div class={play ? 'page -play' : 'page'}>
+        <div class={play ? 'page play' : 'page'}>
           {!play && !lightBroadcast && (
             <button
               type="button"

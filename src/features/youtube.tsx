@@ -20,7 +20,7 @@ export async function loadYoutubeThumbnail(scene: BABYLON.Scene, videoId: string
     return fetchNoImageTexture(scene)
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const texture = new BABYLON.Texture(
       thumbnailUrl,
       scene,
@@ -28,7 +28,7 @@ export async function loadYoutubeThumbnail(scene: BABYLON.Scene, videoId: string
       true,
       BABYLON.Texture.TRILINEAR_SAMPLINGMODE,
       () => resolve(texture),
-      async () => resolve(await fetchNoImageTexture(scene)),
+      () => fetchNoImageTexture(scene).then(resolve, reject),
     )
 
     signal.addEventListener('abort', () => texture.dispose(), { once: true })
@@ -117,11 +117,16 @@ export default class Youtube extends Feature2D<YoutubeRecord> {
     }
 
     let texture: BABYLON.Texture
-    if (this.description.previewUrl) {
-      texture = await fetchTexture(this.scene, this.previewUrl, this.abortController.signal, { transparent: false, stretch: true })
-    } else {
-      texture = await loadYoutubeThumbnail(this.scene, this.videoId, this.abortController.signal)
+    try {
+      if (this.description.previewUrl) {
+        texture = await fetchTexture(this.scene, this.previewUrl, this.abortController.signal, { transparent: false, stretch: true })
+      } else {
+        texture = await loadYoutubeThumbnail(this.scene, this.videoId, this.abortController.signal)
+      }
+    } catch {
+      return
     }
+    if (this.disposed) return
     texture.hasAlpha = false
 
     const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)

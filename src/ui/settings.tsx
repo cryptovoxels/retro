@@ -10,6 +10,9 @@ import { chatSettings } from './interact/chat'
 import { ghostSettings } from '../ghosts'
 import { voiceSettings } from '../voice-settings'
 import { DEFAULT_SENSITIVITY, MAX_SENSITIVITY, MIN_SENSITIVITY } from '../controls/user-control-settings'
+import { currentVersion } from '../../common/version'
+import { clientChoice, versionsUrl } from '../../common/utils'
+import cachedFetch from '../../web/src/helpers/cached-fetch'
 import { getTheme, setTheme } from '../../common/helpers/theme'
 
 function toReversedPercentage(value: number, min: number, max: number): number {
@@ -57,6 +60,9 @@ interface State {
   voiceMonitor: boolean
   voiceInputDevices: InputDevice[]
   darkMode: boolean
+  releases: string[]
+  latest: string
+  releaseError: string
 }
 
 export class SettingsUI extends Component<Props, State> {
@@ -76,6 +82,9 @@ export class SettingsUI extends Component<Props, State> {
       voiceMonitor: voiceSettings.monitor,
       voiceInputDevices: [{ label: 'Default', deviceId: 'default' }],
       darkMode: getTheme() === 'dark',
+      releases: [],
+      latest: '',
+      releaseError: '',
     }
 
     this.fov.addEventListener(
@@ -101,6 +110,12 @@ export class SettingsUI extends Component<Props, State> {
   }
 
   componentDidMount() {
+    if (process.env.NODE_ENV === 'production') {
+      cachedFetch(`${versionsUrl}/releases.json`, { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((r) => this.setState({ releases: r.versions, latest: r.latest }))
+        .catch(() => this.setState({ releaseError: 'Could not load releases.' }))
+    }
     if (typeof this.state.audio?.musicVolume === 'number') {
       setRadioVolume(this.state.audio.musicVolume)
     }
@@ -258,6 +273,17 @@ export class SettingsUI extends Component<Props, State> {
     this.setState({ darkMode: inputElement.checked })
   }
 
+  changeRelease(e: Event) {
+    try {
+      const version = (e.currentTarget as HTMLSelectElement).value
+      if (version) localStorage.setItem('clientVersion', version)
+      else localStorage.removeItem('clientVersion')
+      location.reload()
+    } catch {
+      this.setState({ releaseError: 'Could not save your client version.' })
+    }
+  }
+
   sendGraphicsSettings() {
     this.graphicsEngine.setSettings(this.state.graphic)
   }
@@ -266,6 +292,25 @@ export class SettingsUI extends Component<Props, State> {
     return (
       <section class="settings">
         <h1>Settings</h1>
+
+        {process.env.NODE_ENV === 'production' && (
+          <section>
+            <h3>client</h3>
+            <div class="f">
+              <label for="client-version">Client version</label>
+              <select id="client-version" value={clientChoice()} disabled={!this.state.releases.length} onChange={this.changeRelease.bind(this)}>
+                <option value="">Latest{this.state.latest ? ` (${this.state.latest})` : ''}</option>
+                {this.state.releases.map((version) => (
+                  <option value={version} key={version}>
+                    {version}
+                  </option>
+                ))}
+              </select>
+              <p>Running {currentVersion}. Changing version reloads the page.</p>
+              {this.state.releaseError && <p>{this.state.releaseError}</p>}
+            </div>
+          </section>
+        )}
 
         <section>
           <h3>graphics</h3>

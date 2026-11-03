@@ -112,7 +112,7 @@ export class GridWorkerParcel {
   }
 
   private async fetchParcelData(priority: FetchOptions['priority'] = 'low'): Promise<boolean> {
-    const url = `/grid/parcels/${this.id}`
+    const url = new URL(`/grid/parcels/${this.id}`, self.location.origin).href
 
     const abortController = new AbortController()
     this.loadAbortController = abortController

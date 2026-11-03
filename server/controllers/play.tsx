@@ -36,6 +36,6 @@ export default function PlayController(db: Db, passport: PassportStatic, app: Ex
       </head>
     )
 
-    res.send(renderComponent(head))
+    res.send(renderComponent(res, head))
   })
 }

@@ -1,11 +1,12 @@
 // ABOUTME: Singleton Comlink handle for the voxel-thumb worker + requestThumb entrypoint.
 
 import * as Comlink from 'comlink'
+import { releaseWorker } from '../../../common/utils'
 import { createComlinkWorker } from '../../../common/helpers/comlink-worker'
 import type { VoxelThumb } from '../workers/voxel-thumb'
 
 const SIZE = 512
-const BABYLON_SRC = '/vendor/library-9.25.0.min.js'
+const BABYLON_SRC = process.env.NODE_ENV === 'development' ? '/vendor/library-9.25.0.min.js' : new URL('./babylon.js', import.meta.url).href
 const urls = new Map<string, Promise<string>>()
 
 let apiPromise: Promise<VoxelThumb> | null = null
@@ -32,7 +33,7 @@ async function getApi() {
   if (!apiPromise) {
     apiPromise = (async () => {
       const handle = await createComlinkWorker<VoxelThumb>(
-        () => new Worker(new URL(`./${process.env.BUILD_NUM}-voxel-thumb.js`, import.meta.url)),
+        () => releaseWorker(new URL('./voxel-thumb.js', import.meta.url), true),
         async () => {
           await ensureBabylon()
           return import('../workers/voxel-thumb').then((m) => m.api)

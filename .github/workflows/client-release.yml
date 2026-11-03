@@ -1,0 +1,29 @@
+name: client release
+
+on:
+  push:
+    tags: ['v*', '[0-9]*']
+
+concurrency:
+  group: client-release
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: package.json
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: node --test scripts/publish-client.test.mjs
+      - run: pnpm client:publish
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.VERSIONS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.VERSIONS_SECRET_ACCESS_KEY }}

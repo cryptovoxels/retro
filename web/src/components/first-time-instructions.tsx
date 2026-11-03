@@ -60,7 +60,7 @@ export function FirstTimeInstructions() {
 
   return (
     <dialog open class="first-time">
-      {isMobile() ? 'Drag to look around. Use the pad to walk, tap it to jump.' : 'Click to look around, Arrow keys to walk, Press space to jump'}
+      {isMobile() ? 'Drag on the left to walk. Drag on the right to look around.' : 'Click to look around, Arrow keys to walk, Press space to jump'}
     </dialog>
   )
 }

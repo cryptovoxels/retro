@@ -1,4 +1,5 @@
 import { createComlinkWorker } from '../common/helpers/comlink-worker'
+import { releaseWorker } from '../common/utils'
 import type { Mono } from './monoworker'
 
 const COMPUTE_COUNT = 4
@@ -14,7 +15,7 @@ let pool: Promise<MonoHandle[]> | null = null
 
 function spawn(): Promise<MonoHandle> {
   return createComlinkWorker<Mono>(
-    () => new Worker(new URL(`./${process.env.BUILD_NUM}-monoworker.js`, import.meta.url), { type: 'module' }),
+    () => releaseWorker(new URL('./monoworker.js', import.meta.url)),
     () => import('./monoworker').then((m) => m.mono),
     { workerName: 'monoworker' },
   )

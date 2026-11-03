@@ -9,7 +9,7 @@ const csp = require('helmet-csp')
 const crvoxAll = '*.crvox.com'
 
 // no need to specify voxels.com as it will be allowed by 'self'
-const voxels = ['cryptovoxels.com', '*.cryptovoxels.com']
+const voxels = ['cryptovoxels.com', '*.cryptovoxels.com', 'https://versions.voxels.com']
 
 /**
  * Set reportOnly to true to only report violations without blocking them (useful for testing)
@@ -45,7 +45,7 @@ module.exports = (reportOnly) =>
       workerSrc: ["'self'", 'blob:', ...voxels],
 
       // Fonts from google
-      fontSrc: ["'self'"],
+      fontSrc: ["'self'", 'https://versions.voxels.com'],
       // sandbox: ['allow-forms', 'allow-scripts'],
       // reportUri: '/report-violation',
       // objectSrc: ["'none'"],

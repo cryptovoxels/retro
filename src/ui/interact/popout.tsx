@@ -1,3 +1,4 @@
+import { isMobile } from '../../../common/helpers/detector'
 import { signal } from '@preact/signals'
 import { useEffect, useRef } from 'preact/hooks'
 import { exitPointerLock } from '../../../common/helpers/ui-helpers'
@@ -54,18 +55,20 @@ export function InteractPopout() {
       <button ref={emote} type="button" title="emote [T]" aria-expanded={active === 'emote'} aria-controls="interact-popout" class={active === 'emote' ? 'selected' : ''} onClick={() => togglePopout('emote')}>
         <Icon name="emote" />
       </button>
-      <button
-        ref={costumes}
-        type="button"
-        title={app.signedIn ? 'costumes' : 'sign in to change costumes'}
-        disabled={!app.signedIn}
-        aria-expanded={active === 'costumes'}
-        aria-controls="interact-popout"
-        class={!app.signedIn ? 'disabled' : active === 'costumes' ? 'selected' : ''}
-        onClick={() => togglePopout('costumes')}
-      >
-        <Icon name="costumes" />
-      </button>
+      {!isMobile() && (
+        <button
+          ref={costumes}
+          type="button"
+          title={app.signedIn ? 'costumes' : 'sign in to change costumes'}
+          disabled={!app.signedIn}
+          aria-expanded={active === 'costumes'}
+          aria-controls="interact-popout"
+          class={!app.signedIn ? 'disabled' : active === 'costumes' ? 'selected' : ''}
+          onClick={() => togglePopout('costumes')}
+        >
+          <Icon name="costumes" />
+        </button>
+      )}
       {active && (
         <div ref={dialog} id="interact-popout" class="interact-popout" data-pane={active} role="dialog" aria-label={active === 'dance' ? 'Dance' : active === 'emote' ? 'Emote' : 'Costumes'}>
           <button type="button" class="popout-close" aria-label="Close popout" onClick={close}>
