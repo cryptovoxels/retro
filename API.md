@@ -101,13 +101,14 @@ Newest first. A mint has `from.owner` set to the zero address. `synced` is only 
 
 Every visible parcel
 
-The whole visible world in one document, cached hard. `owner` here is a lowercased wallet string, not the avatar object the other parcel routes return.
+The whole visible world in one document. Refreshed every 60 seconds; the last successful snapshot is served while refreshing or if the database is temporarily unavailable. Returns 503 if no snapshot is available yet. `owner` here is a lowercased wallet string, not the avatar object the other parcel routes return.
 
 **answers**
 
 - `200` object
   - `success` boolean
   - `parcels` array of [`CachedParcel`](#cachedparcel)
+- `503` Parcel index temporarily unavailable; retry after 5 seconds.
 
 ### GET /api/parcels/summary.json
 

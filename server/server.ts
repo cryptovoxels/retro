@@ -37,6 +37,7 @@ import RadioController from './controllers/radio'
 
 import cache, { defaultCache, noCache } from './cache'
 import db, { pgp } from './pg'
+import { parcelCache } from './handlers/parcel-cache'
 
 import { ethers } from 'ethers'
 import type { Express, Request, Response } from 'express'
@@ -547,7 +548,7 @@ app.get(
   createRequestHandlerForQuery(db, 'get-island', 'island', (req) => [req.params.slug]),
 )
 
-app.get('/api/parcels/cached.json', cache('60 seconds', true), createRequestHandlerForQuery(db, 'get-parcels-cached', 'parcels'))
+app.get('/api/parcels/cached.json', cache('60 seconds', true), parcelCache(db))
 app.get(
   '/api/activity.json',
   cache('15 seconds'),

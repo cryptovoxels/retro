@@ -1,9 +1,8 @@
 import { ParcelRecord } from '../../common/messages/parcel'
-import type { CachedParcelsMessage } from '../../common/messages/api-parcels'
+import { parcelIndex } from '../../common/utils'
 import { type BBox, RBush3D } from 'rbush-3d'
 import type { FetchOptions } from '../../web/src/utils'
 import pDefer from 'p-defer'
-import { retryOnce } from '../../common/helpers/utils'
 import { packIds } from '../../common/helpers/bloom'
 import { LoadState, GridWorkerParcel } from '../grid-worker-parcel'
 import type { NdArray } from 'ndarray'
@@ -117,21 +116,14 @@ class GridWorker implements GridWorkerAPI {
 
   async load() {
     if (this.loadFinished) throw new Error('GridWorker already loaded')
-    // this is very high priority since the world depends on this loading
-    const opts: FetchOptions = { priority: 'high' }
-    await retryOnce(async () => {
-      const res = await fetch(process.env.ASSET_PATH + `/api/parcels/cached.json`, opts)
-      if (!res.ok) throw res
-      const response = (await res.json()) as CachedParcelsMessage
-      // transform the parcels into a format suitable for the RTree
-      const parcelBoxes = response.parcels.map((p): ParcelBox => {
-        const parcel = new GridWorkerParcel(this, p)
-        return { parcel, maxX: parcel.max.x, maxY: parcel.max.y, maxZ: parcel.max.z, minX: parcel.min.x, minY: parcel.min.y, minZ: parcel.min.z }
-      })
-      this.parcels.load(parcelBoxes)
-      this.loadFinished = true
-      this._loadedDeferred.resolve()
+    const response = await parcelIndex()
+    const parcelBoxes = response.parcels.map((p): ParcelBox => {
+      const parcel = new GridWorkerParcel(this, p)
+      return { parcel, maxX: parcel.max.x, maxY: parcel.max.y, maxZ: parcel.max.z, minX: parcel.min.x, minY: parcel.min.y, minZ: parcel.min.z }
     })
+    this.parcels.load(parcelBoxes)
+    this.loadFinished = true
+    this._loadedDeferred.resolve()
   }
 
   setMessageCallback(callback: (message: GridWorkerOutput) => void) {
