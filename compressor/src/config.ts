@@ -49,7 +49,7 @@ const values: Config = {
     name: process.env.TEXTURE_STORAGE_BUCKET || '',
     key: process.env.TEXTURE_STORAGE_KEY || '',
     secret: process.env.TEXTURE_STORAGE_SECRET || '',
-    cdn_host: process.env.TEXTURE_CDN_HOST || 'https://textures.sfo2.cdn.digitaloceanspaces.com',
+    cdn_host: process.env.TEXTURE_CDN_HOST || 'https://texture.voxels.com',
     client(): S3Client {
       return s3Client
     },

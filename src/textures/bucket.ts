@@ -15,7 +15,7 @@ export const buildCachedTextureUrl = (srcURL: string, transparent: boolean, stre
     return srcURL
   }
 
-  const host = process.env.TEXTURE_BUCKET || 'https://textures.sfo2.cdn.digitaloceanspaces.com'
+  const host = process.env.TEXTURE_BUCKET || 'https://texture.voxels.com'
 
   try {
     srcURL = new URL(srcURL).toString()

@@ -14,7 +14,7 @@ import { isMobile } from '../../common/helpers/detector'
  *
  * Environment variables:
  *   TEXTURE_HOST   - Compressor service URL
- *   TEXTURE_BUCKET - CDN bucket URL (default: textures.sfo2.cdn.digitaloceanspaces.com)
+ *   TEXTURE_BUCKET - CDN bucket URL (default: texture.voxels.com)
  */
 
 import config from '../../common/config'

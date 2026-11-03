@@ -1,4 +1,4 @@
-# ABOUTME: Texture compressor. ffmpeg plus sharp, not the monorepo.
+# ABOUTME: Texture compressor. Sharp decodes the first frame; GPU encoders run separately.
 # ABOUTME: amd64 because texture-compressor ships x86 binaries.
 
 FROM node:25-slim AS build
@@ -11,9 +11,6 @@ RUN node scripts/bundle-node.mjs compressor
 
 FROM --platform=linux/amd64 node:25-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg \
-    imagemagick \
-    webp \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
