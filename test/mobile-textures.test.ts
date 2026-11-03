@@ -88,3 +88,54 @@ test('the image budget stops downloads and disposal makes room again', async () 
   await fetchTexture(scene, 'ugc://parcel/1/new.png', signal)
   expect(fetchMock).toHaveBeenCalledTimes(count + 1)
 })
+
+test.each([true, false])('image failures keep the draft pending and retry every 30 seconds (mobile=%s)', async (mobile) => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  vi.mocked(isMobile).mockReturnValue(mobile)
+  fetchMock.mockResolvedValue({ ok: false, status: 503, headers: new Headers() })
+  const controller = new AbortController()
+  let loaded = false
+  try {
+    const pending = fetchTexture(scene, 'ugc://parcel/1/retry.png', controller.signal, { retry: true }).then((texture) => {
+      loaded = true
+      return texture
+    })
+    await vi.advanceTimersByTimeAsync(0)
+    const count = fetchMock.mock.calls.length
+    expect(count).toBeGreaterThan(0)
+    expect(loaded).toBe(false)
+    await vi.advanceTimersByTimeAsync(29999)
+    expect(fetchMock).toHaveBeenCalledTimes(count)
+    await vi.advanceTimersByTimeAsync(1)
+    expect(fetchMock).toHaveBeenCalledTimes(count * 2)
+    expect(loaded).toBe(false)
+    fetchMock.mockResolvedValue({ ok: true, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(8) })
+    await vi.advanceTimersByTimeAsync(30000)
+    const texture = await pending
+    expect(loaded).toBe(true)
+    expect((texture as any).url).not.toContain('no-image')
+    texture.dispose()
+  } finally {
+    controller.abort()
+    vi.useRealTimers()
+  }
+})
+
+test('removing an image cancels its pending retry', async () => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] })
+  fetchMock.mockRejectedValue(new Error('compressor unavailable'))
+  const controller = new AbortController()
+  try {
+    const pending = fetchTexture(scene, 'ugc://parcel/1/cancel.png', controller.signal, { retry: true })
+    const rejected = expect(pending).rejects.toBe('removed')
+    await vi.advanceTimersByTimeAsync(0)
+    controller.abort('removed')
+    await rejected
+    await vi.advanceTimersByTimeAsync(60000)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    expect(vi.getTimerCount()).toBe(0)
+  } finally {
+    controller.abort()
+    vi.useRealTimers()
+  }
+})

@@ -35,6 +35,7 @@ export interface TextureOptions {
   pixelated?: boolean
   flipY?: boolean
   mipmaps?: boolean
+  retry?: boolean
 }
 
 type TextureUrls = {
@@ -50,9 +51,40 @@ const TEXTURE_BYTES = Math.ceil((256 * 256 * 4 * 4) / 3)
 const MOBILE_BYTES = 64 * 1024 * 1024
 
 export async function fetchTexture(scene: BABYLON.Scene, srcURL: string | null, signal: AbortSignal, options: TextureOptions = {}): Promise<BABYLON.Texture> {
+  while (true) {
+    signal.throwIfAborted()
+    try {
+      const attempt = options.retry ? AbortSignal.any([signal, AbortSignal.timeout(10000)]) : signal
+      const texture = await textureAttempt(scene, srcURL, attempt, options)
+      if (signal.aborted) {
+        texture.dispose()
+        signal.throwIfAborted()
+      }
+      return texture
+    } catch (error) {
+      if (!options.retry || signal.aborted) throw error
+      await new Promise<void>((resolve, reject) => {
+        const abort = () => {
+          clearTimeout(timer)
+          reject(signal.reason)
+        }
+        const timer = setTimeout(() => {
+          signal.removeEventListener('abort', abort)
+          resolve()
+        }, 30000)
+        signal.addEventListener('abort', abort, { once: true })
+      })
+    }
+  }
+}
+
+async function textureAttempt(scene: BABYLON.Scene, srcURL: string | null, signal: AbortSignal, options: TextureOptions): Promise<BABYLON.Texture> {
   if (!isMobile()) return loadTexture(scene, srcURL, signal, options)
   const used = mobileBytes.get(scene) || 0
-  if (used + TEXTURE_BYTES > MOBILE_BYTES) return fetchNoImageTexture(scene)
+  if (used + TEXTURE_BYTES > MOBILE_BYTES) {
+    if (options.retry) throw new Error('Mobile texture budget full')
+    return fetchNoImageTexture(scene)
+  }
   mobileBytes.set(scene, used + TEXTURE_BYTES)
   const release = () => mobileBytes.set(scene, Math.max(0, (mobileBytes.get(scene) || 0) - TEXTURE_BYTES))
   try {
@@ -78,13 +110,15 @@ async function loadTexture(scene: BABYLON.Scene, srcURL: string | null, signal: 
       const texture = await fetchAndCreateTexture(scene, url, undefined, signal, { flipY, mipmaps })
       if (pixelated) texture.updateSamplingMode(1)
       return texture
-    } catch {
+    } catch (error) {
+      if (options.retry) throw error
       return await fetchNoImageTexture(scene)
     }
   }
 
   const urls = getTextureUrls(srcURL, transparent, stretch)
   if (!urls) {
+    if (options.retry) throw new Error('No image URL')
     return await fetchNoImageTexture(scene)
   }
 
@@ -95,6 +129,7 @@ async function loadTexture(scene: BABYLON.Scene, srcURL: string | null, signal: 
     }
     return texture
   } catch (err) {
+    if (options.retry) throw err
     return await fetchNoImageTexture(scene)
   }
 }

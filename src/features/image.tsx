@@ -100,6 +100,7 @@ export default class Image extends Feature2D<ImageRecord> {
         transparent: !!this.description.transparent,
         stretch: !!this.description.stretch,
         pixelated: this.description.pixelated,
+        retry: true,
       })
       if (this.disposed || this.abortController.signal.aborted) {
         texture.dispose()

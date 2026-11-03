@@ -125,10 +125,6 @@ export default class CollectibleModel extends Feature3D<CollectibleModelRecord> 
     this.mesh.id = this.uniqueEntityName('mesh')
     this.afterGenerate()
 
-    if (this.mesh.material) {
-      this.mesh.material.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
-    }
-
     this.refreshAvatarsIntervalHandle = setInterval(() => {
       // we manually refresh the broadcast stream every 1 second in case the avatar has not loaded at the start, or the avatar
       // leaves without ending broadcast (somehow??!)

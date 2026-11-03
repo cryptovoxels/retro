@@ -168,6 +168,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
         transparent: !!this.description.transparent,
         stretch: !!this.description.stretch,
         pixelated: this.description.pixelated,
+        retry: true,
       })
       if (this.disposed || this.abortController.signal.aborted) {
         texture.dispose()

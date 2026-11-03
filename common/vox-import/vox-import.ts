@@ -65,6 +65,7 @@ export class VoxImporter {
     const mesh = new BABYLON.Mesh('utils/vox-box', scene)
     const mat = new BABYLON.StandardMaterial('vox-model/vox-shader', scene)
     mat.specularColor.set(0, 0, 0)
+    mat.transparencyMode = BABYLON.Material.MATERIAL_OPAQUE
     mesh.material = mat
     mesh.useVertexColors = true
     mesh.isPickable = true
