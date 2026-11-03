@@ -193,23 +193,22 @@ async function main() {
   /**
    * First we create the main babylon engine that is global for every scene we are using
    */
-  const engine = createEngine(
-    canvas,
-    false,
-    {
-      audioEngine: true,
-      antialias: !isMobile(),
-      stencil: true,
-      alpha: wantsGateway(),
-      preserveDrawingBuffer: true, // needed for screenshots (womps)
-      doNotHandleContextLost: true, // we handle context lost ourselves *see below*
-    },
-    false,
-  )
+  const options = {
+    audioEngine: true,
+    antialias: !isMobile(),
+    stencil: true,
+    alpha: wantsGateway(),
+    preserveDrawingBuffer: true, // needed for screenshots (womps)
+    doNotHandleContextLost: true, // we handle context lost ourselves *see below*
+  }
+  const webgpu = !new URLSearchParams(location.search).has('webgl') && (await BABYLON.WebGPUEngine.IsSupportedAsync)
+  const engine: BABYLON.Engine = webgpu ? (new BABYLON.WebGPUEngine(canvas, { ...options, enableAllFeatures: true }) as any) : createEngine(canvas, false, options, false)
+  if (webgpu) await (engine as any).initAsync()
+  console.info(`World renderer: ${webgpu ? 'Babylon WebGPU' : 'Babylon WebGL2'}`)
   // reload page on context lost, rather than trying to recover (which requires lots of extra memory)
   engine.onContextLostObservable.add(() => {
     console.log('context lost')
-    window.confirm('WebGL context lost. Reload page?') && window.location.reload()
+    window.confirm('Graphics context lost. Reload page?') && window.location.reload()
   })
   if (isMobile()) engine.maxFPS = 30
   window.engine = engine

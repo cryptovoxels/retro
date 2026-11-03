@@ -19,7 +19,7 @@ export default class MobileControls extends Controls {
 
   constructor(scene: BABYLON.Scene, canvas: HTMLCanvasElement) {
     super(scene, canvas)
-    this.defaultSpeed = 20
+    this.defaultSpeed = 9 // was SPEED 0.15/frame at 60fps; dial down after feel-check
   }
 
   createCamera() {

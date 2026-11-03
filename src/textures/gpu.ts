@@ -34,6 +34,14 @@ function detectFormat(): TextureFormatExtension {
     // throw new Error('Cannot detect texture format: BabylonJS engine not initialized')
   }
 
+  if (engine.isWebGPU) {
+    const caps = engine.getCaps()
+    if (caps.astc) return '.astc.ktx'
+    if (caps.s3tc) return '.dxt.ktx'
+    if (caps.etc2) return '.etc.ktx'
+    return '.dxt.ktx'
+  }
+
   const gl = glContext(engine)
 
   // NullEngine (used in tests) doesn't have WebGL context
