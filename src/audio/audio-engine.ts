@@ -1,6 +1,6 @@
 import { wantsAudio } from '../../common/helpers/detector'
 import type Persona from '../persona'
-import { FootstepSounds } from './footstep-sounds'
+import { Footsteps } from './footsteps'
 import { FlySound } from './fly-sound'
 import { soundFx, SoundName } from './soundfx'
 import { SpatialAudio } from './spatial-audio'
@@ -49,7 +49,7 @@ export enum AudioBus {
 export interface SoundParams {
   name: string
   url?: string
-  buffer?: ArrayBuffer
+  buffer?: ArrayBuffer | AudioBuffer
   readyToPlayCallback?: () => void
   options?: BABYLON.ISoundOptions
   outputBus?: AudioBus
@@ -68,7 +68,7 @@ export class AudioEngine {
   scene: BABYLON.Scene
   audioContext: AudioContext
 
-  footstepSounds: FootstepSounds
+  footsteps: Footsteps
   flySound: FlySound
   soundFx: Record<SoundName, BABYLON.Sound>
 
@@ -111,7 +111,6 @@ export class AudioEngine {
     // avatar audio
     this.avatarOut = this.audioContext.createGain()
     this.avatarOut.gain.value = 1
-    this.footstepSounds = new FootstepSounds(this.avatarOut, this.scene, this.soundEffectsOut)
     this.flySound = new FlySound(this.avatarOut)
 
     // connect it up
@@ -127,6 +126,7 @@ export class AudioEngine {
       },
       {} as Record<SoundName, BABYLON.Sound>,
     )
+    this.footsteps = new Footsteps(this.soundFx['avatar.step'])
   }
 
   get persona(): Persona {
@@ -154,17 +154,21 @@ export class AudioEngine {
   }
 
   createSound(params: SoundParams) {
-    const sound = new BABYLON.Sound(params.name, params.url || params.buffer, this.scene, params.readyToPlayCallback, params.options)
+    const sound = new BABYLON.Sound(
+      params.name,
+      params.url || params.buffer,
+      this.scene,
+      () => {
+        if (params.outputBus === AudioBus.Parcel) this.addToParcelBus(sound)
+        else this.addToEffectsBus(sound)
+        params.readyToPlayCallback?.()
+      },
+      params.options,
+    )
 
     // default babylon doesn't copy the soundtrack when using `clone` so we manually patch to make the soundtrack/bus stick once cloned
     sound.clone = () => cloneWithSoundTrack.call(sound, this.scene)
 
-    if (params.outputBus === AudioBus.Parcel) {
-      this.addToParcelBus(sound)
-    } else {
-      // AudioBus.Effects, also default
-      this.addToEffectsBus(sound)
-    }
     return sound
   }
 

@@ -35,6 +35,7 @@ export class Client {
   position: [number, number, number] | null = null
   orientation: [number, number, number, number] | null = null
   animation = 0
+  grounded = false
   lastMoved = 0
   inConga = false
   congaFollowsUuid: string | null = null
@@ -91,6 +92,7 @@ export class Client {
       type: messages.MessageType.updateAvatar,
       uuid: this.clientUUID,
       animation: this.animation,
+      grounded: this.grounded,
       orientation: this.orientation!,
       position: this.position,
       inConga: this.inConga,
@@ -226,6 +228,7 @@ export class Client {
     this.position = msg.position as [number, number, number]
     this.orientation = msg.orientation as [number, number, number, number]
     this.animation = msg.animation
+    this.grounded = msg.grounded
     this.lastMoved = Date.now()
     this.inConga = !!msg.inConga
     this.congaFollowsUuid = msg.congaFollowsUuid ?? null

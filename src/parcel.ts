@@ -156,7 +156,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
     if (!Parcel.defaultSoundSprite && Parcel.audio) {
       try {
-        Parcel.defaultSoundSprite = new BABYLON.Sound('parcel-sound-sprite', `${process.env.SOUNDS_URL}/default-parcel-sprite.wav`, this.scene, null, {
+        Parcel.defaultSoundSprite = new BABYLON.Sound('parcel-sound-sprite', `/sounds/default-parcel-sprite.wav`, this.scene, null, {
           distanceModel: 'exponential',
           spatialSound: true,
           maxDistance: 32,

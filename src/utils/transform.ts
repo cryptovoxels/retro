@@ -5,6 +5,7 @@ export interface Transform {
   position: BABYLON.Vector3
   orientation: BABYLON.Quaternion
   animation: Animations
+  grounded: boolean
 }
 
 export class TransformQueue {
@@ -16,6 +17,7 @@ export class TransformQueue {
 
   private current: Transform = {
     animation: 0,
+    grounded: false,
     position: BABYLON.Vector3.Zero(),
     orientation: BABYLON.Quaternion.Zero(),
     timestamp: 0,
@@ -78,6 +80,7 @@ export class TransformQueue {
 
     const t = {
       animation: to.animation,
+      grounded: current.grounded && to.grounded,
       timestamp: now,
       orientation: to.orientation,
       position: to.position,
@@ -113,6 +116,7 @@ export class TransformQueue {
 
   private setCurrent(t: Transform) {
     this.current.animation = t.animation
+    this.current.grounded = t.grounded
     this.current.timestamp = t.timestamp
     this.current.orientation.copyFrom(t.orientation)
     this.current.position.copyFrom(t.position)

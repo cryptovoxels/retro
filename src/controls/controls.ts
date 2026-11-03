@@ -213,7 +213,14 @@ export default abstract class Controls implements IControls {
           this.resetFloor()
         }
       }
-      if (this.floorWait?.length && this.floorWait.every((id) => this.grid?.getByID(id)?.physicsRegistered)) this.floorWait = null
+      if (
+        this.floorWait?.length &&
+        this.floorWait.every((id) => {
+          const parcel = this.grid?.getByID(id)
+          return parcel?.physicsRegistered || parcel?.featuresActive
+        })
+      )
+        this.floorWait = null
       this.body.flying = this.flying
       this.body.gravity = !this.flying && !this.floorWait
       // F lift: 1m over 0.5s, ease-out, straight through blocks so it unsticks you
@@ -503,7 +510,7 @@ export default abstract class Controls implements IControls {
     const p = this.body.position
     this.grid.queryParcelsAtPosition(new BABYLON.Vector3(p.x, p.y, p.z)).then((ids) => {
       // F may have dropped the hold while we waited
-      if (ids.length && this.floorWait === wait) this.floorWait = ids
+      if (this.floorWait === wait) this.floorWait = ids.length ? ids : null
     })
   }
 
@@ -767,6 +774,11 @@ export default abstract class Controls implements IControls {
     return best
   }
 
+  jump() {
+    this.body.jump()
+    if (!this.flying && !this.vehicleFeature) this.persona.audio?.playSound('avatar.jump')
+  }
+
   tryEnterVehicle() {
     if (this.vehicleFeature) {
       this.stopVehicle()
@@ -793,7 +805,7 @@ export default abstract class Controls implements IControls {
     this.setNoclip(true)
     this.disableMovement()
     if (car.mesh?.rotationQuaternion) car.mesh.rotationQuaternion = null
-    this.persona.audio?.footstepSounds?.noStep()
+    this.persona.audio?.footsteps.reset()
     this.persona.animation = Animations.Sitting
     this.vehicleFacingNudge = 0
     // start in chase cam so you can see the car; C still toggles first/third while driving

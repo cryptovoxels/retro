@@ -214,7 +214,7 @@ export default class Portal extends Feature3D<PortalRecord> {
 
     this.sound = this.audio.createSound({
       name: 'feature/portal',
-      url: `${process.env.SOUNDS_URL}/features/portal-idle.wav`,
+      url: `/sounds/features/portal-idle.wav`,
       outputBus: AudioBus.Parcel,
       options: {
         loop: true,

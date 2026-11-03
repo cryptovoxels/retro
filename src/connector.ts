@@ -186,6 +186,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       type: MessageType.updateAvatar,
       uuid: Connector.clientUUID,
       animation: this.persona.animation,
+      grounded: this.controls.body.grounded,
       position: this.persona.position.asArray() as [number, number, number],
       orientation: this.persona.orientation,
       inConga: this.inConga,
@@ -478,6 +479,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
         position: avatarTransform.position,
         orientation: avatarTransform.orientation,
         animation: avatarTransform.animation,
+        grounded: avatarTransform.grounded,
         timestamp: avatarTransform.timestamp,
       })
     }
@@ -553,6 +555,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       position: BABYLON.Vector3.FromArray(message.position),
       orientation: BABYLON.Quaternion.FromArray(message.orientation),
       animation: message.animation,
+      grounded: message.grounded,
       timestamp: Date.now(),
     })
 

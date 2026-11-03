@@ -16,7 +16,7 @@ export class FlySound {
     this.gain.gain.value = 0.4
     this.gain.connect(destination)
     if (isBatterySaver()) return
-    loadSample(this.audioContext, process.env.SOUNDS_URL + '/avatar/fly.wav').then((buffer) => {
+    loadSample(this.audioContext, '/sounds/avatar/fly.wav').then((buffer) => {
       if (buffer) this.buffer = buffer
     })
   }
