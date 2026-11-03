@@ -1,5 +1,6 @@
 import { Vec3Description } from '../../common/messages/feature'
 import Feature from '../features/feature'
+import { freezeFeature, thawFeature } from '../utils'
 import { setSelectedFeature } from '../store'
 import { createEvent } from '../utils/EventEmitter'
 import { limitAbsoluteValue, round } from '../utils/helpers'
@@ -156,6 +157,8 @@ const clearGizmo = (gizmo: BABYLON.Gizmo) => {
  * and adds the appropriate dragBehaviors
  */
 export const bindGizmosToFeature = (feature: Feature) => {
+  feature.renderEditing = true
+  thawFeature(feature)
   // always drop leftovers first — skipped X/Y axes used to stay enabled from the previous feature
   gizmos.forEach(clearGizmo)
   gizmos.forEach((gizmo: BABYLON.Gizmo) => {
@@ -212,6 +215,8 @@ export const unbindGizmosFromFeature = (feature: Feature) => {
   })
   detachWindowDrag()
   hideResizeHandles(feature)
+  feature.renderEditing = false
+  freezeFeature(feature)
 }
 
 const getFeature = (gizmo: BABYLON.IGizmo): Feature | null => {

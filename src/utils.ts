@@ -1,4 +1,42 @@
 import { Animations } from './avatar-animations'
+import type Feature from './features/feature'
+
+const frozenTransforms = new WeakSet<BABYLON.TransformNode>()
+const frozenMaterials = new WeakSet<BABYLON.Material>()
+const staticFeatures = new Set(['image', 'nft-image', 'cube', 'sign', 'vox-model', 'megavox'])
+
+export function thawFeature(feature: Feature) {
+  if (!feature.mesh) return
+  for (const node of [feature.mesh, ...feature.mesh.getDescendants()]) {
+    if (node instanceof BABYLON.TransformNode && frozenTransforms.delete(node)) node.unfreezeWorldMatrix()
+    if (node instanceof BABYLON.AbstractMesh && node.material && frozenMaterials.delete(node.material)) node.material.unfreeze()
+  }
+}
+
+export function freezeFeature(feature: Feature) {
+  if (!feature.mesh || feature.disposed) return
+  for (const node of [feature.mesh, ...feature.mesh.getDescendants()]) {
+    if (!(node instanceof BABYLON.AbstractMesh)) continue
+    const owner = (node as any).feature as Feature | undefined
+    if (!owner || !staticFeatures.has(owner.type) || node.skeleton || node.billboardMode || (node as BABYLON.Mesh).morphTargetManager) continue
+    let dynamic = false
+    for (let parent: BABYLON.Node | null = node; parent; parent = parent.parent) {
+      const f = (parent as any).feature as Feature | undefined
+      if (parent.animations?.length || (parent instanceof BABYLON.TransformNode && parent.billboardMode) || f?.renderEditing || (f?.description as any)?.animation?.destination || f?.type === 'ride') {
+        dynamic = true
+        break
+      }
+    }
+    if (dynamic) continue
+    node.freezeWorldMatrix()
+    frozenTransforms.add(node)
+    const material = node.material
+    if (material instanceof BABYLON.StandardMaterial && !material.customShaderNameResolve && !material.isFrozen) {
+      material.freeze()
+      frozenMaterials.add(material)
+    }
+  }
+}
 
 export function chatStyle() {
   const body = getComputedStyle(document.body)

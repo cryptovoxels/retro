@@ -7,6 +7,7 @@ import type Connector from '../connector'
 import type Parcel from '../parcel'
 import { rebindGizmos } from '../tools/gizmos'
 import { renderImageDraft, renderVoxDraft } from './feature-draft'
+import { freezeFeature, thawFeature } from '../utils'
 import { easingFunctions, easingModes, FeatureEditor, FeatureEditorProps } from '../ui/features'
 import FeatureBasicGUI from '../ui/gui/gui'
 import { inspectFeature } from '../ui/inspect-feature'
@@ -100,6 +101,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   _animationDisabled = false
   timer?: number
   disposed = false
+  renderEditing = false
   basicGui?: FeatureBasicGUI | null
   createdByScripting = false // if feature has been created by scripting, so we can clean it on reload
   _triggers: Set<FeatureTrigger> = new Set()
@@ -441,6 +443,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       return
     }
 
+    thawFeature(this)
     const frames = Math.max(...animations.map((animation) => animation.getHighestFrame()))
 
     this.mesh.animations = animations
@@ -746,6 +749,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   async regenerate(): Promise<void> {
+    thawFeature(this)
     if (this.mesh instanceof BABYLON.Mesh && this.mesh.instances.length > 0) {
       // if you are editing the root object, deinstance all the other items otherwise they will be destroyed
       this.deinstance()
@@ -915,6 +919,8 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     if (!this.description.animation?.destination) {
       return
     }
+
+    thawFeature(this)
     if (this.description.animation?.keyframes?.length === 0) {
       return
     }
@@ -1017,6 +1023,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       return
     }
 
+    thawFeature(this)
     if (this.mesh) {
       // Set parent
       const group1 = this.groupId && this.parcel.getFeatureByUuid(this.groupId)
@@ -1058,6 +1065,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     if (this.afterSetCommon) {
       this.afterSetCommon()
     }
+    freezeFeature(this)
   }
 
   // vox meshes carry their voxel grid (vox-import applyBuffers), cubes get one oriented box. one fixed body
