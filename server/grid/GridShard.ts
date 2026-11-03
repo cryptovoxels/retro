@@ -20,6 +20,7 @@ import { GridClient } from './GridClient'
 import { GridShardMessage } from './GridShardMessage'
 import { ParcelAuthResult } from '../../common/messages/parcel'
 import { VoxelsUser } from '../user'
+import { skynetDrop, skynetResult, skynetTools } from '../skynet'
 
 type StatefulGridClient = GridClient & {
   parcelSubscriptions: Set<number>
@@ -96,6 +97,12 @@ export default class GridShard {
       case 'ping':
         statefulClient.send({ type: 'pong' })
         break
+      case 'skynet-tools':
+        skynetTools(statefulClient, message)
+        break
+      case 'skynet-result':
+        skynetResult(message)
+        break
       default: {
         const n: never = message
         log.error('unhandled message type: ' + JSON.stringify(n))
@@ -134,6 +141,7 @@ export default class GridShard {
     const wallet = statefulClient.user?.wallet?.toLowerCase()
 
     this.clientsById.delete(statefulClient.id)
+    skynetDrop(statefulClient)
 
     for (const parcelId of Array.from(statefulClient.parcelSubscriptions)) {
       this.clientsByParcelId.get(parcelId)!.delete(statefulClient.id)
@@ -169,6 +177,7 @@ export default class GridShard {
   }
 
   private sendPatchError(client: StatefulGridClient, originalPatch: PatchMessage, error: string) {
+    if (originalPatch.patchId) return client.send({ type: 'patch-ack', parcelId: originalPatch.parcelId, patchId: originalPatch.patchId, error })
     const msg: PatchErrorMessage = {
       type: 'patch-error',
       patch: originalPatch.patch,
@@ -297,6 +306,7 @@ export default class GridShard {
       type: 'patchCreate',
       payload: {
         parcelId: msg.parcelId,
+        patchId: msg.patchId,
         patch: msg.patch,
         sender: client.id,
       },

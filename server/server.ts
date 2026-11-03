@@ -59,6 +59,7 @@ import ChatController from './controllers/chat'
 import IslandBoardController from './controllers/island-board'
 import BlogController from './controllers/blog'
 import createGridSocket from './grid/createGridSocket'
+import SkynetController from './skynet'
 import { searchAndReturn } from './handlers/search'
 import startJobs from './cronjobs'
 import log from './lib/logger'
@@ -291,6 +292,10 @@ if (config.isDevelopment) {
 }
 
 // THE GREAT MERGE: one bundle, one stylesheet.
+app.get('/skynet-agents.md', cache(false), (req, res) => {
+  res.type('text/plain').sendFile(path.join(__dirname, '..', 'skynet-agents.md'))
+})
+
 app.get(`/${currentVersion}-app.js`, cache('1 day'), (req, res) => {
   return res.sendFile(path.join(__dirname, '..', 'dist', `${currentVersion}-app.js`))
 })
@@ -382,6 +387,7 @@ RadarController(app)
 
 // Guest broadcast passes (token-based access to a specific Showbox without an account)
 GuestPassesController(db, passport, app, livekitService, gridSocket)
+SkynetController(passport, app)
 
 // The NFTs
 NftController(db, passport, app)

@@ -192,6 +192,7 @@ function clientOptions(dev) {
     entryPoints: [
       { in: 'web/src/main.tsx', out: `${buildNum}-app` },
       { in: 'src/monoworker.ts', out: `${buildNum}-monoworker` },
+      { in: 'src/skynet/index.ts', out: `${buildNum}-skynet` },
     ],
     outdir: path.join(repo, 'dist'),
   }
@@ -242,7 +243,7 @@ async function buildClient(dev) {
     return
   }
   await Promise.all([esbuild.build(clientOptions(false)), esbuild.build(thumbWorkerOptions(false))])
-  for (const name of ['app', 'monoworker', 'voxel-thumb']) {
+  for (const name of ['app', 'monoworker', 'skynet', 'voxel-thumb']) {
     compress(path.join(repo, 'dist', `${buildNum}-${name}.js`))
     console.log('built', `dist/${buildNum}-${name}.js`)
   }

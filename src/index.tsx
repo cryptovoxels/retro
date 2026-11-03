@@ -40,7 +40,7 @@ import Robots from './robots/robots'
 
 // Features
 import { type AudioEngine } from './audio/audio-engine'
-import { isBatterySaver, isDebug, isInspect, isIOS, isMobile, wantsGateway, wantsXR } from '../common/helpers/detector'
+import { isBatterySaver, isSkynet, isDebug, isInspect, isIOS, isMobile, wantsGateway, wantsXR } from '../common/helpers/detector'
 import { DragDrop } from './tools/drag-drop'
 
 import { GraphicEngine } from './graphic/graphic-engine'
@@ -310,7 +310,7 @@ async function main() {
 
   // minimap is never shown on mobile (enabled getter returns false) but the constructor
   // still allocates a Scene, camera, meshes and PostProcess -- skip it entirely
-  if (!isMobile()) {
+  if (!isMobile() && !isSkynet()) {
     map = new Minimap(engine, connector)
     mapSettings = map.getSettings()
 

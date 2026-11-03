@@ -153,7 +153,7 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
 
     const auth = await authParcel(parcel, user)
 
-    if (auth !== 'Owner') {
+    if (auth !== 'Owner' && !(auth && user.skynet)) {
       res.json({ success: false, message: 'You do not have the right to create a snapshot' })
       return
     }

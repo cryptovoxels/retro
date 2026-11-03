@@ -6,6 +6,7 @@ export namespace GridShardMessage {
     payload: {
       sender: string
       parcelId: number
+      patchId?: string
       patch: {
         [x: string]: unknown
       }

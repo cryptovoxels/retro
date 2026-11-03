@@ -1,6 +1,6 @@
 import { throttle } from 'lodash'
 import { v7 as uuid } from 'uuid'
-import { Patch, PatchMessage } from '../../common/messages/grid'
+import { GridMessage, Patch, PatchMessage } from '../../common/messages/grid'
 import { getVoxelsFromBuffer } from '../../common/voxels/helpers'
 import { revokeGuestPassesForFeature } from '../controllers/guest-passes'
 import { livekitService } from '../controllers/livekit'
@@ -18,17 +18,19 @@ export class PatchSet {
   constructor(
     private readonly loadParcel: (id: number) => Promise<AbstractParcel | null>,
     private publishShardMessage: (message: GridShardMessage) => void,
+    private send: (message: GridMessage) => void,
   ) {
     this.pendingPatchMessages = []
     this.sync = throttle(() => this._sync(), SYNC_WAIT, { leading: false, trailing: true })
   }
 
-  add(parcelId: number, patch: Patch): void {
+  add(parcelId: number, patch: Patch, patchId?: string): void {
     this.pendingPatchMessages.push({
       type: 'patch',
       id: uuid(),
       parcelId,
       patch,
+      patchId,
     })
     this.sync()
   }
@@ -39,18 +41,23 @@ export class PatchSet {
 
     parcelIds.forEach(async (id) => {
       log.debug(`loading ${id}`)
+      const patchMessagesToProcess = pendingPatchMessages.filter((p) => p.parcelId === id)
+      // acked or not, a processed patch is done. replaying a patch that threw just throws again.
+      const ack = (error?: string) => {
+        const done = new Set(patchMessagesToProcess.map((m) => m.id))
+        this.pendingPatchMessages = this.pendingPatchMessages.filter((m) => !done.has(m.id))
+        for (const m of patchMessagesToProcess) if (m.patchId) this.send({ type: 'patch-ack', parcelId: id, patchId: m.patchId, ...(error ? { error } : {}) })
+      }
 
       const parcel = await this.loadParcel(id)
 
       if (!parcel) {
         log.error(`PatchSet: Parcel ${id} does not exist`)
-        return
+        return ack('Parcel does not exist')
       }
       let shouldUpdateParcelScript = false
       const deletedShowboxUuids: string[] = []
       try {
-        const patchMessagesToProcess = pendingPatchMessages.filter((p) => p.parcelId === id)
-
         patchMessagesToProcess.forEach((patchMessage) => {
           const { patch } = patchMessage
 
@@ -136,11 +143,10 @@ export class PatchSet {
           this.publishShardMessage({ type: 'scriptUpdate', payload: { parcelId: id } })
         }
 
-        // Remove these patches from the list
-        const processedPatchMessageIds = new Set(pendingPatchMessages.map((m) => m.id))
-        this.pendingPatchMessages = this.pendingPatchMessages.filter((m) => processedPatchMessageIds.has(m.id) === false)
-      } catch (e) {
+        ack()
+      } catch (e: any) {
         log.error('Bad error updating parcel', e)
+        ack(e?.message || 'Save failed')
       }
     })
   }

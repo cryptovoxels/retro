@@ -1,4 +1,4 @@
-import { isDebug, wantsAudio, wantsGateway } from '../../common/helpers/detector'
+import { isDebug, isSkynet, robotFov, wantsAudio, wantsGateway, wantsRoboshot } from '../../common/helpers/detector'
 import { startGateway } from '../gateway'
 import { decodeCoords, encodeCoords } from '../../common/helpers/utils'
 import { AudioEngine } from '../audio/audio-engine'
@@ -13,6 +13,7 @@ import { startGhosts } from '../ghosts'
 import { watchWelcome } from '../ui/welcome'
 import { updateWorldScene } from './world-scene'
 import { setupRealmPopstate } from './realm'
+import { currentVersion } from '../../common/version'
 
 export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCanvasElement, controls: Controls) {
   const grid = new Grid(scene)
@@ -32,6 +33,8 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
   }
 
   const connector = initConnector(scene, controls, grid)
+  if ((isSkynet() || wantsRoboshot()) && scene.activeCamera) scene.activeCamera.fov = robotFov()
+  if (isSkynet()) loadSkynet()
 
   startGhosts(scene, grid, controls, connector)
   watchWelcome(scene)
@@ -107,4 +110,12 @@ function updateNavbarWithCoords(scene: BABYLON.Scene, connector: Connector) {
     if (window.grid?.currentW !== 0) return
     if (e.state) connector.persona.teleportNoHistory(decodeCoords(e.state))
   })
+}
+
+// the skynet api is its own bundle next to app.js (same paths as render-component appJs), players never download it
+function loadSkynet() {
+  const s = document.createElement('script')
+  s.type = 'module'
+  s.src = (process.env.NODE_ENV === 'development' ? '/proxy/web' : '') + `/${currentVersion}-skynet.js`
+  document.head.append(s)
 }

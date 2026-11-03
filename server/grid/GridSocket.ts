@@ -108,6 +108,7 @@ export default class GridSocket {
         new PatchSet(
           (parcelId) => Parcel.load(parcelId),
           (message) => gridCluster.publish(message),
+          client.send,
         ),
       )
 
@@ -175,7 +176,7 @@ export default class GridSocket {
     if (message.type === 'patchCreate') {
       const patchSet = this.patchSetByClientId.get(message.payload.sender)
       if (patchSet) {
-        patchSet.add(message.payload.parcelId, message.payload.patch)
+        patchSet.add(message.payload.parcelId, message.payload.patch, message.payload.patchId)
       } else {
         log.error(`publishShardMessage() for world grid: no PatchSet found for client ID '${message.payload.sender}'!`)
       }

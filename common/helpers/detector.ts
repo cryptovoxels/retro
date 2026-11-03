@@ -125,8 +125,13 @@ export const wantsLite = () => {
 
 // &ui=off drops the HUD and reticule (used by go-live links, see secret-flags.md)
 export const wantsNoUI = () => {
-  return ['off', 'false', '0'].includes(searchParams.get('ui') ?? '') || wantsGateway()
+  return ['off', 'false', '0'].includes(searchParams.get('ui') ?? '') || wantsGateway() || wantsRoboshot() || isSkynet()
 }
+
+export const wantsRoboshot = () => searchParams.has('roboshot')
+// Skynet is our MCP-style agent mode. The name is a joke; the browser API is real.
+export const isSkynet = () => searchParams.get('agent') === 'skynet'
+export const robotFov = () => (Math.min(150, Math.max(30, Number(searchParams.get('fov')) || (isSkynet() ? 150 : 70))) * Math.PI) / 180
 
 export const isAndroid = () => {
   return navigator.userAgent.match(/android/i)
@@ -179,6 +184,7 @@ export const wantsEmail = (): boolean => {
 }
 
 export const wantsAudio = (): boolean => {
+  if (isSkynet() || wantsRoboshot()) return false
   const audio = searchParams.get('audio')
   if (audio === 'off' || audio === '0' || audio === 'false') return false
   if (audio === 'on' || audio === '1' || audio === 'true') return true

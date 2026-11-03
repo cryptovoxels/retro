@@ -546,6 +546,7 @@ export default class Parcel extends AbstractParcel {
         lightmap_url = $7,
         description = $8,
         sandbox = $9,
+        memoized_hash = md5($1::text),
         updated_at = NOW()
       WHERE
         id = $10

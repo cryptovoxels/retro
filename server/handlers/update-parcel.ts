@@ -102,7 +102,7 @@ export async function revertParcel(req: Request, res: Response) {
   const user = (req as VoxelsUserRequest).user || null
   const authResult = await authParcel(parcel, user)
 
-  if (authResult === 'Owner' || authResult === 'Moderator') {
+  if (authResult === 'Owner' || authResult === 'Moderator' || (authResult && user?.skynet)) {
     await parcel.revert(parcelVersionId)
     res.json({ success: true })
     return

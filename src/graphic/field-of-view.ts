@@ -1,3 +1,4 @@
+import { isSkynet, robotFov } from '../../common/helpers/detector'
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
 
 const FOV_KEY = 'fov2'
@@ -47,5 +48,6 @@ export class FOV extends TypedEventTarget<{ changed: { value: number } }> {
 }
 
 function clampFov(value: number) {
+  if (isSkynet()) return robotFov()
   return Math.min(MAX_FOV, Math.max(MIN_FOV, value))
 }

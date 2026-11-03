@@ -23,11 +23,13 @@ import { JSXInternal } from 'preact/src/jsx'
 import { ensureRadio } from './radio/global'
 import { app, AppEvent } from './state'
 import { AppRoutes } from './app-routes'
+import { isSkynet } from '../../common/helpers/detector'
 import { applyTheme } from '../../common/helpers/theme'
 import { clearPageTool, isPageTool, pageToolEl, uiPane, worldUi } from '../../src/store'
 import { closePageSidebar } from './sidebar-close'
 
 applyTheme()
+document.body.classList.toggle('skynet', isSkynet())
 
 class MainApp extends Component {
   componentDidMount() {
