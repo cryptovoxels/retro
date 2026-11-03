@@ -8,7 +8,6 @@ import { createFirstPersonCamera } from '../utils/fps-camera'
 import { decodeCoordsFromURL } from '../../utils/helpers'
 import { hasPointerLock, isFastviewBlocking } from '../../../common/helpers/ui-helpers'
 import { hoveredNft, uiPane } from '../../store'
-import { readNftUrl, writeCaip19 } from '../../../common/helpers/nft-url'
 import { app, AppEvent, likedArt, toggleLike } from '../../../web/src/state'
 import { CAMERA_HEIGHT, encodeCoords } from '../../../common/helpers/utils'
 import { pointerOverGizmo } from '../../tools/gizmos'
@@ -150,15 +149,8 @@ export default class DesktopControls extends Controls {
     this.keyboardInput?.reset()
   }
 
-  // caip cached on the feature, hover is per frame. todo: stale if the url is edited
   caipOf(feature: Feature | null): string | null {
-    const f = feature as any
-    if (f?.type !== 'nft-image') return null
-    if (f.caip === undefined) {
-      const nft = readNftUrl(f.url)
-      f.caip = nft ? writeCaip19(nft) : null
-    }
-    return f.caip
+    return feature?.type === 'nft-image' ? (feature as any).caip : null
   }
 
   desktopClicks(eventData: BABYLON.PointerInfo, eventState: BABYLON.EventState) {

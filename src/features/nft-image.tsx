@@ -4,7 +4,10 @@ import { ProxyAssetOpensea } from '../../common/messages/api-opensea'
 import { ImageMode, NftImageRecord } from '../../common/messages/feature'
 import { isUgcTextureUrl } from '../../common/helpers/parcel-compile'
 import { Position, Rotation, Scale, Behaviours, EditorProps } from '../../web/src/components/editor'
-import { app } from '../../web/src/state'
+import { app, likedArt } from '../../web/src/state'
+import { effect } from '@preact/signals'
+import { readNftUrl, writeCaip19 } from '../../common/helpers/nft-url'
+import { loadNineVox, nineVox } from '../utils/nine-vox'
 import { fetchTexture } from '../textures/textures'
 import { rebindGizmos } from '../tools/gizmos'
 import { Advanced, BlendMode, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar, SourceInput } from '../ui/features'
@@ -26,6 +29,19 @@ function frameMat(scene: BABYLON.Scene, name: string, color: BABYLON.Color3): BA
 }
 
 const frameThick = 0.05
+const LIKED_FRAME = `${process.env.ASSET_PATH}/models/frames/pinkframe.vox`
+
+// liked art gets a frame the moment you heart it. only the nfts whose key flipped rebuild
+const live = new Set<NftImage>()
+let lastLiked = likedArt.value
+effect(() => {
+  const liked = likedArt.value
+  for (const f of live) {
+    const k = f.caip
+    if (k && !!liked[k] !== !!lastLiked[k]) f.generateFrame()
+  }
+  lastLiked = liked
+})
 
 export default class NftImage extends Feature2D<NftImageRecord> {
   static classicFrameMaterial: BABYLON.StandardMaterial
@@ -43,6 +59,8 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     url: '',
   }
   frame: BABYLON.Mesh | null = null
+  likedFrame: BABYLON.Mesh | null = null
+  private _caip?: string | null
   forceUpdate = false
   rendered = false
   assetHelper: OpenseaAssetHelper | null = null
@@ -80,6 +98,15 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     } else if (style == 'colors') {
       return NftImage.colorsFrameMaterial
     }
+  }
+
+  // CAIP-19 id, computed once. todo: stale if the url is edited
+  get caip() {
+    if (this._caip === undefined) {
+      const nft = readNftUrl(this.url || '')
+      this._caip = nft ? writeCaip19(nft) : null
+    }
+    return this._caip
   }
 
   get nftInfo() {
@@ -293,6 +320,10 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     if (this.frame) {
       this.frame.dispose()
     }
+    live.add(this)
+    this.likedFrame?.dispose()
+    this.likedFrame = null
+    if (this.caip && likedArt.value[this.caip]) void this.likedFraming()
 
     const style = this.description.nftFrameStyle || 'classic'
     let frameMaterial = NftImage.classicFrameMaterial
@@ -343,7 +374,19 @@ export default class NftImage extends Feature2D<NftImageRecord> {
     this.frame.rotation.copyFrom(this.rotation)
   }
 
+  async likedFraming() {
+    const slab = await loadNineVox(LIKED_FRAME)
+    if (!slab || this.disposed || !this.mesh || this.likedFrame) return
+    const f = nineVox(slab, this.scale.x, this.scale.y, this.scene)
+    f.parent = this.mesh.parent
+    f.position.copyFrom(this.position)
+    f.rotation.copyFrom(this.rotation)
+    this.likedFrame = f
+  }
+
   _dispose() {
+    live.delete(this)
+    this.likedFrame?.dispose()
     this.frame?.dispose()
     super._dispose()
   }
