@@ -1,6 +1,7 @@
 import sharp from 'sharp'
 import { hashify } from './storage'
 import config from './config'
+import { jobSignal } from './utils'
 
 export const enum Type {
   'medium' = 'medium',
@@ -91,6 +92,7 @@ const DEFAULT_MAX_SIZE_IMAGE = 512
 const PASSTHROUGH_MAX_SIZE = 4096
 
 function prepare(texture: Texture): Promise<Texture> {
+  jobSignal()
   const sourcePath = config.cacheDir(texture.id)
   let maxSizeImage = texture.options?.size ? potCeil(texture.options?.size) : DEFAULT_MAX_SIZE_IMAGE
 
@@ -99,6 +101,7 @@ function prepare(texture: Texture): Promise<Texture> {
   }
 
   return sharp(sourcePath, { pages: 1, limitInputPixels: 64 * 1024 * 1024 })
+    .timeout({ seconds: 1 })
     .metadata()
     .then((md) => {
       texture.setMetadata(md, Type.medium)
@@ -123,7 +126,8 @@ function prepare(texture: Texture): Promise<Texture> {
         extractOpts.top = aspectRatio > 1 ? 0 : Math.round((pixelSize / aspectRatio - pixelSize) / 2)
       }
 
-      const sharpInstance = sharp(sourcePath, { failOn: 'error', pages: 1, limitInputPixels: 64 * 1024 * 1024 })
+      jobSignal()
+      const sharpInstance = sharp(sourcePath, { failOn: 'error', pages: 1, limitInputPixels: 64 * 1024 * 1024 }).timeout({ seconds: 1 })
       return resize(sharpInstance, resizeOpts, extractOpts)
         .then((s) => flatten(s, texture))
         .then((s) => (texture.options.dontFlipY ? s : s.flip()))

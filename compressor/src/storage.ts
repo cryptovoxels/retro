@@ -5,7 +5,9 @@ import { DeleteObjectsCommand, HeadObjectCommand, PutObjectCommand } from '@aws-
 import { textureHash } from '../../common/helpers/texture-hash'
 import { URL } from 'url'
 import fs from 'fs'
-import { http, https } from 'follow-redirects'
+import { pipeline } from 'node:stream/promises'
+import { Readable, Transform } from 'node:stream'
+import { jobSignal } from './utils'
 import path from 'path'
 import config from './config'
 import { Options, Texture, Type } from './texture'
@@ -94,66 +96,26 @@ export function download(texture: Texture, fallbackURL?: string): Promise<Textur
     })
 }
 
-function downloader(sourceURL: URL, destPath: string): Promise<void> {
-  return new Promise<void>((resolve, reject) => {
-    const file = fs.createWriteStream(destPath, { flags: 'w+' })
-
-    const client = sourceURL.protocol === 'http:' ? http : https
-    // Prevents duplicate error responses when both request and file streams emit errors
-    let responseSent = false
-
-    const requestOptions = {
-      headers: {
-        'User-Agent': 'CryptovoxelsTextureCompressor/1.0',
-      },
+async function downloader(sourceURL: URL, destPath: string): Promise<void> {
+  const signal = jobSignal()
+  try {
+    const response = await fetch(sourceURL, { signal, headers: { 'User-Agent': 'CryptovoxelsTextureCompressor/1.0' } })
+    if (!response.ok || !response.body) {
+      await response.body?.cancel()
+      throw new DownloadError(sourceURL.toString(), response.status, response.statusText)
     }
-
-    const request = client.get(sourceURL, requestOptions, (response) => {
-      if (response.statusCode === 200) {
-        response.pipe(file)
-      } else {
-        if (responseSent) return
-        responseSent = true
-        file.close()
-        fs.unlink(destPath, () => {})
-        const error = new DownloadError(sourceURL.toString(), response.statusCode, response.statusMessage)
-        reject(error)
-      }
+    let size = 0
+    const limit = new Transform({
+      transform(chunk, _encoding, done) {
+        size += chunk.length
+        done(size > 16 * 1024 * 1024 ? new Error('source exceeds 16 MiB') : null, chunk)
+      },
     })
-
-    request.setTimeout(10000, () => {
-      console.error(`timing out '${sourceURL}'`)
-      request.abort()
-    })
-
-    request.on('error', (error) => {
-      if (responseSent) return
-      responseSent = true
-      file.close()
-      fs.unlink(destPath, () => {})
-      reject(error)
-    })
-
-    file.on('finish', () => {
-      resolve()
-    })
-
-    file.on('error', (error: ErrnoException) => {
-      if (responseSent) return
-      responseSent = true
-      request.abort()
-      file.close()
-      if (error.code !== 'EEXIST') {
-        reject(error)
-        fs.unlink(destPath, () => {})
-        return
-      }
-      // Update modification timestamp to prevent garbage collection of in-use file
-      const now = new Date()
-      fs.utimes(destPath, now, now, () => {})
-      resolve()
-    })
-  })
+    await pipeline(Readable.fromWeb(response.body as any), limit, fs.createWriteStream(destPath), { signal })
+  } catch (error) {
+    await fs.promises.rm(destPath, { force: true })
+    throw error
+  }
 }
 
 export function s3Move(source: string, prefix: string, extraHeaders: string): Promise<string> {
@@ -181,7 +143,7 @@ export async function s3Copy(source: string, prefix: string, extraHeaders: strin
   })
 
   const s3 = config.space.client()
-  await s3.send(command)
+  await s3.send(command, { abortSignal: jobSignal() })
   return `${config.space.cdn_host}/${prefix}/${path.basename(source)}`
 }
 
@@ -220,6 +182,7 @@ function localFind(sourceURL: string, opts: Options, type: Type, suffix: string)
       const stat = fs.statSync(config.cacheDir(filename))
       if (stat.isFile()) {
         return sharp(config.cacheDir(texture.id))
+          .timeout({ seconds: 1 })
           .metadata()
           .then((metadata) => {
             texture.setMetadata(metadata, type)
@@ -272,7 +235,7 @@ async function s3Find(sourceURL: string, opts: Options, size: Type, suffix: stri
   })
 
   try {
-    await s3.send(command)
+    await s3.send(command, { abortSignal: jobSignal() })
     s3LookupCache.set(key, url)
     return { location: url, texture }
   } catch (error: any) {
@@ -295,7 +258,7 @@ export async function s3Delete(...objects: string[]) {
     Delete: { Objects: toDelete },
   })
 
-  await config.space.client().send(command)
+  await config.space.client().send(command, { abortSignal: jobSignal() })
 }
 
 function parseS3UploadSettings(headersJSON: string) {

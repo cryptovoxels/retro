@@ -1,6 +1,6 @@
 import path from 'path'
 import config from './config'
-import { pack } from 'texture-compressor'
+import { pack } from './utils'
 
 interface FormatSettings {
   compression: string
@@ -23,9 +23,9 @@ const commonOptions = {
 
 export const Compressions: Map<string, CompressionOptions> = new Map([
   ['.dxt.ktx', { type: 's3tc', opaque: { compression: 'DXT1', quality: 'normal' }, withAlpha: { compression: 'DXT5', quality: 'better' } }],
-  ['.etc.ktx', { type: 'etc', opaque: { compression: 'ETC2_RGB', quality: 'etcfastperceptual' }, withAlpha: { compression: 'ETC2_RGBA', quality: 'etcfastperceptual' } }],
+  ['.etc.ktx', { type: 'etc', opaque: { compression: 'ETC2_RGB', quality: 'etcfast' }, withAlpha: { compression: 'ETC2_RGBA', quality: 'etcfast' } }],
   ['.pvrtc.ktx', { type: 'pvrtc', opaque: { compression: 'PVRTC1_2', quality: 'pvrtcnormal' }, withAlpha: { compression: 'PVRTC1_4', quality: 'pvrtcnormal' } }],
-  ['.astc.ktx', { type: 'astc', opaque: { compression: 'ASTC_4x4', quality: 'astcmedium' }, withAlpha: { compression: 'ASTC_8x8', quality: 'astcmedium' } }],
+  ['.astc.ktx', { type: 'astc', opaque: { compression: 'ASTC_4x4', quality: 'astcfast' }, withAlpha: { compression: 'ASTC_8x8', quality: 'astcfast' } }],
 ])
 
 const VALID_FORMATS = Array.from(Compressions.keys()).join(', ')
