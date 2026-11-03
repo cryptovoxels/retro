@@ -59,6 +59,7 @@ export interface GridWorkerAPI {
   init(nearbyDistance: number, unloadDistance: number): void
   cameraUpdate(position: [number, number, number], frustumPlanes?: number[][]): void
   queryParcelsAtPosition(queryId: number, position: [number, number, number]): Promise<{ type: 'QueryResponse'; queryId: number; parcelIds: number[] }>
+  nearbyParcels(position: [number, number, number]): Promise<number[]>
   handleParcelGenerated(parcelId: number): void
   load(): Promise<void>
   setMessageCallback(callback: (message: GridWorkerOutput) => void): void
@@ -157,6 +158,11 @@ class GridWorker implements GridWorkerAPI {
       const parcelIds = this.getContainingParcels(vec3(position[0], position[1], position[2])).map(({ parcel }) => parcel.id)
       return { type: 'QueryResponse' as const, queryId, parcelIds }
     })
+  }
+
+  async nearbyParcels(position: [number, number, number]) {
+    await this._loadedDeferred.promise
+    return this.getParcelsWithinCircle(vec3(...position), Math.min(32, this.loadDistance)).map(({ parcel }) => parcel.id)
   }
 
   handleParcelGenerated(parcelId: number) {

@@ -6,6 +6,7 @@ import type { BootResult } from '../../src'
 import { pushSpaceHistory, realmSavedCoords, saveRealmCoords } from '../../src/init/realm'
 import { spaceW } from '../../src/utils/space-w'
 import cachedFetch from './helpers/cached-fetch'
+import { Spinner } from './spinner'
 import { getCoords, getParcelIdFromPath, getSpaceIdFromPath, isSpacePath, isSpacePlayPath } from './helpers/coords-nav'
 import { app, AppEvent } from './state'
 import { currentOrNearestParcel } from '../../src/store'
@@ -23,12 +24,13 @@ type FrameProps = {
   path?: string
 }
 
-type FrameState = { ui?: BootResult | null }
+type FrameState = { ui?: BootResult | null; ready?: boolean; error?: boolean }
 
 export class Client extends Component<FrameProps, FrameState> {
   root = createRef<HTMLDivElement>()
   box = createRef<HTMLDivElement>()
   observer: ResizeObserver | null = null
+  revealObserver: BABYLON.Observer<BABYLON.Scene> | null = null
 
   componentDidMount() {
     if (!canUseDom) return
@@ -40,7 +42,7 @@ export class Client extends Component<FrameProps, FrameState> {
       .then(() => this.adopt())
       .catch((e) => {
         console.error('[boot]', e)
-        this.adopt()
+        this.setState({ error: true })
       })
   }
 
@@ -55,6 +57,7 @@ export class Client extends Component<FrameProps, FrameState> {
 
   componentWillUnmount() {
     this.observer?.disconnect()
+    window.scene?.onAfterRenderObservable.remove(this.revealObserver)
   }
 
   private syncRealm(path?: string, prevPath?: string): Promise<void> {
@@ -75,16 +78,36 @@ export class Client extends Component<FrameProps, FrameState> {
     })
   }
 
-  private adopt() {
+  private async adopt() {
     const canvas = document.getElementById('renderCanvas')
     const box = this.box.current
     if (!canvas || !box) return
 
     box.appendChild(canvas)
+    canvas.style.visibility = 'hidden'
     canvas.style.display = 'block'
     const id = getParcelIdFromPath(this.props.path)
-    if (id && !isSpacePlayPath(this.props.path)) this.gotoParcel(id)
+    if (id && !isSpacePlayPath(this.props.path)) await this.gotoParcel(id)
     this.watchSize()
+    window.engine?.resize()
+    if (wantsLite()) {
+      canvas.style.visibility = ''
+      this.setState({ ready: true })
+      return
+    }
+    const grid = window.grid!
+    const scene = window.scene
+    const parcels = await grid.startupParcels()
+    if (!box.isConnected) return
+    let frames = 0
+    this.revealObserver = scene.onAfterRenderObservable.add(() => {
+      frames = grid.startupReady(parcels) ? frames + 1 : 0
+      if (frames < 2) return
+      scene.onAfterRenderObservable.remove(this.revealObserver)
+      this.revealObserver = null
+      canvas.style.visibility = ''
+      this.setState({ ready: true })
+    })
   }
 
   private watchSize() {
@@ -98,7 +121,7 @@ export class Client extends Component<FrameProps, FrameState> {
   private gotoParcel(id: number) {
     // already here or next to it (location label click), don't teleport
     if (window.grid?.currentParcel()?.id === id || currentOrNearestParcel.value?.id === id) return
-    void cachedFetch(`/api/parcels/${id}.json`)
+    return cachedFetch(`/api/parcels/${id}.json`)
       .then((r) => r.json())
       .then((d) => {
         if (window.grid?.currentParcel()?.id === id) return
@@ -126,8 +149,11 @@ export class Client extends Component<FrameProps, FrameState> {
       <>
         <div class="client" ref={this.root}>
           <div class="client-canvas" ref={this.box} />
+          {!this.state.ready && (
+            <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center' }}>{this.state.error ? <button onClick={() => location.reload()}>Could not load the world. Try again.</button> : <Spinner size={48} />}</div>
+          )}
         </div>
-        {ui && !wantsNoUI() && <ui.UI {...ui.props} />}
+        {this.state.ready && ui && !wantsNoUI() && <ui.UI {...ui.props} />}
       </>
     )
   }

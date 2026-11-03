@@ -17,7 +17,7 @@ import { ParcelPatch, ParcelRecord } from '../common/messages/parcel'
 import { GraphicLevels } from './graphic/graphic-engine'
 import { PanelType } from '../web/src/components/panel'
 import { DeferredPromise } from 'p-defer'
-import { createSpaceScene, createWorldScene, getWorldTerrain, parcelMeshesAdded, parcelMeshesRemoved, teardownSpaceScene, teardownWorldScene } from './init/world-scene'
+import { createSpaceScene, createWorldScene, getWorldGroundState, getWorldTerrain, parcelMeshesAdded, parcelMeshesRemoved, teardownSpaceScene, teardownWorldScene } from './init/world-scene'
 import { fetchSpace } from './init/realm'
 import type { IslandRecord } from '../common/messages/api-islands'
 import { normalizeSpace } from './utils/normalize-space'
@@ -532,6 +532,34 @@ export default class Grid extends SocketClient {
       const queryId = this._nextQueryId++
       return this.workerAPI.queryParcelsAtPosition(queryId, pos.asArray() as [number, number, number]).then((result) => result.parcelIds)
     })
+  }
+
+  async startupParcels(): Promise<Array<number | string>> {
+    await this._workerReadyPromise
+    const ids = this.currentW > 0 || this.isolateMode ? (this.mountedParcel ? [this.mountedParcel.id] : []) : await this.workerAPI!.nearbyParcels(this.getCameraPosition().asArray() as [number, number, number])
+    if (!ids.length) markLoaded() // Open water still needs terrain rendering.
+    if (this.currentW === 0) {
+      const ground = getWorldGroundState()
+      await new Promise<void>((resolve) => {
+        const done = () => {
+          ground.removeStateObserver('loaded', done)
+          resolve()
+        }
+        ground.addStateObserver('loaded', done)
+      })
+    }
+    return ids
+  }
+
+  startupReady(ids: Array<number | string>) {
+    if (this.switching) return false
+    for (const id of ids) {
+      const parcel = this.getByID(id)
+      if (!parcel?.loaded || (parcel.voxels?.trim() && !parcel.voxelMesh?.isReady(true))) return false
+    }
+    const parcel = this.currentOrNearestParcel()
+    // Remote media can keep streaming after the nearby world is drawable.
+    return !ids.length || !!parcel?.areFeaturesLoaded || !!parcel?.featuresList.some((feature) => feature.mesh instanceof BABYLON.AbstractMesh && feature.mesh.isReady(true))
   }
 
   public loadWorker() {

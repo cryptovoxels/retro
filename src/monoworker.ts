@@ -19,6 +19,7 @@ const api = {
   init: gridWorker.init.bind(gridWorker),
   cameraUpdate: gridWorker.cameraUpdate.bind(gridWorker),
   queryParcelsAtPosition: gridWorker.queryParcelsAtPosition.bind(gridWorker),
+  nearbyParcels: gridWorker.nearbyParcels.bind(gridWorker),
   handleParcelGenerated: gridWorker.handleParcelGenerated.bind(gridWorker),
   load: gridWorker.load.bind(gridWorker),
   setMessageCallback: gridWorker.setMessageCallback.bind(gridWorker),
