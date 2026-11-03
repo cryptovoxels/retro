@@ -1,7 +1,8 @@
+import { createEngine } from '../../../common/helpers/utils'
 import { isMobile } from '../../../common/helpers/detector'
 
 export const createWearableScene = (canvasOrContext: BABYLON.Nullable<HTMLCanvasElement | OffscreenCanvas | WebGLRenderingContext | WebGL2RenderingContext>) => {
-  const engine = new BABYLON.Engine(canvasOrContext)
+  const engine = createEngine(canvasOrContext)
   const scene = new BABYLON.Scene(engine)
   scene.clearColor.set(1, 0, 0.6, 1)
 

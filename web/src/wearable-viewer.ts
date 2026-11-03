@@ -1,3 +1,4 @@
+import { createEngine } from '../../common/helpers/utils'
 import { isSafari } from '../../common/helpers/detector'
 import { createWearableScene } from './helpers/scenes'
 import voxImport from '../../common/vox-import/sync-vox-import'
@@ -25,7 +26,7 @@ export class WearableViewer {
   }
 
   async createScene() {
-    this.engine = new BABYLON.Engine(this.canvas, true, { audioEngine: true })
+    this.engine = createEngine(this.canvas, true, { audioEngine: true })
     this.scene = new BABYLON.Scene(this.engine)
     this.scene.clearColor.set(0.6, 0.6, 0.6, 1)
     window.addEventListener('resize', () => this.engine?.resize(), { passive: true })

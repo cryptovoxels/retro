@@ -1,3 +1,4 @@
+import { createEngine } from '../../../common/helpers/utils'
 import { Component, createRef } from 'preact'
 import { setupScene } from './utils'
 import Avatar from './avatar'
@@ -41,7 +42,7 @@ export default class AvatarCanvas extends Component<Props, State> {
   }
 
   componentDidMount() {
-    this.engine = new BABYLON.Engine(this.canvas.current, true, { preserveDrawingBuffer: true, stencil: true })
+    this.engine = createEngine(this.canvas.current, true, { preserveDrawingBuffer: true, stencil: true })
     this.scene = setupScene(this.canvas.current, this.engine, () => {
       /* do nothing onClick */
     })

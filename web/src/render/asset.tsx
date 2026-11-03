@@ -1,3 +1,4 @@
+import { createEngine } from '../../../common/helpers/utils'
 import { useEffect, useState } from 'preact/hooks'
 import type { Assetish } from '../asset'
 import type { ParcelRecord } from '../../../common/messages/parcel'
@@ -166,7 +167,7 @@ export default function RenderAsset(props: Props) {
     canvas.width = 512
     canvas.height = 1024
 
-    const engine = new BABYLON.Engine(canvas, true)
+    const engine = createEngine(canvas, true)
 
     scene = createAssetScene(engine)
 

@@ -1,3 +1,4 @@
+import { createEngine } from '../common/helpers/utils'
 /*
  * When embedded in Opensea (or other sandboxed iframes) - we need to stub
  * a bunch of stuff that causes a SecurityException
@@ -40,7 +41,7 @@ import Robots from './robots/robots'
 
 // Features
 import { type AudioEngine } from './audio/audio-engine'
-import { isBatterySaver, isDebug, isInspect, isIOS, isMobile, wantsGateway, wantsXR } from '../common/helpers/detector'
+import { isBatterySaver, isDebug, isInspect, isMobile, wantsGateway, wantsXR } from '../common/helpers/detector'
 import { DragDrop } from './tools/drag-drop'
 
 import { GraphicEngine } from './graphic/graphic-engine'
@@ -192,12 +193,11 @@ async function main() {
   /**
    * First we create the main babylon engine that is global for every scene we are using
    */
-  const engine = new BABYLON.Engine(
+  const engine = createEngine(
     canvas,
     false,
     {
       audioEngine: true,
-      disableWebGL2Support: isIOS(),
       antialias: !isMobile(),
       stencil: true,
       alpha: wantsGateway(),

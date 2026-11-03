@@ -20,6 +20,7 @@ type Props = {
 }
 
 type State = {
+  menuOpen: boolean
   results: any[]
   snackbarMessage: string
   query: string
@@ -62,6 +63,7 @@ function markChatSeen() {
 
 export default class WebHeader extends Component<Props, State> {
   state: State = {
+    menuOpen: false,
     results: [],
     snackbarMessage: '',
     query: '',
@@ -110,6 +112,7 @@ export default class WebHeader extends Component<Props, State> {
 
   componentDidUpdate(prevProps: Props) {
     if (prevProps.path !== this.props.path) {
+      this.setState({ menuOpen: false })
       if (this.navPath() === '/chat') {
         markChatSeen()
         this.setState({ chatN: 0 })
@@ -259,8 +262,13 @@ export default class WebHeader extends Component<Props, State> {
 
     return (
       <>
-        <header class="menu mini">
-          <nav ref={(el) => void (this.nav = el)} onKeyDown={this.onKeys}>
+        <header class={`menu mini${this.state.menuOpen ? ' expanded' : ''}`}>
+          <button type="button" class="menu-toggle" aria-label="Menu" aria-expanded={this.state.menuOpen} aria-controls="web-menu" onClick={() => this.setState({ menuOpen: !this.state.menuOpen })}>
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
+              <path d="M2 4h16M2 10h16M2 16h16" fill="none" stroke="currentColor" stroke-width="2" />
+            </svg>
+          </button>
+          <nav id="web-menu" ref={(el) => void (this.nav = el)} onKeyDown={this.onKeys}>
             <ul>
               <li>
                 <form onSubmit={this.onSubmit}>

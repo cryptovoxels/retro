@@ -1,3 +1,4 @@
+import { createEngine } from '../../../common/helpers/utils'
 import { useEffect, useState } from 'preact/hooks'
 import { Costume } from '../../../common/types'
 import voxImport from '../../../common/vox-import/sync-vox-import'
@@ -85,7 +86,7 @@ export default function RenderCostume(props: Props) {
     canvas.width = 512
     canvas.height = 1024
 
-    const engine = new BABYLON.Engine(canvas, true)
+    const engine = createEngine(canvas, true)
 
     // Render on a transparent background
     scene = new BABYLON.Scene(engine)

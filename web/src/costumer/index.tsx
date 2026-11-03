@@ -1,3 +1,4 @@
+import { createEngine } from '../../../common/helpers/utils'
 import { Component, Fragment, createRef } from 'preact'
 import TextInput from '../../src/components/inplace/text'
 import Skin from './skin'
@@ -70,7 +71,7 @@ export default class Costumer extends Component<Props, State> {
       return
     }
 
-    this.engine = new BABYLON.Engine(this.canvas.current, true, { stencil: true })
+    this.engine = createEngine(this.canvas.current, true, { stencil: true })
     this.resizeObserver = new ResizeObserver(() => this.engine?.resize())
     this.resizeObserver.observe(this.canvas.current)
     this.scene = setupScene(this.canvas.current, this.engine, this.onClick)

@@ -1,3 +1,4 @@
+import { route } from 'preact-router'
 import { effect, signal } from '@preact/signals'
 import makeBlockie from 'ethereum-blockies-base64'
 import { Fragment, JSX } from 'preact'
@@ -195,7 +196,7 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
   if (variant === 'overlay') {
     const now = Date.now()
     const age = (m: ChatMessageRecord) => now - Math.max(m.timestamp, blurAt.current)
-    let shown = !enabled ? [] : focused ? msgs : msgs.filter((m) => age(m) < CHAT_GONE_MS)
+    let shown = !enabled || isMobile() ? [] : focused ? msgs : msgs.filter((m) => age(m) < CHAT_GONE_MS)
     // phones: three lines over the world; focusing the input recalls the rest
     if (isMobile() && !focused) shown = shown.slice(-3)
     return (
@@ -208,26 +209,18 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
           ))}
         </div>
         <div class="interact-bar">
-          <InteractPopout />
-          <button
-            type="button"
-            aria-expanded={enabled}
-            title={enabled ? 'hide chat' : 'show chat'}
-            onClick={(e) => {
-              e.currentTarget.blur()
-              chatSettings.enabled = !enabled
-            }}
-          >
-            chat
+          <button type="button" title="home" aria-label="Home" onClick={() => route('/')}>
+            <Icon name="home" />
           </button>
-          {enabled && (
-            <ChatInput
-              onFocusChange={(f) => {
-                setFocused(f)
-                if (isMobile()) window.scrollTo(0, 0)
-              }}
-            />
-          )}
+          <InteractPopout />
+          <ChatInput
+            onFocusChange={(focused) => {
+              setFocused(focused)
+              if (!focused) return
+              if (isMobile()) route('/chat')
+              else chatSettings.enabled = true
+            }}
+          />
           <button type="button" class="zoom" title="zoom [C]" onClick={() => window.connector?.controls.togglePerspective()}>
             <Icon name="zoom" />
           </button>
@@ -242,9 +235,11 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
           >
             <Icon name="fly" />
           </button>
-          <button type="button" title={app.signedIn ? 'womp [P]' : 'sign in to take a womp'} class={app.signedIn ? '' : 'disabled'} disabled={!app.signedIn} onClick={() => (window as any).ui?.takeWomp((window as any).ui.props.scene)}>
-            <Icon name="camera" />
-          </button>
+          {!isMobile() && (
+            <button type="button" title={app.signedIn ? 'womp [P]' : 'sign in to take a womp'} class={app.signedIn ? '' : 'disabled'} disabled={!app.signedIn} onClick={() => (window as any).ui?.takeWomp((window as any).ui.props.scene)}>
+              <Icon name="camera" />
+            </button>
+          )}
           {!isMobile() && (
             <button type="button" title="fullscreen" onClick={() => window.engine?.enterFullscreen(true)}>
               <Icon name="fullscreen" />
@@ -438,6 +433,7 @@ const ChatInput = ({ keepFocus, onFocusChange }: { keepFocus?: boolean; onFocusC
 
   useEffect(() => {
     if (!keepFocus) return
+    if (isMobile()) inputRef.current?.focus()
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Enter' || e.shiftKey || e.metaKey || e.ctrlKey || e.altKey) return
       const t = e.target as HTMLElement
@@ -448,11 +444,6 @@ const ChatInput = ({ keepFocus, onFocusChange }: { keepFocus?: boolean; onFocusC
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
   }, [keepFocus])
-
-  // Mobile guests chat from the broadcast dock when live (panel covers this UI). Desktop guests use normal chat here.
-  if (app.state.wallet?.startsWith('guest:') && isMobile()) {
-    return <small style="padding: 0 0.5rem; color: #888">chat in the broadcast panel</small>
-  }
 
   const say = (e: Event) => {
     e.preventDefault()

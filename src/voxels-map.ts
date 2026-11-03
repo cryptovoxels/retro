@@ -1,3 +1,4 @@
+import { createEngine } from '../common/helpers/utils'
 import { getParcelHelper } from '../common/helpers/parcel-helper'
 import { SingleParcelRecord } from '../common/messages/parcel'
 
@@ -333,7 +334,7 @@ export class VoxelsMap {
     this.overlay.style.cssText = 'position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2'
     canvas.insertAdjacentElement('afterend', this.overlay)
 
-    this.engine = new BABYLON.Engine(canvas, true, { audioEngine: true, preserveDrawingBuffer: true, stencil: true })
+    this.engine = createEngine(canvas, true, { audioEngine: true, preserveDrawingBuffer: true, stencil: true })
     this.scene = new BABYLON.Scene(this.engine)
     this.scene.clearColor = BABYLON.Color4.FromHexString(getComputedStyle(document.documentElement).getPropertyValue('--map-water').trim() + 'ff')
     this.scene.skipPointerMovePicking = true

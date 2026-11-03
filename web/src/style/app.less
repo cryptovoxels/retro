@@ -783,9 +783,29 @@ header.menu {
   }
 }
 
+header.menu .menu-toggle {
+  display: none;
+}
+
 @media @narrow {
-  header.menu {
-    display: none;
+  header.menu.mini {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: none;
+
+    .menu-toggle {
+      display: flex;
+      margin: 1rem;
+    }
+
+    &:not(.expanded) nav {
+      display: none;
+    }
+
+    ul li:nth-child(n + 2) {
+      display: block;
+    }
   }
 }
 
@@ -1021,17 +1041,20 @@ main {
 
 @media @narrow {
   main {
+    margin: 0;
+    height: 100dvh;
     grid-template-columns: 1fr;
-    grid-template-rows: 50vh 1fr;
+    grid-template-rows: 50vh auto 1fr;
 
     &:has(> .page.play) {
-      height: calc(100dvh - 1rem);
+      height: 100dvh;
       grid-template-rows: 1fr;
 
       .client-canvas {
-        height: calc(100dvh - 1rem);
+        height: 100dvh;
       }
 
+      > header,
       > .page {
         display: none;
       }
@@ -1039,7 +1062,7 @@ main {
 
     > header {
       grid-column: 1;
-      grid-row: 1;
+      grid-row: 2;
     }
 
     > .client,
@@ -1050,7 +1073,7 @@ main {
 
     > .page {
       grid-column: 1;
-      grid-row: 2;
+      grid-row: 3;
     }
   }
 }
@@ -1289,6 +1312,9 @@ div.map {
 
     input {
       flex: 1;
+      width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
       padding: 0.5rem;
     }
 
@@ -2439,7 +2465,7 @@ button.iconish {
 .parcel-location {
   position: absolute;
   top: 0.5rem;
-  left: var(--play-gutter, 0.5rem);
+  left: 0;
   max-width: min(22rem, calc(100% - 2rem));
   box-sizing: border-box;
   padding: 0;
@@ -2466,8 +2492,8 @@ button.iconish {
   }
 
   @media @narrow {
-    left: 3.5rem;
-    max-width: calc(100% - 4.5rem);
+    left: 0;
+    max-width: 100%;
   }
 }
 
@@ -2475,7 +2501,7 @@ button.iconish {
 @media @wide {
   body.locked .parcel-location {
     position: fixed;
-    left: 0.5rem;
+    left: 0;
   }
 }
 
@@ -4569,16 +4595,6 @@ dialog.nft-view {
 /* Scripting */
 
 /* Misc */
-.home-button {
-  .cube-logo {
-    top: 0;
-  }
-
-  & > a:hover {
-    background: none !important;
-  }
-}
-
 .open-link {
   max-width: 45vw;
   box-sizing: border-box;
@@ -4984,7 +5000,7 @@ main:has(.worldmap) {
   }
 
   form {
-    flex: 1 1 0;
+    flex: 1 1 20rem;
     min-width: 0;
   }
 
@@ -5002,7 +5018,10 @@ main:has(.worldmap) {
   }
 
   input {
-    width: 20rem;
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     background: transparent;
     border: none;
     outline: none;
@@ -5185,10 +5204,13 @@ header nav .user-menu {
     }
 
     form {
-      flex-basis: 100%;
+      flex: 1 1 0;
     }
 
     .interact-bar {
+      gap: 0;
+      padding-left: 0;
+      padding-right: 0;
       border-radius: 0;
       padding-bottom: env(safe-area-inset-bottom, 0px);
     }
@@ -5232,8 +5254,8 @@ header nav .user-menu {
     }
 
     .parcel-location {
-      left: max(1rem, env(safe-area-inset-left));
-      max-width: calc(100% - 2rem);
+      left: env(safe-area-inset-left, 0px);
+      max-width: 100%;
     }
   }
 }

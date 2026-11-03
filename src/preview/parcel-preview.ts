@@ -1,3 +1,4 @@
+import { createEngine } from '../../common/helpers/utils'
 // ABOUTME: Headless parcel preview for Playwright. Voxels only, lot outlines, labels, minimap inset.
 
 import { setMainThread } from '../../common/helpers/detector'
@@ -443,7 +444,7 @@ async function buildPreview(record: ParcelRecord, embeds: Record<string, string>
   if (!canvas) throw new Error('no canvas')
   sizeCanvas(canvas, orbit)
 
-  const engine = new BABYLON.Engine(canvas, true, { audioEngine: true })
+  const engine = createEngine(canvas, true, { audioEngine: true })
   const scene = new BABYLON.Scene(engine)
   scene.clearColor = OCEAN.clone()
 

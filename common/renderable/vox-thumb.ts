@@ -1,3 +1,4 @@
+import { createEngine } from '../helpers/utils'
 // ABOUTME: Shared Babylon vox -> webp thumb render. Used by browser worker and Playwright page.
 
 import { loadVox } from '../../src/monoworker/vox'
@@ -67,7 +68,7 @@ async function meshFromBuffer(scene: BABYLON.Scene, buf: ArrayBuffer): Promise<B
 }
 
 export function createThumbScene(canvas: OffscreenCanvas | HTMLCanvasElement): ThumbScene {
-  const engine = new BABYLON.Engine(canvas as any, true)
+  const engine = createEngine(canvas as any, true)
   const scene = new BABYLON.Scene(engine)
   scene.clearColor = new BABYLON.Color4(1, 0, 0.667, 1)
   const camera = new BABYLON.ArcRotateCamera('thumb', Math.PI / 4, Math.acos(1 / Math.sqrt(3)), 8, BABYLON.Vector3.Zero(), scene)
