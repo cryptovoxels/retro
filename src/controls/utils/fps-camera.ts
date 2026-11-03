@@ -7,10 +7,6 @@ export function createFirstPersonCamera(scene: BABYLON.Scene, coords: coords): P
   camera.minZ = 0.1
   camera.maxZ = window.draw.distance * 2.0
 
-  window.draw.addEventListener('distance-changed', (e) => {
-    camera.maxZ = e.detail * 2.0
-  })
-
   // field of view
   camera.fov = window.fov.value
   window.fov.addEventListener(

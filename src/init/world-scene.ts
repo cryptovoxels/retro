@@ -14,7 +14,6 @@ const AMBIENT = 0.3
 const GATEWAY_AMBIENT = 0.45
 
 export type WorldSceneEvents = {
-  'fog-updated': void
   'ground-loaded': void
   'parcel-collider-added': BABYLON.AbstractMesh
   'parcel-collider-removed': BABYLON.AbstractMesh
@@ -38,7 +37,7 @@ function ambient() {
 
 function fogDensity() {
   if (wantsGateway()) return 0
-  return 3 / window.draw.distance // reach the sky's horizon color before the water chunks end
+  return 0.03
 }
 
 function isUnderwater() {
@@ -73,7 +72,6 @@ function updateFog(s: BABYLON.Scene) {
   s.fogMode = BABYLON.Scene.FOGMODE_EXP2
   s.fogDensity = fogDensity()
   s.fogColor = fogColor()
-  worldSceneEvents.dispatchEvent(createEvent('fog-updated', undefined))
 }
 
 function onEnvironmentStateChanged() {
@@ -118,7 +116,6 @@ export async function createWorldScene(s: BABYLON.Scene) {
   ambientLight = new BABYLON.HemisphericLight('sun', sunPosition(), s)
   ambientLight.intensity = 1.0
 
-  window.draw.addEventListener('distance-changed', () => scene && updateFog(scene), { passive: true })
   window.graphic.addEventListener('settingsChanged', () => scene && updateFog(scene), { passive: true })
 
   skybox = new Skybox(s)

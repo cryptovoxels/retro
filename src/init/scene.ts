@@ -1,3 +1,5 @@
+import { meshCandidates } from '../utils'
+
 // Babylon can queue a submesh without bounds; transparent sorting dereferences them.
 const submeshBounds = BABYLON.SubMesh.prototype.getBoundingInfo
 BABYLON.SubMesh.prototype.getBoundingInfo = function () {
@@ -17,6 +19,7 @@ export const createScene = (engine: BABYLON.Engine): BABYLON.Scene => {
   scene.actionManager = new BABYLON.ActionManager(scene)
   scene.autoClear = false
   scene.autoClearDepthAndStencil = false
+  meshCandidates(scene)
 
   return scene
 }

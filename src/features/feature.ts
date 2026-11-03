@@ -7,7 +7,7 @@ import type Connector from '../connector'
 import type Parcel from '../parcel'
 import { rebindGizmos } from '../tools/gizmos'
 import { renderImageDraft, renderVoxDraft } from './feature-draft'
-import { freezeFeature, thawFeature } from '../utils'
+import { featureLOD, freezeFeature, thawFeature } from '../utils'
 import { easingFunctions, easingModes, FeatureEditor, FeatureEditorProps } from '../ui/features'
 import FeatureBasicGUI from '../ui/gui/gui'
 import { inspectFeature } from '../ui/inspect-feature'
@@ -1065,6 +1065,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     if (this.afterSetCommon) {
       this.afterSetCommon()
     }
+    featureLOD(this)
     freezeFeature(this)
   }
 

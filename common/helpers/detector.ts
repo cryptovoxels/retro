@@ -60,23 +60,6 @@ namespace EnvironmentFlagSpec {
   }
 }
 
-export const drawDistanceOverride = (): number | null => {
-  const min = 32
-  const max = 512
-  const distanceParam = searchParams.get('distance')
-  if (distanceParam === 'close') {
-    return 64
-  } else if (distanceParam === 'extended') {
-    return 256
-  } else if (distanceParam === 'far') {
-    return max
-  } else if (distanceParam && parseInt(distanceParam)) {
-    // allow user to specify draw distance, but clamped to maximum
-    return Math.min(max, Math.max(min, parseInt(distanceParam)))
-  }
-  return null
-}
-
 export const isInWorld = (): boolean => {
   return !!location?.match('/play')?.length
 }

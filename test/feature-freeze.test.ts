@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test } from 'vitest'
-import { freezeFeature, thawFeature } from '../src/utils'
+import { featureLOD, freezeFeature, thawFeature } from '../src/utils'
 
 let engine: BABYLON.NullEngine
 let scene: BABYLON.Scene
@@ -99,4 +99,35 @@ test('moving feature types and billboards are excluded', () => {
   f.mesh.billboardMode = BABYLON.Mesh.BILLBOARDMODE_ALL
   freezeFeature(f)
   expect(f.mesh.isWorldMatrixFrozen).toBe(false)
+})
+
+test('Babylon hides features past 50m without disposing them and restores them nearby', () => {
+  const f = feature()
+  const camera = new BABYLON.FreeCamera('camera', new BABYLON.Vector3(0, 0, -20), scene)
+  f.mesh.computeWorldMatrix(true)
+  featureLOD(f)
+  featureLOD(f)
+  expect(f.mesh.getLODLevels()).toHaveLength(1)
+  camera.getViewMatrix(true)
+  expect(f.mesh.getLOD(camera)).toBe(f.mesh)
+  camera.position.z = -60
+  camera.getViewMatrix(true)
+  expect(f.mesh.getLOD(camera)).toBeNull()
+  expect(f.mesh.isDisposed()).toBe(false)
+  camera.position.z = -20
+  camera.getViewMatrix(true)
+  expect(f.mesh.getLOD(camera)).toBe(f.mesh)
+})
+
+test('instances use the source LOD with their own distance', () => {
+  const f = feature('cube')
+  featureLOD(f)
+  f.mesh.computeWorldMatrix(true)
+  const instance = f.mesh.createInstance('far instance')
+  instance.position.z = 120
+  instance.computeWorldMatrix(true)
+  const camera = new BABYLON.FreeCamera('camera', new BABYLON.Vector3(0, 0, -20), scene)
+  camera.getViewMatrix(true)
+  expect(f.mesh.getLOD(camera)).toBe(f.mesh)
+  expect(instance.getLOD(camera)).toBeNull()
 })

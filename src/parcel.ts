@@ -581,18 +581,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
   }
 
-  updateLodDistance(distance: number) {
-    if (this.voxelMesh) {
-      this.voxelMesh.removeLODLevel(null)
-      this.voxelMesh.addLODLevel(distance, null)
-    }
-
-    if (this.glassMesh) {
-      this.glassMesh.removeLODLevel(null)
-      this.glassMesh.addLODLevel(distance, null)
-    }
-  }
-
   getFeatureByUuid(uuid: string) {
     return this.featuresList.find((f) => f && f.uuid === uuid)
   }

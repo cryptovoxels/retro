@@ -1,4 +1,5 @@
 import type Parcel from './parcel'
+import { LOAD_DISTANCE } from './graphic/draw-distance'
 import type Grid from './grid'
 import type { Mono } from './mono'
 import type { Lot } from './monoworker/world'
@@ -241,7 +242,7 @@ export class WorldStream {
     if (!this.grid || !this.scene.activeCamera) return
     const now = performance.now()
     const position = cameraPosition(this.scene)
-    const distance = window.draw?.distance || 128
+    const distance = window.draw?.distance || LOAD_DISTANCE
     if (distance !== this.drawDistance) {
       this.drawDistance = distance
       this.radius = distance

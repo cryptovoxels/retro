@@ -40,12 +40,7 @@ export default class Skybox {
 
     const mesh = BABYLON.MeshBuilder.CreateSphere('skybox', { segments: 16, diameter: 1 }, scene)
 
-    const updateScale = (drawDistance: number) => {
-      mesh.scaling.setAll(drawDistance * 1.96)
-    }
-
-    updateScale(window.draw.distance)
-    window.draw.addEventListener('distance-changed', (e) => updateScale(e.detail))
+    mesh.scaling.setAll(window.draw.distance * 1.96)
 
     mesh.material = material
     mesh.infiniteDistance = true

@@ -50,7 +50,7 @@ import { User } from './user'
 import Persona from './persona'
 import { Appstate } from '../web/src/state'
 import { refreshMobileCanvasAfterReturn, viewportChangeHandler } from './controls/mobile/controls'
-import { DrawDistance } from './graphic/draw-distance'
+import { drawDistance } from './graphic/draw-distance'
 import MainLoop from './main-loop'
 import { createScene } from './init/scene'
 import { createWorld } from './init/world'
@@ -93,7 +93,7 @@ declare global {
     scene: BABYLON.Scene
     config: SceneConfig
     graphic: GraphicEngine
-    draw: DrawDistance
+    draw: typeof drawDistance
     fov: FOV
     cameraSettings: CameraSettings
 
@@ -244,9 +244,7 @@ async function main() {
   const graphic = new GraphicEngine(engine)
   window.graphic = graphic
 
-  // keeps track of how far we should render
-  const draw = new DrawDistance(graphic)
-  window.draw = draw
+  window.draw = drawDistance
 
   // keeps track of FOV settings
   const fov = new FOV()

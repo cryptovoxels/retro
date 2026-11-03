@@ -1,9 +1,41 @@
 import { Animations } from './avatar-animations'
+import { FEATURE_LOD_DISTANCE } from './graphic/draw-distance'
 import type Feature from './features/feature'
 
 const frozenTransforms = new WeakSet<BABYLON.TransformNode>()
 const frozenMaterials = new WeakSet<BABYLON.Material>()
 const staticFeatures = new Set(['image', 'nft-image', 'cube', 'sign', 'vox-model', 'megavox'])
+
+export function featureLOD(feature: Feature) {
+  if (!feature.mesh || feature.type === 'ride' || feature.type === 'group') return
+  for (const mesh of [feature.mesh, ...feature.mesh.getChildMeshes()]) {
+    if (!(mesh instanceof BABYLON.Mesh)) continue
+    mesh.removeLODLevel(null)
+    mesh.addLODLevel(FEATURE_LOD_DISTANCE, null)
+  }
+}
+
+export function meshCandidates(scene: BABYLON.Scene) {
+  const original = scene.getActiveMeshCandidates
+  const candidates = new BABYLON.SmartArray<BABYLON.AbstractMesh>(256)
+  const planes = BABYLON.Frustum.GetPlanes(BABYLON.Matrix.Identity())
+  scene.getActiveMeshCandidates = () => {
+    const all = original.call(scene)
+    if (scene.skipFrustumClipping || (scene as any).customLODSelector || !scene.activeCamera) return all
+    BABYLON.Frustum.GetPlanesToRef(scene.getTransformMatrix(), planes)
+    candidates.reset()
+    for (let i = 0; i < all.length; i++) {
+      const mesh = all.data[i]
+      // Instance sources and intersection actions still need Babylon's per-frame preparation.
+      if (!mesh.isWorldMatrixFrozen || mesh.hasInstances || mesh.actionManager || mesh.alwaysSelectAsActiveMesh || mesh.isInFrustum(planes)) candidates.push(mesh)
+    }
+    return candidates
+  }
+  scene.onDisposeObservable.addOnce(() => {
+    scene.getActiveMeshCandidates = original
+    candidates.dispose()
+  })
+}
 
 export function thawFeature(feature: Feature) {
   if (!feature.mesh) return

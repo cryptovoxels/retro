@@ -142,18 +142,6 @@ export default class Grid extends SocketClient {
       app.on(AppEvent.Login, refresh('login'))
       app.on(AppEvent.Logout, refresh('logout'))
     }
-
-    // Set up ParcelManager event listeners
-    window.draw?.addEventListener(
-      'distance-changed',
-      (e) => {
-        // update lods
-        this.parcels.forEach((parcel) => {
-          parcel.updateLodDistance(e.detail)
-        })
-      },
-      { passive: true },
-    )
   }
 
   get seeksConnection() {

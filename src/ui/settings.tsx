@@ -288,6 +288,11 @@ export class SettingsUI extends Component<Props, State> {
     this.graphicsEngine.setSettings(this.state.graphic)
   }
 
+  changeRendering(key: 'reflections' | 'opacitySorting', enabled: boolean) {
+    this.graphicsEngine.setSettings({ ...this.state.graphic, [key]: enabled })
+    location.reload()
+  }
+
   render() {
     return (
       <section class="settings">
@@ -315,6 +320,18 @@ export class SettingsUI extends Component<Props, State> {
         <section>
           <h3>graphics</h3>
           <dl class="props">
+            <dt>
+              <label for="reflections">Reflections</label>
+            </dt>
+            <dd>
+              <input id="reflections" type="checkbox" checked={!!this.state.graphic.reflections} onChange={(e) => this.changeRendering('reflections', e.currentTarget.checked)} />
+            </dd>
+            <dt>
+              <label for="opacity-sorting">Opacity Sorting</label>
+            </dt>
+            <dd>
+              <input id="opacity-sorting" type="checkbox" checked={!!this.state.graphic.opacitySorting} onChange={(e) => this.changeRendering('opacitySorting', e.currentTarget.checked)} />
+            </dd>
             {!isMobile() && (
               <>
                 <dt>Quality</dt>
@@ -329,6 +346,7 @@ export class SettingsUI extends Component<Props, State> {
               </>
             )}
           </dl>
+          <p>Changing reflections or opacity sorting reloads the world.</p>
         </section>
 
         <section>
