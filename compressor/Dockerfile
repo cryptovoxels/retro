@@ -27,7 +27,7 @@ RUN npm install --omit=dev sharp@0.34.5 texture-compressor@1.0.2
 COPY --from=pvr /opt/pvr/CLI/Linux_x86_64/PVRTexToolCLI /usr/local/bin/PVRTexToolCLI
 # Verify the pinned CLI runs and still writes each required KTX format.
 RUN node -e "require('sharp')({create:{width:16,height:16,channels:4,background:'red'}}).png().toFile('/tmp/pvr.png')" \
-    && for format in ASTC_4x4 ASTC_8x8 ETC2_RGB ETC2_RGBA PVRTC1_2 PVRTC1_4; do \
+    && for format in ASTC_4x4 ASTC_8x8 ETC2_RGB ETC2_RGBA PVRTCI_2BPP_RGB PVRTCI_4BPP_RGBA; do \
          PVRTexToolCLI -i /tmp/pvr.png -o /tmp/pvr.ktx -f "$format" -j 1 -m 5 || exit 1; \
        done \
     && rm /tmp/pvr.png /tmp/pvr.ktx

@@ -24,7 +24,7 @@ const commonOptions = {
 export const Compressions: Map<string, CompressionOptions> = new Map([
   ['.dxt.ktx', { type: 's3tc', opaque: { compression: 'DXT1', quality: 'normal' }, withAlpha: { compression: 'DXT5', quality: 'better' } }],
   ['.etc.ktx', { type: 'etc', opaque: { compression: 'ETC2_RGB', quality: 'etcfast' }, withAlpha: { compression: 'ETC2_RGBA', quality: 'etcfast' } }],
-  ['.pvrtc.ktx', { type: 'pvrtc', opaque: { compression: 'PVRTC1_2', quality: 'pvrtcnormal' }, withAlpha: { compression: 'PVRTC1_4', quality: 'pvrtcnormal' } }],
+  ['.pvrtc.ktx', { type: 'pvrtc', opaque: { compression: 'PVRTCI_2BPP_RGB', quality: 'pvrtcnormal' }, withAlpha: { compression: 'PVRTCI_4BPP_RGBA', quality: 'pvrtcnormal' } }],
   ['.astc.ktx', { type: 'astc', opaque: { compression: 'ASTC_4x4', quality: 'astcfast' }, withAlpha: { compression: 'ASTC_8x8', quality: 'astcfast' } }],
 ])
 
