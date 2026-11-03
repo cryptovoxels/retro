@@ -14,7 +14,7 @@ import { getGridMono } from './mono-pool'
 import { app, AppEvent } from '../web/src/state'
 import { ParcelPatch, ParcelRecord } from '../common/messages/parcel'
 import { PanelType } from '../web/src/components/panel'
-import { createSpaceScene, createWorldScene, getWorldGroundState, getWorldTerrain, parcelMeshesAdded, parcelMeshesRemoved, teardownSpaceScene, teardownWorldScene } from './init/world-scene'
+import { createSpaceScene, createWorldScene, getWorldTerrain, parcelMeshesAdded, parcelMeshesRemoved, teardownSpaceScene, teardownWorldScene } from './init/world-scene'
 import { fetchSpace } from './init/realm'
 import type { IslandRecord } from '../common/messages/api-islands'
 import { normalizeSpace } from './utils/normalize-space'
@@ -463,34 +463,6 @@ export default class Grid extends SocketClient {
       const lots = await this.workerAPI?.nearbyLots(pos.asArray(), 0)
       return lots?.map((lot) => lot.id) || []
     })
-  }
-
-  async startupParcels(): Promise<Array<number | string>> {
-    await this._workerReadyPromise
-    const ids = this.currentW > 0 || this.isolateMode ? (this.mountedParcel ? [this.mountedParcel.id] : []) : (await this.workerAPI!.nearbyLots(this.getCameraPosition().asArray(), 32)).map((lot) => lot.id)
-    if (!ids.length) markLoaded() // Open water still needs terrain rendering.
-    if (this.currentW === 0) {
-      const ground = getWorldGroundState()
-      await new Promise<void>((resolve) => {
-        const done = () => {
-          ground.removeStateObserver('loaded', done)
-          resolve()
-        }
-        ground.addStateObserver('loaded', done)
-      })
-    }
-    return ids
-  }
-
-  startupReady(ids: Array<number | string>) {
-    if (this.switching) return false
-    for (const id of ids) {
-      const parcel = this.getByID(id)
-      if (!parcel?.loaded || (parcel.voxels?.trim() && !parcel.voxelMesh?.isReady(true))) return false
-    }
-    const parcel = this.currentOrNearestParcel()
-    // Remote media can keep streaming after the nearby world is drawable.
-    return !ids.length || !!(parcel?.featuresActive && !parcel.features.length) || !!parcel?.featuresList.some((feature) => feature.mesh instanceof BABYLON.AbstractMesh && feature.mesh.isReady(true))
   }
 
   public loadWorker() {

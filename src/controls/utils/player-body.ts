@@ -9,8 +9,8 @@ const unchanged = (a: Vec3, b: Vec3, epsilon = 0.001) => Math.abs(a.x - b.x) < e
 const nonzero = (v: Vec3, epsilon = 0.001) => Math.abs(v.x) > epsilon || Math.abs(v.y) > epsilon || Math.abs(v.z) > epsilon
 
 // tuning, metres per second
-export const WALK = 2.78 // was defaultSpeed 0.88
-export const RUN = 12.65 // was runSpeed 4.0
+export const WALK = 6.9 // was defaultSpeed 0.88
+export const RUN = 24.0 // was runSpeed 4.0
 export const JUMP_SPEED = 6
 export const HOP_SPEED = 3
 export const GRAVITY = -9.8
