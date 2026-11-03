@@ -43,3 +43,24 @@ export function chatLines(ctx: CanvasRenderingContext2D, text: string) {
 export function standing(animation: Animations) {
   return animation === Animations.Idle || animation === Animations.Walk || animation === Animations.Run
 }
+
+export function featureOrder(features: import('../common/messages/feature').FeatureRecord[]) {
+  const byId = new Map(features.filter(Boolean).map((f) => [f.uuid, f]))
+  const seen = new Set<string | undefined>()
+  const ordered: typeof features = []
+  const visit = (feature: (typeof features)[number]) => {
+    if (seen.has(feature.uuid)) return
+    seen.add(feature.uuid)
+    const parent = feature.groupId && byId.get(feature.groupId)
+    if (parent && parent.type === 'group') visit(parent)
+    ordered.push(feature)
+  }
+  for (const feature of byId.values()) visit(feature)
+  return ordered
+}
+
+export function instanceKey(feature: import('../common/messages/feature').FeatureRecord) {
+  if (!['image', 'vox-model', 'cube', 'megavox'].includes(feature.type)) return undefined
+  const { uuid, position, rotation, scale, groupId, version, collidable, animation, ...appearance } = feature as any
+  return JSON.stringify(appearance, (_key, value) => (value && !Array.isArray(value) && typeof value === 'object' ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))) : value))
+}

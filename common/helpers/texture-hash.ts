@@ -1,4 +1,5 @@
-import { simpleHash } from './utils'
+import { sha1 } from '@noble/hashes/sha1'
+import { bytesToHex } from '@noble/hashes/utils'
 
 export type TextureHashOptions = {
   size: number
@@ -24,5 +25,5 @@ export function textureHash(srcURL: string, opts: TextureHashOptions): string {
   const hashableOptions = { ...opts }
   if (!hashableOptions.passthrough) delete hashableOptions.passthrough
   if (!hashableOptions.dontFlipY) delete hashableOptions.dontFlipY
-  return simpleHash(srcURL + JSON.stringify(hashableOptions))
+  return bytesToHex(sha1(srcURL + JSON.stringify(hashableOptions)))
 }

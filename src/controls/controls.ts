@@ -883,9 +883,6 @@ export default abstract class Controls implements IControls {
         if (car.isAwayFromPark()) car.recallToPark()
         else car.releaseDriver(this.persona.uuid)
       } catch {}
-      try {
-        this.grid?.unloadIfBeyondDraw?.(car.parcel)
-      } catch {}
     }
     this.setNoclip(false)
     this.enableMovement()

@@ -14,7 +14,7 @@ import { isMobile } from '../../common/helpers/detector'
  *
  * Environment variables:
  *   TEXTURE_HOST   - Compressor service URL
- *   TEXTURE_BUCKET - CDN bucket URL (default: textures.sfo2.cdn.digitaloceanspaces.com)
+ *   TEXTURE_BUCKET - CDN bucket URL (default: texture.voxels.com)
  */
 
 import config from '../../common/config'
@@ -68,12 +68,13 @@ export async function fetchTexture(scene: BABYLON.Scene, srcURL: string | null, 
 async function loadTexture(scene: BABYLON.Scene, srcURL: string | null, signal: AbortSignal, options: TextureOptions): Promise<BABYLON.Texture> {
   const { transparent = false, stretch = true, pixelated = false, flipY = true, mipmaps = true } = options
 
-  // UGC stores originals; mobile resizing and compression happen on the compressor.
-  if (srcURL && isUgcTextureUrl(srcURL)) {
-    const original = srcURL.startsWith('ugc://') ? 'https://ugc.voxels.com/' + srcURL.slice(6) : srcURL
+  if (srcURL?.startsWith('ugc://')) srcURL = 'https://ugc.voxels.com/' + srcURL.slice(6)
+
+  // Desktop UGC must use the compressed cache too; originals stall texture uploads.
+  if (isMobile() && srcURL && isUgcTextureUrl(srcURL)) {
     try {
       const hint = getGpuTextureFormat() === '.astc.ktx' ? '?hint=.astc.ktx' : ''
-      const url = isMobile() ? `https://compressed.voxels.com${new URL(original).pathname}${hint}` : original
+      const url = `https://compressed.voxels.com${new URL(srcURL).pathname}${hint}`
       const texture = await fetchAndCreateTexture(scene, url, undefined, signal, { flipY, mipmaps })
       if (pixelated) texture.updateSamplingMode(1)
       return texture

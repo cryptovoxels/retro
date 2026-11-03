@@ -1,17 +1,11 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Types for grid worker and grid socket messages
+// Types for grid socket messages
 
 // Descriptions used in message types
 
 import * as t from 'io-ts'
 import { FeatureRecord } from './feature'
-import { ParcelAuthResult, ParcelRecord, ParcelRef, SimpleParcelRecord } from './parcel'
-
-/**
- * Parcels used by the grid worker - either the Simple parcels, or the Simple Parcle with the single parcel addeed
- */
-const GridWorkerParcelRecord = t.union([SimpleParcelRecord, ParcelRecord])
-export type GridWorkerParcelRecord = t.TypeOf<typeof GridWorkerParcelRecord>
+import { ParcelAuthResult, ParcelRef } from './parcel'
 
 export const Patch = t.record(t.string, t.unknown)
 export type Patch = t.TypeOf<typeof Patch>

@@ -26,9 +26,10 @@ import type Grid from './grid'
 import { isShared } from './materials'
 import ParcelBudget from './parcel-budget'
 import LuaBehaviours from './lua/behaviours'
-import { FeaturePump } from './pump/feature-pump'
+import { featureOrder, instanceKey } from './utils'
+import type { StreamStep } from './world-stream'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
-import { resolveUgc, tidyVec3 } from './utils/helpers'
+import { tidyVec3 } from './utils/helpers'
 import { ParcelEventMap } from './utils/parcel-event-map'
 import { Action } from '../common/messages'
 import { addVoxels, removeCollider } from './physics/world'
@@ -39,29 +40,6 @@ const isTest = process.env.NODE_ENV === 'test'
 const NEARBY = isTest ? 92 : 64
 
 const SPRITE_SLICE_DURATION = 0.5
-
-// Fire every ugc GET the moment content lands instead of one per pump tick. ugc.voxels.com is
-// h2 so ~100 streams ride one connection, and max-age=3600 means the feature's own fetch
-// (main thread or monoworker, same http cache) lands on warm bytes. Body must be read to cache.
-const warmed = new Set<string>()
-function warmUgc(features: FeatureRecord[], tileset?: string) {
-  const urls = [tileset]
-  for (const f of features as any[]) for (const k of ['url', 'previewUrl', 'assetUrl']) urls.push(typeof f?.[k] === 'string' ? f[k] : f?.[k]?.url)
-  for (const u of urls) {
-    if (typeof u !== 'string' || !u.startsWith('ugc://') || warmed.has(u)) continue
-    warmed.add(u)
-    fetch(resolveUgc(u)!)
-      .then((r) => r.arrayBuffer())
-      .catch(() => {})
-  }
-}
-
-export enum ParcelActivationState {
-  Inactive = 'inactive',
-  Activating = 'activating',
-  Active = 'active',
-  Deactivating = 'deactivating',
-}
 
 export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   private static defaultSoundSprite: BABYLON.Sound
@@ -113,17 +91,14 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   readonly hardFeatureBounds: BABYLON.BoundingBox // Bounding box beyond the parcel bounds. Max distance from parcel bounds that a feature can be moved to.
   readonly exteriorBounds: BABYLON.BoundingBox
   public readonly grid: Grid
-  private regeneratingFeatures = false
   private colliderVoxels: Int32Array | null = null
   physicsRegistered = false
-  private activated = false
-  private activationState = ParcelActivationState.Inactive
+  private featureEpoch = 0
   private fieldUpdateTimeout: NodeJS.Timeout | null = null
   private voxelFieldGen = 0
   private readonly refreshVoxels: () => void
   readonly relight: () => void
   private readonly soundSprite: BABYLON.Sound | null = null
-  private featuresLoaded = false
   /** Server-side preview: skip lua + bouncer after features load. */
   preview = false
   private entered = false
@@ -138,10 +113,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   tilesetTexture: BABYLON.Texture | null = null
-
-  get areFeaturesLoaded() {
-    return this.featuresLoaded
-  }
 
   constructor(
     scene: BABYLON.Scene,
@@ -316,10 +287,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     return window._audio
   }
 
-  private static get pump(): FeaturePump {
-    return window.main?.pump as FeaturePump
-  }
-
   get parcelUsers() {
     return this.parcel_users
   }
@@ -393,10 +360,6 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
 
   get fieldShape(): [number, number, number] {
     return getFieldShape(this)
-  }
-
-  get activationStatus() {
-    return this.activationState
   }
 
   private _boundingBox: BABYLON.BoundingBox | null = null
@@ -739,6 +702,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     try {
       await this.generateVoxelField()
     } catch (error: any) {
+      if (error?.name === 'AbortError') return
       console.error(`Error generating voxel field for parcel ${this.id}`, error)
       this.loaded = false
     }
@@ -761,13 +725,21 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       throw new Error(`feature type ${description.type} is over budget`)
     }
 
+    const epoch = this.featureEpoch
     const feature = createFeature(this.scene, this, description.uuid || uuid(), description)
     this.featuresList.push(feature)
 
-    if (rootFeature) {
-      await feature.generateInstance(rootFeature)
-    } else {
-      await feature.generate()
+    try {
+      if (rootFeature) await feature.generateInstance(rootFeature)
+      else await feature.generate()
+      await (feature as any).loading
+    } catch (error) {
+      this.destroyFeature(feature)
+      throw error
+    }
+    if (epoch !== this.featureEpoch || feature.disposed) {
+      this.destroyFeature(feature)
+      return feature
     }
 
     // forward the state once feature has loaded
@@ -781,7 +753,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   destroyFeature(f: Feature) {
-    const i = this.featuresList.findIndex((feature) => feature.uuid === f.uuid)
+    const i = this.featuresList.indexOf(f)
 
     if (i >= 0) {
       this.budget.unconsume(f)
@@ -844,6 +816,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   unload() {
+    this.stop()
     this.loaded = false
     this.loading = false
 
@@ -865,78 +838,68 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     this.colliderVoxels = null
 
     this.disconnect()
-    this.deactivate()
-  }
-
-  awaitVoxelMesh = async (timeoutSeconds: number = 10): Promise<void> => {
-    return await new Promise<void>((resolve, reject) => {
-      const timeoutMs = timeoutSeconds * 1000
-      const startTime = Date.now()
-
-      const checkVoxelMesh = () => {
-        if (this.voxelMesh) {
-          resolve()
-        } else if (Date.now() - startTime >= timeoutMs) {
-          reject(new Error(`Timeout waiting for voxel mesh after ${timeoutSeconds} seconds`))
-        } else {
-          setTimeout(checkVoxelMesh, 10)
-        }
-      }
-      checkVoxelMesh()
-    })
+    this.featuresList = []
+    this.field = undefined
+    this.transform.dispose()
+    this.parentNode.dispose()
   }
 
   async activate() {
-    if (this.activationState !== ParcelActivationState.Inactive) {
+    if (window.main?.stream && !this.preview) {
+      window.main.stream.add(this)
       return
     }
-    this.activationState = ParcelActivationState.Activating
-    if (this.grid.mountedParcel && this.grid.mountedParcel.id === this.id) {
-      /**
-       * Race condition hack: mounted parcel may activate before the voxel mesh has been created
-       * so we wait for it here.
-       */
-      await this.awaitVoxelMesh()
-    }
-
-    this.activated = true
-
-    // Create features
-    await this.generateFeatures()
-
-    if (this.preview) {
-      this.featuresLoaded = true
-      this.activationState = ParcelActivationState.Active
-      return
-    }
-
-    // Create scripts
-    if (!this.behaviours) {
-      this.behaviours = new LuaBehaviours(this)
-    }
-    // The pump loads features async, so featuresList is empty here. Initing now
-    // builds an empty registry and flips connected=true, so onFeaturesLoaded never
-    // re-inits. Defer to onFeaturesLoaded; only init now when there's no pump (tests).
-    if (!window.main) await this.behaviours.init()
+    for (const step of this.build()) await step.run()
   }
 
-  deactivate() {
-    if (this.activationState === ParcelActivationState.Inactive || this.activationState === ParcelActivationState.Deactivating) {
-      return
-    }
-
-    this.activationState = ParcelActivationState.Deactivating
-    this.activated = false
+  stop() {
+    this.featureEpoch++
+    for (const feature of this.featuresList) feature.cancel()
+    this.voxelFieldGen++
     this.featuresActive = false
-
-    const features = this.featuresList.slice()
-
+    this.disconnect()
     this.unregisterPhysics()
+  }
 
-    window.main?.pump.deactivate(this, features, () => {
-      this.activationState = ParcelActivationState.Inactive
-      this.featuresLoaded = false
-    })
+  *release(): Generator<StreamStep> {
+    while (this.featuresList.length) {
+      const feature = this.featuresList.pop()!
+      yield { run: () => feature.dispose() }
+    }
+  }
+
+  *build(): Generator<StreamStep> {
+    yield* this.release()
+    if (!this.loaded) yield { run: () => this.generate(), wait: true }
+    if (!this.loaded) return
+    this.registerPhysics()
+    this.featuresActive = true
+    this.budget.reset()
+    if (!this.preview) this.behaviours ??= new LuaBehaviours(this)
+    const epoch = this.featureEpoch
+    const sources = new Map<string, Promise<Feature>>()
+    const groups = new Map<string, Promise<Feature>>()
+    for (const feature of this.features) if (feature) feature.uuid ||= uuid()
+    for (const description of featureOrder(this.features)) {
+      yield {
+        run: () => {
+          if (!this.features.includes(description) || this.getFeatureByUuid(description.uuid!)) return
+          const key = instanceKey(description)
+          const source = key ? sources.get(key) : undefined
+          const parent = description.groupId ? groups.get(description.groupId) : undefined
+          const create = (root?: Feature) => {
+            if (epoch !== this.featureEpoch || !this.features.includes(description)) return Promise.resolve(undefined as any)
+            return this.createFeature(description, root?.disposed ? undefined : root)
+          }
+          const creation =
+            source || parent ? Promise.all([source?.catch(() => undefined), parent?.catch(() => undefined)]).then(([root]) => (window.main?.stream && !this.preview ? window.main.stream.commit(() => create(root)) : create(root))) : create()
+          if (key && !source) sources.set(key, creation)
+          if (description.type === 'group') groups.set(description.uuid!, creation)
+          return creation
+        },
+      }
+    }
+    yield { run: () => this.finishFeatures(), wait: true }
   }
 
   onContextClick() {
@@ -1213,66 +1176,9 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
   }
 
-  // Generate features
-  private async generateFeatures() {
-    if (this.featuresActive) {
-      return
-    }
-
-    this.featuresActive = true
-
-    this.budget.reset()
-
-    if (this.featuresList) {
-      this.featuresList.forEach((f) => f.dispose())
-    }
-
-    this.featuresList = []
-
-    // debugger
-
-    const featuresList = this.features.slice()
-
-    // De-duplicate - UUIDs *must* be unique
-    const uuids = new Set<string>()
-    const features: (FeatureRecord & { uuid: string })[] = []
-    featuresList
-      .filter((f) => f)
-      .forEach((f) => {
-        f.uuid = f.uuid || uuid()
-        if (f.uuid && !uuids.has(f.uuid)) {
-          uuids.add(f.uuid)
-          features.push(f as FeatureRecord & { uuid: string })
-        }
-      })
-
-    // If running without the main pump, cerate features synchronously
-    if (!window.main) {
-      for (let f of features) {
-        try {
-          await this.createFeature(f)
-        } catch (e) {
-          console.error(`[parcel] createFeature ${f.type} ${f.uuid}`, e)
-        }
-      }
-      if (this.preview) {
-        this.featuresLoaded = true
-        this.activationState = ParcelActivationState.Active
-      }
-    } else {
-      warmUgc(features, this.tileset)
-      window.main?.pump.activate(this, features, this.onFeaturesLoaded)
-    }
-  }
-
-  // Arrow so `this` stays the parcel: the pump calls it as tracking.onDone(parcel),
-  // which would otherwise bind `this` to the pump's tracking object and bail instantly.
-  private onFeaturesLoaded = () => {
+  private finishFeatures = () => {
     // bail if the parcel gets deactivated before we finish the load
-    if (!this.activated) return
-
-    this.featuresLoaded = true
-    this.activationState = ParcelActivationState.Active
+    if (!this.featuresActive) return
 
     if (isMobile()) {
       this.scene.clearCachedVertexData()
@@ -1280,7 +1186,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
 
     // Boot the behaviour runtime once features are in scene.
-    if ((this.entered || this.activated) && this.behaviours && !this.behaviours.connected) {
+    if ((this.entered || this.featuresActive) && this.behaviours && !this.behaviours.connected) {
       this.behaviours.init().catch((err) => console.error('[behaviours] init', err))
     }
   }
@@ -1292,29 +1198,9 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     }
   }
 
-  private regenerateFeatures() {
-    if (!this.activated || this.regeneratingFeatures) {
-      return
-    }
-
-    this.regeneratingFeatures = true
-    this.deactivate()
-    this.activate()
-    this.regeneratingFeatures = false
-  }
-
   private regenerate() {
-    if (!this.loaded) {
-      return
-    }
-
-    // clear any pending tasks for parcel to avoid weird feature async load race conditions and double rendering
-    Parcel.pump.clearParcelTasksForID(this.id)
-
-    // update features
-    this.regenerateFeatures()
-
-    // update voxel meshes
+    if (!this.loaded) return
+    if (this.featuresActive) window.main?.stream.rebuild(this)
     this.generate().then()
   }
 
@@ -1337,7 +1223,11 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
     // Y matches setVoxelMesh so voxel.ts pick/place math is correct
     const off: [number, number, number] = [-this.width / 4 + 0.25, -0.75 + this.ZFightingNudge, -this.depth / 4 + 0.25]
     const pending = !!(this.tileset && !this.tilesetTexture)
-    const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id, this.paletteColors, this.tilesetTexture ?? (pending ? createWhiteTexture(this.scene) : undefined))
+    const { opaque, glass } = await buildCleanMesh(this.field, lanterns, this.scene, off, this.id, this.paletteColors, this.tilesetTexture ?? (pending ? createWhiteTexture(this.scene) : undefined), () => gen === this.voxelFieldGen)
+    if (gen !== this.voxelFieldGen) {
+      this.disposeGeneratedMeshes(opaque, glass)
+      return
+    }
     if (pending) {
       const mat = opaque.material as BABYLON.StandardMaterial
       // Load the atlas png directly - NOT through fetchTexture. The compressed .ktx
@@ -1346,13 +1236,13 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
       // this bug has shipped: invertY on the tileset must stay false.
       const src = tilesetRuntimeUrl(this.tileset!)
       const tex = new BABYLON.Texture(src, this.scene, false, false, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, () => {
+        if (gen !== this.voxelFieldGen) {
+          tex.dispose()
+          return
+        }
         this.tilesetTexture = tex
         if (opaque.material === mat) mat.diffuseTexture = tex
       })
-    }
-    if (gen !== this.voxelFieldGen) {
-      this.disposeGeneratedMeshes(opaque, glass)
-      return
     }
     this.voxelMesh?.dispose()
     this.voxelMesh = opaque

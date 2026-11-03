@@ -14,6 +14,10 @@ import { CreateError, Texture } from './texture'
 import { app } from './www'
 import sharp from 'sharp'
 import { mobileImage } from './mobile'
+import PQueue from 'p-queue'
+
+const conversions = new PQueue({ concurrency: 2 })
+const pending = new Map<string, Promise<FindResult>>()
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
@@ -57,11 +61,16 @@ function compressed(request: Request, response: Response) {
 
   const { forceUpdate, hint, textureOptions, version } = parseRequest(request, sourceURL)
 
-  findCachedTexture(forceUpdate, sourceURL, textureOptions, hint)
-    .then((result) => result)
-    .catch(() => downloadAndCompress(sourceURL, textureOptions, hint))
-    .then((result) => textureResponse(result, response, version))
-    .catch((error) => errorResponse(error, response))
+  const key = storage.hashify(sourceURL, textureOptions) + hint
+  let job = pending.get(key)
+  if (!job) {
+    if (pending.size >= 34) return response.set('Retry-After', '2').sendStatus(503)
+    job = findCachedTexture(forceUpdate, sourceURL, textureOptions, hint)
+      .catch(() => conversions.add(() => downloadAndCompress(sourceURL, textureOptions, hint)) as Promise<FindResult>)
+      .finally(() => pending.delete(key))
+    pending.set(key, job)
+  }
+  job.then((result) => textureResponse(result, response, version)).catch((error) => errorResponse(error, response))
 }
 
 function downloadAndCompress(sourceURL: string, textureOptions: texture.Options, hint: string): Promise<FindResult> {

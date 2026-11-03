@@ -10,4 +10,3 @@ export async function getMonoWorker(): Promise<Mono> {
 }
 
 export type { Mono }
-export type { GridWorkerAPI, GridWorkerOutput, GridWorkerParcelLoaded, GridWorkerParcelUnloaded, GridWorkerQueryResponse } from './monoworker/grid'

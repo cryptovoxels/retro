@@ -129,6 +129,7 @@ export function renderImageDraft(feature: Feature, b64: string) {
   if (bytes.length !== 48) return
   const f = feature as any
   const material = new BABYLON.StandardMaterial(f.uniqueEntityName('material'), feature.scene)
+  material.blockDirtyMechanism = true
   material.specularColor.set(0, 0, 0)
   material.emissiveColor.set(1, 1, 1)
   material.diffuseTexture = BABYLON.RawTexture.CreateRGBTexture(bytes, 4, 4, feature.scene, false, true, BABYLON.Texture.NEAREST_SAMPLINGMODE)
@@ -137,6 +138,7 @@ export function renderImageDraft(feature: Feature, b64: string) {
     feature.mesh = BABYLON.MeshBuilder.CreatePlane(f.uniqueEntityName('mesh'), { size: 1 }, feature.scene)
     rebindGizmos(feature)
   }
+  material.blockDirtyMechanism = false
   ;(feature.mesh as BABYLON.Mesh).material = material
   f.setCommon()
 }

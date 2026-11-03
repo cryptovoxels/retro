@@ -196,10 +196,6 @@ export const isBatterySaver = (): boolean => {
 }
 export const isAsset = () => location.match(/asset/)
 
-export const debugPumpEnabled = (): boolean => {
-  return searchParams.get('debug_pump') === 'true'
-}
-
 let mainThread = false
 export function setMainThread() {
   mainThread = true

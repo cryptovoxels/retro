@@ -1,32 +1,34 @@
-import { afterEach, expect, test } from 'vitest'
+import { expect, test } from 'vitest'
 import { mirrorTexture } from '../src/utils/mirror'
 
-let engine: BABYLON.NullEngine
-
-afterEach(() => engine?.dispose())
-
-test('mirrors exclude their own consumers even when materials are assigned later', () => {
-  engine = new BABYLON.NullEngine()
+test('reflection membership follows mesh lifetime and material changes', async () => {
+  const engine = new BABYLON.NullEngine()
   const scene = new BABYLON.Scene(engine)
-  const island = BABYLON.MeshBuilder.CreateBox('island/test', {}, scene)
-  const sky = BABYLON.MeshBuilder.CreateBox('skybox', {}, scene)
-  const voxels = BABYLON.MeshBuilder.CreateBox('voxelizer/opaque-test', {}, scene)
-  const water = BABYLON.MeshBuilder.CreateBox('ocean', {}, scene)
-  const mirror = mirrorTexture(scene, 0.74)
-  const ocean = mirrorTexture(scene, 0)
+  const island = new BABYLON.Mesh('island/test', scene)
+  const mirror = mirrorTexture(scene, 0)
+  try {
+    const voxel = new BABYLON.Mesh('voxelizer/opaque-1', scene)
+    const image = new BABYLON.Mesh('feature/image', scene)
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    expect(mirror.renderList?.map((mesh) => mesh.name)).toEqual([island.name, voxel.name])
+    expect(mirror.renderListPredicate).toBeUndefined()
 
-  expect(mirror.renderListPredicate(island)).toBe(true)
-  const material = new BABYLON.StandardMaterial('island', scene)
-  material.reflectionTexture = mirror
-  material.freeze()
-  island.material = material
+    const material = new BABYLON.StandardMaterial('reflective', scene)
+    material.reflectionTexture = mirror
+    island.material = material
+    expect(mirror.renderList?.map((mesh) => mesh.name)).toEqual([voxel.name])
+    island.material = null
+    expect(mirror.renderList?.map((mesh) => mesh.name)).toEqual([voxel.name, island.name])
 
-  expect(mirror.renderListPredicate(island)).toBe(false)
-  expect(ocean.renderListPredicate(island)).toBe(true)
-  expect(mirror.renderListPredicate(sky)).toBe(true)
-  expect(mirror.renderListPredicate(voxels)).toBe(true)
-  expect(mirror.renderListPredicate(water)).toBe(false)
-
-  island.material = null
-  expect(mirror.renderListPredicate(island)).toBe(true)
+    voxel.dispose()
+    expect(mirror.renderList?.map((mesh) => mesh.name)).toEqual([island.name])
+    expect(mirror.renderList).not.toContain(image)
+    mirror.dispose()
+    expect(island.onMaterialChangedObservable.hasObservers()).toBe(false)
+    expect(scene.onNewMeshAddedObservable.hasObservers()).toBe(false)
+    expect(scene.onMeshRemovedObservable.hasObservers()).toBe(false)
+  } finally {
+    scene.dispose()
+    engine.dispose()
+  }
 })

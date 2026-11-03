@@ -100,11 +100,17 @@ export async function buildCleanMesh(
   id: number | string,
   palette: BABYLON.Color3[],
   texOverride?: BABYLON.Texture,
+  alive?: () => boolean,
 ): Promise<{ opaque: BABYLON.Mesh; glass: BABYLON.Mesh | null }> {
   const lights = lanterns.map((l: any) => ({ position: l.position, color: l.color ?? '#ffffff', strength: l.strength }))
   const pal = palette.map((c) => [c.r, c.g, c.b] as [number, number, number])
   const { opaque, glass } = await runCompute((w) => w.bakeLightmap(field.data, field.shape as [number, number, number], field.stride, field.offset, lights, off, pal))
-  const url = DEBUG_LIGHT_PROBES ? '/textures/00-grid.png' : '/textures/atlas-ao.png'
-  const tex = texOverride ?? loadTex(url, scene)
-  return { opaque: mesh(opaque, tex, scene, id, palette), glass: glass ? glassMesh(glass, scene, id, palette) : null }
+  if (alive && !alive()) throw new DOMException('Parcel released', 'AbortError')
+  const upload = () => {
+    if (alive && !alive()) throw new DOMException('Parcel released', 'AbortError')
+    const url = DEBUG_LIGHT_PROBES ? '/textures/00-grid.png' : '/textures/atlas-ao.png'
+    const tex = texOverride ?? loadTex(url, scene)
+    return { opaque: mesh(opaque, tex, scene, id, palette), glass: glass ? glassMesh(glass, scene, id, palette) : null }
+  }
+  return window.main?.scene === scene && window.main.running ? window.main.stream.commit(upload) : upload()
 }

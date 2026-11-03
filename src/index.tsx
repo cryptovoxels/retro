@@ -32,7 +32,7 @@ import { toggleFPSStats } from './utils/fps-stats'
 import { CreateControls, xr } from './controls/create'
 
 import type Grid from './grid'
-import { FeaturePump } from './pump/feature-pump'
+import { WorldStream } from './world-stream'
 import UserInterface, { UserInterfaceProps } from './user-interface'
 import Connector from './connector'
 
@@ -264,11 +264,7 @@ async function main() {
   //   createGPUMemoryHUD(scene)
   // }
 
-  const pump = new FeaturePump(scene, undefined, isMobile() ? 2 : undefined)
-  // @ts-expect-error expose pump for debugging
-  window.pump = pump
-
-  const main = new MainLoop(engine, pump)
+  const main = new MainLoop(engine, new WorldStream(scene))
   window.main = main
   main.setScene(scene)
 
@@ -302,7 +298,7 @@ async function main() {
   if (xr) {
     xr.attachWorldScene()
   }
-  // and here we start all the main stuff, start the renderloop, the pump, web-workers and mess with some random
+  // and here we start all the main stuff, start the renderloop, world streaming, web-workers and mess with some random
   // fixes for browsers
 
   let map: Minimap | null = null

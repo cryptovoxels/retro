@@ -2,7 +2,7 @@
 // ABOUTME: Handles upload, lookup, caching, and deletion of texture files.
 
 import { DeleteObjectsCommand, HeadObjectCommand, PutObjectCommand } from '@aws-sdk/client-s3'
-import * as crypto from 'crypto'
+import { textureHash } from '../../common/helpers/texture-hash'
 import { URL } from 'url'
 import fs from 'fs'
 import { http, https } from 'follow-redirects'
@@ -28,17 +28,7 @@ export function getSourceURL(id: string): string {
 }
 
 export function hashify(value: string, opts: Options): string {
-  const hashableOptions = Object.assign({}, opts)
-  if (!hashableOptions.passthrough) {
-    delete hashableOptions.passthrough
-  }
-  if (!hashableOptions.dontFlipY) {
-    delete hashableOptions.dontFlipY
-  }
-  return crypto
-    .createHash('sha1')
-    .update(value + JSON.stringify(hashableOptions))
-    .digest('hex')
+  return textureHash(value, opts as any)
 }
 
 export function deleteAll(source: string, opts: Options) {
