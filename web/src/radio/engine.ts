@@ -11,7 +11,7 @@ export interface Segment extends Track {
 export interface Spot {
   id: string
   atOffset: number
-  kind: 'en' | 'ar'
+  kind: 'en'
   url?: string
   summary?: string
   parcelId?: number

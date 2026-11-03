@@ -9,7 +9,7 @@ function rows(r: VoxelRadioEngine | null) {
 
   const items: { at: number; label: string; spot?: Spot }[] = []
   sched.segments.forEach((g) => items.push({ at: g.startsAt, label: trackTitle(g) }))
-  sched.spots.forEach((s) => items.push({ at: s.atOffset, label: s.summary || (s.kind === 'ar' ? 'فاصل' : 'spot'), spot: s }))
+  sched.spots.forEach((s) => items.push({ at: s.atOffset, label: s.summary || 'spot', spot: s }))
   items.sort((a, b) => a.at - b.at)
 
   let cur = 0

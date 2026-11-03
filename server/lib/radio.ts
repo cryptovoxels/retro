@@ -14,7 +14,7 @@ const ENDPOINT = 'https://syd1.digitaloceanspaces.com'
 const ACCESS_KEY_ID = process.env.UGC_ACCESS || ''
 const CDN = 'https://ugc.voxels.com'
 
-export type SpotKind = 'en' | 'ar'
+export type SpotKind = 'en'
 
 export interface Segment {
   fileName: string
@@ -65,7 +65,7 @@ export function buildSpots(day: number): Spot[] {
   let off = MIN_GAP + r() * (MAX_GAP - MIN_GAP)
   let idx = 0
   while (off < DAY) {
-    const kind: SpotKind = r() < 0.25 ? 'ar' : 'en'
+    const kind: SpotKind = 'en'
     spots.push({ id: `${day}-${idx}`, atOffset: Math.round(off), kind })
     off += MIN_GAP + r() * (MAX_GAP - MIN_GAP)
     idx++
@@ -163,10 +163,7 @@ async function script(db: Db, redis: any, kind: SpotKind): Promise<{ text: strin
   const chats = chatter.length ? chatter.map((c) => `- ${c}`).join('\n') : '- chat is quiet'
   const brief = `Hot parcels right now:\n${hot}\n\nWho's online and where:\n${onln}\n\nRecent blog:\n${posts}\n\nRecent chat:\n${chats}`
 
-  const prompt =
-    kind === 'ar'
-      ? `Late-night DJ on Voxels Radio. Reply with ONLY the spoken line in Arabic (Saudi dialect), under 120 characters. Name a place or who's around if it fits. Arabic script only. No transliteration, quotes, emojis, or instructions.\n\n${brief}`
-      : `Late-night DJ on Voxels Radio. Reply with ONLY the spoken line: one short casual lowercase shout-out under 120 characters. Weird and cool. Name a place and who's there if it fits. Vibe: sit back and relapse at 2 harriot terrace / join pierceone at gallery / anons at flashmint. No quotes, emojis, hashtags, stage directions, or repeating these instructions.\n\n${brief}`
+  const prompt = `Late-night DJ on Voxels Radio. Reply with ONLY the spoken line: one short casual lowercase shout-out under 120 characters. Weird and cool. Name a place and who's there if it fits. Vibe: sit back and relapse at 2 harriot terrace / join pierceone at gallery / anons at flashmint. No quotes, emojis, hashtags, stage directions, or repeating these instructions.\n\n${brief}`
 
   // link the spot to wherever the brief is mostly about
   let parcelId: number | undefined
@@ -184,7 +181,7 @@ async function script(db: Db, redis: any, kind: SpotKind): Promise<{ text: strin
     parcelId = pop[0].id
   }
 
-  const text = await chat(prompt, kind === 'ar' ? 0.9 : 0.8)
+  const text = await chat(prompt, 0.9)
   return { text, parcelId }
 }
 
@@ -261,7 +258,7 @@ async function popular(db: Db): Promise<{ id: number; name: string; address: str
 }
 
 async function speak(text: string): Promise<Buffer> {
-  // one voice for the whole station - the Saudi Orpheus voice sounds great on english too.
+  // one voice for the whole station
   // strip quotes/whitespace and hard-cap under Orpheus' 200-char limit.
   const input = text.replace(/["'`]/g, '').replace(/\s+/g, ' ').trim().slice(0, 170)
   const r = await fetch('https://api.groq.com/openai/v1/audio/speech', {
@@ -271,8 +268,8 @@ async function speak(text: string): Promise<Buffer> {
       Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
     },
     body: JSON.stringify({
-      model: 'canopylabs/orpheus-arabic-saudi',
-      voice: 'noura',
+      model: 'canopylabs/orpheus-v1-english',
+      voice: 'hannah',
       input,
       response_format: 'wav',
     }),
