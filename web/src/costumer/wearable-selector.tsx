@@ -139,18 +139,18 @@ export default class WearableSelector extends Component<Props, State> {
       <div class="wearable-selector">
         <div class="f">
           {owned.length > 0 && (
-            <button type="button" onClick={() => this.setMode('owned')}>
+            <button type="button" aria-pressed={mode === 'owned'} onClick={() => this.setMode('owned')}>
               owned
             </button>
           )}
-          <button type="button" onClick={() => this.setMode('free')}>
+          <button type="button" aria-pressed={mode === 'free'} onClick={() => this.setMode('free')}>
             free
           </button>
         </div>
         <div class="f">
           <input type="search" value={query} placeholder="search wearables..." onInput={this.onInput} />
-          <button type="button" class="toggle" onClick={() => this.setState({ open: !open })}>
-            {open ? '^' : 'v'}
+          <button type="button" aria-expanded={open} onClick={() => this.setState({ open: !open })}>
+            {open ? 'Hide' : 'Show'}
           </button>
         </div>
         {open && (

@@ -167,7 +167,6 @@ export const Login = ({ reason, hideHeading }: { reason?: string; hideHeading?: 
   const onMetamask = async () => {
     if (busy) return
     if (!hasMetamask() && isMobile()) {
-      setBusy(true)
       setMmHint('opening metamask app...')
       openMetamaskMobileDapp()
       return

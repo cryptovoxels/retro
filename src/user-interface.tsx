@@ -75,6 +75,7 @@ import ParcelSnapshots from './ui/parcel-snapshots'
 import { SettingsUI } from './ui/settings'
 import { AvatarTab } from './ui/avatar-tab'
 import TakeWomp from './ui/take-womp'
+import { CostumeEditor } from './ui/costume-editor'
 
 const NUMBER_KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'] as const
 
@@ -97,7 +98,7 @@ export enum Mode {
   Avatar,
 }
 
-export type UIPanes = 'add' | 'edit' | 'voxels' | 'debugTool' | 'nfts' | 'settings' | 'avatar' | 'womp' | 'takeWomp' | 'help' | 'login' | 'parcelSnapshots' | 'broadcast'
+export type UIPanes = 'costume' | 'add' | 'edit' | 'voxels' | 'debugTool' | 'nfts' | 'settings' | 'avatar' | 'womp' | 'takeWomp' | 'help' | 'login' | 'parcelSnapshots' | 'broadcast'
 
 export interface Tool {
   activate: () => void
@@ -799,6 +800,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     const currentOrNearestParcel = selectCurrentOrNearestParcel() ?? null
 
     switch (paneId) {
+      case 'costume':
+        return <CostumeEditor />
       case 'add':
         return <BuildTab parcel={nearestEditableParcel || undefined} scene={this.props.scene} />
       case 'nfts':

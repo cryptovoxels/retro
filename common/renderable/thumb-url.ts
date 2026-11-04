@@ -44,8 +44,3 @@ export function parcelRendererUrl(id: number | string) {
 export function parcelOrbitUrl(id: number | string) {
   return `https://www.voxels.com/renderer/v1/parcel/${id}.html`
 }
-
-/** Free avatar thumb via renderer (302 to CDN once baked). */
-export function avatarRendererUrl(id: number | string) {
-  return `https://www.voxels.com/renderer/v1/avatar/${id}.webp`
-}

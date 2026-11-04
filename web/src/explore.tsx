@@ -55,6 +55,7 @@ export default class Explore extends Component<{}> {
           <details class="inspector-section" open>
             <summary>womps</summary>
             <WompsList numberToShow={16} mobilePreview={6} collapsed={false} fetch="/womps.json" ttl={600} onWompClick={teleportToWomp} />
+            <a href="/womps">more</a>
           </details>
           <details class="inspector-section" open>
             <summary>popular</summary>

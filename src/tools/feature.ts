@@ -21,6 +21,7 @@ import { getTransformVectorsRelativeToNode } from '../utils/feature'
 import { cameraPosition } from '../utils/camera'
 import { hasPointerLock } from '../../common/helpers/ui-helpers'
 import { isFlatWallFeature } from './flat-wall'
+import { hasGizmos } from './gizmos'
 
 const OVERSIZE = 0.01
 const highlightScale = new BABYLON.Vector3()
@@ -635,6 +636,10 @@ export default class FeatureTool implements Tool {
 
   updateHighlight(mesh?: BABYLON.AbstractMesh) {
     const feature = this.selection.feature
+    if (feature && hasGizmos(feature)) {
+      this.selector.visibility = 0
+      return
+    }
     const target = mesh ?? (feature?.mesh instanceof BABYLON.AbstractMesh ? feature.mesh : undefined)
 
     // flat wall features are thin rotated planes - world AABB floats off the screen.

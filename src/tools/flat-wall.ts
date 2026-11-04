@@ -1,6 +1,6 @@
 /**
  * Flat wall features: screens/images that sit on a plane and use
- * face-drag + corner resize + Z-depth (not XYZ arrows).
+ * face dragging and corner resizing. Depth stays in the inspector.
  *
  * Add a type here when it should get the same in-world edit tools as showbox.
  */

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'preact/hooks'
-import { avatarRendererUrl } from '../../../common/renderable/thumb-url'
+import { AvatarIcon } from './avatar-link'
 import { appoint, identityLabel, me } from '../auth/identities'
 import { app } from '../state'
 import { PanelType } from './panel'
@@ -13,7 +13,6 @@ export default function UserMenu() {
   const wallet = ids?.wallet || app.state.wallet || ''
   const others = ids?.identities.filter((id) => id.wallet !== wallet) || []
   const name = identityLabel(ids?.identities.find((id) => id.wallet === wallet) || { wallet, name: app.state.name || null, email: null })
-  const avatar = app.avatarRef
 
   useEffect(() => {
     if (!open) return
@@ -52,15 +51,7 @@ export default function UserMenu() {
   return (
     <li ref={root} class="user-menu">
       <button ref={trigger} type="button" class="user-trigger" aria-label={`User: ${name}`} aria-expanded={open} aria-controls="user-popout" onClick={() => setOpen(!open)}>
-        <img
-          src={typeof avatar === 'object' ? avatarRendererUrl(avatar.id) : '/images/no-image.png'}
-          width={24}
-          height={24}
-          alt=""
-          onError={(e) => {
-            if (!e.currentTarget.src.endsWith('/images/no-image.png')) e.currentTarget.src = '/images/no-image.png'
-          }}
-        />
+        <AvatarIcon name={name} />
         <span>{name}</span>
       </button>
       {open && (

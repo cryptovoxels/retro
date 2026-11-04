@@ -17,7 +17,6 @@ export const CAMERA_DISTANCE = isMobile() ? 2.5 : 1.5
 export const MIN_CAMERA_DISTANCE = 0.5
 export const MAX_CAMERA_DISTANCE = 10
 const ISO_DISTANCE = 2
-const ISO_PITCH = 0.75 // look down at the avatar, isometric-ish
 const CAMERA_EASE_OUT = 1.4
 const SWIM_LEVEL = -2
 const MIN_COORD_Y = -10
@@ -97,6 +96,7 @@ export default abstract class Controls implements IControls {
   defaultSpeed = WALK
   runSpeed = RUN
   running = false
+  orbitControl: import('./orbit').default | null = null
   movementEnabled = true
   shiftKey = false
   ctrlKey = false
@@ -195,6 +195,14 @@ export default abstract class Controls implements IControls {
 
     this.scene.onBeforeRenderObservable.add(() => {
       const dt = this.scene.getEngine().getDeltaTime() / 1000 || 1 / 60
+
+      if (this.orbitControl) {
+        this.move.setAll(0)
+        this.camera.cameraDirection.setAll(0)
+        this.persona.update(cameraPosition(this.scene), cameraRotation(this.scene), this)
+        this.firstOrThirdPersonAdjustment()
+        return
+      }
 
       // stock babylon gamepad writes cameraDirection as stick * dt; fold into unitless move
       if (this.camera.cameraDirection.lengthSquared() > 0) {
@@ -333,6 +341,7 @@ export default abstract class Controls implements IControls {
   }
 
   featureClickHandler(eventData: BABYLON.PointerInfo) {
+    if (this.orbitControl) return
     const event = eventData.event as PointerEvent
     if (event.pointerType === 'xr') {
       const mesh = eventData.pickInfo?.pickedMesh
@@ -521,7 +530,6 @@ export default abstract class Controls implements IControls {
   togglePerspective() {
     if (this.firstPersonView) {
       this.enterThirdPerson(ISO_DISTANCE)
-      this.snapIso()
     } else {
       this.enterFirstPerson()
     }
@@ -541,6 +549,8 @@ export default abstract class Controls implements IControls {
     this.targetCameraDistance = startingDistance
     this.persona.firstPersonView = false
     this.firstPersonView = false
+    this.camera.orbit = true
+    this.camera.orbitHeight = -0.7
     document.body.classList.add('zoomed')
     return true
   }
@@ -555,19 +565,10 @@ export default abstract class Controls implements IControls {
     this.firstPersonView = true
     document.body.classList.remove('zoomed')
     this.camera.orbit = false
+    this.camera.orbitHeight = 0
     this.camera.autoRotate = false
     this.camera.rotation.x = 0
     return true
-  }
-
-  private snapIso() {
-    const step = Math.PI / 2
-    const off = Math.PI / 4
-    const y = Math.round((this.camera.rotation.y - off) / step) * step + off
-    this.camera.rotation.x = ISO_PITCH
-    this.camera.rotation.y = y
-    this.camera.cameraRotation.set(0, 0)
-    if (this.persona) this.persona.rotation.y = y
   }
 
   startConga(target: Avatar) {

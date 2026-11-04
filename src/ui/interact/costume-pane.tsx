@@ -3,8 +3,11 @@ import { Costume } from '../../../common/messages/costumes'
 import cachedFetch, { invalidateUrl } from '../../../web/src/helpers/cached-fetch'
 import { onListArrowKeys } from '../../../web/src/helpers/keynav'
 import { app } from '../../../web/src/state'
+import CostumeTool from '../../tools/costume'
 
-export function CostumePane() {
+export function CostumePane({ onEdit }: { onEdit: () => void }) {
+  const editing = useRef(false)
+  const firstPerson = useRef(false)
   const [costumes, setCostumes] = useState<Costume[] | null>(null)
   const [selected, setSelected] = useState<number | null>(null)
   const [busy, setBusy] = useState(false)
@@ -18,8 +21,10 @@ export function CostumePane() {
     const controls = window.connector?.controls
     const manager = window.connector?.persona?.avatar?.attachmentManager
     const changedView = controls?.enterThirdPerson()
+    firstPerson.current = !!changedView
     original.current = manager?.costume ?? app.state.costume
     return () => {
+      if (editing.current) return
       manager?.generateCostume(original.current, true)
       if (changedView) controls?.enterFirstPerson()
     }
@@ -83,6 +88,28 @@ export function CostumePane() {
   return (
     <section onKeyDown={onListArrowKeys}>
       <h2>Costumes</h2>
+      <button
+        type="button"
+        disabled={busy || !costumes?.some((c) => c.id === (highlighted ?? selected))}
+        onClick={() => {
+          const costume = costumes?.find((c) => c.id === (highlighted ?? selected))
+          const avatar = window.connector?.persona?.avatar
+          const controls = window.connector?.controls
+          if (!costume || !avatar?.attachmentManager || !avatar.avatarMesh || !controls || !window.ui) return
+          if (avatar.src || controls.vehicleFeature || controls.congaTarget) {
+            setError('Leave your vehicle or conga and use the voxel avatar to edit a costume.')
+            return
+          }
+          editing.current = true
+          avatar.attachmentManager.generateCostume(original.current, true)
+          if (firstPerson.current) controls.enterFirstPerson()
+          onEdit()
+          window.ui.setTool(new CostumeTool(costume))
+          window.ui.setPane('costume')
+        }}
+      >
+        edit
+      </button>
       {error && <div role="alert">{error}</div>}
       {!costumes && !error && <div>Loading costumes...</div>}
       {costumes?.length === 0 && <div>No costumes yet.</div>}

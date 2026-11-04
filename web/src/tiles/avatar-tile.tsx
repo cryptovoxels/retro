@@ -1,4 +1,4 @@
-import makeBlockie from 'ethereum-blockies-base64'
+import { AvatarIcon } from '../components/avatar-link'
 
 interface AvatarTileProps {
   wallet?: string
@@ -19,7 +19,7 @@ export function AvatarTile(props: AvatarTileProps) {
 
   return (
     <a class="tile avatar-tile" href={link}>
-      <img width={size} height={size} style={{ width: size, height: size }} src={makeBlockie(props.wallet)} />
+      <AvatarIcon name={props.wallet} />
     </a>
   )
 }

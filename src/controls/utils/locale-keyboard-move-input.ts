@@ -54,6 +54,10 @@ export class LocaleKeyboardMoveInput implements BABYLON.ICameraInput<BABYLON.Fre
     Object.assign(this, options)
   }
 
+  public hasKey(code: string): boolean {
+    return this._keys.includes(code)
+  }
+
   public reset() {
     this._keys = []
   }

@@ -1,6 +1,6 @@
 import { route } from 'preact-router'
 import { effect, signal } from '@preact/signals'
-import makeBlockie from 'ethereum-blockies-base64'
+import { AvatarIcon } from '../../../web/src/components/avatar-link'
 import { Fragment, JSX } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 
@@ -17,6 +17,8 @@ import { isHate } from '../../hate'
 import { matcher } from '../../obscenity'
 import { createEvent, TypedEventTarget } from '../../utils/EventEmitter'
 import { snack } from '../../../web/src/components/snackbar'
+import cachedFetch from '../../../web/src/helpers/cached-fetch'
+import { exitPointerLock } from '../../../common/helpers/ui-helpers'
 
 /** In-world HUD chat. Guests get a bigger cap and smaller type. */
 export function ChatOverlay({ enabled }: { enabled: boolean }) {
@@ -48,7 +50,6 @@ async function nerfChat(id: string) {
 // string senders (wallet or name) resolved to full avatars. null = pending or unknown
 const refCache = new Map<string, AvatarRefObj | null>()
 const refsRev = signal(0)
-const blockies = new Map<string, string>()
 
 function fetchRefs(list: readonly ChatMessageRecord[]) {
   const keys = new Set<string>()
@@ -70,13 +71,6 @@ function fetchRefs(list: readonly ChatMessageRecord[]) {
     .catch(() => {})
 }
 
-function blockie(wallet: string) {
-  const k = wallet.toLowerCase()
-  let b = blockies.get(k)
-  if (!b) blockies.set(k, (b = makeBlockie(k)))
-  return b
-}
-
 function ChatWho({ m }: { m: ChatMessageRecord }) {
   let ref: AvatarRef | undefined = m.avatarRef
   if (typeof ref === 'string') ref = refCache.get(ref.toLowerCase()) || ref
@@ -84,7 +78,7 @@ function ChatWho({ m }: { m: ChatMessageRecord }) {
   if (wallet.startsWith('0x')) {
     return (
       <a class="chat-who" href={`/u/${avatarSlug(ref)}`} title={avatarName(ref)}>
-        <img width={16} height={16} src={blockie(wallet)} />
+        <AvatarIcon name={avatarName(ref)} />
       </a>
     )
   }
@@ -126,8 +120,48 @@ function ChatLineBody({ m }: { m: ChatMessageRecord }) {
   )
 }
 
+export function ChatHistory({ query = '', author = '' }: { query?: string; author?: string }) {
+  const [messages, setMessages] = useState<ChatMessageRecord[]>([])
+  const [status, setStatus] = useState('Loading chats...')
+  useEffect(() => {
+    let active = true
+    setStatus('Loading chats...')
+    const timer = setTimeout(() => {
+      cachedFetch(`/api/chat.json?${new URLSearchParams({ q: query, author })}`)
+        .then((r) => r.json())
+        .then((data) => {
+          if (!active) return
+          const list = data.messages.map((m: any) => ({ ...m, avatar: undefined, avatarRef: m.avatar, timestamp: 0 }))
+          setMessages(author ? list.slice(-20).reverse() : list)
+          setStatus(list.length ? '' : 'No chats found.')
+        })
+        .catch(() => {
+          if (active) setStatus('Could not load chats.')
+        })
+    }, 200)
+    return () => {
+      active = false
+      clearTimeout(timer)
+    }
+  }, [query, author])
+  return (
+    <div class="chat-messages">
+      {status ? (
+        <p>{status}</p>
+      ) : (
+        messages.map((m) => (
+          <p key={m.id}>
+            <ChatLineBody m={m} />
+          </p>
+        ))
+      )}
+    </div>
+  )
+}
+
 export function ChatPanel({ cap, variant = 'page', enabled = true, class: className, style }: { cap: number; enabled?: boolean; variant?: 'overlay' | 'page'; class?: string; style?: string }) {
   const [, bump] = useState(0)
+  const [query, setQuery] = useState('')
   const [focused, setFocusedRaw] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   const chatRef = useRef<HTMLDivElement>(null)
@@ -207,7 +241,21 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
     if (isMobile() && !focused) shown = shown.slice(-3)
     return (
       <div ref={chatRef} class={'chat' + (className ? ' ' + className : '')} style={style}>
-        <div class={'chat-messages' + (atCap ? ' at-cap' : '')}>
+        <div
+          class={'chat-messages' + (atCap ? ' at-cap' : '')}
+          role="link"
+          tabIndex={0}
+          aria-label="Open chat history"
+          onClick={(e) => {
+            if ((e.target as HTMLElement).closest('a, button')) return
+            exitPointerLock()
+            route('/chat')
+          }}
+          onKeyDown={(e) => {
+            if (e.key !== 'Enter' || e.target !== e.currentTarget) return
+            e.currentTarget.click()
+          }}
+        >
           {shown.map((m) => (
             <p key={m.id || m.timestamp} class={!focused && age(m) > CHAT_FADE_MS ? 'faded' : undefined}>
               <ChatLineBody m={m} />
@@ -259,30 +307,38 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
 
   return (
     <div class={'chat-panel' + (className ? ' ' + className : '')} style={style}>
-      <div ref={box} class={'chat-messages' + (atCap ? ' at-cap' : '')}>
-        {msgs.map((m, i) => {
-          const prev = i > 0 ? msgs[i - 1] : null
-          const gapMs = prev ? m.timestamp - prev.timestamp : 0
-          const gapHours = gapMs > 3600_000 ? Math.round(gapMs / 3600_000) : 0
-          return (
-            <Fragment key={m.id || i}>
-              {gapHours > 0 && (
-                <div class="chat-gap">
-                  {gapHours} hour{gapHours > 1 ? 's' : ''} later
-                </div>
-              )}
-              <div class="chat-line">
-                {app.isAdmin() && m.id && !m.moderated && (
-                  <button type="button" class="chat-x" onClick={() => nerfChat(m.id!)}>
-                    x
-                  </button>
-                )}
-                <ChatWho m={m} /> <ChatText text={m.text} moderated={m.moderated} />
-              </div>
-            </Fragment>
-          )
-        })}
+      <div class="f">
+        <label htmlFor="chat-search">Search chat history</label>
+        <input id="chat-search" type="search" value={query} onInput={(e) => setQuery(e.currentTarget.value)} />
       </div>
+      {query.trim() ? (
+        <ChatHistory query={query.trim()} />
+      ) : (
+        <div ref={box} class={'chat-messages' + (atCap ? ' at-cap' : '')}>
+          {msgs.map((m, i) => {
+            const prev = i > 0 ? msgs[i - 1] : null
+            const gapMs = prev ? m.timestamp - prev.timestamp : 0
+            const gapHours = gapMs > 3600_000 ? Math.round(gapMs / 3600_000) : 0
+            return (
+              <Fragment key={m.id || i}>
+                {gapHours > 0 && (
+                  <div class="chat-gap">
+                    {gapHours} hour{gapHours > 1 ? 's' : ''} later
+                  </div>
+                )}
+                <div class="chat-line">
+                  {app.isAdmin() && m.id && !m.moderated && (
+                    <button type="button" class="chat-x" onClick={() => nerfChat(m.id!)}>
+                      x
+                    </button>
+                  )}
+                  <ChatWho m={m} /> <ChatText text={m.text} moderated={m.moderated} />
+                </div>
+              </Fragment>
+            )
+          })}
+        </div>
+      )}
       <ChatInput keepFocus />
     </div>
   )

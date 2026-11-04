@@ -1361,7 +1361,12 @@ Returns up to 10 anonymous movement fragments whose start or end parcel matches.
 
 Recent chat messages
 
-Returns up to 200 unmoderated chat messages in chronological order. Used by the client on connect instead of replaying history over the multiplayer websocket.
+Returns up to 200 unmoderated chat messages in chronological order. Used by the client on connect instead of replaying history over the multiplayer websocket. Optional filters search stored history before applying the 200-message limit.
+
+**parameters**
+
+- `q` (query) string: Case-insensitive text search, trimmed and limited to 200 characters.
+- `author` (query) string: Exact case-insensitive sender wallet (or legacy string sender).
 
 **answers**
 

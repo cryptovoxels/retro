@@ -178,7 +178,7 @@ export const micEnabled = signal(false)
 // .page mounts this; world tools (add, edit, …) portal into it and cover the route
 export const pageToolEl = signal<HTMLElement | null>(null)
 
-const PAGE_TOOLS = new Set(['add', 'edit', 'voxels', 'debugTool', 'nfts', 'womp', 'takeWomp', 'help', 'login', 'parcelSnapshots'])
+const PAGE_TOOLS = new Set(['costume', 'add', 'edit', 'voxels', 'debugTool', 'nfts', 'womp', 'takeWomp', 'help', 'login', 'parcelSnapshots'])
 
 export const isPageTool = (p?: string) => !!p && PAGE_TOOLS.has(p)
 
