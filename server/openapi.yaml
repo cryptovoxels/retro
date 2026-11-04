@@ -6,7 +6,7 @@ info:
   description: |
     The public Voxels API. Most of this is unauthenticated GET.
 
-    Write routes for collection create / deploy / mint writeback are documented
+    Write routes for parcel rehosting and collection create / deploy / mint writeback are documented
     here. Sign-in, admin, moderation, livekit, radio, metrics, guest passes and
     the internal /grid/* routes are deliberately not described.
 
@@ -476,6 +476,52 @@ paths:
                   parcel:
                     $ref: '#/components/schemas/Parcel'
         '400':
+          $ref: '#/components/responses/Failure'
+
+  /api/parcels/{id}/rehost:
+    post:
+      operationId: rehostParcel
+      tags: [parcels]
+      summary: Rehost a parcel's assets to UGC
+      description: |
+        Requires a signed-in session with permission to edit the parcel.
+        Runs the parcel compiler and waits for completion. Image uploads fit within
+        1024x1024. Already rehosted assets are skipped, and unchanged content is not
+        saved again. Repeated requests share the active task on this server; 202 means
+        another server or compiler process is already rehosting the parcel.
+        If the parcel changes during the job, conflict is true and no content is
+        saved; retry against the latest build. Missing assets keep their source URLs.
+      parameters:
+        - $ref: '#/components/parameters/ParcelId'
+      responses:
+        '200':
+          description: Completed, unchanged, or conflicted with a newer edit
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  changed:
+                    type: boolean
+                  conflict:
+                    type: boolean
+                  missing:
+                    type: array
+                    items:
+                      type: string
+        '202':
+          description: Already running; returns success true, running true and changed false
+        '400':
+          $ref: '#/components/responses/Failure'
+        '401':
+          description: Sign-in required
+        '403':
+          description: No permission to edit this parcel
+        '404':
+          description: Parcel not found
+        '500':
           $ref: '#/components/responses/Failure'
 
   /api/parcels/{id}.vox:

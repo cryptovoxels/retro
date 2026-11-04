@@ -2,7 +2,7 @@
 
 The public Voxels API. Most of this is unauthenticated GET.
 
-Write routes for collection create / deploy / mint writeback are documented here. Sign-in, admin, moderation, livekit, radio, metrics, guest passes and the internal /grid/* routes are deliberately not described.
+Write routes for parcel rehosting and collection create / deploy / mint writeback are documented here. Sign-in, admin, moderation, livekit, radio, metrics, guest passes and the internal /grid/* routes are deliberately not described.
 
 Most handlers answer with an envelope: `{"success": true, "<field>": ...}`, where `<field>` is plural for a list and singular for one record. A failed lookup answers `{"success": false}`, usually with status 400 and sometimes with 200, so check the flag rather than the status.
 
@@ -12,7 +12,7 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 
 ## what is in here
 
-- [parcels](#parcels), 21 routes
+- [parcels](#parcels), 22 routes
 - [womps](#womps), 6 routes
 - [avatars](#avatars), 15 routes
 - [collectibles](#collectibles), 3 routes
@@ -38,6 +38,7 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 - [`GET /api/parcels/search`](#get-apiparcelssearch) Search minted, non-common parcels
 - [`GET /api/parcels/favorites.json`](#get-apiparcelsfavoritesjson) Parcels somebody has favorited
 - [`GET /api/parcels/{id}.json`](#get-apiparcelsidjson) One parcel with its build
+- [`POST /api/parcels/{id}/rehost`](#post-apiparcelsidrehost) Rehost a parcel's assets to UGC
 - [`GET /api/parcels/{id}.vox`](#get-apiparcelsidvox) The parcel's build as a MagicaVoxel file
 - [`GET /api/parcels/{id}.png`](#get-apiparcelsidpng) Redirect to the parcel preview renderer
 - [`GET /api/parcels/{id}/query`](#get-apiparcelsidquery) Re-read the parcel's owner from the contract, then return it
@@ -223,6 +224,30 @@ The only parcel route that returns `content`, which holds the voxels, the palett
   - `success` boolean
   - `parcel` [`Parcel`](#parcel)
 - `400` The lookup did not land. Some handlers send this with status 200.
+
+### POST /api/parcels/{id}/rehost
+
+Rehost a parcel's assets to UGC
+
+Requires a signed-in session with permission to edit the parcel. Runs the parcel compiler and waits for completion. Image uploads fit within 1024x1024. Already rehosted assets are skipped, and unchanged content is not saved again. Repeated requests share the active task on this server; 202 means another server or compiler process is already rehosting the parcel. If the parcel changes during the job, conflict is true and no content is saved; retry against the latest build. Missing assets keep their source URLs.
+
+**parameters**
+
+- `id` (path, required) integer
+
+**answers**
+
+- `200` object
+  - `success` boolean
+  - `changed` boolean
+  - `conflict` boolean
+  - `missing` array of string
+- `202` Already running; returns success true, running true and changed false
+- `400` The lookup did not land. Some handlers send this with status 200.
+- `401` Sign-in required
+- `403` No permission to edit this parcel
+- `404` Parcel not found
+- `500` The lookup did not land. Some handlers send this with status 200.
 
 ### GET /api/parcels/{id}.vox
 
