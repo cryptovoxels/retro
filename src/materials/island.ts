@@ -16,7 +16,7 @@ export function createIslandMaterial(scene: BABYLON.Scene, config: IslandMateria
   // Standard material colors
   // material.emissiveColor.set(0.7, 0.7, 0.7)
   const c = 0.15
-  material.diffuseColor.set(c, c, c)
+  material.diffuseColor.set(c * 1.03, c * 1.01, c * 0.97)
   const d = 0.1
   material.emissiveColor.set(d, d, d)
   const e = 0.01

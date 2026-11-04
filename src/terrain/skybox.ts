@@ -26,7 +26,7 @@ export default class Skybox {
           vec3 view = normalize(direction);
           float height = smoothstep(0.0, 0.65, max(view.y, 0.0));
           float sun = pow(max(dot(view, normalize(sunPosition)), 0.0), 8.0);
-          vec3 sky = fogColor * (0.48 + sun * 0.16);
+          vec3 sky = fogColor * (0.58 + sun * 0.12);
           vec3 color = mix(fogColor, sky, height);
           gl_FragColor = vec4(mix(color, pow(color, vec3(2.2)), linearOutput), 1.0);
         }`,

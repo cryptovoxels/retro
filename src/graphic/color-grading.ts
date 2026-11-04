@@ -6,7 +6,10 @@ export class ColorGrader {
     // warning setting reusable to true causes youtube and twitch videos to wobble... not sure why
     this._postProcess = new BABYLON.ImageProcessingPostProcess('luts', 1.0, null, BABYLON.Texture.BILINEAR_SAMPLINGMODE, this.scene.getEngine(), false, BABYLON.Constants.TEXTURETYPE_HALF_FLOAT)
     this._postProcess.colorGradingEnabled = false
-    this._postProcess.colorCurvesEnabled = false
+    const curves = new BABYLON.ColorCurves()
+    curves.globalSaturation = 5
+    this._postProcess.colorCurves = curves
+    this._postProcess.colorCurvesEnabled = true
     this._postProcess.toneMappingEnabled = false
     this._postProcess.vignetteEnabled = false
     this._postProcess.samples = 1

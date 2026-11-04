@@ -115,6 +115,7 @@ export async function createWorldScene(s: BABYLON.Scene) {
 
   ambientLight = new BABYLON.HemisphericLight('sun', sunPosition(), s)
   ambientLight.intensity = 1.0
+  ambientLight.groundColor.set(ambient(), ambient(), ambient())
 
   window.graphic.addEventListener('settingsChanged', () => scene && updateFog(scene), { passive: true })
 
