@@ -43,6 +43,9 @@ type TextureUrls = {
   compressorUrl: string
 }
 
+const functionTrial = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('textureFunction') === '1'
+const functionUrl = 'https://faas-sfo3-7872a1dd.doserverless.co/api/v1/web/fn-7f487c48-1176-4b03-82aa-03c5faebe781/textures/compress'
+
 // Prevent multiple parallel requests for the same URL
 const currentFetches = new Map<string, Promise<TextureData>>()
 
@@ -54,7 +57,7 @@ export async function fetchTexture(scene: BABYLON.Scene, srcURL: string | null, 
   while (true) {
     signal.throwIfAborted()
     try {
-      const attempt = options.retry ? AbortSignal.any([signal, AbortSignal.timeout(10000)]) : signal
+      const attempt = options.retry ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : signal
       const texture = await textureAttempt(scene, srcURL, attempt, options)
       if (signal.aborted) {
         texture.dispose()
@@ -68,10 +71,13 @@ export async function fetchTexture(scene: BABYLON.Scene, srcURL: string | null, 
           clearTimeout(timer)
           reject(signal.reason)
         }
-        const timer = setTimeout(() => {
-          signal.removeEventListener('abort', abort)
-          resolve()
-        }, 30000)
+        const timer = setTimeout(
+          () => {
+            signal.removeEventListener('abort', abort)
+            resolve()
+          },
+          Math.max(30000, (error as any)?.retryAfter || 0) + Math.random() * 3000,
+        )
         signal.addEventListener('abort', abort, { once: true })
       })
     }
@@ -101,6 +107,23 @@ async function loadTexture(scene: BABYLON.Scene, srcURL: string | null, signal: 
   const { transparent = false, stretch = true, pixelated = false, flipY = true, mipmaps = true } = options
 
   if (srcURL?.startsWith('ugc://')) srcURL = 'https://ugc.voxels.com/' + srcURL.slice(6)
+
+  if (functionTrial && srcURL && isUgcTextureUrl(srcURL) && getGpuTextureFormat() === '.astc.ktx' && !/\.gif(?:$|[?#])/i.test(srcURL)) {
+    const size = isMobile() ? 256 : 512
+    const key = new URL(srcURL).pathname.slice(1)
+    const fit = stretch ? 'fill' : 'cover'
+    const url = `${functionUrl}?key=${encodeURIComponent(key)}&width=${size}&height=${size}&fit=${fit}&format=astc&hint=.astc.ktx`
+    const cached = `https://texture.voxels.com/${key}/width=${size},height=${size},fit=${fit},format=astc.ktx?hint=.astc.ktx`
+    try {
+      const attempt = AbortSignal.any([signal, AbortSignal.timeout(10000)])
+      const texture = await fetchAndCreateTexture(scene, cached, url, attempt, { flipY, mipmaps })
+      if (pixelated) texture.updateSamplingMode(1)
+      return texture
+    } catch {
+      signal.throwIfAborted()
+      // Keep the existing compressor available during the Function trial.
+    }
+  }
 
   // Desktop UGC must use the compressed cache too; originals stall texture uploads.
   if (isMobile() && srcURL && isUgcTextureUrl(srcURL)) {
@@ -275,7 +298,9 @@ async function deduplicateFetch(url: string, signal?: AbortSignal): Promise<Text
 async function fetchTextureData(url: string, signal?: AbortSignal): Promise<TextureData> {
   const response = await fetch(url, { method: 'GET', signal })
   if (!response.ok) {
-    throw response.headers.get('x-error') || `${response.status} - unable to load texture`
+    const retry = response.headers.get('Retry-After')
+    const retryAfter = retry ? (/^\d+$/.test(retry) ? Number(retry) * 1000 : Date.parse(retry) - Date.now()) : 0
+    throw Object.assign(new Error(response.headers.get('x-error') || `${response.status} - unable to load texture`), { retryAfter })
   }
   return {
     buffer: await response.arrayBuffer(),

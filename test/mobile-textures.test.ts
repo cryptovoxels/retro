@@ -38,10 +38,12 @@ beforeEach(() => {
   vi.stubGlobal('BABYLON', { ...originalBabylon, Texture })
   fetchMock = vi.fn().mockImplementation(async () => ({ ok: true, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(8) }))
   vi.stubGlobal('fetch', fetchMock)
+  vi.spyOn(Math, 'random').mockReturnValue(0)
   vi.stubEnv('TEXTURE_HOST', 'https://compressor.example')
 })
 
 afterEach(() => {
+  vi.restoreAllMocks()
   vi.unstubAllGlobals()
   vi.unstubAllEnvs()
 })
@@ -138,4 +140,40 @@ test('removing an image cancels its pending retry', async () => {
     controller.abort()
     vi.useRealTimers()
   }
+})
+
+test.each(['60', new Date(Date.now() + 60000).toUTCString()])('honours Retry-After: %s', async (retry) => {
+  vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] })
+  const controller = new AbortController()
+  fetchMock.mockResolvedValue({ ok: false, status: 503, headers: new Headers({ 'Retry-After': retry }) })
+  const pending = fetchTexture(scene, 'ugc://parcel/1/busy.png', controller.signal, { retry: true })
+  const rejected = expect(pending).rejects.toBe('removed')
+  try {
+    await vi.advanceTimersByTimeAsync(0)
+    await vi.advanceTimersByTimeAsync(58000)
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    await vi.advanceTimersByTimeAsync(2000)
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+    controller.abort('removed')
+    await rejected
+  } finally {
+    controller.abort('removed')
+    vi.useRealTimers()
+  }
+})
+
+test.each([true, false])('Function trial is opt-in and falls back when unavailable (failure=%s)', async (failure) => {
+  vi.resetModules()
+  vi.stubGlobal('window', { location: { search: '?textureFunction=1' } })
+  vi.mocked(getGpuTextureFormat).mockReturnValue('.astc.ktx')
+  fetchMock.mockResolvedValueOnce({ ok: false, status: 404, headers: new Headers() })
+  if (failure) fetchMock.mockResolvedValueOnce({ ok: false, status: 503, headers: new Headers({ 'Retry-After': '30' }) })
+  const trial = await import('../src/textures/textures')
+  await trial.fetchTexture(scene, 'ugc://parcel/6822/YfJx2r.jpg', new AbortController().signal, { stretch: false })
+  const url = new URL(fetchMock.mock.calls[1][0])
+  expect(fetchMock.mock.calls[0][0]).toBe('https://texture.voxels.com/parcel/6822/YfJx2r.jpg/width=256,height=256,fit=cover,format=astc.ktx?hint=.astc.ktx')
+  expect(url.hostname).toBe('faas-sfo3-7872a1dd.doserverless.co')
+  expect(Object.fromEntries(url.searchParams)).toEqual({ key: 'parcel/6822/YfJx2r.jpg', width: '256', height: '256', fit: 'cover', format: 'astc', hint: '.astc.ktx' })
+  expect(fetchMock).toHaveBeenCalledTimes(failure ? 3 : 2)
+  if (failure) expect(fetchMock.mock.calls[2][0]).toBe('https://compressed.voxels.com/parcel/6822/YfJx2r.jpg?hint=.astc.ktx')
 })

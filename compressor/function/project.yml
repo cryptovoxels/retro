@@ -1,0 +1,16 @@
+packages:
+  - name: textures
+    functions:
+      - name: compress
+        runtime: nodejs:24
+        web: true
+        main: main
+        environment:
+          TEXTURE_STORAGE_ENDPOINT: '${TEXTURE_STORAGE_ENDPOINT}'
+          TEXTURE_STORAGE_REGION: '${TEXTURE_STORAGE_REGION}'
+          TEXTURE_STORAGE_BUCKET: '${TEXTURE_STORAGE_BUCKET}'
+          TEXTURE_STORAGE_KEY: '${TEXTURE_STORAGE_KEY}'
+          TEXTURE_STORAGE_SECRET: '${TEXTURE_STORAGE_SECRET}'
+        limits:
+          timeout: 30000
+          memory: 1024
