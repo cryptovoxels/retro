@@ -7,7 +7,7 @@ import * as http from 'http'
 
 const corsSettings = {
   origin: '*',
-  exposedHeaders: ['x-frames', 'x-original-format', 'x-type', 'x-output-format', 'x-error'],
+  exposedHeaders: ['x-frames', 'x-original-format', 'x-type', 'x-output-format', 'x-error', 'Retry-After'],
 }
 
 export const app = express()

@@ -1,12 +1,12 @@
 # UGC compression Function trial
 
 DigitalOcean Function `textures/compress` in the `voxels` namespace (sfo3).
-The existing compressor remains the default and fallback.
+The existing compressor remains the fallback and handles other formats and sources.
 
-Opt in with `&textureFunction=1` on the play URL. The engine tries this path for
+The engine uses this path by default for
 static UGC images on ASTC-capable devices, including Apple Silicon Macs.
 GIFs, external images and other GPU formats keep their existing routing.
-Remove the query parameter and reload to stop the trial.
+Add `&textureFunction=0` and reload to disable the Function trial.
 
 Input: `key=parcel/6822/YfJx2r.jpg&width=256&height=256&fit=cover&format=astc`.
 Only UGC parcel image keys are accepted; no arbitrary URLs.
@@ -17,7 +17,7 @@ Pixels are flipped for Babylon's compressed texture upload convention.
 
 Destination in the texture bucket:
 `parcel/6822/YfJx2r.jpg/width=256,height=256,fit=cover,format=astc.ktx`.
-The engine checks the CDN first, then calls the Function on a miss.
+The engine calls the Function, which redirects only to objects confirmed in the bucket.
 The Function checks the bucket, compresses and uploads on a miss, and redirects
 to the CDN. Failures return 503 with Retry-After: 30; the engine falls back to
 the existing compressor. DO supplies CORS headers for web Functions.

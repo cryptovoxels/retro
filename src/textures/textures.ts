@@ -1,26 +1,10 @@
 import { isMobile } from '../../common/helpers/detector'
 // ABOUTME: Texture loading with compressed texture support and CDN caching.
-// ABOUTME: Handles fetching from bucket (cached) with fallback to compressor service.
-
-/**
- * TEXTURE LOADING FLOW:
- *
- * 1. Feature calls fetchTexture(url, options)
- * 2. We compute two URLs:
- *    - cachedUrl: Direct CDN bucket link (fast, but might 404 if not cached yet)
- *    - compressorUrl: Compressor service (slower, but always works and caches result)
- * 3. Try cachedUrl first, fall back to compressorUrl on failure
- * 4. The compressor uploads to CDN bucket, so next request hits the cache
- *
- * Environment variables:
- *   TEXTURE_HOST   - Compressor service URL
- *   TEXTURE_BUCKET - CDN bucket URL (default: texture.voxels.com)
- */
+// ABOUTME: Compression services redirect to bucket objects after confirming they exist.
 
 import config from '../../common/config'
 import { isUgcTextureUrl } from '../../common/helpers/parcel-compile'
 import { getGpuTextureFormat } from './gpu'
-import { buildCachedTextureUrl } from './bucket'
 import { Metadata, metadataFromResponse } from './metadata-cache'
 import { registerAnimation } from './animation'
 
@@ -43,7 +27,7 @@ type TextureUrls = {
   compressorUrl: string
 }
 
-const functionTrial = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('textureFunction') === '1'
+const functionTrial = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('textureFunction') !== '0'
 const functionUrl = 'https://faas-sfo3-7872a1dd.doserverless.co/api/v1/web/fn-7f487c48-1176-4b03-82aa-03c5faebe781/textures/compress'
 
 // Prevent multiple parallel requests for the same URL
@@ -113,10 +97,9 @@ async function loadTexture(scene: BABYLON.Scene, srcURL: string | null, signal: 
     const key = new URL(srcURL).pathname.slice(1)
     const fit = stretch ? 'fill' : 'cover'
     const url = `${functionUrl}?key=${encodeURIComponent(key)}&width=${size}&height=${size}&fit=${fit}&format=astc&hint=.astc.ktx`
-    const cached = `https://texture.voxels.com/${key}/width=${size},height=${size},fit=${fit},format=astc.ktx?hint=.astc.ktx`
     try {
       const attempt = AbortSignal.any([signal, AbortSignal.timeout(10000)])
-      const texture = await fetchAndCreateTexture(scene, cached, url, attempt, { flipY, mipmaps })
+      const texture = await fetchAndCreateTexture(scene, url, undefined, attempt, { flipY, mipmaps })
       if (pixelated) texture.updateSamplingMode(1)
       return texture
     } catch {
@@ -167,9 +150,10 @@ export async function fetchAtlasTexture(scene: BABYLON.Scene): Promise<BABYLON.T
 }
 
 export async function fetchNoImageTexture(scene: BABYLON.Scene): Promise<BABYLON.Texture> {
+  const format = getGpuTextureFormat()
   return new Promise((resolve, reject) => {
     const texture: BABYLON.Texture = new BABYLON.Texture(
-      process.env.ASSET_PATH + '/images/' + 'no-image' + getGpuTextureFormat(),
+      `${process.env.ASSET_PATH}/images/no-image${format}?mips=1&hint=${format}`,
       scene,
       false,
       true,
@@ -246,13 +230,8 @@ function getTextureUrls(srcURL: string | null, transparent: boolean, stretch: bo
     return { cachedUrl: url, compressorUrl: url }
   }
 
-  const cachedUrl = buildCachedTextureUrl(srcURL, transparent, stretch, size)
-  if (!cachedUrl) {
-    return null
-  }
-
   const compressorUrl = buildCompressorUrl(srcURL, transparent, stretch, size)
-  return { cachedUrl, compressorUrl }
+  return { cachedUrl: compressorUrl, compressorUrl: '' }
 }
 
 async function fetchAndCreateTexture(scene: BABYLON.Scene, url: string, backupURL?: string, signal?: AbortSignal, options: Pick<TextureOptions, 'flipY' | 'mipmaps'> = {}): Promise<BABYLON.Texture> {

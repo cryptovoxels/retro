@@ -63,7 +63,7 @@ function compressed(request: Request, response: Response) {
   const key = storage.hashify(sourceURL, textureOptions) + hint
   let job = pending.get(key)
   if (!job) {
-    if (pending.size >= 128) return response.set('Retry-After', '2').sendStatus(503)
+    if (pending.size >= 128) return response.set({ 'Retry-After': '30', 'Cache-Control': 'no-store' }).sendStatus(503)
     job = runJob(() => findCachedTexture(forceUpdate, sourceURL, textureOptions, hint).catch(() => downloadAndCompress(sourceURL, textureOptions, hint))).finally(() => pending.delete(key))
     pending.set(key, job)
   }
@@ -160,6 +160,8 @@ function textureResponse(found: FindResult, res: Response, version: string | nul
 
 function errorResponse(error: any, response: Response) {
   response.contentType('text/plain')
+  response.set('Cache-Control', 'no-store')
+  if (['TimeoutError', 'AbortError', 'OverloadError'].includes(error?.name)) return response.set('Retry-After', '30').status(503).end('Texture service busy; retry later')
   if (error instanceof DownloadError) {
     console.error(`Download failed: ${error.url} - ${error.message}`)
     const msg = `failed to download image for texture compression: ${error.message}`

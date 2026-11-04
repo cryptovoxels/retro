@@ -135,6 +135,7 @@ function prepare(texture: Texture): Promise<Texture> {
         .then(() => texture)
     })
     .catch((error) => {
+      jobSignal()
       throw new CreateError(sourcePath, texture.source, error.message)
     })
 }

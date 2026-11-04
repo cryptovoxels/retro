@@ -12,7 +12,8 @@ const cache = new Set<string>()
 export async function mobileImage(req: Request, res: Response) {
   try {
     return await runJob(() => convertImage(req, res))
-  } catch {
+  } catch (error: any) {
+    if (['TimeoutError', 'AbortError', 'OverloadError'].includes(error?.name)) return res.set({ 'Retry-After': '30', 'Cache-Control': 'no-store' }).sendStatus(503)
     return res.sendStatus(422)
   }
 }
@@ -91,6 +92,8 @@ async function convertImage(req: Request, res: Response) {
     cache.add(cacheKey)
     return redirect()
   } catch (error) {
+    jobSignal()
+    if ((error as any)?.name === 'OverloadError') throw error
     console.error('Mobile texture failed', key, error)
     return res.sendStatus(422)
   } finally {

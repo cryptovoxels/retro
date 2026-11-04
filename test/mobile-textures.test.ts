@@ -7,6 +7,8 @@ vi.mock('../common/helpers/detector', () => ({ isMobile: vi.fn() }))
 vi.mock('../src/textures/animation', () => ({ registerAnimation: vi.fn() }))
 vi.mock('../src/textures/gpu', () => ({ getGpuTextureFormat: vi.fn() }))
 
+vi.hoisted(() => window.history.replaceState({}, '', '?textureFunction=0'))
+
 const originalBabylon = BABYLON
 let scene: BABYLON.Scene
 let fetchMock: ReturnType<typeof vi.fn>
@@ -62,11 +64,9 @@ test('ASTC-capable phones request GPU-compressed UGC textures', async () => {
 test.each(['ugc://parcel/1/large.jpg', 'https://ugc.voxels.com/parcel/1/large.jpg'])('desktop compresses UGC instead of decoding originals: %s', async (source) => {
   vi.mocked(isMobile).mockReturnValue(false)
   vi.mocked(getGpuTextureFormat).mockReturnValue('.astc.ktx')
-  fetchMock.mockResolvedValueOnce({ ok: false, status: 404 })
   await fetchTexture(scene, source, new AbortController().signal)
-  expect(fetchMock).toHaveBeenCalledTimes(2)
-  expect(fetchMock.mock.calls[0][0]).toContain('_medium.astc.ktx')
-  const url = new URL(fetchMock.mock.calls[1][0])
+  expect(fetchMock).toHaveBeenCalledTimes(1)
+  const url = new URL(fetchMock.mock.calls[0][0])
   expect(url.origin).toBe('https://compressor.example')
   expect(url.searchParams.get('url')).toBe('https://ugc.voxels.com/parcel/1/large.jpg')
   expect(url.searchParams.get('hint')).toBe('.astc.ktx')
@@ -162,18 +162,16 @@ test.each(['60', new Date(Date.now() + 60000).toUTCString()])('honours Retry-Aft
   }
 })
 
-test.each([true, false])('Function trial is opt-in and falls back when unavailable (failure=%s)', async (failure) => {
+test.each([true, false])('UGC Function is enabled by default and falls back when unavailable (failure=%s)', async (failure) => {
   vi.resetModules()
-  vi.stubGlobal('window', { location: { search: '?textureFunction=1' } })
+  vi.stubGlobal('window', { location: { search: '' } })
   vi.mocked(getGpuTextureFormat).mockReturnValue('.astc.ktx')
-  fetchMock.mockResolvedValueOnce({ ok: false, status: 404, headers: new Headers() })
   if (failure) fetchMock.mockResolvedValueOnce({ ok: false, status: 503, headers: new Headers({ 'Retry-After': '30' }) })
   const trial = await import('../src/textures/textures')
   await trial.fetchTexture(scene, 'ugc://parcel/6822/YfJx2r.jpg', new AbortController().signal, { stretch: false })
-  const url = new URL(fetchMock.mock.calls[1][0])
-  expect(fetchMock.mock.calls[0][0]).toBe('https://texture.voxels.com/parcel/6822/YfJx2r.jpg/width=256,height=256,fit=cover,format=astc.ktx?hint=.astc.ktx')
+  const url = new URL(fetchMock.mock.calls[0][0])
   expect(url.hostname).toBe('faas-sfo3-7872a1dd.doserverless.co')
   expect(Object.fromEntries(url.searchParams)).toEqual({ key: 'parcel/6822/YfJx2r.jpg', width: '256', height: '256', fit: 'cover', format: 'astc', hint: '.astc.ktx' })
-  expect(fetchMock).toHaveBeenCalledTimes(failure ? 3 : 2)
-  if (failure) expect(fetchMock.mock.calls[2][0]).toBe('https://compressed.voxels.com/parcel/6822/YfJx2r.jpg?hint=.astc.ktx')
+  expect(fetchMock).toHaveBeenCalledTimes(failure ? 2 : 1)
+  if (failure) expect(fetchMock.mock.calls[1][0]).toBe('https://compressed.voxels.com/parcel/6822/YfJx2r.jpg?hint=.astc.ktx')
 })

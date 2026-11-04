@@ -27,7 +27,7 @@ export function runJob<T>(work: () => Promise<T>) {
 export function queueJob<T>(work: () => Promise<T>, stage: keyof typeof queues = 'process'): Promise<T> {
   const queue = queues[stage]
   const signal = jobSignal()
-  if (queue.size >= 128) return Promise.reject(new Error('compressor queue full'))
+  if (queue.size >= 128) return Promise.reject(Object.assign(new Error('compressor queue full'), { name: 'OverloadError' }))
   return new Promise((resolve, reject) => {
     const abort = () => reject(signal.reason)
     signal.addEventListener('abort', abort, { once: true })
