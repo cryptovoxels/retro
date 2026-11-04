@@ -93,9 +93,11 @@ it('converts a gizmo move back into bone-local coordinates', () => {
   tool.selected.value = 0
   scene.onAfterAnimationsObservable.notifyObservers(scene)
   const before = mesh.computeWorldMatrix(true).getTranslation().clone()
-  const proxy = (tool as any).proxy as BABYLON.Mesh
+  const transform = (tool as any).transform
+  transform.sync()
+  const proxy = transform.proxy as BABYLON.Mesh
   proxy.position.y += 0.25
-  ;(tool as any).applyProxy()
+  transform.apply()
   const after = mesh.computeWorldMatrix(true).getTranslation()
   expect(mesh.parent).toBe(bone)
   expect(after.x).toBeCloseTo(before.x)

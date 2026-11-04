@@ -194,9 +194,6 @@ export default class Parcel extends Component<Props, State> {
     this.syncVisitUrl()
     void this.fetch(this.props.id!)
 
-    if (history) {
-      history.pushState = (history as any)['oldPushState']
-    }
     app.on(AppEvent.Change, this.onAppChange)
     window.addEventListener('parcelchange', this.onUrl)
   }
@@ -230,10 +227,6 @@ export default class Parcel extends Component<Props, State> {
 
     window.removeEventListener('parcelchange', this.onUrl)
 
-    history.pushState = function () {
-      ;(history as any)['oldPushState'].apply(this, arguments as any)
-      scrollTo(0, 0)
-    }
     app.removeListener(AppEvent.Change, this.onAppChange)
   }
 
@@ -463,7 +456,7 @@ export default class Parcel extends Component<Props, State> {
           e.preventDefault()
           exitPointerLock()
           sidebarClosed.value = false
-          route(`/parcels/${p.id}`, true)
+          route(e.currentTarget.getAttribute('href')!)
         }}
       >
         <strong>{p.name || p.address}</strong>

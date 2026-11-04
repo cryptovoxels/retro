@@ -17,18 +17,21 @@ export default class Orbit {
     const rotation = camera.rotation.clone()
     const orbit = camera.orbit
     const auto = camera.autoRotate
+    const height = camera.orbitHeight
     const movement = controls.movementEnabled
     controls.orbitControl = this
     document.exitPointerLock?.()
-    controls.enterThirdPerson(3)
-    controls.targetCameraDistance = 3
+    if (first) controls.enterThirdPerson(3)
+    else controls.targetCameraDistance = controls.cameraDistance
     controls.disableMovement()
     controls.walkRunAnimation?.stop()
     controls.move.setAll(0)
     camera.orbit = true
     camera.autoRotate = false
-    camera.orbitHeight = -0.7
-    camera.rotation.set(0.1, controls.persona.rotation.y + Math.PI, 0)
+    if (first) {
+      camera.orbitHeight = -0.7
+      camera.rotation.set(0.1, controls.persona.rotation.y + Math.PI, 0)
+    }
     camera.cameraRotation.set(0, 0)
     camera.inputs.attached['mouse']?.detachControl()
     ;(controls as any).onPointerLockChange?.()
@@ -51,7 +54,7 @@ export default class Orbit {
       camera.cameraRotation.set(0, 0)
       camera.orbit = orbit
       camera.autoRotate = auto
-      camera.orbitHeight = 0
+      camera.orbitHeight = height
       if (movement) controls.enableMovement()
       ;(controls as any).onPointerLockChange?.()
     }

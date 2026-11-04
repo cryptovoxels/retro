@@ -82,10 +82,16 @@ export function Scale(props: ScaleProps) {
       <dt>Scale</dt>
       <dd class="vec3">
         {axes.map((axis: XYZ) => (
-          <VectorField key={axis} title={axis} value={scaleValues[axis]} setter={setScale(axis)} errorMessage={setError} step={0.1} />
+          <VectorField key={axis} title={aspectRatioLocked ? 'Scale' : axis} value={scaleValues[axis]} setter={setScale(axis)} errorMessage={setError} step={0.1} />
         ))}
-        {props.alwaysLocked ? null : <input type="checkbox" checked={aspectRatioLocked} onChange={toggleAspectRatioLocked} title="Keep aspect ratio" />}
       </dd>
+      {!props.alwaysLocked && (
+        <dd class="full">
+          <label>
+            <input type="checkbox" checked={aspectRatioLocked} onChange={toggleAspectRatioLocked} /> Link scale
+          </label>
+        </dd>
+      )}
       {displayError(error)}
     </>
   )

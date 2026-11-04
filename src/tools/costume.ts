@@ -2,6 +2,7 @@ import { signal } from '@preact/signals'
 import type { Costume, CostumeAttachment } from '../../common/messages/costumes'
 import { Animations } from '../avatar-animations'
 import Orbit from '../controls/orbit'
+import Transform from './transform'
 import { uiPane } from '../store'
 
 export const costumeTool = signal<CostumeTool | null>(null)
@@ -17,13 +18,9 @@ export default class CostumeTool {
   private original = this.manager.costume
   private animation = this.avatar.animationOverride
   private orbit?: Orbit
-  private layer?: BABYLON.UtilityLayerRenderer
-  private gizmos?: BABYLON.GizmoManager
+  private transform?: Transform
   private frame?: BABYLON.Observer<BABYLON.Scene>
   private pointer?: BABYLON.Observer<BABYLON.PointerInfo>
-  private dragging = false
-  private proxy?: BABYLON.Mesh
-  private parentInverse = BABYLON.Matrix.Identity()
   private saved = false
   private pose: Array<{ node: BABYLON.TransformNode; rotation: BABYLON.Quaternion }> = []
 
@@ -32,38 +29,33 @@ export default class CostumeTool {
       ...costume,
       attachments: costume.attachments?.map(({ bone, wid, position, rotation, scaling, wearable }) => ({ bone: bone.toLowerCase(), wid, position: [...position], rotation: [...rotation], scaling: [...scaling], wearable })) ?? [],
     }
+    this.selected.value = this.draft.attachments?.length ? 0 : -1
   }
 
   activate() {
     this.enabled.value = true
     costumeTool.value = this
     const scene = this.avatar.avatarMesh!.getScene()
-    this.proxy = new BABYLON.Mesh('costume/gizmo', scene)
-    this.proxy.rotationQuaternion = BABYLON.Quaternion.Identity()
-    this.layer = new BABYLON.UtilityLayerRenderer(scene)
-    this.gizmos = new BABYLON.GizmoManager(scene, 1, this.layer)
-    this.gizmos.usePointerToAttachGizmos = false
-    this.gizmos.positionGizmoEnabled = true
-    this.gizmos.rotationGizmoEnabled = true
-    this.gizmos.scaleGizmoEnabled = true
-    for (const gizmo of [this.gizmos.gizmos.positionGizmo, this.gizmos.gizmos.rotationGizmo, this.gizmos.gizmos.scaleGizmo]) {
-      gizmo?.onDragStartObservable.add(() => {
-        this.dragging = true
-      })
-      gizmo?.onDragObservable.add(() => this.applyProxy())
-      gizmo?.onDragEndObservable.add(() => {
-        this.dragging = false
-        const mesh = this.manager.attachments[this.selected.value]?.mesh
-        const attachment = this.draft.attachments?.[this.selected.value]
-        if (!mesh || !attachment) return
-        attachment.position = mesh.position.asArray()
-        attachment.rotation = (mesh.rotationQuaternion?.toEulerAngles() ?? mesh.rotation).asArray().map((v) => (v * 180) / Math.PI)
-        attachment.scaling = mesh.scaling.asArray()
-        this.revision.value++
+    this.transform = new Transform(scene)
+    this.transform.onEnd = (commit) => {
+      if (!commit) return
+      const mesh = this.manager.attachments[this.selected.value]?.mesh
+      const attachment = this.draft.attachments?.[this.selected.value]
+      if (!mesh || !attachment) return
+      this.update({
+        ...attachment,
+        position: mesh.position.asArray(),
+        rotation: (mesh.rotationQuaternion?.toEulerAngles() ?? mesh.rotation).asArray().map((v) => (v * 180) / Math.PI),
+        scaling: mesh.scaling.asArray(),
       })
     }
     this.mode('position')
-    this.orbit = new Orbit(window.connector.controls, () => this.dragging || !!this.gizmos?.utilityLayer.utilityLayerScene.pick(scene.pointerX, scene.pointerY)?.hit)
+    const startPose = (this.avatar.skeleton?.bones ?? []).flatMap((bone) => {
+      const node = bone.getTransformNode()
+      return node?.rotationQuaternion ? [{ node, position: node.position.clone(), rotation: node.rotationQuaternion.clone(), scaling: node.scaling.clone() }] : []
+    })
+    let blend = 0
+    this.orbit = new Orbit(window.connector.controls, () => !!this.transform?.over())
     this.avatar.animationOverride = Animations.Tpose
     this.frame = scene.onAfterAnimationsObservable.add(() => {
       this.avatar.skeleton?.returnToRest()
@@ -81,17 +73,18 @@ export default class CostumeTool {
         }
       }
       for (const { node, rotation } of this.pose) node.rotationQuaternion?.copyFrom(rotation)
+      if (blend < 1) {
+        blend = Math.min(1, blend + scene.getEngine().getDeltaTime() / 400)
+        const amount = blend * blend * (3 - 2 * blend)
+        for (const { node, position, rotation, scaling } of startPose) {
+          BABYLON.Vector3.LerpToRef(position, node.position, amount, node.position)
+          BABYLON.Quaternion.SlerpToRef(rotation, node.rotationQuaternion!, amount, node.rotationQuaternion!)
+          BABYLON.Vector3.LerpToRef(scaling, node.scaling, amount, node.scaling)
+        }
+      }
       for (const attachment of this.manager.attachments) if (attachment.mesh) attachment.mesh.isPickable = true
       const selected = this.manager.attachments[this.selected.value]?.mesh ?? null
-      if (selected && this.proxy && !this.dragging) {
-        const world = selected.computeWorldMatrix(true)
-        const rotation = selected.rotationQuaternion ?? BABYLON.Quaternion.FromEulerVector(selected.rotation)
-        const local = selected.getPivotMatrix().multiply(BABYLON.Matrix.Compose(selected.scaling, rotation, selected.position))
-        this.parentInverse.copyFrom(local.invert().multiply(world).invert())
-        world.decompose(this.proxy.scaling, this.proxy.rotationQuaternion!, this.proxy.position)
-      }
-      const target = selected ? this.proxy! : null
-      if (this.gizmos?.attachedMesh !== target) this.gizmos?.attachToMesh(target)
+      this.transform?.attach(selected)
     })
     this.pointer = scene.onPointerObservable.add((info) => {
       if (info.type !== BABYLON.PointerEventTypes.POINTERTAP || info.event.button !== 0) return
@@ -100,18 +93,6 @@ export default class CostumeTool {
     })
     document.addEventListener('keydown', this.key, true)
     this.manager.generateCostume(this.draft, true)
-  }
-
-  // Babylon gizmos cannot decompose bone parents. Edit a world-space proxy, then
-  // remove the bone transform and the importer's voxel pre-transform.
-  private applyProxy() {
-    const mesh = this.manager.attachments[this.selected.value]?.mesh
-    if (!mesh || !this.proxy) return
-    const local = mesh.getPivotMatrix().clone().invert().multiply(this.proxy.computeWorldMatrix(true).multiply(this.parentInverse))
-    const rotation = BABYLON.Quaternion.Identity()
-    local.decompose(mesh.scaling, rotation, mesh.position)
-    mesh.rotationQuaternion = null
-    rotation.toEulerAnglesToRef(mesh.rotation)
   }
 
   private key = (e: KeyboardEvent) => {
@@ -125,10 +106,7 @@ export default class CostumeTool {
 
   mode(mode: 'position' | 'rotation' | 'scale') {
     this.modeValue.value = mode
-    if (!this.gizmos) return
-    this.gizmos.positionGizmoEnabled = mode === 'position'
-    this.gizmos.rotationGizmoEnabled = mode === 'rotation'
-    this.gizmos.scaleGizmoEnabled = mode === 'scale'
+    this.transform?.mode(mode)
   }
 
   update(attachment: CostumeAttachment) {
@@ -137,7 +115,7 @@ export default class CostumeTool {
     const previous = this.draft.attachments[index]
     this.draft.attachments[index] = attachment
     if (previous.wid !== attachment.wid || previous.bone !== attachment.bone) {
-      this.gizmos?.attachToMesh(null)
+      this.transform?.attach(null)
       this.manager.generateCostume(this.draft, true)
     } else {
       const current = this.manager.attachments[index]
@@ -163,7 +141,7 @@ export default class CostumeTool {
   remove() {
     this.draft.attachments?.splice(this.selected.value, 1)
     this.selected.value = -1
-    this.gizmos?.attachToMesh(null)
+    this.transform?.attach(null)
     this.manager.generateCostume(this.draft, true)
     this.revision.value++
   }
@@ -184,9 +162,7 @@ export default class CostumeTool {
     const scene = this.avatar.avatarMesh?.getScene()
     if (this.frame) scene?.onAfterAnimationsObservable.remove(this.frame)
     if (this.pointer) scene?.onPointerObservable.remove(this.pointer)
-    this.gizmos?.dispose()
-    this.layer?.dispose()
-    this.proxy?.dispose()
+    this.transform?.dispose()
     this.avatar.animationOverride = this.animation
     this.orbit?.dispose()
     this.manager.generateCostume(this.saved && this.original?.id === this.draft.id ? this.draft : (this.original ?? undefined), true)

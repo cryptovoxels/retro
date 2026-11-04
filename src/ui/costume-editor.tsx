@@ -121,10 +121,10 @@ export function CostumeEditor() {
                 <>
                   <dt>{field === 'scaling' ? 'Scale' : field === 'rotation' ? 'Rotation' : 'Position'}</dt>
                   <dd class="vec3">
-                    {attachment[field].map((value, axis) => (
+                    {(field === 'scaling' && locked ? attachment[field].slice(0, 1) : attachment[field]).map((value, axis) => (
                       <VectorField
                         key={axis}
-                        title={'XYZ'[axis]}
+                        title={field === 'scaling' && locked ? 'Scale' : 'XYZ'[axis]}
                         value={value}
                         step={field === 'rotation' ? 5 : 0.01}
                         errorMessage={setFieldError}

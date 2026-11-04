@@ -167,6 +167,15 @@ export default class DesktopControls extends Controls {
     const authoring = !!window.ui?.state?.feature
 
     const btn = eventData.event.button
+    if (btn === 0) {
+      if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN) this.nerfClick = false
+      // Recapturing moves the pick to the reticle. Consume the whole gesture,
+      // even if pointer lock is still pending or the editor has just closed.
+      else if (this.nerfClick && (eventData.type === BABYLON.PointerEventTypes.POINTERUP || eventData.type === BABYLON.PointerEventTypes.POINTERTAP || eventData.type === BABYLON.PointerEventTypes.POINTERDOUBLETAP)) {
+        eventState.skipNextObservers = true
+        return
+      }
+    }
 
     // right click on an nft hearts it. pick now, hover state is a frame stale
     if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 2) {
@@ -188,6 +197,8 @@ export default class DesktopControls extends Controls {
       const editMode = window.ui?.featureTool?.selection?.mode === 'edit' && window.ui?.activeTool === window.ui?.featureTool
       if (editMode) {
         if (pointerOverGizmo(this.scene)) return
+        this.nerfClick = true
+        eventState.skipNextObservers = true
         window.ui?.closeWithPointerLock()
         return
       }
@@ -197,6 +208,7 @@ export default class DesktopControls extends Controls {
         const meshName = eventData.pickInfo?.pickedMesh?.name || ''
         if (meshName.startsWith('feature/basicGui/')) return
         this.nerfClick = true
+        eventState.skipNextObservers = true
         this.requestPointerLock()?.catch(() => {})
         return
       }
@@ -250,11 +262,7 @@ export default class DesktopControls extends Controls {
             eventState.skipNextObservers = true
             break
           }
-          if (this.nerfClick) {
-            this.nerfClick = false
-          } else {
-            this.lockedLeftClick(this.pickAtReticule())
-          }
+          this.lockedLeftClick(this.pickAtReticule())
           eventState.skipNextObservers = true
         }
         break

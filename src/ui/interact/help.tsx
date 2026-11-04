@@ -38,7 +38,7 @@ export class HelpOverlay extends Component<Props> {
               <span>D</span> Step Right
             </li>
             <li>
-              <span>⇧</span> Run
+              <span>Shift</span> Hold to run
             </li>
             <li>
               <span>F</span> Fly

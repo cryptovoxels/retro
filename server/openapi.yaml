@@ -43,6 +43,18 @@ paths:
         Returns up to 200 unmoderated chat messages in chronological order.
         Used by the client on connect instead of replaying history over the
         multiplayer websocket.
+        Optional filters search stored history before applying the 200-message limit.
+      parameters:
+        - name: q
+          in: query
+          description: Case-insensitive text search, trimmed and limited to 200 characters.
+          schema:
+            type: string
+        - name: author
+          in: query
+          description: Exact case-insensitive sender wallet (or legacy string sender).
+          schema:
+            type: string
       responses:
         '200':
           description: ok

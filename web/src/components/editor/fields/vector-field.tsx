@@ -86,7 +86,6 @@ export function VectorField(props: VectorProps): JSXInternal.Element {
     if (!el) return
 
     const onWheel = (e: WheelEvent) => {
-      if (document.activeElement !== el) return
       e.preventDefault()
       e.stopPropagation()
       if (e.deltaY) stepValue(e.deltaY < 0 ? 1 : -1, e)
@@ -94,7 +93,7 @@ export function VectorField(props: VectorProps): JSXInternal.Element {
 
     el.addEventListener('wheel', onWheel, { passive: false })
     return () => el.removeEventListener('wheel', onWheel)
-  }, [n.value, props.step])
+  })
 
   const axis = (props.title ?? 'x').toLowerCase()
   const className = 'number' + (!n.ok ? ' error' : '')

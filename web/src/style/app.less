@@ -632,9 +632,8 @@ header .voxel-radio {
   }
 }
 
-// inline blockie, not a grid cell
-.avatar-tile,
-.chat-who img {
+// inline avatar, not a grid cell
+.avatar-tile {
   display: inline-block;
   vertical-align: middle;
 }
@@ -984,20 +983,14 @@ main {
       padding: 1rem;
       .glass();
 
-      // in-world: collapsed to the mini (parcel / art), hover brings the route back.
-      // pointerlock freezes the cursor so :hover can't be trusted there, force mini
-      &.mini:not(:hover),
-      body.locked &.mini {
+      &.mini {
         height: 6rem;
         overflow: hidden;
         > :not(.page-mini) {
           display: none;
         }
       }
-      &.mini:hover > .page-mini {
-        display: none;
-      }
-      body.locked &.mini > .page-mini {
+      &.mini > .page-mini {
         display: block;
       }
     }
@@ -1021,7 +1014,7 @@ main {
   transition: transform 200ms ease-out;
 }
 
-.page.play {
+.page.play:not(.mini) {
   transform: translateX(120%);
   pointer-events: none;
 }
@@ -1037,8 +1030,7 @@ main {
       transform 200ms ease-out;
   }
 
-  body.locked header.menu,
-  body.locked .page:not(.mini) {
+  body.locked header.menu {
     opacity: 0;
     visibility: hidden;
     transition:
@@ -1056,6 +1048,7 @@ main {
 }
 
 .page-mini {
+  display: none;
   .mini {
     display: block;
     color: var(--fg);
@@ -2845,13 +2838,6 @@ dialog.editor {
 
   // inspector property list
   dl.props {
-    display: grid;
-    grid-template-columns: minmax(5rem, 0.7fr) minmax(0, 1.3fr);
-    margin: 0;
-    padding: 0;
-    gap: 0.5rem 0.75rem;
-    align-items: center;
-
     dt,
     dd {
       padding: 0;
@@ -2875,10 +2861,10 @@ dialog.editor {
         padding: 0;
       }
 
-      input[type='text'],
-      input[type='number'],
-      select,
-      textarea {
+      > input[type='text'],
+      > input[type='number'],
+      > select,
+      > textarea {
         font: inherit;
         width: 100%;
         padding: 4px;
@@ -2887,36 +2873,6 @@ dialog.editor {
 
       input[type='checkbox'] {
         margin: 4px;
-      }
-    }
-
-    dd.vec3 {
-      display: flex;
-      gap: 0;
-      padding: 0;
-      min-width: 0;
-      overflow: hidden;
-      border: var(--border);
-      border-radius: 0;
-      text-align: center;
-
-      span {
-        background: var(--hover);
-        color: var(--fg);
-        display: block;
-        padding: 0;
-      }
-
-      input {
-        text-align: center;
-        outline: none;
-        padding: 0.2rem 0;
-      }
-
-      > input[type='checkbox'] {
-        flex: 0 0 auto;
-        margin: 0 4px;
-        align-self: center;
       }
     }
 
@@ -4994,7 +4950,7 @@ main:has(.worldmap) {
 @media @wide {
   .canvasdom div.chat {
     left: 50%;
-    bottom: 1rem;
+    bottom: 0;
     transform: translateX(-50%);
     width: min(42rem, calc(100% - 2rem));
 
@@ -5350,6 +5306,22 @@ section {
   }
 }
 
+dl.props {
+  > dd.full {
+    grid-column: 1 / -1;
+  }
+  display: grid;
+  grid-template-columns: 4rem minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: center;
+  margin: 0;
+  dt,
+  dd {
+    margin: 0;
+    padding: 0;
+  }
+}
+
 // Shared by feature, costume and legacy xyz editors.
 .vec3 {
   display: flex;
@@ -5484,19 +5456,6 @@ section {
     }
   }
 
-  dl.props {
-    display: grid;
-    grid-template-columns: 4rem minmax(0, 1fr);
-    gap: 0.5rem;
-    align-items: center;
-    margin: 0;
-    dt,
-    dd {
-      margin: 0;
-      padding: 0;
-    }
-  }
-
   .costume-actions {
     margin: 1rem 0;
   }
@@ -5561,4 +5520,46 @@ section {
   background: var(--hover);
   color: var(--accent);
   font-weight: bold;
+}
+
+.transform-handle {
+  position: fixed;
+  z-index: 5;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  margin: -12px 0 0 -12px;
+  background: none;
+  border: 0;
+  touch-action: none;
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 9px;
+    background: var(--fg);
+    outline: 1px solid var(--accent);
+  }
+  &:hover,
+  &.active {
+    background: none;
+    &::after {
+      background: var(--accent);
+    }
+  }
+}
+.transform-size {
+  position: fixed;
+  z-index: 5;
+  pointer-events: none;
+  color: var(--fg);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  text-shadow:
+    0 1px 2px var(--bg),
+    0 -1px 2px var(--bg);
+}
+.transform-handle[hidden],
+.transform-size[hidden] {
+  display: none;
 }

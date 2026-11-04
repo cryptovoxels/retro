@@ -7,7 +7,7 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 import { Component, render } from 'preact'
-import { Route, Router, type RouterOnChangeArgs } from 'preact-router'
+import { route, Route, Router, type RouterOnChangeArgs } from 'preact-router'
 
 import EditAccount from '../account/edit'
 import { Login } from './auth/login'
@@ -76,6 +76,14 @@ const Main = () => {
 
     clearPageTool()
 
+    const url = new URL(e.url, location.origin)
+    const coords = window.grid?.currentW === 0 && window.connector?.controls.getCoords()
+    if (coords && !url.pathname.startsWith('/spaces/') && !url.searchParams.has('coords')) {
+      url.searchParams.set('coords', coords)
+      e.url = url.pathname + url.search + url.hash
+      history.replaceState(history.state, '', e.url)
+    }
+
     const path = e.url.split('?')[0]
     trackPage(path)
     if (path === '/shop') track('visit_shop')
@@ -94,6 +102,14 @@ const Main = () => {
 
   useEffect(() => {
     ensureRadio()
+    const playWorld = () => {
+      if (window.grid?.currentW !== 0 || isPageTool(uiPane.value) || isPlayPath()) return
+      route(`/play${location.search}`, true)
+    }
+    app.on(AppEvent.CanvasEngaged, playWorld)
+    return () => {
+      app.removeListener(AppEvent.CanvasEngaged, playWorld)
+    }
   }, [])
 
   useEffect(() => {
@@ -113,7 +129,7 @@ const Main = () => {
 
         <Client coords={coords} path={currentPath} />
 
-        <div class={[worldUi.value ? 'page mini' : 'page', play ? 'play' : ''].join(' ')}>
+        <div class={[worldUi.value && play ? 'page mini' : 'page', play ? 'play' : ''].join(' ')}>
           <div class="page-route">
             <Router onChange={handleRoute}>
               {AppRoutes()}

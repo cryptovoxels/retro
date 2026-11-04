@@ -39,11 +39,10 @@ it('supports fine and coarse steps with degree conversion and limits', () => {
   expect(setter).not.toHaveBeenCalled()
 })
 
-it('does not change a vector while scrolling past an unfocused input', () => {
+it('changes a vector on wheel without requiring focus and consumes the scroll', () => {
   const { input, setter } = field()
-  act(() => void input.dispatchEvent(new WheelEvent('wheel', { deltaY: -10 })))
-  expect(setter).not.toHaveBeenCalled()
-  input.focus()
-  act(() => void input.dispatchEvent(new WheelEvent('wheel', { deltaY: -10 })))
+  const event = new WheelEvent('wheel', { deltaY: -10, cancelable: true })
+  act(() => void input.dispatchEvent(event))
   expect(setter).toHaveBeenLastCalledWith(1.1)
+  expect(event.defaultPrevented).toBe(true)
 })

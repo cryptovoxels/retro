@@ -27,7 +27,12 @@ export default function Profile(props: Props) {
   const [costumes, setCostumes] = useState<Costume[]>([])
   const [collections, setCollections] = useState<{ id: number; name: string }[]>([])
   const [spaces, setSpaces] = useState<SimpleSpaceRecord[]>([])
+  const [ChatHistory, setChatHistory] = useState<typeof import('../../../../src/ui/interact/chat').ChatHistory>()
   const { walletOrUUId, isOwner } = props
+
+  useEffect(() => {
+    import('../../../../src/ui/interact/chat').then((m) => setChatHistory(() => m.ChatHistory)).catch(console.error)
+  }, [])
 
   useEffect(() => {
     cachedFetch(`/api/avatars/${walletOrUUId}.json`)
@@ -122,6 +127,12 @@ export default function Profile(props: Props) {
         </dl>
 
         {isOwner && <Delegations />}
+
+        <details class="inspector-section" open>
+          <summary>recent chats</summary>
+          {ChatHistory && <ChatHistory key={walletOrUUId} author={walletOrUUId} />}
+          <a href="/chat">chat history</a>
+        </details>
 
         <Parcels wallet={walletOrUUId} isOwner={isOwner} />
         <Contributor wallet={walletOrUUId} isOwner={isOwner} />
