@@ -74,7 +74,17 @@ export function InteractPopout() {
           <button type="button" class="popout-close" aria-label="Close popout" onClick={close}>
             x
           </button>
-          {active === 'dance' ? <DancePane /> : active === 'emote' ? <EmotePane /> : <CostumePane />}
+          {active === 'dance' ? (
+            <DancePane />
+          ) : active === 'emote' ? (
+            <EmotePane />
+          ) : (
+            <CostumePane
+              onEdit={() => {
+                pane.value = null
+              }}
+            />
+          )}
         </div>
       )}
     </>

@@ -12,6 +12,7 @@ export default class PlayerCamera extends BABYLON.FreeCamera {
   distance = 0
   /** third person: look spins the camera around the body without turning the avatar */
   orbit = false
+  orbitHeight = 0
   /** with orbit: slowly yaw around the body */
   autoRotate = false
   body: PlayerBody = undefined!
@@ -48,7 +49,7 @@ export default class PlayerCamera extends BABYLON.FreeCamera {
       const hit = w.castRay(new RAPIER.Ray(this.body.position, this.back), dist + ORBIT_MARGIN, true, undefined, undefined, undefined, this.body.blocker)
       if (hit) dist = Math.max(0, hit.timeOfImpact - ORBIT_MARGIN)
     }
-    this.position.copyFromFloats(this.body.position.x, this.body.position.y, this.body.position.z).addInPlace(this.back.scaleInPlace(dist))
+    this.position.copyFromFloats(this.body.position.x, this.body.position.y + this.orbitHeight, this.body.position.z).addInPlace(this.back.scaleInPlace(dist))
   }
 
   getClassName(): string {

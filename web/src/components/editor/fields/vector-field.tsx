@@ -1,15 +1,11 @@
 import { JSXInternal } from 'preact/src/jsx'
-import { Dispatch, StateUpdater, useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useRef, useState } from 'preact/hooks'
 import { JSX } from 'preact'
-
-export const vectorField = (title: string, n: number, isValid: boolean, onInput: (e: JSX.TargetedEvent<HTMLInputElement, Event>) => void, onKeyUp: (e: JSX.TargetedKeyboardEvent<HTMLInputElement>) => void) => {
-  return <input className={'number' + (!isValid ? ' error' : '')} type="text" title={title} value={n} onInput={onInput} onKeyUp={onKeyUp} />
-}
 
 type VectorProps = {
   title?: string
   value: number
-  setter: Dispatch<StateUpdater<number>>
+  setter: (value: number) => void
   errorMessage: (err: string | undefined) => void
   step: number
   convert?: (n: number) => number
@@ -18,16 +14,18 @@ type VectorProps = {
 }
 
 export function VectorField(props: VectorProps): JSXInternal.Element {
+  const displayValue = () => Number((props.convert ? props.convert(props.value) : props.value).toFixed(4))
+  const drag = useRef<{ x: number; value: number } | null>(null)
   type Valid = { value: any; ok: boolean }
   const [n, setN] = useState<Valid>({
-    value: props.convert ? props.convert(props.value) : props.value,
+    value: displayValue(),
     ok: true,
   })
   const input = useRef<HTMLInputElement>(null)
 
   // make sure to update the state if the prop is changing
   useEffect(() => {
-    const v = props.convert ? props.convert(props.value) : props.value
+    const v = displayValue()
     // Don't overwrite local state if it ends with "." and represents the same numeric value
     // This preserves the decimal point while the user is typing
     if (typeof n.value === 'string' && n.value.endsWith('.') && Number(n.value) === v) {
@@ -46,28 +44,13 @@ export function VectorField(props: VectorProps): JSXInternal.Element {
     }
   }
 
-  // I will pretend I never wrote this, but it's figure out much precision the step has
-  const precision = Math.max((props.step % 1).toString().length - 2, 0)
-
-  const stepUp = (value: number, step: number) => {
-    const multiplier = 1.0 / step
-    const val = Math.floor(value * multiplier) / multiplier + step
-    return (Math.round(val * multiplier) / multiplier).toFixed(precision)
-  }
-
-  const stepDown = (value: number, step: number) => {
-    const multiplier = 1.0 / step
-    const val = Math.ceil(value * multiplier) / multiplier - step
-    return (Math.round(val * multiplier) / multiplier).toFixed(precision)
-  }
-
   const isValid = (value: any) => {
     if (value === '') {
       setState('', `${props.title} must have a value`)
       return false
     }
     const num = Number(value)
-    if (isNaN(num)) {
+    if (!Number.isFinite(num)) {
       setState(value, `${props.title} has a invalid numeric value`)
       return false
     }
@@ -78,12 +61,19 @@ export function VectorField(props: VectorProps): JSXInternal.Element {
     return true
   }
 
-  const onKeyUp: (e: JSX.TargetedKeyboardEvent<HTMLInputElement>) => void = (e) => {
-    if (!isValid(e.currentTarget.value)) return
+  const stepValue = (direction: number, event: { shiftKey: boolean; altKey: boolean }) => {
+    const value = Number(n.value)
+    if (!Number.isFinite(value) || n.value === '') return
+    const step = props.step * (event.shiftKey ? 10 : event.altKey ? 0.1 : 1)
+    const next = Number((value + direction * step).toFixed(6))
+    if (isValid(next)) setState(next)
+  }
 
-    const num = Number(e.currentTarget.value)
-    if (e.code === 'ArrowUp') setState(stepUp(num, props.step))
-    else if (e.code === 'ArrowDown') setState(stepDown(num, props.step))
+  const onKeyDown = (e: JSX.TargetedKeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return
+    e.preventDefault()
+    e.stopPropagation()
+    stepValue(e.key === 'ArrowUp' ? 1 : -1, e)
   }
 
   const onInput: (e: JSX.TargetedEvent<HTMLInputElement, Event>) => void = (e) => {
@@ -96,11 +86,10 @@ export function VectorField(props: VectorProps): JSXInternal.Element {
     if (!el) return
 
     const onWheel = (e: WheelEvent) => {
-      if (!isValid(n.value)) return
+      if (document.activeElement !== el) return
       e.preventDefault()
-      const num = Number(n.value)
-      if (e.deltaY < 0) setState(stepUp(num, props.step))
-      else if (e.deltaY > 0) setState(stepDown(num, props.step))
+      e.stopPropagation()
+      if (e.deltaY) stepValue(e.deltaY < 0 ? 1 : -1, e)
     }
 
     el.addEventListener('wheel', onWheel, { passive: false })
@@ -111,8 +100,34 @@ export function VectorField(props: VectorProps): JSXInternal.Element {
   const className = 'number' + (!n.ok ? ' error' : '')
   return (
     <label class={`axis ${axis}`}>
-      <span>{axis}</span>
-      <input ref={input} className={className} onInput={onInput} onKeyUp={onKeyUp} type="text" title={props.title} value={n.value} />
+      <span
+        title="Drag to adjust. Shift: coarse. Alt: fine."
+        onPointerDown={(e) => {
+          if (e.button !== 0 || !Number.isFinite(Number(n.value))) return
+          e.preventDefault()
+          drag.current = { x: e.clientX, value: Number(n.value) }
+          e.currentTarget.setPointerCapture(e.pointerId)
+        }}
+        onPointerMove={(e) => {
+          if (!drag.current) return
+          const step = props.step * (e.shiftKey ? 10 : e.altKey ? 0.1 : 1)
+          const next = Number((drag.current.value + (e.clientX - drag.current.x) * step).toFixed(6))
+          if (isValid(next)) setState(next)
+        }}
+        onPointerUp={(e) => {
+          drag.current = null
+          e.currentTarget.releasePointerCapture(e.pointerId)
+        }}
+        onPointerCancel={() => {
+          drag.current = null
+        }}
+        onLostPointerCapture={() => {
+          drag.current = null
+        }}
+      >
+        {axis}
+      </span>
+      <input ref={input} className={className} onInput={onInput} onKeyDown={onKeyDown} type="text" inputMode="decimal" aria-label={props.title} aria-invalid={!n.ok} title={props.title} value={n.value} />
     </label>
   )
 }

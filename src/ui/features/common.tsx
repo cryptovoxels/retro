@@ -1,14 +1,9 @@
 import { Fragment, JSX } from 'preact'
 import { Dispatch, StateUpdater, useState } from 'preact/hooks'
-import { vectorField } from '../../../web/src/components/editor/fields/vector-field'
+import { VectorField } from '../../../web/src/components/editor/fields/vector-field'
 
 type converter = (x: number) => number
 export const noConversion: converter = (x: number) => x
-
-type InputEvent = JSX.TargetedEvent<HTMLInputElement, Event>
-type InputEventHandler = (e: InputEvent) => void
-type KbEvent = JSX.TargetedKeyboardEvent<HTMLInputElement>
-type KbEventHandler = (e: KbEvent) => void
 
 export const DEFAULT_DP = 2
 export const RADIAN_DP = 5
@@ -85,83 +80,25 @@ export const xyzFields = (
   unConvert: converter = noConversion,
   axisLimiter?: (axis: 'x' | 'y' | 'z') => converter,
 ) => {
-  type Valid = { value: any; ok: boolean; error: string }
-  type Setter = (val: Valid) => void
-
-  const [x, setX] = useState<Valid>({ value: convert(parentX), ok: true, error: '' })
-  const [y, setY] = useState<Valid>({ value: convert(parentY), ok: true, error: '' })
-  const [z, setZ] = useState<Valid>({ value: convert(parentZ), ok: true, error: '' })
-
-  const parentConverter = (setter: Dispatch<StateUpdater<number>>, num: number) => {
-    setter(unConvert(num))
-  }
-
-  const handleInput = (setter: Setter, setParentField: Dispatch<StateUpdater<number>>, limiter?: converter): InputEventHandler => {
-    return (e: InputEvent) => {
-      if (e.currentTarget.value === '') {
-        return setter({ value: '', ok: false, error: 'a field is empty' })
-      }
-
-      // half of the world is using a comma for decimals separation, and we won't position things in the thousands, so
-      // replace it with period
-      const val = e.currentTarget.value.replace(/,/g, '.')
-      // ... before we turn it into a number
-      const num = Number(val)
-      if (isNaN(num)) {
-        return setter({ value: e.currentTarget.value, ok: false, error: 'a field has a invalid numeric value' })
-      }
-
-      if (limiter && limiter(num) !== num) {
-        return setter({ value: e.currentTarget.value, ok: false, error: 'a field has a too high or low value' })
-      }
-
-      setter({ value: val, ok: true, error: '' })
-      parentConverter(setParentField, num)
-    }
-  }
-
-  // use the up and down arrow to increase the value by `step`
-  const handleKeyUp = (setter: Setter, setParentField: Dispatch<StateUpdater<number>>, limiter?: converter): KbEventHandler => {
-    return (e: KbEvent) => {
-      e.stopPropagation()
-      const num = Number(e.currentTarget.value)
-      if (isNaN(num)) {
-        return
-      }
-
-      if (limiter && limiter(num) !== num) {
-        return setter({ value: e.currentTarget.value, ok: false, error: 'a field has a too high or low value' })
-      }
-
-      if (e.code === 'ArrowUp') {
-        const newVal = truncate(num + step)
-        setter({ value: newVal, ok: true, error: '' })
-        parentConverter(setParentField, newVal)
-      }
-
-      if (e.code === 'ArrowDown') {
-        const newVal = truncate(num - step)
-        setter({ value: newVal, ok: true, error: '' })
-        parentConverter(setParentField, newVal)
-      }
-    }
-  }
-
-  const displayFirstError = (errors: string[]) => {
-    const firstErr = errors.find((err) => !!err)
-    return firstErr ? <div className="vector-error">{firstErr}</div> : null
-  }
-
-  const xLim = axisLimiter ? axisLimiter('x') : undefined
-  const yLim = axisLimiter ? axisLimiter('y') : undefined
-  const zLim = axisLimiter ? axisLimiter('z') : undefined
-
+  const [error, setError] = useState<string | undefined>()
   return (
     <Fragment>
-      {vectorField('x', x.value, x.ok, handleInput(setX, setParentX, xLim), handleKeyUp(setX, setParentX, xLim))}
-      {vectorField('y', y.value, y.ok, handleInput(setY, setParentY, yLim), handleKeyUp(setY, setParentY, yLim))}
-      {vectorField('z', z.value, z.ok, handleInput(setZ, setParentZ, zLim), handleKeyUp(setZ, setParentZ, zLim))}
-      {displayFirstError([x.error, y.error, z.error])}
+      <div class="vec3">
+        {(['x', 'y', 'z'] as const).map((axis, i) => (
+          <VectorField
+            key={axis}
+            title={axis}
+            value={[parentX, parentY, parentZ][i]}
+            setter={[setParentX, setParentY, setParentZ][i]}
+            step={step}
+            convert={convert}
+            unconvert={unConvert}
+            limiter={axisLimiter?.(axis)}
+            errorMessage={setError}
+          />
+        ))}
+      </div>
+      {error && <div class="vector-error">{error}</div>}
     </Fragment>
   )
 }

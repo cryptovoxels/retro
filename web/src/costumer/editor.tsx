@@ -1,9 +1,8 @@
 import { Component } from 'preact'
 import * as _ from 'lodash'
-import { sortBy } from 'lodash'
 import { Costume } from '../../../common/messages/costumes'
 import { Attachment } from './index'
-import { pending } from './utils'
+import { VectorField } from '../components/editor/fields/vector-field'
 
 interface Props {
   attachmentIdx: number
@@ -17,6 +16,7 @@ interface State {
   scaling: number[]
   rotation: number[]
   expandScale: boolean
+  error?: string
 }
 
 export const limitNumber = (value: number, min: number, max: number) => {
@@ -28,21 +28,6 @@ export const limitNumber = (value: number, min: number, max: number) => {
 export class Editor extends Component<Props, State> {
   deleteAttachment = (e: Event) => {
     this.props.deleteAttachment(this.props.attachmentIdx)
-  }
-
-  setAttachmentBone = async (name: string) => {
-    this.merge({ bone: name.toLowerCase() }).catch(console.error)
-  }
-
-  suppress = (e: Event) => {
-    const target = e.target as HTMLElement | null
-
-    if (target && target.nodeName == 'INPUT') {
-      target.focus()
-      // allow
-    } else {
-      e.preventDefault()
-    }
   }
 
   get attachment(): Attachment | null {
@@ -88,197 +73,35 @@ export class Editor extends Component<Props, State> {
     }
   }
 
-  num(value: string): number | null {
-    const parsedValue = parseFloat(value)
-    return parsedValue.toString() === value.toString() ? parsedValue : null
-  }
-
-  async updatePosition(key: number, value: string) {
-    const parsedValue = this.num(value)
-    if (parsedValue === null) {
-      return
-    }
-    const position = this.state.position
-    position[key] = parsedValue
-    await this.setStateAsync({ position })
-    this.sendUpdates()
-  }
-
-  async updateRotation(key: number, value: string) {
-    const parsedValue = this.num(value)
-    if (parsedValue === null) {
-      return
-    }
-    const rotation = this.state.rotation
-    rotation[key] = parsedValue
-    await this.setStateAsync({ rotation })
-    this.sendUpdates()
-  }
-
-  async updateScales(value: string) {
-    const parsedValue = this.num(value)
-    if (parsedValue === null) {
-      return
-    }
-    const limit = 15
-    const n = limitNumber(parsedValue, -limit, limit)
-
-    const scaling = this.state.scaling
-    scaling[0] = n
-    scaling[1] = n
-    scaling[2] = n
-    await this.setStateAsync({ scaling })
-    this.sendUpdates()
-  }
-
-  async updateScale(key: number, value: string) {
-    const parsedValue = this.num(value)
-    if (parsedValue === null) {
-      return
-    }
-    const scaling = this.state.scaling
-    const limit = 15
-    scaling[key] = limitNumber(parsedValue, -limit, limit)
-    await this.setStateAsync({ scaling })
-    this.sendUpdates()
-  }
-
-  sendUpdates() {
-    const attachment: Partial<Attachment> = {}
-    attachment.position = this.state.position
-    attachment.rotation = this.state.rotation
-    attachment.scaling = this.state.scaling
-    this.merge(attachment).catch(console.error)
-  }
-
-  async merge(params: Partial<Attachment>) {
-    const attachment = Object.assign({}, this.attachment, params)
-    this.props.updateAttachment(attachment)
+  updateVector(field: 'position' | 'rotation' | 'scaling', axis: number, value: number) {
+    const values = [...this.state[field]]
+    const n = field === 'scaling' ? limitNumber(value, -15, 15) : value
+    if (field === 'scaling' && !this.state.expandScale) values.fill(n)
+    else values[axis] = n
+    this.setState({ [field]: values }, () => this.props.updateAttachment({ ...this.attachment!, [field]: values }))
   }
 
   render() {
-    const posStep = 0.01
-    const step = 0.05
-
-    const boneName = (b: BABYLON.Bone) => b.name.split(/:/)[1]
-
-    const attachment = this.attachment
-
-    // @ts-expect-error global abuse todo stop passing this via window
-    const skeleton: BABYLON.Skeleton | null = window['skeleton']
-
-    if (!this.attachment || !skeleton) {
-      return <div />
-    }
-
-    let bones = skeleton?.bones.filter((b) => !RegExp(/index/i).exec(b.name))
-    bones = sortBy(bones, (b: BABYLON.Bone) => {
-      // Sort by vertical position, left side first
-      return -b.getPosition(BABYLON.Space.WORLD).y + (RegExp(/left/i).exec(b.name) ? -0.01 : 0.01)
-    })
-
+    if (!this.attachment) return null
     return (
-      <div onWheel={this.suppress} class="costumer-wearable-editor">
-        <div class="editor-field position">
-          <label for="position[x]">Position</label>
-          <div class="fields">
-            <input
-              id="position[x]"
-              type="number"
-              step={posStep}
-              accessKey="x"
-              title="x"
-              value={this.state?.position?.[0]}
-              onInput={(e) => this.updatePosition(0, e.currentTarget['value'])}
-              onChange={(e) => this.updatePosition(0, e.currentTarget['value'])}
-            />
-            <input
-              id="position[y]"
-              type="number"
-              step={posStep}
-              accessKey="y"
-              title="y"
-              value={this.state?.position?.[1]}
-              onInput={(e) => this.updatePosition(1, e.currentTarget['value'])}
-              onChange={(e) => this.updatePosition(1, e.currentTarget['value'])}
-            />
-            <input
-              id="position[z]"
-              type="number"
-              step={posStep}
-              accessKey="z"
-              title="z"
-              value={this.state?.position?.[2]}
-              onInput={(e) => this.updatePosition(2, e.currentTarget['value'])}
-              onChange={(e) => this.updatePosition(2, e.currentTarget['value'])}
-            />
-          </div>
-        </div>
-        <div class="editor-field rotation">
-          <label for="rotation[x]">Rotation</label>
-          <div class="fields">
-            <input
-              id="rotation[x]"
-              type="number"
-              step={5}
-              accessKey="r"
-              title="x"
-              value={this.state?.rotation?.[0]}
-              onInput={(e) => this.updateRotation(0, e.currentTarget['value'])}
-              onChange={(e) => this.updateRotation(0, e.currentTarget['value'])}
-            />
-            <input id="rotation[y]" type="number" step={5} title="y" value={this.state?.rotation?.[1]} onInput={(e) => this.updateRotation(1, e.currentTarget['value'])} onChange={(e) => this.updateRotation(1, e.currentTarget['value'])} />
-            <input id="rotation[z]" type="number" step={5} title="z" value={this.state?.rotation?.[2]} onInput={(e) => this.updateRotation(2, e.currentTarget['value'])} onChange={(e) => this.updateRotation(2, e.currentTarget['value'])} />
-          </div>
-        </div>
-
-        {this.state.expandScale ? (
-          <div class="editor-field scale">
-            <label for="scale[x]">Scale</label>
-            <div class="fields">
-              <input
-                id="scale[x]"
-                type="number"
-                step={step}
-                accessKey="s"
-                title="x"
-                value={this.state?.scaling?.[0]}
-                onInput={(e) => this.updateScale(0, e.currentTarget['value'])}
-                onChange={(e) => this.updateScale(0, e.currentTarget['value'])}
-              />
-              <input id="scale[y]" type="number" step={step} title="y" value={this.state?.scaling?.[1]} onInput={(e) => this.updateScale(1, e.currentTarget['value'])} onChange={(e) => this.updateScale(1, e.currentTarget['value'])} />
-              <input id="scale[z]" type="number" step={step} title="z" value={this.state?.scaling?.[2]} onInput={(e) => this.updateScale(2, e.currentTarget['value'])} onChange={(e) => this.updateScale(2, e.currentTarget['value'])} />
-              <button class="toggle" onClick={() => this.setState({ expandScale: false })}>
-                ...
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div class="editor-field scale-all">
-            <label for="scale">Scale</label>
-            <div class="fields">
-              <input
-                id="scale"
-                type="number"
-                step={0.01}
-                accessKey="s"
-                title="all"
-                value={this.state?.scaling?.[0]}
-                onInput={(e) => this.updateScales(e.currentTarget['value'])}
-                onChange={(e) => this.updateScales(e.currentTarget['value'])}
-              />
-              <button class="toggle" onClick={() => this.setState({ expandScale: true })}>
-                ...
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div class="action">
-          <button class="danger" onClick={(e) => this.deleteAttachment(e)}>
-            Delete
-          </button>
-        </div>
+      <div class="costumer-wearable-editor">
+        <dl class="props">
+          {(['position', 'rotation', 'scaling'] as const).map((field) => (
+            <>
+              <dt>{field === 'scaling' ? 'Scale' : field === 'rotation' ? 'Rotation' : 'Position'}</dt>
+              <dd class="vec3">
+                {(field === 'scaling' && !this.state.expandScale ? [0] : [0, 1, 2]).map((axis) => (
+                  <VectorField title={'XYZ'[axis]} value={this.state[field]?.[axis] ?? 0} setter={(value) => this.updateVector(field, axis, value)} step={field === 'rotation' ? 5 : 0.01} errorMessage={(error) => this.setState({ error })} />
+                ))}
+                {field === 'scaling' && <input type="checkbox" title="Keep aspect ratio" checked={!this.state.expandScale} onChange={() => this.setState({ expandScale: !this.state.expandScale })} />}
+              </dd>
+            </>
+          ))}
+        </dl>
+        {this.state.error && <small role="alert">{this.state.error}</small>}
+        <button class="danger" onClick={this.deleteAttachment}>
+          Remove
+        </button>
       </div>
     )
   }
