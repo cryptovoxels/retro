@@ -1,7 +1,7 @@
 import type { Request, Response } from 'express'
 import { generateRegistrationOptions, verifyRegistrationResponse, generateAuthenticationOptions, verifyAuthenticationResponse } from '@simplewebauthn/server'
 type AuthenticatorTransportFuture = 'ble' | 'cable' | 'hybrid' | 'internal' | 'nfc' | 'smart-card' | 'usb'
-import { decodeJwt } from 'jose'
+import { VoxelsUserRequest } from '../user'
 import db from '../pg'
 import { getUserInfo } from './sign-in'
 
@@ -200,24 +200,13 @@ export async function PasskeyLoginVerify(req: Request, res: Response) {
   res.json({ success: true, token, name: avatarName, isNewUser })
 }
 
-function getWalletFromCookie(req: Request): string | null {
-  const jwt = (req as any).cookies?.jwt
-  if (!jwt) return null
-  try {
-    const payload = decodeJwt(jwt) as any
-    return payload?.wallet ?? null
-  } catch {
-    return null
-  }
-}
-
-export async function PasskeyAddOptions(req: Request, res: Response) {
+export async function PasskeyAddOptions(req: VoxelsUserRequest, res: Response) {
   const { username } = req.body as { username?: string }
   if (!username?.trim()) {
     res.json({ success: false, error: 'Username required' })
     return
   }
-  const wallet = getWalletFromCookie(req)
+  const wallet = req.user?.wallet
   if (!wallet) {
     res.json({ success: false, error: 'Not signed in' })
     return
@@ -239,13 +228,13 @@ export async function PasskeyAddOptions(req: Request, res: Response) {
   res.json({ success: true, options })
 }
 
-export async function PasskeyAddVerify(req: Request, res: Response) {
+export async function PasskeyAddVerify(req: VoxelsUserRequest, res: Response) {
   const { username, attResp } = req.body as { username?: string; attResp?: any }
   if (!username?.trim() || !attResp) {
     res.json({ success: false, error: 'Missing fields' })
     return
   }
-  const wallet = getWalletFromCookie(req)
+  const wallet = req.user?.wallet
   if (!wallet) {
     res.json({ success: false, error: 'Not signed in' })
     return

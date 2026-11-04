@@ -213,7 +213,7 @@ export async function SignIn(req: Request<any, Params>, res: Response) {
     return
   }
   // Check date of signature (+24hr within -24hr) (component 2 of the signature)
-  if (dateSigned < Date.now() - 86400 * 1000 && dateSigned > Date.now() + 86400 * 1000) {
+  if (!Number.isFinite(dateSigned) || dateSigned < Date.now() - 86400 * 1000 || dateSigned > Date.now() + 86400 * 1000) {
     log.debug('Bad date signature')
 
     res.json({ success: false, message: 'bad date' })
@@ -221,7 +221,7 @@ export async function SignIn(req: Request<any, Params>, res: Response) {
   }
 
   // when personal sign
-  await personalSignIn(res, params.wallet, params.message, params.signature, params.options || {})
+  await personalSignIn(res, params.wallet, params.message, params.signature, { ...params.options, account: undefined })
 }
 
 async function personalSignIn(res: Response, wallet: string, message: MessageSignature, signature: SignatureLike, options: SignInOptions) {
