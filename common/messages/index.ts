@@ -255,6 +255,8 @@ export type AvatarEmoteMessage = {
   type: MessageType.emoteAvatar
   uuid: string
   emote: string
+  // world point for a burst somewhere other than the avatar (hearting an nft)
+  position?: number[]
 }
 
 export const EmoteEncoder = encoderCreator<AvatarEmoteMessage>()

@@ -401,3 +401,21 @@ export function toggleFolder(name: string, open: boolean) {
 if (typeof window !== 'undefined') {
   window.app = app
 }
+
+// right-click an nft in-world to heart it. eip -> where it hangs. persisted like a shopping cart
+export type LikedArt = { parcel: number; location: string }
+export const likedArt = signal<Record<string, LikedArt>>({})
+try {
+  const v = localStorage.getItem('liked-art')
+  if (v) likedArt.value = JSON.parse(v)
+} catch {}
+
+export function toggleLike(eip: string, art: LikedArt) {
+  const next = { ...likedArt.value }
+  if (next[eip]) delete next[eip]
+  else next[eip] = art
+  likedArt.value = next
+  try {
+    localStorage.setItem('liked-art', JSON.stringify(next))
+  } catch {}
+}

@@ -89,28 +89,6 @@ const ROUTE_PANES: Partial<Record<UIPanes, string>> = {
   avatar: '/avatar',
 }
 
-const Location = () => {
-  const parcel = selectCurrentOrNearestParcel()
-  if (!parcel) return null
-
-  return (
-    <a
-      class="parcel-location"
-      href={`/parcels/${parcel.id}?coords=${encodeURIComponent(window.connector?.controls.getCoords() || '')}`}
-      onClick={(e) => {
-        if (e.button || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
-        e.preventDefault()
-        exitPointerLock()
-        sidebarClosed.value = false
-        route(`/parcels/${parcel.id}`, true)
-      }}
-    >
-      <strong>{parcel.name || parcel.address}</strong>
-      <span>{parcel.name ? parcel.address : parcel.island}</span>
-    </a>
-  )
-}
-
 export enum Mode {
   Default,
   Voxels,
@@ -877,7 +855,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
       <>
         {isPageTool(currentPane) && <PageToolPortal>{this.paneContent(currentPane!)}</PageToolPortal>}
         <div class="canvasdom">
-          <Location />
           <FirstTimeInstructions />
 
           {chat && <ChatOverlay enabled={this.state.chatEnabled} />}

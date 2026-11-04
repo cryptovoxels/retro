@@ -12,6 +12,8 @@ import { Route, Router, type RouterOnChangeArgs } from 'preact-router'
 import EditAccount from '../account/edit'
 import { Login } from './auth/login'
 import RadioPage from './components/radio-page'
+import ParcelPage from './parcel'
+import { Art } from './components/art'
 import Home from './home'
 import { Client } from './client'
 import { isPlayPath, notifyUrlChange } from './helpers/coords-nav'
@@ -24,7 +26,7 @@ import { ensureRadio } from './radio/global'
 import { app, AppEvent } from './state'
 import { AppRoutes } from './app-routes'
 import { applyTheme } from '../../common/helpers/theme'
-import { clearPageTool, isPageTool, pageToolEl, uiPane } from '../../src/store'
+import { clearPageTool, isPageTool, pageToolEl, hoveredNft, currentOrNearestParcel, uiPane, worldUi } from '../../src/store'
 
 applyTheme()
 
@@ -111,7 +113,7 @@ const Main = () => {
 
         <Client coords={coords} path={currentPath} />
 
-        <div class={play ? 'page play' : 'page'}>
+        <div class={[worldUi.value ? 'page mini' : 'page', play ? 'play' : ''].join(' ')}>
           <div class="page-route">
             <Router onChange={handleRoute}>
               {AppRoutes()}
@@ -120,6 +122,7 @@ const Main = () => {
               <AccountRoutes path="/account/:path*" />
             </Router>
           </div>
+          <PageMini />
           <div
             class="page-tool"
             ref={(el) => {
@@ -130,6 +133,12 @@ const Main = () => {
       </main>
     </MainApp>
   )
+}
+
+// collapsed .page content. only this re-renders on hover / parcel change
+function PageMini() {
+  const parcel = currentOrNearestParcel.value
+  return <div class="page-mini">{hoveredNft.value ? <Art mini src={hoveredNft.value} /> : parcel ? <ParcelPage mini parcel={parcel as any} /> : null}</div>
 }
 
 // Popped-out radio window (window.open('/radio'))

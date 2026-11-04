@@ -2,7 +2,7 @@ import { expect, it, vi } from 'vitest'
 
 vi.mock('../../src/features/feature', () => ({ Feature2D: class {}, TransparencyMode: { Ignore: 'Ignore' } }))
 vi.mock('../../web/src/components/editor', () => ({}))
-vi.mock('../../web/src/state', () => ({}))
+vi.mock('../../web/src/state', () => ({ likedArt: { value: {} } }))
 vi.mock('../../src/tools/gizmos', () => ({}))
 vi.mock('../../src/ui/features', () => ({ FeatureEditor: class {} }))
 vi.mock('../../src/ui/gui/opensea-asset-helper', () => ({ default: class {} }))
