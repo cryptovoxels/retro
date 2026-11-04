@@ -129,6 +129,16 @@ export function featureOrder(features: import('../common/messages/feature').Feat
   return ordered
 }
 
+export function rgbaPixels(rgb: Uint8Array, rgba = new Uint8Array((rgb.length / 3) * 4)) {
+  for (let i = 0, j = 0; i < rgb.length && j < rgba.length; i += 3, j += 4) {
+    rgba[j] = rgb[i]
+    rgba[j + 1] = rgb[i + 1]
+    rgba[j + 2] = rgb[i + 2]
+    rgba[j + 3] = 255
+  }
+  return rgba
+}
+
 export function instanceKey(feature: import('../common/messages/feature').FeatureRecord) {
   if (!['image', 'vox-model', 'cube', 'megavox'].includes(feature.type)) return undefined
   const { uuid, position, rotation, scale, groupId, version, collidable, animation, ...appearance } = feature as any

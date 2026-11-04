@@ -1,4 +1,5 @@
 import { rebindGizmos } from '../tools/gizmos'
+import { rgbaPixels } from '../utils'
 import type Feature from './feature'
 
 // same as vox-import VOX_SCALE. not imported: that pulls mono-pool (worker URL) into vitest
@@ -132,7 +133,7 @@ export function renderImageDraft(feature: Feature, b64: string) {
   material.blockDirtyMechanism = true
   material.specularColor.set(0, 0, 0)
   material.emissiveColor.set(1, 1, 1)
-  material.diffuseTexture = BABYLON.RawTexture.CreateRGBTexture(bytes, 4, 4, feature.scene, false, true, BABYLON.Texture.NEAREST_SAMPLINGMODE)
+  material.diffuseTexture = BABYLON.RawTexture.CreateRGBATexture(rgbaPixels(bytes), 4, 4, feature.scene, false, true, BABYLON.Texture.NEAREST_SAMPLINGMODE)
   material.backFaceCulling = false
   if (!(feature.mesh instanceof BABYLON.Mesh)) {
     feature.mesh = BABYLON.MeshBuilder.CreatePlane(f.uniqueEntityName('mesh'), { size: 1 }, feature.scene)
