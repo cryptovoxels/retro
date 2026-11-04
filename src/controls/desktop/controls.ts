@@ -21,6 +21,7 @@ export default class DesktopControls extends Controls {
   private hoverFeature: Feature | null = null
   private mouseLookAttached = false
   private rising = false
+  private locked?: boolean
 
   constructor(scene: BABYLON.Scene, canvas: HTMLCanvasElement) {
     super(scene, canvas)
@@ -30,6 +31,7 @@ export default class DesktopControls extends Controls {
     scene.skipPointerMovePicking = false
 
     this.onPointerLockChange()
+    scene.onBeforeRenderObservable.addOnce(() => this.onPointerLockChange())
   }
 
   createCamera() {
@@ -51,6 +53,7 @@ export default class DesktopControls extends Controls {
   }
 
   override enterFirstPerson() {
+    if (this.autoPerspective && !hasPointerLock() && !this.orbitControl) return false
     const entered = super.enterFirstPerson()
     this.bindKeys()
     this.onPointerLockChange()
@@ -117,6 +120,17 @@ export default class DesktopControls extends Controls {
       this.resetControls()
       return
     }
+    if (this.autoPerspective && this.persona && locked !== this.locked) {
+      this.locked = locked
+      if (locked) {
+        this.enterFirstPerson()
+      } else {
+        this.enterThirdPerson(1.5)
+        this.targetCameraDistance = 1.5
+        cam.rotation.x = 0.35
+        cam.cameraRotation.set(0, 0)
+      }
+    }
     if (locked) {
       // Babylon FreeCameraMouseInput stacks observers on every attach; never attach twice
       if (!this.mouseLookAttached) {
@@ -178,7 +192,7 @@ export default class DesktopControls extends Controls {
     }
 
     // right click on an nft hearts it. pick now, hover state is a frame stale
-    if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 2) {
+    if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && btn === 2 && !(window.ui?.voxelTool && window.ui.activeTool === window.ui.voxelTool)) {
       const pick = hasPointerLock() ? this.pickAtReticule() : eventData.pickInfo
       const f = featureFromPick(pick) as any
       if (f?.type === 'nft-image' && pick?.pickedPoint) {
@@ -209,6 +223,7 @@ export default class DesktopControls extends Controls {
         if (meshName.startsWith('feature/basicGui/')) return
         this.nerfClick = true
         eventState.skipNextObservers = true
+        if (window.ui?.voxelTool && window.ui.activeTool === window.ui.voxelTool) window.ui.exitVoxels()
         this.requestPointerLock()?.catch(() => {})
         return
       }
@@ -226,6 +241,11 @@ export default class DesktopControls extends Controls {
         }
         if (btn === 2) {
           eventData.event.preventDefault()
+          if (window.ui?.voxelTool && window.ui.activeTool === window.ui.voxelTool) {
+            window.ui.exitVoxels()
+            eventState.skipNextObservers = true
+            break
+          }
           const pick = hasPointerLock() ? this.pickAtReticule() : eventData.pickInfo
           this.handleContextClick(pick)
           eventState.skipNextObservers = true

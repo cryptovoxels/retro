@@ -9,6 +9,10 @@ export class PostProcesses {
   private glowLayer: BABYLON.Nullable<BABYLON.GlowLayer> = null
   private blurPP: BABYLON.Nullable<BABYLON.BlurPostProcess> = null
   private blurCamera: BABYLON.Nullable<BABYLON.Camera> = null
+  private pixels = 1
+  private pixelTarget = 1
+  private loading = true
+  private move: (() => void) | null = null
 
   constructor(scene: BABYLON.Scene, color: ColorGrader, graphics: GraphicEngine) {
     this.scene = scene
@@ -17,11 +21,44 @@ export class PostProcesses {
     const sharpen = new BABYLON.SharpenPostProcess('sharpen', 1.0, null, BABYLON.Texture.BILINEAR_SAMPLINGMODE, this.scene.getEngine(), false, BABYLON.Constants.TEXTURETYPE_UNSIGNED_INT)
     sharpen.edgeAmount = 0.1
 
+    BABYLON.Effect.ShadersStore['pixelationFragmentShader'] = `
+      precision highp float;
+      varying vec2 vUV;
+      uniform sampler2D textureSampler;
+      uniform vec2 resolution;
+      uniform float amount;
+      void main(void) {
+        float size = max(1.0, pow(amount, 3.0) * min(resolution.x, resolution.y) / 4.0);
+        vec2 uv = amount <= 0.0 ? vUV : (floor(vUV * resolution / size) + 0.5) * size / resolution;
+        gl_FragColor = texture2D(textureSampler, clamp(uv, 0.5 / resolution, 1.0 - 0.5 / resolution));
+      }
+    `
+    const pixelation = new BABYLON.PostProcess('pixelation', 'pixelation', ['resolution', 'amount'], null, 1, null, BABYLON.Texture.NEAREST_SAMPLINGMODE, scene.getEngine())
+    pixelation.onApply = (effect) => {
+      effect.setFloat2('resolution', pixelation.width, pixelation.height)
+      effect.setFloat('amount', this.pixels)
+    }
+    let loadingTime = 0
+    scene.onAfterRenderObservable.add(() => {
+      const dt = Math.min(scene.getEngine().getDeltaTime(), 100)
+      // Empty areas have no parcel mesh to trigger reveal.
+      if (this.loading && (loadingTime += dt) >= 10000) this.reveal()
+      if (!this.move && this.pixels === this.pixelTarget) return
+      if (this.move && this.pixels === 1) {
+        const move = this.move
+        this.move = null
+        this.pixelTarget = 0
+        move()
+      }
+      const step = dt / 450
+      this.pixels += Math.sign(this.pixelTarget - this.pixels) * Math.min(step, Math.abs(this.pixelTarget - this.pixels))
+    })
+
     this.pipelines = {
-      [GraphicLevels.Low]: this.createPipeline(GraphicLevels.Low, [this.colorGrader.postProcess]),
-      [GraphicLevels.Medium]: this.createPipeline(GraphicLevels.Medium, [this.colorGrader.postProcess]),
-      [GraphicLevels.High]: this.createPipeline(GraphicLevels.High, [this.colorGrader.postProcess, sharpen]),
-      [GraphicLevels.Ultra]: this.createPipeline(GraphicLevels.Ultra, [this.colorGrader.postProcess, sharpen]),
+      [GraphicLevels.Low]: this.createPipeline(GraphicLevels.Low, [this.colorGrader.postProcess, pixelation]),
+      [GraphicLevels.Medium]: this.createPipeline(GraphicLevels.Medium, [this.colorGrader.postProcess, pixelation]),
+      [GraphicLevels.High]: this.createPipeline(GraphicLevels.High, [this.colorGrader.postProcess, sharpen, pixelation]),
+      [GraphicLevels.Ultra]: this.createPipeline(GraphicLevels.Ultra, [this.colorGrader.postProcess, sharpen, pixelation]),
     }
 
     // Initialize with current graphics level
@@ -31,6 +68,24 @@ export class PostProcesses {
     graphics.addEventListener('settingsChanged', (event) => {
       this.changeEffects(event.detail.level)
     })
+  }
+
+  pixelate(amount: number) {
+    this.pixels = Math.max(0, Math.min(1, amount || 0))
+    this.pixelTarget = this.pixels
+  }
+
+  reveal() {
+    if (!this.loading) return
+    this.loading = false
+    this.pixelTarget = 0
+  }
+
+  transition(move: () => void) {
+    if (wantsGateway()) return move()
+    this.loading = false
+    this.move = move
+    this.pixelTarget = 1
   }
 
   // Fixed kernel, built once, attached/detached per dialog. Changing `kernel` at runtime swaps in an

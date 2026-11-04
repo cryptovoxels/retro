@@ -5,22 +5,11 @@ import BlogTeaser from './components/blog-teaser'
 import Classifieds from './components/classifieds'
 import PopularParcels from './components/popular-parcels'
 import Radar from './components/radar'
-import type { Womp } from './tiles/womp-tile'
-import { route } from 'preact-router'
-import { naviportHere } from './helpers/coords-nav'
 import { FOCUS_EXPLORE } from './helpers/open-explore'
 import { teleportToLatestWomp } from './helpers/latest-womp'
 import { app, AppEvent } from './state'
 import WompsList from './womps-list'
-
-function teleportToWomp(womp: Womp) {
-  if (!womp.coords) return
-  if (womp.space_id) {
-    route(`/spaces/${womp.space_id}/play`)
-    return
-  }
-  window.persona.teleport(womp.coords)
-}
+import Teleport from './components/teleport'
 
 export default class Explore extends Component<{}> {
   componentDidMount() {
@@ -51,16 +40,18 @@ export default class Explore extends Component<{}> {
 
         <section class="explorer" onKeyDown={onListArrowKeys}>
           <h1>Explore</h1>
-          <Radar teleportTo={naviportHere} />
-          <details class="inspector-section" open>
-            <summary>womps</summary>
-            <WompsList numberToShow={16} mobilePreview={6} collapsed={false} fetch="/womps.json" ttl={600} onWompClick={teleportToWomp} />
-            <a href="/womps">more</a>
-          </details>
-          <details class="inspector-section" open>
-            <summary>popular</summary>
-            <PopularParcels />
-          </details>
+          <Teleport>
+            <Radar />
+            <details class="inspector-section" open>
+              <summary>womps</summary>
+              <WompsList numberToShow={16} mobilePreview={6} collapsed={false} fetch="/womps.json" ttl={600} />
+              <a href="/womps">more</a>
+            </details>
+            <details class="inspector-section" open>
+              <summary>popular</summary>
+              <PopularParcels />
+            </details>
+          </Teleport>
           <details class="inspector-section" open>
             <summary>shop</summary>
             <Classifieds limit={3} />

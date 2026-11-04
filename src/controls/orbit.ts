@@ -29,7 +29,7 @@ export default class Orbit {
     camera.orbit = true
     camera.autoRotate = false
     if (first) {
-      camera.orbitHeight = -0.7
+      camera.orbitHeight = 0
       camera.rotation.set(0.1, controls.persona.rotation.y + Math.PI, 0)
     }
     camera.cameraRotation.set(0, 0)

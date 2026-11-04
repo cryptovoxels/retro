@@ -103,6 +103,7 @@ export default class Grid extends SocketClient {
       // first parcel mesh = world is up. this used to live in reveal(); "Fix reveal"
       // deleted it and the coords-in-URL writer never ran again (it gates on isLoaded).
       markLoaded()
+      window.graphic.postProcesses?.reveal()
     }
 
     this.parcelUnloaded = (event) => {
