@@ -168,6 +168,7 @@ export default function Profile(props: Props) {
         <details class="inspector-section" open>
           <summary>womps</summary>
           <WompsList numberToShow={16} collapsed={false} ttl={60} fetch={`/womps/by/${walletOrUUId}`} quiet />
+          <a href="/womps">more</a>
         </details>
       </article>
     </section>
