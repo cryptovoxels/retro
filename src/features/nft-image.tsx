@@ -376,12 +376,8 @@ export default class NftImage extends Feature2D<NftImageRecord> {
 
   async likedFraming() {
     const slab = await loadNineVox(LIKED_FRAME)
-    if (!slab || this.disposed || !this.mesh || this.likedFrame) return
-    const f = nineVox(slab, this.scale.x, this.scale.y, this.scene)
-    f.parent = this.mesh.parent
-    f.position.copyFrom(this.position)
-    f.rotation.copyFrom(this.rotation)
-    this.likedFrame = f
+    if (!slab || this.disposed || !this.mesh || this.likedFrame || !this.caip || !likedArt.value[this.caip]) return
+    this.likedFrame = nineVox(slab, this)
   }
 
   _dispose() {
