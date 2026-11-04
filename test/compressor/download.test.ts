@@ -28,7 +28,8 @@ it('aborts a trickling download at the deadline and removes the partial file', a
     const source = `http://127.0.0.1:${(server.address() as any).port}/image`
     const start = Date.now()
     await expect(runJob(() => download({ source, id: dest } as any))).rejects.toThrow()
-    expect(Date.now() - start).toBeLessThan(3000)
+    expect(Date.now() - start).toBeGreaterThanOrEqual(9500)
+    expect(Date.now() - start).toBeLessThan(12000)
     await expect(access(dest)).rejects.toThrow()
     await vi.waitFor(() => expect(closed).toBe(true))
   } finally {
@@ -36,4 +37,4 @@ it('aborts a trickling download at the deadline and removes the partial file', a
     await new Promise<void>((resolve) => server.close(() => resolve()))
     await rm(directory, { recursive: true, force: true })
   }
-})
+}, 15000)

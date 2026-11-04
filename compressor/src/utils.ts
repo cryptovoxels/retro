@@ -7,22 +7,27 @@ import sharp from 'sharp'
 import PQueue from 'p-queue'
 
 const jobs = new AsyncLocalStorage<AbortSignal>()
-const queue = new PQueue({ concurrency: 4 })
+const queues = {
+  fetch: new PQueue({ concurrency: 32 }),
+  process: new PQueue({ concurrency: 8 }),
+  upload: new PQueue({ concurrency: 16 }),
+}
 const binaries = join(dirname(createRequire(import.meta.url).resolve('texture-compressor/package.json')), 'bin', process.platform)
 
 export function jobSignal() {
-  const signal = jobs.getStore() || AbortSignal.timeout(2000)
+  const signal = jobs.getStore() || AbortSignal.timeout(10000)
   signal.throwIfAborted()
   return signal
 }
 
 export function runJob<T>(work: () => Promise<T>) {
-  return jobs.run(AbortSignal.timeout(2000), work)
+  return jobs.run(AbortSignal.timeout(10000), work)
 }
 
-export function queueJob<T>(work: () => Promise<T>): Promise<T> {
+export function queueJob<T>(work: () => Promise<T>, stage: keyof typeof queues = 'process'): Promise<T> {
+  const queue = queues[stage]
   const signal = jobSignal()
-  if (queue.size >= 30) return Promise.reject(new Error('compressor queue full'))
+  if (queue.size >= 128) return Promise.reject(new Error('compressor queue full'))
   return new Promise((resolve, reject) => {
     const abort = () => reject(signal.reason)
     signal.addEventListener('abort', abort, { once: true })
@@ -38,7 +43,7 @@ export function queueJob<T>(work: () => Promise<T>): Promise<T> {
 
 export async function pack(options: any) {
   const signal = jobSignal()
-  const { width = 1 } = await sharp(options.input).timeout({ seconds: 1 }).metadata()
+  const { width = 1 } = await sharp(options.input).timeout({ seconds: 10 }).metadata()
   const mips = String(Math.floor(Math.log2(width)) + 1)
   const dxt = options.type === 's3tc'
   const args = dxt

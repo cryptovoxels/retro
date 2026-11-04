@@ -11,7 +11,7 @@ const cache = new Set<string>()
 
 export async function mobileImage(req: Request, res: Response) {
   try {
-    return await runJob(() => queueJob(() => convertImage(req, res)))
+    return await runJob(() => convertImage(req, res))
   } catch {
     return res.sendStatus(422)
   }
@@ -30,48 +30,63 @@ async function convertImage(req: Request, res: Response) {
   try {
     const s3 = ugcClient()
     try {
-      await s3.send(new HeadObjectCommand({ Bucket: UGC_BUCKET, Key: cacheKey }), { abortSignal: jobSignal() })
+      await queueJob(() => s3.send(new HeadObjectCommand({ Bucket: UGC_BUCKET, Key: cacheKey }), { abortSignal: jobSignal() }), 'fetch')
       return redirect()
     } catch (error: any) {
       if (error.$metadata?.httpStatusCode !== 404 && error.name !== 'NotFound') throw error
     }
-    const source = await fetch(`https://ugc.voxels.com/${key.split('/').map(encodeURIComponent).join('/')}`, {
-      redirect: 'error',
-      signal: jobSignal(),
-    })
-    if (!source.ok || !source.body) return res.sendStatus(404)
-    const reader = source.body.getReader()
-    const chunks: Uint8Array[] = []
-    let size = 0
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      size += value.byteLength
-      if (size > 16 * 1024 * 1024) {
-        await reader.cancel()
-        return res.sendStatus(413)
+    const bytes = await queueJob(async () => {
+      const source = await fetch(`https://ugc.voxels.com/${key.split('/').map(encodeURIComponent).join('/')}`, {
+        redirect: 'error',
+        signal: jobSignal(),
+      })
+      if (!source.ok || !source.body) {
+        res.sendStatus(404)
+        return null
       }
-      chunks.push(value)
-    }
-    const resized = sharp(Buffer.concat(chunks), { limitInputPixels: 16 * 1024 * 1024, pages: 1 })
-      .timeout({ seconds: 1 })
-      .rotate()
-      .resize(256, 256, { fit: 'inside', withoutEnlargement: true })
-    let image: Buffer
-    if (astc) {
-      directory = await mkdtemp(join(tmpdir(), 'mobile-texture-'))
-      const input = join(directory, 'source.png')
-      const output = join(directory, 'texture.astc.ktx')
-      // KTX uploads ignore Babylon's flipY flag.
-      await resized.flip().png().toFile(input)
-      await pack({ input, output, type: 'astc', compression: 'ASTC_8x8', quality: 'astcfast', mipmap: true, flipY: false, pot: 'no', square: 'no', verbose: false })
-      image = await readFile(output)
-    } else {
-      image = await resized.webp({ quality: 55, effort: 0 }).toBuffer()
-    }
-    await s3.send(new PutObjectCommand({ Bucket: UGC_BUCKET, Key: cacheKey, Body: image, ContentType: astc ? 'image/ktx' : 'image/webp', ACL: 'public-read', CacheControl: 'public, max-age=31536000, immutable' }), {
-      abortSignal: jobSignal(),
+      const reader = source.body.getReader()
+      const chunks: Uint8Array[] = []
+      let size = 0
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        size += value.byteLength
+        if (size > 16 * 1024 * 1024) {
+          await reader.cancel()
+          res.sendStatus(413)
+          return null
+        }
+        chunks.push(value)
+      }
+      return Buffer.concat(chunks)
+    }, 'fetch')
+    if (!bytes) return
+    const image = await queueJob(async () => {
+      const resized = sharp(bytes, { limitInputPixels: 16 * 1024 * 1024, pages: 1 })
+        .timeout({ seconds: 10 })
+        .rotate()
+        .resize(256, 256, { fit: 'inside', withoutEnlargement: true })
+      let image: Buffer
+      if (astc) {
+        directory = await mkdtemp(join(tmpdir(), 'mobile-texture-'))
+        const input = join(directory, 'source.png')
+        const output = join(directory, 'texture.astc.ktx')
+        // KTX uploads ignore Babylon's flipY flag.
+        await resized.flip().png().toFile(input)
+        await pack({ input, output, type: 'astc', compression: 'ASTC_8x8', quality: 'astcfast', mipmap: true, flipY: false, pot: 'no', square: 'no', verbose: false })
+        image = await readFile(output)
+      } else {
+        image = await resized.webp({ quality: 55, effort: 0 }).toBuffer()
+      }
+      return image
     })
+    await queueJob(
+      () =>
+        s3.send(new PutObjectCommand({ Bucket: UGC_BUCKET, Key: cacheKey, Body: image, ContentType: astc ? 'image/ktx' : 'image/webp', ACL: 'public-read', CacheControl: 'public, max-age=31536000, immutable' }), {
+          abortSignal: jobSignal(),
+        }),
+      'upload',
+    )
     if (cache.size >= 10000) cache.delete(cache.values().next().value!)
     cache.add(cacheKey)
     return redirect()

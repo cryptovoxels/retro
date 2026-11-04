@@ -7,7 +7,7 @@ import { URL } from 'url'
 import fs from 'fs'
 import { pipeline } from 'node:stream/promises'
 import { Readable, Transform } from 'node:stream'
-import { jobSignal } from './utils'
+import { jobSignal, queueJob } from './utils'
 import path from 'path'
 import config from './config'
 import { Options, Texture, Type } from './texture'
@@ -82,14 +82,14 @@ export class DownloadError extends Error {
 export function download(texture: Texture, fallbackURL?: string): Promise<Texture> {
   const sourceURL = new URL(normalizeDropboxURL(texture.source))
   const destPath = config.cacheDir(texture.id)
-  return downloader(sourceURL, destPath)
+  return queueJob(() => downloader(sourceURL, destPath), 'fetch')
     .then(() => texture)
     .catch((error: any) => {
       if (!fallbackURL) {
         throw error
       }
       const fallbackSource = new URL(fallbackURL)
-      return downloader(fallbackSource, destPath).then(() => {
+      return queueJob(() => downloader(fallbackSource, destPath), 'fetch').then(() => {
         console.log('fallback URL used ' + fallbackURL)
         return texture
       })
@@ -143,7 +143,7 @@ export async function s3Copy(source: string, prefix: string, extraHeaders: strin
   })
 
   const s3 = config.space.client()
-  await s3.send(command, { abortSignal: jobSignal() })
+  await queueJob(() => s3.send(command, { abortSignal: jobSignal() }), 'upload')
   return `${config.space.cdn_host}/${prefix}/${path.basename(source)}`
 }
 
@@ -182,7 +182,7 @@ function localFind(sourceURL: string, opts: Options, type: Type, suffix: string)
       const stat = fs.statSync(config.cacheDir(filename))
       if (stat.isFile()) {
         return sharp(config.cacheDir(texture.id))
-          .timeout({ seconds: 1 })
+          .timeout({ seconds: 10 })
           .metadata()
           .then((metadata) => {
             texture.setMetadata(metadata, type)
@@ -235,7 +235,7 @@ async function s3Find(sourceURL: string, opts: Options, size: Type, suffix: stri
   })
 
   try {
-    await s3.send(command, { abortSignal: jobSignal() })
+    await queueJob(() => s3.send(command, { abortSignal: jobSignal() }), 'fetch')
     s3LookupCache.set(key, url)
     return { location: url, texture }
   } catch (error: any) {

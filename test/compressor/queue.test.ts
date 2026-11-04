@@ -1,4 +1,5 @@
 import { expect, it, vi } from 'vitest'
+import { queueJob } from '../../compressor/src/utils'
 const state = vi.hoisted(() => ({ handler: undefined as any, failures: [] as Array<(error: Error) => void>, downloads: 0 }))
 vi.mock('../../compressor/src/www', () => ({
   app: {
@@ -17,10 +18,11 @@ vi.mock('../../compressor/src/storage', () => ({
   find: async () => {
     throw new Error('cache miss')
   },
-  download: () => {
-    state.downloads++
-    return new Promise((_resolve, reject) => state.failures.push(reject))
-  },
+  download: () =>
+    queueJob(() => {
+      state.downloads++
+      return new Promise((_resolve, reject) => state.failures.push(reject))
+    }, 'fetch'),
   getSourceURL: (id: string) => id,
   s3Move: vi.fn(),
   s3Copy: vi.fn(),
@@ -42,16 +44,16 @@ async function settle() {
   for (let i = 0; i < 20; i++) await Promise.resolve()
 }
 
-it('deduplicates requests, runs four conversions, bounds the backlog, and releases failed jobs', async () => {
+it('deduplicates requests, runs 32 fetches, bounds the backlog, and releases failed jobs', async () => {
   const interval = vi.spyOn(globalThis, 'setInterval').mockImplementation(() => 0 as any)
   const log = vi.spyOn(console, 'log').mockImplementation(() => {})
   const error = vi.spyOn(console, 'error').mockImplementation(() => {})
   const oldTls = process.env.NODE_TLS_REJECT_UNAUTHORIZED
   try {
     await import('../../compressor/src/index')
-    for (let i = 0; i < 34; i++) state.handler({ query: { url: `https://example.com/${i}.png`, hint: '.astc.ktx' }, setTimeout: vi.fn() }, response())
+    for (let i = 0; i < 128; i++) state.handler({ query: { url: `https://example.com/${i}.png`, hint: '.astc.ktx' }, setTimeout: vi.fn() }, response())
     await settle()
-    expect(state.downloads).toBe(4)
+    expect(state.downloads).toBe(32)
     const duplicate = response()
     state.handler({ query: { url: 'https://example.com/0.png', hint: '.astc.ktx' }, setTimeout: vi.fn() }, duplicate)
     expect(duplicate.sendStatus).not.toHaveBeenCalled()
@@ -60,7 +62,7 @@ it('deduplicates requests, runs four conversions, bounds the backlog, and releas
     expect(overflow.sendStatus).toHaveBeenCalledWith(503)
     state.failures.shift()!(new Error('source failed'))
     await settle()
-    expect(state.downloads).toBe(5)
+    expect(state.downloads).toBe(33)
     expect(duplicate.status).toHaveBeenCalledWith(500)
     while (state.failures.length) {
       state.failures.shift()!(new Error('source failed'))

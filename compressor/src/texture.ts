@@ -101,7 +101,7 @@ function prepare(texture: Texture): Promise<Texture> {
   }
 
   return sharp(sourcePath, { pages: 1, limitInputPixels: 64 * 1024 * 1024 })
-    .timeout({ seconds: 1 })
+    .timeout({ seconds: 10 })
     .metadata()
     .then((md) => {
       texture.setMetadata(md, Type.medium)
@@ -127,7 +127,7 @@ function prepare(texture: Texture): Promise<Texture> {
       }
 
       jobSignal()
-      const sharpInstance = sharp(sourcePath, { failOn: 'error', pages: 1, limitInputPixels: 64 * 1024 * 1024 }).timeout({ seconds: 1 })
+      const sharpInstance = sharp(sourcePath, { failOn: 'error', pages: 1, limitInputPixels: 64 * 1024 * 1024 }).timeout({ seconds: 10 })
       return resize(sharpInstance, resizeOpts, extractOpts)
         .then((s) => flatten(s, texture))
         .then((s) => (texture.options.dontFlipY ? s : s.flip()))

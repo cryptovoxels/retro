@@ -63,8 +63,8 @@ function compressed(request: Request, response: Response) {
   const key = storage.hashify(sourceURL, textureOptions) + hint
   let job = pending.get(key)
   if (!job) {
-    if (pending.size >= 34) return response.set('Retry-After', '2').sendStatus(503)
-    job = runJob(() => findCachedTexture(forceUpdate, sourceURL, textureOptions, hint).catch(() => queueJob(() => downloadAndCompress(sourceURL, textureOptions, hint)))).finally(() => pending.delete(key))
+    if (pending.size >= 128) return response.set('Retry-After', '2').sendStatus(503)
+    job = runJob(() => findCachedTexture(forceUpdate, sourceURL, textureOptions, hint).catch(() => downloadAndCompress(sourceURL, textureOptions, hint))).finally(() => pending.delete(key))
     pending.set(key, job)
   }
   job.then((result) => textureResponse(result, response, version)).catch((error) => errorResponse(error, response))
@@ -77,8 +77,7 @@ function downloadAndCompress(sourceURL: string, textureOptions: texture.Options,
   return storage
     .download(tex, fallbackURL)
     .then((tex) => saveSourceToS3(tex))
-    .then((tex) => tex.createMedium())
-    .then((tex) => compressTexture(hint, tex))
+    .then((tex) => queueJob(() => tex.createMedium().then((tex) => compressTexture(hint, tex))))
     .then((result) => moveToS3(result))
 }
 
@@ -91,11 +90,13 @@ function saveSourceToS3(txt: Texture): Promise<Texture> {
   const destPath = config.cacheDir(sourceKey)
 
   jobSignal()
-  return sharp(sourcePath, { limitInputPixels: 64 * 1024 * 1024 })
-    .timeout({ seconds: 1 })
-    .resize(SOURCE_MAX_SIZE, SOURCE_MAX_SIZE, { fit: 'inside', withoutEnlargement: true })
-    .png()
-    .toFile(destPath)
+  return queueJob(() =>
+    sharp(sourcePath, { limitInputPixels: 64 * 1024 * 1024 })
+      .timeout({ seconds: 10 })
+      .resize(SOURCE_MAX_SIZE, SOURCE_MAX_SIZE, { fit: 'inside', withoutEnlargement: true })
+      .png()
+      .toFile(destPath),
+  )
     .then(() => s3Copy(sourceKey, config.s3Prefix(), '{}'))
     .then(() => txt)
 }

@@ -26,22 +26,41 @@ it('kills a stuck encoder and lets the next job run', async () => {
       .toFile(input)
     const start = Date.now()
     await expect(runJob(() => queueJob(() => pack({ input, output: join(directory, 'out.ktx'), type: 'astc', compression: 'ASTC_8x8', quality: 'astcfast', pot: 'no', square: 'no' })))).rejects.toThrow()
-    expect(Date.now() - start).toBeLessThan(3000)
+    expect(Date.now() - start).toBeGreaterThanOrEqual(9500)
+    expect(Date.now() - start).toBeLessThan(12000)
     expect(state.child.signalCode).toBe('SIGKILL')
     expect(() => process.kill(state.child.pid, 0)).toThrow()
     await expect(runJob(() => queueJob(async () => 'next'))).resolves.toBe('next')
   } finally {
     await rm(directory, { recursive: true, force: true })
   }
-})
+}, 15000)
 
 it('expires queued jobs without starting them and preserves each job deadline', async () => {
   const releases: Array<() => void> = []
-  const busy = Array.from({ length: 4 }, () => runJob(() => queueJob(() => new Promise<void>((resolve) => releases.push(resolve)))))
+  const busy = Array.from({ length: 8 }, () => runJob(() => queueJob(() => new Promise<void>((resolve) => releases.push(resolve)))))
   const work = vi.fn(async () => jobSignal().aborted)
   await expect(runJob(() => queueJob(work))).rejects.toThrow()
   expect(work).not.toHaveBeenCalled()
   releases.forEach((release) => release())
   await Promise.all(busy)
   await expect(runJob(() => queueJob(work))).resolves.toBe(false)
+}, 15000)
+
+it('keeps fetches and uploads moving while processing is full', async () => {
+  const releases: Array<() => void> = []
+  const busy = Array.from({ length: 8 }, () => runJob(() => queueJob(() => new Promise<void>((resolve) => releases.push(resolve)))))
+  const process = vi.fn(async () => 'processed')
+  const waiting = runJob(() => queueJob(process))
+  try {
+    expect(releases).toHaveLength(8)
+    const transfers = await Promise.all([...Array.from({ length: 32 }, () => runJob(() => queueJob(async () => 'fetched', 'fetch'))), ...Array.from({ length: 16 }, () => runJob(() => queueJob(async () => 'uploaded', 'upload')))])
+    expect(transfers.filter((value) => value === 'fetched')).toHaveLength(32)
+    expect(transfers.filter((value) => value === 'uploaded')).toHaveLength(16)
+    expect(process).not.toHaveBeenCalled()
+  } finally {
+    releases.forEach((release) => release())
+    await Promise.all(busy)
+    await expect(waiting).resolves.toBe('processed')
+  }
 })
