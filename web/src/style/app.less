@@ -4990,14 +4990,32 @@ main:has(.worldmap) {
   }
 }
 
-// desktop: chat + dance/emote/womp in one pill, centered bottom
+// desktop: one row, centered bottom
 @media @wide {
   .canvasdom div.chat {
     left: 50%;
     bottom: 1rem;
     transform: translateX(-50%);
-    // left: 50% only leaves half the screen, which wraps the bar
-    width: max-content;
+    width: min(42rem, calc(100% - 2rem));
+
+    .interact-bar {
+      flex-wrap: nowrap;
+      transition: transform 200ms ease-out;
+
+      > p {
+        position: absolute;
+        bottom: 100%;
+      }
+    }
+  }
+
+  body.locked .canvasdom div.chat .interact-bar {
+    transform: translateY(calc(100% + 1rem));
+    pointer-events: none;
+
+    form {
+      pointer-events: none;
+    }
   }
 }
 
@@ -5005,7 +5023,6 @@ main:has(.worldmap) {
   position: relative;
   .glass();
   backdrop-filter: none;
-  border-radius: 999px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -5217,6 +5234,21 @@ header nav .user-menu {
 }
 
 @media @narrow, (pointer: coarse) {
+  .chat-page {
+    height: 80vh;
+    max-height: 80vh;
+    overflow-y: auto;
+
+    .chat-panel > form {
+      order: -1;
+      flex-shrink: 0;
+    }
+
+    .chat-messages > * {
+      flex-shrink: 0;
+    }
+  }
+
   :root {
     --chatbar: 6rem;
   }

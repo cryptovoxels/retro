@@ -71,7 +71,6 @@
   "dependencies": {
     "@aws-sdk/client-s3": "^3.472.0",
     "@aws-sdk/s3-request-presigner": "^3.472.0",
-    "@babylonjs/lite": "1.26.0",
     "@bugsnag/js": "7.20.2",
     "@dimforge/rapier3d-compat": "0.20.0",
     "@gltf-transform/core": "^4.4.2",

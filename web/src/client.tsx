@@ -1,7 +1,7 @@
 import { Component, createRef } from 'preact'
 import ParcelHelper from '../../common/helpers/parcel-helper'
 import { canUseDom } from '../../common/helpers/utils'
-import { wantsLite, wantsNoUI } from '../../common/helpers/detector'
+import { wantsNoUI } from '../../common/helpers/detector'
 import type { BootResult } from '../../src'
 import { pushSpaceHistory, realmSavedCoords, saveRealmCoords } from '../../src/init/realm'
 import { spaceW } from '../../src/utils/space-w'
@@ -13,7 +13,6 @@ import { currentOrNearestParcel } from '../../src/store'
 
 /** Memoised engine boot; safe to await from anywhere that needs window.persona / window.grid. */
 export function worldBoot(): Promise<BootResult | null> {
-  if (wantsLite()) return import('../../src/lite').then((m) => m.bootLite())
   return import('../../src').then((m) => m.bootEngine())
 }
 

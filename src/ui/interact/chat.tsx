@@ -2,7 +2,7 @@ import { route } from 'preact-router'
 import { effect, signal } from '@preact/signals'
 import makeBlockie from 'ethereum-blockies-base64'
 import { Fragment, JSX } from 'preact'
-import { useEffect, useRef, useState } from 'preact/hooks'
+import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 
 import { isMobile } from '../../../common/helpers/detector'
 import { InteractPopout } from './popout'
@@ -158,11 +158,17 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
     return () => clearInterval(t)
   }, [variant])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (variant !== 'page') return
     const el = box.current
     if (!el) return
-    el.scrollTop = el.scrollHeight
+    const scroll = () => {
+      el.scrollTop = el.scrollHeight
+    }
+    scroll()
+    const resize = new ResizeObserver(scroll)
+    resize.observe(el)
+    return () => resize.disconnect()
   })
 
   // sit the input on top of the keyboard; don't let safari pan the world

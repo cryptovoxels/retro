@@ -6,9 +6,6 @@ import { app, AppEvent } from '../web/src/state'
 import { cameraPosition } from './utils/camera'
 import { distanceEnable, fetchAllParcels, fetchContributingParcels, fetchIslands, fetchOwnerParcels, Island, MapParcel, OCEAN, createBaseMeshes, createMaterial, pickParcelMesh } from './voxels-map'
 
-// the map will be sized to be this width of the whole browser window
-const MAP_SCREEN_SIZE = 0.15
-
 export { Island } from './voxels-map'
 
 export class Minimap {
@@ -244,16 +241,14 @@ export class Minimap {
 
   private syncAspectRatio() {
     const engine = this.scene.getEngine()
-    const pxWidth = engine.getRenderingCanvas()?.width
-    const pxHeight = engine.getRenderingCanvas()?.height
+    const canvas = engine.getRenderingCanvas()
+    const pxWidth = canvas?.clientWidth
+    const pxHeight = canvas?.clientHeight
     if (!pxWidth || !pxHeight) return
-    const pxPadding = 0
-    const width = MAP_SCREEN_SIZE
-    const height = (pxWidth * width) / pxHeight
-    this.camera.viewport.x = (pxWidth - pxPadding) / pxWidth - width
-    this.camera.viewport.width = width
-    this.camera.viewport.y = pxPadding / pxHeight
-    this.camera.viewport.height = height
+    this.camera.viewport.x = 1 - 160 / pxWidth
+    this.camera.viewport.width = 160 / pxWidth
+    this.camera.viewport.y = 0
+    this.camera.viewport.height = 160 / pxHeight
   }
 
   private unloadOtherPlayers() {
