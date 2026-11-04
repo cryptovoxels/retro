@@ -1,16 +1,11 @@
 import { Component } from 'preact'
-import ParcelHelper from '../../../common/helpers/parcel-helper'
 import { avatarName, type AvatarRef } from '../../../common/messages/avatar-ref'
 import { AvatarIcon, AvatarLink } from './avatar-link'
 import { getParcel, summaryReady } from '../store/index'
 
 type User = { avatar: AvatarRef | null; parcel: number | null }
 
-interface Props {
-  teleportTo?: (coords: string) => void
-}
-
-export default class Radar extends Component<Props, { users: Map<string, User> }> {
+export default class Radar extends Component<{}, { users: Map<string, User> }> {
   state = { users: new Map<string, User>() }
   es: EventSource | null = null
 
@@ -40,19 +35,6 @@ export default class Radar extends Component<Props, { users: Map<string, User> }
     this.es?.close()
   }
 
-  onUserClick = (e: MouseEvent, uuid: string, parcelId: number | null) => {
-    if (!this.props.teleportTo) return
-    e.preventDefault()
-    const local = window.connector?.findAvatar(uuid)
-    if (local?.coords) {
-      this.props.teleportTo(`/play?coords=${local.coords}`)
-      return
-    }
-    if (parcelId == null) return
-    const info = getParcel(parcelId).value
-    new ParcelHelper(info ?? { id: parcelId }).spawnUrl().then((url) => this.props.teleportTo?.(url))
-  }
-
   render() {
     const byParcel = new Map<number | null, { uuid: string; avatar: AvatarRef | null }[]>()
     for (const [uuid, u] of this.state.users) {
@@ -66,7 +48,7 @@ export default class Radar extends Component<Props, { users: Map<string, User> }
     return (
       <details class="inspector-section" open>
         <summary>people online</summary>
-        {this.props.teleportTo && <p>click a name to join them</p>}
+        <p>click a name to join them</p>
         <ul class="radar">
           {[...byParcel.entries()].map(([parcelId, users]) => {
             const info = parcelId != null ? getParcel(parcelId).value : null
@@ -75,20 +57,21 @@ export default class Radar extends Component<Props, { users: Map<string, User> }
               <li key={parcelId ?? 'none'}>
                 {parcelId && <a href={`/parcels/${parcelId}`}>{label}</a>}
                 <ul>
-                  {users.map(({ uuid, avatar }) => (
-                    <li key={uuid}>
-                      <AvatarIcon name={avatar ? avatarName(avatar) : 'anon'} />
-                      {this.props.teleportTo ? (
-                        <a href="#" onClick={(e) => this.onUserClick(e, uuid, parcelId)}>
-                          {avatar ? avatarName(avatar) : 'anon'}
-                        </a>
-                      ) : avatar ? (
-                        <AvatarLink avatar={avatar} />
-                      ) : (
-                        <span>anon</span>
-                      )}
-                    </li>
-                  ))}
+                  {users.map(({ uuid, avatar }) => {
+                    const coords = window.connector?.findAvatar(uuid)?.coords
+                    return (
+                      <li key={uuid}>
+                        <AvatarIcon name={avatar ? avatarName(avatar) : 'anon'} />
+                        {coords || parcelId != null ? (
+                          <a href={coords ? `/play?coords=${encodeURIComponent(coords)}` : `/parcels/${parcelId}`}>{avatar ? avatarName(avatar) : 'anon'}</a>
+                        ) : avatar ? (
+                          <AvatarLink avatar={avatar} />
+                        ) : (
+                          <span>anon</span>
+                        )}
+                      </li>
+                    )
+                  })}
                 </ul>
               </li>
             )

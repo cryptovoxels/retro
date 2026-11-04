@@ -13,6 +13,7 @@ vi.mock('../src/tools/gizmos', () => ({ pointerOverGizmo: () => false }))
 function setup(editor = false, pending = false) {
   lock.value = false
   const controls: any = Object.create(DesktopControls.prototype)
+  controls.autoPerspective = true
   controls.requestPointerLock = vi.fn(() => {
     if (!pending) lock.value = true
   })
@@ -28,9 +29,9 @@ function setup(editor = false, pending = false) {
       controls.requestPointerLock()
     }),
   }
-  const send = (type: number, name = '') => {
+  const send = (type: number, name = '', button = 0) => {
     const state = { skipNextObservers: false }
-    controls.desktopClicks({ type, event: { button: 0, shiftKey: false }, pickInfo: { pickedMesh: { name } } }, state)
+    controls.desktopClicks({ type, event: { button, shiftKey: false, preventDefault: vi.fn() }, pickInfo: { pickedMesh: { name } } }, state)
     return state.skipNextObservers
   }
   return { controls, send }
@@ -61,4 +62,67 @@ it('leaves action buttons unlocked and clickable', () => {
   expect(send(BABYLON.PointerEventTypes.POINTERDOWN, 'feature/basicGui/drive')).toBe(false)
   expect(send(BABYLON.PointerEventTypes.POINTERUP)).toBe(false)
   expect(controls.requestPointerLock).not.toHaveBeenCalled()
+})
+
+it('exits voxel editing when recapturing the canvas', () => {
+  const { send } = setup()
+  const ui = window.ui as any
+  ui.voxelTool = ui.activeTool = {}
+  ui.exitVoxels = vi.fn()
+  expect(send(BABYLON.PointerEventTypes.POINTERDOWN)).toBe(true)
+  expect(ui.exitVoxels).toHaveBeenCalledOnce()
+})
+
+it('right click exits voxel editing without opening a context action', () => {
+  const { controls, send } = setup()
+  const ui = window.ui as any
+  ui.voxelTool = ui.activeTool = {}
+  ui.exitVoxels = vi.fn()
+  controls.handleContextClick = vi.fn()
+  send(BABYLON.PointerEventTypes.POINTERDOWN, '', 2)
+  expect(send(BABYLON.PointerEventTypes.POINTERTAP, '', 2)).toBe(true)
+  expect(ui.exitVoxels).toHaveBeenCalledOnce()
+  expect(controls.handleContextClick).not.toHaveBeenCalled()
+})
+
+it('starts close third person, enters first person on lock, and preserves C until unlock', () => {
+  const { controls } = setup()
+  const canvas = document.createElement('canvas')
+  const descriptor = Object.getOwnPropertyDescriptor(document, 'pointerLockElement')
+  Object.defineProperty(document, 'pointerLockElement', { configurable: true, get: () => (lock.value ? canvas : null) })
+  controls.scene = { getEngine: () => ({ getRenderingCanvas: () => canvas }) }
+  controls.camera = { inputs: { attached: {} }, rotation: { x: 0 }, cameraRotation: { set: vi.fn() } }
+  controls.resetControls = vi.fn()
+  controls.enterThirdPerson = vi.fn()
+  controls.enterFirstPerson = vi.fn()
+  try {
+    controls.onPointerLockChange()
+    expect(controls.enterThirdPerson).not.toHaveBeenCalled()
+    controls.persona = {}
+    controls.onPointerLockChange()
+    expect(controls.enterThirdPerson).toHaveBeenCalledWith(1.5)
+    expect(controls.camera.rotation.x).toBe(0.35)
+    lock.value = true
+    controls.onPointerLockChange()
+    expect(controls.enterFirstPerson).toHaveBeenCalledTimes(1)
+    controls.enterThirdPerson(2)
+    controls.onPointerLockChange()
+    expect(controls.enterFirstPerson).toHaveBeenCalledTimes(1)
+    lock.value = false
+    controls.onPointerLockChange()
+    expect(controls.targetCameraDistance).toBe(1.5)
+    expect(controls.enterThirdPerson).toHaveBeenLastCalledWith(1.5)
+    controls.autoPerspective = false
+    controls.enterFirstPerson.mockClear()
+    controls.enterThirdPerson.mockClear()
+    lock.value = true
+    controls.onPointerLockChange()
+    lock.value = false
+    controls.onPointerLockChange()
+    expect(controls.enterFirstPerson).not.toHaveBeenCalled()
+    expect(controls.enterThirdPerson).not.toHaveBeenCalled()
+  } finally {
+    if (descriptor) Object.defineProperty(document, 'pointerLockElement', descriptor)
+    else delete (document as any).pointerLockElement
+  }
 })

@@ -101,6 +101,7 @@ export default abstract class Controls implements IControls {
   shiftKey = false
   ctrlKey = false
   firstPersonView = true
+  autoPerspective = true
   walkRunAnimation: BABYLON.Animatable | null = null
   /** mobile dpad sets this; also used as drive steer while in a vehicle */
   direction: BABYLON.Vector3 = new BABYLON.Vector3()
@@ -528,6 +529,7 @@ export default abstract class Controls implements IControls {
   }
 
   togglePerspective() {
+    this.autoPerspective = false
     if (this.firstPersonView) {
       this.enterThirdPerson(ISO_DISTANCE)
     } else {
@@ -550,7 +552,7 @@ export default abstract class Controls implements IControls {
     this.persona.firstPersonView = false
     this.firstPersonView = false
     this.camera.orbit = true
-    this.camera.orbitHeight = -0.7
+    this.camera.orbitHeight = 0
     document.body.classList.add('zoomed')
     return true
   }

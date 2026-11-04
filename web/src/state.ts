@@ -2,6 +2,7 @@ import { signal } from '@preact/signals'
 import { EventEmitter } from 'events'
 import Cookies from 'js-cookie'
 import { decodeJwt } from 'jose'
+import { v4 as uuid } from 'uuid'
 import { ApiAvatar, type ApiAvatarMessage } from '../../common/messages/api-avatars'
 import type { AvatarRef } from '../../common/messages/avatar-ref'
 import Snackbar from './components/snackbar'
@@ -41,6 +42,7 @@ export enum AppEvent {
 
 export interface StateObject {
   loading?: boolean
+  anonHash: string
   wallet: string | null
   /** Identity that signed in, set only while acting as a linked wallet or email account. */
   account?: string | null
@@ -67,11 +69,18 @@ class State extends EventEmitter {
     super()
 
     this.state = {
+      anonHash: uuid(),
       wallet: null,
       key: null!,
       costume: {},
       settings: {},
     }
+
+    // Browser identity for anonymous state, not an auth credential.
+    try {
+      this.state.anonHash = localStorage.getItem('anonHash') || this.state.anonHash
+      localStorage.setItem('anonHash', this.state.anonHash)
+    } catch {}
   }
 
   setState(args: Partial<StateObject>) {
@@ -215,6 +224,10 @@ export class Appstate extends State {
   }
 
   signout() {
+    try {
+      localStorage.removeItem('anonHash')
+    } catch {}
+    this.state.anonHash = uuid()
     this.localStorage?.removeItem('cv-wearables-owned')
     try {
       sessionStorage.removeItem('showbox_guest_pass')

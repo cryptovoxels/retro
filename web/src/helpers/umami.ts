@@ -1,3 +1,5 @@
+import { app } from '../state'
+
 const WEBSITE_ID = '91f685fd-f80f-4422-860b-760b6bea91fa'
 
 let lastPage = ''
@@ -11,6 +13,7 @@ function skip() {
 function basePayload(url: string) {
   return {
     website: WEBSITE_ID,
+    id: app.state.anonHash,
     hostname: location.hostname,
     language: navigator.language,
     referrer: document.referrer,

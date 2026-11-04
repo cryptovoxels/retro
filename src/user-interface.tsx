@@ -232,6 +232,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   openEditor(editor: FeatureEditor, feature: Feature) {
+    this.connector.controls.autoPerspective = false
     setCheckedFeatures([])
     setSelectedFeature(feature)
     enterAuthoring(feature.parcel.id)
@@ -256,6 +257,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
 
   editShiftSelect(feature: Feature) {
     if (!feature.parcel?.canEdit || hasPointerLock()) return
+    this.connector.controls.autoPerspective = false
 
     const seed = selectSelectedFeature() ?? (this.featureTool.selection?.feature as Feature | undefined)
     toggleCheckedFeature(feature, seed)
@@ -275,6 +277,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   showEditBrowse() {
+    this.connector.controls.autoPerspective = false
     setCheckedFeatures([])
     selectedFeature.value = undefined
     uiPane.value = 'edit'
@@ -488,6 +491,13 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         {
           code: 'Tab',
           handleEvent: (e: KeyboardEvent) => {
+            if (this.activeTool === this.voxelTool || this.state.pane === 'voxels') {
+              e.preventDefault()
+              this.exitVoxels()
+              exitPointerLock()
+              this.setPane('add')
+              return
+            }
             if (this.state.pane) return
 
             this.setPane('add')
@@ -533,6 +543,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   setPane(pane: UIPanes) {
+    if (pane === 'voxels' || pane === 'edit') this.connector.controls.autoPerspective = false
     if (pane === 'broadcast') return
     const path = ROUTE_PANES[pane]
     if (path) {
@@ -590,6 +601,11 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     } else {
       this.deactivateToolsAndUnHighlightSelection()
     }
+  }
+
+  exitVoxels() {
+    this.deactivateToolsAndUnHighlightSelection()
+    this.closeInteractOverlay()
   }
 
   takeWomp(scene: BABYLON.Scene) {
@@ -650,6 +666,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
   }
 
   setTool(tool: Tool | null) {
+    if (tool) this.connector.controls.autoPerspective = false
     if (this.activeTool === tool) return
     const leavingVoxel = this.activeTool === this.voxelTool && tool !== this.voxelTool
     this.activeTool?.deactivate()

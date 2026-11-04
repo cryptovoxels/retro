@@ -155,6 +155,12 @@ export default class Persona {
 
   // out of a restricted area.
   teleportNoHistory(coords: coords) {
+    const effects = window.graphic?.postProcesses
+    if (effects) effects.transition(() => this.moveTo(coords))
+    else this.moveTo(coords)
+  }
+
+  private moveTo(coords: coords) {
     console.log(`Teleporting to ${coords.position.x}, ${coords.position.y}, ${coords.position.z}`)
 
     setCameraPosition(this.scene, coords.position)
@@ -163,6 +169,7 @@ export default class Persona {
       const r = cameraRotation(this.scene)
       setCameraRotation(this.scene, new BABYLON.Vector3(r.x, coords.rotation.y, r.z))
     }
+    this.rotation.y = cameraRotation(this.scene).y
 
     // make sure we see the features of new area immediately (otherwise we have to wait up to 5 seconds)
     this.connector.refreshNearestParcels()

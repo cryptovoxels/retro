@@ -452,6 +452,9 @@ export default class CustomizeVoxels extends Component<Props, State> {
 
     return (
       <div class="CustomizeVoxels">
+        <button type="button" title="Exit voxel editing" style="float:right" onClick={() => window.ui?.exitVoxels()}>
+          exit
+        </button>
         <button title="Click to reset the voxel textures to default" style="float:right" onClick={() => this.resetTileSet()}>
           Reset
         </button>
