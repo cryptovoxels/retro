@@ -401,8 +401,8 @@ ModelsController(app)
 // Metrics controller
 MetricsController(db, app)
 
-// Radio (soundtrack station + DJ spots)
-RadioController(db, app)
+// Radio (soundtrack station)
+RadioController(app)
 
 // Main client controller
 PlayController(db, passport, app)

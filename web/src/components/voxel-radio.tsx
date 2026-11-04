@@ -1,12 +1,11 @@
-import { Knob, transport, useRadio } from '../radio/ui'
+import { transport, useRadio } from '../radio/ui'
 import { truncate } from '../lib/string-utils'
 
 // mini radio in the header nav
 export default function VoxelRadio() {
   const [r, refresh] = useRadio()
   const showPlay = !r || r.muted || r.stalled
-  const ducked = !!r?.userDucked && !!r?.duckTitle
-  const text = truncate(r?.onAir ? 'dj on the mic...' : ducked ? r!.duckTitle! : r?.title || 'tuning in...', 15)
+  const text = truncate(r?.title || 'tuning in...', 15)
 
   return (
     <div class="voxel-radio" onPointerDown={() => r?.wake()}>
@@ -25,21 +24,6 @@ export default function VoxelRadio() {
         <button type="button" onClick={() => (r.pinned ? r.unpin() : r.pin())} title={r.pinned ? 'back to voxels radio' : 'keep playing this when you walk away'}>
           {r.pinned ? 'unpin' : 'pin'}
         </button>
-      )}
-      {r && (
-        <Knob
-          small
-          label="vol"
-          min={0}
-          max={1}
-          step={0.03}
-          value={r.trackVolume}
-          onWake={() => r.wake()}
-          onChange={(v) => {
-            r.setTrackVolume(v)
-            refresh()
-          }}
-        />
       )}
     </div>
   )

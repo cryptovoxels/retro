@@ -394,7 +394,7 @@ export class SettingsUI extends Component<Props, State> {
           <dl class="props">
             <VolumeControl settingsUI={this} channel="parcelAudioVolume" label="Parcel audio" />
             <VolumeControl settingsUI={this} channel="soundEffectsVolume" label="Sound effects" />
-            <VolumeControl settingsUI={this} channel="musicVolume" label="Radio" />
+            <VolumeControl settingsUI={this} channel="musicVolume" label="Voxel radio" />
           </dl>
         </section>
 

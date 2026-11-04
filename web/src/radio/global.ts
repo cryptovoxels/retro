@@ -35,7 +35,7 @@ export function ensureRadio(): VoxelRadioEngine | null {
       const stored = localStorage.getItem('audioSettings')
       if (stored) {
         const s = JSON.parse(stored)
-        if (typeof s.musicVolume === 'number') radio.setTrackVolume(s.musicVolume)
+        if (typeof s.musicVolume === 'number') radio.setVolume(s.musicVolume)
       }
     } catch {}
   }
@@ -68,7 +68,7 @@ export function unduckRadio(ref: object) {
 }
 
 export function setRadioVolume(v: number) {
-  ensureRadio()?.setTrackVolume(v)
+  ensureRadio()?.setVolume(v)
 }
 
 export function setRadioBroadcasting(b: boolean) {
