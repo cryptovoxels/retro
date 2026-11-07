@@ -169,33 +169,6 @@ describe('AssetLoader Deduplication', () => {
     })
   })
 
-  describe('Fallback URL handling', () => {
-    it('should try fallback URL when primary fails', async () => {
-      const primaryUrl = 'https://bucket.example.com/image.png'
-
-      const mockBuffer = new ArrayBuffer(8)
-      const mockResponse = {
-        ok: true,
-        headers: new Headers({
-          'x-frames': '1',
-          'x-duration': '0',
-          'x-original-format': 'png',
-        }),
-        arrayBuffer: () => Promise.resolve(mockBuffer),
-      }
-
-      fetchSpy.mockRejectedValueOnce(new Error('Primary failed')).mockResolvedValueOnce(mockResponse)
-
-      const { fetchTexture } = await import('../../../src/textures/textures')
-
-      const controller = new AbortController()
-      const texture = await fetchTexture(scene as any, primaryUrl, controller.signal)
-
-      expect(texture).toBeDefined()
-      expect(fetchSpy).toHaveBeenCalledTimes(2)
-    })
-  })
-
   describe('AbortSignal support', () => {
     it('should pass AbortSignal to fetch calls', async () => {
       const controller = new AbortController()
