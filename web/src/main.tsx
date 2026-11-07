@@ -16,7 +16,7 @@ import ParcelPage from './parcel'
 import { Art } from './components/art'
 import Home from './home'
 import { Client } from './client'
-import { isPlayPath, notifyUrlChange } from './helpers/coords-nav'
+import { isPlayPath, naviportHere, notifyUrlChange } from './helpers/coords-nav'
 import { track, trackPage } from './helpers/umami'
 import WebHeader from './web-header'
 
@@ -76,28 +76,17 @@ const Main = () => {
 
     clearPageTool()
 
-    const url = new URL(e.url, location.origin)
-    const coords = window.grid?.currentW === 0 && window.connector?.controls.getCoords()
-    if (coords && !url.pathname.startsWith('/spaces/') && !url.searchParams.has('coords')) {
-      url.searchParams.set('coords', coords)
-      e.url = url.pathname + url.search + url.hash
-      history.replaceState(history.state, '', e.url)
-    }
-
     const path = e.url.split('?')[0]
     trackPage(path)
     if (path === '/shop') track('visit_shop')
 
     setCurrentPath(path)
-    setUrlSearch(location.search)
 
     app.send({ type: 'navigate', data: e.url })
   }
 
   const [currentPath, setCurrentPath] = useState(window.location.pathname)
-  const [urlSearch, setUrlSearch] = useState(location.search)
   const lightBroadcast = currentPath.startsWith('/golive/broadcast')
-  const coords = new URLSearchParams(urlSearch).get('coords') || ''
   const play = isPlayPath(currentPath) && !isPageTool(uiPane.value)
 
   useEffect(() => {
@@ -112,22 +101,23 @@ const Main = () => {
     }
   }, [])
 
-  useEffect(() => {
-    const sync = () => setUrlSearch(location.search)
-    window.addEventListener('popstate', sync)
-    window.addEventListener('urlchange', sync)
-    return () => {
-      window.removeEventListener('popstate', sync)
-      window.removeEventListener('urlchange', sync)
-    }
-  }, [])
+  const travel = (e: MouseEvent) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return
+    const link = (e.target as Element).closest<HTMLAnchorElement>('a[href]')
+    if (!link || link.hasAttribute('download') || (link.target && link.target !== '_self')) return
+    const url = new URL(link.href)
+    if (url.origin !== location.origin || url.pathname !== '/play' || !url.searchParams.get('coords')) return
+    e.preventDefault()
+    void naviportHere(url.href)
+    route(url.pathname + url.search)
+  }
 
   return (
     <MainApp>
-      <main class={[lightBroadcast ? 'showbox-light-shell' : '', play ? 'play' : ''].filter(Boolean).join(' ') || undefined}>
+      <main onClick={travel} class={[lightBroadcast ? 'showbox-light-shell' : '', play ? 'play' : ''].filter(Boolean).join(' ') || undefined}>
         {!lightBroadcast && <WebHeader path={currentPath} />}
 
-        <Client coords={coords} path={currentPath} />
+        <Client path={currentPath} />
 
         <div class={[worldUi.value && play ? 'page mini' : 'page', play ? 'play' : ''].join(' ')}>
           <div class="page-route">

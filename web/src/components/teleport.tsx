@@ -1,7 +1,6 @@
 import type { ComponentChildren } from 'preact'
 import { useRef } from 'preact/hooks'
 import ParcelHelper from '../../../common/helpers/parcel-helper'
-import { spaceW } from '../../../src/utils/space-w'
 import cachedFetch from '../helpers/cached-fetch'
 import { naviportHere } from '../helpers/coords-nav'
 import { wompCache } from '../store'
@@ -37,8 +36,7 @@ export default function Teleport({ children }: { children: ComponentChildren }) 
         coords = new ParcelHelper(data.parcel).spawnCoords
       }
       if (click !== latest.current) return
-      await window.grid?.switchWorld(spaceId ? spaceW(spaceId) : 0, spaceId, coords || undefined)
-      if (click === latest.current && coords) naviportHere(coords)
+      await naviportHere(coords, spaceId)
     } catch (error) {
       console.error('Unable to teleport', error)
     }

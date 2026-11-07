@@ -1,7 +1,11 @@
-import { h } from 'preact'
+import { h, render } from 'preact'
 import { renderView, stubFetch } from './view-helper'
-import { expect, test } from 'vitest'
+import { expect, test, vi } from 'vitest'
 import Womp from '../web/src/womp'
+import { naviportHere } from '../web/src/helpers/coords-nav'
+import { act } from 'preact/test-utils'
+
+vi.mock('../web/src/helpers/coords-nav', async (original) => ({ ...(await original<any>()), naviportHere: vi.fn() }))
 
 test('womp shows the photo and who took it', async () => {
   stubFetch({
@@ -14,4 +18,7 @@ test('womp shows the photo and who took it', async () => {
   const root = await renderView('womp', h(Womp, { id: '9' }), 'img.womp')
   expect(root.querySelector('img.womp')!.getAttribute('src')).toBe('https://example.com/womp.jpg')
   expect(root.querySelector('a[href="/parcels/42"]')!.textContent).toBe('the pier')
+  expect(naviportHere).toHaveBeenCalledTimes(1)
+  await act(async () => render(h(Womp, { id: '9' }), root))
+  expect(naviportHere).toHaveBeenCalledTimes(1)
 })

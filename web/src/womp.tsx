@@ -8,7 +8,7 @@ import { wompCache } from './store/index'
 import { AvatarLink } from './components/avatar-link'
 import { WompMetadata } from './components/womp-metadata'
 import { avatarName } from '../../common/messages/avatar-ref'
-import { naviportHere } from './helpers/coords-nav'
+import { getCoords, naviportHere } from './helpers/coords-nav'
 import { app } from './state'
 
 const TTL = 60
@@ -25,6 +25,8 @@ export interface State {
 }
 
 export default class Womp extends Component<Props, State> {
+  private coords = getCoords()
+
   constructor(props: Props) {
     super(props)
 
@@ -60,10 +62,11 @@ export default class Womp extends Component<Props, State> {
     void this.fetchWomp(this.state.id)
   }
 
-  async componentDidUpdate(prevProps: Props) {
+  async componentDidUpdate(prevProps: Props, prevState: State) {
     this.syncVisitUrl()
-    this.ensureCoords()
+    if (prevState.womp?.coords !== this.state.womp?.coords || prevState.womp?.space_id !== this.state.womp?.space_id) this.ensureCoords()
     if (prevProps && prevProps.id != this.props.id) {
+      this.coords = getCoords()
       const id = parseInt(this.props.id, 10)
       this.fetchWomp(id)
     }
@@ -75,8 +78,8 @@ export default class Womp extends Component<Props, State> {
 
   ensureCoords() {
     const c = this.state.womp?.coords
-    if (!c) return
-    naviportHere(c)
+    if (!c || this.coords) return
+    void naviportHere(c, this.state.womp.space_id)
   }
 
   // the world this womp was shot in, so the header Play button enters it

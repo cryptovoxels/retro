@@ -1,3 +1,4 @@
+import { avatarWallet } from '../../common/messages/avatar-ref'
 import { Component, JSX } from 'preact'
 import { Link } from 'preact-router/match'
 import { effect } from '@preact/signals'
@@ -31,6 +32,7 @@ type State = {
 }
 
 const CHAT_LAST_SEEN = 'chatLastSeenAt'
+let chatSeen = 0
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000
 
 // /api/search type -> [folder, page], in display order
@@ -43,21 +45,23 @@ const GROUPS: [string, string, string][] = [
 ]
 
 function chatLastSeen(): number {
+  if (chatSeen) return chatSeen
   try {
     const v = localStorage.getItem(CHAT_LAST_SEEN)
-    if (v) return parseInt(v, 10) || 0
+    if (v) return (chatSeen = parseInt(v, 10) || Date.now())
     // first visit: only count messages from now on
     const now = Date.now()
     localStorage.setItem(CHAT_LAST_SEEN, String(now))
-    return now
+    return (chatSeen = now)
   } catch {
-    return Date.now()
+    return (chatSeen = Date.now())
   }
 }
 
 function markChatSeen() {
+  chatSeen = Date.now()
   try {
-    localStorage.setItem(CHAT_LAST_SEEN, String(Date.now()))
+    localStorage.setItem(CHAT_LAST_SEEN, String(chatSeen))
   } catch {}
 }
 
@@ -87,6 +91,7 @@ export default class WebHeader extends Component<Props, State> {
       me.value
       this.forceUpdate()
     })
+    chatLastSeen()
     if (this.navPath() === '/chat') markChatSeen()
     this.chatDispose = effect(() => {
       const list = messageList.value
@@ -96,7 +101,7 @@ export default class WebHeader extends Component<Props, State> {
         return
       }
       const last = chatLastSeen()
-      this.setState({ chatN: list.filter((m) => m.timestamp > last).length })
+      this.setState({ chatN: list.filter((m) => m.id && m.timestamp > last && (!app.state.wallet || avatarWallet(m.avatarRef).toLowerCase() !== app.state.wallet.toLowerCase())).length })
     })
   }
 
@@ -215,7 +220,11 @@ export default class WebHeader extends Component<Props, State> {
       <li>
         <Link activeClassName="active" class={here === to ? 'active' : undefined} href={to} path={to} data-match={hit(children) || undefined}>
           {children}
-          {n > 0 && <span class="badge">{n}</span>}
+          {n > 0 && (
+            <span class="badge" title={to === '/chat' ? `${n} unread messages` : undefined}>
+              {to === '/chat' ? `${n} new` : n}
+            </span>
+          )}
         </Link>
       </li>
     )

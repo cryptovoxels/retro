@@ -15,23 +15,14 @@ async function latestWomp(): Promise<Womp | null> {
   }
 }
 
-/**
- * Client.syncRealm runs grid.switchWorld after boot (cold load, or coming back from
- * /spaces/:id/play) and that ends with its own spawn - naviporting before it finishes gets undone.
- */
-async function untilOpenWorld(timeoutMs = 15000) {
-  const deadline = Date.now() + timeoutMs
-  while (!window.grid?.openWorldReady && Date.now() < deadline) {
-    await new Promise((r) => setTimeout(r, 100))
-  }
-}
-
 /** The front page always drops you at the latest womp - on cold load and every time you come back to /. */
 export async function teleportToLatestWomp() {
   if (getCoords()) return // explicit share link wins
+  const path = location.pathname
   const womp = await latestWomp()
   if (!womp) return
   await worldBoot()
-  await untilOpenWorld()
-  naviportHere(womp.coords)
+  if (location.pathname !== path) return
+  await window.grid?.switchWorld(0)
+  if (location.pathname === path) await naviportHere(womp.coords)
 }

@@ -1,3 +1,4 @@
+import { chatTime, mergeChat } from '../common/utils'
 import { v7 as uuid } from 'uuid'
 import type { AvatarRef } from '../common/messages/avatar-ref'
 import * as messages from '../common/messages'
@@ -764,7 +765,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   onChat(message: messages.ChatMessage) {
     const avatar = this._avatarsByUuid.get(message.uuid)
     avatar?.addChat(message.text)
-    this.addChat(message.text, avatar, message.avatar, message.id, message.moderated)
+    this.addChat(message.text, avatar, message.avatar && message.avatar !== 'anon' ? message.avatar : `guest:${message.uuid}`, message.id, message.moderated)
   }
 
   onEmoteMessage(message: messages.AvatarEmoteMessage) {
@@ -970,6 +971,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   }
 
   private addChat(message: string, avatar: Avatar | undefined, avatarRef?: AvatarRef, id?: string, moderated?: boolean) {
+    if (id && messageList.value.some((m) => m.id === id)) return
     const list = messageList.value.slice()
     list.push({
       id,
@@ -977,7 +979,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       avatar: avatar?.uuid,
       avatarRef,
       text: message,
-      timestamp: Date.now(),
+      timestamp: chatTime(id) || Date.now(),
     })
 
     while (list.length > 1000) {
@@ -998,12 +1000,12 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
           id: m.id,
           moderated: m.moderated,
           avatar: this._avatarsByUuid.get(m.uuid)?.uuid,
-          avatarRef: m.avatar,
+          avatarRef: m.avatar && m.avatar !== 'anon' ? m.avatar : `guest:${m.uuid}`,
           text: m.text,
-          timestamp: Date.now(),
+          timestamp: chatTime(m.id),
         })
       }
-      messageList.value = list
+      messageList.value = mergeChat(list, messageList.value)
     } catch {}
   }
 

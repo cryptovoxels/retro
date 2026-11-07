@@ -1,7 +1,7 @@
 import { debounce } from 'lodash'
 import { User } from './user'
 import Controls from './controls/controls'
-import { CAMERA_HEIGHT, coords, decodeCoords, encodeCoords } from '../common/helpers/utils'
+import { CAMERA_HEIGHT, coords, encodeCoords } from '../common/helpers/utils'
 import Connector from './connector'
 import { Animations, isCongaSyncedDance } from './avatar-animations'
 import { app, AppEvent } from '../web/src/state'
@@ -111,30 +111,17 @@ export default class Persona {
     return [orientation.x, orientation.y, orientation.z, orientation.w]
   }
 
-  // teleports a user without adding the previous location to the browser. Might be good for moving players
-
-  naviport(value: string) {
-    const coords = decodeCoords(value)
-
-    if (!coords) {
-      console.warn('Invalid coords', value)
-      return
-    }
-
-    this.teleportNoHistory(coords)
-  }
-
-  // teleport a user with and push the previous location to the browsers history
-  teleport(coordsOrUrl: string | coords) {
-    console.log('teleported to', coordsOrUrl)
-
+  teleport(coordsOrUrl: string | coords, remember = true) {
     const coords = typeof coordsOrUrl === 'string' ? decodeCoordsFromURL(coordsOrUrl) : coordsOrUrl
     if (!coords) {
       console.warn('Invalid coords', coordsOrUrl)
       return
     }
+    const effects = window.graphic?.postProcesses
+    if (effects) effects.transition(() => this.moveTo(coords))
+    else this.moveTo(coords)
+    if (!remember) return
     track('teleport')
-    this.teleportNoHistory(coords)
 
     // coords only ride /play share links. elsewhere the engine stays put and the
     // router owns the URL (/parcels/:id via Exploring).
@@ -155,14 +142,10 @@ export default class Persona {
 
   // out of a restricted area.
   teleportNoHistory(coords: coords) {
-    const effects = window.graphic?.postProcesses
-    if (effects) effects.transition(() => this.moveTo(coords))
-    else this.moveTo(coords)
+    this.teleport(coords, false)
   }
 
-  private moveTo(coords: coords) {
-    console.log(`Teleporting to ${coords.position.x}, ${coords.position.y}, ${coords.position.z}`)
-
+  moveTo(coords: coords) {
     setCameraPosition(this.scene, coords.position)
 
     if (coords.rotation) {

@@ -1,6 +1,6 @@
 import { isDebug, wantsAudio, wantsGateway } from '../../common/helpers/detector'
 import { startGateway } from '../gateway'
-import { decodeCoords, encodeCoords } from '../../common/helpers/utils'
+import { encodeCoords } from '../../common/helpers/utils'
 import { AudioEngine } from '../audio/audio-engine'
 import Connector from '../connector'
 import type Controls from '../controls/controls'
@@ -12,7 +12,6 @@ import { stepPhysics } from '../physics/world'
 import { startGhosts } from '../ghosts'
 import { watchWelcome } from '../ui/welcome'
 import { updateWorldScene } from './world-scene'
-import { setupRealmPopstate } from './realm'
 
 export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCanvasElement, controls: Controls) {
   const grid = new Grid(scene)
@@ -35,8 +34,6 @@ export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCan
 
   startGhosts(scene, grid, controls, connector)
   watchWelcome(scene)
-
-  setupRealmPopstate()
 
   if (window.config.wantsURL) {
     updateNavbarWithCoords(scene, connector)
@@ -75,10 +72,11 @@ function initConnector(scene: BABYLON.Scene, controls: Controls, grid: Grid): Co
 
 function updateNavbarWithCoords(scene: BABYLON.Scene, connector: Connector) {
   let oldUrl = '/'
+  let lastPath = ''
   let lastPos: BABYLON.Vector3 | null = null
   setInterval(() => {
     if (wantsGateway()) return
-    if (window.grid?.currentW !== 0) return
+    if (!window.grid?.openWorldReady) return
     if (isLoaded()) {
       const queryParams = new URLSearchParams(document.location.search.substring(1))
       const camera = scene.activeCamera as PlayerCamera
@@ -88,13 +86,14 @@ function updateNavbarWithCoords(scene: BABYLON.Scene, connector: Connector) {
       }
       if (coords.position.y < -10) return
       // only rewrite the url after moving 1m, otherwise replaceState spam kills typing in inputs
-      if (lastPos && BABYLON.Vector3.Distance(lastPos, coords.position) < 1) return
+      const path = document.location.pathname
+      if (path === lastPath && lastPos && BABYLON.Vector3.Distance(lastPos, coords.position) < 1) return
+      lastPath = path
       lastPos = coords.position
       const coordsParam = encodeCoords(coords)
       queryParams.set('coords', coordsParam)
       const params = queryParams.toString().replace('%40', '@').replace(/%2C/g, ',')
       if (!document.getElementsByClassName('client')[0]) return
-      const path = document.location.pathname
       const url = params ? `${path}?${params}` : path
       if (url !== oldUrl) {
         oldUrl = url
@@ -102,9 +101,4 @@ function updateNavbarWithCoords(scene: BABYLON.Scene, connector: Connector) {
       }
     }
   }, 200)
-
-  window.addEventListener('popstate', (e) => {
-    if (window.grid?.currentW !== 0) return
-    if (e.state) connector.persona.teleportNoHistory(decodeCoords(e.state))
-  })
 }

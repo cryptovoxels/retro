@@ -1,6 +1,7 @@
 import { route } from 'preact-router'
+import { naviportHere } from '../helpers/coords-nav'
 
-// theatre mode: SPA-route to a /play url, no reload, the persistent canvas just resizes
+// Visit the linked destination and enter theatre mode.
 export function PlayButton({ url, label = 'Play' }: { url: string; label?: string }) {
   return (
     <a
@@ -8,6 +9,7 @@ export function PlayButton({ url, label = 'Play' }: { url: string; label?: strin
       href={url}
       onClick={(e) => {
         e.preventDefault()
+        if (new URL(url, location.origin).searchParams.get('coords')) void naviportHere(url)
         route(url)
       }}
     >

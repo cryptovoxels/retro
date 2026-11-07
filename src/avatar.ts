@@ -21,7 +21,6 @@ import { humanoidBones } from './vrm-bones'
 const ANONYMOUS_NAME = 'anon'
 const DEFAULT_SKIN_SVG =
   '<?xml version="1.0" encoding="UTF-8"?><svg width="644px" style="background-color:white" height="641px" viewBox="0 0 644 641" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"></svg>'
-const SILHOUTTES_ENABLED = false
 
 enum LoadState {
   None,
@@ -41,14 +40,11 @@ export default class Avatar extends Entity {
   private static woody: BABYLON.AssetContainer | undefined
   private static awaitingRootAvatarLoading: (() => void)[] = []
   private static rootAvatarLoadState = LoadState.None
-  private static silhouetteMaterial: BABYLON.StandardMaterial | null = null
-  private static silhouetteGroupReady = false
   private static vrmCache = new Map<string, Promise<{ container: BABYLON.AssetContainer; humanoid: Record<string, string> } | null>>()
   skeleton: BABYLON.Skeleton | null = null
   private readonly _description: AvatarRecord
   private readonly _uuid: string
   private armatureMesh: BABYLON.Mesh | null = null
-  private silhouetteMesh: BABYLON.Mesh | null = null
   private neckBone: BABYLON.Bone | undefined
   private static shadows = new WeakMap<BABYLON.Scene, BABYLON.StandardMaterial>()
   private shadowMesh: BABYLON.Mesh | null = null
@@ -356,27 +352,6 @@ export default class Avatar extends Entity {
     })
   }
 
-  // flat white, 50% alpha, depth GREATER: only draws where the body is behind walls
-  private static ensureSilhouetteMaterial(scene: BABYLON.Scene): BABYLON.StandardMaterial {
-    if (!Avatar.silhouetteMaterial) {
-      const mat = new BABYLON.StandardMaterial('avatar/silhouette', scene)
-      mat.disableLighting = true
-      mat.emissiveColor = new BABYLON.Color3(1, 1, 1)
-      mat.diffuseColor = BABYLON.Color3.Black()
-      mat.alpha = 0.5
-      mat.transparencyMode = BABYLON.Material.MATERIAL_ALPHABLEND
-      mat.disableDepthWrite = true
-      mat.depthFunction = BABYLON.Constants.GREATER
-      mat.freeze()
-      Avatar.silhouetteMaterial = mat
-    }
-    if (!Avatar.silhouetteGroupReady) {
-      scene.setRenderingAutoClearDepthStencil(2, false, false, false)
-      Avatar.silhouetteGroupReady = true
-    }
-    return Avatar.silhouetteMaterial
-  }
-
   private static async loadRootAvatar(scene: BABYLON.Scene) {
     if (Avatar.rootAvatarLoadState !== LoadState.None) return
     Avatar.rootAvatarLoadState = LoadState.Loading
@@ -587,7 +562,6 @@ export default class Avatar extends Entity {
           m.visibility = 1
         })
       }
-      if (this.silhouetteMesh) this.silhouetteMesh.visibility = 1
       if (this.nameMesh) this.nameMesh.visibility = 1
       this._attachmentManager?.showAllWearables()
     }
@@ -602,7 +576,6 @@ export default class Avatar extends Entity {
           m.visibility = 0
         })
       }
-      if (this.silhouetteMesh) this.silhouetteMesh.visibility = 0
       if (this.nameMesh) this.nameMesh.visibility = 0
       this._attachmentManager?.hideAllWearables()
     }
@@ -702,8 +675,6 @@ export default class Avatar extends Entity {
     this._avatarMesh = null
     this.armatureMesh?.dispose()
     this.armatureMesh = null
-    this.silhouetteMesh?.dispose()
-    this.silhouetteMesh = null
     this.skeleton?.dispose()
     this.skeleton = null
     this.collider?.dispose()
@@ -797,7 +768,7 @@ export default class Avatar extends Entity {
         const sound = audio.createSound({
           name: 'avatar.step',
           buffer,
-          options: { spatialSound: true, distanceModel: 'exponential', refDistance: 2, rolloffFactor: 1.5, maxDistance: SOUND_DISTANCE },
+          options: { autoplay: false, spatialSound: true, distanceModel: 'exponential', refDistance: 2, rolloffFactor: 1.5, maxDistance: SOUND_DISTANCE },
         })
         sound.attachToMesh(this.node)
         this.footsteps = new Footsteps(sound)
@@ -1003,15 +974,15 @@ export default class Avatar extends Entity {
     this._material.id = 'matAvatar' + this._uuid
     this.armatureMesh.material = this._material
 
+    // Material settings
+    this._material.diffuseColor.set(0.82, 0.81, 0.8)
+    this._material.emissiveColor.set(0, 0, 0)
+    this._material.specularPower = 1000
+
     if (this.isAnon) {
       this._material.diffuseColor.set(1, 1, 1)
-      this._material.specularColor.set(1, 1, 1)
-      this._material.emissiveColor.set(0.5, 0.5, 0.5)
-    } else {
-      this._material.diffuseColor.set(0.82, 0.81, 0.8)
-      this._material.emissiveColor.set(0, 0, 0)
-      this._material.specularPower = 1000
     }
+
     this._material.blockDirtyMechanism = true
 
     this.finishAvatarMesh(entries.skeletons[0], false)
@@ -1084,18 +1055,6 @@ export default class Avatar extends Entity {
       }
     }
 
-    if (!this.isUser && SILHOUTTES_ENABLED && this.armatureMesh) {
-      const sil = this.armatureMesh.clone(`avatar/silhouette/${this._uuid}`, null) as BABYLON.Mesh
-      sil.isPickable = false
-      sil.metadata = { isAvatarPart: true }
-      sil.skeleton = this.skeleton
-      sil.material = Avatar.ensureSilhouetteMaterial(this.scene)
-      sil.renderingGroupId = 2
-      sil.setParent(this.node)
-      sil.addLODLevel(AVATAR_VIEW_DISTANCE, null)
-      this.silhouetteMesh = sil
-    }
-
     if (this.isUser) {
       if (this._avatarMesh) this._avatarMesh.alwaysSelectAsActiveMesh = true
       if (this.armatureMesh) this.armatureMesh.alwaysSelectAsActiveMesh = true
@@ -1118,7 +1077,6 @@ export default class Avatar extends Entity {
     }
 
     this._avatarMesh?.position.set(0, -AVATAR_HEIGHT, 0)
-    this.silhouetteMesh?.position.set(0, -AVATAR_HEIGHT, 0)
     this.collider?.position.set(0, -AVATAR_HEIGHT / 2, 0)
 
     this.loadFinished()

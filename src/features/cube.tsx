@@ -85,6 +85,7 @@ export default class Cube extends Feature3D<CubeRecord> {
     const material = new BABYLON.StandardMaterial(this.uniqueEntityName('material'), this.scene)
 
     material.specularColor.fromArray(this.description.specularColor || [1, 1, 1])
+    material.specularColor.scaleInPlace(0.05)
     if (this.description.color) {
       material.diffuseColor = BABYLON.Color3.FromHexString(this.description.color)
     }

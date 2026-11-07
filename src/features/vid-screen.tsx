@@ -1,4 +1,5 @@
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
+import { rgbaPixels } from '../utils'
 import { throttle } from 'lodash'
 import { render } from 'preact'
 import { FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
@@ -98,27 +99,29 @@ export default class VidScreen extends Feature2D<VidScreenRecord> {
   }
   texture: BABYLON.RawTexture | null = null
   running = false
+  private pixels = new Uint8Array(64 * 64 * 4)
 
   renderStatic() {
-    const img = new Uint8Array(64 * 64 * 64 * 3)
+    const img = this.pixels
 
     let i: number
 
-    for (i = 0; i < 64 * 64 * 3; i += 3) {
+    for (i = 0; i < img.length; i += 4) {
       const r = Math.floor(Math.random() * 256)
       img[i + 0] = r
       img[i + 1] = r
       img[i + 2] = r
+      img[i + 3] = 255
     }
 
     this.texture && this.texture.update(img)
   }
 
   generate() {
-    const img = new Uint8Array(64 * 64 * 64 * 3)
+    const img = this.pixels
 
     // Make a dynamic texture
-    const texture = BABYLON.RawTexture.CreateRGBTexture(img, 64, 64, this.scene, false, true, BABYLON.Texture.NEAREST_SAMPLINGMODE)
+    const texture = BABYLON.RawTexture.CreateRGBATexture(img, 64, 64, this.scene, false, true, BABYLON.Texture.NEAREST_SAMPLINGMODE)
     this.texture = texture
     this.renderStatic()
 
@@ -138,7 +141,7 @@ export default class VidScreen extends Feature2D<VidScreenRecord> {
 
   updateScreen(screen: Uint8Array) {
     if (this.running && this.texture) {
-      this.texture.update(screen)
+      this.texture.update(rgbaPixels(screen, this.pixels))
     }
   }
 

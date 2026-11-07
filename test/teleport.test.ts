@@ -47,8 +47,7 @@ test('nested parcel links teleport without reaching the router', async () => {
     expect(clickLink('/parcels/42').defaultPrevented).toBe(true)
   })
   expect(router).not.toHaveBeenCalled()
-  expect(switchWorld).toHaveBeenCalledWith(0, undefined, '10E,20N')
-  await vi.waitFor(() => expect(naviportHere).toHaveBeenCalledWith('10E,20N'))
+  await vi.waitFor(() => expect(naviportHere).toHaveBeenCalledWith('10E,20N', undefined))
   root.removeEventListener('click', router)
 })
 
@@ -57,8 +56,7 @@ test('space womps switch worlds and keep the page in place', async () => {
   await act(async () => {
     expect(clickLink('/womps/7').defaultPrevented).toBe(true)
   })
-  expect(switchWorld).toHaveBeenCalledWith(expect.any(Number), 'space-one', '5E,6N')
-  await vi.waitFor(() => expect(naviportHere).toHaveBeenCalledWith('5E,6N'))
+  await vi.waitFor(() => expect(naviportHere).toHaveBeenCalledWith('5E,6N', 'space-one'))
 })
 
 test('modified clicks and unrelated links keep normal navigation', () => {

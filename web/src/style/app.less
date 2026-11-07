@@ -1290,6 +1290,26 @@ div.map {
 }
 
 // /chat page -- discord-ish layout
+body.chat-route main > .page {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+
+  > .page-route {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .chat-page {
+    flex: 1;
+    height: auto;
+    margin-top: 0;
+  }
+}
+
 .chat-page {
   display: flex;
   flex-direction: column;
@@ -5195,12 +5215,9 @@ header nav .user-menu {
 
 @media @narrow, (pointer: coarse) {
   .chat-page {
-    height: 80vh;
-    max-height: 80vh;
-    overflow-y: auto;
+    overflow: hidden;
 
     .chat-panel > form {
-      order: -1;
       flex-shrink: 0;
     }
 
@@ -5222,7 +5239,16 @@ header nav .user-menu {
 
     .chat-messages {
       max-width: 100%;
+      max-height: 20vh;
       overflow-wrap: anywhere;
+
+      p {
+        flex-shrink: 0;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+      }
     }
 
     form {
@@ -5246,7 +5272,16 @@ header nav .user-menu {
 // Aside bottom bar
 
 @media (pointer: coarse) and (orientation: landscape) {
-  body:has(main #renderCanvas) {
+  body.chat-route main {
+    grid-template-rows: 0 auto minmax(0, 1fr);
+
+    > .client,
+    > .canvasdom {
+      visibility: hidden;
+    }
+  }
+
+  body:not(.chat-route):has(main #renderCanvas) {
     overflow: hidden;
 
     > :not(main),

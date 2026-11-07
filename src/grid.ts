@@ -1,3 +1,4 @@
+import { decodeCoords } from '../common/helpers/utils'
 import { cameraPosition } from './utils/camera'
 import { markLoaded } from './utils/loading-done'
 import Parcel from './parcel'
@@ -66,7 +67,7 @@ export default class Grid extends SocketClient {
   currentW = 0
   currentSpaceId: string | undefined
   private worldLive = false
-  private switching = false
+  private switching: Promise<void> | null = null
 
   /** Open world is mounted and no realm switch is in flight - safe to naviport without being overridden. */
   get openWorldReady() {
@@ -503,51 +504,55 @@ export default class Grid extends SocketClient {
     this.worldLive = true
   }
 
-  async switchWorld(w: number, spaceId?: string, resumeCoords?: string) {
-    if (this.switching) return
+  async switchWorld(w: number, spaceId?: string, resumeCoords?: string): Promise<void> {
+    while (this.switching) await this.switching
+    this.switching = this.loadWorld(w, spaceId, resumeCoords)
+    try {
+      await this.switching
+    } finally {
+      this.switching = null
+    }
+  }
+
+  private async loadWorld(w: number, spaceId?: string, resumeCoords?: string) {
     if (w === this.currentW) {
       if (w === 0 && this.worldLive) return
       if (w > 0 && spaceId === this.currentSpaceId) return
     }
-    this.switching = true
-    try {
-      if (this.currentW > 0) {
-        teardownSpaceScene()
-        this.shutdown()
-      } else if (this.worldLive) {
-        window.connector?.disconnect()
-        this.shutdown()
-        teardownWorldScene()
-      }
+    if (this.currentW > 0) {
+      teardownSpaceScene()
+      this.shutdown()
+    } else if (this.worldLive) {
+      window.connector?.disconnect()
+      this.shutdown()
+      teardownWorldScene()
+    }
 
-      this.currentW = w
-      this.currentSpaceId = spaceId
+    this.currentW = w
+    this.currentSpaceId = spaceId
 
-      if (w === 0) {
-        await createWorldScene(this.scene)
-        this.connectWorld()
-        await this._workerReadyPromise
-        await this.mountParcelFromHTML()
-        if (window.config.isMultiuser) window.connector?.connect()
-        const c = resumeCoords || new URLSearchParams(location.search).get('coords')
-        if (c) window.persona?.naviport(c)
-        else if (window.connector?.controls) initialWorldSpawn(window.connector.controls)
-      } else if (spaceId) {
-        createSpaceScene(this.scene)
-        if (window.connector?.isOpen) window.connector.disconnect()
-        const space = await fetchSpace(spaceId)
-        if (!space) return
-        const desc = normalizeSpace(space)
-        const p = this.mountParcel(desc)
-        await p?.generate()
-        this.nearestParcels = p ? [p] : []
-        this.refreshEnteredParcel()
-        spawnSpaceParcel(window.connector?.controls, p)
-        const c = resumeCoords || new URLSearchParams(location.search).get('coords')
-        if (c) window.persona?.naviport(c)
-      }
-    } finally {
-      this.switching = false
+    if (w === 0) {
+      await createWorldScene(this.scene)
+      this.connectWorld()
+      await this._workerReadyPromise
+      await this.mountParcelFromHTML()
+      if (window.config.isMultiuser) window.connector?.connect()
+      const c = resumeCoords
+      if (c) window.persona?.moveTo(decodeCoords(c))
+      else if (window.connector?.controls) initialWorldSpawn(window.connector.controls)
+    } else if (spaceId) {
+      createSpaceScene(this.scene)
+      if (window.connector?.isOpen) window.connector.disconnect()
+      const space = await fetchSpace(spaceId)
+      if (!space) return
+      const desc = normalizeSpace(space)
+      const p = this.mountParcel(desc)
+      await p?.generate()
+      this.nearestParcels = p ? [p] : []
+      this.refreshEnteredParcel()
+      spawnSpaceParcel(window.connector?.controls, p)
+      const c = resumeCoords
+      if (c) window.persona?.moveTo(decodeCoords(c))
     }
   }
 
@@ -749,8 +754,6 @@ export default class Grid extends SocketClient {
 }
 
 function initialWorldSpawn(controls: any) {
-  const searchParams = new URLSearchParams(document.location.search.substring(1))
-  if (searchParams.get('coords')) return
   const nudgeL = 5
   const nudgeW = 2
   const alongX = Math.random() < 0.5

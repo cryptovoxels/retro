@@ -4,7 +4,7 @@ import ndarray, { NdArray } from 'ndarray'
 import type { MapMarker, VoxelsMap } from '../helpers/load-voxels-map'
 import { loadVoxelsMap } from '../helpers/load-voxels-map'
 import { getVoxelsFromBuffer } from '../../../common/voxels/helpers'
-import { CAMERA_HEIGHT, encodeCoords } from '../../../common/helpers/utils'
+import { CAMERA_HEIGHT } from '../../../common/helpers/utils'
 import { app } from '../state'
 import { worldBoot } from '../client'
 import { village, type VillageParcel } from './village'
@@ -146,7 +146,7 @@ export default class IslandsAdmin extends Component<{}, State> {
     const [sx, sz] = this.state.spawn
     await worldBoot()
     if (!window.persona) return app.showSnackbar('world not booted')
-    window.persona.naviport(encodeCoords({ position: new BABYLON.Vector3(cx * 100 + sx, CAMERA_HEIGHT, cz * 100 + sz), rotation: BABYLON.Vector3.Zero() }))
+    window.persona.teleport({ position: new BABYLON.Vector3(cx * 100 + sx, CAMERA_HEIGHT, cz * 100 + sz), rotation: BABYLON.Vector3.Zero() }, false)
     const res = await fetch('/api/admin/islands/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.buildBody()) })
     const json = await res.json().catch(() => ({}))
     if (!json.success) return app.showSnackbar(json.message || 'preview failed')

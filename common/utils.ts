@@ -1,3 +1,4 @@
+import { avatarName, type AvatarRef } from './messages/avatar-ref'
 import type { CachedParcelsMessage } from './messages/api-parcels'
 
 export function ethTrunc(wallet: string | null | undefined) {
@@ -30,4 +31,22 @@ export function parcelIndex(refresh = false): Promise<CachedParcelsMessage> {
       }
     }
   })())
+}
+
+// Chat IDs are UUIDv7, including history replayed over the socket.
+export function chatTime(id?: string) {
+  return id?.[14] === '7' ? parseInt(id.replace(/-/g, '').slice(0, 12), 16) || 0 : 0
+}
+
+export function chatName(ref?: AvatarRef, uuid?: string) {
+  const name = avatarName(ref)
+  const raw = name.replace(/^guest:/, '')
+  if (name.startsWith('guest:') || /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(raw)) return `guest ${raw.slice(-6)}`
+  if (name && name !== 'anon' && name !== '...') return name
+  return uuid ? `guest ${uuid.slice(-6)}` : 'guest'
+}
+
+export function mergeChat<T extends { id?: string }>(history: T[], live: T[]): T[] {
+  const ids = new Set(live.map((m) => m.id).filter(Boolean))
+  return [...history.filter((m) => !m.id || !ids.has(m.id)), ...live].slice(-1000)
 }

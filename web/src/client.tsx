@@ -1,14 +1,13 @@
 import { Component, createRef } from 'preact'
 import ParcelHelper from '../../common/helpers/parcel-helper'
-import { canUseDom } from '../../common/helpers/utils'
+import { canUseDom, decodeCoords } from '../../common/helpers/utils'
 import { wantsNoUI } from '../../common/helpers/detector'
 import type { BootResult } from '../../src'
-import { pushSpaceHistory, realmSavedCoords, saveRealmCoords } from '../../src/init/realm'
+import { realmSavedCoords, saveRealmCoords } from '../../src/init/realm'
 import { spaceW } from '../../src/utils/space-w'
 import cachedFetch from './helpers/cached-fetch'
 import { markLoaded } from '../../src/utils/loading-done'
-import { getCoords, getParcelIdFromPath, getSpaceIdFromPath, isSpacePath, isSpacePlayPath } from './helpers/coords-nav'
-import { app, AppEvent } from './state'
+import { getCoords, getParcelIdFromPath, getSpaceIdFromPath } from './helpers/coords-nav'
 import { currentOrNearestParcel } from '../../src/store'
 
 /** Memoised engine boot; safe to await from anywhere that needs window.persona / window.grid. */
@@ -19,7 +18,6 @@ export function worldBoot(): Promise<BootResult | null> {
 const boot = worldBoot
 
 type FrameProps = {
-  coords: string
   path?: string
 }
 
@@ -29,9 +27,11 @@ export class Client extends Component<FrameProps, FrameState> {
   root = createRef<HTMLDivElement>()
   box = createRef<HTMLDivElement>()
   observer: ResizeObserver | null = null
+  spawnCoords = getCoords()
 
   componentDidMount() {
     if (!canUseDom) return
+    window.addEventListener('popstate', this.restore)
     void boot()
       .then((ui) => {
         this.setState({ ui })
@@ -45,33 +45,32 @@ export class Client extends Component<FrameProps, FrameState> {
   }
 
   componentDidUpdate(prev: Readonly<FrameProps>) {
-    if (prev.path !== this.props.path) this.syncRealm(this.props.path, prev.path)
-    if (prev.coords !== this.props.coords && this.props.coords && !isSpacePath(this.props.path)) this.naviport()
+    if (getSpaceIdFromPath(prev.path) !== getSpaceIdFromPath(this.props.path)) void this.syncRealm(this.props.path)
     const id = getParcelIdFromPath(this.props.path)
     const prevId = getParcelIdFromPath(prev.path)
-    if (id && id !== prevId && !isSpacePlayPath(this.props.path)) this.gotoParcel(id)
+    if (id && id !== prevId && !getCoords()) this.gotoParcel(id)
     window.engine?.resize()
   }
 
   componentWillUnmount() {
     this.observer?.disconnect()
+    window.removeEventListener('popstate', this.restore)
   }
 
-  private syncRealm(path?: string, prevPath?: string): Promise<void> {
+  private syncRealm(path?: string): Promise<void> {
+    const coords = getCoords()
     return boot().then(async () => {
       const grid = window.grid
-      if (!grid) return
+      if (!grid || (path && path !== location.pathname)) return
       const spaceId = getSpaceIdFromPath(path)
       if (spaceId) {
         if (grid.currentW === 0) {
-          if (prevPath && !isSpacePath(prevPath)) pushSpaceHistory(spaceId)
-          else saveRealmCoords()
+          saveRealmCoords()
         }
-        const coords = getCoords() || undefined
-        await grid.switchWorld(spaceW(spaceId), spaceId, coords)
+        await grid.switchWorld(spaceW(spaceId), spaceId, coords || undefined)
         return
       }
-      await grid.switchWorld(0, undefined, getCoords() || realmSavedCoords())
+      await grid.switchWorld(0, undefined, coords || realmSavedCoords())
     })
   }
 
@@ -84,7 +83,7 @@ export class Client extends Component<FrameProps, FrameState> {
     canvas.style.visibility = ''
     canvas.style.display = 'block'
     const id = getParcelIdFromPath(this.props.path)
-    if (id && !isSpacePlayPath(this.props.path)) void this.gotoParcel(id)
+    if (id && !this.spawnCoords) void this.gotoParcel(id)
     this.watchSize()
     window.engine?.resize()
     markLoaded()
@@ -102,26 +101,26 @@ export class Client extends Component<FrameProps, FrameState> {
   private gotoParcel(id: number) {
     // already here or next to it (location label click), don't teleport
     if (window.grid?.currentParcel()?.id === id || currentOrNearestParcel.value?.id === id) return
-    return cachedFetch(`/api/parcels/${id}.json`)
+    return this.syncRealm(this.props.path)
+      .then(() => cachedFetch(`/api/parcels/${id}.json`))
       .then((r) => r.json())
       .then((d) => {
-        if (window.grid?.currentParcel()?.id === id) return
+        if (getParcelIdFromPath(this.props.path) !== id || window.grid?.currentParcel()?.id === id) return
         const c = d.parcel ? new ParcelHelper(d.parcel).spawnCoords : ''
-        if (c) window.persona?.naviport(c)
+        if (c) window.persona?.teleport(decodeCoords(c), false)
       })
       .catch(() => {})
   }
 
-  private naviport() {
-    const coords = this.props.coords || getCoords()
-    if (!coords) return
-    void boot().then(() => {
-      try {
-        window.persona?.naviport(coords)
-      } catch (e) {
-        console.error(e)
-      }
-    })
+  private restore = async () => {
+    const href = location.href
+    const coords = getCoords()
+    try {
+      await this.syncRealm(location.pathname)
+      if (location.href === href && coords) window.persona?.teleport(decodeCoords(coords), false)
+    } catch (error) {
+      console.error(error)
+    }
   }
 
   render() {

@@ -1,6 +1,6 @@
+import { chatName } from '../../../common/utils'
 import { route } from 'preact-router'
 import { effect, signal } from '@preact/signals'
-import { AvatarIcon } from '../../../web/src/components/avatar-link'
 import { Fragment, JSX } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 
@@ -8,7 +8,7 @@ import { isMobile } from '../../../common/helpers/detector'
 import { InteractPopout } from './popout'
 import Icon from '../../../web/src/components/icons/interact'
 import { resetMobileViewportLayout } from '../../controls/mobile/controls'
-import { avatarName, avatarSlug, avatarWallet, type AvatarRef, type AvatarRefObj } from '../../../common/messages/avatar-ref'
+import { avatarSlug, type AvatarRef, type AvatarRefObj } from '../../../common/messages/avatar-ref'
 import { sendChat } from '../../../web/src/shard-chat'
 import { truncate } from '../../../web/src/lib/string-utils'
 import { app } from '../../../web/src/state'
@@ -18,22 +18,15 @@ import { matcher } from '../../obscenity'
 import { createEvent, TypedEventTarget } from '../../utils/EventEmitter'
 import { snack } from '../../../web/src/components/snackbar'
 import cachedFetch from '../../../web/src/helpers/cached-fetch'
-import { exitPointerLock } from '../../../common/helpers/ui-helpers'
+import { exitPointerLock, hasPointerLock } from '../../../common/helpers/ui-helpers'
 
-/** In-world HUD chat. Guests get a bigger cap and smaller type. */
+/** Recent conversation over the world. */
 export function ChatOverlay({ enabled }: { enabled: boolean }) {
-  const isGuest = !!app.state.wallet?.startsWith('guest:')
-  return <ChatPanel cap={isGuest ? 25 : 10} variant="overlay" enabled={enabled} style={isGuest ? 'font-size: 14px' : undefined} />
-}
-
-function chatName(m: ChatMessageRecord) {
-  if (m.avatarRef) return avatarName(m.avatarRef)
-  const avatar = m.avatar ? window.connector?.findAvatar(m.avatar) : null
-  return avatar?.name || 'anon'
+  return <ChatPanel cap={10} variant="overlay" enabled={enabled} />
 }
 
 // game-HUD chat: messages show briefly then fade so the world stays visible.
-// Focusing the input recalls the full recent history while you type.
+// Unlocking the mouse recalls the full recent history.
 const CHAT_FADE_MS = 15000
 const CHAT_GONE_MS = 18000
 
@@ -55,7 +48,7 @@ function fetchRefs(list: readonly ChatMessageRecord[]) {
   const keys = new Set<string>()
   for (const m of list) {
     const k = typeof m.avatarRef === 'string' ? m.avatarRef.toLowerCase() : ''
-    if (k && k !== 'anon' && !refCache.has(k)) keys.add(k)
+    if (k && k !== 'anon' && !k.startsWith('guest:') && !refCache.has(k)) keys.add(k)
   }
   if (!keys.size) return
   for (const k of keys) refCache.set(k, null)
@@ -74,36 +67,15 @@ function fetchRefs(list: readonly ChatMessageRecord[]) {
 function ChatWho({ m }: { m: ChatMessageRecord }) {
   let ref: AvatarRef | undefined = m.avatarRef
   if (typeof ref === 'string') ref = refCache.get(ref.toLowerCase()) || ref
-  const wallet = avatarWallet(ref)
-  if (wallet.startsWith('0x')) {
-    return (
-      <a class="chat-who" href={`/u/${avatarSlug(ref)}`} title={avatarName(ref)}>
-        <AvatarIcon name={avatarName(ref)} />
-      </a>
-    )
-  }
-  if (ref && ref !== 'anon') {
-    const name = avatarName(ref)
-    if (name && name !== 'anon' && name !== '...') {
-      return (
-        <a class="chat-who" href={`/u/${avatarSlug(ref)}`}>
-          {name}
-        </a>
-      )
-    }
-  }
-  const name = chatName(m)
-  if (name !== 'anon' && name !== '...') {
-    return (
-      <a class="chat-who" href={`/u/${encodeURIComponent(name.toLowerCase())}`}>
-        {name}
-      </a>
-    )
-  }
-  return (
-    <span class="chat-who chat-anon" title="anon">
-      <img width={16} height={16} src="/images/no-image.png" />
-    </span>
+  const avatar = m.avatar ? window.connector?.findAvatar(m.avatar) : null
+  const name = chatName(ref || avatar?.name, m.avatar)
+  const slug = avatarSlug(ref)
+  return slug && ref !== 'anon' && !slug.startsWith('guest:') ? (
+    <a class="chat-who" href={`/u/${encodeURIComponent(slug)}`}>
+      {name}
+    </a>
+  ) : (
+    <span class="chat-who">{name}</span>
   )
 }
 
@@ -131,7 +103,7 @@ export function ChatHistory({ query = '', author = '' }: { query?: string; autho
         .then((r) => r.json())
         .then((data) => {
           if (!active) return
-          const list = data.messages.map((m: any) => ({ ...m, avatar: undefined, avatarRef: m.avatar, timestamp: 0 }))
+          const list = data.messages.map((m: any) => ({ ...m, avatar: undefined, avatarRef: m.avatar && m.avatar !== 'anon' ? m.avatar : `guest:${m.uuid}`, timestamp: 0 }))
           setMessages(author ? list.slice(-20).reverse() : list)
           setStatus(list.length ? '' : 'No chats found.')
         })
@@ -162,16 +134,19 @@ export function ChatHistory({ query = '', author = '' }: { query?: string; autho
 export function ChatPanel({ cap, variant = 'page', enabled = true, class: className, style }: { cap: number; enabled?: boolean; variant?: 'overlay' | 'page'; class?: string; style?: string }) {
   const [, bump] = useState(0)
   const [query, setQuery] = useState('')
-  const [focused, setFocusedRaw] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const [lockedAt, setLockedAt] = useState(0)
   const box = useRef<HTMLDivElement>(null)
+  const pinned = useRef(true)
   const chatRef = useRef<HTMLDivElement>(null)
-  // leaving the input restarts the age-out clock so the recalled history
-  // fades out instead of vanishing the moment you hit Enter
-  const blurAt = useRef(0)
-  const setFocused = (f: boolean) => {
-    if (!f) blurAt.current = Date.now()
-    setFocusedRaw(f)
-  }
+
+  useEffect(() => {
+    if (variant !== 'overlay') return
+    const changed = () => setLockedAt(hasPointerLock() ? Date.now() : 0)
+    changed()
+    document.addEventListener('pointerlockchange', changed)
+    return () => document.removeEventListener('pointerlockchange', changed)
+  }, [variant])
 
   useEffect(() => {
     return effect(() => {
@@ -182,7 +157,7 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
   }, [])
 
   useEffect(() => {
-    if (!enabled) setFocusedRaw(false)
+    if (!enabled) setFocused(false)
   }, [enabled])
 
   // ticker so messages age out without new ones arriving
@@ -197,7 +172,7 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
     const el = box.current
     if (!el) return
     const scroll = () => {
-      el.scrollTop = el.scrollHeight
+      if (pinned.current) el.scrollTop = el.scrollHeight
     }
     scroll()
     const resize = new ResizeObserver(scroll)
@@ -235,8 +210,9 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
 
   if (variant === 'overlay') {
     const now = Date.now()
-    const age = (m: ChatMessageRecord) => now - Math.max(m.timestamp, blurAt.current)
-    let shown = !enabled || isMobile() ? [] : focused ? msgs : msgs.filter((m) => age(m) < CHAT_GONE_MS)
+    const age = (m: ChatMessageRecord) => (m.timestamp <= lockedAt ? CHAT_FADE_MS + 1 + now - lockedAt : now - m.timestamp)
+    const recalled = focused || (!isMobile() && !lockedAt)
+    let shown = !enabled ? [] : recalled ? msgs : msgs.filter((m) => age(m) < CHAT_GONE_MS)
     // phones: three lines over the world; focusing the input recalls the rest
     if (isMobile() && !focused) shown = shown.slice(-3)
     return (
@@ -257,7 +233,7 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
           }}
         >
           {shown.map((m) => (
-            <p key={m.id || m.timestamp} class={!focused && age(m) > CHAT_FADE_MS ? 'faded' : undefined}>
+            <p key={m.id || m.timestamp} class={!recalled && age(m) >= CHAT_FADE_MS ? 'faded' : undefined}>
               <ChatLineBody m={m} />
             </p>
           ))}
@@ -309,12 +285,27 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
     <div class={'chat-panel' + (className ? ' ' + className : '')} style={style}>
       <div class="f">
         <label htmlFor="chat-search">Search chat history</label>
-        <input id="chat-search" type="search" value={query} onInput={(e) => setQuery(e.currentTarget.value)} />
+        <input
+          id="chat-search"
+          type="search"
+          value={query}
+          onInput={(e) => {
+            pinned.current = true
+            setQuery(e.currentTarget.value)
+          }}
+        />
       </div>
       {query.trim() ? (
         <ChatHistory query={query.trim()} />
       ) : (
-        <div ref={box} class={'chat-messages' + (atCap ? ' at-cap' : '')}>
+        <div
+          ref={box}
+          class={'chat-messages' + (atCap ? ' at-cap' : '')}
+          onScroll={(e) => {
+            const el = e.currentTarget
+            pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40
+          }}
+        >
           {msgs.map((m, i) => {
             const prev = i > 0 ? msgs[i - 1] : null
             const gapMs = prev ? m.timestamp - prev.timestamp : 0
@@ -567,7 +558,7 @@ export class ChatSettings extends TypedEventTarget<{ changed: { enabled: boolean
     }
   }
 
-  private _enabled = false
+  private _enabled = true
 
   get enabled() {
     return this._enabled

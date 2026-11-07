@@ -1,3 +1,5 @@
+import { Footsteps } from './footsteps'
+
 const SOUNDS_URL = '/sounds'
 
 interface SoundInfo {
@@ -18,6 +20,13 @@ const alertOptions = {
   loop: false,
   autoplay: false,
 }
+const footOptions = {
+  spatialSound: false,
+  loop: false,
+  autoplay: false,
+  volume: Footsteps.gain,
+}
+
 const spatialOptions = {
   rolloffFactor: 2,
   maxDistance: 24,
@@ -30,7 +39,7 @@ const url = (path: string) => SOUNDS_URL + (path.startsWith('/') ? path : `/${pa
 
 export const soundFx: Record<SoundName, SoundInfo> = {
   'avatar.step': { url: url('avatar/footsteps.wav'), options: alertOptions },
-  'avatar.jump': { url: url('avatar/jump.wav'), options: alertOptions },
+  'avatar.jump': { url: url('avatar/jump.wav'), options: footOptions },
   'avatar.click': { url: url('avatar/click.wav'), options: alertOptions },
   'avatar.arrive': {
     url: url('avatar/teleport-in.wav'),

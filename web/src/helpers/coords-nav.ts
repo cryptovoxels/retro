@@ -1,3 +1,6 @@
+import { decodeCoords } from '../../../common/helpers/utils'
+import { spaceW } from '../../../src/utils/space-w'
+
 export function getCoords() {
   if (typeof location === 'undefined') return ''
   return new URLSearchParams(location.search).get('coords') || ''
@@ -44,7 +47,9 @@ export function getParcelIdFromPath(path?: string): number | null {
   return Number.isFinite(id) ? id : null
 }
 
-export function naviportHere(urlOrCoords: string) {
+let travel = 0
+
+export async function naviportHere(urlOrCoords: string, spaceId?: string) {
   let c = urlOrCoords
   if (urlOrCoords.includes('coords=')) {
     try {
@@ -53,9 +58,14 @@ export function naviportHere(urlOrCoords: string) {
       return
     }
   }
-  if (!c) return
+  if (!c && !spaceId) return
+  const request = ++travel
   try {
-    window.persona?.naviport(c)
+    const { worldBoot } = await import('../client')
+    await worldBoot()
+    if (request !== travel) return
+    await window.grid?.switchWorld(spaceId ? spaceW(spaceId) : 0, spaceId)
+    if (request === travel && c) window.persona?.teleport(decodeCoords(c), false)
   } catch (e) {
     console.error(e)
   }

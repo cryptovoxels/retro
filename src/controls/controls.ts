@@ -88,10 +88,8 @@ export default abstract class Controls implements IControls {
   cameraDistance = 0
   targetCameraDistance: number = CAMERA_DISTANCE
   reticuleRoot: BABYLON.TransformNode
-  reticuleChannels: BABYLON.Mesh[]
+  reticule: BABYLON.Mesh
   reticuleActive = false
-  private chromaAmount = 0
-  private reticuleSpinT = 0
   user: User
   defaultSpeed = WALK
   runSpeed = RUN
@@ -185,12 +183,12 @@ export default abstract class Controls implements IControls {
 
     const reticule = generateReticule(scene)
     this.reticuleRoot = reticule.root
-    this.reticuleChannels = reticule.channels
+    this.reticule = reticule.mesh
     this.reticuleRoot.parent = this.camera
 
     if (isDesktop() && !wantsNoUI()) {
       this.scene.onBeforeRenderObservable.add(() => {
-        this.tickReticuleSpin()
+        this.updateReticule()
       })
     }
 
@@ -446,52 +444,9 @@ export default abstract class Controls implements IControls {
     this.reticuleActive = active
   }
 
-  private tickReticuleSpin() {
-    const dt = this.scene.getEngine().getDeltaTime() / 1000
-    const target = this.reticuleActive ? 1 : 0
-    if (this.chromaAmount !== target) {
-      const step = dt / 0.2
-      if (this.chromaAmount < target) this.chromaAmount = Math.min(target, this.chromaAmount + step)
-      else this.chromaAmount = Math.max(target, this.chromaAmount - step)
-    }
-
-    const shown = hasPointerLock() || this.hasGamepad
-    const baseVis = shown ? (this.firstPersonView ? 1 : 0.2) : 0
-    const vis = baseVis * (0.5 + 0.5 * this.chromaAmount)
-    const scale = 0.5 + 0.5 * this.chromaAmount
-
-    if (this.chromaAmount === 0 && !this.reticuleActive) {
-      for (const ch of this.reticuleChannels) {
-        ch.visibility = vis
-        ch.scaling.setAll(scale)
-        ch.rotation.z = 0
-        ch.position.x = 0
-        ch.position.y = 0
-      }
-      this.reticuleSpinT = 0
-      return
-    }
-
-    this.reticuleSpinT += dt
-    const t = this.reticuleSpinT
-    const a = this.chromaAmount
-    const orbit = 0.0009 * a
-    const [r, g, b] = this.reticuleChannels
-    r.visibility = vis
-    g.visibility = vis
-    b.visibility = vis
-    r.scaling.setAll(scale)
-    g.scaling.setAll(scale)
-    b.scaling.setAll(scale)
-    r.rotation.z = t * 2.6 * a
-    g.rotation.z = (t * 3.4 + 0.7) * a
-    b.rotation.z = (t * 1.9 - 0.7) * a
-    r.position.x = Math.cos(t * 4.1) * orbit
-    r.position.y = Math.sin(t * 4.1) * orbit
-    g.position.x = Math.cos(t * 5.2 + 2.1) * orbit
-    g.position.y = Math.sin(t * 5.2 + 2.1) * orbit
-    b.position.x = Math.cos(t * 3.3 + 4.2) * orbit
-    b.position.y = Math.sin(t * 3.3 + 4.2) * orbit
+  private updateReticule() {
+    this.reticule.visibility = this.firstPersonView && (hasPointerLock() || this.hasGamepad) ? 1 : 0
+    ;(this.reticule.material as BABYLON.StandardMaterial).emissiveColor.setAll(this.reticuleActive ? 0 : 1)
   }
 
   setFlying(value: boolean) {
@@ -1107,18 +1062,6 @@ function generateReticule(scene: BABYLON.Scene) {
   const centerY = w * 0.5
 
   ctx.beginPath()
-  ctx.strokeStyle = 'rgba(0, 0, 0, 0.5)'
-  ctx.lineWidth = 4
-  for (let i = 0; i <= 6; i++) {
-    const angle = (Math.PI / 3) * i - Math.PI / 2
-    const x = centerX + radius * Math.cos(angle)
-    const y = centerY + radius * Math.sin(angle)
-    if (i === 0) ctx.moveTo(x + 2, y + 2)
-    else ctx.lineTo(x + 2, y + 2)
-  }
-  ctx.stroke()
-
-  ctx.beginPath()
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
   ctx.lineWidth = 4
   for (let i = 0; i <= 6; i++) {
@@ -1134,30 +1077,19 @@ function generateReticule(scene: BABYLON.Scene) {
   const root = new BABYLON.TransformNode('reticule', utilScene)
   root.position.set(0, 0, 0.2)
 
-  const colors: [string, BABYLON.Color3][] = [
-    ['r', new BABYLON.Color3(1, 0.15, 0.15)],
-    ['g', new BABYLON.Color3(0.15, 1, 0.15)],
-    ['b', new BABYLON.Color3(0.15, 0.4, 1)],
-  ]
+  const material = new BABYLON.StandardMaterial('reticule', utilScene)
+  material.opacityTexture = texture
+  material.emissiveColor.setAll(1)
+  material.disableLighting = true
+  material.disableDepthWrite = true
 
-  const channels = colors.map(([suffix, color]) => {
-    const material = new BABYLON.StandardMaterial(`reticule_${suffix}`, utilScene)
-    material.diffuseTexture = texture
-    material.opacityTexture = texture
-    material.emissiveColor.copyFrom(color)
-    material.disableLighting = true
-    material.alphaMode = BABYLON.Engine.ALPHA_ADD
-    material.disableDepthWrite = true
+  const mesh = BABYLON.MeshBuilder.CreatePlane('reticule', { size: 0.02 }, utilScene)
+  mesh.material = material
+  mesh.parent = root
+  mesh.isPickable = false
+  mesh.visibility = 0
 
-    const mesh = BABYLON.MeshBuilder.CreatePlane(`reticule_${suffix}`, { size: 0.04 }, utilScene)
-    mesh.material = material
-    mesh.parent = root
-    mesh.isPickable = false
-    mesh.visibility = 0
-    return mesh
-  })
-
-  return { root, channels }
+  return { root, mesh }
 }
 
 export function featureFromPick(pickInfo?: BABYLON.PickingInfo | null): Feature | null {

@@ -1,3 +1,4 @@
+import { chatTime } from '../../../common/utils'
 import he from 'he'
 import { jwtVerify } from 'jose'
 import { v7 as uuidv7 } from 'uuid'
@@ -200,6 +201,12 @@ export class Client {
       console.warn('dropping empty chat message', this.whois())
       return
     }
+    // Reconnects and repeated broadcast starts should not spam the same invite.
+    if (
+      msg.text.includes('[[show:') &&
+      this.shard.recentChat.some((m) => m.text === msg.text && now - chatTime(m.id) < 10 * 60_000)
+    )
+      return
     this._lastChatMsg = msg.text
     this._lastChatMsgTime = now
     const stamped: messages.ChatMessage = { ...msg, id: uuidv7(), avatar: this.avatar ?? undefined }
