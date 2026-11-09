@@ -1,6 +1,9 @@
 import { isBatterySaver } from '../../common/helpers/detector'
 import { loadSample } from '../utils/helpers'
+import { Footsteps } from './footsteps'
 import { SpatialAudio } from './spatial-audio'
+
+const flyGain = 0.4 * Footsteps.gain
 
 export class FlySound {
   destination: AudioNode
@@ -13,7 +16,7 @@ export class FlySound {
     this.destination = destination
     this.audioContext = destination.context as AudioContext
     this.gain = this.audioContext.createGain()
-    this.gain.gain.value = 0.4
+    this.gain.gain.value = flyGain
     this.gain.connect(destination)
     if (isBatterySaver()) return
     loadSample(this.audioContext, '/sounds/avatar/fly.wav').then((buffer) => {
@@ -55,7 +58,7 @@ export class RemoteFlySound {
     this.audioContext = effectsOut.context as AudioContext
     this.buffer = buffer
     this.gain = this.audioContext.createGain()
-    this.gain.gain.value = 0.4
+    this.gain.gain.value = flyGain
   }
 
   start(absolutePosition: BABYLON.Vector3) {
