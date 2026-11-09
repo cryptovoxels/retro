@@ -16,12 +16,40 @@ const storage = new S3Client({
 })
 const headers = { 'Access-Control-Expose-Headers': 'Retry-After', 'Cache-Control': 'no-store' }
 
+async function gifSheet(source, fit) {
+  const image = sharp(source, { animated: true, limitInputPixels: 64 * 1024 * 1024 }).timeout({ seconds: 10 })
+  const metadata = await image.metadata()
+  const delays = Array.from({ length: metadata.pages || 1 }, (_, i) => metadata.delay?.[i] || 100)
+  const duration = delays.reduce((sum, delay) => sum + delay, 0)
+  const pixels = await image.ensureAlpha().raw().toBuffer()
+  const raw = { width: metadata.width, height: metadata.pageHeight || metadata.height, channels: 4 }
+  const frameBytes = raw.width * raw.height * 4
+  const tiles = []
+  let frame = 0
+  let end = delays[0]
+  for (let i = 0; i < 16; i++) {
+    while (frame < delays.length - 1 && (i * duration) / 16 >= end) end += delays[++frame]
+    // Resize separately so filtering cannot bleed between vertically stacked frames.
+    const input = await sharp(pixels.subarray(frame * frameBytes, (frame + 1) * frameBytes), { raw })
+      .resize(128, 128, { fit, background: { r: 0, g: 0, b: 0, alpha: 0 } })
+      .png()
+      .toBuffer()
+    tiles.push({ input, left: (i % 4) * 128, top: Math.floor(i / 4) * 128 })
+  }
+  const sheet = await sharp({ create: { width: 512, height: 512, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite(tiles)
+    .png()
+    .toBuffer()
+  return { sheet, frames: JSON.stringify({ frames: 16, duration, columns: 4, rows: 4 }) }
+}
+exports.gifSheet = gifSheet
+
 exports.main = async ({ key, width = 256, height = 256, fit = 'cover', format = 'astc' }) => {
   width = Number(width)
   height = Number(height)
   if (
     typeof key !== 'string' ||
-    !/^parcel\/\d+\/[A-Za-z0-9_-]+\.(png|jpe?g|webp|avif)$/i.test(key) ||
+    !/^parcel\/\d+\/[A-Za-z0-9_-]+\.(png|jpe?g|webp|avif|gif)$/i.test(key) ||
     ![128, 256, 512].includes(width) ||
     ![128, 256, 512].includes(height) ||
     !['cover', 'contain', 'fill'].includes(fit) ||
@@ -29,15 +57,18 @@ exports.main = async ({ key, width = 256, height = 256, fit = 'cover', format = 
   ) {
     return { statusCode: 400, headers, body: 'Expected a UGC image key, width/height 128, 256 or 512, fit cover/contain/fill, format astc' }
   }
-  const destination = `${key}/width=${width},height=${height},fit=${fit},format=${format}.ktx`
+  const gif = /\.gif$/i.test(key)
+  if (gif) width = height = 512
+  const destination = `${key}/width=${width},height=${height},fit=${fit},format=${format}${gif ? ',sheet=4x4-v1' : ''}.ktx`
   const object = { Bucket: process.env.TEXTURE_STORAGE_BUCKET, Key: destination }
   const location = `https://texture.voxels.com/${destination.split('/').map(encodeURIComponent).join('/')}`
-  const cached = { statusCode: 302, headers: { ...headers, Location: location }, body: '' }
+  // CDN CORS does not expose object metadata, so carry timing through the redirect URL.
+  const cached = (metadata) => ({ statusCode: 302, headers: { ...headers, Location: location + (metadata?.frames ? `?frames=${encodeURIComponent(metadata.frames)}` : '') }, body: '' })
   let directory
   try {
     try {
-      await storage.send(new HeadObjectCommand(object), { abortSignal: AbortSignal.timeout(5000) })
-      return cached
+      const existing = await storage.send(new HeadObjectCommand(object), { abortSignal: AbortSignal.timeout(5000) })
+      return cached(existing.Metadata)
     } catch (error) {
       if (error.$metadata?.httpStatusCode !== 404) throw error
     }
@@ -53,7 +84,14 @@ exports.main = async ({ key, width = 256, height = 256, fit = 'cover', format = 
     directory = await mkdtemp(join(tmpdir(), 'ugc-texture-'))
     const input = join(directory, 'input.png')
     const output = join(directory, 'output.ktx')
-    await sharp(Buffer.concat(chunks), { pages: 1, limitInputPixels: 16 * 1024 * 1024 })
+    let source = Buffer.concat(chunks)
+    let metadata
+    if (gif) {
+      const { sheet, frames } = await gifSheet(source, fit)
+      source = sheet
+      metadata = { frames, 'original-format': JSON.stringify('gif') }
+    }
+    await sharp(source, { pages: 1, limitInputPixels: 16 * 1024 * 1024 })
       .timeout({ seconds: 10 })
       .rotate()
       .resize(width, height, { fit, background: { r: 0, g: 0, b: 0, alpha: 0 } })
@@ -61,8 +99,10 @@ exports.main = async ({ key, width = 256, height = 256, fit = 'cover', format = 
       .png()
       .toFile(input)
     await encode(join(__dirname, 'PVRTexToolCLI'), ['-i', input, '-o', output, '-f', 'ASTC_4x4', '-q', 'astcfast', '-j', '1', '-m', String(Math.log2(Math.max(width, height)) + 1)], { timeout: 10000, killSignal: 'SIGKILL' })
-    await storage.send(new PutObjectCommand({ ...object, Body: await readFile(output), ContentType: 'image/ktx', CacheControl: 'public, max-age=31536000, immutable', ACL: 'public-read' }), { abortSignal: AbortSignal.timeout(5000) })
-    return cached
+    await storage.send(new PutObjectCommand({ ...object, Body: await readFile(output), Metadata: metadata, ContentType: 'image/ktx', CacheControl: 'public, max-age=31536000, immutable', ACL: 'public-read' }), {
+      abortSignal: AbortSignal.timeout(5000),
+    })
+    return cached(metadata)
   } catch (error) {
     console.error(error.name, error.$metadata?.httpStatusCode || '')
     return { statusCode: 503, headers: { ...headers, 'Retry-After': '30' }, body: 'Texture compression unavailable' }

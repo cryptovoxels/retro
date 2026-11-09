@@ -71,12 +71,13 @@ export async function fetchTexture(scene: BABYLON.Scene, srcURL: string | null, 
 async function textureAttempt(scene: BABYLON.Scene, srcURL: string | null, signal: AbortSignal, options: TextureOptions): Promise<BABYLON.Texture> {
   if (!isMobile()) return loadTexture(scene, srcURL, signal, options)
   const used = mobileBytes.get(scene) || 0
-  if (used + TEXTURE_BYTES > MOBILE_BYTES) {
+  const bytes = /\.gif(?:$|[?#])/i.test(srcURL || '') ? TEXTURE_BYTES * 4 : TEXTURE_BYTES
+  if (used + bytes > MOBILE_BYTES) {
     if (options.retry) throw new Error('Mobile texture budget full')
     return fetchNoImageTexture(scene)
   }
-  mobileBytes.set(scene, used + TEXTURE_BYTES)
-  const release = () => mobileBytes.set(scene, Math.max(0, (mobileBytes.get(scene) || 0) - TEXTURE_BYTES))
+  mobileBytes.set(scene, used + bytes)
+  const release = () => mobileBytes.set(scene, Math.max(0, (mobileBytes.get(scene) || 0) - bytes))
   try {
     const texture = await loadTexture(scene, srcURL, signal, options)
     texture.onDisposeObservable.addOnce(release)
@@ -92,8 +93,8 @@ async function loadTexture(scene: BABYLON.Scene, srcURL: string | null, signal: 
 
   if (srcURL?.startsWith('ugc://')) srcURL = 'https://ugc.voxels.com/' + srcURL.slice(6)
 
-  if (functionTrial && srcURL && isUgcTextureUrl(srcURL) && getGpuTextureFormat() === '.astc.ktx' && !/\.gif(?:$|[?#])/i.test(srcURL)) {
-    const size = isMobile() ? 256 : 512
+  if (functionTrial && srcURL && isUgcTextureUrl(srcURL) && getGpuTextureFormat() === '.astc.ktx') {
+    const size = isMobile() && !/\.gif(?:$|[?#])/i.test(srcURL) ? 256 : 512
     const key = new URL(srcURL).pathname.slice(1)
     const fit = stretch ? 'fill' : 'cover'
     const url = `${functionUrl}?key=${encodeURIComponent(key)}&width=${size}&height=${size}&fit=${fit}&format=astc&hint=.astc.ktx`
@@ -238,7 +239,8 @@ async function fetchAndCreateTexture(scene: BABYLON.Scene, url: string, backupUR
   const { flipY = true, mipmaps = true } = options
 
   const data = await fetchWithFallback(url, backupURL, signal)
-  const texture = await createTexture(scene, url, data.buffer, flipY, mipmaps)
+  const sheet = data.metadata.columns === 4 && data.metadata.rows === 4 && data.metadata.frames === 16
+  const texture = await createTexture(scene, url, data.buffer, flipY, mipmaps, sheet ? 512 : 256)
 
   if (data?.metadata?.frames > 1) {
     registerAnimation(data.metadata, texture)
@@ -287,7 +289,7 @@ async function fetchTextureData(url: string, signal?: AbortSignal): Promise<Text
   }
 }
 
-async function createTexture(scene: BABYLON.Scene | BABYLON.ThinEngine | null, url: string, buffer: ArrayBuffer, flipY: boolean, mipmaps: boolean): Promise<BABYLON.Texture> {
+async function createTexture(scene: BABYLON.Scene | BABYLON.ThinEngine | null, url: string, buffer: ArrayBuffer, flipY: boolean, mipmaps: boolean, maxSize: number): Promise<BABYLON.Texture> {
   let texture: BABYLON.Texture
   await new Promise<void>((resolve, reject) => {
     texture = new BABYLON.Texture(`data:${url}`, scene, !mipmaps, flipY, BABYLON.Texture.TRILINEAR_SAMPLINGMODE, resolve, (_message, error) => reject(error || new Error('Texture decode failed')), buffer, true)
@@ -297,9 +299,9 @@ async function createTexture(scene: BABYLON.Scene | BABYLON.ThinEngine | null, u
   })
   if (isMobile() && !url.startsWith('/textures/')) {
     const { width, height } = texture!.getSize()
-    if (width > 256 || height > 256) {
+    if (width > maxSize || height > maxSize) {
       texture!.dispose()
-      throw new Error('Mobile texture exceeds 256px')
+      throw new Error('Mobile texture exceeds size limit')
     }
   }
   return texture!

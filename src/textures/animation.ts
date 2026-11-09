@@ -46,8 +46,8 @@ export function registerAnimation(metadata: Metadata, texture: BABYLON.Texture) 
   const durationMs = metadata.duration
 
   // Calculate sprite grid dimensions (max 6x6)
-  const u = Math.min(frameCount, MAX_SPRITE_GRID_SIZE)
-  const v = Math.min(Math.ceil(frameCount / u), MAX_SPRITE_GRID_SIZE)
+  const u = metadata.columns || Math.min(frameCount, MAX_SPRITE_GRID_SIZE)
+  const v = metadata.rows || Math.min(Math.ceil(frameCount / u), MAX_SPRITE_GRID_SIZE)
 
   // Set initial UV scale for sprite sheet
   texture.uScale = 1 / u
