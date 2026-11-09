@@ -26,9 +26,12 @@ import { ensureRadio } from './radio/global'
 import { app, AppEvent } from './state'
 import { AppRoutes } from './app-routes'
 import { applyTheme } from '../../common/helpers/theme'
-import { clearPageTool, isPageTool, pageToolEl, hoveredNft, currentOrNearestParcel, uiPane, worldUi } from '../../src/store'
+import { clearPageTool, isPageTool, pageToolEl, hoveredNft, currentOrNearestParcel, currentParcel, uiPane, worldUi } from '../../src/store'
 
 applyTheme()
+
+// in-world moves only change ?coords, so count each parcel entered as a pageview
+currentParcel.subscribe((p) => p && trackPage(`/parcels/${p.id}`))
 
 class MainApp extends Component {
   componentDidMount() {

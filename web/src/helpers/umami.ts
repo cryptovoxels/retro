@@ -1,8 +1,15 @@
-import { app } from '../state'
+import { v4 as uuid } from 'uuid'
 
 const WEBSITE_ID = '91f685fd-f80f-4422-860b-760b6bea91fa'
 
 let lastPage = ''
+
+// localStorage, not sessionStorage, so it survives tab close and logout
+let umhash = uuid()
+try {
+  umhash = localStorage.getItem('umhash') || umhash
+  localStorage.setItem('umhash', umhash)
+} catch {}
 
 function skip() {
   if (typeof location === 'undefined') return true
@@ -13,7 +20,7 @@ function skip() {
 function basePayload(url: string) {
   return {
     website: WEBSITE_ID,
-    id: app.state.anonHash,
+    id: umhash,
     hostname: location.hostname,
     language: navigator.language,
     referrer: document.referrer,

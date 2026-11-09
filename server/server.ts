@@ -200,34 +200,15 @@ app.use(responseTime())
 
 preCorsController(passport, app)
 
-// Umami Cloud geos cf-connecting-ip (our droplet = US) over X-Forwarded-For.
-// Inject payload.ip so they MaxMind the real visitor instead.
-function umamiClientIp(req: express.Request) {
-  const doIp = req.headers['do-connecting-ip']
-  if (typeof doIp === 'string' && doIp) return doIp.split(',')[0].trim()
-  const xff = req.headers['x-forwarded-for']
-  if (typeof xff === 'string' && xff) return xff.split(',')[0].trim()
-  return req.ip || ''
-}
-
 app.post('/um/api/send', cache(false), async (req, res) => {
   try {
-    const ip = umamiClientIp(req)
-    const body = req.body && typeof req.body === 'object' ? { ...req.body } : { type: 'event', payload: {} }
-    const payload = body.payload && typeof body.payload === 'object' ? { ...body.payload } : {}
-    if (ip) payload.ip = ip
-    body.payload = payload
-
     const r = await fetch('https://cloud.umami.is/api/send', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'User-Agent': req.get('user-agent') || 'voxels',
-        'x-umami-client-ip': ip,
-        'x-forwarded-for': ip,
-        'x-real-ip': ip,
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(req.body),
     })
     const text = await r.text()
     res
