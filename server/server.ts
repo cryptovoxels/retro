@@ -57,7 +57,6 @@ import WompsController from './controllers/womps'
 import GhostsController from './controllers/ghosts'
 import ChatController from './controllers/chat'
 import IslandBoardController from './controllers/island-board'
-import BlogController from './controllers/blog'
 import createGridSocket from './grid/createGridSocket'
 import { searchAndReturn } from './handlers/search'
 import startJobs from './cronjobs'
@@ -401,7 +400,6 @@ GhostsController(db, passport, app)
 ChatController(db, app)
 
 IslandBoardController(db, passport, app)
-BlogController(db, passport, app)
 // Spaces
 SpacesController(db, passport, app)
 // collections

@@ -76,7 +76,6 @@ const IGNORED = [
   /^\/(api\/parcels\/[^/]+\/(guest-passes|showbox-guests)|api\/guest\/[^/]+|live\/[^/]+|dev\/.*)$/, // guest passes and showbox
   /^\/api\/favorites\//, // per-wallet favorites, auth gated
   /^\/grid\//, // internal grid writes
-  /^\/api\/posts/, // blog
   /^\/api\/(assets|library)\b/, // asset library
   /^\/api\/(externals|nfts)\//, // third party proxies (opensea, alchemy)
   /^\/api\/classifieds\.json$/, // classifieds

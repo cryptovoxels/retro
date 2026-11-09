@@ -25,7 +25,6 @@ type State = {
   results: any[]
   snackbarMessage: string
   query: string
-  blogN: number
   shopN: number
   eventsN: number
   chatN: number
@@ -33,7 +32,6 @@ type State = {
 
 const CHAT_LAST_SEEN = 'chatLastSeenAt'
 let chatSeen = 0
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000
 
 // /api/search type -> [folder, page], in display order
 const GROUPS: [string, string, string][] = [
@@ -71,7 +69,6 @@ export default class WebHeader extends Component<Props, State> {
     results: [],
     snackbarMessage: '',
     query: '',
-    blogN: 0,
     shopN: 0,
     eventsN: 0,
     chatN: 0,
@@ -130,15 +127,6 @@ export default class WebHeader extends Component<Props, State> {
   }
 
   fetchBadges() {
-    const weekAgo = Date.now() - WEEK_MS
-    cachedFetch('/api/posts.json')
-      .then((r) => r.json())
-      .then((d) => {
-        const n = (d.posts || []).filter((p: any) => new Date(p.created_at).getTime() > weekAgo).length
-        this.setState({ blogN: n })
-      })
-      .catch(() => {})
-
     cachedFetch('/api/classifieds.json')
       .then((r) => r.json())
       .then((d) => {
@@ -206,7 +194,7 @@ export default class WebHeader extends Component<Props, State> {
     const signedIn = app.signedIn
     const admin = app.isAdmin()
     const here = this.navPath()
-    const { blogN, shopN, eventsN, chatN } = this.state
+    const { shopN, eventsN, chatN } = this.state
     const { query, results } = this.state
     const q = query.trim().toLowerCase()
     const hit = (s: string) => !!q && s.toLowerCase().includes(q)
@@ -349,9 +337,6 @@ export default class WebHeader extends Component<Props, State> {
               <F name="Exploring">
                 <ul>
                   <A to="/assets">Assets</A>
-                  <A to="/blog" n={blogN}>
-                    Blog
-                  </A>
                   <A to="/chat" n={chatN}>
                     Chat
                   </A>

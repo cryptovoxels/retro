@@ -6,8 +6,6 @@ type Props = {
   description?: string
   url?: string
   imageURL?: string
-  /** og:type - article for blog posts */
-  type?: 'website' | 'article'
   children?: Element | VNode<Element>
 }
 
@@ -49,13 +47,12 @@ export default function Head(props: Props) {
   const url = absUrl(props.url)
   const title = props.title.slice(0, 120)
   const description = props.description?.slice(0, 300)
-  const type = props.type ?? 'website'
   const fullTitle = title ? `${title} | Voxels` : 'Voxels'
 
   // browser: keep document head in sync (SPA navigations + crawlers that execute JS)
   if (ssrFriendlyDocument) {
     ssrFriendlyDocument.title = fullTitle
-    setMeta('property', 'og:type', type)
+    setMeta('property', 'og:type', 'website')
     setMeta('property', 'og:title', title)
     if (description) {
       setMeta('name', 'description', description)
@@ -80,7 +77,7 @@ export default function Head(props: Props) {
     <head>
       <title>{fullTitle}</title>
       {description && <meta name="description" content={description} />}
-      <meta property="og:type" content={type} />
+      <meta property="og:type" content="website" />
       {url && <meta property="og:url" content={url} />}
       <meta property="og:title" content={title} />
       {description && <meta property="og:description" content={description} />}

@@ -1,7 +1,6 @@
 import { Component, Fragment } from 'preact'
 import { focusFirst, onListArrowKeys } from './helpers/keynav'
 import Head from './components/head'
-import BlogTeaser from './components/blog-teaser'
 import Classifieds from './components/classifieds'
 import PopularParcels from './components/popular-parcels'
 import Radar from './components/radar'
