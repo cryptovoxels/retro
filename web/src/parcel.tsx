@@ -476,7 +476,7 @@ export default class Parcel extends Component<Props, State> {
     }
 
     const islandSlug = this.state.parcel.island?.toLowerCase().replace(/\s+/, '-')
-    const parcelName = this.state.parcel.name ?? this.state.parcel.address ?? `Parcel #${this.state.parcelId}`
+    const parcelName = this.state.parcel.name || this.state.parcel.address || `Parcel #${this.state.parcelId}`
     const p: any = this.state.parcel
     const description = p.description || [p.address, p.suburb, p.island].filter(Boolean).join(', ') + (p.owner ? `, owned by ${avatarName(p.owner)}` : '')
 

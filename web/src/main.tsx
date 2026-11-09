@@ -15,6 +15,7 @@ import RadioPage from './components/radio-page'
 import ParcelPage from './parcel'
 import { Art } from './components/art'
 import Home from './home'
+import Explore from './explore'
 import { Client } from './client'
 import { isPlayPath, naviportHere, notifyUrlChange } from './helpers/coords-nav'
 import { track, trackPage } from './helpers/umami'
@@ -89,12 +90,14 @@ const Main = () => {
   }
 
   const [currentPath, setCurrentPath] = useState(window.location.pathname)
+  const [engaged, setEngaged] = useState(false)
   const lightBroadcast = currentPath.startsWith('/golive/broadcast')
   const play = isPlayPath(currentPath) && !isPageTool(uiPane.value)
 
   useEffect(() => {
     ensureRadio()
     const playWorld = () => {
+      setEngaged(true)
       if (window.grid?.currentW !== 0 || isPageTool(uiPane.value) || isPlayPath()) return
       route(`/play${location.search}`, true)
     }
@@ -118,16 +121,16 @@ const Main = () => {
   return (
     <MainApp>
       <main onClick={travel} class={[lightBroadcast ? 'showbox-light-shell' : '', play ? 'play' : ''].filter(Boolean).join(' ') || undefined}>
-        {!lightBroadcast && <WebHeader path={currentPath} />}
+        {!lightBroadcast && <WebHeader path={currentPath} mini={engaged} />}
 
         <Client path={currentPath} />
 
-        <div class={[worldUi.value && play ? 'page mini' : 'page', play ? 'play' : ''].join(' ')}>
+        <div class={[worldUi.value && play && engaged ? 'page mini' : 'page', play && engaged ? 'play' : ''].join(' ')}>
           <div class="page-route">
             <Router onChange={handleRoute}>
               {AppRoutes()}
               <RadioPopout path="/radio" />
-              <Play path="/play" />
+              <Play path="/play" engaged={engaged} />
               <AccountRoutes path="/account/:path*" />
             </Router>
           </div>
@@ -159,8 +162,8 @@ function RadioPopout(_props: { path?: string }) {
   )
 }
 
-function Play(_props: { path?: string }) {
-  return null
+function Play({ engaged }: { path?: string; engaged: boolean }) {
+  return engaged ? null : <Explore />
 }
 
 function hydrate(vnode: JSXInternal.Element, parent: HTMLElement) {

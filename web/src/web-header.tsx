@@ -18,6 +18,7 @@ import UserMenu from './components/user-menu'
 import { loadMe, me } from './auth/identities'
 type Props = {
   path: string
+  mini?: boolean
 }
 
 type State = {
@@ -259,7 +260,7 @@ export default class WebHeader extends Component<Props, State> {
 
     return (
       <>
-        <header class={`menu mini${this.state.menuOpen ? ' expanded' : ''}`}>
+        <header class={`menu${this.props.mini ? ' mini' : ''}${this.state.menuOpen ? ' expanded' : ''}`}>
           <button type="button" class="menu-toggle" aria-label="Menu" aria-expanded={this.state.menuOpen} aria-controls="web-menu" onClick={() => this.setState({ menuOpen: !this.state.menuOpen })}>
             <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden="true">
               <path d="M2 4h16M2 10h16M2 16h16" fill="none" stroke="currentColor" stroke-width="2" />

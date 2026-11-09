@@ -58,15 +58,14 @@ export default class Explore extends Component<{}> {
         </Head>
 
         <section class="explorer" onKeyDown={onListArrowKeys}>
-          <h1>Explore</h1>
           <Teleport>
             <Radar />
-            <details class="inspector-section" open>
+            <details class="inspector-section womps" open>
               <summary>womps</summary>
-              <WompsList numberToShow={16} mobilePreview={6} collapsed={false} fetch="/womps.json" ttl={600} />
+              <WompsList numberToShow={300} collapsed={false} fetch="/womps.json" ttl={600} />
               <a href="/womps">more</a>
             </details>
-            <details class="inspector-section" open>
+            <details class="inspector-section">
               <summary>popular</summary>
               <PopularParcels />
             </details>
