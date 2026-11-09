@@ -16,6 +16,7 @@ import ParcelPage from './parcel'
 import { Art } from './components/art'
 import Home from './home'
 import Explore from './explore'
+import Grant from './account-grant'
 import { Client } from './client'
 import { isPlayPath, naviportHere, notifyUrlChange } from './helpers/coords-nav'
 import { track, trackPage } from './helpers/umami'
@@ -221,6 +222,7 @@ function AccountRoutes(props: { path?: string }) {
   return (
     <Router>
       <Route path="/account/edit" component={EditAccount} />
+      <Route path="/account/grant" component={Grant} />
       <Route path="/account/:tab?" component={Home} />
     </Router>
   )

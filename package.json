@@ -37,6 +37,7 @@
     "client:dev": "node scripts/bundle-node.mjs dev",
     "build:check": "node scripts/precommit-build-check.mjs",
     "docs:api": "node scripts/build-api-docs.mjs",
+    "mcp": "node mcp/voxels-mcp.mjs",
     "precommit": "tsc --noEmit --project tsconfig.precommit.json && npm run build:check && prettier --write --log-level warn .",
     "test": "vitest run",
     "test:watch": "vitest watch",
@@ -76,6 +77,7 @@
     "@gltf-transform/core": "^4.4.2",
     "@gltf-transform/functions": "^4.4.2",
     "@metamask/providers": "^11.1.1",
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@msgpack/msgpack": "^2.7.0",
     "@noble/hashes": "1.3.2",
     "@opensea/seaport-js": "^4.1.3",
@@ -202,7 +204,8 @@
     "wasmoon": "^1.16.0",
     "winston": "^3.9.0",
     "ws": "^8.18.3",
-    "zeros": "^1.0.0"
+    "zeros": "^1.0.0",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@types/assert": "^1.5.6",

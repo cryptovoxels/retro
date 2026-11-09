@@ -1,0 +1,9 @@
+/* TEAM */
+Voxels is made by Ben Nolan in Wellington, New Zealand.
+Site: https://www.voxels.com
+Source: https://github.com/cryptovoxels
+Formerly Cryptovoxels (2018), renamed Voxels on 3 May 2022.
+
+/* SITE */
+Docs for people and bots: https://www.voxels.com/llms.txt
+API: https://www.voxels.com/api

@@ -211,7 +211,7 @@ for (const [path, item] of Object.entries(spec.paths)) {
 }
 
 const md = [`# ${spec.info.title}`, '']
-for (const p of paragraphs(spec.info.description)) md.push(p, '')
+md.push(spec.info.description.trim(), '')
 md.push(`Base url is ${code(base)}. Most routes are unauthenticated GETs; write routes need a session.`, '')
 md.push(`Generated from ${code('server/openapi.yaml')} by ${code('npm run docs:api')}. Edit the spec, not this page.`, '')
 
@@ -272,15 +272,26 @@ writeFileSync(mdPath, doc)
 
 const total = Object.keys(spec.paths).length
 const llms = [
-  `# ${spec.info.title}`,
+  '# Voxels',
   '',
-  `> ${total} routes on ${base}, covering ${[...byTag.keys()].filter((t) => byTag.get(t).length).join(', ')}. Most are unauthenticated GET. Handlers answer {"success": true, "<field>": ...}, where the field is plural for a list and singular for one record, and {"success": false} when the lookup misses.`,
+  '> Voxels is a virtual world in your browser: voxel parcels on Ethereum you can walk around, build on and hang out in. Made by Ben Nolan in Wellington, New Zealand, since 2018 (as Cryptovoxels until 3 May 2022). Open source at https://github.com/cryptovoxels/retro. Land parcels are NFTs on Ethereum, wearables are on Polygon, there is no token.',
+  '',
+  `Visit ${base}/play to walk around. Browse without an account at ${base}/parcels, ${base}/womps and ${base}/events. Buy or rent land through the shop on the home page.`,
+  '',
+  `## ${spec.info.title}`,
+  '',
+  `${total} routes on ${base}, covering ${[...byTag.keys()].filter((t) => byTag.get(t).length).join(', ')}. Most are unauthenticated GET. Handlers answer {"success": true, "<field>": ...}, where the field is plural for a list and singular for one record, and {"success": false} when the lookup misses.`,
   '',
   '## docs',
   '',
+  '- [Source](https://github.com/cryptovoxels/retro): the client, server and this spec.',
+  '- [MCP server](https://github.com/cryptovoxels/retro/tree/main/mcp): lets an agent act as a signed-in resident.',
   `- [API reference](${base}/api): every route, its parameters and the shape it answers with.`,
+  `- [Markdown reference](${base}/API.md): the full reference without JavaScript.`,
   `- [OpenAPI spec](${base}/openapi.yaml): the same thing as OpenAPI 3.1, if you would rather generate a client.`,
   `- [Behaviours](${base}/behaviours): the Lua scripts you attach to a feature inside a parcel.`,
+  '',
+  spec.info.description.trim(),
   '',
   '## endpoints',
   '',

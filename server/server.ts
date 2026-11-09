@@ -114,6 +114,7 @@ const opts: StrategyOptions = {
 
       return token
     },
+    ExtractJwt.fromAuthHeaderAsBearerToken(),
   ]),
 }
 

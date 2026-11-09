@@ -86,7 +86,7 @@ export function queryAndCallback<T extends Row = any, Field extends string = str
 ) {
   query<T, Field>(db, queryName, fieldName, args)
     .then(callback)
-    .catch((err) => callback({ success: false, err }))
+    .catch(() => callback({ success: false }))
 }
 
 export async function query<T extends Row | Row[] = any, Field extends string = string>(
