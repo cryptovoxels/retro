@@ -35,7 +35,27 @@ export default class Explore extends Component<{}> {
   render() {
     return (
       <Fragment>
-        <Head title="Voxels" url="/" />
+        <Head title="Voxels" description="Voxels is a virtual world in your browser: voxel parcels on Ethereum you can walk around, build on and hang out in. Made by Ben Nolan in Wellington since 2018, open source on GitHub." url="/">
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                '@context': 'https://schema.org',
+                '@graph': [
+                  {
+                    '@type': 'Organization',
+                    name: 'Voxels',
+                    url: 'https://www.voxels.com',
+                    logo: 'https://www.voxels.com/images/logo-opengraph-small.png',
+                    founder: { '@type': 'Person', name: 'Ben Nolan' },
+                    sameAs: ['https://github.com/cryptovoxels'],
+                  },
+                  { '@type': 'WebSite', name: 'Voxels', url: 'https://www.voxels.com', description: 'A virtual world in your browser: voxel parcels on Ethereum.' },
+                ],
+              }),
+            }}
+          />
+        </Head>
 
         <section class="explorer" onKeyDown={onListArrowKeys}>
           <h1>Explore</h1>

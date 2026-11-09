@@ -3,7 +3,6 @@ import ArtDoc from './src/art-doc'
 import Avatar from './src/avatar'
 import BehavioursDoc from './src/behaviours-doc'
 import Conduct from './src/conduct'
-import EventPage from './src/event-page'
 import Explore from './src/explore'
 import Parcel from './src/parcel'
 import Privacy from './src/privacy'
@@ -30,7 +29,7 @@ export default function loadRoutes(app: Express) {
   const duration = '10 minutes'
 
   app.get('/', cache(duration), (req, res) => {
-    res.send(renderComponent(res, <LoadingPage />))
+    res.send(renderComponent(res, <Explore />))
   })
 
   app.get('/explore', cache(duration), (req, res) => {
@@ -140,20 +139,6 @@ export default function loadRoutes(app: Express) {
       res.send(renderComponent(res, <Avatar avatar={response.avatar} tab={req.params.tab} />))
     })
   })
-
-  // app.get('/events/:id', (req, res) => {
-  //   const id = parseInt(req.params.id, 10)
-  //   if (isNaN(id)) {
-  //     return res.status(404).json({ success: false, message: 'event not found' })
-  //   }
-  //   queryAndCallback(db, 'events/get-event', 'event', [id], (response) => {
-  //     if (!response.success) {
-  //       res.send(renderPage(<NotFound />))
-  //       return
-  //     }
-  //     res.send(renderPage(<EventPage event={response.event} />))
-  //   })
-  // })
 
   app.get('/collections/:collection_id/:token_id', cache('1 minute'), (req, res) => {
     const id = parseInt(req.params.collection_id, 10)

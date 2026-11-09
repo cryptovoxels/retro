@@ -146,6 +146,7 @@ export default class Womp extends Component<Props, State> {
 
     return (
       <section>
+        <Head title={title} description={this.state.womp.content || (name ? `Womp by ${name}` : undefined)} url={`/womps/${this.state.womp.id}`} imageURL={img} />
         <h1>{title}</h1>
 
         <img src={img} class="womp" />

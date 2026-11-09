@@ -17,6 +17,8 @@ import { route } from 'preact-router'
 import { truncate } from './lib/string-utils'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { sidebarClosed } from '../../src/store'
+import Head from './components/head'
+import { avatarName } from '../../common/messages/avatar-ref'
 
 export interface Props {
   parcel?: ParcelWithMintednessRecord
@@ -51,8 +53,10 @@ export default class Parcel extends Component<Props, State> {
   constructor(props: Props) {
     super(props)
 
+    // SSR hands us the parcel, the client router hands us the id
     this.state = {
-      parcelId: props.id!,
+      parcel: props.parcel,
+      parcelId: props.id ?? props.parcel?.id!,
       loading: true,
       nearby: [],
       tab: 'about',
@@ -473,9 +477,14 @@ export default class Parcel extends Component<Props, State> {
 
     const islandSlug = this.state.parcel.island?.toLowerCase().replace(/\s+/, '-')
     const parcelName = this.state.parcel.name ?? this.state.parcel.address ?? `Parcel #${this.state.parcelId}`
+    const p: any = this.state.parcel
+    const description = p.description || [p.address, p.suburb, p.island].filter(Boolean).join(', ') + (p.owner ? `, owned by ${avatarName(p.owner)}` : '')
 
     return (
       <section class="parcel-page">
+        <Head title={parcelName} description={description} url={`/parcels/${p.id}`} imageURL={`https://www.voxels.com/renderer/v1/parcel/${p.id}.png`}>
+          <link rel="alternate" type="application/json" href={`/api/parcels/${p.id}.json`} />
+        </Head>
         <h1>{parcelName}</h1>
         {parcelName !== this.state.parcel.address && <p class="parcel-address">{this.state.parcel.address}</p>}
 

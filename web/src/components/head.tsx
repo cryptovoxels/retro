@@ -47,7 +47,7 @@ export default function Head(props: Props) {
   const url = absUrl(props.url)
   const title = props.title.slice(0, 120)
   const description = props.description?.slice(0, 300)
-  const fullTitle = title ? `${title} | Voxels` : 'Voxels'
+  const fullTitle = title && title !== 'Voxels' ? `${title} | Voxels` : 'Voxels'
 
   // browser: keep document head in sync (SPA navigations + crawlers that execute JS)
   if (ssrFriendlyDocument) {

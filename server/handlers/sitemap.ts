@@ -3,7 +3,8 @@ import { SUPPORTED_CHAINS_BY_ID } from '../../common/helpers/chain-helpers'
 import db from '../pg'
 
 export default async function (req: Request, res: Response) {
-  const urls: any = []
+  // the pages that explain the world, so crawlers find more than 100k parcel ids
+  const urls: any = ['', 'api', 'llms.txt', 'API.md', 'openapi.yaml', 'behaviours', 'art', 'events', 'islands', 'collections', 'womps', 'parcels'].map((p) => `https://www.voxels.com/${p}`)
   // Parcels
   let result = await db.query('embedded/get-parcel-ids', 'select id from properties where minted=true')
 
