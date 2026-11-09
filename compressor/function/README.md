@@ -4,8 +4,8 @@ DigitalOcean Function `textures/compress` in the `voxels` namespace (sfo3).
 The existing compressor remains the fallback and handles other formats and sources.
 
 The engine uses this path by default for
-static UGC images on ASTC-capable devices, including Apple Silicon Macs.
-GIFs, external images and other GPU formats keep their existing routing.
+UGC images on ASTC-capable devices, including Apple Silicon Macs.
+External images and other GPU formats keep their existing routing.
 Add `&textureFunction=0` and reload to disable the Function trial.
 
 Input: `key=parcel/6822/YfJx2r.jpg&width=256&height=256&fit=cover&format=astc`.
@@ -14,6 +14,13 @@ Resize parameter names follow KeyCDN: `width`, `height`, `fit`.
 Supported widths/heights: 128, 256, 512. Fits: cover, contain, fill.
 Format: astc (ASTC 4x4 KTX with a full mip chain).
 Pixels are flipped for Babylon's compressed texture upload convention.
+
+GIFs use a fixed 512x512, 4x4 sheet of 128px frames sampled at 16 evenly
+spaced times across the full duration. GIF cache keys include `sheet=4x4-v1`.
+Frame count, duration in milliseconds and grid dimensions are stored in object
+metadata and carried in the redirect's `frames` query parameter, since the CDN
+does not expose metadata headers through CORS. Mobile accepts these sheets and
+reserves their full uncompressed size in its texture budget.
 
 Destination in the texture bucket:
 `parcel/6822/YfJx2r.jpg/width=256,height=256,fit=cover,format=astc.ktx`.

@@ -9,8 +9,6 @@ import AssetsNew from './assets-new'
 import ApiDoc from './api-doc'
 import ArtDoc from './art-doc'
 import BehavioursDoc from './behaviours-doc'
-import Blog from './blog'
-import PostPage from './post'
 import EditAsset from './assets/edit'
 import Avatar from './avatar'
 import Costumer from './costumer'
@@ -50,8 +48,6 @@ import { routes } from './routes'
 
 const components: Record<string, ComponentType<any>> = {
   explore: Explore,
-  blog: Blog,
-  post: PostPage,
   chat: ChatPage,
   terms: Terms,
   privacy: Privacy,

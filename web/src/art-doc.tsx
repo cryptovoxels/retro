@@ -7,7 +7,7 @@ export default function ArtDoc(_props: { path?: string }) {
 
   useEffect(() => {
     fetch('/ART.md', { cache: 'no-store' })
-      .then((r) => r.text())
+      .then((r) => (r.ok ? r.text() : Promise.reject()))
       .then((md) => setHtml(micromark(md)))
       .catch(() => setHtml('<p>Art documentation is missing.</p>'))
   }, [])

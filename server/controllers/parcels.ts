@@ -25,7 +25,8 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
     const parcel_ids = req.query.parcel_ids ? (req.query.parcel_ids instanceof Array ? req.query.parcel_ids : [req.query.parcel_ids]) : null
     if (!parcel_ids) {
       queryAndCallback(db, 'get-parcels', 'parcels', [req.query.limit], (response) => {
-        res.status(200).send(response)
+        if (!response.success) noCache(res)
+        res.status(response.success ? 200 : 500).send(response)
       })
       return
     }

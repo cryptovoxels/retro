@@ -403,3 +403,11 @@ SELECT apply_migration('free-avatars', $$
     created_at timestamptz NOT NULL DEFAULT now()
   );
 $$);
+
+SELECT apply_migration('grants', $$
+  CREATE TABLE IF NOT EXISTS grants (
+    key text PRIMARY KEY,
+    token text NOT NULL,
+    created_at timestamptz NOT NULL DEFAULT now()
+  );
+$$);

@@ -757,6 +757,8 @@ a.buttonish {
 // Site nav is a sticky left column in the main grid
 header.menu {
   margin: 0;
+  height: 100%;
+  width: 20rem;
   z-index: 100;
   max-height: 100%;
   overflow-y: auto;
@@ -770,7 +772,6 @@ header.menu {
 
   &.mini {
     height: 6rem;
-    width: 20rem;
     overflow: hidden;
 
     ul li:nth-child(n + 2) {
@@ -791,7 +792,7 @@ header.menu .menu-toggle {
 }
 
 @media @narrow {
-  header.menu.mini {
+  header.menu {
     display: block;
     width: 100%;
     height: auto;
@@ -1148,7 +1149,7 @@ main {
   }
 }
 
-// blog list + posts: a readable column, not text jammed against the viewport edge
+// api / behaviours / art docs: a readable column, not text jammed against the viewport edge
 section.prose {
   max-width: 42rem;
   margin: 0 auto;
@@ -1162,13 +1163,6 @@ section.art-doc img {
   object-fit: contain;
   vertical-align: middle;
   margin-right: 1rem;
-}
-
-// post opened inside the home sidebar - no max-width column, just flow in the aside
-section.sidebar-post {
-  h1 {
-    font-size: 1.25rem;
-  }
 }
 
 // Grid layout
@@ -1493,13 +1487,6 @@ table {
   tr:last-child td {
     border-bottom: none;
   }
-}
-
-.blog-replies {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  white-space: nowrap;
 }
 
 /* Rendering */
@@ -2335,8 +2322,27 @@ table.spaces {
   }
 }
 
-// Explore Online: pack radar / live / womps a bit tighter so more fits in the sidebar
-.explorer,
+main > .page section.explorer {
+  margin-top: 0;
+  min-height: ~'calc(100vh - 3rem)';
+  display: flex;
+  flex-direction: column;
+
+  .womps > div {
+    height: 70vh;
+    overflow-y: auto;
+  }
+
+  .wrap-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    margin-top: 1rem;
+  }
+
+  > details:last-child {
+    flex: 1;
+  }
+}
+
 section.profile {
   .wrap-grid {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -2372,7 +2378,10 @@ section.profile {
       }
     }
   }
+}
 
+.explorer,
+section.profile {
   .classifieds {
     margin-top: 0.75rem;
 

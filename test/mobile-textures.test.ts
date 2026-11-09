@@ -12,8 +12,10 @@ vi.hoisted(() => window.history.replaceState({}, '', '?textureFunction=0'))
 const originalBabylon = BABYLON
 let scene: BABYLON.Scene
 let fetchMock: ReturnType<typeof vi.fn>
+let textureSize: number
 
 beforeEach(() => {
+  textureSize = 256
   vi.mocked(isMobile).mockReturnValue(true)
   vi.mocked(getGpuTextureFormat).mockReturnValue('.pvrtc.ktx')
   scene = {} as BABYLON.Scene
@@ -31,7 +33,7 @@ beforeEach(() => {
       queueMicrotask(loaded)
     }
     getSize() {
-      return { width: 256, height: 256 }
+      return { width: textureSize, height: textureSize }
     }
     dispose() {
       this.onDisposeObservable.notifyObservers(this)
@@ -42,6 +44,26 @@ beforeEach(() => {
   vi.stubGlobal('fetch', fetchMock)
   vi.spyOn(Math, 'random').mockReturnValue(0)
   vi.stubEnv('TEXTURE_HOST', 'https://compressor.example')
+})
+
+test('mobile loads 512px GIF sheets through the Function and reserves four texture slots', async () => {
+  vi.resetModules()
+  vi.stubGlobal('window', { location: { search: '' } })
+  vi.mocked(getGpuTextureFormat).mockReturnValue('.astc.ktx')
+  textureSize = 512
+  const frames = JSON.stringify({ frames: 16, duration: 1600, columns: 4, rows: 4 })
+  fetchMock.mockResolvedValue({ ok: true, url: `https://texture.voxels.com/sheet.ktx?frames=${encodeURIComponent(frames)}`, headers: new Headers(), arrayBuffer: async () => new ArrayBuffer(8) })
+  const trial = await import('../src/textures/textures')
+  const textures = []
+  for (let i = 0; i < 50; i++) textures.push(await trial.fetchTexture(scene, `ugc://parcel/1/animation${i}.gif`, new AbortController().signal))
+  expect(fetchMock).toHaveBeenCalledTimes(47)
+  const url = new URL(fetchMock.mock.calls[0][0])
+  expect(url.hostname).toBe('faas-sfo3-7872a1dd.doserverless.co')
+  expect(url.searchParams.get('width')).toBe('512')
+  expect(url.searchParams.get('height')).toBe('512')
+  textures[0].dispose()
+  await trial.fetchTexture(scene, 'ugc://parcel/1/another.gif', new AbortController().signal)
+  expect(fetchMock).toHaveBeenCalledTimes(48)
 })
 
 afterEach(() => {

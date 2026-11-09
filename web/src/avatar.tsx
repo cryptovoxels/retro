@@ -3,6 +3,7 @@ import { Component } from 'preact'
 import { ApiAvatar } from '../../common/messages/api-avatars'
 import Profile from './components/avatar-profile/profile'
 import { loadingBox } from './components/loading-icon'
+import Head from './components/head'
 import cachedFetch from './helpers/cached-fetch'
 import { app } from './state'
 import { fetchOptions } from './utils'
@@ -22,7 +23,7 @@ export interface State {
 export default class Avatar extends Component<Props, State> {
   constructor(props: Props) {
     super()
-    this.state = { avatar: props.avatar, loading: true }
+    this.state = { avatar: props.avatar, loading: !props.avatar }
   }
 
   exists = () => {
@@ -87,6 +88,11 @@ export default class Avatar extends Component<Props, State> {
     const title = avatar?.name || avatar?.owner
     const description = avatar?.description || `Check out the avatar for ${title}`
 
-    return <Profile walletOrUUId={this.wallet ?? ''} isOwner={isOwner} tab={this.props.tab} />
+    return (
+      <>
+        <Head title={title ?? ''} description={description} url={`/u/${avatar?.owner}`} />
+        <Profile walletOrUUId={this.wallet ?? ''} isOwner={isOwner} tab={this.props.tab} />
+      </>
+    )
   }
 }

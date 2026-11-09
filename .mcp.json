@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "voxels": {
+      "command": "node",
+      "args": ["mcp/voxels-mcp.mjs"]
+    }
+  }
+}

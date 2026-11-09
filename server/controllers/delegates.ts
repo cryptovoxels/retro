@@ -9,6 +9,7 @@ import { VoxelsUserRequest } from '../user'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const WALLET = /^0x[0-9a-f]{40}$/i
+const GRANT_KEY = /^[0-9a-f]{64}$/
 
 export function delegationMessage(email: string) {
   return `I volunteer ${email} as my delegate for voxels.com.`
@@ -51,6 +52,28 @@ export default function DelegatesController(db: Db, passport: PassportStatic, ap
       email: byOwner.get(base)?.email ?? null,
       identities: owners.map((wallet) => ({ wallet, name: byOwner.get(wallet)?.name ?? null, email: byOwner.get(wallet)?.email ?? null })),
     })
+  })
+
+  // An agent (the MCP server) makes up a key and opens /account/grant?key=K in the
+  // browser. The signed-in user posts it here, which parks their JWT under that key
+  // for ten minutes. The agent polls the GET, which hands the token over once.
+  app.post('/api/account/grant', jwt, async (req: VoxelsUserRequest, res) => {
+    const { key } = req.body as { key?: string }
+    const token = req.cookies?.jwt
+    if (!GRANT_KEY.test(key ?? '') || !token) {
+      res.status(400).json({ success: false, error: 'Bad key' })
+      return
+    }
+    await db.query('grants/expire', `delete from grants where created_at < now() - interval '10 minutes'`, [])
+    await db.query('grants/insert', 'insert into grants (key, token) values ($1, $2) on conflict (key) do nothing', [key, token])
+    res.json({ success: true })
+  })
+
+  app.get('/api/account/grant/:key', cache(false), async (req, res) => {
+    if (!GRANT_KEY.test(req.params.key)) return denied(res)
+    const r = await db.query('grants/take', `delete from grants where key = $1 and created_at > now() - interval '10 minutes' returning token`, [req.params.key])
+    const token = r.rows[0]?.token
+    res.json(token ? { success: true, token } : { success: false })
   })
 
   // Email account adds a wallet by proving control of it with a signed message.
