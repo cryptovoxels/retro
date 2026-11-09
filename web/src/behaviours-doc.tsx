@@ -7,7 +7,7 @@ export default function BehavioursDoc(_props: { path?: string }) {
 
   useEffect(() => {
     fetch('/BEHAVIOURS.md')
-      .then((r) => r.text())
+      .then((r) => (r.ok ? r.text() : Promise.reject()))
       .then((md) => setHtml(micromark(md)))
       .catch(() => setHtml('<p>Behaviours documentation is missing.</p>'))
   }, [])

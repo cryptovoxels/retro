@@ -17,5 +17,8 @@ COPY --from=build /app/server/migrations.sql /app/server/migrations.sql
 COPY --from=build /app/.env.production /app/.env.production
 COPY --from=build /app/server/queries /app/server/queries
 COPY --from=build /app/dist /app/dist
+# served by web/load-routes.tsx, llms.txt and API.md are generated from the yaml
+COPY --from=build /app/API.md /app/llms.txt /app/BEHAVIOURS.md /app/ART.md /app/
+COPY --from=build /app/server/openapi.yaml /app/server/openapi.yaml
 EXPOSE 8080
 CMD ["sh", "-c", "node server/migrate.js & exec node server/bundle_server.js"]

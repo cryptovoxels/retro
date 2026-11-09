@@ -22,7 +22,7 @@ export default function ApiDoc(_props: { path?: string }) {
 
   useEffect(() => {
     fetch('/API.md')
-      .then((r) => r.text())
+      .then((r) => (r.ok ? r.text() : Promise.reject()))
       .then((md) => setHtml(headingIds(micromark(md))))
       .catch(() => setHtml('<p>API documentation is missing.</p>'))
   }, [])

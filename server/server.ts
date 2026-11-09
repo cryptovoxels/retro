@@ -587,10 +587,6 @@ app.get(
 
 app.get('/sitemap.txt', cache('1 day', true), sitemap)
 
-app.get('/robots.txt', cache('1 day', true), (req, res) => {
-  res.status(200).sendFile('/robots.txt')
-})
-
 // Cache is 1 minute because we don't query the DB and we don't query the contract anymore, we query the subgraph.
 app.get('/api/names/exists/:name', cache('30 seconds'), async (req, res) => {
   if (!req.params.name) {
