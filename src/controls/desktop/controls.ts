@@ -213,7 +213,7 @@ export default class DesktopControls extends Controls {
         if (pointerOverGizmo(this.scene)) return
         this.nerfClick = true
         eventState.skipNextObservers = true
-        window.ui?.closeWithPointerLock()
+        this.requestPointerLock()?.catch(() => {})
         return
       }
       // ActionGui (Drive / try-on / guestbook): lock mid-press moves the cursor to
@@ -223,7 +223,6 @@ export default class DesktopControls extends Controls {
         if (meshName.startsWith('feature/basicGui/')) return
         this.nerfClick = true
         eventState.skipNextObservers = true
-        if (window.ui?.voxelTool && window.ui.activeTool === window.ui.voxelTool) window.ui.exitVoxels()
         this.requestPointerLock()?.catch(() => {})
         return
       }
@@ -269,8 +268,8 @@ export default class DesktopControls extends Controls {
           if (picked?.parcel?.canEdit) {
             picked.openEditor()
           } else {
-            // click away: leave edit mode entirely — sidebar goes away, pointer lock back
-            window.ui?.closeWithPointerLock()
+            // Keep the editor mounted while flying.
+            this.requestPointerLock()?.catch(() => {})
           }
           eventState.skipNextObservers = true
           break

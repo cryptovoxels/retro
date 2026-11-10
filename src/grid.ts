@@ -198,16 +198,26 @@ export default class Grid extends SocketClient {
 
   // /admin island drops its proposal straight into the live world. these parcels never came from the
   // worker so it never unloads them either, clearPreview does
-  preview: { name: string; ids: Parcel['id'][] } | null = null
+  preview: { name: string; ids: Set<Parcel['id']> } | null = null
 
-  async previewIsland(island: IslandRecord, parcels: ParcelRecord[]) {
+  async previewIsland(island: IslandRecord, parcels: ParcelRecord[], progress?: (done: number) => void) {
     this.clearPreview()
-    this.preview = { name: island.name, ids: parcels.map((p) => p.id) }
+    const preview = { name: island.name, ids: new Set<Parcel['id']>() }
+    this.preview = preview
     await getWorldTerrain()?.addIsland(island)
-    for (const r of parcels) {
+    if (this.preview !== preview) return
+    for (const [i, r] of parcels.entries()) {
+      if (i && i % 32 === 0) {
+        progress?.(i)
+        await new Promise((resolve) => setTimeout(resolve, 0))
+        if (this.preview !== preview) return
+      }
       try {
         const parcel = this.load(r, this)
-        if (parcel) window.main?.stream.add(parcel)
+        if (parcel) {
+          preview.ids.add(parcel.id)
+          window.main?.stream.add(parcel)
+        }
       } catch (e) {
         console.error('preview parcel', r.id, e)
       }
@@ -354,6 +364,12 @@ export default class Grid extends SocketClient {
     if (this.nearestParcels.length && this.currentIsland !== this.nearestParcels[0]?.island) {
       this.currentIsland = this.nearestParcels[0]?.island
     }
+  }
+
+  currentStreet() {
+    if (this.currentW !== 0 || !this.scene.activeCamera) return
+    const { x, z } = cameraPosition(this.scene)
+    return getWorldTerrain()?.islands.streetAt(x, z)
   }
 
   public currentParcel(forceScan = false): Parcel | undefined {

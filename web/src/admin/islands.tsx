@@ -1,79 +1,31 @@
 import { Component, createRef } from 'preact'
 import type { ParcelMeta } from '../../../common/types'
-import ndarray, { NdArray } from 'ndarray'
 import type { MapMarker, VoxelsMap } from '../helpers/load-voxels-map'
 import { loadVoxelsMap } from '../helpers/load-voxels-map'
-import { getVoxelsFromBuffer } from '../../../common/voxels/helpers'
+import { runCompute } from '../../../src/mono-pool'
 import { CAMERA_HEIGHT } from '../../../common/helpers/utils'
 import { app } from '../state'
 import { worldBoot } from '../client'
-import { village, type VillageParcel } from './village'
+import type { Road } from './texas'
+import type { VillageParcel } from './village'
 
-const PAVEMENT_LEVEL = 1
-const BLEED_MARGIN = 2
 const PAGE_ORTHO = 2000
-
-// Outline of the solid cells of the island field as square cornered rings: every solid cell edge that
-// has water on the other side, chained into loops. Outer rings only, courtyards fill in. Geo coords.
-function getIslandGeometry(field: IslandField, center: vec2) {
-  const width = field.shape[0]
-  const depth = field.shape[2]
-  const solid = (x: number, z: number) => x >= 0 && z >= 0 && x < width && z < depth && field.get(x, PAVEMENT_LEVEL, z) !== 0
-
-  // edges run anticlockwise round the solid, keyed by their start corner
-  const next = new Map<string, [number, number]>()
-  for (let x = 0; x < width; x++) {
-    for (let z = 0; z < depth; z++) {
-      if (!solid(x, z)) continue
-      if (!solid(x, z - 1)) next.set(`${x},${z}`, [x + 1, z])
-      if (!solid(x + 1, z)) next.set(`${x + 1},${z}`, [x + 1, z + 1])
-      if (!solid(x, z + 1)) next.set(`${x + 1},${z + 1}`, [x, z + 1])
-      if (!solid(x - 1, z)) next.set(`${x},${z + 1}`, [x, z])
-    }
-  }
-
-  const rings: [number, number][][] = []
-  while (next.size) {
-    const start = next.keys().next().value!
-    const ring: [number, number][] = []
-    let at = start
-    let area = 0
-    while (next.has(at)) {
-      const [x, z] = at.split(',').map(Number)
-      const to = next.get(at)!
-      next.delete(at)
-      area += x * to[1] - to[0] * z
-      // drop corners that only continue a straight edge
-      const prev = ring[ring.length - 1]
-      const before = ring[ring.length - 2]
-      if (prev && before && ((before[0] === prev[0] && prev[0] === x) || (before[1] === prev[1] && prev[1] === z))) ring.pop()
-      ring.push([x, z])
-      at = `${to[0]},${to[1]}`
-    }
-    // the loop only trims corners mid ring, so check the join back to the start too
-    const straight = (a: [number, number], b: [number, number], c: [number, number]) => (a[0] === b[0] && b[0] === c[0]) || (a[1] === b[1] && b[1] === c[1])
-    while (ring.length > 3 && straight(ring[ring.length - 2], ring[ring.length - 1], ring[0])) ring.pop()
-    while (ring.length > 3 && straight(ring[ring.length - 1], ring[0], ring[1])) ring.shift()
-    if (area > 0) rings.push(ring)
-  }
-
-  const offsetX = center[0] - width / 200
-  const offsetZ = center[1] - depth / 200
-  return { type: 'Polygon', coordinates: rings.map((r) => [...r, r[0]].map(([x, z]) => [x / 100 + offsetX, z / 100 + offsetZ])) }
-}
-
 type vec2 = [number, number]
-type vec4 = [number, number, number, number]
 
 type ProspectiveParcel = ParcelMeta & Partial<VillageParcel>
 
 export interface State {
   parcels: ProspectiveParcel[]
+  roads: Road[]
+  status: string
+  progress: number
+  showParcels: boolean
   start: number
   name: string
   streets: string
   // tileset png for every house, ugc bucket or any url
   atlas: string
+  artpack: string
   center: vec2
   count: number
   reroll: number
@@ -92,14 +44,20 @@ export default class IslandsAdmin extends Component<{}, State> {
   mapRef = createRef<HTMLDivElement>()
   centerMarker: MapMarker | null = null
   mapView = ''
+  revision = 0
 
   state: State = {
     parcels: [],
+    roads: [],
+    status: 'loading builder',
+    progress: 0,
+    showParcels: false,
     start: 1,
     name: '',
     streets: '',
     atlas: 'https://ugc.voxels.com/tilesets/concrete-v1.png',
     center: [11.14, -5.61],
+    artpack: '',
     count: 100,
     reroll: 0,
     area: 60,
@@ -110,11 +68,12 @@ export default class IslandsAdmin extends Component<{}, State> {
   }
 
   componentDidMount() {
-    this.fetch()
+    this.fetch().catch(() => this.stage('could not load builder', 0))
     this.createMap()
   }
 
   componentWillUnmount() {
+    this.revision++
     window.grid?.clearPreview()
     this.map?.dispose()
     this.map = null
@@ -124,39 +83,88 @@ export default class IslandsAdmin extends Component<{}, State> {
   async fetch() {
     const response = await fetch(`/api/admin/parcels/top?nonce=${Math.random()}`)
     const { id } = await response.json()
-    this.setState({ start: id })
+    const slug = new URLSearchParams(location.search).get('draft')
+    if (!slug) return this.setState({ start: id, status: 'ready' })
+    try {
+      const res = await fetch('/api/admin/island-drafts/' + encodeURIComponent(slug), { cache: 'no-store' })
+      if (!res.ok && !(res.status === 404 && slug === 'texas')) throw new Error()
+      const { settings, ground, content } = res.ok ? await res.json() : { settings: (await import('./texas-draft.json')).default }
+      if (!this.mapRef.current) return
+      this.setState({ ...settings, start: id }, () => this.build(settings.reroll, ground, content?.features))
+    } catch {
+      this.setState({ start: id })
+      this.stage('could not load island draft', 0)
+    }
   }
 
-  build = (reroll: number) => {
+  stage(status: string, progress: number) {
+    this.setState({ status, progress })
+  }
+
+  async proposal(reroll: number) {
     const streets = this.state.streets
       .split('\n')
       .map((s) => s.trim())
       .filter(Boolean)
     const { name, count, area, areaSpread, height, heightSpread } = this.state
-    const { parcels, spawn } = village({ name, streets, count, reroll, area, areaSpread, height, heightSpread })
+    const { parcels, roads, spawn } = await runCompute((w) => w.islandLayout({ name, streets, count, reroll, area, areaSpread, height, heightSpread }))
     parcels.forEach((p, i) => (p.id = i + 1 + this.state.start))
-    this.setState({ parcels, reroll, spawn }, this.preview)
+    return { parcels, roads, reroll, spawn }
   }
 
-  // teleport first so the island spawns around you, then post the proposal and drop it in
-  preview = async () => {
-    if (!this.state.parcels.length) return
-    this.syncMap()
-    const [cx, cz] = this.state.center
-    const [sx, sz] = this.state.spawn
-    await worldBoot()
-    if (!window.persona) return app.showSnackbar('world not booted')
-    window.persona.teleport({ position: new BABYLON.Vector3(cx * 100 + sx, CAMERA_HEIGHT, cz * 100 + sz), rotation: BABYLON.Vector3.Zero() }, false)
-    const res = await fetch('/api/admin/islands/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.buildBody()) })
-    const json = await res.json().catch(() => ({}))
-    if (!json.success) return app.showSnackbar(json.message || 'preview failed')
-    this.map?.setProposal(json.island, json.parcels)
+  build = async (reroll: number, ground?: string, features?: any[]) => {
+    const revision = ++this.revision
+    this.stage('laying out streets and parcels', 1)
     try {
-      await window.grid?.previewIsland(json.island, json.parcels)
-    } catch (e) {
-      console.error('island preview', e)
-      app.showSnackbar('preview failed, see console')
+      const proposal = await this.proposal(reroll)
+      if (this.revision !== revision) return
+      this.setState(proposal, () => this.preview(ground, features))
+    } catch {
+      if (this.revision === revision) this.stage('layout failed', 0)
     }
+  }
+
+  preview = async (savedGround?: string, features?: any[]) => {
+    if (!this.state.parcels.length) return this.stage('no parcels generated', 0)
+    const revision = ++this.revision
+    try {
+      this.syncMap()
+      this.stage('painting ground and tracing shoreline', 2)
+      const body = await this.buildBody()
+      if (this.revision !== revision) return
+      if (savedGround && savedGround === body.ground) {
+        body.ground = savedGround
+        if (features) body.content.features = features
+      }
+      this.stage('building houses and placing art', 3)
+      const res = await fetch('/api/admin/islands/preview', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const json = await res.json()
+      if (this.revision !== revision) return
+      if (!json.success) return this.stage(json.message || 'preview failed', 0)
+      this.stage('loading world', 4)
+      await worldBoot()
+      if (this.revision !== revision) return
+      await window.grid?.switchWorld(0)
+      if (this.revision !== revision) return
+      if (!window.persona || !window.grid) return this.stage('world not ready', 0)
+      this.map?.setProposal(json.island, json.parcels)
+      this.stage('adding parcels to the grid', 5)
+      await window.grid.previewIsland(json.island, json.parcels, (done) => {
+        if (this.revision === revision) this.stage('adding parcels: ' + done + ' / ' + json.parcels.length, 5 + done / json.parcels.length)
+      })
+      if (this.revision !== revision) return
+      this.visitSpawn()
+      this.stage('preview ready - ' + json.parcels.length + ' parcels', 7)
+    } catch {
+      if (this.revision === revision) this.stage('could not build preview', 0)
+    }
+  }
+
+  visitSpawn = () => {
+    const [cx, cz] = this.state.center,
+      [sx, sz] = this.state.spawn
+    const creek = !!this.state.parcels[0]?.suburb
+    window.persona?.teleport({ position: new BABYLON.Vector3(cx * 100 + sx, CAMERA_HEIGHT + (this.state.parcels[0]?.y1 || 0) + 1, cz * 100 + sz), rotation: new BABYLON.Vector3(creek ? 0.15 : 0, creek ? Math.PI / 2 : 0, 0) }, false)
   }
 
   // island width and depth in metres
@@ -164,25 +172,67 @@ export default class IslandsAdmin extends Component<{}, State> {
     return [Math.max(...parcels.map((p) => p.x2)) - Math.min(...parcels.map((p) => p.x1)), Math.max(...parcels.map((p) => p.z2)) - Math.min(...parcels.map((p) => p.z1))]
   }
 
-  islandBody() {
-    const { field } = getIslandField(this.state.parcels)
-    return { name: this.state.name, geometry: this.getIslandGeometry(), content: { voxels: getVoxelsFromBuffer(field.data) } }
+  async islandBody({ parcels, roads }: Pick<State, 'parcels' | 'roads'> = this.state) {
+    const { artpack, center, reroll } = this.state
+    const surface = await runCompute((worker) => worker.islandSurface(parcels, roads, artpack, center, reroll))
+    return { name: this.state.name, ...surface }
   }
 
-  buildBody() {
-    return { ...this.islandBody(), atlas: this.state.atlas, parcels: this.state.parcels.map((p) => ({ ...this.parcelPayload(p), door: p.door, material: p.material })) }
+  async buildBody() {
+    return { ...(await this.islandBody()), atlas: this.state.atlas, artpack: this.state.artpack, parcels: this.state.parcels.map((p) => ({ ...this.parcelPayload(p), door: p.door, material: p.material })) }
   }
 
   insertAll = async () => {
-    const res = await fetch('/api/admin/islands/build', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.buildBody()) })
-    const json = await res.json().catch(() => ({}))
-    app.showSnackbar(json.success ? `${json.inserted} parcels inserted` : json.message || 'insert failed')
+    this.stage('preparing island for insertion', 2)
+    try {
+      const body = await this.buildBody()
+      this.stage('inserting island and parcels', 4)
+      const res = await fetch('/api/admin/islands/build', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const json = await res.json().catch(() => ({}))
+      this.stage(json.success ? `${json.inserted} parcels inserted` : json.message || 'insert failed', json.success ? 7 : 0)
+    } catch {
+      this.stage('insert failed', 0)
+    }
   }
 
-  onSave = async (e: any) => {
-    e.preventDefault()
-    await fetch('/api/admin/islands', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.islandBody()) })
-    app.showSnackbar('island saved')
+  saveDraft = async () => {
+    const { name, count, center, reroll, area, areaSpread, height, heightSpread, atlas, streets, artpack } = this.state
+    const slug = name
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-|-$/g, '')
+    if (!slug) return app.showSnackbar('draft needs a name')
+    try {
+      this.stage('preparing draft ground', 2)
+      const proposal = await this.proposal(reroll)
+      const surface = proposal.parcels.length ? await this.islandBody(proposal) : undefined
+      this.stage('saving draft', 5)
+      const res = await fetch('/api/admin/island-drafts/' + slug, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, count, center, reroll, area, areaSpread, height, heightSpread, atlas, streets, artpack, ground: surface?.ground, content: surface?.content }),
+      })
+      if (!res.ok) throw new Error()
+      const url = new URL(location.href)
+      url.pathname = '/admin/island'
+      url.searchParams.set('draft', slug)
+      history.replaceState(history.state, '', url)
+      this.stage('draft saved', 7)
+    } catch {
+      this.stage('could not save draft', 0)
+    }
+  }
+
+  onSave = async () => {
+    try {
+      this.stage('saving island terrain', 3)
+      const res = await fetch('/api/admin/islands', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(await this.islandBody()) })
+      const json = await res.json()
+      this.stage(json.success ? 'island saved' : json.message || 'save failed', json.success ? 7 : 0)
+    } catch {
+      this.stage('save failed', 0)
+    }
   }
 
   download = () => {
@@ -196,7 +246,7 @@ export default class IslandsAdmin extends Component<{}, State> {
   upload = async (e: any) => {
     const text = await e.target.files[0].text()
     try {
-      this.setState({ parcels: JSON.parse(text).parcels }, this.preview)
+      this.setState({ roads: [], parcels: JSON.parse(text).parcels }, this.preview)
     } catch {
       app.showSnackbar('bad json')
     }
@@ -229,18 +279,18 @@ export default class IslandsAdmin extends Component<{}, State> {
     const x = this.state.center[0] * 100
     const z = this.state.center[1] * 100
     const view = `${x},${z},${this.state.parcels.length}`
+    if (view !== this.mapView && !this.state.parcels.length) this.map.setView(x, z)
     if (view !== this.mapView && this.state.parcels.length) {
-      this.mapView = view
       const [w, d] = this.extent(this.state.parcels)
       this.map.fitBounds(x - w / 2, z - d / 2, x + w / 2, z + d / 2, 2)
     }
-    const html = `<span>${this.state.name || 'island'}</span>`
+    this.mapView = view
     if (this.centerMarker) {
       this.centerMarker.setPos(x, z)
-      this.centerMarker.el.innerHTML = html
-      return
+    } else {
+      this.centerMarker = this.map.addMarker({ x, z, className: 'island-label', html: '<span></span>' })
     }
-    this.centerMarker = this.map.addMarker({ x, z, className: 'island-label', html })
+    this.centerMarker.el.querySelector('span')!.textContent = this.state.name || 'island'
   }
 
   // Convert a designer parcel (local voxel coords) into the geo-coord payload the db wants.
@@ -251,6 +301,7 @@ export default class IslandsAdmin extends Component<{}, State> {
       id: parcel.id,
       address: parcel.address || `${number} ${this.state.name}`,
       island: this.state.name,
+      suburb: parcel.suburb,
       owner: app.state.wallet || '0x2D891ED45C4C3EAB978513DF4B92a35Cf131d2e2',
       x1: parcel.x1 * scale + this.state.center[0],
       y1: parcel.y1,
@@ -263,12 +314,6 @@ export default class IslandsAdmin extends Component<{}, State> {
 
   async create(parcel: ProspectiveParcel) {
     await fetch('/api/admin/parcels/create', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(this.parcelPayload(parcel)) })
-  }
-
-  private getIslandGeometry() {
-    const { bounds, field } = getIslandField(this.state.parcels, true)
-    const [x1, y1, x2, y2] = bounds.map((b) => b * 0.01)
-    return getIslandGeometry(field, [this.state.center[0] + (x1 + x2) / 2, this.state.center[1] + (y1 + y2) / 2])
   }
 
   // uncontrolled so preact never writes the value back mid drag, build and reroll read the state
@@ -284,218 +329,136 @@ export default class IslandsAdmin extends Component<{}, State> {
   }
 
   render() {
+    const busy = this.state.progress > 0 && this.state.progress < 7
     const center = this.state.center.map((c) => c.toFixed(2)).join(',')
     return (
       <section class="island-admin">
         <header>
           <h1>Island Builder</h1>
-          <p>Propose new islands for approval.</p>
         </header>
 
-        <form>
-          <div class="f">
-            <label>Name</label>
-            <input type="text" value={this.state.name} onChange={(e: any) => this.setState({ name: e.target.value }, this.syncMap)} />
-          </div>
+        <form onSubmit={(e) => e.preventDefault()}>
+          <fieldset disabled={busy || this.state.status === 'loading builder'} style={{ border: 0, padding: 0, margin: 0 }}>
+            <div class="f">
+              <label>Name</label>
+              <input type="text" value={this.state.name} onChange={(e: any) => this.setState({ name: e.target.value }, this.syncMap)} />
+            </div>
 
-          <div class="f">
-            <label>Streets, one per line</label>
-            <textarea value={this.state.streets} onChange={(e: any) => this.setState({ streets: e.target.value })} />
-          </div>
+            <details>
+              <summary>parameters</summary>
+              <div class="f">
+                <label>Streets, one per line</label>
+                <textarea value={this.state.streets} onChange={(e: any) => this.setState({ streets: e.target.value })} />
+              </div>
 
-          <div class="f">
-            <label>Atlas url</label>
-            <input type="text" value={this.state.atlas} onChange={(e: any) => this.setState({ atlas: e.target.value.trim() })} />
-          </div>
+              <div class="f">
+                <label for="island-artpack">Artpack</label>
+                <select id="island-artpack" value={this.state.artpack} onChange={(e) => this.setState({ artpack: e.currentTarget.value })}>
+                  <option value="">custom atlas</option>
+                  <option value="texas-thrift">Texas thrift</option>
+                </select>
+              </div>
+              {!this.state.artpack && (
+                <div class="f">
+                  <label>Atlas url</label>
+                  <input type="text" value={this.state.atlas} onChange={(e: any) => this.setState({ atlas: e.target.value.trim() })} />
+                </div>
+              )}
 
-          <div class="f">
-            <label>Center</label>
-            <input type="text" value={center} onChange={(e: any) => this.setState({ center: e.target.value.split(',').map(Number) }, this.syncMap)} />
-          </div>
+              <div class="f">
+                <label>Center</label>
+                <input
+                  type="text"
+                  value={center}
+                  onChange={(e: any) => {
+                    const parts = e.target.value.split(',').map((part: string) => part.trim())
+                    if (parts.length !== 2 || parts.some((part: string) => !part || !Number.isFinite(Number(part)))) {
+                      e.target.value = center
+                      return app.showSnackbar('enter center as x,z')
+                    }
+                    this.setState({ center: [Number(parts[0]), Number(parts[1])] }, this.syncMap)
+                  }}
+                />
+              </div>
 
-          <div class="f">
-            <label>Parcels</label>
-            <input type="number" value={this.state.count} onChange={(e: any) => this.setState({ count: Math.max(1, parseInt(e.target.value, 10) || 1) })} />
-          </div>
+              <div class="f">
+                <label>Parcels</label>
+                <input type="number" value={this.state.count} onChange={(e: any) => this.setState({ count: Math.max(1, parseInt(e.target.value, 10) || 1) })} />
+              </div>
 
-          {this.slider('area', 'Lot area m2', 10, 200, 5)}
-          {this.slider('areaSpread', 'Lot area spread', 0, 1, 0.05)}
-          {this.slider('height', 'Height m', 3, 30, 1)}
-          {this.slider('heightSpread', 'Height spread', 0, 1, 0.05)}
+              {this.slider('area', 'Lot area m2', 10, 200, 5)}
+              {this.slider('areaSpread', 'Lot area spread', 0, 1, 0.05)}
+              {this.slider('height', 'Height m', 3, 30, 1)}
+              {this.slider('heightSpread', 'Height spread', 0, 1, 0.05)}
+            </details>
+            <button type="button" onClick={() => this.build(this.state.reroll)}>
+              build
+            </button>
+            <button type="button" onClick={() => this.build(this.state.reroll + 1)}>
+              regenerate
+            </button>
+            <button type="button" disabled={!this.state.parcels.length || !this.state.name.trim()} onClick={this.insertAll}>
+              insert all
+            </button>
 
-          <button type="button" onClick={() => this.build(this.state.reroll)}>
-            build
-          </button>
-          <button type="button" onClick={() => this.build(this.state.reroll + 1)}>
-            reroll
-          </button>
-          <button type="button" onClick={this.insertAll}>
-            insert all
-          </button>
-
+            <button type="button" disabled={!this.state.name.trim()} onClick={this.saveDraft}>
+              save draft
+            </button>
+          </fieldset>
+          <progress aria-label="island generation" max={7} value={this.state.progress} />
+          <div role="status">{this.state.status}</div>
           <h5>Location</h5>
+          {this.state.parcels[0]?.suburb && (
+            <button type="button" disabled={busy} onClick={this.visitSpawn}>
+              visit creek
+            </button>
+          )}
 
           <div class="island-map" ref={this.mapRef} />
 
-          <button onClick={this.onSave}>Save</button>
+          <button type="button" disabled={busy || !this.state.parcels.length || !this.state.name.trim()} onClick={this.onSave}>
+            save island terrain
+          </button>
         </form>
-        <h3>Parcels</h3>
+        <details onToggle={(e) => this.setState({ showParcels: e.currentTarget.open })}>
+          <summary>parcels ({this.state.parcels.length})</summary>
+          {this.state.showParcels && (
+            <>
+              <button onClick={this.download}>Download</button>
+              <input type="file" accept=".json" onChange={this.upload} />
 
-        <button onClick={this.download}>Download</button>
-        <input type="file" accept=".json" onChange={this.upload} />
-
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>Address</th>
-              <th>Position</th>
-              <th>Size</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {this.state.parcels.map((parcel) => (
-              <tr key={parcel.id}>
-                <td>
-                  <a href={`/parcels/${parcel.id}`}>{parcel.id}</a>
-                </td>
-                <td>{parcel.address}</td>
-                <td>{`${parcel.x1},${parcel.y1},${parcel.z1}`}</td>
-                <td>{`${parcel.x2 - parcel.x1},${parcel.y2 - parcel.y1},${parcel.z2 - parcel.z1}`}</td>
-                <td>
-                  <button onClick={() => this.create(parcel)}>Insert</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Address</th>
+                    <th>Suburb</th>
+                    <th>Position</th>
+                    <th>Size</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {this.state.parcels.map((parcel) => (
+                    <tr key={parcel.id}>
+                      <td>
+                        <a href={`/parcels/${parcel.id}`}>{parcel.id}</a>
+                      </td>
+                      <td>{parcel.address}</td>
+                      <td>{parcel.suburb}</td>
+                      <td>{`${parcel.x1},${parcel.y1},${parcel.z1}`}</td>
+                      <td>{`${parcel.x2 - parcel.x1},${parcel.y2 - parcel.y1},${parcel.z2 - parcel.z1}`}</td>
+                      <td>
+                        <button onClick={() => this.create(parcel)}>Insert</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
+          )}
+        </details>
       </section>
     )
   }
-}
-
-type IslandField = NdArray<Uint16Array>
-
-export function getIslandField(parcels: ProspectiveParcel[], hull = false): { bounds: vec4; field: IslandField } {
-  if (parcels.length === 0) {
-    throw new Error('No parcels provided')
-  }
-
-  const margin = BLEED_MARGIN
-  // const splatMargin = 4
-
-  let minX = Infinity,
-    maxX = -Infinity
-  let minZ = Infinity,
-    maxZ = -Infinity
-
-  for (const p of parcels) {
-    minX = Math.min(minX, p.x1)
-    maxX = Math.max(maxX, p.x2)
-    minZ = Math.min(minZ, p.z1)
-    maxZ = Math.max(maxZ, p.z2)
-  }
-
-  // Grow bounds by 1 unit in all directions
-  minX -= 1 + margin
-  maxX += 1 + margin
-  minZ -= 1 + margin
-  maxZ += 1 + margin
-
-  const bounds: vec4 = [minX, minZ, maxX, maxZ]
-
-  const w = maxX - minX
-  const h = 4
-  const d = maxZ - minZ
-
-  const solid = (1 << 15) + 0
-  const border = (1 << 15) + 4
-
-  const field = ndarray(new Uint16Array(w * h * d), [w, h, d])
-
-  // console.log(minX, maxX, minZ, maxZ)
-  // console.log(w, h)
-
-  function occupied(x: number, z: number) {
-    for (const p of parcels) {
-      if (minX + x >= p.x1 && minX + x < p.x2 && minZ + z >= p.z1 && minZ + z < p.z2) {
-        return true
-      }
-    }
-
-    return false
-  }
-
-  function splat(x: number, z: number, radius: number, value: number) {
-    for (let i = -radius; i <= radius; i++) {
-      for (let j = -radius; j <= radius; j++) {
-        field.set(x + i, PAVEMENT_LEVEL, z + j, value)
-      }
-    }
-  }
-  // Bleed out parcels
-  for (let x = 0; x < w; x++) {
-    for (let z = 0; z < d; z++) {
-      if (occupied(x, z)) {
-        splat(x, z, margin, solid)
-      }
-    }
-  }
-
-  // Parcel border (minisplat)
-  for (let x = 0; x < w; x++) {
-    for (let z = 0; z < d; z++) {
-      if (occupied(x, z)) {
-        splat(x, z, 1, border)
-      }
-    }
-  }
-
-  // Flood fill from edges
-  const queue: [number, number][] = []
-
-  // Push corners
-  queue.push([0, 0], [0, h - 1], [w - 1, 0], [w - 1, h - 1])
-
-  while (queue.length > 0) {
-    const [x, z] = queue.shift()!
-    if (x < 0 || x >= w || z < 0 || z >= d) continue
-    if (field.get(x, PAVEMENT_LEVEL, z) !== 0) continue
-
-    field.set(x, PAVEMENT_LEVEL, z, 2) // mark as water-accessible
-
-    queue.push([x - 1, z], [x + 1, z], [x, z - 1], [x, z + 1])
-  }
-
-  // All remaining 0s are enclosed: mark them as ground (1)
-  for (let x = 0; x < w; x++) {
-    for (let z = 0; z < d; z++) {
-      if (field.get(x, PAVEMENT_LEVEL, z) === 0) {
-        field.set(x, PAVEMENT_LEVEL, z, solid)
-      }
-    }
-  }
-
-  // Null out parcels
-  if (!hull) {
-    for (let x = 0; x < w; x++) {
-      for (let z = 0; z < d; z++) {
-        if (occupied(x, z)) {
-          field.set(x, PAVEMENT_LEVEL, z, 0)
-        }
-      }
-    }
-  }
-
-  // Delete the ocean
-  for (let x = 0; x < w; x++) {
-    for (let z = 0; z < d; z++) {
-      if (field.get(x, PAVEMENT_LEVEL, z) === 2) {
-        field.set(x, PAVEMENT_LEVEL, z, 0)
-      }
-    }
-  }
-
-  return { bounds, field }
 }

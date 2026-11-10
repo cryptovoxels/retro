@@ -1034,18 +1034,34 @@ main {
       visibility 80ms,
       transform 200ms ease-out;
   }
+}
 
-  body.locked header.menu {
-    opacity: 0;
-    visibility: hidden;
-    transition:
-      opacity 300ms,
-      visibility 300ms;
-  }
+body.locked header.menu,
+body.locked main > .page {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 300ms,
+    visibility 300ms;
 }
 
 .page:has(> .page-tool:not(:empty)) > .page-route {
   display: none;
+}
+
+body.locked main > .page:has(.street-mini) {
+  display: block;
+  height: fit-content;
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+  pointer-events: none;
+  > :not(.page-mini) {
+    display: none;
+  }
+  > .page-mini {
+    display: block;
+  }
 }
 
 .page-tool:empty {

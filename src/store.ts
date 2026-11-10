@@ -21,6 +21,7 @@ setInterval(() => {
     return
   }
 
+  street.value = grid.currentStreet?.()
   const mutable = grid.nearestEditableParcel()
 
   if (mutable) {
@@ -132,6 +133,7 @@ export const isOnSandboxParcel = () => {
   return !!(p as any)?.sandbox
 }
 
+export const street = signal<{ name?: string; suburb?: string } | undefined>(undefined)
 export const currentOrNearestParcel = signal<Parcel | undefined>(undefined)
 
 export const selectCurrentOrNearestParcel = () => {

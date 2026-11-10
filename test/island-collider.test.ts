@@ -139,3 +139,30 @@ test('island tops and walls share world-aligned 50cm UVs regardless of island di
     }
   }
 })
+
+test('terrain collision follows a raised pad and leaves room underneath a creek crossing', async () => {
+  await initPhysics()
+  const { groundMesh } = await import('../src/monoworker/ground-mesh')
+  const { addTrimesh } = await import('../src/physics/world')
+  const field = Buffer.alloc(16 + 2 * 8, 255)
+  field.writeInt32LE(0, 0)
+  field.writeInt32LE(0, 4)
+  field.writeInt32LE(2, 8)
+  field.writeInt32LE(1, 12)
+  for (let y = 0; y < 8; y++) field[16 + 2 * y] = 4
+  field[17] = 5
+  field[17 + 2 * 5] = 31
+  const mesh = groundMesh(field)
+  const key = 'test-terraced-crossing'
+  try {
+    addTrimesh(key, mesh.positions, mesh.indices, { x: 0, y: 0, z: 0 })
+    const world = physics()!
+    world.step()
+    const hit = (x: number, y: number) => world.castRay(new RAPIER.Ray({ x, y, z: 0.25 }, { x: 0, y: -1, z: 0 }), 10, true)?.timeOfImpact
+    expect(hit(0.25, 5)).toBeCloseTo(5 - 2.74)
+    expect(hit(0.75, 5)).toBeCloseTo(5 - 1.74)
+    expect(hit(0.75, 0.25)).toBeCloseTo(0.25 + 0.76)
+  } finally {
+    removeCollider(key)
+  }
+})

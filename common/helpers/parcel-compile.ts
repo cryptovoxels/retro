@@ -628,6 +628,7 @@ export function leftoverUrls(parcelId: number, features: FeatureRecord[], tilese
 }
 
 export function tilesetRuntimeUrl(tileset: string): string {
+  if (tileset.startsWith('/textures/')) return tileset
   if (tileset.startsWith('ugc://')) return resolveUgc(tileset) || tileset
   if (tileset.startsWith('/')) return (process.env.IMG_HOST || '').replace(/\/$/, '') + tileset
   return tileset

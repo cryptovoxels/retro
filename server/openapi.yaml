@@ -2054,6 +2054,29 @@ paths:
         '404':
           $ref: '#/components/responses/Failure'
 
+  /api/islands/{id}/ground.bin:
+    get:
+      operationId: getIslandGround
+      tags: [islands]
+      summary: Island terrain voxels
+      description: Four little-endian signed int32 values (world x, world z, width, depth) followed by sixteen layers of 50 cm voxels, starting at world y = -1.26 m. Each layer contains width times depth bytes in z-major rows. Byte 255 is air. Values 0 through 63 index the ground atlas. The byte length also identifies older eight-layer volumes and single-layer maps with one-metre cells.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Packed ground map
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Island has no ground map
+
   /api/islands.json:
     get:
       operationId: listIslands

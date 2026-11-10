@@ -1,0 +1,122 @@
+{
+  "Houston": [
+    "Lovejoy St",
+    "Eagle St",
+    "Bagby St",
+    "Blodgett St",
+    "Ranch St",
+    "Yupon St",
+    "San Jacinto St",
+    "Pineridge St",
+    "Wheeler",
+    "Commonwealth St"
+  ],
+  "San Antonio": [
+    "Artillery Post Loop",
+    "Nolan St",
+    "Snow Aly",
+    "Applewhite St",
+    "Probandt St",
+    "Glass Ave",
+    "S Cherry St",
+    "Panama St",
+    "Grand Jean St",
+    "Riebe Aly"
+  ],
+  "Dallas": [
+    "Cotton Bowl Cir",
+    "Slaughter Ave",
+    "Reunion Blvd",
+    "Jett Way",
+    "Congo St",
+    "Wolf St",
+    "Knight St",
+    "Ranger Cir",
+    "Ripley St",
+    "Modern Pl"
+  ],
+  "Fort Worth": [
+    "Rodeo Plz",
+    "Locomotive St",
+    "Morning Glory Ave",
+    "Will Rogers Rd",
+    "Niles City Blvd",
+    "W Peach St",
+    "Foch St",
+    "Greenleaf St",
+    "El Campo Ave",
+    "Rockwood Park Dr"
+  ],
+  "Austin": [
+    "Violet Crown Ln",
+    "Bluebonnet Ln",
+    "S Congress Ave",
+    "Zilker Clubhouse Rd",
+    "Crooked Ln",
+    "Rosewood Ave",
+    "Rabb Glen St",
+    "W Cesar Chavez St",
+    "W 13 1/2 St",
+    "Toyath St"
+  ],
+  "El Paso": [
+    "Camino Alto Rd",
+    "Red Bluff Rd",
+    "Cerro Azul Dr",
+    "E Father Rahm Ave",
+    "S Estrella St",
+    "Manzana Ave",
+    "Ladrillo Pl",
+    "E Overland Ave",
+    "Porfirio Diaz St",
+    "N Copper Ave"
+  ],
+  "Arlington": [
+    "Snooty Fox Cir",
+    "Cowboys Way",
+    "Robins Lair Ct",
+    "Bedrock Ln",
+    "Shamrock Bend Ln",
+    "Hummingbird Ln",
+    "Stonehenge Dr",
+    "Red Cedar Ln",
+    "King Richard Ct",
+    "Pecan Acres Ct"
+  ],
+  "Corpus Christi": [
+    "Surfside Blvd",
+    "Nueces Bay Blvd",
+    "Ocean Park Dr",
+    "S Chaparral St",
+    "Guatemozin St",
+    "N Carancahua St",
+    "Lipan St",
+    "Buffalo St",
+    "Sunrise Ave",
+    "Havana St"
+  ],
+  "Plano": [
+    "Mystery Cir",
+    "Alpaca Way",
+    "Box Canyon Ct",
+    "Flint Cove Cir",
+    "Baffin Bay Ct",
+    "Roundrock Trl",
+    "Sundown Cir",
+    "Silverstone Dr",
+    "Loch Haven Dr",
+    "Daffodil Dr"
+  ],
+  "Lubbock": [
+    "Compress Ave",
+    "Canyon Lake Dr",
+    "Shallowater Dr",
+    "Mackenzie Park Rd",
+    "Dixie Dr",
+    "N Waco Ave",
+    "N Magnolia Ave",
+    "Detroit Ave",
+    "Hickory Ave",
+    "Mesa Rd"
+  ]
+}

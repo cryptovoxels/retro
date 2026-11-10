@@ -1,6 +1,12 @@
+import { packGround } from '../../common/voxels/ground-bytes'
+import { inflateSync } from 'node:zlib'
+import type { PoolClient } from 'pg'
 import { Express } from 'express'
 import { centroid } from '@turf/turf'
 
+import texas from '../../common/artpacks/texas-thrift.json'
+import { thriftModel } from '../../common/artpacks/texas'
+import { v7 as uuid } from 'uuid'
 import cache from '../cache'
 import config from '../../common/config'
 import { SUPPORTED_CHAINS } from '../../common/helpers/chain-helpers'
@@ -156,11 +162,54 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
     res.status(200).json({ success: true })
   })
 
+  const draftAuth = [passport.authenticate('jwt', { session: false }), requireAdmin]
+  app.get('/api/admin/island-drafts/:slug', ...draftAuth, async (req, res) => {
+    const r = await db.query('sql/island-draft', 'select settings, content, ground from island_drafts where slug = $1', [req.params.slug])
+    res
+      .set('Cache-Control', 'no-store')
+      .status(r.rows.length ? 200 : 404)
+      .json(r.rows[0] ? { ...r.rows[0], ground: r.rows[0].ground && packGround(r.rows[0].ground) } : {})
+  })
+  app.put('/api/admin/island-drafts/:slug', ...draftAuth, async (req, res) => {
+    const { name, count, center, reroll, area, areaSpread, height, heightSpread, atlas, streets, artpack } = req.body
+    if (
+      !/^[a-z0-9-]{1,100}$/.test(req.params.slug) ||
+      typeof name !== 'string' ||
+      !name.trim() ||
+      !Number.isInteger(count) ||
+      count < 1 ||
+      !Array.isArray(center) ||
+      center.length !== 2 ||
+      !center.every(Number.isFinite) ||
+      !Number.isInteger(reroll) ||
+      ![area, areaSpread, height, heightSpread].every(Number.isFinite) ||
+      area < 10 ||
+      area > 200 ||
+      height < 3 ||
+      height > 30 ||
+      areaSpread < 0 ||
+      areaSpread > 1 ||
+      heightSpread < 0 ||
+      heightSpread > 1 ||
+      typeof streets !== 'string' ||
+      typeof atlas !== 'string' ||
+      !['', 'texas-thrift'].includes(artpack)
+    )
+      return res.status(400).json({ message: 'invalid draft settings' })
+    const settings = { name, count, center, reroll, area, areaSpread, height, heightSpread, atlas, streets, artpack }
+    await db.query(
+      'sql/save-island-draft',
+      'insert into island_drafts (slug, settings, ground, content) values ($1, $2, $3, $4) on conflict (slug) do update set settings = excluded.settings, ground = excluded.ground, content = excluded.content',
+      [req.params.slug, JSON.stringify(settings), floorBytes(req.body.ground), req.body.content || {}],
+    )
+    res.json({ success: true })
+  })
+
   // Upsert island
   app.post('/api/admin/islands', passport.authenticate('jwt', { session: false }), requireAdmin, async (req, res) => {
     const { name, geometry, content } = req.body
     try {
-      await upsertIsland(db, name, geometry, content)
+      await upsertIsland(db, name, geometry, content, req.body.ground, req.body.lakes)
     } catch (e: any) {
       console.log(e)
       res.status(500).json({ success: false, message: e.toString() })
@@ -180,25 +229,41 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
     // leave 20m of sea round the island
     const xs = parcels.flatMap((p: any) => [m(p.x1), m(p.x2)])
     const zs = parcels.flatMap((p: any) => [m(p.z1), m(p.z2)])
+    const client = await db.connect()
     try {
-      const r = await db.query('sql/admin-island-overlap', `select count(*)::int as n from properties where island is distinct from $1 and bounds && cube(ARRAY[$2::float8,-1000,$3::float8], ARRAY[$4::float8,1000,$5::float8])`, [
-        name,
-        Math.min(...xs) - 20,
-        Math.min(...zs) - 20,
-        Math.max(...xs) + 20,
-        Math.max(...zs) + 20,
-      ])
+      await client.query('BEGIN')
+      await client.query('lock table islands in share row exclusive mode')
+      const r = await db.query(
+        'sql/admin-island-overlap',
+        `select count(*)::int as n from properties where island is distinct from $1 and bounds && cube(ARRAY[$2::float8,-1000,$3::float8], ARRAY[$4::float8,1000,$5::float8])`,
+        [name, Math.min(...xs) - 20, Math.min(...zs) - 20, Math.max(...xs) + 20, Math.max(...zs) + 20],
+        client,
+      )
       if (r.rows[0]?.n) {
+        await client.query('ROLLBACK')
         res.status(400).json({ success: false, message: `${r.rows[0].n} parcels already there, move the center` })
         return
       }
 
-      await upsertIsland(db, name, geometry, content)
-      for (const row of villageRows(name, parcels, atlas)) await createParcelRow(db, row)
+      await upsertIsland(db, name, geometry, content, req.body.ground, req.body.lakes, client)
+      const suburbs = new Map<string, number>()
+      for (const row of villageRows(name, parcels, atlas, req.body.artpack)) {
+        if (row.suburb && !suburbs.has(row.suburb)) {
+          const found = await client.query('select id from suburbs where name = $1 order by id limit 1', [row.suburb])
+          const suburb = found.rows[0] || (await client.query('insert into suburbs (name) values ($1) returning id', [row.suburb])).rows[0]
+          suburbs.set(row.suburb, suburb.id)
+        }
+        const inserted = await createParcelRow(db, { ...row, suburbId: suburbs.get(row.suburb) }, client)
+        if (!inserted.rowCount) throw new Error('parcel id already exists: ' + row.id)
+      }
+      await client.query('COMMIT')
     } catch (e: any) {
+      await client.query('ROLLBACK')
       log.error('island build failed', { e: String(e) })
       res.status(500).json({ success: false, message: e?.toString() || 'build failed' })
       return
+    } finally {
+      client.release()
     }
     res.status(200).json({ success: true, inserted: parcels.length })
   })
@@ -218,8 +283,21 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
     res.json({
       success: true,
       // 40 and up renders every ring, the clusters of a village are often separate blobs
-      island: { id: 40, name, other_name: null, texture: '', position, geometry, holes_geometry_json: none, lakes_geometry_json: none },
-      parcels: villageRows(name, parcels, atlas).map((r) => new Parcel({ ...r, x1: m(r.x1), x2: m(r.x2), z1: m(r.z1), z2: m(r.z2), height: r.y2 - r.y1, hash: 'preview', visible: true, settings: {}, parcel_users: [] }).summary),
+      island: {
+        id: 40,
+        name,
+        other_name: null,
+        texture: req.body.ground ? texas.ground : '',
+        ground: req.body.ground,
+        content: { origin: req.body.content?.origin, features: req.body.content?.features, streets: req.body.content?.streets },
+        position,
+        geometry,
+        holes_geometry_json: none,
+        lakes_geometry_json: req.body.lakes || none,
+      },
+      parcels: villageRows(name, parcels, atlas, req.body.artpack).map(
+        (r) => new Parcel({ ...r, x1: m(r.x1), x2: m(r.x2), z1: m(r.z1), z2: m(r.z2), height: r.y2 - r.y1, hash: 'preview', visible: true, settings: {}, parcel_users: [] }).summary,
+      ),
     })
   })
 
@@ -297,15 +375,26 @@ function validIslandBody(b: any) {
 }
 
 // designer parcels -> parcel rows with their village house voxels, all on the one tileset if given
-function villageRows(name: string, parcels: any[], atlas?: string) {
-  const tileset = typeof atlas === 'string' && atlas ? atlas : undefined
-  return parcels.map((p) => {
+function villageRows(name: string, parcels: any[], atlas?: string, artpack?: string) {
+  const pack = artpack === 'texas-thrift' ? texas : undefined
+  const tileset = pack?.atlas || (typeof atlas === 'string' && atlas ? atlas : undefined)
+  return parcels.map((p, i) => {
     const shape = { x1: m(p.x1), x2: m(p.x2), z1: m(p.z1), z2: m(p.z2), y1: p.y1, y2: p.y2, height: p.y2 - p.y1 }
-    return { ...p, island: name, content: { ...ParcelBuilder.Village(shape, isInteger(p.material) ? p.material : ground, p.door), tileset } }
+    const house = ParcelBuilder.Village(shape, isInteger(p.material) ? p.material : ground, p.door, !!pack)
+    if (pack && i % 2 === 0) {
+      const roof = i % 4 === 0
+      const size = Math.min(roof ? 3 : 1.5, shape.x2 - shape.x1 - 1, shape.z2 - shape.z1 - 1)
+      house.features.push({ uuid: uuid(), ...thriftModel(i / 2, [0, (roof ? shape.height : 1) + size / 2, 0], size) } as any)
+    }
+    return { ...p, island: name, content: { ...house, tileset } }
   })
 }
 
-async function createParcelRow(db: Db, p: { id: number; address: string; owner: string; island: string; x1: number; y1: number; z1: number; x2: number; y2: number; z2: number; kind?: string; is_common?: boolean; content?: any }) {
+async function createParcelRow(
+  db: Db,
+  p: { id: number; address: string; owner: string; island: string; x1: number; y1: number; z1: number; x2: number; y2: number; z2: number; kind?: string; is_common?: boolean; content?: any; suburbId?: number },
+  client?: PoolClient,
+) {
   const { id, address, owner, island, x1, y1, z1, x2, y2, z2 } = p
   const minX = Math.min(x1, x2)
   const maxX = Math.max(x1, x2)
@@ -324,20 +413,32 @@ async function createParcelRow(db: Db, p: { id: number; address: string; owner: 
   ]
   const geometry_json = JSON.stringify({ type: 'Polygon', crs: { type: 'name', properties: { name: 'EPSG:3857' } }, coordinates: [ring] })
   const settings = '{}'
-  await db.query(
+  return db.query(
     'sql/create-parcel',
     `
       INSERT INTO
-        properties (id, address, owner, y1, y2, geometry_json, x1, x2, z1, z2, bounds, visible, island, kind, settings, minted, is_common, content)
+        properties (id, address, owner, y1, y2, geometry_json, x1, x2, z1, z2, bounds, visible, island, kind, settings, minted, is_common, content, suburb_id)
       VALUES
-        ($1, $2, $3, $4::float8, $5::float8, $6::jsonb, $7::float8, $8::float8, $9::float8, $10::float8, cube(ARRAY[$7::float8,$4::float8,$9::float8], ARRAY[$8::float8,$5::float8,$10::float8]), true, $11, $13, $12::jsonb, false, $14, $15::json)
+        ($1, $2, $3, $4::float8, $5::float8, $6::jsonb, $7::float8, $8::float8, $9::float8, $10::float8, cube(ARRAY[$7::float8,$4::float8,$9::float8], ARRAY[$8::float8,$5::float8,$10::float8]), true, $11, $13, $12::jsonb, false, $14, $15::json, $16)
       ON CONFLICT (id) DO NOTHING
     `,
-    [id, address, owner, y1, y2, geometry_json, x1c, x2c, z1c, z2c, island, settings, p.kind || 'plot', !!p.is_common, p.content ? JSON.stringify(p.content) : null],
+    [id, address, owner, y1, y2, geometry_json, x1c, x2c, z1c, z2c, island, settings, p.kind || 'plot', !!p.is_common, p.content ? JSON.stringify(p.content) : null, p.suburbId || null],
+    client,
   )
 }
 
-async function upsertIsland(db: Db, name: string, geometry: any, content: any) {
+function floorBytes(value: unknown) {
+  if (value == null) return null
+  if (typeof value !== 'string') throw new Error('invalid ground')
+  const bytes = value.startsWith('z:') ? inflateSync(Buffer.from(value.slice(2), 'base64'), { maxOutputLength: 64 * 1024 * 1024 }) : Buffer.from(value, 'base64')
+  if (bytes.length < 16) throw new Error('invalid ground header')
+  const width = bytes.readInt32LE(8),
+    depth = bytes.readInt32LE(12)
+  if (width < 1 || depth < 1 || ![width * depth, width * depth * 8, width * depth * 16].includes(bytes.length - 16)) throw new Error('invalid ground dimensions')
+  return bytes
+}
+
+async function upsertIsland(db: Db, name: string, geometry: any, content: any, ground?: string, lakes?: any, client?: PoolClient) {
   const geomStr = JSON.stringify(geometry)
   let position_json = '{}'
   try {
@@ -349,11 +450,12 @@ async function upsertIsland(db: Db, name: string, geometry: any, content: any) {
     'sql/upsert-island',
     `
       WITH upsert AS (
-        UPDATE islands SET geometry_json = $2::jsonb, position_json = $4::jsonb, content = $3 WHERE name = $1 RETURNING *
+        UPDATE islands SET geometry_json = $2::jsonb, position_json = $4::jsonb, content = $3, ground = $5, lakes_geometry_json = coalesce($7::jsonb, lakes_geometry_json), texture = coalesce($6, texture) WHERE name = $1 RETURNING *
       )
-      INSERT INTO islands (name, geometry_json, content, position_json)
-      SELECT $1, $2::jsonb, $3, $4::jsonb WHERE NOT EXISTS (SELECT 1 FROM upsert);
+      INSERT INTO islands (name, geometry_json, content, position_json, ground, texture, lakes_geometry_json)
+      SELECT $1, $2::jsonb, $3, $4::jsonb, $5, coalesce($6, ''), $7::jsonb WHERE NOT EXISTS (SELECT 1 FROM upsert);
     `,
-    [name, geomStr, content, position_json],
+    [name, geomStr, content, position_json, floorBytes(ground), ground ? texas.ground : null, lakes ? JSON.stringify(lakes) : null],
+    client,
   )
 }

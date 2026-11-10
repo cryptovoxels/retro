@@ -533,6 +533,13 @@ app.get('/grid/parcels/:id', cache('10 seconds'), async (req, res) => {
 })
 
 // Islands baby!
+app.get('/api/islands/:id/ground.bin', async (req, res) => {
+  if (!/^\d+$/.test(req.params.id)) return res.sendStatus(404)
+  const r = await db.query('sql/island-ground', 'select ground from islands where id = $1', [req.params.id])
+  if (!r.rows[0]?.ground) return res.sendStatus(404)
+  res.type('application/octet-stream').send(r.rows[0].ground)
+})
+
 app.get('/api/islands.json', cache('30 minutes', true), createRequestHandlerForQuery(db, 'get-islands', 'islands'))
 app.get('/api/islands-metadata.json', cache('1 hour', true), createRequestHandlerForQuery(db, 'get-islands-metadata', 'islands'))
 app.get(

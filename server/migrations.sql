@@ -411,3 +411,19 @@ SELECT apply_migration('grants', $$
     created_at timestamptz NOT NULL DEFAULT now()
   );
 $$);
+
+SELECT apply_migration('island-drafts', $$
+  CREATE TABLE island_drafts (
+    slug text PRIMARY KEY,
+    settings jsonb NOT NULL
+  );
+$$);
+
+SELECT apply_migration('island-ground', $$
+  ALTER TABLE island_drafts ADD COLUMN ground bytea;
+  ALTER TABLE islands ADD COLUMN ground bytea;
+$$);
+
+SELECT apply_migration('island-draft-content', $$
+  ALTER TABLE island_drafts ADD COLUMN content jsonb;
+$$);

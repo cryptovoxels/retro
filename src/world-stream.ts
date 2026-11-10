@@ -109,7 +109,7 @@ export class WorldStream {
     const parcel = entry.parcel
     if (!parcel) return false
     const vehicle = window.connector?.controls?.vehicleFeature
-    return this.grid?.currentParcel() === parcel || this.grid?.preview?.ids.includes(parcel.id) || (vehicle && !vehicle.disposed && vehicle.parcel === parcel) || (this.grid?.currentW !== 0 && this.grid?.mountedParcel === parcel)
+    return this.grid?.currentParcel() === parcel || this.grid?.preview?.ids.has(parcel.id) || (vehicle && !vehicle.disposed && vehicle.parcel === parcel) || (this.grid?.currentW !== 0 && this.grid?.mountedParcel === parcel)
   }
 
   private scan(position: BABYLON.Vector3) {
@@ -283,6 +283,8 @@ export class WorldStream {
         continue
       }
       if (entry.stage !== 'building') continue
+      // Preview records stay resident so flying back can resume their build.
+      if (d > this.radius && entry.parcel !== current && this.grid.preview?.ids.has(entry.lot.id)) continue
       const dx = (entry.lot.x1 + entry.lot.x2) / 2 - position.x
       const dz = (entry.lot.z1 + entry.lot.z2) / 2 - position.z
       const priority = entry.parcel === current ? -Infinity : d + (dx * direction.x + dz * direction.z < 0 ? 16 : 0)

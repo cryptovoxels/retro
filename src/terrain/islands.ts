@@ -1,3 +1,6 @@
+import type { Road } from '../../web/src/admin/texas'
+import { islandFurniture } from './furniture'
+import { islandGround } from './ground'
 import { IslandRecord } from '../../common/messages/api-islands'
 import { StateObservable } from '../utils/state-observable'
 import { createIslandMaterial } from '../materials'
@@ -93,11 +96,14 @@ export class Island {
       name: this.name,
       texture,
     })
+    if (this.desc.texture?.endsWith('-ground.png')) await islandGround(this._mesh, this.desc).catch((e) => console.error('island terrain', this.name, e))
+    if (this._mesh.isDisposed()) return this._mesh
     this._mesh.visibility = 1
 
     // Use the rendered geometry so basement and lake holes stay open.
     addTrimesh(`island-${this.name}`, new Float32Array(this._mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)!), new Uint32Array(this._mesh.getIndices()!), this._mesh.position)
 
+    void islandFurniture(this._mesh, this.name, (this.desc as any).content)
     return this._mesh
   }
 }
@@ -188,6 +194,17 @@ export default class Islands {
 
   getIslandData(): IslandRecord[] {
     return this.islands.map((island) => island.desc)
+  }
+
+  streetAt(x: number, z: number): Road | undefined {
+    for (const island of this.islands) {
+      const content = (island.desc as IslandRecord & { content?: { origin?: number[]; streets?: Road[] } }).content
+      if (!content?.streets?.length || !content.origin) continue
+      const px = x - content.origin[0],
+        pz = z - content.origin[2]
+      const street = content.streets.find((r) => px >= r.x1 && px < r.x2 && pz >= r.z1 && pz < r.z2)
+      if (street) return street
+    }
   }
 
   getIsland(point: BABYLON.Vector2): Island | false {
