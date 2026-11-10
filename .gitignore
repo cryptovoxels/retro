@@ -66,3 +66,4 @@ test-output/
 
 /dist/assets
 /dist/client-manifest.json
+dist/vendor/wasmoon.wasm

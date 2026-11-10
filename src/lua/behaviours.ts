@@ -40,27 +40,20 @@ const hash = (s: string): string => {
 let factory: LuaFactory | null = null
 
 const ensureFactory = (): LuaFactory => {
-  if (!factory) factory = new LuaFactory()
+  if (!factory) factory = new LuaFactory(typeof document === 'undefined' ? undefined : '/vendor/wasmoon.wasm')
   return factory
 }
 
 // Build a JS object that looks like Vec3 to Lua: x/y/z fields readable and writable.
 // Lua sees a plain table, sets fields, the wrapper writes them back to the feature.
-const makeVec3Bridge = (read: () => [number, number, number], write: (v: [number, number, number]) => void) => {
-  const cur = read()
-  const obj: any = { x: cur[0], y: cur[1], z: cur[2] }
-  // Wasmoon converts JS objects to Lua tables. Best we can do is sync on demand: the runtime
-  // re-reads/writes from the table around tick() calls.
-  return obj
-}
+const makeVec3Bridge = ([x, y, z]: number[]) => ({ x, y, z })
 
 const readPosition = (f: Feature): [number, number, number] => {
-  const p = (f.description as any).position ?? [0, 0, 0]
-  return [Number(p[0]) || 0, Number(p[1]) || 0, Number(p[2]) || 0]
+  return f.tidyPosition
 }
 
 const readRotationDeg = (f: Feature): [number, number, number] => {
-  const r = (f.description as any).rotation ?? [0, 0, 0]
+  const r = f.tidyRotation
   return [Number(r[0]) * DEG_PER_RAD, Number(r[1]) * DEG_PER_RAD, Number(r[2]) * DEG_PER_RAD]
 }
 
@@ -79,6 +72,7 @@ export default class LuaBehaviours {
   engine: LuaEngine | null = null
   disposed = false
   connected = false
+  private starting?: Promise<void>
   private behaviours: BehaviourInstance[] = []
   private byKey: Map<string, BehaviourInstance> = new Map() // featureId:idx -> instance
   private tickObserver: { remove: () => void } | null = null
@@ -93,21 +87,30 @@ export default class LuaBehaviours {
 
   async init(features?: Feature[]): Promise<void> {
     if (this.disposed || this.connected) return
+    const targets = (features ?? this.parcel.featuresList).filter((f) => f.description.behave?.length)
+    if (!targets.length) return
+    return (this.starting ??= this.boot(targets).finally(() => {
+      this.starting = undefined
+    }))
+  }
+
+  private async boot(targets: Feature[]) {
     try {
-      this.engine = await ensureFactory().createEngine({ injectObjects: true })
-      this.engine.global.set('now', () => Date.now())
-      await this.engine.doString(DSL_PRELUDE)
+      const engine = await ensureFactory().createEngine({ injectObjects: true })
+      if (this.disposed) return engine.global.close()
+      this.engine = engine
+      engine.global.set('now', () => Date.now())
+      engine.doStringSync(DSL_PRELUDE)
+      for (const feature of targets) {
+        if (this.disposed) return
+        await this.attachFeature(feature)
+      }
+      if (this.disposed) return
+      this.startTicker()
+      this.connected = true
     } catch (err) {
-      console.error('[behaviours] failed to create engine', err)
-      return
+      if (!this.disposed) console.error('[behaviours] failed to start engine', err)
     }
-
-    for (const feature of features ?? this.parcel.featuresList) {
-      await this.attachFeature(feature)
-    }
-
-    this.startTicker()
-    this.connected = true
   }
 
   // Drive tick() off the scene render loop. Adaptive: back off to 30/15Hz when a
@@ -146,6 +149,7 @@ export default class LuaBehaviours {
   // Drop this feature's instances and rebuild them from its current behave list.
   // Called by the editor when behaviours are added/edited/removed live.
   async reattachFeature(feature: Feature): Promise<void> {
+    if (!this.engine) return this.init()
     this.behaviours = this.behaviours.filter((inst) => inst.feature.uuid !== feature.uuid)
     for (const key of [...this.byKey.keys()]) if (key.startsWith(`${feature.uuid}:`)) this.byKey.delete(key)
     await this.attachFeature(feature)
@@ -200,14 +204,8 @@ export default class LuaBehaviours {
   private installSelf(inst: BehaviourInstance): void {
     if (!this.engine) return
     const feature = inst.feature
-    const position = makeVec3Bridge(
-      () => readPosition(feature),
-      (v) => feature.set({ position: v } as any),
-    )
-    const rotation = makeVec3Bridge(
-      () => readRotationDeg(feature),
-      (v) => feature.set({ rotation: [v[0] * RAD_PER_DEG, v[1] * RAD_PER_DEG, v[2] * RAD_PER_DEG] } as any),
-    )
+    const position = makeVec3Bridge(readPosition(feature))
+    const rotation = makeVec3Bridge(readRotationDeg(feature))
 
     this.engine.global.set(inst.selfName, {
       state: inst.state,
@@ -233,7 +231,7 @@ export default class LuaBehaviours {
       const ny = Number(p.y) || 0
       const nz = Number(p.z) || 0
       if (nx !== cx || ny !== cy || nz !== cz) {
-        feature.set({ position: [nx, ny, nz] } as any)
+        feature.setPose({ position: [nx, ny, nz] })
       }
     }
     const r = self.rotation
@@ -243,7 +241,7 @@ export default class LuaBehaviours {
       const ny = Number(r.y) || 0
       const nz = Number(r.z) || 0
       if (nx !== cx || ny !== cy || nz !== cz) {
-        feature.set({ rotation: [nx * RAD_PER_DEG, ny * RAD_PER_DEG, nz * RAD_PER_DEG] } as any)
+        feature.setPose({ rotation: [nx * RAD_PER_DEG, ny * RAD_PER_DEG, nz * RAD_PER_DEG] })
       }
     }
     if (typeof self.visible === 'boolean' && feature.mesh) {
@@ -278,6 +276,11 @@ export default class LuaBehaviours {
 
   dispatch(featureId: string, signal: string, data?: unknown): void {
     this.dispatchSync(featureId, signal, data, 1)
+    const links = this.behaviours.filter((i) => i.feature.uuid === featureId && i.behave.link).map((i) => i.behave.link)
+    if (links.length)
+      for (const peer of this.behaviours) {
+        if (peer.feature.uuid !== featureId && links.includes(peer.behave.link)) this.runSlot(peer, signal, data, 1)
+      }
   }
 
   onSignal(featureId: string, signal: string, data?: unknown): void {

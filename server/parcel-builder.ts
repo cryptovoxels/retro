@@ -1,4 +1,4 @@
-import { buildTexas } from '../islands/texas/buildings'
+import { buildTexas } from '../islands/texas/parcels/buildings'
 import { seeded } from '../common/helpers/utils'
 import ndarray, { NdArray } from 'ndarray'
 import { v7 as uuid } from 'uuid'
@@ -283,7 +283,7 @@ export default class ParcelBuilder {
   // ground floor village house: walls with little windows, a 2m door on the street face, flat roof
   static Village(parcel: any, material: number, door: string, adobe = false, index = 0) {
     const b = new ParcelBuilder(parcel)
-    if (adobe) return buildTexas(b, material, door, index)
+    if (adobe) return buildTexas(b, material, door, index, parcel.common)
     b.fill(0, 2, () => ground)
     b.fill(2, b.height, (x, y, z, width, height, depth) => {
       if (y === height - 1) return material

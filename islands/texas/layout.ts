@@ -36,7 +36,7 @@ export function texas(opts: VillageOpts) {
   const side = Math.ceil(Math.sqrt(opts.area))
   const slots = Math.max(1, Math.ceil(opts.count / 200))
   const half = (slots + 1) * (side + 2) + 4
-  const pitch = (side + 3) * 2 + 12
+  const pitch = Math.max((side + 3) * 2 + 12, 3 * side + 8)
   const parcels: VillageParcel[] = []
   const roads: Road[] = []
   const spawn: [number, number] = [0, 0]
@@ -53,6 +53,8 @@ export function texas(opts: VillageOpts) {
       const along = z + (Math.floor(j / 2) - 2) * pitch
       const east = j % 2 === 1
       const deadEnd = count >= 3 && (street + opts.reroll) % 3 === 1
+      const parkStreet = j === ((street - j + opts.reroll) % 3 === 1 ? 1 : 0)
+      const park = Math.floor(street / 10) % 2 ? 'campfire' : 'mesa'
       const distance = deadEnd ? half - side - 3 : half
       const end = x + (east ? distance : -distance)
       const left = east ? x + 2 : end
@@ -64,24 +66,30 @@ export function texas(opts: VillageOpts) {
       }
       for (let n = 0; n < count; n++) {
         const north = n % 2 === 0
-        const width = Math.max(3, Math.min(side + 1, Math.round(side * (1 + (rand() - 0.5) * opts.areaSpread))))
-        const depth = Math.max(3, Math.min(side + 2, Math.round((opts.area / width) * (1 + (rand() - 0.5) * opts.areaSpread))))
+        const lotWidth = Math.max(3, Math.min(side + 1, Math.round(side * (1 + (rand() - 0.5) * opts.areaSpread))))
+        const lotDepth = Math.max(3, Math.min(side + 2, Math.round((opts.area / lotWidth) * (1 + (rand() - 0.5) * opts.areaSpread))))
+        const commons = parkStreet && n === 0
+        const mesaWidth = 2 * (side + 2)
+        const width = commons && park === 'mesa' ? mesaWidth : lotWidth
+        const depth = commons ? Math.max(lotDepth, Math.min(Math.round(side * 2.5), pitch - 6 - (side + 2))) : lotDepth
         const cap = deadEnd && n === count - 1
-        const offset = 3 + Math.floor(n / 2) * (side + 2)
+        const offset = 3 + Math.floor(n / 2) * (side + 2) + (parkStreet && park === 'mesa' && north && n > 0 ? mesaWidth - side - 2 : 0)
         const x1 = cap ? (east ? end : end - depth) : x + (east ? offset : -offset - width)
         const z1 = cap ? along - Math.floor(width / 2) : north ? along + 2 : along - 2 - depth
         // Published parcel bounds use whole metres. The road can still step by half a metre.
         const y1 = Math.round(terrace(x1 + width / 2, along, opts.reroll, true))
+        const houseHeight = Math.max(4, Math.round(opts.height * (1 + (rand() - 0.5) * 2 * opts.heightSpread)) + 1)
         parcels.push({
           id: 0,
           suburb: city,
+          ...(commons && { is_common: true, common: park }),
           address: Math.floor(((n + 1) * (1 + Math.sqrt(5))) / 2) + ' ' + name,
           x1,
           x2: x1 + (cap ? depth : width),
           z1,
           z2: z1 + (cap ? width : depth),
           y1,
-          y2: y1 + Math.max(4, Math.round(opts.height * (1 + (rand() - 0.5) * 2 * opts.heightSpread)) + 1),
+          y2: y1 + (commons && park === 'mesa' ? 1 + Math.ceil(2.5 * Math.min(2 * houseHeight - 3, lotWidth)) : houseHeight),
           door: cap ? (east ? 'w' : 'e') : north ? 's' : 'n',
           material: getBlockId(pack.frames.tiles[Math.floor(rand() * pack.frames.tiles.length)], 0),
         })

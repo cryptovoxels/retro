@@ -50,3 +50,70 @@ lamp.box((1, 2, 25), (7, 6, 29))
 lamp.box((0, 0, 30), (8, 8, 31), steel)
 lamp.box((2, 2, 31), (6, 6, 32), brass)
 lamp.save(out / "lamp-post.vox")
+
+# Panelled counter, recessed toe kick and a pale stone worktop.
+counter = Vox(28, 12, 18)
+counter.box((2, 2, 0), (26, 10, 2), iron)
+counter.box((1, 1, 2), (27, 11, 16), "804b39")
+for x in (3, 15):
+    counter.box((x, 0, 4), (x + 10, 12, 14), "bf8157")
+    counter.box((x + 1, 0, 5), (x + 9, 12, 13), "aa6949")
+counter.box((0, 0, 16), (28, 12, 18), "eac997")
+counter.save(out / "counter.vox")
+
+# Bracket shelf with books, a terracotta pot and a little succulent.
+shelf = Vox(26, 8, 13)
+for x in (3, 21):
+    shelf.box((x, 0, 0), (x + 2, 2, 5), brass)
+    shelf.box((x, 0, 3), (x + 2, 6, 5), brass)
+shelf.box((0, 0, 5), (26, 8, 7), "b47750")
+for x, h, color in ((2, 12, "548388"), (5, 13, "d4af57"), (8, 11, "9d5142")):
+    shelf.box((x, 2, 7), (x + 2, 6, h), color)
+shelf.box((18, 2, 7), (23, 7, 10), "cd7453")
+shelf.box((20, 3, 10), (22, 5, 13), "6b9358")
+shelf.save(out / "wall-shelf.vox")
+
+# The VOX reader mirrors X around half the file width + 4. The brass pins
+# sit at that pivot so the leaf swings on its jamb.
+leaf = Vox(32, 4, 29)
+for x in range(1, 20):
+    top = 26 - min(5, (19 - x) // 2)
+    leaf.box((x, 1, 3), (x + 1, 3, top), "ad6740" if x % 4 else "915336")
+for x in (1, 17):
+    leaf.box((x, 0, 2), (x + 3, 4, 26 if x == 17 else 22), "864d38")
+for z in (5, 16):
+    leaf.box((1, 0, z), (20, 4, z + 2), "c28953")
+    leaf.box((19, 1, z - 1), (21, 3, z + 3), brass)
+leaf.save(out / "batwing.vox")
+
+rocker = Vox(19, 24, 28)
+for x in (2,15):
+    for y in range(24):
+        z = round(3*((y-12)/12)**2)
+        rocker.box((x,y,z),(x+2,y+1,z+2),"7f5040")
+    for y in (5,17):
+        rocker.box((x,y,2),(x+2,y+2,16),"a46844")
+    rocker.box((x,4,15),(x+2,20,17),"bf8959")
+for y in range(5,19,3):
+    rocker.box((2,y,10),(17,y+2,12),"c58b5b")
+for x in (2,5,9,13,15):
+    for z in range(11,27):
+        y=17+(z-11)//6
+        rocker.box((x,y,z),(x+2,y+2,z+1),"a76c49")
+rocker.box((1,19,25),(18,22,28),"bf8959")
+rocker.save(out / "rocker.vox")
+
+# Keep the hoist on the importer's X pivot. A folded fly and a stepped
+# five-point star read from either side of the cloth.
+from math import sin
+flag = Vox(46, 8, 23)
+star = ("...#...","...#...","#######",".#####.","..###..",".##.##.",".#...#.")
+for u in range(27):
+    y = 3+round(2*sin(u*0.34))
+    for v in range(18):
+        blue = u < 9
+        white = blue and 1 <= u <= 7 and 5 <= v <= 11 and star[11-v][u-1] == "#"
+        color = ("f3e9d1" if white else "304774") if blue else ("be473d" if v < 9 else "f3e9d1")
+        flag.box((26-u,y,v+2),(27-u,y+2,v+3),color)
+flag.box((26,3,0),(28,5,22),brass)
+flag.save(out / "lone-star.vox")

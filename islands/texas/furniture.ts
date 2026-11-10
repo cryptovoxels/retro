@@ -1,4 +1,5 @@
 import pack from './artpack.json'
+import { Animations } from '../../src/avatar-animations'
 import { seeded } from '../../common/helpers/utils'
 import { v5 as uuid } from 'uuid'
 import type { Road } from './layout'
@@ -68,7 +69,13 @@ export function furniture(roads: Road[], center: number[], seed: number, ground:
       const { url, scale } = pack.furniture[p.kind]
       // The VOX importer's flipped X pivot is four voxels off centre.
       const offset = 4 * 0.02 * scale
-      add({ type: 'vox-model', url, scale: [scale, scale, scale], position: [x - offset * Math.cos(yaw), y, z + offset * Math.sin(yaw)] })
+      add({
+        type: 'vox-model',
+        url,
+        scale: [scale, scale, scale],
+        position: [x - offset * Math.cos(yaw), y, z + offset * Math.sin(yaw)],
+        ...(p.kind === 'bench' && { pose: { animation: Animations.Sitting, offset: [offset, 0.18 * scale, 0] } }),
+      })
       if (p.kind === 'lamp') {
         // Centre the light in the four-voxel opening between the cage rails.
         add({ type: 'lantern', position: [x, y + 27 * 0.02 * scale, z], scale: [0.85, 0.85, 0.85], color: '#ffce86' })

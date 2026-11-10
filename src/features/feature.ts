@@ -75,6 +75,7 @@ export interface transformVectors {
 }
 
 type EntityType = 'material' | 'mesh' | 'texture' | 'light' | 'instance'
+type ScriptPose = { position?: [number, number, number]; rotation?: [number, number, number] }
 
 const updatingThesePropsDoesntRequireRegenerate = new Set(['position', 'scale', 'rotation', 'volume'])
 // todo props type
@@ -110,6 +111,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   public afterSetCommon?: () => void
   protected abortController = new AbortController()
   private animationInstance: BABYLON.Animatable | undefined = undefined
+  private scriptPose?: ScriptPose
 
   constructor(scene: BABYLON.Scene, parcel: Parcel, uuid: string, description: Description) {
     super()
@@ -159,7 +161,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   get isAnimated(): boolean {
-    if (this.description.animation?.keyframes.length) return true
+    if (typeof this.description.animation !== 'string' && this.description.animation?.keyframes.length) return true
     if (this.group) return this.group.isAnimated
     return false
   }
@@ -272,11 +274,11 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   get tidyPosition(): [number, number, number] {
-    return tidyVec3(this.description.position)
+    return tidyVec3(this.scriptPose?.position ?? this.description.position)
   }
 
   get tidyRotation(): [number, number, number] {
-    const rot = tidyVec3(this.description.rotation)
+    const rot = tidyVec3(this.scriptPose?.rotation ?? this.description.rotation)
 
     // Round angles that are very close to increments of 45 degrees to that exact angle
     // tidies up the gaps caused by the historic restriction of radian anges to 2dp
@@ -423,6 +425,10 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     return false
   }
 
+  get interactHint(): string {
+    return ''
+  }
+
   shouldBeInteractive() {
     if (!this.mesh) {
       return false
@@ -552,7 +558,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
       return
     }
 
-    this.addTrigger({ onTrigger: () => this.trigger(), proximityToTrigger: this.description.proximityToTrigger })
+    this.addTrigger({ onTrigger: () => this.trigger(), onUnTrigger: () => this.behaviours?.dispatch(this.uuid, 'untrigger'), proximityToTrigger: this.description.proximityToTrigger })
   }
 
   removeAllTriggers() {
@@ -571,7 +577,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
 
     featureTrigger.handler = (scene: BABYLON.Scene) => {
       // only check every 6 frame (1000ms/60fps)*6frames = 100ms
-      if (!(scene.getFrameId() % 6)) {
+      if (scene.getFrameId() % 6) {
         return
       }
 
@@ -711,9 +717,17 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
   }
 
   update(props: Partial<Description>) {
+    if (this.scriptPose && 'position' in props) delete this.scriptPose.position
+    if (this.scriptPose && 'rotation' in props) delete this.scriptPose.rotation
     Object.assign(this.description, props)
 
     updateRequiresRegenerate(props) ? this.regenerate() : this.setCommon()
+  }
+
+  // Lua syncs its animation clock. Intermediate poses never edit the stored parcel.
+  setPose(pose: ScriptPose) {
+    Object.assign((this.scriptPose ??= {}), pose)
+    this.setCommon()
   }
 
   set(props: Partial<Description>) {
@@ -916,7 +930,7 @@ export default abstract class Feature<Description extends FeatureRecord = Featur
     if (!this.mesh) throw new Error("Can't animate without a mesh")
 
     // todo - check valid destination
-    if (!this.description.animation?.destination) {
+    if (typeof this.description.animation === 'string' || !this.description.animation?.destination) {
       return
     }
 

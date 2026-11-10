@@ -15,8 +15,44 @@ interface PolygonClipInstruction {
   intersectionType: IntersectionType
 }
 
-function oceanMaterial(scene: BABYLON.Scene, size: number): BABYLON.StandardMaterial {
+class TexasWater extends BABYLON.MaterialPluginBase {
+  constructor(
+    material: BABYLON.Material,
+    private bounds: BABYLON.Vector4,
+  ) {
+    super(material, 'texasWater', 210, {}, true, false)
+    this.registerForExtraEvents = true
+    this._enable(true)
+  }
+  getClassName() {
+    return 'TexasWater'
+  }
+  isCompatible() {
+    return true
+  }
+  getUniforms(lang: BABYLON.ShaderLanguage) {
+    return { ubo: [{ name: 'texasBounds', size: 4, type: 'vec4' }], fragment: lang === BABYLON.ShaderLanguage.WGSL ? 'uniform texasBounds: vec4f;' : 'uniform vec4 texasBounds;' }
+  }
+  hardBindForSubMesh(buffer: BABYLON.UniformBuffer) {
+    buffer.updateVector4('texasBounds', this.bounds)
+  }
+  getCustomCode(stage: string, lang: BABYLON.ShaderLanguage) {
+    if (stage !== 'fragment') return null
+    const wg = lang === BABYLON.ShaderLanguage.WGSL,
+      bounds = wg ? 'uniforms.texasBounds' : 'texasBounds',
+      pos = wg ? 'fragmentInputs.vPositionW' : 'vPositionW'
+    return {
+      CUSTOM_FRAGMENT_BEFORE_FOG: `
+      ${wg ? 'let' : 'vec2'} shore=max(max(${bounds}.xy-${pos}.xz,${pos}.xz-${bounds}.zw),${wg ? 'vec2f' : 'vec2'}(0.));
+      ${wg ? 'let' : 'float'} turquoise=1.-smoothstep(0.,24.,length(shore));
+      color=${wg ? 'vec4f' : 'vec4'}(mix(color.rgb,${wg ? 'vec3f' : 'vec3'}(.02,.31,.30)+color.rgb*${wg ? 'vec3f' : 'vec3'}(.25,.9,.85),turquoise),color.a);`,
+    }
+  }
+}
+
+function oceanMaterial(scene: BABYLON.Scene, size: number, texas: BABYLON.Vector4): BABYLON.StandardMaterial {
   const mat = new BABYLON.StandardMaterial('ocean', scene)
+  new TexasWater(mat, texas)
   mat.diffuseColor = new BABYLON.Color3(0.18, 0.3, 0.32)
   mat.emissiveColor = new BABYLON.Color3(0.025, 0.045, 0.05)
   mat.specularColor = new BABYLON.Color3(0.02, 0.03, 0.03)
@@ -63,7 +99,10 @@ function oceanMaterial(scene: BABYLON.Scene, size: number): BABYLON.StandardMate
     }
     return name
   }
-  mat.onBindObservable.add(() => mat.getEffect()?.setFloat('rippleTime', elapsed))
+  mat.onBindObservable.add(() => {
+    const effect = mat.getEffect()
+    effect?.setFloat('rippleTime', elapsed)
+  })
   const drift = scene.onBeforeRenderObservable.add(() => {
     elapsed += scene.getEngine().getDeltaTime() / 1000
     texture.uOffset = (Math.floor(elapsed) % 32) / 32
@@ -87,6 +126,7 @@ export class Ocean implements ChunkObserver {
   private readonly scene: BABYLON.Scene
   private readonly mesh: BABYLON.Mesh
   private readonly waterMaterial: BABYLON.StandardMaterial
+  private readonly texasBounds = new BABYLON.Vector4(1e6, 1e6, -1e6, -1e6)
   private instances: Map<string, BABYLON.InstancedMesh> = new Map()
   private customMeshes: Map<string, BABYLON.Mesh[]> = new Map()
   private processingChunks: Set<string> = new Set()
@@ -108,7 +148,7 @@ export class Ocean implements ChunkObserver {
     this.mesh.position.set(-99999, -99999, -99999)
     this.mesh.setEnabled(false)
 
-    this.waterMaterial = oceanMaterial(scene, size)
+    this.waterMaterial = oceanMaterial(scene, size, this.texasBounds)
     this.mesh.material = this.waterMaterial
   }
 
@@ -128,6 +168,11 @@ export class Ocean implements ChunkObserver {
     const islandData = islands.getIslandData()
     this.islandBoundsCache.clear()
     this.islands = islandData
+    const texas = islandData.find((i) => i.name.toLowerCase() === 'texas')
+    if (texas) {
+      const b = this.getIslandBounds(texas)
+      this.texasBounds.set(b.minX, b.minZ, b.maxX, b.maxZ)
+    } else this.texasBounds.set(1e6, 1e6, -1e6, -1e6)
 
     if (this.deferredChunks.length == 0) return
 

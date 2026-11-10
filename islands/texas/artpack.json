@@ -1588,6 +1588,16 @@
     ],
     "path": "/models/artpacks/texas/"
   },
+  "interiors": {
+    "counter": "/models/artpacks/texas/counter.vox",
+    "shelf": "/models/artpacks/texas/wall-shelf.vox",
+    "rocker": "/models/artpacks/texas/rocker.vox",
+    "flag": "/models/artpacks/texas/lone-star.vox",
+    "door": "/models/artpacks/texas/batwing.vox"
+  },
+  "flora": ["buttonbush", "wax-myrtle", "river-willow", "bald-cypress", "live-oak", "honey-mesquite", "texas-redbud", "texas-sage", "prickly-pear", "horse-crippler", "red-yucca", "lechuguilla", "bluebonnet", "indian-paintbrush", "gulf-muhly"],
+  "camp": { "fire": "campfire", "seat": "seat-log", "lights": "festoon" },
+  "rocks": ["caprock", "red-shale", "rust-flake", "canyon-tooth", "split-sandstone", "ochre-slab", "red-cobble", "iron-nodule", "red-scree", "striped-butte", "caliche", "limestone-chip", "creek-cobble", "mudstone", "flint", "sand-gravel", "chalk", "river-pebble", "tan-scree", "buff-slab"],
   "furniture": {
     "bench": {
       "url": "/models/artpacks/texas/bench.vox",

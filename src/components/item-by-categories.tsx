@@ -1,16 +1,16 @@
 import { Component } from 'preact'
 import { opensea, readOpenseaUrl } from '../utils/proxy'
 import { SingleParcelRecord } from '../../common/messages/parcel'
-import { FeatureCommon, FeatureType } from '../../common/messages/feature'
+import { FeatureRecord, FeatureType } from '../../common/messages/feature'
 import { imageUrlViaProxy, tidyURL } from '../utils/helpers'
 
 interface Props {
-  items: FeatureCommon[]
+  items: FeatureRecord[]
   callback?: (url: string) => void
 }
 
 interface State {
-  items: FeatureCommon[]
+  items: FeatureRecord[]
   category: null
   imgUrls: Record<string, string>
   loaded: boolean
@@ -60,10 +60,10 @@ export class ItemsByCategories extends Component<Props, State> {
   }
 
   onlyFeaturesWithUrl() {
-    return this.state.items.filter((f: FeatureCommon) => tidyURL(f.url))
+    return this.state.items.filter((f: FeatureRecord) => tidyURL(f.url))
   }
 
-  async nftImage(feature: FeatureCommon) {
+  async nftImage(feature: FeatureRecord) {
     const url = tidyURL(feature.url)
     if (!url) return ''
     const info = readOpenseaUrl(url)
@@ -72,7 +72,7 @@ export class ItemsByCategories extends Component<Props, State> {
     return r.animation_url || r.image_url || r.image_preview_url || ''
   }
 
-  async getImage(item: FeatureCommon) {
+  async getImage(item: FeatureRecord) {
     switch (item.type) {
       case 'image':
       case 'cube':
@@ -100,7 +100,7 @@ export class ItemsByCategories extends Component<Props, State> {
 
   render() {
     const items = this.state.imgUrls
-      ? this.onlyFeaturesWithUrl().map((feature: FeatureCommon) => {
+      ? this.onlyFeaturesWithUrl().map((feature: FeatureRecord) => {
           if (!feature.uuid) return
           const imgUrl = this.state.imgUrls[feature.uuid]
           const url = tidyURL(feature.url)
@@ -136,14 +136,14 @@ interface categoryProps {
 
 interface categoryState {
   collapsed: boolean
-  features: Record<FeatureType, FeatureCommon[]>
+  features: Record<FeatureType, FeatureRecord[]>
 }
 
 export default class CategorizedItemsComponent extends Component<categoryProps, categoryState> {
   constructor(props: categoryProps) {
     super()
 
-    const perType: Record<string, FeatureCommon[]> = {}
+    const perType: Record<string, FeatureRecord[]> = {}
 
     if (props.category.features) {
       props.category.features.forEach((f) => {

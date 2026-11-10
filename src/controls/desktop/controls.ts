@@ -12,6 +12,7 @@ import { app, AppEvent, likedArt, toggleLike } from '../../../web/src/state'
 import { CAMERA_HEIGHT, encodeCoords } from '../../../common/helpers/utils'
 import { pointerOverGizmo } from '../../tools/gizmos'
 import type Feature from '../../features/feature'
+import { InteractionHint } from '../interaction-hint'
 const POINTER_WHEEL_MULTIPLIER = 0.001
 export default class DesktopControls extends Controls {
   keyboardInput?: LocaleKeyboardMoveInput
@@ -22,9 +23,11 @@ export default class DesktopControls extends Controls {
   private mouseLookAttached = false
   private rising = false
   private locked?: boolean
+  private interactionHint?: InteractionHint
 
   constructor(scene: BABYLON.Scene, canvas: HTMLCanvasElement) {
     super(scene, canvas)
+    this.interactionHint = new InteractionHint(this, scene)
 
     scene.skipPointerUpPicking = false
     scene.skipPointerDownPicking = false
@@ -95,6 +98,7 @@ export default class DesktopControls extends Controls {
   }
 
   dispose() {
+    this.interactionHint?.dispose()
     if (this.lockListener) document.removeEventListener('pointerlockchange', this.lockListener)
     this.scene.onPointerObservable.removeCallback(this.desktopClicks)
   }

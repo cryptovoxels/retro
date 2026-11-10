@@ -92,7 +92,7 @@ export default class IslandsAdmin extends Component<{}, State> {
       if (!res.ok && !(res.status === 404 && slug === 'texas')) throw new Error()
       const { settings, ground, content } = res.ok ? await res.json() : { settings: (await import('../../../islands/texas/draft.json')).default }
       if (!this.mapRef.current) return
-      this.setState({ ...settings, start: id }, () => this.build(settings.reroll, ground, settings.artpack !== 'texas-thrift' || content?.furnitureVersion === 3 ? content?.features : undefined))
+      this.setState({ ...settings, start: id }, () => this.build(settings.reroll, ground, settings.artpack !== 'texas-thrift' || content?.furnitureVersion === 6 ? content?.features : undefined))
     } catch {
       this.setState({ start: id })
       this.stage('could not load island draft', 0)
@@ -307,6 +307,8 @@ export default class IslandsAdmin extends Component<{}, State> {
       address: parcel.address || `${number} ${this.state.name}`,
       island: this.state.name,
       suburb: parcel.suburb,
+      is_common: !!parcel.is_common,
+      common: parcel.common,
       owner: app.state.wallet || '0x2D891ED45C4C3EAB978513DF4B92a35Cf131d2e2',
       x1: parcel.x1 * scale + this.state.center[0],
       y1: parcel.y1,

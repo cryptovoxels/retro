@@ -40,6 +40,7 @@ async function unmintedFromDb(db: Db, page: number) {
     `select id, address, island, x1, y1, z1, x2, y2, z2
      from properties
      where minted = false
+       and (lower(island) is distinct from 'texas' or is_common is not true)
        and (island is distinct from 'Architect Island' or is_common = true or kind = 'inner')
      order by id desc
      limit 100 offset $1`,
@@ -150,7 +151,7 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
     }
 
     try {
-      await createParcelRow(db, { id, address, owner, island, x1, y1, z1, x2, y2, z2 })
+      await createParcelRow(db, { id, address, owner, island, x1, y1, z1, x2, y2, z2, is_common: req.body.is_common === true })
     } catch (e: any) {
       console.log(e)
       res.status(500).json({ success: false, message: e.message })
@@ -377,7 +378,7 @@ function villageRows(name: string, parcels: any[], atlas?: string, artpack?: str
   const pack = artpack === 'texas-thrift' ? texas : undefined
   const tileset = pack?.atlas || (typeof atlas === 'string' && atlas ? atlas : undefined)
   return parcels.map((p, i) => {
-    const shape = { x1: m(p.x1), x2: m(p.x2), z1: m(p.z1), z2: m(p.z2), y1: p.y1, y2: p.y2, height: p.y2 - p.y1 }
+    const shape = { x1: m(p.x1), x2: m(p.x2), z1: m(p.z1), z2: m(p.z2), y1: p.y1, y2: p.y2, height: p.y2 - p.y1, common: p.is_common && p.common }
     const house = ParcelBuilder.Village(shape, isInteger(p.material) ? p.material : ground, p.door, !!pack, i)
     return { ...p, island: name, content: { ...house, tileset } }
   })

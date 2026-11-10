@@ -142,5 +142,6 @@ export function rgbaPixels(rgb: Uint8Array, rgba = new Uint8Array((rgb.length / 
 export function instanceKey(feature: import('../common/messages/feature').FeatureRecord) {
   if (!['image', 'vox-model', 'cube', 'megavox'].includes(feature.type)) return undefined
   const { uuid, position, rotation, scale, groupId, version, collidable, animation, ...appearance } = feature as any
+  if (typeof animation === 'string') appearance.animation = animation
   return JSON.stringify(appearance, (_key, value) => (value && !Array.isArray(value) && typeof value === 'object' ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))) : value))
 }

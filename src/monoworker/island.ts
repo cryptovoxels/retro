@@ -1,6 +1,11 @@
 import { packGround } from '../../common/voxels/ground-bytes'
-import { entrances } from '../../islands/texas/entrances'
+import { entrances } from '../../islands/texas/parcels/entrances'
+import { mesaEdge } from '../../islands/texas/parcels/mesa'
+import { bankSteps } from '../../islands/texas/banks'
+import { plantWind } from '../../islands/texas/nature'
 import { furniture } from '../../islands/texas/furniture'
+import pack from '../../islands/texas/artpack.json'
+import { v5 as uuid } from 'uuid'
 import ndarray, { type NdArray } from 'ndarray'
 import { getVoxelsFromBuffer } from '../../common/voxels/helpers'
 import { texas, terrace, creekBeds, type Road } from '../../islands/texas/layout'
@@ -26,7 +31,7 @@ export function islandSurface(parcels: (Road & { y1?: number; suburb?: string })
     content: {
       origin: [center[0] * 100, 0, center[1] * 100],
       features: surface?.features || [],
-      ...(artpack === 'texas-thrift' && { furnitureVersion: 3 }),
+      ...(artpack === 'texas-thrift' && { furnitureVersion: 6 }),
       streets: roads.filter((r) => r.name),
       ...(!surface && { voxels: getVoxelsFromBuffer(getIslandField(parcels).field.data) }),
       ...(artpack && { artpack }),
@@ -36,7 +41,7 @@ export function islandSurface(parcels: (Road & { y1?: number; suburb?: string })
 
 // Four little-endian int32s (world x, z, cell width, depth), then sixteen 50cm layers.
 // Within a layer x runs fastest. 255 is air; other bytes index the artpack's 8x8 atlas.
-function groundMap(field: NdArray<Uint16Array>, x: number, z: number, cx: number, cz: number, roads: Road[], seed: number, parcels: (Road & { y1?: number })[], texas: boolean, artpack: string) {
+function groundMap(field: NdArray<Uint16Array>, x: number, z: number, cx: number, cz: number, roads: Road[], seed: number, parcels: (Road & { y1?: number; common?: string; door?: string })[], texas: boolean, artpack: string) {
   const [w, , h] = field.shape
   const width = w * 2,
     depth = h * 2,
@@ -55,6 +60,7 @@ function groundMap(field: NdArray<Uint16Array>, x: number, z: number, cx: number
     for (let j = p.z1 - z; j < p.z2 - z; j++) pads.fill(4 + 2 * (p.y1 || 0), j * w + p.x1 - x, j * w + p.x2 - x)
   }
   const beds = texas ? creekBeds(roads, x, w, seed) : []
+  const shrubs: any[] = []
   for (let j = 0; j < h; j++) {
     for (let i = 0; i < w; i++) {
       const k = i + j * w
@@ -78,6 +84,21 @@ function groundMap(field: NdArray<Uint16Array>, x: number, z: number, cx: number
       const height = pads[k] || 4 + (texas ? 2 * terrace(wx, wz, seed, !!types[k]) : 0)
       const channel = texas && !pads[k] && beds[i].some((bed, j) => Math.abs(wz - bed) < (j === 0 ? 3.5 : 2.25))
       if (channel) field.set(i, 2, j, 1)
+      if (texas && artpack === 'texas-thrift' && !channel && !pads[k] && !types[k] && hash % 7 === 0 && beds[i].some((bed, n) => Math.abs(wz - bed) < (n ? 3.65 : 4.9))) {
+        const plant = (hash >>> 8) % 12
+        const name = pack.flora[plant < 8 ? plant % 2 : plant < 10 ? 14 : 2 + (plant % 2)]
+        const scale = 1.1 + (hash % 19) / 15
+        const yaw = ((hash % 16) * Math.PI) / 8
+        shrubs.push({
+          uuid: uuid('texas/bank/' + [seed, wx, wz].join('/'), uuid.URL),
+          type: 'vox-model',
+          animation: plantWind(name),
+          url: pack.frames.path + name + '.vox',
+          position: [wx + 0.5 - 0.08 * scale * Math.cos(yaw), height * 0.5 - 1.26, wz + 0.5 + 0.08 * scale * Math.sin(yaw)],
+          rotation: [0, yaw, 0],
+          scale: [scale, scale, scale],
+        })
+      }
       for (let y = 0; y < height; y++) {
         // Leave open water under the road deck where a street crosses the creek.
         if (channel && y >= 2 && !(types[k] && y === height - 1)) continue
@@ -88,6 +109,20 @@ function groundMap(field: NdArray<Uint16Array>, x: number, z: number, cx: number
     }
   }
   if (artpack === 'texas-thrift') {
+    if (texas) shrubs.push(...bankSteps(field, x, z, pads, types, seed, (px, pz) => 4 + 2 * terrace(px, pz, seed, false)))
+    for (const p of parcels) {
+      if (p.common !== 'mesa') continue
+      const pw = 2 * (p.x2 - p.x1),
+        pd = 2 * (p.z2 - p.z1)
+      const origin = 16 + (3 + 2 * (p.y1 ?? 0)) * plane + 2 * (p.z1 - z) * width + 2 * (p.x1 - x)
+      for (let j = 0; j < pd; j++)
+        for (let i = 0; i < pw; i++) {
+          const edge = mesaEdge((i + 0.5) / pw, p.door === 'n' ? (j + 0.5) / pd : 1 - (j + 0.5) / pd)
+          const tint = Math.min(7, Math.round((1.34 - edge) * 18))
+          const at = origin + j * width + i
+          if (tint > 0 && bytes[at] < 16) bytes[at] = 72 + 8 * tint + (bytes[at] % 8)
+        }
+    }
     // Narrow exposed road edges by one half-cell. Shared edges at junctions stay paved.
     function top(i: number, j: number, tile: number) {
       if (i < 0 || j < 0 || i >= width || j >= depth || !types[(i >> 1) + (j >> 1) * w]) return
@@ -129,7 +164,7 @@ function groundMap(field: NdArray<Uint16Array>, x: number, z: number, cx: number
           parcels,
         )
       : []
-  return { ground: packGround(bytes), features }
+  return { ground: packGround(bytes), features: features.concat(shrubs) }
 }
 
 const PAVEMENT_LEVEL = 1

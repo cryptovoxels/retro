@@ -1,5 +1,5 @@
-import { seeded } from '../../common/helpers/utils'
-import type { Road } from './layout'
+import { seeded } from '../../../common/helpers/utils'
+import type { Road } from '../layout'
 
 const styles = ['adobo', 'homer', 'ned', 'saloon', 'mall', 'kwik-e-mart', 'thrift store', 'record shop', 'town square', 'cinema'] as const
 
@@ -13,10 +13,10 @@ export function doorCell(style: string, width: number) {
 }
 
 // Paint the doorstep in half-metre cells. The outer row steps in at each corner.
-export function entrances(parcels: (Road & { door?: string })[], cx: number, cz: number, paint: (x: number, z: number, tile: number) => void) {
+export function entrances(parcels: (Road & { door?: string; is_common?: boolean })[], cx: number, cz: number, paint: (x: number, z: number, tile: number) => void) {
   for (const p of parcels) {
     const face = p.door
-    if (!face) continue
+    if (!face || p.is_common) continue
     const side = face === 'e' || face === 'w'
     const width = 2 * (side ? p.z2 - p.z1 : p.x2 - p.x1)
     const style = buildingStyle(Math.round(cx * 100) + p.x1, Math.round(cz * 100) + p.z1)

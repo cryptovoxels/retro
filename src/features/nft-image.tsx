@@ -29,6 +29,31 @@ function frameMat(scene: BABYLON.Scene, name: string, color: BABYLON.Color3): BA
 }
 
 const frameThick = 0.05
+const blankFrames = new WeakMap<BABYLON.Scene, BABYLON.StandardMaterial>()
+
+function blankFrame(scene: BABYLON.Scene) {
+  let mat = blankFrames.get(scene)
+  if (mat) return mat
+  const tex = new BABYLON.DynamicTexture('empty art frame', { width: 384, height: 256 }, scene, false)
+  const ctx = tex.getContext() as CanvasRenderingContext2D
+  ctx.fillStyle = '#1a1a1e'
+  ctx.fillRect(0, 0, 384, 256)
+  ctx.strokeStyle = '#51494f'
+  ctx.strokeRect(8, 8, 368, 240)
+  ctx.fillStyle = '#f5f5f0'
+  ctx.font = 'bold 27px "Source Code Pro", monospace'
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  ctx.fillText('your art here', 192, 128)
+  tex.update()
+  mat = new BABYLON.StandardMaterial('empty art frame', scene)
+  mat.emissiveTexture = tex
+  mat.disableLighting = true
+  mat.backFaceCulling = false
+  mat.freeze()
+  blankFrames.set(scene, mat)
+  return mat
+}
 const LIKED_FRAME = `${process.env.ASSET_PATH}/models/frames/pinkframe.vox`
 
 // liked art gets a frame the moment you heart it. only the nfts whose key flipped rebuild
@@ -48,8 +73,8 @@ export default class NftImage extends Feature2D<NftImageRecord> {
   static colorsFrameMaterial: BABYLON.StandardMaterial
   static blueFrameMaterial: BABYLON.StandardMaterial
   static metadata: FeatureMetadata = {
-    title: 'NFT Image',
-    subtitle: 'nfts you own',
+    title: 'ArtFrame',
+    subtitle: 'display digital art',
     type: 'nft-image',
     image: '/icons/nft-image.png',
   }
@@ -155,8 +180,14 @@ export default class NftImage extends Feature2D<NftImageRecord> {
 
   generateNFT = async (): Promise<void> => {
     this.loaded = false
-    this.generateDraft()
     if (this.disposed || this.abortController.signal.aborted) return
+    if (!this.url && !imageDraft(this.description.draft) && !(this.parcel.summary as any).nfts?.[this.uuid]) {
+      if (!this.mesh) this.mesh = BABYLON.MeshBuilder.CreatePlane(this.uniqueEntityName('mesh'), { size: 1 }, this.scene)
+      this.mesh.material = blankFrame(this.scene)
+      this.setCommon()
+      return
+    }
+    this.generateDraft()
 
     // compiled / rehosted: paint ugc directly, never OpenSea for the in-world texture
     const rawUrl = (this.description as any).url as string | undefined
@@ -257,6 +288,7 @@ export default class NftImage extends Feature2D<NftImageRecord> {
   }
 
   onClick() {
+    if (!this.url) return
     this.audio?.playSound('avatar.click')
     this.connector.sendMetric(Action.Inspect)
     void this.openDetails()
@@ -381,6 +413,9 @@ export default class NftImage extends Feature2D<NftImageRecord> {
   }
 
   _dispose() {
+    if (this.mesh && this.mesh.material === blankFrames.get(this.scene)) this.mesh.material = null
+    this._caip = undefined
+    this.asset = this.assetHelper = null
     live.delete(this)
     this.likedFrame?.dispose()
     this.frame?.dispose()

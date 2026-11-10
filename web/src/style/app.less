@@ -5642,3 +5642,14 @@ dl.props {
 .transform-size[hidden] {
   display: none;
 }
+.interaction-hint {
+  position: fixed;
+  top: calc(50% + 1rem);
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 40;
+  background: var(--bg);
+  color: var(--fg);
+  padding: 0.25rem 0.5rem;
+}

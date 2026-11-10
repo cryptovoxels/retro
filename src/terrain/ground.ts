@@ -58,14 +58,15 @@ export async function islandGround(mesh: BABYLON.Mesh, island: IslandRecord & { 
       void main() {
         vec2 uv = face.y != 0. ? fract(local.xz) : fract(vec2(abs(face.x) > .5 ? local.z : local.x, -local.y));
         // The entrance apron continues the same atlas swatch and half-metre repeat as its parcel floor.
-        if (tile >= 64.) {
+        if (tile == 64. || tile == 65.) {
           float layer = tile == 65. ? 14. : 1.;
           vec2 slot = vec2(mod(layer,4.),floor(layer/4.));
           vec2 sampleUV = (slot + mix(vec2(.752),vec2(.248),fract(local.zx*2.))) * .25;
           gl_FragColor = vec4(sampleTile(parcelAtlas,sampleUV,0.).rgb * .92,1.);
           return;
         }
-        vec2 slot = vec2(mod(tile, 8.), floor(tile / 8.));
+        float dirt = tile >= 72. ? mod(tile - 72.,8.) : tile;
+        vec2 slot = vec2(mod(dirt, 8.), floor(dirt / 8.));
         vec2 cell = floor(local.xz);
         float page = mod(cell.x*3. + cell.y*7. + floor(cell.x/3.) + tile, 4.);
         float shade = .72 + .2 * max(0., face.y);
@@ -89,7 +90,9 @@ export async function islandGround(mesh: BABYLON.Mesh, island: IslandRecord & { 
             prev = h;
           }
         }
-        gl_FragColor = vec4(colorAt(page,coord(slot,uv),max(0.,log2(max(1.,dist*.14)))).rgb * shade, 1.);
+        vec3 ground = colorAt(page,coord(slot,uv),max(0.,log2(max(1.,dist*.14)))).rgb;
+        if (tile >= 72.) ground *= mix(vec3(1.), vec3(1.03,.50,.36), floor((tile-72.)/8.)/7.);
+        gl_FragColor = vec4(ground * shade, 1.);
       }`,
     },
     { attributes: ['position', 'normal', 'uv'], uniforms: ['worldViewProjection', 'cameraPosition'], samplers: [...samplers, 'parcelAtlas'] },

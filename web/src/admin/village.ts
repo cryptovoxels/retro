@@ -6,6 +6,8 @@ export type Face = 'n' | 's' | 'e' | 'w'
 
 export type VillageParcel = ParcelMeta & {
   suburb?: string
+  is_common?: boolean
+  common?: 'mesa' | 'campfire'
   address: string
   door: Face
   material: number

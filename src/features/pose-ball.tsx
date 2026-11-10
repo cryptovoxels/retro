@@ -1,10 +1,10 @@
-import { setCameraPosition, setCameraRotation } from '../utils/camera'
+import { takePose, leaveSeat, seated } from './pose'
 import { Feature3D } from './feature'
 import { Advanced, FeatureEditor, FeatureEditorProps, FeatureID, Toolbar } from '../ui/features'
 import { Position, Scale, Rotation } from '../../web/src/components/editor'
 import { PoseBallRecord } from '../../common/messages/feature'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
-import { Animations, AnimationYOffset } from '../avatar-animations'
+import { Animations } from '../avatar-animations'
 
 export default class PoseBall extends Feature3D<PoseBallRecord> {
   public static metadata: FeatureMetadata = {
@@ -20,11 +20,20 @@ export default class PoseBall extends Feature3D<PoseBallRecord> {
     animation: 'sitting',
   }
 
-  private posed = false
-
   public override toString = () => '[pose-ball]'
 
-  public override onClick = () => this.pose()
+  get isInteract() {
+    return true
+  }
+  get interactHint() {
+    if (seated(this)) return 'stand'
+    return Number(this.description.pose) === Animations.Sitting ? 'sit' : ''
+  }
+
+  public override onClick = () => {
+    const animation = Number(this.description.pose)
+    if (Number.isFinite(animation)) takePose(this, { animation, offset: [0, this.scale.y / 2, 0] })
+  }
 
   whatIsThis() {
     return <label>A pose ball that allows players to sit or pose in different animations.</label>
@@ -55,69 +64,12 @@ export default class PoseBall extends Feature3D<PoseBallRecord> {
   }
 
   public override dispose() {
-    this.unpose()
+    leaveSeat(this)
     super.dispose()
   }
 
-  // helps to keep track when to disable/enable gravity and collision detection
-  private static activePoses = 0
-
-  private observer?: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>>
-
-  private pose() {
-    if (!this.avatar) return
-    if (isNaN(Number(this.description.pose))) return
-
-    const animation = Number(this.description.pose)
-
-    if (PoseBall.activePoses === 0) {
-      this.connector.controls.setNoclip(true)
-    }
-
-    PoseBall.activePoses++
-
-    setCameraRotation(this.scene, this.rotation)
-
-    const position = this.positionInGrid.clone()
-    position.y += AnimationYOffset(animation)
-    position.y += this.avatar.height
-    position.y += this.scale.y / 2
-    setCameraPosition(this.scene, position)
-
-    this.posed = true
-    window.persona.playEmote(animation)
-
-    this.observer = this.scene.onAfterRenderObservable.add(() => {
-      if (!this.avatar) return
-      // unpose the avatar if it moves more than 2 meters away from the pose ball
-      const sqrDist = BABYLON.Vector3.DistanceSquared(this.avatar?.position, this.positionInGrid)
-      if (sqrDist > 2 * 2) {
-        this.unpose()
-      }
-    })
-  }
-
-  shouldBeInteractive(): boolean {
+  shouldBeInteractive() {
     return true
-  }
-
-  unpose() {
-    if (!this.posed) return
-
-    if (this.observer) {
-      this.scene.onAfterRenderObservable.remove(this.observer)
-      this.observer = undefined
-    }
-
-    window.persona.playEmote(null)
-
-    this.posed = false
-
-    PoseBall.activePoses--
-
-    if (PoseBall.activePoses === 0) {
-      this.connector.controls.setNoclip(false)
-    }
   }
 }
 

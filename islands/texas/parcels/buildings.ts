@@ -1,11 +1,19 @@
-import pack from './artpack.json'
-import { thriftModel } from './models'
-import type ParcelBuilder from '../../server/parcel-builder'
-import { getBlockId } from '../../common/content/blocks'
+import pack from '../artpack.json'
+import { thriftModel } from '../models'
+import type ParcelBuilder from '../../../server/parcel-builder'
+import { getBlockId } from '../../../common/content/blocks'
 import { buildingStyle, doorCell } from './entrances'
+import { interiors } from './interiors'
+import { windowWall } from './windows'
+import { batwing } from './doors'
+import { Animations } from '../../../src/avatar-animations'
+import { camp } from './camp'
+import { mesa } from './mesa'
 import { v7 as uuid } from 'uuid'
 
-export function buildTexas(b: ParcelBuilder, material: number, face: string, index: number) {
+export function buildTexas(b: ParcelBuilder, material: number, face: string, index: number, common?: 'mesa' | 'campfire') {
+  if (common === 'mesa') return mesa(b, face, index)
+  if (common === 'campfire') return camp(b, face, index)
   const style = buildingStyle(b.parcel.x1, b.parcel.z1)
   const side = face === 'e' || face === 'w'
   const width = side ? b.depth : b.width
@@ -48,6 +56,7 @@ export function buildTexas(b: ParcelBuilder, material: number, face: string, ind
     const v = face === 'e' ? b.width - 1 - x : face === 'w' ? x : face === 's' ? z : b.depth - 1 - z
     const edge = u === 0 || u === width - 1
     if (style === 'town square') {
+      if (v === depth - 1 && !edge && y < 7) return wood | windowWall
       const radius = Math.max(Math.abs(u - mid), Math.abs(v - Math.floor(depth / 2)))
       if (radius === 2 && y === 0) return material
       if (radius < 2 && y === 0) return getBlockId(8, 0)
@@ -79,32 +88,47 @@ export function buildTexas(b: ParcelBuilder, material: number, face: string, ind
       if (style === 'kwik-e-mart' && (y === h - 3 || y === h - 2)) return y === h - 3 ? brick : getBlockId(8, 0)
       if (Math.abs(u - door + 0.5) < 2 && y < 5) return 0
       if (style === 'mall' && y < 5 && u % 7 !== 0) return 0
-      if (['record shop', 'thrift store', 'kwik-e-mart', 'cinema'].includes(style) && y >= 1 && y <= 4) return u % 7 === 0 ? material : 2
+      if (style === 'mall' && y < 5) return wood
+      if (Math.abs(u - door + 0.5) < 3 && y < 6) return material
     }
-    const along = edge ? v : u
-    return y % 6 >= 2 && y % 6 <= 4 && along % 6 >= 2 && along % 6 <= 3 ? 2 : material
+    return edge && (v === front || v === depth - 1) ? material : material | windowWall
   })
-  if (style !== 'town square') {
-    if (style !== 'mall') trim('door', door, 0.75, front)
-    if (style === 'adobo') {
-      for (let y = 2; y + 2 < h - 1; y += 6) {
-        for (let u = 2; u + 1 < width - 1; u += 6) {
-          if (y > 2) trim('window', u + 1, 0.55 + y / 2, front)
-          trim('window', u + 1, 0.55 + y / 2, depth, false, Math.PI)
-        }
-        for (let v = 2; v + 1 < depth - 1; v += 6) {
-          trim('window', 0, 0.55 + y / 2, v + 1, false, -Math.PI / 2)
-          trim('window', width, 0.55 + y / 2, v + 1, false, Math.PI / 2)
-        }
-      }
+  interiors(b, face, front, style === 'town square', finish, yaw, feature)
+  if (style === 'saloon' || style === 'thrift store') {
+    for (const dir of [1, -1]) {
+      const angle = yaw + (dir === 1 ? 0 : Math.PI)
+      feature(door - dir * 1.94, 1.08, front + 0.45, {
+        type: 'vox-model',
+        url: pack.interiors.door,
+        rotation: [0, angle, 0],
+        scale: [2.5, 2.5, 2.5],
+        isTrigger: dir === 1,
+        proximityToTrigger: 3.2,
+        interactHint: 'open',
+        behave: [{ name: 'batwing', link: 'front doors', code: batwing(dir, Math.round((angle * 180) / Math.PI)) }],
+      })
     }
+  }
+  if (style !== 'town square') {
+    if (index % 7 === 2 && width >= 9) {
+      feature(2.4, Math.min(3.8, (h - 2) / 2 + 0.65), front - 0.2, { type: 'vox-model', url: pack.interiors.flag, scale: [2.8, 2.8, 2.8], rotation: [0, yaw - 1.08, 0], animation: 'flag' })
+    }
+    if ((home || porch || style === 'adobo') && index % 4 === 1 && width >= 12) {
+      const angle = yaw + (door < mid ? -0.2 : 0.2)
+      feature(door < mid ? width - 3 : 2.6, 0.75, porch ? 1.85 : front + 3.1, {
+        type: 'vox-model',
+        url: pack.interiors.rocker,
+        scale: [2.2, 2.2, 2.2],
+        rotation: [0, angle, 0],
+        animation: { destination: 'rotation', easing: { function: 'Sine', mode: 'Start + End' }, keyframes: [-1, 1, -1].map((dir, i) => ({ frame: i * 61, value: [dir * 0.072, angle, 0] })) },
+        pose: { animation: Animations.Sitting, offset: [0.198, 0.528, 0] },
+      })
+    }
+    if (style !== 'mall') trim('door', door, 0.75, front)
     if (style === 'mall') {
       for (let u = 3; u < width - 1; u += 7) trim('window', u, 1, 0, true)
-    } else if (home || style === 'adobo' || style === 'saloon') {
-      for (let u = 2; u + 1 < width - 1; u += 6) {
-        if (Math.abs(u + 1 - door) >= 3 && !(style === 'homer' && u + 1 > width * 0.58)) trim('window', u + 1, 1.55, front)
-        if (style === 'adobo') trim('viga', u + 1, 0.75 + (h - 2) / 2, front)
-      }
+    } else if (style === 'adobo') {
+      for (let u = 2; u + 1 < width - 1; u += 6) trim('viga', u + 1, 0.75 + (h - 2) / 2, front)
     }
     if (style === 'record shop' || style === 'cinema' || style === 'kwik-e-mart' || style === 'thrift store')
       feature(mid, (h - 1) / 2 + 0.6, front - 0.2, { type: 'sign', text: { 'record shop': '33 RPM', cinema: 'PICTURE SHOW', 'kwik-e-mart': 'KWIK-E-MART', 'thrift store': 'SECOND HAND' }[style], scale: [2, 2, 2] })

@@ -11,6 +11,7 @@ export async function islandFurniture(mesh: BABYLON.Mesh, name: string, content?
   root.parent = mesh
   root.position.copyFromFloats(content.origin?.[0] || 0, -mesh.position.y, content.origin?.[2] || 0)
   const features: Feature[] = []
+  const models = new Map<string, Feature>()
   const owner = { id: 'island/' + name, grid: window.grid, canEdit: false, featureRoot: root, transform: root, featuresList: features }
   mesh.onDisposeObservable.addOnce(() => {
     for (const f of features) f.dispose()
@@ -28,12 +29,15 @@ export async function islandFurniture(mesh: BABYLON.Mesh, name: string, content?
     if (!record.uuid || !['lantern', 'vox-model'].includes(record.type)) continue
     const f = createFeature(scene, owner as any, record.uuid, record)
     features.push(f)
+    const url = record.type === 'vox-model' && typeof record.url === 'string' ? record.url : undefined
+    const key = url && (typeof record.animation === 'string' ? url + '#' + record.animation : url)
+    const source = key ? models.get(key) : undefined
+    if (!source && key) models.set(key, f)
     batch.push(
-      f
-        .generate()
+      (source ? f.generateInstance(source) : f.generate())
         .then(() => (f as any).loading)
         .then(() => {
-          if (f.mesh && 'isPickable' in f.mesh) f.mesh.isPickable = false
+          if (f.mesh && 'isPickable' in f.mesh) f.mesh.isPickable = !!f.interactHint
         })
         .catch(() => f.dispose()),
     )

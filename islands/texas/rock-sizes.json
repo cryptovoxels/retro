@@ -1,0 +1,102 @@
+{
+  "caprock": [
+    6,
+    5,
+    4
+  ],
+  "red-shale": [
+    6,
+    4,
+    2
+  ],
+  "rust-flake": [
+    4,
+    4,
+    2
+  ],
+  "canyon-tooth": [
+    4,
+    4,
+    6
+  ],
+  "split-sandstone": [
+    5,
+    5,
+    4
+  ],
+  "ochre-slab": [
+    7,
+    5,
+    2
+  ],
+  "red-cobble": [
+    4,
+    4,
+    3
+  ],
+  "iron-nodule": [
+    4,
+    3,
+    4
+  ],
+  "red-scree": [
+    6,
+    5,
+    3
+  ],
+  "striped-butte": [
+    5,
+    4,
+    5
+  ],
+  "caliche": [
+    6,
+    5,
+    4
+  ],
+  "limestone-chip": [
+    6,
+    4,
+    2
+  ],
+  "creek-cobble": [
+    4,
+    4,
+    2
+  ],
+  "mudstone": [
+    4,
+    4,
+    6
+  ],
+  "flint": [
+    5,
+    5,
+    4
+  ],
+  "sand-gravel": [
+    7,
+    5,
+    2
+  ],
+  "chalk": [
+    4,
+    4,
+    3
+  ],
+  "river-pebble": [
+    4,
+    3,
+    4
+  ],
+  "tan-scree": [
+    6,
+    5,
+    3
+  ],
+  "buff-slab": [
+    5,
+    4,
+    5
+  ]
+}

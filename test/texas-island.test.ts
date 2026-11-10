@@ -1,9 +1,11 @@
-import { buildingStyle } from '../islands/texas/entrances'
+import { buildingStyle } from '../islands/texas/parcels/entrances'
 import { furniture } from '../islands/texas/furniture'
 import { expect, it } from 'vitest'
 import { unpackGround } from '../common/voxels/ground-bytes'
 import { groundMesh } from '../src/monoworker/ground-mesh'
 import { islandLayout, islandSurface } from '../src/monoworker/island'
+import ParcelBuilder from '../server/parcel-builder'
+import { inflateSync } from 'node:zlib'
 
 const settings = { name: 'Texas', streets: [], count: 736, reroll: 0, area: 60, areaSpread: 0.4, height: 8, heightSpread: 0.3 }
 
@@ -11,6 +13,15 @@ it('keeps every address on its street and every parcel off the roads', () => {
   for (const reroll of [0, 1, 9]) {
     const { parcels, roads } = islandLayout({ ...settings, reroll })
     expect(parcels).toHaveLength(736)
+    const parks = parcels.filter((p) => p.is_common)
+    expect(parks).toHaveLength(10)
+    for (const park of parks) {
+      expect(parcels.some((p) => p !== park && p.x1 < park.x2 && p.x2 > park.x1 && p.z1 < park.z2 && p.z2 > park.z1)).toBe(false)
+      if (park.common === 'mesa') {
+        expect(park.x2 - park.x1).toBeGreaterThanOrEqual(16)
+        expect(park.z2 - park.z1).toBeGreaterThanOrEqual(16)
+      }
+    }
     expect(new Set(parcels.map((p) => p.y1)).size).toBeGreaterThan(2)
     expect(parcels.slice(0, 8).map((p) => p.address.split(' ')[0])).toEqual(['1', '3', '4', '6', '8', '9', '11', '12'])
     const ends = roads.filter((r) => 'deadEnd' in r && r.deadEnd)
@@ -25,6 +36,45 @@ it('keeps every address on its street and every parcel off the roads', () => {
       expect(Number.isInteger(p.y1)).toBe(true)
       expect(roads.some((r) => r.x1 < p.x2 && r.x2 > p.x1 && r.z1 < p.z2 && r.z2 > p.z1)).toBe(false)
     }
+  }
+})
+
+it('fits both VOX frames around the actual glass on every rotated adobo facade', () => {
+  const p = islandLayout(settings).parcels.find((p) => !p.is_common && buildingStyle(p.x1, p.z1) === 'adobo')!
+  for (const face of ['n', 's', 'e', 'w']) {
+    const parcel = { ...p, height: p.y2 - p.y1 }
+    const building = ParcelBuilder.Village(parcel, p.material, face, true)
+    const glass = inflateSync(Buffer.from(building.voxels!, 'base64'))
+    const frames = building.features.filter((f: any) => f.url?.includes('/window-')) as any[]
+    const depth = (p.z2 - p.z1) * 2,
+      width = (p.x2 - p.x1) * 2
+    expect(frames.length % 2).toBe(0)
+    expect(new Set(frames.map((f) => f.scale.join('/'))).size).toBeGreaterThan(1)
+    const covered = new Set<number>()
+    for (let i = 0; i < frames.length; i += 2) {
+      const a = frames[i],
+        b = frames[i + 1],
+        yaw = a.rotation[1]
+      const [sx, sy] = a.scale
+      const w = Math.round(sx * 0.4),
+        h = Math.round(sy * 0.6)
+      const cx = (a.position[0] + b.position[0]) / 2 + 0.08 * sx * Math.cos(yaw)
+      const cz = (a.position[2] + b.position[2]) / 2 - 0.08 * sx * Math.sin(yaw)
+      expect(Math.hypot(a.position[0] - b.position[0], a.position[2] - b.position[2])).toBeCloseTo(0.58)
+      for (let column = 0; column < w; column++)
+        for (let row = 0; row < h; row++) {
+          const along = (column + 0.5 - w / 2) * 0.5
+          const x = Math.floor((cx + along * Math.cos(yaw) - 0.25) * 2 + width / 2)
+          const z = Math.floor((cz - along * Math.sin(yaw) - 0.25) * 2 + depth / 2)
+          const y = Math.round((a.position[1] + 0.04 * sy - 0.75) * 2) + 2 + row
+          const index = (x * parcel.height * 2 + y) * depth + z
+          expect(glass.readUInt16LE(index * 2)).toBe(2)
+          covered.add(index)
+        }
+    }
+    let count = 0
+    for (let i = 0; i < glass.length; i += 2) if (glass.readUInt16LE(i) === 2) count++
+    expect(covered.size).toBe(count)
   }
 })
 
@@ -86,5 +136,20 @@ it('relaxes curb furniture deterministically, keeping hydrants away from pothole
   for (const f of paved) {
     expect(Math.max(Math.abs(f.position[0]), Math.abs(f.position[2]))).toBeGreaterThan(3)
     expect(f.position[1]).toBeGreaterThanOrEqual(4)
+  }
+})
+
+it('gives the saved Texas seed 10 to 50 ArtFrames per building and leaves the parks open', () => {
+  const { parcels } = islandLayout(settings)
+  for (const [i, p] of parcels.entries()) {
+    const b = ParcelBuilder.Village({ ...p, x1: p.x1 - 51, x2: p.x2 - 51, z1: p.z1 - 1007, z2: p.z2 - 1007, height: p.y2 - p.y1 }, p.material, p.door, true, i)
+    const frames = b.features.filter((f) => f.type === 'nft-image')
+    if (p.is_common) {
+      expect(frames).toHaveLength(0)
+      continue
+    }
+    expect(frames.length, p.address).toBeGreaterThanOrEqual(10)
+    expect(frames.length, p.address).toBeLessThanOrEqual(50)
+    expect(new Set(frames.map((f) => String(f.scale))).size).toBeGreaterThan(1)
   }
 })
