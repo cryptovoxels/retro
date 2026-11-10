@@ -30,3 +30,4 @@ procgen/
 .prettierrc*
 # smoke test renders, uploaded by ci
 test-output/
+multiplayer/sim/core.cjs

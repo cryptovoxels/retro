@@ -1,3 +1,4 @@
+import { Rats } from './rats'
 import { chatTime, mergeChat } from '../common/utils'
 import { v7 as uuid } from 'uuid'
 import type { AvatarRef } from '../common/messages/avatar-ref'
@@ -92,6 +93,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   currentParcelId: number | undefined
   multiplayerClient!: WebSocket
   private lazyAvatarDisposer = createLazyDisposer<string>(AVATAR_DISPOSE_DELAY_MS, ({ item: avatarUuid }) => this.disposeAvatar(avatarUuid))
+  private rats?: Rats
   private readonly scene: BABYLON.Scene
   grid: Grid
   private nearbyAvatarsToSelfCached: { avatars: Readonly<Avatar[]>; timestamp: number } | null = null
@@ -192,6 +194,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       orientation: this.persona.orientation,
       inConga: this.inConga,
       congaFollowsUuid: this.controls.congaTarget?.uuid ?? null,
+      texasDraft: this.grid.preview?.name.toLowerCase() === 'texas',
       vehicle: this.controls.getVehicleAvatarPayload?.() ?? null,
     })
   }
@@ -305,6 +308,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     this.multiplayerClient.binaryType = 'arraybuffer'
 
     this.multiplayerClient.addEventListener('message', this.onMessage)
+    this.multiplayerClient.addEventListener('close', () => this.rats?.update([]))
 
     this.multiplayerClient.addEventListener('connecting', () => {
       this.isOpen = false
@@ -495,6 +499,10 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   }
 
   onWorldState(message: messages.WorldStateMessage) {
+    if (message.rats) {
+      this.rats ??= new Rats(this.scene, (id, name, cap) => this.send({ type: MessageType.dressRat, id, name, cap }))
+      this.rats.update(message.rats)
+    }
     message.avatars.forEach((msg) => this.onMoveAvatar(msg))
   }
 
