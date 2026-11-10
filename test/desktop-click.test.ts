@@ -86,7 +86,7 @@ it('right click exits voxel editing without opening a context action', () => {
   expect(controls.handleContextClick).not.toHaveBeenCalled()
 })
 
-it('starts close third person, enters first person on lock, and preserves C until unlock', () => {
+it('starts close third person, enters first person on lock, and keeps the camera on unlock', () => {
   const { controls } = setup()
   const canvas = document.createElement('canvas')
   const descriptor = Object.getOwnPropertyDescriptor(document, 'pointerLockElement')
@@ -106,13 +106,14 @@ it('starts close third person, enters first person on lock, and preserves C unti
     lock.value = true
     controls.onPointerLockChange()
     expect(controls.enterFirstPerson).toHaveBeenCalledTimes(1)
-    controls.enterThirdPerson(2)
+    controls.camera.rotation.x = -0.23
     controls.onPointerLockChange()
     expect(controls.enterFirstPerson).toHaveBeenCalledTimes(1)
     lock.value = false
     controls.onPointerLockChange()
     expect(controls.targetCameraDistance).toBe(1.5)
-    expect(controls.enterThirdPerson).toHaveBeenLastCalledWith(1.5)
+    expect(controls.enterThirdPerson).toHaveBeenCalledTimes(1)
+    expect(controls.camera.rotation.x).toBe(-0.23)
     controls.autoPerspective = false
     controls.enterFirstPerson.mockClear()
     controls.enterThirdPerson.mockClear()

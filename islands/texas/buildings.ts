@@ -2,15 +2,8 @@ import pack from './artpack.json'
 import { thriftModel } from './models'
 import type ParcelBuilder from '../../server/parcel-builder'
 import { getBlockId } from '../../common/content/blocks'
-import { seeded } from '../../common/helpers/utils'
+import { buildingStyle, doorCell } from './entrances'
 import { v7 as uuid } from 'uuid'
-
-const styles = ['adobo', 'homer', 'ned', 'saloon', 'mall', 'kwik-e-mart', 'thrift store', 'record shop', 'town square', 'cinema'] as const
-
-export function buildingStyle(x: number, z: number) {
-  const draw = seeded(Math.imul(x, 7919) ^ Math.imul(z, 104729))()
-  return styles[Math.floor(Math.log(1 - draw * (1 - 0.76 ** styles.length)) / Math.log(0.76))]
-}
 
 export function buildTexas(b: ParcelBuilder, material: number, face: string, index: number) {
   const style = buildingStyle(b.parcel.x1, b.parcel.z1)
@@ -34,12 +27,20 @@ export function buildTexas(b: ParcelBuilder, material: number, face: string, ind
     features.push({ uuid: uuid(), position: [0.25 + a * Math.cos(yaw) + d * Math.sin(yaw), y, 0.25 + d * Math.cos(yaw) - a * Math.sin(yaw)], rotation: [0, yaw, 0], ...record })
   }
   function trim(kind: string, u: number, y: number, v: number, timber = false, angle = 0) {
-    feature(u, y, v, { type: 'vox-model', rotation: [0, yaw + angle, 0], url: pack.frames.path + kind + '-' + (timber ? 'honey' : finish) + '.vox', scale: [5, 5, 5] })
+    // Imported trim is centred 4 model voxels along local X (4.5 for the odd-width viga).
+    // At scale 5 each is 0.1 m, and facade coordinates are in half-metres.
+    const pivot = (kind === 'viga' ? 4.5 : 4) * 0.2
+    feature(u - pivot * Math.cos(angle), y, v - pivot * Math.sin(angle), {
+      type: 'vox-model',
+      rotation: [0, yaw + angle, 0],
+      url: pack.frames.path + kind + '-' + (timber ? 'honey' : finish) + '.vox',
+      scale: [5, kind === 'door' ? 2.5 / (26 * 0.02) : 5, 5],
+    })
   }
   const home = style === 'homer' || style === 'ned'
   const porch = style === 'saloon' || style === 'mall'
   const front = porch ? Math.min(4, depth - 4) : 1
-  const door = style === 'homer' ? Math.max(2, Math.floor(width * 0.28)) : mid
+  const door = doorCell(style, width)
   const eave = Math.max(4, h - 1 - Math.min(4, Math.floor(h / 3)))
   b.fill(0, 2, () => (style === 'town square' ? cream : getBlockId(0, 0)))
   b.fill(2, b.height, (x, y, z) => {

@@ -1587,5 +1587,19 @@
       14
     ],
     "path": "/models/artpacks/texas/"
+  },
+  "furniture": {
+    "bench": {
+      "url": "/models/artpacks/texas/bench.vox",
+      "scale": 3
+    },
+    "hydrant": {
+      "url": "/models/artpacks/texas/hydrant.vox",
+      "scale": 2.4
+    },
+    "lamp": {
+      "url": "/models/artpacks/texas/lamp-post.vox",
+      "scale": 6
+    }
   }
 }

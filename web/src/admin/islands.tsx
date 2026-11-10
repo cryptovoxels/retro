@@ -3,7 +3,7 @@ import type { ParcelMeta } from '../../../common/types'
 import type { MapMarker, VoxelsMap } from '../helpers/load-voxels-map'
 import { loadVoxelsMap } from '../helpers/load-voxels-map'
 import { runCompute } from '../../../src/mono-pool'
-import { CAMERA_HEIGHT } from '../../../common/helpers/utils'
+import { CAMERA_HEIGHT, decodeCoords } from '../../../common/helpers/utils'
 import { app } from '../state'
 import { worldBoot } from '../client'
 import type { Road } from '../../../islands/texas/layout'
@@ -67,6 +67,8 @@ export default class IslandsAdmin extends Component<{}, State> {
     spawn: [0, 0],
   }
 
+  private arrival = new URLSearchParams(location.search).get('coords')
+
   componentDidMount() {
     this.fetch().catch(() => this.stage('could not load builder', 0))
     this.createMap()
@@ -90,7 +92,7 @@ export default class IslandsAdmin extends Component<{}, State> {
       if (!res.ok && !(res.status === 404 && slug === 'texas')) throw new Error()
       const { settings, ground, content } = res.ok ? await res.json() : { settings: (await import('../../../islands/texas/draft.json')).default }
       if (!this.mapRef.current) return
-      this.setState({ ...settings, start: id }, () => this.build(settings.reroll, ground, settings.artpack !== 'texas-thrift' || content?.furnitureVersion === 2 ? content?.features : undefined))
+      this.setState({ ...settings, start: id }, () => this.build(settings.reroll, ground, settings.artpack !== 'texas-thrift' || content?.furnitureVersion === 3 ? content?.features : undefined))
     } catch {
       this.setState({ start: id })
       this.stage('could not load island draft', 0)
@@ -153,7 +155,10 @@ export default class IslandsAdmin extends Component<{}, State> {
         if (this.revision === revision) this.stage('adding parcels: ' + done + ' / ' + json.parcels.length, 5 + done / json.parcels.length)
       })
       if (this.revision !== revision) return
-      this.visitSpawn()
+      if (this.arrival) {
+        window.persona.teleport(decodeCoords(this.arrival), false)
+        this.arrival = null
+      } else this.visitSpawn()
       this.stage('preview ready - ' + json.parcels.length + ' parcels', 7)
     } catch {
       if (this.revision === revision) this.stage('could not build preview', 0)

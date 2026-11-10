@@ -1,4 +1,5 @@
 import { packGround } from '../../common/voxels/ground-bytes'
+import { entrances } from '../../islands/texas/entrances'
 import { furniture } from '../../islands/texas/furniture'
 import ndarray, { type NdArray } from 'ndarray'
 import { getVoxelsFromBuffer } from '../../common/voxels/helpers'
@@ -25,7 +26,7 @@ export function islandSurface(parcels: (Road & { y1?: number; suburb?: string })
     content: {
       origin: [center[0] * 100, 0, center[1] * 100],
       features: surface?.features || [],
-      ...(artpack === 'texas-thrift' && { furnitureVersion: 2 }),
+      ...(artpack === 'texas-thrift' && { furnitureVersion: 3 }),
       streets: roads.filter((r) => r.name),
       ...(!surface && { voxels: getVoxelsFromBuffer(getIslandField(parcels).field.data) }),
       ...(artpack && { artpack }),
@@ -85,6 +86,29 @@ function groundMap(field: NdArray<Uint16Array>, x: number, z: number, cx: number
         bytes[at] = bytes[at + 1] = bytes[at + width] = bytes[at + width + 1] = material
       }
     }
+  }
+  if (artpack === 'texas-thrift') {
+    // Narrow exposed road edges by one half-cell. Shared edges at junctions stay paved.
+    function top(i: number, j: number, tile: number) {
+      if (i < 0 || j < 0 || i >= width || j >= depth || !types[(i >> 1) + (j >> 1) * w]) return
+      for (let at = 16 + 15 * plane + j * width + i; at >= 16; at -= plane) {
+        if (bytes[at] === 255) continue
+        bytes[at] = tile
+        return
+      }
+    }
+    for (let j = 1; j < h - 1; j++)
+      for (let i = 1; i < w - 1; i++) {
+        const k = i + j * w
+        if (!types[k]) continue
+        for (let d = 0; d < 2; d++) {
+          if (!types[k - w]) top(i * 2 + d, j * 2, 1)
+          if (!types[k + w]) top(i * 2 + d, j * 2 + 1, 1)
+          if (!types[k - 1]) top(i * 2, j * 2 + d, 1)
+          if (!types[k + 1]) top(i * 2 + 1, j * 2 + d, 1)
+        }
+      }
+    entrances(parcels, cx, cz, (px, pz, tile) => top(px - x * 2, pz - z * 2, tile))
   }
   const features =
     artpack === 'texas-thrift'

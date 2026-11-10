@@ -771,18 +771,18 @@ header.menu {
   }
 
   &.mini {
-    height: 6rem;
-    overflow: hidden;
+    height: fit-content;
 
-    ul li:nth-child(n + 2) {
+    .menu-toggle,
+    nav > ul ~ ul,
+    nav > ul:first-child > li ~ li,
+    form + br {
       display: none;
     }
-  }
 
-  &:hover {
-    height: 100%;
-    ul li:nth-child(n + 2) {
-      display: unset;
+    nav {
+      display: block;
+      min-height: 0;
     }
   }
 }
@@ -803,7 +803,7 @@ header.menu .menu-toggle {
       margin: 1rem;
     }
 
-    &:not(.expanded) nav {
+    &:not(.expanded):not(.mini) nav {
       display: none;
     }
 
@@ -821,7 +821,22 @@ header nav {
   display: grid;
   grid-template-rows: auto 1fr;
 
+  form {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .pane-logo {
+    flex: none;
+    display: flex;
+    padding: 0.125rem;
+    border: 0;
+    background: transparent;
+  }
+
   input[type='search'] {
+    min-width: 0;
     width: 100%;
     box-sizing: border-box;
   }

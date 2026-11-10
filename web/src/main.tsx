@@ -85,7 +85,7 @@ const Main = () => {
     trackPage(path)
     if (path === '/shop') track('visit_shop')
 
-    setClosed(false)
+    if (path !== currentPath) setClosed(false)
     setCurrentPath(path)
 
     app.send({ type: 'navigate', data: e.url })
@@ -120,13 +120,22 @@ const Main = () => {
   return (
     <MainApp>
       <main onClick={travel} class={[lightBroadcast ? 'showbox-light-shell' : '', play ? 'play' : ''].filter(Boolean).join(' ') || undefined}>
-        {!lightBroadcast && <WebHeader path={currentPath} mini={play && engaged} />}
+        {!lightBroadcast && (
+          <WebHeader
+            path={currentPath}
+            mini={closed || (play && engaged)}
+            expand={() => {
+              setClosed(false)
+              setEngaged(false)
+            }}
+          />
+        )}
 
         <Client path={currentPath} />
 
         <div hidden={closed && !isPageTool(uiPane.value)} class={[worldUi.value && play && engaged ? 'page mini' : 'page', play && engaged ? 'play' : ''].join(' ')}>
           <div class="page-route">
-            {!play && !lightBroadcast && <button onClick={() => setClosed(true)}>close</button>}
+            {!lightBroadcast && <button onClick={() => setClosed(true)}>close</button>}
             <Router onChange={handleRoute}>
               {AppRoutes()}
               <RadioPopout path="/radio" />

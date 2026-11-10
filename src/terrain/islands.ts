@@ -4,7 +4,7 @@ import { islandGround } from './ground'
 import { IslandRecord } from '../../common/messages/api-islands'
 import { StateObservable } from '../utils/state-observable'
 import { createIslandMaterial } from '../materials'
-import { pointInPolygon, snapRing } from '../utils/polygon-utils'
+import { groundOffset, pointInPolygon, snapRing } from '../utils/polygon-utils'
 import { addTrimesh, removeCollider } from '../physics/world'
 
 export class Island {
@@ -19,7 +19,8 @@ export class Island {
   constructor(list: Islands, desc: IslandRecord) {
     this.list = list
     this.desc = desc
-    this.outline = snapRing(this.desc.geometry.coordinates[0])
+    const offset = groundOffset(desc.texture)
+    this.outline = snapRing(this.desc.geometry.coordinates[0], offset)
       .map((p) => new BABYLON.Vector2(p.x, p.z))
       .reverse()
 
@@ -39,7 +40,8 @@ export class Island {
     })
 
     const mesh = BABYLON.Mesh.MergeMeshes(meshes, true)!
-    mesh.position.y = 0.74
+    mesh.position.set(offset, 0.74, offset)
+    mesh.computeWorldMatrix(true)
     const positions = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)!
     const normals = mesh.getVerticesData(BABYLON.VertexBuffer.NormalKind)!
     const uvs: number[] = []
@@ -96,7 +98,7 @@ export class Island {
       name: this.name,
       texture,
     })
-    if (this.desc.texture?.endsWith('-ground.png')) await islandGround(this._mesh, this.desc).catch((e) => console.error('island terrain', this.name, e))
+    if (groundOffset(this.desc.texture)) await islandGround(this._mesh, this.desc).catch((e) => console.error('island terrain', this.name, e))
     if (this._mesh.isDisposed()) return this._mesh
     this._mesh.visibility = 1
 
@@ -200,8 +202,8 @@ export default class Islands {
     for (const island of this.islands) {
       const content = (island.desc as IslandRecord & { content?: { origin?: number[]; streets?: Road[] } }).content
       if (!content?.streets?.length || !content.origin) continue
-      const px = x - content.origin[0],
-        pz = z - content.origin[2]
+      const px = x - island.mesh.position.x - content.origin[0],
+        pz = z - island.mesh.position.z - content.origin[2]
       const street = content.streets.find((r) => px >= r.x1 && px < r.x2 && pz >= r.z1 && pz < r.z2)
       if (street) return street
     }

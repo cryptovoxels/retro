@@ -1,6 +1,6 @@
 import { isMobile } from '../../common/helpers/detector'
 import type { Chunk, ChunkObserver } from './chunk-system'
-import { snapRing, type Point2D, PolygonClipping } from '../utils/polygon-utils'
+import { groundOffset, snapRing, type Point2D, PolygonClipping } from '../utils/polygon-utils'
 import type { IslandRecord } from '../../common/messages/api-islands'
 import Islands from './islands'
 import { OCEAN_HEIGHT_OFFSET } from '../constants'
@@ -271,7 +271,8 @@ export class Ocean implements ChunkObserver {
         maxZ = Math.max(maxZ, z)
       }
     }
-    return { minX, maxX, minZ, maxZ }
+    const offset = groundOffset(island.texture)
+    return { minX: minX + offset, maxX: maxX + offset, minZ: minZ + offset, maxZ: maxZ + offset }
   }
 
   private collectPolygonClipInstructions(tileCenter: Point2D): PolygonClipInstruction[] {
@@ -290,6 +291,7 @@ export class Ocean implements ChunkObserver {
         continue
       }
 
+      const offset = groundOffset(island.texture)
       const rings = island.id >= Ocean.NEW_ISLAND_ID_THRESHOLD ? island.geometry.coordinates : [island.geometry.coordinates[0]]
 
       // Collect all intersecting polygons from all rings
@@ -297,7 +299,7 @@ export class Ocean implements ChunkObserver {
       let combinedIntersectionType: IntersectionType | null = null
 
       for (const ring of rings) {
-        const polygon = snapRing(ring)
+        const polygon = snapRing(ring, offset)
         if (polygon.length < 3) continue
         const intersectionType = this.determineIntersectionType(tileCenter, polygon)
         if (intersectionType) {
@@ -318,7 +320,7 @@ export class Ocean implements ChunkObserver {
 
       if (island.lakes_geometry_json?.coordinates) {
         for (const lakeCoordinates of island.lakes_geometry_json.coordinates.map((lake) => lake[0])) {
-          const lakePolygon = snapRing(lakeCoordinates)
+          const lakePolygon = snapRing(lakeCoordinates, offset)
           if (lakePolygon.length < 3) continue
           const intersectionType = this.determineIntersectionType(tileCenter, lakePolygon)
           if (intersectionType) {

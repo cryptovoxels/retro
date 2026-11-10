@@ -19,6 +19,7 @@ import { loadMe, me } from './auth/identities'
 type Props = {
   path: string
   mini?: boolean
+  expand: () => void
 }
 
 type State = {
@@ -155,9 +156,15 @@ export default class WebHeader extends Component<Props, State> {
 
   onProviderMessage = (message?: string | Error) => app.showSnackbar(message, PanelType.Info)
 
+  expand = () => {
+    this.props.expand()
+    this.setState({ menuOpen: true })
+  }
+
   onInput = (e: JSX.TargetedEvent<HTMLInputElement, Event>) => {
     const query = e.currentTarget.value
     const q = query.trim()
+    if (q && this.props.mini) this.expand()
     this.setState({ query, results: q ? this.state.results : [] })
     clearTimeout(this.timer)
     if (!q) return
@@ -270,6 +277,9 @@ export default class WebHeader extends Component<Props, State> {
             <ul>
               <li>
                 <form onSubmit={this.onSubmit}>
+                  <button type="button" class="pane-logo" aria-label="Expand both panes" aria-expanded={!this.props.mini} title="Expand both panes" onClick={this.expand}>
+                    <img src="/images/Voxels_logo_128.png" width="16" height="16" alt="" />
+                  </button>
                   <input name="q" value={query} type="search" onInput={this.onInput} placeholder="Search" />
                 </form>
                 <br />

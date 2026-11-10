@@ -49,6 +49,7 @@ export async function islandGround(mesh: BABYLON.Mesh, island: IslandRecord & { 
       varying vec3 face;
       varying float tile;
       uniform vec3 cameraPosition;
+      uniform sampler2D parcelAtlas;
       ${samplers.map((name) => 'uniform sampler2D ' + name + ';').join('\n')}
       #define sampleTile(tex,uv,lod) ${scene.getEngine().isWebGPU || (scene.getEngine() as any).webGLVersion > 1 ? 'textureLod(tex,uv,lod)' : 'texture2D(tex,uv)'}
       vec4 colorAt(float page, vec2 pos,float lod) { ${sample('color')} }
@@ -56,6 +57,14 @@ export async function islandGround(mesh: BABYLON.Mesh, island: IslandRecord & { 
       vec2 coord(vec2 slot, vec2 uv) { return (slot + clamp(uv, .004, .996)) * .125; }
       void main() {
         vec2 uv = face.y != 0. ? fract(local.xz) : fract(vec2(abs(face.x) > .5 ? local.z : local.x, -local.y));
+        // The entrance apron continues the same atlas swatch and half-metre repeat as its parcel floor.
+        if (tile >= 64.) {
+          float layer = tile == 65. ? 14. : 1.;
+          vec2 slot = vec2(mod(layer,4.),floor(layer/4.));
+          vec2 sampleUV = (slot + mix(vec2(.752),vec2(.248),fract(local.zx*2.))) * .25;
+          gl_FragColor = vec4(sampleTile(parcelAtlas,sampleUV,0.).rgb * .92,1.);
+          return;
+        }
         vec2 slot = vec2(mod(tile, 8.), floor(tile / 8.));
         vec2 cell = floor(local.xz);
         float page = mod(cell.x*3. + cell.y*7. + floor(cell.x/3.) + tile, 4.);
@@ -83,7 +92,7 @@ export async function islandGround(mesh: BABYLON.Mesh, island: IslandRecord & { 
         gl_FragColor = vec4(colorAt(page,coord(slot,uv),max(0.,log2(max(1.,dist*.14)))).rgb * shade, 1.);
       }`,
     },
-    { attributes: ['position', 'normal', 'uv'], uniforms: ['worldViewProjection', 'cameraPosition'], samplers },
+    { attributes: ['position', 'normal', 'uv'], uniforms: ['worldViewProjection', 'cameraPosition'], samplers: [...samplers, 'parcelAtlas'] },
   )
   const textures = pages.flatMap((page, i) => {
     const color = new BABYLON.Texture(page.color, scene, false, false)
@@ -92,8 +101,12 @@ export async function islandGround(mesh: BABYLON.Mesh, island: IslandRecord & { 
     material.setTexture('height' + i, height)
     return [color, height]
   })
+  const parcelAtlas = new BABYLON.Texture(texas.atlas, scene, false, false)
+  material.setTexture('parcelAtlas', parcelAtlas)
+  textures.push(parcelAtlas)
+  const localCamera = new BABYLON.Vector3()
   material.onBindObservable.add(() => {
-    if (scene.activeCamera) material.setVector3('cameraPosition', scene.activeCamera.globalPosition)
+    if (scene.activeCamera) material.setVector3('cameraPosition', scene.activeCamera.globalPosition.subtractToRef(mesh.position, localCamera))
   })
   material.backFaceCulling = false
   mesh.material = material

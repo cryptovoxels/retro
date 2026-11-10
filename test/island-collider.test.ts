@@ -1,7 +1,9 @@
 import { afterEach, expect, test, vi } from 'vitest'
 import earcut from 'earcut'
 import RAPIER from '@dimforge/rapier3d-compat'
-import { Island } from '../src/terrain/islands'
+import Islands, { Island } from '../src/terrain/islands'
+import { packGround } from '../common/voxels/ground-bytes'
+import { groundMesh } from '../src/monoworker/ground-mesh'
 import { initPhysics, physics, removeCollider } from '../src/physics/world'
 
 vi.mock('../src/materials', () => ({ createIslandMaterial: (scene: BABYLON.Scene) => new BABYLON.StandardMaterial('island-test', scene) }))
@@ -164,5 +166,53 @@ test('terrain collision follows a raised pad and leaves room underneath a creek 
     expect(hit(0.75, 0.25)).toBeCloseTo(0.25 + 0.76)
   } finally {
     removeCollider(key)
+  }
+})
+
+test('a saved street tile, its collider and its name start on the parcel voxel edge', async () => {
+  await initPhysics()
+  const pool = await import('../src/mono-pool')
+  const bytes = Buffer.alloc(32, 255)
+  ;[139, -1042, 1, 1].forEach((v, i) => bytes.writeInt32LE(v, i * 4))
+  bytes[16] = 64
+  const compute = vi.spyOn(pool, 'runCompute').mockResolvedValueOnce(groundMesh(bytes))
+  engine = new BABYLON.NullEngine()
+  scene = new BABYLON.Scene(engine)
+  const islands = new Islands(scene)
+  const road = { name: 'Blodgett St', x1: 0, z1: 0, x2: 0.5, z2: 0.5 }
+  try {
+    const island = await islands.add({
+      id: 40,
+      name: 'Texas',
+      texture: '/textures/texas-ground.png',
+      ground: packGround(bytes),
+      content: { origin: [139, 0, -1042], streets: [road] },
+      geometry: {
+        coordinates: [
+          [
+            [1.39, -10.42],
+            [1.4, -10.42],
+            [1.4, -10.41],
+            [1.39, -10.41],
+            [1.39, -10.42],
+          ],
+        ],
+      },
+    } as any)
+    const min = island.mesh.getBoundingInfo().boundingBox.minimumWorld
+    expect([min.x, min.z]).toEqual([139.25, -1041.75])
+    const world = physics()!
+    world.step()
+    for (const [x, z, inside] of [
+      [139.26, -1041.74, true],
+      [139.24, -1041.74, false],
+      [139.26, -1041.76, false],
+    ] as const) {
+      expect(!!islands.streetAt(x, z)).toBe(inside)
+      expect(!!world.castRay(new RAPIER.Ray({ x, y: 1, z }, { x: 0, y: -1, z: 0 }), 5, true)).toBe(inside)
+    }
+  } finally {
+    compute.mockRestore()
+    removeCollider('island-Texas')
   }
 })

@@ -1,3 +1,4 @@
+import pack from './artpack.json'
 import { seeded } from '../../common/helpers/utils'
 import { v5 as uuid } from 'uuid'
 import type { Road } from './layout'
@@ -23,6 +24,8 @@ export function furniture(roads: Road[], center: number[], seed: number, ground:
       for (const side of [-1, 1]) {
         const x = spine ? (side < 0 ? r.x1 + 0.65 : r.x2 - 0.65) : t
         const z = spine ? t : side < 0 ? r.z1 + 0.65 : r.z2 - 0.65
+        // Reserve the full prop footprint around the painted threshold.
+        if ([-1, 0, 1].some((d) => ground(spine ? x : x + d, spine ? z + d : z).tile >= 64)) continue
         if (doors.some(([dx, dz]) => Math.hypot(x - dx, z - dz) < 2) || ground(x, z).tile < 16) continue
         spots.push({ x, z, corner: distance < 12, yaw: (spine ? Math.PI / 2 : 0) + (side < 0 ? 0 : Math.PI) })
       }
@@ -61,18 +64,15 @@ export function furniture(roads: Road[], center: number[], seed: number, ground:
     const { x, z, yaw } = p,
       y = ground(x, z).y
     const add = (record: any) => features.push({ uuid: uuid([center, seed, x, z, p.kind, features.length].join('/'), uuid.URL), rotation: [0, yaw, 0], ...record })
-    const cube = (dy: number, scale: number[], color: string, dz = 0) => add({ type: 'cube', position: [x + dz * Math.sin(yaw), y + dy, z + dz * Math.cos(yaw)], scale, color })
-    if (p.kind === 'lamp') {
-      cube(1.8, [0.22, 3.6, 0.22], '#50404a')
-      add({ type: 'lantern', position: [x, y + 3.85, z], scale: [0.85, 0.85, 0.85], color: '#ffce86' })
-    } else if (p.kind === 'hydrant') {
-      cube(0.46, [0.4, 0.92, 0.4], '#cb4635')
-      cube(0.54, [0.82, 0.23, 0.26], '#cf6342')
-      cube(0.95, [0.49, 0.14, 0.49], '#edb763')
-    } else if (p.kind === 'bench') {
-      cube(0.24, [1.7, 0.48, 0.33], '#58483c')
-      cube(0.5, [1.95, 0.16, 0.62], '#b26a44')
-      cube(0.79, [1.95, 0.5, 0.13], '#925136', -0.25)
+    if (p.kind !== 'art') {
+      const { url, scale } = pack.furniture[p.kind]
+      // The VOX importer's flipped X pivot is four voxels off centre.
+      const offset = 4 * 0.02 * scale
+      add({ type: 'vox-model', url, scale: [scale, scale, scale], position: [x - offset * Math.cos(yaw), y, z + offset * Math.sin(yaw)] })
+      if (p.kind === 'lamp') {
+        // Centre the light in the four-voxel opening between the cage rails.
+        add({ type: 'lantern', position: [x, y + 27 * 0.02 * scale, z], scale: [0.85, 0.85, 0.85], color: '#ffce86' })
+      }
     } else {
       const model = thriftModel(Math.floor(rand() * 256), [x, y, z], 1)
       // VOX imports stand on their pivot. One model voxel is 2cm at unit scale.

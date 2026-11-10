@@ -1,4 +1,4 @@
-import { buildingStyle } from '../islands/texas/buildings'
+import { buildingStyle } from '../islands/texas/entrances'
 import { furniture } from '../islands/texas/furniture'
 import { expect, it } from 'vitest'
 import { unpackGround } from '../common/voxels/ground-bytes'
@@ -77,9 +77,12 @@ it('relaxes curb furniture deterministically, keeping hydrants away from pothole
   const solve = (tile: number) => furniture(roads, [0, 0], 1, () => ({ tile, y: 4 }), [])
   const paved = solve(31)
   expect(solve(31)).toEqual(paved)
-  expect(paved.some((f) => f.color === '#cb4635')).toBe(true)
-  expect(solve(48).some((f) => f.color === '#cb4635')).toBe(false)
-  expect(paved.some((f) => f.type === 'lantern')).toBe(true)
+  expect(paved.some((f) => f.url?.endsWith('/hydrant.vox'))).toBe(true)
+  expect(solve(48).some((f) => f.url?.endsWith('/hydrant.vox'))).toBe(false)
+  const lights = paved.filter((f) => f.type === 'lantern')
+  expect(lights.length).toBeGreaterThan(0)
+  expect(paved.every((f) => f.type === 'lantern' || f.type === 'vox-model')).toBe(true)
+  expect(paved.filter((f) => f.url?.endsWith('/lamp-post.vox'))).toHaveLength(lights.length)
   for (const f of paved) {
     expect(Math.max(Math.abs(f.position[0]), Math.abs(f.position[2]))).toBeGreaterThan(3)
     expect(f.position[1]).toBeGreaterThanOrEqual(4)

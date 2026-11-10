@@ -121,10 +121,11 @@ export default class DesktopControls extends Controls {
       return
     }
     if (this.autoPerspective && this.persona && locked !== this.locked) {
+      const initial = this.locked === undefined
       this.locked = locked
       if (locked) {
         this.enterFirstPerson()
-      } else {
+      } else if (initial) {
         this.enterThirdPerson(1.5)
         this.targetCameraDistance = 1.5
         cam.rotation.x = 0.35

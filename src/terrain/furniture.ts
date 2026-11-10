@@ -25,7 +25,7 @@ export async function islandFurniture(mesh: BABYLON.Mesh, name: string, content?
     }
     if (mesh.isDisposed()) return
     const record = content.features[i]
-    if (!record.uuid || !['cube', 'lantern', 'vox-model'].includes(record.type)) continue
+    if (!record.uuid || !['lantern', 'vox-model'].includes(record.type)) continue
     const f = createFeature(scene, owner as any, record.uuid, record)
     features.push(f)
     batch.push(
