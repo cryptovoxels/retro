@@ -1,5 +1,5 @@
 import { runCompute } from '../mono-pool'
-import texas from '../../common/artpacks/texas-thrift.json'
+import texas from '../../islands/texas/artpack.json'
 import { unpackGround } from '../../common/voxels/ground-bytes'
 import type { IslandRecord } from '../../common/messages/api-islands'
 

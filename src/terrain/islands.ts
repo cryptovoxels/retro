@@ -1,4 +1,4 @@
-import type { Road } from '../../web/src/admin/texas'
+import type { Road } from '../../islands/texas/layout'
 import { islandFurniture } from './furniture'
 import { islandGround } from './ground'
 import { IslandRecord } from '../../common/messages/api-islands'

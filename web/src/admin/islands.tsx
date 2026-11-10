@@ -6,7 +6,7 @@ import { runCompute } from '../../../src/mono-pool'
 import { CAMERA_HEIGHT } from '../../../common/helpers/utils'
 import { app } from '../state'
 import { worldBoot } from '../client'
-import type { Road } from './texas'
+import type { Road } from '../../../islands/texas/layout'
 import type { VillageParcel } from './village'
 
 const PAGE_ORTHO = 2000
@@ -88,9 +88,9 @@ export default class IslandsAdmin extends Component<{}, State> {
     try {
       const res = await fetch('/api/admin/island-drafts/' + encodeURIComponent(slug), { cache: 'no-store' })
       if (!res.ok && !(res.status === 404 && slug === 'texas')) throw new Error()
-      const { settings, ground, content } = res.ok ? await res.json() : { settings: (await import('./texas-draft.json')).default }
+      const { settings, ground, content } = res.ok ? await res.json() : { settings: (await import('../../../islands/texas/draft.json')).default }
       if (!this.mapRef.current) return
-      this.setState({ ...settings, start: id }, () => this.build(settings.reroll, ground, content?.features))
+      this.setState({ ...settings, start: id }, () => this.build(settings.reroll, ground, settings.artpack !== 'texas-thrift' || content?.furnitureVersion === 2 ? content?.features : undefined))
     } catch {
       this.setState({ start: id })
       this.stage('could not load island draft', 0)

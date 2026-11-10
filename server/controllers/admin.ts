@@ -4,9 +4,7 @@ import type { PoolClient } from 'pg'
 import { Express } from 'express'
 import { centroid } from '@turf/turf'
 
-import texas from '../../common/artpacks/texas-thrift.json'
-import { thriftModel } from '../../common/artpacks/texas'
-import { v7 as uuid } from 'uuid'
+import texas from '../../islands/texas/artpack.json'
 import cache from '../cache'
 import config from '../../common/config'
 import { SUPPORTED_CHAINS } from '../../common/helpers/chain-helpers'
@@ -380,12 +378,7 @@ function villageRows(name: string, parcels: any[], atlas?: string, artpack?: str
   const tileset = pack?.atlas || (typeof atlas === 'string' && atlas ? atlas : undefined)
   return parcels.map((p, i) => {
     const shape = { x1: m(p.x1), x2: m(p.x2), z1: m(p.z1), z2: m(p.z2), y1: p.y1, y2: p.y2, height: p.y2 - p.y1 }
-    const house = ParcelBuilder.Village(shape, isInteger(p.material) ? p.material : ground, p.door, !!pack)
-    if (pack && i % 2 === 0) {
-      const roof = i % 4 === 0
-      const size = Math.min(roof ? 3 : 1.5, shape.x2 - shape.x1 - 1, shape.z2 - shape.z1 - 1)
-      house.features.push({ uuid: uuid(), ...thriftModel(i / 2, [0, (roof ? shape.height : 1) + size / 2, 0], size) } as any)
-    }
+    const house = ParcelBuilder.Village(shape, isInteger(p.material) ? p.material : ground, p.door, !!pack, i)
     return { ...p, island: name, content: { ...house, tileset } }
   })
 }

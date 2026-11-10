@@ -1,7 +1,8 @@
-import { seeded } from '../../../common/helpers/utils'
-import { getBlockId } from '../../../common/content/blocks'
-import type { VillageOpts, VillageParcel } from './village'
-import cities from './texas-streets.json'
+import { seeded } from '../../common/helpers/utils'
+import { getBlockId } from '../../common/content/blocks'
+import type { VillageOpts, VillageParcel } from '../../web/src/admin/village'
+import cities from './streets.json'
+import pack from './artpack.json'
 
 export type Road = { x1: number; x2: number; z1: number; z2: number; dirt?: boolean; name?: string; suburb?: string; deadEnd?: boolean }
 
@@ -82,10 +83,25 @@ export function texas(opts: VillageOpts) {
           y1,
           y2: y1 + Math.max(4, Math.round(opts.height * (1 + (rand() - 0.5) * 2 * opts.heightSpread)) + 1),
           door: cap ? (east ? 'w' : 'e') : north ? 's' : 'n',
-          material: getBlockId([2, 4, 5, 6, 8, 9, 14][Math.floor(rand() * 7)], 0),
+          material: getBlockId(pack.frames.tiles[Math.floor(rand() * pack.frames.tiles.length)], 0),
         })
       }
     }
   }
   return { parcels, roads, spawn }
+}
+
+export function creekBeds(roads: Road[], x: number, w: number, seed: number) {
+  const streets = roads.filter((r) => r.x2 - r.x1 > r.z2 - r.z1)
+  const rows = [...new Set(streets.map((r) => (r.z1 + r.z2) / 2))].sort((a, b) => a - b)
+  const above = rows.find((v) => v > 0) || 0
+  const below = [...rows].reverse().find((v) => v <= 0) || 0
+  const creeks = [(above + below) / 2]
+  const pitch = above - below
+  if (pitch > 0) {
+    const first = streets.find((r) => r.suburb === 'Houston')
+    if (first) creeks.push((first.z1 + first.z2 + pitch) / 2)
+    for (let i = 2; i < rows.length - 1; i += 4) creeks.push((rows[i] + rows[i + 1]) / 2)
+  }
+  return Array.from({ length: w }, (_, i) => creeks.map((z, j) => z + (j === 0 ? 2 : 3) * Math.sin((x + i) / (23 + j * 2) + seed + j)))
 }

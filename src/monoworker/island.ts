@@ -1,10 +1,8 @@
 import { packGround } from '../../common/voxels/ground-bytes'
-import { v5 as uuid } from 'uuid'
-import { thriftModel } from '../../common/artpacks/texas'
-import { seeded } from '../../common/helpers/utils'
+import { furniture } from '../../islands/texas/furniture'
 import ndarray, { type NdArray } from 'ndarray'
 import { getVoxelsFromBuffer } from '../../common/voxels/helpers'
-import { texas, terrace, type Road } from '../../web/src/admin/texas'
+import { texas, terrace, creekBeds, type Road } from '../../islands/texas/layout'
 import { village, type VillageOpts } from '../../web/src/admin/village'
 
 export function islandLayout(opts: VillageOpts) {
@@ -15,44 +13,29 @@ export function islandSurface(parcels: (Road & { y1?: number; suburb?: string })
   const land = [...parcels, ...roads]
   const { bounds, field } = getIslandField(land, true)
   const texas = !!parcels[0]?.suburb
-  const ground = artpack || texas ? groundMap(field, bounds[0], bounds[1], ...center, roads, reroll, parcels, texas) : undefined
+  const surface = artpack || texas ? groundMap(field, bounds[0], bounds[1], ...center, roads, reroll, parcels, texas, artpack) : undefined
   const [x1, z1, x2, z2] = bounds
   const geometry = getIslandGeometry(field, [center[0] + (x1 + x2) / 200, center[1] + (z1 + z2) / 200])
   const water = getIslandGeometry(field, [center[0] + (x1 + x2) / 200, center[1] + (z1 + z2) / 200], 2)
   const lakes = { type: 'MultiPolygon', coordinates: water.coordinates.map((ring) => [ring]) }
-  const features: any[] = []
-  if (artpack === 'texas-thrift') {
-    const rand = seeded(reroll + 736)
-    const add = (record: any) => features.push({ uuid: uuid(center.join(',') + '/' + reroll + '/' + features.length, uuid.URL), rotation: [0, 0, 0], ...record })
-    for (const r of roads) {
-      const horizontal = r.x2 - r.x1 > r.z2 - r.z1
-      const length = horizontal ? r.x2 - r.x1 : r.z2 - r.z1
-      for (let t = 5; t < length - 3; t += 12) {
-        const side = rand() > 0.5 ? 0.6 : 3.4
-        const x = r.x1 + (horizontal ? t : side),
-          z = r.z1 + (horizontal ? side : t)
-        const y = 0.74 + (texas ? terrace(Math.floor(x), Math.floor(z), reroll, true) : 0)
-        if (rand() < 0.33) {
-          add({ type: 'cube', position: [x, y + 1, z], scale: [0.16, 2, 0.16], color: '#844d44' })
-          add({ type: 'lantern', position: [x, y + 2.15, z], scale: [0.65, 0.65, 0.65], color: '#ffd188' })
-        } else {
-          const size = 0.45 + rand() * 0.75
-          add(thriftModel(Math.floor(rand() * 256), [x, y + size / 2, z], size))
-        }
-      }
-    }
-  }
   return {
     geometry,
-    ground,
+    ground: surface?.ground,
     lakes,
-    content: { origin: [center[0] * 100, 0, center[1] * 100], features, streets: roads.filter((r) => r.name), ...(!ground && { voxels: getVoxelsFromBuffer(getIslandField(parcels).field.data) }), ...(artpack && { artpack }) },
+    content: {
+      origin: [center[0] * 100, 0, center[1] * 100],
+      features: surface?.features || [],
+      ...(artpack === 'texas-thrift' && { furnitureVersion: 2 }),
+      streets: roads.filter((r) => r.name),
+      ...(!surface && { voxels: getVoxelsFromBuffer(getIslandField(parcels).field.data) }),
+      ...(artpack && { artpack }),
+    },
   }
 }
 
 // Four little-endian int32s (world x, z, cell width, depth), then sixteen 50cm layers.
 // Within a layer x runs fastest. 255 is air; other bytes index the artpack's 8x8 atlas.
-function groundMap(field: NdArray<Uint16Array>, x: number, z: number, cx: number, cz: number, roads: Road[], seed: number, parcels: (Road & { y1?: number })[], texas: boolean) {
+function groundMap(field: NdArray<Uint16Array>, x: number, z: number, cx: number, cz: number, roads: Road[], seed: number, parcels: (Road & { y1?: number })[], texas: boolean, artpack: string) {
   const [w, , h] = field.shape
   const width = w * 2,
     depth = h * 2,
@@ -70,18 +53,7 @@ function groundMap(field: NdArray<Uint16Array>, x: number, z: number, cx: number
   for (const p of parcels) {
     for (let j = p.z1 - z; j < p.z2 - z; j++) pads.fill(4 + 2 * (p.y1 || 0), j * w + p.x1 - x, j * w + p.x2 - x)
   }
-  const streets = roads.filter((r) => r.x2 - r.x1 > r.z2 - r.z1)
-  const rows = [...new Set(streets.map((r) => (r.z1 + r.z2) / 2))].sort((a, b) => a - b)
-  const above = rows.find((v) => v > 0) || 0
-  const below = [...rows].reverse().find((v) => v <= 0) || 0
-  const creeks = [(above + below) / 2]
-  const pitch = above - below
-  if (texas && pitch > 0) {
-    const first = streets.find((r) => r.suburb === 'Houston')
-    if (first) creeks.push((first.z1 + first.z2 + pitch) / 2)
-    for (let i = 2; i < rows.length - 1; i += 4) creeks.push((rows[i] + rows[i + 1]) / 2)
-  }
-  const beds = Array.from({ length: w }, (_, i) => creeks.map((z, j) => z + (j === 0 ? 2 : 3) * Math.sin((x + i) / (23 + j * 2) + seed + j)))
+  const beds = texas ? creekBeds(roads, x, w, seed) : []
   for (let j = 0; j < h; j++) {
     for (let i = 0; i < w; i++) {
       const k = i + j * w
@@ -114,7 +86,26 @@ function groundMap(field: NdArray<Uint16Array>, x: number, z: number, cx: number
       }
     }
   }
-  return packGround(bytes)
+  const features =
+    artpack === 'texas-thrift'
+      ? furniture(
+          roads,
+          [cx, cz],
+          seed,
+          (px, pz) => {
+            const i = Math.floor((px - x) * 2),
+              j = Math.floor((pz - z) * 2)
+            if (i >= 0 && i < width && j >= 0 && j < depth)
+              for (let layer = 15; layer >= 0; layer--) {
+                const tile = bytes[16 + layer * plane + j * width + i]
+                if (tile !== 255) return { tile, y: (layer + 1) * 0.5 - 1.26 }
+              }
+            return { tile: -1, y: 0 }
+          },
+          parcels,
+        )
+      : []
+  return { ground: packGround(bytes), features }
 }
 
 const PAVEMENT_LEVEL = 1

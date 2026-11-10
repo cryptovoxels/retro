@@ -1,0 +1,1591 @@
+{
+  "atlas": "/textures/texas-thrift.png",
+  "models": [
+    {
+      "id": "1eb6d5cf-1c31-4f01-95d6-8a6898ee93ec",
+      "name": "simple candycane",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xff84b20cc3c1f81b645e18bc100eeeb6ecc4aaf3/1638840082474-346979bd-0618-4fa6-b031-950fd1ae7a51.vox",
+      "extent": 32
+    },
+    {
+      "id": "1175c47e-1259-4a56-a680-bf6c1d4fefbe",
+      "name": "Microphone on a stand",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x96287c6226648e4d2dbb23c955852550382858f4/1644303890514-27c02b2e-f565-4dcf-97b4-6f8f2853fc16.vox",
+      "extent": 32
+    },
+    {
+      "id": "b2c0c3d4-7868-475c-bbb4-51f839e47955",
+      "name": "grass",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b511800a8d8e7de24dd19de3103081824b6f41d/1642541637191-c95ab7ad-24de-4d9f-b2db-097b2ac6c18f.vox",
+      "extent": 32
+    },
+    {
+      "id": "f12dda48-933d-459c-a2aa-55c5c9cdde86",
+      "name": "UO1",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x8a6f87fc5ddb9e936854578d7ec4965a2cc2269b/1650589070533-2390aa25-521a-49b5-be5f-f265d2941485.vox",
+      "extent": 27
+    },
+    {
+      "id": "1e18d8b7-bae5-4173-a146-cf3b14a34a7a",
+      "name": "Wall Skirting Board (brown/wood)",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/wood%20skirting_6a1c2130862e513f86dce4ae321f2c5e.vox",
+      "extent": 32
+    },
+    {
+      "id": "8626b461-a873-4d9b-b900-17c7d94f0074",
+      "name": "Red couch/sofa",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/redcouch_ba4c075cbfe5beeaac8f4b15448c10a5.vox",
+      "extent": 32
+    },
+    {
+      "id": "8dd4dc41-e6cd-45e1-bc02-32129c71c703",
+      "name": "banny",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xd30a79e487351eb0064c8a78eb341da364d78a9a/1636951304568-33639f4c-59b1-4a17-8351-2e251f7307fa.vox",
+      "extent": 32
+    },
+    {
+      "id": "16801755-095f-4966-8343-ef321d325a4f",
+      "name": "buildby",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xd30a79e487351eb0064c8a78eb341da364d78a9a/logowhite_227d0f186049083bc57f8c1aa0962f66.vox",
+      "extent": 32
+    },
+    {
+      "id": "286c40b7-9e78-44d0-a0e5-ce72793852d7",
+      "name": "Hoodie",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xea7bcb32af9d959532430802a59d865a498014f0/1638932713573-4163fde1-4c81-494a-a120-0ae77165d693.vox",
+      "extent": 29
+    },
+    {
+      "id": "e755389b-fe9f-47ac-98fe-90a2be05790d",
+      "name": "Buy Yeti One Sided",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xf694563ac5cc88b49939d73cd63a3b222e524bde/1650302758681-5a5e254d-b34d-4c7f-b812-3f5b4b20772a.vox",
+      "extent": 32
+    },
+    {
+      "id": "7808aefc-dbc0-439f-a27a-3e663303193e",
+      "name": "Sliding Door",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x1e3c06381a11375aaee09c0a368c81e950211ea7/1634682813884-905cb530-70cc-44bb-afc1-5d58c9de66a8.vox",
+      "extent": 32
+    },
+    {
+      "id": "44ae6763-9297-4222-9b77-e42da8bdc62a",
+      "name": "Wooden Ladel",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/1640054907858-c3d74a5a-3ef7-40e6-887d-b8441df02108.vox",
+      "extent": 32
+    },
+    {
+      "id": "e3bb69b6-3a38-42d8-9ed8-b8671e72b253",
+      "name": "cosmo",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x3b97b6cbbfcfff88cf4a175e665c5715a3efe4f0/1640904395067-3bc5338f-65a9-48cd-a9dd-6cfefb7bdab4.vox",
+      "extent": 32
+    },
+    {
+      "id": "3758a9c4-8c46-4677-a89d-833642a60e90",
+      "name": "Register",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x31189d80054ba690c7355045e2ebcf1490f042a7/1638514032145-e63a1dec-8b1f-4439-9c1b-3a9557478840.vox",
+      "extent": 32
+    },
+    {
+      "id": "6a515dc8-c57c-4fdc-939e-a3c4f2a5e6fc",
+      "name": "Nave",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x36354da80c30e3b1045ae2dd7640a99d12d7bcbb/1650097334734-acf0b3c4-789e-4a59-bc87-f16b5d882a80.vox",
+      "extent": 32
+    },
+    {
+      "id": "0edd30d0-0673-47a5-af4d-db3ca46475f1",
+      "name": "Rebar Cutter",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/1641169713267-3f191098-b277-4f7d-9930-6c02dd1b56e8.vox",
+      "extent": 32
+    },
+    {
+      "id": "e435fdaf-7d0f-4221-af92-7994455265a4",
+      "name": "Surveillance Camera",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xd955f912306b08d61b14335f952cb37fb1f64b4b/1627760345091-12b1c085-acd5-4f29-90d1-54b36d40abc4.vox",
+      "extent": 32
+    },
+    {
+      "id": "6768502c-fabd-44d3-adbb-7df3d906fc10",
+      "name": "pos system",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xd30a79e487351eb0064c8a78eb341da364d78a9a/1649227637289-44961a5f-aceb-4529-9a96-22b6055e766a.vox",
+      "extent": 31
+    },
+    {
+      "id": "4e35b800-d020-4c6f-9b9f-48c9c012f8ce",
+      "name": "Citizen BB",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x642f220079b73790d1f451013db1f26bc570d604/1638378024598-6dda7f2d-61ba-4ef9-8b47-4a0ea73d8b45.vox",
+      "extent": 32
+    },
+    {
+      "id": "0f6d7a11-c8c2-44cf-8ff4-de4401ec0d0b",
+      "name": "Shopping Bag",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb7d3a787a39f25457ca511dc3f0591b546f5e02f/1636170113435-5ffe99ea-9ee3-4ba6-810e-86ffb955bba3.vox",
+      "extent": 32
+    },
+    {
+      "id": "e3675a05-1d3e-42ee-8769-614e0c33ae66",
+      "name": "stone frame",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x994b2b32530c95cd4bdac0ec0e0b41b187385b94/1647046604484-afddd4d6-0289-4099-b958-877c3a227e8b.vox",
+      "extent": 32
+    },
+    {
+      "id": "6573a257-c667-4350-9615-10e07428b271",
+      "name": "black dog",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x2fd7c1f3464774154f07a6983d6e9bd0633ab5d7/1646998664387-693b3ce1-2de6-4bdb-97e6-311f622c5604.vox",
+      "extent": 32
+    },
+    {
+      "id": "54a8df2d-9ed3-4240-ba25-2d589f2b88f8",
+      "name": "Snowman with purple scarf",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb7d3a787a39f25457ca511dc3f0591b546f5e02f/1635951654152-4c1fe522-c249-4f8c-b4ce-b9543b8bd195.vox",
+      "extent": 32
+    },
+    {
+      "id": "48c1ca82-4b0d-4449-9d5f-5b86104a6056",
+      "name": "Horror Telephone Booth",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/%23red_booth_solid_823a071a9f50e5a47b57b24017b35e9c.vox",
+      "extent": 32
+    },
+    {
+      "id": "fcac5fe4-d63c-4c72-82ca-4c355936b488",
+      "name": "Double Monitor",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xf75341b90b8beb9f93c50facb92bc552f20797bb/1646353155096-a87d856a-5905-4c83-9366-c413c180620c.vox",
+      "extent": 22
+    },
+    {
+      "id": "5430ce3c-e3e5-4cb8-a631-9c8f9540f505",
+      "name": "\u85cd\u8272\u79ae\u7269\u76d2",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x015360e27c747f9ccba950b30f8509e68a3d501c/gift_blue_af77e67cdaf379d54087ed32bd2a55b4.vox",
+      "extent": 32
+    },
+    {
+      "id": "579c4e8c-d0a9-4ae7-90ae-10e0364af053",
+      "name": "Carpet",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/Carpet_4e3711b85743a55686d181c7b20f8b7c.vox",
+      "extent": 32
+    },
+    {
+      "id": "950be83f-e4c6-4544-9278-a22a5f1c8b62",
+      "name": "tree 2",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb7d3a787a39f25457ca511dc3f0591b546f5e02f/1642108400305-0c2925c6-8db4-4680-a074-7cfb491fbaf7.vox",
+      "extent": 32
+    },
+    {
+      "id": "e83b8fb0-c759-4e79-a99e-a6e2a6cf728d",
+      "name": "golden pillar side",
+      "url": "https://media.crvox.com/0xa934f1210de462c7ee2b5b78fd97b7cb7c38e95d/imp%20block_83ecf94f403151832af88c9f29526b2d.vox",
+      "extent": 32
+    },
+    {
+      "id": "20b4f5e4-b727-4295-ae81-3169c4f9f611",
+      "name": "GMetaOne flower",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x18b08deae2b7d01f255998829f887bacbf1b2ac4/1646563832269-da5e8599-8dfb-4922-9329-3df834d9b114.vox",
+      "extent": 32
+    },
+    {
+      "id": "20f970e8-e769-4a09-aa11-606b85e4e3d6",
+      "name": "bang",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x979661e3ced7dec979d56a785c4d235d3297d86b/1641807872017-dd6b6f18-c63f-43cd-8d63-52843b8c0d0a.vox",
+      "extent": 32
+    },
+    {
+      "id": "91e85ba2-e7a5-4609-af5c-b28228e71745",
+      "name": "rare gem 4",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb7d3a787a39f25457ca511dc3f0591b546f5e02f/1638206700641-73159189-0518-42d5-8faf-7bd6db4068b4.vox",
+      "extent": 32
+    },
+    {
+      "id": "c0e93dd7-5ab8-43d0-8caf-fa76fc565537",
+      "name": "Caldron with Legs",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xa53f470c3b597803b25e02f75339e22173705254/1640056099757-0dfc3b41-29ac-4e66-b19e-9554415ad0e8.vox",
+      "extent": 32
+    },
+    {
+      "id": "f2462f74-1ee4-4326-bbf6-809425b3c4d3",
+      "name": "dianti",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb00D7Ba1c22673ed493274605e4fd1566B98F388/1637645211732-9ab2d25f-f696-4f53-897e-df54e1b95fe0.vox",
+      "extent": 32
+    },
+    {
+      "id": "390cefcf-2cc7-4d34-8d47-5a5b096caf14",
+      "name": "Water Gnome",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/1642614449604-5bd66bed-632a-4ece-8e77-dc3e11336427.vox",
+      "extent": 32
+    },
+    {
+      "id": "caceb226-c43f-4c2a-88d6-4aac0926cb23",
+      "name": "\u7535\u8111-1\u53f7",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x60e2c143659a824551239264b24d6c211820f5a5/%25E7%2594%25B5%25E8%2584%2591_a18e94737430640171b2ebbf85b5672d.vox",
+      "extent": 32
+    },
+    {
+      "id": "6a52d3fd-3e83-444b-a154-36695d7059e8",
+      "name": "Shiba lighter",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xff84b20cc3c1f81b645e18bc100eeeb6ecc4aaf3/1651022470036-ad9f6c23-17a7-4ff3-860d-d17f3a2849f1.vox",
+      "extent": 32
+    },
+    {
+      "id": "35db1fe2-5ab3-4ae4-8860-e60cb8e51305",
+      "name": "Floor Tiling 4",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/Floor04_0a61ceb2851ff99e6656d04fbde09eec.vox",
+      "extent": 32
+    },
+    {
+      "id": "736bdf82-8894-4594-9cd1-b61e0bdddf6a",
+      "name": "\u670d\u52d9\u54e1",
+      "url": "https://media.crvox.com/0x015360e27c747f9ccba950b30f8509e68a3d501c/lady_monet_npc_shop_4_c5c31109df00be3267cfcb36b4adddce.vox",
+      "extent": 31
+    },
+    {
+      "id": "cd49e11a-ef49-4afd-938c-1a73c61dcc6d",
+      "name": "shoe",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x30e1089c44fedb07eba28c00b4263163799fe598/1650649496061-05b05be5-500e-4e53-b681-4c67e5e51111.vox",
+      "extent": 30
+    },
+    {
+      "id": "1b498d7b-aa3d-41f4-a17b-a493f17438d4",
+      "name": "Car jump-starter",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/1641237285999-1c1da0ce-fe05-45b0-b34c-d452f63ad7cf.vox",
+      "extent": 32
+    },
+    {
+      "id": "a5d83673-de6d-49b1-b596-5287f3027e22",
+      "name": "Ben Nolan",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x38bbd375d49d6237984cbfa19719c419af9fe514/1639824194800-572ed492-79fe-4031-8aa8-854c9ae6c8ec.vox",
+      "extent": 32
+    },
+    {
+      "id": "eb182bdc-c731-4520-8fc6-54f0af2a6b9f",
+      "name": "Stone Main 1",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xc0f3ad32c04d1c259631a83be0bee0ef50bbe9a1/1638818537746-bf05b95e-e011-4c02-93b8-73704e89d50a.vox",
+      "extent": 32
+    },
+    {
+      "id": "e8128d47-a1ba-417a-aa11-d896b719d212",
+      "name": "elevator",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xd30a79e487351eb0064c8a78eb341da364d78a9a/1642399615544-364d5e20-4332-48c0-aaa8-d88762321ce4.vox",
+      "extent": 32
+    },
+    {
+      "id": "0c6e8443-c31d-4258-bec2-be08a7648133",
+      "name": "mtest",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x670294302607e7eed53b20f6421753b6cdd6b294/1638938488204-272179dc-2ea3-4560-ae66-e5842ed97c0f.vox",
+      "extent": 32
+    },
+    {
+      "id": "abccab15-0cf5-4523-949f-e887f2d37ce2",
+      "name": "lazer",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x5b962f3782702530eaab7e52e110a77d470f28e7/1644251339945-2eff231b-3827-4414-b4aa-bb9b1cd8f53f.vox",
+      "extent": 32
+    },
+    {
+      "id": "97215e2e-cd57-4764-8c5d-fca84afd467f",
+      "name": "PunkCat #3722",
+      "url": "https://media.crvox.com/0xf25ad24b791e37e83f4dadfe212e0e9bb45a1f8b/PunkCat-3722_31af9d5084aa010d4abeb711dd283b9f.vox",
+      "extent": 30
+    },
+    {
+      "id": "d64e155e-c753-424e-9971-321bb7b2702e",
+      "name": "monter1",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x289314cd8d5147e32ce3f32fd030467df92d57a7/1638008071484-d8267444-dc0b-4fc2-99d8-5e075e39621c.vox",
+      "extent": 32
+    },
+    {
+      "id": "b563fb91-60a4-4520-a7ab-e051ca980389",
+      "name": "Pizza Pop Cooler",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xdde7b4e278d0934641374af68c4538fa8e185339/1624317880379-9124ab7d-131b-47d8-9a2e-3897f041f15c.vox",
+      "extent": 32
+    },
+    {
+      "id": "811d52f6-cb99-4f8e-902e-1627601e5081",
+      "name": "Circular Green Bonsai Tree",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb7d3a787a39f25457ca511dc3f0591b546f5e02f/1642109192644-06e093a0-3ec5-4fee-9588-6d1d29bc6b7b.vox",
+      "extent": 32
+    },
+    {
+      "id": "589668f8-f4f3-4760-a847-f8208e66a3b3",
+      "name": "wooden pedestal",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xf75341b90b8beb9f93c50facb92bc552f20797bb/1643927331578-12336def-61ba-4898-bdb7-3f203d6c7293.vox",
+      "extent": 19
+    },
+    {
+      "id": "6d41e2ef-90cf-4efd-9709-02e4b7f93ceb",
+      "name": "No3",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xc0f3ad32c04d1c259631a83be0bee0ef50bbe9a1/1638975123667-83ffd9b1-1472-4b63-90f3-400ec94b2642.vox",
+      "extent": 32
+    },
+    {
+      "id": "469e2c48-8ac5-4601-b125-046530937092",
+      "name": "voxel brew",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x05db7e001f6650745dcff8044d3e5ade3af4c03a/1639766068405-f798c17c-2c7c-497c-bfd8-058cdaf36f9e.vox",
+      "extent": 32
+    },
+    {
+      "id": "fffe5641-7dc3-461e-abd8-b13e5acd6ce9",
+      "name": "DJ Board",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x37e95069943117e41eb6bc8258171cd55d92481d/1638899900543-d30e8eeb-0d19-4684-b38a-b950c41d475d.vox",
+      "extent": 25
+    },
+    {
+      "id": "5ab856da-e7ab-4046-b65d-4e4c541716b1",
+      "name": "mistletoe",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb7d3a787a39f25457ca511dc3f0591b546f5e02f/mistletoe_5896376d884e9edbd11cb49b7496eb09.vox",
+      "extent": 32
+    },
+    {
+      "id": "4a78af33-52d9-468e-a5cc-0d6ef48daf6f",
+      "name": "torch ",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x25b82c31b7557e0e0306abd41c6102dca1448564/1646267723970-54472eb8-781f-44b3-8857-80bc82cd9251.vox",
+      "extent": 32
+    },
+    {
+      "id": "e260a1e5-1207-48ce-a44d-80cbc5051621",
+      "name": "egg",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x819d121be9698e3a8a3565a98964fb8d1d5d8fec/1646933594498-ee47aaa2-915b-4af6-b829-659a019dbe70.vox",
+      "extent": 32
+    },
+    {
+      "id": "93c375c9-e7d6-4c1e-8cda-0d5939bbcbff",
+      "name": "stair",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x8a44c7abece907c5584eb9cb446355039f981645/1653296324887-81ebb5b2-bc63-4445-bbea-9812bf079f7e.vox",
+      "extent": 32
+    },
+    {
+      "id": "90ccbd0f-8b52-4afa-9676-4f3d904131a7",
+      "name": "Green Light",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x96287c6226648e4d2dbb23c955852550382858f4/1644306787186-052d4f28-96b6-44c5-a022-f7b219f2715a.vox",
+      "extent": 32
+    },
+    {
+      "id": "792d583a-d02d-4741-a7fb-15f4ba7c9c29",
+      "name": "UPRIGHT PIANO",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb5d741136ce655ae80ab01fa2255ac3832517e3b/1644261273450-d114706a-e208-4f86-b000-e2a2df91cd64.vox",
+      "extent": 32
+    },
+    {
+      "id": "b37cec9f-460f-41ce-b6d9-7c5781ffedc3",
+      "name": "Pole Base",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xa35dd39aa9030edb178c44f56c517ded4a96233f/1639987258995-3f9882a0-586d-4ed2-bbec-1fb5d38ac5e2.vox",
+      "extent": 32
+    },
+    {
+      "id": "5ef99917-7c6b-49cf-881a-657e6e1af576",
+      "name": "carpet round, orange / pink",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x5e67ea09afe651a3b87b346568bdc89152c625fc/carpet_round_4da7c5133ad370d6f8a91f9028c59c6f.vox",
+      "extent": 31
+    },
+    {
+      "id": "89d0cc75-d777-4cf4-b5a3-8034e6ff3b0f",
+      "name": "roll up door 2",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x695c6103e3d7cb9dff2a2f6648c0951dd39f4952/1637966510635-b68091b0-c215-4762-bca9-74984d7d1c42.vox",
+      "extent": 32
+    },
+    {
+      "id": "7e11eb58-7fe5-4f60-a825-040e487c7fb5",
+      "name": "3F_wall",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x3cf346ed45bb72c21c925de3db15d5c87ad2129a/1631690268259-8001089c-dd55-4ded-876b-f1fe6f932416.vox",
+      "extent": 30
+    },
+    {
+      "id": "22a58f43-86cd-446b-80e2-49d08f312e02",
+      "name": "22",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xf75341b90b8beb9f93c50facb92bc552f20797bb/1646176596864-1768d091-4513-4bee-a0b5-8c8350a7088c.vox",
+      "extent": 32
+    },
+    {
+      "id": "73dad411-b2af-4772-837c-9e77a1fde801",
+      "name": "baby duck white",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xc79006bfac6ab73eecc1b86390b3ab43cea690fe/1643383566177-bcf054ee-c0c9-4456-8bd4-ffca939e0319.vox",
+      "extent": 32
+    },
+    {
+      "id": "390e0667-ce70-463d-8b09-012aec600873",
+      "name": "TRASHTOTERPISSINGTHESEC",
+      "url": "https://media.crvox.com/0x41bd9ede67476deff711c1ddbd702b741dcc23d8/Pissing%20T-SEC_bae9df73f394c709bfde2a638118b929.vox",
+      "extent": 32
+    },
+    {
+      "id": "fd2ab9c4-fdb5-430e-a69b-09e5a44bb079",
+      "name": "beer",
+      "url": "https://media.crvox.com/0xf25ad24b791e37e83f4dadfe212e0e9bb45a1f8b/Beer_745c953619bbc41a09034dee7d1b1cbf.vox",
+      "extent": 32
+    },
+    {
+      "id": "93c09fcb-9c39-4bed-8456-8752c07c5560",
+      "name": "Fred's Kid",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x289314cd8d5147e32ce3f32fd030467df92d57a7/1637595801417-ae9ff030-e3ac-4017-a0f0-1db01d054482.vox",
+      "extent": 32
+    },
+    {
+      "id": "a9029b04-5ba5-4dad-bb51-870a1dd66200",
+      "name": "\u5206\u9694\u67f1",
+      "url": "https://media.crvox.com/0x015360e27c747f9ccba950b30f8509e68a3d501c/post_dec7c7bf2d3785f6d4914b0ad1cdd0d1.vox",
+      "extent": 32
+    },
+    {
+      "id": "e39e8757-d14b-4b30-8cdd-2fc8a2499cbe",
+      "name": "\u68111",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x3a7ef5100bc9bf43238c26d6870e8c99a55bd4d1/1649318943304-008f06cb-6ff8-48a8-8343-54565ea2fb6a.vox",
+      "extent": 31
+    },
+    {
+      "id": "ccde7186-d616-450b-a1c4-378389ab1aa1",
+      "name": "Statue Legs ",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x30e1089c44fedb07eba28c00b4263163799fe598/1652880208317-ae588c2e-b9f1-4895-be75-75dc0c0c8a42.vox",
+      "extent": 32
+    },
+    {
+      "id": "2fdd171f-3379-423a-ad02-6e11b8404c7e",
+      "name": "chuan",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb00D7Ba1c22673ed493274605e4fd1566B98F388/1637374345748-a775d658-99be-469c-8f7a-5d54d14752bc.vox",
+      "extent": 32
+    },
+    {
+      "id": "2cb5c717-ea98-4139-b948-d1479be44ff0",
+      "name": "Parquet",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xa35dd39aa9030edb178c44f56c517ded4a96233f/1639979252728-23a00f1d-0473-4ae8-bf4b-a6949b36bc8e.vox",
+      "extent": 32
+    },
+    {
+      "id": "596d0c23-66d1-4fc6-aba1-97dd00408341",
+      "name": "Epic stools",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xe6d40c3aff8428764ca274c96013ae51accd11be/Stool_41811d645fd2ec1d5561b747923dbcec.vox",
+      "extent": 32
+    },
+    {
+      "id": "e65aa8f8-fcab-4526-90a7-820d7b3e7c88",
+      "name": "[ ch_bossbaay ]",
+      "url": "https://media.crvox.com/0x946a2ad8f3d6d65dc2b1220f318978a52369ed5e/ch_babyboss_03064696ea3e7182d81ac2fefb04f3ed.vox",
+      "extent": 26
+    },
+    {
+      "id": "071d1b15-ee56-4ccb-a6f2-f2dfb9b48a0c",
+      "name": "prophet5",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb00D7Ba1c22673ed493274605e4fd1566B98F388/1637385802598-70266b46-ecc1-4808-b2b8-c1a7dc8ea6c7.vox",
+      "extent": 32
+    },
+    {
+      "id": "1af8802d-a012-4b5d-a7ae-cd3008330934",
+      "name": "bench001",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x1e27527d713bd66017a11e33e48874596ea7014d/1650099196579-365de808-1963-4e27-be27-45ae49ca8f8c.vox",
+      "extent": 32
+    },
+    {
+      "id": "1fc5723e-653d-4cc0-b84e-f248e15ebddd",
+      "name": "Muskoka Chair (Yellow)",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7df6324f8d035edfb7dc262df90433e95c67d253/1645062368010-769b2d90-f370-43dd-a302-e8cef4260970.vox",
+      "extent": 32
+    },
+    {
+      "id": "780b9da6-1063-4a93-838a-e7f355ba958e",
+      "name": "Yellow/White Awning (No Edges)",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/awning%20yw%20centre_fbe42f6063395aa53923bc5b481f1f36.vox",
+      "extent": 32
+    },
+    {
+      "id": "5fabc166-44e8-432e-8a95-98b4906505ec",
+      "name": "\u9aee\u5eca",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xf562ad45cdd05e392cbb10ad9d961ce8e751c072/1642275903666-e4b57657-6103-446d-b9a3-c1971699ecd8.vox",
+      "extent": 28
+    },
+    {
+      "id": "14eab866-f190-4e38-af1a-71cf81f3ef35",
+      "name": "Gameboy+",
+      "url": "https://media.crvox.com/0xfb4e9e3f2a908c647181c40e7e426d672ee65fb8/gba_c850f1462a296ae242cc3bdef6f8e688.vox",
+      "extent": 32
+    },
+    {
+      "id": "604e53ad-b420-49f6-ab02-90e713980a04",
+      "name": "Pink Tree",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb7d3a787a39f25457ca511dc3f0591b546f5e02f/1642108820578-3a8ce93a-4ea0-4944-a84b-65946e204d64.vox",
+      "extent": 32
+    },
+    {
+      "id": "55c3b05e-be5d-434b-a060-05443637848b",
+      "name": "Tree_01_by_Plexity",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xbb4b3932ab84d1c2c5fbcd70abbee6c991c9a168/1642107570633-6330072c-3d71-4e75-873e-364fd35d7875.vox",
+      "extent": 32
+    },
+    {
+      "id": "68e4e9be-246b-4b38-a2d9-3d9ed46f7339",
+      "name": "a simple tree",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xa53f470c3b597803b25e02f75339e22173705254/1642121931055-b3303bda-39de-482b-b86f-c444e7f27fe9.vox",
+      "extent": 32
+    },
+    {
+      "id": "0f5f1dc7-3305-46ab-bea5-e99aa692855d",
+      "name": "dj record",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xbee6669aebb2577ff46940cfb80a18dddbf23915/1644452113763-848ce023-f497-4156-8580-1c36cd62e500.vox",
+      "extent": 32
+    },
+    {
+      "id": "29dec7ac-dc8c-40ce-a55b-43259f3a44eb",
+      "name": "Watercolor Set",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x08cf1208e638a5a3623be58d600e35c6199baa9c/1650491845215-c062fe61-7801-4f96-963c-da0beee109af.vox",
+      "extent": 32
+    },
+    {
+      "id": "0982e8da-cbe5-4ab1-8593-3d08e17fa1dc",
+      "name": "2 shrooms",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x27641a64101ff152539dc88c24e09ff36dc671c0/2%20shroom_8x11x20_4_colors_7f0d620bf692f614aa8e40343de4c5d3.vox",
+      "extent": 20
+    },
+    {
+      "id": "24c7fefa-a53d-426c-8622-a65723e11443",
+      "name": "Speaker",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x1963203759f5c5eb5c5c916b3509c9f26dd0381a/1634408252122-f7b7e86e-4293-4755-8fa8-e504f1b89d8d.vox",
+      "extent": 32
+    },
+    {
+      "id": "417ea438-0439-4faf-985b-5cc38868bf56",
+      "name": "\u6a71\u67dc1",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x353f6124e6316cc19f0f0c4335bdfa1b268071b3/1644356515999-9a587b4f-fe02-4e07-8699-cb9138c4c905.vox",
+      "extent": 32
+    },
+    {
+      "id": "c09b8dce-f40a-4f66-a83e-7039d7a3583b",
+      "name": "Red and white wall panel",
+      "url": "https://media.crvox.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/red%20zigzag%20wall%20panel_68bde61b34c25b068459c88037ed2f1e.vox",
+      "extent": 32
+    },
+    {
+      "id": "4ef138bf-bbf4-4b95-9df7-fc28d7ab6700",
+      "name": "Oil Drum",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/1641181309313-ecff86db-a933-42cd-abd7-4c06dd10129c.vox",
+      "extent": 32
+    },
+    {
+      "id": "ccdbde86-3796-49b0-ac9d-d5a41204c1dd",
+      "name": "atari",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xe9018b614ae7a35bf49d5f3d178b14d60f291e12/1643175996364-972f8ec8-b669-4de4-8f15-a417d06ce440.vox",
+      "extent": 20
+    },
+    {
+      "id": "2188ab8c-ebfb-4615-9959-c0d906aee761",
+      "name": "worm",
+      "url": "https://media.crvox.com/0xe330dc28b47d73884ad88837aecfee1f49ad7e7b/glitchworm2_20bf61405d3fcf65c97afd1f9d67ed9c.vox",
+      "extent": 32
+    },
+    {
+      "id": "ecaf15b1-9a26-40ca-a65c-5b5776f8246f",
+      "name": "filter",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x30e1089c44fedb07eba28c00b4263163799fe598/1651871540611-676cd811-0f46-4610-81cd-1ce13372f544.vox",
+      "extent": 32
+    },
+    {
+      "id": "bc69d7d8-312c-4bee-8599-33b74b562dad",
+      "name": "Round wooden table!",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xf75341b90b8beb9f93c50facb92bc552f20797bb/1644441738943-801f4eff-3738-41f1-bb1f-ef6dc1400b94.vox",
+      "extent": 26
+    },
+    {
+      "id": "5a6d6d85-4ac8-433b-9347-ad0d5f420cee",
+      "name": "World Painter - Rembrandt",
+      "url": "https://media.crvox.com/0x53488974472d4b881760b2644bbaf8528ce12cb8/Rembrandt%20v1_b40ba8fe9083c986dfb333eccc954356.vox",
+      "extent": 32
+    },
+    {
+      "id": "a2d7348c-5dba-4699-a062-2eac0ba066b4",
+      "name": "Camera",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x4ef6bdb3c5c16c33bcd8adaf70f4cddb4597ad95/1639021971764-46e8c62b-e1f7-4272-b8e2-f6b10265b470.vox",
+      "extent": 32
+    },
+    {
+      "id": "276bd134-24fe-42a9-964b-30f8f9f8ee27",
+      "name": "\u690d\u72692",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x289314cd8d5147e32ce3f32fd030467df92d57a7/1640089714689-290d45b9-16ce-483c-8e31-2fa2a1e1cbba.vox",
+      "extent": 32
+    },
+    {
+      "id": "85911b6b-e6a1-498a-8dc0-21c02da9be0f",
+      "name": "Bush",
+      "url": "https://media.crvox.com/0xa53f470c3b597803b25e02f75339e22173705254/fc93e84ca3da_plant_bush_min_26x32x26_255_colors_2625a7490a9047c526e7a405510ed088.vox",
+      "extent": 32
+    },
+    {
+      "id": "6479910e-62cd-4f8c-8fae-c06fb8b79c9d",
+      "name": "\u6c23\u7403(\u7d05)",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x015360e27c747f9ccba950b30f8509e68a3d501c/balloon_red_9f832f237acb4a3735ccba259681b807.vox",
+      "extent": 32
+    },
+    {
+      "id": "4cb0e643-4ea9-4acf-8391-8dc8551495b1",
+      "name": "ESSETRE",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xbd728c1290c884f145dba723ec770b28e38a000b/1641802809022-64522f10-61c5-4736-aaf7-c8a3419fb8ef.vox",
+      "extent": 32
+    },
+    {
+      "id": "5b640be1-8e95-4dfc-84f1-2b87d05837d1",
+      "name": "PISSINGFND",
+      "url": "https://media.crvox.com/0x41bd9ede67476deff711c1ddbd702b741dcc23d8/Pissing%20fnd_240f4317d60d98698ccde6dbc58dd3d9.vox",
+      "extent": 32
+    },
+    {
+      "id": "f64d7bf9-f38e-4931-b76c-1498b4f6fc1a",
+      "name": "Zombie Bot",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x642f220079b73790d1f451013db1f26bc570d604/1639476087146-417b5246-11f2-4ffa-aac2-b05159f31fdc.vox",
+      "extent": 32
+    },
+    {
+      "id": "644c8e55-1551-413b-bf46-0f2e0f1adf92",
+      "name": "Growing tree or fern (3 branches)",
+      "url": "https://media.crvox.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/ferny1_ddca7eb2626cc936afeaf1acb55eb00e.vox",
+      "extent": 32
+    },
+    {
+      "id": "4a65e5a2-c8e9-4e74-9990-8c960a87e26a",
+      "name": "Skyscraper model 1",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/%23skyscraper_01_000_e46547c0ba12a3574d01c0bb95061379.vox",
+      "extent": 32
+    },
+    {
+      "id": "37f98df9-d25b-449c-8bdc-08e73eac91b8",
+      "name": "vend1",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x2717a5086b3b4c91f4761f9d5f8eaca3594f4ca0/1640882906607-ba437269-3782-4ad0-ade8-bf797e8f1bf4.vox",
+      "extent": 32
+    },
+    {
+      "id": "5912d1f1-4667-4682-a675-3c3d61110b6c",
+      "name": "security camera",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xe3ee81d466ec6dd7c120a823efa6542fe1a67ff2/1639682611275-660f99bf-62e0-416d-ba8e-496970c8c7ce.vox",
+      "extent": 32
+    },
+    {
+      "id": "68c0e8c0-17dc-417e-98d1-8485a0f90c21",
+      "name": "\u53ef\u6a02",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xf562ad45cdd05e392cbb10ad9d961ce8e751c072/1642350585468-e0805e0e-ad18-489d-abad-62a76fae243e.vox",
+      "extent": 29
+    },
+    {
+      "id": "0cd382fe-512a-4187-9ee5-3c4fca660112",
+      "name": "\u68114",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x3a7ef5100bc9bf43238c26d6870e8c99a55bd4d1/1649318845869-8047bbca-1268-4be4-a57e-e13327f67d12.vox",
+      "extent": 25
+    },
+    {
+      "id": "14840266-9c6c-4cc0-a71d-16734c6cea15",
+      "name": "chair",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x8a44c7abece907c5584eb9cb446355039f981645/Chair_cc9d0a264896ee5a1ca246d4c1f5361f.vox",
+      "extent": 32
+    },
+    {
+      "id": "22580e62-fee6-4f44-b962-b502947d956b",
+      "name": "Christmas Tree with Snow",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb7d3a787a39f25457ca511dc3f0591b546f5e02f/1636837744800-5c6dd626-5138-4c62-b3b5-9e1625a37a91.vox",
+      "extent": 32
+    },
+    {
+      "id": "cfeb21c6-777e-4f6d-9713-e44257a751ae",
+      "name": "Wooden Stump",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x31189d80054ba690c7355045e2ebcf1490f042a7/1638341689941-3d018a52-ec69-4a60-9faf-ad5a065a98b0.vox",
+      "extent": 32
+    },
+    {
+      "id": "20ee1461-38cd-48f2-98a7-118311a6f193",
+      "name": "bitpixi",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb7d3a787a39f25457ca511dc3f0591b546f5e02f/1647981801486-8920ade5-58cb-40d0-b092-62afc8a5a683.vox",
+      "extent": 32
+    },
+    {
+      "id": "a16e626a-f872-4af0-b08d-7f6b233a8698",
+      "name": "Wine Glass White",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x9e999769ef86a75d20574839f60a78aaed3eab40/1648674131845-219df290-0b5f-456b-aa08-c669dd38653d.vox",
+      "extent": 32
+    },
+    {
+      "id": "59132cf3-dfab-44a3-9b32-650d08b563e5",
+      "name": "Gates",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/wall_entrance_felix%20strefter_32x29x13_255_colors_06d93c5b270d09e435f810ca5bef03c1.vox",
+      "extent": 32
+    },
+    {
+      "id": "d938e151-fcd2-471e-8a4c-a5a460c284ee",
+      "name": "Floor Tiling 1",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/Floor01_0944cc8b634ed0b7c6e5a500d4386f6c.vox",
+      "extent": 32
+    },
+    {
+      "id": "4fe79ba9-67c3-4597-8417-dbf7e854ac20",
+      "name": "\u690d\u72693",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x353f6124e6316cc19f0f0c4335bdfa1b268071b3/1642040237520-d1e1ae61-4137-421a-a733-0230aca7f177.vox",
+      "extent": 32
+    },
+    {
+      "id": "11ad474a-b7c0-4ccc-857e-a506a4c84932",
+      "name": "dust",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb5d741136ce655ae80ab01fa2255ac3832517e3b/dust2_af47e118e79b879340a3311c44480591.vox",
+      "extent": 32
+    },
+    {
+      "id": "e2b0b940-0bdd-4b07-b65a-76eb69b11ceb",
+      "name": "old school TV set",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x66b8887d8cD8CA84884b7D64B9239d4d5082d9C8/1637793518013-c18121d1-9802-40a6-b7c4-5c967a54d960.vox",
+      "extent": 32
+    },
+    {
+      "id": "163f8ba6-a7e1-432b-9980-919938e83589",
+      "name": "\u516c\u4ed4",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x015360e27c747f9cCba950b30f8509e68A3d501c/1646388582958-ad5add3c-7fcc-4d78-95df-04df19f536a1.vox",
+      "extent": 30
+    },
+    {
+      "id": "c2710ec9-8f4e-4cbd-a35c-09eceef0d1d0",
+      "name": "Nugget's Slug",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xff84b20cc3c1f81b645e18bc100eeeb6ecc4aaf3/1647908408482-a8dfb55d-07ab-458c-9628-e61cde6687a4.vox",
+      "extent": 32
+    },
+    {
+      "id": "5bb7f19c-ee70-487c-ae19-e35b8a63001e",
+      "name": "Plant",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x289314cd8d5147e32ce3f32fd030467df92d57a7/1641764654575-eaa6e479-bce4-4458-b36c-d47fbdeca772.vox",
+      "extent": 32
+    },
+    {
+      "id": "53a4bd6a-7f60-42fe-a42f-1a0c51bef9fe",
+      "name": "chair",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x670294302607e7eed53b20f6421753b6cdd6b294/1640632326587-fb602d65-a428-4cea-a2b3-5ba72470f33a.vox",
+      "extent": 32
+    },
+    {
+      "id": "6af0d0b3-2287-4f02-a5c3-662fb27fa6cd",
+      "name": "Ride-on Double Drum Compacator Roller",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/1641169135950-f95d47cb-7e78-4b32-a748-c3244c1e60cf.vox",
+      "extent": 32
+    },
+    {
+      "id": "468ca371-5fdb-4ae7-a58d-f6f2c254e060",
+      "name": "Red & white split wall panel y/b stripes",
+      "url": "https://media.crvox.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/red%20and%20white%20split%20zigzag%20wall%20panel%20yellow%20and%20black%20stripe_d79d463934c2b9c0c081767b104d5512.vox",
+      "extent": 32
+    },
+    {
+      "id": "dcebd311-436a-4c0a-8b31-b24527601357",
+      "name": "Letter C",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x0fa074262d6af761fb57751d610dc92bac82aef9/1632968835131-703b190e-efb8-46cd-aa38-96ccad493615.vox",
+      "extent": 25
+    },
+    {
+      "id": "41220569-edd3-4b0c-9c30-e239216c49ad",
+      "name": "speaker",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xc6d0f8e8b2fed71d9e8e947e8fa9c6aebf1f2744/1643586568802-f6fb8449-dd46-4f4f-ae79-adc91db54ff7.vox",
+      "extent": 32
+    },
+    {
+      "id": "c9908df4-69bb-4cdf-886e-b5b3edff0c3b",
+      "name": "12",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x9a17bb27b6929a5a5a0557c70eb8863a9f629ec5/1648732336231-2d1e3917-e3c8-405a-a92a-7cc8a9215bb3.vox",
+      "extent": 32
+    },
+    {
+      "id": "374cc59b-c679-4485-aba2-bad75445e9c5",
+      "name": "Open Castle Wall",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xe3ee81d466ec6dd7c120a823efa6542fe1a67ff2/1639106801493-70187b84-e314-4d14-bb08-5804c8ab6cee.vox",
+      "extent": 32
+    },
+    {
+      "id": "4f8a720a-d08b-40f2-83ef-dd05e0d2b80e",
+      "name": "Construction Cone",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7df6324f8d035edfb7dc262df90433e95c67d253/1648603180941-5381da54-0471-41d5-b5bd-9d73bed0d5bc.vox",
+      "extent": 31
+    },
+    {
+      "id": "003e0afd-7bb7-4cbb-9a8e-a765a8c4fcfa",
+      "name": "\u978b\u5b50",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x30e1089c44fedb07eba28c00b4263163799fe598/1650889553211-6d0d5317-29a2-4fcd-b83a-9775324bc4ec.vox",
+      "extent": 32
+    },
+    {
+      "id": "186374b3-166c-4506-83f5-0c4dcde5107b",
+      "name": "Red Light",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x96287c6226648e4d2dbb23c955852550382858f4/1644306660013-4d9a473a-3193-4fc0-a163-0debf5bf4724.vox",
+      "extent": 32
+    },
+    {
+      "id": "7bd35837-d62e-4730-bf30-0ceb76b123ce",
+      "name": "Mario tube",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x80507b06899238f5999beed4fb0ca7e896dbcdde/1637262210333-4f47b67d-bf67-47fa-b572-bca5dd43a1d1.vox",
+      "extent": 32
+    },
+    {
+      "id": "5838e757-f87e-4b65-89fa-4648c0b96fcb",
+      "name": "balcony rail",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x99bccf276a8beafb1e847d885cdfd68dc8f2c375/1642386698005-6c9b57eb-ae4c-45d1-9d09-254962729067.vox",
+      "extent": 32
+    },
+    {
+      "id": "e6e6085e-021f-422c-a5d7-71aef6edb93e",
+      "name": "mask",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x30e1089c44fedb07eba28c00b4263163799fe598/1651441733557-1b04a9bb-05c0-4a09-bd65-5a514dadc739.vox",
+      "extent": 32
+    },
+    {
+      "id": "79dc7b5a-0a56-4e6a-bbcb-13b326099a32",
+      "name": "niu",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x9168d0bcd6d79af263ae8254e0f77cf960f6a0f5/TeleportButtonWhite_213f063b996b13064c0fe9b0748ce7cb.vox",
+      "extent": 32
+    },
+    {
+      "id": "e4decb58-63bf-4236-bc53-063d29c2b47a",
+      "name": "trapdoor",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x289314cd8d5147e32ce3f32fd030467df92d57a7/1648470060888-2152785e-7281-4934-99ff-4f65519ebfcd.vox",
+      "extent": 32
+    },
+    {
+      "id": "e10643b0-639c-4447-a1a2-f58d2276aecb",
+      "name": "[ pot_orchid(pink) ]",
+      "url": "https://media.crvox.com/0x946a2ad8f3d6d65dc2b1220f318978a52369ed5e/pot_orchid(pink)_3a5c737f8a5f29af2cbff038ac501a94.vox",
+      "extent": 32
+    },
+    {
+      "id": "407ae713-377f-46de-b16f-3deff5f07d30",
+      "name": "Squared facade arch",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/facade%20arch_aa7e21127c1cf113e5f7da4e65579b75.vox",
+      "extent": 32
+    },
+    {
+      "id": "41954df3-2ccc-49f2-a919-ce51d8816711",
+      "name": "Pine Tree",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b511800a8d8e7de24dd19de3103081824b6f41d/1642174860006-790f63b4-8315-472d-a17e-a45369867207.vox",
+      "extent": 32
+    },
+    {
+      "id": "63e6f2e1-70ac-417e-b884-d828eb979c9b",
+      "name": "bike blue",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xf35b180e3944bb02e0796d1c1ec6e1c523dd02f3/motorbike1_f42ba55ecdb016a3e21aabc2fd26a138.vox",
+      "extent": 32
+    },
+    {
+      "id": "4c3b09a6-c521-45d1-9281-c8c0adb1fb85",
+      "name": "\u795e\u6210",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xe5880230dc1edd1dc0744aa045d92f19910cc915/1648894700693-3e75e0fa-48c7-4999-9e11-46dac80eacbc.vox",
+      "extent": 32
+    },
+    {
+      "id": "c4952ceb-08fe-4b18-8b4d-1a5e4a31181c",
+      "name": "I-Beam 45",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x695c6103e3d7cb9dff2a2f6648c0951dd39f4952/1637369620213-ad064695-c93d-4dca-8a63-1e5b787c1a39.vox",
+      "extent": 32
+    },
+    {
+      "id": "d079f371-84af-478a-9572-73c6db750edc",
+      "name": "FILA2",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x55ef086df36bccb290927cf2d4e5e8cf48cd9f0b/1642712935997-8fba956f-88db-4220-9e41-31c6a943ff88.vox",
+      "extent": 32
+    },
+    {
+      "id": "3b55a757-f47c-4609-8c54-0536483362db",
+      "name": "001",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xd955f912306b08d61b14335f952cb37fb1f64b4b/1627849449813-a4d4c9f7-ab80-4739-9f57-a1c62a7fc0da.vox",
+      "extent": 32
+    },
+    {
+      "id": "991bcae0-77a2-4f6f-b7e8-f004ee9b5a5e",
+      "name": "Stage Prop",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x670294302607e7eed53b20f6421753b6cdd6b294/1640125934056-056e0c2f-fdd3-4ed3-959b-f0f9681b9f44.vox",
+      "extent": 32
+    },
+    {
+      "id": "b37bcc16-05b1-4957-8ff1-b0041e82d7ea",
+      "name": "Milk chocolate bar",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7df6324f8d035edfb7dc262df90433e95c67d253/1648086078690-551a9690-7c90-485b-a1a6-0b8ab2a24dcc.vox",
+      "extent": 26
+    },
+    {
+      "id": "dacfc668-fede-4a34-a9e2-1e31802de543",
+      "name": "\u6c23\u7403(\u85cd)2",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x015360e27c747f9ccba950b30f8509e68a3d501c/balloon_blue_a08ab6fa2c78d001b98f10df4d15e0be.vox",
+      "extent": 32
+    },
+    {
+      "id": "993ce706-7a72-42aa-8b4e-2785cfe96436",
+      "name": "Triangular Truss",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/1641176119670-98d116d6-6d22-4009-9c20-15e5d47e2929.vox",
+      "extent": 32
+    },
+    {
+      "id": "2ed91810-dfc1-48b3-a691-3f63347d82e2",
+      "name": "Bass Drum",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/Bass_Drum_5045a7835a79f4c693019eafa0ddeb0a.vox",
+      "extent": 25
+    },
+    {
+      "id": "8e473e75-5e44-4696-9104-ec446020349d",
+      "name": "Black speaker animated",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xe38d978e500242e5e6df46be5dc1bd47cb06555f/1631826776275-6c92601c-daa4-465c-99c7-6b22ae5faf3d.vox",
+      "extent": 32
+    },
+    {
+      "id": "bce6d909-d339-4e62-abf6-2d6be009bfc5",
+      "name": "Solar Panel",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x2b56c2f02acbb663a7ab29026585190ba4abcd60/1644496419182-0503e9f0-0d33-499d-9c0a-605bbd9c75a0.vox",
+      "extent": 32
+    },
+    {
+      "id": "d6920e45-42b9-4c45-94f4-5829eeccc02e",
+      "name": "Clipboard",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xf75341b90b8beb9f93c50facb92bc552f20797bb/1646258678960-92bd8803-509c-4f95-b261-c8d9c3608644.vox",
+      "extent": 22
+    },
+    {
+      "id": "d5069d9f-60d4-491e-8e26-39bce657946b",
+      "name": "guitar cab",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x66b8887d8cD8CA84884b7D64B9239d4d5082d9C8/1639088924430-61d57996-1cdb-40f8-9f3e-2fd5977fb331.vox",
+      "extent": 32
+    },
+    {
+      "id": "7bdcdf2b-1314-4eaf-a7c6-869a74d74850",
+      "name": "dopamin",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x5eb9cad8fad1d72b177e7c4adeded4f032a23634/1649167493627-95d85851-1010-4122-816f-4688fb0bc374.vox",
+      "extent": 32
+    },
+    {
+      "id": "ac0a22aa-d9e3-4a92-9bec-03ac17516bc4",
+      "name": "Critter (Brown)",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b511800a8d8e7de24dd19de3103081824b6f41d/1642175259824-dc863da9-94ee-468d-b3e4-1389740b3714.vox",
+      "extent": 32
+    },
+    {
+      "id": "a87f25cd-4130-4642-908d-1c838c5d1029",
+      "name": "Minecraft",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb7d3a787a39f25457ca511dc3f0591b546f5e02f/1638143985822-e7249198-bf76-4403-9ba2-f3ce9ca4da09.vox",
+      "extent": 32
+    },
+    {
+      "id": "bed14a99-a8c6-4a37-822d-f4ce7540e7ce",
+      "name": "Floor Tiling 2",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/Floor02_d6f796d6bc69da63f2e8ab5eb84219ac.vox",
+      "extent": 32
+    },
+    {
+      "id": "01a15130-7c5c-72ae-9d37-a2c40e1df70f",
+      "name": "10_09_2026_32x9x32_255_colors.vox",
+      "url": "https://ugc.voxels.com/0x27641a64101ff152539dc88c24e09ff36dc671c0/01a15130-7c5c-72ae-9d37-a2c40e1df70f/10_09_2026_32x9x32_255_colors.vox",
+      "extent": 32
+    },
+    {
+      "id": "8a9444ca-ce0c-4cb3-a904-6d17f57e05e6",
+      "name": "F",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xbd728c1290c884f145dba723ec770b28e38a000b/1641802850742-b697799d-56a3-45b4-85cf-111ffa88e401.vox",
+      "extent": 32
+    },
+    {
+      "id": "1783ee6f-756f-475e-a624-8d0ad96d1e0f",
+      "name": "Plant",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x99bccf276a8beafb1e847d885cdfd68dc8f2c375/plant3_4c4fd51ac079188da933a1031f03be00.vox",
+      "extent": 24
+    },
+    {
+      "id": "039fd4ac-d428-4b6c-884d-ffeecb656552",
+      "name": "chair",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x1963203759f5c5eb5c5c916b3509c9f26dd0381a/1634406087495-8be43928-6cae-4ae0-86fc-6cc08d0c2ae1.vox",
+      "extent": 32
+    },
+    {
+      "id": "c060200c-4997-490a-b18f-857d95893cc8",
+      "name": "Toilet ",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xa8093c09098452727492968ddfe4a0e033ab76bd/1630311609468-20dc079e-048e-47ad-8a48-383b3fd93830.vox",
+      "extent": 32
+    },
+    {
+      "id": "bdf0682f-6322-40bc-bdc6-2eda0795cc7b",
+      "name": "Sandy Rock",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/sandyboulder_92636727fa056e277c8aef5757b3b553.vox",
+      "extent": 32
+    },
+    {
+      "id": "d7f55344-7861-4551-8663-fee88812a511",
+      "name": "metal door",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x289314cd8d5147e32ce3f32fd030467df92d57a7/1648629621487-49aae13f-575c-4558-b0da-52fbafe10ca4.vox",
+      "extent": 32
+    },
+    {
+      "id": "e04cf7f3-b4da-4282-a968-ca81303aae6c",
+      "name": "DogeHeadSculpt",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x80507b06899238f5999beed4fb0ca7e896dbcdde/1637015502498-8ab7518e-9023-4073-beb6-aa132fbbd113.vox",
+      "extent": 32
+    },
+    {
+      "id": "2b071586-0992-420e-9002-f14433c1b21a",
+      "name": "[ pot_orchid(white)]",
+      "url": "https://media.crvox.com/0x946a2ad8f3d6d65dc2b1220f318978a52369ed5e/pot_orchid(white)_983fae798c01aadf9fb108ea3ef65966.vox",
+      "extent": 32
+    },
+    {
+      "id": "73739cc3-2255-4acf-93cf-8dff82d82645",
+      "name": "doge candle",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xff84b20cc3c1f81b645e18bc100eeeb6ecc4aaf3/1653516427196-9661a4e2-787e-44b2-91e0-563be95b0c06.vox",
+      "extent": 32
+    },
+    {
+      "id": "307cb377-3574-4aae-9b8a-87cfc3e21dcc",
+      "name": "GPGPG",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xbd728c1290c884f145dba723ec770b28e38a000b/1640792833120-0441eae5-de6e-4f5b-9c6c-326609b3af27.vox",
+      "extent": 32
+    },
+    {
+      "id": "81bf5d05-39e3-4b1b-ab37-2e8ab17fb074",
+      "name": "\u6a13\u5c64\u4ecb\u7d39\u677f",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x015360e27c747f9cCba950b30f8509e68A3d501c/1646242352965-5b68a096-1b13-4e67-a95c-aec4c0dfa81a.vox",
+      "extent": 32
+    },
+    {
+      "id": "b99949a2-98ce-40d7-885e-f262b6671c7b",
+      "name": "Game Boy",
+      "url": "https://media.crvox.com/0x8C62dD796e13aD389aD0bfDA44BB231D317Ef6C6/1624339932005-9ab93e64-9848-4b2e-b115-921430dd4646.vox",
+      "extent": 32
+    },
+    {
+      "id": "6c259212-a960-4f4b-8543-60e4fbe87193",
+      "name": "Bottles with Liquid Shelf Alternate",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xf75341b90b8beb9f93c50facb92bc552f20797bb/1644975322509-b8169078-ddc0-4cf4-9e4f-be650cc75741.vox",
+      "extent": 31
+    },
+    {
+      "id": "1cd9ef28-6caa-4fdf-a000-36ac1649a327",
+      "name": "Sci-fi thingy",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/ceiling%20projector_2e9cb59cc51b0eabb923ca309f8e9c88.vox",
+      "extent": 32
+    },
+    {
+      "id": "cca78d9d-0b8a-47d4-996e-f681f70c23dd",
+      "name": "Moonlit Margarita",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xfab35b35ecc6f9345a2cfeb65d457d66c91142e7/1640917222795-51193e21-a24f-4a21-af16-01f1daaa217d.vox",
+      "extent": 32
+    },
+    {
+      "id": "98429d31-f6ac-449b-8111-3c69816a05f1",
+      "name": "Archeology Brush",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/1641087177360-892320cf-fe0f-4f8e-ba70-4c756007e526.vox",
+      "extent": 32
+    },
+    {
+      "id": "44eadb29-7ec6-4ceb-92e6-69e4f8828363",
+      "name": "Space Chest",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x02ddc822f0aef9c82b1d33b8389b747bdc7e2f08/1650242625677-f3e3bae9-1d53-4eb3-a74d-978d981c4563.vox",
+      "extent": 32
+    },
+    {
+      "id": "86845459-58b6-47d8-bc44-6160cf419f75",
+      "name": "gift check",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x0d8e01b947c3b3fed2e15c03a21dcebe0e90f8a8/1645514048704-c049c9be-9555-49a1-95b7-2292a681332d.vox",
+      "extent": 32
+    },
+    {
+      "id": "6135acca-af4c-434c-88a3-068ee29081c1",
+      "name": "KAPRADI OBR",
+      "url": "https://krutspliff.113kw.net/23/kapradi.vox",
+      "extent": 32
+    },
+    {
+      "id": "e7412bd2-a107-44a0-aa24-d217b1c161a1",
+      "name": "green pouf chair",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xd513236ea9caca4f1b520f76a525bab7619813c8/1632760560444-8f9e3792-b4fa-413a-8e1e-deae57a4747a.vox",
+      "extent": 32
+    },
+    {
+      "id": "f90afaba-d893-415b-a2fe-9e5468cc809b",
+      "name": "RICKY LAKE BARSTOOL",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x9387b5a08d050427f74cc9949d811eb6eaee1090/RL_VOX_STOOL_cfa26dd882f7b03089bf3e67f89b9bc3.vox",
+      "extent": 32
+    },
+    {
+      "id": "c6995983-7809-46d6-825f-c63032349c57",
+      "name": "ARCADE GAME",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xd30a79e487351eb0064c8a78eb341da364d78a9a/1649712811563-f53ebb88-cf06-464f-b0a8-f948d03bfdbf.vox",
+      "extent": 32
+    },
+    {
+      "id": "9d38d9b8-c250-4897-8cb0-66dbef6942ce",
+      "name": "Grating",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/grating_878ebe7f545ce43db9cf71040bb380fa.vox",
+      "extent": 32
+    },
+    {
+      "id": "18963dd6-0b16-4ce6-805a-4e8d067962ea",
+      "name": "\u9e7f1",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x015360e27c747f9ccba950b30f8509e68a3d501c/deer3_747bb496772bf6c6fbfed91c6ae97d74.vox",
+      "extent": 32
+    },
+    {
+      "id": "68a645c3-6b38-45cf-9a37-64e5c0192dc8",
+      "name": "palm tree top",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xd30a79e487351eb0064c8a78eb341da364d78a9a/1638547667757-d4b167f0-8206-41e7-a26a-074fffced0b1.vox",
+      "extent": 32
+    },
+    {
+      "id": "747cbee6-2373-4f98-9c7f-e66eee6e1682",
+      "name": "Hoody Hood Up",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xea7bcb32af9d959532430802a59d865a498014f0/1638930155573-60759fd6-7bc8-4a8f-8d06-4a7218abd6e0.vox",
+      "extent": 32
+    },
+    {
+      "id": "64e96caf-f7ee-4891-8eb1-1b15e92194d8",
+      "name": "[ ch_bigmouth ]",
+      "url": "https://media.crvox.com/0x946a2ad8f3d6d65dc2b1220f318978a52369ed5e/ch_bigmouth_3b16f60f78f9ab24b75d3f90f1234996.vox",
+      "extent": 30
+    },
+    {
+      "id": "a8969c08-0336-4a5b-a524-9f93031d7be5",
+      "name": "Remix of MYTREE3   WEICAI.ETH",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b511800a8d8e7de24dd19de3103081824b6f41d/1642541074296-6bc5bf3e-20f7-499f-b009-b18a99ec7661.vox",
+      "extent": 32
+    },
+    {
+      "id": "4c4d702a-3ff1-4e8e-a444-f5470af9e574",
+      "name": "bowl of porridge on the table",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x5eb9cad8fad1d72b177e7c4adeded4f032a23634/1645102970269-86fffd8f-c217-421e-bd6c-27d3c7d68209.vox",
+      "extent": 32
+    },
+    {
+      "id": "ae8caf11-fb06-4d52-92ad-a4c7671d8c99",
+      "name": "VANOCE zahrada strana",
+      "url": "https://krutspliff.113kw.net/23/vanocevanoce2.vox",
+      "extent": 32
+    },
+    {
+      "id": "61e46e84-88b4-4044-94ea-416fc7627a73",
+      "name": "plant 1",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x5e67ea09afe651a3b87b346568bdc89152c625fc/house%20plant_strelicia_22f21b0c6da0ab4283139ecd1f80ee91.vox",
+      "extent": 32
+    },
+    {
+      "id": "fdb4966c-ea90-4ef7-8fd6-289e03830ab0",
+      "name": "Wooden Ramada",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/1641182254844-8bfeece9-a1df-4a8f-b3a8-c33513e4136d.vox",
+      "extent": 32
+    },
+    {
+      "id": "9c1fe6d6-8259-4974-9f72-e7bafe30ca7c",
+      "name": "Remington Reincarnated 2022",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xf064f5b5b31217f18b3e61c38e804ce30ff811c1/VoxFileItem0%20%2812%29_80ac1c21cb062be49c45f22e3968189b.vox",
+      "extent": 32
+    },
+    {
+      "id": "41d6ceb1-7456-4a09-9bb4-839a4551d464",
+      "name": "estante ",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7d2e4d645c0acc5a6bf596b612cab351864f4090/1645905274278-9b0eb908-50c3-4d80-aa7d-74adb62af9da.vox",
+      "extent": 24
+    },
+    {
+      "id": "6f3daf1b-68ca-4c8d-bb87-0b812b6d2133",
+      "name": "orb-red",
+      "url": "https://media.crvox.com/0x7b511800a8d8e7de24dd19de3103081824b6f41d/ORB-BW_RED-EYE_5757b02bc160aed87e6d5286b0e17b5b.vox",
+      "extent": 32
+    },
+    {
+      "id": "d3103ea3-eb47-44ee-9b3d-a94278b4304d",
+      "name": "Eye-x",
+      "url": "https://media.crvox.com/0x7b511800a8d8e7de24dd19de3103081824b6f41d/Eye3_4e2e94c0091221eacdef143df72f7aff.vox",
+      "extent": 32
+    },
+    {
+      "id": "b7b65f01-94ed-4676-bb26-66dbf1763365",
+      "name": "Ethical Hacker's Guild: Helix Platform",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb7d3a787a39f25457ca511dc3f0591b546f5e02f/1638449440794-86970a1a-bb3b-4bbc-a5e6-e03f7abec87b.vox",
+      "extent": 32
+    },
+    {
+      "id": "5b704710-5a63-4239-8ab2-3a26c5d5e0de",
+      "name": "3F_front wall_05",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x3cf346ed45bb72c21c925de3db15d5c87ad2129a/1631667632559-57cd365c-e11e-40dc-b9aa-b4058bbc73e0.vox",
+      "extent": 21
+    },
+    {
+      "id": "4ba67703-6cf6-4d4d-ac62-dbaee6295120",
+      "name": "\u5934\u554a",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x60e2c143659a824551239264b24d6c211820f5a5/%25E5%25A4%25B4_72a9a67410ac431091bb7cced36cd1cb.vox",
+      "extent": 32
+    },
+    {
+      "id": "fff2b967-6141-4e38-a48e-5d8101c8cbd2",
+      "name": "ard",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x473b2702c302ef6df351004cbc4d16b5cecc804c/ww_33c274a613882dfb93384cce5531d79c.vox",
+      "extent": 32
+    },
+    {
+      "id": "f11992d9-e51e-4b87-b73d-f878bc24dcc0",
+      "name": "Circular Truss",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/1641176132795-4b72a9dd-a5f2-41e0-bcd4-bbb6b418d803.vox",
+      "extent": 32
+    },
+    {
+      "id": "a40ebc24-40cd-4bc7-8e96-cb27e9624079",
+      "name": "Switch Blade",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x0FD73ea2391d2ee5806A15A22e67D583a403409b/1635129425501-39e58ccd-fabe-40f5-93c9-f712c6a6521f.vox",
+      "extent": 32
+    },
+    {
+      "id": "96ef3b68-e3a2-4fda-b800-934145645010",
+      "name": "anonym ",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x30e1089c44fedb07eba28c00b4263163799fe598/1651441809103-db48fac3-2f07-48a5-b1df-623c82b104db.vox",
+      "extent": 32
+    },
+    {
+      "id": "41c0c377-e540-4783-ab66-3012b273fcb7",
+      "name": "sphere",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xb7d3a787a39f25457ca511dc3f0591b546f5e02f/1635952779147-d128b4e7-468f-4db0-87cf-34f108709269.vox",
+      "extent": 32
+    },
+    {
+      "id": "e431da35-f6d9-4d3a-ae6e-1950d5a59ad8",
+      "name": "Beach umbrella and bench",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/beachumbrellaandbench_a64aa657a463a1346f8f61ffc3100a04.vox",
+      "extent": 32
+    },
+    {
+      "id": "effc8cf7-e3e7-4128-aefd-97201c90183e",
+      "name": "hoirzontal black pole",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xff84b20cc3c1f81b645e18bc100eeeb6ecc4aaf3/blackpole_8c89e2252cab59782e8c2570dd105cf7.vox",
+      "extent": 32
+    },
+    {
+      "id": "18e819ab-f58e-4158-86ae-056859ebeeb0",
+      "name": "Muskoka Chair (Green)",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7df6324f8d035edfb7dc262df90433e95c67d253/1645062078346-177a218a-7121-492f-bdc1-78aae605a20e.vox",
+      "extent": 32
+    },
+    {
+      "id": "bf21cf71-7010-4a82-8041-901e36604829",
+      "name": "Six Panel Door",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x6b6512abf3d357d64048e92fee9b1267d11ffb65/six_panel_door_centered_176fcecbe7b5eb9a5f810da1272c5db2.vox",
+      "extent": 32
+    },
+    {
+      "id": "a3e82580-bc5f-48fa-a27b-0b7c2ade9d6b",
+      "name": "door air",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x695c6103e3d7cb9dff2a2f6648c0951dd39f4952/1637978745396-c5a26a48-7ae7-4fa6-b61c-4c1a1a93d2e4.vox",
+      "extent": 32
+    },
+    {
+      "id": "1ea94a53-f6d6-407c-a19e-51ab4b6e2759",
+      "name": "blue pouf chair",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xd513236ea9caca4f1b520f76a525bab7619813c8/1632760321401-f714cdf1-22e5-4f9e-a127-8f6dfac3cc44.vox",
+      "extent": 32
+    },
+    {
+      "id": "d1a9bac1-cfd7-43f1-9ab5-e6cb24c9f3e4",
+      "name": "Rolling stairs",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/rollingstairs_f9393af34221a8823cd4787e65b519ff.vox",
+      "extent": 32
+    },
+    {
+      "id": "76e79d57-c4e8-4f95-80dc-9a604cc9d286",
+      "name": "SCM",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xbd728c1290c884f145dba723ec770b28e38a000b/1641802911256-db301fc4-01f2-496e-b7b2-2927454aea9c.vox",
+      "extent": 32
+    },
+    {
+      "id": "11073f20-7c92-4e76-b9ca-06b7e9d7533e",
+      "name": "Drum Stand P2",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/Drum_Stand_02_aa85deb11a1fa7daf70dbc3e16cb099f.vox",
+      "extent": 16
+    },
+    {
+      "id": "b9beb7e5-5852-4c9c-b07c-d93df594885e",
+      "name": "Coming Soon Sign",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/comingsoon_37637721a62c20813adcfa693da92fb5.vox",
+      "extent": 32
+    },
+    {
+      "id": "3493a199-cfe4-4db1-8985-0815a87f53e7",
+      "name": "Scafulting",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x2f447b06d510ed07491e828e85fd39c98b935d85/1649477630450-73af271e-edb8-4ed2-b36e-16a788c4ac70.vox",
+      "extent": 32
+    },
+    {
+      "id": "73b3c709-40ad-401d-b3fd-f8298cec918f",
+      "name": "Cordless Drill",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/1641104975913-7dc3a009-5e9f-4653-9fa9-64d088641d25.vox",
+      "extent": 32
+    },
+    {
+      "id": "8b98a7b6-655c-4230-8b4f-15f1fb616849",
+      "name": "Vox Model ",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x289314cd8d5147e32ce3f32fd030467df92d57a7/1637599879154-2a5bf0fb-2383-4e36-a330-5f74150db7b5.vox",
+      "extent": 32
+    },
+    {
+      "id": "1c93ff24-605f-42d1-a07e-ee64601874c9",
+      "name": "barmatt",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x0fd73ea2391d2ee5806a15a22e67d583a403409b/1638065473933-e55ffd07-86a5-46b4-ba76-fc432d571950.vox",
+      "extent": 32
+    },
+    {
+      "id": "d9227e97-cc6c-4757-9b3e-86bba777440d",
+      "name": "CoralA",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x2e1c158b139fbe9251e2db089ec7f3488b670624/1641525653699-424f053a-eb3b-45a9-8206-04ef7b1c1e3c.vox",
+      "extent": 31
+    },
+    {
+      "id": "8bc305ff-f99f-444f-810f-74a4f6521bb2",
+      "name": "black cat",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/%23cat_03_2f95d1c9fa8fe3178284938632adb0d3.vox",
+      "extent": 12
+    },
+    {
+      "id": "d1a3ef9b-ec0e-460e-8c30-87ab1f034154",
+      "name": "Minecart (coal)",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/minecart%20coal_05e0a1c50c8c18c3436d1af1d0d94e5b.vox",
+      "extent": 32
+    },
+    {
+      "id": "fd04e6c1-94c7-4836-82c0-8000232e5068",
+      "name": "Under the Narwal",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xf064f5b5b31217f18b3e61c38e804ce30ff811c1/VoxFileItem0%20%285%29_80ac1c21cb062be49c45f22e3968189b.vox",
+      "extent": 32
+    },
+    {
+      "id": "08617453-8191-45c0-a7bf-77b828c61738",
+      "name": "Wood Planter (empty) (Black Dirt)",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b511800a8d8e7de24dd19de3103081824b6f41d/1642174209742-d23a4303-e9bc-4772-a763-8ae040ebbe0c.vox",
+      "extent": 32
+    },
+    {
+      "id": "c67e3733-8f01-423f-9dc5-901b08f4dc24",
+      "name": "32 bubble heart",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xff84b20cc3c1f81b645e18bc100eeeb6ecc4aaf3/1644699440864-68662056-93e3-4fdf-9d4d-1e573d7732ee.vox",
+      "extent": 32
+    },
+    {
+      "id": "b2dbe0ca-478b-4c09-aaf2-c2c67c394c6c",
+      "name": "Christmas doodles",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xd150687665f3eb4e6fe88e272779737eebe3dbbc/1640277240825-6d601f31-dfaf-4898-a48f-f160e6182c73.vox",
+      "extent": 32
+    },
+    {
+      "id": "ea55dc4b-581e-4881-b8e7-29ce40833077",
+      "name": "Short bookcase",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x5b962f3782702530eaab7e52e110a77d470f28e7/1647945845483-22e6b742-9567-4f6c-89ef-6f8dd6b3daf6.vox",
+      "extent": 32
+    },
+    {
+      "id": "c76c4717-169b-4ffc-b6ec-a637af302ac8",
+      "name": "lawn chair",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x0cbfc5242cf36ca11b816f58d3110b24bd203b83/1644013566684-1e23c10b-c9b4-48f0-85e1-0fa999889cd1.vox",
+      "extent": 32
+    },
+    {
+      "id": "8cdf813a-d90b-4248-a330-c9c5499bda7b",
+      "name": "green lava lamp",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x08cf1208e638a5a3623be58d600e35c6199baa9c/1628489760491-47b14568-cc63-4fe6-a691-78686a7e2b70.vox",
+      "extent": 32
+    },
+    {
+      "id": "fbc18214-6bbf-4aa9-b33d-9949aae573db",
+      "name": "Tileable 'super six' fence",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/super6cementfence_0d859546c41e422b618a42e554edd03d.vox",
+      "extent": 32
+    },
+    {
+      "id": "3ad24ce1-9aef-44a2-9428-245daad224d5",
+      "name": "BASQUIAT HEAD",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x53488974472d4b881760b2644bbaf8528ce12cb8/1633917860007-51f0a7f7-1b9e-42d6-a13f-7ff6a1944dc5.vox",
+      "extent": 32
+    },
+    {
+      "id": "a031b21b-4133-4de8-b780-cf174753fe5a",
+      "name": "\u7e9c\u8eca\u96fb\u7e9c",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x015360e27c747f9cCba950b30f8509e68A3d501c/1653851549665-cb8d0604-cfde-4077-8ef8-395b93a8a41d.vox",
+      "extent": 32
+    },
+    {
+      "id": "5b614ed0-661c-4be5-ad03-c4a6fd2db229",
+      "name": "teddy bear",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xc79006bfac6ab73eecc1b86390b3ab43cea690fe/1643386276147-d5e76fa0-8676-4d8c-b321-c96d38251e12.vox",
+      "extent": 32
+    },
+    {
+      "id": "053ea148-93b9-437e-aefb-28935d69be64",
+      "name": "Metal railing end piece",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/metal%20railing%20end_f4ba4f7422ed5aa46aa7a95a00471bb3.vox",
+      "extent": 32
+    },
+    {
+      "id": "1a4000fd-2d95-4ef9-8337-2a049ec7bcc4",
+      "name": "Shot Full",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xea056794debdb1060d187e5887f0afdd2a897c71/1638296147311-6e2d04ba-337f-4b05-85e7-60d04b409ed2.vox",
+      "extent": 32
+    },
+    {
+      "id": "f85f7662-b004-4da7-a619-352cd3072a6c",
+      "name": "Rolling Stretcher",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/1641181338195-b798c38c-a9e9-4f0d-8bd2-8e47352e208a.vox",
+      "extent": 32
+    },
+    {
+      "id": "029a2d26-35b9-4576-b680-95a437ea015e",
+      "name": "Soaring High JSK",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xf064f5b5b31217f18b3e61c38e804ce30ff811c1/VoxFileItem0%20%289%29_5102303888ab70310bedcd9460a280d9.vox",
+      "extent": 32
+    },
+    {
+      "id": "016c809f-0b36-4c74-a7b9-d2c891e1543d",
+      "name": "patio table",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xc79006bfac6ab73eecc1b86390b3ab43cea690fe/1643385028179-96df9116-7090-4170-99f7-834b49f450da.vox",
+      "extent": 32
+    },
+    {
+      "id": "2fac0553-3ddc-4013-b89f-32c78c99fb13",
+      "name": "shexiangtou",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xe14a92691c4dfeccb0a9ac1c8f132077cfdd0f82/%25E6%2591%2584%25E5%2583%258F%25E5%25A4%25B4%25E5%25BF%2583_7c27404adaf2e93e135aca7d71a3fd3b.vox",
+      "extent": 32
+    },
+    {
+      "id": "f00bea33-29d9-43b3-b1ae-5cef4b2ba6c1",
+      "name": "Industrial Building Base",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x9eaf1b95ee669f55d542495f92b331e207b08cd9/1624609535336-78cf44de-cae0-4aae-a3e2-98b65622bab8.vox",
+      "extent": 32
+    },
+    {
+      "id": "c3e1259e-ec1d-4e06-97fd-e017d820f1bb",
+      "name": "Spooky Door",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x0e696712daded627f370ec9bbf9f7931cf19863d/1639203729850-50c97809-a382-4fee-9d46-6d25fa8d50c8.vox",
+      "extent": 32
+    },
+    {
+      "id": "5308bc42-e565-424f-95e3-ade50ed5e201",
+      "name": "Watering Can",
+      "url": "https://media.crvox.com/0x9412813932e88103181561f122daa581dece8f2e/Watering%20can_08f57495b0fa197950d3d0411d76637b.vox",
+      "extent": 32
+    },
+    {
+      "id": "9e9c1b81-9526-41d7-9b07-b3e2f7cce12c",
+      "name": "Smoka",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x289314cd8d5147e32ce3f32fd030467df92d57a7/1638007068780-845aea7c-2b2b-4fea-86e1-febdee07c88c.vox",
+      "extent": 32
+    },
+    {
+      "id": "395fa2b7-5f4b-4038-bf6f-1b0b4d774aa5",
+      "name": "pool chair",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xc79006bfac6ab73eecc1b86390b3ab43cea690fe/1643385976529-d6283147-3d4f-4e33-921d-27453a2ed79d.vox",
+      "extent": 32
+    },
+    {
+      "id": "daafb805-263b-4415-a0d9-987e32140e9f",
+      "name": "Ankh",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xff18c05805f4c17f1febcf348fed04f8204da2fd/1637123358368-ab74304f-2d2f-4dbd-8e79-fee256d87059.vox",
+      "extent": 32
+    },
+    {
+      "id": "342b9aca-16b4-4f3a-b809-bf67e214fe92",
+      "name": "cactus_large",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x5e67ea09afe651a3b87b346568bdc89152c625fc/house%20plant_cactus_large_white%20pot_79fbf1b593d9df8dffa8c7818853bae6.vox",
+      "extent": 32
+    },
+    {
+      "id": "1ccb844c-4cc2-4dad-b205-704f62d65e92",
+      "name": "Speaker part ",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xbe95c38f5f85d08b41a1748d53e5d9ba045dee76/speaker%20part_b72ee402c48248d59850275febedec5e.vox",
+      "extent": 32
+    },
+    {
+      "id": "d792abc4-5654-44d9-91e4-a4bad0f6f878",
+      "name": "Gothic Gargoyle",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x9eaf1b95ee669f55d542495f92b331e207b08cd9/1624601014019-52a841e4-291a-47e1-a535-9961d42af565.vox",
+      "extent": 32
+    },
+    {
+      "id": "3ea5fe8b-7d40-4161-b08c-2a5c77fd7e62",
+      "name": "Reindeer",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xe3ee81d466ec6dd7c120a823efa6542fe1a67ff2/1639680058270-d34094f5-46c0-4167-bb92-9edad201ffa3.vox",
+      "extent": 32
+    },
+    {
+      "id": "0109d021-1b99-4e21-939f-6ad080f492af",
+      "name": "Camo Hat",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xa6145b7d089f657f768b367bc49224c2c90ce2c5/1636326591743-73d7d240-21b6-4318-b038-f931bc222886.vox",
+      "extent": 32
+    },
+    {
+      "id": "674adffa-a988-4ed8-aeb7-76c27071d7e4",
+      "name": "Flowering ball bush 1",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x263108604e0c9e1f6cdcf698e160cd563635a328/floweringbush1_b51f259e7e6022a7daa9b7100726192a.vox",
+      "extent": 32
+    },
+    {
+      "id": "8c1acdae-5286-431f-a9f2-d1716c68ad6e",
+      "name": "Harmony",
+      "url": "https://media.crvox.com/0xf25ad24b791e37e83f4dadfe212e0e9bb45a1f8b/Harmony_554424a9787beb33480241a682fd4194.vox",
+      "extent": 32
+    },
+    {
+      "id": "6086b360-d3fc-45b0-8378-fbf132dec64b",
+      "name": "PISSINGMETA",
+      "url": "https://media.crvox.com/0x41bd9ede67476deff711c1ddbd702b741dcc23d8/Pissing%20Meta_0c41f960a6c43a1fff14e3167af47436.vox",
+      "extent": 32
+    },
+    {
+      "id": "2054cc81-d198-4711-8c8e-16b88d2536ab",
+      "name": "Stone BB Queen",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xfab35b35ecc6f9345a2cfeb65d457d66c91142e7/1642186968816-14ef6918-8bc2-4b6a-87a1-20e8c1ca7af5.vox",
+      "extent": 32
+    },
+    {
+      "id": "072cb69e-7447-4b20-a3ac-7caedb89452b",
+      "name": "\u95ea\u5149\u706f",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x7b19b42564ad1c03625e8306cf20deea2f923a67/1641177177855-991d7db0-f3d3-4b59-8025-af4ce7df19b9.vox",
+      "extent": 32
+    },
+    {
+      "id": "1a1ca7bf-06fc-4235-8cd0-5b67d5614080",
+      "name": "Rectangular Frame",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0xeaa0542ee731269bae001b525a524ce05c01abec/mb_frame4_940eb6df3709e09e5c20b7a6d44aa123.vox",
+      "extent": 32
+    },
+    {
+      "id": "557692db-d616-4224-aeae-1bcd952187c9",
+      "name": "outdoor table & bench",
+      "url": "https://media-crvox.sfo2.digitaloceanspaces.com/0x819d121be9698e3a8a3565a98964fb8d1d5d8fec/1643816720423-5136cb44-c330-4031-9c17-e39c59cfe4ce.vox",
+      "extent": 32
+    }
+  ],
+  "ground": "/textures/texas-ground.png",
+  "groundPages": [
+    {
+      "color": "/textures/texas-ground.png",
+      "height": "/textures/texas-height-0.png"
+    },
+    {
+      "color": "/textures/texas-ground-1.png",
+      "height": "/textures/texas-height-1.png"
+    },
+    {
+      "color": "/textures/texas-ground-2.png",
+      "height": "/textures/texas-height-2.png"
+    },
+    {
+      "color": "/textures/texas-ground-3.png",
+      "height": "/textures/texas-height-3.png"
+    }
+  ],
+  "adobe": {
+    "window": [
+      "/models/artpacks/texas/window-honey.vox",
+      "/models/artpacks/texas/window-turquoise.vox",
+      "/models/artpacks/texas/window-oxblood.vox"
+    ],
+    "door": [
+      "/models/artpacks/texas/door-honey.vox",
+      "/models/artpacks/texas/door-turquoise.vox",
+      "/models/artpacks/texas/door-oxblood.vox"
+    ],
+    "viga": [
+      "/models/artpacks/texas/viga-honey.vox",
+      "/models/artpacks/texas/viga-turquoise.vox",
+      "/models/artpacks/texas/viga-oxblood.vox"
+    ]
+  },
+  "frames": {
+    "tiles": [
+      2,
+      4,
+      5,
+      6,
+      8,
+      9,
+      10,
+      11,
+      14
+    ],
+    "path": "/models/artpacks/texas/"
+  }
+}

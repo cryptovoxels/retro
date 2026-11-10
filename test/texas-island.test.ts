@@ -1,3 +1,5 @@
+import { buildingStyle } from '../islands/texas/buildings'
+import { furniture } from '../islands/texas/furniture'
 import { expect, it } from 'vitest'
 import { unpackGround } from '../common/voxels/ground-bytes'
 import { groundMesh } from '../src/monoworker/ground-mesh'
@@ -53,4 +55,33 @@ it('indexes the spawn road by world metre after a draft reload', () => {
   expect(geo.indices.length).toBeGreaterThan(0)
   expect(bytes[16]).toBe(255)
   expect(islandLayout(settings).parcels).toEqual(parcels)
+})
+
+it('keeps all ten building styles in the Texas draft with adobos most common', () => {
+  const { parcels } = islandLayout(settings)
+  const counts = new Map<string, number>()
+  for (const p of parcels) {
+    const style = buildingStyle(p.x1 - 51, p.z1 - 1007)
+    counts.set(style, (counts.get(style) || 0) + 1)
+  }
+  expect(counts.size).toBe(10)
+  expect(counts.get('adobo')).toBe(Math.max(...counts.values()))
+  expect(counts.get('town square')!).toBeLessThan(counts.get('adobo')! / 4)
+})
+
+it('relaxes curb furniture deterministically, keeping hydrants away from potholes and the crossing open', () => {
+  const roads = [
+    { x1: -2, x2: 2, z1: -30, z2: 30 },
+    { x1: 2, x2: 30, z1: -2, z2: 2 },
+  ]
+  const solve = (tile: number) => furniture(roads, [0, 0], 1, () => ({ tile, y: 4 }), [])
+  const paved = solve(31)
+  expect(solve(31)).toEqual(paved)
+  expect(paved.some((f) => f.color === '#cb4635')).toBe(true)
+  expect(solve(48).some((f) => f.color === '#cb4635')).toBe(false)
+  expect(paved.some((f) => f.type === 'lantern')).toBe(true)
+  for (const f of paved) {
+    expect(Math.max(Math.abs(f.position[0]), Math.abs(f.position[2]))).toBeGreaterThan(3)
+    expect(f.position[1]).toBeGreaterThanOrEqual(4)
+  }
 })

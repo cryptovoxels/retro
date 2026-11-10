@@ -1,4 +1,4 @@
-import texas from '../common/artpacks/texas-thrift.json'
+import { buildTexas } from '../islands/texas/buildings'
 import { seeded } from '../common/helpers/utils'
 import ndarray, { NdArray } from 'ndarray'
 import { v7 as uuid } from 'uuid'
@@ -281,19 +281,9 @@ export default class ParcelBuilder {
   // Shells for web/src/admin/kowloon.ts. Spiral stair round an 8x8 ring in the low corner, each floor holes its
   // slab over the top of the stair below. Ground plots there are 12m, so y1 === 12 means the floor below is a plot.
   // ground floor village house: walls with little windows, a 2m door on the street face, flat roof
-  static Village(parcel: any, material: number, door: string, adobe = false) {
+  static Village(parcel: any, material: number, door: string, adobe = false, index = 0) {
     const b = new ParcelBuilder(parcel)
-    const trim: any[] = []
-    const finish = (kind: 'door' | 'window' | 'viga', face: string, along: number, y: number) => {
-      const dx = (parcel.x2 - parcel.x1) / 2,
-        dz = (parcel.z2 - parcel.z1) / 2
-      const side = face === 'w' || face === 'e'
-      const x = 0.25 + (side ? (face === 'w' ? -dx : dx) : along - dx)
-      const z = 0.25 + (side ? along - dz : face === 's' ? -dz : dz)
-      const rotation = ((face === 'w' ? -1 : face === 'e' ? 1 : face === 's' ? 2 : 0) * Math.PI) / 2
-      const urls = texas.adobe[kind]
-      trim.push({ type: 'vox-model', uuid: uuid(), url: urls[Math.abs(parcel.x1 + parcel.z1 + Math.floor(along)) % urls.length], position: [x, y, z], rotation: [0, rotation, 0], scale: [5, 5, 5] })
-    }
+    if (adobe) return buildTexas(b, material, door, index)
     b.fill(0, 2, () => ground)
     b.fill(2, b.height, (x, y, z, width, height, depth) => {
       if (y === height - 1) return material
@@ -301,13 +291,6 @@ export default class ParcelBuilder {
       if (!face) return empty
       const along = face === 'w' || face === 'e' ? z : x
       const mid = (face === 'w' || face === 'e' ? depth : width) / 2
-      if (adobe) {
-        if (face === door && y === 0 && along === Math.floor(mid)) finish('door', face, mid / 2, 0.75)
-        // Each full glass opening is two cells wide and three tall. Trim starts below the sill.
-        if (y % 6 === 2 && y + 2 < height - 1 && along % 6 === 2 && along + 1 < mid * 2 - 1 && (face === door || y === 2) && !(face === door && y < 5 && Math.abs(along + 1 - mid) < 3))
-          finish('window', face, (along + 1) / 2, 0.75 + y / 2 - 0.2)
-        if (face === door && y === height - 2 && along % 6 === 3) finish('viga', face, (along + 0.5) / 2, 0.75 + y / 2 - 0.3)
-      }
       if (face === door && y < 5 && Math.abs(along + 0.5 - mid) < 2) return empty
       return y % 6 >= 2 && y % 6 <= 4 && along % 6 >= 2 && along % 6 <= 3 ? glass : material
     })
@@ -325,7 +308,7 @@ export default class ParcelBuilder {
       position: [(rand() - 0.5) * (w - 2), 2 + rand() * Math.max(0, h - 3), (rand() - 0.5) * (d - 2)],
       color: rainbow(rand()),
     }))
-    return { ...b.serialize, features: [...lanterns, ...trim] }
+    return { ...b.serialize, features: lanterns }
   }
 
   get dummyFeatures(): any {

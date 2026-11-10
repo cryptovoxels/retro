@@ -12,6 +12,7 @@ RUN npm i -g pnpm@9.15.4 \
   && pnpm config set engine-strict false \
   && pnpm install --frozen-lockfile
 
+COPY islands/ ./islands/
 COPY common/ ./common/
 COPY server/ ./server/
 COPY compiler/ ./compiler/
