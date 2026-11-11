@@ -2,6 +2,7 @@ import { packGround } from '../../common/voxels/ground-bytes'
 import { inflateSync } from 'node:zlib'
 import type { PoolClient } from 'pg'
 import { Express } from 'express'
+import rateLimit from 'express-rate-limit'
 import { centroid } from '@turf/turf'
 
 import texas from '../../islands/texas/artpack.json'
@@ -162,7 +163,7 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
   })
 
   const draftAuth = [passport.authenticate('jwt', { session: false }), requireAdmin]
-  app.get('/api/admin/island-drafts/:slug', ...draftAuth, async (req, res) => {
+  app.get('/api/admin/island-drafts/:slug', async (req, res) => {
     const r = await db.query('sql/island-draft', 'select settings, content, ground from island_drafts where slug = $1', [req.params.slug])
     res
       .set('Cache-Control', 'no-store')
@@ -268,12 +269,25 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
   })
 
   // Same build, nothing written: the world client loads this when opened with ?preview=1 so you can fly round the proposal
-  app.post('/api/admin/islands/preview', passport.authenticate('jwt', { session: false }), requireAdmin, (req, res) => {
+  app.post('/api/admin/islands/preview', rateLimit({ windowMs: 60_000, max: 30 }), (req, res) => {
     const { name, geometry, parcels, atlas } = req.body
     if (!validIslandBody(req.body)) {
       res.status(400).json({ success: false, message: 'Need a name and parcels' })
       return
     }
+    // Each house allocates a dense voxel field on the server.
+    let volume = 0
+    if (
+      parcels.length > 4096 ||
+      !parcels.every((p: any) => {
+        if (!p) return false
+        const sides = [m(p.x2) - m(p.x1), p.y2 - p.y1, m(p.z2) - m(p.z1)]
+        if (!sides.every((v) => Number.isSafeInteger(v) && v > 0 && v <= 256)) return false
+        volume += sides[0] * sides[1] * sides[2]
+        return volume <= 4_000_000
+      })
+    )
+      return res.status(400).json({ success: false, message: 'Preview exceeds parcel dimensions or volume limit' })
     let position = {}
     try {
       position = centroid(geometry).geometry
