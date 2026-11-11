@@ -448,3 +448,8 @@ SELECT apply_migration('texas-street-eagles', $$
     SELECT 'draft:texas','eagle',name,111,-1058,820,820
     FROM unnest(ARRAY['henry','dave','ralph','peter','bjork']) AS name;
 $$);
+
+SELECT apply_migration('texas-keep-henry', $$
+  DELETE FROM creatures WHERE island = 'draft:texas' AND species = 'eagle'
+    AND name IN ('dave', 'ralph', 'peter', 'bjork');
+$$);
