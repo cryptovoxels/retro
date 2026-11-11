@@ -1259,7 +1259,10 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   private setField = (listOfVectors: [number, number, number][], value: number) => {
-    if (!this.field) throw new Error('Cannot set field on parcel without field')
+    if (!this.field) {
+      const [x, y, z] = this.fieldShape
+      this.field = ndarray(new Uint16Array(x * y * z), [x, y, z])
+    }
 
     for (const vector of listOfVectors) {
       this.field.set(...vector, value)

@@ -37,6 +37,7 @@ export interface State {
   parcelId: number
   tab: SidebarTab
   transferring?: boolean
+  skynet?: { id: number; text: string }
   transferMessage?: string
 }
 
@@ -74,6 +75,22 @@ export default class Parcel extends Component<Props, State> {
   // the world this parcel lives in, so the header Play button enters it
   get visitUrl() {
     return this.helper ? `/play?coords=${this.helper.spawnCoords}` : undefined
+  }
+
+  summon = async () => {
+    const id = this.state.parcelId
+    const url = new URL(this.visitUrl!, location.origin)
+    try {
+      const res = await fetch(`/api/parcels/${id}/skynet`, { method: 'POST', credentials: 'same-origin' })
+      if (!res.ok) throw Error()
+      url.searchParams.set('agent', 'skynet')
+      url.searchParams.set('parcel', String(id))
+      url.searchParams.set('audio', 'off')
+      url.hash = 'skynet=' + (await res.json()).token
+      this.setState({ skynet: { id, text: url.href } })
+    } catch {
+      this.setState({ skynet: { id, text: 'Could not create a build link.' } })
+    }
   }
 
   syncVisitUrl() {
@@ -419,6 +436,16 @@ export default class Parcel extends Component<Props, State> {
           </details>
         )}
 
+        {this.isOwner && (
+          <details class="inspector-section">
+            <summary>skynet</summary>
+            <p>Give your building agent a link to edit blocks on this parcel for 12 hours. Open it in a separate browser profile and use the WebMCP tools or window.skynet.</p>
+            <button type="button" onClick={this.summon}>
+              create build link
+            </button>
+            {this.state.skynet?.id === this.state.parcelId && <input aria-label="Skynet build link" readOnly value={this.state.skynet.text} onFocus={(e) => e.currentTarget.select()} />}
+          </details>
+        )}
         <ActivitySection parcelId={this.state.parcelId} />
         <details class="inspector-section">
           <summary>metrics</summary>

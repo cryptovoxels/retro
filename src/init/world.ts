@@ -16,6 +16,7 @@ import { updateWorldScene } from './world-scene'
 export const createWorld = async function (scene: BABYLON.Scene, canvas: HTMLCanvasElement, controls: Controls) {
   const grid = new Grid(scene)
   window.grid = grid
+  if (new URLSearchParams(location.search).get('agent') === 'skynet') void import(new URL(process.env.SKYNET_URL!, location.origin).href)
   controls.resetFloor()
 
   let audio: AudioEngine | null = null

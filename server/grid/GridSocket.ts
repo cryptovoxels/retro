@@ -164,6 +164,10 @@ export default class GridSocket {
     return Parcel.getState(parcelId)
   }
 
+  broadcastVoxels(parcelId: number, voxels: { positions: number[][]; value: number }) {
+    this.gridCluster.publish({ type: 'patchCreate', payload: { parcelId, sender: 'skynet', patch: { voxels } } })
+  }
+
   async publishParcelStatePatch(parcelId: number, patch: Record<string, unknown>) {
     await this.worldPublishShardMessage({
       type: 'patchStateCreate',
