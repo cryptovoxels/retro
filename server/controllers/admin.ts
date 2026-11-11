@@ -458,10 +458,10 @@ async function upsertIsland(db: Db, name: string, geometry: any, content: any, g
     'sql/upsert-island',
     `
       WITH upsert AS (
-        UPDATE islands SET geometry_json = $2::jsonb, position_json = $4::jsonb, content = $3, ground = $5, lakes_geometry_json = coalesce($7::jsonb, lakes_geometry_json), texture = coalesce($6, texture) WHERE name = $1 RETURNING *
+        UPDATE islands SET geometry_json = $2::jsonb, position_json = $4::jsonb, content = $3, ground = $5, lakes_geometry_json = coalesce($7, lakes_geometry_json), texture = coalesce($6, texture) WHERE name = $1 RETURNING *
       )
       INSERT INTO islands (name, geometry_json, content, position_json, ground, texture, lakes_geometry_json)
-      SELECT $1, $2::jsonb, $3, $4::jsonb, $5, coalesce($6, ''), $7::jsonb WHERE NOT EXISTS (SELECT 1 FROM upsert);
+      SELECT $1, $2::jsonb, $3, $4::jsonb, $5, coalesce($6, ''), $7 WHERE NOT EXISTS (SELECT 1 FROM upsert);
     `,
     [name, geomStr, content, position_json, floorBytes(ground), ground ? texas.ground : null, lakes ? JSON.stringify(lakes) : null],
     client,
