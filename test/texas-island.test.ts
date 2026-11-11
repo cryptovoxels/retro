@@ -152,7 +152,7 @@ it('relaxes curb furniture deterministically, keeping hydrants away from pothole
   }
 })
 
-it('gives the saved Texas seed 10 to 50 ArtFrames per building and leaves the parks open', () => {
+it('gives the saved Texas seed 10 to 30 ArtFrames per building and leaves the parks open', () => {
   const { parcels } = islandLayout(settings)
   for (const [i, p] of parcels.entries()) {
     const b = ParcelBuilder.Village({ ...p, x1: p.x1 - 51, x2: p.x2 - 51, z1: p.z1 - 1007, z2: p.z2 - 1007, height: p.y2 - p.y1 }, p.material, p.door, true, i)
@@ -162,7 +162,7 @@ it('gives the saved Texas seed 10 to 50 ArtFrames per building and leaves the pa
       continue
     }
     expect(frames.length, p.address).toBeGreaterThanOrEqual(10)
-    expect(frames.length, p.address).toBeLessThanOrEqual(50)
+    expect(frames.length, p.address).toBeLessThanOrEqual(30)
     expect(new Set(frames.map((f) => String(f.scale))).size).toBeGreaterThan(1)
   }
 })

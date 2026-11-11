@@ -75,7 +75,7 @@ export function interiors(b: ParcelBuilder, face: string, front: number, square:
     wall(1, front, 1, 0, width - 2, 0, 1)
     for (const u of [0, width - 1]) wall(u, front + 1, 0, 1, depth - front - 2, u ? -1 : 1, 0)
   }
-  const target = 10 + Math.floor(choose() * 41)
+  const target = 10 + Math.floor(choose() * 21)
   const sizes = [
     [8, 5],
     [4, 6],

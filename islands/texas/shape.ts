@@ -2,8 +2,8 @@ import rows from './source/shape.json'
 
 // The PNG points north at the top. World +Z points north.
 export function onLand(x: number, z: number, size: number) {
-  const col = Math.floor((x / size + 0.5) * 256),
-    spans = rows[Math.floor((0.5 - z / size) * 256)]
+  const col = Math.floor((x / size + 0.5) * rows.length),
+    spans = rows[Math.floor((0.5 - z / size) * rows.length)]
   if (!spans) return false
   for (let i = 0; i < spans.length; i += 2) if (col >= spans[i] && col < spans[i + 1]) return true
   return false
@@ -13,13 +13,13 @@ type Street = { width: number; height: number; target: [number, number] }
 
 export function packStreets(blocks: Street[]) {
   const area = blocks.reduce((sum, b) => sum + b.width * b.height, 0)
-  const fraction = rows.reduce((sum, row) => sum + row.reduce((n, v, i) => n + (i % 2 ? v : -v), 0), 0) / 65536
+  const fraction = rows.reduce((sum, row) => sum + row.reduce((n, v, i) => n + (i % 2 ? v : -v), 0), 0) / (rows.length * rows.length)
   const first = Math.max(4, Math.floor(Math.sqrt(area / fraction) / 2) * 2)
   const order = blocks.map((_, i) => i).sort((a, b) => blocks[a].target[1] - blocks[b].target[1] || blocks[b].height - blocks[a].height)
   for (let size = first; size <= 992; size += 2) {
     const positions: [number, number, boolean][] = []
     // Per-row free runs let a later short street fill a coastal pocket left by a longer one.
-    const free = Array.from({ length: size }, (_, z) => rows[Math.floor((1 - (z + 0.5) / size) * 256)].map((v) => Math.ceil((v * size) / 256 - 0.5)))
+    const free = Array.from({ length: size }, (_, z) => rows[Math.floor((1 - (z + 0.5) / size) * rows.length)].map((v) => Math.ceil((v * size) / rows.length - 0.5)))
     for (const i of order) {
       const b = blocks[i]
       let placed = false

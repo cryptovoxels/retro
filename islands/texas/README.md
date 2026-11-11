@@ -30,7 +30,7 @@ Make the parcel mesher and island ground shader sample the same probes. The firs
 
 ## review list
 
-- [x] Fit the 736 parcels to the cropped 256x256 silhouette in `source/shape.png`. The generator reads its lossless row spans in `source/shape.json` for both street placement and terrain.
+- [x] Fit the 736 parcels to the 32x32 pixel silhouette in `source/shape.png`. The generator reads its lossless row spans in `source/shape.json` for both street placement and terrain.
 - [ ] Draw river and creek guides into that same input. Review crossings, banks, dead ends against cliffs, and pedestrian approaches to the seven terrace elevations.
 - [ ] Walk all ten building varieties at street level. Check frame colors and fit, both house silhouettes, the wood-framed mall frontage, saloon porch, square and shop signs against the reference. Review the color and rarity mix across suburbs.
 - [ ] Walk busy and quiet intersections. Tune lamp spacing, benches, hydrants, art footprints and doorway clearance. Review landmark-sized placements and the waterfront cinema, record store and star water tower from the reference.
