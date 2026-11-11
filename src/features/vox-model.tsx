@@ -152,7 +152,7 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
     if (!mesh) {
       let url: string
       if (this.url?.startsWith('/models/artpacks/')) {
-        url = this.url
+        url = this.url.replace('/models/artpacks/texas/', 'https://ugc.voxels.com/artpacks/texas/v1/models/')
       } else if (this.url && isURL(this.url)) {
         url = Config.voxModelURL(this.url, this.parcel, this.type === 'ride' ? 'megavox' : this.type)
       } else {

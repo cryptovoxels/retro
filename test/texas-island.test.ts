@@ -1,3 +1,4 @@
+import { onLand } from '../islands/texas/shape'
 import { buildingStyle } from '../islands/texas/parcels/entrances'
 import { furniture } from '../islands/texas/furniture'
 import { expect, it } from 'vitest'
@@ -13,6 +14,12 @@ it('keeps every address on its street and every parcel off the roads', () => {
   for (const reroll of [0, 1, 9]) {
     const { parcels, roads } = islandLayout({ ...settings, reroll })
     expect(parcels).toHaveLength(736)
+    const size = Number('maskSize' in roads[0] && roads[0].maskSize)
+    expect(size).toBeLessThan(500)
+    for (const rect of [...parcels, ...roads]) {
+      for (let z = rect.z1; z < rect.z2; z++) for (let x = rect.x1; x < rect.x2; x++) if (!onLand(x + 0.5, z + 0.5, size)) throw Error('offshore at ' + [x, z])
+    }
+    for (const p of parcels) expect(parcels.some((q) => p !== q && q.x1 < p.x2 && q.x2 > p.x1 && q.z1 < p.z2 && q.z2 > p.z1)).toBe(false)
     const parks = parcels.filter((p) => p.is_common)
     expect(parks).toHaveLength(10)
     for (const park of parks) {
@@ -27,7 +34,13 @@ it('keeps every address on its street and every parcel off the roads', () => {
     const ends = roads.filter((r) => 'deadEnd' in r && r.deadEnd)
     expect(ends.length).toBeGreaterThanOrEqual(33)
     for (const road of ends) {
-      expect(parcels.some((p) => p.z1 < road.z2 && p.z2 > road.z1 && ((p.door === 'w' && p.x1 === road.x2) || (p.door === 'e' && p.x2 === road.x1)))).toBe(true)
+      expect(
+        parcels.some(
+          (p) =>
+            (p.z1 < road.z2 && p.z2 > road.z1 && ((p.door === 'w' && p.x1 === road.x2) || (p.door === 'e' && p.x2 === road.x1))) ||
+            (p.x1 < road.x2 && p.x2 > road.x1 && ((p.door === 's' && p.z1 === road.z2) || (p.door === 'n' && p.z2 === road.z1))),
+        ),
+      ).toBe(true)
     }
     expect(new Set(parcels.map((p) => p.suburb)).size).toBe(10)
     expect(new Set(parcels.map((p) => p.address.replace(/^\d+ /, ''))).size).toBe(100)
@@ -68,12 +81,12 @@ it('fits both VOX frames around the actual glass on every rotated adobo facade',
           const z = Math.floor((cz - along * Math.sin(yaw) - 0.25) * 2 + depth / 2)
           const y = Math.round((a.position[1] + 0.04 * sy - 0.75) * 2) + 2 + row
           const index = (x * parcel.height * 2 + y) * depth + z
-          expect(glass.readUInt16LE(index * 2)).toBe(2)
+          expect(glass.readUInt16LE(index * 2) & 31).toBe(2)
           covered.add(index)
         }
     }
     let count = 0
-    for (let i = 0; i < glass.length; i += 2) if (glass.readUInt16LE(i) === 2) count++
+    for (let i = 0; i < glass.length; i += 2) if ((glass.readUInt16LE(i) & 31) === 2) count++
     expect(covered.size).toBe(count)
   }
 })

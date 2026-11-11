@@ -3,8 +3,8 @@ import json
 from pathlib import Path
 from PIL import Image
 
-models = Path("dist/models/artpacks/texas")
-atlas = Image.open("dist/textures/texas-thrift.png").convert("RGB")
+models = Path("islands/texas/assets/models")
+atlas = Image.open("islands/texas/assets/textures/texas-thrift.png").convert("RGB")
 colors = atlas.resize((4, 4), Image.Resampling.BOX)
 for tile in json.loads(Path("islands/texas/artpack.json").read_text())["frames"]["tiles"]:
     layer = tile + 1  # getBlockId stores a one-based layer; the mesher samples it directly.

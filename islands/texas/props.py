@@ -2,7 +2,7 @@
 from pathlib import Path
 from islands.vox import Vox
 
-out = Path(__file__).resolve().parents[2] / "dist/models/artpacks/texas"
+out = Path(__file__).resolve().parents[2] / "islands/texas/assets/models"
 iron, steel, brass = "323d43", "536063", "c79b57"
 
 # A slatted pecan seat with cast iron arms, through bolts and open legs.
@@ -117,3 +117,10 @@ for u in range(27):
         flag.box((26-u,y,v+2),(27-u,y+2,v+3),color)
 flag.box((26,3,0),(28,5,22),brass)
 flag.save(out / "lone-star.vox")
+
+bulb = Vox(8, 8, 30)
+bulb.box((3,3,8),(5,5,30),"51463e")
+bulb.box((2,2,6),(6,6,9),brass)
+bulb.box((1,1,2),(7,7,6),"ffebc8")
+bulb.box((2,2,0),(6,6,2),"fff3d9")
+bulb.save(out / "pendant.vox")

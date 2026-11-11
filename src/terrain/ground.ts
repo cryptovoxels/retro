@@ -23,7 +23,7 @@ export async function islandGround(mesh: BABYLON.Mesh, island: IslandRecord & { 
   mesh.computeWorldMatrix(true)
   const scene = mesh.getScene()
   const pages = texas.groundPages
-  const samplers = pages.flatMap((_, i) => ['color' + i, 'height' + i])
+  const samplers = pages.map((_, i) => 'color' + i)
   const sample = (kind: string) => pages.map((_, i) => (i < 3 ? 'if (page < ' + (i + 0.5) + ') ' : '') + 'return sampleTile(' + kind + i + ',pos,lod);').join('\n')
 
   const material = new BABYLON.ShaderMaterial(
@@ -53,7 +53,6 @@ export async function islandGround(mesh: BABYLON.Mesh, island: IslandRecord & { 
       ${samplers.map((name) => 'uniform sampler2D ' + name + ';').join('\n')}
       #define sampleTile(tex,uv,lod) ${scene.getEngine().isWebGPU || (scene.getEngine() as any).webGLVersion > 1 ? 'textureLod(tex,uv,lod)' : 'texture2D(tex,uv)'}
       vec4 colorAt(float page, vec2 pos,float lod) { ${sample('color')} }
-      vec4 heightAt(float page, vec2 pos) { float lod=0.; ${sample('height')} }
       vec2 coord(vec2 slot, vec2 uv) { return (slot + clamp(uv, .004, .996)) * .125; }
       void main() {
         vec2 uv = face.y != 0. ? fract(local.xz) : fract(vec2(abs(face.x) > .5 ? local.z : local.x, -local.y));
@@ -71,25 +70,6 @@ export async function islandGround(mesh: BABYLON.Mesh, island: IslandRecord & { 
         float page = mod(cell.x*3. + cell.y*7. + floor(cell.x/3.) + tile, 4.);
         float shade = .72 + .2 * max(0., face.y);
         float dist = length(cameraPosition-local);
-        if (face.y > .5 && dist < 24.) {
-          vec3 view = normalize(cameraPosition - local);
-          vec2 slope = view.xz / max(.19, view.y);
-          // Discrete column heights. Asphalt is 2 cm above the datum and a kerb is 12 cm.
-          // March from the cap towards the bed; entering a taller column exposes its vertical riser.
-          vec2 start = uv;
-          float prev = .12;
-          for (int i = 0; i <= 24; i++) {
-            float level = .12 - float(i)*.005;
-            vec2 hit = start + slope*(level-.02);
-            float h = heightAt(page,coord(slot,hit)).r * .12;
-            if (level <= h + .0001) {
-              uv = hit;
-              if (h-prev > .009) shade *= .68;
-              break;
-            }
-            prev = h;
-          }
-        }
         vec3 ground = colorAt(page,coord(slot,uv),max(0.,log2(max(1.,dist*.14)))).rgb;
         if (tile >= 72.) ground *= mix(vec3(1.), vec3(1.03,.50,.36), floor((tile-72.)/8.)/7.);
         gl_FragColor = vec4(ground * shade, 1.);
@@ -97,12 +77,10 @@ export async function islandGround(mesh: BABYLON.Mesh, island: IslandRecord & { 
     },
     { attributes: ['position', 'normal', 'uv'], uniforms: ['worldViewProjection', 'cameraPosition'], samplers: [...samplers, 'parcelAtlas'] },
   )
-  const textures = pages.flatMap((page, i) => {
+  const textures = pages.map((page, i) => {
     const color = new BABYLON.Texture(page.color, scene, false, false)
-    const height = new BABYLON.Texture(page.height, scene, true, false, BABYLON.Texture.NEAREST_SAMPLINGMODE)
     material.setTexture('color' + i, color)
-    material.setTexture('height' + i, height)
-    return [color, height]
+    return color
   })
   const parcelAtlas = new BABYLON.Texture(texas.atlas, scene, false, false)
   material.setTexture('parcelAtlas', parcelAtlas)

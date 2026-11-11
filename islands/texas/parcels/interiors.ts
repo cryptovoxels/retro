@@ -1,3 +1,4 @@
+import { getBlockId } from '../../../common/content/blocks'
 import { gallery } from './gallery'
 import pack from '../artpack.json'
 import { seeded } from '../../../common/helpers/utils'
@@ -36,7 +37,8 @@ export function interiors(b: ParcelBuilder, face: string, front: number, square:
         if (value & windowWall) cell(i, y, value & ~windowWall)
       }
     for (const pane of panes) {
-      for (let y = pane.y; y < pane.y + pane.h; y++) for (let x = pane.x; x < pane.x + pane.w; x++) cell(x, y, 2)
+      const glass = getBlockId(1, rand() < 0.23 ? 3 + Math.floor(rand() * 5) : 0)
+      for (let y = pane.y; y < pane.y + pane.h; y++) for (let x = pane.x; x < pane.x + pane.w; x++) cell(x, y, glass)
       // The VOX has a 10 x 15 clear opening, two-voxel rails and a mirrored X pivot.
       const sx = (pane.w * 0.5) / (0.02 * 10),
         sy = (pane.h * 0.5) / (0.02 * 15)
@@ -57,7 +59,7 @@ export function interiors(b: ParcelBuilder, face: string, front: number, square:
           const i = Math.floor(x / 2),
             row = Math.floor(y / 2),
             solid = cell(i, row)
-          if (!solid || solid === 2 || y < 2 || x === 0 || x === count * 2 - 1) return false
+          if (!solid || (solid & 31) === 2 || y < 2 || x === 0 || x === count * 2 - 1) return false
           if (nv === -1 && i < 5 && y < 7) return false // shelf and counter
           const u = (x + 0.5) / 2,
             v = (y + 0.5) / 2

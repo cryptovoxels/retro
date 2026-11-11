@@ -81,7 +81,7 @@ export class Rats {
       let model = this.models.get(asset)
       if (!model) {
         model = this.importer
-          .import('/models/critters/' + asset + '.vox', { signal: this.loads.signal, invertX: false })
+          .import('https://ugc.voxels.com/artpacks/texas/v1/critters/' + asset + '.vox', { signal: this.loads.signal, invertX: false })
           .then((mesh) => {
             mesh.setEnabled(false)
             mesh.material?.freeze()

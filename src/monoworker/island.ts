@@ -1,3 +1,4 @@
+import { onLand } from '../../islands/texas/shape'
 import { packGround } from '../../common/voxels/ground-bytes'
 import { entrances } from '../../islands/texas/parcels/entrances'
 import { mesaEdge } from '../../islands/texas/parcels/mesa'
@@ -17,7 +18,8 @@ export function islandLayout(opts: VillageOpts) {
 
 export function islandSurface(parcels: (Road & { y1?: number; suburb?: string })[], roads: Road[], artpack: string, center: vec2, reroll: number) {
   const land = [...parcels, ...roads]
-  const { bounds, field } = getIslandField(land, true)
+  const size = roads[0]?.maskSize
+  const { bounds, field } = size ? maskField(size) : getIslandField(land, true)
   const texas = !!parcels[0]?.suburb
   const surface = artpack || texas ? groundMap(field, bounds[0], bounds[1], ...center, roads, reroll, parcels, texas, artpack) : undefined
   const [x1, z1, x2, z2] = bounds
@@ -31,7 +33,7 @@ export function islandSurface(parcels: (Road & { y1?: number; suburb?: string })
     content: {
       origin: [center[0] * 100, 0, center[1] * 100],
       features: surface?.features || [],
-      ...(artpack === 'texas-thrift' && { furnitureVersion: 6 }),
+      ...(artpack === 'texas-thrift' && { furnitureVersion: 7 }),
       streets: roads.filter((r) => r.name),
       ...(!surface && { voxels: getVoxelsFromBuffer(getIslandField(parcels).field.data) }),
       ...(artpack && { artpack }),
@@ -223,6 +225,12 @@ type vec2 = [number, number]
 type vec4 = [number, number, number, number]
 
 type IslandField = NdArray<Uint16Array>
+
+function maskField(size: number): { bounds: vec4; field: IslandField } {
+  const field = ndarray(new Uint16Array(size * 4 * size), [size, 4, size])
+  for (let x = 0; x < size; x++) for (let z = 0; z < size; z++) if (onLand(x + 0.5 - size / 2, z + 0.5 - size / 2, size)) field.set(x, 1, z, 1)
+  return { field, bounds: [-size / 2, -size / 2, size / 2, size / 2] }
+}
 
 function getIslandField(parcels: Road[], hull = false): { bounds: vec4; field: IslandField } {
   if (parcels.length === 0) {

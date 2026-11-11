@@ -4,7 +4,7 @@ from pathlib import Path
 from random import Random
 from islands.vox import Vox
 
-out = Path(__file__).resolve().parents[2] / "dist/models/artpacks/texas"
+out = Path(__file__).resolve().parents[2] / "islands/texas/assets/models"
 
 
 def stem(m, a, b, radius, color):

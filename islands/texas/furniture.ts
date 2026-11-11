@@ -81,10 +81,10 @@ export function furniture(roads: Road[], center: number[], seed: number, ground:
         add({ type: 'lantern', position: [x, y + 27 * 0.02 * scale, z], scale: [0.85, 0.85, 0.85], color: '#ffce86' })
       }
     } else {
-      const model = thriftModel(Math.floor(rand() * 256), [x, y, z], 1)
+      const index = Math.floor(rand() * pack.models.length)
       // VOX imports stand on their pivot. One model voxel is 2cm at unit scale.
-      const scale = (1.2 + rand() * 0.4) / (0.02 * modelExtent(model.url))
-      add({ ...model, rotation: [0, yaw, 0], scale: [scale, scale, scale] })
+      const scale = (1.2 + rand() * 0.4) / (0.02 * modelExtent(pack.models[index].url))
+      add({ ...thriftModel(index, [x, y, z], scale), rotation: [0, yaw, 0], scale: [scale, scale, scale] })
     }
   }
   return features

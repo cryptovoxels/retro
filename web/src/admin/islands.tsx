@@ -92,7 +92,7 @@ export default class IslandsAdmin extends Component<{}, State> {
       if (!res.ok && !(res.status === 404 && slug === 'texas')) throw new Error()
       const { settings, ground, content } = res.ok ? await res.json() : { settings: (await import('../../../islands/texas/draft.json')).default }
       if (!this.mapRef.current) return
-      this.setState({ ...settings, start: id }, () => this.build(settings.reroll, ground, settings.artpack !== 'texas-thrift' || content?.furnitureVersion === 6 ? content?.features : undefined))
+      this.setState({ ...settings, start: id }, () => this.build(settings.reroll, ground, settings.artpack !== 'texas-thrift' || content?.furnitureVersion === 7 ? content?.features : undefined))
     } catch {
       this.setState({ start: id })
       this.stage('could not load island draft', 0)
@@ -170,11 +170,6 @@ export default class IslandsAdmin extends Component<{}, State> {
       [sx, sz] = this.state.spawn
     const creek = !!this.state.parcels[0]?.suburb
     window.persona?.teleport({ position: new BABYLON.Vector3(cx * 100 + sx, CAMERA_HEIGHT + (this.state.parcels[0]?.y1 || 0) + 1, cz * 100 + sz), rotation: new BABYLON.Vector3(creek ? 0.15 : 0, creek ? Math.PI / 2 : 0, 0) }, false)
-  }
-
-  // island width and depth in metres
-  extent(parcels: ProspectiveParcel[]) {
-    return [Math.max(...parcels.map((p) => p.x2)) - Math.min(...parcels.map((p) => p.x1)), Math.max(...parcels.map((p) => p.z2)) - Math.min(...parcels.map((p) => p.z1))]
   }
 
   async islandBody({ parcels, roads }: Pick<State, 'parcels' | 'roads'> = this.state) {
@@ -283,11 +278,13 @@ export default class IslandsAdmin extends Component<{}, State> {
     if (!this.map) return
     const x = this.state.center[0] * 100
     const z = this.state.center[1] * 100
-    const view = `${x},${z},${this.state.parcels.length}`
+    const size = this.state.roads[0]?.maskSize
+    const view = `${x},${z},${this.state.parcels.length},${size}`
     if (view !== this.mapView && !this.state.parcels.length) this.map.setView(x, z)
     if (view !== this.mapView && this.state.parcels.length) {
-      const [w, d] = this.extent(this.state.parcels)
-      this.map.fitBounds(x - w / 2, z - d / 2, x + w / 2, z + d / 2, 2)
+      const land = [...this.state.parcels, ...this.state.roads]
+      if (size) this.map.fitBounds(x - size / 2, z - size / 2, x + size / 2, z + size / 2, 1.12)
+      else this.map.fitBounds(x + Math.min(...land.map((p) => p.x1)), z + Math.min(...land.map((p) => p.z1)), x + Math.max(...land.map((p) => p.x2)), z + Math.max(...land.map((p) => p.z2)), 1.18)
     }
     this.mapView = view
     if (this.centerMarker) {

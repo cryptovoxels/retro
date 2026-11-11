@@ -22,4 +22,4 @@ for i in range(64):
   tile=sw[[15,10,11,8][m%4]].rotate((m//4)*90)
   if m%4==3: ImageDraw.Draw(tile).line((28+m,75,77+m,68),fill=(54,52,60),width=3)
  out.paste(tile,(i%8*n,i//8*n))
-out.quantize(240).save('dist/textures/texas-ground.png')
+out.quantize(240).save('islands/texas/assets/textures/texas-ground.png')

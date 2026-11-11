@@ -132,7 +132,15 @@ export function buildTexas(b: ParcelBuilder, material: number, face: string, ind
     }
     if (style === 'record shop' || style === 'cinema' || style === 'kwik-e-mart' || style === 'thrift store')
       feature(mid, (h - 1) / 2 + 0.6, front - 0.2, { type: 'sign', text: { 'record shop': '33 RPM', cinema: 'PICTURE SHOW', 'kwik-e-mart': 'KWIK-E-MART', 'thrift store': 'SECOND HAND' }[style], scale: [2, 2, 2] })
-    feature(mid, 2, front + 2, { type: 'lantern', color: '#ffd188', scale: [0.55, 0.55, 0.55] })
+    const v = (front + depth) / 2
+    const u = width / 2
+    const x = Math.floor(side ? (face === 'e' ? b.width - v : v) : u)
+    const z = Math.floor(side ? b.depth / 2 : face === 'n' ? b.depth - v : v)
+    let ceiling = 3
+    while (ceiling < b.height - 1 && !b.field.get(x, ceiling, z)) ceiling++
+    const bottom = ceiling * 0.5 - 0.25 - 1.2
+    feature(u - 0.32, bottom, v, { type: 'vox-model', url: pack.interiors.pendant, scale: [2, 2, 2] })
+    feature(u, bottom + 0.15, v, { type: 'lantern', color: '#fff1d7', scale: [0.22, 0.22, 0.22] })
   }
   if (index % 2 === 0) {
     const rooftop = index % 4 === 0 && !home && style !== 'town square'

@@ -10,7 +10,7 @@ vi.mock('../src/mono-pool', () => ({
   runCompute: async (run: any) => {
     const { readFileSync } = await import('node:fs')
     const { loadVox } = await import('../src/monoworker/vox')
-    return run({ loadVox: ({ url, ...args }: any) => loadVox({ ...args, buffer: Uint8Array.from(readFileSync('dist' + url)).buffer }) })
+    return run({ loadVox: ({ url, ...args }: any) => loadVox({ ...args, buffer: Uint8Array.from(readFileSync('dist/models/critters/' + new URL(url).pathname.split('/').pop())).buffer }) })
   },
 }))
 

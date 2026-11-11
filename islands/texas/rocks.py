@@ -28,5 +28,5 @@ for i, name in enumerate(pack["rocks"]):
                 vein = z + (x if i%2 else y)*.18
                 color = colors[0 if vein<h*.24 else 1 if vein<h*.52 else 3 if vein<h*.68 else 2]
                 rock.box((x,y,z),(x+1,y+1,z+1),color)
-    rock.save(root/"dist/models/artpacks/texas"/(name+".vox"))
+    rock.save(root/"islands/texas/assets/models"/(name+".vox"))
 (root/"islands/texas/rock-sizes.json").write_text(json.dumps(sizes, indent=2)+"\n")
