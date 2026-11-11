@@ -1,3 +1,4 @@
+import { runCompute } from '../mono-pool'
 import { isMobile } from '../../common/helpers/detector'
 import type { Chunk, ChunkObserver } from './chunk-system'
 import { groundOffset, snapRing, type Point2D, PolygonClipping } from '../utils/polygon-utils'
@@ -7,7 +8,6 @@ import { OCEAN_HEIGHT_OFFSET } from '../constants'
 import { mirrorTexture } from '../utils/mirror'
 
 type IntersectionType = 'partial' | 'full'
-type MeshPosition = { x: number; z: number }
 
 interface PolygonClipInstruction {
   polygons: Point2D[][]
@@ -129,7 +129,7 @@ export class Ocean implements ChunkObserver {
   private readonly texasBounds = new BABYLON.Vector4(1e6, 1e6, -1e6, -1e6)
   private instances: Map<string, BABYLON.InstancedMesh> = new Map()
   private customMeshes: Map<string, BABYLON.Mesh[]> = new Map()
-  private processingChunks: Set<string> = new Set()
+  private processingChunks = new Map<string, symbol>()
   private deferredChunks: Array<Chunk> = []
   private islands: IslandRecord[] = []
 
@@ -201,6 +201,7 @@ export class Ocean implements ChunkObserver {
   onChunkUnloaded(chunk: Chunk): void {
     const key = `${chunk.gridX}_${chunk.gridZ}`
     this.processingChunks.delete(key)
+    this.deferredChunks = this.deferredChunks.filter((c) => c.gridX !== chunk.gridX || c.gridZ !== chunk.gridZ)
 
     const queueIndex = this.processingQueue.findIndex((c) => `${c.gridX}_${c.gridZ}` === key)
     if (queueIndex !== -1) {
@@ -237,6 +238,7 @@ export class Ocean implements ChunkObserver {
   }
 
   dispose(): void {
+    this.processingChunks.clear()
     this.processingQueue.length = 0
     this.isProcessingQueue = false
 
@@ -265,7 +267,7 @@ export class Ocean implements ChunkObserver {
 
     while (this.processingQueue.length > 0 && performance.now() - startTime < this.FRAME_BUDGET_MS) {
       const chunk = this.processingQueue.shift()!
-      this.processChunkImmediate(chunk)
+      void this.processChunkImmediate(chunk)
     }
 
     if (this.processingQueue.length > 0) {
@@ -275,21 +277,22 @@ export class Ocean implements ChunkObserver {
     }
   }
 
-  private processChunkImmediate(chunk: Chunk): void {
+  private async processChunkImmediate(chunk: Chunk) {
     const key = `${chunk.gridX}_${chunk.gridZ}`
 
     if (this.instances.has(key) || this.customMeshes.has(key) || this.processingChunks.has(key)) {
       return
     }
 
-    this.processingChunks.add(key)
+    const job = Symbol(key)
+    this.processingChunks.set(key, job)
     try {
       const tileCenter: Point2D = { x: chunk.worldX + this.halfSize, z: chunk.worldZ + this.halfSize }
-      this.processChunk(chunk, tileCenter, key)
+      await this.processChunk(chunk, tileCenter, key, job)
     } catch (err) {
       console.error(`Failed to create ocean mesh for chunk ${key}:`, err)
     } finally {
-      this.processingChunks.delete(key)
+      if (this.processingChunks.get(key) === job) this.processingChunks.delete(key)
     }
   }
 
@@ -395,7 +398,7 @@ export class Ocean implements ChunkObserver {
     return 'partial'
   }
 
-  private processChunk(chunk: Chunk, tileCenter: Point2D, key: string): void {
+  private async processChunk(chunk: Chunk, tileCenter: Point2D, key: string, job: symbol) {
     const clipInstructions = this.collectPolygonClipInstructions(tileCenter)
 
     if (clipInstructions.length === 0) {
@@ -405,128 +408,14 @@ export class Ocean implements ChunkObserver {
 
     const land = clipInstructions.filter((i) => i.operation === 'cut_water').flatMap((i) => i.polygons)
     const lakes = clipInstructions.filter((i) => i.operation === 'add_water').flatMap((i) => i.polygons)
-    const polygons: Point2D[][] = []
-    const point = { x: 0, z: 0 }
-    // One surface per 50cm cell, even where several islands or lakes share a chunk.
-    for (let z = chunk.worldZ; z < chunk.worldZ + this.size; z += 0.5) {
-      let start: number | null = null
-      for (let x = chunk.worldX; x <= chunk.worldX + this.size; x += 0.5) {
-        point.x = x + 0.25
-        point.z = z + 0.25
-        const water = x < chunk.worldX + this.size && (!land.some((p) => PolygonClipping.pointInPolygon(point, p)) || lakes.some((p) => PolygonClipping.pointInPolygon(point, p)))
-        if (water && start === null) start = x
-        if (!water && start !== null) {
-          polygons.push([
-            { x: start, z },
-            { x, z },
-            { x, z: z + 0.5 },
-            { x: start, z: z + 0.5 },
-          ])
-          start = null
-        }
-      }
-    }
-    if (polygons.length) this.customMeshes.set(key, [this.createMergedOceanMesh(chunk, polygons, key)])
-  }
-
-  private createMergedOceanMesh(chunk: Chunk, polygonVerticesArray: Point2D[][], key: string, heightOverride?: number): BABYLON.Mesh {
-    if (polygonVerticesArray.length === 0) {
-      throw new Error(`No polygons provided for merged ocean mesh creation in chunk ${key}`)
-    }
-
-    const meshPosition = { x: this.size * chunk.gridX + this.halfSize, z: this.size * chunk.gridZ + this.halfSize }
-
-    const mergedVertices: number[] = []
-    const mergedIndices: number[] = []
-    let vertexOffset = 0
-
-    for (const polygonVertices of polygonVerticesArray) {
-      if (polygonVertices.length < 3) continue // Skip invalid polygons @todo should we warn?
-
-      const meshData = this.generateWorldVertices(polygonVertices)
-      if (meshData.vertices.length === 0) continue // @todo should we warn?
-
-      const localVertices = this.convertToLocalVertices(meshData.vertices, meshPosition)
-      mergedVertices.push(...localVertices)
-      const adjustedIndices = meshData.indices.map((index) => index + Math.floor(vertexOffset / 3))
-      mergedIndices.push(...adjustedIndices)
-      vertexOffset += localVertices.length
-    }
-
-    if (mergedVertices.length === 0) {
-      throw new Error(`No valid geometry generated for merged ocean mesh in chunk ${key}`)
-    }
-    const mesh = this.createMeshWithGeometry(key, 0, mergedVertices, mergedIndices, chunk, meshPosition)
-    this.configureMeshProperties(mesh, heightOverride)
-    return mesh
-  }
-
-  private generateWorldVertices(polygonVertices: Point2D[]): { vertices: number[]; indices: number[] } {
-    const polygonGeometry = { shouldCreateMesh: true, vertices: polygonVertices, polygons: [polygonVertices] }
-    const meshData = PolygonClipping.createMeshVertices(polygonGeometry, 0)
-    return {
-      vertices: Array.from(meshData.vertices),
-      indices: meshData.indices,
-    }
-  }
-
-  private convertToLocalVertices(worldVertices: number[], meshPosition: MeshPosition): number[] {
-    const localVertices: number[] = []
-    for (let i = 0; i < worldVertices.length; i += 3) {
-      const worldX = worldVertices[i]
-      const worldY = worldVertices[i + 1]
-      const worldZ = worldVertices[i + 2]
-      localVertices.push(worldX - meshPosition.x, worldY, worldZ - meshPosition.z)
-    }
-    return localVertices
-  }
-
-  private createMeshWithGeometry(key: string, meshIndex: number, localVertices: number[], indices: number[], chunk: Chunk, meshPosition: MeshPosition): BABYLON.Mesh {
-    const mesh = new BABYLON.Mesh(`ocean_clipped_${key}_${meshIndex}`, this.scene)
-    const vertexData = this.createVertexData(localVertices, indices, chunk, meshPosition)
-    vertexData.applyToMesh(mesh)
-    mesh.position.set(meshPosition.x, 0, meshPosition.z)
-    return mesh
-  }
-
-  private createVertexData(localVertices: number[], indices: number[], chunk: Chunk, meshPosition: MeshPosition): BABYLON.VertexData {
-    const vertexData = new BABYLON.VertexData()
-    vertexData.positions = localVertices
-    vertexData.indices = indices // Use the proper earcut indices
-    vertexData.uvs = this.generateUVCoordinates(localVertices, chunk, meshPosition)
-    vertexData.normals = this.generateNormals(localVertices)
-    return vertexData
-  }
-
-  private generateUVCoordinates(localVertices: number[], chunk: Chunk, meshPosition: MeshPosition): number[] {
-    const uvs: number[] = []
-    const vertexCount = localVertices.length / 3
-    for (let i = 0; i < vertexCount; i++) {
-      const localX = localVertices[i * 3]
-      const localZ = localVertices[i * 3 + 2]
-      const worldX = localX + meshPosition.x
-      const worldZ = localZ + meshPosition.z
-      const u = (worldX - chunk.worldX) / this.size
-      const v = (worldZ - chunk.worldZ) / this.size
-      uvs.push(u, v)
-    }
-    return uvs
-  }
-
-  private generateNormals(localVertices: number[]): number[] {
-    const normals: number[] = []
-    const vertexCount = localVertices.length / 3
-    for (let i = 0; i < vertexCount; i++) {
-      normals.push(0, 1, 0)
-    }
-    return normals
-  }
-
-  private configureMeshProperties(mesh: BABYLON.Mesh, heightOverride?: number): void {
+    const geo = await runCompute((worker) => worker.oceanMesh(chunk.worldX, chunk.worldZ, this.size, land, lakes))
+    if (this.processingChunks.get(key) !== job || !geo.indices.length) return
+    const mesh = new BABYLON.Mesh('ocean_clipped_' + key + '_0', this.scene)
+    const data = new BABYLON.VertexData()
+    Object.assign(data, geo)
+    data.applyToMesh(mesh)
     mesh.material = this.mesh.material
-    const yPosition = heightOverride !== undefined ? heightOverride : OCEAN_HEIGHT_OFFSET
-    mesh.position.set(mesh.position.x, yPosition, mesh.position.z)
-    mesh.setEnabled(true)
-    mesh.isVisible = true
+    mesh.position.set(tileCenter.x, OCEAN_HEIGHT_OFFSET, tileCenter.z)
+    this.customMeshes.set(key, [mesh])
   }
 }

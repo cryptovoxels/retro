@@ -1,5 +1,7 @@
-import { afterEach, expect, test } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 import { Ocean } from '../src/terrain/ocean'
+
+vi.mock('../src/mono-pool', () => ({ runCompute: async (work: any) => work(await import('../src/monoworker/ocean-mesh')) }))
 
 let engine: BABYLON.NullEngine
 let scene: BABYLON.Scene
@@ -13,6 +15,7 @@ function oceanGrid() {
   engine = new BABYLON.NullEngine()
   scene = new BABYLON.Scene(engine)
   const ocean: any = Object.create(Ocean.prototype)
+  ocean.processingChunks = new Map()
   ocean.size = 48
   ocean.halfSize = 24
   ocean.scene = scene
@@ -78,9 +81,9 @@ function oceanGrid() {
   return ocean
 }
 
-test('50cm water cells exclude overlapping islands, preserve lakes, and never overlap', () => {
+test('50cm water cells exclude overlapping islands, preserve lakes, and never overlap', async () => {
   const ocean = oceanGrid()
-  ocean.processChunk({ worldX: 0, worldZ: 0, gridX: 0, gridZ: 0 }, { x: 24, z: 24 }, '0_0')
+  await ocean.processChunkImmediate({ worldX: 0, worldZ: 0, gridX: 0, gridZ: 0 })
   const meshes = ocean.customMeshes.get('0_0')
   expect(meshes).toHaveLength(1)
   const mesh = meshes[0]
@@ -88,7 +91,7 @@ test('50cm water cells exclude overlapping islands, preserve lakes, and never ov
   const indices = mesh.getIndices()
   let area = 0
   for (let i = 0; i < indices.length; i += 3) {
-    const [a, b, c] = indices.slice(i, i + 3).map((n: number) => ({ x: positions[n * 3] + 24, z: positions[n * 3 + 2] + 24 }))
+    const [a, b, c] = Array.from(indices.slice(i, i + 3), (n: number) => ({ x: positions[n * 3] + 24, z: positions[n * 3 + 2] + 24 }))
     area += Math.abs((b.x - a.x) * (c.z - a.z) - (b.z - a.z) * (c.x - a.x)) / 2
   }
   // 12m x 8m union of land, with a 2m x 2m lake.
@@ -102,18 +105,28 @@ test('50cm water cells exclude overlapping islands, preserve lakes, and never ov
   expect(hits(20, 20)).toBe(true)
 })
 
-test('clipped water uses the same texture orientation and scale as instanced ground', () => {
+test('clipped water matches ground UVs and faces upward', async () => {
   const ocean = oceanGrid()
-  const positions = ocean.mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
-  const uvs = ocean.mesh.getVerticesData(BABYLON.VertexBuffer.UVKind)
-  expect(ocean.generateUVCoordinates(positions, { worldX: 0, worldZ: 0 }, { x: 24, z: 24 })).toEqual(Array.from(uvs))
+  await ocean.processChunkImmediate({ worldX: 0, worldZ: 0, gridX: 0, gridZ: 0 })
+  const mesh = ocean.customMeshes.get('0_0')[0]
+  const vertices = mesh.getVerticesData(BABYLON.VertexBuffer.PositionKind)
+  const uvs = mesh.getVerticesData(BABYLON.VertexBuffer.UVKind)
+  for (let i = 0; i < uvs.length / 2; i++) {
+    expect(uvs[i * 2]).toBeCloseTo((vertices[i * 3] + 24) / 48)
+    expect(uvs[i * 2 + 1]).toBeCloseTo((vertices[i * 3 + 2] + 24) / 48)
+  }
   const normals: number[] = []
-  const data = ocean.generateWorldVertices([
-    { x: 0, z: 0 },
-    { x: 1, z: 0 },
-    { x: 1, z: 1 },
-    { x: 0, z: 1 },
-  ])
-  BABYLON.VertexData.ComputeNormals(data.vertices, data.indices, normals)
+  BABYLON.VertexData.ComputeNormals(vertices, mesh.getIndices(), normals)
   expect(normals[1]).toBeGreaterThan(0)
+})
+
+test('an unloaded chunk drops its pending water mesh', async () => {
+  const ocean = oceanGrid(),
+    chunk = { worldX: 0, worldZ: 0, gridX: 0, gridZ: 0 }
+  ocean.processingQueue = []
+  ocean.deferredChunks = []
+  const job = ocean.processChunkImmediate(chunk)
+  ocean.onChunkUnloaded(chunk)
+  await job
+  expect(ocean.customMeshes.size).toBe(0)
 })

@@ -23,7 +23,7 @@ test('placed features freeze, then edits update world bounds and picking', () =>
   const f = feature()
   freezeFeature(f)
   expect(f.mesh.isWorldMatrixFrozen).toBe(true)
-  expect(f.mesh.material.isFrozen).toBe(true)
+  expect(f.mesh.material.isFrozen).toBe(false)
   thawFeature(f)
   f.mesh.position.x = 10
   freezeFeature(f)
@@ -63,7 +63,7 @@ test('group editing and animation keep descendants dynamic', () => {
   expect(child.mesh.isWorldMatrixFrozen).toBe(false)
 })
 
-test('late replacement meshes and materials freeze independently', () => {
+test('late replacement meshes freeze their own transform', () => {
   const f = feature()
   freezeFeature(f)
   f.mesh.dispose()
@@ -72,16 +72,18 @@ test('late replacement meshes and materials freeze independently', () => {
   f.mesh.material = new BABYLON.StandardMaterial('replacement', scene)
   freezeFeature(f)
   expect(f.mesh.isWorldMatrixFrozen).toBe(true)
-  expect(f.mesh.material.isFrozen).toBe(true)
+  expect(f.mesh.material.isFrozen).toBe(false)
 })
 
 test('instances retain their source material and independent placement', () => {
   const source = feature('cube')
   const instance = feature('cube', source.mesh.createInstance('instance'))
   instance.mesh.position.x = 8
+  source.mesh.material.freeze()
   freezeFeature(source)
   freezeFeature(instance)
   thawFeature(instance)
+  expect(source.mesh.material.isFrozen).toBe(true)
   instance.mesh.position.x = 12
   freezeFeature(instance)
   expect(instance.mesh.material).toBe(source.mesh.material)
