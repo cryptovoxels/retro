@@ -1,5 +1,5 @@
 import { OpenSeaNftModelDetailedV2, OpenSeaNftModelDetailedV2Extended, TraitRecord } from '../../common/messages/api-opensea'
-import { OPENSEA_BASE_CHAIN_ID, openseaAssetsChainSlug, readNftUrl } from '../../common/helpers/nft-url'
+import { TEZOS_CHAIN_ID, OPENSEA_BASE_CHAIN_ID, openseaAssetsChainSlug, readNftUrl } from '../../common/helpers/nft-url'
 
 export { OPENSEA_BASE_CHAIN_ID, openseaAssetsChainSlug, readNftUrl }
 
@@ -48,7 +48,7 @@ export const opensea = async (contract: string, token: string, chain_id = 1): Pr
     },
     creator: nftData.creator,
     owners: nftData.owners,
-    permalink: `https://opensea.io/assets/${nftData.chain}/${nftData.contract}/${nftData.identifier}`,
+    permalink: (nftData as any).permalink || `https://opensea.io/assets/${nftData.chain}/${nftData.contract}/${nftData.identifier}`,
   }
 }
 
@@ -59,7 +59,7 @@ function mapOpenseaV2ToNFTMetadata(data: OpenSeaNftModelDetailedV2 & { total_sup
 
   return {
     identifier: data.identifier,
-    chain: openseaAssetsChainSlug(chain_id),
+    chain: chain_id === TEZOS_CHAIN_ID ? 'tezos' : openseaAssetsChainSlug(chain_id),
     contract: data.contract,
     animation_url: data.animation_url || null,
     image_url: data.image_url || data.display_image_url || undefined,
@@ -94,6 +94,7 @@ function mapOpenseaV2ToNFTMetadata(data: OpenSeaNftModelDetailedV2 & { total_sup
     opensea_url: data.opensea_url,
     display_image_url: data.display_image_url,
     rarity: data.rarity,
+    permalink: (data as any).permalink,
     ...(data.total_supply != null ? { total_supply: data.total_supply } : {}),
   } as OpenSeaNftModelDetailedV2Extended & { total_supply?: number }
 }

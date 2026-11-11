@@ -1,0 +1,16 @@
+packages:
+  - name: parcels
+    functions:
+      - name: rehost
+        runtime: nodejs:24
+        main: main
+        web: true
+        webSecure: '${REHOST_TOKEN}'
+        environment:
+          UGC_ACCESS: '${UGC_ACCESS}'
+          UGC_SECRET: '${UGC_SECRET}'
+          FULLBUCKET_ACCESS: '${FULLBUCKET_ACCESS}'
+          FULLBUCKET_SECRET: '${FULLBUCKET_SECRET}'
+        limits:
+          timeout: 150000
+          memory: 1024

@@ -209,6 +209,9 @@ importers:
       io-ts-to-json-schema:
         specifier: ^0.2.0
         version: 0.2.0(fp-ts@2.16.11)(io-ts@2.2.22(fp-ts@2.16.11))
+      ipaddr.js:
+        specifier: 1.9.1
+        version: 1.9.1
       ix:
         specifier: ^4.5.2
         version: 4.6.1

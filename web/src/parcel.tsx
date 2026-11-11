@@ -14,6 +14,7 @@ import { ActivitySection } from './activity'
 import { ParcelMetrics as Metrics } from './components/metrics'
 import { getParcelIdFromPath } from './helpers/coords-nav'
 import { route } from 'preact-router'
+import { readNftUrl } from '../../common/helpers/nft-url'
 import { truncate } from './lib/string-utils'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
 import { sidebarClosed } from '../../src/store'
@@ -38,6 +39,10 @@ export interface State {
   tab: SidebarTab
   transferring?: boolean
   transferMessage?: string
+  nftifying?: boolean
+  nftifyMessage?: string
+  rehosting?: boolean
+  rehostMessage?: string
 }
 
 const tabs: { id: SidebarTab; label: string }[] = [
@@ -88,6 +93,31 @@ export default class Parcel extends Component<Props, State> {
     return this.state.parcel && this.helper?.isOwner(app.state.wallet)
   }
 
+  // image features with a marketplace nft link the tasklet can flip to nft-image
+  get nftifyCount() {
+    const features = (this.state.parcel as any)?.content?.features || []
+    return features.filter((f: any) => f?.type === 'image' && typeof f.link === 'string' && readNftUrl(f.link)).length
+  }
+
+  nftify = async () => {
+    if (!this.isOwner || this.state.nftifying) return
+    const id = this.state.parcelId
+    this.setState({ nftifying: true, nftifyMessage: '' })
+    try {
+      const response = await cachedFetch(`/api/parcels/${id}/nftify`, { method: 'POST', credentials: 'include', cache: 'reload' })
+      const result = await response.json()
+      if (!result.success) throw new Error()
+      if (result.changed) await invalidateUrl(`/api/parcels/${id}.json`, true)
+      if (id !== this.state.parcelId) return
+      this.setState({ nftifyMessage: result.conflict ? 'Parcel changed while converting. Try again.' : `Converted ${result.count} images.` })
+      if (result.changed) await this.fetch(id)
+    } catch {
+      if (id === this.state.parcelId) this.setState({ nftifyMessage: 'Conversion failed. Try again.' })
+    } finally {
+      if (id === this.state.parcelId) this.setState({ nftifying: false })
+    }
+  }
+
   get canEdit() {
     return this.isOwner || (app.signedIn && this.helper?.isContributor(app.state.wallet))
   }
@@ -98,6 +128,34 @@ export default class Parcel extends Component<Props, State> {
 
   onAppChange = () => {
     this.forceUpdate()
+  }
+
+  rehost = async () => {
+    if (!this.canEdit || this.state.rehosting) return
+    const id = this.state.parcelId
+    this.setState({ rehosting: true, rehostMessage: '' })
+    try {
+      const response = await cachedFetch(`/api/parcels/${id}/rehost`, { method: 'POST', credentials: 'include', cache: 'reload' })
+      const result = await response.json()
+      if (!result.success) throw new Error('Rehost failed.')
+      if (result.changed) await invalidateUrl(`/api/parcels/${id}.json`)
+      if (id !== this.state.parcelId) return
+      this.setState({
+        rehostMessage: result.running
+          ? 'Rehost is already running. Try again shortly.'
+          : result.conflict
+            ? 'Parcel changed during rehost. Try again.'
+            : result.missing?.length
+              ? `Rehost finished. ${result.missing.length} assets could not be copied.`
+              : result.changed
+                ? 'Rehosted.'
+                : 'Already rehosted.',
+      })
+    } catch {
+      if (id === this.state.parcelId) this.setState({ rehostMessage: 'Rehost failed. Try again.' })
+    } finally {
+      if (id === this.state.parcelId) this.setState({ rehosting: false })
+    }
   }
 
   download = async () => {
@@ -189,7 +247,7 @@ export default class Parcel extends Component<Props, State> {
     }
     const { parcel } = await f.json()
 
-    this.setState({ parcel, parcelId, nearby: [], loading: false })
+    this.setState({ parcel, parcelId, nearby: [], loading: false, ...(parcelId !== this.state.parcelId ? { nftifying: false, nftifyMessage: '', rehosting: false, rehostMessage: '' } : {}) })
     this.abort = null
   }
 
@@ -399,6 +457,24 @@ export default class Parcel extends Component<Props, State> {
         )}
         {this.state.parcel ? <ParcelEvents parcel={this.state.parcel} /> : null}
 
+        {this.isOwner && this.nftifyCount > 0 && (
+          <div class="f">
+            <label>tasklets</label>
+            <button type="button" disabled={this.state.nftifying} onClick={this.nftify}>
+              {this.state.nftifying ? 'converting...' : `auto-convert ${this.nftifyCount} image${this.nftifyCount === 1 ? '' : 's'} to nft-images`}
+            </button>
+            {this.state.nftifyMessage && <p role="status">{this.state.nftifyMessage}</p>}
+          </div>
+        )}
+
+        {this.canEdit && (
+          <div class="f">
+            <button type="button" disabled={this.state.rehosting} onClick={this.rehost}>
+              {this.state.rehosting ? 'Rehosting...' : 'Rehost'}
+            </button>
+            {this.state.rehostMessage && <p role="status">{this.state.rehostMessage}</p>}
+          </div>
+        )}
         {this.canEdit && (
           <details class="inspector-section">
             <summary>parcel download / upload</summary>

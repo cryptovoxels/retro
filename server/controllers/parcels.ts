@@ -13,6 +13,8 @@ import { PassportStatic } from 'passport'
 import { Express } from 'express'
 import { VoxelsUser } from '../user'
 import { isAddress } from 'ethers'
+import { nftifyParcel } from '../../compiler/src/nftify'
+import { rehostParcel } from '../../compiler/src/parcel'
 
 const HEADINGS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'] as const
 
@@ -257,6 +259,36 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
     cache('5 second'),
     createRequestHandlerForQuery(db, 'parcels/get-users-rights-by-parcel', 'users', (req) => [req.params.id]),
   )
+  // owner tasklet: image features linking to a marketplace nft page become nft-images
+  app.post('/api/parcels/:id/nftify', passport.authenticate('jwt', { session: false }), async (req, res) => {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id < 1 || id > 2147483647) return res.status(400).json({ success: false })
+    try {
+      const parcel = await Parcel.load(id)
+      if (!parcel?.content) return res.status(404).json({ success: false })
+      if ((await authParcel(parcel, req.user as VoxelsUser)) !== 'Owner') return res.status(403).json({ success: false })
+      res.json({ success: true, ...(await nftifyParcel(id, parcel.content, parcel.owner)) })
+    } catch (e) {
+      console.error(`[nftify] parcel ${id}`, e)
+      res.status(500).json({ success: false })
+    }
+  })
+
+  app.post('/api/parcels/:id/rehost', passport.authenticate('jwt', { session: false }), async (req, res) => {
+    const id = Number(req.params.id)
+    if (!Number.isInteger(id) || id < 1 || id > 2147483647) return res.status(400).json({ success: false })
+    try {
+      const parcel = await Parcel.load(id)
+      if (!parcel) return res.status(404).json({ success: false })
+      if (!(await authParcel(parcel, req.user as VoxelsUser))) return res.status(403).json({ success: false })
+      const result = await rehostParcel(id)
+      res.status(result.running ? 202 : 200).json({ success: true, ...result })
+    } catch (e) {
+      console.error(`[rehost] parcel ${id}`, e)
+      res.status(500).json({ success: false, error: 'Rehost failed.' })
+    }
+  })
+
   app.post('/api/parcels/:id/revert', passport.authenticate(['jwt', 'anonymous'], { session: false }), revertParcel)
   app.post('/api/parcels/:id/sandbox-rollback', passport.authenticate(['jwt', 'anonymous'], { session: false }), sandboxRollback)
 
