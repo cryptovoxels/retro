@@ -9,8 +9,13 @@ export interface Point2D {
   z: number
 }
 
-export function snapRing(ring: number[][]): Point2D[] {
-  const points = ring.map(([x, z]) => ({ x: Math.round(x * 200) / 2, z: Math.round(z * 200) / 2 }))
+// Parcel mesh vertices start half a voxel inside their integer X/Z bounds.
+export function groundOffset(texture?: string) {
+  return texture?.endsWith('-ground.png') ? 0.25 : 0
+}
+
+export function snapRing(ring: number[][], offset = 0): Point2D[] {
+  const points = ring.map(([x, z]) => ({ x: Math.round(x * 200) / 2 + offset, z: Math.round(z * 200) / 2 + offset }))
   return points.filter((p, i) => {
     const previous = points[(i + points.length - 1) % points.length]
     return p.x !== previous.x || p.z !== previous.z

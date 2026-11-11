@@ -100,7 +100,7 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 - [collectibles](#collectibles), 3 routes
 - [collections](#collections), 9 routes
 - [wearables](#wearables), 8 routes
-- [islands](#islands), 3 routes
+- [islands](#islands), 4 routes
 - [spaces](#spaces), 2 routes
 - [events](#events), 6 routes
 - [search](#search), 1 route
@@ -1224,9 +1224,25 @@ Same handler as `/w/{hash}/{format}`. `token_id` is read as hex when it looks li
 
 ## islands
 
+- [`GET /api/islands/{id}/ground.bin`](#get-apiislandsidgroundbin) Island terrain voxels
 - [`GET /api/islands.json`](#get-apiislandsjson) Every island with its shoreline
 - [`GET /api/islands-metadata.json`](#get-apiislands-metadatajson) Island names and positions
 - [`GET /api/islands/{slug}.json`](#get-apiislandsslugjson) One island and every parcel on it
+
+### GET /api/islands/{id}/ground.bin
+
+Island terrain voxels
+
+Four little-endian signed int32 values (world x, world z, width, depth) followed by sixteen layers of 50 cm voxels, starting at world y = -1.26 m. Each layer contains width times depth bytes in z-major rows. Byte 255 is air. Values 0 through 63 index the ground atlas. The byte length also identifies older eight-layer volumes and single-layer maps with one-metre cells.
+
+**parameters**
+
+- `id` (path, required) integer
+
+**answers**
+
+- `200` `application/octet-stream`, bytes
+- `404` Island has no ground map
 
 ### GET /api/islands.json
 

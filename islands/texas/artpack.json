@@ -1,0 +1,1728 @@
+{
+  "atlas": "https://ugc.voxels.com/artpacks/texas/v1/textures/texas-thrift.png",
+  "models": [
+    {
+      "id": "1eb6d5cf-1c31-4f01-95d6-8a6898ee93ec",
+      "name": "simple candycane",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/1eb6d5cf-1c31-4f01-95d6-8a6898ee93ec.vox",
+      "extent": 32
+    },
+    {
+      "id": "1175c47e-1259-4a56-a680-bf6c1d4fefbe",
+      "name": "Microphone on a stand",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/1175c47e-1259-4a56-a680-bf6c1d4fefbe.vox",
+      "extent": 32
+    },
+    {
+      "id": "b2c0c3d4-7868-475c-bbb4-51f839e47955",
+      "name": "grass",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/b2c0c3d4-7868-475c-bbb4-51f839e47955.vox",
+      "extent": 32
+    },
+    {
+      "id": "f12dda48-933d-459c-a2aa-55c5c9cdde86",
+      "name": "UO1",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/f12dda48-933d-459c-a2aa-55c5c9cdde86.vox",
+      "extent": 27
+    },
+    {
+      "id": "1e18d8b7-bae5-4173-a146-cf3b14a34a7a",
+      "name": "Wall Skirting Board (brown/wood)",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/1e18d8b7-bae5-4173-a146-cf3b14a34a7a.vox",
+      "extent": 32
+    },
+    {
+      "id": "8626b461-a873-4d9b-b900-17c7d94f0074",
+      "name": "Red couch/sofa",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/8626b461-a873-4d9b-b900-17c7d94f0074.vox",
+      "extent": 32,
+      "seat": [
+        2.5,
+        12,
+        2.5
+      ]
+    },
+    {
+      "id": "8dd4dc41-e6cd-45e1-bc02-32129c71c703",
+      "name": "banny",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/8dd4dc41-e6cd-45e1-bc02-32129c71c703.vox",
+      "extent": 32
+    },
+    {
+      "id": "16801755-095f-4966-8343-ef321d325a4f",
+      "name": "buildby",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/16801755-095f-4966-8343-ef321d325a4f.vox",
+      "extent": 32
+    },
+    {
+      "id": "286c40b7-9e78-44d0-a0e5-ce72793852d7",
+      "name": "Hoodie",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/286c40b7-9e78-44d0-a0e5-ce72793852d7.vox",
+      "extent": 29
+    },
+    {
+      "id": "e755389b-fe9f-47ac-98fe-90a2be05790d",
+      "name": "Buy Yeti One Sided",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e755389b-fe9f-47ac-98fe-90a2be05790d.vox",
+      "extent": 32
+    },
+    {
+      "id": "7808aefc-dbc0-439f-a27a-3e663303193e",
+      "name": "Sliding Door",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/7808aefc-dbc0-439f-a27a-3e663303193e.vox",
+      "extent": 32
+    },
+    {
+      "id": "44ae6763-9297-4222-9b77-e42da8bdc62a",
+      "name": "Wooden Ladel",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/44ae6763-9297-4222-9b77-e42da8bdc62a.vox",
+      "extent": 32
+    },
+    {
+      "id": "e3bb69b6-3a38-42d8-9ed8-b8671e72b253",
+      "name": "cosmo",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e3bb69b6-3a38-42d8-9ed8-b8671e72b253.vox",
+      "extent": 32
+    },
+    {
+      "id": "3758a9c4-8c46-4677-a89d-833642a60e90",
+      "name": "Register",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/3758a9c4-8c46-4677-a89d-833642a60e90.vox",
+      "extent": 32
+    },
+    {
+      "id": "6a515dc8-c57c-4fdc-939e-a3c4f2a5e6fc",
+      "name": "Nave",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/6a515dc8-c57c-4fdc-939e-a3c4f2a5e6fc.vox",
+      "extent": 32
+    },
+    {
+      "id": "0edd30d0-0673-47a5-af4d-db3ca46475f1",
+      "name": "Rebar Cutter",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/0edd30d0-0673-47a5-af4d-db3ca46475f1.vox",
+      "extent": 32
+    },
+    {
+      "id": "e435fdaf-7d0f-4221-af92-7994455265a4",
+      "name": "Surveillance Camera",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e435fdaf-7d0f-4221-af92-7994455265a4.vox",
+      "extent": 32
+    },
+    {
+      "id": "6768502c-fabd-44d3-adbb-7df3d906fc10",
+      "name": "pos system",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/6768502c-fabd-44d3-adbb-7df3d906fc10.vox",
+      "extent": 31
+    },
+    {
+      "id": "4e35b800-d020-4c6f-9b9f-48c9c012f8ce",
+      "name": "Citizen BB",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/4e35b800-d020-4c6f-9b9f-48c9c012f8ce.vox",
+      "extent": 32
+    },
+    {
+      "id": "0f6d7a11-c8c2-44cf-8ff4-de4401ec0d0b",
+      "name": "Shopping Bag",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/0f6d7a11-c8c2-44cf-8ff4-de4401ec0d0b.vox",
+      "extent": 32
+    },
+    {
+      "id": "e3675a05-1d3e-42ee-8769-614e0c33ae66",
+      "name": "stone frame",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e3675a05-1d3e-42ee-8769-614e0c33ae66.vox",
+      "extent": 32
+    },
+    {
+      "id": "6573a257-c667-4350-9615-10e07428b271",
+      "name": "black dog",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/6573a257-c667-4350-9615-10e07428b271.vox",
+      "extent": 32
+    },
+    {
+      "id": "54a8df2d-9ed3-4240-ba25-2d589f2b88f8",
+      "name": "Snowman with purple scarf",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/54a8df2d-9ed3-4240-ba25-2d589f2b88f8.vox",
+      "extent": 32
+    },
+    {
+      "id": "48c1ca82-4b0d-4449-9d5f-5b86104a6056",
+      "name": "Horror Telephone Booth",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/48c1ca82-4b0d-4449-9d5f-5b86104a6056.vox",
+      "extent": 32
+    },
+    {
+      "id": "fcac5fe4-d63c-4c72-82ca-4c355936b488",
+      "name": "Double Monitor",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/fcac5fe4-d63c-4c72-82ca-4c355936b488.vox",
+      "extent": 22
+    },
+    {
+      "id": "5430ce3c-e3e5-4cb8-a631-9c8f9540f505",
+      "name": "藍色禮物盒",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/5430ce3c-e3e5-4cb8-a631-9c8f9540f505.vox",
+      "extent": 32
+    },
+    {
+      "id": "579c4e8c-d0a9-4ae7-90ae-10e0364af053",
+      "name": "Carpet",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/579c4e8c-d0a9-4ae7-90ae-10e0364af053.vox",
+      "extent": 32
+    },
+    {
+      "id": "950be83f-e4c6-4544-9278-a22a5f1c8b62",
+      "name": "tree 2",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/950be83f-e4c6-4544-9278-a22a5f1c8b62.vox",
+      "extent": 32
+    },
+    {
+      "id": "e83b8fb0-c759-4e79-a99e-a6e2a6cf728d",
+      "name": "golden pillar side",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e83b8fb0-c759-4e79-a99e-a6e2a6cf728d.vox",
+      "extent": 32
+    },
+    {
+      "id": "20b4f5e4-b727-4295-ae81-3169c4f9f611",
+      "name": "GMetaOne flower",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/20b4f5e4-b727-4295-ae81-3169c4f9f611.vox",
+      "extent": 32
+    },
+    {
+      "id": "20f970e8-e769-4a09-aa11-606b85e4e3d6",
+      "name": "bang",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/20f970e8-e769-4a09-aa11-606b85e4e3d6.vox",
+      "extent": 32
+    },
+    {
+      "id": "91e85ba2-e7a5-4609-af5c-b28228e71745",
+      "name": "rare gem 4",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/91e85ba2-e7a5-4609-af5c-b28228e71745.vox",
+      "extent": 32
+    },
+    {
+      "id": "c0e93dd7-5ab8-43d0-8caf-fa76fc565537",
+      "name": "Caldron with Legs",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/c0e93dd7-5ab8-43d0-8caf-fa76fc565537.vox",
+      "extent": 32
+    },
+    {
+      "id": "f2462f74-1ee4-4326-bbf6-809425b3c4d3",
+      "name": "dianti",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/f2462f74-1ee4-4326-bbf6-809425b3c4d3.vox",
+      "extent": 32
+    },
+    {
+      "id": "390cefcf-2cc7-4d34-8d47-5a5b096caf14",
+      "name": "Water Gnome",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/390cefcf-2cc7-4d34-8d47-5a5b096caf14.vox",
+      "extent": 32
+    },
+    {
+      "id": "caceb226-c43f-4c2a-88d6-4aac0926cb23",
+      "name": "电脑-1号",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/caceb226-c43f-4c2a-88d6-4aac0926cb23.vox",
+      "extent": 32
+    },
+    {
+      "id": "6a52d3fd-3e83-444b-a154-36695d7059e8",
+      "name": "Shiba lighter",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/6a52d3fd-3e83-444b-a154-36695d7059e8.vox",
+      "extent": 32
+    },
+    {
+      "id": "35db1fe2-5ab3-4ae4-8860-e60cb8e51305",
+      "name": "Floor Tiling 4",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/35db1fe2-5ab3-4ae4-8860-e60cb8e51305.vox",
+      "extent": 32
+    },
+    {
+      "id": "736bdf82-8894-4594-9cd1-b61e0bdddf6a",
+      "name": "服務員",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/736bdf82-8894-4594-9cd1-b61e0bdddf6a.vox",
+      "extent": 31
+    },
+    {
+      "id": "cd49e11a-ef49-4afd-938c-1a73c61dcc6d",
+      "name": "shoe",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/cd49e11a-ef49-4afd-938c-1a73c61dcc6d.vox",
+      "extent": 30
+    },
+    {
+      "id": "1b498d7b-aa3d-41f4-a17b-a493f17438d4",
+      "name": "Car jump-starter",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/1b498d7b-aa3d-41f4-a17b-a493f17438d4.vox",
+      "extent": 32
+    },
+    {
+      "id": "a5d83673-de6d-49b1-b596-5287f3027e22",
+      "name": "Ben Nolan",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/a5d83673-de6d-49b1-b596-5287f3027e22.vox",
+      "extent": 32
+    },
+    {
+      "id": "eb182bdc-c731-4520-8fc6-54f0af2a6b9f",
+      "name": "Stone Main 1",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/eb182bdc-c731-4520-8fc6-54f0af2a6b9f.vox",
+      "extent": 32
+    },
+    {
+      "id": "e8128d47-a1ba-417a-aa11-d896b719d212",
+      "name": "elevator",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e8128d47-a1ba-417a-aa11-d896b719d212.vox",
+      "extent": 32
+    },
+    {
+      "id": "0c6e8443-c31d-4258-bec2-be08a7648133",
+      "name": "mtest",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/0c6e8443-c31d-4258-bec2-be08a7648133.vox",
+      "extent": 32
+    },
+    {
+      "id": "abccab15-0cf5-4523-949f-e887f2d37ce2",
+      "name": "lazer",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/abccab15-0cf5-4523-949f-e887f2d37ce2.vox",
+      "extent": 32
+    },
+    {
+      "id": "97215e2e-cd57-4764-8c5d-fca84afd467f",
+      "name": "PunkCat #3722",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/97215e2e-cd57-4764-8c5d-fca84afd467f.vox",
+      "extent": 30
+    },
+    {
+      "id": "d64e155e-c753-424e-9971-321bb7b2702e",
+      "name": "monter1",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/d64e155e-c753-424e-9971-321bb7b2702e.vox",
+      "extent": 32
+    },
+    {
+      "id": "b563fb91-60a4-4520-a7ab-e051ca980389",
+      "name": "Pizza Pop Cooler",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/b563fb91-60a4-4520-a7ab-e051ca980389.vox",
+      "extent": 32
+    },
+    {
+      "id": "811d52f6-cb99-4f8e-902e-1627601e5081",
+      "name": "Circular Green Bonsai Tree",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/811d52f6-cb99-4f8e-902e-1627601e5081.vox",
+      "extent": 32
+    },
+    {
+      "id": "589668f8-f4f3-4760-a847-f8208e66a3b3",
+      "name": "wooden pedestal",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/589668f8-f4f3-4760-a847-f8208e66a3b3.vox",
+      "extent": 19
+    },
+    {
+      "id": "6d41e2ef-90cf-4efd-9709-02e4b7f93ceb",
+      "name": "No3",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/6d41e2ef-90cf-4efd-9709-02e4b7f93ceb.vox",
+      "extent": 32
+    },
+    {
+      "id": "469e2c48-8ac5-4601-b125-046530937092",
+      "name": "voxel brew",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/469e2c48-8ac5-4601-b125-046530937092.vox",
+      "extent": 32
+    },
+    {
+      "id": "fffe5641-7dc3-461e-abd8-b13e5acd6ce9",
+      "name": "DJ Board",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/fffe5641-7dc3-461e-abd8-b13e5acd6ce9.vox",
+      "extent": 25
+    },
+    {
+      "id": "5ab856da-e7ab-4046-b65d-4e4c541716b1",
+      "name": "mistletoe",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/5ab856da-e7ab-4046-b65d-4e4c541716b1.vox",
+      "extent": 32
+    },
+    {
+      "id": "4a78af33-52d9-468e-a5cc-0d6ef48daf6f",
+      "name": "torch ",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/4a78af33-52d9-468e-a5cc-0d6ef48daf6f.vox",
+      "extent": 32
+    },
+    {
+      "id": "e260a1e5-1207-48ce-a44d-80cbc5051621",
+      "name": "egg",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e260a1e5-1207-48ce-a44d-80cbc5051621.vox",
+      "extent": 32
+    },
+    {
+      "id": "93c375c9-e7d6-4c1e-8cda-0d5939bbcbff",
+      "name": "stair",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/93c375c9-e7d6-4c1e-8cda-0d5939bbcbff.vox",
+      "extent": 32
+    },
+    {
+      "id": "90ccbd0f-8b52-4afa-9676-4f3d904131a7",
+      "name": "Green Light",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/90ccbd0f-8b52-4afa-9676-4f3d904131a7.vox",
+      "extent": 32
+    },
+    {
+      "id": "792d583a-d02d-4741-a7fb-15f4ba7c9c29",
+      "name": "UPRIGHT PIANO",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/792d583a-d02d-4741-a7fb-15f4ba7c9c29.vox",
+      "extent": 32
+    },
+    {
+      "id": "b37cec9f-460f-41ce-b6d9-7c5781ffedc3",
+      "name": "Pole Base",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/b37cec9f-460f-41ce-b6d9-7c5781ffedc3.vox",
+      "extent": 32
+    },
+    {
+      "id": "5ef99917-7c6b-49cf-881a-657e6e1af576",
+      "name": "carpet round, orange / pink",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/5ef99917-7c6b-49cf-881a-657e6e1af576.vox",
+      "extent": 31
+    },
+    {
+      "id": "89d0cc75-d777-4cf4-b5a3-8034e6ff3b0f",
+      "name": "roll up door 2",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/89d0cc75-d777-4cf4-b5a3-8034e6ff3b0f.vox",
+      "extent": 32
+    },
+    {
+      "id": "7e11eb58-7fe5-4f60-a825-040e487c7fb5",
+      "name": "3F_wall",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/7e11eb58-7fe5-4f60-a825-040e487c7fb5.vox",
+      "extent": 30
+    },
+    {
+      "id": "22a58f43-86cd-446b-80e2-49d08f312e02",
+      "name": "22",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/22a58f43-86cd-446b-80e2-49d08f312e02.vox",
+      "extent": 32
+    },
+    {
+      "id": "73dad411-b2af-4772-837c-9e77a1fde801",
+      "name": "baby duck white",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/73dad411-b2af-4772-837c-9e77a1fde801.vox",
+      "extent": 32
+    },
+    {
+      "id": "390e0667-ce70-463d-8b09-012aec600873",
+      "name": "TRASHTOTERPISSINGTHESEC",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/390e0667-ce70-463d-8b09-012aec600873.vox",
+      "extent": 32
+    },
+    {
+      "id": "fd2ab9c4-fdb5-430e-a69b-09e5a44bb079",
+      "name": "beer",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/fd2ab9c4-fdb5-430e-a69b-09e5a44bb079.vox",
+      "extent": 32
+    },
+    {
+      "id": "93c09fcb-9c39-4bed-8456-8752c07c5560",
+      "name": "Fred's Kid",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/93c09fcb-9c39-4bed-8456-8752c07c5560.vox",
+      "extent": 32
+    },
+    {
+      "id": "a9029b04-5ba5-4dad-bb51-870a1dd66200",
+      "name": "分隔柱",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/a9029b04-5ba5-4dad-bb51-870a1dd66200.vox",
+      "extent": 32
+    },
+    {
+      "id": "e39e8757-d14b-4b30-8cdd-2fc8a2499cbe",
+      "name": "树1",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e39e8757-d14b-4b30-8cdd-2fc8a2499cbe.vox",
+      "extent": 31
+    },
+    {
+      "id": "ccde7186-d616-450b-a1c4-378389ab1aa1",
+      "name": "Statue Legs ",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/ccde7186-d616-450b-a1c4-378389ab1aa1.vox",
+      "extent": 32
+    },
+    {
+      "id": "2fdd171f-3379-423a-ad02-6e11b8404c7e",
+      "name": "chuan",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/2fdd171f-3379-423a-ad02-6e11b8404c7e.vox",
+      "extent": 32
+    },
+    {
+      "id": "2cb5c717-ea98-4139-b948-d1479be44ff0",
+      "name": "Parquet",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/2cb5c717-ea98-4139-b948-d1479be44ff0.vox",
+      "extent": 32
+    },
+    {
+      "id": "596d0c23-66d1-4fc6-aba1-97dd00408341",
+      "name": "Epic stools",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/596d0c23-66d1-4fc6-aba1-97dd00408341.vox",
+      "extent": 32,
+      "seat": [
+        4.5,
+        21,
+        0.5
+      ]
+    },
+    {
+      "id": "e65aa8f8-fcab-4526-90a7-820d7b3e7c88",
+      "name": "[ ch_bossbaay ]",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e65aa8f8-fcab-4526-90a7-820d7b3e7c88.vox",
+      "extent": 26
+    },
+    {
+      "id": "071d1b15-ee56-4ccb-a6f2-f2dfb9b48a0c",
+      "name": "prophet5",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/071d1b15-ee56-4ccb-a6f2-f2dfb9b48a0c.vox",
+      "extent": 32
+    },
+    {
+      "id": "1af8802d-a012-4b5d-a7ae-cd3008330934",
+      "name": "bench001",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/1af8802d-a012-4b5d-a7ae-cd3008330934.vox",
+      "extent": 32,
+      "seat": [
+        10.5,
+        15,
+        -0.5
+      ]
+    },
+    {
+      "id": "1fc5723e-653d-4cc0-b84e-f248e15ebddd",
+      "name": "Muskoka Chair (Yellow)",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/1fc5723e-653d-4cc0-b84e-f248e15ebddd.vox",
+      "extent": 32,
+      "seat": [
+        -4.5,
+        12,
+        2.5
+      ]
+    },
+    {
+      "id": "780b9da6-1063-4a93-838a-e7f355ba958e",
+      "name": "Yellow/White Awning (No Edges)",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/780b9da6-1063-4a93-838a-e7f355ba958e.vox",
+      "extent": 32
+    },
+    {
+      "id": "5fabc166-44e8-432e-8a95-98b4906505ec",
+      "name": "髮廊",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/5fabc166-44e8-432e-8a95-98b4906505ec.vox",
+      "extent": 28
+    },
+    {
+      "id": "14eab866-f190-4e38-af1a-71cf81f3ef35",
+      "name": "Gameboy+",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/14eab866-f190-4e38-af1a-71cf81f3ef35.vox",
+      "extent": 32
+    },
+    {
+      "id": "604e53ad-b420-49f6-ab02-90e713980a04",
+      "name": "Pink Tree",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/604e53ad-b420-49f6-ab02-90e713980a04.vox",
+      "extent": 32
+    },
+    {
+      "id": "55c3b05e-be5d-434b-a060-05443637848b",
+      "name": "Tree_01_by_Plexity",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/55c3b05e-be5d-434b-a060-05443637848b.vox",
+      "extent": 32
+    },
+    {
+      "id": "68e4e9be-246b-4b38-a2d9-3d9ed46f7339",
+      "name": "a simple tree",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/68e4e9be-246b-4b38-a2d9-3d9ed46f7339.vox",
+      "extent": 32
+    },
+    {
+      "id": "0f5f1dc7-3305-46ab-bea5-e99aa692855d",
+      "name": "dj record",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/0f5f1dc7-3305-46ab-bea5-e99aa692855d.vox",
+      "extent": 32
+    },
+    {
+      "id": "29dec7ac-dc8c-40ce-a55b-43259f3a44eb",
+      "name": "Watercolor Set",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/29dec7ac-dc8c-40ce-a55b-43259f3a44eb.vox",
+      "extent": 32
+    },
+    {
+      "id": "0982e8da-cbe5-4ab1-8593-3d08e17fa1dc",
+      "name": "2 shrooms",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/0982e8da-cbe5-4ab1-8593-3d08e17fa1dc.vox",
+      "extent": 20
+    },
+    {
+      "id": "24c7fefa-a53d-426c-8622-a65723e11443",
+      "name": "Speaker",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/24c7fefa-a53d-426c-8622-a65723e11443.vox",
+      "extent": 32
+    },
+    {
+      "id": "417ea438-0439-4faf-985b-5cc38868bf56",
+      "name": "橱柜1",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/417ea438-0439-4faf-985b-5cc38868bf56.vox",
+      "extent": 32
+    },
+    {
+      "id": "c09b8dce-f40a-4f66-a83e-7039d7a3583b",
+      "name": "Red and white wall panel",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/c09b8dce-f40a-4f66-a83e-7039d7a3583b.vox",
+      "extent": 32
+    },
+    {
+      "id": "4ef138bf-bbf4-4b95-9df7-fc28d7ab6700",
+      "name": "Oil Drum",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/4ef138bf-bbf4-4b95-9df7-fc28d7ab6700.vox",
+      "extent": 32
+    },
+    {
+      "id": "ccdbde86-3796-49b0-ac9d-d5a41204c1dd",
+      "name": "atari",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/ccdbde86-3796-49b0-ac9d-d5a41204c1dd.vox",
+      "extent": 20
+    },
+    {
+      "id": "2188ab8c-ebfb-4615-9959-c0d906aee761",
+      "name": "worm",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/2188ab8c-ebfb-4615-9959-c0d906aee761.vox",
+      "extent": 32
+    },
+    {
+      "id": "ecaf15b1-9a26-40ca-a65c-5b5776f8246f",
+      "name": "filter",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/ecaf15b1-9a26-40ca-a65c-5b5776f8246f.vox",
+      "extent": 32
+    },
+    {
+      "id": "bc69d7d8-312c-4bee-8599-33b74b562dad",
+      "name": "Round wooden table!",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/bc69d7d8-312c-4bee-8599-33b74b562dad.vox",
+      "extent": 26
+    },
+    {
+      "id": "5a6d6d85-4ac8-433b-9347-ad0d5f420cee",
+      "name": "World Painter - Rembrandt",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/5a6d6d85-4ac8-433b-9347-ad0d5f420cee.vox",
+      "extent": 32
+    },
+    {
+      "id": "a2d7348c-5dba-4699-a062-2eac0ba066b4",
+      "name": "Camera",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/a2d7348c-5dba-4699-a062-2eac0ba066b4.vox",
+      "extent": 32
+    },
+    {
+      "id": "276bd134-24fe-42a9-964b-30f8f9f8ee27",
+      "name": "植物2",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/276bd134-24fe-42a9-964b-30f8f9f8ee27.vox",
+      "extent": 32
+    },
+    {
+      "id": "85911b6b-e6a1-498a-8dc0-21c02da9be0f",
+      "name": "Bush",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/85911b6b-e6a1-498a-8dc0-21c02da9be0f.vox",
+      "extent": 32
+    },
+    {
+      "id": "6479910e-62cd-4f8c-8fae-c06fb8b79c9d",
+      "name": "氣球(紅)",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/6479910e-62cd-4f8c-8fae-c06fb8b79c9d.vox",
+      "extent": 32
+    },
+    {
+      "id": "4cb0e643-4ea9-4acf-8391-8dc8551495b1",
+      "name": "ESSETRE",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/4cb0e643-4ea9-4acf-8391-8dc8551495b1.vox",
+      "extent": 32
+    },
+    {
+      "id": "5b640be1-8e95-4dfc-84f1-2b87d05837d1",
+      "name": "PISSINGFND",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/5b640be1-8e95-4dfc-84f1-2b87d05837d1.vox",
+      "extent": 32
+    },
+    {
+      "id": "f64d7bf9-f38e-4931-b76c-1498b4f6fc1a",
+      "name": "Zombie Bot",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/f64d7bf9-f38e-4931-b76c-1498b4f6fc1a.vox",
+      "extent": 32
+    },
+    {
+      "id": "644c8e55-1551-413b-bf46-0f2e0f1adf92",
+      "name": "Growing tree or fern (3 branches)",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/644c8e55-1551-413b-bf46-0f2e0f1adf92.vox",
+      "extent": 32
+    },
+    {
+      "id": "4a65e5a2-c8e9-4e74-9990-8c960a87e26a",
+      "name": "Skyscraper model 1",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/4a65e5a2-c8e9-4e74-9990-8c960a87e26a.vox",
+      "extent": 32
+    },
+    {
+      "id": "37f98df9-d25b-449c-8bdc-08e73eac91b8",
+      "name": "vend1",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/37f98df9-d25b-449c-8bdc-08e73eac91b8.vox",
+      "extent": 32
+    },
+    {
+      "id": "5912d1f1-4667-4682-a675-3c3d61110b6c",
+      "name": "security camera",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/5912d1f1-4667-4682-a675-3c3d61110b6c.vox",
+      "extent": 32
+    },
+    {
+      "id": "68c0e8c0-17dc-417e-98d1-8485a0f90c21",
+      "name": "可樂",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/68c0e8c0-17dc-417e-98d1-8485a0f90c21.vox",
+      "extent": 29
+    },
+    {
+      "id": "0cd382fe-512a-4187-9ee5-3c4fca660112",
+      "name": "树4",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/0cd382fe-512a-4187-9ee5-3c4fca660112.vox",
+      "extent": 25
+    },
+    {
+      "id": "14840266-9c6c-4cc0-a71d-16734c6cea15",
+      "name": "chair",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/14840266-9c6c-4cc0-a71d-16734c6cea15.vox",
+      "extent": 32,
+      "seat": [
+        2.5,
+        14,
+        0.5
+      ]
+    },
+    {
+      "id": "22580e62-fee6-4f44-b962-b502947d956b",
+      "name": "Christmas Tree with Snow",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/22580e62-fee6-4f44-b962-b502947d956b.vox",
+      "extent": 32
+    },
+    {
+      "id": "cfeb21c6-777e-4f6d-9713-e44257a751ae",
+      "name": "Wooden Stump",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/cfeb21c6-777e-4f6d-9713-e44257a751ae.vox",
+      "extent": 32
+    },
+    {
+      "id": "20ee1461-38cd-48f2-98a7-118311a6f193",
+      "name": "bitpixi",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/20ee1461-38cd-48f2-98a7-118311a6f193.vox",
+      "extent": 32
+    },
+    {
+      "id": "a16e626a-f872-4af0-b08d-7f6b233a8698",
+      "name": "Wine Glass White",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/a16e626a-f872-4af0-b08d-7f6b233a8698.vox",
+      "extent": 32
+    },
+    {
+      "id": "59132cf3-dfab-44a3-9b32-650d08b563e5",
+      "name": "Gates",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/59132cf3-dfab-44a3-9b32-650d08b563e5.vox",
+      "extent": 32
+    },
+    {
+      "id": "d938e151-fcd2-471e-8a4c-a5a460c284ee",
+      "name": "Floor Tiling 1",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/d938e151-fcd2-471e-8a4c-a5a460c284ee.vox",
+      "extent": 32
+    },
+    {
+      "id": "4fe79ba9-67c3-4597-8417-dbf7e854ac20",
+      "name": "植物3",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/4fe79ba9-67c3-4597-8417-dbf7e854ac20.vox",
+      "extent": 32
+    },
+    {
+      "id": "11ad474a-b7c0-4ccc-857e-a506a4c84932",
+      "name": "dust",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/11ad474a-b7c0-4ccc-857e-a506a4c84932.vox",
+      "extent": 32
+    },
+    {
+      "id": "e2b0b940-0bdd-4b07-b65a-76eb69b11ceb",
+      "name": "old school TV set",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e2b0b940-0bdd-4b07-b65a-76eb69b11ceb.vox",
+      "extent": 32
+    },
+    {
+      "id": "163f8ba6-a7e1-432b-9980-919938e83589",
+      "name": "公仔",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/163f8ba6-a7e1-432b-9980-919938e83589.vox",
+      "extent": 30
+    },
+    {
+      "id": "c2710ec9-8f4e-4cbd-a35c-09eceef0d1d0",
+      "name": "Nugget's Slug",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/c2710ec9-8f4e-4cbd-a35c-09eceef0d1d0.vox",
+      "extent": 32
+    },
+    {
+      "id": "5bb7f19c-ee70-487c-ae19-e35b8a63001e",
+      "name": "Plant",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/5bb7f19c-ee70-487c-ae19-e35b8a63001e.vox",
+      "extent": 32
+    },
+    {
+      "id": "53a4bd6a-7f60-42fe-a42f-1a0c51bef9fe",
+      "name": "chair",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/53a4bd6a-7f60-42fe-a42f-1a0c51bef9fe.vox",
+      "extent": 32,
+      "seat": [
+        5.5,
+        17,
+        0.5
+      ]
+    },
+    {
+      "id": "6af0d0b3-2287-4f02-a5c3-662fb27fa6cd",
+      "name": "Ride-on Double Drum Compacator Roller",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/6af0d0b3-2287-4f02-a5c3-662fb27fa6cd.vox",
+      "extent": 32
+    },
+    {
+      "id": "468ca371-5fdb-4ae7-a58d-f6f2c254e060",
+      "name": "Red & white split wall panel y/b stripes",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/468ca371-5fdb-4ae7-a58d-f6f2c254e060.vox",
+      "extent": 32
+    },
+    {
+      "id": "dcebd311-436a-4c0a-8b31-b24527601357",
+      "name": "Letter C",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/dcebd311-436a-4c0a-8b31-b24527601357.vox",
+      "extent": 25
+    },
+    {
+      "id": "41220569-edd3-4b0c-9c30-e239216c49ad",
+      "name": "speaker",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/41220569-edd3-4b0c-9c30-e239216c49ad.vox",
+      "extent": 32
+    },
+    {
+      "id": "c9908df4-69bb-4cdf-886e-b5b3edff0c3b",
+      "name": "12",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/c9908df4-69bb-4cdf-886e-b5b3edff0c3b.vox",
+      "extent": 32
+    },
+    {
+      "id": "374cc59b-c679-4485-aba2-bad75445e9c5",
+      "name": "Open Castle Wall",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/374cc59b-c679-4485-aba2-bad75445e9c5.vox",
+      "extent": 32
+    },
+    {
+      "id": "4f8a720a-d08b-40f2-83ef-dd05e0d2b80e",
+      "name": "Construction Cone",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/4f8a720a-d08b-40f2-83ef-dd05e0d2b80e.vox",
+      "extent": 31
+    },
+    {
+      "id": "003e0afd-7bb7-4cbb-9a8e-a765a8c4fcfa",
+      "name": "鞋子",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/003e0afd-7bb7-4cbb-9a8e-a765a8c4fcfa.vox",
+      "extent": 32
+    },
+    {
+      "id": "186374b3-166c-4506-83f5-0c4dcde5107b",
+      "name": "Red Light",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/186374b3-166c-4506-83f5-0c4dcde5107b.vox",
+      "extent": 32
+    },
+    {
+      "id": "7bd35837-d62e-4730-bf30-0ceb76b123ce",
+      "name": "Mario tube",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/7bd35837-d62e-4730-bf30-0ceb76b123ce.vox",
+      "extent": 32
+    },
+    {
+      "id": "5838e757-f87e-4b65-89fa-4648c0b96fcb",
+      "name": "balcony rail",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/5838e757-f87e-4b65-89fa-4648c0b96fcb.vox",
+      "extent": 32
+    },
+    {
+      "id": "e6e6085e-021f-422c-a5d7-71aef6edb93e",
+      "name": "mask",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e6e6085e-021f-422c-a5d7-71aef6edb93e.vox",
+      "extent": 32
+    },
+    {
+      "id": "79dc7b5a-0a56-4e6a-bbcb-13b326099a32",
+      "name": "niu",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/79dc7b5a-0a56-4e6a-bbcb-13b326099a32.vox",
+      "extent": 32
+    },
+    {
+      "id": "e4decb58-63bf-4236-bc53-063d29c2b47a",
+      "name": "trapdoor",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e4decb58-63bf-4236-bc53-063d29c2b47a.vox",
+      "extent": 32
+    },
+    {
+      "id": "e10643b0-639c-4447-a1a2-f58d2276aecb",
+      "name": "[ pot_orchid(pink) ]",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e10643b0-639c-4447-a1a2-f58d2276aecb.vox",
+      "extent": 32
+    },
+    {
+      "id": "407ae713-377f-46de-b16f-3deff5f07d30",
+      "name": "Squared facade arch",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/407ae713-377f-46de-b16f-3deff5f07d30.vox",
+      "extent": 32
+    },
+    {
+      "id": "41954df3-2ccc-49f2-a919-ce51d8816711",
+      "name": "Pine Tree",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/41954df3-2ccc-49f2-a919-ce51d8816711.vox",
+      "extent": 32
+    },
+    {
+      "id": "63e6f2e1-70ac-417e-b884-d828eb979c9b",
+      "name": "bike blue",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/63e6f2e1-70ac-417e-b884-d828eb979c9b.vox",
+      "extent": 32
+    },
+    {
+      "id": "4c3b09a6-c521-45d1-9281-c8c0adb1fb85",
+      "name": "神成",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/4c3b09a6-c521-45d1-9281-c8c0adb1fb85.vox",
+      "extent": 32
+    },
+    {
+      "id": "c4952ceb-08fe-4b18-8b4d-1a5e4a31181c",
+      "name": "I-Beam 45",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/c4952ceb-08fe-4b18-8b4d-1a5e4a31181c.vox",
+      "extent": 32
+    },
+    {
+      "id": "d079f371-84af-478a-9572-73c6db750edc",
+      "name": "FILA2",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/d079f371-84af-478a-9572-73c6db750edc.vox",
+      "extent": 32
+    },
+    {
+      "id": "3b55a757-f47c-4609-8c54-0536483362db",
+      "name": "001",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/3b55a757-f47c-4609-8c54-0536483362db.vox",
+      "extent": 32
+    },
+    {
+      "id": "991bcae0-77a2-4f6f-b7e8-f004ee9b5a5e",
+      "name": "Stage Prop",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/991bcae0-77a2-4f6f-b7e8-f004ee9b5a5e.vox",
+      "extent": 32
+    },
+    {
+      "id": "b37bcc16-05b1-4957-8ff1-b0041e82d7ea",
+      "name": "Milk chocolate bar",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/b37bcc16-05b1-4957-8ff1-b0041e82d7ea.vox",
+      "extent": 26
+    },
+    {
+      "id": "dacfc668-fede-4a34-a9e2-1e31802de543",
+      "name": "氣球(藍)2",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/dacfc668-fede-4a34-a9e2-1e31802de543.vox",
+      "extent": 32
+    },
+    {
+      "id": "993ce706-7a72-42aa-8b4e-2785cfe96436",
+      "name": "Triangular Truss",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/993ce706-7a72-42aa-8b4e-2785cfe96436.vox",
+      "extent": 32
+    },
+    {
+      "id": "2ed91810-dfc1-48b3-a691-3f63347d82e2",
+      "name": "Bass Drum",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/2ed91810-dfc1-48b3-a691-3f63347d82e2.vox",
+      "extent": 25
+    },
+    {
+      "id": "8e473e75-5e44-4696-9104-ec446020349d",
+      "name": "Black speaker animated",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/8e473e75-5e44-4696-9104-ec446020349d.vox",
+      "extent": 32
+    },
+    {
+      "id": "bce6d909-d339-4e62-abf6-2d6be009bfc5",
+      "name": "Solar Panel",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/bce6d909-d339-4e62-abf6-2d6be009bfc5.vox",
+      "extent": 32
+    },
+    {
+      "id": "d6920e45-42b9-4c45-94f4-5829eeccc02e",
+      "name": "Clipboard",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/d6920e45-42b9-4c45-94f4-5829eeccc02e.vox",
+      "extent": 22
+    },
+    {
+      "id": "d5069d9f-60d4-491e-8e26-39bce657946b",
+      "name": "guitar cab",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/d5069d9f-60d4-491e-8e26-39bce657946b.vox",
+      "extent": 32
+    },
+    {
+      "id": "7bdcdf2b-1314-4eaf-a7c6-869a74d74850",
+      "name": "dopamin",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/7bdcdf2b-1314-4eaf-a7c6-869a74d74850.vox",
+      "extent": 32
+    },
+    {
+      "id": "ac0a22aa-d9e3-4a92-9bec-03ac17516bc4",
+      "name": "Critter (Brown)",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/ac0a22aa-d9e3-4a92-9bec-03ac17516bc4.vox",
+      "extent": 32
+    },
+    {
+      "id": "a87f25cd-4130-4642-908d-1c838c5d1029",
+      "name": "Minecraft",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/a87f25cd-4130-4642-908d-1c838c5d1029.vox",
+      "extent": 32
+    },
+    {
+      "id": "bed14a99-a8c6-4a37-822d-f4ce7540e7ce",
+      "name": "Floor Tiling 2",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/bed14a99-a8c6-4a37-822d-f4ce7540e7ce.vox",
+      "extent": 32
+    },
+    {
+      "id": "01a15130-7c5c-72ae-9d37-a2c40e1df70f",
+      "name": "10_09_2026_32x9x32_255_colors.vox",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/01a15130-7c5c-72ae-9d37-a2c40e1df70f.vox",
+      "extent": 32
+    },
+    {
+      "id": "8a9444ca-ce0c-4cb3-a904-6d17f57e05e6",
+      "name": "F",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/8a9444ca-ce0c-4cb3-a904-6d17f57e05e6.vox",
+      "extent": 32
+    },
+    {
+      "id": "1783ee6f-756f-475e-a624-8d0ad96d1e0f",
+      "name": "Plant",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/1783ee6f-756f-475e-a624-8d0ad96d1e0f.vox",
+      "extent": 24
+    },
+    {
+      "id": "039fd4ac-d428-4b6c-884d-ffeecb656552",
+      "name": "chair",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/039fd4ac-d428-4b6c-884d-ffeecb656552.vox",
+      "extent": 32,
+      "seat": [
+        3.5,
+        13,
+        -0.5
+      ]
+    },
+    {
+      "id": "c060200c-4997-490a-b18f-857d95893cc8",
+      "name": "Toilet ",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/c060200c-4997-490a-b18f-857d95893cc8.vox",
+      "extent": 32
+    },
+    {
+      "id": "bdf0682f-6322-40bc-bdc6-2eda0795cc7b",
+      "name": "Sandy Rock",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/bdf0682f-6322-40bc-bdc6-2eda0795cc7b.vox",
+      "extent": 32
+    },
+    {
+      "id": "d7f55344-7861-4551-8663-fee88812a511",
+      "name": "metal door",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/d7f55344-7861-4551-8663-fee88812a511.vox",
+      "extent": 32
+    },
+    {
+      "id": "e04cf7f3-b4da-4282-a968-ca81303aae6c",
+      "name": "DogeHeadSculpt",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e04cf7f3-b4da-4282-a968-ca81303aae6c.vox",
+      "extent": 32
+    },
+    {
+      "id": "2b071586-0992-420e-9002-f14433c1b21a",
+      "name": "[ pot_orchid(white)]",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/2b071586-0992-420e-9002-f14433c1b21a.vox",
+      "extent": 32
+    },
+    {
+      "id": "73739cc3-2255-4acf-93cf-8dff82d82645",
+      "name": "doge candle",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/73739cc3-2255-4acf-93cf-8dff82d82645.vox",
+      "extent": 32
+    },
+    {
+      "id": "307cb377-3574-4aae-9b8a-87cfc3e21dcc",
+      "name": "GPGPG",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/307cb377-3574-4aae-9b8a-87cfc3e21dcc.vox",
+      "extent": 32
+    },
+    {
+      "id": "81bf5d05-39e3-4b1b-ab37-2e8ab17fb074",
+      "name": "樓層介紹板",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/81bf5d05-39e3-4b1b-ab37-2e8ab17fb074.vox",
+      "extent": 32
+    },
+    {
+      "id": "b99949a2-98ce-40d7-885e-f262b6671c7b",
+      "name": "Game Boy",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/b99949a2-98ce-40d7-885e-f262b6671c7b.vox",
+      "extent": 32
+    },
+    {
+      "id": "6c259212-a960-4f4b-8543-60e4fbe87193",
+      "name": "Bottles with Liquid Shelf Alternate",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/6c259212-a960-4f4b-8543-60e4fbe87193.vox",
+      "extent": 31
+    },
+    {
+      "id": "1cd9ef28-6caa-4fdf-a000-36ac1649a327",
+      "name": "Sci-fi thingy",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/1cd9ef28-6caa-4fdf-a000-36ac1649a327.vox",
+      "extent": 32
+    },
+    {
+      "id": "cca78d9d-0b8a-47d4-996e-f681f70c23dd",
+      "name": "Moonlit Margarita",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/cca78d9d-0b8a-47d4-996e-f681f70c23dd.vox",
+      "extent": 32
+    },
+    {
+      "id": "98429d31-f6ac-449b-8111-3c69816a05f1",
+      "name": "Archeology Brush",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/98429d31-f6ac-449b-8111-3c69816a05f1.vox",
+      "extent": 32
+    },
+    {
+      "id": "44eadb29-7ec6-4ceb-92e6-69e4f8828363",
+      "name": "Space Chest",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/44eadb29-7ec6-4ceb-92e6-69e4f8828363.vox",
+      "extent": 32
+    },
+    {
+      "id": "86845459-58b6-47d8-bc44-6160cf419f75",
+      "name": "gift check",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/86845459-58b6-47d8-bc44-6160cf419f75.vox",
+      "extent": 32
+    },
+    {
+      "id": "6135acca-af4c-434c-88a3-068ee29081c1",
+      "name": "KAPRADI OBR",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/6135acca-af4c-434c-88a3-068ee29081c1.vox",
+      "extent": 32
+    },
+    {
+      "id": "e7412bd2-a107-44a0-aa24-d217b1c161a1",
+      "name": "green pouf chair",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e7412bd2-a107-44a0-aa24-d217b1c161a1.vox",
+      "extent": 32,
+      "seat": [
+        3.5,
+        21,
+        0.5
+      ]
+    },
+    {
+      "id": "f90afaba-d893-415b-a2fe-9e5468cc809b",
+      "name": "RICKY LAKE BARSTOOL",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/f90afaba-d893-415b-a2fe-9e5468cc809b.vox",
+      "extent": 32,
+      "seat": [
+        4.5,
+        19,
+        2.5
+      ]
+    },
+    {
+      "id": "c6995983-7809-46d6-825f-c63032349c57",
+      "name": "ARCADE GAME",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/c6995983-7809-46d6-825f-c63032349c57.vox",
+      "extent": 32
+    },
+    {
+      "id": "9d38d9b8-c250-4897-8cb0-66dbef6942ce",
+      "name": "Grating",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/9d38d9b8-c250-4897-8cb0-66dbef6942ce.vox",
+      "extent": 32
+    },
+    {
+      "id": "18963dd6-0b16-4ce6-805a-4e8d067962ea",
+      "name": "鹿1",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/18963dd6-0b16-4ce6-805a-4e8d067962ea.vox",
+      "extent": 32
+    },
+    {
+      "id": "68a645c3-6b38-45cf-9a37-64e5c0192dc8",
+      "name": "palm tree top",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/68a645c3-6b38-45cf-9a37-64e5c0192dc8.vox",
+      "extent": 32
+    },
+    {
+      "id": "747cbee6-2373-4f98-9c7f-e66eee6e1682",
+      "name": "Hoody Hood Up",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/747cbee6-2373-4f98-9c7f-e66eee6e1682.vox",
+      "extent": 32
+    },
+    {
+      "id": "64e96caf-f7ee-4891-8eb1-1b15e92194d8",
+      "name": "[ ch_bigmouth ]",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/64e96caf-f7ee-4891-8eb1-1b15e92194d8.vox",
+      "extent": 30
+    },
+    {
+      "id": "a8969c08-0336-4a5b-a524-9f93031d7be5",
+      "name": "Remix of MYTREE3   WEICAI.ETH",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/a8969c08-0336-4a5b-a524-9f93031d7be5.vox",
+      "extent": 32
+    },
+    {
+      "id": "4c4d702a-3ff1-4e8e-a444-f5470af9e574",
+      "name": "bowl of porridge on the table",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/4c4d702a-3ff1-4e8e-a444-f5470af9e574.vox",
+      "extent": 32
+    },
+    {
+      "id": "ae8caf11-fb06-4d52-92ad-a4c7671d8c99",
+      "name": "VANOCE zahrada strana",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/ae8caf11-fb06-4d52-92ad-a4c7671d8c99.vox",
+      "extent": 32
+    },
+    {
+      "id": "61e46e84-88b4-4044-94ea-416fc7627a73",
+      "name": "plant 1",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/61e46e84-88b4-4044-94ea-416fc7627a73.vox",
+      "extent": 32
+    },
+    {
+      "id": "fdb4966c-ea90-4ef7-8fd6-289e03830ab0",
+      "name": "Wooden Ramada",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/fdb4966c-ea90-4ef7-8fd6-289e03830ab0.vox",
+      "extent": 32
+    },
+    {
+      "id": "9c1fe6d6-8259-4974-9f72-e7bafe30ca7c",
+      "name": "Remington Reincarnated 2022",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/9c1fe6d6-8259-4974-9f72-e7bafe30ca7c.vox",
+      "extent": 32
+    },
+    {
+      "id": "41d6ceb1-7456-4a09-9bb4-839a4551d464",
+      "name": "estante ",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/41d6ceb1-7456-4a09-9bb4-839a4551d464.vox",
+      "extent": 24
+    },
+    {
+      "id": "6f3daf1b-68ca-4c8d-bb87-0b812b6d2133",
+      "name": "orb-red",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/6f3daf1b-68ca-4c8d-bb87-0b812b6d2133.vox",
+      "extent": 32
+    },
+    {
+      "id": "d3103ea3-eb47-44ee-9b3d-a94278b4304d",
+      "name": "Eye-x",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/d3103ea3-eb47-44ee-9b3d-a94278b4304d.vox",
+      "extent": 32
+    },
+    {
+      "id": "b7b65f01-94ed-4676-bb26-66dbf1763365",
+      "name": "Ethical Hacker's Guild: Helix Platform",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/b7b65f01-94ed-4676-bb26-66dbf1763365.vox",
+      "extent": 32
+    },
+    {
+      "id": "5b704710-5a63-4239-8ab2-3a26c5d5e0de",
+      "name": "3F_front wall_05",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/5b704710-5a63-4239-8ab2-3a26c5d5e0de.vox",
+      "extent": 21
+    },
+    {
+      "id": "4ba67703-6cf6-4d4d-ac62-dbaee6295120",
+      "name": "头啊",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/4ba67703-6cf6-4d4d-ac62-dbaee6295120.vox",
+      "extent": 32
+    },
+    {
+      "id": "fff2b967-6141-4e38-a48e-5d8101c8cbd2",
+      "name": "ard",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/fff2b967-6141-4e38-a48e-5d8101c8cbd2.vox",
+      "extent": 32
+    },
+    {
+      "id": "f11992d9-e51e-4b87-b73d-f878bc24dcc0",
+      "name": "Circular Truss",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/f11992d9-e51e-4b87-b73d-f878bc24dcc0.vox",
+      "extent": 32
+    },
+    {
+      "id": "a40ebc24-40cd-4bc7-8e96-cb27e9624079",
+      "name": "Switch Blade",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/a40ebc24-40cd-4bc7-8e96-cb27e9624079.vox",
+      "extent": 32
+    },
+    {
+      "id": "96ef3b68-e3a2-4fda-b800-934145645010",
+      "name": "anonym ",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/96ef3b68-e3a2-4fda-b800-934145645010.vox",
+      "extent": 32
+    },
+    {
+      "id": "41c0c377-e540-4783-ab66-3012b273fcb7",
+      "name": "sphere",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/41c0c377-e540-4783-ab66-3012b273fcb7.vox",
+      "extent": 32
+    },
+    {
+      "id": "e431da35-f6d9-4d3a-ae6e-1950d5a59ad8",
+      "name": "Beach umbrella and bench",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/e431da35-f6d9-4d3a-ae6e-1950d5a59ad8.vox",
+      "extent": 32,
+      "seat": [
+        2.5,
+        10,
+        0.5
+      ]
+    },
+    {
+      "id": "effc8cf7-e3e7-4128-aefd-97201c90183e",
+      "name": "hoirzontal black pole",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/effc8cf7-e3e7-4128-aefd-97201c90183e.vox",
+      "extent": 32
+    },
+    {
+      "id": "18e819ab-f58e-4158-86ae-056859ebeeb0",
+      "name": "Muskoka Chair (Green)",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/18e819ab-f58e-4158-86ae-056859ebeeb0.vox",
+      "extent": 32,
+      "seat": [
+        -4.5,
+        12,
+        2.5
+      ]
+    },
+    {
+      "id": "bf21cf71-7010-4a82-8041-901e36604829",
+      "name": "Six Panel Door",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/bf21cf71-7010-4a82-8041-901e36604829.vox",
+      "extent": 32
+    },
+    {
+      "id": "a3e82580-bc5f-48fa-a27b-0b7c2ade9d6b",
+      "name": "door air",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/a3e82580-bc5f-48fa-a27b-0b7c2ade9d6b.vox",
+      "extent": 32
+    },
+    {
+      "id": "1ea94a53-f6d6-407c-a19e-51ab4b6e2759",
+      "name": "blue pouf chair",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/1ea94a53-f6d6-407c-a19e-51ab4b6e2759.vox",
+      "extent": 32,
+      "seat": [
+        3.5,
+        21,
+        0.5
+      ]
+    },
+    {
+      "id": "d1a9bac1-cfd7-43f1-9ab5-e6cb24c9f3e4",
+      "name": "Rolling stairs",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/d1a9bac1-cfd7-43f1-9ab5-e6cb24c9f3e4.vox",
+      "extent": 32
+    },
+    {
+      "id": "76e79d57-c4e8-4f95-80dc-9a604cc9d286",
+      "name": "SCM",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/76e79d57-c4e8-4f95-80dc-9a604cc9d286.vox",
+      "extent": 32
+    },
+    {
+      "id": "11073f20-7c92-4e76-b9ca-06b7e9d7533e",
+      "name": "Drum Stand P2",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/11073f20-7c92-4e76-b9ca-06b7e9d7533e.vox",
+      "extent": 16
+    },
+    {
+      "id": "b9beb7e5-5852-4c9c-b07c-d93df594885e",
+      "name": "Coming Soon Sign",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/b9beb7e5-5852-4c9c-b07c-d93df594885e.vox",
+      "extent": 32
+    },
+    {
+      "id": "3493a199-cfe4-4db1-8985-0815a87f53e7",
+      "name": "Scafulting",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/3493a199-cfe4-4db1-8985-0815a87f53e7.vox",
+      "extent": 32
+    },
+    {
+      "id": "73b3c709-40ad-401d-b3fd-f8298cec918f",
+      "name": "Cordless Drill",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/73b3c709-40ad-401d-b3fd-f8298cec918f.vox",
+      "extent": 32
+    },
+    {
+      "id": "8b98a7b6-655c-4230-8b4f-15f1fb616849",
+      "name": "Vox Model ",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/8b98a7b6-655c-4230-8b4f-15f1fb616849.vox",
+      "extent": 32
+    },
+    {
+      "id": "1c93ff24-605f-42d1-a07e-ee64601874c9",
+      "name": "barmatt",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/1c93ff24-605f-42d1-a07e-ee64601874c9.vox",
+      "extent": 32
+    },
+    {
+      "id": "d9227e97-cc6c-4757-9b3e-86bba777440d",
+      "name": "CoralA",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/d9227e97-cc6c-4757-9b3e-86bba777440d.vox",
+      "extent": 31
+    },
+    {
+      "id": "8bc305ff-f99f-444f-810f-74a4f6521bb2",
+      "name": "black cat",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/8bc305ff-f99f-444f-810f-74a4f6521bb2.vox",
+      "extent": 12
+    },
+    {
+      "id": "d1a3ef9b-ec0e-460e-8c30-87ab1f034154",
+      "name": "Minecart (coal)",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/d1a3ef9b-ec0e-460e-8c30-87ab1f034154.vox",
+      "extent": 32
+    },
+    {
+      "id": "fd04e6c1-94c7-4836-82c0-8000232e5068",
+      "name": "Under the Narwal",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/fd04e6c1-94c7-4836-82c0-8000232e5068.vox",
+      "extent": 32
+    },
+    {
+      "id": "08617453-8191-45c0-a7bf-77b828c61738",
+      "name": "Wood Planter (empty) (Black Dirt)",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/08617453-8191-45c0-a7bf-77b828c61738.vox",
+      "extent": 32
+    },
+    {
+      "id": "c67e3733-8f01-423f-9dc5-901b08f4dc24",
+      "name": "32 bubble heart",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/c67e3733-8f01-423f-9dc5-901b08f4dc24.vox",
+      "extent": 32
+    },
+    {
+      "id": "b2dbe0ca-478b-4c09-aaf2-c2c67c394c6c",
+      "name": "Christmas doodles",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/b2dbe0ca-478b-4c09-aaf2-c2c67c394c6c.vox",
+      "extent": 32
+    },
+    {
+      "id": "ea55dc4b-581e-4881-b8e7-29ce40833077",
+      "name": "Short bookcase",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/ea55dc4b-581e-4881-b8e7-29ce40833077.vox",
+      "extent": 32
+    },
+    {
+      "id": "c76c4717-169b-4ffc-b6ec-a637af302ac8",
+      "name": "lawn chair",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/c76c4717-169b-4ffc-b6ec-a637af302ac8.vox",
+      "extent": 32,
+      "seat": [
+        1.5,
+        7,
+        -8.5
+      ]
+    },
+    {
+      "id": "8cdf813a-d90b-4248-a330-c9c5499bda7b",
+      "name": "green lava lamp",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/8cdf813a-d90b-4248-a330-c9c5499bda7b.vox",
+      "extent": 32
+    },
+    {
+      "id": "fbc18214-6bbf-4aa9-b33d-9949aae573db",
+      "name": "Tileable 'super six' fence",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/fbc18214-6bbf-4aa9-b33d-9949aae573db.vox",
+      "extent": 32
+    },
+    {
+      "id": "3ad24ce1-9aef-44a2-9428-245daad224d5",
+      "name": "BASQUIAT HEAD",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/3ad24ce1-9aef-44a2-9428-245daad224d5.vox",
+      "extent": 32
+    },
+    {
+      "id": "a031b21b-4133-4de8-b780-cf174753fe5a",
+      "name": "纜車電纜",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/a031b21b-4133-4de8-b780-cf174753fe5a.vox",
+      "extent": 32
+    },
+    {
+      "id": "5b614ed0-661c-4be5-ad03-c4a6fd2db229",
+      "name": "teddy bear",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/5b614ed0-661c-4be5-ad03-c4a6fd2db229.vox",
+      "extent": 32
+    },
+    {
+      "id": "053ea148-93b9-437e-aefb-28935d69be64",
+      "name": "Metal railing end piece",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/053ea148-93b9-437e-aefb-28935d69be64.vox",
+      "extent": 32
+    },
+    {
+      "id": "1a4000fd-2d95-4ef9-8337-2a049ec7bcc4",
+      "name": "Shot Full",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/1a4000fd-2d95-4ef9-8337-2a049ec7bcc4.vox",
+      "extent": 32
+    },
+    {
+      "id": "f85f7662-b004-4da7-a619-352cd3072a6c",
+      "name": "Rolling Stretcher",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/f85f7662-b004-4da7-a619-352cd3072a6c.vox",
+      "extent": 32
+    },
+    {
+      "id": "029a2d26-35b9-4576-b680-95a437ea015e",
+      "name": "Soaring High JSK",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/029a2d26-35b9-4576-b680-95a437ea015e.vox",
+      "extent": 32
+    },
+    {
+      "id": "016c809f-0b36-4c74-a7b9-d2c891e1543d",
+      "name": "patio table",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/016c809f-0b36-4c74-a7b9-d2c891e1543d.vox",
+      "extent": 32
+    },
+    {
+      "id": "2fac0553-3ddc-4013-b89f-32c78c99fb13",
+      "name": "shexiangtou",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/2fac0553-3ddc-4013-b89f-32c78c99fb13.vox",
+      "extent": 32
+    },
+    {
+      "id": "f00bea33-29d9-43b3-b1ae-5cef4b2ba6c1",
+      "name": "Industrial Building Base",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/f00bea33-29d9-43b3-b1ae-5cef4b2ba6c1.vox",
+      "extent": 32
+    },
+    {
+      "id": "c3e1259e-ec1d-4e06-97fd-e017d820f1bb",
+      "name": "Spooky Door",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/c3e1259e-ec1d-4e06-97fd-e017d820f1bb.vox",
+      "extent": 32
+    },
+    {
+      "id": "5308bc42-e565-424f-95e3-ade50ed5e201",
+      "name": "Watering Can",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/5308bc42-e565-424f-95e3-ade50ed5e201.vox",
+      "extent": 32
+    },
+    {
+      "id": "9e9c1b81-9526-41d7-9b07-b3e2f7cce12c",
+      "name": "Smoka",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/9e9c1b81-9526-41d7-9b07-b3e2f7cce12c.vox",
+      "extent": 32
+    },
+    {
+      "id": "395fa2b7-5f4b-4038-bf6f-1b0b4d774aa5",
+      "name": "pool chair",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/395fa2b7-5f4b-4038-bf6f-1b0b4d774aa5.vox",
+      "extent": 32,
+      "seat": [
+        3.5,
+        8,
+        -9.5
+      ]
+    },
+    {
+      "id": "daafb805-263b-4415-a0d9-987e32140e9f",
+      "name": "Ankh",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/daafb805-263b-4415-a0d9-987e32140e9f.vox",
+      "extent": 32
+    },
+    {
+      "id": "342b9aca-16b4-4f3a-b809-bf67e214fe92",
+      "name": "cactus_large",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/342b9aca-16b4-4f3a-b809-bf67e214fe92.vox",
+      "extent": 32
+    },
+    {
+      "id": "1ccb844c-4cc2-4dad-b205-704f62d65e92",
+      "name": "Speaker part ",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/1ccb844c-4cc2-4dad-b205-704f62d65e92.vox",
+      "extent": 32
+    },
+    {
+      "id": "d792abc4-5654-44d9-91e4-a4bad0f6f878",
+      "name": "Gothic Gargoyle",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/d792abc4-5654-44d9-91e4-a4bad0f6f878.vox",
+      "extent": 32
+    },
+    {
+      "id": "3ea5fe8b-7d40-4161-b08c-2a5c77fd7e62",
+      "name": "Reindeer",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/3ea5fe8b-7d40-4161-b08c-2a5c77fd7e62.vox",
+      "extent": 32
+    },
+    {
+      "id": "0109d021-1b99-4e21-939f-6ad080f492af",
+      "name": "Camo Hat",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/0109d021-1b99-4e21-939f-6ad080f492af.vox",
+      "extent": 32
+    },
+    {
+      "id": "674adffa-a988-4ed8-aeb7-76c27071d7e4",
+      "name": "Flowering ball bush 1",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/674adffa-a988-4ed8-aeb7-76c27071d7e4.vox",
+      "extent": 32
+    },
+    {
+      "id": "8c1acdae-5286-431f-a9f2-d1716c68ad6e",
+      "name": "Harmony",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/8c1acdae-5286-431f-a9f2-d1716c68ad6e.vox",
+      "extent": 32
+    },
+    {
+      "id": "6086b360-d3fc-45b0-8378-fbf132dec64b",
+      "name": "PISSINGMETA",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/6086b360-d3fc-45b0-8378-fbf132dec64b.vox",
+      "extent": 32
+    },
+    {
+      "id": "2054cc81-d198-4711-8c8e-16b88d2536ab",
+      "name": "Stone BB Queen",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/2054cc81-d198-4711-8c8e-16b88d2536ab.vox",
+      "extent": 32
+    },
+    {
+      "id": "072cb69e-7447-4b20-a3ac-7caedb89452b",
+      "name": "闪光灯",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/072cb69e-7447-4b20-a3ac-7caedb89452b.vox",
+      "extent": 32
+    },
+    {
+      "id": "1a1ca7bf-06fc-4235-8cd0-5b67d5614080",
+      "name": "Rectangular Frame",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/1a1ca7bf-06fc-4235-8cd0-5b67d5614080.vox",
+      "extent": 32
+    },
+    {
+      "id": "557692db-d616-4224-aeae-1bcd952187c9",
+      "name": "outdoor table & bench",
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/thrift/557692db-d616-4224-aeae-1bcd952187c9.vox",
+      "extent": 32,
+      "seat": [
+        4.5,
+        6,
+        8.5
+      ]
+    }
+  ],
+  "ground": "https://ugc.voxels.com/artpacks/texas/v1/textures/texas-ground.png",
+  "groundPages": [
+    {
+      "color": "https://ugc.voxels.com/artpacks/texas/v1/textures/texas-ground.png"
+    },
+    {
+      "color": "https://ugc.voxels.com/artpacks/texas/v1/textures/texas-ground-1.png"
+    },
+    {
+      "color": "https://ugc.voxels.com/artpacks/texas/v1/textures/texas-ground-2.png"
+    },
+    {
+      "color": "https://ugc.voxels.com/artpacks/texas/v1/textures/texas-ground-3.png"
+    }
+  ],
+  "adobe": {
+    "window": [
+      "https://ugc.voxels.com/artpacks/texas/v1/models/window-honey.vox",
+      "https://ugc.voxels.com/artpacks/texas/v1/models/window-turquoise.vox",
+      "https://ugc.voxels.com/artpacks/texas/v1/models/window-oxblood.vox"
+    ],
+    "door": [
+      "https://ugc.voxels.com/artpacks/texas/v1/models/door-honey.vox",
+      "https://ugc.voxels.com/artpacks/texas/v1/models/door-turquoise.vox",
+      "https://ugc.voxels.com/artpacks/texas/v1/models/door-oxblood.vox"
+    ],
+    "viga": [
+      "https://ugc.voxels.com/artpacks/texas/v1/models/viga-honey.vox",
+      "https://ugc.voxels.com/artpacks/texas/v1/models/viga-turquoise.vox",
+      "https://ugc.voxels.com/artpacks/texas/v1/models/viga-oxblood.vox"
+    ]
+  },
+  "frames": {
+    "tiles": [
+      2,
+      4,
+      5,
+      6,
+      8,
+      9,
+      10,
+      11,
+      14
+    ],
+    "path": "https://ugc.voxels.com/artpacks/texas/v1/models/"
+  },
+  "interiors": {
+    "counter": "https://ugc.voxels.com/artpacks/texas/v1/models/counter.vox",
+    "shelf": "https://ugc.voxels.com/artpacks/texas/v1/models/wall-shelf.vox",
+    "rocker": "https://ugc.voxels.com/artpacks/texas/v1/models/rocker.vox",
+    "flag": "https://ugc.voxels.com/artpacks/texas/v1/models/lone-star.vox",
+    "door": "https://ugc.voxels.com/artpacks/texas/v1/models/batwing.vox",
+    "pendant": "https://ugc.voxels.com/artpacks/texas/v1/models/pendant.vox"
+  },
+  "flora": [
+    "buttonbush",
+    "wax-myrtle",
+    "river-willow",
+    "bald-cypress",
+    "live-oak",
+    "honey-mesquite",
+    "texas-redbud",
+    "texas-sage",
+    "prickly-pear",
+    "horse-crippler",
+    "red-yucca",
+    "lechuguilla",
+    "bluebonnet",
+    "indian-paintbrush",
+    "gulf-muhly"
+  ],
+  "camp": {
+    "fire": "campfire",
+    "seat": "seat-log",
+    "lights": "festoon"
+  },
+  "rocks": [
+    "caprock",
+    "red-shale",
+    "rust-flake",
+    "canyon-tooth",
+    "split-sandstone",
+    "ochre-slab",
+    "red-cobble",
+    "iron-nodule",
+    "red-scree",
+    "striped-butte",
+    "caliche",
+    "limestone-chip",
+    "creek-cobble",
+    "mudstone",
+    "flint",
+    "sand-gravel",
+    "chalk",
+    "river-pebble",
+    "tan-scree",
+    "buff-slab"
+  ],
+  "furniture": {
+    "bench": {
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/models/bench.vox",
+      "scale": 3
+    },
+    "hydrant": {
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/models/hydrant.vox",
+      "scale": 2.4
+    },
+    "lamp": {
+      "url": "https://ugc.voxels.com/artpacks/texas/v1/models/lamp-post.vox",
+      "scale": 6
+    }
+  }
+}

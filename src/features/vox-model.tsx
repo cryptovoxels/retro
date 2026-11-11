@@ -9,6 +9,9 @@ import { isURL, resolveUgc } from '../utils/helpers'
 import { FeatureMetadata, FeatureTemplate } from './_metadata'
 import { Feature3D, FeatureEvent, FeatureTrigger, MeshExtended, transformVectors } from './feature'
 import ActionGui from '../ui/gui/action-button-gui'
+import { leaveSeat, seated, takePose } from './pose'
+import { idleWind } from './idle'
+import { Animations } from '../avatar-animations'
 
 // used when "Scale To Grid" is enabled
 const CUBESCALE_MULTIPLIER_X = 0.02
@@ -36,6 +39,24 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   }
 
   private _importError: string | null = null
+  get interactHint() {
+    const d = this.description
+    if (d.type !== 'vox-model') return ''
+    if (seated(this)) return 'stand'
+    return d.interactHint || (d.pose ? (d.pose.animation === Animations.Sitting ? 'sit' : 'pose') : '')
+  }
+
+  get isInteract() {
+    return !!this.interactHint || super.isInteract
+  }
+  shouldBeInteractive() {
+    return !!this.interactHint || super.shouldBeInteractive()
+  }
+
+  override _dispose() {
+    leaveSeat(this)
+    super._dispose()
+  }
   // instances await this before createInstance, so they never instance the draft
   public loading: Promise<void> | null = null
 
@@ -90,7 +111,11 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   private applyImportedMesh(imported: BABYLON.Mesh) {
     if (this.mesh instanceof BABYLON.Mesh) this.mesh.material?.dispose(false, true)
     this.mesh?.dispose()
+    // Draw flush VOX trim ahead of parcel faces. The island material sits behind both.
+    if (imported.material) imported.material.zOffset = imported.material.zOffsetUnits = -2
     this.mesh = imported
+    const animation = this.description.animation
+    if (typeof animation === 'string') idleWind(imported, animation)
     this.mesh.isPickable = true
     this.mesh.name = this.uniqueEntityName('mesh')
     this.mesh.id = this.mesh.name
@@ -128,7 +153,9 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
 
     if (!mesh) {
       let url: string
-      if (this.url && isURL(this.url)) {
+      if (this.url?.startsWith('/models/artpacks/')) {
+        url = this.url.replace('/models/artpacks/texas/', 'https://ugc.voxels.com/artpacks/texas/v1/models/')
+      } else if (this.url && isURL(this.url)) {
         url = Config.voxModelURL(this.url, this.parcel, this.type === 'ride' ? 'megavox' : this.type)
       } else {
         url = `${process.env.ASSET_PATH}/models/vox-five.vox`
@@ -164,6 +191,7 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   }
 
   public override onClick(e: FeatureEvent) {
+    if (this.description.type === 'vox-model' && this.description.pose) takePose(this, this.description.pose)
     if (this.behaviours) {
       this.behaviours.dispatch(this.uuid, 'click', e)
     }
@@ -228,6 +256,7 @@ class Editor extends FeatureEditor<VoxModel> {
       link: props.feature.description.link,
       cubescale: props.feature.description.cubescale,
       collidable: props.feature.description.collidable,
+      pose: props.feature.description.pose,
       importError: props.feature.importError,
     }
   }
@@ -242,6 +271,7 @@ class Editor extends FeatureEditor<VoxModel> {
       link: this.state.link,
       cubescale: this.state.cubescale,
       collidable: this.state.collidable,
+      ...(this.state.type === 'vox-model' && { pose: this.state.pose ?? null }),
     })
   }
 
@@ -270,6 +300,35 @@ class Editor extends FeatureEditor<VoxModel> {
 
             {this.state.type === 'vox-model' && (
               <>
+                <div class="f">
+                  <label>Pose</label>
+                  <select
+                    value={this.state.pose?.animation ?? ''}
+                    onChange={(e) => {
+                      const v = e.currentTarget.value
+                      this.setState({ pose: v === '' ? null : { ...this.state.pose, animation: Number(v), offset: this.state.pose?.offset ?? [0, 0.45, 0] } })
+                    }}
+                  >
+                    <option value="">None</option>
+                    {[Animations.Sitting, Animations.Applause, Animations.Celebration].map((a) => (
+                      <option value={a}>{Animations[a]}</option>
+                    ))}
+                  </select>
+                </div>
+                {this.state.pose && (
+                  <div class="f">
+                    <label>Seat height (m)</label>
+                    <input
+                      type="number"
+                      step="0.05"
+                      value={this.state.pose.offset?.[1] ?? 0}
+                      onChange={(e) => {
+                        const [x, , z] = this.state.pose.offset ?? [0, 0, 0]
+                        this.setState({ pose: { ...this.state.pose, offset: [x, Number(e.currentTarget.value), z] } })
+                      }}
+                    />
+                  </div>
+                )}
                 <dt>scale to grid</dt>
                 <dd>
                   <input type="checkbox" name="cubescale" onChange={(e) => this.setState({ cubescale: e.currentTarget.checked })} checked={this.state.cubescale} />

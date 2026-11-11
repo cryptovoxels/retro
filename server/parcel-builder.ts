@@ -1,3 +1,5 @@
+import { buildTexas } from '../islands/texas/parcels/buildings'
+import { seeded } from '../common/helpers/utils'
 import ndarray, { NdArray } from 'ndarray'
 import { v7 as uuid } from 'uuid'
 import zlib from 'zlib'
@@ -279,10 +281,11 @@ export default class ParcelBuilder {
   // Shells for web/src/admin/kowloon.ts. Spiral stair round an 8x8 ring in the low corner, each floor holes its
   // slab over the top of the stair below. Ground plots there are 12m, so y1 === 12 means the floor below is a plot.
   // ground floor village house: walls with little windows, a 2m door on the street face, flat roof
-  static Village(parcel: any, material: number, door: string) {
+  static Village(parcel: any, material: number, door: string, adobe = false, index = 0) {
     const b = new ParcelBuilder(parcel)
-    b.fillBasement(() => ground)
-    b.fillAboveGround((x, y, z, width, height, depth) => {
+    if (adobe) return buildTexas(b, material, door, index, parcel.common)
+    b.fill(0, 2, () => ground)
+    b.fill(2, b.height, (x, y, z, width, height, depth) => {
       if (y === height - 1) return material
       const face = x === 0 ? 'w' : x === width - 1 ? 'e' : z === 0 ? 's' : z === depth - 1 ? 'n' : null
       if (!face) return empty
@@ -296,13 +299,14 @@ export default class ParcelBuilder {
     const w = parcel.x2 - parcel.x1
     const d = parcel.z2 - parcel.z1
     const h = parcel.height - GROUND_HEIGHT
-    const lanterns = Array.from({ length: 1 + Math.floor(Math.random() * 3) }, () => ({
+    const rand = seeded((parcel.x1 * 7919 + parcel.z1 * 31 + parcel.height) | 0)
+    const lanterns = Array.from({ length: 1 + Math.floor(rand() * 3) }, () => ({
       uuid: uuid(),
       type: 'lantern',
       scale: [0.5, 0.5, 0.5],
       rotation: [0, 0, 0],
-      position: [(Math.random() - 0.5) * (w - 2), 2 + Math.random() * Math.max(0, h - 3), (Math.random() - 0.5) * (d - 2)],
-      color: rainbow(Math.random()),
+      position: [(rand() - 0.5) * (w - 2), 2 + rand() * Math.max(0, h - 3), (rand() - 0.5) * (d - 2)],
+      color: rainbow(rand()),
     }))
     return { ...b.serialize, features: lanterns }
   }

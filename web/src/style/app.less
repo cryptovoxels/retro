@@ -771,18 +771,18 @@ header.menu {
   }
 
   &.mini {
-    height: 6rem;
-    overflow: hidden;
+    height: fit-content;
 
-    ul li:nth-child(n + 2) {
+    .menu-toggle,
+    nav > ul ~ ul,
+    nav > ul:first-child > li ~ li,
+    form + br {
       display: none;
     }
-  }
 
-  &:hover {
-    height: 100%;
-    ul li:nth-child(n + 2) {
-      display: unset;
+    nav {
+      display: block;
+      min-height: 0;
     }
   }
 }
@@ -803,7 +803,7 @@ header.menu .menu-toggle {
       margin: 1rem;
     }
 
-    &:not(.expanded) nav {
+    &:not(.expanded):not(.mini) nav {
       display: none;
     }
 
@@ -821,7 +821,22 @@ header nav {
   display: grid;
   grid-template-rows: auto 1fr;
 
+  form {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+
+  .pane-logo {
+    flex: none;
+    display: flex;
+    padding: 0.125rem;
+    border: 0;
+    background: transparent;
+  }
+
   input[type='search'] {
+    min-width: 0;
     width: 100%;
     box-sizing: border-box;
   }
@@ -1034,18 +1049,34 @@ main {
       visibility 80ms,
       transform 200ms ease-out;
   }
+}
 
-  body.locked header.menu {
-    opacity: 0;
-    visibility: hidden;
-    transition:
-      opacity 300ms,
-      visibility 300ms;
-  }
+body.locked header.menu,
+body.locked main > .page {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity 300ms,
+    visibility 300ms;
 }
 
 .page:has(> .page-tool:not(:empty)) > .page-route {
   display: none;
+}
+
+body.locked main > .page:has(.street-mini) {
+  display: block;
+  height: fit-content;
+  visibility: visible;
+  opacity: 1;
+  transform: none;
+  pointer-events: none;
+  > :not(.page-mini) {
+    display: none;
+  }
+  > .page-mini {
+    display: block;
+  }
 }
 
 .page-tool:empty {
@@ -5610,4 +5641,15 @@ dl.props {
 .transform-handle[hidden],
 .transform-size[hidden] {
   display: none;
+}
+.interaction-hint {
+  position: fixed;
+  top: calc(50% + 1rem);
+  left: 50%;
+  transform: translateX(-50%);
+  pointer-events: none;
+  z-index: 40;
+  background: var(--bg);
+  color: var(--fg);
+  padding: 0.25rem 0.5rem;
 }

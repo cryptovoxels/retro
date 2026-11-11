@@ -1,5 +1,8 @@
 import * as Comlink from 'comlink'
 import { installAbort } from './monoworker/abort'
+import { oceanMesh } from './monoworker/ocean-mesh'
+import { groundMesh } from './monoworker/ground-mesh'
+import { islandLayout, islandSurface } from './monoworker/island'
 import { bakeLightmap } from './monoworker/lightmap'
 import { loadVox } from './monoworker/vox'
 import { loadIndex, nearbyLots, fetchLots } from './monoworker/world'
@@ -10,6 +13,10 @@ installAbort()
 const api = {
   // ready probe for createComlinkWorker (importScripts can fail after new Worker)
   ping: () => true as const,
+  groundMesh,
+  oceanMesh,
+  islandLayout,
+  islandSurface,
   bakeLightmap,
   loadVox,
   voxelCollider,

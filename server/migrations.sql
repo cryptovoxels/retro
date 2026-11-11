@@ -411,3 +411,45 @@ SELECT apply_migration('grants', $$
     created_at timestamptz NOT NULL DEFAULT now()
   );
 $$);
+
+SELECT apply_migration('island-drafts', $$
+  CREATE TABLE island_drafts (
+    slug text PRIMARY KEY,
+    settings jsonb NOT NULL
+  );
+$$);
+
+SELECT apply_migration('island-ground', $$
+  ALTER TABLE island_drafts ADD COLUMN ground bytea;
+  ALTER TABLE islands ADD COLUMN ground bytea;
+$$);
+
+SELECT apply_migration('island-draft-content', $$
+  ALTER TABLE island_drafts ADD COLUMN content jsonb;
+$$);
+
+SELECT apply_migration('texas-street-rats', $$
+  CREATE TABLE creatures (
+    id serial PRIMARY KEY, island text NOT NULL, species text NOT NULL,
+    name text NOT NULL, named_by text, named_by_wallet text, cap boolean NOT NULL DEFAULT false,
+    x real NOT NULL, z real NOT NULL, home integer NOT NULL, food integer NOT NULL,
+    carrying boolean NOT NULL DEFAULT false
+  );
+  -- x/z are world metres. Home and food index the half-metre Texas street grid.
+  INSERT INTO creatures (island, species, name, cap, x, z, home, food) VALUES
+    ('draft:texas', 'rat', 'Dave-o', true, 111.25, -1057.75, 820, 1223),
+    ('draft:texas', 'rat', 'Pip', false, 110.25, -1055.75, 978, 418),
+    ('draft:texas', 'rat', 'Crumb', false, 112.25, -1059.75, 662, 1137);
+$$);
+
+SELECT apply_migration('texas-street-eagles', $$
+  ALTER TABLE creatures ADD COLUMN respawn_at double precision NOT NULL DEFAULT 0;
+  INSERT INTO creatures (island,species,name,x,z,home,food)
+    SELECT 'draft:texas','eagle',name,111,-1058,820,820
+    FROM unnest(ARRAY['henry','dave','ralph','peter','bjork']) AS name;
+$$);
+
+SELECT apply_migration('texas-keep-henry', $$
+  DELETE FROM creatures WHERE island = 'draft:texas' AND species = 'eagle'
+    AND name IN ('dave', 'ralph', 'peter', 'bjork');
+$$);

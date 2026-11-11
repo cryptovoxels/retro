@@ -293,7 +293,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     if (isMobileMedia()) {
       this.canvas.addEventListener('touchstart', () => {
         app.emit(AppEvent.CanvasEngaged)
-        this.hide()
       })
     }
 

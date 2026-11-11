@@ -237,7 +237,8 @@ async function buildNode(name) {
 }
 
 async function buildClient(dev) {
-  fs.mkdirSync(path.join(repo, 'dist'), { recursive: true })
+  fs.mkdirSync(path.join(repo, 'dist/vendor'), { recursive: true })
+  fs.copyFileSync(path.join(repo, 'node_modules/wasmoon/dist/glue.wasm'), path.join(repo, 'dist/vendor/wasmoon.wasm'))
   if (dev) {
     const ctx = await esbuild.context(clientOptions(true))
     const thumb = await esbuild.context(thumbWorkerOptions(true))

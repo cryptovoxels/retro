@@ -3,6 +3,7 @@ import { Component } from 'preact'
 import { Dispatch, StateUpdater, useEffect, useState } from 'preact/hooks'
 import { JSXInternal } from 'preact/src/jsx'
 import { CostumeAttachment } from '../../../common/messages/costumes'
+import { Idling } from '../../../common/messages/feature'
 import type { AnimationDestination, ButtonRecord, EasingDescription, ImageMode, KeyFrame } from '../../../common/messages/feature'
 import { ColorInput } from '../../../web/src/components/ColorInput'
 import { axisValues, ScaleInput, ScaleKeyframe } from '../../../web/src/components/editor'
@@ -266,27 +267,22 @@ interface AnimationProps {
 
 export const Animation = (props: AnimationProps) => {
   const [scaleAspectRatioLocked, setScaleAspectRatioLocked] = useState<boolean>(!!props.scaleAspectRatioAlwaysLocked)
-  const animation = props.feature.description.animation || { keyframes: [], destination: undefined, easing: {} }
-  // for the sake of typescript and also to avoid sending unnecessary updates:
-  if (!animation.destination) {
-    animation.destination = undefined
-  }
+  const stored = props.feature.description.animation
+  const animation = typeof stored === 'string' ? undefined : stored
+  const [destination, setDestination] = useState<AnimationDestination | Idling>(typeof stored === 'string' ? stored : animation?.destination || undefined)
 
-  const [destination, setDestination] = useState<AnimationDestination>(animation.destination)
-
-  const [keyframes, setKeyframes] = useState<KeyFrame[]>(animation.keyframes || [])
-  const [easing, setEasing] = useState<EasingDescription>(animation.easing || {})
+  const [keyframes, setKeyframes] = useState<KeyFrame[]>(animation?.keyframes || [])
+  const [easing, setEasing] = useState<EasingDescription>(animation?.easing || {})
 
   useEffect(() => {
-    let animationFromProps = props.feature.description.animation
-    animationFromProps = {
-      destination: animationFromProps?.destination || undefined,
-      keyframes: animationFromProps?.keyframes || [],
-      easing: animationFromProps?.easing || {},
+    const current = props.feature.description.animation
+    if (destination && destination in Idling.keys) {
+      if (current !== destination && props.feature.description.type === 'vox-model') props.feature.set({ animation: destination as Idling })
+      return
     }
-
+    const animationFromProps = typeof current === 'string' ? current : { destination: current?.destination || undefined, keyframes: current?.keyframes || [], easing: current?.easing || {} }
     const newAnimationSummary = {
-      destination,
+      destination: destination as AnimationDestination,
       keyframes,
       easing,
     }
@@ -327,7 +323,7 @@ export const Animation = (props: AnimationProps) => {
     setKeyframes(nextKeyframes)
   }
 
-  const destinations = [undefined, 'position', 'scaling', 'rotation'].map((destination) => (
+  const destinations = [undefined, 'position', 'scaling', 'rotation', ...(props.feature.description.type === 'vox-model' ? Object.keys(Idling.keys) : [])].map((destination) => (
     <option key={destination} value={destination!}>
       {destination}
     </option>
@@ -337,7 +333,7 @@ export const Animation = (props: AnimationProps) => {
     return destination === 'scaling' ? (
       <ScaleKeyframe destination={destination} setKeyframe={setKeyframe} removeKeyframe={removeKeyframe} key={i} index={i} keyframe={keyFrame} scaleAspectRatioLocked={scaleAspectRatioLocked} featureScaleAxis={props.feature.scaleAxes()} />
     ) : (
-      <Keyframe destination={destination} setKeyframe={setKeyframe} removeKeyframe={removeKeyframe} key={i} index={i} keyframe={keyFrame} />
+      <Keyframe destination={destination as AnimationDestination} setKeyframe={setKeyframe} removeKeyframe={removeKeyframe} key={i} index={i} keyframe={keyFrame} />
     )
   })
 
@@ -361,7 +357,7 @@ export const Animation = (props: AnimationProps) => {
           {destinations}
         </select>
       </dd>
-      {destination && (
+      {destination && !(destination in Idling.keys) && (
         <>
           {easingDropdown(easing, setEasing)}
 

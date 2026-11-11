@@ -28,7 +28,7 @@ import { ensureRadio } from './radio/global'
 import { app, AppEvent } from './state'
 import { AppRoutes } from './app-routes'
 import { applyTheme } from '../../common/helpers/theme'
-import { clearPageTool, isPageTool, pageToolEl, hoveredNft, currentOrNearestParcel, currentParcel, uiPane, worldUi } from '../../src/store'
+import { clearPageTool, isPageTool, pageToolEl, hoveredNft, currentOrNearestParcel, currentParcel, street, uiPane, worldUi } from '../../src/store'
 
 applyTheme()
 
@@ -85,23 +85,21 @@ const Main = () => {
     trackPage(path)
     if (path === '/shop') track('visit_shop')
 
+    if (path !== currentPath) setClosed(false)
     setCurrentPath(path)
 
     app.send({ type: 'navigate', data: e.url })
   }
 
   const [currentPath, setCurrentPath] = useState(window.location.pathname)
+  const [closed, setClosed] = useState(false)
   const [engaged, setEngaged] = useState(false)
   const lightBroadcast = currentPath.startsWith('/golive/broadcast')
   const play = isPlayPath(currentPath) && !isPageTool(uiPane.value)
 
   useEffect(() => {
     ensureRadio()
-    const playWorld = () => {
-      setEngaged(true)
-      if (window.grid?.currentW !== 0 || isPageTool(uiPane.value) || isPlayPath()) return
-      route(`/play${location.search}`, true)
-    }
+    const playWorld = () => setEngaged(true)
     app.on(AppEvent.CanvasEngaged, playWorld)
     return () => {
       app.removeListener(AppEvent.CanvasEngaged, playWorld)
@@ -122,12 +120,22 @@ const Main = () => {
   return (
     <MainApp>
       <main onClick={travel} class={[lightBroadcast ? 'showbox-light-shell' : '', play ? 'play' : ''].filter(Boolean).join(' ') || undefined}>
-        {!lightBroadcast && <WebHeader path={currentPath} mini={engaged} />}
+        {!lightBroadcast && (
+          <WebHeader
+            path={currentPath}
+            mini={closed || (play && engaged)}
+            expand={() => {
+              setClosed(false)
+              setEngaged(false)
+            }}
+          />
+        )}
 
         <Client path={currentPath} />
 
-        <div class={[worldUi.value && play && engaged ? 'page mini' : 'page', play && engaged ? 'play' : ''].join(' ')}>
+        <div hidden={closed && !isPageTool(uiPane.value)} class={[worldUi.value && play && engaged ? 'page mini' : 'page', play && engaged ? 'play' : ''].join(' ')}>
           <div class="page-route">
+            {!lightBroadcast && <button onClick={() => setClosed(true)}>close</button>}
             <Router onChange={handleRoute}>
               {AppRoutes()}
               <RadioPopout path="/radio" />
@@ -151,7 +159,21 @@ const Main = () => {
 // collapsed .page content. only this re-renders on hover / parcel change
 function PageMini() {
   const parcel = currentOrNearestParcel.value
-  return <div class="page-mini">{hoveredNft.value ? <Art mini src={hoveredNft.value} /> : parcel ? <ParcelPage mini parcel={parcel as any} /> : null}</div>
+  const road = street.value
+  return (
+    <div class="page-mini">
+      {hoveredNft.value ? (
+        <Art mini src={hoveredNft.value} />
+      ) : road ? (
+        <div class="street-mini mini">
+          <strong>{road.name}</strong>
+          <span>{road.suburb}</span>
+        </div>
+      ) : parcel ? (
+        <ParcelPage mini parcel={parcel as any} />
+      ) : null}
+    </div>
+  )
 }
 
 // Popped-out radio window (window.open('/radio'))

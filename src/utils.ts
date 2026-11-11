@@ -3,7 +3,6 @@ import { FEATURE_LOD_DISTANCE } from './graphic/draw-distance'
 import type Feature from './features/feature'
 
 const frozenTransforms = new WeakSet<BABYLON.TransformNode>()
-const frozenMaterials = new WeakSet<BABYLON.Material>()
 const staticFeatures = new Set(['image', 'nft-image', 'cube', 'sign', 'vox-model', 'megavox'])
 
 export function featureLOD(feature: Feature) {
@@ -41,7 +40,6 @@ export function thawFeature(feature: Feature) {
   if (!feature.mesh) return
   for (const node of [feature.mesh, ...feature.mesh.getDescendants()]) {
     if (node instanceof BABYLON.TransformNode && frozenTransforms.delete(node)) node.unfreezeWorldMatrix()
-    if (node instanceof BABYLON.AbstractMesh && node.material && frozenMaterials.delete(node.material)) node.material.unfreeze()
   }
 }
 
@@ -62,11 +60,6 @@ export function freezeFeature(feature: Feature) {
     if (dynamic) continue
     node.freezeWorldMatrix()
     frozenTransforms.add(node)
-    const material = node.material
-    if (material instanceof BABYLON.StandardMaterial && !material.customShaderNameResolve && !material.isFrozen) {
-      material.freeze()
-      frozenMaterials.add(material)
-    }
   }
 }
 
@@ -142,5 +135,6 @@ export function rgbaPixels(rgb: Uint8Array, rgba = new Uint8Array((rgb.length / 
 export function instanceKey(feature: import('../common/messages/feature').FeatureRecord) {
   if (!['image', 'vox-model', 'cube', 'megavox'].includes(feature.type)) return undefined
   const { uuid, position, rotation, scale, groupId, version, collidable, animation, ...appearance } = feature as any
+  if (typeof animation === 'string') appearance.animation = animation
   return JSON.stringify(appearance, (_key, value) => (value && !Array.isArray(value) && typeof value === 'object' ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b))) : value))
 }

@@ -1,9 +1,13 @@
+import { seeded } from '../../../common/helpers/utils'
 import type { ParcelMeta } from '../../../common/types'
 import { getBlockId } from '../../../common/content/blocks'
 
 export type Face = 'n' | 's' | 'e' | 'w'
 
 export type VillageParcel = ParcelMeta & {
+  suburb?: string
+  is_common?: boolean
+  common?: 'mesa' | 'campfire'
   address: string
   door: Face
   material: number
@@ -15,16 +19,6 @@ export type VillageOpts = { name: string; streets: string[]; count: number; rero
 type Rect = { x1: number; z1: number; x2: number; z2: number }
 type Street = { alongX: boolean; at: number; name: string }
 type Lot = { r: Rect; street: Street; door: Face }
-
-// mulberry32
-function seeded(seed: number) {
-  return () => {
-    seed = (seed + 0x6d2b79f5) | 0
-    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed)
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296
-  }
-}
 
 const snap = (v: number) => Math.round(v / 2) * 2
 
@@ -153,5 +147,5 @@ export function village({ name, streets, count, reroll, area, areaSpread, height
   // stand in the middle of the first street
   const s = list[0]
   const spawn: [number, number] = s ? (s.alongX ? [0, s.at + 2] : [s.at + 2, 0]) : [0, 0]
-  return { parcels, spawn }
+  return { parcels, spawn, roads: blocks.slice(0, list.length) }
 }

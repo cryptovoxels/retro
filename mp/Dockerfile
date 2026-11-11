@@ -1,4 +1,4 @@
-# ABOUTME: Multiplayer image. One file, no node_modules.
+# ABOUTME: Multiplayer image. Bundled Node runtime and the Texas rat script.
 
 FROM node:25-slim AS build
 WORKDIR /app
@@ -12,5 +12,6 @@ FROM node:25-slim
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=build /app/dist/mp.js /app/mp.js
+COPY multiplayer/sim/eagle.lua multiplayer/sim/rat.lua multiplayer/sim/street.txt multiplayer/sim/LUA-LICENSE.txt /app/multiplayer/sim/
 EXPOSE 8080
 CMD ["node", "mp.js"]

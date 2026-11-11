@@ -1,0 +1,13 @@
+{
+  "name": "Texas",
+  "center": [-0.51, -10.07],
+  "count": 736,
+  "reroll": 0,
+  "artpack": "texas-thrift",
+  "atlas": "https://ugc.voxels.com/tilesets/concrete-v1.png",
+  "streets": "",
+  "area": 60,
+  "areaSpread": 0.4,
+  "height": 8,
+  "heightSpread": 0.3
+}

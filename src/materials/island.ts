@@ -27,6 +27,7 @@ export function createIslandMaterial(scene: BABYLON.Scene, config: IslandMateria
   material.diffuseTexture = config.texture
 
   // Rendering settings
+  material.zOffset = material.zOffsetUnits = 1
   material.backFaceCulling = false // Helps with reflections in the water
 
   material.freeze()

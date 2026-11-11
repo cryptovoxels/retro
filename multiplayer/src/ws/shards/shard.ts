@@ -8,6 +8,8 @@ import { toBuffer } from '../../utility/toBuffer'
 import { BehaviourRelay } from '../behaviour-relay'
 import { Client, ClientConnectionInformation } from '../client'
 
+import { Sim } from '../../sim'
+
 export type AddClientResult =
   | {
       kind: 'success'
@@ -24,6 +26,7 @@ const HEALTHY_UPDATE_HZ = 5
 export const ALL_SHARD_CLIENT_MESSAGE_CHANNEL = 'all_shard_clients'
 
 export class Shard {
+  readonly sim = new Sim(this)
   lastWorldStateUpdate = 0
   readonly connectedClients: Map<ClientUUID, Client> = new Map()
   readonly disposeAbortController = new AbortController()
@@ -104,6 +107,7 @@ export class Shard {
 
   sendWorldState() {
     const start = Date.now()
+    this.sim.update()
     const avatars: messages.UpdateAvatarMessage[] = []
     for (const client of this.connectedClients.values()) {
       if (!client.position) continue

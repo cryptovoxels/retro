@@ -67,13 +67,19 @@ export class Terrain {
 
   async addIsland(desc: IslandRecord) {
     const island = await this._islands.add(desc)
-    this._ocean.setIslands(this._islands)
+    this.refreshWater()
     return island
   }
 
   removeIsland(name: string) {
     this._islands.remove(name)
+    this.refreshWater()
+  }
+
+  private refreshWater() {
     this._ocean.setIslands(this._islands)
+    for (const chunk of this._chunkSystem.getLoadedChunks()) this._ocean.onChunkUnloaded(chunk)
+    for (const chunk of this._chunkSystem.getLoadedChunks()) this._ocean.onChunkLoaded(chunk)
   }
 
   hasWaterMeshAt(x: number, z: number) {

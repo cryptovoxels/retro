@@ -118,11 +118,16 @@ export type EasingDescription = t.TypeOf<typeof EasingDescription>
 
 // Inline behaviour: lua source lives on the feature. Pick a preset or have an LLM
 // write one - behaviours never touch the asset library.
-export const Behaviour = t.type({ name: t.string, code: t.string })
+export const Behaviour = t.intersection([t.type({ name: t.string, code: t.string }), t.partial({ link: t.string })])
 export type Behaviour = t.TypeOf<typeof Behaviour>
 
 // Message descriptions for parcel features
-export const FeatureCommon = t.intersection(
+export const Animation = t.type({ destination: AnimationDestination, keyframes: t.array(KeyFrame), easing: EasingDescription })
+export type Animation = t.TypeOf<typeof Animation>
+export const Idling = t.keyof({ grass: null, flag: null, bush: null, tree: null })
+export type Idling = t.TypeOf<typeof Idling>
+
+const featureBase = t.intersection(
   [
     t.type(
       {
@@ -150,11 +155,6 @@ export const FeatureCommon = t.intersection(
         link: NullableStr,
         script: NullableStr,
         behave: t.array(Behaviour),
-        animation: t.type({
-          destination: AnimationDestination,
-          keyframes: t.array(KeyFrame),
-          easing: EasingDescription,
-        }),
         draft: t.string,
       },
       'optional',
@@ -162,6 +162,7 @@ export const FeatureCommon = t.intersection(
   ],
   'FeatureCommon',
 )
+export const FeatureCommon = t.intersection([featureBase, t.partial({ animation: Animation })])
 export type FeatureCommon = t.TypeOf<typeof FeatureCommon>
 
 const TYPE_SPECIFIC = 'type-specific'
@@ -465,12 +466,17 @@ export const VoxCommonRecord = t.intersection(
 )
 export type VoxCommonRecord = t.TypeOf<typeof VoxCommonRecord>
 
+export const Pose = t.intersection([t.type({ animation: t.number }), t.partial({ offset: t.tuple([t.number, t.number, t.number]), yaw: t.number })])
+export type Pose = t.TypeOf<typeof Pose>
+
 export const VoxModelRecord = t.intersection(
   [
-    VoxCommonRecord,
+    featureBase,
+    t.partial({ collidable: t.boolean, cubescale: t.boolean, animation: t.union([Animation, Idling]) }),
     t.type({
       type: t.literal('vox-model'),
     }),
+    t.partial({ pose: t.union([Pose, t.null]), interactHint: t.string }),
   ],
   'VoxModelRecord',
 )

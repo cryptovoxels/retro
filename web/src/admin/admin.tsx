@@ -1,4 +1,5 @@
-import { useState } from 'preact/hooks'
+import { route } from 'preact-router'
+import { useEffect, useState } from 'preact/hooks'
 import { app } from '../state'
 import Owned from './owned'
 import Unminted from './unminted'
@@ -8,7 +9,10 @@ import IslandsAdmin from './islands'
 type Tab = 'mint' | 'list' | 'sandbox' | 'island'
 
 export default function Admin(_props: { path?: string }) {
-  const [tab, setTab] = useState<Tab>('mint')
+  const [tab, setTab] = useState<Exclude<Tab, 'island'>>('mint')
+  useEffect(() => {
+    if (_props.path === '/admin' && new URLSearchParams(location.search).has('draft')) route('/admin/island' + location.search, true)
+  }, [])
 
   if (!app.isAdmin()) {
     return (
@@ -19,6 +23,7 @@ export default function Admin(_props: { path?: string }) {
     )
   }
 
+  if (_props.path === '/admin/island') return <IslandsAdmin />
   return (
     <section class="admin">
       <h1>admin</h1>
@@ -32,15 +37,12 @@ export default function Admin(_props: { path?: string }) {
         <button class={tab === 'sandbox' ? 'active' : ''} onClick={() => setTab('sandbox')}>
           sandbox
         </button>
-        <button class={tab === 'island' ? 'active' : ''} onClick={() => setTab('island')}>
-          island
-        </button>
+        <button onClick={() => route('/admin/island' + location.search)}>island</button>
       </nav>
 
       {tab === 'mint' && <Unminted />}
       {tab === 'list' && <Owned />}
       {tab === 'sandbox' && <SandboxesAdmin />}
-      {tab === 'island' && <IslandsAdmin />}
     </section>
   )
 }

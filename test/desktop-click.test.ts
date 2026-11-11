@@ -38,7 +38,7 @@ function setup(editor = false, pending = false) {
 }
 
 for (const editor of [false, true])
-  it(`consumes the recapture gesture${editor ? ' when closing the editor' : ''}, then allows the next click`, () => {
+  it(`consumes the recapture gesture${editor ? ' with the editor open' : ''}, then allows the next click`, () => {
     const { controls, send } = setup(editor)
     expect(send(BABYLON.PointerEventTypes.POINTERDOWN)).toBe(true)
     expect(send(BABYLON.PointerEventTypes.POINTERUP)).toBe(true)
@@ -46,7 +46,8 @@ for (const editor of [false, true])
     expect(controls.lockedLeftClick).not.toHaveBeenCalled()
     send(BABYLON.PointerEventTypes.POINTERDOWN)
     send(BABYLON.PointerEventTypes.POINTERTAP)
-    expect(controls.lockedLeftClick).toHaveBeenCalledTimes(1)
+    expect(controls.lockedLeftClick).toHaveBeenCalledTimes(editor ? 0 : 1)
+    expect(window.ui!.closeWithPointerLock).not.toHaveBeenCalled()
   })
 
 it('consumes release and tap while pointer lock is still pending', () => {
@@ -64,13 +65,13 @@ it('leaves action buttons unlocked and clickable', () => {
   expect(controls.requestPointerLock).not.toHaveBeenCalled()
 })
 
-it('exits voxel editing when recapturing the canvas', () => {
+it('keeps voxel editing when recapturing the canvas', () => {
   const { send } = setup()
   const ui = window.ui as any
   ui.voxelTool = ui.activeTool = {}
   ui.exitVoxels = vi.fn()
   expect(send(BABYLON.PointerEventTypes.POINTERDOWN)).toBe(true)
-  expect(ui.exitVoxels).toHaveBeenCalledOnce()
+  expect(ui.exitVoxels).not.toHaveBeenCalled()
 })
 
 it('right click exits voxel editing without opening a context action', () => {
@@ -85,7 +86,7 @@ it('right click exits voxel editing without opening a context action', () => {
   expect(controls.handleContextClick).not.toHaveBeenCalled()
 })
 
-it('starts close third person, enters first person on lock, and preserves C until unlock', () => {
+it('starts close third person, enters first person on lock, and keeps the camera on unlock', () => {
   const { controls } = setup()
   const canvas = document.createElement('canvas')
   const descriptor = Object.getOwnPropertyDescriptor(document, 'pointerLockElement')
@@ -105,13 +106,14 @@ it('starts close third person, enters first person on lock, and preserves C unti
     lock.value = true
     controls.onPointerLockChange()
     expect(controls.enterFirstPerson).toHaveBeenCalledTimes(1)
-    controls.enterThirdPerson(2)
+    controls.camera.rotation.x = -0.23
     controls.onPointerLockChange()
     expect(controls.enterFirstPerson).toHaveBeenCalledTimes(1)
     lock.value = false
     controls.onPointerLockChange()
     expect(controls.targetCameraDistance).toBe(1.5)
-    expect(controls.enterThirdPerson).toHaveBeenLastCalledWith(1.5)
+    expect(controls.enterThirdPerson).toHaveBeenCalledTimes(1)
+    expect(controls.camera.rotation.x).toBe(-0.23)
     controls.autoPerspective = false
     controls.enterFirstPerson.mockClear()
     controls.enterThirdPerson.mockClear()

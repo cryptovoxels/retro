@@ -12,6 +12,7 @@ import { app, AppEvent, likedArt, toggleLike } from '../../../web/src/state'
 import { CAMERA_HEIGHT, encodeCoords } from '../../../common/helpers/utils'
 import { pointerOverGizmo } from '../../tools/gizmos'
 import type Feature from '../../features/feature'
+import { InteractionHint } from '../interaction-hint'
 const POINTER_WHEEL_MULTIPLIER = 0.001
 export default class DesktopControls extends Controls {
   keyboardInput?: LocaleKeyboardMoveInput
@@ -22,9 +23,11 @@ export default class DesktopControls extends Controls {
   private mouseLookAttached = false
   private rising = false
   private locked?: boolean
+  private interactionHint?: InteractionHint
 
   constructor(scene: BABYLON.Scene, canvas: HTMLCanvasElement) {
     super(scene, canvas)
+    this.interactionHint = new InteractionHint(this, scene)
 
     scene.skipPointerUpPicking = false
     scene.skipPointerDownPicking = false
@@ -95,6 +98,7 @@ export default class DesktopControls extends Controls {
   }
 
   dispose() {
+    this.interactionHint?.dispose()
     if (this.lockListener) document.removeEventListener('pointerlockchange', this.lockListener)
     this.scene.onPointerObservable.removeCallback(this.desktopClicks)
   }
@@ -121,10 +125,11 @@ export default class DesktopControls extends Controls {
       return
     }
     if (this.autoPerspective && this.persona && locked !== this.locked) {
+      const initial = this.locked === undefined
       this.locked = locked
       if (locked) {
         this.enterFirstPerson()
-      } else {
+      } else if (initial) {
         this.enterThirdPerson(1.5)
         this.targetCameraDistance = 1.5
         cam.rotation.x = 0.35
@@ -213,7 +218,7 @@ export default class DesktopControls extends Controls {
         if (pointerOverGizmo(this.scene)) return
         this.nerfClick = true
         eventState.skipNextObservers = true
-        window.ui?.closeWithPointerLock()
+        this.requestPointerLock()?.catch(() => {})
         return
       }
       // ActionGui (Drive / try-on / guestbook): lock mid-press moves the cursor to
@@ -223,7 +228,6 @@ export default class DesktopControls extends Controls {
         if (meshName.startsWith('feature/basicGui/')) return
         this.nerfClick = true
         eventState.skipNextObservers = true
-        if (window.ui?.voxelTool && window.ui.activeTool === window.ui.voxelTool) window.ui.exitVoxels()
         this.requestPointerLock()?.catch(() => {})
         return
       }
@@ -269,8 +273,8 @@ export default class DesktopControls extends Controls {
           if (picked?.parcel?.canEdit) {
             picked.openEditor()
           } else {
-            // click away: leave edit mode entirely — sidebar goes away, pointer lock back
-            window.ui?.closeWithPointerLock()
+            // Keep the editor mounted while flying.
+            this.requestPointerLock()?.catch(() => {})
           }
           eventState.skipNextObservers = true
           break

@@ -50,6 +50,7 @@ export class Islands {
       id,
       name,
       texture,
+      json_build_object('origin', content->'origin', 'features', content->'features', 'streets', content->'streets') as content,
       
       holes_geometry_json,
       lakes_geometry_json,
