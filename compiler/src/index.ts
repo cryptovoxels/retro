@@ -2,16 +2,10 @@
 
 import './bootstrap'
 import express from 'express'
-import { compileParcelContent, type CompilePools } from '../../common/helpers/parcel-compile'
-import Parcel from '../../server/parcel'
 import db from '../../server/pg'
 import { Board } from './board'
-import { diskFetch } from './download'
-import { encodeImageDraft, encodeVoxDraft } from './drafts'
+import { compileOne } from './parcel'
 import { createFarm } from './farm'
-import { hoardEnabled, hoardFetch } from './hoard'
-import { serverUpload } from './upload'
-import { encodeVoxelbr } from './voxelbr'
 
 const port = process.env.PORT || '8081'
 const SLEEP_MS = parseInt(process.env.COMPILE_SLEEP_MS || '0', 10)
@@ -30,11 +24,6 @@ app.get('/health', (_req, res) => {
 
 const farm = createFarm(COMPILE_PARCELS, COMPILE_WORKERS)
 const board = new Board(COMPILE_WORKERS, COMPILE_PARCELS)
-
-const pools: CompilePools = {
-  download: (fn) => farm.downloaders.run(fn),
-  upload: (fn) => farm.uploaders.run(fn),
-}
 
 const seen = new Set<number>()
 const queue: number[] = []
@@ -80,63 +69,6 @@ async function pickParcelId(): Promise<number | null> {
   return queue.shift() ?? null
 }
 
-function applyPatch(content: any, patch: Awaited<ReturnType<typeof compileParcelContent>>['patch']) {
-  if (patch.features && Array.isArray(content.features)) {
-    for (const f of content.features) {
-      if (f?.uuid && patch.features[f.uuid]) Object.assign(f, patch.features[f.uuid])
-    }
-  }
-  if (patch.tileset !== undefined) content.tileset = patch.tileset
-}
-
-async function compileOne(id: number) {
-  board.addParcel(id)
-  try {
-    const parcel = await Parcel.load(id)
-    if (!parcel?.content) return
-
-    const features = (parcel.content.features || []).filter((f: any) => f && f.uuid)
-    const tileset = parcel.content.tileset as string | undefined
-    // reprocess never writes the bucket; normal mode uploads as usual
-    const upload = REPROCESS ? async () => null : (name: string, bytes: Uint8Array, contentType: string, contentEncoding?: string) => serverUpload(id, name, bytes, contentType, contentEncoding)
-
-    const { patch, missing } = await compileParcelContent(
-      id,
-      features,
-      tileset,
-      upload,
-      {
-        encodeImage: encodeImageDraft,
-        encodeVox: encodeVoxDraft,
-        encodeVoxelbr: REPROCESS ? undefined : encodeVoxelbr,
-      },
-      { pools, board, fetch: diskFetch, hoard: !REPROCESS && hoardEnabled() ? hoardFetch : undefined, reprocess: REPROCESS },
-    )
-
-    const prevMissing = Array.isArray(parcel.content.missing) ? parcel.content.missing : []
-    applyPatch(parcel.content, patch)
-
-    if (!REPROCESS) {
-      if (missing.length) parcel.content.missing = missing
-      else delete parcel.content.missing
-    }
-
-    const missingChanged = !REPROCESS && JSON.stringify(prevMissing) !== JSON.stringify(missing)
-    if (patch.features || patch.tileset !== undefined || missingChanged) {
-      parcel.setContent(parcel.content)
-      await parcel.save()
-      board.logDone(`#${id} saved  patched ${Object.keys(patch.features || {}).length}  tileset ${patch.tileset !== undefined ? 'yes' : 'no'}  missing ${REPROCESS ? '-' : missing.length}`)
-    } else {
-      board.logDone(`#${id} nothing to do`)
-    }
-
-    // after parcel.save(): it sets updated_at = NOW(), stamping earlier re-queues every parcel
-    await db.query('embedded/stamp-compiled', 'update properties set compiled_at = now() where id = $1', [id])
-  } finally {
-    board.removeParcel(id)
-  }
-}
-
 // a js death must not look like an oom kill: stop the board so the stack survives the redraw, then die loud
 for (const ev of ['uncaughtException', 'unhandledRejection'] as const) {
   process.on(ev, (e) => {
@@ -163,7 +95,7 @@ async function workerLoop() {
     inFlight++
     try {
       await farm.compilers.run(async () => {
-        await compileOne(id)
+        await compileOne(id, { board, reprocess: REPROCESS })
       })
     } catch (e) {
       board.logDone(`#${id} boom ${e}`)
@@ -182,7 +114,7 @@ if (parcelArg >= 0) {
     process.exit(1)
   }
   board.start()
-  compileOne(parcelId!)
+  compileOne(parcelId!, { board })
     .then(() => {
       board.stop()
       process.exit(0)
@@ -196,7 +128,5 @@ if (parcelArg >= 0) {
   app.listen(port, () => {
     board.start()
     for (let i = 0; i < COMPILE_PARCELS; i++) void workerLoop()
-    console.error(
-      `[compiler] listening on ${port}  parcels=${COMPILE_PARCELS} workers=${COMPILE_WORKERS}  hoard=${!REPROCESS && hoardEnabled() ? 'on' : 'off'}  mode=${REPROCESS ? 'REPROCESS (all parcels, drafts only, no ugc put)' : 'compile'}`,
-    )
+    console.error(`[compiler] listening on ${port}  parcels=${COMPILE_PARCELS} via DigitalOcean Functions  mode=${REPROCESS ? 'REPROCESS (all parcels, drafts only, no ugc put)' : 'compile'}`)
   })

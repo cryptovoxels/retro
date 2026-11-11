@@ -13,7 +13,7 @@ import db from './pg'
 import { bbox } from '@turf/turf'
 import { SUPPORTED_CHAINS } from '../common/helpers/chain-helpers'
 import { FeatureRecord, FeatureType } from '../common/messages/feature'
-import { readNftUrl } from '../common/helpers/nft-url'
+import { readNftUrl, TEZOS_CHAIN_ID } from '../common/helpers/nft-url'
 import { isUgcTextureUrl } from '../common/helpers/parcel-compile'
 const DEGREES_TO_METRES = 100
 
@@ -750,7 +750,7 @@ export async function nftImages(parcels: Parcel[]) {
     for (const f of (p.allFeatures || []) as any[]) {
       if (f?.type !== 'nft-image' || imageDraft(f.draft) || isUgcTextureUrl(f.url)) continue
       const nft = readNftUrl(f.url)
-      if (nft && f.uuid) wanted.push({ p, uuid: f.uuid, chain: nft.chain, contract: nft.contract.toLowerCase(), token: nft.token })
+      if (nft && f.uuid) wanted.push({ p, uuid: f.uuid, chain: nft.chain, contract: nft.chain === TEZOS_CHAIN_ID ? nft.contract : nft.contract.toLowerCase(), token: nft.token })
     }
   }
   if (!wanted.length) return

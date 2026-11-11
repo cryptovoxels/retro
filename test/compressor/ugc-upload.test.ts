@@ -50,3 +50,23 @@ it('leaves non-image assets unchanged', async () => {
   await serverUpload(4724, 'model.vox', bytes, 'application/octet-stream')
   expect(send.mock.calls[0][0].input.Body).toBe(bytes)
 })
+
+it('does not fetch or upload a parcel that is already rehosted', async () => {
+  const { compileParcelContent } = await import('../../common/helpers/parcel-compile')
+  const upload = vi.fn()
+  const fetch = vi.fn()
+  const result = await compileParcelContent(
+    4724,
+    [
+      { uuid: 'art', type: 'image', url: 'ugc://parcel/4724/art.png', draft: 'A'.repeat(64) },
+      { uuid: 'particles', type: 'particles', url: 'ugc://parcel/4724/particles.gif' },
+    ] as any,
+    'ugc://parcel/4724/atlas.png',
+    upload,
+    undefined,
+    { fetch },
+  )
+  expect(result).toEqual({ patch: {}, missing: [] })
+  expect(fetch).not.toHaveBeenCalled()
+  expect(upload).not.toHaveBeenCalled()
+})

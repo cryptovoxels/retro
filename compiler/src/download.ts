@@ -1,5 +1,11 @@
 // ABOUTME: Stream HTTP/S3 bodies to a temp file; only load into ram if under MAX_BYTES.
 
+import dns from 'node:dns'
+import http from 'node:http'
+import https from 'node:https'
+import { isIP } from 'node:net'
+import ipaddr from 'ipaddr.js'
+import fetch from 'node-fetch'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
@@ -7,6 +13,22 @@ import { Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import { MAX_BYTES, type CompileFetched } from '../../common/helpers/parcel-compile'
 
+// Validate the address used by the socket, including each redirect.
+function publicAddress(address: string) {
+  const ip = ipaddr.process(address)
+  return ip.range() === 'unicast' && (ip instanceof ipaddr.IPv4 || ip.match(ipaddr.IPv6.parse('2000::'), 3))
+}
+
+const lookup: NonNullable<http.AgentOptions['lookup']> = (host, options, done) => {
+  dns.lookup(host, { ...options, all: true }, (err, addresses) => {
+    const allowed = addresses?.filter(({ address }) => publicAddress(address))
+    if (err || !allowed?.length) return done(err || new Error('Private asset address'), '', 0)
+    if ((options as any).all) return done(null, allowed as any)
+    done(null, allowed[0].address, allowed[0].family)
+  })
+}
+
+const agents = { http: new http.Agent({ lookup }), https: new https.Agent({ lookup }) }
 const FETCH_TIMEOUT_MS = 30000
 const TOO_BIG: CompileFetched = { error: 'too big (>20mb)' }
 
@@ -61,21 +83,26 @@ export async function readBounded(body: Body, onProgress?: (got: number, total: 
 export async function diskFetch(url: string, onProgress?: (got: number, total: number) => void): Promise<CompileFetched> {
   try {
     const res = await fetch(url, {
+      agent: (url) => {
+        const host = url.hostname!.replace(/^\[|\]$/g, '')
+        if (isIP(host) && !publicAddress(host)) throw new Error('Private asset address')
+        return url.protocol === 'https:' ? agents.https : agents.http
+      },
       headers: { Range: `bytes=0-${MAX_BYTES - 1}` },
-      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) as any,
     })
     if (!res.ok) {
-      await res.body?.cancel()
+      ;(res.body as Readable)?.destroy()
       return { error: String(res.status), status: res.status }
     }
     const rangeSize = parseInt(res.headers.get('content-range')?.split('/').pop() || '', 10)
     if ((res.status === 206 && !rangeSize) || rangeSize > MAX_BYTES) {
-      await res.body?.cancel()
+      ;(res.body as Readable)?.destroy()
       return TOO_BIG
     }
     const total = parseInt(res.headers.get('content-length') || '0', 10) || 0
     if (total > MAX_BYTES) {
-      await res.body?.cancel()
+      ;(res.body as Readable)?.destroy()
       return TOO_BIG
     }
     const contentType = res.headers.get('content-type') || ''
@@ -85,7 +112,7 @@ export async function diskFetch(url: string, onProgress?: (got: number, total: n
       onProgress?.(buf.byteLength, buf.byteLength || total)
       return { bytes: new Uint8Array(buf), contentType, status: res.status }
     }
-    const loaded = await readBounded(res.body, onProgress, total)
+    const loaded = await readBounded(res.body as Readable, onProgress, total)
     if ('error' in loaded) return loaded
     return { bytes: loaded.bytes, contentType, status: res.status }
   } catch (e) {

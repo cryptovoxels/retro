@@ -6,7 +6,7 @@ Visit https://www.voxels.com/play to walk around. Browse without an account at h
 
 ## Voxels public read API
 
-82 routes on https://www.voxels.com, covering parcels, womps, avatars, collectibles, collections, wearables, islands, spaces, events, search, ghosts, chat, account. Most are unauthenticated GET. Handlers answer {"success": true, "<field>": ...}, where the field is plural for a list and singular for one record, and {"success": false} when the lookup misses.
+84 routes on https://www.voxels.com, covering parcels, womps, avatars, collectibles, collections, wearables, islands, spaces, events, search, ghosts, chat, account. Most are unauthenticated GET. Handlers answer {"success": true, "<field>": ...}, where the field is plural for a list and singular for one record, and {"success": false} when the lookup misses.
 
 ## docs
 
@@ -19,7 +19,7 @@ Visit https://www.voxels.com/play to walk around. Browse without an account at h
 
 The public Voxels API. Most of this is unauthenticated GET.
 
-Write routes for collection create / deploy / mint writeback are documented
+Write routes for parcel rehosting and collection create / deploy / mint writeback are documented
 here. Sign-in, admin, moderation, livekit, radio, metrics, guest passes and
 the internal /grid/* routes are deliberately not described.
 
@@ -107,7 +107,7 @@ Full reference: [Markdown](https://www.voxels.com/API.md),
 
 ## endpoints
 
-- [parcels](https://www.voxels.com/api/parcels.json): 21 routes. Land. Bounds, owners, sales, and the build with its voxels and features.
+- [parcels](https://www.voxels.com/api/parcels.json): 23 routes. Land. Bounds, owners, sales, and the build with its voxels and features.
 - [womps](https://www.voxels.com/api/womps.json): 6 routes. Photographs taken in world, with their captions, coordinates and pictures.
 - [avatars](https://www.voxels.com/api/avatars/search): 15 routes. Citizens: names, wallets, home parcel and the costume they are wearing.
 - [collectibles](https://www.voxels.com/api/collectibles.json): 3 routes. Minted wearables, including the MagicaVoxel model behind one.

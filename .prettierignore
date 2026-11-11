@@ -31,3 +31,5 @@ procgen/
 # smoke test renders, uploaded by ci
 test-output/
 multiplayer/sim/core.cjs
+
+compiler/function/packages/parcels/rehost/index.js
