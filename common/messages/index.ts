@@ -48,7 +48,6 @@ export enum MessageType {
   // Lua behaviour state sync (parallel to grid; ephemeral, parcel-scoped)
   behaviourState = 70,
   behaviourSignal = 71,
-  dressRat = 72,
 }
 
 // unsure if we should pack the data, in most cases the payload is so small that compressing just
@@ -354,7 +353,7 @@ export type UpdateAvatarMessage = {
   /** Person in front of this avatar in the conga chain; leader omits. Used to sync whole line (e.g. fly) to head. */
   congaFollowsUuid?: string | null
   vehicle?: AvatarVehiclePayload | null
-  texasDraft?: boolean
+  draft?: string
 }
 
 export const UpdateAvatarEncoder = encoderCreator<UpdateAvatarMessage>()
@@ -374,7 +373,7 @@ extensionCodec.register({
       input.congaFollowsUuid ? encodeUUID(input.congaFollowsUuid) : null,
       vehicle,
       input.grounded,
-      ...(input.texasDraft ? [true] : []),
+      ...(input.draft ? [input.draft] : []),
     ])
   },
   decode: (data): UpdateAvatarMessage => {
@@ -386,7 +385,7 @@ extensionCodec.register({
       orientation: decompressQuaternion(res[2]),
       animation: res[3],
       grounded: res[7],
-      ...(res[8] === true && { texasDraft: true }),
+      ...(typeof res[8] === 'string' && { draft: res[8] }),
       inConga: !!res[4],
     }
     if (res.length > 5 && res[5] != null) {
@@ -436,14 +435,12 @@ extensionCodec.register({
   },
 })
 
-export type EaglePose = [state: string, pitch: number, yaw: number, idle_position: [number, number, number], idle_rotation: [number, number, number]]
-export type RatPose = [id: number, x: number, y: number, z: number, carrying: boolean, name: string, namedBy: string | null, cap: boolean, species?: 'eagle', flight?: EaglePose]
-export type DressRat = { type: MessageType.dressRat; id: number; name: string; cap: boolean }
+export type CritterPose = [id: number, model: string, position: [number, number, number], rotation: [number, number, number], phase: number]
 
 export type WorldStateMessage = {
   type: MessageType.worldState
   avatars: UpdateAvatarMessage[]
-  rats?: RatPose[]
+  critters?: CritterPose[]
 }
 export const WorldStateEncoder = encoderCreator<WorldStateMessage>()
 extensionCodec.register({
@@ -452,14 +449,14 @@ extensionCodec.register({
     if (input.type != MessageType.worldState) {
       return null
     }
-    return encodeAlias(input.rats ? [input.avatars, input.rats] : [input.avatars], { extensionCodec: extensionCodec })
+    return encodeAlias(input.critters ? [input.avatars, null, input.critters] : [input.avatars], { extensionCodec: extensionCodec })
   },
   decode: (data): WorldStateMessage => {
     const res: any[] = decodeAlias(data, { extensionCodec: extensionCodec }) as any[]
     return {
       type: MessageType.worldState,
       avatars: res[0],
-      ...(res[1] && { rats: res[1] }),
+      ...(res[2] && { critters: res[2] }),
     }
   },
 })
@@ -598,7 +595,7 @@ export namespace Message {
   /**
    * A type of message that is sent by a client to update the avatar's state in-world.
    */
-  export type ClientStateMessage = StateRelayMessage | UpdateAvatarMessage | MetricMessage | DressRat
+  export type ClientStateMessage = StateRelayMessage | UpdateAvatarMessage | MetricMessage
 
   export const isClientStateMessage = makeIsMessageOfType<ClientStateMessage>({
     [MessageType.newCostume]: null,
@@ -608,7 +605,6 @@ export namespace Message {
     [MessageType.emoteAvatar]: null,
     [MessageType.updateAvatar]: null,
     [MessageType.metric]: null,
-    [MessageType.dressRat]: null,
     [MessageType.point]: null,
     [MessageType.behaviourState]: null,
     [MessageType.behaviourSignal]: null,
