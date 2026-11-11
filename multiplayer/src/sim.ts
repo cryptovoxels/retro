@@ -66,12 +66,13 @@ export class Sim {
     if (!this.core) {
       const core = await require('../sim/core.cjs')()
       const source = (file: string) => readFileSync('multiplayer/sim/' + file, 'utf8')
+      const block = readFileSync('multiplayer/sim/block.bin')
       if (
         !core.ccall(
           'boot',
           'number',
-          ['string', 'string'],
-          [source('street.txt'), source('rat.lua') + '\n' + source('eagle.lua')],
+          ['string', 'string', 'array', 'number'],
+          [source('street.txt'), ['critter.lua', 'rat.lua', 'eagle.lua'].map(source).join('\n'), block, block.length],
         )
       )
         throw Error('invalid rat script or street')
@@ -96,6 +97,7 @@ export class Sim {
       }
     }
     const flight = this.core._flock(0.2, this.eagles.length) / 4
+    if (!flight) throw Error('Texas eagle tick failed')
     const start = this.core._tick(0.2) / 4
     const data = this.core.HEAPF32
     let mission = false
@@ -117,17 +119,24 @@ export class Sim {
       if (state >= 0) poses.push([r.id, x, (data[at + 1] + 1) * 0.5 - 1.26, z, carrying, r.name, r.named_by, r.cap])
     })
     this.eagles.forEach((bird, i) => {
-      const at = flight + 3 * i
+      const at = flight + 11 * i
       poses.push([
         bird.id,
-        originX + data[at] * 0.5,
-        data[at + 1] * 0.5 - 1.26,
-        originZ + data[at + 2] * 0.5,
+        originX + data[at],
+        data[at + 1] - 1.26,
+        originZ + data[at + 2],
         false,
         bird.name,
         null,
         false,
         'eagle',
+        [
+          this.core.ccall('bird_state', 'string', ['number'], [i]),
+          data[at + 3],
+          data[at + 4],
+          [data[at + 5], data[at + 6], data[at + 7]],
+          [data[at + 8], data[at + 9], data[at + 10]],
+        ],
       ])
     })
     this.send(poses, this.visible)
