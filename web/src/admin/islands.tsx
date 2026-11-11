@@ -213,6 +213,7 @@ export default class IslandsAdmin extends Component<{}, State> {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, count, center, reroll, area, areaSpread, height, heightSpread, atlas, streets, artpack, ground: surface?.ground, content: surface?.content }),
       })
+      if (res.status === 401) return this.stage('sign in again to save this draft', 0)
       if (!res.ok) throw new Error()
       const url = new URL(location.href)
       url.pathname = '/admin/island'
@@ -333,6 +334,7 @@ export default class IslandsAdmin extends Component<{}, State> {
   }
 
   render() {
+    const team = app.isAdmin()
     const busy = this.state.progress > 0 && this.state.progress < 7
     const center = this.state.center.map((c) => c.toFixed(2)).join(',')
     return (
@@ -401,13 +403,17 @@ export default class IslandsAdmin extends Component<{}, State> {
             <button type="button" onClick={() => this.build(this.state.reroll + 1)}>
               regenerate
             </button>
-            <button type="button" disabled={!this.state.parcels.length || !this.state.name.trim()} onClick={this.insertAll}>
-              insert all
-            </button>
+            {team && (
+              <button type="button" disabled={!this.state.parcels.length || !this.state.name.trim()} onClick={this.insertAll}>
+                insert all
+              </button>
+            )}
 
-            <button type="button" disabled={!this.state.name.trim()} onClick={this.saveDraft}>
-              save draft
-            </button>
+            {team && (
+              <button type="button" disabled={!this.state.name.trim()} onClick={this.saveDraft}>
+                save draft
+              </button>
+            )}
           </fieldset>
           <progress aria-label="island generation" max={7} value={this.state.progress} />
           <div role="status">{this.state.status}</div>
@@ -420,9 +426,11 @@ export default class IslandsAdmin extends Component<{}, State> {
 
           <div class="island-map" ref={this.mapRef} />
 
-          <button type="button" disabled={busy || !this.state.parcels.length || !this.state.name.trim()} onClick={this.onSave}>
-            save island terrain
-          </button>
+          {team && (
+            <button type="button" disabled={busy || !this.state.parcels.length || !this.state.name.trim()} onClick={this.onSave}>
+              save island terrain
+            </button>
+          )}
         </form>
         <details onToggle={(e) => this.setState({ showParcels: e.currentTarget.open })}>
           <summary>parcels ({this.state.parcels.length})</summary>
@@ -439,7 +447,7 @@ export default class IslandsAdmin extends Component<{}, State> {
                     <th>Suburb</th>
                     <th>Position</th>
                     <th>Size</th>
-                    <th></th>
+                    {team && <th></th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -452,9 +460,11 @@ export default class IslandsAdmin extends Component<{}, State> {
                       <td>{parcel.suburb}</td>
                       <td>{`${parcel.x1},${parcel.y1},${parcel.z1}`}</td>
                       <td>{`${parcel.x2 - parcel.x1},${parcel.y2 - parcel.y1},${parcel.z2 - parcel.z1}`}</td>
-                      <td>
-                        <button onClick={() => this.create(parcel)}>Insert</button>
-                      </td>
+                      {team && (
+                        <td>
+                          <button onClick={() => this.create(parcel)}>Insert</button>
+                        </td>
+                      )}
                     </tr>
                   ))}
                 </tbody>

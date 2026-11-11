@@ -14,6 +14,7 @@ export default function Admin(_props: { path?: string }) {
     if (_props.path === '/admin' && new URLSearchParams(location.search).has('draft')) route('/admin/island' + location.search, true)
   }, [])
 
+  if (_props.path === '/admin/island') return <IslandsAdmin />
   if (!app.isAdmin()) {
     return (
       <section class="admin">
@@ -23,7 +24,6 @@ export default function Admin(_props: { path?: string }) {
     )
   }
 
-  if (_props.path === '/admin/island') return <IslandsAdmin />
   return (
     <section class="admin">
       <h1>admin</h1>
