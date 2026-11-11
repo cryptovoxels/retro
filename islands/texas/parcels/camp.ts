@@ -34,11 +34,11 @@ export function camp(b: ParcelBuilder, face: string, index: number) {
   for (let i = 0; i < 6; i++) {
     const species = (Math.abs(index) + i * 7) % pack.flora.length
     const scale = species >= 2 && species <= 6 ? 3.7 : 1.6 + rand() * 0.6
-    prop(pack.flora[species], (i % 2 ? 1 : -1) * (w / 4 - 0.85), sign * (d * (0.01 + Math.floor(i / 2) * 0.075)), [scale, scale, scale], rand() * Math.PI * 2)
+    prop(pack.flora[species], (i % 2 ? 1 : -1) * (w / 4 - 0.85), sign * (d * (0.01 + Math.floor(i / 2) * 0.075)), [scale, scale, scale], Math.floor(rand() * 4) * (Math.PI / 2))
   }
   for (let i = 0; i < 8; i++) {
     const size = 0.8 + rand() * 1.4
-    features.push({ uuid: uuid(), ...rockProp(pack.rocks[10 + Math.floor(rand() * 10)], 0.25 + (rand() - 0.5) * (w / 2 - 2), 0.75, 0.25 - sign * d * (0.06 + rand() * 0.15), rand() * 6, size) })
+    features.push({ uuid: uuid(), ...rockProp(pack.rocks[10 + Math.floor(rand() * 10)], 0.25 + (rand() - 0.5) * (w / 2 - 2), 0.75, 0.25 - sign * d * (0.06 + rand() * 0.15), Math.floor(rand() * 4) * (Math.PI / 2), size) })
   }
   return { ...b.serialize, features, building: 'campfire commons' }
 }

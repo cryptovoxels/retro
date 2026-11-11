@@ -92,7 +92,7 @@ export default class IslandsAdmin extends Component<{}, State> {
       if (!res.ok && !(res.status === 404 && slug === 'texas')) throw new Error()
       const { settings, ground, content } = res.ok ? await res.json() : { settings: (await import('../../../islands/texas/draft.json')).default }
       if (!this.mapRef.current) return
-      this.setState({ ...settings, start: id }, () => this.build(settings.reroll, ground, settings.artpack !== 'texas-thrift' || content?.furnitureVersion === 7 ? content?.features : undefined))
+      this.setState({ ...settings, start: id }, () => this.build(settings.reroll, ground, settings.artpack !== 'texas-thrift' || content?.furnitureVersion === 8 ? content?.features : undefined))
     } catch {
       this.setState({ start: id })
       this.stage('could not load island draft', 0)

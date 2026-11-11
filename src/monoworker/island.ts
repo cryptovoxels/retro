@@ -33,7 +33,7 @@ export function islandSurface(parcels: (Road & { y1?: number; suburb?: string })
     content: {
       origin: [center[0] * 100, 0, center[1] * 100],
       features: surface?.features || [],
-      ...(artpack === 'texas-thrift' && { furnitureVersion: 7 }),
+      ...(artpack === 'texas-thrift' && { furnitureVersion: 8 }),
       streets: roads.filter((r) => r.name),
       ...(!surface && { voxels: getVoxelsFromBuffer(getIslandField(parcels).field.data) }),
       ...(artpack && { artpack }),
@@ -90,7 +90,7 @@ function groundMap(field: NdArray<Uint16Array>, x: number, z: number, cx: number
         const plant = (hash >>> 8) % 12
         const name = pack.flora[plant < 8 ? plant % 2 : plant < 10 ? 14 : 2 + (plant % 2)]
         const scale = 1.1 + (hash % 19) / 15
-        const yaw = ((hash % 16) * Math.PI) / 8
+        const yaw = ((hash % 4) * Math.PI) / 2
         shrubs.push({
           uuid: uuid('texas/bank/' + [seed, wx, wz].join('/'), uuid.URL),
           type: 'vox-model',

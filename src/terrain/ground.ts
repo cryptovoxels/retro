@@ -89,6 +89,7 @@ export async function islandGround(mesh: BABYLON.Mesh, island: IslandRecord & { 
   material.onBindObservable.add(() => {
     if (scene.activeCamera) material.setVector3('cameraPosition', scene.activeCamera.globalPosition.subtractToRef(mesh.position, localCamera))
   })
+  material.zOffset = material.zOffsetUnits = 1
   material.backFaceCulling = false
   mesh.material = material
   mesh.onDisposeObservable.addOnce(() => {

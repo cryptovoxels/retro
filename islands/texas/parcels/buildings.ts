@@ -111,16 +111,14 @@ export function buildTexas(b: ParcelBuilder, material: number, face: string, ind
   }
   if (style !== 'town square') {
     if (index % 7 === 2 && width >= 9) {
-      feature(2.4, Math.min(3.8, (h - 2) / 2 + 0.65), front - 0.2, { type: 'vox-model', url: pack.interiors.flag, scale: [2.8, 2.8, 2.8], rotation: [0, yaw - 1.08, 0], animation: 'flag' })
+      feature(2.4, Math.min(3.8, (h - 2) / 2 + 0.65), front - 0.2, { type: 'vox-model', url: pack.interiors.flag, scale: [2.8, 2.8, 2.8], rotation: [0, yaw - Math.PI / 2, 0], animation: 'flag' })
     }
     if ((home || porch || style === 'adobo') && index % 4 === 1 && width >= 12) {
-      const angle = yaw + (door < mid ? -0.2 : 0.2)
       feature(door < mid ? width - 3 : 2.6, 0.75, porch ? 1.85 : front + 3.1, {
         type: 'vox-model',
         url: pack.interiors.rocker,
         scale: [2.2, 2.2, 2.2],
-        rotation: [0, angle, 0],
-        animation: { destination: 'rotation', easing: { function: 'Sine', mode: 'Start + End' }, keyframes: [-1, 1, -1].map((dir, i) => ({ frame: i * 61, value: [dir * 0.072, angle, 0] })) },
+        animation: { destination: 'rotation', easing: { function: 'Sine', mode: 'Start + End' }, keyframes: [-1, 1, -1].map((dir, i) => ({ frame: i * 61, value: [dir * 0.072, yaw, 0] })) },
         pose: { animation: Animations.Sitting, offset: [0.198, 0.528, 0] },
       })
     }

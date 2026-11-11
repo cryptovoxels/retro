@@ -111,6 +111,8 @@ export default class VoxModel<Description extends VoxModelRecord | MegavoxRecord
   private applyImportedMesh(imported: BABYLON.Mesh) {
     if (this.mesh instanceof BABYLON.Mesh) this.mesh.material?.dispose(false, true)
     this.mesh?.dispose()
+    // Draw flush VOX trim ahead of parcel faces. The island material sits behind both.
+    if (imported.material) imported.material.zOffset = imported.material.zOffsetUnits = -2
     this.mesh = imported
     const animation = this.description.animation
     if (typeof animation === 'string') idleWind(imported, animation)

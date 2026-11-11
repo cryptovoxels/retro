@@ -36,7 +36,7 @@ export function mesa(b: ParcelBuilder, face: string, index: number) {
       edge = mesaEdge(x, z)
     if (edge < 1.07 || edge > 1.52) continue
     const size = 1 + 2.3 * rand(),
-      yaw = rand() * Math.PI * 2
+      yaw = Math.floor(rand() * 4) * (Math.PI / 2)
     const rock = pack.rocks[(edge < 1.25 ? 0 : 10) + Math.floor(rand() * 10)]
     features.push({ uuid: uuid(), ...rockProp(rock, 0.25 + (x - 0.5) * w * 0.5, 0.75, 0.25 + (north ? z - 0.5 : 0.5 - z) * d * 0.5, yaw, size) })
   }
