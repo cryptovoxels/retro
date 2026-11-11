@@ -14,6 +14,7 @@ const arg = process.argv[2] || 'all'
 const buildDate = new Date().toISOString()
 const buildNum = process.env.BUILD_NUM || buildDate
 const clientDir = path.join(repo, 'dist/assets')
+let skynetFile = '/proxy/web/skynet.js'
 let monoFile = './monoworker.js'
 let thumbFile = './voxel-thumb.js'
 let babylonFile = '/vendor/library-9.25.0.min.js'
@@ -40,6 +41,7 @@ const publicEnv = [
   'WEARABLE_CONTRACT_ADDRESS',
   'BUILD_NUM',
   'BUILD_DATE',
+  'SKYNET_URL',
   'MONO_WORKER',
   'THUMB_WORKER',
   'BABYLON_URL',
@@ -70,6 +72,7 @@ function browserDefine(dev) {
   env.NODE_ENV = dev ? 'development' : 'production'
   env.BUILD_NUM = buildNum
   env.BUILD_DATE = buildDate
+  env.SKYNET_URL = skynetFile
   env.MONO_WORKER = monoFile
   env.THUMB_WORKER = thumbFile
   env.BABYLON_URL = babylonFile
@@ -195,6 +198,7 @@ function clientOptions(dev) {
   return {
     ...browserOptions(dev),
     entryPoints: [
+      { in: 'src/skynet.ts', out: 'skynet' },
       { in: 'web/src/main.tsx', out: 'client' },
       { in: 'src/monoworker.ts', out: 'monoworker' },
     ],
@@ -255,6 +259,7 @@ async function buildClient(dev) {
   babylonFile = '/assets/' + writeAsset('babylon.js', fs.readFileSync(path.join(repo, 'dist/vendor/library-9.25.0.min.js')))
   monoFile = './' + (await bundleAsset('src/monoworker.ts', 'monoworker.js'))
   thumbFile = './' + (await bundleAsset('web/src/workers/voxel-thumb.ts', 'voxel-thumb.js', 'iife'))
+  skynetFile = '/assets/' + (await bundleAsset('src/skynet.ts', 'skynet.js'))
   const client = await bundleAsset('web/src/main.tsx', 'client.js')
   fs.writeFileSync(path.join(repo, 'dist/client-manifest.json'), JSON.stringify({ client: '/assets/' + client, css: '/assets/' + style, babylon: babylonFile, mono: '/assets/' + monoFile.slice(2), thumb: '/assets/' + thumbFile.slice(2) }))
   console.log('built client assets and manifest')

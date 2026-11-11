@@ -21,7 +21,7 @@ const DEGREES_TO_METRES = 100
 const loadQuery = (where = 'p.id = $1') => {
   return `
     SELECT
-      p.id,
+      p.id, p.xmin::text as revision,
       y2 - y1 as height,
       p.token,
       p.address,
@@ -112,6 +112,7 @@ export class ParcelRef {
 }
 
 export type ParcelSaveOptions = {
+  revision?: string
   snapshotName?: string
 }
 
@@ -509,6 +510,7 @@ export type ParcelAuthRef = ParcelRef | AbstractParcel
 
 // Automatically sets visible = true if the parcel _justGotMinted.
 export default class Parcel extends AbstractParcel {
+  revision?: string
   distance_to_center!: number
   distance_to_closest_common!: number
   distance_to_ocean!: number
@@ -532,7 +534,7 @@ export default class Parcel extends AbstractParcel {
     try {
       await client.query('BEGIN')
 
-      await client.query(
+      const result = await client.query(
         `
       UPDATE
         properties p
@@ -549,12 +551,14 @@ export default class Parcel extends AbstractParcel {
         sandbox = $9,
         updated_at = NOW()
       WHERE
-        id = $10
+        id = $10 AND ($11::text IS NULL OR xmin::text = $11)
       `,
-        [JSON.stringify(this.content), this.owner, this.minted, this.visible || this._justGotMinted, this.name, JSON.stringify(this.settings), this.lightmap_url, this.description, this.sandbox, this.id],
+        [JSON.stringify(this.content), this.owner, this.minted, this.visible || this._justGotMinted, this.name, JSON.stringify(this.settings), this.lightmap_url, this.description, this.sandbox, this.id, options?.revision],
       )
 
       await client.query('COMMIT')
+
+      if (!result.rowCount) return false
 
       // We only automatically set visible = true on the *transition from* unminted to minted
       this._justGotMinted = false

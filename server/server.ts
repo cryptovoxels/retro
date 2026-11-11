@@ -28,6 +28,7 @@ import LivekitController from './controllers/livekit'
 import RadarController from './controllers/radar'
 import NftController from './controllers/nft'
 import EventsController from './controllers/parcel-events'
+import skynet from './skynet'
 import ParcelsController from './controllers/parcels'
 import PlayController from './controllers/play'
 import SpacesController from './controllers/spaces'
@@ -389,6 +390,7 @@ RadioController(app)
 PlayController(db, passport, app)
 // parcels controller
 ParcelsController(db, passport, app)
+skynet(app, passport, gridSocket)
 // Avatars controller
 AvatarsController(db, passport, app)
 
