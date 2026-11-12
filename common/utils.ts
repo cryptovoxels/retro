@@ -1,4 +1,5 @@
 import { avatarName, type AvatarRef } from './messages/avatar-ref'
+import type { IslandRecord } from './messages/api-islands'
 import type { CachedParcelsMessage } from './messages/api-parcels'
 
 export function ethTrunc(wallet: string | null | undefined) {
@@ -9,6 +10,19 @@ export function ethTrunc(wallet: string | null | undefined) {
   return wallet.slice(0, 5) + '..' + wallet.slice(-3)
 }
 
+let islandRequest: Promise<{ islands: IslandRecord[] }> | undefined
+
+export function fetchIslands() {
+  return (islandRequest ??= fetch('/api/world/islands.json', { cache: 'no-store' })
+    .then((response) => {
+      if (!response.ok) throw new Error(`Island list: ${response.status}`)
+      return response.json()
+    })
+    .finally(() => {
+      islandRequest = undefined
+    }))
+}
+
 let parcelRequest: Promise<CachedParcelsMessage> | undefined
 
 export function parcelIndex(refresh = false): Promise<CachedParcelsMessage> {
@@ -17,7 +31,7 @@ export function parcelIndex(refresh = false): Promise<CachedParcelsMessage> {
     let attempts = 0
     for (;;) {
       try {
-        const response = await fetch(`${process.env.ASSET_PATH || ''}/api/parcels/cached.json`, {
+        const response = await fetch(`${process.env.ASSET_PATH || ''}/api/parcels/cached.json?world`, {
           cache: attempts || refresh ? 'reload' : 'default',
           signal: AbortSignal.timeout(15000),
         })

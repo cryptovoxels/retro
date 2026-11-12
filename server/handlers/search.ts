@@ -50,7 +50,7 @@ export async function searchAndReturn(req: Request, res: Response) {
   FROM
     properties
   WHERE
-    (minted OR is_common) AND (name ILIKE $1 OR address ILIKE $1)
+    name ILIKE $1 OR address ILIKE $1
   ORDER BY
     minted_at DESC
   LIMIT

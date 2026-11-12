@@ -86,7 +86,7 @@ export default function getTokenMetadata(req: Request, res: Response) {
     return
   }
 
-  queryAndCallback<Parcel>(db, 'get-parcel', 'parcel', [id, false], async (result) => {
+  queryAndCallback<Parcel>(db, 'get-parcel', 'parcel', [id], async (result) => {
     if (!result.success) {
       const parcel = await Parcel.load(id)
 

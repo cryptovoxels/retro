@@ -41,4 +41,3 @@ select p.id,
 from properties p
          left join suburbs on suburbs.id = p.suburb_id
 where p.id = $1
-  AND (p.minted = true OR p.visible or $2)

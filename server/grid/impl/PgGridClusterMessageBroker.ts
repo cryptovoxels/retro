@@ -1,3 +1,4 @@
+import { islandEvents } from '../../islands'
 import { PatchMessage, PatchStateMessage } from '../../../common/messages/grid'
 import log from '../../lib/logger'
 import db from '../../pg'
@@ -31,12 +32,19 @@ export default class PgGridClusterMessageBroker implements GridClusterMessageBro
 
   constructor() {
     db.connect().then((client) => {
+      // Postgres delivers this only after the island and its parcels commit.
+      client.query('LISTEN island_published').then(() => islandEvents.emit('listening'))
       CHANNEL_NAMES.forEach((channel) => {
         client.query(`LISTEN ${channel}`)
       })
 
       client.on('notification', (notification) => {
         const channel = notification.channel
+        if (channel === 'island_published') {
+          const id = Number(notification.payload)
+          if (Number.isSafeInteger(id) && id > 0) islandEvents.emit('published', id)
+          return
+        }
         if (!isChannelName(channel)) {
           log.warn(`unrecognised channel name: ${JSON.stringify(notification)}`)
           return

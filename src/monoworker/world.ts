@@ -9,21 +9,26 @@ const index = new RBush3D(10)
 const lots = new Map<number, Lot>()
 let ready: Promise<void> | undefined
 
-export function loadIndex(): Promise<void> {
-  return (ready ??= (async () => {
-    const data = await parcelIndex()
-    index.clear()
-    lots.clear()
-    index.load(
-      data.parcels.map((p) => {
-        lots.set(p.id, p)
-        return { minX: p.x1, minY: p.y1, minZ: p.z1, maxX: p.x2, maxY: p.y2, maxZ: p.z2, id: p.id }
-      }),
-    )
-  })().catch((error) => {
-    ready = undefined
-    throw error
-  }))
+export function loadIndex(refresh = false): Promise<void> {
+  if (ready && !refresh) return ready
+  const request: Promise<void> = parcelIndex(refresh)
+    .then((data) => {
+      if (ready !== request) return ready
+      index.clear()
+      lots.clear()
+      index.load(
+        data.parcels.map((p) => {
+          lots.set(p.id, p)
+          return { minX: p.x1, minY: p.y1, minZ: p.z1, maxX: p.x2, maxY: p.y2, maxZ: p.z2, id: p.id }
+        }),
+      )
+    })
+    .catch((error) => {
+      if (ready === request) ready = undefined
+      throw error
+    })
+  ready = request
+  return request
 }
 
 export async function nearbyLots(position: number[], radius: number): Promise<Lot[]> {

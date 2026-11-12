@@ -453,3 +453,17 @@ SELECT apply_migration('texas-keep-henry', $$
   DELETE FROM creatures WHERE island = 'draft:texas' AND species = 'eagle'
     AND name IN ('dave', 'ralph', 'peter', 'bjork');
 $$);
+
+SELECT apply_migration('search-all-world-parcels', $$
+  CREATE MATERIALIZED VIEW search_with_parcels AS
+    WITH src(id, title, description, created_at, kind) AS (
+      SELECT id::text, coalesce(name, address), id::text, minted_at, 'parcel' FROM properties
+      UNION ALL SELECT id::text, name, description, created_at, 'wearable' FROM wearables
+      UNION ALL SELECT owner, coalesce(name, owner), CASE WHEN name IS NOT NULL THEN owner END, created_at, 'avatar' FROM avatars
+      UNION ALL SELECT id::text, name, NULL, created_at, 'space' FROM spaces WHERE unlisted IS DISTINCT FROM true
+      UNION ALL SELECT id::text, name, description, created_at, 'asset' FROM asset_library
+    )
+    SELECT *, setweight(to_tsvector('english', title), 'A') || setweight(to_tsvector('english', coalesce(description, '')), 'B') AS search_tsv FROM src;
+  DROP MATERIALIZED VIEW IF EXISTS search_corpus;
+  ALTER MATERIALIZED VIEW search_with_parcels RENAME TO search_corpus;
+$$);

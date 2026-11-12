@@ -54,3 +54,27 @@ it('returns a retryable 503 on cold failure and recovers on the next refresh', a
   await handler({} as any, recovered)
   expect(recovered.json).toHaveBeenCalledWith({ success: true, parcels: [] })
 })
+
+it('does not resurrect an old snapshot when a refresh overlaps an island publish', async () => {
+  const { islandEvents } = await import('../islands')
+  let finish: (result: any) => void = () => {}
+  const old = new Promise((resolve) => {
+    finish = resolve
+  })
+  const read = vi
+    .fn()
+    .mockReturnValueOnce(old)
+    .mockResolvedValue({ rows: [{ id: 10000 }] })
+  const db = { connect: async () => ({ query: (q: string) => (q === 'SELECT parcels' ? read() : Promise.resolve()), release() {} }) } as any
+  const handler = parcelCache(db)
+  const before = handler({} as any, response())
+  await vi.waitFor(() => expect(read).toHaveBeenCalledOnce())
+  islandEvents.emit('published', 57)
+  const after = response()
+  await handler({} as any, after)
+  finish({ rows: [] })
+  await before
+  await handler({} as any, after)
+  expect(after.json.mock.calls).toEqual(Array(2).fill([{ success: true, parcels: [{ id: 10000 }] }]))
+  expect(read).toHaveBeenCalledTimes(2)
+})

@@ -24,7 +24,6 @@ export class Minimap {
   private onBeforeRender: BABYLON.Nullable<BABYLON.Observer<BABYLON.Scene>> | undefined
 
   private meshes: ReturnType<typeof createBaseMeshes>
-  private islandContent: any
 
   constructor(engine: BABYLON.Engine, connector: Connector) {
     this.engine = engine
@@ -206,10 +205,8 @@ export class Minimap {
     islandMaterial.disableLighting = true
     islandMaterial.emissiveColor.set(0.2, 0.2, 0.2)
     islandMaterial.freeze()
-    if (!this.islandContent) {
-      this.islandContent = await fetchIslands()
-    }
-    this.islands = this.islandContent.islands.map((desc: any) => new Island(this.scene, rootNode, desc))
+    const data = await fetchIslands()
+    this.islands = data.islands.map((desc: any) => new Island(this.scene, rootNode, desc))
     this.islands.forEach((i) => i.setMaterial(islandMaterial))
   }
 

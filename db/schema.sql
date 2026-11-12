@@ -713,7 +713,6 @@ CREATE MATERIALIZED VIEW public.search_corpus AS
             p.minted_at AS created_at,
             'parcel'::text AS kind
            FROM public.properties p
-          WHERE (p.minted OR p.is_common)
         UNION ALL
          SELECT (w.id)::text AS id,
             w.name,
