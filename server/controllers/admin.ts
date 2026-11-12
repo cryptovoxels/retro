@@ -86,6 +86,23 @@ async function unmintedFromDb(db: Db, page: number) {
   return { parcels, fixed: stale.length }
 }
 
+// Large terrain fields can take longer than the pool's 500ms statement limit.
+async function islandTransaction<T>(db: Db, run: (client: PoolClient) => Promise<T>) {
+  const client = await db.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query("SET LOCAL statement_timeout = '15s'")
+    const result = await run(client)
+    await client.query('COMMIT')
+    return result
+  } catch (error) {
+    await client.query('ROLLBACK')
+    throw error
+  } finally {
+    client.release()
+  }
+}
+
 export default function AdminController(db: Db, passport: PassportStatic, app: Express) {
   // Get the top parcel id
   app.get('/api/admin/parcels/top', cache(false), async (req, res) => {
@@ -163,14 +180,18 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
   })
 
   const draftAuth = [passport.authenticate('jwt', { session: false }), requireAdmin]
-  app.get('/api/admin/island-drafts/:slug', async (req, res) => {
-    const r = await db.query('sql/island-draft', 'select settings, content, ground from island_drafts where slug = $1', [req.params.slug])
-    res
-      .set('Cache-Control', 'no-store')
-      .status(r.rows.length ? 200 : 404)
-      .json(r.rows[0] ? { ...r.rows[0], ground: r.rows[0].ground && packGround(r.rows[0].ground) } : {})
+  app.get('/api/admin/island-drafts/:slug', async (req, res, next) => {
+    try {
+      const r = await islandTransaction(db, (client) => db.query('sql/island-draft', 'select settings, content, ground from island_drafts where slug = $1', [req.params.slug], client))
+      res
+        .set('Cache-Control', 'no-store')
+        .status(r.rows.length ? 200 : 404)
+        .json(r.rows[0] ? { ...r.rows[0], ground: r.rows[0].ground && packGround(r.rows[0].ground) } : {})
+    } catch (error) {
+      next(error)
+    }
   })
-  app.put('/api/admin/island-drafts/:slug', ...draftAuth, async (req, res) => {
+  app.put('/api/admin/island-drafts/:slug', ...draftAuth, async (req, res, next) => {
     const { name, count, center, reroll, area, areaSpread, height, heightSpread, atlas, streets, artpack } = req.body
     if (
       !/^[a-z0-9-]{1,100}$/.test(req.params.slug) ||
@@ -197,19 +218,26 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
     )
       return res.status(400).json({ message: 'invalid draft settings' })
     const settings = { name, count, center, reroll, area, areaSpread, height, heightSpread, atlas, streets, artpack }
-    await db.query(
-      'sql/save-island-draft',
-      'insert into island_drafts (slug, settings, ground, content) values ($1, $2, $3, $4) on conflict (slug) do update set settings = excluded.settings, ground = excluded.ground, content = excluded.content',
-      [req.params.slug, JSON.stringify(settings), floorBytes(req.body.ground), req.body.content || {}],
-    )
-    res.json({ success: true })
+    try {
+      await islandTransaction(db, (client) =>
+        db.query(
+          'sql/save-island-draft',
+          'insert into island_drafts (slug, settings, ground, content) values ($1, $2, $3, $4) on conflict (slug) do update set settings = excluded.settings, ground = excluded.ground, content = excluded.content',
+          [req.params.slug, JSON.stringify(settings), floorBytes(req.body.ground), req.body.content || {}],
+          client,
+        ),
+      )
+      res.json({ success: true })
+    } catch (error) {
+      next(error)
+    }
   })
 
   // Upsert island
   app.post('/api/admin/islands', passport.authenticate('jwt', { session: false }), requireAdmin, async (req, res) => {
     const { name, geometry, content } = req.body
     try {
-      await upsertIsland(db, name, geometry, content, req.body.ground, req.body.lakes)
+      await islandTransaction(db, (client) => upsertIsland(db, name, geometry, content, req.body.ground, req.body.lakes, client))
     } catch (e: any) {
       console.log(e)
       res.status(500).json({ success: false, message: e.toString() })
@@ -229,41 +257,35 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
     // leave 20m of sea round the island
     const xs = parcels.flatMap((p: any) => [m(p.x1), m(p.x2)])
     const zs = parcels.flatMap((p: any) => [m(p.z1), m(p.z2)])
-    const client = await db.connect()
     try {
-      await client.query('BEGIN')
-      await client.query('lock table islands in share row exclusive mode')
-      const r = await db.query(
-        'sql/admin-island-overlap',
-        `select count(*)::int as n from properties where island is distinct from $1 and bounds && cube(ARRAY[$2::float8,-1000,$3::float8], ARRAY[$4::float8,1000,$5::float8])`,
-        [name, Math.min(...xs) - 20, Math.min(...zs) - 20, Math.max(...xs) + 20, Math.max(...zs) + 20],
-        client,
-      )
-      if (r.rows[0]?.n) {
-        await client.query('ROLLBACK')
-        res.status(400).json({ success: false, message: `${r.rows[0].n} parcels already there, move the center` })
-        return
-      }
+      const overlap = await islandTransaction(db, async (client) => {
+        await client.query('lock table islands in share row exclusive mode')
+        const r = await db.query(
+          'sql/admin-island-overlap',
+          `select count(*)::int as n from properties where island is distinct from $1 and bounds && cube(ARRAY[$2::float8,-1000,$3::float8], ARRAY[$4::float8,1000,$5::float8])`,
+          [name, Math.min(...xs) - 20, Math.min(...zs) - 20, Math.max(...xs) + 20, Math.max(...zs) + 20],
+          client,
+        )
+        if (r.rows[0]?.n) return r.rows[0].n as number
 
-      await upsertIsland(db, name, geometry, content, req.body.ground, req.body.lakes, client)
-      const suburbs = new Map<string, number>()
-      for (const row of villageRows(name, parcels, atlas, req.body.artpack)) {
-        if (row.suburb && !suburbs.has(row.suburb)) {
-          const found = await client.query('select id from suburbs where name = $1 order by id limit 1', [row.suburb])
-          const suburb = found.rows[0] || (await client.query('insert into suburbs (name) values ($1) returning id', [row.suburb])).rows[0]
-          suburbs.set(row.suburb, suburb.id)
+        await upsertIsland(db, name, geometry, content, req.body.ground, req.body.lakes, client)
+        const suburbs = new Map<string, number>()
+        for (const row of villageRows(name, parcels, atlas, req.body.artpack)) {
+          if (row.suburb && !suburbs.has(row.suburb)) {
+            const found = await client.query('select id from suburbs where name = $1 order by id limit 1', [row.suburb])
+            const suburb = found.rows[0] || (await client.query('insert into suburbs (name) values ($1) returning id', [row.suburb])).rows[0]
+            suburbs.set(row.suburb, suburb.id)
+          }
+          const inserted = await createParcelRow(db, { ...row, suburbId: suburbs.get(row.suburb) }, client)
+          if (!inserted.rowCount) throw new Error('parcel id already exists: ' + row.id)
         }
-        const inserted = await createParcelRow(db, { ...row, suburbId: suburbs.get(row.suburb) }, client)
-        if (!inserted.rowCount) throw new Error('parcel id already exists: ' + row.id)
-      }
-      await client.query('COMMIT')
+        return 0
+      })
+      if (overlap) return res.status(400).json({ success: false, message: `${overlap} parcels already there, move the center` })
     } catch (e: any) {
-      await client.query('ROLLBACK')
       log.error('island build failed', { e: String(e) })
       res.status(500).json({ success: false, message: e?.toString() || 'build failed' })
       return
-    } finally {
-      client.release()
     }
     res.status(200).json({ success: true, inserted: parcels.length })
   })
@@ -446,7 +468,7 @@ function floorBytes(value: unknown) {
   return bytes
 }
 
-async function upsertIsland(db: Db, name: string, geometry: any, content: any, ground?: string, lakes?: any, client?: PoolClient) {
+async function upsertIsland(db: Db, name: string, geometry: any, content: any, ground: string | undefined, lakes: any, client: PoolClient) {
   const geomStr = JSON.stringify(geometry)
   let position_json = '{}'
   try {
@@ -458,7 +480,7 @@ async function upsertIsland(db: Db, name: string, geometry: any, content: any, g
     'sql/upsert-island',
     `
       WITH upsert AS (
-        UPDATE islands SET geometry_json = $2::jsonb, position_json = $4::jsonb, content = $3, ground = $5, lakes_geometry_json = coalesce($7, lakes_geometry_json), texture = coalesce($6, texture) WHERE name = $1 RETURNING *
+        UPDATE islands SET geometry_json = $2::jsonb, position_json = $4::jsonb, content = $3, ground = $5, lakes_geometry_json = coalesce($7, lakes_geometry_json), texture = coalesce($6, texture) WHERE name = $1 RETURNING 1
       )
       INSERT INTO islands (name, geometry_json, content, position_json, ground, texture, lakes_geometry_json)
       SELECT $1, $2::jsonb, $3, $4::jsonb, $5, coalesce($6, ''), $7 WHERE NOT EXISTS (SELECT 1 FROM upsert);
