@@ -282,7 +282,7 @@ export default class XROverlay {
     this.controls.move.set((x * cos - y * sin) / length, fly, (-x * sin - y * cos) / length)
     const speed = body.speed
     body.speed = this.slowWalk ? 1.5 : MOVE_SPEED
-    body.step(this.controls.move, dt, true)
+    this.controls.stepPlayer(dt, true)
     body.speed = speed
     this.controls.move.setAll(0)
     camera.position.set(body.position.x, body.position.y - EYE + height, body.position.z)

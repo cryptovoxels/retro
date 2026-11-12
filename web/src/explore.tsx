@@ -8,9 +8,10 @@ import { FOCUS_EXPLORE } from './helpers/open-explore'
 import { teleportToLatestWomp } from './helpers/latest-womp'
 import { app, AppEvent } from './state'
 import WompsList from './womps-list'
+import type { Womp } from './tiles/womp-tile'
 import Teleport from './components/teleport'
 
-export default class Explore extends Component<{}> {
+export default class Explore extends Component<{ womps?: Womp[] }> {
   componentDidMount() {
     app.on(AppEvent.Logout, this.rerender)
     app.on(AppEvent.Login, this.rerender)
@@ -62,7 +63,7 @@ export default class Explore extends Component<{}> {
             <Radar />
             <details class="inspector-section womps" open>
               <summary>womps</summary>
-              <WompsList numberToShow={300} collapsed={false} fetch="/womps.json" ttl={600} />
+              <WompsList womps={this.props.womps} numberToShow={300} collapsed={false} fetch="/womps.json" ttl={600} />
               <a href="/womps">more</a>
             </details>
             <details class="inspector-section">
