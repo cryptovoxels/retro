@@ -8,7 +8,7 @@ const pages = ['', 'api', 'llms.txt', 'API.md', 'openapi.yaml', 'behaviours', 'a
 const collectionPath = (r: any) => `collections/${SUPPORTED_CHAINS_BY_ID[r.chainid]}/${encodeURIComponent(r.address)}`
 
 const feeds: Record<string, { from: string; fields: string; order: string; path: (r: any) => string }> = {
-  parcels: { from: 'properties where minted=true', fields: 'id', order: 'id', path: (r) => `parcels/${r.id}` },
+  parcels: { from: 'properties', fields: 'id', order: 'id', path: (r) => `parcels/${r.id}` },
   womps: { from: "womps where kind in ('public', 'broadcast')", fields: 'id', order: 'id', path: (r) => `womps/${r.id}` },
   collections: { from: 'collections where address is not null and chainid in (0,1,137)', fields: 'chainid,address', order: 'id', path: collectionPath },
   wearables: {

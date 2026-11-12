@@ -37,3 +37,19 @@ it('recovers after repeated HTTP errors, network errors and invalid JSON without
   await parcelIndex(true)
   expect(fetcher).toHaveBeenCalledTimes(6)
 })
+
+it('shares an in-flight island list, then fetches the current world on the next visit', async () => {
+  const json = vi
+    .fn()
+    .mockResolvedValueOnce({ islands: [] })
+    .mockResolvedValue({ islands: [{ id: 57 }] })
+  const fetcher = vi.fn().mockResolvedValue({ ok: true, json })
+  vi.stubGlobal('fetch', fetcher)
+  const { fetchIslands } = await import('../common/utils')
+  const first = fetchIslands()
+  expect(fetchIslands()).toBe(first)
+  expect(await first).toEqual({ islands: [] })
+  expect(await fetchIslands()).toEqual({ islands: [{ id: 57 }] })
+  expect(fetcher).toHaveBeenCalledTimes(2)
+  expect(fetcher).toHaveBeenCalledWith('/api/world/islands.json', { cache: 'no-store' })
+})

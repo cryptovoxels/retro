@@ -1,6 +1,7 @@
 // ABOUTME: Postgres pool for the renderer service. Same DATABASE_URL / SSL pattern as server/pg.ts.
 
 import { Pool } from 'pg'
+import { packGround } from '../../common/voxels/ground-bytes'
 
 function formatDatabaseUrl(raw: string) {
   let url = raw.replace(/^postgresql:\/\//, 'postgres://')
@@ -106,7 +107,7 @@ export async function loadGhosts(id: number): Promise<GhostRow[]> {
 let islandCache: any[] | null = null
 
 /** Archipelago shoreline data for the preview minimap. Cached for the process. */
-export async function loadIslands(): Promise<any[]> {
+async function shorelines(): Promise<any[]> {
   if (islandCache) return islandCache
   const r = await pool.query(
     `select id, name, texture,
@@ -122,6 +123,19 @@ export async function loadIslands(): Promise<any[]> {
     return row
   })
   return islandCache
+}
+
+export async function loadIslands(name: unknown) {
+  const [islands, terrain] = await Promise.all([
+    shorelines(),
+    pool.query('select id, ground from islands where name = $1 and ground is not null', [name]).catch((e) => {
+      if (e.code === '42703') return { rows: [] } // older dev fixtures predate island terrain
+      throw e
+    }),
+  ])
+  const row = terrain.rows[0]
+  if (!row) return islands
+  return islands.map((island) => (island.id === row.id ? { ...island, ground: packGround(row.ground) } : island))
 }
 
 export async function loadFreeAvatarSrc(id: number): Promise<string | null> {

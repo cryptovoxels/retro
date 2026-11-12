@@ -70,12 +70,17 @@ function ChatWho({ m }: { m: ChatMessageRecord }) {
   const avatar = m.avatar ? window.connector?.findAvatar(m.avatar) : null
   const name = chatName(ref || avatar?.name, m.avatar)
   const slug = avatarSlug(ref)
-  return slug && ref !== 'anon' && !slug.startsWith('guest:') ? (
-    <a class="chat-who" href={`/u/${encodeURIComponent(slug)}`}>
-      {name}
-    </a>
-  ) : (
-    <span class="chat-who">{name}</span>
+  const id = String(typeof ref === 'object' ? ref.id : ref && ref !== 'anon' ? ref.replace(/^guest:/, '') : m.avatar || name)
+  let hue = 0
+  for (const char of id) hue = (hue * 31 + char.charCodeAt(0)) % 360
+  const words = name.match(/[\p{L}\p{N}]+/gu) || [name]
+  const initials = words.length > 1 ? [...words[0]][0] + [...words[1]][0] : [...words[0]].slice(0, 2).join('')
+  const href = slug && ref !== 'anon' && !slug.startsWith('guest:') ? `/u/${encodeURIComponent(slug)}` : undefined
+  const Tag = href ? 'a' : 'span'
+  return (
+    <Tag class="chat-who" href={href} title={name} aria-label={name} style={{ '--chat-hue': hue }}>
+      {[...initials.toUpperCase()].slice(0, 2).join('')}
+    </Tag>
   )
 }
 

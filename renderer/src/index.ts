@@ -1,9 +1,12 @@
+import { requestLog } from '../../common/request-log'
 // ABOUTME: Wearable + free avatar + parcel thumb renderer - GET holds until webp/png ready, then 302 to CDN (or 503 Retry-After).
 
 import './bootstrap'
 import { createHash } from 'crypto'
 import express from 'express'
 import path from 'path'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
 import { thumbKey, thumbUrl } from '../../common/renderable/thumb-url'
 import { fileURLToPath } from 'url'
 import { loadFreeAvatarSrc, loadGhosts, loadIslands, loadLots, loadParcelRecord, loadWearableVox } from './db'
@@ -19,6 +22,7 @@ const ASSET_ORIGIN = process.env.ASSET_PATH || 'https://www.voxels.com'
 const API_ORIGIN = process.env.API_ORIGIN || 'http://127.0.0.1:9000'
 
 const app = express()
+app.use(requestLog('renderer'))
 const port = process.env.PORT || '8080'
 
 app.use((_req, res, next) => {
@@ -29,6 +33,19 @@ app.use((_req, res, next) => {
 function mountRoutes(r: express.Router | express.Express) {
   r.get('/health', (_req, res) => {
     res.status(200).end('up')
+  })
+
+  // The UGC bucket allows the game origin, but local and embedded previews also need its bytes.
+  r.get('/ugc/*', async (req, res) => {
+    try {
+      const asset = await fetch('https://ugc.voxels.com/' + req.url.slice('/ugc/'.length), { redirect: 'error' })
+      if (!asset.ok || !asset.body) return res.sendStatus(asset.status)
+      res.set('X-Content-Type-Options', 'nosniff').type('application/octet-stream')
+      res.set('Cache-Control', asset.headers.get('cache-control') || 'public, max-age=3600')
+      await pipeline(Readable.fromWeb(asset.body as any), res)
+    } catch {
+      if (!res.headersSent) res.sendStatus(502)
+    }
   })
 
   r.get('/v1/wearable/:id.webp', async (req, res) => {
@@ -128,7 +145,7 @@ function mountRoutes(r: express.Router | express.Express) {
         res.status(404).end('not found')
         return
       }
-      const [embeds, lots, islands, ghosts] = await Promise.all([embedUrls(parcelPreviewUrls(record)), loadLots(record), loadIslands(), loadGhosts(id)])
+      const [embeds, lots, islands, ghosts] = await Promise.all([embedUrls(parcelPreviewUrls(record)), loadLots(record), loadIslands(record.island), loadGhosts(id)])
       res.json({ record, embeds, world: { lots, islands, ghosts } })
     } catch (e) {
       console.error('[renderer] parcel json', id, e)

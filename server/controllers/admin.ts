@@ -1,3 +1,4 @@
+import { islandTransaction } from '../islands'
 import { packGround } from '../../common/voxels/ground-bytes'
 import { inflateSync } from 'node:zlib'
 import type { PoolClient } from 'pg'
@@ -34,18 +35,19 @@ function isFloat(value: any) {
 
 // DB says minted=false but chain may already have the token. Check exists(),
 // flip stale rows to minted=true, return only parcels that are actually unminted.
-async function unmintedFromDb(db: Db, page: number) {
+async function unmintedFromDb(db: Db, page: number, address: string) {
   const offset = Math.max(0, page) * 100
   const result = await db.query(
     'sql/get-unminted-parcels',
     `select id, address, island, x1, y1, z1, x2, y2, z2
      from properties
      where minted = false
+       and ($2 = '' or strpos(lower(address), lower($2)) > 0)
        and (lower(island) is distinct from 'texas' or is_common is not true)
        and (island is distinct from 'Architect Island' or is_common = true or kind = 'inner')
      order by id desc
      limit 100 offset $1`,
-    [offset],
+    [offset, address],
   )
   const rows: any[] = result.rows || []
   if (!rows.length) return { parcels: [], fixed: 0 }
@@ -86,23 +88,6 @@ async function unmintedFromDb(db: Db, page: number) {
   return { parcels, fixed: stale.length }
 }
 
-// Large terrain fields can take longer than the pool's 500ms statement limit.
-async function islandTransaction<T>(db: Db, run: (client: PoolClient) => Promise<T>) {
-  const client = await db.connect()
-  try {
-    await client.query('BEGIN')
-    await client.query("SET LOCAL statement_timeout = '15s'")
-    const result = await run(client)
-    await client.query('COMMIT')
-    return result
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
-  } finally {
-    client.release()
-  }
-}
-
 export default function AdminController(db: Db, passport: PassportStatic, app: Express) {
   // Get the top parcel id
   app.get('/api/admin/parcels/top', cache(false), async (req, res) => {
@@ -128,12 +113,12 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
   // Dev proxies prod so local can mint against real parcels without a full DB dump.
   if (config.isDevelopment) {
     app.get('/api/admin/parcels/unminted', cache(false), async (req, res) => {
-      const page = String(req.query.page ?? '0')
+      const query = new URLSearchParams({ page: String(req.query.page ?? '0'), address: String(req.query.address ?? '') })
       try {
         // optional: set PROD_JWT until the no-auth deploy is live
         const headers: Record<string, string> = {}
         if (process.env.PROD_JWT) headers.cookie = `jwt=${process.env.PROD_JWT}`
-        const r = await fetch(`https://www.voxels.com/api/admin/parcels/unminted?page=${encodeURIComponent(page)}`, { headers })
+        const r = await fetch(`https://www.voxels.com/api/admin/parcels/unminted?${query}`, { headers })
         res.status(r.status).json(await r.json())
       } catch (e: any) {
         res.status(502).json({ success: false, message: e?.toString() || 'prod fetch failed' })
@@ -143,7 +128,7 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
     app.get('/api/admin/parcels/unminted', cache(false), async (req, res) => {
       const page = parseInt(String(req.query.page ?? '0'), 10)
       try {
-        const { parcels, fixed } = await unmintedFromDb(db, isNaN(page) ? 0 : page)
+        const { parcels, fixed } = await unmintedFromDb(db, isNaN(page) ? 0 : page, String(req.query.address ?? '').trim())
         res.status(200).json({ success: true, parcels, fixed })
       } catch (e: any) {
         log.error('unminted failed', { e: String(e) })
@@ -169,7 +154,7 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
     }
 
     try {
-      await createParcelRow(db, { id, address, owner, island, x1, y1, z1, x2, y2, z2, is_common: req.body.is_common === true })
+      await insertParcels(db, [{ id, address, owner, island, x1, y1, z1, x2, y2, z2, is_common: req.body.is_common === true }])
     } catch (e: any) {
       console.log(e)
       res.status(500).json({ success: false, message: e.message })
@@ -258,6 +243,7 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
     const xs = parcels.flatMap((p: any) => [m(p.x1), m(p.x2)])
     const zs = parcels.flatMap((p: any) => [m(p.z1), m(p.z2)])
     try {
+      log.info('starting island build', { name, count: parcels.length })
       const overlap = await islandTransaction(db, async (client) => {
         await client.query('lock table islands in share row exclusive mode')
         const r = await db.query(
@@ -270,14 +256,22 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
 
         await upsertIsland(db, name, geometry, content, req.body.ground, req.body.lakes, client)
         const suburbs = new Map<string, number>()
-        for (const row of villageRows(name, parcels, atlas, req.body.artpack)) {
-          if (row.suburb && !suburbs.has(row.suburb)) {
-            const found = await client.query('select id from suburbs where name = $1 order by id limit 1', [row.suburb])
-            const suburb = found.rows[0] || (await client.query('insert into suburbs (name) values ($1) returning id', [row.suburb])).rows[0]
-            suburbs.set(row.suburb, suburb.id)
+        for (let start = 0; start < parcels.length; start += 32) {
+          const rows = villageRows(name, parcels.slice(start, start + 32), atlas, req.body.artpack, start)
+          for (const row of rows) {
+            if (row.suburb && !suburbs.has(row.suburb)) {
+              const found = await client.query('select id from suburbs where name = $1 order by id limit 1', [row.suburb])
+              const suburb = found.rows[0] || (await client.query('insert into suburbs (name) values ($1) returning id', [row.suburb])).rows[0]
+              suburbs.set(row.suburb, suburb.id)
+            }
+            row.suburbId = suburbs.get(row.suburb)
           }
-          const inserted = await createParcelRow(db, { ...row, suburbId: suburbs.get(row.suburb) }, client)
-          if (!inserted.rowCount) throw new Error('parcel id already exists: ' + row.id)
+          const inserted = await insertParcels(db, rows, client)
+          if (inserted.rowCount !== rows.length) {
+            const ids = new Set(inserted.rows.map((p) => p.id))
+            const conflict = rows.find((p) => !ids.delete(p.id))
+            throw new Error('parcel id already exists: ' + conflict?.id)
+          }
         }
         return 0
       })
@@ -287,6 +281,7 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
       res.status(500).json({ success: false, message: e?.toString() || 'build failed' })
       return
     }
+    log.info('committed island build', { name, count: parcels.length })
     res.status(200).json({ success: true, inserted: parcels.length })
   })
 
@@ -410,49 +405,47 @@ function validIslandBody(b: any) {
 }
 
 // designer parcels -> parcel rows with their village house voxels, all on the one tileset if given
-function villageRows(name: string, parcels: any[], atlas?: string, artpack?: string) {
+function villageRows(name: string, parcels: any[], atlas?: string, artpack?: string, start = 0) {
   const pack = artpack === 'texas-thrift' ? texas : undefined
   const tileset = pack?.atlas || (typeof atlas === 'string' && atlas ? atlas : undefined)
   return parcels.map((p, i) => {
     const shape = { x1: m(p.x1), x2: m(p.x2), z1: m(p.z1), z2: m(p.z2), y1: p.y1, y2: p.y2, height: p.y2 - p.y1, common: p.is_common && p.common }
-    const house = ParcelBuilder.Village(shape, isInteger(p.material) ? p.material : ground, p.door, !!pack, i)
+    const house = ParcelBuilder.Village(shape, isInteger(p.material) ? p.material : ground, p.door, !!pack, start + i)
     return { ...p, island: name, content: { ...house, tileset } }
   })
 }
 
-async function createParcelRow(
+async function insertParcels(
   db: Db,
-  p: { id: number; address: string; owner: string; island: string; x1: number; y1: number; z1: number; x2: number; y2: number; z2: number; kind?: string; is_common?: boolean; content?: any; suburbId?: number },
+  parcels: { id: number; address: string; owner: string; island: string; x1: number; y1: number; z1: number; x2: number; y2: number; z2: number; kind?: string; is_common?: boolean; content?: any; suburbId?: number }[],
   client?: PoolClient,
 ) {
-  const { id, address, owner, island, x1, y1, z1, x2, y2, z2 } = p
-  const minX = Math.min(x1, x2)
-  const maxX = Math.max(x1, x2)
-  const minZ = Math.min(z1, z2)
-  const maxZ = Math.max(z1, z2)
-  const x1c = Math.round(minX * 100)
-  const x2c = Math.round(maxX * 100)
-  const z1c = Math.round(minZ * 100)
-  const z2c = Math.round(maxZ * 100)
-  const ring = [
-    [minX, minZ],
-    [minX, maxZ],
-    [maxX, maxZ],
-    [maxX, minZ],
-    [minX, minZ],
-  ]
-  const geometry_json = JSON.stringify({ type: 'Polygon', crs: { type: 'name', properties: { name: 'EPSG:3857' } }, coordinates: [ring] })
-  const settings = '{}'
+  const rows = parcels.map((p) => {
+    const { x1, z1, x2, z2 } = p
+    const minX = Math.min(x1, x2)
+    const maxX = Math.max(x1, x2)
+    const minZ = Math.min(z1, z2)
+    const maxZ = Math.max(z1, z2)
+    const x1c = Math.round(minX * 100)
+    const x2c = Math.round(maxX * 100)
+    const z1c = Math.round(minZ * 100)
+    const z2c = Math.round(maxZ * 100)
+    const ring = [
+      [minX, minZ],
+      [minX, maxZ],
+      [maxX, maxZ],
+      [maxX, minZ],
+      [minX, minZ],
+    ]
+    return { ...p, x1: x1c, x2: x2c, z1: z1c, z2: z2c, geometry: { type: 'Polygon', crs: { type: 'name', properties: { name: 'EPSG:3857' } }, coordinates: [ring] } }
+  })
   return db.query(
-    'sql/create-parcel',
-    `
-      INSERT INTO
-        properties (id, address, owner, y1, y2, geometry_json, x1, x2, z1, z2, bounds, visible, island, kind, settings, minted, is_common, content, suburb_id)
-      VALUES
-        ($1, $2, $3, $4::float8, $5::float8, $6::jsonb, $7::float8, $8::float8, $9::float8, $10::float8, cube(ARRAY[$7::float8,$4::float8,$9::float8], ARRAY[$8::float8,$5::float8,$10::float8]), true, $11, $13, $12::jsonb, false, $14, $15::json, $16)
-      ON CONFLICT (id) DO NOTHING
-    `,
-    [id, address, owner, y1, y2, geometry_json, x1c, x2c, z1c, z2c, island, settings, p.kind || 'plot', !!p.is_common, p.content ? JSON.stringify(p.content) : null, p.suburbId || null],
+    'sql/create-parcels',
+    `insert into properties (id, address, owner, y1, y2, geometry_json, x1, x2, z1, z2, bounds, visible, island, kind, settings, minted, is_common, content, suburb_id)
+     select id, address, owner, y1, y2, geometry, x1, x2, z1, z2, cube(array[x1,y1,z1], array[x2,y2,z2]), true, island, coalesce(nullif(kind,''),'plot'), '{}', false, coalesce(is_common,false), content, "suburbId"
+     from json_to_recordset($1::json) as p(id int, address text, owner text, y1 float8, y2 float8, geometry jsonb, x1 float8, x2 float8, z1 float8, z2 float8, island text, kind text, is_common boolean, content json, "suburbId" int)
+     on conflict (id) do nothing returning id`,
+    [JSON.stringify(rows)],
     client,
   )
 }
@@ -480,10 +473,12 @@ async function upsertIsland(db: Db, name: string, geometry: any, content: any, g
     'sql/upsert-island',
     `
       WITH upsert AS (
-        UPDATE islands SET geometry_json = $2::jsonb, position_json = $4::jsonb, content = $3, ground = $5, lakes_geometry_json = coalesce($7, lakes_geometry_json), texture = coalesce($6, texture) WHERE name = $1 RETURNING 1
+        UPDATE islands SET geometry_json = $2::jsonb, position_json = $4::jsonb, content = $3, ground = $5, lakes_geometry_json = coalesce($7, lakes_geometry_json), texture = coalesce($6, texture) WHERE name = $1 RETURNING id
+      ), created AS (
+        INSERT INTO islands (name, geometry_json, content, position_json, ground, texture, lakes_geometry_json)
+        SELECT $1, $2::jsonb, $3, $4::jsonb, $5, coalesce($6, ''), $7 WHERE NOT EXISTS (SELECT 1 FROM upsert) RETURNING id
       )
-      INSERT INTO islands (name, geometry_json, content, position_json, ground, texture, lakes_geometry_json)
-      SELECT $1, $2::jsonb, $3, $4::jsonb, $5, coalesce($6, ''), $7 WHERE NOT EXISTS (SELECT 1 FROM upsert);
+      SELECT pg_notify('island_published', id::text) FROM (SELECT id FROM upsert UNION ALL SELECT id FROM created) published;
     `,
     [name, geomStr, content, position_json, floorBytes(ground), ground ? texas.ground : null, lakes ? JSON.stringify(lakes) : null],
     client,

@@ -1,0 +1,38 @@
+# OpenSearch Dashboards > Dev Tools. Run once before the first writer.
+PUT _plugins/_ism/policies/voxels-requests
+{
+  "policy": {
+    "description": "Roll daily or at 10 GB and expire request indices after 30 days",
+    "default_state": "write",
+    "ism_template": [{"index_patterns":["voxels-requests-*"],"priority":100}],
+    "states": [
+      {"name":"write","actions":[{"rollover":{"min_index_age":"1d","min_size":"10gb"}}],"transitions":[{"state_name":"keep"}]},
+      {"name":"keep","actions":[],"transitions":[{"state_name":"delete","conditions":{"min_index_age":"30d"}}]},
+      {"name":"delete","actions":[{"delete":{}}],"transitions":[]}
+    ]
+  }
+}
+
+PUT _ingest/pipeline/voxels-request
+{
+  "processors": [
+    {"set":{"field":"ingested","value":"{{{_ingest.timestamp}}}"}},
+    {"script":{"source":"ctx.lag_ms = ZonedDateTime.parse(ctx.ingested).toInstant().toEpochMilli() - ZonedDateTime.parse(ctx.at).toInstant().toEpochMilli()"}}
+  ]
+}
+
+PUT _index_template/voxels-requests
+{
+  "index_patterns":["voxels-requests-*"],
+  "template":{
+    "settings":{"number_of_replicas":0,"plugins.index_state_management.rollover_alias":"voxels-requests","index.default_pipeline":"voxels-request"},
+    "mappings":{"dynamic":"strict","properties":{
+      "event":{"type":"keyword"},"id":{"type":"keyword"},"at":{"type":"date"},"ingested":{"type":"date"},"lag_ms":{"type":"long"},
+      "service":{"type":"keyword"},"deploy":{"type":"keyword"},"method":{"type":"keyword"},"route":{"type":"keyword"},
+      "status":{"type":"integer"},"ms":{"type":"long"},"aborted":{"type":"boolean"},"asset":{"type":"keyword"}
+    }}
+  }
+}
+
+PUT voxels-requests-000001
+{"aliases":{"voxels-requests":{"is_write_index":true}}}

@@ -1,3 +1,4 @@
+import { requestLog } from '../../common/request-log'
 // ABOUTME: Background parcel compiler - multi-parcel farm, shared 40 fetchers, IRC board.
 
 import './bootstrap'
@@ -17,6 +18,7 @@ const parcelArg = process.argv.indexOf('--parcel')
 const parcelId = parcelArg < 0 ? undefined : Number(process.argv[parcelArg + 1])
 
 const app = express()
+app.use(requestLog('compiler'))
 
 app.get('/health', (_req, res) => {
   res.status(200).end('up')

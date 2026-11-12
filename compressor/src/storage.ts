@@ -89,10 +89,14 @@ export function download(texture: Texture, fallbackURL?: string): Promise<Textur
         throw error
       }
       const fallbackSource = new URL(fallbackURL)
-      return queueJob(() => downloader(fallbackSource, destPath), 'fetch').then(() => {
-        console.log('fallback URL used ' + fallbackURL)
-        return texture
-      })
+      return queueJob(() => downloader(fallbackSource, destPath), 'fetch')
+        .then(() => {
+          console.log('fallback URL used ' + fallbackURL)
+          return texture
+        })
+        .catch((fallbackError) => {
+          throw error.statusCode === 413 ? error : fallbackError
+        })
     })
 }
 
@@ -104,11 +108,16 @@ async function downloader(sourceURL: URL, destPath: string): Promise<void> {
       await response.body?.cancel()
       throw new DownloadError(sourceURL.toString(), response.status, response.statusText)
     }
+    const tooLarge = () => new DownloadError(sourceURL.toString(), 413, 'source exceeds 128 MiB')
+    if (Number(response.headers.get('content-length')) > 128 * 1024 * 1024) {
+      await response.body.cancel()
+      throw tooLarge()
+    }
     let size = 0
     const limit = new Transform({
       transform(chunk, _encoding, done) {
         size += chunk.length
-        done(size > 16 * 1024 * 1024 ? new Error('source exceeds 16 MiB') : null, chunk)
+        done(size > 128 * 1024 * 1024 ? tooLarge() : null, chunk)
       },
     })
     await pipeline(Readable.fromWeb(response.body as any), limit, fs.createWriteStream(destPath), { signal })

@@ -1,4 +1,4 @@
-import { parcelIndex } from '../common/utils'
+import { fetchIslands, parcelIndex } from '../common/utils'
 import { createEngine } from '../common/helpers/utils'
 import { getParcelHelper } from '../common/helpers/parcel-helper'
 import { SingleParcelRecord } from '../common/messages/parcel'
@@ -179,14 +179,7 @@ const createPMesh = (name: string, scene: BABYLON.Scene, r: number, g: number, b
   return pMesh
 }
 
-let islandCache: any
-
-export async function fetchIslands() {
-  if (islandCache) return islandCache
-  const response = await fetch(`${process.env.ASSET_PATH || ''}/api/islands.json`)
-  islandCache = await response.json()
-  return islandCache
-}
+export { fetchIslands }
 
 export async function loadIslands(scene: BABYLON.Scene, parent?: BABYLON.TransformNode, cull = false, bright = false) {
   const root = parent ?? new BABYLON.TransformNode('map_islands', scene)
@@ -209,7 +202,7 @@ export const fetchOwnerParcels = (wallet: string, cachebust = false): Promise<Si
 export const fetchContributingParcels = (wallet: string, cachebust = false): Promise<SingleParcelRecord[]> => fetchCachedParcels(`/api/wallet/${wallet}/contributing-parcels.json`, cachebust)
 
 export async function fetchMapParcels() {
-  const r = await fetch(`${process.env.API || '/api'}/parcels/map.json`, { credentials: 'include' }).then((res) => res.json())
+  const r = await fetch(`${process.env.API || '/api'}/parcels/map.json?world`, { credentials: 'include', cache: 'no-store' }).then((res) => res.json())
   return (r.parcels || []) as ParcelData[]
 }
 
@@ -427,7 +420,6 @@ export class VoxelsMap {
     if (!this.meshes) return
     const groups = new Map<BABYLON.Mesh, ParcelData[]>()
     for (const p of this.proposal ? this.rows.concat(this.proposal.rows) : this.rows) {
-      if (p.visible === false) continue
       const m = pickParcelMesh(p, this.meshes, this.wallet)
       if (!groups.has(m)) groups.set(m, [])
       groups.get(m)!.push(p)
@@ -462,7 +454,6 @@ export class VoxelsMap {
 
   parcelAt(x: number, z: number): ParcelData | undefined {
     for (const p of this.rows) {
-      if (p.visible === false) continue
       if (x >= p.x1 && x <= p.x2 && z >= p.z1 && z <= p.z2) return p
     }
   }

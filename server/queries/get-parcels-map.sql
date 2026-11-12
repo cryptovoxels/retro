@@ -26,5 +26,4 @@ select properties.id as id,
        (listed_at >= (NOW() - interval '4 days')) ::boolean as on_sale
 from properties
          left join suburbs on properties.suburb_id = suburbs.id
-where minted = true
 order by ID asc;

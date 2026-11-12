@@ -28,5 +28,4 @@ select properties.id as id,
        properties.z2
 from properties
          left join suburbs on properties.suburb_id = suburbs.id
-where minted = true limit
-  $1;
+limit $1;

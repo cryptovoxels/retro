@@ -116,7 +116,7 @@ export class VoxImporter {
         runCompute((w) =>
           w.loadVox(
             {
-              ...(urlOrBuffer instanceof ArrayBuffer ? { buffer: urlOrBuffer } : { url: urlOrBuffer }),
+              ...(urlOrBuffer instanceof ArrayBuffer ? { buffer: urlOrBuffer } : { url: BABYLON.Tools.PreprocessUrl(urlOrBuffer) }),
               flipX: options.invertX ?? true,
               megavox: !!options.megavox,
               timeoutMs: VoxImporter.JOB_TIMEOUT_MS,

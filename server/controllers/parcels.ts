@@ -1,8 +1,7 @@
 import { createRequestHandlerForQuery, queryAndCallback } from '../lib/query-helpers'
 
 import cache, { noCache } from '../cache'
-import config from '../../common/config'
-import proxy from 'express-http-proxy'
+import { parcelCache } from '../handlers/parcel-cache'
 import Parcel, { ParcelRef } from '../parcel'
 import { revertParcel, sandboxRollback } from '../handlers/update-parcel'
 import voxExport from '../handlers/vox-export'
@@ -86,7 +85,7 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
     const sql = `
       select id, name, address, island, kind, x1, x2, y1, y2, z1, z2, y2 - y1 as height
       from properties
-      where minted and is_common <> true and ${filter}
+      where is_common <> true and ${filter}
       order by ${orderBy}
       limit $2 offset $3`
 
@@ -238,11 +237,7 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
     createRequestHandlerForQuery(db, 'get-parcel-snapshots', 'snapshots', (req) => [req.params.id, req.query.autosave === 'include']),
   )
 
-  if (config.isDevelopment) {
-    app.use('/api/parcels/map.json', cache(false), proxy('https://www.voxels.com', { proxyReqPathResolver: (req) => req.originalUrl }))
-  } else {
-    app.get('/api/parcels/map.json', cache('1 day'), createRequestHandlerForQuery(db, 'get-parcels-map', 'parcels'))
-  }
+  app.get('/api/parcels/map.json', cache(false), parcelCache(db, 'get-parcels-map'))
 
   // Route to Obtain the content of every parcels the user owns.
   app.get(

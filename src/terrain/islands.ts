@@ -1,3 +1,4 @@
+import { fetchIslands } from '../../common/utils'
 import type { Road } from '../../islands/texas/layout'
 import { islandFurniture } from './furniture'
 import { islandGround } from './ground'
@@ -122,14 +123,8 @@ export default class Islands {
   }
 
   async load(): Promise<void> {
-    const s = document.querySelector('script#islands')
-    if (s) {
-      this.islands = JSON.parse(s.innerHTML).map((i: IslandRecord) => new Island(this, i))
-    } else {
-      const response = await fetch('/api/islands.json')
-      const data = await response.json()
-      this.islands = data.islands.map((i: IslandRecord) => new Island(this, i))
-    }
+    const data = await fetchIslands()
+    this.islands = data.islands.map((i: IslandRecord) => new Island(this, i))
 
     await Promise.all(this.islands.map((i) => i.render()))
     this._fetchCompleted = true // Wait until setVisibility() to notify observers

@@ -1,3 +1,5 @@
+import { statsRoutes } from '../stats/server'
+import { requestLog } from '../common/request-log'
 import fs from 'fs'
 import http from 'http'
 import https from 'https'
@@ -15,7 +17,6 @@ import updateParcel from './handlers/update-parcel'
 import Avatar from './avatar'
 import sitemap from './handlers/sitemap'
 import streamWearable from './handlers/stream-wearable'
-import { isOwner } from './lib/helpers'
 
 import AdminController from './controllers/admin'
 import DelegatesController from './controllers/delegates'
@@ -37,6 +38,8 @@ import RadioController from './controllers/radio'
 
 import cache, { defaultCache, noCache } from './cache'
 import db, { pgp } from './pg'
+import { islandGround } from './handlers/island-ground'
+import { islandEvents } from './islands'
 import { parcelCache } from './handlers/parcel-cache'
 
 import { ethers } from 'ethers'
@@ -145,6 +148,7 @@ const signInRateLimit = rateLimit({
 
 // Configure express
 const app: Express = express()
+app.use(requestLog('web'))
 
 if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
@@ -161,6 +165,7 @@ const httpServer = http.createServer(app)
 httpServer.setTimeout(1000 * 25)
 
 app.use(cookieParser())
+statsRoutes(app, passport)
 app.use(bodyParser.json({ limit: '50mb' }))
 
 // Add error handler for body-parser JSON errors (recommended approach)
@@ -489,6 +494,10 @@ app.get('/api/parcels/by/:wallet/query', cache('5 seconds'), refreshParcelsByWal
 // id:hash pairs, refreshed every 10s so .pack lookups don't scan properties per request
 let packHashes: { at: number; rows: { id: number; hash: string }[] } = { at: 0, rows: [] }
 
+islandEvents.on('published', () => {
+  packHashes = { at: 0, rows: [] }
+})
+
 // bloom of id:hash pairs. the url changes whenever a parcel does, so cache forever
 app.get('/grid/parcels/:bits.pack', cache('immutable'), async (req, res) => {
   const has = unpackIds(req.params.bits)
@@ -499,16 +508,19 @@ app.get('/grid/parcels/:bits.pack', cache('immutable'), async (req, res) => {
   }
 
   if (Date.now() - packHashes.at > 10000) {
-    const r = await db.query('embedded/get-parcel-hashes', `select id, memoized_hash as hash from properties where visible`)
-    packHashes = { at: Date.now(), rows: r.rows }
+    const previous = packHashes
+    const r = await db.query('embedded/get-parcel-hashes', `select id, memoized_hash as hash from properties`)
+    if (previous === packHashes) packHashes = { at: Date.now(), rows: r.rows }
   }
 
-  const ids = packHashes.rows
+  const snapshot = packHashes
+  const ids = snapshot.rows
     .filter((p) => has(`${p.id}:${p.hash}`))
     .map((p) => p.id)
     .slice(0, 32)
   const parcels = ids.length ? await Parcel.loadMany(ids) : []
   await nftImages(parcels)
+  if (!parcels.length || snapshot !== packHashes) noCache(res)
   res.json({ success: true, parcels: parcels.map((p) => p.summary) })
 })
 
@@ -533,21 +545,20 @@ app.get('/grid/parcels/:id', cache('10 seconds'), async (req, res) => {
 })
 
 // Islands baby!
-app.get('/api/islands/:id/ground.bin', async (req, res) => {
-  if (!/^\d+$/.test(req.params.id)) return res.sendStatus(404)
-  const r = await db.query('sql/island-ground', 'select ground from islands where id = $1', [req.params.id])
-  if (!r.rows[0]?.ground) return res.sendStatus(404)
-  res.type('application/octet-stream').send(r.rows[0].ground)
-})
+app.get('/api/islands/:id/ground.bin', islandGround(db))
 
-app.get('/api/islands.json', cache('30 minutes', true), createRequestHandlerForQuery(db, 'get-islands', 'islands'))
-app.get('/api/islands-metadata.json', cache('1 hour', true), createRequestHandlerForQuery(db, 'get-islands-metadata', 'islands'))
+const islandList = createRequestHandlerForQuery(db, 'get-islands', 'islands')
+const islandNames = createRequestHandlerForQuery(db, 'get-islands-metadata', 'islands')
+app.get('/api/world/islands.json', cache(false), islandList)
+app.get('/api/world/islands-metadata.json', cache(false), islandNames)
+app.get('/api/islands.json', cache(false), islandList)
+app.get('/api/islands-metadata.json', cache(false), islandNames)
 app.get(
   '/api/islands/:slug.json',
   createRequestHandlerForQuery(db, 'get-island', 'island', (req) => [req.params.slug]),
 )
 
-app.get('/api/parcels/cached.json', cache('60 seconds', true), parcelCache(db))
+app.get('/api/parcels/cached.json', cache(false), parcelCache(db))
 app.get(
   '/api/activity.json',
   cache('15 seconds'),
@@ -565,7 +576,7 @@ app.get('/api/parcels/:id.json', cache(config.isDevelopment ? false : '15 second
   // request sits until the gateway gives up 25 seconds later.
   if (isNaN(id) || id < 1 || id > 2147483647) return res.status(400).json({ success: false })
 
-  const result = await query(db, 'get-parcel', 'parcel', [id, isOwner(req)])
+  const result = await query(db, 'get-parcel', 'parcel', [id])
   if (result.success) return res.status(200).json(result)
 
   if (config.isDevelopment) return parcelProxy(req, res, next)

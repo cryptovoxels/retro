@@ -11,5 +11,4 @@ select p.id,
 
 from properties p
 where lower(p.owner) = lower($1)
-  AND p.minted = true
 group by p.id;

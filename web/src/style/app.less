@@ -11,12 +11,13 @@
 
 .glass() {
   border-radius: 0.1rem;
-  background: rgba(46, 44, 47, 0.8);
+  background: var(--glass);
   backdrop-filter: blur(8px);
   color: var(--fg);
 }
 
 :root {
+  --glass: rgba(46, 44, 47, 0.8);
   --map-water: #111722;
   --map-land: #26303b;
   --map-parcel: #663b49;
@@ -760,9 +761,12 @@ header.menu {
   height: 100%;
   width: 20rem;
   z-index: 100;
-  max-height: 100%;
   overflow-y: auto;
   box-sizing: border-box;
+
+  @media @wide {
+    max-height: calc(50vh - 0.5rem);
+  }
 
   .glass();
 
@@ -1382,12 +1386,6 @@ body.chat-route main > .page {
     padding: 0.15rem 0 0.15rem 1.5rem;
     text-indent: -1.5rem;
     word-break: break-word;
-  }
-
-  .chat-who {
-    font-weight: bold;
-    color: inherit;
-    text-decoration: none;
   }
 
   .chat-anon {
@@ -2601,6 +2599,21 @@ button.iconish {
 }
 
 /* Chat */
+.chat-messages .chat-who {
+  display: inline-grid;
+  place-items: center;
+  width: 1.65em;
+  height: 1.65em;
+  vertical-align: middle;
+  border-radius: 50%;
+  background: var(--glass);
+  color: hsl(var(--chat-hue) 85% 74%);
+  font-weight: bold;
+  text-indent: 0;
+  text-decoration: none;
+  text-shadow: none;
+}
+
 .canvasdom div.chat {
   position: absolute;
   // clear iOS home indicator / mobile browser bottom chrome
@@ -2621,6 +2634,12 @@ button.iconish {
     pointer-events: none;
   }
 
+  @media (hover: hover) {
+    &:not(:hover) .chat-messages > p:nth-last-child(n + 4) {
+      display: none;
+    }
+  }
+
   .chat-messages {
     display: flex;
     flex-direction: column;
@@ -2639,12 +2658,6 @@ button.iconish {
       -1px 0 0 rgba(0, 0, 0, 0.75),
       0 1px 0 rgba(0, 0, 0, 0.75),
       0 -1px 0 rgba(0, 0, 0, 0.75);
-
-    .chat-who {
-      font-weight: bold;
-      color: inherit;
-      text-shadow: none;
-    }
 
     .chat-x {
       all: unset;
@@ -2667,9 +2680,18 @@ button.iconish {
   p {
     margin: 0;
     line-height: 1.35;
-    padding-left: calc(16px + 0.25em);
-    text-indent: calc(-16px - 0.25em);
     transition: opacity 1s;
+
+    &:has(> .chat-who) {
+      position: relative;
+      padding-left: 2em;
+      min-height: calc(1.65em + 2px);
+    }
+
+    > .chat-who {
+      position: absolute;
+      left: 0;
+    }
 
     &.faded {
       pointer-events: none;
@@ -5010,12 +5032,11 @@ main:has(.worldmap) {
   }
 }
 
-// desktop: one row, centered bottom
+// desktop: one row, bottom left
 @media @wide {
   .canvasdom div.chat {
-    left: 50%;
-    bottom: 0;
-    transform: translateX(-50%);
+    position: fixed;
+    max-height: calc(50vh - 0.5rem);
     width: min(42rem, calc(100% - 2rem));
 
     .interact-bar {

@@ -6,7 +6,7 @@ Visit https://www.voxels.com/play to walk around. Browse without an account at h
 
 ## Voxels public read API
 
-84 routes on https://www.voxels.com, covering parcels, womps, avatars, collectibles, collections, wearables, islands, spaces, events, search, ghosts, chat, account. Most are unauthenticated GET. Handlers answer {"success": true, "<field>": ...}, where the field is plural for a list and singular for one record, and {"success": false} when the lookup misses.
+86 routes on https://www.voxels.com, covering parcels, womps, avatars, collectibles, collections, wearables, islands, spaces, events, search, ghosts, chat, account. Most are unauthenticated GET. Handlers answer {"success": true, "<field>": ...}, where the field is plural for a list and singular for one record, and {"success": false} when the lookup misses.
 
 ## docs
 
@@ -113,7 +113,7 @@ Full reference: [Markdown](https://www.voxels.com/API.md),
 - [collectibles](https://www.voxels.com/api/collectibles.json): 3 routes. Minted wearables, including the MagicaVoxel model behind one.
 - [collections](https://www.voxels.com/api/collections): 9 routes. Wearable collections and the wearables inside them.
 - [wearables](https://www.voxels.com/api/wearables/search): 8 routes. Wearables by id or by contract, and their models.
-- [islands](https://www.voxels.com/api/islands.json): 4 routes. The archipelago: shorelines, holes, lakes and where each island sits.
+- [islands](https://www.voxels.com/api/world/islands.json): 6 routes. The archipelago: shorelines, holes, lakes and where each island sits.
 - [spaces](https://www.voxels.com/api/spaces/{id}.json): 2 routes. Hosted spaces, which are worlds that are not parcels.
 - [events](https://www.voxels.com/api/events.json): 6 routes. What is on, and where.
 - [search](https://www.voxels.com/api/search): 1 route. One query across parcels, wearables, collections and citizens.
