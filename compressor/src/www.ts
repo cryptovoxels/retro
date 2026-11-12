@@ -1,3 +1,4 @@
+import { requestLog } from '../../common/request-log'
 // ABOUTME: Express server setup with CORS.
 // ABOUTME: Exports the app instance for route registration.
 
@@ -11,6 +12,7 @@ const corsSettings = {
 }
 
 export const app = express()
+app.use(requestLog('compressor'))
 app.use(cors(corsSettings))
 
 const port = process.env.PORT || '9473'
