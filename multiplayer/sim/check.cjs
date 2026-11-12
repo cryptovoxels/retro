@@ -1,65 +1,95 @@
-// Run with node multiplayer/sim/check.cjs after rebuilding the core.
 const assert = require('node:assert/strict')
-const fs = require('node:fs')
+const { readFileSync } = require('node:fs')
 const path = require('node:path')
-const { performance } = require('node:perf_hooks')
-const read = (file) => fs.readFileSync(path.join(__dirname, file), 'utf8')
-
+const { buildNav } = require('../src/nav.ts')
+const read = (name) => readFileSync(path.join(__dirname, name), 'utf8')
 async function check() {
+  const { compileRig } = await import('../../scripts/critter-rig.mjs')
+  assert.throws(() => compileRig(read('../../test/fixtures/critters/invalid.lua')), /unsupported expression/)
+
   const core = await require('./core.cjs')()
-  // Block the direct route and leave a one-cell gap two metres to the east.
-  const street = read('street.txt').trim().split('\n')
-  street[25] = '.'.repeat(23) + '3' + '.'.repeat(16)
-  assert.equal(
-    core.ccall('boot', 'number', ['string', 'string'], [street.join('\n'), read('rat.lua') + '\n' + read('eagle.lua')]),
-    1,
-  )
-  assert.equal(core._add(20.5, 20.5, 820, 1223, 0), 0)
-  let collected = false,
-    delivered = false
-  for (let n = 0; n < 250; n++) {
-    const i = core._tick(0.2) / 4
-    const [x, , z, carrying] = core.HEAPF32.subarray(i, i + 4)
-    assert.notEqual(street[Math.floor(z)][Math.floor(x)], '.')
-    if (carrying) collected = true
-    if (collected && !carrying) delivered = true
-  }
-  assert.ok(delivered, 'rat picks up the chip and gets it home')
-  core._reset()
-  core._add(20.5, 20.5, 820, 1223, 0)
-  let hiddenTicks = 0
-  for (let n = 0; n < 100; n++) {
-    core._flock(0.2, 5)
-    const at = core._tick(0.2) / 4
-    if (core.HEAPF32[at + 3] < 0) hiddenTicks++
-    else if (hiddenTicks) {
-      assert.equal(core.HEAPF32[at], 20.5)
-      assert.equal(core.HEAPF32[at + 2], 20.5)
-      assert.equal(core.HEAPF32[at + 3], 0)
-      break
+  const source = ['vector.lua', 'critter.lua', 'classes/rat.lua', 'classes/eagle.lua', 'check.lua'].map(read).join('\n')
+  for (const [x, z] of [
+    [0, 0],
+    [-96, 640],
+  ]) {
+    const ground = Buffer.alloc(16 + 6 * 8, 255)
+    ;[x - 1, z, 6, 1].forEach((n, i) => ground.writeInt32LE(n, i * 4))
+    ground.fill(0, 16, 22)
+    const roof = Buffer.alloc(2)
+    roof.writeUInt16LE(1)
+    // Ground layer 2 starts at y=0, above the two subterranean layers.
+    ground.fill(0, 28, 34)
+    buildNav(core, x, z, ground, [
+      {
+        x1: x,
+        x2: x + 0.5,
+        y1: 1.5,
+        y2: 2,
+        z1: z,
+        z2: z + 0.5,
+        voxels: require('node:zlib').deflateSync(roof).toString('base64'),
+      },
+    ])
+    assert.equal(core.ccall('boot', 'number', ['string'], [source]), 1)
+    assert.equal(
+      core.ccall(
+        'spawn',
+        'number',
+        ['string', 'number', 'number', 'number', 'number'],
+        ['rat', 1, x + 0.25, 0, z + 0.25],
+      ),
+      1,
+    )
+    assert.equal(
+      core.ccall('spawn', 'number', ['string', 'number', 'number', 'number', 'number'], ['rat', 2, x + 4, 0, z]),
+      0,
+    )
+    assert.equal(
+      core.ccall('spawn', 'number', ['string', 'number', 'number', 'number', 'number'], ['eagle', 3, x, 0, z]),
+      1,
+    )
+    const xs = new Set()
+    for (let n = 0; n < 100; n++) {
+      const i = core._tick(1, 0.2) / 4
+      assert.ok(i)
+      const [px, py, pz] = core.HEAPF32.subarray(i, i + 3)
+      xs.add(px)
+      assert.ok(px >= x + 0.25 && px <= x + 1.75 && Math.abs(py - 0.24) < 0.0001 && pz === z + 0.25)
+      assert.ok(core._tick(3, 0.2))
     }
+    assert.ok(xs.size > 2)
+    const square = (start, end) =>
+      [
+        [start, start],
+        [end, start],
+        [end, end],
+        [start, end],
+      ].map(([a, b]) => [(x + a) / 100, (z + b) / 100])
+    buildNav(core, x, z, null, [], {
+      id: 1,
+      geometry_json: { coordinates: [square(0, 4)] },
+      lakes_geometry_json: { coordinates: [[square(1, 2)]] },
+    })
+    assert.equal(core.ccall('boot', 'number', ['string'], [source]), 1)
+    assert.equal(
+      core.ccall(
+        'spawn',
+        'number',
+        ['string', 'number', 'number', 'number', 'number'],
+        ['probe', 0, x + 0.25, 0, z + 0.25],
+      ),
+      1,
+    )
   }
-  assert.ok(hiddenTicks >= 39 && hiddenTicks <= 40, 'eight seconds in the burrow after a catch')
-  core._reset()
-  for (let i = 0; i < 100; i++) assert.equal(core._add(20.5, 20.5, 820, 1223, i % 2), i)
-  const times = []
-  for (let i = 0; i < 5000; i++) {
-    const start = performance.now()
-    core._tick(0.2)
-    times.push(performance.now() - start)
-  }
-  times.sort((a, b) => a - b)
-  console.log(
-    '100 awake rats, 5000 ticks, p95 ' +
-      times[4750].toFixed(3) +
-      ' ms, max ' +
-      times[4999].toFixed(3) +
-      ' ms, WASM heap ' +
-      core.HEAPF32.byteLength / 1048576 +
-      ' MiB',
-  )
+  const ground = Buffer.alloc(16 + 64 * 64 * 16, 255)
+  ;[0, 0, 64, 64].forEach((n, i) => ground.writeInt32LE(n, i * 4))
+  ground.fill(0, 16, 16 + 64 * 64 * 3)
+  const start = performance.now()
+  for (let i = 0; i < 100; i++) buildNav(core, 0, 0, ground, [])
+  console.log('32m voxel region, mean of 100 builds:', ((performance.now() - start) / 100).toFixed(3), 'ms')
 }
-check().catch((error) => {
-  console.error(error)
+check().catch((err) => {
+  console.error(err)
   process.exitCode = 1
 })

@@ -37,7 +37,7 @@ export class Client {
   orientation: [number, number, number, number] | null = null
   animation = 0
   grounded = false
-  texasDraft = false
+  draft = ''
   lastMoved = 0
   inConga = false
   congaFollowsUuid: string | null = null
@@ -161,9 +161,6 @@ export class Client {
           this.shard.broadcastFromClient(msg, message, this.clientUUID)
         }
         break
-      case messages.MessageType.dressRat:
-        this.shard.sim.dress(this, msg)
-        break
       case messages.MessageType.point:
       case messages.MessageType.typing:
       case messages.MessageType.voiceStateAvatar:
@@ -236,7 +233,7 @@ export class Client {
   }
 
   private handleUpdateAvatar(msg: messages.UpdateAvatarMessage): void {
-    this.texasDraft = msg.texasDraft === true
+    this.draft = msg.draft ?? ''
     this.position = msg.position as [number, number, number]
     this.orientation = msg.orientation as [number, number, number, number]
     this.animation = msg.animation

@@ -1,266 +1,134 @@
 #include "lauxlib.h"
-#include "lua.h"
 #include "lualib.h"
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
 
-enum { WIDTH = 40, CELLS = WIDTH * WIDTH, LIMIT = 100 };
-typedef struct {
-  float x, z, rest, hidden;
-  int home, food, carrying, target;
-  uint16_t path[CELLS];
-  int left;
-} Rat;
+// A VM owns one 32m region. Y spans the parcel bounds loaded at wake.
+enum { WIDTH = 64 };
+static int ox, oy, oz, layers;
+static uint8_t *solid;
+static lua_State *vm;
+static float pose[7];
 
-static Rat rats[LIMIT];
-static int8_t height[CELLS];
-static int count;
-static lua_State *lua;
-
-static int cell(float x, float z) { return (int)z * WIDTH + (int)x; }
-
-// Unit-cost neighbours. One bounded BFS per departure on this 20m street.
-static int walkTo(lua_State *L) {
-  int id = luaL_checkinteger(L, 1);
-  if (id < 0 || id >= count)
-    return 0;
-  Rat *r = &rats[id];
-  int goal = luaL_checkinteger(L, 2);
-  if (goal < 0 || goal >= CELLS)
-    return 0;
-  int from = cell(r->x, r->z);
-  int16_t parent[CELLS], queue[CELLS];
-  memset(parent, -1, sizeof(parent));
-  parent[from] = from;
-  queue[0] = from;
-  int tail = 1;
-  for (int head = 0; head < tail && parent[goal] < 0; head++) {
-    int p = queue[head];
-    int neighbours[] = {p - WIDTH, p + WIDTH, p % WIDTH ? p - 1 : -1,
-                        p % WIDTH < WIDTH - 1 ? p + 1 : -1};
-    for (int i = 0; i < 4; i++) {
-      int n = neighbours[i];
-      if (n < 0 || n >= CELLS || parent[n] >= 0 || height[n] < 0 ||
-          abs(height[n] - height[p]) > 1)
-        continue;
-      parent[n] = p;
-      queue[tail++] = n;
-    }
-  }
-  r->left = 0;
-  if (parent[goal] < 0) {
-    r->rest = 3;
-    return 0;
-  }
-  for (int p = goal; p != from; p = parent[p])
-    r->path[r->left++] = p;
-  r->target = goal;
-  return 0;
+int region(int x, int y, int z, int height) {
+  if (height < 1 || height > 4096) return 0;
+  free(solid);
+  solid = calloc((size_t)WIDTH * WIDTH, height);
+  ox = x; oy = y; oz = z; layers = height;
+  return solid != NULL;
 }
 
-enum { FLOCK = 5 };
-typedef struct {
-  float x, y, z;
-  int prey;
-} Eagle;
-static Eagle birds[FLOCK];
-static float clockTime;
-
-void reset(void) {
-  count = 0;
-  clockTime = 0;
-  for (int i = 0; i < FLOCK; i++) {
-    birds[i] = (Eagle){.prey = -1};
-    lua_getglobal(lua, "wakeEagle");
-    lua_pushinteger(lua, i);
-    if (lua_pcall(lua, 1, 0, 0) != LUA_OK)
-      lua_pop(lua, 1);
-  }
-}
-
-void burrow(int i, float delay) {
-  if (i < 0 || i >= count)
-    return;
-  Rat *r = &rats[i];
-  r->hidden = delay;
-  r->x = r->home % WIDTH + 0.5f;
-  r->z = r->home / WIDTH + 0.5f;
-  r->left = r->carrying = 0;
-  r->rest = 0;
-  r->target = -1;
-}
-
-static int moveBird(Eagle *b, float x, float y, float z, float step) {
-  float dx = x - b->x, dy = y - b->y, dz = z - b->z;
-  float dist = sqrtf(dx * dx + dy * dy + dz * dz);
-  float t = dist > 0 ? fminf(1, step / dist) : 1;
-  b->x += dx * t;
-  b->y += dy * t;
-  b->z += dz * t;
-  return t == 1;
-}
-
-static Eagle *bird(lua_State *L) {
-  lua_Integer id = luaL_checkinteger(L, 1);
-  luaL_argcheck(L, id >= 0 && id < FLOCK, 1, "unknown eagle");
-  return &birds[id];
-}
-
-static int flyTo(lua_State *L) {
-  moveBird(bird(L), luaL_checknumber(L, 2), luaL_checknumber(L, 3),
-           luaL_checknumber(L, 4), luaL_checknumber(L, 5));
-  return 0;
-}
-
-// Keep an existing claim, otherwise take the nearest visible, unclaimed rat.
-static int claimRat(lua_State *L) {
-  Eagle *b = bird(L);
-  if (b->prey < 0) {
-    float best = INFINITY;
-    for (int i = 0; i < count; i++) {
-      Rat *r = &rats[i];
-      if (r->hidden > 0)
-        continue;
-      int taken = 0;
-      for (int k = 0; k < FLOCK; k++)
-        if (birds[k].prey == i)
-          taken = 1;
-      float d = hypotf(r->x - b->x, r->z - b->z);
-      if (!taken && d < best) {
-        best = d;
-        b->prey = i;
+// Coordinates are half-metre cells. Ground is YZX bytes (255 = air),
+// parcels are X Y Z little-endian uint16 (0 = air).
+void stamp(const uint8_t *bytes, int x, int y, int z, int w, int h, int d,
+           int ground, int scale) {
+  for (int iz = fmax(0, oz - z); iz < fmin(d * scale, oz + WIDTH - z); iz++)
+    for (int ix = fmax(0, ox - x); ix < fmin(w * scale, ox + WIDTH - x); ix++) {
+      int col = ((z + iz - oz) * WIDTH + x + ix - ox) * layers;
+      for (int iy = fmax(0, oy - y); iy < fmin(h * scale, oy + layers - y); iy++) {
+        int a = ix / scale, b = iy / scale, c = iz / scale;
+        if (ground ? bytes[(b * d + c) * w + a] != 255
+                   : ((const uint16_t *)bytes)[(a * h + b) * d + c] != 0)
+          solid[col + y + iy - oy] = 1;
       }
     }
+}
+
+// Polygon-only islands have a flat surface at 0.74m. Scan-convert each ring
+// at the same half-metre resolution as voxel ground, including lake holes.
+void shoreline(const float *ring, int count, int land) {
+  if (count < 3) return;
+  for (int z = 0; z < WIDTH; z++) {
+    double wz = (oz + z + .5) * .5;
+    uint8_t toggle[WIDTH + 1] = {0};
+    for (int a = 0, b = count - 1; a < count; b = a++) {
+      double ax = ring[2*a], az = ring[2*a+1];
+      double bx = ring[2*b], bz = ring[2*b+1];
+      if ((az > wz) == (bz > wz)) continue;
+      double edge = ax + (wz-az) * (bx-ax) / (bz-az);
+      int x = fmax(0, fmin(WIDTH, ceil(edge*2 - ox - .5)));
+      toggle[x] ^= 1;
+    }
+    int inside = 0;
+    for (int x = 0; x < WIDTH; x++) {
+      inside ^= toggle[x];
+      if (inside) solid[(z*WIDTH+x)*layers+1-oy] = land;
+    }
   }
-  lua_pushboolean(L, b->prey >= 0);
+}
+
+void surfaces(void) {
+  for (int col = 0; col < WIDTH*WIDTH; col++) {
+    uint8_t *p = solid + col*layers;
+    for (int y = 0; y < layers-1; y++) p[y] = p[y] && !p[y+1];
+  }
+}
+
+// Nearest exposed floor within reach, including floors underneath bridges.
+static int floor_at(lua_State *L) {
+  int x = floor(luaL_checknumber(L, 1) * 2) - ox;
+  double y = luaL_checknumber(L, 2);
+  int z = floor(luaL_checknumber(L, 3) * 2) - oz;
+  double reach = luaL_checknumber(L, 4);
+  if (!solid || x < 0 || x >= WIDTH || z < 0 || z >= WIDTH || reach < 0) return 0;
+  uint8_t *col = solid + (z * WIDTH + x) * layers;
+  // Cell centres straddle integer metres. Mesh top is 0.26m below the cell boundary.
+  int lo = fmax(0, ceil((y - reach + .26) * 2 - oy - 1 - .00001));
+  int hi = fmin(layers - 1, floor((y + reach + .26) * 2 - oy - 1 + .00001));
+  int best = -1;
+  double distance = INFINITY;
+  for (int i = lo; i <= hi; i++) {
+    double dy = fabs((oy + i + 1) * .5 - .26 - y);
+    if (col[i] && dy < distance) {
+      best = i; distance = dy;
+    }
+  }
+  if (best < 0) return 0;
+  lua_pushnumber(L, (oy + best + 1) * .5 - .26);
   return 1;
 }
 
-static int dive(lua_State *L) {
-  Eagle *b = bird(L);
-  if (b->prey < 0)
-    return 0;
-  Rat *r = &rats[b->prey];
-  lua_pushboolean(L, moveBird(b, r->x, height[cell(r->x, r->z)] + 1.65f, r->z,
-                              luaL_checknumber(L, 2)));
-  return 1;
-}
-
-static int eatRat(lua_State *L) {
-  Eagle *b = bird(L);
-  burrow(b->prey, luaL_checknumber(L, 2));
-  b->prey = -1;
+int boot(const char *source) {
+  if (vm) lua_close(vm);
+  vm = luaL_newstate();
+  if (!vm) return 0;
+  luaL_requiref(vm, "_G", luaopen_base, 1);
+  lua_pop(vm, 1);
+  const char *blocked[] = {"load", "loadfile", "dofile", "collectgarbage", NULL};
+  for (int i = 0; blocked[i]; i++) { lua_pushnil(vm); lua_setglobal(vm, blocked[i]); }
+  luaL_requiref(vm, "math", luaopen_math, 1);
+  lua_pop(vm, 1);
+  lua_register(vm, "floor_at", floor_at);
+  if (luaL_dostring(vm, source) == LUA_OK) return 1;
+  fprintf(stderr, "critter script: %s\n", lua_tostring(vm, -1));
+  lua_pop(vm, 1);
   return 0;
 }
 
-int boot(const char *street, const char *script) {
-  int i = 0;
-  for (; *street; street++) {
-    if (*street == '\n' || *street == '\r')
-      continue;
-    if (i >= CELLS)
-      return 0;
-    height[i++] =
-        *street == '.' ? -1 : (int)strtol((char[]){*street, 0}, NULL, 16);
-  }
-  if (i != CELLS)
-    return 0;
-  lua = luaL_newstate();
-  if (!lua)
-    return 0;
-  luaL_requiref(lua, LUA_MATHLIBNAME, luaopen_math, 1);
-  lua_pop(lua, 1);
-  lua_register(lua, "flyTo", flyTo);
-  lua_register(lua, "claimRat", claimRat);
-  lua_register(lua, "dive", dive);
-  lua_register(lua, "eatRat", eatRat);
-  lua_register(lua, "walkTo", walkTo);
-  return luaL_dostring(lua, script) == LUA_OK;
+static int call(int args, int results) {
+  if (lua_pcall(vm, args, results, 0) == LUA_OK) return 1;
+  fprintf(stderr, "critter: %s\n", lua_tostring(vm, -1));
+  lua_pop(vm, 1);
+  return 0;
 }
 
-float *flock(float dt, int size) {
-  static float out[FLOCK * 3];
-  clockTime += dt;
-  for (int i = 0; i < size && i < FLOCK; i++) {
-    lua_getglobal(lua, "flyEagle");
-    lua_pushinteger(lua, i);
-    lua_pushnumber(lua, clockTime);
-    lua_pushnumber(lua, dt);
-    if (lua_pcall(lua, 3, 0, 0) != LUA_OK)
-      lua_pop(lua, 1);
-    out[i * 3] = birds[i].x;
-    out[i * 3 + 1] = birds[i].y;
-    out[i * 3 + 2] = birds[i].z;
-  }
-  return out;
+int spawn(const char *kind, int id, float x, float y, float z) {
+  lua_getglobal(vm, "spawn");
+  lua_pushstring(vm, kind); lua_pushinteger(vm, id);
+  lua_pushnumber(vm, x); lua_pushnumber(vm, y); lua_pushnumber(vm, z);
+  if (!call(5, 1)) return 0;
+  int ok = lua_toboolean(vm, -1);
+  lua_pop(vm, 1);
+  return ok;
 }
 
-int add(float x, float z, int home, int food, int carrying) {
-  if (count >= LIMIT || !(x >= 0 && x < WIDTH && z >= 0 && z < WIDTH) ||
-      home < 0 || home >= CELLS || food < 0 || food >= CELLS ||
-      height[cell(x, z)] < 0 || height[home] < 0 || height[food] < 0)
-    return -1;
-  rats[count] = (Rat){.x = x,
-                      .z = z,
-                      .home = home,
-                      .food = food,
-                      .carrying = carrying,
-                      .target = -1};
-  return count++;
-}
-
-// Flat buffer shared with Node. Positions are half-metre cell coordinates.
-static float poses[LIMIT * 4];
-float *tick(float dt) {
-  int searches = 4;
-  for (int i = 0; i < count; i++) {
-    Rat *r = &rats[i];
-    if (r->hidden > 0)
-      r->hidden = fmaxf(0, r->hidden - dt);
-    else if (r->rest > 0)
-      r->rest -= dt;
-    else if (r->left) {
-      int p = r->path[r->left - 1];
-      float dx = p % WIDTH + 0.5f - r->x, dz = p / WIDTH + 0.5f - r->z;
-      float length = sqrtf(dx * dx + dz * dz);
-      float step = fminf(length, dt * (3.8f + (i % 4) * 0.4f));
-      if (length > 0) {
-        r->x += dx * step / length;
-        r->z += dz * step / length;
-      }
-      if (step == length)
-        r->left--;
-    } else if (r->target >= 0) {
-      lua_getglobal(lua, "arrived");
-      lua_pushinteger(lua, i);
-      lua_pushboolean(lua, r->carrying);
-      if (lua_pcall(lua, 2, 2, 0) == LUA_OK) {
-        r->carrying = lua_toboolean(lua, -2);
-        r->rest = lua_tonumber(lua, -1);
-        lua_pop(lua, 2);
-      } else {
-        lua_pop(lua, 1);
-        r->rest = 3;
-      }
-      r->target = -1;
-    } else if (searches > 0) {
-      searches--;
-      lua_getglobal(lua, "depart");
-      lua_pushinteger(lua, i);
-      lua_pushboolean(lua, r->carrying);
-      lua_pushinteger(lua, r->home);
-      lua_pushinteger(lua, r->food);
-      if (lua_pcall(lua, 4, 0, 0) != LUA_OK) {
-        lua_pop(lua, 1);
-        r->rest = 3;
-      }
-    }
-    poses[4 * i] = r->x;
-    poses[4 * i + 1] = height[cell(r->x, r->z)];
-    poses[4 * i + 2] = r->z;
-    poses[4 * i + 3] = r->hidden > 0 ? -r->hidden : r->carrying;
-  }
-  return poses;
+float *tick(int id, float dt) {
+  lua_getglobal(vm, "tick");
+  lua_pushinteger(vm, id); lua_pushnumber(vm, dt);
+  if (!call(2, 7)) return NULL;
+  for (int i = 0; i < 7; i++) pose[i] = lua_tonumber(vm, i - 7);
+  lua_pop(vm, 7);
+  return pose;
 }
