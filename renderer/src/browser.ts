@@ -204,7 +204,7 @@ async function renderParcelOnce(record: Record<string, unknown>, type: string): 
       ;(window as any).__keepPreview = true
     })
   }
-  const [embeds, lots, islands] = await Promise.all([embedUrls(parcelPreviewUrls(record)), loadLots(record), loadIslands()])
+  const [embeds, lots, islands] = await Promise.all([embedUrls(parcelPreviewUrls(record)), loadLots(record), loadIslands(record.island)])
   const world = { lots, islands }
   const imgB64 = await p.evaluate(
     async ({ rec, embeds, world, type }) => {

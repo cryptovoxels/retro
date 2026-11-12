@@ -26,9 +26,9 @@ export function isoWeekTag(d = new Date()) {
   return `${date.getUTCFullYear()}-W${String(weekNo).padStart(2, '0')}`
 }
 
-/** Parcel preview key: v1/parcel/{id}/{yyyy}-W{ww}.{ext} */
+/** Parcel preview key: v2/parcel/{id}/{yyyy}-W{ww}.{ext} */
 export function parcelThumbKey(id: number | string, ext = 'webp', d = new Date()) {
-  return `${VERSION}/parcel/${id}/${isoWeekTag(d)}.${ext}`
+  return `v2/parcel/${id}/${isoWeekTag(d)}.${ext}`
 }
 
 export function parcelThumbUrl(id: number | string, ext = 'webp', d = new Date()) {
