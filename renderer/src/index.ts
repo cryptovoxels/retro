@@ -1,3 +1,4 @@
+import { requestLog } from '../../common/request-log'
 // ABOUTME: Wearable + free avatar + parcel thumb renderer - GET holds until webp/png ready, then 302 to CDN (or 503 Retry-After).
 
 import './bootstrap'
@@ -19,6 +20,7 @@ const ASSET_ORIGIN = process.env.ASSET_PATH || 'https://www.voxels.com'
 const API_ORIGIN = process.env.API_ORIGIN || 'http://127.0.0.1:9000'
 
 const app = express()
+app.use(requestLog('renderer'))
 const port = process.env.PORT || '8080'
 
 app.use((_req, res, next) => {

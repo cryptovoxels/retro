@@ -43,6 +43,29 @@ app.get('/', (req, res) => {
 app.route('/compressed').all(compressed)
 app.get('/mobile', mobileImage)
 
+app.get('/textures/compress', async (req, res) => {
+  const url = new URL('https://faas-sfo3-7872a1dd.doserverless.co/api/v1/web/fn-7f487c48-1176-4b03-82aa-03c5faebe781/textures/compress')
+  for (const key of ['key', 'width', 'height', 'format', 'fit']) {
+    const value = req.query[key]
+    if (typeof value === 'string') url.searchParams.set(key, value)
+  }
+  res.set('Cache-Control', 'no-store')
+  try {
+    const upstream = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(30000) })
+    const location = upstream.headers.get('location')
+    if (upstream.status === 302 && location?.startsWith('https://texture.voxels.com/')) {
+      await upstream.body?.cancel()
+      return res.redirect(302, location)
+    }
+    const retry = upstream.headers.get('retry-after')
+    if (retry) res.set('Retry-After', retry)
+    await upstream.body?.cancel()
+    res.sendStatus(upstream.status >= 400 ? upstream.status : 502)
+  } catch {
+    res.set('Retry-After', '30').sendStatus(503)
+  }
+})
+
 app.get('/health', (req, res) => {
   res.status(200).end('up')
 })
@@ -165,7 +188,10 @@ function errorResponse(error: any, response: Response) {
   if (error instanceof DownloadError) {
     console.error(`Download failed: ${error.url} - ${error.message}`)
     const msg = `failed to download image for texture compression: ${error.message}`
-    return response.status(400).header('x-error', sanitizeHeaderValue(msg)).end(msg)
+    return response
+      .status(error.statusCode === 413 ? 413 : 400)
+      .header('x-error', sanitizeHeaderValue(msg))
+      .end(msg)
   }
   if (error instanceof CreateError) {
     console.error(`Compression failed: ${error.file} - ${error.message}`)

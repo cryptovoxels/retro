@@ -27,11 +27,12 @@ type TextureUrls = {
   compressorUrl: string
 }
 
-const functionTrial = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('textureFunction') !== '0'
-const functionUrl = 'https://faas-sfo3-7872a1dd.doserverless.co/api/v1/web/fn-7f487c48-1176-4b03-82aa-03c5faebe781/textures/compress'
+const functionTrial = typeof window === 'undefined' ? '0' : new URLSearchParams(window.location.search).get('textureFunction')
+const functionUrl = 'https://compressed.voxels.com/textures/compress'
 
 // Prevent multiple parallel requests for the same URL
 const currentFetches = new Map<string, Promise<TextureData>>()
+const rejectedTextures = new Map<string, { until: number; error: Error }>()
 
 const mobileBytes = new WeakMap<BABYLON.Scene, number>()
 const TEXTURE_BYTES = Math.ceil((256 * 256 * 4 * 4) / 3)
@@ -49,7 +50,9 @@ export async function fetchTexture(scene: BABYLON.Scene, srcURL: string | null, 
       }
       return texture
     } catch (error) {
-      if (!options.retry || signal.aborted) throw error
+      if (signal.aborted) throw error
+      if ((error as any)?.permanent) return fetchNoImageTexture(scene)
+      if (!options.retry) throw error
       await new Promise<void>((resolve, reject) => {
         const abort = () => {
           clearTimeout(timer)
@@ -93,7 +96,7 @@ async function loadTexture(scene: BABYLON.Scene, srcURL: string | null, signal: 
 
   if (srcURL?.startsWith('ugc://')) srcURL = 'https://ugc.voxels.com/' + srcURL.slice(6)
 
-  if (functionTrial && srcURL && isUgcTextureUrl(srcURL) && getGpuTextureFormat() === '.astc.ktx') {
+  if (functionTrial !== '0' && srcURL && /^https:\/\/ugc\.voxels\.com\/parcel\/\d+\/[\w-]+\.(png|jpe?g|webp|avif|gif)(?:$|[?#])/i.test(srcURL) && getGpuTextureFormat() === '.astc.ktx') {
     const size = isMobile() && !/\.gif(?:$|[?#])/i.test(srcURL) ? 256 : 512
     const key = new URL(srcURL).pathname.slice(1)
     const fit = stretch ? 'fill' : 'cover'
@@ -261,6 +264,9 @@ async function fetchWithFallback(url: string, backupURL: string | undefined, sig
 }
 
 async function deduplicateFetch(url: string, signal?: AbortSignal): Promise<TextureData> {
+  const rejected = rejectedTextures.get(url)
+  if (rejected && rejected.until > Date.now()) throw rejected.error
+  if (rejected) rejectedTextures.delete(url)
   const existing = currentFetches.get(url)
   if (existing) {
     return existing
@@ -281,7 +287,13 @@ async function fetchTextureData(url: string, signal?: AbortSignal): Promise<Text
   if (!response.ok) {
     const retry = response.headers.get('Retry-After')
     const retryAfter = retry ? (/^\d+$/.test(retry) ? Number(retry) * 1000 : Date.parse(retry) - Date.now()) : 0
-    throw Object.assign(new Error(response.headers.get('x-error') || `${response.status} - unable to load texture`), { retryAfter })
+    const permanent = [400, 404, 410, 413, 422].includes(response.status)
+    const error = Object.assign(new Error(response.headers.get('x-error') || `${response.status} - unable to load texture`), { permanent, status: response.status, retryAfter })
+    if (permanent) {
+      if (rejectedTextures.size >= 1024) rejectedTextures.delete(rejectedTextures.keys().next().value!)
+      rejectedTextures.set(url, { until: Date.now() + 60000, error })
+    }
+    throw error
   }
   return {
     buffer: await response.arrayBuffer(),
