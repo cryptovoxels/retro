@@ -591,7 +591,8 @@ app.get(
   createRequestHandlerForQuery(db, 'get-parcels-contributing-by-wallet', 'parcels', (req) => [req.params.address]),
 )
 
-app.get('/sitemap.txt', cache('1 day', true), sitemap)
+app.get('/sitemap.txt', (_req, res) => res.redirect(301, '/sitemap.xml'))
+app.get(['/sitemap.xml', '/sitemap-:kind-:page.txt'], cache('1 day', true), (req, res, next) => sitemap(req, res).catch(next))
 
 // Cache is 1 minute because we don't query the DB and we don't query the contract anymore, we query the subgraph.
 app.get('/api/names/exists/:name', cache('30 seconds'), async (req, res) => {
