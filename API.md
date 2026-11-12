@@ -295,7 +295,7 @@ Parcels somebody has favorited
 
 One parcel with its build
 
-The only parcel route that returns `content`, which holds the voxels, the palette, the tileset and every feature on the plot. A non-numeric id is a 400. A parcel that is neither minted nor visible is a 400 as well.
+The only parcel route that returns `content`, which holds the voxels, the palette, the tileset and every feature on the plot. On common parcels this includes the island owners' shared additions over the original build. A non-numeric id is a 400. A parcel that is neither minted nor visible is a 400 as well.
 
 **parameters**
 
@@ -359,6 +359,8 @@ Requires a signed-in session with permission to edit the parcel. Runs asset down
 
 The parcel's build as a MagicaVoxel file
 
+Includes shared voxels on common parcels.
+
 **parameters**
 
 - `id` (path, required) integer
@@ -387,7 +389,7 @@ Redirect to the parcel preview renderer
 
 Re-read the parcel's owner from the contract, then return it
 
-A read with a side effect: it asks the contract who owns the parcel and writes the answer back before answering. The `parcel` it returns is the model object, not the `/api/parcels/{id}.json` shape.
+A read with a side effect: it asks the contract who owns the parcel and writes the answer back before answering. The `parcel` it returns is the model object, not the `/api/parcels/{id}.json` shape. Common parcels carry the base `content` and a separate `commons` layer. An unminted common parcel stays unminted when refreshed.
 
 **parameters**
 

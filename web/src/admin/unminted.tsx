@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks'
 import cachedFetch from '../helpers/cached-fetch'
 import { parcelContract, parcelSigner, sendMint, TEAM } from '../helpers/mint-parcel'
 
-type Row = { id: number; address: string; island: string; x1: number; y1: number; z1: number; x2: number; y2: number; z2: number }
+type Row = { is_common: boolean; id: number; address: string; island: string; x1: number; y1: number; z1: number; x2: number; y2: number; z2: number }
 
 export default function Unminted() {
   const [rows, setRows] = useState<Row[]>([])

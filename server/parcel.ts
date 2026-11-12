@@ -4,7 +4,7 @@ import { ParcelUser } from '../common/helpers/parcel-helper'
 import { HTTP2WSBaseURL, isValidUrl, imageDraft } from '../common/helpers/utils'
 import { ParcelKind, ParcelRecord, ParcelSettings } from '../common/messages/parcel'
 import { getBufferFromVoxels, getFieldShape } from '../common/voxels/helpers'
-import { isCommonParcel, isSecurityTeamParcel, isTestIsland } from './lib/helpers'
+import { isSecurityTeamParcel, isTestIsland } from './lib/helpers'
 import log from './lib/logger'
 import { getContract } from './lib/utils'
 import { ground, white } from './parcel-builder'
@@ -15,6 +15,7 @@ import { SUPPORTED_CHAINS } from '../common/helpers/chain-helpers'
 import { FeatureRecord, FeatureType } from '../common/messages/feature'
 import { readNftUrl, TEZOS_CHAIN_ID } from '../common/helpers/nft-url'
 import { isUgcTextureUrl } from '../common/helpers/parcel-compile'
+import { commonsBuild, commonsFeatures } from '../common/voxels/commons'
 const DEGREES_TO_METRES = 100
 
 // query builder - optimized to prevent full table scan on avatars
@@ -30,6 +31,7 @@ const loadQuery = (where = 'p.id = $1') => {
       p.name,
       p.visible,
       content,
+      p.commons,
       p.geometry_json as geometry,
       CAST (distance_to_center as double precision),
       CAST (distance_to_closest_common as double precision),
@@ -121,6 +123,7 @@ export abstract class AbstractParcel implements ParcelRef {
   height!: number
   address!: string
   geometry: any
+  commons?: Record<string, any>
   content!: Record<string, any>
   owner!: string
   kind: ParcelKind = 'plot'
@@ -177,11 +180,11 @@ export abstract class AbstractParcel implements ParcelRef {
   }
 
   getFeatureByUuid(uuid: string): FeatureRecord | undefined {
-    return this.content && Array.isArray(this.content.features) && this.content.features.find((f: FeatureRecord | null) => f && f?.uuid === uuid)
+    return this.allFeatures?.find((f: FeatureRecord | null) => f && f?.uuid === uuid)
   }
 
   getFeaturesByType<T extends FeatureType>(type: T): (FeatureRecord & { type: T })[] {
-    return (this.content && this.content.features && this.content.features.filter((f: FeatureRecord | null) => f && f?.type === type)) || []
+    return this.allFeatures?.filter((f: FeatureRecord | null) => f && f?.type === type) || []
   }
 
   get ownedByCorporation() {
@@ -252,13 +255,14 @@ export abstract class AbstractParcel implements ParcelRef {
   }
 
   get summary() {
+    const content = commonsBuild(this)
     return {
       id: this.id,
       hash: this.hash,
-      features: this.allFeatures,
+      features: content?.features,
       nfts: this.nfts,
       settings: this.settings,
-      voxels: this.voxels,
+      voxels: content?.voxels || '',
       owner: this.owner,
       lightmap_url: this.lightmap_url,
       parcel_users: this.parcel_users,
@@ -292,15 +296,7 @@ export abstract class AbstractParcel implements ParcelRef {
   }
 
   get allFeatures() {
-    // For grid worker performance: if parcel has content, use its features
-    // Otherwise fall back to generating outline (expensive operation)
-    if (this.content && this.content.features) {
-      return this.content.features
-    }
-
-    // Only generate outline if absolutely necessary
-    // This is expensive (~500ms) due to voxel generation
-    return
+    return commonsFeatures(this.content, this.is_common && this.commons)
   }
 
   setContent(content: Record<string, any>) {
@@ -326,7 +322,7 @@ export abstract class AbstractParcel implements ParcelRef {
       this.minted = true
       if (!isSecurityTeamParcel(this)) this.owner = await contract.ownerOf(this.id)
     } else {
-      this.minted = isCommonParcel(this) || isTestIsland(this)
+      this.minted = !this.is_common && isTestIsland(this)
     }
     await this.save()
     return this

@@ -293,14 +293,23 @@ export default class GridShard {
       }
     }
 
-    this.publishShardMessage({
-      type: 'patchCreate',
-      payload: {
-        parcelId: msg.parcelId,
-        patch: msg.patch,
-        sender: client.id,
-      },
-    })
+    await this.publishPatch(client, msg, !!parcel.is_common)
+  }
+
+  private async publishPatch(client: StatefulGridClient, msg: PatchMessage, common: boolean) {
+    try {
+      await this.publishShardMessage({
+        type: 'patchCreate',
+        payload: {
+          common,
+          parcelId: msg.parcelId,
+          patch: msg.patch,
+          sender: client.id,
+        },
+      })
+    } catch (error) {
+      this.sendPatchError(client, msg, common && error instanceof Error ? error.message : 'Could not save edit')
+    }
   }
 
   private async handleDeleteFeature(client: StatefulGridClient, msg: DeleteFeatureMessage) {
@@ -315,14 +324,7 @@ export default class GridShard {
       patch: { features: { [msg.featureUuid]: null } },
     }
 
-    this.publishShardMessage({
-      type: 'patchCreate',
-      payload: {
-        parcelId: patch.parcelId,
-        patch: patch.patch,
-        sender: client.id,
-      },
-    })
+    await this.publishPatch(client, patch, !!authFeatureResult.parcel?.is_common)
 
     sendNerfLogToSlack(authFeatureResult, client.user?.wallet || '<no-wallet>')
   }

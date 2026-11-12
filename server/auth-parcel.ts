@@ -1,15 +1,15 @@
 import Avatar from './avatar'
 import ParcelUserRight from './parcel-user-right'
-import { isCommonParcel, isCVTeam, isTestIsland } from './lib/helpers'
+import { isCommonParcel, isCVTeam } from './lib/helpers'
 import db from './pg'
-import Parcel, { ParcelAuthRef, ParcelRef } from './parcel'
+import Parcel, { ParcelAuthRef } from './parcel'
 import { ethers } from 'ethers'
 import { VoxelsUser } from './user'
 import { FeatureRecord } from '../common/messages/feature'
 import { ParcelAuthResult } from '../common/messages/parcel'
 
 export default async function authParcel(parcel: ParcelAuthRef, user: VoxelsUser | null): Promise<ParcelAuthResult> {
-  if (parcel.sandbox === true) {
+  if (parcel.sandbox === true && !parcel.is_common) {
     if (!user) return 'Sandbox'
   }
 
@@ -49,8 +49,16 @@ export default async function authParcel(parcel: ParcelAuthRef, user: VoxelsUser
     // this should be a special thing
     return false
   } else if (isCommonParcel(parcel)) {
-    const canEdit = !!user.moderator || (await ownsParcelInSuburb(parcel, user))
-    return canEdit ? 'Suburb' : false
+    if (user.moderator) return 'Suburb'
+    if (!wallet || !parcel.island) return false
+    const result = await db.query(
+      'embedded/owns-island-parcel',
+      `select 1 from properties p where lower(p.island) = lower($2) and p.is_common is not true and p.minted
+       and (lower(p.owner) = $1 or exists (select 1 from parcel_users u where u.parcel_id = p.id and lower(u.wallet) = $1 and u.role = 'owner'))
+       limit 1`,
+      [wallet, parcel.island],
+    )
+    return result.rowCount ? 'Suburb' : false
   } else if (user.moderator) {
     return 'Moderator'
   } else if (parcel.sandbox === true) {
@@ -79,9 +87,10 @@ export async function authFeature(parcelId: number, featureUuid: string, current
   if (!feature) return false
 
   if (!user) {
-    if (parcel.sandbox) return { moderator: false, parcel, feature }
+    if (!parcel.is_common && parcel.sandbox) return { moderator: false, parcel, feature }
     return false
   }
+  if (parcel.is_common && !(await authParcel(parcel, user))) return false
   if (user.moderator) {
     return { moderator: true, parcel, feature }
   }
@@ -108,24 +117,6 @@ export async function authFeature(parcelId: number, featureUuid: string, current
   } else {
     return false
   }
-}
-
-export const ownsParcelInSuburb = async (parcel: Parcel | ParcelRef, user: VoxelsUser | null) => {
-  if (user && user.wallet) {
-    let ownsParcelInSuburb = false
-
-    const r = await db.query('embedded/owns-parcel-in-suburb', `select id,address,owner from properties where lower(owner) = lower($1) and (select suburbs.name from suburbs where suburbs.id =properties.suburb_id) = $2`, [
-      user.wallet,
-      parcel.suburb,
-    ])
-
-    if (r.rows && r.rows.length > 0) {
-      ownsParcelInSuburb = true
-    }
-    return ownsParcelInSuburb
-  }
-
-  return false
 }
 
 export enum RelativePosition {

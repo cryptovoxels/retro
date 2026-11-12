@@ -38,11 +38,11 @@ async function unmintedFromDb(db: Db, page: number) {
   const offset = Math.max(0, page) * 100
   const result = await db.query(
     'sql/get-unminted-parcels',
-    `select id, address, island, x1, y1, z1, x2, y2, z2
+    `select id, address, island, is_common is true as is_common, x1, y1, z1, x2, y2, z2
      from properties
      where minted = false
-       and (lower(island) is distinct from 'texas' or is_common is not true)
-       and (island is distinct from 'Architect Island' or is_common = true or kind = 'inner')
+       and is_common is not true
+       and (island is distinct from 'Architect Island' or kind = 'inner')
      order by id desc
      limit 100 offset $1`,
     [offset],

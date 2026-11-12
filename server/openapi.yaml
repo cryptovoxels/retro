@@ -536,7 +536,8 @@ paths:
       summary: One parcel with its build
       description: |
         The only parcel route that returns `content`, which holds the voxels, the
-        palette, the tileset and every feature on the plot. A non-numeric id is a
+        palette, the tileset and every feature on the plot. On common parcels this includes
+        the island owners' shared additions over the original build. A non-numeric id is a
         400. A parcel that is neither minted nor visible is a 400 as well.
       parameters:
         - $ref: '#/components/parameters/ParcelId'
@@ -637,6 +638,7 @@ paths:
       operationId: getParcelVox
       tags: [parcels]
       summary: The parcel's build as a MagicaVoxel file
+      description: Includes shared voxels on common parcels.
       parameters:
         - $ref: '#/components/parameters/ParcelId'
       responses:
@@ -674,7 +676,9 @@ paths:
       description: |
         A read with a side effect: it asks the contract who owns the parcel and
         writes the answer back before answering. The `parcel` it returns is the
-        model object, not the `/api/parcels/{id}.json` shape.
+        model object, not the `/api/parcels/{id}.json` shape. Common parcels carry
+        the base `content` and a separate `commons` layer. An unminted common
+        parcel stays unminted when refreshed.
       parameters:
         - $ref: '#/components/parameters/ParcelId'
       responses:

@@ -453,3 +453,7 @@ SELECT apply_migration('texas-keep-henry', $$
   DELETE FROM creatures WHERE island = 'draft:texas' AND species = 'eagle'
     AND name IN ('dave', 'ralph', 'peter', 'bjork');
 $$);
+
+SELECT apply_migration('parcel-commons', $$
+  ALTER TABLE properties ADD COLUMN commons json;
+$$);

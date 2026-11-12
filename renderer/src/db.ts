@@ -1,5 +1,6 @@
 // ABOUTME: Postgres pool for the renderer service. Same DATABASE_URL / SSL pattern as server/pg.ts.
 
+import { commonsBuild } from '../../common/voxels/commons'
 import { Pool } from 'pg'
 
 function formatDatabaseUrl(raw: string) {
@@ -35,7 +36,7 @@ export async function loadParcelRecord(id: number): Promise<Record<string, unkno
   const r = await pool.query(
     `select id, name, label, address, description, kind, island, suburb_id,
             x1, x2, y1, y2, z1, z2, geometry_json as geometry,
-            content, settings, sandbox, is_common, visible,
+            content, commons, settings, sandbox, is_common, visible,
             (select name from suburbs where suburbs.id = properties.suburb_id) as suburb
      from properties where id = $1 limit 1`,
     [id],
@@ -43,8 +44,8 @@ export async function loadParcelRecord(id: number): Promise<Record<string, unkno
   const row = r.rows[0]
   if (!row) return null
 
-  const content = row.content && typeof row.content === 'object' ? row.content : {}
-  const { content: _c, suburb_id: _s, ...meta } = row
+  const content = commonsBuild(row) || {}
+  const { content: _c, commons: _commons, suburb_id: _s, ...meta } = row
   return {
     ...meta,
     suburb: row.suburb || '',

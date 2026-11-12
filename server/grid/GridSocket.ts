@@ -1,3 +1,4 @@
+import { saveCommons } from './commons'
 import http from 'http'
 import QueryString from 'querystring'
 import { v7 as uuid } from 'uuid'
@@ -153,11 +154,7 @@ export default class GridSocket {
 
   private async worldGetFeature(parcel: ParcelAuthRef, featureId: string): Promise<unknown | null> {
     const full = await Parcel.load(parcel.id)
-    if (!full?.content?.features) return null
-    for (const feature of full.content.features) {
-      if (feature.uuid === featureId) return feature
-    }
-    return null
+    return full?.getFeatureByUuid(featureId) ?? null
   }
 
   private worldGetState(parcelId: number) {
@@ -172,7 +169,9 @@ export default class GridSocket {
   }
 
   private async worldPublishShardMessage(message: GridShardMessage): Promise<void> {
-    if (message.type === 'patchCreate') {
+    if (message.type === 'patchCreate' && message.payload.common) {
+      await saveCommons(message.payload.parcelId, message.payload.patch)
+    } else if (message.type === 'patchCreate') {
       const patchSet = this.patchSetByClientId.get(message.payload.sender)
       if (patchSet) {
         patchSet.add(message.payload.parcelId, message.payload.patch)

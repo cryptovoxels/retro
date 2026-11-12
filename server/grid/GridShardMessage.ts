@@ -4,6 +4,7 @@ export namespace GridShardMessage {
   export type PatchCreate = {
     type: 'patchCreate'
     payload: {
+      common?: boolean
       sender: string
       parcelId: number
       patch: {

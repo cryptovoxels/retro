@@ -1,3 +1,4 @@
+import { commonsBuild } from '../../common/voxels/commons'
 import { createRequestHandlerForQuery, queryAndCallback } from '../lib/query-helpers'
 
 import cache, { noCache } from '../cache'
@@ -306,6 +307,7 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
       res.status(404).json({ success: false })
       return
     }
+    parcel.content = commonsBuild(parcel)
     voxExport(parcel, req, res)
     // res.json({success : true, parcel: parcel.summary})
   })
@@ -329,10 +331,7 @@ export default function (db: Db, passport: PassportStatic, app: Express) {
     function getSpawn() {
       const p = parcel as Parcel
       // find the first spawn point
-      let spawnFeature = null
-      if (p.content && p.content.features) {
-        spawnFeature = p.content?.features?.find((f: any) => f?.type === 'spawn-point')
-      }
+      const spawnFeature = p.allFeatures?.find((f: any) => f?.type === 'spawn-point')
 
       if (!spawnFeature) {
         return `/play?coords=${p.location}`
