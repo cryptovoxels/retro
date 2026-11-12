@@ -100,7 +100,7 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 - [collectibles](#collectibles), 3 routes
 - [collections](#collections), 9 routes
 - [wearables](#wearables), 8 routes
-- [islands](#islands), 4 routes
+- [islands](#islands), 6 routes
 - [spaces](#spaces), 2 routes
 - [events](#events), 6 routes
 - [search](#search), 1 route
@@ -113,11 +113,11 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 
 - [`GET /api/parcels.json`](#get-apiparcelsjson) List parcels, or fetch a batch by id
 - [`GET /api/activity.json`](#get-apiactivityjson) The last 100 parcel transfers on chain
-- [`GET /api/parcels/cached.json`](#get-apiparcelscachedjson) Every visible parcel
-- [`GET /api/parcels/summary.json`](#get-apiparcelssummaryjson) id, address, island and name for every visible parcel
+- [`GET /api/parcels/cached.json`](#get-apiparcelscachedjson) Every database parcel
+- [`GET /api/parcels/summary.json`](#get-apiparcelssummaryjson) id, address, island and name for every parcel
 - [`GET /api/parcels/xyz.json`](#get-apiparcelsxyzjson) Bounds and geometry only, for every parcel
 - [`GET /api/parcels/map.json`](#get-apiparcelsmapjson) The map layer's parcel list
-- [`GET /api/parcels/search`](#get-apiparcelssearch) Search minted, non-common parcels
+- [`GET /api/parcels/search`](#get-apiparcelssearch) Search non-common parcels
 - [`GET /api/parcels/favorites.json`](#get-apiparcelsfavoritesjson) Parcels somebody has favorited
 - [`GET /api/parcels/{id}.json`](#get-apiparcelsidjson) One parcel with its build
 - [`POST /api/parcels/{id}/nftify`](#post-apiparcelsidnftify) Convert marketplace image links into NFT images
@@ -139,7 +139,7 @@ Generated from `server/openapi.yaml` by `npm run docs:api`. Edit the spec, not t
 
 List parcels, or fetch a batch by id
 
-Without `parcel_ids` this lists minted parcels and each row carries `parcel_users`, `owner`, `suburb` and `hash`. With `parcel_ids` it runs a different query whose rows are narrower (no owner avatar, no suburb, no hash) and whose `y2` is the height, not the top of the box. Ids that are not integers are dropped rather than rejected.
+Without `parcel_ids` this lists database parcels and each row carries `parcel_users`, `owner`, `suburb` and `hash`. With `parcel_ids` it runs a different query whose rows are narrower (no owner avatar, no suburb, no hash) and whose `y2` is the height, not the top of the box. Ids that are not integers are dropped rather than rejected.
 
 **parameters**
 
@@ -183,9 +183,9 @@ Newest first. A mint has `from.owner` set to the zero address. `synced` is only 
 
 ### GET /api/parcels/cached.json
 
-Every visible parcel
+Every database parcel
 
-The whole visible world in one document. Refreshed every 60 seconds; the last successful snapshot is served while refreshing or if the database is temporarily unavailable. Returns 503 if no snapshot is available yet. `owner` here is a lowercased wallet string, not the avatar object the other parcel routes return.
+The whole world in one document. Publishing an island invalidates the server snapshot. Between publishes it refreshes every 60 seconds. The last successful snapshot is served while refreshing or if the database is temporarily unavailable. Returns 503 if no snapshot is available yet. `owner` here is a lowercased wallet string, not the avatar object the other parcel routes return.
 
 **answers**
 
@@ -196,7 +196,7 @@ The whole visible world in one document. Refreshed every 60 seconds; the last su
 
 ### GET /api/parcels/summary.json
 
-id, address, island and name for every visible parcel
+id, address, island and name for every parcel
 
 **answers**
 
@@ -233,15 +233,18 @@ Includes unminted and invisible parcels. `y2` is the height, not the top of the 
 
 The map layer's parcel list
 
+Includes every database parcel. The server rebuilds its snapshot after an island publishes.
+
 **answers**
 
 - `200` object
   - `success` boolean
   - `parcels` array of object
+- `503` Parcel map temporarily unavailable. Retry after 5 seconds.
 
 ### GET /api/parcels/search
 
-Search minted, non-common parcels
+Search non-common parcels
 
 `q` is a prefix match on parcel name or address. A bare wallet matches the owner exactly instead. No total count, a full page means there may be another.
 
@@ -295,7 +298,7 @@ Parcels somebody has favorited
 
 One parcel with its build
 
-The only parcel route that returns `content`, which holds the voxels, the palette, the tileset and every feature on the plot. A non-numeric id is a 400. A parcel that is neither minted nor visible is a 400 as well.
+The only parcel route that returns `content`, which holds the voxels, the palette, the tileset and every feature on the plot. A non-numeric id is a 400. Minting and visibility flags do not restrict this read.
 
 **parameters**
 
@@ -1274,8 +1277,10 @@ Same handler as `/w/{hash}/{format}`. `token_id` is read as hex when it looks li
 ## islands
 
 - [`GET /api/islands/{id}/ground.bin`](#get-apiislandsidgroundbin) Island terrain voxels
-- [`GET /api/islands.json`](#get-apiislandsjson) Every island with its shoreline
-- [`GET /api/islands-metadata.json`](#get-apiislands-metadatajson) Island names and positions
+- [`GET /api/world/islands.json`](#get-apiworldislandsjson) Every island with its shoreline
+- [`GET /api/world/islands-metadata.json`](#get-apiworldislands-metadatajson) Island names and positions
+- [`GET /api/islands.json`](#get-apiislandsjson) Compatibility alias for the world island list
+- [`GET /api/islands-metadata.json`](#get-apiislands-metadatajson) Compatibility alias for the island directory
 - [`GET /api/islands/{slug}.json`](#get-apiislandsslugjson) One island and every parcel on it
 
 ### GET /api/islands/{id}/ground.bin
@@ -1292,28 +1297,48 @@ Four little-endian signed int32 values (world x, world z, width, depth) followed
 
 - `200` `application/octet-stream`, bytes
 - `404` Island has no ground map
+- `406` Neither gzip nor identity is acceptable
+- `503` Ground temporarily unavailable
 
-### GET /api/islands.json
+### GET /api/world/islands.json
 
 Every island with its shoreline
 
-The heavy one: it carries the shore polygon plus the holes and lakes cut out of it. Use `/api/islands-metadata.json` if you only need names and positions.
+Uncached. Includes shore polygons, holes, lakes and island content. Use `/api/world/islands-metadata.json` for names and positions.
 
 **answers**
 
-- `200` object
-  - `success` boolean
-  - `islands` array of [`Island`](#island)
+- `200` ok
 
-### GET /api/islands-metadata.json
+### GET /api/world/islands-metadata.json
 
 Island names and positions
 
+Uncached.
+
 **answers**
 
-- `200` object
-  - `success` boolean
-  - `islands` array of [`IslandMetadata`](#islandmetadata)
+- `200` ok
+
+### GET /api/islands.json
+
+Compatibility alias for the world island list
+
+Returns the same uncached response as `/api/world/islands.json`.
+
+**answers**
+
+- `200` ok
+
+### GET /api/islands-metadata.json
+
+Compatibility alias for the island directory
+
+Returns the same uncached response as `/api/world/islands-metadata.json`.
+
+**answers**
+
+- `200` ok
 
 ### GET /api/islands/{slug}.json
 

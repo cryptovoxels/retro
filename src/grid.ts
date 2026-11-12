@@ -17,6 +17,7 @@ import { ParcelPatch, ParcelRecord } from '../common/messages/parcel'
 import { PanelType } from '../web/src/components/panel'
 import { createSpaceScene, createWorldScene, getWorldTerrain, parcelMeshesAdded, parcelMeshesRemoved, teardownSpaceScene, teardownWorldScene } from './init/world-scene'
 import { fetchSpace } from './init/realm'
+import { fetchIslands } from '../common/utils'
 import type { IslandRecord } from '../common/messages/api-islands'
 import { normalizeSpace } from './utils/normalize-space'
 import type { MountDesc } from './utils/normalize-space'
@@ -199,6 +200,15 @@ export default class Grid extends SocketClient {
   // /admin island drops its proposal straight into the live world. these parcels never came from the
   // worker so it never unloads them either, clearPreview does
   preview: { name: string; ids: Set<Parcel['id']> } | null = null
+
+  // Called by a future island reveal once its terrain should enter the live world.
+  async refreshIsland(id: number) {
+    const worker = this.workerAPI
+    if (!worker || this.currentW !== 0) return
+    const [data] = await Promise.all([fetchIslands(), worker.loadIndex(true)])
+    const island = data.islands.find((i: IslandRecord) => i.id === id)
+    if (island && this.workerAPI === worker && this.currentW === 0 && !this.preview) await getWorldTerrain()?.addIsland(island)
+  }
 
   async previewIsland(island: IslandRecord, parcels: ParcelRecord[], progress?: (done: number) => void) {
     this.clearPreview()

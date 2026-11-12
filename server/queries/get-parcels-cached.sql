@@ -35,5 +35,4 @@ from properties
                || jsonb_build_object('role', pu.role)
              ) as parcel_users
       from parcel_users pu
-      group by pu.parcel_id) pu_agg on pu_agg.parcel_id = properties.id
-where visible;
+      group by pu.parcel_id) pu_agg on pu_agg.parcel_id = properties.id;

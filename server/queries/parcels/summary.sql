@@ -5,5 +5,4 @@ select properties.id as id,
 from properties
          left join
      suburbs on suburbs.id = properties.suburb_id
-where visible
 order by id asc;

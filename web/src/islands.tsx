@@ -40,7 +40,7 @@ export default class Islands extends Component<Props, State> {
   }
 
   fetch() {
-    fetch(`${process.env.API}/islands-metadata.json`, fetchOptions())
+    fetch(`${process.env.API}/world/islands-metadata.json`, { ...fetchOptions(), cache: 'no-store' })
       .then((r) => r.json())
       .then((r) => {
         const islands = r.islands

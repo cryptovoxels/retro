@@ -195,7 +195,7 @@ paths:
       tags: [parcels]
       summary: List parcels, or fetch a batch by id
       description: |
-        Without `parcel_ids` this lists minted parcels and each row carries
+        Without `parcel_ids` this lists database parcels and each row carries
         `parcel_users`, `owner`, `suburb` and `hash`. With `parcel_ids` it runs a
         different query whose rows are narrower (no owner avatar, no suburb, no
         hash) and whose `y2` is the height, not the top of the box. Ids that are
@@ -293,9 +293,10 @@ paths:
     get:
       operationId: listCachedParcels
       tags: [parcels]
-      summary: Every visible parcel
+      summary: Every database parcel
       description: |
-        The whole visible world in one document. Refreshed every 60 seconds; the
+        The whole world in one document. Publishing an island invalidates the server snapshot.
+        Between publishes it refreshes every 60 seconds. The
         last successful snapshot is served while refreshing or if the database is
         temporarily unavailable. Returns 503 if no snapshot is available yet. `owner` here is a
         lowercased wallet string, not the avatar object the other parcel routes
@@ -326,7 +327,7 @@ paths:
     get:
       operationId: listParcelSummaries
       tags: [parcels]
-      summary: id, address, island and name for every visible parcel
+      summary: id, address, island and name for every parcel
       responses:
         '200':
           description: ok
@@ -396,6 +397,7 @@ paths:
       operationId: getParcelMap
       tags: [parcels]
       summary: The map layer's parcel list
+      description: Includes every database parcel. The server rebuilds its snapshot after an island publishes.
       responses:
         '200':
           description: ok
@@ -411,11 +413,14 @@ paths:
                     items:
                       type: object
 
+        '503':
+          description: Parcel map temporarily unavailable. Retry after 5 seconds.
+
   /api/parcels/search:
     get:
       operationId: searchParcels
       tags: [parcels]
-      summary: Search minted, non-common parcels
+      summary: Search non-common parcels
       description: |
         `q` is a prefix match on parcel name or address. A bare wallet matches
         the owner exactly instead. No total count, a full page means there may
@@ -537,7 +542,7 @@ paths:
       description: |
         The only parcel route that returns `content`, which holds the voxels, the
         palette, the tileset and every feature on the plot. A non-numeric id is a
-        400. A parcel that is neither minted nor visible is a 400 as well.
+        400. Minting and visibility flags do not restrict this read.
       parameters:
         - $ref: '#/components/parameters/ParcelId'
       responses:
@@ -2145,7 +2150,10 @@ paths:
             type: integer
       responses:
         '200':
-          description: Packed ground map
+          description: Packed ground map, gzip encoded when accepted. HTTP caches must revalidate before reuse.
+          headers:
+            Content-Encoding:
+              schema: { type: string, enum: [gzip] }
           content:
             application/octet-stream:
               schema:
@@ -2153,50 +2161,52 @@ paths:
                 format: binary
         '404':
           description: Island has no ground map
+        '406':
+          description: Neither gzip nor identity is acceptable
+        '503':
+          description: Ground temporarily unavailable
 
-  /api/islands.json:
+  /api/world/islands.json:
     get:
       operationId: listIslands
       tags: [islands]
       summary: Every island with its shoreline
       description: |
-        The heavy one: it carries the shore polygon plus the holes and lakes cut
-        out of it. Use `/api/islands-metadata.json` if you only need names and
-        positions.
+        Uncached. Includes shore polygons, holes, lakes and island content.
+        Use `/api/world/islands-metadata.json` for names and positions.
       responses:
         '200':
-          description: ok
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  islands:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/Island'
+          $ref: '#/components/responses/IslandList'
 
-  /api/islands-metadata.json:
+  /api/world/islands-metadata.json:
     get:
       operationId: listIslandsMetadata
       tags: [islands]
       summary: Island names and positions
+      description: Uncached.
       responses:
         '200':
-          description: ok
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                  islands:
-                    type: array
-                    items:
-                      $ref: '#/components/schemas/IslandMetadata'
+          $ref: '#/components/responses/IslandDirectory'
+
+  /api/islands.json:
+    get:
+      operationId: listIslandsLegacy
+      tags: [islands]
+      summary: Compatibility alias for the world island list
+      description: Returns the same uncached response as `/api/world/islands.json`.
+      responses:
+        '200':
+          $ref: '#/components/responses/IslandList'
+
+  /api/islands-metadata.json:
+    get:
+      operationId: listIslandsMetadataLegacy
+      tags: [islands]
+      summary: Compatibility alias for the island directory
+      description: Returns the same uncached response as `/api/world/islands-metadata.json`.
+      responses:
+        '200':
+          $ref: '#/components/responses/IslandDirectory'
 
   /api/islands/{slug}.json:
     get:
@@ -2781,6 +2791,32 @@ components:
         default: 1
 
   responses:
+    IslandDirectory:
+      description: ok
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+              islands:
+                type: array
+                items:
+                  $ref: '#/components/schemas/IslandMetadata'
+    IslandList:
+      description: ok
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              success:
+                type: boolean
+              islands:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Island'
     Failure:
       description: The lookup did not land. Some handlers send this with status 200.
       content:

@@ -22,7 +22,7 @@ const CHUNK_SIZE = 48 // World grid chunk size
 function fetchIslandsData() {
   return new Promise((resolve, reject) => {
     https
-      .get('https://www.cryptovoxels.com/api/islands.json', (res) => {
+      .get('https://www.voxels.com/api/world/islands.json', (res) => {
         let data = ''
 
         res.on('data', (chunk) => {

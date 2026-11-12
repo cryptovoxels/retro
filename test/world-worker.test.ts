@@ -44,3 +44,11 @@ it('falls back to individual requests when a cached pack misses a parcel', async
   expect(result[0].record.island).toBe('Origin')
   expect(fetcher).toHaveBeenCalledTimes(3)
 })
+
+it('picks up new parcels after a publish without reconnecting the worker', async () => {
+  const worker = await import('../src/monoworker/world')
+  await worker.loadIndex()
+  fetcher.mockResolvedValue({ ok: true, json: async () => ({ parcels: [{ ...metadata, id: 10000 }] }) })
+  await worker.loadIndex(true)
+  expect((await worker.nearbyLots([5, 5, 5], 0)).map((p) => p.id)).toEqual([10000])
+})

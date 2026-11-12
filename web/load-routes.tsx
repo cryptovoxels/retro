@@ -13,7 +13,7 @@ import Womp from './src/womp'
 import * as passport from 'passport'
 import cache from '../server/cache'
 import renderComponent from '../server/handlers/render-component'
-import { isOwner, isValidUUID } from '../server/lib/helpers'
+import { isValidUUID } from '../server/lib/helpers'
 
 import { queryAndCallback } from '../server/lib/query-helpers'
 import db from '../server/pg'
@@ -98,7 +98,7 @@ export default function loadRoutes(app: Express) {
       return
     }
 
-    queryAndCallback(db, 'get-parcel', 'parcel', [id, isOwner(req)], (response) => {
+    queryAndCallback(db, 'get-parcel', 'parcel', [id], (response) => {
       if (!response.success) {
         res.status(404).json({ success: false, message: 'not found' })
         return

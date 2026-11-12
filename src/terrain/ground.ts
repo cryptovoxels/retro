@@ -9,7 +9,7 @@ export async function islandGround(mesh: BABYLON.Mesh, island: IslandRecord & { 
   let bytes: Uint8Array
   if (inline) bytes = unpackGround(inline)
   else {
-    const res = await fetch('/api/islands/' + island.id + '/ground.bin')
+    const res = await fetch('/api/islands/' + island.id + '/ground.bin', { cache: 'no-cache' })
     if (!res.ok) return
     bytes = new Uint8Array(await res.arrayBuffer())
   }

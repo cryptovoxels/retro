@@ -1,3 +1,4 @@
+import { islandTransaction } from '../islands'
 import { packGround } from '../../common/voxels/ground-bytes'
 import { inflateSync } from 'node:zlib'
 import type { PoolClient } from 'pg'
@@ -84,23 +85,6 @@ async function unmintedFromDb(db: Db, page: number) {
   // keep original id-desc order
   parcels.sort((a, b) => b.id - a.id)
   return { parcels, fixed: stale.length }
-}
-
-// Large terrain fields can take longer than the pool's 500ms statement limit.
-async function islandTransaction<T>(db: Db, run: (client: PoolClient) => Promise<T>) {
-  const client = await db.connect()
-  try {
-    await client.query('BEGIN')
-    await client.query("SET LOCAL statement_timeout = '15s'")
-    const result = await run(client)
-    await client.query('COMMIT')
-    return result
-  } catch (error) {
-    await client.query('ROLLBACK')
-    throw error
-  } finally {
-    client.release()
-  }
 }
 
 export default function AdminController(db: Db, passport: PassportStatic, app: Express) {
@@ -488,10 +472,12 @@ async function upsertIsland(db: Db, name: string, geometry: any, content: any, g
     'sql/upsert-island',
     `
       WITH upsert AS (
-        UPDATE islands SET geometry_json = $2::jsonb, position_json = $4::jsonb, content = $3, ground = $5, lakes_geometry_json = coalesce($7, lakes_geometry_json), texture = coalesce($6, texture) WHERE name = $1 RETURNING 1
+        UPDATE islands SET geometry_json = $2::jsonb, position_json = $4::jsonb, content = $3, ground = $5, lakes_geometry_json = coalesce($7, lakes_geometry_json), texture = coalesce($6, texture) WHERE name = $1 RETURNING id
+      ), created AS (
+        INSERT INTO islands (name, geometry_json, content, position_json, ground, texture, lakes_geometry_json)
+        SELECT $1, $2::jsonb, $3, $4::jsonb, $5, coalesce($6, ''), $7 WHERE NOT EXISTS (SELECT 1 FROM upsert) RETURNING id
       )
-      INSERT INTO islands (name, geometry_json, content, position_json, ground, texture, lakes_geometry_json)
-      SELECT $1, $2::jsonb, $3, $4::jsonb, $5, coalesce($6, ''), $7 WHERE NOT EXISTS (SELECT 1 FROM upsert);
+      SELECT pg_notify('island_published', id::text) FROM (SELECT id FROM upsert UNION ALL SELECT id FROM created) published;
     `,
     [name, geomStr, content, position_json, floorBytes(ground), ground ? texas.ground : null, lakes ? JSON.stringify(lakes) : null],
     client,
