@@ -35,18 +35,19 @@ function isFloat(value: any) {
 
 // DB says minted=false but chain may already have the token. Check exists(),
 // flip stale rows to minted=true, return only parcels that are actually unminted.
-async function unmintedFromDb(db: Db, page: number) {
+async function unmintedFromDb(db: Db, page: number, address: string) {
   const offset = Math.max(0, page) * 100
   const result = await db.query(
     'sql/get-unminted-parcels',
     `select id, address, island, x1, y1, z1, x2, y2, z2
      from properties
      where minted = false
+       and ($2 = '' or strpos(lower(address), lower($2)) > 0)
        and (lower(island) is distinct from 'texas' or is_common is not true)
        and (island is distinct from 'Architect Island' or is_common = true or kind = 'inner')
      order by id desc
      limit 100 offset $1`,
-    [offset],
+    [offset, address],
   )
   const rows: any[] = result.rows || []
   if (!rows.length) return { parcels: [], fixed: 0 }
@@ -112,12 +113,12 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
   // Dev proxies prod so local can mint against real parcels without a full DB dump.
   if (config.isDevelopment) {
     app.get('/api/admin/parcels/unminted', cache(false), async (req, res) => {
-      const page = String(req.query.page ?? '0')
+      const query = new URLSearchParams({ page: String(req.query.page ?? '0'), address: String(req.query.address ?? '') })
       try {
         // optional: set PROD_JWT until the no-auth deploy is live
         const headers: Record<string, string> = {}
         if (process.env.PROD_JWT) headers.cookie = `jwt=${process.env.PROD_JWT}`
-        const r = await fetch(`https://www.voxels.com/api/admin/parcels/unminted?page=${encodeURIComponent(page)}`, { headers })
+        const r = await fetch(`https://www.voxels.com/api/admin/parcels/unminted?${query}`, { headers })
         res.status(r.status).json(await r.json())
       } catch (e: any) {
         res.status(502).json({ success: false, message: e?.toString() || 'prod fetch failed' })
@@ -127,7 +128,7 @@ export default function AdminController(db: Db, passport: PassportStatic, app: E
     app.get('/api/admin/parcels/unminted', cache(false), async (req, res) => {
       const page = parseInt(String(req.query.page ?? '0'), 10)
       try {
-        const { parcels, fixed } = await unmintedFromDb(db, isNaN(page) ? 0 : page)
+        const { parcels, fixed } = await unmintedFromDb(db, isNaN(page) ? 0 : page, String(req.query.address ?? '').trim())
         res.status(200).json({ success: true, parcels, fixed })
       } catch (e: any) {
         log.error('unminted failed', { e: String(e) })

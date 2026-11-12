@@ -6,6 +6,7 @@ type Row = { id: number; address: string; island: string; x1: number; y1: number
 
 export default function Unminted() {
   const [rows, setRows] = useState<Row[]>([])
+  const [address, setAddress] = useState('')
   const [page, setPage] = useState(0)
   const [sel, setSel] = useState<Set<number>>(new Set())
   const [busy, setBusy] = useState('')
@@ -26,24 +27,31 @@ export default function Unminted() {
     return sort.key === key ? (sort.desc ? ' v' : ' ^') : ''
   }
 
-  const url = `/api/admin/parcels/unminted?page=${page}`
-
-  async function load() {
-    try {
-      const r = await cachedFetch(url)
-      const d = await r.json()
-      console.log('[unminted] load', { url, count: (d.parcels || []).length, success: d.success })
-      setRows(d.parcels || [])
-      setSel(new Set())
-    } catch (e: any) {
-      console.error('[unminted] load failed', e)
-      setErr(e?.toString() || 'failed to load')
-    }
-  }
-
+  const query = address.trim()
   useEffect(() => {
-    load()
-  }, [page])
+    const controller = new AbortController()
+    setRows([])
+    setSel(new Set())
+    setLast(null)
+    setErr('')
+    const timer = setTimeout(
+      async () => {
+        try {
+          const url = `/api/admin/parcels/unminted?page=${page}&address=${encodeURIComponent(query)}`
+          const r = await cachedFetch(url, { signal: controller.signal })
+          const d = await r.json()
+          if (!controller.signal.aborted) setRows(d.parcels || [])
+        } catch (e: any) {
+          if (!controller.signal.aborted) setErr(e?.toString() || 'failed to load')
+        }
+      },
+      query ? 250 : 0,
+    )
+    return () => {
+      clearTimeout(timer)
+      controller.abort()
+    }
+  }, [page, query])
 
   function toggle(id: number, shift: boolean) {
     const ids = sorted.map((p) => p.id)
@@ -169,6 +177,19 @@ export default function Unminted() {
   return (
     <div class="admin-section">
       <p>unminted parcels in the db. mint pushes them on-chain to the team wallet at 0 eth.</p>
+      <div class="f">
+        <label for="unminted-address">search by address</label>
+        <input
+          id="unminted-address"
+          type="search"
+          value={address}
+          disabled={!!busy}
+          onInput={(e) => {
+            setAddress(e.currentTarget.value)
+            setPage(0)
+          }}
+        />
+      </div>
       {err && <p class="admin-err">{err}</p>}
       <div style={{ display: 'flex', gap: '1rem', marginBottom: '1rem' }}>
         <button disabled={!!busy || !sel.size} onClick={mintSelected}>
