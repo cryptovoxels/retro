@@ -214,6 +214,7 @@ app.post('/um/api/send', cache(false), async (req, res) => {
         'User-Agent': req.get('user-agent') || 'voxels',
       },
       body: JSON.stringify(req.body),
+      signal: AbortSignal.timeout(5000),
     })
     const text = await r.text()
     res

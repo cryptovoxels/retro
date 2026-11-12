@@ -4,11 +4,10 @@ const WEBSITE_ID = '91f685fd-f80f-4422-860b-760b6bea91fa'
 
 let lastPage = ''
 
-// localStorage, not sessionStorage, so it survives tab close and logout
 let umhash = uuid()
 try {
-  umhash = localStorage.getItem('umhash') || umhash
-  localStorage.setItem('umhash', umhash)
+  umhash = sessionStorage.getItem('umhash') || umhash
+  sessionStorage.setItem('umhash', umhash)
 } catch {}
 
 function skip() {
@@ -23,7 +22,7 @@ function basePayload(url: string) {
     id: umhash,
     hostname: location.hostname,
     language: navigator.language,
-    referrer: document.referrer,
+    referrer: document.referrer ? new URL(document.referrer).origin : '',
     screen: `${screen.width}x${screen.height}`,
     title: document.title,
     url,
