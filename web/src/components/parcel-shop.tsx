@@ -57,7 +57,7 @@ export function ParcelShop({ parcel, isOwner }: Props) {
   const suggested = config?.suggested || 0
   const show = listing || (admin && !minted) || (admin && minted && teamOwned) || (isOwner && minted && !listing && !(admin && teamOwned))
 
-  if (!show) return null
+  if (parcel.is_common || !show) return null
 
   async function mint() {
     setBusy(true)

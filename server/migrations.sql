@@ -413,23 +413,23 @@ SELECT apply_migration('grants', $$
 $$);
 
 SELECT apply_migration('island-drafts', $$
-  CREATE TABLE island_drafts (
+  CREATE TABLE IF NOT EXISTS island_drafts (
     slug text PRIMARY KEY,
     settings jsonb NOT NULL
   );
 $$);
 
 SELECT apply_migration('island-ground', $$
-  ALTER TABLE island_drafts ADD COLUMN ground bytea;
-  ALTER TABLE islands ADD COLUMN ground bytea;
+  ALTER TABLE island_drafts ADD COLUMN IF NOT EXISTS ground bytea;
+  ALTER TABLE islands ADD COLUMN IF NOT EXISTS ground bytea;
 $$);
 
 SELECT apply_migration('island-draft-content', $$
-  ALTER TABLE island_drafts ADD COLUMN content jsonb;
+  ALTER TABLE island_drafts ADD COLUMN IF NOT EXISTS content jsonb;
 $$);
 
 SELECT apply_migration('texas-street-rats', $$
-  CREATE TABLE creatures (
+  CREATE TABLE IF NOT EXISTS creatures (
     id serial PRIMARY KEY, island text NOT NULL, species text NOT NULL,
     name text NOT NULL, named_by text, named_by_wallet text, cap boolean NOT NULL DEFAULT false,
     x real NOT NULL, z real NOT NULL, home integer NOT NULL, food integer NOT NULL,
@@ -443,7 +443,7 @@ SELECT apply_migration('texas-street-rats', $$
 $$);
 
 SELECT apply_migration('texas-street-eagles', $$
-  ALTER TABLE creatures ADD COLUMN respawn_at double precision NOT NULL DEFAULT 0;
+  ALTER TABLE creatures ADD COLUMN IF NOT EXISTS respawn_at double precision NOT NULL DEFAULT 0;
   INSERT INTO creatures (island,species,name,x,z,home,food)
     SELECT 'draft:texas','eagle',name,111,-1058,820,820
     FROM unnest(ARRAY['henry','dave','ralph','peter','bjork']) AS name;
@@ -452,4 +452,8 @@ $$);
 SELECT apply_migration('texas-keep-henry', $$
   DELETE FROM creatures WHERE island = 'draft:texas' AND species = 'eagle'
     AND name IN ('dave', 'ralph', 'peter', 'bjork');
+$$);
+
+SELECT apply_migration('parcel-commons', $$
+  ALTER TABLE properties ADD COLUMN IF NOT EXISTS commons json;
 $$);

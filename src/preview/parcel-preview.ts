@@ -1,18 +1,19 @@
 import { createEngine } from '../../common/helpers/utils'
-// ABOUTME: Headless parcel preview for Playwright. Voxels only, lot outlines, labels, minimap inset.
+// ABOUTME: Shared OpenSea parcel thumbnail and orbit scene.
 
 import { setMainThread } from '../../common/helpers/detector'
 import type { ParcelRecord } from '../../common/messages/parcel'
+import { islandGround } from '../terrain/ground'
+import { groundOffset } from '../utils/polygon-utils'
 import Grid from '../grid'
 import { getComputePool } from '../mono-pool'
 import { NullGrid } from '../null-grid'
-import { Island, OCEAN, createMaterial } from '../voxels-map'
+import { OCEAN, createMaterial } from '../voxels-map'
 
 setMainThread()
 
 const SIZE = 1024
-const MINI = 200
-const MINI_INSET = 10
+const MINI = 278
 
 type LotRect = { id: number; x1: number; x2: number; z1: number; z2: number }
 
@@ -42,44 +43,14 @@ function installEmbeds(embeds: Record<string, string> | undefined) {
   if ((window as any).__embedsInstalled) return
   ;(window as any).__embedsInstalled = true
 
+  const preprocess = BABYLON.Tools.PreprocessUrl
+  const assetUrl = (url: string) => lookupEmbed(url) || url.replace(/^https:\/\/ugc\.voxels\.com\//, '/renderer/ugc/')
+  BABYLON.Tools.PreprocessUrl = (url) => assetUrl(preprocess(url))
+
   const origFetch = window.fetch.bind(window)
-  window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-    const raw = typeof input === 'string' ? input : input instanceof URL ? input.href : input instanceof Request ? input.url : String(input)
-    const hit = lookupEmbed(raw)
-    if (hit) return origFetch(hit, init)
-    return origFetch(input as any, init)
-  }) as typeof fetch
-
-  // Babylon 6 Texture loads through FileTools/WebRequest, not Tools.LoadImage.
-  const fileTools = (BABYLON as any).FileTools
-  if (fileTools) {
-    const origPre = typeof fileTools.PreprocessUrl === 'function' ? fileTools.PreprocessUrl.bind(fileTools) : (u: string) => u
-    fileTools.PreprocessUrl = (url: string) => {
-      const hit = lookupEmbed(url)
-      return hit || origPre(url)
-    }
-  }
-
-  const tools = (BABYLON as any).Tools
-  if (tools?.LoadImage) {
-    const origLoad = tools.LoadImage.bind(tools)
-    tools.LoadImage = function (input: any, onload: any, onerror: any, ...rest: any[]) {
-      if (typeof input === 'string') {
-        const hit = lookupEmbed(input)
-        if (hit) input = hit
-      }
-      return origLoad(input, onload, onerror, ...rest)
-    }
-  }
-  if (tools?.LoadFile) {
-    const origFile = tools.LoadFile.bind(tools)
-    tools.LoadFile = function (url: any, ...rest: any[]) {
-      if (typeof url === 'string') {
-        const hit = lookupEmbed(url)
-        if (hit) url = hit
-      }
-      return origFile(url, ...rest)
-    }
+  window.fetch = (input, init) => {
+    if (typeof input === 'string') input = assetUrl(input)
+    return origFetch(input, init)
   }
 }
 
@@ -149,10 +120,16 @@ function zoomCamera(cam: BABYLON.ArcRotateCamera, record: ParcelRecord) {
   cam.target.set(cx, cy, cz)
   cam.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
   const orthoSize = Math.max(record.x2 - record.x1, record.z2 - record.z1, record.y2 - record.y1, 8) * 0.9
-  cam.orthoLeft = -orthoSize
-  cam.orthoRight = orthoSize
-  cam.orthoTop = orthoSize
-  cam.orthoBottom = -orthoSize
+  const engine = cam.getEngine()
+  const fit = () => {
+    const aspect = engine.getAspectRatio(cam)
+    cam.orthoRight = orthoSize * Math.max(1, aspect)
+    cam.orthoLeft = -cam.orthoRight
+    cam.orthoTop = orthoSize * Math.max(1, 1 / aspect)
+    cam.orthoBottom = -cam.orthoTop
+  }
+  fit()
+  engine.onResizeObservable.add(fit)
   cam.radius = orthoSize * 6
 }
 
@@ -222,7 +199,7 @@ function islandHoles(multipolygon: any) {
   return multipolygon.coordinates.map((p: any) => p[0].map((c: any) => new BABYLON.Vector2(c[0] * 100 + nudge, c[1] * 100 + nudge)))
 }
 
-function makeIslands(scene: BABYLON.Scene, record: ParcelRecord, islands: any[]) {
+async function makeIslands(scene: BABYLON.Scene, record: ParcelRecord, islands: any[]) {
   if (!islands.length) return
   const mat = subgridMaterial(scene)
   const root = new BABYLON.TransformNode('preview-islands', scene)
@@ -253,6 +230,14 @@ function makeIslands(scene: BABYLON.Scene, record: ParcelRecord, islands: any[])
       subgridUv(mesh)
       mesh.material = mat
       mesh.isPickable = false
+      if (desc.ground && desc.name === record.island) {
+        await islandGround(mesh, desc)
+        if (mesh.material !== mat) {
+          mesh.parent = null
+          const offset = groundOffset(desc.texture)
+          mesh.position.set(offset, 0, offset)
+        }
+      }
     } catch (e) {
       console.error('[preview] island', desc?.name, e)
     }
@@ -325,25 +310,6 @@ function makeGhosts(scene: BABYLON.Scene, rows: GhostRow[]) {
   }
 }
 
-function makeLabels(scene: BABYLON.Scene, record: ParcelRecord) {
-  if (!(BABYLON as any).GUI) return
-  const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('tile', true, scene)
-  const label = (text: string, size: number, color: string, top: number) => {
-    if (!text) return
-    const t = new BABYLON.GUI.TextBlock('', text)
-    t.resizeToFit = true
-    t.fontSize = size
-    t.color = color
-    t.horizontalAlignment = BABYLON.GUI.Control.HORIZONTAL_ALIGNMENT_LEFT
-    t.verticalAlignment = BABYLON.GUI.Control.VERTICAL_ALIGNMENT_TOP
-    t.paddingLeft = '28px'
-    t.paddingTop = `${top}px`
-    ui.addControl(t)
-  }
-  label(record.name || record.address || `#${record.id}`, 44, '#fff', 24)
-  label(record.island || '', 28, '#ddd', 82)
-}
-
 function islandBounds(islands: any[]) {
   let minX = Infinity
   let maxX = -Infinity
@@ -374,55 +340,76 @@ function islandBounds(islands: any[]) {
   return { cx, cz, span }
 }
 
-function makeMinimap(engine: BABYLON.Engine, record: ParcelRecord, islands: any[]) {
-  const mini = new BABYLON.Scene(engine)
-  mini.autoClear = false
-  mini.skipPointerMovePicking = true
-  mini.skipPointerDownPicking = true
-  mini.skipPointerUpPicking = true
-
+function drawMap(ctx: CanvasRenderingContext2D, record: ParcelRecord, islands: any[]) {
   const { cx, cz, span } = islandBounds(islands)
-  const cam = new BABYLON.FreeCamera('preview-mini', new BABYLON.Vector3(cx, 100, cz), mini)
-  cam.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
-  cam.setTarget(new BABYLON.Vector3(cx, 0, cz))
-  cam.rotation.y = 0
-  const half = span / 2
-  cam.orthoLeft = -half
-  cam.orthoRight = half
-  cam.orthoTop = half
-  cam.orthoBottom = -half
-  cam.viewport = new BABYLON.Viewport(1 - (MINI + MINI_INSET) / SIZE, MINI_INSET / SIZE, MINI / SIZE, MINI / SIZE)
-  mini.activeCamera = cam
-
-  const ocean = BABYLON.MeshBuilder.CreateGround('preview-ocean', { width: span * 2, height: span * 2 }, mini)
-  ocean.position.set(cx, -1, cz)
-  ocean.material = createMaterial('preview-ocean', mini, OCEAN.r, OCEAN.g, OCEAN.b)
-  ocean.isPickable = false
-
-  const root = new BABYLON.TransformNode('preview-islands', mini)
-  const islandMat = new BABYLON.StandardMaterial('preview-island', mini)
-  islandMat.disableLighting = true
-  islandMat.emissiveColor.set(0.9, 0.9, 0.9)
-  islandMat.backFaceCulling = false
-  islandMat.freeze()
-  for (const desc of islands) {
-    try {
-      const island = new Island(mini, root, desc)
-      island.setMaterial(islandMat)
-      island.setEnabled(true)
-    } catch (e) {
-      console.error('[preview] island', desc?.name, e)
+  const scale = MINI / span
+  const x = (world: number) => MINI / 2 + (world - cx) * scale
+  const z = (world: number) => MINI / 2 - (world - cz) * scale
+  ctx.lineJoin = 'round'
+  ctx.strokeStyle = '#19130f'
+  ctx.lineWidth = 2
+  for (const island of islands) {
+    ctx.beginPath()
+    for (const ring of island.geometry?.coordinates || []) {
+      ring.forEach(([px, pz]: number[], i: number) => {
+        if (i === 0) ctx.moveTo(x(px * 100), z(pz * 100))
+        else ctx.lineTo(x(px * 100), z(pz * 100))
+      })
+      ctx.closePath()
     }
+    ctx.fillStyle = island.name === 'Origin City' ? '#fff1c4' : '#e3d8bd'
+    ctx.stroke()
+    ctx.fill('evenodd')
   }
 
-  const markerSize = Math.max(span * 0.02, 8)
-  const marker = BABYLON.MeshBuilder.CreatePlane('preview-marker', { width: markerSize, height: markerSize }, mini)
-  marker.rotation.x = Math.PI / 2
-  marker.position.set((record.x1 + record.x2) / 2, 2, (record.z1 + record.z2) / 2)
-  marker.material = createMaterial('preview-marker', mini, 0.98, 0.36, 0.14)
-  marker.isPickable = false
+  ctx.font = '17px Bangers, sans-serif'
+  ctx.lineWidth = 3
+  ctx.strokeText('Origin City', x(0) + 14, z(0) + 4)
+  ctx.fillStyle = '#fff1c4'
+  ctx.fillText('Origin City', x(0) + 14, z(0) + 4)
+  ctx.beginPath()
+  ctx.arc(x((record.x1 + record.x2) / 2), z((record.z1 + record.z2) / 2), 5, 0, Math.PI * 2)
+  ctx.fillStyle = '#ffda24'
+  ctx.fill()
+  ctx.stroke()
+}
 
-  return mini
+async function makeOverlay(scene: BABYLON.Scene, record: ParcelRecord, islands: any[]) {
+  if (!BABYLON.GUI) return
+  if (!Array.from(document.fonts).some((font) => font.family === 'Bangers')) {
+    const font = new FontFace('Bangers', 'url(/renderer/page/fonts/Bangers-Regular.ttf)')
+    await font
+      .load()
+      .then((face) => document.fonts.add(face))
+      .catch(() => {})
+  }
+  const ui = BABYLON.GUI.AdvancedDynamicTexture.CreateFullscreenUI('parcel-overlay', true, scene)
+  ui.useInvalidateRectOptimization = false
+  ui.onEndRenderObservable.add(() => {
+    const ctx = ui.getContext() as CanvasRenderingContext2D
+    const { width, height } = ui.getSize()
+    const scale = Math.min(width, height) / SIZE
+    ctx.save()
+    ctx.scale(scale, scale)
+    ctx.lineJoin = 'round'
+    const label = (text: string, size: number, y: number, fill: string, stroke: number) => {
+      ctx.font = size + 'px Bangers, sans-serif'
+      ctx.lineWidth = stroke
+      ctx.strokeStyle = '#100c09'
+      const max = width / scale - 60
+      ctx.strokeText(text, 33, y + 5, max)
+      ctx.strokeText(text, 30, y, max)
+      ctx.fillStyle = fill
+      ctx.fillText(text, 30, y, max)
+    }
+    label(record.name || record.address || '#' + record.id, 82, 87, '#ffda24', 9)
+    label(record.island || '', 43, 137, record.island === 'Texas' ? '#d38a50' : '#fff1c4', 6)
+    if (islands.length) {
+      ctx.translate(width / scale - MINI - 16, height / scale - MINI - 4)
+      drawMap(ctx, record, islands)
+    }
+    ctx.restore()
+  })
 }
 
 type PreviewLive = {
@@ -430,7 +417,6 @@ type PreviewLive = {
   engine: BABYLON.Engine
   scene: BABYLON.Scene
   camera: BABYLON.ArcRotateCamera
-  mini?: BABYLON.Scene
   parcel: any
 }
 
@@ -452,12 +438,10 @@ async function buildPreview(record: ParcelRecord, embeds: Record<string, string>
   camera.mode = BABYLON.Camera.ORTHOGRAPHIC_CAMERA
   camera.minZ = 0.01
 
-  // No features - constant time.
-  const bare = { ...record, features: [] }
-  makeOcean(scene, bare)
-  makeIslands(scene, bare, world?.islands || [])
-  makeLotOutlines(scene, bare, world?.lots || [])
-  makeLabels(scene, bare)
+  makeOcean(scene, record)
+  await makeIslands(scene, record, world?.islands || [])
+  makeLotOutlines(scene, record, world?.lots || [])
+  await makeOverlay(scene, record, world?.islands || [])
 
   window.scene = scene
   const grid = new NullGrid(scene)
@@ -465,17 +449,17 @@ async function buildPreview(record: ParcelRecord, embeds: Record<string, string>
   scene.clearColor = OCEAN.clone()
   await getComputePool()
 
-  const parcel = grid.spawnPreview(bare)
+  const features = (record.features || []).filter((f) => f && ['vox-model', 'megavox', 'ride', 'collectible-model', 'group'].includes(f.type))
+  const parcel = grid.spawnPreview({ ...record, features })
   if (!parcel) throw new Error('spawnPreview failed')
   parcel.preview = true
 
   await parcel.generate()
   await parcel.activate()
   await scene.whenReadyAsync()
-  zoomCamera(camera, bare)
+  zoomCamera(camera, record)
   scene.clearColor = new BABYLON.Color4(OCEAN.r, OCEAN.g, OCEAN.b, 1)
-  const mini = world?.islands?.length ? makeMinimap(engine, bare, world.islands) : undefined
-  return { canvas, engine, scene, camera, mini, parcel }
+  return { canvas, engine, scene, camera, parcel }
 }
 
 async function renderOnce(record: ParcelRecord, embeds?: Record<string, string>, world?: PreviewWorld, type = 'image/webp'): Promise<ArrayBuffer> {
@@ -484,18 +468,12 @@ async function renderOnce(record: ParcelRecord, embeds?: Record<string, string>,
     // Twice so GUI DynamicTexture uploads before capture.
     live.scene.render()
     live.scene.render()
-    live.mini?.render()
     const quality = type === 'image/png' ? 0.8 : 0.9
     return await blobFromCanvas(live.canvas, type, quality)
   } finally {
     if (!(window as any).__keepPreview) {
       try {
         live.parcel.unload()
-      } catch {
-        // ignore
-      }
-      try {
-        live.mini?.dispose()
       } catch {
         // ignore
       }
@@ -517,12 +495,8 @@ async function orbitParcelPreview(record: ParcelRecord, embeds?: Record<string, 
     live.camera.alpha += live.engine.getDeltaTime() / 1000
     tickGhosts()
     live.scene.render()
-    live.mini?.render()
   })
-  window.addEventListener('resize', () => {
-    sizeCanvas(live.canvas, true)
-    live.engine.resize()
-  })
+  window.addEventListener('resize', () => live.engine.resize())
 }
 
 ;(window as any).renderParcelPreview = renderParcelPreview

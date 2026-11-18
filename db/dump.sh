@@ -1,20 +1,22 @@
 #!/bin/bash
 
 # Usage:
-#   ./dump.sh                    # dumps the default island (Poneke)
+#   ./dump.sh                    # dumps the default island (Texas)
 #   ./dump.sh "Origin City"      # dumps the named island
 #
 # Set DATABASE_URL to point at a different db, e.g.:
 #   DATABASE_URL=postgresql://user:pass@host/dbname ./dump.sh "Origin City"
 
+set -euo pipefail
+
 DB="${DATABASE_URL:-voxels}"
 OUTPUT_FILE="import.sql"
-ISLAND_NAME="${1:-Poneke}"
+ISLAND_NAME="${1:-Texas}"
 
 # Enforce read-only on every connection - safe to point at prod
 export PGOPTIONS='--default-transaction-read-only=on'
 
-echo "-- Generating $ISLAND_NAME Dev Fixture (db=$DB) --"
+echo "-- Generating $ISLAND_NAME Dev Fixture --"
 
 cat <<EOF > $OUTPUT_FILE
 -- Enable required extensions
@@ -47,6 +49,7 @@ dump_table() {
     echo "" >> $OUTPUT_FILE
 }
 
+dump_table "applied_migrations" "SELECT * FROM applied_migrations"
 dump_table "islands" "SELECT * FROM islands LIMIT 500"
 dump_table "properties" "SELECT * FROM properties WHERE island = '$ISLAND_NAME'"
 dump_table "womps" "SELECT w.* FROM womps w JOIN properties p ON w.parcel_id = p.id WHERE p.island = '$ISLAND_NAME' LIMIT 100"
@@ -86,7 +89,7 @@ dump_table "costumes" "
   LIMIT 500
 "
 
-# bnolan wearables (costumes already captured above via Poneke dump)
+# bnolan wearables (costumes already captured above)
 dump_table "wearables" "SELECT DISTINCT ON (w.id) w.* FROM wearables w JOIN (SELECT e->>'wid' AS wid FROM costumes c JOIN avatars a ON lower(a.owner) = lower(c.wallet) CROSS JOIN LATERAL jsonb_array_elements(c.attachments::jsonb) e WHERE a.name = 'bnolan') wids ON w.id::text = wids.wid LIMIT 500"
 dump_table "collections" "SELECT DISTINCT ON (col.id) col.* FROM collections col JOIN wearables w ON w.collection_id = col.id JOIN (SELECT e->>'wid' AS wid FROM costumes c JOIN avatars a ON lower(a.owner) = lower(c.wallet) CROSS JOIN LATERAL jsonb_array_elements(c.attachments::jsonb) e WHERE a.name = 'bnolan') wids ON w.id::text = wids.wid LIMIT 500"
 dump_table "parcel_users" "SELECT pu.* FROM parcel_users pu JOIN properties p ON pu.parcel_id = p.id WHERE p.island = '$ISLAND_NAME' LIMIT 500"

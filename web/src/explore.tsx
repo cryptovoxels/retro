@@ -46,7 +46,7 @@ export default class Explore extends Component<{}> {
                     '@type': 'Organization',
                     name: 'Voxels',
                     url: 'https://www.voxels.com',
-                    logo: 'https://www.voxels.com/images/logo-opengraph-small.png',
+                    logo: 'https://www.voxels.com/images/voxels.png',
                     founder: { '@type': 'Person', name: 'Ben Nolan' },
                     sameAs: ['https://github.com/cryptovoxels'],
                   },

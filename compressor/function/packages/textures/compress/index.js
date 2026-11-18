@@ -17,20 +17,17 @@ const storage = new S3Client({
 const headers = { 'Access-Control-Expose-Headers': 'Retry-After', 'Cache-Control': 'no-store' }
 
 async function gifSheet(source, fit) {
-  const image = sharp(source, { animated: true, limitInputPixels: 64 * 1024 * 1024 }).timeout({ seconds: 10 })
-  const metadata = await image.metadata()
+  const metadata = await sharp(source, { pages: 1, limitInputPixels: 64 * 1024 * 1024 }).metadata()
   const delays = Array.from({ length: metadata.pages || 1 }, (_, i) => metadata.delay?.[i] || 100)
   const duration = delays.reduce((sum, delay) => sum + delay, 0)
-  const pixels = await image.ensureAlpha().raw().toBuffer()
-  const raw = { width: metadata.width, height: metadata.pageHeight || metadata.height, channels: 4 }
-  const frameBytes = raw.width * raw.height * 4
   const tiles = []
   let frame = 0
   let end = delays[0]
   for (let i = 0; i < 16; i++) {
     while (frame < delays.length - 1 && (i * duration) / 16 >= end) end += delays[++frame]
-    // Resize separately so filtering cannot bleed between vertically stacked frames.
-    const input = await sharp(pixels.subarray(frame * frameBytes, (frame + 1) * frameBytes), { raw })
+    // Decode only the sampled page. A full animated image can be hundreds of megapixels.
+    const input = await sharp(source, { page: frame, pages: 1, limitInputPixels: 64 * 1024 * 1024 })
+      .timeout({ seconds: 10 })
       .resize(128, 128, { fit, background: { r: 0, g: 0, b: 0, alpha: 0 } })
       .png()
       .toBuffer()
@@ -44,7 +41,7 @@ async function gifSheet(source, fit) {
 }
 exports.gifSheet = gifSheet
 
-exports.main = async ({ key, width = 256, height = 256, fit = 'cover', format = 'astc' }) => {
+async function compress({ key, width = 256, height = 256, fit = 'cover', format = 'astc' }) {
   width = Number(width)
   height = Number(height)
   if (
@@ -74,11 +71,15 @@ exports.main = async ({ key, width = 256, height = 256, fit = 'cover', format = 
     }
     const response = await fetch(`https://ugc.voxels.com/${key}`, { redirect: 'error', signal: AbortSignal.timeout(10000) })
     if (!response.ok) return { statusCode: response.status === 404 ? 404 : 503, headers: { ...headers, 'Retry-After': '30' }, body: `UGC returned ${response.status}` }
+    if (Number(response.headers.get('content-length')) > 128 * 1024 * 1024) {
+      await response.body.cancel()
+      return { statusCode: 413, headers, body: 'UGC image exceeds 128 MiB' }
+    }
     const chunks = []
     let bytes = 0
     for await (const chunk of response.body) {
       bytes += chunk.length
-      if (bytes > 16 * 1024 * 1024) return { statusCode: 413, headers, body: 'UGC image exceeds 16 MiB' }
+      if (bytes > 128 * 1024 * 1024) return { statusCode: 413, headers, body: 'UGC image exceeds 128 MiB' }
       chunks.push(chunk)
     }
     directory = await mkdtemp(join(tmpdir(), 'ugc-texture-'))
@@ -91,7 +92,7 @@ exports.main = async ({ key, width = 256, height = 256, fit = 'cover', format = 
       source = sheet
       metadata = { frames, 'original-format': JSON.stringify('gif') }
     }
-    await sharp(source, { pages: 1, limitInputPixels: 16 * 1024 * 1024 })
+    await sharp(source, { pages: 1, limitInputPixels: 64 * 1024 * 1024 })
       .timeout({ seconds: 10 })
       .rotate()
       .resize(width, height, { fit, background: { r: 0, g: 0, b: 0, alpha: 0 } })
@@ -108,5 +109,31 @@ exports.main = async ({ key, width = 256, height = 256, fit = 'cover', format = 
     return { statusCode: 503, headers: { ...headers, 'Retry-After': '30' }, body: 'Texture compression unavailable' }
   } finally {
     if (directory) await rm(directory, { recursive: true, force: true })
+  }
+}
+
+exports.main = async (args) => {
+  const start = Date.now()
+  let status = 500
+  try {
+    const response = await compress(args)
+    status = response.statusCode
+    return response
+  } finally {
+    console.log(
+      JSON.stringify({
+        event: 'http_request',
+        at: new Date().toISOString(),
+        service: 'function',
+        route: '/textures/compress',
+        id: process.env.__OW_ACTIVATION_ID || require('node:crypto').randomUUID(),
+        deploy: process.env.REQUEST_DEPLOY || 'unknown',
+        method: args.__ow_method?.toUpperCase() || 'GET',
+        status,
+        aborted: false,
+        ms: Date.now() - start,
+        asset: typeof args.key === 'string' && /^parcel\/\d+\/[\w-]+\.(png|jpe?g|webp|avif|gif)$/i.test(args.key) ? args.key : undefined,
+      }),
+    )
   }
 }

@@ -4,7 +4,6 @@ import { Link } from 'preact-router/match'
 import { effect } from '@preact/signals'
 import { PanelType } from './components/panel'
 import { app, AppEvent, navOpen, toggleFolder } from './state'
-import { CubeIcon } from './components/icons/icons'
 import VoxelRadio from './components/voxel-radio'
 import { route } from 'preact-router'
 import { isAddress } from 'ethers'
@@ -13,7 +12,8 @@ import Toggle from './components/toggle'
 import { messageList } from '../../src/connector'
 import { spamhaus } from '../../src/markov-haus'
 import { exitPointerLock } from '../../common/helpers/ui-helpers'
-import { isOnSandboxParcel, mic, micEnabled, nearestEditableParcel, uiPane, worldUi } from '../../src/store'
+import { currentParcel, isOnSandboxParcel, mic, micEnabled, nearestEditableParcel, uiPane, worldUi } from '../../src/store'
+import ParcelPage from './parcel'
 import UserMenu from './components/user-menu'
 import { loadMe, me } from './auth/identities'
 type Props = {
@@ -278,11 +278,16 @@ export default class WebHeader extends Component<Props, State> {
               <li>
                 <form onSubmit={this.onSubmit}>
                   <button type="button" class="pane-logo" aria-label="Expand both panes" aria-expanded={!this.props.mini} title="Expand both panes" onClick={this.expand}>
-                    <img src="/images/Voxels_logo_128.png" width="16" height="16" alt="" />
+                    <img src="/images/voxels.png" width="16" height="16" alt="" />
                   </button>
                   <input name="q" value={query} type="search" onInput={this.onInput} placeholder="Search" />
                 </form>
                 <br />
+                {currentParcel.value && (
+                  <div class="page-mini">
+                    <ParcelPage mini parcel={currentParcel.value as any} />
+                  </div>
+                )}
               </li>
               <li>
                 <a href="/">Home</a>

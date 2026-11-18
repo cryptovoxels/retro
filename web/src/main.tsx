@@ -28,7 +28,7 @@ import { ensureRadio } from './radio/global'
 import { app, AppEvent } from './state'
 import { AppRoutes } from './app-routes'
 import { applyTheme } from '../../common/helpers/theme'
-import { clearPageTool, isPageTool, pageToolEl, hoveredNft, currentOrNearestParcel, currentParcel, street, uiPane, worldUi } from '../../src/store'
+import { clearPageTool, isPageTool, pageToolEl, hoveredNft, currentParcel, street, uiPane, worldUi } from '../../src/store'
 
 applyTheme()
 
@@ -158,7 +158,7 @@ const Main = () => {
 
 // collapsed .page content. only this re-renders on hover / parcel change
 function PageMini() {
-  const parcel = currentOrNearestParcel.value
+  const parcel = currentParcel.value
   const road = street.value
   return (
     <div class="page-mini">

@@ -1,5 +1,5 @@
 function depart(rat, carrying, burrow, food)
-  walkTo(rat, carrying and burrow or food)
+  walk_to(rat, carrying and burrow or food)
 end
 
 function arrived(rat, carrying)

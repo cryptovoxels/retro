@@ -52,7 +52,7 @@ async function convertImage(req: Request, res: Response) {
         const { done, value } = await reader.read()
         if (done) break
         size += value.byteLength
-        if (size > 16 * 1024 * 1024) {
+        if (size > 128 * 1024 * 1024) {
           await reader.cancel()
           res.sendStatus(413)
           return null
@@ -63,7 +63,7 @@ async function convertImage(req: Request, res: Response) {
     }, 'fetch')
     if (!bytes) return
     const image = await queueJob(async () => {
-      const resized = sharp(bytes, { limitInputPixels: 16 * 1024 * 1024, pages: 1 })
+      const resized = sharp(bytes, { limitInputPixels: 64 * 1024 * 1024, pages: 1 })
         .timeout({ seconds: 10 })
         .rotate()
         .resize(256, 256, { fit: 'inside', withoutEnlargement: true })

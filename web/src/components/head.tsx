@@ -43,7 +43,7 @@ function setLinkCanonical(href?: string) {
 }
 
 export default function Head(props: Props) {
-  const img = absUrl(props.imageURL) ?? `${process.env.ASSET_PATH}/images/logo-opengraph-small.png`
+  const img = absUrl(props.imageURL) ?? `${process.env.ASSET_PATH}/images/voxels.png`
   const url = absUrl(props.url)
   const title = props.title.slice(0, 120)
   const description = props.description?.slice(0, 300)

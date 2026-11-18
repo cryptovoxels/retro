@@ -1,6 +1,8 @@
 // ABOUTME: Postgres pool for the renderer service. Same DATABASE_URL / SSL pattern as server/pg.ts.
 
+import { commonsBuild } from '../../common/voxels/commons'
 import { Pool } from 'pg'
+import { packGround } from '../../common/voxels/ground-bytes'
 
 function formatDatabaseUrl(raw: string) {
   let url = raw.replace(/^postgresql:\/\//, 'postgres://')
@@ -35,7 +37,7 @@ export async function loadParcelRecord(id: number): Promise<Record<string, unkno
   const r = await pool.query(
     `select id, name, label, address, description, kind, island, suburb_id,
             x1, x2, y1, y2, z1, z2, geometry_json as geometry,
-            content, settings, sandbox, is_common, visible,
+            content, commons, settings, sandbox, is_common, visible,
             (select name from suburbs where suburbs.id = properties.suburb_id) as suburb
      from properties where id = $1 limit 1`,
     [id],
@@ -43,8 +45,8 @@ export async function loadParcelRecord(id: number): Promise<Record<string, unkno
   const row = r.rows[0]
   if (!row) return null
 
-  const content = row.content && typeof row.content === 'object' ? row.content : {}
-  const { content: _c, suburb_id: _s, ...meta } = row
+  const content = commonsBuild(row) || {}
+  const { content: _c, commons: _commons, suburb_id: _s, ...meta } = row
   return {
     ...meta,
     suburb: row.suburb || '',
@@ -106,7 +108,7 @@ export async function loadGhosts(id: number): Promise<GhostRow[]> {
 let islandCache: any[] | null = null
 
 /** Archipelago shoreline data for the preview minimap. Cached for the process. */
-export async function loadIslands(): Promise<any[]> {
+async function shorelines(): Promise<any[]> {
   if (islandCache) return islandCache
   const r = await pool.query(
     `select id, name, texture,
@@ -122,6 +124,19 @@ export async function loadIslands(): Promise<any[]> {
     return row
   })
   return islandCache
+}
+
+export async function loadIslands(name: unknown) {
+  const [islands, terrain] = await Promise.all([
+    shorelines(),
+    pool.query('select id, ground from islands where name = $1 and ground is not null', [name]).catch((e) => {
+      if (e.code === '42703') return { rows: [] } // older dev fixtures predate island terrain
+      throw e
+    }),
+  ])
+  const row = terrain.rows[0]
+  if (!row) return islands
+  return islands.map((island) => (island.id === row.id ? { ...island, ground: packGround(row.ground) } : island))
 }
 
 export async function loadFreeAvatarSrc(id: number): Promise<string | null> {

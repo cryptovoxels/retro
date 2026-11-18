@@ -20,30 +20,3 @@ export default function Icon({ name, size = 16, color = 'currentColor' }: { name
     </svg>
   )
 }
-
-function cubeBoxes(n: name) {
-  const bitmap = ICON_DATA[n]?.bitmap
-  if (!bitmap) return null
-  const boxes = []
-  for (let i = 0; i < 25; i++) {
-    if (bitmap[i]) {
-      const col = i % 5
-      const row = Math.floor(i / 5)
-      boxes.push(
-        <div class="box" style={{ left: `calc(var(--size) * ${col + 0.5})`, top: `calc(var(--size) * ${row})` }} key={i}>
-          <div class="face-N" />
-          <div class="face-E" />
-          <div class="face-S" />
-          <div class="face-W" />
-          <div class="face-F" />
-          <div class="face-B" />
-        </div>,
-      )
-    }
-  }
-  return boxes
-}
-
-export function CubeIcon({ name }: { name: name }) {
-  return <div class="cube-logo">{cubeBoxes(name)}</div>
-}

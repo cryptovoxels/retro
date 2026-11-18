@@ -1,0 +1,200 @@
+/* Voxels editor skin. Load before your project's own styles. */
+:root {
+  color-scheme: dark;
+  --bg: #2e2c2f;
+  --fg: #d6d4d7;
+  --line: #48464a;
+  --hover: #454247;
+  --muted: #aaa7ad;
+  --disabled: #858287;
+  --accent: #6aafff;
+  --glass: rgba(46, 44, 47, 0.8);
+  --track: #242326;
+  --border: 1px solid var(--line);
+  --gap: 0.2rem;
+  accent-color: var(--accent);
+  scrollbar-color: var(--line) var(--track);
+}
+
+*, ::before, ::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.4;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  margin: 0 0 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+p, ul, ol, dl, figure, pre {
+  margin: 0 0 0.5rem;
+}
+
+ul, ol {
+  padding-inline-start: 1.25rem;
+}
+
+small, figcaption, caption {
+  color: var(--muted);
+}
+
+a {
+  color: var(--fg);
+  text-decoration: none;
+}
+
+a:hover, a:focus-visible {
+  text-decoration: underline;
+}
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+body > header, body > footer, main {
+  padding: 1rem;
+}
+
+body > header {
+  border-bottom: var(--border);
+}
+
+body > footer {
+  color: var(--muted);
+  border-top: var(--border);
+}
+
+nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+nav [aria-current="page"] {
+  color: var(--accent);
+}
+
+section + section {
+  margin-block-start: 1rem;
+}
+
+button, input, textarea, select {
+  font: inherit;
+  color: var(--fg);
+}
+
+button, select, textarea,
+input:where(:not([type="checkbox"], [type="radio"], [type="range"], [type="file"], [type="image"], [type="hidden"])) {
+  max-width: 100%;
+  padding: var(--gap) 0.5rem;
+  border: var(--border);
+  background: var(--hover);
+}
+
+button:enabled, select:enabled, summary,
+input:is([type="button"], [type="submit"], [type="reset"]):enabled {
+  cursor: pointer;
+}
+
+button:enabled:hover, input[type="submit"]:enabled:hover {
+  border-color: var(--muted);
+}
+
+button[aria-pressed="true"], option:checked {
+  color: var(--accent);
+}
+
+:disabled {
+  color: var(--disabled);
+  cursor: default;
+}
+
+::placeholder {
+  color: var(--muted);
+  opacity: 1;
+}
+
+form, fieldset {
+  display: grid;
+  gap: 0.5rem;
+  justify-items: start;
+}
+
+fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0.5rem;
+  border: var(--border);
+}
+
+legend {
+  padding-inline: var(--gap);
+  font-weight: 600;
+}
+
+label > :is(input, select, textarea):not([type="checkbox"], [type="radio"]) {
+  display: block;
+  margin-block-start: var(--gap);
+}
+
+textarea {
+  min-height: 4rem;
+  resize: vertical;
+}
+
+table {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+th, td {
+  padding: var(--gap) 0.5rem;
+  border-bottom: var(--border);
+  text-align: start;
+}
+
+th {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+code, pre, kbd, samp {
+  font-family: "Source Code Pro", ui-monospace, monospace;
+}
+
+pre {
+  overflow-x: auto;
+  padding: 0.5rem;
+  background: var(--track);
+}
+
+hr {
+  margin: 0.5rem 0;
+  border: 0;
+  border-top: var(--border);
+}
+
+dialog {
+  max-width: calc(100% - 2rem);
+  padding: 1rem;
+  color: var(--fg);
+  background: var(--glass);
+  border: var(--border);
+  backdrop-filter: blur(8px);
+}
+
+img, video {
+  max-width: 100%;
+  height: auto;
+}

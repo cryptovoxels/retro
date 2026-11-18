@@ -65,7 +65,7 @@ function guestBroadcastPlayQuery(parcelLocation: string, featureUuid: string, us
 }
 
 function showboxFeature(parcel: Parcel, featureUuid: string) {
-  return parcel.content?.features?.find((f: FeatureRecord | null) => f?.uuid?.toLowerCase() === featureUuid.toLowerCase())
+  return parcel.allFeatures?.find((f: FeatureRecord | null) => f?.uuid?.toLowerCase() === featureUuid.toLowerCase())
 }
 
 function showboxHostPlayCoords(parcel: Parcel, featureUuid: string): string {

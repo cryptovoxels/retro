@@ -30,7 +30,7 @@ misses download, resize, encode, upload publicly, then redirect to `ugc.voxels.c
 Originals are never overwritten. Use immutable UGC keys.
 
 Fits within 256x256 without enlargement, preserves alpha, first animation frame
-only. Limits: 16 MiB source, 16 megapixels decoded, four concurrent jobs shared with `/compressed`.
+only. Limits: 128 MiB source, 64 megapixels decoded, four concurrent jobs shared with `/compressed`.
 Jobs have a two-second deadline including queue time. Network and storage
 requests abort at the deadline; native encoders are killed with SIGKILL.
 Sharp operations also have a one-second processing timeout. Slow images fail

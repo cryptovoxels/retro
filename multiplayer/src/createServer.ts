@@ -1,3 +1,4 @@
+import { requestLog } from '../../common/request-log'
 import http from 'http'
 import type WebSocket from 'ws'
 
@@ -24,6 +25,7 @@ export type MultiplayerServer = {
 
 export default function createServer() {
   const server = http.createServer()
+  server.on('request', requestLog('mp'))
 
   // Topic subscriptions for broadcast; replaces uWS pub/sub.
   const topicToSockets = new Map<WsTopic, Set<symbol>>()

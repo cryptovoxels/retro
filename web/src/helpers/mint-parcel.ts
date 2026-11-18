@@ -5,7 +5,7 @@ import PARCEL_CONTRACT_ABI from '../../../common/contracts/parcel.json'
 const PARCEL = process.env.CONTRACT_ADDRESS || '0x79986aF15539de2db9A5086382daEdA917A9CF0C'
 export const TEAM = '0x2D891ED45C4C3EAB978513DF4B92a35Cf131d2e2'
 
-export type Bounds = { id: number; x1: number; y1: number; z1: number; x2: number; y2: number; z2: number }
+export type Bounds = { is_common: boolean; id: number; x1: number; y1: number; z1: number; x2: number; y2: number; z2: number }
 
 export async function parcelSigner() {
   console.log('[mint] parcelSigner: ethereum?', !!window.ethereum, 'CONTRACT', PARCEL)
@@ -26,6 +26,7 @@ export async function parcelContract() {
 }
 
 export const sendMint = (c: ethers.Contract, p: Bounds) => {
+  if (p.is_common !== false) throw new Error('Only non-common parcels can be minted')
   const args = [TEAM, p.id, p.x1, p.y1, p.z1, p.x2, p.y2, p.z2, ethers.parseEther('0')]
   console.log('[mint] sendMint calling contract.mint', { id: p.id, bounds: p, TEAM, price: '0' })
   return c.mint(...args).then(

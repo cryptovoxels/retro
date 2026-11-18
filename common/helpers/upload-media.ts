@@ -1,5 +1,6 @@
 import { app } from '../../web/src/state'
-import { generateFileName, parcelUgcKey, parcelUgcUrl, UGC_CACHE, ugcKey, UploadMediaType } from './ugc-upload-keys'
+import { contentName, generateFileName, parcelUgcKey, parcelUgcUrl, UGC_CACHE, ugcKey, UploadMediaType } from './ugc-upload-keys'
+import { squashImage } from './utils'
 
 export type { UploadMediaType } from './ugc-upload-keys'
 export { generateFileName, parcelUgcKey, parcelUgcUrl, ugcKey } from './ugc-upload-keys'
@@ -53,6 +54,7 @@ async function requestPresign(name: string, file: File, mediaType: UploadMediaTy
 }
 
 export async function uploadMedia(file: File, mediaType: UploadMediaType = 'parcel-content'): Promise<UploadMediaResult> {
+  file = await squashImage(file)
   onBeginUpload.notifyObservers(file)
   try {
     const { name, key } = await prepare(file, mediaType)
@@ -100,9 +102,16 @@ export async function uploadMedia(file: File, mediaType: UploadMediaType = 'parc
 }
 
 export async function uploadParcelBytes(parcelId: number, name: string, bytes: ArrayBuffer | Uint8Array, contentType: string): Promise<UploadMediaResult> {
+  let body = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
+  const blob = new Blob([body as BlobPart], { type: contentType })
+  const small = await squashImage(blob)
+  if (small !== blob) {
+    body = new Uint8Array(await small.arrayBuffer())
+    // content addressed, so new bytes need a new name
+    name = `${await contentName(body)}.${name.split('.').pop()}`
+  }
   const key = parcelUgcKey(parcelId, name)
   const location = parcelUgcUrl(parcelId, name)
-  const body = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes)
 
   if (uploaded.has(key)) {
     return { success: true, location }
@@ -149,6 +158,7 @@ export async function uploadParcelBytes(parcelId: number, name: string, bytes: A
 }
 
 export async function uploadWithProgress(file: File, onProgress: (pct: number) => void, mediaType: UploadMediaType = 'parcel-content'): Promise<UploadMediaResult> {
+  file = await squashImage(file)
   onBeginUpload.notifyObservers(file)
 
   try {

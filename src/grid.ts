@@ -650,7 +650,9 @@ export default class Grid extends SocketClient {
   }
 
   private handleParcelPatchError(message: PatchErrorMessage) {
-    console.log('handleParcelPatchError')
+    this.withParcel(message.parcelId, (parcel) => {
+      if (parcel.summary.is_common) void parcel.reload()
+    })
     this.displayPatchError(message.error)
   }
 

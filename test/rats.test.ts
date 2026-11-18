@@ -49,11 +49,19 @@ it('keeps the eagle flying while its prey disappears and respawns', async () => 
   const eagle: RatPose = [4, 111, 7, -1058, false, 'henry', null, false, 'eagle']
   const rat: RatPose = [1, 111, 0.74, -1058, false, 'Dave-o', null, true]
   try {
+    eagle[9] = ['cleaning', 0, 0.7, [0, 0.02, 0], [0.2, 0.4, 0.1]]
     animals.update([eagle, rat])
     const henry = scene.getTransformNodeByName('henry')
     expect(henry).toBeTruthy()
     await vi.waitFor(() => expect(scene.getMeshByName('wing')).toBeTruthy())
     expect(henry?.getChildMeshes().filter((m) => m.name === 'wing')).toHaveLength(2)
+    vi.spyOn(scene.getEngine(), 'getDeltaTime').mockReturnValue(62.5)
+    scene.onBeforeRenderObservable.notifyObservers(scene)
+    const idle = henry!.getChildTransformNodes(true)[0]
+    expect(henry!.position.y).toBe(7)
+    expect(henry!.rotation.y).toBeCloseTo(0.35)
+    expect(idle.position.y).toBeCloseTo(0.01)
+    expect(idle.rotation.x).toBeCloseTo(0.1)
     animals.update([eagle])
     expect(scene.getTransformNodeByName('rat-1')).toBeNull()
     animals.update([eagle, rat])

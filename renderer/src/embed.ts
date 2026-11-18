@@ -1,5 +1,7 @@
 // ABOUTME: Node-side fetch of preview assets to data-URIs so Chromium never hits the CDN.
 
+import { tilesetRuntimeUrl } from '../../common/helpers/parcel-compile'
+
 const IMG_HOST = process.env.IMG_HOST || 'https://cdn.cryptovoxels.com'
 const ASSET_PATH = process.env.ASSET_PATH || 'https://www.voxels.com'
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
@@ -73,17 +75,13 @@ export async function embedUrls(urls: string[]): Promise<Record<string, string>>
   return out
 }
 
-function tilesetUrl(tileset: unknown): string | null {
-  if (typeof tileset !== 'string' || !tileset) return null
-  const path = tileset.startsWith('/') ? tileset.slice(1) : tileset
-  return `${IMG_HOST.replace(/\/$/, '')}/${path}`
-}
-
-/** v1: tileset + a few static textures. Push more urls here later. */
 export function parcelPreviewUrls(record: Record<string, unknown>): string[] {
   const asset = ASSET_PATH.replace(/\/$/, '')
   const urls = [`${asset}/textures/subgrid.png`, `${asset}/textures/atlas-ao.png`, `${asset}/textures/atlas-empty.png`]
-  const tileset = tilesetUrl(record.tileset)
-  if (tileset) urls.push(tileset)
+  if (typeof record.tileset === 'string' && record.tileset) {
+    const url = URL.parse(tilesetRuntimeUrl(record.tileset), asset)
+    // External atlases load in the browser. Only embed from our asset hosts on the server.
+    if (url && [new URL(asset).origin, new URL(IMG_HOST).origin].includes(url.origin)) urls.push(url.href)
+  }
   return urls
 }

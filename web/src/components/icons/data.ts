@@ -163,26 +163,6 @@ const RAW_ICONS = {
     #####
     .#...
   `,
-
-  // checkmark / V shape
-  v: `
-    .....
-    .#.#.
-    .#.#.
-    ..#..
-    .....
-    .....
-  `,
-
-  // checkmark / V shape
-  c: `
-    .....
-    ..##.
-    .#...
-    .#...
-    ..##.
-    .....
-  `,
 }
 
 // Parser: convert heredoc strings to Uint8Array (25 bytes for 5x5)

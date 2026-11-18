@@ -3,9 +3,12 @@ import type { MeshExtended } from './features/feature'
 import { app } from '../web/src/state'
 import type { RatPose } from '../common/messages'
 
+const axes = ['x', 'y', 'z'] as const
+
 type Rat = {
   body: BABYLON.TransformNode
   target: BABYLON.Vector3
+  idle?: BABYLON.TransformNode
   wings?: BABYLON.TransformNode[]
   tail?: BABYLON.TransformNode
   hat?: BABYLON.TransformNode
@@ -51,17 +54,30 @@ export class Rats {
       this.frame = this.scene.onBeforeRenderObservable.add(() => {
         const dt = Math.min(1, this.scene.getEngine().getDeltaTime() / 125)
         const beat = performance.now() * 0.023
-        for (const { body, target, tail, wings, pose } of this.rats.values()) {
+        for (const { body, target, tail, wings, idle, pose } of this.rats.values()) {
           const dx = target.x - body.position.x,
             dz = target.z - body.position.z
           const moving = dx * dx + dz * dz > 0.0001
-          if (moving) body.rotation.y = Math.atan2(dx, dz)
-          body.rotation.z = moving ? Math.sin(beat + pose[0]) * 0.06 : 0
-          if (wings) {
-            const flap = Math.sin(beat * 0.4 + pose[0]) * 0.35
-            wings[0].rotation.z = -flap
-            wings[1].rotation.z = flap
-            body.rotation.x = -Math.atan2(target.y - body.position.y, Math.max(0.01, Math.hypot(dx, dz))) * 0.6
+          const flight = pose[9]
+          if (wings && idle && flight) {
+            const [state, pitch, yaw, offset, rotation] = flight
+            body.rotation.x += (pitch - body.rotation.x) * dt
+            body.rotation.y += Math.atan2(Math.sin(yaw - body.rotation.y), Math.cos(yaw - body.rotation.y)) * dt
+            for (let i = 0; i < 3; i++) {
+              const axis = axes[i]
+              idle.position[axis] += (offset[i] - idle.position[axis]) * dt
+              idle.rotation[axis] += (rotation[i] - idle.rotation[axis]) * dt
+            }
+            const folded = state === 'perching' || state === 'cleaning'
+            const flap = folded ? 0 : Math.sin(beat * 0.4 + pose[0]) * 0.35
+            for (let i = 0; i < 2; i++) {
+              const side = i === 0 ? -1 : 1
+              wings[i].rotation.z += (side * flap - wings[i].rotation.z) * dt
+              wings[i].rotation.y += (side * (folded ? 1.23 : 0) - wings[i].rotation.y) * dt
+            }
+          } else {
+            if (moving) body.rotation.y = Math.atan2(dx, dz)
+            body.rotation.z = moving ? Math.sin(beat + pose[0]) * 0.06 : 0
           }
           if (tail) tail.rotation.y = moving ? Math.sin(beat + pose[0]) * 0.22 : 0.12
           BABYLON.Vector3.LerpToRef(body.position, target, dt, body.position)
@@ -74,9 +90,11 @@ export class Rats {
     const [id, x, y, z] = pose
     const body = new BABYLON.TransformNode(pose[8] ? pose[5] : 'rat-' + id, this.scene)
     body.position.set(x, y, z)
+    const idle = pose[8] ? new BABYLON.TransformNode('idle', this.scene) : undefined
+    if (idle) idle.parent = body
     const part = (asset: string, name: string, x: number, y: number, z: number, offset = 0, back = 0) => {
       const joint = new BABYLON.TransformNode(name, this.scene)
-      joint.parent = body
+      joint.parent = idle ?? body
       joint.position.set(x, y, z)
       let model = this.models.get(asset)
       if (!model) {
@@ -111,7 +129,7 @@ export class Rats {
         wing.scaling.x = side
         return wing
       })
-      const eagle = { body, target: body.position.clone(), wings, pose }
+      const eagle = { body, idle, target: body.position.clone(), wings, pose }
       this.rats.set(id, eagle)
       return eagle
     }
@@ -128,7 +146,7 @@ export class Rats {
     const rat = this.rats.get(id)
     if (!rat || this.dialog?.open) return
     if (rat.pose[8] === 'eagle') {
-      app.showSnackbar(rat.pose[5])
+      app.showSnackbar([rat.pose[5], rat.pose[9]?.[0]].filter(Boolean).join(' - '))
       return
     }
     const [, , , , , name, by, cap] = rat.pose

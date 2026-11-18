@@ -436,7 +436,8 @@ extensionCodec.register({
   },
 })
 
-export type RatPose = [id: number, x: number, y: number, z: number, carrying: boolean, name: string, namedBy: string | null, cap: boolean, species?: 'eagle']
+export type EaglePose = [state: string, pitch: number, yaw: number, idle_position: [number, number, number], idle_rotation: [number, number, number]]
+export type RatPose = [id: number, x: number, y: number, z: number, carrying: boolean, name: string, namedBy: string | null, cap: boolean, species?: 'eagle', flight?: EaglePose]
 export type DressRat = { type: MessageType.dressRat; id: number; name: string; cap: boolean }
 
 export type WorldStateMessage = {

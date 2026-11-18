@@ -24,7 +24,7 @@ reserves their full uncompressed size in its texture budget.
 
 Destination in the texture bucket:
 `parcel/6822/YfJx2r.jpg/width=256,height=256,fit=cover,format=astc.ktx`.
-The engine calls the Function, which redirects only to objects confirmed in the bucket.
+The engine calls /textures/compress on compressed.voxels.com. The compressor forwards the request to the Function, which redirects only to objects confirmed in the bucket.
 The Function checks the bucket, compresses and uploads on a miss, and redirects
 to the CDN. Failures return 503 with Retry-After: 30; the engine falls back to
 the existing compressor. DO supplies CORS headers for web Functions.

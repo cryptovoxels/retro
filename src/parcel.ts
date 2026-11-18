@@ -244,13 +244,13 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   get needsMint() {
-    return typeof this.id === 'number' && this.id >= 9100
+    return this.summary.is_common === false && typeof this.id === 'number' && this.id >= 9100
   }
 
   async requestMint() {
-    if (typeof this.id !== 'number') return
+    if (!this.needsMint || typeof this.id !== 'number') return
     try {
-      await mintParcel(this as any)
+      await mintParcel({ ...this.summary, id: this.id })
     } catch (err) {
       console.error('On-chain minting failed:', err)
     }
@@ -351,7 +351,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   get sandbox() {
-    return !!this.summary.sandbox
+    return !this.summary.is_common && !!this.summary.sandbox
   }
 
   get hostedScripts() {
@@ -1091,7 +1091,7 @@ export default class Parcel extends TypedEventTarget<ParcelEventMap> {
   }
 
   private sendFieldChange(fieldChange: [number, number, number][], value: number) {
-    if (this.autobuilt) {
+    if (this.autobuilt && !this.summary.is_common) {
       this.sendPatch({
         voxels: this.voxels,
       })

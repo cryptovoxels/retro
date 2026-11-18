@@ -1,3 +1,6 @@
+import { commonsBuild } from '../common/voxels/commons'
+import { statsRoutes } from '../stats/server'
+import { requestLog } from '../common/request-log'
 import fs from 'fs'
 import http from 'http'
 import https from 'https'
@@ -145,6 +148,7 @@ const signInRateLimit = rateLimit({
 
 // Configure express
 const app: Express = express()
+app.use(requestLog('web'))
 
 if (process.env.NODE_ENV === 'development') {
   app.use((req, res, next) => {
@@ -161,6 +165,7 @@ const httpServer = http.createServer(app)
 httpServer.setTimeout(1000 * 25)
 
 app.use(cookieParser())
+statsRoutes(app, passport)
 app.use(bodyParser.json({ limit: '50mb' }))
 
 // Add error handler for body-parser JSON errors (recommended approach)
@@ -566,7 +571,12 @@ app.get('/api/parcels/:id.json', cache(config.isDevelopment ? false : '15 second
   if (isNaN(id) || id < 1 || id > 2147483647) return res.status(400).json({ success: false })
 
   const result = await query(db, 'get-parcel', 'parcel', [id, isOwner(req)])
-  if (result.success) return res.status(200).json(result)
+  if (result.success) {
+    const parcel = result.parcel as any
+    parcel.content = commonsBuild(parcel)
+    delete parcel.commons
+    return res.status(200).json(result)
+  }
 
   if (config.isDevelopment) return parcelProxy(req, res, next)
 

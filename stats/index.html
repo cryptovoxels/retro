@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="robots" content="noindex" />
+    <title>network / voxels</title>
+    <style>
+      :root {
+        --bg: #080b10;
+        --panel: #111722;
+        --grid: #303b4a;
+        --text: #eff4fb;
+        --muted: #aab5c6;
+        --cyan: #00e5ff;
+        --pink: #ff38b8;
+        --lime: #b7ff38;
+        --orange: #ff922b;
+        --violet: #a78bfa;
+        --red: #ff5263;
+        --mono: 'SFMono-Regular', Consolas, monospace;
+        color-scheme: dark;
+      }
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          14px system-ui,
+          sans-serif;
+      }
+      main {
+        max-width: 1520px;
+        margin: auto;
+        padding: 0 clamp(16px, 4vw, 64px) 4rem;
+      }
+      header,
+      nav,
+      .row,
+      .head {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        flex-wrap: wrap;
+      }
+      .row,
+      .head,
+      header {
+        justify-content: space-between;
+      }
+      header {
+        min-height: 68px;
+        border-bottom: 1px solid var(--grid);
+      }
+      .brand {
+        font-size: 23px;
+        font-weight: 860;
+        letter-spacing: -0.08em;
+      }
+      .brand i {
+        font-style: normal;
+        color: var(--cyan);
+        margin-right: 0.5rem;
+      }
+      .stamp,
+      button,
+      select,
+      td,
+      .metric,
+      .key,
+      .status {
+        font: 12px var(--mono);
+        font-variant-numeric: tabular-nums;
+      }
+      .stamp,
+      .key {
+        color: var(--muted);
+      }
+      h1 {
+        font-size: clamp(38px, 5.4vw, 78px);
+        line-height: 0.98;
+        letter-spacing: -0.075em;
+        margin: 1.8rem 0;
+      }
+      h2 {
+        font-size: 18px;
+        letter-spacing: -0.035em;
+        margin: 0;
+      }
+      .head {
+        padding: 1rem 0;
+      }
+      .status {
+        color: var(--lime);
+      }
+      button,
+      select {
+        cursor: pointer;
+        color: var(--muted);
+        background: var(--panel);
+        border: 1px solid var(--grid);
+        padding: 0.55rem 0.7rem;
+      }
+      button[aria-pressed='true'] {
+        background: var(--cyan);
+        color: var(--bg);
+        border-color: var(--cyan);
+      }
+      button:hover,
+      select:hover {
+        color: var(--text);
+        border-color: var(--cyan);
+      }
+      button[aria-pressed='true']:hover {
+        color: var(--bg);
+      }
+      nav {
+        gap: 5px;
+      }
+      nav select {
+        margin-left: 0.5rem;
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        background: var(--panel);
+        margin: 1rem 0;
+        border-block: 1px solid var(--grid);
+      }
+      .metric {
+        padding: 1rem;
+        border-right: 1px solid var(--grid);
+      }
+      .metric:last-child {
+        border: 0;
+      }
+      .metric strong {
+        display: block;
+        font-size: clamp(24px, 3.3vw, 48px);
+        font-weight: 500;
+        margin-top: 7px;
+        letter-spacing: -0.08em;
+        color: var(--c);
+      }
+      figure {
+        padding: 0;
+        margin: 0;
+      }
+      canvas {
+        width: 100%;
+        height: 230px;
+        display: block;
+        background: var(--panel);
+      }
+      .legend {
+        display: flex;
+        gap: 1rem;
+      }
+      .legend span:before {
+        content: '';
+        display: inline-block;
+        width: 8px;
+        height: 8px;
+        margin-right: 0.4rem;
+        background: var(--c);
+      }
+      .axis {
+        display: flex;
+        justify-content: space-between;
+        margin: 0.5rem 0 1rem;
+      }
+      .split {
+        display: grid;
+        grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+        gap: 2rem;
+      }
+      .list {
+        min-height: 5rem;
+      }
+      .item {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0.55rem;
+        padding: 0.45rem 0;
+        border-bottom: 1px solid var(--grid);
+        font: 12px var(--mono);
+      }
+      .item span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .item b {
+        color: var(--pink);
+      }
+      .goal {
+        color: var(--muted);
+        margin: 0.6rem 0;
+        font: 12px var(--mono);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: left;
+      }
+      th {
+        color: var(--muted);
+        font-weight: 500;
+      }
+      td,
+      th {
+        padding: 0.45rem 0.65rem 0.45rem 0;
+        border-bottom: 1px solid var(--grid);
+        white-space: nowrap;
+      }
+      .scroll {
+        overflow: auto;
+        max-height: 510px;
+      }
+      .bad {
+        color: var(--pink);
+      }
+      .good {
+        color: var(--lime);
+      }
+      a {
+        color: var(--cyan);
+      }
+      [hidden] {
+        display: none !important;
+      }
+      .notice {
+        padding: 1rem;
+        border-left: 3px solid var(--orange);
+        background: var(--panel);
+      }
+      @media (max-width: 700px) {
+        .metrics {
+          grid-template-columns: 1fr 1fr;
+        }
+        .split {
+          grid-template-columns: 1fr;
+          gap: 0.5rem;
+        }
+        .stamp {
+          font-size: 10px;
+        }
+        canvas {
+          height: 170px;
+        }
+        .metric {
+          padding: 0.65rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <div class="brand"><i aria-hidden="true">&#9638;</i>voxels</div>
+        <span class="stamp">stats.voxels.com</span>
+      </header>
+      <div class="row">
+        <h1>network monitor</h1>
+        <span id="state" class="status" role="status">connecting</span>
+      </div>
+      <div class="row">
+        <nav aria-label="Time range">
+          <button data-span="15m" aria-pressed="true">15 min</button><button data-span="1h">1 hour</button><button data-span="24h">24 hours</button><button data-span="30d">30 days</button
+          ><select id="svc" aria-label="Service">
+            <option value="">all services</option>
+            <option>web</option>
+            <option>mp</option>
+            <option>compressor</option>
+            <option>renderer</option>
+            <option>compiler</option>
+            <option>function</option>
+          </select>
+        </nav>
+        <button id="pause">pause live</button>
+      </div>
+      <p id="notice" class="notice" hidden></p>
+      <div class="metrics">
+        <div class="metric" style="--c: var(--cyan)">requests<strong id="total">--</strong></div>
+        <div class="metric" style="--c: var(--pink)">failed requests<strong id="errors">--</strong></div>
+        <div class="metric" style="--c: var(--orange)">error rate<strong id="rate">--</strong></div>
+        <div class="metric" style="--c: var(--violet)">p95 response<strong id="latency">--</strong></div>
+      </div>
+      <figure>
+        <div class="head">
+          <h2>request traffic</h2>
+          <div class="legend key"><span style="--c: var(--cyan)">requests</span><span style="--c: var(--pink)">errors</span></div>
+        </div>
+        <canvas id="plot" role="img" aria-label="Requests and errors over time"></canvas>
+        <figcaption class="axis key"><span id="from"></span><span id="cursor">UTC</span><span id="to"></span></figcaption>
+      </figure>
+      <div class="split">
+        <section>
+          <div class="head">
+            <h2>failing routes</h2>
+            <span class="key">errors</span>
+          </div>
+          <div class="list" id="routes"></div>
+        </section>
+        <section>
+          <div class="head">
+            <h2>services</h2>
+            <span class="key">errors / requests</span>
+          </div>
+          <div id="services" class="list"></div>
+        </section>
+      </div>
+      <div class="head">
+        <h2>request log</h2>
+        <span id="lag" class="key"></span>
+      </div>
+      <div class="scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>time (UTC)</th>
+              <th>service</th>
+              <th>status</th>
+              <th>ms</th>
+              <th>method / route</th>
+              <th>asset</th>
+              <th>deploy</th>
+            </tr>
+          </thead>
+          <tbody id="events"></tbody>
+        </table>
+      </div>
+      <p id="goal" class="goal"></p>
+    </main>
+    <script>
+      const el = (id) => document.getElementById(id),
+        fmt = (n) => Number(n).toLocaleString('en-US'),
+        utc = (t) => new Date(t).toISOString().slice(11, 23)
+      let span = '15m',
+        service = '',
+        paused = false,
+        data = null,
+        seq = 0,
+        timer,
+        hover = -1
+      function list(id, rows, empty) {
+        const box = el(id)
+        box.replaceChildren()
+        if (!rows.length) {
+          box.textContent = empty
+          return
+        }
+        for (const [name, value] of rows) {
+          const row = document.createElement('div')
+          row.className = 'item'
+          for (const [tag, text] of [
+            ['span', name],
+            ['b', value],
+          ]) {
+            const node = document.createElement(tag)
+            node.textContent = text
+            row.append(node)
+          }
+          box.append(row)
+        }
+      }
+      function draw() {
+        const c = el('plot'),
+          w = c.clientWidth,
+          h = c.clientHeight,
+          d = devicePixelRatio || 1
+        c.width = w * d
+        c.height = h * d
+        const g = c.getContext('2d')
+        g.scale(d, d)
+        const style = getComputedStyle(c),
+          color = (k) => style.getPropertyValue('--' + k).trim()
+        const rows = data?.series || [],
+          max = Math.max(1, ...rows.map((r) => r[1])),
+          left = 46,
+          top = 17,
+          bottom = h - 15,
+          dx = (w - left - 8) / Math.max(1, rows.length - 1)
+        g.font = '10px monospace'
+        for (let i = 0; i < 5; i++) {
+          const y = top + ((bottom - top) * i) / 4
+          g.strokeStyle = color('grid')
+          g.beginPath()
+          g.moveTo(left, y)
+          g.lineTo(w, y)
+          g.stroke()
+          g.fillStyle = color('muted')
+          g.fillText(String(Math.round(max * (1 - i / 4))), 3, y + 3)
+        }
+        for (const [col, ink] of [
+          [1, 'cyan'],
+          [2, 'pink'],
+        ]) {
+          g.beginPath()
+          g.strokeStyle = color(ink)
+          g.lineWidth = 1.5
+          rows.forEach((r, i) => {
+            const x = left + i * dx,
+              y = bottom - ((bottom - top) * r[col]) / max
+            i ? g.lineTo(x, y) : g.moveTo(x, y)
+          })
+          g.stroke()
+        }
+        if (hover >= 0 && rows[hover]) {
+          const r = rows[hover]
+          g.fillStyle = color('muted')
+          g.fillRect(left + hover * dx, top, 1, bottom - top)
+          el('cursor').textContent = utc(r[0]) + ' / ' + fmt(r[1]) + ' requests / ' + fmt(r[2]) + ' errors'
+        } else el('cursor').textContent = data ? 'per ' + data.step + 's / UTC' : 'UTC'
+      }
+      function render(v) {
+        data = v
+        el('total').textContent = fmt(v.total)
+        el('errors').textContent = fmt(v.errors)
+        el('rate').textContent = v.total ? ((100 * v.errors) / v.total).toFixed(2) + '%' : '--'
+        el('latency').textContent = v.latency == null ? '--' : fmt(Math.round(v.latency)) + ' ms'
+        el('lag').textContent = v.lag == null ? '' : 'p95 ingest lag ' + fmt(Math.round(v.lag)) + ' ms'
+        el('goal').textContent =
+          v.baseline == null
+            ? 'Daily target pending the first full UTC baseline day (' + v.baselineDay + ').'
+            : 'Daily target: ' + fmt(Math.floor(v.baseline / 100)) + ' failures or fewer across all services. Baseline: ' + fmt(v.baseline) + ' on ' + v.baselineDay + ' UTC.'
+        list(
+          'routes',
+          v.routes.map(([k, n]) => [k, fmt(n)]),
+          'No failing routes in this window.',
+        )
+        list(
+          'services',
+          v.services.map(([k, n, e]) => [k, fmt(e) + ' / ' + fmt(n)]),
+          'No requests in this window.',
+        )
+        el('events').replaceChildren()
+        for (const e of v.events) {
+          const tr = el('events').insertRow()
+          for (const [i, val] of [utc(e.at), e.service, e.aborted ? 'closed' : e.status, e.ms, e.method + ' ' + e.route, e.asset || '', e.deploy?.slice(0, 8)].entries()) {
+            const td = tr.insertCell()
+            td.textContent = val
+            if (i === 2) td.className = e.aborted || e.status >= 400 ? 'bad' : 'good'
+          }
+        }
+        const stamp = (t) => (span === '30d' ? new Date(t).toISOString().slice(0, 10) : utc(t).slice(0, 8))
+        el('from').textContent = v.series.length ? stamp(v.series[0][0]) : ''
+        el('to').textContent = stamp(v.at)
+        draw()
+      }
+      async function load() {
+        clearTimeout(timer)
+        const id = ++seq
+        if (paused || document.hidden) return
+        try {
+          const url = new URL('/api/admin/network', 'https://www.voxels.com')
+          url.searchParams.set('span', span)
+          url.searchParams.set('service', service)
+          const r = await fetch(url, { credentials: 'include', cache: 'no-store', signal: AbortSignal.timeout(10000) })
+          if (id !== seq) return
+          if (r.status === 401 || r.status === 403) {
+            el('state').textContent = 'team access'
+            el('notice').hidden = false
+            el('notice').innerHTML = 'Sign in with a Voxels team account at <a href="https://www.voxels.com" target="_blank" rel="noopener">www.voxels.com</a>, then return here.'
+            return
+          }
+          if (!r.ok) throw Error()
+          const v = await r.json()
+          if (id !== seq) return
+          render(v)
+          el('notice').hidden = true
+          el('state').textContent = 'live / ' + utc(v.at).slice(0, 8) + ' UTC'
+        } catch {
+          if (id === seq) {
+            el('state').textContent = 'disconnected'
+            el('notice').textContent = 'Request feed unavailable. Reconnecting.'
+            el('notice').hidden = false
+          }
+        } finally {
+          if (id === seq && !paused && !document.hidden) timer = setTimeout(load, span === '30d' ? 60000 : 5000)
+        }
+      }
+      document.querySelectorAll('[data-span]').forEach(
+        (b) =>
+          (b.onclick = () => {
+            span = b.dataset.span
+            document.querySelectorAll('[data-span]').forEach((n) => n.setAttribute('aria-pressed', String(b === n)))
+            paused = false
+            el('pause').textContent = 'pause live'
+            load()
+          }),
+      )
+      el('pause').onclick = () => {
+        paused = !paused
+        el('pause').textContent = paused ? 'resume live' : 'pause live'
+        if (paused) el('state').textContent = 'paused'
+        load()
+      }
+      el('svc').onchange = (e) => {
+        service = e.target.value
+        paused = false
+        el('pause').textContent = 'pause live'
+        load()
+      }
+      el('plot').onpointermove = (e) => {
+        hover = Math.max(0, Math.min((data?.series.length || 1) - 1, Math.round(((e.offsetX - 46) / (el('plot').clientWidth - 54)) * ((data?.series.length || 1) - 1))))
+        draw()
+      }
+      el('plot').onpointerleave = () => {
+        hover = -1
+        draw()
+      }
+      window.addEventListener('resize', draw)
+      document.addEventListener('visibilitychange', load)
+      draw()
+      load()
+    </script>
+  </body>
+</html>

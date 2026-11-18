@@ -1,4 +1,4 @@
-\restrict UKwO8nX6KnZkIHdxWDDzSl8NppFo14WBbpdf1HN5ZLUZqOY2FdynIqp9dT1Pa1d
+\restrict boIJyaJBmZOjXSd9cIBkspbh7LY6eFttY37BqAzlIeD3pCfSYxXp0TMxzBRCwur
 CREATE SCHEMA metrics;
 CREATE EXTENSION IF NOT EXISTS citext WITH SCHEMA public;
 COMMENT ON EXTENSION citext IS 'data type for case-insensitive character strings';
@@ -328,6 +328,29 @@ CREATE SEQUENCE public.costumes_id_seq
     NO MAXVALUE
     CACHE 1;
 ALTER SEQUENCE public.costumes_id_seq OWNED BY public.costumes.id;
+CREATE TABLE public.creatures (
+    id integer NOT NULL,
+    island text NOT NULL,
+    species text NOT NULL,
+    name text NOT NULL,
+    named_by text,
+    named_by_wallet text,
+    cap boolean DEFAULT false NOT NULL,
+    x real NOT NULL,
+    z real NOT NULL,
+    home integer NOT NULL,
+    food integer NOT NULL,
+    carrying boolean DEFAULT false NOT NULL,
+    respawn_at double precision DEFAULT 0 NOT NULL
+);
+CREATE SEQUENCE public.creatures_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+ALTER SEQUENCE public.creatures_id_seq OWNED BY public.creatures.id;
 CREATE TABLE public.delegations (
     user_id uuid NOT NULL,
     wallet public.citext NOT NULL,
@@ -402,6 +425,11 @@ CREATE SEQUENCE public.ghosts_id_seq
     NO MAXVALUE
     CACHE 1;
 ALTER SEQUENCE public.ghosts_id_seq OWNED BY public.ghosts.id;
+CREATE TABLE public.grants (
+    key text NOT NULL,
+    token text NOT NULL,
+    created_at timestamp with time zone DEFAULT now() NOT NULL
+);
 CREATE TABLE public.guest_passes (
     token text NOT NULL,
     parcel_id integer NOT NULL,
@@ -410,6 +438,12 @@ CREATE TABLE public.guest_passes (
     created_by text NOT NULL,
     created_at timestamp with time zone DEFAULT now() NOT NULL,
     revoked_at timestamp with time zone
+);
+CREATE TABLE public.island_drafts (
+    slug text NOT NULL,
+    settings jsonb NOT NULL,
+    ground bytea,
+    content jsonb
 );
 CREATE TABLE public.island_post_hearts (
     post_id integer NOT NULL,
@@ -441,7 +475,8 @@ CREATE TABLE public.islands (
     lakes_geometry_json json,
     content jsonb,
     geometry_json jsonb,
-    position_json jsonb
+    position_json jsonb,
+    ground bytea
 );
 CREATE SEQUENCE public.islands_id_seq
     START WITH 1
@@ -706,46 +741,45 @@ CREATE TABLE public.wearables (
     default_bone text
 );
 CREATE MATERIALIZED VIEW public.search_corpus AS
- WITH src AS (
-         SELECT (p.id)::text AS id,
-            COALESCE(p.name, p.address) AS title,
-            (p.id)::text AS description,
-            p.minted_at AS created_at,
-            'parcel'::text AS kind
-           FROM public.properties p
-          WHERE (p.minted OR p.is_common)
+ WITH src(id, title, description, created_at, kind) AS (
+         SELECT (properties.id)::text AS id,
+            COALESCE(properties.name, properties.address) AS "coalesce",
+            (properties.id)::text AS id,
+            properties.minted_at,
+            'parcel'::text AS "?column?"
+           FROM public.properties
         UNION ALL
-         SELECT (w.id)::text AS id,
-            w.name,
-            w.description,
-            w.created_at,
-            'wearable'::text AS text
-           FROM public.wearables w
+         SELECT (wearables.id)::text AS id,
+            wearables.name,
+            wearables.description,
+            wearables.created_at,
+            'wearable'::text
+           FROM public.wearables
         UNION ALL
-         SELECT av.owner AS id,
-            COALESCE(av.name, av.owner) AS "coalesce",
+         SELECT avatars.owner,
+            COALESCE(avatars.name, avatars.owner) AS "coalesce",
                 CASE
-                    WHEN (av.name IS NOT NULL) THEN av.owner
+                    WHEN (avatars.name IS NOT NULL) THEN avatars.owner
                     ELSE NULL::text
                 END AS "case",
-            av.created_at,
-            'avatar'::text AS text
-           FROM public.avatars av
+            avatars.created_at,
+            'avatar'::text
+           FROM public.avatars
         UNION ALL
-         SELECT (s.id)::text AS id,
-            s.name,
-            NULL::text AS text,
-            s.created_at,
-            'space'::text AS text
-           FROM public.spaces s
-          WHERE (s.unlisted IS DISTINCT FROM true)
+         SELECT (spaces.id)::text AS id,
+            spaces.name,
+            NULL::text,
+            spaces.created_at,
+            'space'::text
+           FROM public.spaces
+          WHERE (spaces.unlisted IS DISTINCT FROM true)
         UNION ALL
-         SELECT (al.id)::text AS id,
-            al.name,
-            al.description,
-            al.created_at,
-            'asset'::text AS text
-           FROM public.asset_library al
+         SELECT (asset_library.id)::text AS id,
+            asset_library.name,
+            asset_library.description,
+            asset_library.created_at,
+            'asset'::text
+           FROM public.asset_library
         )
  SELECT id,
     title,
@@ -807,6 +841,7 @@ ALTER TABLE ONLY public.banned_users ALTER COLUMN id SET DEFAULT nextval('public
 ALTER TABLE ONLY public.collections ALTER COLUMN id SET DEFAULT nextval('public.collections_id_seq'::regclass);
 ALTER TABLE ONLY public.comments ALTER COLUMN id SET DEFAULT nextval('public.comments_id_seq'::regclass);
 ALTER TABLE ONLY public.costumes ALTER COLUMN id SET DEFAULT nextval('public.costumes_id_seq'::regclass);
+ALTER TABLE ONLY public.creatures ALTER COLUMN id SET DEFAULT nextval('public.creatures_id_seq'::regclass);
 ALTER TABLE ONLY public.emoji_badges ALTER COLUMN id SET DEFAULT nextval('public.emoji_badges_id_seq'::regclass);
 ALTER TABLE ONLY public.favorites ALTER COLUMN id SET DEFAULT nextval('public.favorites_id_seq'::regclass);
 ALTER TABLE ONLY public.free_avatars ALTER COLUMN id SET DEFAULT nextval('public.free_avatars_id_seq'::regclass);
@@ -841,6 +876,8 @@ ALTER TABLE ONLY public.comments
     ADD CONSTRAINT comments_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.costumes
     ADD CONSTRAINT costumes_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.creatures
+    ADD CONSTRAINT creatures_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.delegations
     ADD CONSTRAINT delegations_user_id_wallet_key UNIQUE (user_id, wallet);
 ALTER TABLE ONLY public.email_codes
@@ -853,8 +890,12 @@ ALTER TABLE ONLY public.free_avatars
     ADD CONSTRAINT free_avatars_pkey PRIMARY KEY (id);
 ALTER TABLE ONLY public.ghosts
     ADD CONSTRAINT ghosts_pkey PRIMARY KEY (id);
+ALTER TABLE ONLY public.grants
+    ADD CONSTRAINT grants_pkey PRIMARY KEY (key);
 ALTER TABLE ONLY public.guest_passes
     ADD CONSTRAINT guest_passes_pkey PRIMARY KEY (token);
+ALTER TABLE ONLY public.island_drafts
+    ADD CONSTRAINT island_drafts_pkey PRIMARY KEY (slug);
 ALTER TABLE ONLY public.island_post_hearts
     ADD CONSTRAINT island_post_hearts_pkey PRIMARY KEY (post_id, wallet);
 ALTER TABLE ONLY public.island_posts
@@ -976,4 +1017,4 @@ CREATE INDEX womps_parcel_id ON public.womps USING btree (parcel_id);
 CREATE TRIGGER wearables_recalculate_total_wearables_trigger AFTER INSERT ON public.wearables FOR EACH ROW WHEN ((new.token_id IS NOT NULL)) EXECUTE FUNCTION public.recalculate_total_wearables();
 ALTER TABLE ONLY public.island_post_hearts
     ADD CONSTRAINT island_post_hearts_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.island_posts(id) ON DELETE CASCADE;
-\unrestrict UKwO8nX6KnZkIHdxWDDzSl8NppFo14WBbpdf1HN5ZLUZqOY2FdynIqp9dT1Pa1d
+\unrestrict boIJyaJBmZOjXSd9cIBkspbh7LY6eFttY37BqAzlIeD3pCfSYxXp0TMxzBRCwur

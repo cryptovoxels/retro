@@ -47,7 +47,7 @@ export default function renderComponent(res: Response, component: VNode) {
 <html lang="en">
 <head>
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, interactive-widget=overlays-content">
-  <link rel="shortcut icon" href="/favicon.png" />
+  <link rel="icon" type="image/png" href="/images/voxels.png" />
   ${`<link href="${assets.css}" rel="stylesheet" />`}
   ${head}
 </head>

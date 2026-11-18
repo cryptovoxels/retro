@@ -29,6 +29,11 @@ export default async function (req: VoxelsUserRequest, res: Response) {
   const authResult = await authParcel(parcel, req.user)
   const wallet = (req.user && req.user.wallet) || 'ANON'
 
+  if (parcel.is_common && authResult && (authResult !== 'Owner' || 'content' in req.body)) {
+    res.status(403).json({ success: false, error: 'Use the in-world editor for commons edits' })
+    return
+  }
+
   if (authResult) {
     if ('content' in req.body) {
       parcel.setContent(req.body.content)
@@ -108,7 +113,7 @@ export async function revertParcel(req: Request, res: Response) {
     return
   }
 
-  if (parcel.sandbox && authResult) {
+  if (!parcel.is_common && parcel.sandbox && authResult) {
     const ok = await db.query('embedded/check-sandbox-checkpoint', `select id from property_versions where id = $1 and parcel_id = $2 and snapshot_name = 'sandbox-checkpoint' limit 1`, [parcelVersionId, parcel.id])
     if (!ok?.rows[0]?.id) {
       res.json({ success: false, error: 'No sandbox checkpoint' })
@@ -134,7 +139,7 @@ export async function revertParcel(req: Request, res: Response) {
 
 export async function sandboxRollback(req: Request, res: Response) {
   const parcel = await Parcel.load(parseInt(req.params.id, 10))
-  if (!parcel || !parcel.sandbox) {
+  if (!parcel || parcel.is_common || !parcel.sandbox) {
     res.json({ success: false })
     return
   }

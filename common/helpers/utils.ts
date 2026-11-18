@@ -440,3 +440,22 @@ export function createEngine(canvas: any, antialias = false, options: BABYLON.En
   if (!context?.texImage3D) throw new Error('WebGL2 is required')
   return new BABYLON.Engine(context, antialias, options, adaptToDeviceRatio)
 }
+
+// compressor refuses sources over 64MP and the server compiler already caps at 1024, so squash before it hits the bucket
+export async function squashImage<T extends Blob>(blob: T): Promise<T> {
+  if (typeof OffscreenCanvas === 'undefined' || !/^image\/(png|jpeg|webp)$/.test(blob.type)) return blob
+  try {
+    const bitmap = await createImageBitmap(blob)
+    const scale = 1024 / Math.max(bitmap.width, bitmap.height)
+    if (scale >= 1) return blob
+    const canvas = new OffscreenCanvas(Math.max(1, Math.round(bitmap.width * scale)), Math.max(1, Math.round(bitmap.height * scale)))
+    const ctx: any = canvas.getContext('2d')
+    ctx.imageSmoothingQuality = 'high'
+    ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+    bitmap.close()
+    const out = await canvas.convertToBlob({ type: blob.type, quality: 0.9 })
+    return (blob instanceof File ? new File([out], blob.name, { type: blob.type }) : out) as any
+  } catch {
+    return blob
+  }
+}
