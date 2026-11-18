@@ -48,7 +48,7 @@ export default class Radar extends Component<{}, { users: Map<string, User> }> {
     return (
       <details class="inspector-section" open>
         <summary>people online</summary>
-        <p>click a name to join them</p>
+
         <ul class="radar">
           {[...byParcel.entries()].map(([parcelId, users]) => {
             const info = parcelId != null ? getParcel(parcelId).value : null
