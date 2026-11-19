@@ -467,3 +467,10 @@ SELECT apply_migration('search-all-world-parcels', $$
   DROP MATERIALIZED VIEW IF EXISTS search_corpus;
   ALTER MATERIALIZED VIEW search_with_parcels RENAME TO search_corpus;
 $$);
+
+SELECT apply_migration('refresh-recent-parcel-hashes', $$
+  UPDATE properties
+  SET memoized_hash = md5(content::text)
+  WHERE updated_at >= now() - interval '1 month'
+    AND memoized_hash IS DISTINCT FROM md5(content::text);
+$$);

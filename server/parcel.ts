@@ -537,7 +537,8 @@ export default class Parcel extends AbstractParcel {
       UPDATE
         properties p
       SET
-        content = $1,
+        content = $1::json,
+        memoized_hash = md5($1::json::text),
         owner = $2,
         minted = $3,
         visible = $4,

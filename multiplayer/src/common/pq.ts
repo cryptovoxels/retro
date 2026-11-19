@@ -14,7 +14,7 @@ export type ConnectionHandle = {
 }
 
 export function createConnection(appName: string): ConnectionHandle {
-  const connectionString = process.env.DATABASE_URL || ''
+  const connectionString = process.env.DATABASE_URL || `postgres://localhost/voxels`
 
   let sslSettings: boolean | ConnectionOptions = false
   if (process.env.CA_CERT) {
