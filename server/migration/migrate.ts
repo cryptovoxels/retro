@@ -4,7 +4,7 @@ import { join } from 'path'
 
 export async function runMigrations() {
   // bundled __dirname is server/, so ../ misses; cwd is repo root in prod + local
-  const migrationSql = readFileSync(join(process.cwd(), 'server/migrations.sql'))
-  await db.query('embedded/migration', 'SET statement_timeout = 0;\n' + migrationSql.toString())
-  console.log('Migrations ran successfully')
+  // const migrationSql = readFileSync(join(process.cwd(), 'server/migrations.sql'))
+  // await db.query('embedded/migration', 'SET statement_timeout = 0;\n' + migrationSql.toString())
+  // console.log('Migrations ran successfully')
 }

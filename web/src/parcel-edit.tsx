@@ -145,7 +145,6 @@ export default function ParcelEdit(props: Props) {
   }
 
   async function revert(v: Version) {
-    if (!confirm(`Restore the build from ${new Date(v.updated_at).toLocaleString()}? This replaces the current build.`)) return
     setHistoryBusy(true)
     setHistoryMessage('')
     try {

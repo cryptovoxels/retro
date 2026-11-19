@@ -258,6 +258,7 @@ export default class GridShard {
 
     const parcelAuthMsg: ParcelAuthMessage = {
       type: 'parcel-auth',
+      hash: parcel.hash,
       parcelId: parcel.id,
       auth,
     }

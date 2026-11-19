@@ -102,24 +102,20 @@ export async function revertParcel(req: Request, res: Response) {
   const user = (req as VoxelsUserRequest).user || null
   const authResult = await authParcel(parcel, user)
 
-  if (authResult === 'Owner' || authResult === 'Moderator') {
-    await parcel.revert(parcelVersionId)
-    res.json({ success: true })
-    return
-  }
-
-  if (parcel.sandbox && authResult) {
-    const ok = await db.query('embedded/check-sandbox-checkpoint', `select id from property_versions where id = $1 and parcel_id = $2 and snapshot_name = 'sandbox-checkpoint' limit 1`, [parcelVersionId, parcel.id])
-    if (!ok?.rows[0]?.id) {
-      res.json({ success: false, error: 'No sandbox checkpoint' })
-      return
-    }
+  const owner = authResult === 'Owner' || authResult === 'Moderator'
+  if (owner || (parcel.sandbox && authResult)) {
     try {
-      await parcel.revert(parcelVersionId)
-      res.json({ success: true })
+      if (!owner) {
+        const ok = await db.query('embedded/check-sandbox-checkpoint', `select id from property_versions where id = $1 and parcel_id = $2 and snapshot_name = 'sandbox-checkpoint' limit 1`, [parcelVersionId, parcel.id])
+        if (!ok?.rows[0]?.id) {
+          res.json({ success: false, error: 'No sandbox checkpoint' })
+          return
+        }
+      }
+      res.json(await parcel.revert(parcelVersionId))
     } catch (e) {
-      log.error('sandbox revert failed', e)
-      res.json({ success: false, error: 'Revert failed' })
+      log.error('parcel revert failed', e)
+      res.status(500).json({ success: false, error: 'Revert failed' })
     }
     return
   }
@@ -153,8 +149,7 @@ export async function sandboxRollback(req: Request, res: Response) {
       res.json({ success: false, error: 'No checkpoint yet' })
       return
     }
-    await parcel.revert(versionId)
-    res.json({ success: true })
+    res.json(await parcel.revert(versionId))
   } catch (e) {
     log.error('sandbox rollback failed', e)
     res.json({ success: false })

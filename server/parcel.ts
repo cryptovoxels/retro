@@ -360,19 +360,18 @@ export abstract class AbstractParcel implements ParcelRef {
   }
 
   async revert(parcelVersionId: number) {
-    const response = await db.query('embedded/get-parcel-version-content', `select content from property_versions where id = $1`, [parcelVersionId])
+    const response = await db.query('embedded/get-parcel-version-content', `select content from property_versions where id = $1 and parcel_id = $2`, [parcelVersionId, this.id])
 
     if (!response?.rows[0]?.content) {
       return { success: false }
     }
 
-    const snapshotContent = response.rows[0].content
-
-    this.setContent(snapshotContent)
-
-    await this.save()
+    this.content = response.rows[0].content
+    delete this.content.settings
+    if (!(await this.save())) return { success: false }
 
     this.broadcastMeta()
+    return { success: true }
   }
 
   /**

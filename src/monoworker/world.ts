@@ -31,6 +31,11 @@ export function loadIndex(refresh = false): Promise<void> {
   return request
 }
 
+export async function updateHash(id: number, hash: string) {
+  const lot = lots.get(id)
+  if (lot) lot.hash = hash
+}
+
 export async function nearbyLots(position: number[], radius: number): Promise<Lot[]> {
   await loadIndex()
   const [x, y, z] = position
@@ -55,7 +60,7 @@ export async function fetchLots(ids: number[], signal: AbortSignal) {
     try {
       let record = records.find((p) => p.id === id)
       if (!record) {
-        const response = await fetch(new URL(`/grid/parcels/${id}`, self.location.origin), { signal })
+        const response = await fetch(new URL(`/grid/parcels/${id}?hash=${lots.get(id)?.hash}`, self.location.origin), { signal })
         if (!response.ok) continue
         const data: ApiParcelMessage = await response.json()
         if (!data.success) continue

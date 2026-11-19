@@ -46,6 +46,7 @@ export const ParcelAuthMessage = t.type(
     type: t.literal('parcel-auth'),
     parcelId: t.number,
     auth: ParcelAuthResult,
+    hash: t.union([t.string, t.null, t.undefined]),
   },
   'ParcelAuthMessage',
 )

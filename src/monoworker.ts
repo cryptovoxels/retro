@@ -5,7 +5,7 @@ import { groundMesh } from './monoworker/ground-mesh'
 import { islandLayout, islandSurface } from './monoworker/island'
 import { bakeLightmap } from './monoworker/lightmap'
 import { loadVox } from './monoworker/vox'
-import { loadIndex, nearbyLots, fetchLots } from './monoworker/world'
+import { loadIndex, nearbyLots, fetchLots, updateHash } from './monoworker/world'
 import { voxelCollider } from './monoworker/physics'
 
 installAbort()
@@ -23,6 +23,7 @@ const api = {
   loadIndex,
   nearbyLots,
   fetchLots,
+  updateHash,
 }
 
 export type Mono = typeof api

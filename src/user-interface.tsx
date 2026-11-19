@@ -488,8 +488,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         { code: 'Escape', handleEvent: () => this.onEscape() },
         {
           code: 'Tab',
-          handleEvent: this.toggleAdd
-        }
+          handleEvent: this.toggleAdd,
+        },
       ],
       keyUp: [],
     })
@@ -512,7 +512,7 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     }
   }
 
-  get locked () {
+  get locked() {
     return !!document.pointerLockElement
   }
 

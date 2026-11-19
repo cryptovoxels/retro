@@ -670,16 +670,28 @@ export default class Grid extends SocketClient {
 
   private handleParcelAuth(message: ParcelAuthMessage) {
     this.withParcel(message.parcelId, (parcel) => {
+      if (message.hash && message.hash !== parcel.summary.hash) this.refreshBuild(parcel, message.hash)
       if ('auth' in message) {
         parcel.authFromSocket(typeof message.auth !== 'string' ? undefined : message.auth)
       }
     })
   }
 
+  private refreshBuild(parcel: Parcel, hash: string) {
+    if (!this.workerAPI || typeof parcel.id !== 'number' || this.currentW !== 0 || this.preview || this.isolating) return
+    this.workerAPI
+      .updateHash(parcel.id, hash)
+      .then(() => {
+        if (this.getByID(parcel.id) === parcel) this.unload(parcel)
+      })
+      .catch((error) => console.warn('Could not refresh parcel', error))
+  }
+
   private handleParcelMeta(message: ParcelMetaMessage) {
     this.withParcel(message.parcelId, (parcel) => {
       if (message.meta) {
         parcel.updateMeta(message.meta)
+        if (message.meta.hash) this.refreshBuild(parcel, message.meta.hash)
       }
     })
   }
