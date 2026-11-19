@@ -114,6 +114,9 @@ export function CostumePane({ onEdit }: { onEdit: () => void }) {
       {!costumes && !error && <div>Loading costumes...</div>}
       {costumes?.length === 0 && <div>No costumes yet.</div>}
       <ul ref={list} class="costume-list" aria-busy={busy}>
+        <li>
+          <a href="/avatar">Upload Avatar</a>
+        </li>
         {costumes?.map((costume) => (
           <li
             key={costume.id}

@@ -56,16 +56,7 @@ export function InteractPopout() {
         <Icon name="emote" />
       </button>
       {!isMobile() && (
-        <button
-          ref={costumes}
-          type="button"
-          title={app.signedIn ? 'costumes' : 'sign in to change costumes'}
-          disabled={!app.signedIn}
-          aria-expanded={active === 'costumes'}
-          aria-controls="interact-popout"
-          class={!app.signedIn ? 'disabled' : active === 'costumes' ? 'selected' : ''}
-          onClick={() => togglePopout('costumes')}
-        >
+        <button ref={costumes} type="button" title={'costumes'} aria-expanded={active === 'costumes'} aria-controls="interact-popout" class={active === 'costumes' ? 'selected' : ''} onClick={() => togglePopout('costumes')}>
           <Icon name="costumes" />
         </button>
       )}

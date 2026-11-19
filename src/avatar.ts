@@ -15,7 +15,7 @@ import { emote } from './utils/emote'
 import { resolveUgc } from './utils/helpers'
 import { Transform } from './utils/transform'
 import { Bubble } from './chat'
-import { chatStyle, standing } from './utils'
+import { chatStyle } from './utils'
 import { humanoidBones } from './vrm-bones'
 
 const ANONYMOUS_NAME = 'anon'
@@ -46,8 +46,7 @@ export default class Avatar extends Entity {
   private readonly _uuid: string
   private armatureMesh: BABYLON.Mesh | null = null
   private neckBone: BABYLON.Bone | undefined
-  private static shadows = new WeakMap<BABYLON.Scene, BABYLON.StandardMaterial>()
-  private shadowMesh: BABYLON.Mesh | null = null
+  private feet: BABYLON.Bone[] = []
   private nameMesh: BABYLON.Mesh | null = null
   private nameTexture: BABYLON.DynamicTexture | null = null
   private voiceMesh: BABYLON.Mesh | null = null
@@ -656,8 +655,6 @@ export default class Avatar extends Entity {
   public disposeLocal = () => {
     this._bubble?.dispose()
     this._bubble = null
-    this.shadowMesh?.dispose()
-    this.shadowMesh = null
     clearTimeout(this.typingTimer)
 
     this.nameMesh?.dispose()
@@ -1054,6 +1051,8 @@ export default class Avatar extends Entity {
         console.error('could not find the bone named head')
       }
     }
+    const footNames = isVrm && humanoid ? [humanoid.leftFoot, humanoid.rightFoot] : ['leftfoot', 'rightfoot']
+    this.feet = this.skeleton ? footNames.map((name) => this.skeleton!.bones[this.skeleton!.getBoneIndexByName(name ?? '')]).filter(Boolean) : []
 
     if (this.isUser) {
       if (this._avatarMesh) this._avatarMesh.alwaysSelectAsActiveMesh = true
@@ -1080,7 +1079,6 @@ export default class Avatar extends Entity {
     this.collider?.position.set(0, -AVATAR_HEIGHT / 2, 0)
 
     this.loadFinished()
-    this.addShadow()
     if (Date.now() - this.joinedAt < 2000) {
       this.teleportFX(this.absolutePosition, 'avatar.arrive')
     }
@@ -1150,44 +1148,12 @@ export default class Avatar extends Entity {
     this._bubble = new Bubble(this.scene, this.node, text)
   }
 
-  private addShadow() {
-    this.shadowMesh?.dispose()
-    let material = Avatar.shadows.get(this.scene)
-    if (!material) {
-      const texture = new BABYLON.DynamicTexture('avatar/shadow', 64, this.scene, false)
-      const ctx = texture.getContext()
-      const gradient = ctx.createRadialGradient(32, 32, 0, 32, 32, 32)
-      gradient.addColorStop(0, 'rgba(0, 0, 0, 0.22)')
-      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)')
-      ctx.fillStyle = gradient
-      ctx.fillRect(0, 0, 64, 64)
-      texture.hasAlpha = true
-      texture.update()
-      material = new BABYLON.StandardMaterial('avatar/shadow', this.scene)
-      material.diffuseTexture = texture
-      material.useAlphaFromDiffuseTexture = true
-      material.disableLighting = true
-      material.freeze()
-      Avatar.shadows.set(this.scene, material)
-      const shared = material
-      this.scene.onDisposeObservable.add(() => {
-        shared.dispose(false, true)
-        Avatar.shadows.delete(this.scene)
-      })
-    }
-    const mesh = BABYLON.MeshBuilder.CreateGround('avatar/shadow', { width: 0.65, height: 0.45 }, this.scene)
-    mesh.material = material
-    mesh.isPickable = false
-    mesh.addLODLevel(AVATAR_VIEW_DISTANCE, null)
-    this.shadowMesh = mesh
-    const update = () => {
-      mesh.setEnabled(this.node.isEnabled() && !!this.armatureMesh?.visibility && !this._vehicle && standing(this.animationOverride ?? this.animation?.state ?? this.startAnimation))
-      mesh.position.copyFrom(this.absolutePosition)
-      mesh.position.y -= AVATAR_HEIGHT - 0.015
-    }
-    update()
-    const observer = this.scene.onBeforeRenderObservable.add(update)
-    mesh.onDisposeObservable.add(() => this.scene.onBeforeRenderObservable.remove(observer))
+  // World position of foot 0 or 1, falling back to the soles when the rig has no feet.
+  footPosition(i: number, out: BABYLON.Vector3) {
+    const bone = this.feet[i]
+    if (bone && this.armatureMesh) return bone.getAbsolutePositionToRef(this.armatureMesh, out)
+    out.copyFrom(this.absolutePosition)
+    out.y -= this.height - 0.1
   }
 
   /**

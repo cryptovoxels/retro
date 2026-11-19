@@ -135,7 +135,11 @@ const Main = () => {
 
         <div hidden={closed && !isPageTool(uiPane.value)} class={[worldUi.value && play && engaged ? 'page mini' : 'page', play && engaged ? 'play' : ''].join(' ')}>
           <div class="page-route">
-            {!lightBroadcast && <button onClick={() => setClosed(true)}>close</button>}
+            {!lightBroadcast && (
+              <button class="closer" onClick={() => setClosed(true)}>
+                close
+              </button>
+            )}
             <Router onChange={handleRoute}>
               {AppRoutes()}
               <RadioPopout path="/radio" />

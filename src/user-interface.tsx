@@ -63,7 +63,6 @@ import { HelpOverlay } from './ui/interact/help'
 import { FirstTimeInstructions } from '../web/src/components/first-time-instructions'
 import { BroadcastSidebarTab } from '../web/src/broadcast-sidebar-tab'
 import { ShowboxBroadcastPane } from '../web/src/showbox-broadcast-pane'
-import { WompOverlay } from './ui/interact/womps'
 import MobileButtons from './ui/mobile/buttons'
 import OpenLink from './ui/open-link'
 import { BuildTab } from './ui/overlay/build-tab/build-tab'
@@ -836,8 +835,6 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         return <SettingsUI scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
       case 'avatar':
         return <AvatarTab />
-      case 'womp':
-        return <WompOverlay scene={this.props.scene} minimapSettings={this.props.minimapSettings} />
       case 'takeWomp': {
         const w = pendingWomp.value
         if (!w) return null

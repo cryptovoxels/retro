@@ -11,6 +11,7 @@ import { ghostSettings } from '../ghosts'
 import { voiceSettings } from '../voice-settings'
 import { DEFAULT_SENSITIVITY, MAX_SENSITIVITY, MIN_SENSITIVITY } from '../controls/user-control-settings'
 import { getTheme, setTheme } from '../../common/helpers/theme'
+import { shadowEnabled, shadowGamma, shadowIntensity, shadowSize } from '../graphic/avatar-occlusion'
 
 function toReversedPercentage(value: number, min: number, max: number): number {
   return ((max - value) / (max - min)) * 100
@@ -287,6 +288,16 @@ export class SettingsUI extends Component<Props, State> {
             <dd>
               <input id="opacity-sorting" type="checkbox" checked={!!this.state.graphic.opacitySorting} onChange={(e) => this.changeRendering('opacitySorting', e.currentTarget.checked)} />
             </dd>
+            {window.graphic?.postProcesses?.avatarShadow && (
+              <>
+                <dt>
+                  <label for="avatar-shadows">Avatar shadows</label>
+                </dt>
+                <dd>
+                  <input id="avatar-shadows" type="checkbox" checked={shadowEnabled.value} onChange={(e) => (shadowEnabled.value = e.currentTarget.checked)} />
+                </dd>
+              </>
+            )}
             {!isMobile() && (
               <>
                 <dt>Quality</dt>
@@ -302,6 +313,25 @@ export class SettingsUI extends Component<Props, State> {
             )}
           </dl>
           <p>Changing reflections or opacity sorting reloads the world.</p>
+          {window.graphic?.postProcesses?.avatarShadow && (
+            <details>
+              <summary>shadow tuning</summary>
+              <dl class="props">
+                <dt>Intensity</dt>
+                <dd>
+                  <input type="range" min={0} max={1} step={0.05} value={shadowIntensity.value} onInput={(e) => (shadowIntensity.value = +e.currentTarget.value)} />
+                </dd>
+                <dt>Gamma</dt>
+                <dd>
+                  <input type="range" min={0.1} max={10} step={0.05} value={shadowGamma.value} onInput={(e) => (shadowGamma.value = +e.currentTarget.value)} />
+                </dd>
+                <dt>Size</dt>
+                <dd>
+                  <input type="range" min={0.1} max={2} step={0.05} value={shadowSize.value} onInput={(e) => (shadowSize.value = +e.currentTarget.value)} />
+                </dd>
+              </dl>
+            </details>
+          )}
         </section>
 
         <section>

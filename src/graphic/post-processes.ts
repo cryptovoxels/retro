@@ -2,7 +2,10 @@ import { GraphicLevels, type GraphicEngine } from './graphic-engine'
 import type { ColorGrader } from './color-grading'
 import { isMobile, wantsGateway } from '../../common/helpers/detector'
 
+import { avatarOcclusion } from './avatar-occlusion'
+
 export class PostProcesses {
+  readonly avatarShadow: BABYLON.PostProcess | null
   private readonly scene: BABYLON.Scene
   private readonly colorGrader: ColorGrader
   private readonly pipelines: Record<GraphicLevels, BABYLON.PostProcessRenderPipeline>
@@ -54,11 +57,13 @@ export class PostProcesses {
       this.pixels += Math.sign(this.pixelTarget - this.pixels) * Math.min(step, Math.abs(this.pixelTarget - this.pixels))
     })
 
+    this.avatarShadow = !isMobile() && !wantsGateway() ? avatarOcclusion(scene) : null
+    const graded = this.avatarShadow ? [this.colorGrader.postProcess, this.avatarShadow] : [this.colorGrader.postProcess]
     this.pipelines = {
-      [GraphicLevels.Low]: this.createPipeline(GraphicLevels.Low, [this.colorGrader.postProcess, pixelation]),
-      [GraphicLevels.Medium]: this.createPipeline(GraphicLevels.Medium, [this.colorGrader.postProcess, pixelation]),
-      [GraphicLevels.High]: this.createPipeline(GraphicLevels.High, [this.colorGrader.postProcess, sharpen, pixelation]),
-      [GraphicLevels.Ultra]: this.createPipeline(GraphicLevels.Ultra, [this.colorGrader.postProcess, sharpen, pixelation]),
+      [GraphicLevels.Low]: this.createPipeline(GraphicLevels.Low, [...graded, pixelation]),
+      [GraphicLevels.Medium]: this.createPipeline(GraphicLevels.Medium, [...graded, pixelation]),
+      [GraphicLevels.High]: this.createPipeline(GraphicLevels.High, [...graded, sharpen, pixelation]),
+      [GraphicLevels.Ultra]: this.createPipeline(GraphicLevels.Ultra, [...graded, sharpen, pixelation]),
     }
 
     // Initialize with current graphics level

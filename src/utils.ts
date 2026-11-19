@@ -1,4 +1,3 @@
-import { Animations } from './avatar-animations'
 import { FEATURE_LOD_DISTANCE } from './graphic/draw-distance'
 import type Feature from './features/feature'
 
@@ -101,10 +100,6 @@ export function chatLines(ctx: CanvasRenderingContext2D, text: string) {
     lines[2] += '...'
   }
   return lines
-}
-
-export function standing(animation: Animations) {
-  return animation === Animations.Idle || animation === Animations.Walk || animation === Animations.Run
 }
 
 export function featureOrder(features: import('../common/messages/feature').FeatureRecord[]) {

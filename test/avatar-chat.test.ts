@@ -3,7 +3,7 @@ import { Bubble } from '../src/chat'
 import Avatar from '../src/avatar'
 import { matcher } from '../src/obscenity'
 import { isHate } from '../src/hate'
-import { chatLines, chatStyle, standing } from '../src/utils'
+import { chatLines, chatStyle } from '../src/utils'
 import { Animations } from '../src/avatar-animations'
 
 vi.mock('../web/src/state', () => ({ app: {} }))
@@ -106,12 +106,6 @@ test('chat styles come from CSS and long text wraps into at most three bounded l
   for (const line of chatLines(context, 'x'.repeat(200))) expect(context.measureText(line).width).toBeLessThanOrEqual(464)
 })
 
-test('only idle, walking and running allow a shadow', () => {
-  for (const state of Object.values(Animations).filter((v) => typeof v === 'number')) {
-    expect(standing(state)).toBe([Animations.Idle, Animations.Walk, Animations.Run].includes(state))
-  }
-})
-
 function testAvatar() {
   const avatar: any = Object.create(Avatar.prototype)
   avatar.scene = scene
@@ -132,38 +126,6 @@ test('new avatar chat immediately replaces the previous bubble', () => {
   expect(avatar._bubble.text).toBe('second')
   frame(20000)
   expect(avatar._bubble.isDisposed()).toBe(false)
-})
-
-test('shadow follows feet, hides for vehicles and hidden avatars, shares resources and cleans up', () => {
-  const avatar = testAvatar()
-  avatar.addShadow()
-  const mesh = avatar.shadowMesh
-  const other = testAvatar()
-  other.addShadow()
-  expect(other.shadowMesh.material).toBe(mesh.material)
-  parent.position.set(2, 3, 4)
-  frame(1)
-  expect(mesh.position.x).toBe(2)
-  expect(mesh.position.y).toBeCloseTo(1.415)
-  expect(mesh.isEnabled()).toBe(true)
-  avatar.animation.state = Animations.Floating
-  frame(2)
-  expect(mesh.isEnabled()).toBe(false)
-  avatar.animation.state = Animations.Run
-  avatar._vehicle = {}
-  frame(3)
-  expect(mesh.isEnabled()).toBe(false)
-  avatar._vehicle = null
-  avatar.armatureMesh.visibility = 0
-  frame(4)
-  expect(mesh.isEnabled()).toBe(false)
-  const shared = mesh.material
-  mesh.dispose()
-  expect(scene.materials).toContain(shared)
-  other.shadowMesh.dispose()
-  expect(scene.onBeforeRenderObservable.hasObservers()).toBe(false)
-  scene.dispose()
-  expect(scene.materials).not.toContain(shared)
 })
 
 test('wrapped messages keep moderation blur and render emoji as whole code points', () => {

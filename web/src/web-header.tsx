@@ -292,13 +292,11 @@ export default class WebHeader extends Component<Props, State> {
               {signedIn ? <UserMenu /> : <A to="/account">Login</A>}
               <F name="Building">
                 <ul>
-                  <A to="/build">Build</A>
                   {signedIn && <A to="/costumer">Costume</A>}
                   <A to="/golive">Go live</A>
                 </ul>
                 {ui && (
                   <ul class="world-actions">
-                    <A to="/avatar">Avatar</A>
                     {admin && parcel && (
                       <>
                         <W go={() => void parcel.resave()}>resave</W>

@@ -25,8 +25,6 @@ interface TileProps {
   nearbyCount?: number
   hoverText?: string
   openInSameWindow?: boolean
-  onClick?: (womp: Womp) => boolean | void
-  onAvatarClick?: (coords: string) => boolean | void
 }
 
 // 12 hours -> 12h
@@ -36,14 +34,6 @@ export function WompTile(props: TileProps) {
   const nearbyCount = props.nearbyCount ?? props.womp.nearby_count
   const rich = /\b-medium\b/.test(props.className || '')
 
-  const onClick = (e: Event) => {
-    if (!props.onClick) {
-      return
-    }
-    props.onClick.bind(props, props.womp)()
-    e.preventDefault()
-  }
-
   const location = props.womp.parcel_id ? (props.womp.parcel_name ?? props.womp.parcel_address) : (props.womp.space_name ?? 'The Void')
   const author = avatarName(props.womp.author) || 'anon'
   const when = props.womp.created_at ? timeFormat(props.womp.created_at) : ''
@@ -51,7 +41,7 @@ export function WompTile(props: TileProps) {
 
   return (
     <div class={`tile womp ${props.className || ''}`.trim()} title={props.hoverText}>
-      <a onClick={onClick} href={`/womps/${props.womp.id}`}>
+      <a href={`/womps/${props.womp.id}`}>
         <div class="thumb">
           <img loading="lazy" src={props.womp.image_url} />
         </div>

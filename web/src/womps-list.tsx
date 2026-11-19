@@ -20,8 +20,6 @@ interface Props {
   womps?: Womp[]
   mobilePreview?: number
   // in-world explorer: cards teleport instead of routing, see-more swaps the panel
-  onWompClick?: (womp: Womp) => void
-  onSeeMore?: () => void
   quiet?: boolean
 }
 
@@ -93,7 +91,7 @@ export default class WompsList extends Component<Props, State> {
     const allWomps = this.state.womps!.map((womp) => {
       // if parcel_id is undefined, it's likely a space; which has 0 count by default for now.
       const nearbyCount = womp.parcel_id ? this.state.activeParcels?.get(womp.parcel_id) : 0
-      return <WompTile key={womp.id} nearbyCount={nearbyCount} openInSameWindow={true} onClick={this.props.onWompClick} className={`${this.state.collapsed ? '' : '-medium'} `} womp={womp} hoverText={`Click to teleport to ${womp.coords}`} />
+      return <WompTile key={womp.id} nearbyCount={nearbyCount} openInSameWindow={true} className={`${this.state.collapsed ? '' : '-medium'} `} womp={womp} hoverText={`Click to teleport to ${womp.coords}`} />
     })
 
     const womps = allWomps
