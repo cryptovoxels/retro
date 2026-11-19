@@ -488,20 +488,8 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         { code: 'Escape', handleEvent: () => this.onEscape() },
         {
           code: 'Tab',
-          handleEvent: (e: KeyboardEvent) => {
-            if (this.activeTool === this.voxelTool || this.state.pane === 'voxels') {
-              e.preventDefault()
-              this.exitVoxels()
-              exitPointerLock()
-              this.setPane('add')
-              return
-            }
-            if (this.state.pane) return
-
-            this.setPane('add')
-            return
-          },
-        },
+          handleEvent: this.toggleAdd
+        }
       ],
       keyUp: [],
     })
@@ -521,6 +509,20 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
         shiftKey: true,
         handleEvent: () => this.selectVoxelTint(i),
       })
+    }
+  }
+
+  get locked () {
+    return !!document.pointerLockElement
+  }
+
+  toggleAdd = (e: KeyboardEvent) => {
+    if (this.locked) {
+      e.preventDefault()
+      this.exitVoxels()
+      exitPointerLock()
+      this.setPane('add')
+      return
     }
   }
 
