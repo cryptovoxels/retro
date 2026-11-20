@@ -1,6 +1,7 @@
 // ABOUTME: esbuild the production bundles. Dev watches the client only.
 // ABOUTME: Node bundles include dependencies. Browser bundles inline public env.
 
+import { compileRig } from './critter-rig.mjs'
 import * as esbuild from 'esbuild'
 import fs from 'fs'
 import path from 'path'
@@ -84,6 +85,10 @@ function textPlugin() {
   return {
     name: 'text',
     setup(build) {
+      build.onLoad({ filter: /\.rig\.lua$/ }, async ({ path }) => ({
+        contents: compileRig(await fs.promises.readFile(path, 'utf8')),
+        loader: 'js',
+      }))
       build.onLoad({ filter: /\.(md|vsh|fsh|fx)$/ }, (args) => ({
         contents: fs.readFileSync(args.path, 'utf8'),
         loader: 'text',

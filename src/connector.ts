@@ -1,4 +1,4 @@
-import { Rats } from './rats'
+import { Critters } from './critters'
 import { chatTime, mergeChat } from '../common/utils'
 import { v7 as uuid } from 'uuid'
 import type { AvatarRef } from '../common/messages/avatar-ref'
@@ -93,7 +93,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   currentParcelId: number | undefined
   multiplayerClient!: WebSocket
   private lazyAvatarDisposer = createLazyDisposer<string>(AVATAR_DISPOSE_DELAY_MS, ({ item: avatarUuid }) => this.disposeAvatar(avatarUuid))
-  private rats?: Rats
+  private critters?: Critters
   private readonly scene: BABYLON.Scene
   grid: Grid
   private nearbyAvatarsToSelfCached: { avatars: Readonly<Avatar[]>; timestamp: number } | null = null
@@ -194,7 +194,11 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
       orientation: this.persona.orientation,
       inConga: this.inConga,
       congaFollowsUuid: this.controls.congaTarget?.uuid ?? null,
-      texasDraft: this.grid.preview?.name.toLowerCase() === 'texas',
+      draft: this.grid.preview?.name
+        .trim()
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-|-$/g, ''),
       vehicle: this.controls.getVehicleAvatarPayload?.() ?? null,
     })
   }
@@ -308,7 +312,7 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
     this.multiplayerClient.binaryType = 'arraybuffer'
 
     this.multiplayerClient.addEventListener('message', this.onMessage)
-    this.multiplayerClient.addEventListener('close', () => this.rats?.update([]))
+    this.multiplayerClient.addEventListener('close', () => this.critters?.update([]))
 
     this.multiplayerClient.addEventListener('connecting', () => {
       this.isOpen = false
@@ -499,9 +503,9 @@ export default class Connector extends TypedEventTarget<{ avatar_joined: string 
   }
 
   onWorldState(message: messages.WorldStateMessage) {
-    if (message.rats) {
-      this.rats ??= new Rats(this.scene, (id, name, cap) => this.send({ type: MessageType.dressRat, id, name, cap }))
-      this.rats.update(message.rats)
+    if (message.critters) {
+      this.critters ??= new Critters(this.scene)
+      this.critters.update(message.critters)
     }
     message.avatars.forEach((msg) => this.onMoveAvatar(msg))
   }

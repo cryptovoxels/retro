@@ -1,8 +1,9 @@
 import { defineConfig } from 'vitest/config'
+import { compileRig } from './scripts/critter-rig.mjs'
 import path from 'path'
 
 export default defineConfig({
-  plugins: [],
+  plugins: [{ name: 'critter-rig', enforce: 'pre', transform: (code, id) => (id.endsWith('.rig.lua') ? compileRig(code) : null) }],
 
   // JSX configuration for Preact
   esbuild: {
