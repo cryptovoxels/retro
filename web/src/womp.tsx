@@ -85,12 +85,14 @@ export default class Womp extends Component<Props, State> {
   // the world this womp was shot in, so the header Play button enters it
   get visitUrl() {
     const coords = this.state.womp?.coords
-    if (!coords) return undefined
-    return this.isSpaceWomp() ? `/spaces/${this.state.womp.space_id}/play` : `/play?coords=${coords}`
+    const path = this.isSpaceWomp() ? `/spaces/${this.state.womp.space_id}/play` : '/play'
+    if (coords) return `${path}?coords=${encodeURIComponent(coords)}`
+    if (this.isSpaceWomp()) return path
+    if (this.state.womp.parcel_id) return `/parcels/${this.state.womp.parcel_id}/visit`
   }
 
   syncVisitUrl() {
-    if (this.visitUrl) app.visitUrl.value = this.visitUrl
+    app.visitUrl.value = this.visitUrl
   }
 
   isSpaceWomp() {
@@ -142,14 +144,18 @@ export default class Womp extends Component<Props, State> {
 
     const img = this.state.womp.image_url
     const name = this.state.womp.author ? avatarName(this.state.womp.author) : null
-    const title = this.state.womp.title ? this.state.womp.title : `Womp ${this.state.womp.id}`
+    const womp = this.state.womp
+    const place = [womp.space_name || womp.parcel_name || womp.parcel_address, womp.parcel_island].filter(Boolean).join(', ')
+    const title = womp.title || place || (name ? `Womp by ${name}` : `Womp ${womp.id}`)
+    const description = womp.content || `An in-world photo${name ? ` by ${name}` : ''}${place ? ` at ${place}` : ''}.`
 
     return (
       <section>
-        <Head title={title} description={this.state.womp.content || (name ? `Womp by ${name}` : undefined)} url={`/womps/${this.state.womp.id}`} imageURL={img} />
+        <Head title={title} description={description} url={`/womps/${this.state.womp.id}`} imageURL={img} />
         <h1>{title}</h1>
 
-        <img src={img} class="womp" />
+        <img src={img} class="womp" alt={description} />
+        {this.visitUrl && <a href={this.visitUrl}>Visit this spot</a>}
 
         {this.renderAside(img)}
       </section>

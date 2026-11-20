@@ -5,6 +5,7 @@ import type Grid from '../grid'
 import Connector from '../connector'
 import PlayerCamera from './utils/player-camera'
 import PlayerBody, { WALK, RUN } from './utils/player-body'
+import { track } from '../../web/src/helpers/umami'
 import { isLoaded } from '../utils/loading-done'
 import Feature, { MeshExtended } from '../features/feature'
 import Avatar from '../avatar'
@@ -76,6 +77,14 @@ const easeCamera = (current: number, target: number, easingSpeed = CAMERA_EASE_O
  * The minimum camera distance for the player's avatar to be displayed to themselves
  */
 const MIN_CAMERA_DISTANCE_FOR_SELF_AVATAR = 0.2
+
+let moved = false
+
+function firstMove() {
+  if (moved || !isLoaded()) return
+  moved = true
+  track('first_move')
+}
 
 export default abstract class Controls implements IControls {
   camera: PlayerCamera = undefined!
@@ -155,6 +164,7 @@ export default abstract class Controls implements IControls {
   private floorWait: number[] | null = []
   /** seconds left on the F lift */
   private lift = 0
+  private jumped = false
   private floorRetry = 0
 
   constructor(
@@ -238,7 +248,7 @@ export default abstract class Controls implements IControls {
         this.body.position.y += t1 * (2 - t1) - t0 * (2 - t0)
       }
       // XR moves this same body from the tracked headset pose in XROverlay.tick.
-      if (!(this.scene.activeCamera instanceof BABYLON.WebXRCamera)) this.body.step(this.move, dt)
+      if (!(this.scene.activeCamera instanceof BABYLON.WebXRCamera)) this.stepPlayer(dt)
       this.move.setAll(0)
       this.updateConga()
       this.updateVehicle()
@@ -251,6 +261,15 @@ export default abstract class Controls implements IControls {
     // Seriously limit pick checking on mouse moves
     this.defaultPointerMovePredicate = this.defaultPointerMovePredicate.bind(this)
     this.scene.pointerMovePredicate = this.defaultPointerMovePredicate
+  }
+
+  stepPlayer(dt: number, instant = false) {
+    const { x, y, z } = this.body.position
+    this.body.step(this.move, dt, instant)
+    if (moved || !this.movementEnabled || this.vehicleFeature || this.congaTarget) return
+    const p = this.body.position
+    if ((this.jumped && p.y > y) || this.move.x * (p.x - x) + this.move.z * (p.z - z) + (this.flying ? this.move.y * (p.y - y) : 0) > 0.0001) firstMove()
+    this.jumped = false
   }
 
   get persona() {
@@ -733,6 +752,7 @@ export default abstract class Controls implements IControls {
   }
 
   jump() {
+    this.jumped = !moved && this.movementEnabled && !this.flying
     this.body.jump()
     if (!this.flying && !this.vehicleFeature) this.persona.audio?.playSound('avatar.jump')
   }
@@ -999,6 +1019,7 @@ export default abstract class Controls implements IControls {
         const facing = this.driveFacingYaw(car)
         car.mesh.position.x += Math.sin(facing) * forward * speed * dt
         car.mesh.position.z += Math.cos(facing) * forward * speed * dt
+        if (dt > 0) firstMove()
       }
       // hovercraft: Space/PageUp climb, V/PageDown dive
       if (car.isFlyable) {

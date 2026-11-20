@@ -57,7 +57,7 @@ export const routes: RouteDef[] = [
   { path: '/events', component: 'events' },
   { path: '/shop', component: 'shop' },
   { path: '/activity', component: 'activity' },
-  { path: '/womps', component: 'womps' },
+  { path: '/womps', component: 'womps', server: false },
   { path: '/admin', component: 'admin' },
   { path: '/admin/island', component: 'admin', cache: false },
   { path: '/home', server: '/home' },

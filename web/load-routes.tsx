@@ -9,6 +9,7 @@ import Privacy from './src/privacy'
 import Space from './src/space'
 import Terms from './src/terms'
 import Womp from './src/womp'
+import WompsPage from './src/womps'
 
 import * as passport from 'passport'
 import cache from '../server/cache'
@@ -28,12 +29,11 @@ import NotFound from './src/not-found'
 export default function loadRoutes(app: Express) {
   const duration = '10 minutes'
 
-  app.get('/', cache(duration), (req, res) => {
-    res.send(renderComponent(res, <Explore />))
-  })
-
-  app.get('/explore', cache(duration), (req, res) => {
-    res.send(renderComponent(res, <Explore />))
+  app.get(['/', '/explore', '/womps'], cache(duration), (req, res) => {
+    queryAndCallback(db, 'get-womps', 'womps', [12, ['public', 'broadcast']], (response) => {
+      const womps = response.success ? response.womps : undefined
+      res.send(renderComponent(res, req.path.replace(/\/$/, '') === '/womps' ? <WompsPage womps={womps} /> : <Explore womps={womps} />))
+    })
   })
 
   app.get('/terms', cache(duration), (req, res) => {
