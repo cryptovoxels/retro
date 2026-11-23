@@ -4,7 +4,7 @@ import { Component, Fragment, type ComponentChildren } from 'preact'
 import { createPortal } from 'preact/compat'
 import { route } from 'preact-router'
 import { isPlayPath } from '../web/src/helpers/coords-nav'
-import { isMobileMedia } from '../common/helpers/detector'
+import { isMobileMedia, isOculusQuest } from '../common/helpers/detector'
 import { exitPointerLock, hasPointerLock, requestPointerLock } from '../common/helpers/ui-helpers'
 import { onBeginUpload, onCompleteUpload, onFailUpload } from '../common/helpers/upload-media'
 import { Login } from '../web/src/auth/login'
@@ -864,6 +864,13 @@ export default class UserInterface extends Component<UserInterfaceProps, UserInt
     if (!this.state.enabled) {
       return <Fragment />
     }
+
+    if (isOculusQuest())
+      return (
+        <div class="canvasdom">
+          <ChatOverlay enabled={false} />
+        </div>
+      )
 
     const nearestEditableParcel = selectNearestEditableParcel() ?? null
     const currentPane = this.state.pane

@@ -1,5 +1,5 @@
 import { batch, effect, signal } from '@preact/signals'
-import { isBatterySaver } from '../../common/helpers/detector'
+import { isBatterySaver, isOculusQuest } from '../../common/helpers/detector'
 import { GraphicLevels, type GraphicEngine } from './graphic-engine'
 
 export class AdaptivePerf {
@@ -70,7 +70,7 @@ export class AdaptivePerf {
       frames = slow = cpuTime = frameTime = gpuTime = gpuFrames = 0
     })
     const resize = () => {
-      const ratio = isBatterySaver() || graphic.level <= GraphicLevels.Medium ? 1 : Math.min(2, window.devicePixelRatio || 1)
+      const ratio = isOculusQuest() || isBatterySaver() || graphic.level <= GraphicLevels.Medium ? 1 : Math.min(2, window.devicePixelRatio || 1)
       engine.setHardwareScalingLevel(1 / (ratio * AdaptivePerf.resolution.value))
       if (AdaptivePerf.resolution.value < 1) graphic.postProcesses?.dropAA()
     }

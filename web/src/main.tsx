@@ -21,6 +21,7 @@ import { Client } from './client'
 import { isPlayPath, naviportHere, notifyUrlChange } from './helpers/coords-nav'
 import { track, trackPage } from './helpers/umami'
 import WebHeader from './web-header'
+import { isOculusQuest } from '../../common/helpers/detector'
 
 import { useEffect, useState } from 'preact/hooks'
 import { JSXInternal } from 'preact/src/jsx'
@@ -94,6 +95,7 @@ const Main = () => {
   const [currentPath, setCurrentPath] = useState(window.location.pathname)
   const [closed, setClosed] = useState(false)
   const [engaged, setEngaged] = useState(false)
+  const quest = isOculusQuest()
   const lightBroadcast = currentPath.startsWith('/golive/broadcast')
   const play = isPlayPath(currentPath) && !isPageTool(uiPane.value)
 
@@ -119,8 +121,8 @@ const Main = () => {
 
   return (
     <MainApp>
-      <main onClick={travel} class={[lightBroadcast ? 'showbox-light-shell' : '', play ? 'play' : ''].filter(Boolean).join(' ') || undefined}>
-        {!lightBroadcast && (
+      <main onClick={travel} class={[quest ? 'quest' : '', lightBroadcast ? 'showbox-light-shell' : '', play ? 'play' : ''].filter(Boolean).join(' ') || undefined}>
+        {!lightBroadcast && !quest && (
           <WebHeader
             path={currentPath}
             mini={closed || (play && engaged)}
@@ -133,21 +135,22 @@ const Main = () => {
 
         <Client path={currentPath} />
 
-        <div hidden={closed && !isPageTool(uiPane.value)} class={[worldUi.value && play && engaged ? 'page mini' : 'page', play && engaged ? 'play' : ''].join(' ')}>
+        <div hidden={quest || (closed && !isPageTool(uiPane.value))} class={[worldUi.value && play && engaged ? 'page mini' : 'page', play && engaged ? 'play' : ''].join(' ')}>
           <div class="page-route">
-            {!lightBroadcast && (
+            {!lightBroadcast && !quest && (
               <button class="closer" onClick={() => setClosed(true)}>
                 close
               </button>
             )}
             <Router onChange={handleRoute}>
-              {AppRoutes()}
-              <RadioPopout path="/radio" />
-              <Play path="/play" engaged={engaged} />
-              <AccountRoutes path="/account/:path*" />
+              {quest && <Route default component={() => null} />}
+              {!quest && AppRoutes()}
+              {!quest && <RadioPopout path="/radio" />}
+              {!quest && <Play path="/play" engaged={engaged} />}
+              {!quest && <AccountRoutes path="/account/:path*" />}
             </Router>
           </div>
-          <PageMini />
+          {!quest && <PageMini />}
           <div
             class="page-tool"
             ref={(el) => {

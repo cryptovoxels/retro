@@ -2,23 +2,69 @@ import { FEATURE_LOD_DISTANCE } from './graphic/draw-distance'
 import type Feature from './features/feature'
 
 const frozenTransforms = new WeakSet<BABYLON.TransformNode>()
+const cubeMaterials = new WeakMap<BABYLON.Scene, BABYLON.StandardMaterial>()
 const staticFeatures = new Set(['image', 'nft-image', 'cube', 'sign', 'vox-model', 'megavox'])
 
 export function featureLOD(feature: Feature) {
-  if (!feature.mesh || feature.type === 'ride' || feature.type === 'group') return
+  if (!feature.mesh || feature.type === 'group') return
   for (const mesh of [feature.mesh, ...feature.mesh.getChildMeshes()]) {
     if (!(mesh instanceof BABYLON.Mesh)) continue
     mesh.removeLODLevel(null)
-    mesh.addLODLevel(FEATURE_LOD_DISTANCE, null)
+    if (feature.type === 'vox-model' || feature.type === 'megavox' || feature.type === 'ride') {
+      if (mesh.metadata?.voxLOD) continue
+      const scene = mesh.getScene(),
+        bounds = mesh.getBoundingInfo().boundingBox
+      let material = cubeMaterials.get(scene)
+      if (!material) {
+        material = new BABYLON.StandardMaterial('vox-lod', scene)
+        material.specularColor.set(0, 0, 0)
+        material.freeze()
+        cubeMaterials.set(scene, material)
+      }
+      const size = bounds.extendSize.scale(2)
+      // A face is an indexed triangle. Heavy models stay on LOD1 at every distance.
+      const heavy = mesh.getTotalIndices() / 3 > 1000
+      const cube = BABYLON.MeshBuilder.CreateBox(heavy ? 'vox-lod1' : 'vox-lod0', { width: size.x, height: size.y, depth: size.z }, scene)
+      cube.position.copyFrom(bounds.center)
+      cube.bakeCurrentTransformIntoVertices()
+      cube.material = material
+      cube.isPickable = false
+      cube.metadata = { lod: heavy ? 1 : 0 }
+      mesh.addLODLevel(heavy ? -1 : 16, cube)
+      mesh.metadata = { ...mesh.metadata, voxLOD: true }
+      mesh.onDisposeObservable.addOnce(() => cube.dispose())
+    } else mesh.addLODLevel(FEATURE_LOD_DISTANCE, null)
   }
 }
 
 export function meshCandidates(scene: BABYLON.Scene) {
   const original = scene.getActiveMeshCandidates
   const candidates = new BABYLON.SmartArray<BABYLON.AbstractMesh>(256)
+  const nearby = new BABYLON.SmartArray<BABYLON.AbstractMesh>(512)
+  let refresh = 0
+  const removed = scene.onMeshRemovedObservable.add(() => (refresh = 0))
   const planes = BABYLON.Frustum.GetPlanes(BABYLON.Matrix.Identity())
   scene.getActiveMeshCandidates = () => {
     const all = original.call(scene)
+    if (scene.activeCamera instanceof BABYLON.WebXRCamera || scene.activeCamera?.rigParent instanceof BABYLON.WebXRCamera) {
+      const now = performance.now()
+      if (now >= refresh) {
+        refresh = now + 250
+        nearby.reset()
+        const position = scene.activeCamera.globalPosition
+        for (let i = 0; i < all.length; i++) {
+          const mesh = all.data[i]
+          // Keep terrain, moving features and instance sources. Rebuild detail candidates at 4 Hz.
+          if ((mesh as any).feature && mesh.isWorldMatrixFrozen && !mesh.hasInstances && !mesh.actionManager && !mesh.alwaysSelectAsActiveMesh) {
+            const sphere = mesh.getBoundingInfo().boundingSphere
+            if (BABYLON.Vector3.DistanceSquared(position, sphere.centerWorld) > (12 + sphere.radiusWorld) ** 2) continue
+          }
+          nearby.push(mesh)
+        }
+      }
+      return nearby
+    }
+    refresh = 0
     if (scene.skipFrustumClipping || (scene as any).customLODSelector || !scene.activeCamera) return all
     BABYLON.Frustum.GetPlanesToRef(scene.getTransformMatrix(), planes)
     candidates.reset()
@@ -31,7 +77,9 @@ export function meshCandidates(scene: BABYLON.Scene) {
   }
   scene.onDisposeObservable.addOnce(() => {
     scene.getActiveMeshCandidates = original
+    scene.onMeshRemovedObservable.remove(removed)
     candidates.dispose()
+    nearby.dispose()
   })
 }
 

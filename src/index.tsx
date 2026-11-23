@@ -41,7 +41,7 @@ import Robots from './robots/robots'
 
 // Features
 import { type AudioEngine } from './audio/audio-engine'
-import { isBatterySaver, isDebug, isInspect, isMobile, wantsGateway } from '../common/helpers/detector'
+import { isBatterySaver, isDebug, isInspect, isMobile, isOculusQuest, wantsGateway } from '../common/helpers/detector'
 import { DragDrop } from './tools/drag-drop'
 
 import { GraphicEngine } from './graphic/graphic-engine'
@@ -160,7 +160,7 @@ async function main() {
     { passive: false },
   )
 
-  if (isDebug()) {
+  if (isDebug() && !isOculusQuest()) {
     toggleFPSStats()
   }
 
@@ -204,6 +204,7 @@ async function main() {
     doNotHandleContextLost: true, // we handle context lost ourselves *see below*
   }
   const engine = await createEngine(canvas, options)
+  if (isOculusQuest() && BABYLON.Engine.audioEngine) BABYLON.Engine.audioEngine.useCustomUnlockedButton = true
   console.info('World renderer: Babylon WebGPU')
   // reload page on context lost, rather than trying to recover (which requires lots of extra memory)
   engine.onContextLostObservable.add(() => {
@@ -282,11 +283,12 @@ async function main() {
 
   new DragDrop(scene)
 
-  const color = new ColorGrader(scene)
-  window._color = color
-
-  graphic.postProcesses = new PostProcesses(scene, color, graphic)
-  new AdaptivePerf(scene, graphic)
+  if (!isOculusQuest() && new URLSearchParams(location.search).get('render') !== 'ng') {
+    const color = new ColorGrader(scene)
+    window._color = color
+    graphic.postProcesses = new PostProcesses(scene, color, graphic)
+  }
+  if (new URLSearchParams(location.search).get('render') !== 'ng') new AdaptivePerf(scene, graphic)
   window.adaptivePerf = AdaptivePerf
   ;(engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
   ;(engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
@@ -305,7 +307,7 @@ async function main() {
 
   // minimap is never shown on mobile (enabled getter returns false) but the constructor
   // still allocates a Scene, camera, meshes and PostProcess -- skip it entirely
-  if (!isMobile()) {
+  if (!isMobile() && !isOculusQuest()) {
     map = new Minimap(engine, connector)
     mapSettings = map.getSettings()
 

@@ -407,6 +407,9 @@ importers:
       wasmoon:
         specifier: ^1.16.0
         version: 1.16.0
+      wgpu-matrix:
+        specifier: ^3.4.2
+        version: 3.4.2
       winston:
         specifier: ^3.9.0
         version: 3.19.0
@@ -5662,6 +5665,9 @@ packages:
   webrtc-adapter@8.2.4:
     resolution: {integrity: sha512-VwtwbYNKnVQW8koB9qb8YcxNwpSVHTvvKEZLzY6uQ3gFrA9E87VPbB5xE+m1AGwUjL1UgN35jRR9hQgteZI5bg==}
     engines: {node: '>=6.0.0', npm: '>=3.10.0'}
+
+  wgpu-matrix@3.4.2:
+    resolution: {integrity: sha512-IfZFbG7olEYBD76VCZy2TzqM57GKy3LT++AZh37tMHPPByO6R2h61zXGBZFNPi2IzxNivNi8y5dvze5PjaczjA==}
 
   whatwg-encoding@3.1.1:
     resolution: {integrity: sha512-6qN4hJdMwfYBtE3YBTTHhoeuUrDBPZmbQaxWAqSALV/MeEnR5z1xd8UKud2RAkFoPkmB+hli1TZSnyi84xz1vQ==}
@@ -12299,6 +12305,8 @@ snapshots:
   webrtc-adapter@8.2.4:
     dependencies:
       sdp: 3.2.1
+
+  wgpu-matrix@3.4.2: {}
 
   whatwg-encoding@3.1.1:
     dependencies:

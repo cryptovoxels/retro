@@ -4,7 +4,7 @@ import { effect, signal } from '@preact/signals'
 import { Fragment, JSX } from 'preact'
 import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 
-import { isMobile } from '../../../common/helpers/detector'
+import { isMobile, isOculusQuest } from '../../../common/helpers/detector'
 import { InteractPopout } from './popout'
 import { xr } from '../../controls/create'
 import Icon from '../../../web/src/components/icons/interact'
@@ -155,6 +155,7 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
   }, [variant])
 
   useEffect(() => {
+    if (isOculusQuest()) return
     return effect(() => {
       refsRev.value
       fetchRefs(messageList.value)
@@ -168,7 +169,7 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
 
   // ticker so messages age out without new ones arriving
   useEffect(() => {
-    if (variant !== 'overlay') return
+    if (variant !== 'overlay' || isOculusQuest()) return
     const t = setInterval(() => bump((n) => n + 1), 3000)
     return () => clearInterval(t)
   }, [variant])
@@ -223,27 +224,29 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
     if (isMobile() && !focused) shown = shown.slice(-3)
     return (
       <div ref={chatRef} class={'chat' + (className ? ' ' + className : '')} style={style}>
-        <div
-          class={'chat-messages' + (atCap ? ' at-cap' : '')}
-          role="link"
-          tabIndex={0}
-          aria-label="Open chat history"
-          onClick={(e) => {
-            if ((e.target as HTMLElement).closest('a, button')) return
-            exitPointerLock()
-            route('/chat')
-          }}
-          onKeyDown={(e) => {
-            if (e.key !== 'Enter' || e.target !== e.currentTarget) return
-            e.currentTarget.click()
-          }}
-        >
-          {shown.map((m) => (
-            <p key={m.id || m.timestamp} class={!recalled && age(m) >= CHAT_FADE_MS ? 'faded' : undefined}>
-              <ChatLineBody m={m} />
-            </p>
-          ))}
-        </div>
+        {!isOculusQuest() && (
+          <div
+            class={'chat-messages' + (atCap ? ' at-cap' : '')}
+            role="link"
+            tabIndex={0}
+            aria-label="Open chat history"
+            onClick={(e) => {
+              if ((e.target as HTMLElement).closest('a, button')) return
+              exitPointerLock()
+              route('/chat')
+            }}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter' || e.target !== e.currentTarget) return
+              e.currentTarget.click()
+            }}
+          >
+            {shown.map((m) => (
+              <p key={m.id || m.timestamp} class={!recalled && age(m) >= CHAT_FADE_MS ? 'faded' : undefined}>
+                <ChatLineBody m={m} />
+              </p>
+            ))}
+          </div>
+        )}
         <div class="interact-bar">
           <button type="button" title="home" aria-label="Home" onClick={() => route('/')}>
             <Icon name="home" />

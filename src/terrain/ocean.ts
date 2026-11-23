@@ -1,5 +1,5 @@
 import { runCompute } from '../mono-pool'
-import { isMobile } from '../../common/helpers/detector'
+import { isMobile, isOculusQuest } from '../../common/helpers/detector'
 import type { Chunk, ChunkObserver } from './chunk-system'
 import { groundOffset, snapRing, type Point2D, PolygonClipping } from '../utils/polygon-utils'
 import type { IslandRecord } from '../../common/messages/api-islands'
@@ -55,7 +55,7 @@ function oceanMaterial(scene: BABYLON.Scene, size: number, texas: BABYLON.Vector
   mat.specularColor = new BABYLON.Color3(0.02, 0.03, 0.03)
   mat.alpha = 1
   mat.fogEnabled = true
-  if (!isMobile()) {
+  if (!isMobile() && !isOculusQuest()) {
     mat.reflectionTexture = mirrorTexture(scene, OCEAN_HEIGHT_OFFSET)
     mat.reflectionTexture.level = 0.28
     mat.reflectionFresnelParameters = new BABYLON.FresnelParameters({ bias: 0.12, power: 2 })

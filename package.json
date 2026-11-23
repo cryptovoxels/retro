@@ -203,6 +203,7 @@
     "url-search-params-polyfill": "8.2.4",
     "uuid": "^13.0.0",
     "wasmoon": "^1.16.0",
+    "wgpu-matrix": "^3.4.2",
     "winston": "^3.9.0",
     "ws": "^8.18.3",
     "zeros": "^1.0.0",

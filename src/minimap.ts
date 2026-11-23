@@ -1,6 +1,6 @@
 import type Connector from './connector'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
-import { isMobile } from '../common/helpers/detector'
+import { isMobile, isOculusQuest } from '../common/helpers/detector'
 import { SingleParcelRecord } from '../common/messages/parcel'
 import { app, AppEvent } from '../web/src/state'
 import { cameraPosition } from './utils/camera'
@@ -272,12 +272,12 @@ export class MinimapSettings extends TypedEventTarget<{ changed: { enabled: bool
   private _enabled = true
 
   public get enabled() {
-    if (isMobile()) return false
+    if (isMobile() || isOculusQuest()) return false
     return this._enabled
   }
 
   public set enabled(value: boolean) {
-    if (isMobile()) return
+    if (isMobile() || isOculusQuest()) return
     this._enabled = value
     this.saveSettings(this.json)
     this.dispatchEvent(createEvent('changed', this.json))
