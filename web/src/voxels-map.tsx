@@ -11,9 +11,10 @@ export default function VoxelsMapView() {
 
     let dead = false
     let map: VoxelsMap | null = null
-    loadVoxelsMap().then(({ VoxelsMap: Map }) => {
+    loadVoxelsMap().then(async ({ VoxelsMap: Map }) => {
       if (dead) return
-      map = new Map(el)
+      map = await Map.create(el)
+      if (dead) return map.dispose()
       map.load().catch((e) => console.error('voxels map load failed', e))
     })
 

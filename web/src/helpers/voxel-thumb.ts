@@ -5,7 +5,7 @@ import { createComlinkWorker } from '../../../common/helpers/comlink-worker'
 import type { VoxelThumb } from '../workers/voxel-thumb'
 
 const SIZE = 512
-const BABYLON_SRC = process.env.BABYLON_URL || '/vendor/library-9.25.0.min.js'
+const BABYLON_SRC = process.env.BABYLON_URL || '/vendor/library-9.37.2.min.js'
 const urls = new Map<string, Promise<string>>()
 
 let apiPromise: Promise<VoxelThumb> | null = null

@@ -1,5 +1,5 @@
-const BUNDLE_VERSION = '9.25.0'
-const BABYLON_VERSION = '9.25.0'
+const BUNDLE_VERSION = '9.37.2'
+const BABYLON_VERSION = '9.37.2'
 
 function babylonBundleUrls(minified) {
   const m = minified ? '.min' : ''
@@ -37,7 +37,7 @@ function bundleUrls(minified) {
 module.exports = {
   // For use by the website
   ...bundleUrls(process.env.NODE_ENV !== 'development'),
-  UNBUNDLED_BABYLON_LIB_URL_FOR_WEB_WORKERS: '/vendor/library-9.25.0.min.js',
+  UNBUNDLED_BABYLON_LIB_URL_FOR_WEB_WORKERS: '/vendor/library-9.37.2.min.js',
 
   // For use by the bundler
   bundles

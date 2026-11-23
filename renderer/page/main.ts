@@ -22,20 +22,20 @@ function bufToB64(buf: ArrayBuffer): string {
   return btoa(s)
 }
 
-function thumbScene(size: number): ThumbScene {
+async function thumbScene(size: number): Promise<ThumbScene> {
   if (!(globalThis as any).BABYLON) throw new Error('BABYLON missing')
   if (!ctx) {
     const canvas = document.getElementById('c') as HTMLCanvasElement | null
     if (!canvas) throw new Error('no canvas')
     canvas.width = size
     canvas.height = size
-    ctx = createThumbScene(canvas)
+    ctx = await createThumbScene(canvas)
   }
   return ctx
 }
 
 async function render(bytesB64: string, background: string, size = 512): Promise<string> {
-  const out = await renderVoxThumb(thumbScene(size), {
+  const out = await renderVoxThumb(await thumbScene(size), {
     kind: 'vox',
     bytes: b64ToBuf(bytesB64),
     background,
@@ -45,5 +45,5 @@ async function render(bytesB64: string, background: string, size = 512): Promise
 }
 
 ;(window as any).renderVoxThumb = render
-;(window as any).renderVrmThumb = async (url: string, background: string, size = 512) => bufToB64((await renderVrmThumb(thumbScene(size), url, background, size)).bytes)
+;(window as any).renderVrmThumb = async (url: string, background: string, size = 512) => bufToB64((await renderVrmThumb(await thumbScene(size), url, background, size)).bytes)
 ;(window as any).__renderReady = true

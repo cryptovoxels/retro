@@ -61,7 +61,7 @@ export default class WorldMap extends Component<Props, State> {
     if (!canvas) return
 
     const { VoxelsMap } = await loadVoxelsMap()
-    this.map = new VoxelsMap(canvas, {
+    this.map = await VoxelsMap.create(canvas, {
       ortho: this.props.onForSaleSelect ? SHOP_LIST_ORTHO : PAGE_ORTHO,
       parcels: true,
       nav: true,

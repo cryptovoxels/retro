@@ -1,4 +1,7 @@
 import Controls from './controls'
+import Snackbar from '../../web/src/components/snackbar'
+import { PanelType } from '../../web/src/components/panel'
+import { AdaptivePerf } from '../graphic/adaptive-perf'
 import { EYE } from './utils/player-body'
 import { xrHeight } from '../utils/camera'
 import { wantsGateway } from '../../common/helpers/detector'
@@ -59,7 +62,10 @@ export default class XROverlay {
   }
 
   attachWorldScene() {
-    worldSceneEvents.addEventListener('parcel-collider-added', (e) => this.addTeleportMesh(e.detail))
+    worldSceneEvents.addEventListener('parcel-collider-added', (e) => {
+      this.addTeleportMesh(e.detail)
+      if (this.entered && this.floorSnapPending) this.floorSnapPending = !this.resetXRFloorHeight(this.helper.camera.position)
+    })
     worldSceneEvents.addEventListener('parcel-collider-removed', (e) => this.removeTeleportMesh(e.detail))
     worldSceneEvents.addEventListener('ground-loaded', this.onGroundLoaded)
     if (worldSceneLoaded()) this.onGroundLoaded()
@@ -82,6 +88,7 @@ export default class XROverlay {
       }
     } catch (e) {
       console.error('Unable to enter VR', e)
+      Snackbar.show('Unable to enter immersive: ' + ((e as any)?.message || e), PanelType.Danger)
     } finally {
       this.starting = false
     }
@@ -89,11 +96,11 @@ export default class XROverlay {
 
   private async setupXR() {
     this.webXR = await this.scene.createDefaultXRExperienceAsync({
-      outputCanvasOptions: { canvasOptions: { framebufferScaleFactor: 0.5 } },
+      outputCanvasOptions: { canvasOptions: { framebufferScaleFactor: 0.5, antialias: false } },
       disableDefaultUI: true,
       disableTeleportation: true,
       disableNearInteraction: true,
-      pointerSelectionOptions: { enablePointerSelectionOnAllControllers: true, maxPointerDistance: 20, disableScenePointerVectorUpdate: true },
+      disablePointerSelection: true,
     })
 
     if (!this.webXR || !this.webXR.baseExperience) {
@@ -103,9 +110,24 @@ export default class XROverlay {
     }
 
     const camera = this.webXR.baseExperience.camera
+    const session = this.helper.sessionManager
+    let resolution = 0
+    session.onXRSessionInit.add(() => (resolution = 0))
+    session.onXRFrameObservable.add(() => {
+      if (resolution === AdaptivePerf.resolution.value) return
+      for (let eye = 0; eye < camera.rigCameras.length; eye++) {
+        if (session.isViewportScaleSupported(eye)) {
+          try {
+            session.requestViewportScale(eye, AdaptivePerf.resolution.value)
+          } catch {}
+        }
+      }
+      resolution = AdaptivePerf.resolution.value
+    })
 
     this.helper.onInitialXRPoseSetObservable.add(() => {
       if (!wantsGateway()) camera.position.y = this.controls.body.position.y - EYE
+      this.floorSnapPending = !this.resetXRFloorHeight(camera.position)
     })
     const leaveDialog = () => {
       if (this.helper.state === BABYLON.WebXRState.IN_XR) void this.helper.exitXRAsync().catch(() => {})
@@ -113,9 +135,14 @@ export default class XROverlay {
     window.addEventListener('dialogopen', leaveDialog)
     this.scene.onDisposeObservable.addOnce(() => window.removeEventListener('dialogopen', leaveDialog))
 
+    const autoClear = this.scene.autoClear
+    const clearDepth = this.scene.autoClearDepthAndStencil
     this.webXR.baseExperience.onStateChangedObservable.add((state) => {
       this.floorSnapPending = state === BABYLON.WebXRState.IN_XR
       if (state === BABYLON.WebXRState.IN_XR) {
+        // XR eye textures need fresh depth; the flat renderer disables clearing.
+        this.scene.autoClear = true
+        this.scene.autoClearDepthAndStencil = true
         this.entered = true
         this.walkHintUntil = Date.now() + 8000
         this.controls.body.resetMotion()
@@ -131,6 +158,8 @@ export default class XROverlay {
       this.clearHighlight()
       this.setHint('')
       if (state === BABYLON.WebXRState.NOT_IN_XR && this.entered) {
+        this.scene.autoClear = autoClear
+        this.scene.autoClearDepthAndStencil = clearDepth
         this.entered = false
         if (this.controls.vehicleFeature) this.controls.stopVehicle()
         // PlayerCamera.place() reads the body, so Babylon's camera-only exit copy is lost.
@@ -144,6 +173,7 @@ export default class XROverlay {
     })
 
     const featuresManager = this.webXR.baseExperience.featuresManager
+    featuresManager.enableFeature(BABYLON.WebXRFeatureName.LAYERS, 'latest')
 
     this.xrTeleportation = featuresManager.enableFeature(BABYLON.WebXRFeatureName.TELEPORTATION, 'stable', {
       xrInput: this.webXR.input,
@@ -151,9 +181,6 @@ export default class XROverlay {
       // right stick teleports; left stick is free locomotion (see tick)
       forceHandedness: 'right',
     }) as BABYLON.WebXRMotionControllerTeleportation
-
-    this.xrTeleportation.setSelectionFeature(this.webXR.pointerSelection)
-    this.controls.xrSelection = this.webXR.pointerSelection
 
     this.xrTeleportation.rotationEnabled = false
     this.xrTeleportation.parabolicRayEnabled = true
@@ -170,7 +197,18 @@ export default class XROverlay {
   private watchControllers() {
     const input = this.webXR!.input
     const bindController = (controller: BABYLON.WebXRInputSource) => {
+      const ray = new BABYLON.Ray(BABYLON.Vector3.Zero(), BABYLON.Vector3.Forward(), this.controls.MAX_PICK_DISTANCE)
+      const pointerId = controller.inputSource.handedness === 'left' ? 1001 : 1002
       const bind = (mc: BABYLON.WebXRAbstractMotionController) => {
+        mc.getComponent('xr-standard-trigger')?.onButtonStateChangedObservable.add((button) => {
+          if (!button.changes.pressed || this.helper.state !== BABYLON.WebXRState.IN_XR) return
+          controller.getWorldPointerRayToRef(ray)
+          const pick = this.scene.pickWithRay(ray)
+          if (!pick) return
+          const event = { pointerId, pointerType: 'xr', button: 0 }
+          if (button.pressed) this.scene.simulatePointerDown(pick, event)
+          else this.scene.simulatePointerUp(pick, event)
+        })
         if (mc.handedness === 'left') {
           const stick = mc.getComponent('xr-standard-thumbstick')
           stick?.onAxisValueChangedObservable.add((v) => {
@@ -223,8 +261,6 @@ export default class XROverlay {
     const camera = this.helper.camera
     const height = xrHeight(camera)
     const dt = Math.min(0.05, this.scene.getEngine().getDeltaTime() / 1000 || 1 / 60)
-
-    if (this.floorSnapPending && this.resetXRFloorHeight(camera.position)) this.floorSnapPending = false
 
     const driving = !!this.controls.vehicleFeature
     if (driving !== this.wasDriving) {
@@ -291,6 +327,7 @@ export default class XROverlay {
   onGroundLoaded = () => {
     // island ground meshes are the streets - without these you can only teleport onto parcels
     getWorldTerrain()?.groundMeshes.forEach((mesh) => this.addTeleportMesh(mesh))
+    if (this.entered && this.floorSnapPending) this.floorSnapPending = !this.resetXRFloorHeight(this.helper.camera.position)
   }
 
   // --- ride entry: teleport onto it to drive ---

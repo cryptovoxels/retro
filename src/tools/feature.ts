@@ -267,6 +267,7 @@ export default class FeatureTool implements Tool {
   }
 
   onPointerObservable(eventData: BABYLON.PointerInfo) {
+    if (eventData.type === BABYLON.PointerEventTypes.POINTERMOVE) return
     // sidebar feature editor owns the mouse (face-drag / corners / click-away). if we keep
     // handling taps here, POINTERTAP after every drag attempt runs onLeftClick -> deactivate()
     // and face-drag feels randomly dead until you re-open the editor enough times.
@@ -280,16 +281,7 @@ export default class FeatureTool implements Tool {
           this.onLeftClick(eventData.event, pick)
         }
         break
-
-      case BABYLON.PointerEventTypes.POINTERMOVE:
-        this.onMove(eventData.event, pick)
     }
-  }
-
-  private lockListener = () => {
-    if (!hasPointerLock() || this.selection.mode !== 'add') return
-    const pick = this.controls.pickForPointer(null)
-    if (pick) this.onMove(null!, pick)
   }
 
   activate() {
@@ -305,14 +297,11 @@ export default class FeatureTool implements Tool {
     this.enabled.value = true
 
     this.pointerObs = this.scene.onPointerObservable.add(this.onPointerObservable)
-    document.addEventListener('pointerlockchange', this.lockListener)
-    this.lockListener()
   }
 
   deactivate() {
     this.enabled.value = false
 
-    document.removeEventListener('pointerlockchange', this.lockListener)
     if (this.pointerObs) {
       this.scene.onPointerObservable.remove(this.pointerObs)
       this.pointerObs = null

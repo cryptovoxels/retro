@@ -8,7 +8,7 @@ const { VoxImporter } = require('../../../common/vox-import/vox-import')
 
 let activeMesh: BABYLON.Mesh | undefined
 
-self.addEventListener('message', (ev) => {
+self.addEventListener('message', async (ev) => {
   if (ev.origin && !ev.origin.includes('voxels')) {
     return
   }
@@ -16,7 +16,7 @@ self.addEventListener('message', (ev) => {
   const canvas = ev.data.canvas
   if (canvas) {
     dispose()
-    createScene(canvas)
+    await createScene(canvas)
   }
 
   const hash = ev.data.hash
@@ -50,8 +50,8 @@ let workerScene: BABYLON.Scene | null = null
 let importer: typeof VoxImporter | undefined
 let abortController: AbortController | undefined
 
-const createScene = (canvas: BABYLON.Nullable<HTMLCanvasElement | OffscreenCanvas | WebGLRenderingContext | WebGL2RenderingContext>) => {
-  const { engine, scene, background } = createWearableScene(canvas)
+const createScene = async (canvas: HTMLCanvasElement | OffscreenCanvas) => {
+  const { engine, scene, background } = await createWearableScene(canvas)
   workerScene = scene
   workerEngine = engine
   abortController = new AbortController()

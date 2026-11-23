@@ -22,46 +22,10 @@ export function getGpuTextureFormat(): TextureFormatExtension {
   return cachedFormat
 }
 
-function glContext(engine: BABYLON.AbstractEngine): WebGLRenderingContext | null {
-  return (engine as BABYLON.Engine)._gl ?? null
-}
-
 function detectFormat(): TextureFormatExtension {
-  const engine = BABYLON.EngineStore.Instances[0]
-
-  if (!engine) {
-    return '.dxt.ktx'
-    // throw new Error('Cannot detect texture format: BabylonJS engine not initialized')
-  }
-
-  if (engine.isWebGPU) {
-    const caps = engine.getCaps()
-    if (caps.astc) return '.astc.ktx'
-    if (caps.s3tc) return '.dxt.ktx'
-    if (caps.etc2) return '.etc.ktx'
-    return '.dxt.ktx'
-  }
-
-  const gl = glContext(engine)
-
-  // NullEngine (used in tests) doesn't have WebGL context
-  if (!gl) {
-    return '.pvrtc.ktx'
-  }
-
-  if (gl.getExtension('WEBGL_compressed_texture_astc')) {
-    return '.astc.ktx'
-  }
-  if (gl.getExtension('WEBGL_compressed_texture_s3tc')) {
-    return '.dxt.ktx'
-  }
-  if (gl.getExtension('WEBGL_compressed_texture_pvrtc')) {
-    return '.pvrtc.ktx'
-  }
-  if (gl.getExtension('WEBGL_compressed_texture_etc')) {
-    return '.etc.ktx'
-  }
-
-  // Fallback to PVRTC
-  return '.pvrtc.ktx'
+  const caps = BABYLON.EngineStore.Instances[0]?.getCaps()
+  if (caps?.astc) return '.astc.ktx'
+  if (caps?.s3tc) return '.dxt.ktx'
+  if (caps?.etc2) return '.etc.ktx'
+  return '.dxt.ktx'
 }

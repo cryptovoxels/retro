@@ -6,6 +6,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'preact/hooks'
 
 import { isMobile } from '../../../common/helpers/detector'
 import { InteractPopout } from './popout'
+import { xr } from '../../controls/create'
 import Icon from '../../../web/src/components/icons/interact'
 import { resetMobileViewportLayout } from '../../controls/mobile/controls'
 import { avatarSlug, type AvatarRef, type AvatarRefObj } from '../../../common/messages/avatar-ref'
@@ -248,6 +249,19 @@ export function ChatPanel({ cap, variant = 'page', enabled = true, class: classN
             <Icon name="home" />
           </button>
           <InteractPopout />
+          {xr && (
+            <button
+              type="button"
+              title="enter immersive"
+              aria-label="enter immersive"
+              onClick={() => {
+                exitPointerLock()
+                void xr?.start()
+              }}
+            >
+              <Icon name="immersive" />
+            </button>
+          )}
           <ChatInput
             onFocusChange={(focused) => {
               setFocused(focused)

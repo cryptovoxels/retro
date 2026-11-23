@@ -1,4 +1,4 @@
-import { isDesktop, isMobile, isTablet, wantsGateway, wantsXR } from '../../common/helpers/detector'
+import { isDesktop, isMobile, isTablet, wantsGateway, supportsXR } from '../../common/helpers/detector'
 import DesktopControls from './desktop/controls'
 import MobileControls from './mobile/controls'
 import type Controls from './controls'
@@ -15,16 +15,9 @@ export const CreateControls = (scene: BABYLON.Scene, canvas: HTMLCanvasElement):
     controls = new DesktopControls(scene, canvas)
   }
 
-  if (wantsXR() && !wantsGateway()) {
+  if (supportsXR() && !wantsGateway()) {
     xr = new XROverlay(scene, canvas, controls!)
     navigator.xr?.addEventListener('sessiongranted', () => xr?.start())
-
-    canvas.addEventListener('click', (e: any) => {
-      if (xr) {
-        e.preventDefault()
-        xr.start()
-      }
-    })
   }
 
   return controls!

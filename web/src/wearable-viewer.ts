@@ -26,7 +26,7 @@ export class WearableViewer {
   }
 
   async createScene() {
-    this.engine = createEngine(this.canvas, true, { audioEngine: true })
+    this.engine = await createEngine(this.canvas, { audioEngine: true })
     this.scene = new BABYLON.Scene(this.engine)
     this.scene.clearColor.set(0.6, 0.6, 0.6, 1)
     window.addEventListener('resize', () => this.engine?.resize(), { passive: true })

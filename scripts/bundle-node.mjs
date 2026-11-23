@@ -16,7 +16,7 @@ const buildNum = process.env.BUILD_NUM || buildDate
 const clientDir = path.join(repo, 'dist/assets')
 let monoFile = './monoworker.js'
 let thumbFile = './voxel-thumb.js'
-let babylonFile = '/vendor/library-9.25.0.min.js'
+let babylonFile = '/vendor/library-9.37.2.min.js'
 
 const publicEnv = [
   'API',
@@ -252,7 +252,7 @@ async function buildClient(dev) {
   const filename = path.join(repo, 'web/src/style/app.less')
   const css = await less.render(fs.readFileSync(filename, 'utf8'), { filename })
   const style = writeAsset('app.css', css.css)
-  babylonFile = '/assets/' + writeAsset('babylon.js', fs.readFileSync(path.join(repo, 'dist/vendor/library-9.25.0.min.js')))
+  babylonFile = '/assets/' + writeAsset('babylon.js', fs.readFileSync(path.join(repo, 'dist/vendor/library-9.37.2.min.js')))
   monoFile = './' + (await bundleAsset('src/monoworker.ts', 'monoworker.js'))
   thumbFile = './' + (await bundleAsset('web/src/workers/voxel-thumb.ts', 'voxel-thumb.js', 'iife'))
   const client = await bundleAsset('web/src/main.tsx', 'client.js')

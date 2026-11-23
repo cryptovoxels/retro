@@ -1,4 +1,3 @@
-import { isBatterySaver } from '../../common/helpers/detector'
 import { createEvent, TypedEventTarget } from '../utils/EventEmitter'
 import type { PostProcesses } from './post-processes'
 
@@ -56,10 +55,6 @@ export class GraphicEngine extends TypedEventTarget<{
     return this.#level
   }
 
-  private get devicePixelRatio() {
-    return Math.min(2.0, window.devicePixelRatio || 1.0)
-  }
-
   start() {
     this.loadSettingsFromLocalStorage()
   }
@@ -106,13 +101,6 @@ export class GraphicEngine extends TypedEventTarget<{
   private refresh() {
     BABYLON.MaterialFlags.ReflectionTextureEnabled = this.reflections
     opacitySorting = this.opacitySorting
-    if (isBatterySaver()) {
-      this.engine.setHardwareScalingLevel(1)
-    } else if (this.#level === GraphicLevels.Low || this.#level === GraphicLevels.Medium) {
-      this.engine.setHardwareScalingLevel(1)
-    } else {
-      this.engine.setHardwareScalingLevel(1 / this.devicePixelRatio)
-    }
   }
 }
 

@@ -82,7 +82,6 @@ export default abstract class Controls implements IControls {
   body: PlayerBody = undefined!
   /** unitless direction; inputs write, body.step scales by speed * dt */
   move = BABYLON.Vector3.Zero()
-  hasGamepad = false
   flying = false
   swimming = false
   cameraDistance = 0
@@ -147,7 +146,6 @@ export default abstract class Controls implements IControls {
   }
 
   MAX_PICK_DISTANCE = 20
-  xrSelection: BABYLON.WebXRControllerPointerSelection | null = null
   private xrPicks = new Map<number, BABYLON.AbstractMesh>()
   audioContext: AudioContext = undefined!
   private cameraZoomed = false
@@ -201,12 +199,6 @@ export default abstract class Controls implements IControls {
         this.persona.update(cameraPosition(this.scene), cameraRotation(this.scene), this)
         this.firstOrThirdPersonAdjustment()
         return
-      }
-
-      // stock babylon gamepad writes cameraDirection as stick * dt; fold into unitless move
-      if (this.camera.cameraDirection.lengthSquared() > 0) {
-        this.move.addInPlace(this.camera.cameraDirection.scaleInPlace(1 / dt))
-        this.camera.cameraDirection.setAll(0)
       }
 
       if (this.body.position.y < FALL_RESCUE_Y) {
@@ -345,13 +337,13 @@ export default abstract class Controls implements IControls {
     if (event.pointerType === 'xr') {
       const mesh = eventData.pickInfo?.pickedMesh
       if (eventData.type === BABYLON.PointerEventTypes.POINTERDOWN && event.button === 0) {
-        if (mesh && this.xrSelection?.attached) this.xrPicks.set(event.pointerId, mesh)
+        if (mesh) this.xrPicks.set(event.pointerId, mesh)
         else this.xrPicks.delete(event.pointerId)
       } else if (eventData.type === BABYLON.PointerEventTypes.POINTERUP) {
         const pressed = this.xrPicks.get(event.pointerId)
         this.xrPicks.delete(event.pointerId)
         // Babylon sends another release when teleport aiming detaches selection.
-        if (pressed && pressed === mesh && this.xrSelection?.attached) this.lockedLeftClick(eventData.pickInfo)
+        if (pressed && pressed === mesh) this.lockedLeftClick(eventData.pickInfo)
       }
       return
     }
@@ -445,7 +437,7 @@ export default abstract class Controls implements IControls {
   }
 
   private updateReticule() {
-    this.reticule.visibility = this.firstPersonView && (hasPointerLock() || this.hasGamepad) ? 1 : 0
+    this.reticule.visibility = this.firstPersonView && hasPointerLock() ? 1 : 0
     ;(this.reticule.material as BABYLON.StandardMaterial).emissiveColor.setAll(this.reticuleActive ? 0 : 1)
   }
 

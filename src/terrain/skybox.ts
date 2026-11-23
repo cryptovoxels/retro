@@ -8,30 +8,30 @@ export default class Skybox {
       scene,
       {
         vertexSource: `
-        precision highp float;
-        attribute vec3 position;
-        uniform mat4 worldViewProjection;
-        varying vec3 direction;
-        void main() {
-          direction = position;
-          gl_Position = worldViewProjection * vec4(position, 1.0);
+        attribute position: vec3<f32>;
+        uniform worldViewProjection: mat4x4<f32>;
+        varying direction: vec3<f32>;
+        @vertex
+        fn main(input: VertexInputs) -> FragmentInputs {
+          vertexOutputs.direction = vertexInputs.position;
+          vertexOutputs.position = uniforms.worldViewProjection * vec4f(vertexInputs.position, 1.0);
         }`,
         fragmentSource: `
-        precision highp float;
-        varying vec3 direction;
-        uniform vec3 fogColor;
-        uniform vec3 sunPosition;
-        uniform float linearOutput;
-        void main() {
-          vec3 view = normalize(direction);
-          float height = smoothstep(0.0, 0.65, max(view.y, 0.0));
-          float sun = pow(max(dot(view, normalize(sunPosition)), 0.0), 8.0);
-          vec3 sky = fogColor * (0.58 + sun * 0.12);
-          vec3 color = mix(fogColor, sky, height);
-          gl_FragColor = vec4(mix(color, pow(color, vec3(2.2)), linearOutput), 1.0);
+        varying direction: vec3<f32>;
+        uniform fogColor: vec3<f32>;
+        uniform sunPosition: vec3<f32>;
+        uniform linearOutput: f32;
+        @fragment
+        fn main(input: FragmentInputs) -> FragmentOutputs {
+          let view = normalize(fragmentInputs.direction);
+          let height = smoothstep(0.0, 0.65, max(view.y, 0.0));
+          let sun = pow(max(dot(view, normalize(uniforms.sunPosition)), 0.0), 8.0);
+          let sky = uniforms.fogColor * (0.58 + sun * 0.12);
+          let color = mix(uniforms.fogColor, sky, height);
+          fragmentOutputs.color = vec4f(mix(color, pow(color, vec3f(2.2)), uniforms.linearOutput), 1.0);
         }`,
       },
-      { attributes: ['position'], uniforms: ['worldViewProjection', 'fogColor', 'sunPosition', 'linearOutput'] },
+      { shaderLanguage: BABYLON.ShaderLanguage.WGSL, attributes: ['position'], uniforms: ['worldViewProjection', 'fogColor', 'sunPosition', 'linearOutput'] },
     )
     material.backFaceCulling = false // leave
     material.fogEnabled = false // we set out fog kinda thick so we can't enable it for the sky
