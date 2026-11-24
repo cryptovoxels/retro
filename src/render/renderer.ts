@@ -2,10 +2,12 @@ import { mat4 } from 'wgpu-matrix'
 
 const shader = /* wgsl */ `
 struct Camera { vp: mat4x4<f32>, eye: vec4<f32>, fog: vec4<f32> }
-struct Object { world: mat4x4<f32>, tint: vec4<f32>, uv: vec4<f32> }
+struct Object { world: mat4x4<f32>, tint: vec4<f32>, uv: vec4<f32>, flags: vec4<f32>, opacityUV: vec4<f32> }
 @group(0) @binding(0) var<uniform> camera: Camera;
 @group(1) @binding(0) var picture: texture_2d<f32>;
 @group(1) @binding(1) var filtering: sampler;
+@group(1) @binding(2) var opacity: texture_2d<f32>;
+@group(1) @binding(3) var opacityFiltering: sampler;
 @group(2) @binding(0) var<storage, read> objects: array<Object>;
 struct Vertex {
   @builtin(position) clip: vec4<f32>,
@@ -13,6 +15,8 @@ struct Vertex {
   @location(1) uv: vec2<f32>,
   @location(2) normal: vec3<f32>,
   @location(3) position: vec3<f32>,
+  @location(4) @interpolate(flat) flags: vec4<f32>,
+  @location(5) opacityUV: vec2<f32>,
 }
 @vertex fn vertex(@location(0) position: vec3<f32>, @location(1) normal: vec3<f32>,
   @location(2) uv: vec2<f32>, @location(3) color: vec4<f32>, @builtin(instance_index) instance: u32) -> Vertex {
@@ -20,24 +24,36 @@ struct Vertex {
   let world = object.world * vec4<f32>(position, 1.0);
   var out: Vertex;
   out.clip = camera.vp * world;
-  out.color = color * object.tint;
+  out.color = vec4<f32>(color.rgb, select(1.0, color.a, (u32(object.flags.x) & 8u) != 0u)) * object.tint;
   out.uv = uv * object.uv.xy + object.uv.zw;
+  out.opacityUV = uv * object.opacityUV.xy + object.opacityUV.zw;
+  out.flags = object.flags;
   let a = object.world[0].xyz; let b = object.world[1].xyz; let c = object.world[2].xyz;
   out.normal = normalize(mat3x3<f32>(cross(b,c), cross(c,a), cross(a,b)) * normal * sign(dot(a,cross(b,c))));
   out.position = world.xyz;
   return out;
 }
 @fragment fn fragment(in: Vertex) -> @location(0) vec4<f32> {
-  let surface = textureSample(picture, filtering, in.uv) * in.color;
-  if (surface.a < 0.5) { discard; }
-  let light = 0.65 + 0.35 * max(dot(normalize(in.normal), normalize(vec3<f32>(0.4, 0.8, 0.3))), 0.0);
+  let texel = textureSample(picture, filtering, in.uv);
+  let flags = u32(in.flags.x);
+  let dx = dpdx(in.opacityUV); let dy = dpdy(in.opacityUV);
+  var alpha = in.color.a * select(1.0, texel.a, (flags & 1u) != 0u);
+  if ((flags & 2u) != 0u) {
+    var mask = texel;
+    if ((flags & 32u) == 0u) { mask = textureSampleGrad(opacity, opacityFiltering, in.opacityUV, dx, dy); }
+    alpha *= select(mask.a, dot(mask.rgb, vec3<f32>(0.3, 0.59, 0.11)), (flags & 4u) != 0u) * in.flags.w;
+  }
+  if (alpha < in.flags.y) { discard; }
+  alpha = select(1.0, alpha, in.flags.z != 0.0);
+  let light = select(0.65 + 0.35 * max(dot(normalize(in.normal), normalize(vec3<f32>(0.4, 0.8, 0.3))), 0.0), 1.0, (flags & 16u) != 0u);
   let distance = length(in.position - camera.eye.xyz);
   let fog = smoothstep(camera.fog.w, camera.eye.w, distance);
-  return vec4<f32>(mix(surface.rgb * light, camera.fog.rgb, fog), 1.0);
+  let rgb = mix(texel.rgb * in.color.rgb * light, camera.fog.rgb, fog);
+  return vec4<f32>(rgb * select(1.0, alpha, (flags & 64u) != 0u), alpha);
 }`
 
 type Geometry = { vertices: GPUBuffer; indices: GPUBuffer; count: number; refs: number }
-type Item = { batch: Batch; slot: number }
+type Item = { batch: Batch; slot: number; x: number; y: number; z: number; alphaIndex: number; distance: number }
 type Batch = {
   key: string
   index: number
@@ -52,7 +68,13 @@ type Batch = {
   buffer: GPUBuffer
   binding: GPUBindGroup
   picture: GPUBindGroup
+  mode: number
+  depthWrite: boolean
+  bias: number
+  units: number
 }
+
+const alphaOrder = (a: Item, b: Item) => a.alphaIndex - b.alphaIndex || b.distance - a.distance
 
 // Babylon remains the authoring scene. Only sync touches its mesh hierarchy.
 export class Renderer {
@@ -63,6 +85,7 @@ export class Renderer {
   private pending = new Map<BABYLON.Geometry, Generator<void>>()
   private batches = new Map<string, Batch>()
   private draws: Batch[] = []
+  private transparent: Item[] = []
   private retired = new Set<Batch>()
   private planes = new Float32Array(24)
   private items = new Map<BABYLON.AbstractMesh, Item[]>()
@@ -72,13 +95,15 @@ export class Renderer {
   private uniforms: GPUBuffer[] = []
   private cameras: GPUBindGroup[] = []
   private cameraData = new Float32Array(24)
-  private scratch = new Float32Array(24)
+  private scratch = new Float32Array(32)
   private resolved: { batch: Batch; mat: any; tex: any }[] = []
   private view: BABYLON.Camera[] = []
   private white: GPUTexture
-  private sampler: GPUSampler
+  private samplers = new Map<string, GPUSampler>()
   private layouts: GPUBindGroupLayout[]
-  private pipelines = new Map<GPUTextureFormat, GPURenderPipeline>()
+  private pipelines = new Map<string, GPURenderPipeline>()
+  private module: GPUShaderModule
+  private bound?: Batch
   private depth?: GPUTexture
   private removal: BABYLON.Nullable<BABYLON.Observer<BABYLON.AbstractMesh>>
 
@@ -92,13 +117,15 @@ export class Renderer {
         entries: [
           { binding: 0, visibility: GPUShaderStage.FRAGMENT, texture: {} },
           { binding: 1, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
+          { binding: 2, visibility: GPUShaderStage.FRAGMENT, texture: {} },
+          { binding: 3, visibility: GPUShaderStage.FRAGMENT, sampler: {} },
         ],
       }),
       this.device.createBindGroupLayout({ entries: [{ binding: 0, visibility: GPUShaderStage.VERTEX, buffer: { type: 'read-only-storage' } }] }),
     ]
     this.white = this.device.createTexture({ size: [1, 1], format: 'rgba8unorm', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST })
     this.device.queue.writeTexture({ texture: this.white }, new Uint8Array([255, 255, 255, 255]), {}, [1, 1])
-    this.sampler = this.device.createSampler({ magFilter: 'linear', minFilter: 'linear', mipmapFilter: 'linear', addressModeU: 'repeat', addressModeV: 'repeat' })
+    this.module = this.device.createShaderModule({ code: shader })
     for (let eye = 0; eye < 2; eye++) {
       const buffer = this.device.createBuffer({ size: 96, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST })
       this.uniforms.push(buffer)
@@ -106,13 +133,57 @@ export class Renderer {
     }
     this.removal = scene.onMeshRemovedObservable.add((mesh) => this.remove(mesh))
     scene.onDisposeObservable.addOnce(() => this.dispose())
-    console.info('NG renderer: flat batches, opaque/cutout surfaces, no Babylon scene.render', scene)
+    console.info('NG renderer: flat batches, no Babylon scene.render')
   }
 
-  private pipeline(format: GPUTextureFormat) {
-    let pipeline = this.pipelines.get(format)
+  private sampler(tex: any) {
+    const u = tex?.wrapU ?? 1,
+      v = tex?.wrapV ?? 1,
+      nearest = tex?.samplingMode === BABYLON.Texture.NEAREST_SAMPLINGMODE
+    const key = `${u}:${v}:${nearest}`
+    let sampler = this.samplers.get(key)
+    if (!sampler) {
+      const modes: GPUAddressMode[] = ['clamp-to-edge', 'repeat', 'mirror-repeat']
+      const filter = nearest ? 'nearest' : 'linear'
+      sampler = this.device.createSampler({ magFilter: filter, minFilter: filter, mipmapFilter: filter, addressModeU: modes[u], addressModeV: modes[v] })
+      this.samplers.set(key, sampler)
+    }
+    return sampler
+  }
+
+  private texture(tex: any) {
+    const internal = tex?.isReady() && tex.getInternalTexture()
+    const texture: GPUTexture = internal?._hardwareTexture?.underlyingResource || this.white
+    return texture.dimension === '2d' && texture.depthOrArrayLayers === 1 && texture.usage & GPUTextureUsage.TEXTURE_BINDING ? texture : this.white
+  }
+
+  private pipeline(format: GPUTextureFormat, batch: Batch) {
+    const key = `${format}:${batch.mode}:${batch.depthWrite}:${batch.bias}:${batch.units}`
+    let pipeline = this.pipelines.get(key)
     if (pipeline) return pipeline
-    const module = this.device.createShaderModule({ code: shader })
+    const module = this.module
+    let blend: GPUBlendState | undefined
+    if (batch.mode !== BABYLON.Engine.ALPHA_DISABLE) {
+      blend = { color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' }, alpha: { srcFactor: 'one', dstFactor: 'one' } }
+      switch (batch.mode) {
+        case BABYLON.Engine.ALPHA_MULTIPLY:
+          blend.color = { srcFactor: 'dst', dstFactor: 'zero' }
+          break
+        case BABYLON.Engine.ALPHA_SCREENMODE:
+          blend.color = { srcFactor: 'one', dstFactor: 'one-minus-src' }
+          blend.alpha.dstFactor = 'one-minus-src-alpha'
+          break
+        case BABYLON.Engine.ALPHA_ADD:
+          blend.color.dstFactor = 'one'
+          blend.alpha.srcFactor = 'zero'
+          break
+        case BABYLON.Engine.ALPHA_PREMULTIPLIED:
+        case BABYLON.Engine.ALPHA_PREMULTIPLIED_PORTERDUFF:
+          blend.color.srcFactor = 'one'
+          if (batch.mode === BABYLON.Engine.ALPHA_PREMULTIPLIED_PORTERDUFF) blend.alpha.dstFactor = 'one-minus-src-alpha'
+          break
+      }
+    }
     pipeline = this.device.createRenderPipeline({
       layout: this.device.createPipelineLayout({ bindGroupLayouts: this.layouts }),
       vertex: {
@@ -130,11 +201,11 @@ export class Renderer {
           },
         ],
       },
-      fragment: { module, entryPoint: 'fragment', targets: [{ format }] },
+      fragment: { module, entryPoint: 'fragment', targets: [{ format, blend }] },
       primitive: { topology: 'triangle-list', cullMode: 'none' },
-      depthStencil: { format: 'depth24plus', depthWriteEnabled: true, depthCompare: 'less-equal' },
+      depthStencil: { format: 'depth24plus', depthWriteEnabled: batch.depthWrite, depthCompare: 'less-equal', depthBias: batch.units, depthBiasSlopeScale: batch.bias },
     })
-    this.pipelines.set(format, pipeline)
+    this.pipelines.set(key, pipeline)
     return pipeline
   }
 
@@ -181,7 +252,7 @@ export class Renderer {
 
   private resize(batch: Batch) {
     const old = batch.buffer
-    const data = new Float32Array(Math.max(16 * 24, batch.data.length * 2))
+    const data = new Float32Array(Math.max(16 * 32, batch.data.length * 2))
     data.set(batch.data)
     batch.data = data
     batch.buffer = this.device.createBuffer({ size: data.byteLength, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST })
@@ -198,9 +269,9 @@ export class Renderer {
       const last = b.items.pop()!
       if (last !== item) {
         b.items[item.slot] = last
-        b.data.copyWithin(item.slot * 24, last.slot * 24, last.slot * 24 + 24)
+        b.data.copyWithin(item.slot * 32, last.slot * 32, last.slot * 32 + 32)
         last.slot = item.slot
-        this.device.queue.writeBuffer(b.buffer, item.slot * 96, b.data.buffer, item.slot * 96, 96)
+        this.device.queue.writeBuffer(b.buffer, item.slot * 128, b.data.buffer, item.slot * 128, 128)
       }
       if (!b.items.length) this.retired.add(b)
       this.stats.objects--
@@ -234,12 +305,18 @@ export class Renderer {
       const part = parts[p]
       const mat: any = part.getMaterial()
       const tex = mat?.diffuseTexture || mat?.albedoTexture || mat?.emissiveTexture
-      const internal = tex?.isReady() && tex.getInternalTexture()
-      let texture: GPUTexture = internal?._hardwareTexture?.underlyingResource || this.white
-      if (texture.dimension !== '2d' || texture.depthOrArrayLayers !== 1 || !(texture.usage & GPUTextureUsage.TEXTURE_BINDING)) texture = this.white
+      const texture = this.texture(tex),
+        opacity = this.texture(mat?.opacityTexture)
       let tid = this.textures.get(texture)
       if (!tid) this.textures.set(texture, (tid = ++this.textureId))
-      const key = geometry.uniqueId + ':' + part.indexStart + ':' + part.indexCount + ':' + tid
+      let oid = this.textures.get(opacity)
+      if (!oid) this.textures.set(opacity, (oid = ++this.textureId))
+      const mode = mat?.needAlphaBlendingForMesh(mesh) ? mat.alphaMode : BABYLON.Engine.ALPHA_DISABLE
+      const depthWrite = !!mat?.forceDepthWrite || (!mat?.disableDepthWrite && mode === BABYLON.Engine.ALPHA_DISABLE)
+      const bias = mat?.zOffset || 0,
+        units = mat?.zOffsetUnits || 0
+      const mask = mat?.opacityTexture
+      const key = `${geometry.uniqueId}:${part.indexStart}:${part.indexCount}:${tid}:${oid}:${tex?.wrapU}:${tex?.wrapV}:${tex?.samplingMode}:${mask?.wrapU}:${mask?.wrapV}:${mask?.samplingMode}:${mode}:${depthWrite}:${bias}:${units}`
       let batch = this.batches.get(key)
       if (!batch) {
         batch = {
@@ -249,6 +326,10 @@ export class Renderer {
           geometry: gpu,
           source: geometry,
           texture,
+          mode,
+          depthWrite,
+          bias,
+          units,
           start: part.indexStart,
           count: part.indexCount,
           items: [],
@@ -257,7 +338,9 @@ export class Renderer {
             layout: this.layouts[1],
             entries: [
               { binding: 0, resource: texture.createView() },
-              { binding: 1, resource: this.sampler },
+              { binding: 1, resource: this.sampler(tex) },
+              { binding: 2, resource: opacity.createView() },
+              { binding: 3, resource: this.sampler(mask) },
             ],
           }),
         } as any
@@ -280,8 +363,8 @@ export class Renderer {
       let item = items[p]
       if (!item) {
         this.retired.delete(batch)
-        if ((batch.items.length + 1) * 24 > batch.data.length) this.resize(batch)
-        item = { batch, slot: batch.items.length }
+        if ((batch.items.length + 1) * 32 > batch.data.length) this.resize(batch)
+        item = { batch, slot: batch.items.length, x: 0, y: 0, z: 0, alphaIndex: 0, distance: 0 }
         batch.items.push(item)
         items.push(item)
         this.stats.objects++
@@ -296,18 +379,36 @@ export class Renderer {
       this.scratch[21] = tex?.vScale ?? 1
       this.scratch[22] = tex?.uOffset ?? 0
       this.scratch[23] = tex?.vOffset ?? 0
+      const mask = mat?.opacityTexture
+      const testing = mat?.needAlphaTesting() && (batch.mode === BABYLON.Engine.ALPHA_DISABLE || mat.transparencyMode === BABYLON.Material.MATERIAL_ALPHATESTANDBLEND)
+      const diffuseAlpha = tex?.hasAlpha && (testing || mat?.useAlphaFromDiffuseTexture || mat?.useAlphaFromAlbedoTexture)
+      const emissive = mat?.emissiveColor
+      const unlit = mat?.disableLighting || (emissive?.r >= 1 && emissive?.g >= 1 && emissive?.b >= 1)
+      this.scratch[24] = (diffuseAlpha ? 1 : 0) | (mask ? 2 : 0) | (mask?.getAlphaFromRGB ? 4 : 0) | (mesh.hasVertexAlpha ? 8 : 0) | (unlit ? 16 : 0) | (mask && mask === tex ? 32 : 0)
+      if (batch.mode === BABYLON.Engine.ALPHA_PREMULTIPLIED || batch.mode === BABYLON.Engine.ALPHA_PREMULTIPLIED_PORTERDUFF) this.scratch[24] |= 64
+      this.scratch[25] = testing ? (mat.alphaCutOff ?? 0.4) : -1
+      this.scratch[26] = batch.mode === BABYLON.Engine.ALPHA_DISABLE ? 0 : 1
+      this.scratch[27] = mask?.level ?? 1
+      this.scratch[28] = mask?.uScale ?? 1
+      this.scratch[29] = mask?.vScale ?? 1
+      this.scratch[30] = mask?.uOffset ?? 0
+      this.scratch[31] = mask?.vOffset ?? 0
       const bounds = mesh.getBoundingInfo().boundingBox
       const lo = bounds.minimumWorld,
         hi = bounds.maximumWorld
+      item.x = (lo.x + hi.x) * 0.5
+      item.y = (lo.y + hi.y) * 0.5
+      item.z = (lo.z + hi.z) * 0.5
+      item.alphaIndex = mesh.alphaIndex
       batch.bounds[0] = Math.min(batch.bounds[0], lo.x)
       batch.bounds[1] = Math.min(batch.bounds[1], lo.y)
       batch.bounds[2] = Math.min(batch.bounds[2], lo.z)
       batch.bounds[3] = Math.max(batch.bounds[3], hi.x)
       batch.bounds[4] = Math.max(batch.bounds[4], hi.y)
       batch.bounds[5] = Math.max(batch.bounds[5], hi.z)
-      const offset = item.slot * 24
+      const offset = item.slot * 32
       let dirty = changed
-      for (let i = 0; i < 24; i++)
+      for (let i = 0; i < 32; i++)
         if (batch.data[offset + i] !== this.scratch[i]) {
           dirty = true
           break
@@ -362,6 +463,21 @@ export class Renderer {
     this.stats.syncMs = performance.now() - start
   }
 
+  private draw(pass: GPURenderPassEncoder, format: GPUTextureFormat, batch: Batch, item?: Item) {
+    if (this.bound !== batch) {
+      pass.setPipeline(this.pipeline(format, batch))
+      pass.setBindGroup(1, batch.picture)
+      pass.setBindGroup(2, batch.binding)
+      pass.setVertexBuffer(0, batch.geometry.vertices)
+      pass.setIndexBuffer(batch.geometry.indices, 'uint32')
+      this.bound = batch
+    }
+    const count = item ? 1 : batch.items.length
+    pass.drawIndexed(batch.count, count, batch.start, 0, item?.slot || 0)
+    this.stats.draws++
+    this.stats.triangles += (batch.count * count) / 3
+  }
+
   render() {
     const start = performance.now(),
       scene = this.scene
@@ -403,7 +519,8 @@ export class Renderer {
         colorAttachments: [{ view: color.createView({ dimension: '2d', baseArrayLayer: target?.layerIndex || 0, arrayLayerCount: 1 }), clearValue: { r: fog.r, g: fog.g, b: fog.b, a: 1 }, loadOp: 'clear', storeOp: 'store' }],
         depthStencilAttachment: { view: this.depth.createView(), depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'discard' },
       })
-      pass.setPipeline(this.pipeline(color.format))
+      this.bound = undefined
+      this.transparent.length = 0
       pass.setBindGroup(0, this.cameras[eye])
       if (target) pass.setViewport(view.viewport.x * color.width, view.viewport.y * color.height, view.viewport.width * color.width, view.viewport.height * color.height, 0, 1)
       const m = this.cameraData
@@ -425,14 +542,16 @@ export class Renderer {
           }
         }
         if (!visible) continue
-        pass.setBindGroup(1, batch.picture)
-        pass.setBindGroup(2, batch.binding)
-        pass.setVertexBuffer(0, batch.geometry.vertices)
-        pass.setIndexBuffer(batch.geometry.indices, 'uint32')
-        pass.drawIndexed(batch.count, batch.items.length, batch.start)
-        this.stats.draws++
-        this.stats.triangles += (batch.count * batch.items.length) / 3
+        if (batch.mode === BABYLON.Engine.ALPHA_DISABLE) this.draw(pass, color.format, batch)
+        else
+          for (const item of batch.items) {
+            item.distance = (item.x - position.x) ** 2 + (item.y - position.y) ** 2 + (item.z - position.z) ** 2
+            this.transparent.push(item)
+          }
       }
+      // Transparent instances need per-eye ordering; opaque geometry stays instanced.
+      this.transparent.sort(alphaOrder)
+      for (const item of this.transparent) this.draw(pass, color.format, item.batch, item)
       pass.end()
       this.stats.passes++
     }
@@ -455,6 +574,7 @@ export class Renderer {
     this.pending.clear()
     this.batches.clear()
     this.draws.length = 0
+    this.transparent.length = 0
     this.retired.clear()
     this.geometries.clear()
     this.items.clear()
