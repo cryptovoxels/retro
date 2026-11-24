@@ -5,25 +5,10 @@ import type DesktopControls from './desktop/controls'
 const INTERACT_D = 2
 
 export class InteractionHint {
-  private label = document.createElement('span')
-  private observer: BABYLON.Observer<BABYLON.Scene>
-  private next = 0
-
   constructor(
     private controls: DesktopControls,
     private scene: BABYLON.Scene,
   ) {
-    this.label.className = 'interaction-hint'
-    this.label.hidden = true
-    document.body.append(this.label)
-    this.observer = scene.onAfterRenderObservable.add(() => {
-      if (performance.now() < this.next) return
-      this.next = performance.now() + 140
-      const action = this.target()?.feature.interactHint
-      this.label.hidden = !action
-      const text = action ? 'press E to ' + action : ''
-      if (this.label.textContent !== text) this.label.textContent = text
-    })
     document.addEventListener('keydown', this.key, true)
   }
 
@@ -56,8 +41,6 @@ export class InteractionHint {
   }
 
   dispose() {
-    this.scene.onAfterRenderObservable.remove(this.observer)
     document.removeEventListener('keydown', this.key, true)
-    this.label.remove()
   }
 }

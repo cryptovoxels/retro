@@ -304,9 +304,14 @@ export class VoxelsMap {
   private flying = false
   private flyTarget: { x: number; z: number; ortho?: number } | null = null
 
-  constructor(
+  static async create(canvas: HTMLCanvasElement, opts: VoxelsMapOpts = {}) {
+    return new VoxelsMap(canvas, opts, await createEngine(canvas, { audioEngine: true }))
+  }
+
+  private constructor(
     private canvas: HTMLCanvasElement,
-    opts: VoxelsMapOpts = {},
+    opts: VoxelsMapOpts,
+    engine: BABYLON.Engine,
   ) {
     this.ortho = opts.ortho ?? PAGE_ORTHO
     this.homeOrtho = this.ortho
@@ -328,7 +333,7 @@ export class VoxelsMap {
     this.overlay.style.cssText = 'position:absolute;inset:0;overflow:hidden;pointer-events:none;z-index:2'
     canvas.insertAdjacentElement('afterend', this.overlay)
 
-    this.engine = createEngine(canvas, true, { audioEngine: true, preserveDrawingBuffer: true, stencil: true })
+    this.engine = engine
     this.scene = new BABYLON.Scene(this.engine)
     this.scene.clearColor = BABYLON.Color4.FromHexString(getComputedStyle(document.documentElement).getPropertyValue('--map-water').trim() + 'ff')
     this.scene.skipPointerMovePicking = true

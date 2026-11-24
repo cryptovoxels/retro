@@ -13,6 +13,7 @@ export const createScene = (engine: BABYLON.Engine): BABYLON.Scene => {
     useClonedMeshMap: true,
   })
   scene.performancePriority = BABYLON.ScenePerformancePriority.BackwardCompatible
+  scene.skipPointerMovePicking = true
   scene.preventDefaultOnPointerDown = false
   scene.preventDefaultOnPointerUp = false
   scene.resetLastAnimationTimeFrame()

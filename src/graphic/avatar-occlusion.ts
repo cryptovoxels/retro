@@ -20,49 +20,47 @@ effect(() => {
 
 // Heights and radii are in metres above the soles. No normals: graphic, not physical.
 const shader = `
-precision highp float;
-varying vec2 vUV;
-uniform sampler2D textureSampler;
-uniform sampler2D depthMap;
-uniform mat4 inverseVP;
-uniform vec3 soles[4];
-uniform vec3 feet[8];
-uniform int count;
-uniform float clipMin;
-uniform float intensity;
-uniform float gamma;
-uniform float size;
-
-float blob(vec3 p, float height, float radius) {
-  vec3 l = vec3(0.0, height, 0.0) - p;
-  float d2 = max(dot(l, l), 0.0001) / (size * size);
+varying vUV: vec2<f32>;
+var textureSampler: texture_2d<f32>;
+var textureSamplerSampler: sampler;
+var depthMap: texture_2d<f32>;
+var depthMapSampler: sampler;
+uniform inverseVP: mat4x4<f32>;
+uniform soles: array<vec4<f32>, 4>;
+uniform feet: array<vec4<f32>, 8>;
+uniform count: i32;
+uniform intensity: f32;
+uniform gamma: f32;
+uniform size: f32;
+fn blob(p: vec3f, height: f32, radius: f32) -> f32 {
+  let l = vec3f(0.0, height, 0.0) - p;
+  let d2 = max(dot(l, l), 0.0001) / (uniforms.size * uniforms.size);
   return min(radius * radius / d2, 1.0) * (1.0 - smoothstep(0.36, 1.44, d2));
 }
-
-void main() {
-  vec4 color = texture2D(textureSampler, vUV);
-  float depth = count > 0 ? texture2D(depthMap, vUV).r : 0.0;
-  if (depth > 0.0) {
-    vec4 h = inverseVP * vec4(vUV * 2.0 - 1.0, mix(clipMin, 1.0, depth), 1.0);
-    vec3 p = h.xyz / h.w;
-    float light = 1.0;
-    for (int i = 0; i < 4; i++) {
-      if (i >= count) break;
-      vec3 local = p - soles[i];
-      if (dot(local.xz, local.xz) > 1.44 * size * size) continue;
-      light *= (1.0 - blob(p - feet[i * 2], 0.0, 0.22)) * (1.0 - blob(p - feet[i * 2 + 1], 0.0, 0.22)) *
+@fragment
+fn main(input: FragmentInputs) -> FragmentOutputs {
+  var color = textureSample(textureSampler, textureSamplerSampler, fragmentInputs.vUV);
+  let depth = textureSample(depthMap, depthMapSampler, fragmentInputs.vUV).r;
+  if (uniforms.count > 0 && depth > 0.0) {
+    let h = uniforms.inverseVP * vec4f(fragmentInputs.vUV * vec2f(2.0, -2.0) + vec2f(-1.0, 1.0), depth, 1.0);
+    let p = h.xyz / h.w;
+    var light = 1.0;
+    for (var i = 0; i < 4; i++) {
+      if (i >= uniforms.count) { break; }
+      let local = p - uniforms.soles[i].xyz;
+      if (dot(local.xz, local.xz) > 1.44 * uniforms.size * uniforms.size) { continue; }
+      light *= (1.0 - blob(p - uniforms.feet[i * 2].xyz, 0.0, 0.22)) * (1.0 - blob(p - uniforms.feet[i * 2 + 1].xyz, 0.0, 0.22)) *
                (1.0 - blob(local, 0.77, 0.28)) * (1.0 - blob(local, 1.22, 0.32));
     }
-    // Two tone: ink or paper, thin band between.
-    color.rgb *= mix(1.0 - intensity, 1.0, smoothstep(0.1, 0.9, pow(light, gamma)));
+    color = vec4f(color.rgb * mix(1.0 - uniforms.intensity, 1.0, smoothstep(0.1, 0.9, pow(light, uniforms.gamma))), color.a);
   }
-  gl_FragColor = color;
+  fragmentOutputs.color = color;
 }`
 
 export function avatarOcclusion(scene: BABYLON.Scene) {
   const engine = scene.getEngine()
   const camera = scene.activeCamera
-  if (!camera || !engine.getCaps().textureFloatRender || (!engine.isWebGPU && engine.version < 2)) return null
+  if (!camera || !engine.getCaps().textureFloatRender) return null
 
   const depth = scene.enableDepthRenderer(camera, true, true, BABYLON.Texture.NEAREST_SAMPLINGMODE)
   depth.useOnlyInActiveCamera = true
@@ -96,8 +94,8 @@ export function avatarOcclusion(scene: BABYLON.Scene) {
     return meshes
   }
 
-  const soles = new Array<number>(12).fill(0)
-  const feet = new Array<number>(24).fill(0)
+  const soles = new Array<number>(16).fill(0)
+  const feet = new Array<number>(32).fill(0)
   const foot = new BABYLON.Vector3()
   const nearest: Avatar[] = []
   const eye = camera.globalPosition
@@ -118,18 +116,25 @@ export function avatarOcclusion(scene: BABYLON.Scene) {
       nearest.length = 4
     }
     for (let i = 0; i < nearest.length; i++) {
-      nearest[i].absolutePosition.toArray(soles, i * 3)
-      soles[i * 3 + 1] -= nearest[i].height
+      nearest[i].absolutePosition.toArray(soles, i * 4)
+      soles[i * 4 + 1] -= nearest[i].height
       for (let f = 0; f < 2; f++) {
         nearest[i].footPosition(f, foot)
-        foot.toArray(feet, (i * 2 + f) * 3)
+        foot.toArray(feet, (i * 2 + f) * 4)
       }
     }
     depth.enabled = nearest.length > 0
   })
 
-  BABYLON.Effect.ShadersStore.avatarOcclusionFragmentShader = shader
-  const pass = new BABYLON.PostProcess('avatar occlusion', 'avatarOcclusion', ['inverseVP', 'soles', 'feet', 'count', 'clipMin', 'intensity', 'gamma', 'size'], ['depthMap'], 1, null, BABYLON.Texture.NEAREST_SAMPLINGMODE, engine)
+  BABYLON.ShaderStore.ShadersStoreWGSL.avatarOcclusionFragmentShader = shader
+  const pass = new BABYLON.PostProcess('avatar occlusion', 'avatarOcclusion', {
+    uniforms: ['inverseVP', 'soles', 'feet', 'count', 'intensity', 'gamma', 'size'],
+    samplers: ['depthMap'],
+    size: 1,
+    engine,
+    samplingMode: BABYLON.Texture.NEAREST_SAMPLINGMODE,
+    shaderLanguage: BABYLON.ShaderLanguage.WGSL,
+  })
   const inverse = BABYLON.Matrix.Identity()
   pass.onApply = (fx) => {
     fx.setInt('count', nearest.length)
@@ -137,9 +142,8 @@ export function avatarOcclusion(scene: BABYLON.Scene) {
     if (!nearest.length) return
     camera.getTransformationMatrix().invertToRef(inverse)
     fx.setMatrix('inverseVP', inverse)
-    fx.setArray3('soles', soles)
-    fx.setArray3('feet', feet)
-    fx.setFloat('clipMin', engine.isNDCHalfZRange ? 0 : -1)
+    fx.setArray4('soles', soles)
+    fx.setArray4('feet', feet)
     fx.setFloat('intensity', shadowIntensity.value)
     fx.setFloat('gamma', shadowGamma.value)
     fx.setFloat('size', shadowSize.value)

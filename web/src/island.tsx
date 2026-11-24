@@ -75,7 +75,7 @@ export default class Parcels extends Component<Props, State> {
 
     const { x, z } = this.worldCenter
     const { VoxelsMap } = await loadVoxelsMap()
-    this.map = new VoxelsMap(canvas, {
+    this.map = await VoxelsMap.create(canvas, {
       ortho: 400,
       parcels: true,
       onClick: (wx, wz) => {

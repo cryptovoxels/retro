@@ -121,8 +121,8 @@ function fetchVox(src: string) {
   return p
 }
 
-function init(c: OffscreenCanvas | HTMLCanvasElement) {
-  if (!ctx) ctx = createThumbScene(c)
+async function init(c: OffscreenCanvas | HTMLCanvasElement) {
+  if (!ctx) ctx = await createThumbScene(c)
 }
 
 function render(src: string, background: string): Promise<ArrayBuffer> {

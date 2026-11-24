@@ -264,7 +264,7 @@ export default class IslandsAdmin extends Component<{}, State> {
     el.appendChild(canvas)
 
     const { VoxelsMap } = await loadVoxelsMap()
-    this.map = new VoxelsMap(canvas, {
+    this.map = await VoxelsMap.create(canvas, {
       ortho: PAGE_ORTHO / 2,
       parcels: true,
       onClick: (x, z) => this.setState({ center: [x / 100, z / 100] }, this.syncMap),

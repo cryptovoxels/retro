@@ -7,7 +7,7 @@ import { render } from 'preact'
 import { createFirstPersonCamera } from '../utils/fps-camera'
 import { decodeCoordsFromURL } from '../../utils/helpers'
 import { hasPointerLock, isFastviewBlocking } from '../../../common/helpers/ui-helpers'
-import { hoveredNft, uiPane } from '../../store'
+import { uiPane } from '../../store'
 import { app, AppEvent, likedArt, toggleLike } from '../../../web/src/state'
 import { CAMERA_HEIGHT, encodeCoords } from '../../../common/helpers/utils'
 import { pointerOverGizmo } from '../../tools/gizmos'
@@ -18,8 +18,6 @@ export default class DesktopControls extends Controls {
   keyboardInput?: LocaleKeyboardMoveInput
   private lockListener?: () => void
   private nerfClick = false
-  private hoverFrame = -1
-  private hoverFeature: Feature | null = null
   private mouseLookAttached = false
   private rising = false
   private locked?: boolean
@@ -31,7 +29,7 @@ export default class DesktopControls extends Controls {
 
     scene.skipPointerUpPicking = false
     scene.skipPointerDownPicking = false
-    scene.skipPointerMovePicking = false
+    scene.skipPointerMovePicking = true
 
     this.onPointerLockChange()
     scene.onBeforeRenderObservable.addOnce(() => this.onPointerLockChange())
@@ -89,7 +87,6 @@ export default class DesktopControls extends Controls {
     this.addLockListener()
 
     this.addKeyboardControls(camera)
-    this.addGamepadControls(camera)
 
     this.desktopClicks = this.desktopClicks.bind(this)
     this.scene.onPointerObservable.add(this.desktopClicks, undefined, true)
@@ -290,19 +287,6 @@ export default class DesktopControls extends Controls {
           eventState.skipNextObservers = true
         }
         break
-
-      case BABYLON.PointerEventTypes.POINTERMOVE:
-        // mice fire way faster than frames, one hover pick per frame is plenty
-        if (this.hoverFrame === this.scene.getRenderId()) break
-        this.hoverFrame = this.scene.getRenderId()
-        const pick = hasPointerLock() ? this.pickAtView(undefined, undefined, false, (m) => this.reticuleHighlightPredicate(m)) : eventData.pickInfo
-        const feature = featureFromPick(pick)
-        const distance = pick?.distance || Infinity
-        if (feature !== this.hoverFeature) {
-          this.hoverFeature = feature
-          hoveredNft.value = this.caipOf(feature)
-        }
-        this.setActiveReticule(!!feature?.isInteract && distance < this.MAX_PICK_DISTANCE)
     }
   }
 
@@ -410,80 +394,6 @@ export default class DesktopControls extends Controls {
         this.walk()
       }
     })
-  }
-
-  addGamepadControls(camera: PlayerCamera) {
-    camera.inputs.addGamepad()
-    const gamepad = <BABYLON.FreeCameraGamepadInput>camera.inputs.attached['gamepad']
-
-    gamepad.gamepadAngularSensibility = 40
-
-    const gamepadManager = new BABYLON.GamepadManager(this.scene)
-    gamepadManager.onGamepadConnectedObservable.add((gamepad) => {
-      console.log('Gamepad detected')
-      if ((gamepad as any)['onButtonDownObservable']) {
-        this.hasGamepad = gamepadManager.gamepads.some((g) => g.isConnected)
-        ;(gamepad as any)['onButtonDownObservable'].add((buttonId: any) => {
-          const button = this.getGamepadButton(gamepad, buttonId)
-          if (button) {
-            this.onGamepadButton(button, true)
-          }
-        })
-        ;(gamepad as any)['onButtonUpObservable'].add((buttonId: any) => {
-          const button = this.getGamepadButton(gamepad, buttonId)
-          if (button) {
-            this.onGamepadButton(button, false)
-          }
-        })
-      }
-    })
-
-    gamepadManager.onGamepadDisconnectedObservable.add(() => {
-      this.hasGamepad = gamepadManager.gamepads.some((g) => g.isConnected)
-    })
-  }
-
-  onGamepadButton(button: string, pressed: boolean) {
-    if (button === 'LeftStick') {
-      if (pressed) this.toggleRun()
-    } else if (button === 'Cross' || button === 'A') {
-      if (pressed) {
-        this.jump()
-      }
-    } else if (button === 'Circle' || button === 'B') {
-      if (pressed) this.toggleFlying()
-    } else if (button === 'R1' || button === 'RB') {
-      const canvasRect = this.scene.getEngine().getInputElementClientRect()
-      if (canvasRect) {
-        this.syntheticMouseDown(canvasRect.width / 2, canvasRect.height / 2, 0)
-      }
-    }
-  }
-
-  syntheticMouseDown(x: number, y: number, button: number) {
-    const options = {
-      bubbles: true,
-      cancelable: false,
-      button: button,
-      clientX: x,
-      clientY: y,
-      screenX: x,
-      scfreenY: y,
-      ctrlKey: false,
-      altKey: false,
-      shiftKey: false,
-      metaKey: false,
-    }
-    const oEvent = new PointerEvent('pointerdown', options)
-    this.canvas.dispatchEvent(oEvent)
-  }
-
-  getGamepadButton(gamepad: any, button: any) {
-    if (gamepad instanceof BABYLON.DualShockPad) {
-      return BABYLON.DualShockButton[button]
-    } else if (gamepad instanceof BABYLON.Xbox360Pad) {
-      return BABYLON.Xbox360Button[button]
-    }
   }
 
   requestPointerLock() {

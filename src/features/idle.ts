@@ -42,37 +42,30 @@ class WindMaterial extends BABYLON.MaterialPluginBase {
   isCompatible() {
     return true
   }
-  getUniforms(lang: BABYLON.ShaderLanguage) {
+  getUniforms() {
     return {
       ubo: ['windClock', 'windBox'].map((name) => ({ name, size: 4, type: 'vec4' })),
-      vertex: lang === BABYLON.ShaderLanguage.WGSL ? 'uniform windClock: vec4f;\nuniform windBox: vec4f;' : 'uniform vec4 windClock;\nuniform vec4 windBox;',
+      vertex: 'uniform windClock: vec4f;\nuniform windBox: vec4f;',
     }
   }
   hardBindForSubMesh(buffer: BABYLON.UniformBuffer) {
     buffer.updateFloat4('windClock', this.clock.phase, this.speed, this.amount, Number(this.flag))
     buffer.updateFloat4('windBox', ...this.box)
   }
-  getCustomCode(stage: string, lang: BABYLON.ShaderLanguage) {
+  getCustomCode(stage: string) {
     if (stage !== 'vertex') return null
-    const code = `
-      float phase = windClock.x * windClock.y + dot(finalWorld[3].xz, vec2(.59,.31));
-      if (windClock.w > .5) {
-        float reach = clamp((positionUpdated.x-windBox.x)/windBox.z-.08,0.,1.);
-        worldPos += vec4(finalWorld[2].xyz * (windBox.z*windClock.z*reach*
+    return {
+      CUSTOM_VERTEX_UPDATE_WORLDPOS: `
+      let phase = uniforms.windClock.x * uniforms.windClock.y + dot(finalWorld[3].xz, vec2f(.59,.31));
+      if (uniforms.windClock.w > .5) {
+        let reach = clamp((positionUpdated.x-uniforms.windBox.x)/uniforms.windBox.z-.08,0.,1.);
+        worldPos += vec4f(finalWorld[2].xyz * (uniforms.windBox.z*uniforms.windClock.z*reach*
           (sin(phase-5.*reach)+.22*sin(2.*phase-8.*reach))),0.);
       } else {
-        float tip = clamp((positionUpdated.y-windBox.y)/windBox.w,0.,1.);
-        float bend = tip*tip * windBox.w*length(finalWorld[1].xyz)*windClock.z;
-        worldPos += vec4(.89,0.,.46,0.)*bend*(sin(phase)+.24*sin(2.*phase+dot(worldPos.xz,vec2(.7,-.4))));
-      }`
-    return {
-      CUSTOM_VERTEX_UPDATE_WORLDPOS:
-        lang === BABYLON.ShaderLanguage.WGSL
-          ? code
-              .replace(/float /g, 'let ')
-              .replace(/vec([24])\(/g, 'vec$1f(')
-              .replace(/wind(Clock|Box)/g, 'uniforms.wind$1')
-          : code,
+        let tip = clamp((positionUpdated.y-uniforms.windBox.y)/uniforms.windBox.w,0.,1.);
+        let bend = tip*tip * uniforms.windBox.w*length(finalWorld[1].xyz)*uniforms.windClock.z;
+        worldPos += vec4f(.89,0.,.46,0.)*bend*(sin(phase)+.24*sin(2.*phase+dot(worldPos.xz,vec2f(.7,-.4))));
+      }`,
     }
   }
 }

@@ -1,5 +1,5 @@
 import { runCompute } from '../mono-pool'
-import { isMobile } from '../../common/helpers/detector'
+import { isMobile, isOculusQuest } from '../../common/helpers/detector'
 import type { Chunk, ChunkObserver } from './chunk-system'
 import { groundOffset, snapRing, type Point2D, PolygonClipping } from '../utils/polygon-utils'
 import type { IslandRecord } from '../../common/messages/api-islands'
@@ -30,22 +30,19 @@ class TexasWater extends BABYLON.MaterialPluginBase {
   isCompatible() {
     return true
   }
-  getUniforms(lang: BABYLON.ShaderLanguage) {
-    return { ubo: [{ name: 'texasBounds', size: 4, type: 'vec4' }], fragment: lang === BABYLON.ShaderLanguage.WGSL ? 'uniform texasBounds: vec4f;' : 'uniform vec4 texasBounds;' }
+  getUniforms() {
+    return { ubo: [{ name: 'texasBounds', size: 4, type: 'vec4' }], fragment: 'uniform texasBounds: vec4f;' }
   }
   hardBindForSubMesh(buffer: BABYLON.UniformBuffer) {
     buffer.updateVector4('texasBounds', this.bounds)
   }
-  getCustomCode(stage: string, lang: BABYLON.ShaderLanguage) {
+  getCustomCode(stage: string) {
     if (stage !== 'fragment') return null
-    const wg = lang === BABYLON.ShaderLanguage.WGSL,
-      bounds = wg ? 'uniforms.texasBounds' : 'texasBounds',
-      pos = wg ? 'fragmentInputs.vPositionW' : 'vPositionW'
     return {
       CUSTOM_FRAGMENT_BEFORE_FOG: `
-      ${wg ? 'let' : 'vec2'} shore=max(max(${bounds}.xy-${pos}.xz,${pos}.xz-${bounds}.zw),${wg ? 'vec2f' : 'vec2'}(0.));
-      ${wg ? 'let' : 'float'} turquoise=1.-smoothstep(0.,24.,length(shore));
-      color=${wg ? 'vec4f' : 'vec4'}(mix(color.rgb,${wg ? 'vec3f' : 'vec3'}(.02,.31,.30)+color.rgb*${wg ? 'vec3f' : 'vec3'}(.25,.9,.85),turquoise),color.a);`,
+      let shore = max(max(uniforms.texasBounds.xy-fragmentInputs.vPositionW.xz,fragmentInputs.vPositionW.xz-uniforms.texasBounds.zw),vec2f(0.0));
+      let turquoise = 1.0-smoothstep(0.0,24.0,length(shore));
+      color = vec4f(mix(color.rgb,vec3f(0.02,0.31,0.30)+color.rgb*vec3f(0.25,0.9,0.85),turquoise),color.a);`,
     }
   }
 }
@@ -58,7 +55,7 @@ function oceanMaterial(scene: BABYLON.Scene, size: number, texas: BABYLON.Vector
   mat.specularColor = new BABYLON.Color3(0.02, 0.03, 0.03)
   mat.alpha = 1
   mat.fogEnabled = true
-  if (!isMobile()) {
+  if (!isMobile() && !isOculusQuest()) {
     mat.reflectionTexture = mirrorTexture(scene, OCEAN_HEIGHT_OFFSET)
     mat.reflectionTexture.level = 0.28
     mat.reflectionFresnelParameters = new BABYLON.FresnelParameters({ bias: 0.12, power: 2 })
@@ -80,29 +77,6 @@ function oceanMaterial(scene: BABYLON.Scene, size: number, texas: BABYLON.Vector
   texture.uScale = texture.vScale = size / 16
   mat.diffuseTexture = texture
   let elapsed = 0
-  mat.customShaderNameResolve = (name, uniforms, _buffers, _samplers, defines, _attributes, options) => {
-    // Keep this shader out of the island material's effect cache.
-    ;(defines as any).OCEAN_RIPPLES = true
-    ;(defines as BABYLON.MaterialDefines).rebuild()
-    uniforms.push('rippleTime')
-    options!.processFinalCode = (type, code) => {
-      if (type !== 'fragment') return code
-      return code.replace('void main(', 'uniform float rippleTime;\nvoid main(').replace(
-        'coords.y=1.0-coords.y;',
-        `coords.y=1.0-coords.y;
-        vec2 wave = vPositionW.xz * 1.45;
-        coords += 0.012 * vec2(
-          sin(wave.x + cos(wave.y + rippleTime * 2.1) + rippleTime * 3.2),
-          cos(wave.y + sin(wave.x - rippleTime * 1.7) + rippleTime * 2.8)
-        );`,
-      )
-    }
-    return name
-  }
-  mat.onBindObservable.add(() => {
-    const effect = mat.getEffect()
-    effect?.setFloat('rippleTime', elapsed)
-  })
   const drift = scene.onBeforeRenderObservable.add(() => {
     elapsed += scene.getEngine().getDeltaTime() / 1000
     texture.uOffset = (Math.floor(elapsed) % 32) / 32

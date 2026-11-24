@@ -5339,7 +5339,7 @@ header nav .user-menu {
 // Aside bottom bar
 
 @media (pointer: coarse) and (orientation: landscape) {
-  body.chat-route main {
+  body.chat-route main:not(.quest) {
     grid-template-rows: 0 auto minmax(0, 1fr);
 
     > .client,
@@ -5353,7 +5353,7 @@ header nav .user-menu {
 
     > :not(main),
     main > :not(.client):not(.canvasdom),
-    .canvasdom > :not(.parcel-location),
+    main:not(.quest) .canvasdom > :not(.parcel-location),
     .parcel-location > :not(strong) {
       display: none !important;
     }
@@ -5679,4 +5679,23 @@ dl.props {
   background: var(--bg);
   color: var(--fg);
   padding: 0.25rem 0.5rem;
+}
+
+main.quest {
+  .client-canvas,
+  .interact-bar,
+  .interact-popout {
+    filter: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .interact-bar {
+    transform: none !important;
+    pointer-events: auto !important;
+
+    form {
+      pointer-events: auto !important;
+    }
+  }
 }

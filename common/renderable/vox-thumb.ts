@@ -1,4 +1,4 @@
-import { createEngine } from '../helpers/utils'
+import { createEngine, renderFrame } from '../helpers/utils'
 // ABOUTME: Shared Babylon vox -> webp thumb render. Used by browser worker and Playwright page.
 
 import { loadVox } from '../../src/monoworker/vox'
@@ -67,8 +67,8 @@ async function meshFromBuffer(scene: BABYLON.Scene, buf: ArrayBuffer): Promise<B
   return mesh
 }
 
-export function createThumbScene(canvas: OffscreenCanvas | HTMLCanvasElement): ThumbScene {
-  const engine = createEngine(canvas as any, true)
+export async function createThumbScene(canvas: OffscreenCanvas | HTMLCanvasElement): Promise<ThumbScene> {
+  const engine = await createEngine(canvas)
   const scene = new BABYLON.Scene(engine)
   scene.clearColor = new BABYLON.Color4(1, 0, 0.667, 1)
   const camera = new BABYLON.ArcRotateCamera('thumb', Math.PI / 4, Math.acos(1 / Math.sqrt(3)), 8, BABYLON.Vector3.Zero(), scene)
@@ -93,7 +93,7 @@ export async function renderVoxThumb(ctx: ThumbScene, renderable: Renderable): P
   try {
     mesh = await meshFromBuffer(scene, renderable.bytes)
     zoomCamera(camera, scene)
-    scene.render()
+    await renderFrame(scene)
     const bytes = await blobFromCanvas(canvas)
     return { bytes, contentType: 'image/webp' }
   } finally {
@@ -114,8 +114,7 @@ export async function renderVrmThumb(ctx: ThumbScene, url: string, background: s
     // glTF root flips z so VRMs face +Z; camera sits in front, a little to the side
     camera.alpha = Math.PI / 2 - 0.4
     camera.beta = Math.PI / 2.2
-    await scene.whenReadyAsync()
-    scene.render()
+    await renderFrame(scene)
     const bytes = await blobFromCanvas(canvas)
     return { bytes, contentType: 'image/webp' }
   } finally {

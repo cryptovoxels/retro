@@ -1,4 +1,4 @@
-import { createEngine } from '../../common/helpers/utils'
+import { createEngine, renderFrame } from '../../common/helpers/utils'
 // ABOUTME: Shared OpenSea parcel thumbnail and orbit scene.
 
 import { setMainThread } from '../../common/helpers/detector'
@@ -430,7 +430,7 @@ async function buildPreview(record: ParcelRecord, embeds: Record<string, string>
   if (!canvas) throw new Error('no canvas')
   sizeCanvas(canvas, orbit)
 
-  const engine = createEngine(canvas, true, { audioEngine: true })
+  const engine = await createEngine(canvas, { audioEngine: true })
   const scene = new BABYLON.Scene(engine)
   scene.clearColor = OCEAN.clone()
 
@@ -466,8 +466,8 @@ async function renderOnce(record: ParcelRecord, embeds?: Record<string, string>,
   const live = await buildPreview(record, embeds, world, false)
   try {
     // Twice so GUI DynamicTexture uploads before capture.
-    live.scene.render()
-    live.scene.render()
+    await renderFrame(live.scene)
+    await renderFrame(live.scene)
     const quality = type === 'image/png' ? 0.8 : 0.9
     return await blobFromCanvas(live.canvas, type, quality)
   } finally {

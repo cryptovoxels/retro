@@ -167,48 +167,50 @@ export default function RenderAsset(props: Props) {
     canvas.width = 512
     canvas.height = 1024
 
-    const engine = createEngine(canvas, true)
+    void createEngine(canvas)
+      .then((engine) => {
+        scene = createAssetScene(engine)
 
-    scene = createAssetScene(engine)
+        const camera = new BABYLON.ArcRotateCamera('wearable-camera', Math.PI / 4, Math.acos(1 / Math.sqrt(3)), 8, new BABYLON.Vector3(0, 0, 0), scene)
+        camera.fov = 0.4
+        camera.useAutoRotationBehavior = false
+        camera.attachControl(canvas, true)
 
-    const camera = new BABYLON.ArcRotateCamera('wearable-camera', Math.PI / 4, Math.acos(1 / Math.sqrt(3)), 8, new BABYLON.Vector3(0, 0, 0), scene)
-    camera.fov = 0.4
-    camera.useAutoRotationBehavior = false
-    camera.attachControl(canvas, true)
+        const light = new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), scene)
+        light.intensity = 1.0
 
-    const light = new BABYLON.HemisphericLight('light1', new BABYLON.Vector3(0, 1, 0), scene)
-    light.intensity = 1.0
+        const sun = new BABYLON.DirectionalLight('sun', new BABYLON.Vector3(-1, -1, 1), scene)
+        sun.intensity = 2.0
 
-    const sun = new BABYLON.DirectionalLight('sun', new BABYLON.Vector3(-1, -1, 1), scene)
-    sun.intensity = 2.0
+        scene.ambientColor = new BABYLON.Color3(1, 1, 1) // full white ambient
 
-    scene.ambientColor = new BABYLON.Color3(1, 1, 1) // full white ambient
+        // Lighting
+        // createRingLight(scene, scene.activeCamera as BABYLON.Camera)
 
-    // Lighting
-    // createRingLight(scene, scene.activeCamera as BABYLON.Camera)
+        // ground.position.y = -0.5
 
-    // ground.position.y = -0.5
+        const t = new BABYLON.Texture('/textures/01-grid.png', scene)
+        t.uScale = 1024
+        t.vScale = 1024
 
-    const t = new BABYLON.Texture('/textures/01-grid.png', scene)
-    t.uScale = 1024
-    t.vScale = 1024
+        const mat = new BABYLON.StandardMaterial('ground', scene)
+        mat.diffuseTexture = t
 
-    const mat = new BABYLON.StandardMaterial('ground', scene)
-    mat.diffuseTexture = t
+        // const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 512, height: 512 }, scene)
+        // ground.material = mat
 
-    // const ground = BABYLON.MeshBuilder.CreateGround('ground', { width: 512, height: 512 }, scene)
-    // ground.material = mat
+        // Load costme
+        if (props.id) {
+          fetchAsset(props.id)
+        } else {
+          alert('No id supplied')
+        }
 
-    // Load costme
-    if (props.id) {
-      fetchAsset(props.id)
-    } else {
-      alert('No id supplied')
-    }
-
-    engine.runRenderLoop(() => {
-      scene.render()
-    })
+        engine.runRenderLoop(() => {
+          scene.render()
+        })
+      })
+      .catch(console.error)
   }, [])
 
   // const hue = props.id ? (parseInt(props.id, 10) * 654347) % 360 : 0

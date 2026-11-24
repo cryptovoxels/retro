@@ -41,10 +41,11 @@ import Robots from './robots/robots'
 
 // Features
 import { type AudioEngine } from './audio/audio-engine'
-import { isBatterySaver, isDebug, isInspect, isMobile, wantsGateway, wantsXR } from '../common/helpers/detector'
+import { isBatterySaver, isDebug, isInspect, isMobile, isOculusQuest, wantsGateway } from '../common/helpers/detector'
 import { DragDrop } from './tools/drag-drop'
 
 import { GraphicEngine } from './graphic/graphic-engine'
+import { AdaptivePerf } from './graphic/adaptive-perf'
 import { extendTabIndexOnClick } from '../common/helpers/ui-helpers'
 import { User } from './user'
 import Persona from './persona'
@@ -78,6 +79,7 @@ type Voxels = {
 declare global {
   interface Window {
     // CV objects
+    adaptivePerf: typeof AdaptivePerf
     main: MainLoop | undefined
     connector: Connector
     user: User
@@ -158,7 +160,7 @@ async function main() {
     { passive: false },
   )
 
-  if (isDebug()) {
+  if (isDebug() && !isOculusQuest()) {
     toggleFPSStats()
   }
 
@@ -195,16 +197,15 @@ async function main() {
    */
   const options = {
     audioEngine: true,
-    antialias: !isMobile(),
+    antialias: false, // Context AA cannot change at runtime; post-process MSAA can.
     stencil: true,
     alpha: wantsGateway(),
-    preserveDrawingBuffer: true, // needed for screenshots (womps)
+    xrCompatible: true,
     doNotHandleContextLost: true, // we handle context lost ourselves *see below*
   }
-  const webgpu = !new URLSearchParams(location.search).has('webgl') && (await BABYLON.WebGPUEngine.IsSupportedAsync)
-  const engine: BABYLON.Engine = webgpu ? (new BABYLON.WebGPUEngine(canvas, { ...options, enableAllFeatures: true }) as any) : createEngine(canvas, false, options, false)
-  if (webgpu) await (engine as any).initAsync()
-  console.info(`World renderer: ${webgpu ? 'Babylon WebGPU' : 'Babylon WebGL2'}`)
+  const engine = await createEngine(canvas, options)
+  if (isOculusQuest() && BABYLON.Engine.audioEngine) BABYLON.Engine.audioEngine.useCustomUnlockedButton = true
+  console.info('World renderer: Babylon WebGPU')
   // reload page on context lost, rather than trying to recover (which requires lots of extra memory)
   engine.onContextLostObservable.add(() => {
     console.log('context lost')
@@ -282,10 +283,13 @@ async function main() {
 
   new DragDrop(scene)
 
-  const color = new ColorGrader(scene)
-  window._color = color
-
-  graphic.postProcesses = new PostProcesses(scene, color, graphic)
+  if (!isOculusQuest() && new URLSearchParams(location.search).get('render') !== 'ng') {
+    const color = new ColorGrader(scene)
+    window._color = color
+    graphic.postProcesses = new PostProcesses(scene, color, graphic)
+  }
+  if (new URLSearchParams(location.search).get('render') !== 'ng') new AdaptivePerf(scene, graphic)
+  window.adaptivePerf = AdaptivePerf
   ;(engine as any).setBlur = (on: boolean) => graphic.postProcesses?.setBlur(on)
   ;(engine as any).setUnderwater = (on: boolean) => graphic.postProcesses?.setUnderwater(on)
 
@@ -303,7 +307,7 @@ async function main() {
 
   // minimap is never shown on mobile (enabled getter returns false) but the constructor
   // still allocates a Scene, camera, meshes and PostProcess -- skip it entirely
-  if (!isMobile()) {
+  if (!isMobile() && !isOculusQuest()) {
     map = new Minimap(engine, connector)
     mapSettings = map.getSettings()
 
@@ -342,10 +346,8 @@ async function main() {
   // unmounts when you leave the world (instead of living on <body> forever).
   const ui: BootResult = {
     UI: UserInterface,
-    props: { scene, canvas, grid, connector, enabled: !wantsXR() && !wantsGateway(), minimapSettings: mapSettings ?? new MinimapSettings() },
+    props: { scene, canvas, grid, connector, enabled: !wantsGateway(), minimapSettings: mapSettings ?? new MinimapSettings() },
   }
-
-  if (wantsXR()) return ui
 
   // isInspect() && toggleBabylonInspector(scene).then(/** ignore promise */)
   // // also toggle the inspector on Shift + CTRL + Meta + I

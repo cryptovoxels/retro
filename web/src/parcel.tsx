@@ -319,7 +319,7 @@ export default class Parcel extends Component<Props, State> {
 
     const p = this.state.parcel
     const { VoxelsMap } = await loadVoxelsMap()
-    this.map = new VoxelsMap(canvas, { ortho: 200, parcels: true })
+    this.map = await VoxelsMap.create(canvas, { ortho: 200, parcels: true })
     this.map.setView((p.x1 + p.x2) / 2, (p.z1 + p.z2) / 2, 200)
     this.map.load().catch((e) => console.error('parcel map load failed', e))
   }

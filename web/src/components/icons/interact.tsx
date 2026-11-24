@@ -1,5 +1,6 @@
 // Includes Lucide SVGs: https://lucide.dev. See LUCIDE-LICENSE.
 const icons = {
+  immersive: <path d="M4 6h16a2 2 0 0 1 2 2v9a1 1 0 0 1-1 1h-5l-4-3-4 3H3a1 1 0 0 1-1-1V8a2 2 0 0 1 2-2ZM7 10v3m10-3v3" />,
   home: <path d="m3 10 9-7 9 7v11h-6v-7H9v7H3z" />,
   costumes: <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z" />,
   dance: (

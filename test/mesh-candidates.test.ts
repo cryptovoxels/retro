@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, expect, test } from 'vitest'
+import { afterEach, beforeEach, expect, test, vi } from 'vitest'
 import { meshCandidates } from '../src/utils'
 
 let engine: BABYLON.NullEngine
@@ -12,6 +12,7 @@ beforeEach(() => {
   scene.updateTransformMatrix(true)
 })
 afterEach(() => {
+  vi.restoreAllMocks()
   scene.dispose()
   engine.dispose()
 })
@@ -100,4 +101,42 @@ test('Babylon renders the same active meshes with an off-screen instance source'
   instance.freezeWorldMatrix()
   scene.render()
   expect(active()).not.toContain(instance.uniqueId)
+})
+
+test('XR cuts distant static detail but keeps terrain, moving meshes and instance sources', () => {
+  camera.rigParent = Object.create(BABYLON.WebXRCamera.prototype)
+  const near = box(0)
+  const far = box(40)
+  const terrain = box(100)
+  const moving = box(100)
+  moving.unfreezeWorldMatrix()
+  const source = box(100)
+  source.createInstance('instance')
+  for (const mesh of [near, far, moving, source]) (mesh as any).feature = {}
+  meshCandidates(scene)
+  expect(selected()).toContain(near)
+  expect(selected()).not.toContain(far)
+  expect(selected()).toEqual(expect.arrayContaining([terrain, moving, source]))
+})
+
+test('XR refreshes cached detail after movement and immediately drops disposed meshes', () => {
+  camera.rigParent = Object.create(BABYLON.WebXRCamera.prototype)
+  const now = vi.spyOn(performance, 'now').mockReturnValue(0)
+  const near = box(0)
+  const far = box(40)
+  ;(near as any).feature = {}
+  ;(far as any).feature = {}
+  meshCandidates(scene)
+  expect(selected()).toEqual([near])
+  camera.position.x = 40
+  scene.updateTransformMatrix(true)
+  now.mockReturnValue(251)
+  expect(selected()).toEqual([far])
+  far.dispose()
+  expect(selected()).toEqual([])
+  camera.rigParent = undefined
+  camera.position.x = 0
+  camera.setTarget(BABYLON.Vector3.Zero())
+  scene.updateTransformMatrix(true)
+  expect(selected()).toEqual([near])
 })

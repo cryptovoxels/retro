@@ -41,8 +41,8 @@ export default class AvatarCanvas extends Component<Props, State> {
     return this.props.costume || this.props.avatar?.costume || this.state.avatar?.costume
   }
 
-  componentDidMount() {
-    this.engine = createEngine(this.canvas.current, true, { preserveDrawingBuffer: true, stencil: true })
+  async componentDidMount() {
+    this.engine = await createEngine(this.canvas.current, { stencil: true })
     this.scene = setupScene(this.canvas.current, this.engine, () => {
       /* do nothing onClick */
     })

@@ -86,30 +86,32 @@ export default function RenderCostume(props: Props) {
     canvas.width = 512
     canvas.height = 1024
 
-    const engine = createEngine(canvas, true)
+    void createEngine(canvas)
+      .then((engine) => {
+        // Render on a transparent background
+        scene = new BABYLON.Scene(engine)
+        scene.clearColor.set(0, 0, 0, 0)
 
-    // Render on a transparent background
-    scene = new BABYLON.Scene(engine)
-    scene.clearColor.set(0, 0, 0, 0)
+        const camera = new BABYLON.ArcRotateCamera('wearable-camera', Math.PI / 3, Math.PI / 3, 5, new BABYLON.Vector3(0, 0, 0), scene)
+        camera.fov = 0.5
+        camera.useAutoRotationBehavior = false
+        camera.attachControl(canvas, true)
 
-    const camera = new BABYLON.ArcRotateCamera('wearable-camera', Math.PI / 3, Math.PI / 3, 5, new BABYLON.Vector3(0, 0, 0), scene)
-    camera.fov = 0.5
-    camera.useAutoRotationBehavior = false
-    camera.attachControl(canvas, true)
+        // Lighting
+        createRingLight(scene, scene.activeCamera as BABYLON.Camera)
 
-    // Lighting
-    createRingLight(scene, scene.activeCamera as BABYLON.Camera)
+        // Load costme
+        if (props.id) {
+          fetchCostume(props.id)
+        } else {
+          alert('No id supplied')
+        }
 
-    // Load costme
-    if (props.id) {
-      fetchCostume(props.id)
-    } else {
-      alert('No id supplied')
-    }
-
-    engine.runRenderLoop(() => {
-      scene.render()
-    })
+        engine.runRenderLoop(() => {
+          scene.render()
+        })
+      })
+      .catch(console.error)
   }, [])
 
   // const hue = props.id ? (parseInt(props.id, 10) * 654347) % 360 : 0

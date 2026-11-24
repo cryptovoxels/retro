@@ -2,13 +2,16 @@ import FPSStats from './utils/fps-stats'
 import { throttle } from 'lodash'
 import { createEvent, TypedEventTarget } from './utils/EventEmitter'
 import { WorldStream } from './world-stream'
+import { Renderer } from './render/renderer'
+import { isOculusQuest } from '../common/helpers/detector'
 
 export type LOOP_STATE = 'running' | 'paused'
 export default class MainLoop extends TypedEventTarget<Record<LOOP_STATE, void>> {
   paused = false
   running = false
-  filter = 'blur(25px) saturate(0%) brightness(1.4)'
+  filter = isOculusQuest() ? 'none' : 'blur(25px) saturate(0%) brightness(1.4)'
 
+  renderer?: Renderer
   scene?: BABYLON.Scene
   mapScene?: BABYLON.Scene
 
@@ -25,6 +28,7 @@ export default class MainLoop extends TypedEventTarget<Record<LOOP_STATE, void>>
 
   setScene(scene: BABYLON.Scene) {
     this.scene = scene
+    if (new URLSearchParams(location.search).get('render') === 'ng') this.renderer = new Renderer(scene)
   }
 
   unsetMapScene() {
@@ -65,7 +69,10 @@ export default class MainLoop extends TypedEventTarget<Record<LOOP_STATE, void>>
       try {
         FPSStats.end()
 
-        this.scene?.render()
+        if (this.renderer && this.scene) {
+          this.renderer.render()
+          this.renderer.sync(this.scene, { budget: 5 })
+        } else this.scene?.render()
         this.mapScene?.render()
 
         FPSStats.begin()

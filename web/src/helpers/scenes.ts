@@ -1,8 +1,8 @@
 import { createEngine } from '../../../common/helpers/utils'
 import { isMobile } from '../../../common/helpers/detector'
 
-export const createWearableScene = (canvasOrContext: BABYLON.Nullable<HTMLCanvasElement | OffscreenCanvas | WebGLRenderingContext | WebGL2RenderingContext>) => {
-  const engine = createEngine(canvasOrContext)
+export const createWearableScene = async (canvasOrContext: HTMLCanvasElement | OffscreenCanvas) => {
+  const engine = await createEngine(canvasOrContext)
   const scene = new BABYLON.Scene(engine)
   scene.clearColor.set(1, 0, 0.6, 1)
 
@@ -154,23 +154,6 @@ export const blackbody = (kelvin: number) => {
 }
 
 export function setupScene(canvas: HTMLCanvasElement, engine: BABYLON.Engine, onClick?: (mesh: BABYLON.AbstractMesh | undefined) => void): BABYLON.Scene {
-  BABYLON.Effect.ShadersStore['WobbleFragmentShader'] = `
-    precision highp float;
-
-    uniform float iTime;
-    in vec2 vUV;
-    
-    void main() { 
-      vec2 uv = vUV;
-      uv.x += sin(iTime) * uv.y;
-      uv.y += cos(iTime) * uv.x;
-
-      float d = length(uv) * 0.25;
-
-      gl_FragColor = vec4(uv.x, uv.y, 0.5, 1.0); 
-    }
-   `
-
   const scene = new BABYLON.Scene(engine)
   scene.clearColor = new BABYLON.Color4(1, 1, 1, 1)
 

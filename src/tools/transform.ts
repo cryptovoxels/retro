@@ -24,6 +24,8 @@ export default class Transform {
     this.proxy.rotationQuaternion = BABYLON.Quaternion.Identity()
     this.overlay = new TransformOverlay(scene)
     this.layer = new BABYLON.UtilityLayerRenderer(scene)
+    this.layer.onlyCheckPointerDownEvents = true
+    this.layer.utilityLayerScene.skipPointerMovePicking = true
     this.gizmos = new BABYLON.GizmoManager(scene, 1, this.layer)
     this.gizmos.usePointerToAttachGizmos = false
     this.gizmos.positionGizmoEnabled = this.gizmos.rotationGizmoEnabled = this.gizmos.scaleGizmoEnabled = true

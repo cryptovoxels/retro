@@ -280,6 +280,7 @@ export default class Selector implements Tool {
   }
 
   onPointerObservable(eventData: BABYLON.PointerInfo) {
+    if (eventData.type === BABYLON.PointerEventTypes.POINTERMOVE) return
     const pickInfo = this.controls.pickForPointer(eventData.pickInfo)
     if (!pickInfo) return
     switch (eventData.type) {
@@ -297,10 +298,6 @@ export default class Selector implements Tool {
           this.onLeftPointerUp(eventData.event, pickInfo)
         }
         break
-
-      case BABYLON.PointerEventTypes.POINTERMOVE:
-        this.onMove(pickInfo)
-        break
     }
   }
 
@@ -311,9 +308,6 @@ export default class Selector implements Tool {
       if (this.controls.firstPersonView) this.box.visibility = 0
       return
     }
-
-    const pick = this.controls.pickForPointer(null)
-    if (pick) this.onMove(pick)
   }
 
   async onLeftPointerDown(e: BABYLON.IMouseEvent, pickResult: BABYLON.PickingInfo) {

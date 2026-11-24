@@ -434,9 +434,16 @@ export function orderLiveStrip<T extends LiveStripEntry>(entries: T[]): T[] {
   return out
 }
 
-// Passing a WebGL2 context prevents Babylon from silently falling back to WebGL1.
-export function createEngine(canvas: any, antialias = false, options: BABYLON.EngineOptions = {}, adaptToDeviceRatio = false): BABYLON.Engine {
-  const context = canvas?.getContext ? canvas.getContext('webgl2', { stencil: true, preserveDrawingBuffer: true, ...options, antialias: options.antialias ?? antialias }) : canvas
-  if (!context?.texImage3D) throw new Error('WebGL2 is required')
-  return new BABYLON.Engine(context, antialias, options, adaptToDeviceRatio)
+export async function createEngine(canvas: any, options: BABYLON.WebGPUEngineOptions = {}): Promise<BABYLON.Engine> {
+  const engine = new BABYLON.WebGPUEngine(canvas, { stencil: true, antialias: false, enableAllFeatures: true, ...options })
+  await engine.initAsync()
+  return engine as any
+}
+
+export async function renderFrame(scene: BABYLON.Scene) {
+  await scene.whenReadyAsync()
+  const engine = scene.getEngine()
+  engine.beginFrame()
+  scene.render()
+  engine.endFrame()
 }

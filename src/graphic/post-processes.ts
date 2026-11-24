@@ -15,6 +15,7 @@ export class PostProcesses {
   private pixels = 1
   private pixelTarget = 1
   private loading = true
+  private antialias = true
   private move: (() => void) | null = null
 
   constructor(scene: BABYLON.Scene, color: ColorGrader, graphics: GraphicEngine) {
@@ -24,19 +25,26 @@ export class PostProcesses {
     const sharpen = new BABYLON.SharpenPostProcess('sharpen', 1.0, null, BABYLON.Texture.BILINEAR_SAMPLINGMODE, this.scene.getEngine(), false, BABYLON.Constants.TEXTURETYPE_UNSIGNED_INT)
     sharpen.edgeAmount = 0.1
 
-    BABYLON.Effect.ShadersStore['pixelationFragmentShader'] = `
-      precision highp float;
-      varying vec2 vUV;
-      uniform sampler2D textureSampler;
-      uniform vec2 resolution;
-      uniform float amount;
-      void main(void) {
-        float size = max(1.0, pow(amount, 3.0) * min(resolution.x, resolution.y) / 4.0);
-        vec2 uv = amount <= 0.0 ? vUV : (floor(vUV * resolution / size) + 0.5) * size / resolution;
-        gl_FragColor = texture2D(textureSampler, clamp(uv, 0.5 / resolution, 1.0 - 0.5 / resolution));
+    BABYLON.ShaderStore.ShadersStoreWGSL['pixelationFragmentShader'] = `
+      varying vUV: vec2<f32>;
+      var textureSampler: texture_2d<f32>;
+      var textureSamplerSampler: sampler;
+      uniform resolution: vec2<f32>;
+      uniform amount: f32;
+      @fragment
+      fn main(input: FragmentInputs) -> FragmentOutputs {
+        let size = max(1.0, pow(uniforms.amount, 3.0) * min(uniforms.resolution.x, uniforms.resolution.y) / 4.0);
+        let uv = select((floor(fragmentInputs.vUV * uniforms.resolution / size) + 0.5) * size / uniforms.resolution, fragmentInputs.vUV, uniforms.amount <= 0.0);
+        fragmentOutputs.color = textureSample(textureSampler, textureSamplerSampler, clamp(uv, 0.5 / uniforms.resolution, 1.0 - 0.5 / uniforms.resolution));
       }
     `
-    const pixelation = new BABYLON.PostProcess('pixelation', 'pixelation', ['resolution', 'amount'], null, 1, null, BABYLON.Texture.NEAREST_SAMPLINGMODE, scene.getEngine())
+    const pixelation = new BABYLON.PostProcess('pixelation', 'pixelation', {
+      uniforms: ['resolution', 'amount'],
+      size: 1,
+      engine: scene.getEngine(),
+      samplingMode: BABYLON.Texture.NEAREST_SAMPLINGMODE,
+      shaderLanguage: BABYLON.ShaderLanguage.WGSL,
+    })
     pixelation.onApply = (effect) => {
       effect.setFloat2('resolution', pixelation.width, pixelation.height)
       effect.setFloat('amount', this.pixels)
@@ -114,6 +122,11 @@ export class PostProcesses {
 
   setUnderwater(_on: boolean) {}
 
+  dropAA() {
+    this.antialias = false
+    this.colorGrader.postProcess.samples = 1
+  }
+
   changeEffects(level: GraphicLevels) {
     if (wantsGateway()) return
     if (isMobile()) level = GraphicLevels.Low
@@ -131,17 +144,19 @@ export class PostProcesses {
         this.colorGrader.postProcess.samples = 1
         break
       case GraphicLevels.High:
-        this.colorGrader.postProcess.samples = 2
+        this.colorGrader.postProcess.samples = 4
         this.glowLayer = glow(this.scene, 48, 2, 0.1)
         break
       case GraphicLevels.Ultra:
-        this.colorGrader.postProcess.samples = 8
+        this.colorGrader.postProcess.samples = 4
         this.glowLayer = glow(this.scene, 48, 2, 0.1)
         break
       default:
         this.colorGrader.postProcess.samples = 0
         level = GraphicLevels.Low
     }
+
+    if (!this.antialias) this.colorGrader.postProcess.samples = 1
 
     Object.values(this.pipelines).forEach((p) => {
       const cam = this.scene.activeCamera

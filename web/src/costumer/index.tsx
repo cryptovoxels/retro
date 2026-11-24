@@ -14,7 +14,7 @@ import { debounce, isEqual, sortBy } from 'lodash'
 import { Editor } from './editor'
 import { PanelType } from '../../src/components/panel'
 import { route } from 'preact-router'
-import { pending, registerCostumerVoidBackground, setupGizmos, setupScene } from './utils'
+import { pending, setupGizmos, setupScene } from './utils'
 import { Wearable } from './wearable'
 import Redirect from '../../src/components/redirect'
 import WearableSelector from './wearable-selector'
@@ -65,20 +65,18 @@ export default class Costumer extends Component<Props, State> {
     unowned: [],
   }
 
-  componentDidMount() {
+  async componentDidMount() {
     if (!this.canvas.current) {
       console.error('Could not find canvas')
       return
     }
 
-    this.engine = createEngine(this.canvas.current, true, { stencil: true })
+    this.engine = await createEngine(this.canvas.current, { stencil: true })
     this.resizeObserver = new ResizeObserver(() => this.engine?.resize())
     this.resizeObserver.observe(this.canvas.current)
     this.scene = setupScene(this.canvas.current, this.engine, this.onClick)
 
     this.gizmoManager = setupGizmos(this.scene, this.onDragEnd)
-
-    registerCostumerVoidBackground()
 
     this.fetch().then((avatarCostumeId) => {
       if (!this.props.costumeId && avatarCostumeId) {
